@@ -579,13 +579,35 @@ async fn get_git_status(
         .ok_or("workspace not found")?
         .clone();
 
-    let repo = Repository::open(&entry.path).map_err(|e| e.to_string())?;
+    // Check if path exists
+    let path = std::path::Path::new(&entry.path);
+    if !path.exists() {
+        return Ok(json!({
+            "branchName": "Path not found",
+            "files": [],
+            "totalAdditions": 0,
+            "totalDeletions": 0,
+        }));
+    }
+
+    // Try to open as git repo - handle gracefully if not a git repo
+    let repo = match Repository::open(&entry.path) {
+        Ok(r) => r,
+        Err(_) => {
+            return Ok(json!({
+                "branchName": "Not a git repo",
+                "files": [],
+                "totalAdditions": 0,
+                "totalDeletions": 0,
+            }));
+        }
+    };
 
     let branch_name = repo
         .head()
         .ok()
         .and_then(|head| head.shorthand().map(|s| s.to_string()))
-        .unwrap_or_else(|| "unknown".to_string());
+        .unwrap_or_else(|| "detached".to_string());
 
     let mut status_options = StatusOptions::new();
     status_options
