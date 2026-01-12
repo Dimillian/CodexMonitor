@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { GitFileStatus, WorkspaceInfo } from "../types";
 import { getGitStatus } from "../services/tauri";
 
@@ -22,26 +22,53 @@ const REFRESH_INTERVAL_MS = 3000;
 
 export function useGitStatus(activeWorkspace: WorkspaceInfo | null) {
   const [status, setStatus] = useState<GitStatusState>(emptyStatus);
+  const requestIdRef = useRef(0);
+  const workspaceIdRef = useRef<string | null>(activeWorkspace?.id ?? null);
+  const workspaceId = activeWorkspace?.id ?? null;
 
   const refresh = useCallback(() => {
-    if (!activeWorkspace) {
+    if (!workspaceId) {
       setStatus(emptyStatus);
       return;
     }
-    return getGitStatus(activeWorkspace.id)
-      .then((data) => setStatus({ ...data, error: null }))
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    return getGitStatus(workspaceId)
+      .then((data) => {
+        if (
+          requestIdRef.current !== requestId ||
+          workspaceIdRef.current !== workspaceId
+        ) {
+          return;
+        }
+        setStatus({ ...data, error: null });
+      })
       .catch((err) => {
         console.error("Failed to load git status", err);
+        if (
+          requestIdRef.current !== requestId ||
+          workspaceIdRef.current !== workspaceId
+        ) {
+          return;
+        }
         setStatus({
           ...emptyStatus,
           branchName: "unknown",
           error: err instanceof Error ? err.message : String(err),
         });
       });
-  }, [activeWorkspace]);
+  }, [workspaceId]);
 
   useEffect(() => {
-    if (!activeWorkspace) {
+    if (workspaceIdRef.current !== workspaceId) {
+      workspaceIdRef.current = workspaceId;
+      requestIdRef.current += 1;
+      setStatus(emptyStatus);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    if (!workspaceId) {
       setStatus(emptyStatus);
       return;
     }
@@ -56,7 +83,7 @@ export function useGitStatus(activeWorkspace: WorkspaceInfo | null) {
     return () => {
       window.clearInterval(interval);
     };
-  }, [activeWorkspace, refresh]);
+  }, [refresh, workspaceId]);
 
   return { status, refresh };
 }
