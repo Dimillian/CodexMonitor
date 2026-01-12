@@ -23,6 +23,7 @@ type SidebarProps = {
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
   onSelectThread: (workspaceId: string, threadId: string) => void;
   onDeleteThread: (workspaceId: string, threadId: string) => void;
+  onDeleteWorkspace: (workspaceId: string) => void;
 };
 
 export function Sidebar({
@@ -41,6 +42,7 @@ export function Sidebar({
   onToggleWorkspaceCollapse,
   onSelectThread,
   onDeleteThread,
+  onDeleteWorkspace,
 }: SidebarProps) {
   const [expandedWorkspaces, setExpandedWorkspaces] = useState(
     new Set<string>(),
@@ -64,6 +66,22 @@ export function Sidebar({
       },
     });
     const menu = await Menu.new({ items: [copyItem, archiveItem] });
+    const window = getCurrentWindow();
+    const position = new LogicalPosition(event.clientX, event.clientY);
+    await menu.popup(position, window);
+  }
+
+  async function showWorkspaceMenu(
+    event: React.MouseEvent,
+    workspaceId: string,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    const deleteItem = await MenuItem.new({
+      text: "Delete",
+      action: () => onDeleteWorkspace(workspaceId),
+    });
+    const menu = await Menu.new({ items: [deleteItem] });
     const window = getCurrentWindow();
     const position = new LogicalPosition(event.clientX, event.clientY);
     await menu.popup(position, window);
@@ -150,6 +168,7 @@ export function Sidebar({
                   role="button"
                   tabIndex={0}
                   onClick={() => onSelectWorkspace(entry.id)}
+                  onContextMenu={(event) => showWorkspaceMenu(event, entry.id)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();

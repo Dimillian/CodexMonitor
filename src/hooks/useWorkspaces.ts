@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DebugEntry } from "../types";
 import type { WorkspaceInfo, WorkspaceSettings } from "../types";
+import { ask } from "@tauri-apps/plugin-dialog";
 import {
   addWorkspace as addWorkspaceService,
   connectWorkspace as connectWorkspaceService,
   listWorkspaces,
   pickWorkspacePath,
+  removeWorkspace as removeWorkspaceService,
   updateWorkspaceSettings as updateWorkspaceSettingsService,
 } from "../services/tauri";
 
@@ -149,6 +151,48 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     }
   }
 
+  async function removeWorkspace(workspaceId: string) {
+    const workspace = workspaces.find((entry) => entry.id === workspaceId);
+    const workspaceName = workspace?.name || "this workspace";
+
+    const confirmed = await ask(
+      `Are you sure you want to delete "${workspaceName}"?\n\nThis will remove the workspace from CodexMonitor.`,
+      {
+        title: "Delete Workspace",
+        kind: "warning",
+        okLabel: "Delete",
+        cancelLabel: "Cancel",
+      },
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    onDebug?.({
+      id: `${Date.now()}-client-remove-workspace`,
+      timestamp: Date.now(),
+      source: "client",
+      label: "workspace/remove",
+      payload: { workspaceId },
+    });
+    try {
+      await removeWorkspaceService(workspaceId);
+      setWorkspaces((prev) => prev.filter((entry) => entry.id !== workspaceId));
+      setActiveWorkspaceId((prev) => (prev === workspaceId ? null : prev));
+      await refreshWorkspaces();
+    } catch (error) {
+      onDebug?.({
+        id: `${Date.now()}-client-remove-workspace-error`,
+        timestamp: Date.now(),
+        source: "error",
+        label: "workspace/remove error",
+        payload: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
   return {
     workspaces,
     activeWorkspace,
@@ -158,6 +202,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     connectWorkspace,
     markWorkspaceConnected,
     updateWorkspaceSettings,
+    removeWorkspace,
     hasLoaded,
     refreshWorkspaces,
   };

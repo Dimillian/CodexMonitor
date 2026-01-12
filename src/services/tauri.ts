@@ -29,6 +29,10 @@ export async function updateWorkspaceSettings(
   return invoke<WorkspaceInfo>("update_workspace_settings", { id, settings });
 }
 
+export async function removeWorkspace(id: string): Promise<void> {
+  return invoke("remove_workspace", { id });
+}
+
 export async function connectWorkspace(id: string): Promise<void> {
   return invoke("connect_workspace", { id });
 }
