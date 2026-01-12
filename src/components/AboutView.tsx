@@ -29,7 +29,14 @@ export function AboutView() {
   return (
     <div className="about">
       <div className="about-card">
-        <div className="about-title">Codex Monitor</div>
+        <div className="about-header">
+          <img
+            className="about-icon"
+            src="/app-icon.png"
+            alt="Codex Monitor icon"
+          />
+          <div className="about-title">Codex Monitor</div>
+        </div>
         <div className="about-version">
           {version ? `Version ${version}` : "Version —"}
         </div>

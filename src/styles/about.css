@@ -4,6 +4,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-top: 8px;
+  box-sizing: border-box;
   background: var(--surface-topbar);
   color: var(--text-emphasis);
   -webkit-app-region: no-drag;
@@ -14,8 +16,24 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 24px 28px;
+  padding: 28px 28px 16px;
   text-align: center;
+}
+
+.about-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.about-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  box-shadow:
+    0 18px 30px rgba(15, 18, 30, 0.35),
+    0 2px 10px rgba(15, 18, 30, 0.2);
+  background: radial-gradient(circle at top, rgba(255, 255, 255, 0.3), transparent);
 }
 
 .about-title {
@@ -70,4 +88,20 @@
 
 .about-link-sep {
   color: var(--text-dim);
+}
+
+@media (max-height: 720px) {
+  .about {
+    padding-top: 16px;
+  }
+
+  .about-card {
+    padding: 22px 20px 12px;
+  }
+
+  .about-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+  }
 }

@@ -11,6 +11,7 @@ type SidebarProps = {
     string,
     { isProcessing: boolean; hasUnread: boolean; isReviewing: boolean }
   >;
+  threadListLoadingByWorkspace: Record<string, boolean>;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   accountRateLimits: RateLimitSnapshot | null;
@@ -28,6 +29,7 @@ export function Sidebar({
   workspaces,
   threadsByWorkspace,
   threadStatusById,
+  threadListLoadingByWorkspace,
   activeWorkspaceId,
   activeThreadId,
   accountRateLimits,
@@ -134,6 +136,10 @@ export function Sidebar({
             const threads = threadsByWorkspace[entry.id] ?? [];
             const isCollapsed = entry.settings.sidebarCollapsed;
             const showThreads = !isCollapsed && threads.length > 0;
+            const isLoadingThreads =
+              threadListLoadingByWorkspace[entry.id] ?? false;
+            const showThreadLoader =
+              !isCollapsed && isLoadingThreads && threads.length === 0;
 
             return (
               <div key={entry.id} className="workspace-card">
@@ -272,6 +278,13 @@ export function Sidebar({
                           : `${threads.length - 3} more...`}
                       </button>
                     )}
+                  </div>
+                )}
+                {showThreadLoader && (
+                  <div className="thread-loading" aria-label="Loading agents">
+                    <span className="thread-skeleton thread-skeleton-wide" />
+                    <span className="thread-skeleton" />
+                    <span className="thread-skeleton thread-skeleton-short" />
                   </div>
                 )}
               </div>

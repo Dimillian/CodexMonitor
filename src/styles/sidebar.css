@@ -186,7 +186,36 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-left: 12px;
+  margin-left: 0;
+}
+
+.thread-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 6px 4px;
+}
+
+.thread-skeleton {
+  height: 8px;
+  width: 62%;
+  border-radius: 999px;
+  background: linear-gradient(
+    110deg,
+    rgba(255, 255, 255, 0.04) 8%,
+    rgba(255, 255, 255, 0.18) 18%,
+    rgba(255, 255, 255, 0.04) 33%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.thread-skeleton-wide {
+  width: 78%;
+}
+
+.thread-skeleton-short {
+  width: 44%;
 }
 
 .thread-row {
@@ -336,5 +365,14 @@
   100% {
     transform: scale(0.9);
     opacity: 0.6;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
   }
 }

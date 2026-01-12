@@ -133,6 +133,7 @@ function MainApp() {
     approvals,
     threadsByWorkspace,
     threadStatusById,
+    threadListLoadingByWorkspace,
     activeTurnIdByThread,
     tokenUsageByThread,
     rateLimitsByWorkspace,
@@ -321,6 +322,7 @@ function MainApp() {
         workspaces={workspaces}
         threadsByWorkspace={threadsByWorkspace}
         threadStatusById={threadStatusById}
+        threadListLoadingByWorkspace={threadListLoadingByWorkspace}
         activeWorkspaceId={activeWorkspaceId}
         activeThreadId={activeThreadId}
         accountRateLimits={activeRateLimits}

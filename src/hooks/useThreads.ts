@@ -37,6 +37,7 @@ type ThreadState = {
     string,
     { isProcessing: boolean; hasUnread: boolean; isReviewing: boolean }
   >;
+  threadListLoadingByWorkspace: Record<string, boolean>;
   activeTurnIdByThread: Record<string, string | null>;
   approvals: ApprovalRequest[];
   tokenUsageByThread: Record<string, ThreadTokenUsage>;
@@ -67,6 +68,11 @@ type ThreadAction =
   | { type: "appendReasoningContent"; threadId: string; itemId: string; delta: string }
   | { type: "appendToolOutput"; threadId: string; itemId: string; delta: string }
   | { type: "setThreads"; workspaceId: string; threads: ThreadSummary[] }
+  | {
+      type: "setThreadListLoading";
+      workspaceId: string;
+      isLoading: boolean;
+    }
   | { type: "addApproval"; approval: ApprovalRequest }
   | { type: "removeApproval"; requestId: number }
   | { type: "setThreadTokenUsage"; threadId: string; tokenUsage: ThreadTokenUsage }
@@ -84,6 +90,7 @@ const initialState: ThreadState = {
   itemsByThread: emptyItems,
   threadsByWorkspace: {},
   threadStatusById: {},
+  threadListLoadingByWorkspace: {},
   activeTurnIdByThread: {},
   approvals: [],
   tokenUsageByThread: {},
@@ -483,6 +490,14 @@ function threadReducer(state: ThreadState, action: ThreadAction): ThreadState {
         },
       };
     }
+    case "setThreadListLoading":
+      return {
+        ...state,
+        threadListLoadingByWorkspace: {
+          ...state.threadListLoadingByWorkspace,
+          [action.workspaceId]: action.isLoading,
+        },
+      };
     case "setThreadTokenUsage":
       return {
         ...state,
@@ -1447,6 +1462,11 @@ export function useThreads({
 
   const listThreadsForWorkspace = useCallback(
     async (workspace: WorkspaceInfo) => {
+      dispatch({
+        type: "setThreadListLoading",
+        workspaceId: workspace.id,
+        isLoading: true,
+      });
       onDebug?.({
         id: `${Date.now()}-client-thread-list`,
         timestamp: Date.now(),
@@ -1526,6 +1546,12 @@ export function useThreads({
           source: "error",
           label: "thread/list error",
           payload: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        dispatch({
+          type: "setThreadListLoading",
+          workspaceId: workspace.id,
+          isLoading: false,
         });
       }
     },
@@ -1808,6 +1834,7 @@ export function useThreads({
     approvals: state.approvals,
     threadsByWorkspace: state.threadsByWorkspace,
     threadStatusById: state.threadStatusById,
+    threadListLoadingByWorkspace: state.threadListLoadingByWorkspace,
     activeTurnIdByThread: state.activeTurnIdByThread,
     tokenUsageByThread: state.tokenUsageByThread,
     rateLimitsByWorkspace: state.rateLimitsByWorkspace,
