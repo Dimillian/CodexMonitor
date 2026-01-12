@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "PATH=$HOME/.cargo/bin:$PATH tauri"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
