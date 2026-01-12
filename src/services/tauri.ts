@@ -5,8 +5,11 @@ import type { GitFileDiff, GitFileStatus, GitLogResponse, ReviewTarget } from ".
 
 export async function pickWorkspacePath(): Promise<string | null> {
   const selection = await open({ directory: true, multiple: false });
-  if (!selection || Array.isArray(selection)) {
+  if (!selection) {
     return null;
+  }
+  if (Array.isArray(selection)) {
+    return selection[0] ?? null;
   }
   return selection;
 }

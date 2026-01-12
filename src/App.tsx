@@ -196,9 +196,21 @@ function MainApp() {
   });
 
   async function handleAddWorkspace() {
-    const workspace = await addWorkspace();
-    if (workspace) {
-      setActiveThreadId(null, workspace.id);
+    try {
+      const workspace = await addWorkspace();
+      if (workspace) {
+        setActiveThreadId(null, workspace.id);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      addDebugEntry({
+        id: `${Date.now()}-client-add-workspace-error`,
+        timestamp: Date.now(),
+        source: "error",
+        label: "workspace/add error",
+        payload: message,
+      });
+      alert(`Failed to add workspace.\n\n${message}`);
     }
   }
 
