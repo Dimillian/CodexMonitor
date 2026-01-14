@@ -959,6 +959,15 @@ mod cloudkit_impl {
         }))
     }
 
+    fn command_result_exists_blocking(
+        database: &CKDatabase,
+        runner_id: &str,
+        command_id: &str,
+    ) -> Result<bool, String> {
+        let record_id = record_id_from_name(&result_record_name(runner_id, command_id));
+        Ok(fetch_record_retained(database, &record_id)?.is_some())
+    }
+
     pub(super) fn fetch_latest_command_result_blocking(
         container_id: String,
         runner_id: String,
@@ -1629,6 +1638,15 @@ mod cloudkit_impl {
                     Ok(value) => value,
                     Err(_) => continue,
                 };
+
+                // If we already wrote a result for this command, never execute again.
+                // This makes the runner idempotent across restarts and across multiple instances.
+                if let Ok(true) = command_result_exists_blocking(&database, &runner_id, &command_id) {
+                    debug_log(&format!("skipping already-processed command {command_id}"));
+                    let record_id = record_id_from_name(&command_record_name(&runner_id, &command_id));
+                    let _ = delete_record_blocking(&database, &record_id);
+                    continue;
+                }
                 if processed.contains(&command_id) {
                     // Best-effort cleanup of duplicate commands; delete and skip.
                     let record_id = record_id_from_name(&command_record_name(&runner_id, &command_id));
@@ -1652,7 +1670,10 @@ mod cloudkit_impl {
                         text.hash(&mut hasher);
                         let key = hasher.finish();
                         if let Some(prev) = recent_send_dedupe.get(&key) {
-                            if prev.elapsed() < Duration::from_millis(1800) {
+                            // CloudKit commands can be observed multiple times across devices/polls.
+                            // Keep this window fairly large to avoid accidental double-execution from
+                            // UI retries or delayed record visibility.
+                            if prev.elapsed() < Duration::from_millis(10_000) {
                                 debug_log(&format!("skipping duplicate sendUserMessage command {command_id}"));
                                 let payload_json = serde_json::json!({ "skippedDuplicate": true }).to_string();
                                 let _ = write_command_result_blocking(

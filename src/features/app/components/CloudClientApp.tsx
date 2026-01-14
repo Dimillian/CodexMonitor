@@ -27,6 +27,7 @@ import {
   writeCloudCacheThread,
   writeCloudCacheWorkspace,
 } from "../../../cloud/cloudCache";
+import { pushCloudTelemetry } from "../../../cloud/cloudTelemetry";
 import { Home } from "../../home/components/Home";
 import { useLayoutMode } from "../../layout/hooks/useLayoutMode";
 import { useResizablePanels } from "../../layout/hooks/useResizablePanels";
@@ -34,7 +35,7 @@ import { Composer } from "../../composer/components/Composer";
 import { Messages } from "../../messages/components/Messages";
 import { SettingsView } from "../../settings/components/SettingsView";
 import { useAppSettings } from "../../settings/hooks/useAppSettings";
-import { buildItemsFromThread } from "../../../threads/threadItems";
+import { buildItemsFromThread } from "../../../utils/threadItems";
 import { MainHeader } from "./MainHeader";
 import { Sidebar } from "./Sidebar";
 import { TabBar } from "./TabBar";
@@ -61,8 +62,17 @@ function isRunnerOnline(updatedAtMs: number) {
 type PendingCommand = {
   id: string;
   createdAt: number;
-  status: "submitting" | "waiting" | "done" | "error";
+  phase: "submitting" | "waitingResult" | "waitingReply" | "error";
+  resultPayloadJson?: string | null;
   error?: string;
+};
+
+type AwaitingReply = {
+  commandId: string;
+  workspaceId: string;
+  threadId: string;
+  startedAtMs: number;
+  baselineAssistantCount: number;
 };
 
 export function CloudClientApp() {
@@ -105,8 +115,26 @@ export function CloudClientApp() {
       return true;
     }
   });
-  const [pendingCommand, setPendingCommand] = useState<PendingCommand | null>(null);
-  const lastThreadUpdatedAt = useRef<number>(0);
+  const [pendingByThreadKey, setPendingByThreadKey] = useState<Record<string, PendingCommand>>(
+    {},
+  );
+  const pendingByThreadKeyRef = useRef(pendingByThreadKey);
+  useEffect(() => {
+    pendingByThreadKeyRef.current = pendingByThreadKey;
+  }, [pendingByThreadKey]);
+
+  const [awaitingByThreadKey, setAwaitingByThreadKey] = useState<Record<string, AwaitingReply>>(
+    {},
+  );
+  const awaitingByThreadKeyRef = useRef(awaitingByThreadKey);
+  useEffect(() => {
+    awaitingByThreadKeyRef.current = awaitingByThreadKey;
+  }, [awaitingByThreadKey]);
+
+  const [localItemsByThreadKey, setLocalItemsByThreadKey] = useState<
+    Record<string, ConversationItem[]>
+  >({});
+  const lastThreadUpdatedAtByKey = useRef<Record<string, number>>({});
   const [cloudError, setCloudError] = useState<string | null>(null);
   const [threadLoadMode, setThreadLoadMode] = useState<"idle" | "loading" | "syncing">("idle");
   const [threadLoadLabel, setThreadLoadLabel] = useState<string | null>(null);
@@ -116,12 +144,97 @@ export function CloudClientApp() {
   const lastWorkspaceUpdatedAt = useRef<Record<string, number>>({});
   const lastWorkspaceFetchAt = useRef<Record<string, number>>({});
   const lastThreadFetchAt = useRef<number>(0);
+  const lastBackgroundThreadFetchAtByKey = useRef<Record<string, number>>({});
   const lastSendRef = useRef<{
     workspaceId: string;
     threadId: string;
     text: string;
     atMs: number;
   } | null>(null);
+
+  const threadKey = useCallback((workspaceId: string, threadId: string) => {
+    return `${workspaceId}::${threadId}`;
+  }, []);
+
+  const activeThreadKey = useMemo(() => {
+    if (!activeWorkspaceId || !activeThreadId) return null;
+    return threadKey(activeWorkspaceId, activeThreadId);
+  }, [activeThreadId, activeWorkspaceId, threadKey]);
+
+  const activePending = useMemo(() => {
+    if (!activeThreadKey) return null;
+    return pendingByThreadKey[activeThreadKey] ?? null;
+  }, [activeThreadKey, pendingByThreadKey]);
+
+  const activeAwaiting = useMemo(() => {
+    if (!activeThreadKey) return null;
+    return awaitingByThreadKey[activeThreadKey] ?? null;
+  }, [activeThreadKey, awaitingByThreadKey]);
+
+  const countAssistantMessages = useCallback((items: ConversationItem[]) => {
+    return items.filter((item) => item.kind === "message" && item.role === "assistant").length;
+  }, []);
+
+  const reconcileLocalItems = useCallback(
+    (key: string, snapshotItems: ConversationItem[]) => {
+      setLocalItemsByThreadKey((prev) => {
+        const local = prev[key];
+        if (!local || local.length === 0) return prev;
+
+        // Drop local items that are already present in the snapshot (exact role+text match).
+        const snapshotSigs = new Set(
+          snapshotItems
+            .filter((item) => item.kind === "message")
+            .map((item) => `${item.kind}:${(item as any).role}:${(item as any).text}`),
+        );
+        const filtered = local.filter((item) => {
+          if (item.kind !== "message") return true;
+          const sig = `${item.kind}:${(item as any).role}:${(item as any).text}`;
+          return !snapshotSigs.has(sig);
+        });
+        if (filtered.length === local.length) return prev;
+        const next = { ...prev };
+        if (filtered.length) {
+          next[key] = filtered;
+        } else {
+          delete next[key];
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
+  const applyAwaitingResolutionFromItems = useCallback(
+    (key: string, workspaceId: string, threadId: string, items: ConversationItem[]) => {
+      const awaiting = awaitingByThreadKeyRef.current[key];
+      if (!awaiting) return;
+      const assistantCount = countAssistantMessages(items);
+      if (assistantCount > awaiting.baselineAssistantCount) {
+        pushCloudTelemetry({
+          event: "reply.seen",
+          fromCache: false,
+          workspaceId,
+          threadId,
+          commandId: awaiting.commandId,
+          note: `assistant+${assistantCount - awaiting.baselineAssistantCount}`,
+        });
+        setAwaitingByThreadKey((prev) => {
+          if (!prev[key]) return prev;
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+        setPendingByThreadKey((prev) => {
+          if (!prev[key]) return prev;
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+      }
+    },
+    [countAssistantMessages],
+  );
 
   const e2eEnabled = (import.meta as any).env?.VITE_E2E === "1";
   const pollIntervalMs = useMemo(() => {
@@ -131,6 +244,9 @@ export function CloudClientApp() {
     }
     return 5000;
   }, [appSettings.cloudKitPollIntervalMs]);
+
+  const shouldFastPollActiveThread =
+    Boolean(activeAwaiting) || Boolean(activePending && activePending.phase !== "error");
 
   const restoreRequested = useRef(false);
   useEffect(() => {
@@ -184,8 +300,15 @@ export function CloudClientApp() {
 
     const cached = loadCloudCache();
     if (!cached) {
+      pushCloudTelemetry({ event: "cache.hydrate", fromCache: false, note: "empty" });
       return;
     }
+
+    pushCloudTelemetry({
+      event: "cache.hydrate",
+      fromCache: true,
+      note: `ws=${Object.keys(cached.workspaces).length} th=${Object.keys(cached.threads).length}`,
+    });
 
     if (cached.runner) {
       setRunnerId(cached.runner.runnerId);
@@ -209,8 +332,16 @@ export function CloudClientApp() {
     if (activeWorkspaceId && activeThreadId) {
       const cachedThread = getCachedThreadSnapshot(cached, activeWorkspaceId, activeThreadId);
       if (cachedThread) {
-        lastThreadUpdatedAt.current = cachedThread.ts;
+        const key = threadKey(activeWorkspaceId, activeThreadId);
+        lastThreadUpdatedAtByKey.current[key] = cachedThread.ts;
         setThreadSnap(cachedThread);
+        pushCloudTelemetry({
+          event: "thread.apply",
+          fromCache: true,
+          workspaceId: activeWorkspaceId,
+          threadId: activeThreadId,
+          note: `ts=${cachedThread.ts}`,
+        });
       }
     }
   }, [activeThreadId, activeWorkspaceId]);
@@ -227,10 +358,12 @@ export function CloudClientApp() {
     if (!cachedThread) {
       return;
     }
-    if (cachedThread.ts <= lastThreadUpdatedAt.current) {
+    const key = threadKey(activeWorkspaceId, activeThreadId);
+    const prevTs = lastThreadUpdatedAtByKey.current[key] ?? 0;
+    if (cachedThread.ts <= prevTs) {
       return;
     }
-    lastThreadUpdatedAt.current = cachedThread.ts;
+    lastThreadUpdatedAtByKey.current[key] = cachedThread.ts;
     setThreadSnap(cachedThread);
   }, [activeThreadId, activeWorkspaceId, threadSnap]);
 
@@ -248,6 +381,15 @@ export function CloudClientApp() {
         return null;
       }
       const commandId = crypto.randomUUID();
+      pushCloudTelemetry({
+        event: "command.submit",
+        commandId,
+        workspaceId:
+          typeof (args as any).workspaceId === "string" ? ((args as any).workspaceId as string) : undefined,
+        threadId:
+          typeof (args as any).threadId === "string" ? ((args as any).threadId as string) : undefined,
+        note: type,
+      });
       await cloudkitSubmitCommand(
         runnerId,
         JSON.stringify({ commandId, clientId, type, args }),
@@ -288,7 +430,15 @@ export function CloudClientApp() {
         writeCloudCacheRunner(runner);
 
         let globalSnapshot: CloudGlobalSnapshot | null = null;
-        const globalRecord = await cloudkitGetSnapshot(runner.runnerId, globalScopeKey());
+        const globalScope = globalScopeKey();
+        const globalFetchStart = performance.now();
+        const globalRecord = await cloudkitGetSnapshot(runner.runnerId, globalScope);
+        pushCloudTelemetry({
+          event: "snapshot.fetch",
+          scopeKey: globalScope,
+          fromCache: false,
+          durationMs: performance.now() - globalFetchStart,
+        });
         if (globalRecord?.payloadJson) {
           const parsed = parseCloudSnapshot<CloudGlobalSnapshot["payload"]>(globalRecord.payloadJson);
           if (parsed) {
@@ -327,10 +477,16 @@ export function CloudClientApp() {
                   return null;
                 }
                 lastWorkspaceFetchAt.current[workspaceId] = now;
-                const wsRecord = await cloudkitGetSnapshot(
-                  runner.runnerId,
-                  workspaceScopeKey(workspaceId),
-                );
+                const scopeKey = workspaceScopeKey(workspaceId);
+                const wsFetchStart = performance.now();
+                const wsRecord = await cloudkitGetSnapshot(runner.runnerId, scopeKey);
+                pushCloudTelemetry({
+                  event: "snapshot.fetch",
+                  scopeKey,
+                  workspaceId,
+                  fromCache: false,
+                  durationMs: performance.now() - wsFetchStart,
+                });
                 if (!wsRecord?.payloadJson) return null;
                 const parsed = parseCloudSnapshot<CloudWorkspaceSnapshot["payload"]>(
                   wsRecord.payloadJson,
@@ -362,27 +518,93 @@ export function CloudClientApp() {
         if (activeWorkspaceId && activeThreadId) {
           const now = Date.now();
           const refreshMs =
-            threadLoadMode !== "idle" || pendingCommand?.status === "waiting"
+            threadLoadMode !== "idle" || shouldFastPollActiveThread
               ? pollIntervalMs
               : Math.max(pollIntervalMs * 2, 8000);
           if (now - lastThreadFetchAt.current >= refreshMs) {
             lastThreadFetchAt.current = now;
-            const thRecord = await cloudkitGetSnapshot(
-              runner.runnerId,
-              threadScopeKey(activeWorkspaceId, activeThreadId),
-            );
+            const scopeKey = threadScopeKey(activeWorkspaceId, activeThreadId);
+            const thFetchStart = performance.now();
+            const thRecord = await cloudkitGetSnapshot(runner.runnerId, scopeKey);
+            pushCloudTelemetry({
+              event: "snapshot.fetch",
+              scopeKey,
+              workspaceId: activeWorkspaceId,
+              threadId: activeThreadId,
+              fromCache: false,
+              durationMs: performance.now() - thFetchStart,
+            });
             if (thRecord?.payloadJson) {
               const parsed = parseCloudSnapshot<CloudThreadSnapshot["payload"]>(thRecord.payloadJson);
               if (parsed) {
                 const next = parsed as CloudThreadSnapshot;
-                if (next.ts > lastThreadUpdatedAt.current) {
-                  lastThreadUpdatedAt.current = next.ts;
+                const key = threadKey(activeWorkspaceId, activeThreadId);
+                const prevTs = lastThreadUpdatedAtByKey.current[key] ?? 0;
+                if (next.ts > prevTs) {
+                  lastThreadUpdatedAtByKey.current[key] = next.ts;
                   setThreadSnap(next);
                   writeCloudCacheThread(next);
+                  const nextItems = Array.isArray(next.payload.items) ? (next.payload.items as ConversationItem[]) : [];
+                  if (nextItems.length) {
+                    reconcileLocalItems(key, nextItems);
+                    applyAwaitingResolutionFromItems(key, activeWorkspaceId, activeThreadId, nextItems);
+                  }
                   setThreadLoadMode("idle");
                   setThreadLoadLabel(null);
                 }
               }
+            }
+          }
+          // Background: keep polling any other threads that are awaiting a reply so we can
+          // clear spinners even if the user navigates away.
+          const awaitingKeys = Object.keys(awaitingByThreadKeyRef.current);
+          if (awaitingKeys.length > 0) {
+            for (const key of awaitingKeys) {
+              if (key === threadKey(activeWorkspaceId, activeThreadId)) continue;
+              const last = lastBackgroundThreadFetchAtByKey.current[key] ?? 0;
+              if (now - last < pollIntervalMs) continue;
+              lastBackgroundThreadFetchAtByKey.current[key] = now;
+              const [wsId, thId] = key.split("::");
+              if (!wsId || !thId) continue;
+              const bgScopeKey = threadScopeKey(wsId, thId);
+              const bgFetchStart = performance.now();
+              try {
+                const record = await cloudkitGetSnapshot(runner.runnerId, bgScopeKey);
+                pushCloudTelemetry({
+                  event: "snapshot.fetch",
+                  scopeKey: bgScopeKey,
+                  workspaceId: wsId,
+                  threadId: thId,
+                  fromCache: false,
+                  durationMs: performance.now() - bgFetchStart,
+                  note: "thread(background)",
+                });
+                if (!record?.payloadJson) break;
+                const parsed = parseCloudSnapshot<CloudThreadSnapshot["payload"]>(record.payloadJson);
+                if (!parsed) break;
+                const next = parsed as CloudThreadSnapshot;
+                const prevTs = lastThreadUpdatedAtByKey.current[key] ?? 0;
+                if (next.ts > prevTs) {
+                  lastThreadUpdatedAtByKey.current[key] = next.ts;
+                  writeCloudCacheThread(next);
+                  const nextItems = Array.isArray(next.payload.items) ? (next.payload.items as ConversationItem[]) : [];
+                  if (nextItems.length) {
+                    reconcileLocalItems(key, nextItems);
+                    applyAwaitingResolutionFromItems(key, wsId, thId, nextItems);
+                  }
+                }
+              } catch {
+                pushCloudTelemetry({
+                  event: "snapshot.fetch.error",
+                  scopeKey: bgScopeKey,
+                  workspaceId: wsId,
+                  threadId: thId,
+                  fromCache: false,
+                  durationMs: performance.now() - bgFetchStart,
+                  note: "thread(background)",
+                });
+              }
+              break;
             }
           }
         } else {
@@ -399,7 +621,7 @@ export function CloudClientApp() {
       stopped = true;
       window.clearInterval(interval);
     };
-  }, [activeThreadId, activeWorkspaceId, cloudEnabled, pendingCommand?.status, pollIntervalMs, threadLoadMode]);
+  }, [activeThreadId, activeWorkspaceId, cloudEnabled, pollIntervalMs, shouldFastPollActiveThread, threadKey, threadLoadMode, applyAwaitingResolutionFromItems, reconcileLocalItems]);
 
   useEffect(() => {
     if (!cloudEnabled) {
@@ -469,15 +691,43 @@ export function CloudClientApp() {
       return [];
     }
     const items = Array.isArray(threadSnap.payload.items) ? threadSnap.payload.items : null;
-    if (items && items.length) {
-      return items;
+    const baseItems =
+      items && items.length
+        ? (items as ConversationItem[])
+        : (() => {
+            const thread = threadSnap.payload.thread as Record<string, unknown> | null | undefined;
+            if (thread && typeof thread === "object") {
+              return buildItemsFromThread(thread);
+            }
+            return [];
+          })();
+
+    if (!activeThreadKey) {
+      return baseItems;
     }
-    const thread = threadSnap.payload.thread as Record<string, unknown> | null | undefined;
-    if (thread && typeof thread === "object") {
-      return buildItemsFromThread(thread);
+    const localItems = localItemsByThreadKey[activeThreadKey] ?? [];
+    if (!localItems.length) {
+      return baseItems;
     }
-    return [];
-  }, [activeThreadId, threadSnap]);
+
+    // Append local items (optimistic user/assistant messages) if they aren't already present.
+    const tail = baseItems.slice(Math.max(0, baseItems.length - 12));
+    const tailSigs = new Set(
+      tail
+        .filter((item) => item.kind === "message")
+        .map((item) => `${item.kind}:${(item as any).role}:${(item as any).text}`),
+    );
+    const merged = baseItems.slice();
+    for (const item of localItems) {
+      if (item.kind === "message") {
+        const sig = `${item.kind}:${(item as any).role}:${(item as any).text}`;
+        if (tailSigs.has(sig)) continue;
+        tailSigs.add(sig);
+      }
+      merged.push(item);
+    }
+    return merged;
+  }, [activeThreadId, activeThreadKey, localItemsByThreadKey, threadSnap]);
 
   useEffect(() => {
     if (!activeThreadId) {
@@ -504,9 +754,11 @@ export function CloudClientApp() {
       return;
     }
     const timeout = window.setTimeout(() => {
-      setThreadLoadMode("idle");
+      // Avoid flicker: keep the sync badge visible longer, because CloudKit snapshots can lag.
+      // The poller or a direct fetch will clear it earlier once a newer snapshot arrives.
+      setThreadLoadMode((mode) => (mode === "syncing" ? "idle" : mode));
       setThreadLoadLabel(null);
-    }, 1200);
+    }, 12_000);
     return () => window.clearTimeout(timeout);
   }, [activeItems.length, activeThreadId, threadLoadMode]);
 
@@ -527,8 +779,18 @@ export function CloudClientApp() {
       if (runnerId && cloudEnabled) {
         void submitCommand("connectWorkspace", { workspaceId: id });
         void (async () => {
+          const scopeKey = workspaceScopeKey(id);
+          const fetchStart = performance.now();
           try {
-            const wsRecord = await cloudkitGetSnapshot(runnerId, workspaceScopeKey(id));
+            const wsRecord = await cloudkitGetSnapshot(runnerId, scopeKey);
+            pushCloudTelemetry({
+              event: "snapshot.fetch",
+              scopeKey,
+              workspaceId: id,
+              fromCache: false,
+              durationMs: performance.now() - fetchStart,
+              note: "workspace(select)",
+            });
             if (!wsRecord?.payloadJson) return;
             const parsed = parseCloudSnapshot<CloudWorkspaceSnapshot["payload"]>(wsRecord.payloadJson);
             if (!parsed) return;
@@ -539,6 +801,14 @@ export function CloudClientApp() {
             setWorkspaceSnaps((prev) => ({ ...prev, [id]: next }));
             writeCloudCacheWorkspace(next);
           } catch {
+            pushCloudTelemetry({
+              event: "snapshot.fetch.error",
+              scopeKey,
+              workspaceId: id,
+              fromCache: false,
+              durationMs: performance.now() - fetchStart,
+              note: "workspace(select)",
+            });
             // ignore; poller will retry.
           }
         })();
@@ -548,20 +818,40 @@ export function CloudClientApp() {
   );
 
   const handleSelectThread = useCallback(
-    (threadId: string) => {
+    (workspaceId: string, threadId: string) => {
+      if (activeWorkspaceId !== workspaceId) {
+        setActiveWorkspaceId(workspaceId);
+      }
       setActiveThreadId(threadId);
       lastThreadFetchAt.current = 0;
-      if (activeWorkspaceId) {
+      if (workspaceId) {
         const cached = loadCloudCache();
-        const cachedThread = getCachedThreadSnapshot(cached, activeWorkspaceId, threadId);
+        const cachedThread = getCachedThreadSnapshot(cached, workspaceId, threadId);
         const hasCachedItems = Boolean(
           cachedThread &&
             Array.isArray(cachedThread.payload.items) &&
             cachedThread.payload.items.length > 0,
         );
-        if (cachedThread && cachedThread.ts > lastThreadUpdatedAt.current) {
-          lastThreadUpdatedAt.current = cachedThread.ts;
+        pushCloudTelemetry({
+          event: "thread.cache",
+          fromCache: hasCachedItems,
+          workspaceId,
+          threadId,
+        });
+        if (cachedThread) {
+          const key = threadKey(workspaceId, threadId);
+          const prevTs = lastThreadUpdatedAtByKey.current[key] ?? 0;
+          if (cachedThread.ts > prevTs) {
+            lastThreadUpdatedAtByKey.current[key] = cachedThread.ts;
+          }
           setThreadSnap(cachedThread);
+          pushCloudTelemetry({
+            event: "thread.apply",
+            fromCache: true,
+            workspaceId,
+            threadId,
+            note: `ts=${cachedThread.ts}`,
+          });
         }
         setThreadLoadMode(hasCachedItems ? "syncing" : "loading");
         setThreadLoadLabel(hasCachedItems ? "Syncing from iCloud…" : "Loading conversation…");
@@ -572,34 +862,64 @@ export function CloudClientApp() {
       if (isCompact) {
         setActiveTab("codex");
       }
-      if (runnerId && cloudEnabled && activeWorkspaceId) {
-        void submitCommand("resumeThread", { workspaceId: activeWorkspaceId, threadId });
+      if (runnerId && cloudEnabled && workspaceId) {
+        void submitCommand("resumeThread", { workspaceId, threadId });
         void (async () => {
+          const scopeKey = threadScopeKey(workspaceId, threadId);
+          const fetchStart = performance.now();
           try {
-            const record = await cloudkitGetSnapshot(
-              runnerId,
-              threadScopeKey(activeWorkspaceId, threadId),
-            );
+            const record = await cloudkitGetSnapshot(runnerId, scopeKey);
+            pushCloudTelemetry({
+              event: "snapshot.fetch",
+              scopeKey,
+              workspaceId,
+              threadId,
+              fromCache: false,
+              durationMs: performance.now() - fetchStart,
+              note: "thread(select)",
+            });
             if (!record?.payloadJson) return;
             const parsed = parseCloudSnapshot<CloudThreadSnapshot["payload"]>(record.payloadJson);
             if (!parsed) return;
             const next = parsed as CloudThreadSnapshot;
-            if (next.ts > lastThreadUpdatedAt.current) {
-              lastThreadUpdatedAt.current = next.ts;
+            const key = threadKey(workspaceId, threadId);
+            const prevTs = lastThreadUpdatedAtByKey.current[key] ?? 0;
+            if (next.ts > prevTs) {
+              lastThreadUpdatedAtByKey.current[key] = next.ts;
               setThreadSnap(next);
               writeCloudCacheThread(next);
             }
           } catch {
+            pushCloudTelemetry({
+              event: "snapshot.fetch.error",
+              scopeKey,
+              workspaceId,
+              threadId,
+              fromCache: false,
+              durationMs: performance.now() - fetchStart,
+              note: "thread(select)",
+            });
             // ignore; poller will retry.
           }
         })();
       }
     },
-    [activeWorkspaceId, cloudEnabled, isCompact, runnerId, submitCommand],
+    [activeWorkspaceId, cloudEnabled, isCompact, runnerId, submitCommand, threadKey],
   );
 
   const handleSend = useCallback(async (text: string) => {
     if (!canSend || !runnerId || !activeWorkspaceId || !activeThreadId) {
+      return;
+    }
+    const key = threadKey(activeWorkspaceId, activeThreadId);
+    const existingPending = pendingByThreadKey[key];
+    if (existingPending && existingPending.phase !== "error") {
+      pushCloudTelemetry({
+        event: "send.blocked",
+        workspaceId: activeWorkspaceId,
+        threadId: activeThreadId,
+        note: existingPending.phase,
+      });
       return;
     }
     const trimmed = text.trim();
@@ -624,8 +944,41 @@ export function CloudClientApp() {
     };
 
     const commandId = crypto.randomUUID();
-    setPendingCommand({ id: commandId, createdAt: Date.now(), status: "submitting" });
+    const baselineAssistantCount = countAssistantMessages(activeItems);
+    setPendingByThreadKey((prev) => ({
+      ...prev,
+      [key]: { id: commandId, createdAt: Date.now(), phase: "submitting" },
+    }));
+    setAwaitingByThreadKey((prev) => ({
+      ...prev,
+      [key]: {
+        commandId,
+        workspaceId: activeWorkspaceId,
+        threadId: activeThreadId,
+        startedAtMs: Date.now(),
+        baselineAssistantCount,
+      },
+    }));
+    setLocalItemsByThreadKey((prev) => ({
+      ...prev,
+      [key]: [
+        ...(prev[key] ?? []),
+        {
+          kind: "message",
+          id: `local-${commandId}-user`,
+          role: "user",
+          text: trimmed,
+        },
+      ],
+    }));
     try {
+      pushCloudTelemetry({
+        event: "send.submit",
+        commandId,
+        workspaceId: activeWorkspaceId,
+        threadId: activeThreadId,
+        note: trimmed,
+      });
       await cloudkitSubmitCommand(
         runnerId,
         JSON.stringify({
@@ -640,40 +993,188 @@ export function CloudClientApp() {
           },
         }),
       );
-      setPendingCommand((prev) => (prev ? { ...prev, status: "waiting" } : prev));
+      setPendingByThreadKey((prev) => {
+        const entry = prev[key];
+        if (!entry || entry.id !== commandId) return prev;
+        return { ...prev, [key]: { ...entry, phase: "waitingResult" } };
+      });
     } catch (error) {
-      setPendingCommand({
-        id: commandId,
-        createdAt: Date.now(),
-        status: "error",
-        error: error instanceof Error ? error.message : String(error),
+      setPendingByThreadKey((prev) => ({
+        ...prev,
+        [key]: {
+          id: commandId,
+          createdAt: Date.now(),
+          phase: "error",
+          error: error instanceof Error ? error.message : String(error),
+        },
+      }));
+      setAwaitingByThreadKey((prev) => {
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
       });
     }
-  }, [accessMode, activeThreadId, activeWorkspaceId, canSend, clientId, runnerId]);
+  }, [
+    accessMode,
+    activeItems,
+    activeThreadId,
+    activeWorkspaceId,
+    canSend,
+    clientId,
+    countAssistantMessages,
+    pendingByThreadKey,
+    runnerId,
+    threadKey,
+  ]);
 
   useEffect(() => {
-    if (!pendingCommand || pendingCommand.status !== "waiting" || !runnerId) {
+    if (!runnerId) {
       return;
     }
     let stopped = false;
     const interval = window.setInterval(() => {
       void (async () => {
         if (stopped) return;
-        const result = await cloudkitGetCommandResult(runnerId, pendingCommand.id);
-        if (!result) return;
-        setPendingCommand((prev) => {
-          if (!prev || prev.id !== pendingCommand.id) return prev;
-          return result.ok
-            ? { ...prev, status: "done" }
-            : { ...prev, status: "error", error: result.payloadJson || "Command failed" };
-        });
+        const entries = Object.entries(pendingByThreadKeyRef.current).filter(
+          ([, pending]) => pending.phase === "waitingResult",
+        );
+        if (!entries.length) return;
+
+        await Promise.all(
+          entries.map(async ([key, pending]) => {
+            const [workspaceId, threadId] = key.split("::");
+            const fetchStart = performance.now();
+            const result = await cloudkitGetCommandResult(runnerId, pending.id);
+            pushCloudTelemetry({
+              event: "command.result.poll",
+              commandId: pending.id,
+              workspaceId,
+              threadId,
+              fromCache: false,
+              durationMs: performance.now() - fetchStart,
+              note: result ? (result.ok ? "ok" : "error") : "none",
+            });
+            if (!result) return;
+
+            if (!result.ok) {
+              setPendingByThreadKey((prev) => ({
+                ...prev,
+                [key]: {
+                  ...pending,
+                  phase: "error",
+                  error: result.payloadJson || "Command failed",
+                },
+              }));
+              setAwaitingByThreadKey((prev) => {
+                if (!prev[key]) return prev;
+                const next = { ...prev };
+                delete next[key];
+                return next;
+              });
+              return;
+            }
+
+            setPendingByThreadKey((prev) => {
+              const current = prev[key];
+              if (!current || current.id !== pending.id) return prev;
+              return {
+                ...prev,
+                [key]: { ...current, phase: "waitingReply", resultPayloadJson: result.payloadJson ?? null },
+              };
+            });
+
+            // If the runner already extracted assistant text, show it immediately so the UI doesn't
+            // feel stuck while waiting for the next snapshot poll.
+            let assistantText = "";
+            try {
+              const parsed = result.payloadJson ? (JSON.parse(result.payloadJson) as any) : null;
+              if (parsed && typeof parsed.assistantText === "string") {
+                assistantText = parsed.assistantText;
+              }
+            } catch {
+              // ignore
+            }
+            if (assistantText.trim()) {
+              const commandId = pending.id;
+              setLocalItemsByThreadKey((prev) => ({
+                ...prev,
+                [key]: [
+                  ...(prev[key] ?? []),
+                  {
+                    kind: "message",
+                    id: `local-${commandId}-assistant`,
+                    role: "assistant",
+                    text: assistantText,
+                  },
+                ],
+              }));
+              // Clear "working" for this thread immediately; the next snapshot will reconcile.
+              setAwaitingByThreadKey((prev) => {
+                if (!prev[key]) return prev;
+                const next = { ...prev };
+                delete next[key];
+                return next;
+              });
+              setPendingByThreadKey((prev) => {
+                if (!prev[key]) return prev;
+                const next = { ...prev };
+                delete next[key];
+                return next;
+              });
+              pushCloudTelemetry({
+                event: "reply.seen",
+                fromCache: true,
+                workspaceId,
+                threadId,
+                commandId,
+                note: "assistantText(result)",
+              });
+            }
+          }),
+        );
       })();
     }, 1500);
     return () => {
       stopped = true;
       window.clearInterval(interval);
     };
-  }, [pendingCommand, runnerId]);
+  }, [applyAwaitingResolutionFromItems, runnerId]);
+
+  useEffect(() => {
+    const keys = Object.keys(awaitingByThreadKey);
+    if (keys.length === 0) return;
+
+    const timeout = window.setInterval(() => {
+      const now = Date.now();
+      Object.entries(awaitingByThreadKeyRef.current).forEach(([key, awaiting]) => {
+        if (now - awaiting.startedAtMs < 15 * 60_000) {
+          return;
+        }
+        pushCloudTelemetry({
+          event: "reply.timeout",
+          fromCache: false,
+          workspaceId: awaiting.workspaceId,
+          threadId: awaiting.threadId,
+          commandId: awaiting.commandId,
+        });
+        setAwaitingByThreadKey((prev) => {
+          if (!prev[key]) return prev;
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+        setPendingByThreadKey((prev) => {
+          if (!prev[key]) return prev;
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+      });
+    }, 10_000);
+
+    return () => window.clearInterval(timeout);
+  }, [awaitingByThreadKey]);
 
   useEffect(() => {
     if (!e2eEnabled || !cloudEnabled || !runnerId || !runnerOnline || !workspaces.length) {
@@ -692,7 +1193,7 @@ export function CloudClientApp() {
     if (!activeWorkspaceId) return;
     if (!threads.length) return;
     if (activeThreadId) return;
-    handleSelectThread(threads[0].id);
+    handleSelectThread(activeWorkspaceId, threads[0].id);
   }, [activeThreadId, activeWorkspaceId, cloudEnabled, e2eEnabled, handleSelectThread, runnerOnline, threads]);
 
   useEffect(() => {
@@ -700,7 +1201,7 @@ export function CloudClientApp() {
     if (!activeWorkspaceId) return;
     if (activeThreadId) return;
     if (threads.length) return;
-    if (pendingCommand) return;
+    if (Object.keys(pendingByThreadKey).length) return;
     if (e2eThreadRequested.current) return;
 
     e2eThreadRequested.current = true;
@@ -708,36 +1209,34 @@ export function CloudClientApp() {
       if (!runnerOnline || !runnerId) return;
       void submitCommand("startThread", { workspaceId: activeWorkspaceId });
     }, 1500);
-  }, [activeThreadId, activeWorkspaceId, cloudEnabled, e2eEnabled, pendingCommand, runnerId, runnerOnline, submitCommand, threads.length]);
+  }, [activeThreadId, activeWorkspaceId, cloudEnabled, e2eEnabled, pendingByThreadKey, runnerId, runnerOnline, submitCommand, threads.length]);
 
   useEffect(() => {
     if (!e2eEnabled || !cloudEnabled || !runnerOnline) return;
     if (!activeWorkspaceId || !activeThreadId) return;
-    if (pendingCommand) return;
+    if (Object.keys(pendingByThreadKey).length) return;
     if (!e2eBaseline.current) {
       e2eBaseline.current = {
-        assistantCount: activeItems.filter(
-          (item) => item.kind === "message" && item.role === "assistant",
-        ).length,
+        assistantCount: countAssistantMessages(activeItems),
       };
     }
     void handleSend("Erzähl mir einen kurzen Witz.");
-  }, [activeThreadId, activeWorkspaceId, cloudEnabled, e2eEnabled, handleSend, pendingCommand, runnerOnline]);
+  }, [activeThreadId, activeWorkspaceId, cloudEnabled, e2eEnabled, handleSend, pendingByThreadKey, runnerOnline, countAssistantMessages, activeItems]);
 
   useEffect(() => {
     if (!e2eEnabled || e2eCompleted.current) return;
     if (!e2eBaseline.current) return;
-    if (!pendingCommand || pendingCommand.status !== "done") return;
+    if (!activeWorkspaceId || !activeThreadId) return;
+    const key = threadKey(activeWorkspaceId, activeThreadId);
+    if (awaitingByThreadKey[key] || pendingByThreadKey[key]) return;
 
-    const currentAssistantCount = activeItems.filter(
-      (item) => item.kind === "message" && item.role === "assistant",
-    ).length;
+    const currentAssistantCount = countAssistantMessages(activeItems);
     if (currentAssistantCount <= e2eBaseline.current.assistantCount) return;
 
     e2eCompleted.current = true;
     void e2eMark("success: received assistant response");
     window.setTimeout(() => void e2eQuit(), 750);
-  }, [activeItems, e2eEnabled, pendingCommand]);
+  }, [activeItems, e2eEnabled, activeThreadId, activeWorkspaceId, awaitingByThreadKey, pendingByThreadKey, threadKey, countAssistantMessages]);
 
   const headerHint = cloudError
     ? cloudError
@@ -765,8 +1264,20 @@ export function CloudClientApp() {
         merged[id] = status;
       });
     });
+    // Cloud mode: mark threads as processing if this device has an in-flight command for them.
+    Object.entries(awaitingByThreadKey).forEach(([key]) => {
+      const [, threadId] = key.split("::");
+      if (!threadId) return;
+      merged[threadId] = { ...(merged[threadId] ?? { hasUnread: false, isReviewing: false, isProcessing: false }), isProcessing: true };
+    });
+    Object.entries(pendingByThreadKey).forEach(([key, pending]) => {
+      const [, threadId] = key.split("::");
+      if (!threadId) return;
+      if (pending.phase === "error") return;
+      merged[threadId] = { ...(merged[threadId] ?? { hasUnread: false, isReviewing: false, isProcessing: false }), isProcessing: true };
+    });
     return merged;
-  }, [workspaceSnaps]);
+  }, [awaitingByThreadKey, pendingByThreadKey, workspaceSnaps]);
 
   const threadListLoadingByWorkspace = useMemo(() => {
     const next: Record<string, boolean> = {};
@@ -800,7 +1311,8 @@ export function CloudClientApp() {
 
   const showHome = !activeWorkspace;
   const isThinking =
-    Boolean(pendingCommand && pendingCommand.status === "waiting") ||
+    Boolean(activeAwaiting) ||
+    Boolean(activePending && activePending.phase !== "error") ||
     Boolean(activeThreadId && threadStatusById[activeThreadId]?.isProcessing);
 
   const sidebarNode = (
@@ -846,10 +1358,7 @@ export function CloudClientApp() {
       }}
       onToggleWorkspaceCollapse={() => {}}
       onSelectThread={(workspaceId, threadId) => {
-        if (workspaceId !== activeWorkspaceId) {
-          handleSelectWorkspace(workspaceId);
-        }
-        handleSelectThread(threadId);
+        handleSelectThread(workspaceId, threadId);
       }}
       onDeleteThread={() => {
         alert("Archiving threads from iOS is not available yet.");
@@ -877,7 +1386,7 @@ export function CloudClientApp() {
       onSend={(text, _images) => void handleSend(text)}
       onStop={() => {}}
       canStop={false}
-      disabled={!canSend}
+      disabled={!canSend || Boolean(activePending && activePending.phase !== "error")}
       models={[]}
       selectedModelId={null}
       onSelectModel={() => {}}

@@ -13,7 +13,6 @@ type MessagesProps = {
   lastDurationMs?: number | null;
   loadingMode?: "loading" | "syncing" | null;
   loadingLabel?: string | null;
-  threadId?: string | null;
 };
 
 type ToolSummary = {
@@ -212,7 +211,6 @@ export const Messages = memo(function Messages({
   lastDurationMs = null,
   loadingMode = null,
   loadingLabel = null,
-  threadId,
 }: MessagesProps) {
   const SCROLL_THRESHOLD_PX = 120;
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -222,7 +220,8 @@ export const Messages = memo(function Messages({
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const copyTimeoutRef = useRef<number | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
-  const scrollKey = scrollKeyForItems(items);
+  const baseScrollKey = scrollKeyForItems(items);
+  const scrollKey = threadId ? `${threadId}-${baseScrollKey}` : baseScrollKey;
 
   const isNearBottom = (node: HTMLDivElement) =>
     node.scrollHeight - node.scrollTop - node.clientHeight <= SCROLL_THRESHOLD_PX;
@@ -258,6 +257,11 @@ export const Messages = memo(function Messages({
       }
     };
   }, []);
+
+  useEffect(() => {
+    setExpandedItems(new Set());
+    setCopiedMessageId(null);
+  }, [threadId]);
 
   const handleCopyMessage = async (item: Extract<ConversationItem, { kind: "message" }>) => {
     try {

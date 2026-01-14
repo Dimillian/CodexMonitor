@@ -11,6 +11,8 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import type { CloudTelemetryEntry } from "../cloud/cloudTelemetry";
+import { clearCloudTelemetry, readCloudTelemetry } from "../cloud/cloudTelemetry";
 import type {
   AppSettings,
   CloudKitStatus,
@@ -105,6 +107,10 @@ export function SettingsView({
     result: CloudKitTestResult | null;
     error: string | null;
   }>({ status: "idle", result: null, error: null });
+  const [cloudTelemetryOpen, setCloudTelemetryOpen] = useState(false);
+  const [cloudTelemetryEntries, setCloudTelemetryEntries] = useState<
+    CloudTelemetryEntry[]
+  >(() => readCloudTelemetry());
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isSavingCloudSettings, setIsSavingCloudSettings] = useState(false);
 
@@ -140,6 +146,16 @@ export function SettingsView({
         : "",
     );
   }, [appSettings.cloudKitPollIntervalMs]);
+
+  useEffect(() => {
+    if (activeSection !== "cloud") {
+      return;
+    }
+    if (!cloudTelemetryOpen) {
+      return;
+    }
+    setCloudTelemetryEntries(readCloudTelemetry());
+  }, [activeSection, cloudTelemetryOpen]);
 
   useEffect(() => {
     setNatsUrlDraft(appSettings.natsUrl ?? "");
@@ -746,6 +762,80 @@ export function SettingsView({
                       )}
                       {cloudTestState.error && <div>{cloudTestState.error}</div>}
                     </div>
+                  </div>
+                )}
+
+                <div className="settings-divider" />
+
+                <div className="settings-section-title">Cloud Telemetry</div>
+                <div className="settings-section-subtitle">
+                  Client-side cache and fetch timings (local-only). Use this to see whether views were served from cache or fetched from CloudKit.
+                </div>
+                <div className="settings-field-actions">
+                  <button
+                    type="button"
+                    className="ghost settings-button-compact"
+                    onClick={() => {
+                      setCloudTelemetryOpen((prev) => !prev);
+                      setCloudTelemetryEntries(readCloudTelemetry());
+                    }}
+                  >
+                    {cloudTelemetryOpen ? "Hide telemetry" : "Show telemetry"}
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost settings-button-compact"
+                    onClick={async () => {
+                      const entries = readCloudTelemetry();
+                      const text = entries.map((entry) => JSON.stringify(entry)).join("\n");
+                      if (text) {
+                        await navigator.clipboard.writeText(text);
+                      }
+                    }}
+                  >
+                    Copy
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost settings-button-compact"
+                    onClick={() => {
+                      clearCloudTelemetry();
+                      setCloudTelemetryEntries([]);
+                    }}
+                  >
+                    Clear
+                  </button>
+                </div>
+                {cloudTelemetryOpen && (
+                  <div className="settings-help">
+                    <pre
+                      style={{
+                        whiteSpace: "pre-wrap",
+                        maxHeight: 220,
+                        overflow: "auto",
+                        userSelect: "text",
+                      }}
+                    >
+                      {cloudTelemetryEntries.length
+                        ? cloudTelemetryEntries
+                            .slice(-120)
+                            .map((entry) => {
+                              const time = new Date(entry.ts).toLocaleTimeString();
+                              const parts = [
+                                time,
+                                entry.event,
+                                entry.fromCache != null ? `cache=${entry.fromCache}` : "",
+                                entry.durationMs != null ? `${Math.round(entry.durationMs)}ms` : "",
+                                entry.scopeKey ? `scope=${entry.scopeKey}` : "",
+                                entry.workspaceId ? `ws=${entry.workspaceId}` : "",
+                                entry.threadId ? `th=${entry.threadId}` : "",
+                                entry.note || "",
+                              ].filter(Boolean);
+                              return parts.join(" · ");
+                            })
+                            .join("\n")
+                        : "No telemetry yet."}
+                    </pre>
                   </div>
                 )}
 

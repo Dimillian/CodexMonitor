@@ -327,11 +327,15 @@
   gap: 6px;
   padding: 4px 6px;
   border-radius: 6px;
+  border: none;
+  background: transparent;
   color: var(--text-quiet);
   font-size: 12px;
   cursor: pointer;
   -webkit-app-region: no-drag;
   min-width: 0;
+  width: 100%;
+  text-align: left;
 }
 
 .thread-status {
@@ -364,9 +368,11 @@
   box-shadow: 0 0 8px rgba(63, 228, 126, 0.5);
 }
 
-.thread-row:hover {
-  background: var(--surface-hover);
-  color: var(--text-strong);
+@media (hover: hover) and (pointer: fine) {
+  .thread-row:hover {
+    background: var(--surface-hover);
+    color: var(--text-strong);
+  }
 }
 
 .thread-row.active {
@@ -406,9 +412,11 @@
   color: var(--text-strong);
 }
 
-.thread-row:hover .thread-menu-trigger {
-  opacity: 1;
-  pointer-events: auto;
+@media (hover: hover) and (pointer: fine) {
+  .thread-row:hover .thread-menu-trigger {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .thread-more {
