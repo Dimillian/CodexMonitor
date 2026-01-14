@@ -32,7 +32,14 @@ STDOUT_LOG="${OUT_DIR}/app-stdout.log"
 STDERR_LOG="${OUT_DIR}/app-stderr.log"
 
 echo "[ios] Launching ${BUNDLE_ID} (logs: ${STDOUT_LOG}, ${STDERR_LOG})..."
-xcrun simctl launch --terminate-running-process \
+if [[ -n "${CODEXMONITOR_CLOUDKIT_CONTAINER_ID:-}" ]]; then
+  echo "[ios] Setting CODEXMONITOR_CLOUDKIT_CONTAINER_ID for simulator runtime..."
+  xcrun simctl spawn "${UDID}" launchctl setenv \
+    CODEXMONITOR_CLOUDKIT_CONTAINER_ID "${CODEXMONITOR_CLOUDKIT_CONTAINER_ID}"
+fi
+
+xcrun simctl launch \
+  --terminate-running-process \
   --stdout="${STDOUT_LOG}" \
   --stderr="${STDERR_LOG}" \
   "${UDID}" "${BUNDLE_ID}"
@@ -45,4 +52,3 @@ echo "[ios] Taking screenshot: ${SCREENSHOT_PATH}"
 xcrun simctl io "${UDID}" screenshot "${SCREENSHOT_PATH}"
 
 echo "[ios] Done."
-

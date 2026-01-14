@@ -18,6 +18,7 @@ import "./styles/about.css";
 import "./styles/tabbar.css";
 import "./styles/worktree-modal.css";
 import "./styles/settings.css";
+import "./styles/cloud-client.css";
 import "./styles/compact-base.css";
 import "./styles/compact-phone.css";
 import "./styles/compact-tablet.css";
@@ -64,6 +65,7 @@ import { useTerminalController } from "./features/terminal/hooks/useTerminalCont
 import { cloudkitStatus, cloudkitTest } from "./services/tauri";
 import { playNotificationSound } from "./utils/notificationSounds";
 import { isAppleMobile } from "./utils/platform";
+import { CloudClientApp } from "./features/app/components/CloudClientApp";
 import type { AccessMode, DiffLineReference, QueuedMessage, WorkspaceInfo } from "./types";
 
 function useWindowLabel() {
@@ -979,6 +981,9 @@ function App() {
   const windowLabel = useWindowLabel();
   if (windowLabel === "about") {
     return <AboutView />;
+  }
+  if (isAppleMobile()) {
+    return <CloudClientApp />;
   }
   return <MainApp />;
 }

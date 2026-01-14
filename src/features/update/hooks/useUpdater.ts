@@ -35,6 +35,15 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
   const [state, setState] = useState<UpdateState>({ stage: "idle" });
   const updateRef = useRef<Update | null>(null);
 
+  const isPermissionDenied = (message: string) => {
+    const lowered = message.toLowerCase();
+    return (
+      lowered.includes("updater.check not allowed") ||
+      lowered.includes("updater_allow-check") ||
+      lowered.includes("permissions associated with this command")
+    );
+  };
+
   const resetToIdle = useCallback(async () => {
     const update = updateRef.current;
     updateRef.current = null;
@@ -60,6 +69,12 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : JSON.stringify(error);
+      if (isPermissionDenied(message)) {
+        // Some platforms (notably iOS) do not expose updater capabilities.
+        // Treat this as "updater disabled" instead of surfacing an error dialog.
+        setState({ stage: "idle" });
+        return;
+      }
       onDebug?.({
         id: `${Date.now()}-client-updater-error`,
         timestamp: Date.now(),
@@ -130,6 +145,10 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : JSON.stringify(error);
+      if (isPermissionDenied(message)) {
+        setState({ stage: "idle" });
+        return;
+      }
       onDebug?.({
         id: `${Date.now()}-client-updater-error`,
         timestamp: Date.now(),
