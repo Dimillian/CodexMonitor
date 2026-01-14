@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:appimage": "NO_STRIP=1 tauri build --bundles appimage",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "tauri": "tauri"
