@@ -1,7 +1,7 @@
 use tauri::State;
 
 use crate::state::AppState;
-use crate::types::{GitFileDiff, GitLogResponse};
+use crate::types::{GitFileDiff, GitHubIssuesResponse, GitLogResponse};
 
 const GIT_IOS_UNAVAILABLE: &str = "Git features are not supported on iOS.";
 
@@ -35,6 +35,14 @@ pub(crate) async fn get_git_remote(
     _workspace_id: String,
     _state: State<'_, AppState>,
 ) -> Result<Option<String>, String> {
+    Err(GIT_IOS_UNAVAILABLE.to_string())
+}
+
+#[tauri::command]
+pub(crate) async fn get_github_issues(
+    _workspace_id: String,
+    _state: State<'_, AppState>,
+) -> Result<GitHubIssuesResponse, String> {
     Err(GIT_IOS_UNAVAILABLE.to_string())
 }
 
