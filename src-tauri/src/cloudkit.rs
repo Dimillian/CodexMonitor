@@ -361,7 +361,7 @@ pub(crate) fn start_cloudkit_command_poller(app: AppHandle) {
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 mod cloudkit_impl {
-    use std::collections::HashSet;
+    use std::collections::{HashMap, HashSet};
     use std::hash::{Hash, Hasher};
     use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
@@ -1151,11 +1151,36 @@ mod cloudkit_impl {
         };
 
         let threads = fetch_thread_summaries(&session).await?;
+        let prefetch_thread_ids: Vec<String> = threads
+            .iter()
+            .take(3)
+            .filter_map(|thread| {
+                thread
+                    .get("id")
+                    .and_then(|value| value.as_str())
+                    .map(|value| value.to_string())
+            })
+            .collect();
         let scope_key = workspace_scope_key(workspace_id);
         let payload = serde_json::json!({ "workspaceId": workspace_id, "threads": threads, "threadStatusById": {} });
         let json = snapshot_envelope(&scope_key, runner_id, payload);
 
         upsert_snapshot_blocking(container_id.to_string(), runner_id.to_string(), scope_key, json)?;
+
+        // Opportunistically cache a few recent thread snapshots so the iOS client can render
+        // instantly when switching between threads.
+        for thread_id in prefetch_thread_ids {
+            let resume = session
+                .send_request("thread/resume", serde_json::json!({ "threadId": thread_id }))
+                .await;
+            let resume = match resume {
+                Ok(value) => value,
+                Err(_) => continue,
+            };
+            if let Some(thread) = extract_thread_from_resume_response(&resume) {
+                let _ = publish_thread_snapshot(container_id, runner_id, workspace_id, &thread_id, thread).await;
+            }
+        }
         Ok(())
     }
 
@@ -1502,6 +1527,8 @@ mod cloudkit_impl {
         let mut last_cleanup = Instant::now();
         let mut last_presence = Instant::now().checked_sub(Duration::from_secs(60)).unwrap_or_else(Instant::now);
         let mut last_global = Instant::now().checked_sub(Duration::from_secs(60)).unwrap_or_else(Instant::now);
+        let mut recent_send_dedupe: HashMap<u64, Instant> = HashMap::new();
+        let mut last_dedupe_cleanup = Instant::now();
 
         loop {
             let (enabled, container_id, runner_id, poll_ms) = {
@@ -1612,6 +1639,38 @@ mod cloudkit_impl {
                 processed.insert(command_id.clone());
                 processed_order.push(command_id.clone());
 
+                if command.command_type == "sendUserMessage" {
+                    let client_id = command.client_id.clone().unwrap_or_default();
+                    let workspace_id = command.args.get("workspaceId").and_then(|v| v.as_str()).unwrap_or("");
+                    let thread_id = command.args.get("threadId").and_then(|v| v.as_str()).unwrap_or("");
+                    let text = command.args.get("text").and_then(|v| v.as_str()).unwrap_or("");
+                    if !client_id.is_empty() && !workspace_id.is_empty() && !thread_id.is_empty() && !text.is_empty() {
+                        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                        client_id.hash(&mut hasher);
+                        workspace_id.hash(&mut hasher);
+                        thread_id.hash(&mut hasher);
+                        text.hash(&mut hasher);
+                        let key = hasher.finish();
+                        if let Some(prev) = recent_send_dedupe.get(&key) {
+                            if prev.elapsed() < Duration::from_millis(1800) {
+                                debug_log(&format!("skipping duplicate sendUserMessage command {command_id}"));
+                                let payload_json = serde_json::json!({ "skippedDuplicate": true }).to_string();
+                                let _ = write_command_result_blocking(
+                                    container_id.clone(),
+                                    runner_id.clone(),
+                                    command_id.clone(),
+                                    true,
+                                    payload_json,
+                                );
+                                let record_id = record_id_from_name(&command_record_name(&runner_id, &command_id));
+                                let _ = delete_record_blocking(&database, &record_id);
+                                continue;
+                            }
+                        }
+                        recent_send_dedupe.insert(key, Instant::now());
+                    }
+                }
+
                 debug_log(&format!("processing command {command_id} type={}", command.command_type));
                 let result = execute_command(command, state.inner(), &app).await;
                 let (ok, payload) = match result {
@@ -1643,6 +1702,11 @@ mod cloudkit_impl {
                     processed.remove(&id);
                 }
                 last_cleanup = Instant::now();
+            }
+
+            if last_dedupe_cleanup.elapsed() > Duration::from_secs(30) && recent_send_dedupe.len() > 200 {
+                recent_send_dedupe.retain(|_, instant| instant.elapsed() < Duration::from_secs(30));
+                last_dedupe_cleanup = Instant::now();
             }
 
             tokio::time::sleep(Duration::from_millis(poll_ms as u64)).await;
