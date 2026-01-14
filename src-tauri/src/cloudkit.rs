@@ -1222,6 +1222,30 @@ mod cloudkit_impl {
         last
     }
 
+    fn agent_message_count(thread: &serde_json::Value) -> usize {
+        let turns = match thread.get("turns").and_then(|v| v.as_array()) {
+            Some(turns) => turns,
+            None => return 0,
+        };
+        let mut count = 0usize;
+        for turn in turns {
+            let items = match turn.get("items").and_then(|v| v.as_array()) {
+                Some(items) => items,
+                None => continue,
+            };
+            for item in items.iter() {
+                if item.get("type").and_then(|v| v.as_str()) == Some("agentMessage") {
+                    if let Some(text) = item.get("text").and_then(|v| v.as_str()) {
+                        if !text.trim().is_empty() {
+                            count += 1;
+                        }
+                    }
+                }
+            }
+        }
+        count
+    }
+
     fn truncate_chars(value: &str, max_chars: usize) -> String {
         if max_chars == 0 {
             return String::new();
@@ -1472,6 +1496,34 @@ mod cloudkit_impl {
                         .ok_or("workspace not connected")?
                 };
 
+                // Baseline the current thread state so we don't incorrectly treat an existing
+                // agent message as the "response" for this new user message.
+                let (baseline_agent_messages, baseline_last_agent_text) = {
+                    let resume = session
+                        .send_request("thread/resume", serde_json::json!({ "threadId": thread_id }))
+                        .await
+                        .ok();
+                    match resume.and_then(|value| extract_thread_from_resume_response(&value)) {
+                        Some(thread) => {
+                            if can_publish {
+                                let _ = publish_thread_snapshot(
+                                    &container_id,
+                                    &runner_id,
+                                    workspace_id,
+                                    thread_id,
+                                    thread.clone(),
+                                )
+                                .await;
+                            }
+                            (
+                                agent_message_count(&thread),
+                                latest_agent_text(&thread).unwrap_or_default(),
+                            )
+                        }
+                        None => (0usize, String::new()),
+                    }
+                };
+
                 let sandbox_policy = match access_mode {
                     "full-access" => serde_json::json!({ "type": "dangerFullAccess" }),
                     "read-only" => serde_json::json!({ "type": "readOnly" }),
@@ -1513,10 +1565,21 @@ mod cloudkit_impl {
                         if can_publish {
                             let _ = publish_thread_snapshot(&container_id, &runner_id, workspace_id, thread_id, thread.clone()).await;
                         }
-                        assistant_text = latest_agent_text(&thread);
-                        if assistant_text.as_deref().unwrap_or("").trim().len() > 0 {
-                            break;
+                        let agent_messages = agent_message_count(&thread);
+                        if agent_messages <= baseline_agent_messages {
+                            continue;
                         }
+                        let latest = latest_agent_text(&thread).unwrap_or_default();
+                        if latest.trim().is_empty() {
+                            continue;
+                        }
+                        // Avoid returning the baseline message (can happen if the runner restarts
+                        // and the first resume races with the new turn being persisted).
+                        if latest.trim() == baseline_last_agent_text.trim() {
+                            continue;
+                        }
+                        assistant_text = Some(latest);
+                        break;
                     }
                 }
 

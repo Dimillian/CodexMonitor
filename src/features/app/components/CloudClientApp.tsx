@@ -711,9 +711,8 @@ export function CloudClientApp() {
     }
 
     // Append local items (optimistic user/assistant messages) if they aren't already present.
-    const tail = baseItems.slice(Math.max(0, baseItems.length - 12));
-    const tailSigs = new Set(
-      tail
+    const baseSigs = new Set(
+      baseItems
         .filter((item) => item.kind === "message")
         .map((item) => `${item.kind}:${(item as any).role}:${(item as any).text}`),
     );
@@ -721,8 +720,8 @@ export function CloudClientApp() {
     for (const item of localItems) {
       if (item.kind === "message") {
         const sig = `${item.kind}:${(item as any).role}:${(item as any).text}`;
-        if (tailSigs.has(sig)) continue;
-        tailSigs.add(sig);
+        if (baseSigs.has(sig)) continue;
+        baseSigs.add(sig);
       }
       merged.push(item);
     }
