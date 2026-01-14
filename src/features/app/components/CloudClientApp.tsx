@@ -19,6 +19,14 @@ import {
   type CloudThreadSnapshot,
   type CloudWorkspaceSnapshot,
 } from "../../../cloud/cloudTypes";
+import {
+  getCachedThreadSnapshot,
+  loadCloudCache,
+  writeCloudCacheGlobal,
+  writeCloudCacheRunner,
+  writeCloudCacheThread,
+  writeCloudCacheWorkspace,
+} from "../../../cloud/cloudCache";
 import { Home } from "../../home/components/Home";
 import { useLayoutMode } from "../../layout/hooks/useLayoutMode";
 import { useResizablePanels } from "../../layout/hooks/useResizablePanels";
@@ -100,12 +108,29 @@ export function CloudClientApp() {
   const [pendingCommand, setPendingCommand] = useState<PendingCommand | null>(null);
   const lastThreadUpdatedAt = useRef<number>(0);
   const [cloudError, setCloudError] = useState<string | null>(null);
+  const [threadLoadMode, setThreadLoadMode] = useState<"idle" | "loading" | "syncing">("idle");
+  const [threadLoadLabel, setThreadLoadLabel] = useState<string | null>(null);
   const e2eThreadRequested = useRef(false);
   const e2eBaseline = useRef<{ assistantCount: number } | null>(null);
   const e2eCompleted = useRef(false);
   const lastWorkspaceUpdatedAt = useRef<Record<string, number>>({});
+  const lastWorkspaceFetchAt = useRef<Record<string, number>>({});
+  const lastThreadFetchAt = useRef<number>(0);
+  const lastSendRef = useRef<{
+    workspaceId: string;
+    threadId: string;
+    text: string;
+    atMs: number;
+  } | null>(null);
 
   const e2eEnabled = (import.meta as any).env?.VITE_E2E === "1";
+  const pollIntervalMs = useMemo(() => {
+    const configured = appSettings.cloudKitPollIntervalMs;
+    if (typeof configured === "number" && Number.isFinite(configured)) {
+      return Math.min(Math.max(configured, 1000), 30_000);
+    }
+    return 5000;
+  }, [appSettings.cloudKitPollIntervalMs]);
 
   const restoreRequested = useRef(false);
   useEffect(() => {
@@ -149,6 +174,65 @@ export function CloudClientApp() {
       // ignore
     }
   }, [activeThreadId, activeWorkspaceId, e2eEnabled]);
+
+  const cacheHydrated = useRef(false);
+  useEffect(() => {
+    if (cacheHydrated.current) {
+      return;
+    }
+    cacheHydrated.current = true;
+
+    const cached = loadCloudCache();
+    if (!cached) {
+      return;
+    }
+
+    if (cached.runner) {
+      setRunnerId(cached.runner.runnerId);
+      setRunnerLabel(`${cached.runner.name} (${cached.runner.platform})`);
+      setRunnerOnline(isRunnerOnline(cached.runner.updatedAtMs));
+    }
+
+    if (cached.global) {
+      setGlobal(cached.global);
+    }
+
+    if (Object.keys(cached.workspaces).length > 0) {
+      setWorkspaceSnaps(cached.workspaces);
+      const nextWorkspaceTs: Record<string, number> = {};
+      Object.values(cached.workspaces).forEach((snap) => {
+        nextWorkspaceTs[snap.payload.workspaceId] = snap.ts;
+      });
+      lastWorkspaceUpdatedAt.current = nextWorkspaceTs;
+    }
+
+    if (activeWorkspaceId && activeThreadId) {
+      const cachedThread = getCachedThreadSnapshot(cached, activeWorkspaceId, activeThreadId);
+      if (cachedThread) {
+        lastThreadUpdatedAt.current = cachedThread.ts;
+        setThreadSnap(cachedThread);
+      }
+    }
+  }, [activeThreadId, activeWorkspaceId]);
+
+  useEffect(() => {
+    if (!activeWorkspaceId || !activeThreadId) {
+      return;
+    }
+    if (threadSnap?.payload.threadId === activeThreadId && threadSnap.payload.workspaceId === activeWorkspaceId) {
+      return;
+    }
+    const cached = loadCloudCache();
+    const cachedThread = getCachedThreadSnapshot(cached, activeWorkspaceId, activeThreadId);
+    if (!cachedThread) {
+      return;
+    }
+    if (cachedThread.ts <= lastThreadUpdatedAt.current) {
+      return;
+    }
+    lastThreadUpdatedAt.current = cachedThread.ts;
+    setThreadSnap(cachedThread);
+  }, [activeThreadId, activeWorkspaceId, threadSnap]);
 
   useEffect(() => {
     try {
@@ -195,13 +279,13 @@ export function CloudClientApp() {
           setRunnerId(null);
           setRunnerLabel(null);
           setRunnerOnline(false);
-          setGlobal(null);
-          setWorkspaceSnaps({});
+          // Keep the last cached snapshots visible (offline-first); just mark as offline.
           return;
         }
         setRunnerId(runner.runnerId);
         setRunnerLabel(`${runner.name} (${runner.platform})`);
         setRunnerOnline(isRunnerOnline(runner.updatedAtMs));
+        writeCloudCacheRunner(runner);
 
         let globalSnapshot: CloudGlobalSnapshot | null = null;
         const globalRecord = await cloudkitGetSnapshot(runner.runnerId, globalScopeKey());
@@ -210,14 +294,39 @@ export function CloudClientApp() {
           if (parsed) {
             globalSnapshot = parsed as CloudGlobalSnapshot;
             setGlobal(globalSnapshot);
+            writeCloudCacheGlobal(globalSnapshot);
           }
         }
 
-        const nextWorkspaces = (globalSnapshot?.payload.workspaces ?? []).map((ws) => ws.id);
-        if (nextWorkspaces.length > 0) {
+        const workspaceIds = (globalSnapshot?.payload.workspaces ?? []).map((ws) => ws.id);
+        if (workspaceIds.length > 0) {
+          const now = Date.now();
+          const refreshMs = Math.max(pollIntervalMs * 2, 6000);
+          const idsToFetch: string[] = [];
+
+          if (activeWorkspaceId && workspaceIds.includes(activeWorkspaceId)) {
+            idsToFetch.push(activeWorkspaceId);
+          } else if (workspaceIds.length > 0) {
+            // Keep at least one workspace hydrated so the Projects list isn't empty.
+            idsToFetch.push(workspaceIds[0]);
+          }
+
+          for (const workspaceId of workspaceIds) {
+            if (idsToFetch.length >= 2) break;
+            if (idsToFetch.includes(workspaceId)) continue;
+            if ((lastWorkspaceUpdatedAt.current[workspaceId] ?? 0) === 0) {
+              idsToFetch.push(workspaceId);
+            }
+          }
+
           const snapshots = await Promise.all(
-            nextWorkspaces.map(async (workspaceId) => {
+            idsToFetch.map(async (workspaceId) => {
               try {
+                const lastFetch = lastWorkspaceFetchAt.current[workspaceId] ?? 0;
+                if (lastFetch && now - lastFetch < refreshMs) {
+                  return null;
+                }
+                lastWorkspaceFetchAt.current[workspaceId] = now;
                 const wsRecord = await cloudkitGetSnapshot(
                   runner.runnerId,
                   workspaceScopeKey(workspaceId),
@@ -243,6 +352,7 @@ export function CloudClientApp() {
           for (const snap of snapshots) {
             if (!snap) continue;
             nextById[snap.payload.workspaceId] = snap;
+            writeCloudCacheWorkspace(snap);
           }
           if (Object.keys(nextById).length > 0) {
             setWorkspaceSnaps((prev) => ({ ...prev, ...nextById }));
@@ -250,17 +360,28 @@ export function CloudClientApp() {
         }
 
         if (activeWorkspaceId && activeThreadId) {
-          const thRecord = await cloudkitGetSnapshot(
-            runner.runnerId,
-            threadScopeKey(activeWorkspaceId, activeThreadId),
-          );
-          if (thRecord?.payloadJson) {
-            const parsed = parseCloudSnapshot<CloudThreadSnapshot["payload"]>(thRecord.payloadJson);
-            if (parsed) {
-              const next = parsed as CloudThreadSnapshot;
-              if (next.ts > lastThreadUpdatedAt.current) {
-                lastThreadUpdatedAt.current = next.ts;
-                setThreadSnap(next);
+          const now = Date.now();
+          const refreshMs =
+            threadLoadMode !== "idle" || pendingCommand?.status === "waiting"
+              ? pollIntervalMs
+              : Math.max(pollIntervalMs * 2, 8000);
+          if (now - lastThreadFetchAt.current >= refreshMs) {
+            lastThreadFetchAt.current = now;
+            const thRecord = await cloudkitGetSnapshot(
+              runner.runnerId,
+              threadScopeKey(activeWorkspaceId, activeThreadId),
+            );
+            if (thRecord?.payloadJson) {
+              const parsed = parseCloudSnapshot<CloudThreadSnapshot["payload"]>(thRecord.payloadJson);
+              if (parsed) {
+                const next = parsed as CloudThreadSnapshot;
+                if (next.ts > lastThreadUpdatedAt.current) {
+                  lastThreadUpdatedAt.current = next.ts;
+                  setThreadSnap(next);
+                  writeCloudCacheThread(next);
+                  setThreadLoadMode("idle");
+                  setThreadLoadLabel(null);
+                }
               }
             }
           }
@@ -273,12 +394,12 @@ export function CloudClientApp() {
     };
 
     void tick();
-    const interval = window.setInterval(() => void tick(), 2500);
+    const interval = window.setInterval(() => void tick(), pollIntervalMs);
     return () => {
       stopped = true;
       window.clearInterval(interval);
     };
-  }, [activeThreadId, activeWorkspaceId, cloudEnabled]);
+  }, [activeThreadId, activeWorkspaceId, cloudEnabled, pendingCommand?.status, pollIntervalMs, threadLoadMode]);
 
   useEffect(() => {
     if (!cloudEnabled) {
@@ -358,6 +479,37 @@ export function CloudClientApp() {
     return [];
   }, [activeThreadId, threadSnap]);
 
+  useEffect(() => {
+    if (!activeThreadId) {
+      if (threadLoadMode !== "idle") {
+        setThreadLoadMode("idle");
+        setThreadLoadLabel(null);
+      }
+      return;
+    }
+    if (threadLoadMode === "loading" && activeItems.length > 0) {
+      setThreadLoadMode("idle");
+      setThreadLoadLabel(null);
+    }
+  }, [activeItems.length, activeThreadId, threadLoadMode]);
+
+  useEffect(() => {
+    if (threadLoadMode !== "syncing") {
+      return;
+    }
+    if (!activeThreadId) {
+      return;
+    }
+    if (activeItems.length === 0) {
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      setThreadLoadMode("idle");
+      setThreadLoadLabel(null);
+    }, 1200);
+    return () => window.clearTimeout(timeout);
+  }, [activeItems.length, activeThreadId, threadLoadMode]);
+
   const canSend = Boolean(
     cloudEnabled && runnerId && runnerOnline && activeWorkspaceId && activeThreadId,
   );
@@ -366,11 +518,30 @@ export function CloudClientApp() {
     (id: string) => {
       setActiveWorkspaceId(id);
       setActiveThreadId(null);
+      setThreadLoadMode("idle");
+      setThreadLoadLabel(null);
+      lastThreadFetchAt.current = 0;
       if (isCompact) {
         setActiveTab("codex");
       }
       if (runnerId && cloudEnabled) {
         void submitCommand("connectWorkspace", { workspaceId: id });
+        void (async () => {
+          try {
+            const wsRecord = await cloudkitGetSnapshot(runnerId, workspaceScopeKey(id));
+            if (!wsRecord?.payloadJson) return;
+            const parsed = parseCloudSnapshot<CloudWorkspaceSnapshot["payload"]>(wsRecord.payloadJson);
+            if (!parsed) return;
+            const next = parsed as CloudWorkspaceSnapshot;
+            const prevTs = lastWorkspaceUpdatedAt.current[id] ?? 0;
+            if (next.ts <= prevTs) return;
+            lastWorkspaceUpdatedAt.current[id] = next.ts;
+            setWorkspaceSnaps((prev) => ({ ...prev, [id]: next }));
+            writeCloudCacheWorkspace(next);
+          } catch {
+            // ignore; poller will retry.
+          }
+        })();
       }
     },
     [cloudEnabled, isCompact, runnerId, submitCommand],
@@ -379,11 +550,49 @@ export function CloudClientApp() {
   const handleSelectThread = useCallback(
     (threadId: string) => {
       setActiveThreadId(threadId);
+      lastThreadFetchAt.current = 0;
+      if (activeWorkspaceId) {
+        const cached = loadCloudCache();
+        const cachedThread = getCachedThreadSnapshot(cached, activeWorkspaceId, threadId);
+        const hasCachedItems = Boolean(
+          cachedThread &&
+            Array.isArray(cachedThread.payload.items) &&
+            cachedThread.payload.items.length > 0,
+        );
+        if (cachedThread && cachedThread.ts > lastThreadUpdatedAt.current) {
+          lastThreadUpdatedAt.current = cachedThread.ts;
+          setThreadSnap(cachedThread);
+        }
+        setThreadLoadMode(hasCachedItems ? "syncing" : "loading");
+        setThreadLoadLabel(hasCachedItems ? "Syncing from iCloud…" : "Loading conversation…");
+      } else {
+        setThreadLoadMode("loading");
+        setThreadLoadLabel("Loading conversation…");
+      }
       if (isCompact) {
         setActiveTab("codex");
       }
       if (runnerId && cloudEnabled && activeWorkspaceId) {
         void submitCommand("resumeThread", { workspaceId: activeWorkspaceId, threadId });
+        void (async () => {
+          try {
+            const record = await cloudkitGetSnapshot(
+              runnerId,
+              threadScopeKey(activeWorkspaceId, threadId),
+            );
+            if (!record?.payloadJson) return;
+            const parsed = parseCloudSnapshot<CloudThreadSnapshot["payload"]>(record.payloadJson);
+            if (!parsed) return;
+            const next = parsed as CloudThreadSnapshot;
+            if (next.ts > lastThreadUpdatedAt.current) {
+              lastThreadUpdatedAt.current = next.ts;
+              setThreadSnap(next);
+              writeCloudCacheThread(next);
+            }
+          } catch {
+            // ignore; poller will retry.
+          }
+        })();
       }
     },
     [activeWorkspaceId, cloudEnabled, isCompact, runnerId, submitCommand],
@@ -395,6 +604,24 @@ export function CloudClientApp() {
     }
     const trimmed = text.trim();
     if (!trimmed) return;
+
+    const now = Date.now();
+    const lastSend = lastSendRef.current;
+    if (
+      lastSend &&
+      lastSend.workspaceId === activeWorkspaceId &&
+      lastSend.threadId === activeThreadId &&
+      lastSend.text === trimmed &&
+      now - lastSend.atMs < 1500
+    ) {
+      return;
+    }
+    lastSendRef.current = {
+      workspaceId: activeWorkspaceId,
+      threadId: activeThreadId,
+      text: trimmed,
+      atMs: now,
+    };
 
     const commandId = crypto.randomUUID();
     setPendingCommand({ id: commandId, createdAt: Date.now(), status: "submitting" });
@@ -640,6 +867,8 @@ export function CloudClientApp() {
       threadId={activeThreadId}
       isThinking={isThinking}
       processingStartedAt={pendingCommand?.createdAt ?? null}
+      loadingMode={threadLoadMode === "idle" ? null : threadLoadMode}
+      loadingLabel={threadLoadLabel}
     />
   );
 

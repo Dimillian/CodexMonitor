@@ -11,6 +11,9 @@ type MessagesProps = {
   isThinking: boolean;
   processingStartedAt?: number | null;
   lastDurationMs?: number | null;
+  loadingMode?: "loading" | "syncing" | null;
+  loadingLabel?: string | null;
+  threadId?: string | null;
 };
 
 type ToolSummary = {
@@ -207,6 +210,9 @@ export const Messages = memo(function Messages({
   isThinking,
   processingStartedAt = null,
   lastDurationMs = null,
+  loadingMode = null,
+  loadingLabel = null,
+  threadId,
 }: MessagesProps) {
   const SCROLL_THRESHOLD_PX = 120;
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -328,6 +334,12 @@ export const Messages = memo(function Messages({
       ref={containerRef}
       onScroll={updateAutoScroll}
     >
+      {loadingMode === "syncing" && !isThinking && items.length > 0 && (
+        <div className="working messages-syncing" aria-live="polite">
+          <span className="working-spinner" aria-hidden />
+          <span className="working-text">{loadingLabel || "Syncing…"}</span>
+        </div>
+      )}
       {visibleItems.map((item) => {
         if (item.kind === "message") {
           const isCopied = copiedMessageId === item.id;
@@ -591,9 +603,32 @@ export const Messages = memo(function Messages({
         </div>
       )}
       {!items.length && (
-        <div className="empty messages-empty">
-          Start a thread and send a prompt to the agent.
-        </div>
+        loadingMode === "loading" ? (
+          <div className="messages-loading" role="status" aria-live="polite">
+            <div className="messages-loading-label">{loadingLabel || "Loading…"}</div>
+            <div className="messages-loading-skeleton" aria-hidden>
+              <div className="messages-loading-row left">
+                <div className="messages-loading-bubble" />
+              </div>
+              <div className="messages-loading-row right">
+                <div className="messages-loading-bubble" />
+              </div>
+              <div className="messages-loading-row left">
+                <div className="messages-loading-bubble wide" />
+              </div>
+              <div className="messages-loading-row right">
+                <div className="messages-loading-bubble" />
+              </div>
+              <div className="messages-loading-row left">
+                <div className="messages-loading-bubble" />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="empty messages-empty">
+            Start a thread and send a prompt to the agent.
+          </div>
+        )
       )}
       <div ref={bottomRef} />
     </div>
