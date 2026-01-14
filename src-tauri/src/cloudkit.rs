@@ -1303,13 +1303,64 @@ mod cloudkit_impl {
     }
 
     fn build_message_items(thread: &serde_json::Value, max_items: usize, max_text_chars: usize) -> Vec<serde_json::Value> {
-        let turns = thread.get("turns").and_then(|v| v.as_array()).cloned().unwrap_or_default();
-        let mut out: Vec<serde_json::Value> = Vec::new();
-        for turn in turns {
+        fn parse_ts_ms(value: &serde_json::Value) -> Option<i64> {
+            let raw = match value {
+                serde_json::Value::Number(n) => n.as_i64().or_else(|| n.as_u64().map(|u| u as i64)),
+                serde_json::Value::String(s) => s.trim().parse::<i64>().ok(),
+                _ => None,
+            }?;
+            if raw <= 0 {
+                return None;
+            }
+            // Heuristic: seconds vs milliseconds.
+            Some(if raw < 1_000_000_000_000 { raw * 1000 } else { raw })
+        }
+
+        fn turn_ts_ms(turn: &serde_json::Value) -> Option<i64> {
+            let obj = turn.as_object()?;
+            // Try common field names from Codex + our own adapters.
+            obj.get("createdAtMs")
+                .and_then(parse_ts_ms)
+                .or_else(|| obj.get("created_at_ms").and_then(parse_ts_ms))
+                .or_else(|| obj.get("createdAt").and_then(parse_ts_ms))
+                .or_else(|| obj.get("created_at").and_then(parse_ts_ms))
+                .or_else(|| obj.get("startedAt").and_then(parse_ts_ms))
+                .or_else(|| obj.get("started_at").and_then(parse_ts_ms))
+        }
+
+        let turns = thread
+            .get("turns")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let mut turns_with_meta: Vec<(usize, serde_json::Value, Option<i64>)> = turns
+            .into_iter()
+            .enumerate()
+            .map(|(idx, turn)| {
+                let ts = turn_ts_ms(&turn);
+                (idx, turn, ts)
+            })
+            .collect();
+
+        // Normalize ordering: if we have timestamps for at least two turns, sort chronologically.
+        let ts_count = turns_with_meta.iter().filter(|(_, _, ts)| ts.is_some()).count();
+        if ts_count >= 2 && turns_with_meta.len() >= 2 {
+            turns_with_meta.sort_by(|(a_idx, _, a_ts), (b_idx, _, b_ts)| {
+                let a_key = a_ts.unwrap_or(i64::MAX);
+                let b_key = b_ts.unwrap_or(i64::MAX);
+                a_key.cmp(&b_key).then(a_idx.cmp(b_idx))
+            });
+        }
+
+        // Preserve turn boundaries when trimming so we don't show an assistant answer without the
+        // user prompt that triggered it.
+        let mut groups: Vec<Vec<serde_json::Value>> = Vec::new();
+        for (_, turn, _) in turns_with_meta {
             let items = match turn.get("items").and_then(|v| v.as_array()) {
                 Some(items) => items,
                 None => continue,
             };
+            let mut group: Vec<serde_json::Value> = Vec::new();
             for item in items {
                 let item_type = item.get("type").and_then(|v| v.as_str()).unwrap_or("");
                 let id = item.get("id").and_then(|v| v.as_str()).unwrap_or("");
@@ -1324,7 +1375,7 @@ mod cloudkit_impl {
                         } else {
                             text
                         };
-                        out.push(serde_json::json!({
+                        group.push(serde_json::json!({
                             "id": id,
                             "kind": "message",
                             "role": "user",
@@ -1339,7 +1390,7 @@ mod cloudkit_impl {
                         } else {
                             text
                         };
-                        out.push(serde_json::json!({
+                        group.push(serde_json::json!({
                             "id": id,
                             "kind": "message",
                             "role": "assistant",
@@ -1349,9 +1400,31 @@ mod cloudkit_impl {
                     _ => {}
                 }
             }
+            if !group.is_empty() {
+                groups.push(group);
+            }
         }
-        if max_items > 0 && out.len() > max_items {
-            out.drain(0..(out.len() - max_items));
+
+        let mut total = groups.iter().map(|g| g.len()).sum::<usize>();
+        if max_items > 0 && total > max_items && !groups.is_empty() {
+            while total > max_items && groups.len() > 1 {
+                if let Some(first) = groups.first() {
+                    total = total.saturating_sub(first.len());
+                }
+                groups.remove(0);
+            }
+            if total > max_items {
+                if let Some(last) = groups.last_mut() {
+                    if last.len() > max_items {
+                        last.drain(0..(last.len() - max_items));
+                    }
+                }
+            }
+        }
+
+        let mut out: Vec<serde_json::Value> = Vec::new();
+        for mut group in groups {
+            out.append(&mut group);
         }
         out
     }
