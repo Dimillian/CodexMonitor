@@ -20,6 +20,8 @@ import "./styles/settings.css";
 import "./styles/compact-base.css";
 import "./styles/compact-phone.css";
 import "./styles/compact-tablet.css";
+import successSoundUrl from "./assets/success-notification.mp3";
+import errorSoundUrl from "./assets/error-notification.mp3";
 import { WorktreePrompt } from "./components/WorktreePrompt";
 import { AboutView } from "./components/AboutView";
 import { SettingsView } from "./components/SettingsView";
@@ -53,6 +55,9 @@ import { useWorktreePrompt } from "./hooks/useWorktreePrompt";
 import { useUiScaleShortcuts } from "./hooks/useUiScaleShortcuts";
 import { useWorkspaceSelection } from "./hooks/useWorkspaceSelection";
 import { useNewAgentShortcut } from "./hooks/useNewAgentShortcut";
+import { useAgentSoundNotifications } from "./hooks/useAgentSoundNotifications";
+import { useWindowFocusState } from "./hooks/useWindowFocusState";
+import { playNotificationSound } from "./utils/notificationSounds";
 import type { AccessMode, DiffLineReference, QueuedMessage, WorkspaceInfo } from "./types";
 
 function useWindowLabel() {
@@ -134,6 +139,22 @@ function MainApp() {
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const updater = useUpdater({ onDebug: addDebugEntry });
+  const isWindowFocused = useWindowFocusState();
+  const nextTestSoundIsError = useRef(false);
+
+  useAgentSoundNotifications({
+    enabled: appSettings.notificationSoundsEnabled,
+    isWindowFocused,
+    onDebug: addDebugEntry,
+  });
+
+  const handleTestNotificationSound = useCallback(() => {
+    const useError = nextTestSoundIsError.current;
+    nextTestSoundIsError.current = !useError;
+    const type = useError ? "error" : "success";
+    const url = useError ? errorSoundUrl : successSoundUrl;
+    playNotificationSound(url, type, addDebugEntry);
+  }, [addDebugEntry]);
 
   const {
     workspaces,
@@ -889,6 +910,7 @@ function MainApp() {
           }}
           scaleShortcutTitle={scaleShortcutTitle}
           scaleShortcutText={scaleShortcutText}
+          onTestNotificationSound={handleTestNotificationSound}
         />
       )}
     </div>

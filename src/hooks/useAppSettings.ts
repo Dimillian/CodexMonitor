@@ -7,6 +7,7 @@ const defaultSettings: AppSettings = {
   codexBin: null,
   defaultAccessMode: "current",
   uiScale: UI_SCALE_DEFAULT,
+  notificationSoundsEnabled: true,
 };
 
 function normalizeAppSettings(settings: AppSettings): AppSettings {

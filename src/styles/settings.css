@@ -202,6 +202,22 @@
   margin-bottom: 16px;
 }
 
+.settings-subsection-title {
+  margin-top: 18px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.settings-subsection-subtitle {
+  font-size: 12px;
+  color: var(--text-subtle);
+  margin-bottom: 12px;
+}
+
 .settings-projects {
   display: flex;
   flex-direction: column;
@@ -328,6 +344,12 @@
 
 .settings-toggle-row + .settings-toggle-row {
   margin-top: 12px;
+}
+
+.settings-sound-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .settings-scale-row > div:first-child {

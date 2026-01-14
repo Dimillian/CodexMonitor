@@ -3,8 +3,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import {
   ChevronDown,
   ChevronUp,
-  Laptop2,
   LayoutGrid,
+  SlidersHorizontal,
   Stethoscope,
   TerminalSquare,
   Trash2,
@@ -28,6 +28,7 @@ type SettingsViewProps = {
   onUpdateWorkspaceCodexBin: (id: string, codexBin: string | null) => Promise<void>;
   scaleShortcutTitle: string;
   scaleShortcutText: string;
+  onTestNotificationSound: () => void;
 };
 
 type SettingsSection = "projects" | "display";
@@ -51,6 +52,7 @@ export function SettingsView({
   onUpdateWorkspaceCodexBin,
   scaleShortcutTitle,
   scaleShortcutText,
+  onTestNotificationSound,
 }: SettingsViewProps) {
   const [activeSection, setActiveSection] = useState<CodexSection>("projects");
   const [codexPathDraft, setCodexPathDraft] = useState(appSettings.codexBin ?? "");
@@ -208,8 +210,8 @@ export function SettingsView({
               className={`settings-nav ${activeSection === "display" ? "active" : ""}`}
               onClick={() => setActiveSection("display")}
             >
-              <Laptop2 aria-hidden />
-              Display
+              <SlidersHorizontal aria-hidden />
+              Display &amp; Sound
             </button>
             <button
               type="button"
@@ -272,8 +274,12 @@ export function SettingsView({
             )}
             {activeSection === "display" && (
               <section className="settings-section">
-                <div className="settings-section-title">Display</div>
+                <div className="settings-section-title">Display &amp; Sound</div>
                 <div className="settings-section-subtitle">
+                  Tune visuals and audio alerts to your preferences.
+                </div>
+                <div className="settings-subsection-title">Display</div>
+                <div className="settings-subsection-subtitle">
                   Adjust how the window renders backgrounds and effects.
                 </div>
                 <div className="settings-toggle-row">
@@ -331,6 +337,40 @@ export function SettingsView({
                       Reset
                     </button>
                   </div>
+                </div>
+                <div className="settings-subsection-title">Sounds</div>
+                <div className="settings-subsection-subtitle">
+                  Control notification audio alerts.
+                </div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Notification sounds</div>
+                    <div className="settings-toggle-subtitle">
+                      Play a sound when a long-running agent finishes while the window is unfocused.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.notificationSoundsEnabled ? "on" : ""}`}
+                    onClick={() =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        notificationSoundsEnabled: !appSettings.notificationSoundsEnabled,
+                      })
+                    }
+                    aria-pressed={appSettings.notificationSoundsEnabled}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+                <div className="settings-sound-actions">
+                  <button
+                    type="button"
+                    className="ghost settings-button-compact"
+                    onClick={onTestNotificationSound}
+                  >
+                    Test sound
+                  </button>
                 </div>
               </section>
             )}

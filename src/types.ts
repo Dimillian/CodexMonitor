@@ -65,6 +65,7 @@ export type AppSettings = {
   codexBin: string | null;
   defaultAccessMode: AccessMode;
   uiScale: number;
+  notificationSoundsEnabled: boolean;
 };
 
 export type CodexDoctorResult = {

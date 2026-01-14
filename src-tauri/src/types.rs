@@ -132,6 +132,11 @@ pub(crate) struct AppSettings {
     pub(crate) default_access_mode: String,
     #[serde(default = "default_ui_scale", rename = "uiScale")]
     pub(crate) ui_scale: f64,
+    #[serde(
+        default = "default_notification_sounds_enabled",
+        rename = "notificationSoundsEnabled"
+    )]
+    pub(crate) notification_sounds_enabled: bool,
 }
 
 fn default_access_mode() -> String {
@@ -142,12 +147,17 @@ fn default_ui_scale() -> f64 {
     1.0
 }
 
+fn default_notification_sounds_enabled() -> bool {
+    true
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
             codex_bin: None,
             default_access_mode: "current".to_string(),
             ui_scale: 1.0,
+            notification_sounds_enabled: true,
         }
     }
 }
@@ -162,6 +172,7 @@ mod tests {
         assert!(settings.codex_bin.is_none());
         assert_eq!(settings.default_access_mode, "current");
         assert!((settings.ui_scale - 1.0).abs() < f64::EPSILON);
+        assert!(settings.notification_sounds_enabled);
     }
 
     #[test]
