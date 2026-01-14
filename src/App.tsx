@@ -63,6 +63,7 @@ import { usePanelVisibility } from "./features/layout/hooks/usePanelVisibility";
 import { useTerminalController } from "./features/terminal/hooks/useTerminalController";
 import { cloudkitStatus, cloudkitTest } from "./services/tauri";
 import { playNotificationSound } from "./utils/notificationSounds";
+import { isAppleMobile } from "./utils/platform";
 import type { AccessMode, DiffLineReference, QueuedMessage, WorkspaceInfo } from "./types";
 
 function useWindowLabel() {
@@ -145,7 +146,7 @@ function MainApp() {
 
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const updater = useUpdater({ onDebug: addDebugEntry });
+  const updater = useUpdater({ enabled: !isAppleMobile(), onDebug: addDebugEntry });
   const isWindowFocused = useWindowFocusState();
   const nextTestSoundIsError = useRef(false);
 
