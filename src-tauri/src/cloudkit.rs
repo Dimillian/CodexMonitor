@@ -106,11 +106,17 @@ mod cloudkit_impl {
     }
 
     pub(super) fn ensure_cloudkit_allowed() -> Result<(), String> {
-        if cfg!(debug_assertions) && std::env::var("CODEXMONITOR_ALLOW_CLOUDKIT_DEV").ok().as_deref() != Some("1") {
-            return Err(
-                "CloudKit requires a signed build. Set CODEXMONITOR_ALLOW_CLOUDKIT_DEV=1 to override."
-                    .to_string(),
-            );
+        // We only hard-block debug builds on macOS, because macOS debug builds are often
+        // unsigned and CloudKit requires entitlements. On iOS, even debug builds are
+        // code-signed to run on devices/simulators, so we allow them by default.
+        let allow_debug = cfg!(target_os = "ios")
+            || std::env::var("CODEXMONITOR_ALLOW_CLOUDKIT_DEV")
+                .ok()
+                .as_deref()
+                == Some("1");
+
+        if cfg!(debug_assertions) && cfg!(target_os = "macos") && !allow_debug {
+            return Err("CloudKit requires a signed build. Set CODEXMONITOR_ALLOW_CLOUDKIT_DEV=1 to override.".to_string());
         }
         Ok(())
     }
