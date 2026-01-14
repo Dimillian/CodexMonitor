@@ -2,6 +2,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import type {
   AppSettings,
+  CloudKitCommandAck,
+  CloudKitCommandResult,
+  CloudKitRunnerInfo,
+  CloudKitSnapshot,
   CloudKitStatus,
   CloudKitTestResult,
   CodexDoctorResult,
@@ -199,6 +203,14 @@ export async function updateAppSettings(settings: AppSettings): Promise<AppSetti
   return invoke<AppSettings>("update_app_settings", { settings });
 }
 
+export async function e2eMark(marker: string): Promise<void> {
+  return invoke<void>("e2e_mark", { marker });
+}
+
+export async function e2eQuit(): Promise<void> {
+  return invoke<void>("e2e_quit");
+}
+
 export async function runCodexDoctor(
   codexBin: string | null,
 ): Promise<CodexDoctorResult> {
@@ -211,6 +223,46 @@ export async function cloudkitStatus(): Promise<CloudKitStatus> {
 
 export async function cloudkitTest(): Promise<CloudKitTestResult> {
   return invoke<CloudKitTestResult>("cloudkit_test");
+}
+
+export async function cloudkitLocalRunnerId(): Promise<string> {
+  return invoke<string>("cloudkit_local_runner_id");
+}
+
+export async function cloudkitPublishPresence(
+  name: string,
+  platform: string,
+): Promise<CloudKitRunnerInfo> {
+  return invoke<CloudKitRunnerInfo>("cloudkit_publish_presence", { name, platform });
+}
+
+export async function cloudkitFetchLatestRunner(): Promise<CloudKitRunnerInfo | null> {
+  return invoke<CloudKitRunnerInfo | null>("cloudkit_fetch_latest_runner");
+}
+
+export async function cloudkitPutSnapshot(scopeKey: string, payloadJson: string): Promise<void> {
+  return invoke("cloudkit_put_snapshot", { scopeKey, payloadJson });
+}
+
+export async function cloudkitGetSnapshot(
+  runnerId: string,
+  scopeKey: string,
+): Promise<CloudKitSnapshot | null> {
+  return invoke<CloudKitSnapshot | null>("cloudkit_get_snapshot", { runnerId, scopeKey });
+}
+
+export async function cloudkitSubmitCommand(
+  runnerId: string,
+  payloadJson: string,
+): Promise<CloudKitCommandAck> {
+  return invoke<CloudKitCommandAck>("cloudkit_submit_command", { runnerId, payloadJson });
+}
+
+export async function cloudkitGetCommandResult(
+  runnerId: string,
+  commandId: string,
+): Promise<CloudKitCommandResult | null> {
+  return invoke<CloudKitCommandResult | null>("cloudkit_get_command_result", { runnerId, commandId });
 }
 
 export async function getWorkspaceFiles(workspaceId: string) {

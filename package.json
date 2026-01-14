@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "macos:build-signed": "bash scripts/macos-build-signed.sh",
-    "tauri": "tauri"
+    "tauri": "PATH=$HOME/.cargo/bin:$PATH tauri"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

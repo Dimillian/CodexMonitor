@@ -23,6 +23,16 @@ mod types;
 mod utils;
 mod workspaces;
 
+#[tauri::command]
+fn e2e_mark(marker: String) {
+    eprintln!("[e2e] {marker}");
+}
+
+#[tauri::command]
+fn e2e_quit() {
+    std::process::exit(0);
+}
+
 pub fn cloudkit_cli_status_json(container_id: String) -> Result<String, String> {
     let status = cloudkit::cloudkit_cli_status(container_id)?;
     serde_json::to_string(&status).map_err(|error| error.to_string())
@@ -30,6 +40,51 @@ pub fn cloudkit_cli_status_json(container_id: String) -> Result<String, String> 
 
 pub fn cloudkit_cli_test_json(container_id: String) -> Result<String, String> {
     let result = cloudkit::cloudkit_cli_test(container_id)?;
+    serde_json::to_string(&result).map_err(|error| error.to_string())
+}
+
+pub fn cloudkit_cli_latest_runner_json(container_id: String) -> Result<String, String> {
+    let result = cloudkit::cloudkit_cli_latest_runner(container_id)?;
+    serde_json::to_string(&result).map_err(|error| error.to_string())
+}
+
+pub fn cloudkit_cli_upsert_runner_json(container_id: String, runner_id: String) -> Result<String, String> {
+    let result = cloudkit::cloudkit_cli_upsert_runner(container_id, runner_id)?;
+    serde_json::to_string(&result).map_err(|error| error.to_string())
+}
+
+pub fn cloudkit_cli_get_snapshot_json(
+    container_id: String,
+    runner_id: String,
+    scope_key: String,
+) -> Result<String, String> {
+    let result = cloudkit::cloudkit_cli_get_snapshot(container_id, runner_id, scope_key)?;
+    serde_json::to_string(&result).map_err(|error| error.to_string())
+}
+
+pub fn cloudkit_cli_get_command_result_json(
+    container_id: String,
+    runner_id: String,
+    command_id: String,
+) -> Result<String, String> {
+    let result = cloudkit::cloudkit_cli_get_command_result(container_id, runner_id, command_id)?;
+    serde_json::to_string(&result).map_err(|error| error.to_string())
+}
+
+pub fn cloudkit_cli_latest_command_result_json(
+    container_id: String,
+    runner_id: String,
+) -> Result<String, String> {
+    let result = cloudkit::cloudkit_cli_latest_command_result(container_id, runner_id)?;
+    serde_json::to_string(&result).map_err(|error| error.to_string())
+}
+
+pub fn cloudkit_cli_submit_command_json(
+    container_id: String,
+    runner_id: String,
+    payload_json: String,
+) -> Result<String, String> {
+    let result = cloudkit::cloudkit_cli_submit_command(container_id, runner_id, payload_json)?;
     serde_json::to_string(&result).map_err(|error| error.to_string())
 }
 
@@ -153,6 +208,7 @@ pub fn run() {
         .setup(|app| {
             let state = state::AppState::load(&app.handle());
             app.manage(state);
+            cloudkit::start_cloudkit_command_poller(app.handle().clone());
             #[cfg(desktop)]
             app.handle()
                 .plugin(tauri_plugin_updater::Builder::new().build())?;
@@ -162,10 +218,19 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
+            e2e_mark,
+            e2e_quit,
             settings::get_app_settings,
             settings::update_app_settings,
             cloudkit::cloudkit_status,
             cloudkit::cloudkit_test,
+            cloudkit::cloudkit_local_runner_id,
+            cloudkit::cloudkit_publish_presence,
+            cloudkit::cloudkit_fetch_latest_runner,
+            cloudkit::cloudkit_put_snapshot,
+            cloudkit::cloudkit_get_snapshot,
+            cloudkit::cloudkit_submit_command,
+            cloudkit::cloudkit_get_command_result,
             codex::codex_doctor,
             workspaces::list_workspaces,
             workspaces::add_workspace,

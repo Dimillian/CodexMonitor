@@ -2,15 +2,30 @@ import { useCallback, useEffect, useState } from "react";
 import type { AppSettings } from "../../../types";
 import { getAppSettings, runCodexDoctor, updateAppSettings } from "../../../services/tauri";
 import { clampUiScale, UI_SCALE_DEFAULT } from "../../../utils/uiScale";
+import { isAppleMobile } from "../../../utils/platform";
 
-const defaultSettings: AppSettings = {
-  codexBin: null,
-  cloudKitEnabled: false,
-  cloudKitContainerId: null,
-  defaultAccessMode: "current",
-  uiScale: UI_SCALE_DEFAULT,
-  notificationSoundsEnabled: true,
-};
+function buildDefaultSettings(): AppSettings {
+  // On iOS/iPadOS, the app is effectively a Cloud client. Default CloudKit to ON so
+  // first launch can immediately check for a running Mac runner.
+  const cloudDefault = isAppleMobile();
+  return {
+    codexBin: null,
+    runnerId: "",
+    cloudKitEnabled: cloudDefault,
+    cloudKitContainerId: null,
+    cloudKitPollIntervalMs: null,
+    natsEnabled: false,
+    natsUrl: null,
+    natsNamespace: null,
+    natsCredsFilePath: null,
+    telegramEnabled: false,
+    telegramBotToken: null,
+    telegramAllowedUserIds: [],
+    telegramDefaultChatId: null,
+    defaultAccessMode: "current",
+    uiScale: UI_SCALE_DEFAULT,
+  };
+}
 
 function normalizeAppSettings(settings: AppSettings): AppSettings {
   return {
@@ -20,7 +35,7 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
 }
 
 export function useAppSettings() {
-  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+  const [settings, setSettings] = useState<AppSettings>(() => buildDefaultSettings());
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -29,9 +44,10 @@ export function useAppSettings() {
       try {
         const response = await getAppSettings();
         if (active) {
+          const defaults = buildDefaultSettings();
           setSettings(
             normalizeAppSettings({
-              ...defaultSettings,
+              ...defaults,
               ...response,
             }),
           );
@@ -48,11 +64,15 @@ export function useAppSettings() {
   }, []);
 
   const saveSettings = useCallback(async (next: AppSettings) => {
-    const normalized = normalizeAppSettings(next);
+    const defaults = buildDefaultSettings();
+    const normalized = normalizeAppSettings({
+      ...defaults,
+      ...next,
+    });
     const saved = await updateAppSettings(normalized);
     setSettings(
       normalizeAppSettings({
-        ...defaultSettings,
+        ...defaults,
         ...saved,
       }),
     );
