@@ -194,16 +194,16 @@ jobs:
           set -euo pipefail
           VERSION="${{ inputs.version }}"
 
-          NEXT_VERSION=$(python3 - <<'PY'
-          import os
+          NEXT_VERSION=$(python3 - <<'PY' "$VERSION"
+          import sys
 
-          version = os.environ["VERSION"]
+          version = sys.argv[1]
           parts = version.split(".")
           if len(parts) != 3:
               raise SystemExit("Expected version like 0.X.Y")
 
-          major, minor, _patch = (int(p) for p in parts)
-          print(f"{major}.{minor + 1}.0")
+          major, minor, patch = (int(p) for p in parts)
+          print(f"{major}.{minor}.{patch + 1}")
           PY
           )
 
