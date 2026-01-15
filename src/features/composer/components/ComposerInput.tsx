@@ -103,6 +103,14 @@ export function ComposerInput({
       textarea.scrollHeight > maxTextareaHeight ? "auto" : "hidden";
   }, [text, textareaRef]);
 
+  const handleActionClick = () => {
+    if (canStop) {
+      onStop();
+    } else {
+      onSend();
+    }
+  };
+
   return (
     <div className="composer-input">
       <div
@@ -202,28 +210,24 @@ export function ComposerInput({
         )}
       </div>
       <button
-        className="composer-stop"
-        onClick={onStop}
-        disabled={disabled || !canStop}
-        aria-label="Stop"
-      >
-        <span className="composer-stop-square" aria-hidden />
-      </button>
-      <button
-        className="composer-send"
-        onClick={onSend}
+        className={`composer-action${canStop ? " is-stop" : " is-send"}`}
+        onClick={handleActionClick}
         disabled={disabled}
-        aria-label={sendLabel}
+        aria-label={canStop ? "Stop" : sendLabel}
       >
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-          <path
-            d="M12 5l6 6m-6-6L6 11m6-6v14"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        {canStop ? (
+          <span className="composer-action-stop-square" aria-hidden />
+        ) : (
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path
+              d="M12 5l6 6m-6-6L6 11m6-6v14"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )}
       </button>
     </div>
   );

@@ -17,6 +17,32 @@ function isImagePath(path: string) {
   return imageExtensions.some((ext) => lower.endsWith(ext));
 }
 
+function isDragFileTransfer(types: readonly string[] | undefined) {
+  if (!types || types.length === 0) {
+    return false;
+  }
+  return (
+    types.includes("Files") ||
+    types.includes("public.file-url") ||
+    types.includes("application/x-moz-file")
+  );
+}
+
+function readFilesAsDataUrls(files: File[]) {
+  return Promise.all(
+    files.map(
+      (file) =>
+        new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () =>
+            resolve(typeof reader.result === "string" ? reader.result : "");
+          reader.onerror = () => resolve("");
+          reader.readAsDataURL(file);
+        }),
+    ),
+  ).then((items) => items.filter(Boolean));
+}
+
 type UseComposerImageDropArgs = {
   disabled: boolean;
   onAttachImages?: (paths: string[]) => void;
@@ -86,7 +112,7 @@ export function useComposerImageDrop({
     if (disabled) {
       return;
     }
-    if (event.dataTransfer?.types?.includes("Files")) {
+    if (isDragFileTransfer(event.dataTransfer?.types)) {
       event.preventDefault();
       setIsDragOver(true);
     }
@@ -102,24 +128,35 @@ export function useComposerImageDrop({
     }
   };
 
-  const handleDrop = (event: React.DragEvent<HTMLElement>) => {
+  const handleDrop = async (event: React.DragEvent<HTMLElement>) => {
     if (disabled) {
       return;
     }
     event.preventDefault();
     setIsDragOver(false);
     const files = Array.from(event.dataTransfer?.files ?? []);
-    if (!files.length) {
-      return;
-    }
-    const imagePaths = files
-      .map((file) => {
-        const candidate = (file as File & { path?: string }).path ?? "";
-        return candidate && isImagePath(candidate) ? candidate : null;
-      })
-      .filter((path): path is string => Boolean(path));
+    const items = Array.from(event.dataTransfer?.items ?? []);
+    const itemFiles = items
+      .filter((item) => item.kind === "file")
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => Boolean(file));
+    const filePaths = [...files, ...itemFiles]
+      .map((file) => (file as File & { path?: string }).path ?? "")
+      .filter(Boolean);
+    const imagePaths = filePaths.filter(isImagePath);
     if (imagePaths.length > 0) {
       onAttachImages?.(imagePaths);
+      return;
+    }
+    const fileImages = [...files, ...itemFiles].filter((file) =>
+      file.type.startsWith("image/"),
+    );
+    if (fileImages.length === 0) {
+      return;
+    }
+    const dataUrls = await readFilesAsDataUrls(fileImages);
+    if (dataUrls.length > 0) {
+      onAttachImages?.(dataUrls);
     }
   };
 

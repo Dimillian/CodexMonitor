@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { Image, X } from "lucide-react";
 
 type ComposerAttachmentsProps = {
   attachments: string[];
@@ -33,7 +33,14 @@ export function ComposerAttachments({
         const title = fileTitle(path);
         const titleAttr = path.startsWith("data:") ? "Pasted image" : path;
         return (
-          <div key={path} className="composer-attachment" title={titleAttr}>
+          <div
+            key={path}
+            className="composer-attachment"
+            title={titleAttr}
+          >
+            <span className="composer-icon" aria-hidden>
+              <Image size={14} />
+            </span>
             <span className="composer-attachment-name">{title}</span>
             <button
               type="button"

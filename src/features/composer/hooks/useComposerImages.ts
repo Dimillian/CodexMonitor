@@ -26,10 +26,7 @@ export function useComposerImages({
       }
       setImagesByThread((prev) => {
         const existing = prev[draftKey] ?? [];
-        const merged = [
-          ...existing,
-          ...paths.filter((path) => !existing.includes(path)),
-        ];
+        const merged = Array.from(new Set([...existing, ...paths]));
         return { ...prev, [draftKey]: merged };
       });
     },

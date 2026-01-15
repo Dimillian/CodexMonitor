@@ -66,7 +66,7 @@
 
 .composer-input {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto;
   gap: 12px;
   align-items: center;
 }
@@ -182,7 +182,7 @@
   outline: none;
 }
 
-.composer-send {
+.composer-action {
   border: 1px solid rgba(255, 255, 255, 0.5);
   background: transparent;
   color: #ffffff;
@@ -197,40 +197,32 @@
   justify-content: center;
 }
 
-.composer-send:hover {
+.composer-action.is-stop {
+  border-color: rgba(255, 107, 107, 0.6);
+  background: rgba(255, 107, 107, 0.12);
+}
+
+.composer-action:hover {
   background: var(--surface-control-hover);
   color: #ffffff;
 }
 
-.composer-send svg {
+.composer-action.is-stop:hover {
+  background: rgba(255, 107, 107, 0.2);
+}
+
+.composer-action svg {
   width: 12px;
   height: 12px;
 }
 
-.composer-stop {
-  border: 1px solid rgba(255, 107, 107, 0.6);
-  background: rgba(255, 107, 107, 0.12);
-  color: #ffffff;
-  padding: 0;
-  border-radius: 999px;
-  cursor: pointer;
-  width: 24px;
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.composer-stop:hover {
-  background: rgba(255, 107, 107, 0.2);
-}
-
-.composer-stop-square {
+.composer-action-stop-square {
   width: 6px;
   height: 6px;
   border-radius: 2px;
   background: currentColor;
 }
+
 
 .composer.is-disabled {
   opacity: 0.7;
@@ -242,7 +234,7 @@
   color: var(--text-fainter);
 }
 
-.composer-send:disabled {
+.composer-action:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   background: var(--surface-control-disabled);
@@ -250,12 +242,13 @@
   border-color: var(--border-subtle);
 }
 
-.composer-stop:disabled {
+.composer-action.is-stop:disabled {
   opacity: 0.4;
   cursor: not-allowed;
   background: rgba(255, 107, 107, 0.08);
   color: rgba(255, 196, 196, 0.4);
 }
+
 
 .composer-select:disabled {
   cursor: not-allowed;
