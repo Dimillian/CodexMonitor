@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { listen } from "@tauri-apps/api/event";
 import type { AppServerEvent, ApprovalRequest } from "../../../types";
+import { subscribeAppServerEvents } from "../../../services/events";
 
 type AgentDelta = {
   workspaceId: string;
@@ -58,10 +58,10 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
   useEffect(() => {
     let unlisten: (() => void) | null = null;
     let canceled = false;
-    listen<AppServerEvent>("app-server-event", (event) => {
-      handlers.onAppServerEvent?.(event.payload);
+    subscribeAppServerEvents((payload) => {
+      handlers.onAppServerEvent?.(payload);
 
-      const { workspace_id, message } = event.payload;
+      const { workspace_id, message } = payload;
       const method = String(message.method ?? "");
 
       if (method === "codex/connected") {

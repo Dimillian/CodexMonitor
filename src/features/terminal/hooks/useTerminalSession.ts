@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
-import { listen } from "@tauri-apps/api/event";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import type { DebugEntry, TerminalStatus, WorkspaceInfo } from "../../../types";
 import { buildErrorDebugEntry } from "../../../utils/debugEntries";
+import { subscribeTerminalOutput, type TerminalOutputEvent } from "../../../services/events";
 import {
   openTerminalSession,
   resizeTerminalSession,
@@ -13,12 +13,6 @@ import {
 } from "../../../services/tauri";
 
 const MAX_BUFFER_CHARS = 200_000;
-
-type TerminalOutputEvent = {
-  workspaceId: string;
-  terminalId: string;
-  data: string;
-};
 
 type UseTerminalSessionOptions = {
   activeWorkspace: WorkspaceInfo | null;
@@ -122,8 +116,8 @@ export function useTerminalSession({
   useEffect(() => {
     let unlisten: (() => void) | null = null;
     let canceled = false;
-    listen<TerminalOutputEvent>("terminal-output", (event) => {
-      const { workspaceId, terminalId, data } = event.payload;
+    subscribeTerminalOutput((payload: TerminalOutputEvent) => {
+      const { workspaceId, terminalId, data } = payload;
       const key = `${workspaceId}:${terminalId}`;
       const next = appendBuffer(outputBuffersRef.current.get(key), data);
       outputBuffersRef.current.set(key, next);

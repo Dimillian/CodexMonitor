@@ -22,6 +22,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -256,10 +257,11 @@ jobs:
           LAST_TAG=$(git tag --sort=-version:refname \
             | grep -v "^v${VERSION}$" \
             | head -n 1 || true)
+          RANGE_END="${GITHUB_SHA}"
           if [ -n "$LAST_TAG" ]; then
-            git log "${LAST_TAG}..HEAD" --pretty=format:"%s" > release-artifacts/release-commits.txt
+            git log "${LAST_TAG}..${RANGE_END}" --pretty=format:"%s" > release-artifacts/release-commits.txt
           else
-            git log --pretty=format:"%s" > release-artifacts/release-commits.txt
+            git log "${RANGE_END}" --pretty=format:"%s" > release-artifacts/release-commits.txt
           fi
 
           python3 - <<'PY'
@@ -267,7 +269,7 @@ jobs:
           from pathlib import Path
 
           lines = Path("release-artifacts/release-commits.txt").read_text().splitlines()
-          pattern = re.compile(r"^(feat|fix|perf)(?:\\([^)]*\\))?:\\s*(.+)$", re.IGNORECASE)
+          pattern = re.compile(r"^(feat|fix|perf)(?:\([^)]*\))?:\s*(.+)$", re.IGNORECASE)
           groups = {"feat": [], "fix": [], "perf": []}
           for line in lines:
               match = pattern.match(line.strip())
