@@ -1,7 +1,9 @@
 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
+mod backend;
 mod codex;
+mod event_sink;
 mod git;
 mod prompts;
 mod settings;

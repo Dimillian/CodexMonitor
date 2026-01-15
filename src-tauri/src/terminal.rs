@@ -4,9 +4,11 @@ use std::sync::Arc;
 
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, State};
 use tokio::sync::Mutex;
 
+use crate::backend::events::{EventSink, TerminalOutput};
+use crate::event_sink::TauriEventSink;
 use crate::state::AppState;
 
 pub(crate) struct TerminalSession {
@@ -21,15 +23,6 @@ pub(crate) struct TerminalSessionInfo {
     id: String,
 }
 
-#[derive(Debug, Serialize, Clone)]
-struct TerminalOutput {
-    #[serde(rename = "workspaceId")]
-    workspace_id: String,
-    #[serde(rename = "terminalId")]
-    terminal_id: String,
-    data: String,
-}
-
 fn terminal_key(workspace_id: &str, terminal_id: &str) -> String {
     format!("{workspace_id}:{terminal_id}")
 }
@@ -39,7 +32,7 @@ fn shell_path() -> String {
 }
 
 fn spawn_terminal_reader(
-    app: AppHandle,
+    event_sink: impl EventSink,
     workspace_id: String,
     terminal_id: String,
     mut reader: Box<dyn Read + Send>,
@@ -56,7 +49,7 @@ fn spawn_terminal_reader(
                         terminal_id: terminal_id.clone(),
                         data,
                     };
-                    let _ = app.emit("terminal-output", payload);
+                    event_sink.emit_terminal_output(payload);
                 }
                 Err(_) => break,
             }
@@ -146,7 +139,8 @@ pub(crate) async fn terminal_open(
         }
         sessions.insert(key, session);
     }
-    spawn_terminal_reader(app, workspace_id, terminal_id, reader);
+    let event_sink = TauriEventSink::new(app);
+    spawn_terminal_reader(event_sink, workspace_id, terminal_id, reader);
 
     Ok(TerminalSessionInfo {
         id: session_id,
