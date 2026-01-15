@@ -28,6 +28,7 @@ uuid = { version = "1", features = ["v4"] }
 tauri-plugin-dialog = "2"
 git2 = "0.20.3"
 fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs" }
+ignore = "0.4.25"
 
 [target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
 tauri-plugin-updater = "2"

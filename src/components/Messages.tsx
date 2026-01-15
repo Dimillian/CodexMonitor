@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import type { ConversationItem } from "../types";
 import { Markdown } from "./Markdown";
 import { DiffBlock } from "./DiffBlock";
@@ -194,11 +194,12 @@ function scrollKeyForItems(items: ConversationItem[]) {
     case "review":
       return `${last.id}-${last.state}-${last.text.length}`;
     default:
-      return last.id;
+      const _exhaustive: never = last;
+      return _exhaustive;
   }
 }
 
-export function Messages({
+export const Messages = memo(function Messages({
   items,
   isThinking,
   processingStartedAt = null,
@@ -308,6 +309,7 @@ export function Messages({
             !normalizedSummaryText ||
             normalizedSummaryText === summaryTitle ||
             summaryLines.length <= 1;
+          const showReasoningBody = !shouldHideReasoningBody && summaryText;
           return (
             <div key={item.id} className="tool-inline reasoning-inline">
               <button
@@ -330,7 +332,7 @@ export function Messages({
                   />
                   <span className="tool-inline-value">{summaryTitle}</span>
                 </button>
-                {!shouldHideReasoningBody && summaryText && (
+                {showReasoningBody && (
                   <Markdown
                     value={summaryText}
                     className={`reasoning-inline-detail markdown ${
@@ -403,6 +405,7 @@ export function Messages({
             : summary.value;
           const shouldFadeCommand =
             isCommand && !isExpanded && (summaryValue?.length ?? 0) > 80;
+          const showToolOutput = isExpanded && (!isFileChange || !hasChanges);
           return (
             <div
               key={item.id}
@@ -490,7 +493,7 @@ export function Messages({
                 {isExpanded && isFileChange && !hasChanges && item.detail && (
                   <Markdown value={item.detail} className="item-text markdown" />
                 )}
-                {isExpanded && summary.output && (!isFileChange || !hasChanges) && (
+                {showToolOutput && summary.output && (
                   <Markdown
                     value={summary.output}
                     className="tool-inline-output markdown"
@@ -529,4 +532,4 @@ export function Messages({
       <div ref={bottomRef} />
     </div>
   );
-}
+});

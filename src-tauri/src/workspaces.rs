@@ -1,6 +1,7 @@
 use std::io::Write;
 use std::path::PathBuf;
 
+use ignore::WalkBuilder;
 use tauri::{AppHandle, State};
 use tokio::process::Command;
 use uuid::Uuid;
@@ -30,43 +31,33 @@ fn sanitize_worktree_name(branch: &str) -> String {
     }
 }
 
-fn should_skip_dir(name: &str) -> bool {
-    matches!(
-        name,
-        ".git" | "node_modules" | "dist" | "target" | "release-artifacts"
-    )
-}
-
 fn list_workspace_files_inner(root: &PathBuf, max_files: usize) -> Vec<String> {
     let mut results = Vec::new();
-    let mut stack = vec![root.clone()];
+    let walker = WalkBuilder::new(root)
+        // Allow hidden entries.
+        .hidden(false)
+        // Follow symlinks to search their contents.
+        .follow_links(true)
+        // Don't require git to be present to apply to apply git-related ignore rules.
+        .require_git(false)
+        .build();
 
-    while let Some(dir) = stack.pop() {
-        let entries = match std::fs::read_dir(&dir) {
-            Ok(entries) => entries,
+    for entry in walker {
+        let entry = match entry {
+            Ok(entry) => entry,
             Err(_) => continue,
         };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            let file_name = entry.file_name().to_string_lossy().to_string();
-            if path.is_dir() {
-                if should_skip_dir(&file_name) {
-                    continue;
-                }
-                stack.push(path);
-                continue;
+        if !entry.file_type().is_some_and(|ft| ft.is_file()) {
+            continue;
+        }
+        if let Ok(rel_path) = entry.path().strip_prefix(root) {
+            let normalized = normalize_git_path(&rel_path.to_string_lossy());
+            if !normalized.is_empty() {
+                results.push(normalized);
             }
-            if path.is_file() {
-                if let Ok(rel_path) = path.strip_prefix(root) {
-                    let normalized = normalize_git_path(&rel_path.to_string_lossy());
-                    if !normalized.is_empty() {
-                        results.push(normalized);
-                    }
-                }
-            }
-            if results.len() >= max_files {
-                return results;
-            }
+        }
+        if results.len() >= max_files {
+            break;
         }
     }
 

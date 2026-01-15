@@ -86,7 +86,7 @@
   --surface-context-core: rgba(16, 20, 30, 0.96);
 }
 
-@media (prefers-color-scheme: light) {
+  @media (prefers-color-scheme: light) {
   :root {
     --text-primary: #1a1d24;
     --text-strong: #0e1118;
@@ -135,9 +135,9 @@
   --text-accent: rgba(45, 93, 170, 0.7);
   --shadow-accent: rgba(90, 140, 210, 0.18);
   --status-success: rgba(30, 155, 110, 0.9);
-  --status-warning: rgba(215, 120, 20, 0.9);
-  --status-error: rgba(200, 45, 45, 0.9);
-  --status-unknown: rgba(17, 20, 28, 0.25);
+    --status-warning: rgba(215, 120, 20, 0.9);
+    --status-error: rgba(200, 45, 45, 0.9);
+    --status-unknown: rgba(17, 20, 28, 0.25);
   --select-caret: rgba(15, 23, 36, 0.45);
   }
 

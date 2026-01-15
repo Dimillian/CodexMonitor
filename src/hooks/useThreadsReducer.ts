@@ -103,6 +103,31 @@ export const initialState: ThreadState = {
   lastAgentMessageByThread: {},
 };
 
+function mergeStreamingText(existing: string, delta: string) {
+  if (!delta) {
+    return existing;
+  }
+  if (!existing) {
+    return delta;
+  }
+  if (delta === existing) {
+    return existing;
+  }
+  if (delta.startsWith(existing)) {
+    return delta;
+  }
+  if (existing.startsWith(delta)) {
+    return existing;
+  }
+  const maxOverlap = Math.min(existing.length, delta.length);
+  for (let length = maxOverlap; length > 0; length -= 1) {
+    if (existing.endsWith(delta.slice(0, length))) {
+      return `${existing}${delta.slice(length)}`;
+    }
+  }
+  return `${existing}${delta}`;
+}
+
 export function threadReducer(state: ThreadState, action: ThreadAction): ThreadState {
   switch (action.type) {
     case "setActiveThreadId":
@@ -343,7 +368,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         const existing = list[index];
         list[index] = {
           ...existing,
-          text: `${existing.text}${action.delta}`,
+          text: mergeStreamingText(existing.text, action.delta),
         };
       } else {
         list.push({
@@ -432,7 +457,10 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
             };
       const updated: ConversationItem = {
         ...base,
-        summary: `${"summary" in base ? base.summary : ""}${action.delta}`,
+        summary: mergeStreamingText(
+          "summary" in base ? base.summary : "",
+          action.delta,
+        ),
       } as ConversationItem;
       const next = index >= 0 ? [...list] : [...list, updated];
       if (index >= 0) {
@@ -460,7 +488,10 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
             };
       const updated: ConversationItem = {
         ...base,
-        content: `${"content" in base ? base.content : ""}${action.delta}`,
+        content: mergeStreamingText(
+          "content" in base ? base.content : "",
+          action.delta,
+        ),
       } as ConversationItem;
       const next = index >= 0 ? [...list] : [...list, updated];
       if (index >= 0) {
@@ -483,7 +514,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       const existing = list[index];
       const updated: ConversationItem = {
         ...existing,
-        output: `${existing.output ?? ""}${action.delta}`,
+        output: mergeStreamingText(existing.output ?? "", action.delta),
       } as ConversationItem;
       const next = [...list];
       next[index] = updated;
