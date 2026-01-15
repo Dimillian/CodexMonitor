@@ -51,6 +51,7 @@ xcode-select --install 2>/dev/null || true
 # 2) Install rustup (via Homebrew) and initialize the stable toolchain
 brew install rustup-init
 rustup-init -y
+rustup default stable
 
 # 3) Load Cargo into your current shell and make it persistent
 . "$HOME/.cargo/env"
@@ -58,14 +59,21 @@ if [[ ":$PATH:" != *":$HOME/.cargo/bin:"* ]]; then
   echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.zshrc
 fi
 
-# 4) Verify
+# 4) Verify PATH and versions
+which cargo
 cargo --version
 rustc --version
 ```
 
 Troubleshooting:
 - If `cargo metadata` still fails, run `cargo metadata --manifest-path src-tauri/Cargo.toml --no-deps --format-version 1` to verify the Rust side builds.
+- If you previously installed Rust via Homebrew (`brew install rust`), ensure rustup’s shims come first in PATH, or uninstall the Homebrew `rust` formula to avoid conflicts. Homebrew’s rustup is keg-only; if needed, prepend `/opt/homebrew/opt/rustup/bin` before your general Homebrew bin in PATH.
+- Shell notes:
+  - zsh: append `export PATH="$HOME/.cargo/bin:$PATH"` to `~/.zshrc`, then `source ~/.zshrc`.
+  - bash: append the same line to `~/.bash_profile` (or `~/.profile`), then `source ~/.bash_profile`.
+  - fish: run `set -U fish_user_paths $HOME/.cargo/bin $fish_user_paths`.
 - For Linux, install rustup from https://rustup.rs and make sure `$HOME/.cargo/bin` is on PATH.
+- Windows: install from https://rustup.rs and restart your terminal; verify with `where cargo`.
 
 ## Getting Started
 
