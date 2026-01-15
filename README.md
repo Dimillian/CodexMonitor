@@ -34,6 +34,39 @@ CodexMonitor is a macOS Tauri app for orchestrating multiple Codex agents across
 
 If the `codex` binary is not in `PATH`, update the backend to pass a custom path per workspace.
 
+### Install the Rust toolchain (macOS)
+
+CodexMonitor’s Tauri backend requires Rust and Cargo. If `npm run tauri dev` fails with an error like:
+
+```
+failed to run 'cargo metadata' command to get workspace directory: No such file or directory (os error 2)
+```
+
+install Rust via rustup and ensure Cargo is on your PATH:
+
+```bash
+# 1) Ensure Apple Command Line Tools are installed (once per machine)
+xcode-select --install 2>/dev/null || true
+
+# 2) Install rustup (via Homebrew) and initialize the stable toolchain
+brew install rustup-init
+rustup-init -y
+
+# 3) Load Cargo into your current shell and make it persistent
+. "$HOME/.cargo/env"
+if [[ ":$PATH:" != *":$HOME/.cargo/bin:"* ]]; then
+  echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.zshrc
+fi
+
+# 4) Verify
+cargo --version
+rustc --version
+```
+
+Troubleshooting:
+- If `cargo metadata` still fails, run `cargo metadata --manifest-path src-tauri/Cargo.toml --no-deps --format-version 1` to verify the Rust side builds.
+- For Linux, install rustup from https://rustup.rs and make sure `$HOME/.cargo/bin` is on PATH.
+
 ## Getting Started
 
 Install dependencies:
