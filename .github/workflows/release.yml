@@ -167,9 +167,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: ubuntu-22.04
+          - platform: ubuntu-24.04
             arch: x86_64
-          - platform: ubuntu-22.04-arm
+          - platform: ubuntu-24.04-arm
             arch: aarch64
     steps:
       - uses: actions/checkout@v4
