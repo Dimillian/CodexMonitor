@@ -1314,12 +1314,23 @@ export function CloudClientApp() {
     Boolean(activePending && activePending.phase !== "error") ||
     Boolean(activeThreadId && threadStatusById[activeThreadId]?.isProcessing);
 
+  const threadListPagingByWorkspace = useMemo(
+    () => ({} as Record<string, boolean>),
+    [],
+  );
+  const threadListCursorByWorkspace = useMemo(
+    () => ({} as Record<string, string | null>),
+    [],
+  );
+
   const sidebarNode = (
     <Sidebar
       workspaces={workspaces}
       threadsByWorkspace={threadsByWorkspace}
       threadStatusById={threadStatusById}
       threadListLoadingByWorkspace={threadListLoadingByWorkspace}
+      threadListPagingByWorkspace={threadListPagingByWorkspace}
+      threadListCursorByWorkspace={threadListCursorByWorkspace}
       activeWorkspaceId={activeWorkspaceId}
       activeThreadId={activeThreadId}
       accountRateLimits={null}
@@ -1327,7 +1338,7 @@ export function CloudClientApp() {
       onOpenDebug={() => {
         alert("Debug view is not available in Cloud mode yet.");
       }}
-      hasDebugAlerts={false}
+      showDebugButton={false}
       onAddWorkspace={() => {
         alert("Add workspaces from the Mac app. The iOS app is read-only.");
       }}
@@ -1366,6 +1377,7 @@ export function CloudClientApp() {
         alert("Workspace deletion is not available from iOS.");
       }}
       onDeleteWorktree={() => {}}
+      onLoadOlderThreads={() => {}}
     />
   );
 

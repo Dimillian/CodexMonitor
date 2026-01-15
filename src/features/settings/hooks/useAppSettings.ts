@@ -24,6 +24,7 @@ function buildDefaultSettings(): AppSettings {
     telegramDefaultChatId: null,
     defaultAccessMode: "current",
     uiScale: UI_SCALE_DEFAULT,
+    notificationSoundsEnabled: true,
   };
 }
 
