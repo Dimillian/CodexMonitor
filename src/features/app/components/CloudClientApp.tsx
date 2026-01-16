@@ -1386,7 +1386,7 @@ export function CloudClientApp() {
       items={activeItems}
       threadId={activeThreadId}
       isThinking={isThinking}
-      processingStartedAt={pendingCommand?.createdAt ?? null}
+      processingStartedAt={activePending?.createdAt ?? null}
       loadingMode={threadLoadMode === "idle" ? null : threadLoadMode}
       loadingLabel={threadLoadLabel}
     />
@@ -1467,6 +1467,9 @@ export function CloudClientApp() {
                   branches={[]}
                   onCheckoutBranch={() => {}}
                   onCreateBranch={() => {}}
+                  onToggleTerminal={() => {}}
+                  isTerminalOpen={false}
+                  showTerminalButton={false}
                   readonly
                 />
               </div>
@@ -1518,6 +1521,9 @@ export function CloudClientApp() {
                     branches={[]}
                     onCheckoutBranch={() => {}}
                     onCreateBranch={() => {}}
+                    onToggleTerminal={() => {}}
+                    isTerminalOpen={false}
+                    showTerminalButton={false}
                     readonly
                   />
                 </div>

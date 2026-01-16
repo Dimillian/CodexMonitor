@@ -11,8 +11,8 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import type { CloudTelemetryEntry } from "../cloud/cloudTelemetry";
-import { clearCloudTelemetry, readCloudTelemetry } from "../cloud/cloudTelemetry";
+import type { CloudTelemetryEntry } from "../../../cloud/cloudTelemetry";
+import { clearCloudTelemetry, readCloudTelemetry } from "../../../cloud/cloudTelemetry";
 import type {
   AppSettings,
   CloudKitStatus,
@@ -784,15 +784,17 @@ export function SettingsView({
                   </button>
                   <button
                     type="button"
-                    className="ghost settings-button-compact"
-                    onClick={async () => {
-                      const entries = readCloudTelemetry();
-                      const text = entries.map((entry) => JSON.stringify(entry)).join("\n");
-                      if (text) {
-                        await navigator.clipboard.writeText(text);
-                      }
-                    }}
-                  >
+                      className="ghost settings-button-compact"
+                      onClick={async () => {
+                        const entries = readCloudTelemetry();
+                      const text = entries
+                        .map((entry: CloudTelemetryEntry) => JSON.stringify(entry))
+                        .join("\n");
+                        if (text) {
+                          await navigator.clipboard.writeText(text);
+                        }
+                      }}
+                    >
                     Copy
                   </button>
                   <button
