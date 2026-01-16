@@ -5,16 +5,29 @@ import {
   ChevronUp,
   LayoutGrid,
   SlidersHorizontal,
+  Mic,
   Stethoscope,
   TerminalSquare,
   Trash2,
   X,
   FlaskConical,
 } from "lucide-react";
-import type { AppSettings, CodexDoctorResult, WorkspaceInfo } from "../../../types";
-import {
-  clampUiScale,
-} from "../../../utils/uiScale";
+import type {
+  AppSettings,
+  CodexDoctorResult,
+  DictationModelStatus,
+  WorkspaceInfo,
+} from "../../../types";
+import { formatDownloadSize } from "../../../utils/formatting";
+import { clampUiScale } from "../../../utils/uiScale";
+
+const DICTATION_MODELS = [
+  { id: "tiny", label: "Tiny", size: "75 MB", note: "Fastest, least accurate." },
+  { id: "base", label: "Base", size: "142 MB", note: "Balanced default." },
+  { id: "small", label: "Small", size: "466 MB", note: "Better accuracy." },
+  { id: "medium", label: "Medium", size: "1.5 GB", note: "High accuracy." },
+  { id: "large-v3", label: "Large V3", size: "3.0 GB", note: "Best accuracy, heavy download." },
+];
 
 type SettingsViewProps = {
   workspaces: WorkspaceInfo[];
@@ -30,9 +43,13 @@ type SettingsViewProps = {
   scaleShortcutTitle: string;
   scaleShortcutText: string;
   onTestNotificationSound: () => void;
+  dictationModelStatus?: DictationModelStatus | null;
+  onDownloadDictationModel?: () => void;
+  onCancelDictationDownload?: () => void;
+  onRemoveDictationModel?: () => void;
 };
 
-type SettingsSection = "projects" | "display";
+type SettingsSection = "projects" | "display" | "dictation";
 type CodexSection = SettingsSection | "codex" | "experimental";
 
 function orderValue(workspace: WorkspaceInfo) {
@@ -54,6 +71,10 @@ export function SettingsView({
   scaleShortcutTitle,
   scaleShortcutText,
   onTestNotificationSound,
+  dictationModelStatus,
+  onDownloadDictationModel,
+  onCancelDictationDownload,
+  onRemoveDictationModel,
 }: SettingsViewProps) {
   const [activeSection, setActiveSection] = useState<CodexSection>("projects");
   const [codexPathDraft, setCodexPathDraft] = useState(appSettings.codexBin ?? "");
@@ -66,6 +87,15 @@ export function SettingsView({
     result: CodexDoctorResult | null;
   }>({ status: "idle", result: null });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const dictationReady = dictationModelStatus?.state === "ready";
+  const dictationProgress = dictationModelStatus?.progress ?? null;
+  const selectedDictationModel = useMemo(() => {
+    return (
+      DICTATION_MODELS.find(
+        (model) => model.id === appSettings.dictationModelId,
+      ) ?? DICTATION_MODELS[1]
+    );
+  }, [appSettings.dictationModelId]);
 
   const projects = useMemo(() => {
     return workspaces
@@ -213,6 +243,14 @@ export function SettingsView({
             >
               <SlidersHorizontal aria-hidden />
               Display &amp; Sound
+            </button>
+            <button
+              type="button"
+              className={`settings-nav ${activeSection === "dictation" ? "active" : ""}`}
+              onClick={() => setActiveSection("dictation")}
+            >
+              <Mic aria-hidden />
+              Dictation
             </button>
             <button
               type="button"
@@ -381,6 +419,183 @@ export function SettingsView({
                     Test sound
                   </button>
                 </div>
+              </section>
+            )}
+            {activeSection === "dictation" && (
+              <section className="settings-section">
+                <div className="settings-section-title">Dictation</div>
+                <div className="settings-section-subtitle">
+                  Enable microphone dictation with on-device transcription.
+                </div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Enable dictation</div>
+                    <div className="settings-toggle-subtitle">
+                      Downloads the selected Whisper model on first use.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.dictationEnabled ? "on" : ""}`}
+                    onClick={() => {
+                      const nextEnabled = !appSettings.dictationEnabled;
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        dictationEnabled: nextEnabled,
+                      });
+                      if (
+                        !nextEnabled &&
+                        dictationModelStatus?.state === "downloading" &&
+                        onCancelDictationDownload
+                      ) {
+                        onCancelDictationDownload();
+                      }
+                      if (
+                        nextEnabled &&
+                        dictationModelStatus?.state === "missing" &&
+                        onDownloadDictationModel
+                      ) {
+                        onDownloadDictationModel();
+                      }
+                    }}
+                    aria-pressed={appSettings.dictationEnabled}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="dictation-model">
+                    Dictation model
+                  </label>
+                  <select
+                    id="dictation-model"
+                    className="settings-select"
+                    value={appSettings.dictationModelId}
+                    onChange={(event) =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        dictationModelId: event.target.value,
+                      })
+                    }
+                  >
+                    {DICTATION_MODELS.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.label} ({model.size})
+                      </option>
+                    ))}
+                  </select>
+                  <div className="settings-help">
+                    {selectedDictationModel.note} Download size: {selectedDictationModel.size}.
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="dictation-language">
+                    Preferred dictation language
+                  </label>
+                  <select
+                    id="dictation-language"
+                    className="settings-select"
+                    value={appSettings.dictationPreferredLanguage ?? ""}
+                    onChange={(event) =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        dictationPreferredLanguage: event.target.value || null,
+                      })
+                    }
+                  >
+                    <option value="">Auto-detect only</option>
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                    <option value="de">German</option>
+                    <option value="it">Italian</option>
+                    <option value="pt">Portuguese</option>
+                    <option value="nl">Dutch</option>
+                    <option value="sv">Swedish</option>
+                    <option value="no">Norwegian</option>
+                    <option value="da">Danish</option>
+                    <option value="fi">Finnish</option>
+                    <option value="pl">Polish</option>
+                    <option value="tr">Turkish</option>
+                    <option value="ru">Russian</option>
+                    <option value="uk">Ukrainian</option>
+                    <option value="ja">Japanese</option>
+                    <option value="ko">Korean</option>
+                    <option value="zh">Chinese</option>
+                  </select>
+                  <div className="settings-help">
+                    Auto-detect stays on; this nudges the decoder toward your preference.
+                  </div>
+                </div>
+                {dictationModelStatus && (
+                  <div className="settings-field">
+                    <div className="settings-field-label">
+                      Model status ({selectedDictationModel.label})
+                    </div>
+                    <div className="settings-help">
+                      {dictationModelStatus.state === "ready" && "Ready for dictation."}
+                      {dictationModelStatus.state === "missing" && "Model not downloaded yet."}
+                      {dictationModelStatus.state === "downloading" &&
+                        "Downloading model..."}
+                      {dictationModelStatus.state === "error" &&
+                        (dictationModelStatus.error ?? "Download error.")}
+                    </div>
+                    {dictationProgress && (
+                      <div className="settings-download-progress">
+                        <div className="settings-download-bar">
+                          <div
+                            className="settings-download-fill"
+                            style={{
+                              width: dictationProgress.totalBytes
+                                ? `${Math.min(
+                                    100,
+                                    (dictationProgress.downloadedBytes /
+                                      dictationProgress.totalBytes) *
+                                      100,
+                                  )}%`
+                                : "0%",
+                            }}
+                          />
+                        </div>
+                        <div className="settings-download-meta">
+                          {formatDownloadSize(dictationProgress.downloadedBytes)}
+                        </div>
+                      </div>
+                    )}
+                    <div className="settings-field-actions">
+                      {dictationModelStatus.state === "missing" && (
+                        <button
+                          type="button"
+                          className="primary"
+                          onClick={onDownloadDictationModel}
+                          disabled={!onDownloadDictationModel}
+                        >
+                          Download model
+                        </button>
+                      )}
+                      {dictationModelStatus.state === "downloading" && (
+                        <button
+                          type="button"
+                          className="ghost settings-button-compact"
+                          onClick={onCancelDictationDownload}
+                          disabled={!onCancelDictationDownload}
+                        >
+                          Cancel download
+                        </button>
+                      )}
+                      {dictationReady && (
+                        <button
+                          type="button"
+                          className="ghost settings-button-compact"
+                          onClick={onRemoveDictationModel}
+                          disabled={!onRemoveDictationModel}
+                        >
+                          Remove model
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </section>
             )}
             {activeSection === "codex" && (
