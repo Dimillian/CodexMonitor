@@ -227,11 +227,13 @@ impl DaemonState {
             settings.codex_bin.clone()
         };
 
+        let codex_home = resolve_codex_home(&entry, Some(&parent_entry.path));
         let session = spawn_workspace_session(
             entry.clone(),
             default_bin,
             client_version,
             self.event_sink.clone(),
+            codex_home,
         )
         .await?;
 
