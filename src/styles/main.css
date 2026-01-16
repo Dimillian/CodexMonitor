@@ -325,6 +325,15 @@
   color: var(--text-stronger);
 }
 
+.workspace-branch-button.is-readonly {
+  cursor: default;
+}
+
+.workspace-branch-button.is-readonly:hover {
+  background: transparent;
+  color: var(--text-subtle);
+}
+
 .workspace-branch-caret {
   font-size: 11px;
   color: var(--text-faint);

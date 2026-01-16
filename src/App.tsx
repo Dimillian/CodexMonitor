@@ -18,6 +18,7 @@ import "./styles/about.css";
 import "./styles/tabbar.css";
 import "./styles/worktree-modal.css";
 import "./styles/settings.css";
+import "./styles/cloud-client.css";
 import "./styles/compact-base.css";
 import "./styles/compact-phone.css";
 import "./styles/compact-tablet.css";
@@ -61,7 +62,10 @@ import { useWindowFocusState } from "./features/layout/hooks/useWindowFocusState
 import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { usePanelVisibility } from "./features/layout/hooks/usePanelVisibility";
 import { useTerminalController } from "./features/terminal/hooks/useTerminalController";
+import { cloudkitStatus, cloudkitTest } from "./services/tauri";
 import { playNotificationSound } from "./utils/notificationSounds";
+import { isAppleMobile } from "./utils/platform";
+import { CloudClientApp } from "./features/app/components/CloudClientApp";
 import type { AccessMode, DiffLineReference, QueuedMessage, WorkspaceInfo } from "./types";
 
 function useWindowLabel() {
@@ -144,7 +148,7 @@ function MainApp() {
 
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const updater = useUpdater({ onDebug: addDebugEntry });
+  const updater = useUpdater({ enabled: !isAppleMobile(), onDebug: addDebugEntry });
   const isWindowFocused = useWindowFocusState();
   const nextTestSoundIsError = useRef(false);
 
@@ -959,6 +963,8 @@ function MainApp() {
             await queueSaveSettings(next);
           }}
           onRunDoctor={doctor}
+          onCloudKitStatus={cloudkitStatus}
+          onCloudKitTest={cloudkitTest}
           onUpdateWorkspaceCodexBin={async (id, codexBin) => {
             await updateWorkspaceCodexBin(id, codexBin);
           }}
@@ -975,6 +981,9 @@ function App() {
   const windowLabel = useWindowLabel();
   if (windowLabel === "about") {
     return <AboutView />;
+  }
+  if (isAppleMobile()) {
+    return <CloudClientApp />;
   }
   return <MainApp />;
 }

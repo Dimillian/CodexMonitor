@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import {
   ChevronDown,
   ChevronUp,
+  Cloud,
   LayoutGrid,
   SlidersHorizontal,
   Stethoscope,
@@ -10,10 +11,16 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import type { AppSettings, CodexDoctorResult, WorkspaceInfo } from "../../../types";
-import {
-  clampUiScale,
-} from "../../../utils/uiScale";
+import type { CloudTelemetryEntry } from "../../../cloud/cloudTelemetry";
+import { clearCloudTelemetry, readCloudTelemetry } from "../../../cloud/cloudTelemetry";
+import type {
+  AppSettings,
+  CloudKitStatus,
+  CloudKitTestResult,
+  CodexDoctorResult,
+  WorkspaceInfo,
+} from "../../../types";
+import { clampUiScale } from "../../../utils/uiScale";
 
 type SettingsViewProps = {
   workspaces: WorkspaceInfo[];
@@ -25,14 +32,16 @@ type SettingsViewProps = {
   appSettings: AppSettings;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
   onRunDoctor: (codexBin: string | null) => Promise<CodexDoctorResult>;
+  onCloudKitStatus: () => Promise<CloudKitStatus>;
+  onCloudKitTest: () => Promise<CloudKitTestResult>;
   onUpdateWorkspaceCodexBin: (id: string, codexBin: string | null) => Promise<void>;
   scaleShortcutTitle: string;
   scaleShortcutText: string;
   onTestNotificationSound: () => void;
 };
 
-type SettingsSection = "projects" | "display";
-type CodexSection = SettingsSection | "codex";
+type SettingsSection = "projects" | "display" | "cloud";
+type SettingsTab = SettingsSection | "codex";
 
 function orderValue(workspace: WorkspaceInfo) {
   const value = workspace.settings.sortOrder;
@@ -49,22 +58,61 @@ export function SettingsView({
   appSettings,
   onUpdateAppSettings,
   onRunDoctor,
+  onCloudKitStatus,
+  onCloudKitTest,
   onUpdateWorkspaceCodexBin,
   scaleShortcutTitle,
   scaleShortcutText,
   onTestNotificationSound,
 }: SettingsViewProps) {
-  const [activeSection, setActiveSection] = useState<CodexSection>("projects");
+  const [activeSection, setActiveSection] = useState<SettingsTab>("projects");
   const [codexPathDraft, setCodexPathDraft] = useState(appSettings.codexBin ?? "");
   const [scaleDraft, setScaleDraft] = useState(
     `${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`,
+  );
+  const [cloudKitContainerDraft, setCloudKitContainerDraft] = useState(
+    appSettings.cloudKitContainerId ?? "",
+  );
+  const [cloudKitPollDraft, setCloudKitPollDraft] = useState(
+    appSettings.cloudKitPollIntervalMs ? String(appSettings.cloudKitPollIntervalMs) : "",
+  );
+  const [natsUrlDraft, setNatsUrlDraft] = useState(appSettings.natsUrl ?? "");
+  const [natsNamespaceDraft, setNatsNamespaceDraft] = useState(
+    appSettings.natsNamespace ?? "",
+  );
+  const [natsCredsDraft, setNatsCredsDraft] = useState(
+    appSettings.natsCredsFilePath ?? "",
+  );
+  const [telegramTokenDraft, setTelegramTokenDraft] = useState(
+    appSettings.telegramBotToken ?? "",
+  );
+  const [telegramAllowedDraft, setTelegramAllowedDraft] = useState(() =>
+    (appSettings.telegramAllowedUserIds ?? []).join(","),
+  );
+  const [telegramChatDraft, setTelegramChatDraft] = useState(
+    appSettings.telegramDefaultChatId ? String(appSettings.telegramDefaultChatId) : "",
   );
   const [overrideDrafts, setOverrideDrafts] = useState<Record<string, string>>({});
   const [doctorState, setDoctorState] = useState<{
     status: "idle" | "running" | "done";
     result: CodexDoctorResult | null;
   }>({ status: "idle", result: null });
+  const [cloudStatusState, setCloudStatusState] = useState<{
+    status: "idle" | "running" | "done";
+    result: CloudKitStatus | null;
+    error: string | null;
+  }>({ status: "idle", result: null, error: null });
+  const [cloudTestState, setCloudTestState] = useState<{
+    status: "idle" | "running" | "done";
+    result: CloudKitTestResult | null;
+    error: string | null;
+  }>({ status: "idle", result: null, error: null });
+  const [cloudTelemetryOpen, setCloudTelemetryOpen] = useState(false);
+  const [cloudTelemetryEntries, setCloudTelemetryEntries] = useState<
+    CloudTelemetryEntry[]
+  >(() => readCloudTelemetry());
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [isSavingCloudSettings, setIsSavingCloudSettings] = useState(false);
 
   const projects = useMemo(() => {
     return workspaces
@@ -88,6 +136,44 @@ export function SettingsView({
   }, [appSettings.uiScale]);
 
   useEffect(() => {
+    setCloudKitContainerDraft(appSettings.cloudKitContainerId ?? "");
+  }, [appSettings.cloudKitContainerId]);
+
+  useEffect(() => {
+    setCloudKitPollDraft(
+      appSettings.cloudKitPollIntervalMs
+        ? String(appSettings.cloudKitPollIntervalMs)
+        : "",
+    );
+  }, [appSettings.cloudKitPollIntervalMs]);
+
+  useEffect(() => {
+    if (activeSection !== "cloud") {
+      return;
+    }
+    if (!cloudTelemetryOpen) {
+      return;
+    }
+    setCloudTelemetryEntries(readCloudTelemetry());
+  }, [activeSection, cloudTelemetryOpen]);
+
+  useEffect(() => {
+    setNatsUrlDraft(appSettings.natsUrl ?? "");
+    setNatsNamespaceDraft(appSettings.natsNamespace ?? "");
+    setNatsCredsDraft(appSettings.natsCredsFilePath ?? "");
+  }, [appSettings.natsUrl, appSettings.natsNamespace, appSettings.natsCredsFilePath]);
+
+  useEffect(() => {
+    setTelegramTokenDraft(appSettings.telegramBotToken ?? "");
+    setTelegramAllowedDraft((appSettings.telegramAllowedUserIds ?? []).join(","));
+    setTelegramChatDraft(
+      appSettings.telegramDefaultChatId
+        ? String(appSettings.telegramDefaultChatId)
+        : "",
+    );
+  }, [appSettings.telegramAllowedUserIds, appSettings.telegramBotToken, appSettings.telegramDefaultChatId]);
+
+  useEffect(() => {
     setOverrideDrafts((prev) => {
       const next: Record<string, string> = {};
       projects.forEach((workspace) => {
@@ -106,6 +192,17 @@ export function SettingsView({
     ? Number(trimmedScale.replace("%", ""))
     : Number.NaN;
   const parsedScale = Number.isFinite(parsedPercent) ? parsedPercent / 100 : null;
+  const cloudKitContainerDirty =
+    (cloudKitContainerDraft.trim() || null) !==
+    (appSettings.cloudKitContainerId ?? null);
+
+  const cloudKitContainerConfigured = Boolean(
+    (appSettings.cloudKitContainerId ?? "").trim(),
+  );
+
+  const cloudKitPollDirty =
+    (cloudKitPollDraft.trim() || null) !==
+    (appSettings.cloudKitPollIntervalMs ? String(appSettings.cloudKitPollIntervalMs) : null);
 
   const handleSaveCodexSettings = async () => {
     setIsSavingSettings(true);
@@ -180,6 +277,134 @@ export function SettingsView({
     }
   };
 
+  const handleToggleCloudKit = async () => {
+    if (isSavingCloudSettings) {
+      return;
+    }
+    const nextEnabled = !appSettings.cloudKitEnabled;
+    setIsSavingCloudSettings(true);
+    try {
+      await onUpdateAppSettings({
+        ...appSettings,
+        cloudKitEnabled: nextEnabled,
+      });
+      setCloudStatusState({ status: "idle", result: null, error: null });
+      setCloudTestState({ status: "idle", result: null, error: null });
+    } finally {
+      setIsSavingCloudSettings(false);
+    }
+  };
+
+  const handleSaveCloudKitContainer = async () => {
+    if (isSavingCloudSettings) {
+      return;
+    }
+    setIsSavingCloudSettings(true);
+    try {
+      await onUpdateAppSettings({
+        ...appSettings,
+        cloudKitContainerId: cloudKitContainerDraft.trim()
+          ? cloudKitContainerDraft.trim()
+          : null,
+      });
+      setCloudStatusState({ status: "idle", result: null, error: null });
+      setCloudTestState({ status: "idle", result: null, error: null });
+    } finally {
+      setIsSavingCloudSettings(false);
+    }
+  };
+
+  const handleSaveCloudKitPoll = async () => {
+    if (isSavingCloudSettings) {
+      return;
+    }
+    setIsSavingCloudSettings(true);
+    try {
+      const parsed = cloudKitPollDraft.trim()
+        ? Number.parseInt(cloudKitPollDraft.trim(), 10)
+        : null;
+      await onUpdateAppSettings({
+        ...appSettings,
+        cloudKitPollIntervalMs:
+          parsed && Number.isFinite(parsed) && parsed > 0 ? parsed : null,
+      });
+    } finally {
+      setIsSavingCloudSettings(false);
+    }
+  };
+
+  const handleBrowseNatsCreds = async () => {
+    const selection = await open({ multiple: false, directory: false });
+    if (!selection || Array.isArray(selection)) {
+      return;
+    }
+    setNatsCredsDraft(selection);
+  };
+
+  const handleSaveNatsTelegram = async () => {
+    if (isSavingCloudSettings) {
+      return;
+    }
+    setIsSavingCloudSettings(true);
+    try {
+      const allowedIds = telegramAllowedDraft
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+        .map((entry) => Number.parseInt(entry, 10))
+        .filter((entry) => Number.isFinite(entry));
+      const defaultChatId = telegramChatDraft.trim()
+        ? Number.parseInt(telegramChatDraft.trim(), 10)
+        : null;
+      await onUpdateAppSettings({
+        ...appSettings,
+        natsUrl: natsUrlDraft.trim() ? natsUrlDraft.trim() : null,
+        natsNamespace: natsNamespaceDraft.trim() ? natsNamespaceDraft.trim() : null,
+        natsCredsFilePath: natsCredsDraft.trim() ? natsCredsDraft.trim() : null,
+        telegramBotToken: telegramTokenDraft.trim()
+          ? telegramTokenDraft.trim()
+          : null,
+        telegramAllowedUserIds: allowedIds,
+        telegramDefaultChatId:
+          defaultChatId && Number.isFinite(defaultChatId) ? defaultChatId : null,
+      });
+    } finally {
+      setIsSavingCloudSettings(false);
+    }
+  };
+
+  const handleRunCloudStatus = async () => {
+    setCloudStatusState({ status: "running", result: null, error: null });
+    try {
+      const result = await onCloudKitStatus();
+      setCloudStatusState({ status: "done", result, error: null });
+    } catch (error) {
+      setCloudStatusState({
+        status: "done",
+        result: null,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+
+  const handleRunCloudTest = async () => {
+    setCloudTestState({ status: "running", result: null, error: null });
+    try {
+      const result = await onCloudKitTest();
+      setCloudTestState({ status: "done", result, error: null });
+    } catch (error) {
+      setCloudTestState({
+        status: "done",
+        result: null,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+
+  // Intentionally do not auto-run CloudKit calls when the Cloud tab opens.
+  // Misconfigured entitlements can cause native exceptions, so we only run
+  // CloudKit operations via explicit user actions (buttons).
+
   return (
     <div className="settings-overlay" role="dialog" aria-modal="true">
       <div className="settings-backdrop" onClick={onClose} />
@@ -212,6 +437,14 @@ export function SettingsView({
             >
               <SlidersHorizontal aria-hidden />
               Display &amp; Sound
+            </button>
+            <button
+              type="button"
+              className={`settings-nav ${activeSection === "cloud" ? "active" : ""}`}
+              onClick={() => setActiveSection("cloud")}
+            >
+              <Cloud aria-hidden />
+              Cloud
             </button>
             <button
               type="button"
@@ -370,6 +603,408 @@ export function SettingsView({
                     onClick={onTestNotificationSound}
                   >
                     Test sound
+                  </button>
+                </div>
+              </section>
+            )}
+            {activeSection === "cloud" && (
+              <section className="settings-section">
+                <div className="settings-section-title">Cloud</div>
+                <div className="settings-section-subtitle">
+                  Optional iCloud sync for projects and chats.
+                </div>
+                <div className="settings-field">
+                  <label className="settings-field-label">Runner ID</label>
+                  <div className="settings-help">
+                    <code>{appSettings.runnerId || "…"}</code>
+                  </div>
+                </div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Enable CloudKit Sync</div>
+                    <div className="settings-toggle-subtitle">
+                      Mirrors your data into your private iCloud database.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.cloudKitEnabled ? "on" : ""}`}
+                    onClick={handleToggleCloudKit}
+                    aria-pressed={appSettings.cloudKitEnabled}
+                    disabled={isSavingCloudSettings}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+
+                <div className="settings-field">
+                  <label
+                    className="settings-field-label"
+                    htmlFor="cloudkit-container-id"
+                  >
+                    CloudKit container identifier
+                  </label>
+                  <div className="settings-field-row">
+                    <input
+                      id="cloudkit-container-id"
+                      className="settings-input"
+                      value={cloudKitContainerDraft}
+                      placeholder="iCloud.com.example.codexmonitor"
+                      onChange={(event) =>
+                        setCloudKitContainerDraft(event.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="settings-help">
+                    Use the iCloud container identifier enabled for this app. Example:{" "}
+                    <code>iCloud.com.ilass.codexmonitor</code>.
+                  </div>
+                </div>
+
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="cloudkit-poll-ms">
+                    CloudKit poll interval (ms)
+                  </label>
+                  <div className="settings-field-row">
+                    <input
+                      id="cloudkit-poll-ms"
+                      className="settings-input"
+                      value={cloudKitPollDraft}
+                      placeholder="2000"
+                      onChange={(event) => setCloudKitPollDraft(event.target.value)}
+                      inputMode="numeric"
+                    />
+                  </div>
+                  <div className="settings-help">
+                    Leave empty to use the default. Lower values mean faster remote control but more CloudKit traffic.
+                  </div>
+                </div>
+
+                <div className="settings-field-actions">
+                  {cloudKitContainerDirty && (
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={handleSaveCloudKitContainer}
+                      disabled={isSavingCloudSettings}
+                    >
+                      {isSavingCloudSettings ? "Saving..." : "Save"}
+                    </button>
+                  )}
+                  {cloudKitPollDirty && (
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={handleSaveCloudKitPoll}
+                      disabled={isSavingCloudSettings}
+                    >
+                      {isSavingCloudSettings ? "Saving..." : "Save poll interval"}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="ghost settings-button-compact"
+                    onClick={handleRunCloudStatus}
+                    disabled={
+                      !appSettings.cloudKitEnabled ||
+                      !cloudKitContainerConfigured ||
+                      cloudStatusState.status === "running"
+                    }
+                  >
+                    <Stethoscope aria-hidden />
+                    {cloudStatusState.status === "running"
+                      ? "Checking..."
+                      : "Check status"}
+                  </button>
+                  <button
+                    type="button"
+                    className="primary settings-button-compact"
+                    onClick={handleRunCloudTest}
+                    disabled={
+                      !appSettings.cloudKitEnabled ||
+                      !cloudKitContainerConfigured ||
+                      cloudTestState.status === "running"
+                    }
+                  >
+                    Test CloudKit
+                  </button>
+                </div>
+
+                {cloudStatusState.status === "done" && (
+                  <div
+                    className={`settings-doctor ${cloudStatusState.result?.available ? "ok" : "error"}`}
+                  >
+                    <div className="settings-doctor-title">
+                      {cloudStatusState.result?.available
+                        ? "CloudKit account available"
+                        : "CloudKit unavailable"}
+                    </div>
+                    <div className="settings-doctor-body">
+                      <div>Status: {cloudStatusState.result?.status ?? "unknown"}</div>
+                      {cloudStatusState.error && <div>{cloudStatusState.error}</div>}
+                    </div>
+                  </div>
+                )}
+
+                {cloudTestState.status === "done" && (
+                  <div
+                    className={`settings-doctor ${cloudTestState.result ? "ok" : "error"}`}
+                  >
+                    <div className="settings-doctor-title">
+                      {cloudTestState.result ? "CloudKit test succeeded" : "CloudKit test failed"}
+                    </div>
+                    <div className="settings-doctor-body">
+                      {cloudTestState.result && (
+                        <div>
+                          Record: {cloudTestState.result.recordName} (
+                          {cloudTestState.result.durationMs} ms)
+                        </div>
+                      )}
+                      {cloudTestState.error && <div>{cloudTestState.error}</div>}
+                    </div>
+                  </div>
+                )}
+
+                <div className="settings-divider" />
+
+                <div className="settings-section-title">Cloud Telemetry</div>
+                <div className="settings-section-subtitle">
+                  Client-side cache and fetch timings (local-only). Use this to see whether views were served from cache or fetched from CloudKit.
+                </div>
+                <div className="settings-field-actions">
+                  <button
+                    type="button"
+                    className="ghost settings-button-compact"
+                    onClick={() => {
+                      setCloudTelemetryOpen((prev) => !prev);
+                      setCloudTelemetryEntries(readCloudTelemetry());
+                    }}
+                  >
+                    {cloudTelemetryOpen ? "Hide telemetry" : "Show telemetry"}
+                  </button>
+                  <button
+                    type="button"
+                      className="ghost settings-button-compact"
+                      onClick={async () => {
+                        const entries = readCloudTelemetry();
+                      const text = entries
+                        .map((entry: CloudTelemetryEntry) => JSON.stringify(entry))
+                        .join("\n");
+                        if (text) {
+                          await navigator.clipboard.writeText(text);
+                        }
+                      }}
+                    >
+                    Copy
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost settings-button-compact"
+                    onClick={() => {
+                      clearCloudTelemetry();
+                      setCloudTelemetryEntries([]);
+                    }}
+                  >
+                    Clear
+                  </button>
+                </div>
+                {cloudTelemetryOpen && (
+                  <div className="settings-help">
+                    <pre
+                      style={{
+                        whiteSpace: "pre-wrap",
+                        maxHeight: 220,
+                        overflow: "auto",
+                        userSelect: "text",
+                      }}
+                    >
+                      {cloudTelemetryEntries.length
+                        ? cloudTelemetryEntries
+                            .slice(-120)
+                            .map((entry) => {
+                              const time = new Date(entry.ts).toLocaleTimeString();
+                              const parts = [
+                                time,
+                                entry.event,
+                                entry.fromCache != null ? `cache=${entry.fromCache}` : "",
+                                entry.durationMs != null ? `${Math.round(entry.durationMs)}ms` : "",
+                                entry.scopeKey ? `scope=${entry.scopeKey}` : "",
+                                entry.workspaceId ? `ws=${entry.workspaceId}` : "",
+                                entry.threadId ? `th=${entry.threadId}` : "",
+                                entry.note || "",
+                              ].filter(Boolean);
+                              return parts.join(" · ");
+                            })
+                            .join("\n")
+                        : "No telemetry yet."}
+                    </pre>
+                  </div>
+                )}
+
+                <div className="settings-divider" />
+
+                <div className="settings-section-title">NATS (Realtime)</div>
+                <div className="settings-section-subtitle">
+                  Optional low-latency transport for streaming events and commands.
+                </div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Enable NATS</div>
+                    <div className="settings-toggle-subtitle">
+                      Requires a reachable NATS server (self-hosted or managed).
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.natsEnabled ? "on" : ""}`}
+                    onClick={async () => {
+                      if (isSavingCloudSettings) return;
+                      setIsSavingCloudSettings(true);
+                      try {
+                        await onUpdateAppSettings({
+                          ...appSettings,
+                          natsEnabled: !appSettings.natsEnabled,
+                        });
+                      } finally {
+                        setIsSavingCloudSettings(false);
+                      }
+                    }}
+                    aria-pressed={appSettings.natsEnabled}
+                    disabled={isSavingCloudSettings}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="nats-url">
+                    NATS URL
+                  </label>
+                  <div className="settings-field-row">
+                    <input
+                      id="nats-url"
+                      className="settings-input"
+                      value={natsUrlDraft}
+                      placeholder="nats://localhost:4222"
+                      onChange={(event) => setNatsUrlDraft(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="nats-namespace">
+                    Namespace
+                  </label>
+                  <div className="settings-field-row">
+                    <input
+                      id="nats-namespace"
+                      className="settings-input"
+                      value={natsNamespaceDraft}
+                      placeholder="ilass.codexmonitor"
+                      onChange={(event) => setNatsNamespaceDraft(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="nats-creds">
+                    Creds file (optional)
+                  </label>
+                  <div className="settings-field-row">
+                    <input
+                      id="nats-creds"
+                      className="settings-input"
+                      value={natsCredsDraft}
+                      placeholder="/path/to/user.creds"
+                      onChange={(event) => setNatsCredsDraft(event.target.value)}
+                    />
+                    <button type="button" className="ghost" onClick={handleBrowseNatsCreds}>
+                      Browse
+                    </button>
+                  </div>
+                </div>
+
+                <div className="settings-divider" />
+
+                <div className="settings-section-title">Telegram (Notifications)</div>
+                <div className="settings-section-subtitle">
+                  Minimal remote control via a Telegram bot (commands + main events).
+                </div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Enable Telegram</div>
+                    <div className="settings-toggle-subtitle">
+                      Requires a bot token and an allowlist.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.telegramEnabled ? "on" : ""}`}
+                    onClick={async () => {
+                      if (isSavingCloudSettings) return;
+                      setIsSavingCloudSettings(true);
+                      try {
+                        await onUpdateAppSettings({
+                          ...appSettings,
+                          telegramEnabled: !appSettings.telegramEnabled,
+                        });
+                      } finally {
+                        setIsSavingCloudSettings(false);
+                      }
+                    }}
+                    aria-pressed={appSettings.telegramEnabled}
+                    disabled={isSavingCloudSettings}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="telegram-token">
+                    Bot token
+                  </label>
+                  <div className="settings-field-row">
+                    <input
+                      id="telegram-token"
+                      className="settings-input"
+                      value={telegramTokenDraft}
+                      placeholder="123456:ABCDEF..."
+                      onChange={(event) => setTelegramTokenDraft(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="telegram-allowlist">
+                    Allowed user IDs (comma-separated)
+                  </label>
+                  <div className="settings-field-row">
+                    <input
+                      id="telegram-allowlist"
+                      className="settings-input"
+                      value={telegramAllowedDraft}
+                      placeholder="12345678,87654321"
+                      onChange={(event) => setTelegramAllowedDraft(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="telegram-chat">
+                    Default chat ID (optional)
+                  </label>
+                  <div className="settings-field-row">
+                    <input
+                      id="telegram-chat"
+                      className="settings-input"
+                      value={telegramChatDraft}
+                      placeholder="-1001234567890"
+                      onChange={(event) => setTelegramChatDraft(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="settings-field-actions">
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={handleSaveNatsTelegram}
+                    disabled={isSavingCloudSettings}
+                  >
+                    {isSavingCloudSettings ? "Saving..." : "Save transport settings"}
                   </button>
                 </div>
               </section>

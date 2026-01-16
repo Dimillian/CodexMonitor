@@ -1,0 +1,25 @@
+{
+  "app": {
+    "security": {
+      "capabilities": [
+        {
+          "identifier": "mobile-default",
+          "description": "Capability for the mobile window",
+          "windows": ["main", "about"],
+          "permissions": [
+            "core:default",
+            "opener:default",
+            "dialog:default",
+            "process:default",
+            "core:window:allow-start-dragging"
+          ]
+        }
+      ]
+    }
+  },
+  "bundle": {
+    "iOS": {
+      "developmentTeam": "ZAMR4EWP34"
+    }
+  }
+}

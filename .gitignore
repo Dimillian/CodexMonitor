@@ -1,6 +1,7 @@
 # Logs
 logs
 *.log
+*.pid
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -25,3 +26,9 @@ dist-ssr
 /release-artifacts
 CodexMonitor.zip
 .codex-worktrees/
+codexmonitorMac.provisionprofile
+screen-ipad-size.png
+screen-ipad-size-small.png
+src-tauri/gen/
+ilass-planing/transportAbstraction.md
+.run/

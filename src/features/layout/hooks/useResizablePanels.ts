@@ -1,4 +1,4 @@
-import type { MouseEvent as ReactMouseEvent } from "react";
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const STORAGE_KEY_SIDEBAR = "codexmonitor.sidebarWidth";
@@ -28,6 +28,7 @@ type ResizeState = {
   startY: number;
   startWidth: number;
   startHeight: number;
+  pointerId?: number | null;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -189,21 +190,95 @@ export function useResizablePanels(uiScale = 1) {
 
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
+
+    function handlePointerMove(event: PointerEvent) {
+      if (!resizeRef.current) {
+        return;
+      }
+      if (
+        typeof resizeRef.current.pointerId === "number" &&
+        event.pointerId !== resizeRef.current.pointerId
+      ) {
+        return;
+      }
+      // Mirror mouse move logic for touch/pen devices.
+      if (resizeRef.current.type === "sidebar") {
+        const delta = event.clientX - resizeRef.current.startX;
+        const next = clamp(
+          resizeRef.current.startWidth + delta,
+          MIN_SIDEBAR_WIDTH,
+          MAX_SIDEBAR_WIDTH,
+        );
+        setSidebarWidth(next);
+      } else if (resizeRef.current.type === "right-panel") {
+        const delta = event.clientX - resizeRef.current.startX;
+        const next = clamp(
+          resizeRef.current.startWidth - delta,
+          MIN_RIGHT_PANEL_WIDTH,
+          MAX_RIGHT_PANEL_WIDTH,
+        );
+        setRightPanelWidth(next);
+      } else if (resizeRef.current.type === "plan-panel") {
+        const delta = event.clientY - resizeRef.current.startY;
+        const next = clamp(
+          resizeRef.current.startHeight - delta,
+          MIN_PLAN_PANEL_HEIGHT,
+          MAX_PLAN_PANEL_HEIGHT,
+        );
+        setPlanPanelHeight(next);
+      } else {
+        const delta = event.clientY - resizeRef.current.startY;
+        const next = clamp(
+          resizeRef.current.startHeight - delta,
+          MIN_DEBUG_PANEL_HEIGHT,
+          MAX_DEBUG_PANEL_HEIGHT,
+        );
+        setDebugPanelHeight(next);
+      }
+    }
+
+    function handlePointerUp(event: PointerEvent) {
+      if (!resizeRef.current) {
+        return;
+      }
+      if (
+        typeof resizeRef.current.pointerId === "number" &&
+        event.pointerId !== resizeRef.current.pointerId
+      ) {
+        return;
+      }
+      handleMouseUp();
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
     };
   }, []);
 
   const onSidebarResizeStart = useCallback(
-    (event: ReactMouseEvent) => {
+    (event: ReactMouseEvent | ReactPointerEvent) => {
       resizeRef.current = {
         type: "sidebar",
         startX: event.clientX,
         startY: event.clientY,
         startWidth: sidebarWidth,
         startHeight: planPanelHeight,
+        pointerId: "pointerId" in event ? event.pointerId : null,
       };
+      if ("pointerId" in event) {
+        try {
+          (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+        } catch {
+          // ignore
+        }
+      }
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
     },
@@ -211,14 +286,22 @@ export function useResizablePanels(uiScale = 1) {
   );
 
   const onRightPanelResizeStart = useCallback(
-    (event: ReactMouseEvent) => {
+    (event: ReactMouseEvent | ReactPointerEvent) => {
       resizeRef.current = {
         type: "right-panel",
         startX: event.clientX,
         startY: event.clientY,
         startWidth: rightPanelWidth,
         startHeight: planPanelHeight,
+        pointerId: "pointerId" in event ? event.pointerId : null,
       };
+      if ("pointerId" in event) {
+        try {
+          (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+        } catch {
+          // ignore
+        }
+      }
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
     },
@@ -226,14 +309,22 @@ export function useResizablePanels(uiScale = 1) {
   );
 
   const onPlanPanelResizeStart = useCallback(
-    (event: ReactMouseEvent) => {
+    (event: ReactMouseEvent | ReactPointerEvent) => {
       resizeRef.current = {
         type: "plan-panel",
         startX: event.clientX,
         startY: event.clientY,
         startWidth: rightPanelWidth,
         startHeight: planPanelHeight,
+        pointerId: "pointerId" in event ? event.pointerId : null,
       };
+      if ("pointerId" in event) {
+        try {
+          (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+        } catch {
+          // ignore
+        }
+      }
       document.body.style.cursor = "row-resize";
       document.body.style.userSelect = "none";
     },
@@ -256,14 +347,22 @@ export function useResizablePanels(uiScale = 1) {
   );
 
   const onDebugPanelResizeStart = useCallback(
-    (event: ReactMouseEvent) => {
+    (event: ReactMouseEvent | ReactPointerEvent) => {
       resizeRef.current = {
         type: "debug-panel",
         startX: event.clientX,
         startY: event.clientY,
         startWidth: rightPanelWidth,
         startHeight: debugPanelHeight,
+        pointerId: "pointerId" in event ? event.pointerId : null,
       };
+      if ("pointerId" in event) {
+        try {
+          (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+        } catch {
+          // ignore
+        }
+      }
       document.body.style.cursor = "row-resize";
       document.body.style.userSelect = "none";
     },

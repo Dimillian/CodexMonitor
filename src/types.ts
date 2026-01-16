@@ -63,6 +63,18 @@ export type AccessMode = "read-only" | "current" | "full-access";
 
 export type AppSettings = {
   codexBin: string | null;
+  runnerId: string;
+  cloudKitEnabled: boolean;
+  cloudKitContainerId: string | null;
+  cloudKitPollIntervalMs: number | null;
+  natsEnabled: boolean;
+  natsUrl: string | null;
+  natsNamespace: string | null;
+  natsCredsFilePath: string | null;
+  telegramEnabled: boolean;
+  telegramBotToken: string | null;
+  telegramAllowedUserIds: number[];
+  telegramDefaultChatId: number | null;
   defaultAccessMode: AccessMode;
   uiScale: number;
   notificationSoundsEnabled: boolean;
@@ -78,6 +90,40 @@ export type CodexDoctorResult = {
   nodeOk: boolean;
   nodeVersion: string | null;
   nodeDetails: string | null;
+};
+
+export type CloudKitStatus = {
+  available: boolean;
+  status: string;
+};
+
+export type CloudKitTestResult = {
+  recordName: string;
+  durationMs: number;
+};
+
+export type CloudKitRunnerInfo = {
+  runnerId: string;
+  name: string;
+  platform: string;
+  updatedAtMs: number;
+};
+
+export type CloudKitSnapshot = {
+  scopeKey: string;
+  updatedAtMs: number;
+  payloadJson: string;
+};
+
+export type CloudKitCommandAck = {
+  commandId: string;
+};
+
+export type CloudKitCommandResult = {
+  commandId: string;
+  ok: boolean;
+  createdAtMs: number;
+  payloadJson: string;
 };
 
 export type ApprovalRequest = {

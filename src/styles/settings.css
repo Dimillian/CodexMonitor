@@ -55,6 +55,8 @@
 
 .settings-close {
   padding: 4px;
+  color: var(--text-strong);
+  border-color: var(--border-muted);
 }
 
 .settings-body {

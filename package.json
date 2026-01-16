@@ -9,22 +9,23 @@
     "build:appimage": "NO_STRIP=1 tauri build --bundles appimage",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "macos:build-signed": "bash scripts/macos-build-signed.sh",
+    "tauri": "PATH=$HOME/.cargo/bin:$PATH tauri"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-dialog": "^2",
+    "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.9.0",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
     "lucide-react": "^0.562.0",
     "prismjs": "^1.30.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1",
-    "@xterm/xterm": "^5.5.0",
-    "@xterm/addon-fit": "^0.10.0"
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

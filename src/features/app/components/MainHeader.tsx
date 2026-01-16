@@ -8,6 +8,7 @@ type MainHeaderProps = {
   parentName?: string | null;
   worktreeLabel?: string | null;
   disableBranchMenu?: boolean;
+  readonly?: boolean;
   parentPath?: string | null;
   worktreePath?: string | null;
   branchName: string;
@@ -26,6 +27,7 @@ export function MainHeader({
   parentName = null,
   worktreeLabel = null,
   disableBranchMenu = false,
+  readonly = false,
   parentPath = null,
   worktreePath = null,
   branchName,
@@ -114,7 +116,13 @@ export function MainHeader({
           <span className="workspace-separator" aria-hidden>
             ›
           </span>
-          {disableBranchMenu ? (
+          {readonly ? (
+            <div className="workspace-branch-menu">
+              <div className="workspace-branch-button is-readonly">
+                <span className="workspace-branch">{branchName}</span>
+              </div>
+            </div>
+          ) : disableBranchMenu ? (
             <div className="workspace-branch-static-row" ref={infoRef}>
               <button
                 type="button"
@@ -161,7 +169,11 @@ export function MainHeader({
                       type="button"
                       className="worktree-info-reveal"
                       onClick={async () => {
-                        await revealItemInDir(resolvedWorktreePath);
+                        try {
+                          await revealItemInDir(resolvedWorktreePath);
+                        } catch {
+                          // iOS builds don't support Finder reveal; ignore.
+                        }
                       }}
                       data-tauri-drag-region="false"
                     >

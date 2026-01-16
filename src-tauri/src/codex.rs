@@ -15,7 +15,6 @@ use crate::backend::app_server::{
 use crate::event_sink::TauriEventSink;
 use crate::state::AppState;
 use crate::types::WorkspaceEntry;
-
 pub(crate) async fn spawn_workspace_session(
     entry: WorkspaceEntry,
     default_codex_bin: Option<String>,

@@ -1,0 +1,126 @@
+.cloud-client {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.cloud-client-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+}
+
+.cloud-client-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.cloud-client-hint,
+.cloud-client-runner {
+  padding: 0 14px 8px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.cloud-client-projects {
+  flex: 1;
+  overflow: auto;
+  padding: 10px 12px 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cloud-client-workspace {
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cloud-client-workspace.active {
+  border-color: rgba(73, 161, 255, 0.5);
+}
+
+.cloud-client-workspace-name {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.cloud-client-workspace-sub {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.cloud-client-chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cloud-client-threadbar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cloud-client-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cloud-client-thread {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.cloud-client-thread.active {
+  border-color: rgba(73, 161, 255, 0.5);
+}
+
+.cloud-client-messages {
+  flex: 1;
+  overflow: auto;
+}
+
+.cloud-client-composer {
+  padding: 10px;
+  display: flex;
+  gap: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  align-items: flex-end;
+}
+
+.cloud-client-input {
+  flex: 1;
+  resize: none;
+  border-radius: 10px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.12);
+  color: inherit;
+}
+
+.cloud-client-error {
+  position: absolute;
+  margin-top: -26px;
+  font-size: 12px;
+  color: #ff6b6b;
+}
+
+.cloud-client-empty {
+  opacity: 0.8;
+  font-size: 13px;
+  padding: 14px;
+}
