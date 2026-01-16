@@ -17,7 +17,12 @@ use git_stub as git;
 mod prompts;
 mod settings;
 mod state;
+#[cfg(not(target_os = "ios"))]
 mod terminal;
+#[cfg(target_os = "ios")]
+mod terminal_stub;
+#[cfg(target_os = "ios")]
+use terminal_stub as terminal;
 mod storage;
 mod types;
 mod utils;
