@@ -128,6 +128,20 @@ pub(crate) struct WorkspaceSettings {
 pub(crate) struct AppSettings {
     #[serde(default, rename = "codexBin")]
     pub(crate) codex_bin: Option<String>,
+    #[serde(default, rename = "telegramEnabled")]
+    pub(crate) telegram_enabled: bool,
+    #[serde(default, rename = "telegramBotToken")]
+    pub(crate) telegram_bot_token: Option<String>,
+    #[serde(default, rename = "telegramAllowedUserIds")]
+    pub(crate) telegram_allowed_user_ids: Vec<i64>,
+    #[serde(default, rename = "telegramDefaultChatId")]
+    pub(crate) telegram_default_chat_id: Option<i64>,
+    #[serde(default, rename = "telegramSendAppStatus")]
+    pub(crate) telegram_send_app_status: bool,
+    #[serde(default, rename = "telegramSendCompletedMessages")]
+    pub(crate) telegram_send_completed_messages: bool,
+    #[serde(default, rename = "telegramPairingSecret")]
+    pub(crate) telegram_pairing_secret: String,
     #[serde(default = "default_access_mode", rename = "defaultAccessMode")]
     pub(crate) default_access_mode: String,
     #[serde(default = "default_ui_scale", rename = "uiScale")]
@@ -155,6 +169,13 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             codex_bin: None,
+            telegram_enabled: false,
+            telegram_bot_token: None,
+            telegram_allowed_user_ids: Vec::new(),
+            telegram_default_chat_id: None,
+            telegram_send_app_status: false,
+            telegram_send_completed_messages: false,
+            telegram_pairing_secret: String::new(),
             default_access_mode: "current".to_string(),
             ui_scale: 1.0,
             notification_sounds_enabled: true,
@@ -170,6 +191,13 @@ mod tests {
     fn app_settings_defaults_from_empty_json() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
         assert!(settings.codex_bin.is_none());
+        assert!(!settings.telegram_enabled);
+        assert!(settings.telegram_bot_token.is_none());
+        assert!(settings.telegram_allowed_user_ids.is_empty());
+        assert!(settings.telegram_default_chat_id.is_none());
+        assert!(!settings.telegram_send_app_status);
+        assert!(!settings.telegram_send_completed_messages);
+        assert!(settings.telegram_pairing_secret.is_empty());
         assert_eq!(settings.default_access_mode, "current");
         assert!((settings.ui_scale - 1.0).abs() < f64::EPSILON);
         assert!(settings.notification_sounds_enabled);

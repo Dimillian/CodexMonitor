@@ -4,6 +4,12 @@ use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 mod backend;
 mod codex;
 mod event_sink;
+#[cfg(desktop)]
+mod telegram;
+#[cfg(mobile)]
+mod telegram_stub;
+#[cfg(mobile)]
+use telegram_stub as telegram;
 mod git;
 mod prompts;
 mod settings;
@@ -24,7 +30,7 @@ pub fn run() {
         }
     }
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .enable_macos_default_menu(false)
         .menu(|handle| {
             let app_name = handle.package_info().name.clone();
@@ -127,6 +133,7 @@ pub fn run() {
         .setup(|app| {
             let state = state::AppState::load(&app.handle());
             app.manage(state);
+            telegram::start_telegram_poller(app.handle().clone());
             #[cfg(desktop)]
             app.handle()
                 .plugin(tauri_plugin_updater::Builder::new().build())?;
@@ -171,8 +178,27 @@ pub fn run() {
             terminal::terminal_open,
             terminal::terminal_write,
             terminal::terminal_resize,
-            terminal::terminal_close
+            terminal::terminal_close,
+            telegram::telegram_bot_status
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    #[cfg(desktop)]
+    let exit_notified = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    #[cfg(desktop)]
+    let exit_notified_for_run = exit_notified.clone();
+
+    app.run(move |app_handle, event| {
+        #[cfg(desktop)]
+        if matches!(event, tauri::RunEvent::ExitRequested { .. }) {
+            use std::sync::atomic::Ordering;
+            if !exit_notified_for_run.swap(true, Ordering::SeqCst) {
+                let handle = app_handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    telegram::notify_app_exit(handle).await;
+                });
+            }
+        }
+    });
 }

@@ -5,6 +5,13 @@ import { clampUiScale, UI_SCALE_DEFAULT } from "../../../utils/uiScale";
 
 const defaultSettings: AppSettings = {
   codexBin: null,
+  telegramEnabled: false,
+  telegramBotToken: null,
+  telegramAllowedUserIds: [],
+  telegramDefaultChatId: null,
+  telegramSendAppStatus: false,
+  telegramSendCompletedMessages: false,
+  telegramPairingSecret: "",
   defaultAccessMode: "current",
   uiScale: UI_SCALE_DEFAULT,
   notificationSoundsEnabled: true,

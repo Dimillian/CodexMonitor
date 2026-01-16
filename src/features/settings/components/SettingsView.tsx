@@ -5,15 +5,19 @@ import {
   ChevronUp,
   LayoutGrid,
   SlidersHorizontal,
+  MessageCircle,
   Stethoscope,
   TerminalSquare,
   Trash2,
   X,
 } from "lucide-react";
-import type { AppSettings, CodexDoctorResult, WorkspaceInfo } from "../../../types";
-import {
-  clampUiScale,
-} from "../../../utils/uiScale";
+import type {
+  AppSettings,
+  CodexDoctorResult,
+  TelegramBotStatus,
+  WorkspaceInfo,
+} from "../../../types";
+import { clampUiScale } from "../../../utils/uiScale";
 
 type SettingsViewProps = {
   workspaces: WorkspaceInfo[];
@@ -25,13 +29,14 @@ type SettingsViewProps = {
   appSettings: AppSettings;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
   onRunDoctor: (codexBin: string | null) => Promise<CodexDoctorResult>;
+  onTelegramBotStatus?: () => Promise<TelegramBotStatus>;
   onUpdateWorkspaceCodexBin: (id: string, codexBin: string | null) => Promise<void>;
   scaleShortcutTitle: string;
   scaleShortcutText: string;
   onTestNotificationSound: () => void;
 };
 
-type SettingsSection = "projects" | "display";
+type SettingsSection = "projects" | "display" | "integrations";
 type CodexSection = SettingsSection | "codex";
 
 function orderValue(workspace: WorkspaceInfo) {
@@ -49,6 +54,7 @@ export function SettingsView({
   appSettings,
   onUpdateAppSettings,
   onRunDoctor,
+  onTelegramBotStatus,
   onUpdateWorkspaceCodexBin,
   scaleShortcutTitle,
   scaleShortcutText,
@@ -64,6 +70,14 @@ export function SettingsView({
     status: "idle" | "running" | "done";
     result: CodexDoctorResult | null;
   }>({ status: "idle", result: null });
+  const [telegramTokenDraft, setTelegramTokenDraft] = useState(
+    appSettings.telegramBotToken ?? "",
+  );
+  const [telegramStatusState, setTelegramStatusState] = useState<{
+    status: "idle" | "running" | "done";
+    result: TelegramBotStatus | null;
+  }>({ status: "idle", result: null });
+  const [telegramPairingCode, setTelegramPairingCode] = useState<string | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   const projects = useMemo(() => {
@@ -86,6 +100,36 @@ export function SettingsView({
   useEffect(() => {
     setScaleDraft(`${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`);
   }, [appSettings.uiScale]);
+
+  useEffect(() => {
+    setTelegramTokenDraft(appSettings.telegramBotToken ?? "");
+  }, [appSettings.telegramBotToken]);
+
+  useEffect(() => {
+    let active = true;
+    if (!appSettings.telegramPairingSecret?.trim?.()) {
+      setTelegramPairingCode(null);
+      return;
+    }
+    void (async () => {
+      try {
+        const enc = new TextEncoder().encode(appSettings.telegramPairingSecret);
+        const digest = await crypto.subtle.digest("SHA-256", enc);
+        const bytes = Array.from(new Uint8Array(digest)).slice(0, 16);
+        const hex = bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
+        if (active) {
+          setTelegramPairingCode(hex);
+        }
+      } catch {
+        if (active) {
+          setTelegramPairingCode(null);
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [appSettings.telegramPairingSecret]);
 
   useEffect(() => {
     setOverrideDrafts((prev) => {
@@ -180,6 +224,56 @@ export function SettingsView({
     }
   };
 
+  const updateTelegramSettings = async (patch: Partial<AppSettings>) => {
+    setIsSavingSettings(true);
+    try {
+      await onUpdateAppSettings({
+        ...appSettings,
+        ...patch,
+      });
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleCheckTelegramToken = async () => {
+    if (!onTelegramBotStatus) {
+      setTelegramStatusState({
+        status: "done",
+        result: {
+          ok: false,
+          username: null,
+          id: null,
+          error: "Telegram bot status is not available on this platform.",
+        },
+      });
+      return;
+    }
+
+    setTelegramStatusState({ status: "running", result: null });
+    try {
+      const draftToken = telegramTokenDraft.trim();
+      const currentToken = (appSettings.telegramBotToken ?? "").trim();
+      if (draftToken !== currentToken) {
+        await updateTelegramSettings({
+          telegramBotToken: draftToken.length ? draftToken : null,
+        });
+      }
+      const res = await onTelegramBotStatus();
+      setTelegramStatusState({ status: "done", result: res });
+    } catch (err) {
+      setTelegramStatusState({
+        status: "done",
+        result: {
+          ok: false,
+          username: null,
+          id: null,
+          error: String(err),
+        },
+      });
+    }
+  };
+
   return (
     <div className="settings-overlay" role="dialog" aria-modal="true">
       <div className="settings-backdrop" onClick={onClose} />
@@ -220,6 +314,14 @@ export function SettingsView({
             >
               <TerminalSquare aria-hidden />
               Codex
+            </button>
+            <button
+              type="button"
+              className={`settings-nav ${activeSection === "integrations" ? "active" : ""}`}
+              onClick={() => setActiveSection("integrations")}
+            >
+              <MessageCircle aria-hidden />
+              Integrations
             </button>
           </aside>
           <div className="settings-content">
@@ -536,6 +638,140 @@ export function SettingsView({
                   </div>
                 </div>
 
+              </section>
+            )}
+            {activeSection === "integrations" && (
+              <section className="settings-section">
+                <div className="settings-section-title">Integrations</div>
+                <div className="settings-section-subtitle">
+                  Optional notifications and remote control.
+                </div>
+
+                <div className="settings-section-title">Telegram</div>
+                <div className="settings-section-subtitle">
+                  Use a Telegram bot to receive status updates and send prompts.
+                </div>
+
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Enable Telegram</div>
+                    <div className="settings-toggle-subtitle">
+                      Requires a bot token and linking via the /link code.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.telegramEnabled ? "on" : ""}`}
+                    onClick={() => {
+                      void updateTelegramSettings({
+                        telegramEnabled: !appSettings.telegramEnabled,
+                      });
+                    }}
+                    aria-pressed={appSettings.telegramEnabled}
+                    disabled={isSavingSettings}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="telegram-token">
+                    Bot token
+                  </label>
+                  <div className="settings-field-row">
+                    <input
+                      id="telegram-token"
+                      className="settings-input"
+                      value={telegramTokenDraft}
+                      placeholder="123456:ABCDEF..."
+                      onChange={(event) => setTelegramTokenDraft(event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="ghost"
+                      disabled={!appSettings.telegramEnabled || telegramStatusState.status === "running"}
+                      onClick={() => {
+                        void handleCheckTelegramToken();
+                      }}
+                    >
+                      {telegramStatusState.status === "running" ? "Checking..." : "Check token"}
+                    </button>
+                  </div>
+                </div>
+
+                {telegramStatusState.result && (
+                  <div
+                    className={`settings-doctor ${telegramStatusState.result.ok ? "ok" : "error"}`}
+                  >
+                    <div className="settings-doctor-title">
+                      {telegramStatusState.result.ok
+                        ? `Bot OK${telegramStatusState.result.username ? ` (@${telegramStatusState.result.username})` : ""}`
+                        : "Bot check failed"}
+                    </div>
+                    {telegramStatusState.result.error && (
+                      <div className="settings-doctor-body">
+                        {telegramStatusState.result.error}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {appSettings.telegramEnabled &&
+                  telegramPairingCode &&
+                  telegramStatusState.result?.ok && (
+                    <div className="settings-field">
+                      <label className="settings-field-label">Link this device</label>
+                      <div className="settings-help">Send this message to your bot:</div>
+                      <div className="settings-help">
+                        <code>{`/link ${telegramPairingCode}`}</code>
+                      </div>
+                      <div className="settings-help">Then use <code>/status</code> in Telegram.</div>
+                    </div>
+                  )}
+
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Send app status</div>
+                    <div className="settings-toggle-subtitle">
+                      Posts “started/stopped” messages to the notifications chat.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.telegramSendAppStatus ? "on" : ""}`}
+                    onClick={() => {
+                      void updateTelegramSettings({
+                        telegramSendAppStatus: !appSettings.telegramSendAppStatus,
+                      });
+                    }}
+                    aria-pressed={appSettings.telegramSendAppStatus}
+                    disabled={!appSettings.telegramEnabled || isSavingSettings}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Send completed messages</div>
+                    <div className="settings-toggle-subtitle">
+                      Sends a notification when an agent finishes a reply.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.telegramSendCompletedMessages ? "on" : ""}`}
+                    onClick={() => {
+                      void updateTelegramSettings({
+                        telegramSendCompletedMessages: !appSettings.telegramSendCompletedMessages,
+                      });
+                    }}
+                    aria-pressed={appSettings.telegramSendCompletedMessages}
+                    disabled={!appSettings.telegramEnabled || isSavingSettings}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
               </section>
             )}
           </div>

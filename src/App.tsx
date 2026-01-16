@@ -62,6 +62,7 @@ import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { usePanelVisibility } from "./features/layout/hooks/usePanelVisibility";
 import { useTerminalController } from "./features/terminal/hooks/useTerminalController";
 import { playNotificationSound } from "./utils/notificationSounds";
+import { telegramBotStatus } from "./services/tauri";
 import type { AccessMode, DiffLineReference, QueuedMessage, WorkspaceInfo } from "./types";
 
 function useWindowLabel() {
@@ -565,6 +566,7 @@ function MainApp() {
   }
 
   const handleOpenSettings = () => setSettingsOpen(true);
+  const handleTelegramBotStatus = useCallback(() => telegramBotStatus(), []);
 
   const orderValue = (entry: WorkspaceInfo) =>
     typeof entry.settings.sortOrder === "number"
@@ -959,6 +961,7 @@ function MainApp() {
             await queueSaveSettings(next);
           }}
           onRunDoctor={doctor}
+          onTelegramBotStatus={handleTelegramBotStatus}
           onUpdateWorkspaceCodexBin={async (id, codexBin) => {
             await updateWorkspaceCodexBin(id, codexBin);
           }}

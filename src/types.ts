@@ -63,6 +63,13 @@ export type AccessMode = "read-only" | "current" | "full-access";
 
 export type AppSettings = {
   codexBin: string | null;
+  telegramEnabled: boolean;
+  telegramBotToken: string | null;
+  telegramAllowedUserIds: number[];
+  telegramDefaultChatId: number | null;
+  telegramSendAppStatus: boolean;
+  telegramSendCompletedMessages: boolean;
+  telegramPairingSecret: string;
   defaultAccessMode: AccessMode;
   uiScale: number;
   notificationSoundsEnabled: boolean;
@@ -78,6 +85,13 @@ export type CodexDoctorResult = {
   nodeOk: boolean;
   nodeVersion: string | null;
   nodeDetails: string | null;
+};
+
+export type TelegramBotStatus = {
+  ok: boolean;
+  username: string | null;
+  id: number | null;
+  error: string | null;
 };
 
 export type ApprovalRequest = {

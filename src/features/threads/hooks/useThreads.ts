@@ -27,6 +27,7 @@ import {
 import { useAppServerEvents } from "../../app/hooks/useAppServerEvents";
 import {
   buildConversationItem,
+  buildConversationItemFromThreadItem,
   buildItemsFromThread,
   getThreadTimestamp,
   isReviewingFromThread,
@@ -464,7 +465,8 @@ export function useThreads({
         dispatch({ type: "markReviewing", threadId, isReviewing: false });
         markProcessing(threadId, false);
       }
-      const converted = buildConversationItem(item);
+      const converted =
+        buildConversationItemFromThreadItem(item) ?? buildConversationItem(item);
       if (converted) {
         dispatch({ type: "upsertItem", threadId, item: converted });
       }
