@@ -7,9 +7,13 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:appimage": "NO_STRIP=1 tauri build --bundles appimage",
+    "doctor": "sh scripts/doctor.sh",
+    "doctor:strict": "sh scripts/doctor.sh --strict",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "tauri:dev": "npm run doctor:strict && tauri dev",
+    "tauri:build": "npm run doctor:strict && tauri build"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

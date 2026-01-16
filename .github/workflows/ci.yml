@@ -12,6 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: Install CMake
+        run: command -v cmake >/dev/null 2>&1 || brew install cmake
       - name: Rust tests
         run: cargo test
         working-directory: src-tauri
@@ -24,6 +26,8 @@ jobs:
           node-version: "20"
           cache: "npm"
       - uses: dtolnay/rust-toolchain@stable
+      - name: Install CMake
+        run: command -v cmake >/dev/null 2>&1 || brew install cmake
       - name: Install dependencies
         run: npm ci
       - name: Typecheck

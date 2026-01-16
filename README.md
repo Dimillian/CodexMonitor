@@ -28,11 +28,17 @@ CodexMonitor is a macOS Tauri app for orchestrating multiple Codex agents across
 
 - Node.js + npm
 - Rust toolchain (stable)
+- CMake (required to build native Whisper bindings)
 - Codex installed on your system and available as `codex` in `PATH`
 - Git CLI (used for worktree operations)
 - GitHub CLI (`gh`) for the Issues panel (optional)
 
 If the `codex` binary is not in `PATH`, update the backend to pass a custom path per workspace.
+If you hit native build errors, run:
+
+```bash
+npm run doctor
+```
 
 ## Getting Started
 
