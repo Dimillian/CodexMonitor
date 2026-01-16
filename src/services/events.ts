@@ -1,5 +1,5 @@
 import { listen } from "@tauri-apps/api/event";
-import type { AppServerEvent } from "../types";
+import type { AppServerEvent, DictationEvent, DictationModelStatus } from "../types";
 
 export type Unsubscribe = () => void;
 
@@ -13,6 +13,22 @@ export async function subscribeAppServerEvents(
   onEvent: (event: AppServerEvent) => void,
 ): Promise<Unsubscribe> {
   return listen<AppServerEvent>("app-server-event", (event) => {
+    onEvent(event.payload);
+  });
+}
+
+export async function subscribeDictationDownload(
+  onEvent: (event: DictationModelStatus) => void,
+): Promise<Unsubscribe> {
+  return listen<DictationModelStatus>("dictation-download", (event) => {
+    onEvent(event.payload);
+  });
+}
+
+export async function subscribeDictationEvents(
+  onEvent: (event: DictationEvent) => void,
+): Promise<Unsubscribe> {
+  return listen<DictationEvent>("dictation-event", (event) => {
     onEvent(event.payload);
   });
 }

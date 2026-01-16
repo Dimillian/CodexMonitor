@@ -24,6 +24,8 @@ import type {
   CustomPromptOption,
   DebugEntry,
   DiffLineReference,
+  DictationSessionState,
+  DictationTranscript,
   GitFileStatus,
   GitHubIssue,
   GitLogEntry,
@@ -181,6 +183,16 @@ type LayoutNodesOptions = {
   prompts: CustomPromptOption[];
   files: string[];
   textareaRef: RefObject<HTMLTextAreaElement | null>;
+  dictationEnabled: boolean;
+  dictationState: DictationSessionState;
+  dictationLevel: number;
+  onToggleDictation: () => void;
+  dictationTranscript: DictationTranscript | null;
+  onDictationTranscriptHandled: (id: string) => void;
+  dictationError: string | null;
+  onDismissDictationError: () => void;
+  dictationHint: string | null;
+  onDismissDictationHint: () => void;
   showComposer: boolean;
   plan: TurnPlan | null;
   debugEntries: DebugEntry[];
@@ -307,6 +319,16 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       prompts={options.prompts}
       files={options.files}
       textareaRef={options.textareaRef}
+      dictationEnabled={options.dictationEnabled}
+      dictationState={options.dictationState}
+      dictationLevel={options.dictationLevel}
+      onToggleDictation={options.onToggleDictation}
+      dictationTranscript={options.dictationTranscript}
+      onDictationTranscriptHandled={options.onDictationTranscriptHandled}
+      dictationError={options.dictationError}
+      onDismissDictationError={options.onDismissDictationError}
+      dictationHint={options.dictationHint}
+      onDismissDictationHint={options.onDismissDictationHint}
     />
   ) : null;
 

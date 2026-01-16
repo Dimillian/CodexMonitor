@@ -52,6 +52,8 @@ import { useLayoutMode } from "./features/layout/hooks/useLayoutMode";
 import { useAppSettings } from "./features/settings/hooks/useAppSettings";
 import { useUpdater } from "./features/update/hooks/useUpdater";
 import { useComposerImages } from "./features/composer/hooks/useComposerImages";
+import { useDictationModel } from "./features/dictation/hooks/useDictationModel";
+import { useDictation } from "./features/dictation/hooks/useDictation";
 import { useQueuedSend } from "./features/threads/hooks/useQueuedSend";
 import { useWorktreePrompt } from "./features/workspaces/hooks/useWorktreePrompt";
 import { useUiScaleShortcuts } from "./features/layout/hooks/useUiScaleShortcuts";
@@ -85,6 +87,20 @@ function MainApp() {
     saveSettings,
     doctor
   } = useAppSettings();
+  const dictationModel = useDictationModel(appSettings.dictationModelId);
+  const {
+    state: dictationState,
+    level: dictationLevel,
+    transcript: dictationTranscript,
+    error: dictationError,
+    hint: dictationHint,
+    start: startDictation,
+    stop: stopDictation,
+    cancel: cancelDictation,
+    clearTranscript: clearDictationTranscript,
+    clearError: clearDictationError,
+    clearHint: clearDictationHint,
+  } = useDictation();
   const {
     uiScale,
     scaleShortcutTitle,
@@ -134,6 +150,45 @@ function MainApp() {
     const stored = localStorage.getItem("reduceTransparency");
     return stored === "true";
   });
+  const dictationReady = dictationModel.status?.state === "ready";
+  const handleToggleDictation = useCallback(async () => {
+    if (!appSettings.dictationEnabled || !dictationReady) {
+      return;
+    }
+    try {
+      if (dictationState === "listening") {
+        await stopDictation();
+        return;
+      }
+      if (dictationState === "idle") {
+        await startDictation(appSettings.dictationPreferredLanguage);
+      }
+    } catch {
+      // Errors are surfaced through dictation events.
+    }
+  }, [
+    appSettings.dictationEnabled,
+    appSettings.dictationPreferredLanguage,
+    dictationReady,
+    dictationState,
+    startDictation,
+    stopDictation,
+  ]);
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      if (dictationState !== "listening") {
+        return;
+      }
+      event.preventDefault();
+      void cancelDictation();
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [dictationState, cancelDictation]);
   const {
     debugOpen,
     setDebugOpen,
@@ -849,6 +904,18 @@ function MainApp() {
     prompts,
     files,
     textareaRef: composerInputRef,
+    dictationEnabled: appSettings.dictationEnabled && dictationReady,
+    dictationState,
+    dictationLevel,
+    onToggleDictation: handleToggleDictation,
+    dictationTranscript,
+    onDictationTranscriptHandled: (id) => {
+      clearDictationTranscript(id);
+    },
+    dictationError,
+    onDismissDictationError: clearDictationError,
+    dictationHint,
+    onDismissDictationHint: clearDictationHint,
     showComposer,
     plan: activePlan,
     debugEntries,
@@ -978,6 +1045,10 @@ function MainApp() {
           scaleShortcutTitle={scaleShortcutTitle}
           scaleShortcutText={scaleShortcutText}
           onTestNotificationSound={handleTestNotificationSound}
+          dictationModelStatus={dictationModel.status}
+          onDownloadDictationModel={dictationModel.download}
+          onCancelDictationDownload={dictationModel.cancel}
+          onRemoveDictationModel={dictationModel.remove}
         />
       )}
     </div>

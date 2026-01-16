@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CustomPromptOption, QueuedMessage, ThreadTokenUsage } from "../../../types";
+import type {
+  CustomPromptOption,
+  DictationTranscript,
+  QueuedMessage,
+  ThreadTokenUsage,
+} from "../../../types";
+import { computeDictationInsertion } from "../../../utils/dictation";
 import { useComposerAutocompleteState } from "../hooks/useComposerAutocompleteState";
 import { ComposerInput } from "./ComposerInput";
 import { ComposerMetaBar } from "./ComposerMetaBar";
@@ -40,6 +46,16 @@ type ComposerProps = {
   insertText?: QueuedMessage | null;
   onInsertHandled?: (id: string) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
+  dictationEnabled?: boolean;
+  dictationState?: "idle" | "listening" | "processing";
+  dictationLevel?: number;
+  onToggleDictation?: () => void;
+  dictationTranscript?: DictationTranscript | null;
+  onDictationTranscriptHandled?: (id: string) => void;
+  dictationError?: string | null;
+  onDismissDictationError?: () => void;
+  dictationHint?: string | null;
+  onDismissDictationHint?: () => void;
 };
 
 export function Composer({
@@ -77,6 +93,16 @@ export function Composer({
   insertText = null,
   onInsertHandled,
   textareaRef: externalTextareaRef,
+  dictationEnabled = false,
+  dictationState = "idle",
+  dictationLevel = 0,
+  onToggleDictation,
+  dictationTranscript = null,
+  onDictationTranscriptHandled,
+  dictationError = null,
+  onDismissDictationError,
+  dictationHint = null,
+  onDismissDictationHint,
 }: ComposerProps) {
   const [text, setText] = useState(draftText);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
@@ -156,6 +182,44 @@ export function Composer({
     onInsertHandled?.(insertText.id);
   }, [insertText, onInsertHandled, setComposerText]);
 
+  useEffect(() => {
+    if (!dictationTranscript) {
+      return;
+    }
+    const textToInsert = dictationTranscript.text.trim();
+    if (!textToInsert) {
+      onDictationTranscriptHandled?.(dictationTranscript.id);
+      return;
+    }
+    const textarea = textareaRef.current;
+    const start = textarea?.selectionStart ?? selectionStart ?? text.length;
+    const end = textarea?.selectionEnd ?? start;
+    const { nextText, nextCursor } = computeDictationInsertion(
+      text,
+      textToInsert,
+      start,
+      end,
+    );
+    setComposerText(nextText);
+    requestAnimationFrame(() => {
+      if (!textareaRef.current) {
+        return;
+      }
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(nextCursor, nextCursor);
+      handleSelectionChange(nextCursor);
+    });
+    onDictationTranscriptHandled?.(dictationTranscript.id);
+  }, [
+    dictationTranscript,
+    handleSelectionChange,
+    onDictationTranscriptHandled,
+    selectionStart,
+    setComposerText,
+    text,
+    textareaRef,
+  ]);
+
   return (
     <footer className={`composer${disabled ? " is-disabled" : ""}`}>
       <ComposerQueue
@@ -170,6 +234,14 @@ export function Composer({
         canStop={canStop}
         onStop={onStop}
         onSend={handleSend}
+        dictationEnabled={dictationEnabled}
+        dictationState={dictationState}
+        dictationLevel={dictationLevel}
+        onToggleDictation={onToggleDictation}
+        dictationError={dictationError}
+        onDismissDictationError={onDismissDictationError}
+        dictationHint={dictationHint}
+        onDismissDictationHint={onDismissDictationHint}
         attachments={attachedImages}
         onAddAttachment={onPickImages}
         onAttachImages={onAttachImages}
