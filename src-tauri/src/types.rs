@@ -122,6 +122,8 @@ pub(crate) struct WorkspaceSettings {
     pub(crate) sidebar_collapsed: bool,
     #[serde(default, rename = "sortOrder")]
     pub(crate) sort_order: Option<u32>,
+    #[serde(default, rename = "gitRoot")]
+    pub(crate) git_root: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

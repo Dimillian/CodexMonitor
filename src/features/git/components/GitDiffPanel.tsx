@@ -29,6 +29,17 @@ type GitDiffPanelProps = {
   issuesLoading?: boolean;
   issuesError?: string | null;
   gitRemoteUrl?: string | null;
+  gitRoot?: string | null;
+  gitRootCandidates?: string[];
+  gitRootScanDepth?: number;
+  gitRootScanLoading?: boolean;
+  gitRootScanError?: string | null;
+  gitRootScanHasScanned?: boolean;
+  onGitRootScanDepthChange?: (depth: number) => void;
+  onScanGitRoots?: () => void;
+  onSelectGitRoot?: (path: string) => void;
+  onClearGitRoot?: () => void;
+  onPickGitRoot?: () => void | Promise<void>;
   selectedPath?: string | null;
   onSelectFile?: (path: string) => void;
   files: {
@@ -93,6 +104,20 @@ function getStatusClass(status: string) {
   }
 }
 
+function isMissingRepo(error: string | null | undefined) {
+  if (!error) {
+    return false;
+  }
+  const normalized = error.toLowerCase();
+  return (
+    normalized.includes("could not find repository") ||
+    normalized.includes("not a git repository") ||
+    (normalized.includes("repository") && normalized.includes("notfound")) ||
+    normalized.includes("repository not found") ||
+    normalized.includes("git root not found")
+  );
+}
+
 export function GitDiffPanel({
   mode,
   onModeChange,
@@ -119,6 +144,17 @@ export function GitDiffPanel({
   issuesTotal = 0,
   issuesLoading = false,
   issuesError = null,
+  gitRoot = null,
+  gitRootCandidates = [],
+  gitRootScanDepth = 2,
+  gitRootScanLoading = false,
+  gitRootScanError = null,
+  gitRootScanHasScanned = false,
+  onGitRootScanDepthChange,
+  onScanGitRoots,
+  onSelectGitRoot,
+  onClearGitRoot,
+  onPickGitRoot,
 }: GitDiffPanelProps) {
   const githubBaseUrl = (() => {
     if (!gitRemoteUrl) {
@@ -187,6 +223,14 @@ export function GitDiffPanel({
     : logUpstream
       ? `${logSyncLabel} · ${fileStatus}`
       : fileStatus;
+  const hasGitRoot = Boolean(gitRoot && gitRoot.trim());
+  const showGitRootPanel =
+    isMissingRepo(error) ||
+    gitRootScanLoading ||
+    gitRootScanHasScanned ||
+    Boolean(gitRootScanError) ||
+    gitRootCandidates.length > 0;
+  const depthOptions = [1, 2, 3, 4, 5, 6];
   return (
     <aside className="diff-panel">
       <div className="git-panel-header">
@@ -262,9 +306,108 @@ export function GitDiffPanel({
       {mode !== "issues" && (
         <div className="diff-branch">{branchName || "unknown"}</div>
       )}
+      {mode !== "issues" && hasGitRoot && (
+        <div className="git-root-current">
+          <span className="git-root-label">Root</span>
+          <span className="git-root-path" title={gitRoot ?? ""}>
+            {gitRoot}
+          </span>
+          {onScanGitRoots && (
+            <button
+              type="button"
+              className="ghost git-root-button"
+              onClick={onScanGitRoots}
+              disabled={gitRootScanLoading}
+            >
+              Change repo
+            </button>
+          )}
+        </div>
+      )}
       {mode === "diff" ? (
         <div className="diff-list">
           {error && <div className="diff-error">{error}</div>}
+          {showGitRootPanel && (
+            <div className="git-root-panel">
+              <div className="git-root-title">Choose a repo for this workspace.</div>
+              <div className="git-root-actions">
+                <button
+                  type="button"
+                  className="ghost git-root-button"
+                  onClick={onScanGitRoots}
+                  disabled={!onScanGitRoots || gitRootScanLoading}
+                >
+                  Scan workspace
+                </button>
+                <label className="git-root-depth">
+                  <span>Depth</span>
+                  <select
+                    className="git-root-select"
+                    value={gitRootScanDepth}
+                    onChange={(event) => {
+                      const value = Number(event.target.value);
+                      if (!Number.isNaN(value)) {
+                        onGitRootScanDepthChange?.(value);
+                      }
+                    }}
+                    disabled={gitRootScanLoading}
+                  >
+                    {depthOptions.map((depth) => (
+                      <option key={depth} value={depth}>
+                        {depth}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {onPickGitRoot && (
+                  <button
+                    type="button"
+                    className="ghost git-root-button"
+                    onClick={() => {
+                      void onPickGitRoot();
+                    }}
+                    disabled={gitRootScanLoading}
+                  >
+                    Pick folder
+                  </button>
+                )}
+                {hasGitRoot && onClearGitRoot && (
+                  <button
+                    type="button"
+                    className="ghost git-root-button"
+                    onClick={onClearGitRoot}
+                    disabled={gitRootScanLoading}
+                  >
+                    Use workspace root
+                  </button>
+                )}
+              </div>
+              {gitRootScanLoading && (
+                <div className="diff-empty">Scanning for repositories...</div>
+              )}
+              {gitRootScanError && <div className="diff-error">{gitRootScanError}</div>}
+              {!gitRootScanLoading &&
+                !gitRootScanError &&
+                gitRootScanHasScanned &&
+                gitRootCandidates.length === 0 && (
+                  <div className="diff-empty">No repositories found.</div>
+                )}
+              {gitRootCandidates.length > 0 && (
+                <div className="git-root-list">
+                  {gitRootCandidates.map((path) => (
+                    <button
+                      key={path}
+                      type="button"
+                      className="git-root-item"
+                      onClick={() => onSelectGitRoot?.(path)}
+                    >
+                      <span className="git-root-path">{path}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {!error && !files.length && (
             <div className="diff-empty">No changes detected.</div>
           )}

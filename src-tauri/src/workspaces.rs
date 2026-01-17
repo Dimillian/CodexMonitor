@@ -586,6 +586,7 @@ mod tests {
             settings: WorkspaceSettings {
                 sidebar_collapsed: false,
                 sort_order,
+                git_root: None,
             },
         }
     }
