@@ -80,6 +80,8 @@ export function SettingsView({
 }: SettingsViewProps) {
   const [activeSection, setActiveSection] = useState<CodexSection>("projects");
   const [codexPathDraft, setCodexPathDraft] = useState(appSettings.codexBin ?? "");
+  const [remoteHostDraft, setRemoteHostDraft] = useState(appSettings.remoteBackendHost);
+  const [remoteTokenDraft, setRemoteTokenDraft] = useState(appSettings.remoteBackendToken ?? "");
   const [scaleDraft, setScaleDraft] = useState(
     `${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`,
   );
@@ -115,6 +117,14 @@ export function SettingsView({
   useEffect(() => {
     setCodexPathDraft(appSettings.codexBin ?? "");
   }, [appSettings.codexBin]);
+
+  useEffect(() => {
+    setRemoteHostDraft(appSettings.remoteBackendHost);
+  }, [appSettings.remoteBackendHost]);
+
+  useEffect(() => {
+    setRemoteTokenDraft(appSettings.remoteBackendToken ?? "");
+  }, [appSettings.remoteBackendToken]);
 
   useEffect(() => {
     setScaleDraft(`${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`);
@@ -156,6 +166,30 @@ export function SettingsView({
     } finally {
       setIsSavingSettings(false);
     }
+  };
+
+  const handleCommitRemoteHost = async () => {
+    const nextHost = remoteHostDraft.trim() || "127.0.0.1:4732";
+    setRemoteHostDraft(nextHost);
+    if (nextHost === appSettings.remoteBackendHost) {
+      return;
+    }
+    await onUpdateAppSettings({
+      ...appSettings,
+      remoteBackendHost: nextHost,
+    });
+  };
+
+  const handleCommitRemoteToken = async () => {
+    const nextToken = remoteTokenDraft.trim() ? remoteTokenDraft.trim() : null;
+    setRemoteTokenDraft(nextToken ?? "");
+    if (nextToken === appSettings.remoteBackendToken) {
+      return;
+    }
+    await onUpdateAppSettings({
+      ...appSettings,
+      remoteBackendToken: nextToken,
+    });
   };
 
   const handleCommitScale = async () => {
@@ -741,6 +775,73 @@ export function SettingsView({
                     <option value="full-access">Full access</option>
                   </select>
                 </div>
+
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="backend-mode">
+                    Backend mode
+                  </label>
+                  <select
+                    id="backend-mode"
+                    className="settings-select"
+                    value={appSettings.backendMode}
+                    onChange={(event) =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        backendMode: event.target.value as AppSettings["backendMode"],
+                      })
+                    }
+                  >
+                    <option value="local">Local (default)</option>
+                    <option value="remote">Remote (daemon)</option>
+                  </select>
+                  <div className="settings-help">
+                    Remote mode connects to a separate daemon running the backend on another machine (e.g. WSL2/Linux).
+                  </div>
+                </div>
+
+                {appSettings.backendMode === "remote" && (
+                  <div className="settings-field">
+                    <div className="settings-field-label">Remote backend</div>
+                    <div className="settings-field-row">
+                      <input
+                        className="settings-input settings-input--compact"
+                        value={remoteHostDraft}
+                        placeholder="127.0.0.1:4732"
+                        onChange={(event) => setRemoteHostDraft(event.target.value)}
+                        onBlur={() => {
+                          void handleCommitRemoteHost();
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            void handleCommitRemoteHost();
+                          }
+                        }}
+                        aria-label="Remote backend host"
+                      />
+                      <input
+                        type="password"
+                        className="settings-input settings-input--compact"
+                        value={remoteTokenDraft}
+                        placeholder="Token (optional)"
+                        onChange={(event) => setRemoteTokenDraft(event.target.value)}
+                        onBlur={() => {
+                          void handleCommitRemoteToken();
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            void handleCommitRemoteToken();
+                          }
+                        }}
+                        aria-label="Remote backend token"
+                      />
+                    </div>
+                    <div className="settings-help">
+                      Start the daemon separately and point CodexMonitor to it (host:port + token).
+                    </div>
+                  </div>
+                )}
 
                 <div className="settings-field">
                   <div className="settings-field-label">Workspace overrides</div>

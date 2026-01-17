@@ -5,6 +5,9 @@ import { clampUiScale, UI_SCALE_DEFAULT } from "../../../utils/uiScale";
 
 const defaultSettings: AppSettings = {
   codexBin: null,
+  backendMode: "local",
+  remoteBackendHost: "127.0.0.1:4732",
+  remoteBackendToken: null,
   defaultAccessMode: "current",
   uiScale: UI_SCALE_DEFAULT,
   notificationSoundsEnabled: true,

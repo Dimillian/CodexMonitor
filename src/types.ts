@@ -61,9 +61,13 @@ export type ReviewTarget =
   | { type: "custom"; instructions: string };
 
 export type AccessMode = "read-only" | "current" | "full-access";
+export type BackendMode = "local" | "remote";
 
 export type AppSettings = {
   codexBin: string | null;
+  backendMode: BackendMode;
+  remoteBackendHost: string;
+  remoteBackendToken: string | null;
   defaultAccessMode: AccessMode;
   uiScale: number;
   notificationSoundsEnabled: boolean;
