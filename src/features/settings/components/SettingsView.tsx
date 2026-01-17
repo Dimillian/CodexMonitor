@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
+import { ask, open } from "@tauri-apps/plugin-dialog";
 import {
   ChevronDown,
   ChevronUp,
@@ -16,6 +16,7 @@ import type {
   AppSettings,
   CodexDoctorResult,
   DictationModelStatus,
+  WorkspaceGroup,
   WorkspaceInfo,
 } from "../../../types";
 import { formatDownloadSize } from "../../../utils/formatting";
@@ -30,10 +31,24 @@ const DICTATION_MODELS = [
 ];
 
 type SettingsViewProps = {
-  workspaces: WorkspaceInfo[];
+  workspaceGroups: WorkspaceGroup[];
+  groupedWorkspaces: Array<{
+    id: string | null;
+    name: string;
+    workspaces: WorkspaceInfo[];
+  }>;
+  ungroupedLabel: string;
   onClose: () => void;
   onMoveWorkspace: (id: string, direction: "up" | "down") => void;
   onDeleteWorkspace: (id: string) => void;
+  onCreateWorkspaceGroup: (name: string) => Promise<WorkspaceGroup | null>;
+  onRenameWorkspaceGroup: (id: string, name: string) => Promise<boolean | null>;
+  onMoveWorkspaceGroup: (id: string, direction: "up" | "down") => Promise<boolean | null>;
+  onDeleteWorkspaceGroup: (id: string) => Promise<boolean | null>;
+  onAssignWorkspaceGroup: (
+    workspaceId: string,
+    groupId: string | null,
+  ) => Promise<boolean | null>;
   reduceTransparency: boolean;
   onToggleTransparency: (value: boolean) => void;
   appSettings: AppSettings;
@@ -53,16 +68,18 @@ type SettingsViewProps = {
 type SettingsSection = "projects" | "display" | "dictation";
 type CodexSection = SettingsSection | "codex" | "experimental";
 
-function orderValue(workspace: WorkspaceInfo) {
-  const value = workspace.settings.sortOrder;
-  return typeof value === "number" ? value : Number.MAX_SAFE_INTEGER;
-}
-
 export function SettingsView({
-  workspaces,
+  workspaceGroups,
+  groupedWorkspaces,
+  ungroupedLabel,
   onClose,
   onMoveWorkspace,
   onDeleteWorkspace,
+  onCreateWorkspaceGroup,
+  onRenameWorkspaceGroup,
+  onMoveWorkspaceGroup,
+  onDeleteWorkspaceGroup,
+  onAssignWorkspaceGroup,
   reduceTransparency,
   onToggleTransparency,
   appSettings,
@@ -84,6 +101,9 @@ export function SettingsView({
     `${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`,
   );
   const [overrideDrafts, setOverrideDrafts] = useState<Record<string, string>>({});
+  const [groupDrafts, setGroupDrafts] = useState<Record<string, string>>({});
+  const [newGroupName, setNewGroupName] = useState("");
+  const [groupError, setGroupError] = useState<string | null>(null);
   const [doctorState, setDoctorState] = useState<{
     status: "idle" | "running" | "done";
     result: CodexDoctorResult | null;
@@ -99,18 +119,10 @@ export function SettingsView({
     );
   }, [appSettings.dictationModelId]);
 
-  const projects = useMemo(() => {
-    return workspaces
-      .filter((entry) => (entry.kind ?? "main") !== "worktree")
-      .slice()
-      .sort((a, b) => {
-        const orderDiff = orderValue(a) - orderValue(b);
-        if (orderDiff !== 0) {
-          return orderDiff;
-        }
-        return a.name.localeCompare(b.name);
-      });
-  }, [workspaces]);
+  const projects = useMemo(
+    () => groupedWorkspaces.flatMap((group) => group.workspaces),
+    [groupedWorkspaces],
+  );
 
   useEffect(() => {
     setCodexPathDraft(appSettings.codexBin ?? "");
@@ -130,6 +142,16 @@ export function SettingsView({
       return next;
     });
   }, [projects]);
+
+  useEffect(() => {
+    setGroupDrafts((prev) => {
+      const next: Record<string, string> = {};
+      workspaceGroups.forEach((group) => {
+        next[group.id] = prev[group.id] ?? group.name;
+      });
+      return next;
+    });
+  }, [workspaceGroups]);
 
   useEffect(() => {
     if (initialSection) {
@@ -219,6 +241,70 @@ export function SettingsView({
     }
   };
 
+  const trimmedGroupName = newGroupName.trim();
+  const canCreateGroup = Boolean(trimmedGroupName);
+
+  const handleCreateGroup = async () => {
+    setGroupError(null);
+    try {
+      const created = await onCreateWorkspaceGroup(newGroupName);
+      if (created) {
+        setNewGroupName("");
+      }
+    } catch (error) {
+      setGroupError(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const handleRenameGroup = async (group: WorkspaceGroup) => {
+    const draft = groupDrafts[group.id] ?? "";
+    const trimmed = draft.trim();
+    if (!trimmed || trimmed === group.name) {
+      setGroupDrafts((prev) => ({
+        ...prev,
+        [group.id]: group.name,
+      }));
+      return;
+    }
+    setGroupError(null);
+    try {
+      await onRenameWorkspaceGroup(group.id, trimmed);
+    } catch (error) {
+      setGroupError(error instanceof Error ? error.message : String(error));
+      setGroupDrafts((prev) => ({
+        ...prev,
+        [group.id]: group.name,
+      }));
+    }
+  };
+
+  const handleDeleteGroup = async (group: WorkspaceGroup) => {
+    const groupProjects =
+      groupedWorkspaces.find((entry) => entry.id === group.id)?.workspaces ?? [];
+    const detail =
+      groupProjects.length > 0
+        ? `\n\nProjects in this group will move to "${ungroupedLabel}".`
+        : "";
+    const confirmed = await ask(
+      `Delete "${group.name}"?${detail}`,
+      {
+        title: "Delete Group",
+        kind: "warning",
+        okLabel: "Delete",
+        cancelLabel: "Cancel",
+      },
+    );
+    if (!confirmed) {
+      return;
+    }
+    setGroupError(null);
+    try {
+      await onDeleteWorkspaceGroup(group.id);
+    } catch (error) {
+      setGroupError(error instanceof Error ? error.message : String(error));
+    }
+  };
+
   return (
     <div className="settings-overlay" role="dialog" aria-modal="true">
       <div className="settings-backdrop" onClick={onClose} />
@@ -282,43 +368,172 @@ export function SettingsView({
               <section className="settings-section">
                 <div className="settings-section-title">Projects</div>
                 <div className="settings-section-subtitle">
-                  Reorder your projects and remove unused workspaces.
+                  Group related workspaces and reorder projects within each group.
+                </div>
+                <div className="settings-subsection-title">Groups</div>
+                <div className="settings-subsection-subtitle">
+                  Create group labels for related repositories.
+                </div>
+                <div className="settings-groups">
+                  <div className="settings-group-create">
+                    <input
+                      className="settings-input settings-input--compact"
+                      value={newGroupName}
+                      placeholder="New group name"
+                      onChange={(event) => setNewGroupName(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && canCreateGroup) {
+                          event.preventDefault();
+                          void handleCreateGroup();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => {
+                        void handleCreateGroup();
+                      }}
+                      disabled={!canCreateGroup}
+                    >
+                      Add group
+                    </button>
+                  </div>
+                  {groupError && <div className="settings-group-error">{groupError}</div>}
+                  {workspaceGroups.length > 0 ? (
+                    <div className="settings-group-list">
+                      {workspaceGroups.map((group, index) => (
+                        <div key={group.id} className="settings-group-row">
+                          <input
+                            className="settings-input settings-input--compact"
+                            value={groupDrafts[group.id] ?? group.name}
+                            onChange={(event) =>
+                              setGroupDrafts((prev) => ({
+                                ...prev,
+                                [group.id]: event.target.value,
+                              }))
+                            }
+                            onBlur={() => {
+                              void handleRenameGroup(group);
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                void handleRenameGroup(group);
+                              }
+                            }}
+                          />
+                          <div className="settings-group-actions">
+                            <button
+                              type="button"
+                              className="ghost icon-button"
+                              onClick={() => {
+                                void onMoveWorkspaceGroup(group.id, "up");
+                              }}
+                              disabled={index === 0}
+                              aria-label="Move group up"
+                            >
+                              <ChevronUp aria-hidden />
+                            </button>
+                            <button
+                              type="button"
+                              className="ghost icon-button"
+                              onClick={() => {
+                                void onMoveWorkspaceGroup(group.id, "down");
+                              }}
+                              disabled={index === workspaceGroups.length - 1}
+                              aria-label="Move group down"
+                            >
+                              <ChevronDown aria-hidden />
+                            </button>
+                            <button
+                              type="button"
+                              className="ghost icon-button"
+                              onClick={() => {
+                                void handleDeleteGroup(group);
+                              }}
+                              aria-label="Delete group"
+                            >
+                              <Trash2 aria-hidden />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="settings-empty">No groups yet.</div>
+                  )}
+                </div>
+                <div className="settings-subsection-title">Projects</div>
+                <div className="settings-subsection-subtitle">
+                  Assign projects to groups and adjust their order.
                 </div>
                 <div className="settings-projects">
-                  {projects.map((workspace, index) => (
-                    <div key={workspace.id} className="settings-project-row">
-                      <div className="settings-project-info">
-                        <div className="settings-project-name">{workspace.name}</div>
-                        <div className="settings-project-path">{workspace.path}</div>
-                      </div>
-                      <div className="settings-project-actions">
-                        <button
-                          type="button"
-                          className="ghost icon-button"
-                          onClick={() => onMoveWorkspace(workspace.id, "up")}
-                          disabled={index === 0}
-                          aria-label="Move project up"
-                        >
-                          <ChevronUp aria-hidden />
-                        </button>
-                        <button
-                          type="button"
-                          className="ghost icon-button"
-                          onClick={() => onMoveWorkspace(workspace.id, "down")}
-                          disabled={index === projects.length - 1}
-                          aria-label="Move project down"
-                        >
-                          <ChevronDown aria-hidden />
-                        </button>
-                        <button
-                          type="button"
-                          className="ghost icon-button"
-                          onClick={() => onDeleteWorkspace(workspace.id)}
-                          aria-label="Delete project"
-                        >
-                          <Trash2 aria-hidden />
-                        </button>
-                      </div>
+                  {groupedWorkspaces.map((group) => (
+                    <div key={group.id ?? "ungrouped"} className="settings-project-group">
+                      <div className="settings-project-group-label">{group.name}</div>
+                      {group.workspaces.map((workspace, index) => {
+                        const groupValue =
+                          workspaceGroups.some(
+                            (entry) => entry.id === workspace.settings.groupId,
+                          )
+                            ? workspace.settings.groupId ?? ""
+                            : "";
+                        return (
+                          <div key={workspace.id} className="settings-project-row">
+                            <div className="settings-project-info">
+                              <div className="settings-project-name">{workspace.name}</div>
+                              <div className="settings-project-path">{workspace.path}</div>
+                            </div>
+                            <div className="settings-project-actions">
+                              <select
+                                className="settings-select settings-select--compact"
+                                value={groupValue}
+                                onChange={(event) => {
+                                  const nextGroupId = event.target.value || null;
+                                  void onAssignWorkspaceGroup(
+                                    workspace.id,
+                                    nextGroupId,
+                                  );
+                                }}
+                              >
+                                <option value="">{ungroupedLabel}</option>
+                                {workspaceGroups.map((entry) => (
+                                  <option key={entry.id} value={entry.id}>
+                                    {entry.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                className="ghost icon-button"
+                                onClick={() => onMoveWorkspace(workspace.id, "up")}
+                                disabled={index === 0}
+                                aria-label="Move project up"
+                              >
+                                <ChevronUp aria-hidden />
+                              </button>
+                              <button
+                                type="button"
+                                className="ghost icon-button"
+                                onClick={() => onMoveWorkspace(workspace.id, "down")}
+                                disabled={index === group.workspaces.length - 1}
+                                aria-label="Move project down"
+                              >
+                                <ChevronDown aria-hidden />
+                              </button>
+                              <button
+                                type="button"
+                                className="ghost icon-button"
+                                onClick={() => onDeleteWorkspace(workspace.id)}
+                                aria-label="Delete project"
+                              >
+                                <Trash2 aria-hidden />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   ))}
                   {projects.length === 0 && (

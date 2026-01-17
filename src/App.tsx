@@ -271,6 +271,10 @@ function MainApp() {
 
   const {
     workspaces,
+    workspaceGroups,
+    groupedWorkspaces,
+    getWorkspaceGroupName,
+    ungroupedLabel,
     activeWorkspace,
     activeWorkspaceId,
     setActiveWorkspaceId,
@@ -280,13 +284,20 @@ function MainApp() {
     markWorkspaceConnected,
     updateWorkspaceSettings,
     updateWorkspaceCodexBin,
+    createWorkspaceGroup,
+    renameWorkspaceGroup,
+    moveWorkspaceGroup,
+    deleteWorkspaceGroup,
+    assignWorkspaceGroup,
     removeWorkspace,
     removeWorktree,
     hasLoaded,
     refreshWorkspaces
   } = useWorkspaces({
     onDebug: addDebugEntry,
-    defaultCodexBin: appSettings.codexBin
+    defaultCodexBin: appSettings.codexBin,
+    appSettings,
+    onUpdateAppSettings: queueSaveSettings,
   });
 
   useEffect(() => {
@@ -488,6 +499,7 @@ function MainApp() {
       message: string;
       timestamp: number;
       projectName: string;
+      groupName?: string | null;
       workspaceId: string;
       isProcessing: boolean;
     }> = [];
@@ -503,6 +515,7 @@ function MainApp() {
           message: entry.text,
           timestamp: entry.timestamp,
           projectName: workspace.name,
+          groupName: getWorkspaceGroupName(workspace.id),
           workspaceId: workspace.id,
           isProcessing: threadStatusById[thread.id]?.isProcessing ?? false
         });
@@ -511,6 +524,7 @@ function MainApp() {
     return entries.sort((a, b) => b.timestamp - a.timestamp).slice(0, 3);
   }, [
     lastAgentMessageByThread,
+    getWorkspaceGroupName,
     threadStatusById,
     threadsByWorkspace,
     workspaces
@@ -720,8 +734,17 @@ function MainApp() {
     workspaceId: string,
     direction: "up" | "down"
   ) => {
+    const target = workspaces.find((entry) => entry.id === workspaceId);
+    if (!target || (target.kind ?? "main") === "worktree") {
+      return;
+    }
+    const targetGroupId = target.settings.groupId ?? null;
     const ordered = workspaces
-      .filter((entry) => (entry.kind ?? "main") !== "worktree")
+      .filter(
+        (entry) =>
+          (entry.kind ?? "main") !== "worktree" &&
+          (entry.settings.groupId ?? null) === targetGroupId,
+      )
       .slice()
       .sort((a, b) => {
         const orderDiff = orderValue(a) - orderValue(b);
@@ -809,6 +832,7 @@ function MainApp() {
     compactGitBackNode,
   } = useLayoutNodes({
     workspaces,
+    groupedWorkspaces,
     threadsByWorkspace,
     threadStatusById,
     threadListLoadingByWorkspace,
@@ -1143,7 +1167,9 @@ function MainApp() {
       )}
       {settingsOpen && (
         <SettingsView
-          workspaces={workspaces}
+          workspaceGroups={workspaceGroups}
+          groupedWorkspaces={groupedWorkspaces}
+          ungroupedLabel={ungroupedLabel}
           onClose={() => {
             setSettingsOpen(false);
             setSettingsSection(null);
@@ -1152,6 +1178,11 @@ function MainApp() {
           onDeleteWorkspace={(workspaceId) => {
             void removeWorkspace(workspaceId);
           }}
+          onCreateWorkspaceGroup={createWorkspaceGroup}
+          onRenameWorkspaceGroup={renameWorkspaceGroup}
+          onMoveWorkspaceGroup={moveWorkspaceGroup}
+          onDeleteWorkspaceGroup={deleteWorkspaceGroup}
+          onAssignWorkspaceGroup={assignWorkspaceGroup}
           reduceTransparency={reduceTransparency}
           onToggleTransparency={setReduceTransparency}
           appSettings={appSettings}

@@ -13,6 +13,7 @@ const defaultSettings: AppSettings = {
   dictationModelId: "base",
   dictationPreferredLanguage: null,
   dictationHoldKey: "alt",
+  workspaceGroups: [],
 };
 
 function normalizeAppSettings(settings: AppSettings): AppSettings {

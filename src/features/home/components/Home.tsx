@@ -4,6 +4,7 @@ type LatestAgentRun = {
   message: string;
   timestamp: number;
   projectName: string;
+  groupName?: string | null;
   workspaceId: string;
   threadId: string;
   isProcessing: boolean;
@@ -46,7 +47,12 @@ export function Home({
                 type="button"
               >
                 <div className="home-latest-card-header">
-                  <div className="home-latest-project">{run.projectName}</div>
+                  <div className="home-latest-project">
+                    <span className="home-latest-project-name">{run.projectName}</span>
+                    {run.groupName && (
+                      <span className="home-latest-group">{run.groupName}</span>
+                    )}
+                  </div>
                   <div className="home-latest-time">
                     {formatRelativeTime(run.timestamp)}
                   </div>
