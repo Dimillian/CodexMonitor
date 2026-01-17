@@ -3,6 +3,7 @@ import { Check, ChevronDown, Copy, Terminal } from "lucide-react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { openWorkspaceIn } from "../../../services/tauri";
 import type { BranchInfo, WorkspaceInfo } from "../../../types";
+import type { ReactNode } from "react";
 import { OPEN_APP_STORAGE_KEY, type OpenAppId } from "../constants";
 import { getStoredOpenAppId } from "../utils/openApp";
 import cursorIcon from "../../../assets/app-icons/cursor.png";
@@ -25,6 +26,7 @@ type MainHeaderProps = {
   onToggleTerminal: () => void;
   isTerminalOpen: boolean;
   showTerminalButton?: boolean;
+  extraActionsNode?: ReactNode;
 };
 
 type OpenTarget = {
@@ -50,6 +52,7 @@ export function MainHeader({
   onToggleTerminal,
   isTerminalOpen,
   showTerminalButton = true,
+  extraActionsNode,
 }: MainHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -414,6 +417,7 @@ export function MainHeader({
             <Check className="main-header-icon-check" size={14} />
           </span>
         </button>
+        {extraActionsNode}
       </div>
     </header>
   );

@@ -54,6 +54,13 @@
   --border-accent-soft: rgba(100, 200, 255, 0.3);
   --text-accent: rgba(164, 195, 255, 0.7);
   --shadow-accent: rgba(92, 168, 255, 0.28);
+  --titlebar-inset-left: 72px;
+  --titlebar-height: 24px;
+  --titlebar-toggle-size: 28px;
+  --titlebar-toggle-offset: 4px;
+  --titlebar-toggle-title-offset: -6px;
+  --titlebar-toggle-side-gap: 12px;
+  --topbar-compact-padding: 16px;
   --status-success: rgba(120, 235, 190, 0.95);
   --status-warning: rgba(255, 175, 85, 0.95);
   --status-error: rgba(255, 110, 110, 0.95);
@@ -203,6 +210,8 @@ body {
   position: relative;
   transform: scale(var(--ui-scale, 1));
   transform-origin: top left;
+  --main-topbar-height: 44px;
+  transition: grid-template-columns 220ms ease;
 }
 
 .drag-strip {
@@ -210,8 +219,36 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  height: 24px;
+  height: var(--titlebar-height, 24px);
   z-index: 2;
+}
+
+.titlebar-controls {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--main-topbar-height, 44px);
+  z-index: 4;
+  pointer-events: none;
+}
+
+.titlebar-toggle {
+  position: absolute;
+  top: 50%;
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+  transform: translateY(calc(-50% + var(--titlebar-toggle-offset, 0px)));
+  transition: opacity 160ms ease;
+}
+
+
+.titlebar-toggle-left {
+  left: calc(10px + var(--titlebar-inset-left, 0px));
+}
+
+.titlebar-toggle-right {
+  right: 10px;
 }
 
 .sidebar-resizer {
@@ -222,6 +259,7 @@ body {
   width: 8px;
   cursor: col-resize;
   z-index: 3;
+  transition: opacity 160ms ease;
 }
 
 .sidebar-resizer::after {

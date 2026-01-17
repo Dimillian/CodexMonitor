@@ -51,6 +51,7 @@ export type ConversationItem =
 export type ThreadSummary = {
   id: string;
   name: string;
+  updatedAt: number;
 };
 
 export type ReviewTarget =

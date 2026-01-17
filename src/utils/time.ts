@@ -32,3 +32,27 @@ export function formatRelativeTime(timestamp: number) {
   const formatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
   return formatter.format(value, range.unit);
 }
+
+export function formatRelativeTimeShort(timestamp: number) {
+  const now = Date.now();
+  const absSeconds = Math.abs(Math.round((timestamp - now) / 1000));
+  if (absSeconds < 60) {
+    return "just now";
+  }
+  if (absSeconds < 60 * 60) {
+    return `${Math.max(1, Math.round(absSeconds / 60))}m`;
+  }
+  if (absSeconds < 60 * 60 * 24) {
+    return `${Math.max(1, Math.round(absSeconds / (60 * 60)))}h`;
+  }
+  if (absSeconds < 60 * 60 * 24 * 7) {
+    return `${Math.max(1, Math.round(absSeconds / (60 * 60 * 24)))}d`;
+  }
+  if (absSeconds < 60 * 60 * 24 * 30) {
+    return `${Math.max(1, Math.round(absSeconds / (60 * 60 * 24 * 7)))}w`;
+  }
+  if (absSeconds < 60 * 60 * 24 * 365) {
+    return `${Math.max(1, Math.round(absSeconds / (60 * 60 * 24 * 30)))}mo`;
+  }
+  return `${Math.max(1, Math.round(absSeconds / (60 * 60 * 24 * 365)))}y`;
+}

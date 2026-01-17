@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { formatRelativeTime } from "../../../utils/time";
+import { formatRelativeTime, formatRelativeTimeShort } from "../../../utils/time";
 
 type SidebarProps = {
   workspaces: WorkspaceInfo[];
@@ -17,6 +17,7 @@ type SidebarProps = {
   threadListLoadingByWorkspace: Record<string, boolean>;
   threadListPagingByWorkspace: Record<string, boolean>;
   threadListCursorByWorkspace: Record<string, string | null>;
+  lastAgentMessageByThread: Record<string, { text: string; timestamp: number }>;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   accountRateLimits: RateLimitSnapshot | null;
@@ -35,6 +36,7 @@ type SidebarProps = {
   onDeleteWorkspace: (workspaceId: string) => void;
   onDeleteWorktree: (workspaceId: string) => void;
   onLoadOlderThreads: (workspaceId: string) => void;
+  onReloadWorkspaceThreads: (workspaceId: string) => void;
 };
 
 export function Sidebar({
@@ -44,6 +46,7 @@ export function Sidebar({
   threadListLoadingByWorkspace,
   threadListPagingByWorkspace,
   threadListCursorByWorkspace,
+  lastAgentMessageByThread,
   activeWorkspaceId,
   activeThreadId,
   accountRateLimits,
@@ -62,6 +65,7 @@ export function Sidebar({
   onDeleteWorkspace,
   onDeleteWorktree,
   onLoadOlderThreads,
+  onReloadWorkspaceThreads,
 }: SidebarProps) {
   const [expandedWorkspaces, setExpandedWorkspaces] = useState(
     new Set<string>(),
@@ -91,6 +95,15 @@ export function Sidebar({
       prev.top === next.top && prev.bottom === next.bottom ? prev : next,
     );
   }, []);
+
+  const getThreadTime = useCallback(
+    (thread: ThreadSummary) => {
+      const lastMessage = lastAgentMessageByThread[thread.id];
+      const timestamp = lastMessage?.timestamp ?? thread.updatedAt ?? null;
+      return timestamp ? formatRelativeTimeShort(timestamp) : null;
+    },
+    [lastAgentMessageByThread],
+  );
 
   useEffect(() => {
     if (!addMenuAnchor) {
@@ -145,11 +158,15 @@ export function Sidebar({
   ) {
     event.preventDefault();
     event.stopPropagation();
+    const reloadItem = await MenuItem.new({
+      text: "Reload threads",
+      action: () => onReloadWorkspaceThreads(workspaceId),
+    });
     const deleteItem = await MenuItem.new({
       text: "Delete",
       action: () => onDeleteWorkspace(workspaceId),
     });
-    const menu = await Menu.new({ items: [deleteItem] });
+    const menu = await Menu.new({ items: [reloadItem, deleteItem] });
     const window = getCurrentWindow();
     const position = new LogicalPosition(event.clientX, event.clientY);
     await menu.popup(position, window);
@@ -161,11 +178,15 @@ export function Sidebar({
   ) {
     event.preventDefault();
     event.stopPropagation();
+    const reloadItem = await MenuItem.new({
+      text: "Reload threads",
+      action: () => onReloadWorkspaceThreads(workspaceId),
+    });
     const deleteItem = await MenuItem.new({
       text: "Delete worktree",
       action: () => onDeleteWorktree(workspaceId),
     });
-    const menu = await Menu.new({ items: [deleteItem] });
+    const menu = await Menu.new({ items: [reloadItem, deleteItem] });
     const window = getCurrentWindow();
     const position = new LogicalPosition(event.clientX, event.clientY);
     await menu.popup(position, window);
@@ -499,66 +520,77 @@ export function Sidebar({
                                 {(expandedWorkspaces.has(worktree.id)
                                   ? worktreeThreads
                                   : worktreeThreads.slice(0, 3)
-                                ).map((thread) => (
-                                  <div
-                                    key={thread.id}
-                                    className={`thread-row ${
-                                      worktree.id === activeWorkspaceId &&
-                                      thread.id === activeThreadId
-                                        ? "active"
-                                        : ""
-                                    }`}
-                                    onClick={() =>
-                                      onSelectThread(worktree.id, thread.id)
-                                    }
-                                    onContextMenu={(event) =>
-                                      showThreadMenu(event, worktree.id, thread.id)
-                                    }
-                                    role="button"
-                                    tabIndex={0}
-                                    onKeyDown={(event) => {
-                                      if (
-                                        event.key === "Enter" ||
-                                        event.key === " "
-                                      ) {
-                                        event.preventDefault();
-                                        onSelectThread(worktree.id, thread.id);
-                                      }
-                                    }}
-                                  >
-                                    <span
-                                      className={`thread-status ${
-                                        threadStatusById[thread.id]?.isReviewing
-                                          ? "reviewing"
-                                          : threadStatusById[thread.id]?.isProcessing
-                                            ? "processing"
-                                            : threadStatusById[thread.id]?.hasUnread
-                                              ? "unread"
-                                              : "ready"
+                                ).map((thread) => {
+                                  const relativeTime = getThreadTime(thread);
+                                  return (
+                                    <div
+                                      key={thread.id}
+                                      className={`thread-row ${
+                                        worktree.id === activeWorkspaceId &&
+                                        thread.id === activeThreadId
+                                          ? "active"
+                                          : ""
                                       }`}
-                                      aria-hidden
-                                    />
-                                    <span className="thread-name">{thread.name}</span>
-                                    <div className="thread-menu">
-                                      <button
-                                        className="thread-menu-trigger"
-                                        aria-label="Thread menu"
-                                        onMouseDown={(event) =>
-                                          event.stopPropagation()
+                                      onClick={() =>
+                                        onSelectThread(worktree.id, thread.id)
+                                      }
+                                      onContextMenu={(event) =>
+                                        showThreadMenu(event, worktree.id, thread.id)
+                                      }
+                                      role="button"
+                                      tabIndex={0}
+                                      onKeyDown={(event) => {
+                                        if (
+                                          event.key === "Enter" ||
+                                          event.key === " "
+                                        ) {
+                                          event.preventDefault();
+                                          onSelectThread(worktree.id, thread.id);
                                         }
-                                        onClick={(event) =>
-                                          showThreadMenu(
-                                            event,
-                                            worktree.id,
-                                            thread.id,
-                                          )
-                                        }
-                                      >
-                                        ...
-                                      </button>
+                                      }}
+                                    >
+                                      <span
+                                        className={`thread-status ${
+                                          threadStatusById[thread.id]?.isReviewing
+                                            ? "reviewing"
+                                            : threadStatusById[thread.id]?.isProcessing
+                                              ? "processing"
+                                              : threadStatusById[thread.id]?.hasUnread
+                                                ? "unread"
+                                                : "ready"
+                                        }`}
+                                        aria-hidden
+                                      />
+                                      <span className="thread-name">
+                                        {thread.name}
+                                        {relativeTime && (
+                                          <span className="thread-time">
+                                            {" "}
+                                            · {relativeTime}
+                                          </span>
+                                        )}
+                                      </span>
+                                      <div className="thread-menu">
+                                        <button
+                                          className="thread-menu-trigger"
+                                          aria-label="Thread menu"
+                                          onMouseDown={(event) =>
+                                            event.stopPropagation()
+                                          }
+                                          onClick={(event) =>
+                                            showThreadMenu(
+                                              event,
+                                              worktree.id,
+                                              thread.id,
+                                            )
+                                          }
+                                        >
+                                          ...
+                                        </button>
+                                      </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                                 {worktreeThreads.length > 3 && (
                                   <button
                                     className="thread-more"
@@ -618,55 +650,66 @@ export function Sidebar({
                     {(expandedWorkspaces.has(entry.id)
                       ? threads
                       : threads.slice(0, 3)
-                    ).map((thread) => (
-                      <div
-                        key={thread.id}
-                        className={`thread-row ${
-                          entry.id === activeWorkspaceId &&
-                          thread.id === activeThreadId
-                            ? "active"
-                            : ""
-                        }`}
-                        onClick={() => onSelectThread(entry.id, thread.id)}
-                        onContextMenu={(event) =>
-                          showThreadMenu(event, entry.id, thread.id)
-                        }
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            onSelectThread(entry.id, thread.id);
-                          }
-                        }}
-                      >
-                        <span
-                          className={`thread-status ${
-                            threadStatusById[thread.id]?.isReviewing
-                              ? "reviewing"
-                              : threadStatusById[thread.id]?.isProcessing
-                                ? "processing"
-                                : threadStatusById[thread.id]?.hasUnread
-                                  ? "unread"
-                                  : "ready"
+                    ).map((thread) => {
+                      const relativeTime = getThreadTime(thread);
+                      return (
+                        <div
+                          key={thread.id}
+                          className={`thread-row ${
+                            entry.id === activeWorkspaceId &&
+                            thread.id === activeThreadId
+                              ? "active"
+                              : ""
                           }`}
-                          aria-hidden
-                        />
-                        <span className="thread-name">{thread.name}</span>
-                        <div className="thread-menu">
-                          <button
-                            className="thread-menu-trigger"
-                            aria-label="Thread menu"
-                            onMouseDown={(event) => event.stopPropagation()}
-                            onClick={(event) =>
-                              showThreadMenu(event, entry.id, thread.id)
+                          onClick={() => onSelectThread(entry.id, thread.id)}
+                          onContextMenu={(event) =>
+                            showThreadMenu(event, entry.id, thread.id)
+                          }
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              onSelectThread(entry.id, thread.id);
                             }
-                          >
-                            ...
-                          </button>
+                          }}
+                        >
+                          <span
+                            className={`thread-status ${
+                              threadStatusById[thread.id]?.isReviewing
+                                ? "reviewing"
+                                : threadStatusById[thread.id]?.isProcessing
+                                  ? "processing"
+                                  : threadStatusById[thread.id]?.hasUnread
+                                    ? "unread"
+                                    : "ready"
+                            }`}
+                            aria-hidden
+                          />
+                          <span className="thread-name">
+                            {thread.name}
+                            {relativeTime && (
+                              <span className="thread-time">
+                                {" "}
+                                · {relativeTime}
+                              </span>
+                            )}
+                          </span>
+                          <div className="thread-menu">
+                            <button
+                              className="thread-menu-trigger"
+                              aria-label="Thread menu"
+                              onMouseDown={(event) => event.stopPropagation()}
+                              onClick={(event) =>
+                                showThreadMenu(event, entry.id, thread.id)
+                              }
+                            >
+                              ...
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {threads.length > 3 && (
                       <button
                         className="thread-more"

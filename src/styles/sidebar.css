@@ -11,6 +11,7 @@
   min-height: 0;
   overflow: hidden;
   position: relative;
+  transition: opacity 200ms ease, transform 200ms ease;
 }
 
 .sidebar-header {
@@ -329,6 +330,7 @@
   cursor: pointer;
   -webkit-app-region: no-drag;
   min-width: 0;
+  position: relative;
 }
 
 .thread-status {
@@ -381,9 +383,16 @@
   -webkit-box-orient: vertical;
 }
 
+.thread-time {
+  color: var(--text-faint);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 
 .thread-menu {
-  position: relative;
+  position: absolute;
+  right: 6px;
 }
 
 .thread-menu-trigger {
@@ -650,4 +659,15 @@
 }
 .app.reduced-transparency .sidebar {
   backdrop-filter: none;
+}
+
+.app.sidebar-collapsed .sidebar {
+  opacity: 0;
+  transform: translateX(-12px);
+  pointer-events: none;
+}
+
+.app.sidebar-collapsed .sidebar-resizer {
+  opacity: 0;
+  pointer-events: none;
 }

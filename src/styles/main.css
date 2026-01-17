@@ -8,8 +8,8 @@
   -webkit-app-region: no-drag;
   min-height: 0;
   min-width: 0;
-  --main-topbar-height: 44px;
   --main-panel-padding: 24px;
+  transition: grid-template-columns 220ms ease;
 }
 
 .app.reduced-transparency .main {
@@ -195,6 +195,40 @@
   min-height: var(--main-topbar-height);
 }
 
+.app.sidebar-collapsed .main-topbar {
+  padding-left: calc(
+    var(--main-panel-padding)
+    + var(--titlebar-inset-left, 0px)
+    + var(--titlebar-toggle-size, 28px)
+    + var(--titlebar-toggle-title-offset, -6px)
+  );
+}
+
+.app.layout-compact.sidebar-collapsed .main-topbar {
+  padding-left: calc(
+    var(--topbar-compact-padding, 16px)
+    + var(--titlebar-inset-left, 0px)
+    + var(--titlebar-toggle-size, 28px)
+    + var(--titlebar-toggle-title-offset, -6px)
+  );
+}
+
+.app.layout-compact.right-panel-collapsed .main-topbar {
+  padding-right: calc(
+    var(--topbar-compact-padding, 16px)
+    + var(--titlebar-toggle-size, 28px)
+    + var(--titlebar-toggle-side-gap, 12px)
+  );
+}
+
+.app.right-panel-collapsed .main-topbar {
+  padding-right: calc(
+    var(--main-panel-padding)
+    + var(--titlebar-toggle-size, 28px)
+    + var(--titlebar-toggle-side-gap, 12px)
+  );
+}
+
 .app.reduced-transparency .main-topbar {
   backdrop-filter: none;
 }
@@ -206,6 +240,14 @@
   min-width: 0;
   flex: 1;
   -webkit-app-region: no-drag;
+}
+
+.topbar-leading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
 }
 
 .main-topbar-left .icon-button {
@@ -588,6 +630,7 @@
   grid-row: 1 / -1;
   min-height: 0;
   overflow: hidden;
+  transition: opacity 200ms ease, transform 200ms ease;
 }
 
 .right-panel-top {
@@ -655,6 +698,7 @@
   width: 8px;
   cursor: col-resize;
   z-index: 2;
+  transition: opacity 160ms ease;
 }
 
 .right-panel-resizer::after {
@@ -671,6 +715,18 @@
 
 .right-panel-resizer:hover::after {
   opacity: 1;
+}
+
+.app.right-panel-collapsed .right-panel {
+  opacity: 0;
+  transform: translateX(12px);
+  pointer-events: none;
+  border-left-color: transparent;
+}
+
+.app.right-panel-collapsed .right-panel-resizer {
+  opacity: 0;
+  pointer-events: none;
 }
 
 @media (max-width: 960px) {

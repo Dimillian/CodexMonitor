@@ -177,6 +177,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       const thread: ThreadSummary = {
         id: action.threadId,
         name: `Agent ${list.length + 1}`,
+        updatedAt: Date.now(),
       };
       return {
         ...state,
@@ -312,6 +313,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       };
     case "addUserMessage": {
       const list = state.itemsByThread[action.threadId] ?? [];
+      const now = Date.now();
       const imageCount = action.images?.length ?? 0;
       const imageLabel =
         imageCount > 0 ? (imageCount === 1 ? "[image]" : `[image x${imageCount}]`) : "";
@@ -322,18 +324,21 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
           : textValue
         : imageLabel;
       const message: ConversationItem = {
-        id: `${Date.now()}-user`,
+        id: `${now}-user`,
         kind: "message",
         role: "user",
         text: combinedText || "[message]",
       };
       const threads = state.threadsByWorkspace[action.workspaceId] ?? [];
-      const bumpedThreads = threads.length
+      const updatedThreads = threads.map((thread) =>
+        thread.id === action.threadId ? { ...thread, updatedAt: now } : thread,
+      );
+      const bumpedThreads = updatedThreads.length
         ? [
-            ...threads.filter((thread) => thread.id === action.threadId),
-            ...threads.filter((thread) => thread.id !== action.threadId),
+            ...updatedThreads.filter((thread) => thread.id === action.threadId),
+            ...updatedThreads.filter((thread) => thread.id !== action.threadId),
           ]
-        : threads;
+        : updatedThreads;
       return {
         ...state,
         itemsByThread: {
