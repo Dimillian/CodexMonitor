@@ -70,6 +70,13 @@ function splitNameAndExtension(name: string) {
   };
 }
 
+function normalizeRootPath(value: string | null | undefined) {
+  if (!value) {
+    return "";
+  }
+  return value.replace(/\\/g, "/").replace(/\/+$/, "");
+}
+
 function getStatusSymbol(status: string) {
   switch (status) {
     case "A":
@@ -230,6 +237,7 @@ export function GitDiffPanel({
     gitRootScanHasScanned ||
     Boolean(gitRootScanError) ||
     gitRootCandidates.length > 0;
+  const normalizedGitRoot = normalizeRootPath(gitRoot);
   const depthOptions = [1, 2, 3, 4, 5, 6];
   return (
     <aside className="diff-panel">
@@ -308,18 +316,19 @@ export function GitDiffPanel({
       )}
       {mode !== "issues" && hasGitRoot && (
         <div className="git-root-current">
-          <span className="git-root-label">Root</span>
+          <span className="git-root-label">Path:</span>
           <span className="git-root-path" title={gitRoot ?? ""}>
             {gitRoot}
           </span>
           {onScanGitRoots && (
             <button
               type="button"
-              className="ghost git-root-button"
+              className="ghost git-root-button git-root-button--icon"
               onClick={onScanGitRoots}
               disabled={gitRootScanLoading}
             >
-              Change repo
+              <ArrowLeftRight className="git-root-button-icon" aria-hidden />
+              Change
             </button>
           )}
         </div>
@@ -394,16 +403,22 @@ export function GitDiffPanel({
                 )}
               {gitRootCandidates.length > 0 && (
                 <div className="git-root-list">
-                  {gitRootCandidates.map((path) => (
+                  {gitRootCandidates.map((path) => {
+                    const normalizedPath = normalizeRootPath(path);
+                    const isActive =
+                      normalizedGitRoot && normalizedGitRoot === normalizedPath;
+                    return (
                     <button
                       key={path}
                       type="button"
-                      className="git-root-item"
+                      className={`git-root-item ${isActive ? "active" : ""}`}
                       onClick={() => onSelectGitRoot?.(path)}
                     >
                       <span className="git-root-path">{path}</span>
+                      {isActive && <span className="git-root-tag">Active</span>}
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

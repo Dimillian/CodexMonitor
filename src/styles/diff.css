@@ -158,6 +158,17 @@
   border-radius: 8px;
 }
 
+.git-root-button--icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.git-root-button-icon {
+  width: 12px;
+  height: 12px;
+}
+
 .git-root-depth {
   display: inline-flex;
   align-items: center;
@@ -184,6 +195,7 @@
 .git-root-item {
   display: flex;
   align-items: center;
+  gap: 8px;
   width: 100%;
   text-align: left;
   border: 1px solid var(--border-subtle);
@@ -194,8 +206,20 @@
   font-size: 11px;
 }
 
+.git-root-item.active {
+  background: var(--surface-active);
+  border-color: var(--border-accent-soft);
+}
+
 .git-root-item:hover {
   background: var(--surface-control-hover);
+}
+
+.git-root-tag {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .diff-status {
