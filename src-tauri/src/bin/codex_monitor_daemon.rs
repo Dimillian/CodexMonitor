@@ -8,7 +8,6 @@ mod types;
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
 use std::env;
-use std::io::Write;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -57,6 +56,7 @@ struct DaemonConfig {
 }
 
 struct DaemonState {
+    data_dir: PathBuf,
     workspaces: Mutex<HashMap<String, WorkspaceEntry>>,
     sessions: Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     storage_path: PathBuf,
@@ -72,6 +72,7 @@ impl DaemonState {
         let workspaces = read_workspaces(&storage_path).unwrap_or_default();
         let app_settings = read_settings(&settings_path).unwrap_or_default();
         Self {
+            data_dir: config.data_dir.clone(),
             workspaces: Mutex::new(workspaces),
             sessions: Mutex::new(HashMap::new()),
             storage_path,
@@ -79,6 +80,20 @@ impl DaemonState {
             app_settings: Mutex::new(app_settings),
             event_sink,
         }
+    }
+
+    async fn kill_session(&self, workspace_id: &str) {
+        let session = {
+            let mut sessions = self.sessions.lock().await;
+            sessions.remove(workspace_id)
+        };
+
+        let Some(session) = session else {
+            return;
+        };
+
+        let mut child = session.child.lock().await;
+        let _ = child.kill().await;
     }
 
     async fn list_workspaces(&self) -> Vec<WorkspaceInfo> {
@@ -185,25 +200,31 @@ impl DaemonState {
             return Err("Cannot create a worktree from another worktree.".to_string());
         }
 
-        let worktree_root = PathBuf::from(&parent_entry.path).join(".codex-worktrees");
+        let worktree_root = self.data_dir.join("worktrees").join(&parent_entry.id);
         std::fs::create_dir_all(&worktree_root)
             .map_err(|e| format!("Failed to create worktree directory: {e}"))?;
-        ensure_worktree_ignored(&PathBuf::from(&parent_entry.path))?;
 
         let safe_name = sanitize_worktree_name(&branch);
-        let worktree_path = unique_worktree_path(&worktree_root, &safe_name);
+        let worktree_path = unique_worktree_path(&worktree_root, &safe_name)?;
         let worktree_path_string = worktree_path.to_string_lossy().to_string();
 
-        let branch_exists = git_branch_exists(&PathBuf::from(&parent_entry.path), &branch).await?;
+        let repo_path = PathBuf::from(&parent_entry.path);
+        let branch_exists = git_branch_exists(&repo_path, &branch).await?;
         if branch_exists {
             run_git_command(
-                &PathBuf::from(&parent_entry.path),
+                &repo_path,
                 &["worktree", "add", &worktree_path_string, &branch],
+            )
+            .await?;
+        } else if let Some(remote_ref) = git_find_remote_tracking_branch(&repo_path, &branch).await? {
+            run_git_command(
+                &repo_path,
+                &["worktree", "add", "-b", &branch, &worktree_path_string, &remote_ref],
             )
             .await?;
         } else {
             run_git_command(
-                &PathBuf::from(&parent_entry.path),
+                &repo_path,
                 &["worktree", "add", "-b", &branch, &worktree_path_string],
             )
             .await?;
@@ -274,39 +295,57 @@ impl DaemonState {
             (entry, children)
         };
 
-        let parent_path = PathBuf::from(&entry.path);
+        let repo_path = PathBuf::from(&entry.path);
+        let mut removed_child_ids = Vec::new();
+        let mut failures = Vec::new();
+
         for child in &child_worktrees {
-            if let Some(session) = self.sessions.lock().await.remove(&child.id) {
-                let mut child_process = session.child.lock().await;
-                let _ = child_process.kill().await;
-            }
             let child_path = PathBuf::from(&child.path);
             if child_path.exists() {
-                run_git_command(
-                    &parent_path,
+                if let Err(err) = run_git_command(
+                    &repo_path,
                     &["worktree", "remove", "--force", &child.path],
                 )
-                .await?;
+                .await
+                {
+                    failures.push((child.id.clone(), err));
+                    continue;
+                }
             }
-        }
-        let _ = run_git_command(&parent_path, &["worktree", "prune", "--expire", "now"]).await;
 
-        if let Some(session) = self.sessions.lock().await.remove(&id) {
-            let mut child = session.child.lock().await;
-            let _ = child.kill().await;
+            self.kill_session(&child.id).await;
+            removed_child_ids.push(child.id.clone());
         }
 
-        {
-            let mut workspaces = self.workspaces.lock().await;
-            workspaces.remove(&id);
-            for child in child_worktrees {
-                workspaces.remove(&child.id);
-            }
-            let list: Vec<_> = workspaces.values().cloned().collect();
+        let _ = run_git_command(&repo_path, &["worktree", "prune", "--expire", "now"]).await;
+
+        let mut ids_to_remove = removed_child_ids;
+        if failures.is_empty() {
+            self.kill_session(&id).await;
+            ids_to_remove.push(id.clone());
+        }
+
+        if !ids_to_remove.is_empty() {
+            let list = {
+                let mut workspaces = self.workspaces.lock().await;
+                for workspace_id in ids_to_remove {
+                    workspaces.remove(&workspace_id);
+                }
+                workspaces.values().cloned().collect::<Vec<_>>()
+            };
             write_workspaces(&self.storage_path, &list)?;
         }
 
-        Ok(())
+        if failures.is_empty() {
+            return Ok(());
+        }
+
+        let mut message =
+            "Failed to remove one or more worktrees; parent workspace was not removed.".to_string();
+        for (child_id, error) in failures {
+            message.push_str(&format!("\n- {child_id}: {error}"));
+        }
+        Err(message)
     }
 
     async fn remove_worktree(&self, id: String) -> Result<(), String> {
@@ -324,11 +363,6 @@ impl DaemonState {
             (entry, parent)
         };
 
-        if let Some(session) = self.sessions.lock().await.remove(&entry.id) {
-            let mut child = session.child.lock().await;
-            let _ = child.kill().await;
-        }
-
         let parent_path = PathBuf::from(&parent.path);
         let entry_path = PathBuf::from(&entry.path);
         if entry_path.exists() {
@@ -340,12 +374,14 @@ impl DaemonState {
         }
         let _ = run_git_command(&parent_path, &["worktree", "prune", "--expire", "now"]).await;
 
-        {
+        self.kill_session(&entry.id).await;
+
+        let list = {
             let mut workspaces = self.workspaces.lock().await;
             workspaces.remove(&entry.id);
-            let list: Vec<_> = workspaces.values().cloned().collect();
-            write_workspaces(&self.storage_path, &list)?;
-        }
+            workspaces.values().cloned().collect::<Vec<_>>()
+        };
+        write_workspaces(&self.storage_path, &list)?;
 
         Ok(())
     }
@@ -774,6 +810,47 @@ async fn git_branch_exists(repo_path: &PathBuf, branch: &str) -> Result<bool, St
     Ok(status.success())
 }
 
+async fn git_remote_branch_exists(repo_path: &PathBuf, remote: &str, branch: &str) -> Result<bool, String> {
+    let status = Command::new("git")
+        .args([
+            "show-ref",
+            "--verify",
+            &format!("refs/remotes/{remote}/{branch}"),
+        ])
+        .current_dir(repo_path)
+        .status()
+        .await
+        .map_err(|e| format!("Failed to run git: {e}"))?;
+    Ok(status.success())
+}
+
+async fn git_list_remotes(repo_path: &PathBuf) -> Result<Vec<String>, String> {
+    let output = run_git_command(repo_path, &["remote"]).await?;
+    Ok(output
+        .lines()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty())
+        .map(|line| line.to_string())
+        .collect())
+}
+
+async fn git_find_remote_tracking_branch(repo_path: &PathBuf, branch: &str) -> Result<Option<String>, String> {
+    if git_remote_branch_exists(repo_path, "origin", branch).await? {
+        return Ok(Some(format!("origin/{branch}")));
+    }
+
+    for remote in git_list_remotes(repo_path).await? {
+        if remote == "origin" {
+            continue;
+        }
+        if git_remote_branch_exists(repo_path, &remote, branch).await? {
+            return Ok(Some(format!("{remote}/{branch}")));
+        }
+    }
+
+    Ok(None)
+}
+
 fn sanitize_worktree_name(branch: &str) -> String {
     let mut result = String::new();
     for ch in branch.chars() {
@@ -791,40 +868,23 @@ fn sanitize_worktree_name(branch: &str) -> String {
     }
 }
 
-fn unique_worktree_path(base_dir: &PathBuf, name: &str) -> PathBuf {
-    let mut candidate = base_dir.join(name);
+fn unique_worktree_path(base_dir: &PathBuf, name: &str) -> Result<PathBuf, String> {
+    let candidate = base_dir.join(name);
     if !candidate.exists() {
-        return candidate;
+        return Ok(candidate);
     }
+
     for index in 2..1000 {
         let next = base_dir.join(format!("{name}-{index}"));
         if !next.exists() {
-            candidate = next;
-            break;
+            return Ok(next);
         }
     }
-    candidate
-}
 
-fn ensure_worktree_ignored(repo_path: &PathBuf) -> Result<(), String> {
-    let ignore_path = repo_path.join(".gitignore");
-    let entry = ".codex-worktrees/";
-    let existing = std::fs::read_to_string(&ignore_path).unwrap_or_default();
-    if existing.lines().any(|line| line.trim() == entry) {
-        return Ok(());
-    }
-    let mut file = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&ignore_path)
-        .map_err(|e| format!("Failed to update .gitignore: {e}"))?;
-    if !existing.ends_with('\n') && !existing.is_empty() {
-        file.write_all(b"\n")
-            .map_err(|e| format!("Failed to update .gitignore: {e}"))?;
-    }
-    file.write_all(format!("{entry}\n").as_bytes())
-        .map_err(|e| format!("Failed to update .gitignore: {e}"))?;
-    Ok(())
+    Err(format!(
+        "Failed to find an available worktree path under {}.",
+        base_dir.display()
+    ))
 }
 
 fn default_data_dir() -> PathBuf {
