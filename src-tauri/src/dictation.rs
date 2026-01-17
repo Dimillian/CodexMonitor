@@ -17,6 +17,7 @@ use whisper_rs::get_lang_id;
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 const DEFAULT_MODEL_ID: &str = "base";
+const MAX_CAPTURE_SECONDS: u32 = 120;
 
 struct DictationModelInfo {
     id: &'static str,
@@ -959,6 +960,9 @@ fn start_capture_thread(
     let sample_format = config.sample_format();
     let stream_config: cpal::StreamConfig = config.into();
     let channels = stream_config.channels as usize;
+    let max_samples = (sample_rate as usize)
+        .saturating_mul(MAX_CAPTURE_SECONDS as usize)
+        .max(1);
     let app_handle = app.clone();
     let audio_capture = audio.clone();
     let stop_on_error = stop_tx.clone();
@@ -1002,6 +1006,7 @@ fn start_capture_thread(
             &device,
             &stream_config,
             channels,
+            max_samples,
             audio_capture,
             level_value.clone(),
             err_fn,
@@ -1010,6 +1015,7 @@ fn start_capture_thread(
             &device,
             &stream_config,
             channels,
+            max_samples,
             audio_capture,
             level_value.clone(),
             err_fn,
@@ -1018,6 +1024,7 @@ fn start_capture_thread(
             &device,
             &stream_config,
             channels,
+            max_samples,
             audio_capture,
             level_value.clone(),
             err_fn,
@@ -1070,6 +1077,7 @@ fn build_stream<T>(
     device: &cpal::Device,
     config: &cpal::StreamConfig,
     channels: usize,
+    max_samples: usize,
     audio: Arc<Mutex<Vec<f32>>>,
     level_value: Arc<AtomicU32>,
     err_fn: impl FnMut(cpal::StreamError) + Send + 'static,
@@ -1114,7 +1122,13 @@ where
                     return;
                 }
                 if let Ok(mut buffer) = audio.lock() {
-                    buffer.extend_from_slice(&mono_buffer);
+                    if buffer.len() < max_samples {
+                        let remaining = max_samples.saturating_sub(buffer.len());
+                        let slice_len = remaining.min(mono_buffer.len());
+                        if slice_len > 0 {
+                            buffer.extend_from_slice(&mono_buffer[..slice_len]);
+                        }
+                    }
                 }
                 let rms = (sum / frames as f32).sqrt();
                 let scaled = (rms * 6.0).clamp(0.0, 1.0);
