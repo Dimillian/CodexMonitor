@@ -538,7 +538,7 @@ export function SettingsView({
                     onChange={(event) =>
                       void onUpdateAppSettings({
                         ...appSettings,
-                        dictationHoldKey: event.target.value || null,
+                        dictationHoldKey: event.target.value,
                       })
                     }
                   >

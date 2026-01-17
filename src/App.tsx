@@ -176,6 +176,8 @@ function MainApp() {
   const dictationReady = dictationModel.status?.state === "ready";
   const holdDictationKey = (appSettings.dictationHoldKey ?? "").toLowerCase();
   const holdDictationActive = useRef(false);
+  const holdDictationStopPending = useRef(false);
+  const holdDictationStopTimeout = useRef<number | null>(null);
   const handleToggleDictation = useCallback(async () => {
     if (!appSettings.dictationEnabled || !dictationReady) {
       return;
@@ -220,6 +222,15 @@ function MainApp() {
       return;
     }
 
+    if (holdDictationStopPending.current && dictationState === "listening") {
+      holdDictationStopPending.current = false;
+      if (holdDictationStopTimeout.current !== null) {
+        window.clearTimeout(holdDictationStopTimeout.current);
+        holdDictationStopTimeout.current = null;
+      }
+      void stopDictation();
+    }
+
     const matchesHoldKey = (event: KeyboardEvent) => {
       switch (holdDictationKey) {
         case "alt":
@@ -246,6 +257,11 @@ function MainApp() {
         return;
       }
       holdDictationActive.current = true;
+      holdDictationStopPending.current = false;
+      if (holdDictationStopTimeout.current !== null) {
+        window.clearTimeout(holdDictationStopTimeout.current);
+        holdDictationStopTimeout.current = null;
+      }
       void startDictation(appSettings.dictationPreferredLanguage);
     };
 
@@ -257,7 +273,20 @@ function MainApp() {
         return;
       }
       holdDictationActive.current = false;
+      holdDictationStopPending.current = true;
+      if (holdDictationStopTimeout.current !== null) {
+        window.clearTimeout(holdDictationStopTimeout.current);
+      }
+      holdDictationStopTimeout.current = window.setTimeout(() => {
+        holdDictationStopPending.current = false;
+        holdDictationStopTimeout.current = null;
+      }, 1500);
       if (dictationState === "listening") {
+        holdDictationStopPending.current = false;
+        if (holdDictationStopTimeout.current !== null) {
+          window.clearTimeout(holdDictationStopTimeout.current);
+          holdDictationStopTimeout.current = null;
+        }
         void stopDictation();
       }
     };
@@ -267,6 +296,11 @@ function MainApp() {
         return;
       }
       holdDictationActive.current = false;
+      holdDictationStopPending.current = false;
+      if (holdDictationStopTimeout.current !== null) {
+        window.clearTimeout(holdDictationStopTimeout.current);
+        holdDictationStopTimeout.current = null;
+      }
       if (dictationState === "listening") {
         void cancelDictation();
       }
@@ -279,6 +313,10 @@ function MainApp() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("blur", handleBlur);
+      if (holdDictationStopTimeout.current !== null) {
+        window.clearTimeout(holdDictationStopTimeout.current);
+        holdDictationStopTimeout.current = null;
+      }
     };
   }, [
     appSettings.dictationEnabled,
