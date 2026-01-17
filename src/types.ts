@@ -1,6 +1,7 @@
 export type WorkspaceSettings = {
   sidebarCollapsed: boolean;
   sortOrder?: number | null;
+  gitRoot?: string | null;
 };
 
 export type WorkspaceKind = "main" | "worktree";

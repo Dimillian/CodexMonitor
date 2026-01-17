@@ -6,6 +6,7 @@ mod codex;
 mod dictation;
 mod event_sink;
 mod git;
+mod git_utils;
 mod prompts;
 mod settings;
 mod state;
@@ -157,6 +158,7 @@ pub fn run() {
             codex::archive_thread,
             workspaces::connect_workspace,
             git::get_git_status,
+            git::list_git_roots,
             git::get_git_diffs,
             git::get_git_log,
             git::get_git_remote,
