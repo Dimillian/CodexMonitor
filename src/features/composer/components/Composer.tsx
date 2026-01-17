@@ -108,6 +108,7 @@ export function Composer({
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const internalRef = useRef<HTMLTextAreaElement | null>(null);
   const textareaRef = externalTextareaRef ?? internalRef;
+  const isDictationBusy = dictationState !== "idle";
 
   useEffect(() => {
     setText((prev) => (prev === draftText ? prev : draftText));
@@ -283,6 +284,10 @@ export function Composer({
             return;
           }
           if (event.key === "Enter" && !event.shiftKey) {
+            if (isDictationBusy) {
+              event.preventDefault();
+              return;
+            }
             event.preventDefault();
             handleSend();
           }
