@@ -1247,10 +1247,11 @@ fn transcribe_audio(
     }
     let cleaned = transcript.trim().to_string();
     if cleaned.is_empty() {
-        return Err(format!(
-            "No speech detected (rms={:.4}, max={:.4}, duration={:.2}s, segments={})",
+        eprintln!(
+            "dictation: no speech detected (rms={:.4}, max={:.4}, duration={:.2}s, segments={})",
             rms, max, duration, segments
-        ));
+        );
+        return Ok(String::new());
     }
     Ok(cleaned)
 }
