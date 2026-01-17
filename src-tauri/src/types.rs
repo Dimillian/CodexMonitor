@@ -151,6 +151,11 @@ pub(crate) struct AppSettings {
     pub(crate) dictation_model_id: String,
     #[serde(default, rename = "dictationPreferredLanguage")]
     pub(crate) dictation_preferred_language: Option<String>,
+    #[serde(
+        default = "default_dictation_hold_key",
+        rename = "dictationHoldKey"
+    )]
+    pub(crate) dictation_hold_key: String,
 }
 
 fn default_access_mode() -> String {
@@ -177,6 +182,10 @@ fn default_dictation_model_id() -> String {
     "base".to_string()
 }
 
+fn default_dictation_hold_key() -> String {
+    "alt".to_string()
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -188,6 +197,7 @@ impl Default for AppSettings {
             dictation_enabled: false,
             dictation_model_id: default_dictation_model_id(),
             dictation_preferred_language: None,
+            dictation_hold_key: default_dictation_hold_key(),
         }
     }
 }
@@ -207,6 +217,7 @@ mod tests {
         assert!(!settings.dictation_enabled);
         assert_eq!(settings.dictation_model_id, "base");
         assert!(settings.dictation_preferred_language.is_none());
+        assert_eq!(settings.dictation_hold_key, "alt");
     }
 
     #[test]

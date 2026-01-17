@@ -527,6 +527,31 @@ export function SettingsView({
                     Auto-detect stays on; this nudges the decoder toward your preference.
                   </div>
                 </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="dictation-hold-key">
+                    Hold-to-dictate key
+                  </label>
+                  <select
+                    id="dictation-hold-key"
+                    className="settings-select"
+                    value={appSettings.dictationHoldKey ?? ""}
+                    onChange={(event) =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        dictationHoldKey: event.target.value || null,
+                      })
+                    }
+                  >
+                    <option value="">Off</option>
+                    <option value="alt">Option / Alt</option>
+                    <option value="shift">Shift</option>
+                    <option value="control">Control</option>
+                    <option value="meta">Command / Meta</option>
+                  </select>
+                  <div className="settings-help">
+                    Hold the key to start dictation, release to stop and process.
+                  </div>
+                </div>
                 {dictationModelStatus && (
                   <div className="settings-field">
                     <div className="settings-field-label">

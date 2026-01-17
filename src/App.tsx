@@ -174,6 +174,8 @@ function MainApp() {
     return stored === "true";
   });
   const dictationReady = dictationModel.status?.state === "ready";
+  const holdDictationKey = (appSettings.dictationHoldKey ?? "").toLowerCase();
+  const holdDictationActive = useRef(false);
   const handleToggleDictation = useCallback(async () => {
     if (!appSettings.dictationEnabled || !dictationReady) {
       return;
@@ -212,6 +214,82 @@ function MainApp() {
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, [dictationState, cancelDictation]);
+
+  useEffect(() => {
+    if (!holdDictationKey) {
+      return;
+    }
+
+    const matchesHoldKey = (event: KeyboardEvent) => {
+      switch (holdDictationKey) {
+        case "alt":
+          return event.key === "Alt";
+        case "shift":
+          return event.key === "Shift";
+        case "control":
+          return event.key === "Control";
+        case "meta":
+          return event.key === "Meta";
+        default:
+          return false;
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!matchesHoldKey(event) || event.repeat) {
+        return;
+      }
+      if (!appSettings.dictationEnabled || !dictationReady) {
+        return;
+      }
+      if (dictationState !== "idle") {
+        return;
+      }
+      holdDictationActive.current = true;
+      void startDictation(appSettings.dictationPreferredLanguage);
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (!matchesHoldKey(event)) {
+        return;
+      }
+      if (!holdDictationActive.current) {
+        return;
+      }
+      holdDictationActive.current = false;
+      if (dictationState === "listening") {
+        void stopDictation();
+      }
+    };
+
+    const handleBlur = () => {
+      if (!holdDictationActive.current) {
+        return;
+      }
+      holdDictationActive.current = false;
+      if (dictationState === "listening") {
+        void cancelDictation();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, [
+    appSettings.dictationEnabled,
+    appSettings.dictationPreferredLanguage,
+    cancelDictation,
+    dictationReady,
+    dictationState,
+    holdDictationKey,
+    startDictation,
+    stopDictation,
+  ]);
   const {
     debugOpen,
     setDebugOpen,

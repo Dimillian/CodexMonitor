@@ -71,6 +71,7 @@ export type AppSettings = {
   dictationEnabled: boolean;
   dictationModelId: string;
   dictationPreferredLanguage: string | null;
+  dictationHoldKey: string | null;
 };
 
 export type CodexDoctorResult = {
