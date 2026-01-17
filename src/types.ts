@@ -106,16 +106,6 @@ export type GitFileDiff = {
   diff: string;
 };
 
-export type DiffLineReference = {
-  path: string;
-  type: "add" | "del" | "context" | "mixed";
-  oldLine: number | null;
-  newLine: number | null;
-  endOldLine: number | null;
-  endNewLine: number | null;
-  lines: string[];
-};
-
 export type GitLogEntry = {
   sha: string;
   summary: string;
@@ -143,6 +133,32 @@ export type GitHubIssue = {
 export type GitHubIssuesResponse = {
   total: number;
   issues: GitHubIssue[];
+};
+
+export type GitHubUser = {
+  login: string;
+};
+
+export type GitHubPullRequest = {
+  number: number;
+  title: string;
+  url: string;
+  updatedAt: string;
+  headRefName: string;
+  baseRefName: string;
+  isDraft: boolean;
+  author: GitHubUser | null;
+};
+
+export type GitHubPullRequestsResponse = {
+  total: number;
+  pullRequests: GitHubPullRequest[];
+};
+
+export type GitHubPullRequestDiff = {
+  path: string;
+  status: string;
+  diff: string;
 };
 
 export type TokenUsageBreakdown = {

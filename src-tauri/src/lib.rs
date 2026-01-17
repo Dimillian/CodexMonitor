@@ -163,6 +163,8 @@ pub fn run() {
             git::get_git_log,
             git::get_git_remote,
             git::get_github_issues,
+            git::get_github_pull_requests,
+            git::get_github_pull_request_diff,
             workspaces::list_workspace_files,
             workspaces::open_workspace_in,
             git::list_git_branches,

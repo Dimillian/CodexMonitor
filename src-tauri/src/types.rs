@@ -54,6 +54,42 @@ pub(crate) struct GitHubIssuesResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct GitHubPullRequestAuthor {
+    pub(crate) login: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct GitHubPullRequest {
+    pub(crate) number: u64,
+    pub(crate) title: String,
+    pub(crate) url: String,
+    #[serde(rename = "updatedAt")]
+    pub(crate) updated_at: String,
+    #[serde(rename = "headRefName")]
+    pub(crate) head_ref_name: String,
+    #[serde(rename = "baseRefName")]
+    pub(crate) base_ref_name: String,
+    #[serde(rename = "isDraft")]
+    pub(crate) is_draft: bool,
+    #[serde(default)]
+    pub(crate) author: Option<GitHubPullRequestAuthor>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct GitHubPullRequestsResponse {
+    pub(crate) total: usize,
+    #[serde(rename = "pullRequests")]
+    pub(crate) pull_requests: Vec<GitHubPullRequest>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct GitHubPullRequestDiff {
+    pub(crate) path: String,
+    pub(crate) status: String,
+    pub(crate) diff: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct BranchInfo {
     pub(crate) name: String,
     pub(crate) last_commit: i64,

@@ -214,6 +214,10 @@ body {
   transition: grid-template-columns 220ms ease;
 }
 
+.app.ui-scale-default {
+  transform: none;
+}
+
 .drag-strip {
   position: absolute;
   top: 0;

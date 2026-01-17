@@ -38,6 +38,8 @@ import { useGitStatus } from "./features/git/hooks/useGitStatus";
 import { useGitDiffs } from "./features/git/hooks/useGitDiffs";
 import { useGitLog } from "./features/git/hooks/useGitLog";
 import { useGitHubIssues } from "./features/git/hooks/useGitHubIssues";
+import { useGitHubPullRequests } from "./features/git/hooks/useGitHubPullRequests";
+import { useGitHubPullRequestDiffs } from "./features/git/hooks/useGitHubPullRequestDiffs";
 import { useGitRemote } from "./features/git/hooks/useGitRemote";
 import { useGitRepoScan } from "./features/git/hooks/useGitRepoScan";
 import { useModels } from "./features/models/hooks/useModels";
@@ -74,7 +76,12 @@ import { usePanelVisibility } from "./features/layout/hooks/usePanelVisibility";
 import { useTerminalController } from "./features/terminal/hooks/useTerminalController";
 import { playNotificationSound } from "./utils/notificationSounds";
 import { pickWorkspacePath } from "./services/tauri";
-import type { AccessMode, DiffLineReference, QueuedMessage, WorkspaceInfo } from "./types";
+import type {
+  AccessMode,
+  GitHubPullRequest,
+  QueuedMessage,
+  WorkspaceInfo,
+} from "./types";
 
 function useWindowLabel() {
   const [label, setLabel] = useState("main");
@@ -155,10 +162,13 @@ function MainApp() {
   };
   const [centerMode, setCenterMode] = useState<"chat" | "diff">("chat");
   const [selectedDiffPath, setSelectedDiffPath] = useState<string | null>(null);
-  const [gitPanelMode, setGitPanelMode] = useState<"diff" | "log" | "issues">(
-    "diff"
-  );
+  const [gitPanelMode, setGitPanelMode] = useState<
+    "diff" | "log" | "issues" | "prs"
+  >("diff");
   const [filePanelMode, setFilePanelMode] = useState<"git" | "files">("git");
+  const [selectedPullRequest, setSelectedPullRequest] =
+    useState<GitHubPullRequest | null>(null);
+  const [diffSource, setDiffSource] = useState<"local" | "pr">("local");
   const [accessMode, setAccessMode] = useState<AccessMode>("current");
   const [activeTab, setActiveTab] = useState<
     "projects" | "codex" | "git" | "log"
@@ -297,6 +307,8 @@ function MainApp() {
   const shouldLoadDiffs =
     centerMode === "diff" || (isCompact && compactTab === "git");
   const shouldLoadGitLog = gitPanelMode === "log" && Boolean(activeWorkspace);
+  const shouldLoadPullRequests =
+    gitPanelMode === "prs" && Boolean(activeWorkspace);
   const {
     diffs: gitDiffs,
     isLoading: isDiffLoading,
@@ -319,6 +331,21 @@ function MainApp() {
     isLoading: gitIssuesLoading,
     error: gitIssuesError
   } = useGitHubIssues(activeWorkspace, gitPanelMode === "issues");
+  const {
+    pullRequests: gitPullRequests,
+    total: gitPullRequestsTotal,
+    isLoading: gitPullRequestsLoading,
+    error: gitPullRequestsError
+  } = useGitHubPullRequests(activeWorkspace, shouldLoadPullRequests);
+  const {
+    diffs: gitPullRequestDiffs,
+    isLoading: gitPullRequestDiffsLoading,
+    error: gitPullRequestDiffsError
+  } = useGitHubPullRequestDiffs(
+    activeWorkspace,
+    selectedPullRequest?.number ?? null,
+    shouldLoadDiffs && diffSource === "pr"
+  );
   const { remote: gitRemoteUrl } = useGitRemote(activeWorkspace);
   const {
     repos: gitRootCandidates,
@@ -410,6 +437,28 @@ function MainApp() {
             gitStatus.files.length === 1 ? "" : "s"
           } changed`
         : "Working tree clean";
+
+  const activeDiffs = diffSource === "pr" ? gitPullRequestDiffs : gitDiffs;
+  const activeDiffLoading =
+    diffSource === "pr" ? gitPullRequestDiffsLoading : isDiffLoading;
+  const activeDiffError =
+    diffSource === "pr" ? gitPullRequestDiffsError : diffError;
+
+  useEffect(() => {
+    if (diffSource !== "pr" || centerMode !== "diff") {
+      return;
+    }
+    if (!gitPullRequestDiffs.length) {
+      return;
+    }
+    if (
+      selectedDiffPath &&
+      gitPullRequestDiffs.some((entry) => entry.path === selectedDiffPath)
+    ) {
+      return;
+    }
+    setSelectedDiffPath(gitPullRequestDiffs[0].path);
+  }, [centerMode, diffSource, gitPullRequestDiffs, selectedDiffPath]);
 
   const {
     setActiveThreadId,
@@ -679,48 +728,41 @@ function MainApp() {
     setSelectedDiffPath(path);
     setCenterMode("diff");
     setGitPanelMode("diff");
+    setDiffSource("local");
+    setSelectedPullRequest(null);
     if (isCompact) {
       setActiveTab("git");
     }
   }
 
-  function handleActiveDiffPath(path: string) {
-    if (path !== selectedDiffPath) {
-      setSelectedDiffPath(path);
+  const handleActiveDiffPath = useCallback((path: string) => {
+    setSelectedDiffPath(path);
+  }, []);
+
+  function handleSelectPullRequest(pullRequest: GitHubPullRequest) {
+    setSelectedPullRequest(pullRequest);
+    setDiffSource("pr");
+    setSelectedDiffPath(null);
+    setCenterMode("diff");
+    setGitPanelMode("prs");
+    if (isCompact) {
+      setActiveTab("git");
     }
   }
 
-  function handleDiffLineReference(reference: DiffLineReference) {
-    const startLine = reference.newLine ?? reference.oldLine;
-    const endLine =
-      reference.endNewLine ?? reference.endOldLine ?? startLine ?? null;
-    const lineRange =
-      startLine && endLine && endLine !== startLine
-        ? `${startLine}-${endLine}`
-        : startLine
-        ? `${startLine}`
-        : null;
-    const lineLabel = lineRange
-      ? `${reference.path}:${lineRange}`
-      : reference.path;
-    const changeLabel =
-      reference.type === "add"
-        ? "added"
-        : reference.type === "del"
-        ? "removed"
-        : reference.type === "mixed"
-        ? "mixed"
-        : "context";
-    const snippet = reference.lines.join("\n").trimEnd();
-    const snippetBlock = snippet ? `\n\`\`\`\n${snippet}\n\`\`\`` : "";
-    const label = reference.lines.length > 1 ? "Line range" : "Line reference";
-    const text = `${label} (${changeLabel}): ${lineLabel}${snippetBlock}`;
-    setComposerInsert({
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      text,
-      createdAt: Date.now()
-    });
+  function handleGitPanelModeChange(
+    mode: "diff" | "log" | "issues" | "prs",
+  ) {
+    setGitPanelMode(mode);
+    if (mode !== "prs") {
+      if (diffSource === "pr") {
+        setSelectedDiffPath(null);
+      }
+      setDiffSource("local");
+      setSelectedPullRequest(null);
+    }
   }
+
 
   const handleOpenSettings = useCallback(
     (section?: SettingsSection) => {
@@ -798,13 +840,14 @@ function MainApp() {
     terminalOpen,
     onDebug: addDebugEntry,
   });
+  const isDefaultScale = Math.abs(uiScale - 1) < 0.001;
   const appClassName = `app ${isCompact ? "layout-compact" : "layout-desktop"}${
     isPhone ? " layout-phone" : ""
   }${isTablet ? " layout-tablet" : ""}${
     reduceTransparency ? " reduced-transparency" : ""
   }${!isCompact && sidebarCollapsed ? " sidebar-collapsed" : ""}${
     !isCompact && rightPanelCollapsed ? " right-panel-collapsed" : ""
-  }`;
+  }${isDefaultScale ? " ui-scale-default" : ""}`;
   const {
     sidebarNode,
     messagesNode,
@@ -944,7 +987,7 @@ function MainApp() {
     onSelectTab: setActiveTab,
     tabletNavTab: tabletTab,
     gitPanelMode,
-    onGitPanelModeChange: setGitPanelMode,
+    onGitPanelModeChange: handleGitPanelModeChange,
     gitStatus,
     fileStatus,
     selectedDiffPath,
@@ -962,6 +1005,12 @@ function MainApp() {
     gitIssuesTotal,
     gitIssuesLoading,
     gitIssuesError,
+    gitPullRequests,
+    gitPullRequestsTotal,
+    gitPullRequestsLoading,
+    gitPullRequestsError,
+    selectedPullRequestNumber: selectedPullRequest?.number ?? null,
+    onSelectPullRequest: handleSelectPullRequest,
     gitRemoteUrl,
     gitRoot: activeGitRoot,
     gitRootCandidates,
@@ -978,10 +1027,9 @@ function MainApp() {
       void handleSetGitRoot(null);
     },
     onPickGitRoot: handlePickGitRoot,
-    gitDiffs,
-    gitDiffLoading: isDiffLoading,
-    gitDiffError: diffError,
-    onDiffLineReference: handleDiffLineReference,
+    gitDiffs: activeDiffs,
+    gitDiffLoading: activeDiffLoading,
+    gitDiffError: activeDiffError,
     onDiffActivePathChange: handleActiveDiffPath,
     onSend: handleSend,
     onQueue: queueMessage,

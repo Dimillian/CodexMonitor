@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use git2::{BranchType, DiffOptions, Repository, Sort, Status, StatusOptions};
 use serde_json::json;
@@ -11,10 +11,125 @@ use crate::git_utils::{
 };
 use crate::state::AppState;
 use crate::types::{
-    BranchInfo, GitFileDiff, GitFileStatus, GitHubIssue, GitHubIssuesResponse, GitLogResponse,
+    BranchInfo, GitFileDiff, GitFileStatus, GitHubIssue, GitHubIssuesResponse, GitHubPullRequest,
+    GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse,
 };
 use crate::utils::normalize_git_path;
 
+fn github_repo_from_path(path: &Path) -> Result<String, String> {
+    let repo = Repository::open(path).map_err(|e| e.to_string())?;
+    let remotes = repo.remotes().map_err(|e| e.to_string())?;
+    let name = if remotes.iter().any(|remote| remote == Some("origin")) {
+        "origin".to_string()
+    } else {
+        remotes
+            .iter()
+            .flatten()
+            .next()
+            .unwrap_or("")
+            .to_string()
+    };
+    if name.is_empty() {
+        return Err("No git remote configured.".to_string());
+    }
+    let remote = repo.find_remote(&name).map_err(|e| e.to_string())?;
+    let remote_url = remote
+        .url()
+        .ok_or("Remote has no URL configured.")?;
+    parse_github_repo(remote_url).ok_or("Remote is not a GitHub repository.".to_string())
+}
+
+fn parse_pr_diff(diff: &str) -> Vec<GitHubPullRequestDiff> {
+    let mut entries = Vec::new();
+    let mut current_lines: Vec<&str> = Vec::new();
+    let mut current_old_path: Option<String> = None;
+    let mut current_new_path: Option<String> = None;
+    let mut current_status: Option<String> = None;
+
+    let mut finalize = |lines: &Vec<&str>,
+                        old_path: &Option<String>,
+                        new_path: &Option<String>,
+                        status: &Option<String>,
+                        results: &mut Vec<GitHubPullRequestDiff>| {
+        if lines.is_empty() {
+            return;
+        }
+        let diff_text = lines.join("\n");
+        if diff_text.trim().is_empty() {
+            return;
+        }
+        let status_value = status.clone().unwrap_or_else(|| "M".to_string());
+        let path = if status_value == "D" {
+            old_path.clone().unwrap_or_default()
+        } else {
+            new_path.clone().or_else(|| old_path.clone()).unwrap_or_default()
+        };
+        if path.is_empty() {
+            return;
+        }
+        results.push(GitHubPullRequestDiff {
+            path: normalize_git_path(&path),
+            status: status_value,
+            diff: diff_text,
+        });
+    };
+
+    for line in diff.lines() {
+        if line.starts_with("diff --git ") {
+            finalize(
+                &current_lines,
+                &current_old_path,
+                &current_new_path,
+                &current_status,
+                &mut entries,
+            );
+            current_lines = vec![line];
+            current_old_path = None;
+            current_new_path = None;
+            current_status = None;
+
+            let rest = line.trim_start_matches("diff --git ").trim();
+            let mut parts = rest.split_whitespace();
+            let old_part = parts.next().unwrap_or("").trim_start_matches("a/");
+            let new_part = parts.next().unwrap_or("").trim_start_matches("b/");
+            if !old_part.is_empty() {
+                current_old_path = Some(old_part.to_string());
+            }
+            if !new_part.is_empty() {
+                current_new_path = Some(new_part.to_string());
+            }
+            continue;
+        }
+        if line.starts_with("new file mode ") {
+            current_status = Some("A".to_string());
+        } else if line.starts_with("deleted file mode ") {
+            current_status = Some("D".to_string());
+        } else if line.starts_with("rename from ") {
+            current_status = Some("R".to_string());
+            let path = line.trim_start_matches("rename from ").trim();
+            if !path.is_empty() {
+                current_old_path = Some(path.to_string());
+            }
+        } else if line.starts_with("rename to ") {
+            current_status = Some("R".to_string());
+            let path = line.trim_start_matches("rename to ").trim();
+            if !path.is_empty() {
+                current_new_path = Some(path.to_string());
+            }
+        }
+        current_lines.push(line);
+    }
+
+    finalize(
+        &current_lines,
+        &current_old_path,
+        &current_new_path,
+        &current_status,
+        &mut entries,
+    );
+
+    entries
+}
 #[tauri::command]
 pub(crate) async fn get_git_status(
     workspace_id: String,
@@ -347,28 +462,7 @@ pub(crate) async fn get_github_issues(
         .clone();
 
     let repo_root = resolve_git_root(&entry)?;
-    let repo_name = {
-        let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
-        let remotes = repo.remotes().map_err(|e| e.to_string())?;
-        let name = if remotes.iter().any(|remote| remote == Some("origin")) {
-            "origin".to_string()
-        } else {
-            remotes
-                .iter()
-                .flatten()
-                .next()
-                .unwrap_or("")
-                .to_string()
-        };
-        if name.is_empty() {
-            return Err("No git remote configured.".to_string());
-        }
-        let remote = repo.find_remote(&name).map_err(|e| e.to_string())?;
-        let remote_url = remote
-            .url()
-            .ok_or("Remote has no URL configured.")?;
-        parse_github_repo(remote_url).ok_or("Remote is not a GitHub repository.")?
-    };
+    let repo_name = github_repo_from_path(&repo_root)?;
 
     let output = Command::new("gh")
         .args([
@@ -424,6 +518,129 @@ pub(crate) async fn get_github_issues(
     };
 
     Ok(GitHubIssuesResponse { total, issues })
+}
+
+#[tauri::command]
+pub(crate) async fn get_github_pull_requests(
+    workspace_id: String,
+    state: State<'_, AppState>,
+) -> Result<GitHubPullRequestsResponse, String> {
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?
+        .clone();
+
+    let repo_root = resolve_git_root(&entry)?;
+    let repo_name = github_repo_from_path(&repo_root)?;
+
+    let output = Command::new("gh")
+        .args([
+            "pr",
+            "list",
+            "--repo",
+            &repo_name,
+            "--state",
+            "open",
+            "--limit",
+            "50",
+            "--json",
+            "number,title,url,updatedAt,headRefName,baseRefName,isDraft,author",
+        ])
+        .current_dir(&repo_root)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run gh: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let detail = if stderr.trim().is_empty() {
+            stdout.trim()
+        } else {
+            stderr.trim()
+        };
+        if detail.is_empty() {
+            return Err("GitHub CLI command failed.".to_string());
+        }
+        return Err(detail.to_string());
+    }
+
+    let pull_requests: Vec<GitHubPullRequest> =
+        serde_json::from_slice(&output.stdout).map_err(|e| e.to_string())?;
+
+    let search_query = format!("repo:{repo_name} is:pr is:open");
+    let search_query = search_query.replace(' ', "+");
+    let total = match Command::new("gh")
+        .args([
+            "api",
+            &format!("/search/issues?q={search_query}"),
+            "--jq",
+            ".total_count",
+        ])
+        .current_dir(&repo_root)
+        .output()
+        .await
+    {
+        Ok(output) if output.status.success() => String::from_utf8_lossy(&output.stdout)
+            .trim()
+            .parse::<usize>()
+            .unwrap_or(pull_requests.len()),
+        _ => pull_requests.len(),
+    };
+
+    Ok(GitHubPullRequestsResponse {
+        total,
+        pull_requests,
+    })
+}
+
+#[tauri::command]
+pub(crate) async fn get_github_pull_request_diff(
+    workspace_id: String,
+    pr_number: u64,
+    state: State<'_, AppState>,
+) -> Result<Vec<GitHubPullRequestDiff>, String> {
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?
+        .clone();
+
+    let repo_root = resolve_git_root(&entry)?;
+    let repo_name = github_repo_from_path(&repo_root)?;
+
+    let output = Command::new("gh")
+        .args([
+            "pr",
+            "diff",
+            &pr_number.to_string(),
+            "--repo",
+            &repo_name,
+            "--color",
+            "never",
+        ])
+        .current_dir(&repo_root)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run gh: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let detail = if stderr.trim().is_empty() {
+            stdout.trim()
+        } else {
+            stderr.trim()
+        };
+        if detail.is_empty() {
+            return Err("GitHub CLI command failed.".to_string());
+        }
+        return Err(detail.to_string());
+    }
+
+    let diff_text = String::from_utf8_lossy(&output.stdout);
+    Ok(parse_pr_diff(&diff_text))
 }
 
 #[tauri::command]
