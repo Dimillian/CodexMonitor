@@ -7,8 +7,17 @@ import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { formatRelativeTime, formatRelativeTimeShort } from "../../../utils/time";
 
+const COLLAPSED_GROUPS_STORAGE_KEY = "codexmonitor.collapsedGroups";
+
+type WorkspaceGroupSection = {
+  id: string | null;
+  name: string;
+  workspaces: WorkspaceInfo[];
+};
+
 type SidebarProps = {
   workspaces: WorkspaceInfo[];
+  groupedWorkspaces: WorkspaceGroupSection[];
   threadsByWorkspace: Record<string, ThreadSummary[]>;
   threadStatusById: Record<
     string,
@@ -41,6 +50,7 @@ type SidebarProps = {
 
 export function Sidebar({
   workspaces,
+  groupedWorkspaces,
   threadsByWorkspace,
   threadStatusById,
   threadListLoadingByWorkspace,
@@ -70,6 +80,24 @@ export function Sidebar({
   const [expandedWorkspaces, setExpandedWorkspaces] = useState(
     new Set<string>(),
   );
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") {
+      return new Set();
+    }
+    const raw = window.localStorage.getItem(COLLAPSED_GROUPS_STORAGE_KEY);
+    if (!raw) {
+      return new Set();
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return new Set(parsed.filter((value) => typeof value === "string"));
+      }
+    } catch {
+      // Ignore invalid stored data.
+    }
+    return new Set();
+  });
   const [addMenuAnchor, setAddMenuAnchor] = useState<{
     workspaceId: string;
     top: number;
@@ -95,6 +123,32 @@ export function Sidebar({
       prev.top === next.top && prev.bottom === next.bottom ? prev : next,
     );
   }, []);
+
+  const persistCollapsedGroups = useCallback((next: Set<string>) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(
+      COLLAPSED_GROUPS_STORAGE_KEY,
+      JSON.stringify(Array.from(next)),
+    );
+  }, []);
+
+  const toggleGroupCollapse = useCallback(
+    (groupId: string) => {
+      setCollapsedGroups((prev) => {
+        const next = new Set(prev);
+        if (next.has(groupId)) {
+          next.delete(groupId);
+        } else {
+          next.add(groupId);
+        }
+        persistCollapsedGroups(next);
+        return next;
+      });
+    },
+    [persistCollapsedGroups],
+  );
 
   const getThreadTime = useCallback(
     (thread: ThreadSummary) => {
@@ -127,7 +181,7 @@ export function Sidebar({
   useEffect(() => {
     const frame = requestAnimationFrame(updateScrollFade);
     return () => cancelAnimationFrame(frame);
-  }, [updateScrollFade, workspaces, threadsByWorkspace, expandedWorkspaces]);
+  }, [updateScrollFade, groupedWorkspaces, threadsByWorkspace, expandedWorkspaces]);
 
   async function showThreadMenu(
     event: React.MouseEvent,
@@ -245,23 +299,6 @@ export function Sidebar({
     return `Resets ${relative}`;
   })();
 
-  const rootWorkspaces = workspaces
-    .filter((entry) => (entry.kind ?? "main") !== "worktree" && !entry.parentId)
-    .slice()
-    .sort((a, b) => {
-      const aOrder =
-        typeof a.settings.sortOrder === "number"
-          ? a.settings.sortOrder
-          : Number.MAX_SAFE_INTEGER;
-      const bOrder =
-        typeof b.settings.sortOrder === "number"
-          ? b.settings.sortOrder
-          : Number.MAX_SAFE_INTEGER;
-      if (aOrder !== bOrder) {
-        return aOrder - bOrder;
-      }
-      return a.name.localeCompare(b.name);
-    });
   const worktreesByParent = new Map<string, WorkspaceInfo[]>();
   workspaces
     .filter((entry) => (entry.kind ?? "main") === "worktree" && entry.parentId)
@@ -306,458 +343,503 @@ export function Sidebar({
         ref={sidebarBodyRef}
       >
         <div className="workspace-list">
-          {rootWorkspaces.map((entry) => {
-            const threads = threadsByWorkspace[entry.id] ?? [];
-            const isCollapsed = entry.settings.sidebarCollapsed;
-            const showThreads = !isCollapsed && threads.length > 0;
-            const isLoadingThreads =
-              threadListLoadingByWorkspace[entry.id] ?? false;
-            const showThreadLoader =
-              !isCollapsed && isLoadingThreads && threads.length === 0;
-            const nextCursor = threadListCursorByWorkspace[entry.id] ?? null;
-            const isPaging = threadListPagingByWorkspace[entry.id] ?? false;
-            const worktrees = worktreesByParent.get(entry.id) ?? [];
+          {groupedWorkspaces.map((group) => {
+            const groupId = group.id;
+            const isGroupCollapsed = Boolean(
+              groupId && collapsedGroups.has(groupId),
+            );
 
             return (
-              <div key={entry.id} className="workspace-card">
-                <div
-                  className={`workspace-row ${
-                    entry.id === activeWorkspaceId ? "active" : ""
-                  }`}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => onSelectWorkspace(entry.id)}
-                  onContextMenu={(event) => showWorkspaceMenu(event, entry.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      onSelectWorkspace(entry.id);
-                    }
-                  }}
-                >
-                  <div>
-                    <div className="workspace-name-row">
-                      <div className="workspace-title">
-                        <span className="workspace-name">{entry.name}</span>
-                        <button
-                          className={`workspace-toggle ${
-                            isCollapsed ? "" : "expanded"
-                          }`}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onToggleWorkspaceCollapse(entry.id, !isCollapsed);
-                          }}
-                          data-tauri-drag-region="false"
-                          aria-label={
-                            isCollapsed ? "Show agents" : "Hide agents"
-                          }
-                          aria-expanded={!isCollapsed}
-                        >
-                          <span className="workspace-toggle-icon">›</span>
-                        </button>
-                      </div>
-                      <button
-                        className="ghost workspace-add"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          const rect = (
-                            event.currentTarget as HTMLElement
-                          ).getBoundingClientRect();
-                          const menuWidth = 200;
-                          const left = Math.min(
-                            Math.max(rect.left, 12),
-                            window.innerWidth - menuWidth - 12,
-                          );
-                          const top = rect.bottom + 8;
-                          setAddMenuAnchor((prev) =>
-                            prev?.workspaceId === entry.id
-                              ? null
-                              : {
-                                  workspaceId: entry.id,
-                                  top,
-                                  left,
-                                  width: menuWidth,
-                                },
-                          );
-                        }}
-                        data-tauri-drag-region="false"
-                        aria-label="Add agent options"
-                        aria-expanded={addMenuAnchor?.workspaceId === entry.id}
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                  {!entry.connected && (
-                    <span
-                      className="connect"
+              <div
+                key={group.id ?? "ungrouped"}
+                className="workspace-group"
+              >
+                <div className="workspace-group-header">
+                  <div className="workspace-group-label">{group.name}</div>
+                  {groupId && (
+                    <button
+                      className={`group-toggle ${
+                        isGroupCollapsed ? "" : "expanded"
+                      }`}
                       onClick={(event) => {
                         event.stopPropagation();
-                        onConnectWorkspace(entry);
+                        toggleGroupCollapse(groupId);
                       }}
+                      aria-label={
+                        isGroupCollapsed ? "Expand group" : "Collapse group"
+                      }
+                      aria-expanded={!isGroupCollapsed}
+                      type="button"
                     >
-                      connect
-                    </span>
+                      <span className="group-toggle-icon">›</span>
+                    </button>
                   )}
                 </div>
-                {addMenuAnchor?.workspaceId === entry.id &&
-                  createPortal(
-                    <div
-                      className="workspace-add-menu popover-surface"
-                      ref={addMenuRef}
-                      style={{
-                        top: addMenuAnchor.top,
-                        left: addMenuAnchor.left,
-                        width: addMenuAnchor.width,
-                      }}
-                    >
-                      <button
-                        className="workspace-add-option"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setAddMenuAnchor(null);
-                          onAddAgent(entry);
-                        }}
-                      >
-                        New agent
-                      </button>
-                      <button
-                        className="workspace-add-option"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setAddMenuAnchor(null);
-                          onAddWorktreeAgent(entry);
-                        }}
-                      >
-                        New worktree agent
-                      </button>
-                    </div>,
-                    document.body,
-                  )}
-                {!isCollapsed && worktrees.length > 0 && (
-                  <div className="worktree-section">
-                    <div className="worktree-header">
-                      <Layers className="worktree-header-icon" aria-hidden />
-                      Worktrees
-                    </div>
-                    <div className="worktree-list">
-                      {worktrees.map((worktree) => {
-                        const worktreeThreads =
-                          threadsByWorkspace[worktree.id] ?? [];
-                        const worktreeCollapsed =
-                          worktree.settings.sidebarCollapsed;
-                        const showWorktreeThreads =
-                          !worktreeCollapsed && worktreeThreads.length > 0;
-                        const isLoadingWorktreeThreads =
-                          threadListLoadingByWorkspace[worktree.id] ?? false;
-                        const showWorktreeLoader =
-                          !worktreeCollapsed &&
-                          isLoadingWorktreeThreads &&
-                          worktreeThreads.length === 0;
-                        const worktreeNextCursor =
-                          threadListCursorByWorkspace[worktree.id] ?? null;
-                        const isWorktreePaging =
-                          threadListPagingByWorkspace[worktree.id] ?? false;
-                        const worktreeBranch = worktree.worktree?.branch ?? "";
+                <div
+                  className={`workspace-group-list ${
+                    isGroupCollapsed ? "collapsed" : ""
+                  }`}
+                >
+                  {group.workspaces.map((entry) => {
+                  const threads = threadsByWorkspace[entry.id] ?? [];
+                  const isCollapsed = entry.settings.sidebarCollapsed;
+                  const showThreads = !isCollapsed && threads.length > 0;
+                  const isLoadingThreads =
+                    threadListLoadingByWorkspace[entry.id] ?? false;
+                  const showThreadLoader =
+                    !isCollapsed && isLoadingThreads && threads.length === 0;
+                  const nextCursor = threadListCursorByWorkspace[entry.id] ?? null;
+                  const isPaging = threadListPagingByWorkspace[entry.id] ?? false;
+                  const worktrees = worktreesByParent.get(entry.id) ?? [];
 
-                        return (
-                          <div key={worktree.id} className="worktree-card">
-                            <div
-                              className={`worktree-row ${
-                                worktree.id === activeWorkspaceId ? "active" : ""
-                              }`}
-                              role="button"
-                              tabIndex={0}
-                              onClick={() => onSelectWorkspace(worktree.id)}
-                              onContextMenu={(event) =>
-                                showWorktreeMenu(event, worktree.id)
-                              }
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter" || event.key === " ") {
-                                  event.preventDefault();
-                                  onSelectWorkspace(worktree.id);
+                  return (
+                    <div key={entry.id} className="workspace-card">
+                      <div
+                        className={`workspace-row ${
+                          entry.id === activeWorkspaceId ? "active" : ""
+                        }`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => onSelectWorkspace(entry.id)}
+                        onContextMenu={(event) => showWorkspaceMenu(event, entry.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            onSelectWorkspace(entry.id);
+                          }
+                        }}
+                      >
+                        <div>
+                          <div className="workspace-name-row">
+                            <div className="workspace-title">
+                              <span className="workspace-name">{entry.name}</span>
+                              <button
+                                className={`workspace-toggle ${
+                                  isCollapsed ? "" : "expanded"
+                                }`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onToggleWorkspaceCollapse(entry.id, !isCollapsed);
+                                }}
+                                data-tauri-drag-region="false"
+                                aria-label={
+                                  isCollapsed ? "Show agents" : "Hide agents"
                                 }
+                                aria-expanded={!isCollapsed}
+                              >
+                                <span className="workspace-toggle-icon">›</span>
+                              </button>
+                            </div>
+                            <button
+                              className="ghost workspace-add"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                const rect = (
+                                  event.currentTarget as HTMLElement
+                                ).getBoundingClientRect();
+                                const menuWidth = 200;
+                                const left = Math.min(
+                                  Math.max(rect.left, 12),
+                                  window.innerWidth - menuWidth - 12,
+                                );
+                                const top = rect.bottom + 8;
+                                setAddMenuAnchor((prev) =>
+                                  prev?.workspaceId === entry.id
+                                    ? null
+                                    : {
+                                        workspaceId: entry.id,
+                                        top,
+                                        left,
+                                        width: menuWidth,
+                                      },
+                                );
+                              }}
+                              data-tauri-drag-region="false"
+                              aria-label="Add agent options"
+                              aria-expanded={addMenuAnchor?.workspaceId === entry.id}
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                        {!entry.connected && (
+                          <span
+                            className="connect"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onConnectWorkspace(entry);
+                            }}
+                          >
+                            connect
+                          </span>
+                        )}
+                      </div>
+                      {addMenuAnchor?.workspaceId === entry.id &&
+                        createPortal(
+                          <div
+                            className="workspace-add-menu popover-surface"
+                            ref={addMenuRef}
+                            style={{
+                              top: addMenuAnchor.top,
+                              left: addMenuAnchor.left,
+                              width: addMenuAnchor.width,
+                            }}
+                          >
+                            <button
+                              className="workspace-add-option"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setAddMenuAnchor(null);
+                                onAddAgent(entry);
                               }}
                             >
-                              <div className="worktree-label">
-                                {worktreeBranch || worktree.name}
-                              </div>
-                              <div className="worktree-actions">
-                                <button
-                                  className={`worktree-toggle ${
-                                    worktreeCollapsed ? "" : "expanded"
-                                  }`}
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    onToggleWorkspaceCollapse(
-                                      worktree.id,
-                                      !worktreeCollapsed,
-                                    );
-                                  }}
-                                  data-tauri-drag-region="false"
-                                  aria-label={
-                                    worktreeCollapsed ? "Show agents" : "Hide agents"
-                                  }
-                                  aria-expanded={!worktreeCollapsed}
-                                >
-                                  <span className="worktree-toggle-icon">›</span>
-                                </button>
-                                {!worktree.connected && (
-                                  <span
-                                    className="connect"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      onConnectWorkspace(worktree);
+                              New agent
+                            </button>
+                            <button
+                              className="workspace-add-option"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setAddMenuAnchor(null);
+                                onAddWorktreeAgent(entry);
+                              }}
+                            >
+                              New worktree agent
+                            </button>
+                          </div>,
+                          document.body,
+                        )}
+                      {!isCollapsed && worktrees.length > 0 && (
+                        <div className="worktree-section">
+                          <div className="worktree-header">
+                            <Layers className="worktree-header-icon" aria-hidden />
+                            Worktrees
+                          </div>
+                          <div className="worktree-list">
+                            {worktrees.map((worktree) => {
+                              const worktreeThreads =
+                                threadsByWorkspace[worktree.id] ?? [];
+                              const worktreeCollapsed =
+                                worktree.settings.sidebarCollapsed;
+                              const showWorktreeThreads =
+                                !worktreeCollapsed && worktreeThreads.length > 0;
+                              const isLoadingWorktreeThreads =
+                                threadListLoadingByWorkspace[worktree.id] ?? false;
+                              const showWorktreeLoader =
+                                !worktreeCollapsed &&
+                                isLoadingWorktreeThreads &&
+                                worktreeThreads.length === 0;
+                              const worktreeNextCursor =
+                                threadListCursorByWorkspace[worktree.id] ?? null;
+                              const isWorktreePaging =
+                                threadListPagingByWorkspace[worktree.id] ?? false;
+                              const worktreeBranch = worktree.worktree?.branch ?? "";
+
+                              return (
+                                <div key={worktree.id} className="worktree-card">
+                                  <div
+                                    className={`worktree-row ${
+                                      worktree.id === activeWorkspaceId ? "active" : ""
+                                    }`}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => onSelectWorkspace(worktree.id)}
+                                    onContextMenu={(event) =>
+                                      showWorktreeMenu(event, worktree.id)
+                                    }
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter" || event.key === " ") {
+                                        event.preventDefault();
+                                        onSelectWorkspace(worktree.id);
+                                      }
                                     }}
                                   >
-                                    connect
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            {showWorktreeThreads && (
-                              <div className="thread-list thread-list-nested">
-                                {(expandedWorkspaces.has(worktree.id)
-                                  ? worktreeThreads
-                                  : worktreeThreads.slice(0, 3)
-                                ).map((thread) => {
-                                  const relativeTime = getThreadTime(thread);
-                                  return (
-                                    <div
-                                      key={thread.id}
-                                      className={`thread-row ${
-                                        worktree.id === activeWorkspaceId &&
-                                        thread.id === activeThreadId
-                                          ? "active"
-                                          : ""
-                                      }`}
-                                      onClick={() =>
-                                        onSelectThread(worktree.id, thread.id)
-                                      }
-                                      onContextMenu={(event) =>
-                                        showThreadMenu(event, worktree.id, thread.id)
-                                      }
-                                      role="button"
-                                      tabIndex={0}
-                                      onKeyDown={(event) => {
-                                        if (
-                                          event.key === "Enter" ||
-                                          event.key === " "
-                                        ) {
-                                          event.preventDefault();
-                                          onSelectThread(worktree.id, thread.id);
-                                        }
-                                      }}
-                                    >
-                                      <span
-                                        className={`thread-status ${
-                                          threadStatusById[thread.id]?.isReviewing
-                                            ? "reviewing"
-                                            : threadStatusById[thread.id]?.isProcessing
-                                              ? "processing"
-                                              : threadStatusById[thread.id]?.hasUnread
-                                                ? "unread"
-                                                : "ready"
+                                    <div className="worktree-label">
+                                      {worktreeBranch || worktree.name}
+                                    </div>
+                                    <div className="worktree-actions">
+                                      <button
+                                        className={`worktree-toggle ${
+                                          worktreeCollapsed ? "" : "expanded"
                                         }`}
-                                        aria-hidden
-                                      />
-                                      <span className="thread-name">
-                                        {thread.name}
-                                      </span>
-                                      <div className="thread-meta">
-                                        {relativeTime && (
-                                          <span className="thread-time">
-                                            {relativeTime}
-                                          </span>
-                                        )}
-                                        <div className="thread-menu">
-                                          <button
-                                            className="thread-menu-trigger"
-                                            aria-label="Thread menu"
-                                            onMouseDown={(event) =>
-                                              event.stopPropagation()
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          onToggleWorkspaceCollapse(
+                                            worktree.id,
+                                            !worktreeCollapsed,
+                                          );
+                                        }}
+                                        data-tauri-drag-region="false"
+                                        aria-label={
+                                          worktreeCollapsed ? "Show agents" : "Hide agents"
+                                        }
+                                        aria-expanded={!worktreeCollapsed}
+                                      >
+                                        <span className="worktree-toggle-icon">›</span>
+                                      </button>
+                                      {!worktree.connected && (
+                                        <span
+                                          className="connect"
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            onConnectWorkspace(worktree);
+                                          }}
+                                        >
+                                          connect
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {showWorktreeThreads && (
+                                    <div className="thread-list thread-list-nested">
+                                      {(expandedWorkspaces.has(worktree.id)
+                                        ? worktreeThreads
+                                        : worktreeThreads.slice(0, 3)
+                                      ).map((thread) => {
+                                        const relativeTime = getThreadTime(thread);
+                                        return (
+                                          <div
+                                            key={thread.id}
+                                            className={`thread-row ${
+                                              worktree.id === activeWorkspaceId &&
+                                              thread.id === activeThreadId
+                                                ? "active"
+                                                : ""
+                                            }`}
+                                            onClick={() =>
+                                              onSelectThread(worktree.id, thread.id)
                                             }
-                                            onClick={(event) =>
+                                            onContextMenu={(event) =>
                                               showThreadMenu(
                                                 event,
                                                 worktree.id,
                                                 thread.id,
                                               )
                                             }
+                                            role="button"
+                                            tabIndex={0}
+                                            onKeyDown={(event) => {
+                                              if (
+                                                event.key === "Enter" ||
+                                                event.key === " "
+                                              ) {
+                                                event.preventDefault();
+                                                onSelectThread(worktree.id, thread.id);
+                                              }
+                                            }}
                                           >
-                                            ...
+                                            <span
+                                              className={`thread-status ${
+                                                threadStatusById[thread.id]?.isReviewing
+                                                  ? "reviewing"
+                                                  : threadStatusById[thread.id]?.isProcessing
+                                                    ? "processing"
+                                                    : threadStatusById[thread.id]?.hasUnread
+                                                      ? "unread"
+                                                      : "ready"
+                                              }`}
+                                              aria-hidden
+                                            />
+                                            <span className="thread-name">
+                                              {thread.name}
+                                            </span>
+                                            <div className="thread-meta">
+                                              {relativeTime && (
+                                                <span className="thread-time">
+                                                  {relativeTime}
+                                                </span>
+                                              )}
+                                              <div className="thread-menu">
+                                                <button
+                                                  className="thread-menu-trigger"
+                                                  aria-label="Thread menu"
+                                                  onMouseDown={(event) =>
+                                                    event.stopPropagation()
+                                                  }
+                                                  onClick={(event) =>
+                                                    showThreadMenu(
+                                                      event,
+                                                      worktree.id,
+                                                      thread.id,
+                                                    )
+                                                  }
+                                                >
+                                                  ...
+                                                </button>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                      {worktreeThreads.length > 3 && (
+                                        <button
+                                          className="thread-more"
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            setExpandedWorkspaces((prev) => {
+                                              const next = new Set(prev);
+                                              if (next.has(worktree.id)) {
+                                                next.delete(worktree.id);
+                                              } else {
+                                                next.add(worktree.id);
+                                              }
+                                              return next;
+                                            });
+                                          }}
+                                        >
+                                          {expandedWorkspaces.has(worktree.id)
+                                            ? "Show less"
+                                            : "More..."}
+                                        </button>
+                                      )}
+                                      {expandedWorkspaces.has(worktree.id) &&
+                                        worktreeNextCursor && (
+                                          <button
+                                            className="thread-more"
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              onLoadOlderThreads(worktree.id);
+                                            }}
+                                            disabled={isWorktreePaging}
+                                          >
+                                            {isWorktreePaging
+                                              ? "Loading..."
+                                              : "Load older..."}
                                           </button>
-                                        </div>
-                                      </div>
+                                        )}
                                     </div>
-                                  );
-                                })}
-                                {worktreeThreads.length > 3 && (
-                                  <button
-                                    className="thread-more"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      setExpandedWorkspaces((prev) => {
-                                        const next = new Set(prev);
-                                        if (next.has(worktree.id)) {
-                                          next.delete(worktree.id);
-                                        } else {
-                                          next.add(worktree.id);
-                                        }
-                                        return next;
-                                      });
-                                    }}
-                                  >
-                                    {expandedWorkspaces.has(worktree.id)
-                                      ? "Show less"
-                                      : "More..."}
-                                  </button>
-                                )}
-                                {expandedWorkspaces.has(worktree.id) &&
-                                  worktreeNextCursor && (
-                                    <button
-                                      className="thread-more"
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        onLoadOlderThreads(worktree.id);
-                                      }}
-                                      disabled={isWorktreePaging}
-                                    >
-                                      {isWorktreePaging
-                                        ? "Loading..."
-                                        : "Load older..."}
-                                    </button>
                                   )}
-                              </div>
-                            )}
-                            {showWorktreeLoader && (
-                              <div
-                                className="thread-loading thread-loading-nested"
-                                aria-label="Loading agents"
-                              >
-                                <span className="thread-skeleton thread-skeleton-wide" />
-                                <span className="thread-skeleton" />
-                                <span className="thread-skeleton thread-skeleton-short" />
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                {showThreads && (
-                  <div className="thread-list">
-                    {(expandedWorkspaces.has(entry.id)
-                      ? threads
-                      : threads.slice(0, 3)
-                    ).map((thread) => {
-                      const relativeTime = getThreadTime(thread);
-                      return (
-                        <div
-                          key={thread.id}
-                          className={`thread-row ${
-                            entry.id === activeWorkspaceId &&
-                            thread.id === activeThreadId
-                              ? "active"
-                              : ""
-                          }`}
-                          onClick={() => onSelectThread(entry.id, thread.id)}
-                          onContextMenu={(event) =>
-                            showThreadMenu(event, entry.id, thread.id)
-                          }
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              onSelectThread(entry.id, thread.id);
-                            }
-                          }}
-                        >
-                          <span
-                            className={`thread-status ${
-                              threadStatusById[thread.id]?.isReviewing
-                                ? "reviewing"
-                                : threadStatusById[thread.id]?.isProcessing
-                                  ? "processing"
-                                  : threadStatusById[thread.id]?.hasUnread
-                                    ? "unread"
-                                    : "ready"
-                            }`}
-                            aria-hidden
-                          />
-                          <span className="thread-name">{thread.name}</span>
-                          <div className="thread-meta">
-                            {relativeTime && (
-                              <span className="thread-time">
-                                {relativeTime}
-                              </span>
-                            )}
-                            <div className="thread-menu">
-                              <button
-                                className="thread-menu-trigger"
-                                aria-label="Thread menu"
-                                onMouseDown={(event) =>
-                                  event.stopPropagation()
-                                }
-                                onClick={(event) =>
-                                  showThreadMenu(event, entry.id, thread.id)
-                                }
-                              >
-                                ...
-                              </button>
-                            </div>
+                                  {showWorktreeLoader && (
+                                    <div
+                                      className="thread-loading thread-loading-nested"
+                                      aria-label="Loading agents"
+                                    >
+                                      <span className="thread-skeleton thread-skeleton-wide" />
+                                      <span className="thread-skeleton" />
+                                      <span className="thread-skeleton thread-skeleton-short" />
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-                      );
-                    })}
-                    {threads.length > 3 && (
-                      <button
-                        className="thread-more"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setExpandedWorkspaces((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(entry.id)) {
-                              next.delete(entry.id);
-                            } else {
-                              next.add(entry.id);
-                            }
-                            return next;
-                          });
-                        }}
-                      >
-                        {expandedWorkspaces.has(entry.id)
-                          ? "Show less"
-                          : "More..."}
-                      </button>
-                    )}
-                    {expandedWorkspaces.has(entry.id) && nextCursor && (
-                      <button
-                        className="thread-more"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onLoadOlderThreads(entry.id);
-                        }}
-                        disabled={isPaging}
-                      >
-                        {isPaging ? "Loading..." : "Load older..."}
-                      </button>
-                    )}
-                  </div>
-                )}
-                {showThreadLoader && (
-                  <div className="thread-loading" aria-label="Loading agents">
-                    <span className="thread-skeleton thread-skeleton-wide" />
-                    <span className="thread-skeleton" />
-                    <span className="thread-skeleton thread-skeleton-short" />
-                  </div>
-                )}
+                      )}
+                      {showThreads && (
+                        <div className="thread-list">
+                          {(expandedWorkspaces.has(entry.id)
+                            ? threads
+                            : threads.slice(0, 3)
+                          ).map((thread) => {
+                            const relativeTime = getThreadTime(thread);
+                            return (
+                              <div
+                                key={thread.id}
+                                className={`thread-row ${
+                                  entry.id === activeWorkspaceId &&
+                                  thread.id === activeThreadId
+                                    ? "active"
+                                    : ""
+                                }`}
+                                onClick={() => onSelectThread(entry.id, thread.id)}
+                                onContextMenu={(event) =>
+                                  showThreadMenu(event, entry.id, thread.id)
+                                }
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    onSelectThread(entry.id, thread.id);
+                                  }
+                                }}
+                              >
+                                <span
+                                  className={`thread-status ${
+                                    threadStatusById[thread.id]?.isReviewing
+                                      ? "reviewing"
+                                      : threadStatusById[thread.id]?.isProcessing
+                                        ? "processing"
+                                        : threadStatusById[thread.id]?.hasUnread
+                                          ? "unread"
+                                          : "ready"
+                                  }`}
+                                  aria-hidden
+                                />
+                                <span className="thread-name">{thread.name}</span>
+                                <div className="thread-meta">
+                                  {relativeTime && (
+                                    <span className="thread-time">
+                                      {relativeTime}
+                                    </span>
+                                  )}
+                                  <div className="thread-menu">
+                                    <button
+                                      className="thread-menu-trigger"
+                                      aria-label="Thread menu"
+                                      onMouseDown={(event) =>
+                                        event.stopPropagation()
+                                      }
+                                      onClick={(event) =>
+                                        showThreadMenu(event, entry.id, thread.id)
+                                      }
+                                    >
+                                      ...
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {threads.length > 3 && (
+                            <button
+                              className="thread-more"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setExpandedWorkspaces((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(entry.id)) {
+                                    next.delete(entry.id);
+                                  } else {
+                                    next.add(entry.id);
+                                  }
+                                  return next;
+                                });
+                              }}
+                            >
+                              {expandedWorkspaces.has(entry.id)
+                                ? "Show less"
+                                : "More..."}
+                            </button>
+                          )}
+                          {expandedWorkspaces.has(entry.id) && nextCursor && (
+                            <button
+                              className="thread-more"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onLoadOlderThreads(entry.id);
+                              }}
+                              disabled={isPaging}
+                            >
+                              {isPaging ? "Loading..." : "Load older..."}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {showThreadLoader && (
+                        <div className="thread-loading" aria-label="Loading agents">
+                          <span className="thread-skeleton thread-skeleton-wide" />
+                          <span className="thread-skeleton" />
+                          <span className="thread-skeleton thread-skeleton-short" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                  })}
+                </div>
               </div>
             );
           })}
-          {!rootWorkspaces.length && (
+          {!groupedWorkspaces.length && (
             <div className="empty">Add a workspace to start.</div>
           )}
         </div>

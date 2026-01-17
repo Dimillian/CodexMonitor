@@ -116,6 +116,77 @@
   -webkit-app-region: no-drag;
 }
 
+.workspace-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.workspace-group + .workspace-group {
+  margin-top: 6px;
+}
+
+.workspace-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-right: 4px;
+}
+
+.workspace-group-label {
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  padding-left: 4px;
+}
+
+.workspace-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.workspace-group-list.collapsed {
+  display: none;
+}
+
+.group-toggle {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 2px;
+  -webkit-app-region: no-drag;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.group-toggle:hover {
+  color: var(--text-strong);
+}
+
+.workspace-group-header:hover .group-toggle,
+.group-toggle:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.group-toggle-icon {
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+
+.group-toggle.expanded .group-toggle-icon {
+  transform: rotate(90deg);
+}
+
 .workspace-card {
   display: flex;
   flex-direction: column;

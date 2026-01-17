@@ -58,6 +58,11 @@ type GitDiffViewerItem = {
 
 type LayoutNodesOptions = {
   workspaces: WorkspaceInfo[];
+  groupedWorkspaces: Array<{
+    id: string | null;
+    name: string;
+    workspaces: WorkspaceInfo[];
+  }>;
   threadsByWorkspace: Record<string, ThreadSummary[]>;
   threadStatusById: Record<string, ThreadActivityStatus>;
   threadListLoadingByWorkspace: Record<string, boolean>;
@@ -98,6 +103,7 @@ type LayoutNodesOptions = {
     message: string;
     timestamp: number;
     projectName: string;
+    groupName?: string | null;
     workspaceId: string;
     isProcessing: boolean;
   }>;
@@ -251,6 +257,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
   const sidebarNode = (
     <Sidebar
       workspaces={options.workspaces}
+      groupedWorkspaces={options.groupedWorkspaces}
       threadsByWorkspace={options.threadsByWorkspace}
       threadStatusById={options.threadStatusById}
       threadListLoadingByWorkspace={options.threadListLoadingByWorkspace}

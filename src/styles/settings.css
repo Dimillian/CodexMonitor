@@ -213,6 +213,11 @@
   font-size: 12px;
 }
 
+.settings-select--compact {
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
 .settings-section-title {
   font-size: 15px;
   font-weight: 600;
@@ -246,6 +251,64 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.settings-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-group-create {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-group-error {
+  font-size: 11px;
+  color: var(--status-error);
+}
+
+.settings-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-group-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-card);
+}
+
+.settings-group-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-project-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-project-group + .settings-project-group {
+  margin-top: 12px;
+}
+
+.settings-project-group-label {
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  padding-left: 4px;
 }
 
 .settings-project-row {

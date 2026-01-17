@@ -152,12 +152,22 @@ pub(crate) struct WorktreeInfo {
     pub(crate) branch: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct WorkspaceGroup {
+    pub(crate) id: String,
+    pub(crate) name: String,
+    #[serde(default, rename = "sortOrder")]
+    pub(crate) sort_order: Option<u32>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub(crate) struct WorkspaceSettings {
     #[serde(default, rename = "sidebarCollapsed")]
     pub(crate) sidebar_collapsed: bool,
     #[serde(default, rename = "sortOrder")]
     pub(crate) sort_order: Option<u32>,
+    #[serde(default, rename = "groupId")]
+    pub(crate) group_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -192,6 +202,8 @@ pub(crate) struct AppSettings {
         rename = "dictationHoldKey"
     )]
     pub(crate) dictation_hold_key: String,
+    #[serde(default = "default_workspace_groups", rename = "workspaceGroups")]
+    pub(crate) workspace_groups: Vec<WorkspaceGroup>,
 }
 
 fn default_access_mode() -> String {
@@ -222,6 +234,10 @@ fn default_dictation_hold_key() -> String {
     "alt".to_string()
 }
 
+fn default_workspace_groups() -> Vec<WorkspaceGroup> {
+    Vec::new()
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -234,6 +250,7 @@ impl Default for AppSettings {
             dictation_model_id: default_dictation_model_id(),
             dictation_preferred_language: None,
             dictation_hold_key: default_dictation_hold_key(),
+            workspace_groups: default_workspace_groups(),
         }
     }
 }
@@ -254,6 +271,7 @@ mod tests {
         assert_eq!(settings.dictation_model_id, "base");
         assert!(settings.dictation_preferred_language.is_none());
         assert_eq!(settings.dictation_hold_key, "alt");
+        assert!(settings.workspace_groups.is_empty());
     }
 
     #[test]
@@ -266,5 +284,6 @@ mod tests {
         assert!(entry.parent_id.is_none());
         assert!(entry.worktree.is_none());
         assert!(entry.settings.sort_order.is_none());
+        assert!(entry.settings.group_id.is_none());
     }
 }
