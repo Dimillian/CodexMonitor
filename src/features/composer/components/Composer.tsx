@@ -50,6 +50,7 @@ type ComposerProps = {
   dictationState?: "idle" | "listening" | "processing";
   dictationLevel?: number;
   onToggleDictation?: () => void;
+  onOpenDictationSettings?: () => void;
   dictationTranscript?: DictationTranscript | null;
   onDictationTranscriptHandled?: (id: string) => void;
   dictationError?: string | null;
@@ -97,6 +98,7 @@ export function Composer({
   dictationState = "idle",
   dictationLevel = 0,
   onToggleDictation,
+  onOpenDictationSettings,
   dictationTranscript = null,
   onDictationTranscriptHandled,
   dictationError = null,
@@ -239,6 +241,7 @@ export function Composer({
         dictationState={dictationState}
         dictationLevel={dictationLevel}
         onToggleDictation={onToggleDictation}
+        onOpenDictationSettings={onOpenDictationSettings}
         dictationError={dictationError}
         onDismissDictationError={onDismissDictationError}
         dictationHint={dictationHint}

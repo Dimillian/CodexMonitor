@@ -17,6 +17,7 @@ type ComposerInputProps = {
   dictationLevel?: number;
   dictationEnabled?: boolean;
   onToggleDictation?: () => void;
+  onOpenDictationSettings?: () => void;
   dictationError?: string | null;
   onDismissDictationError?: () => void;
   dictationHint?: string | null;
@@ -47,6 +48,7 @@ export function ComposerInput({
   dictationLevel = 0,
   dictationEnabled = false,
   onToggleDictation,
+  onOpenDictationSettings,
   dictationError = null,
   onDismissDictationError,
   dictationHint = null,
@@ -129,6 +131,35 @@ export function ComposerInput({
   };
   const isDictating = dictationState === "listening";
   const isDictationBusy = dictationState !== "idle";
+  const allowOpenDictationSettings = Boolean(
+    onOpenDictationSettings && !dictationEnabled && !disabled,
+  );
+  const micDisabled =
+    disabled || dictationState === "processing" || !dictationEnabled || !onToggleDictation;
+  const micAriaLabel = allowOpenDictationSettings
+    ? "Open dictation settings"
+    : dictationState === "processing"
+      ? "Dictation processing"
+      : isDictating
+        ? "Stop dictation"
+        : "Start dictation";
+  const micTitle = allowOpenDictationSettings
+    ? "Dictation disabled. Open settings"
+    : dictationState === "processing"
+      ? "Processing dictation"
+      : isDictating
+        ? "Stop dictation"
+        : "Start dictation";
+  const handleMicClick = () => {
+    if (allowOpenDictationSettings) {
+      onOpenDictationSettings?.();
+      return;
+    }
+    if (!onToggleDictation || micDisabled) {
+      return;
+    }
+    onToggleDictation();
+  };
 
   return (
     <div className="composer-input">
@@ -268,28 +299,17 @@ export function ComposerInput({
       <button
         className={`composer-action composer-action--mic${
           isDictationBusy ? " is-active" : ""
-        }${dictationState === "processing" ? " is-processing" : ""}`}
-        onClick={onToggleDictation}
+        }${dictationState === "processing" ? " is-processing" : ""}${
+          micDisabled ? " is-disabled" : ""
+        }`}
+        onClick={handleMicClick}
         disabled={
           disabled ||
-          !dictationEnabled ||
-          !onToggleDictation ||
-          dictationState === "processing"
+          dictationState === "processing" ||
+          (!onToggleDictation && !allowOpenDictationSettings)
         }
-        aria-label={
-          dictationState === "processing"
-            ? "Dictation processing"
-            : isDictating
-              ? "Stop dictation"
-              : "Start dictation"
-        }
-        title={
-          dictationState === "processing"
-            ? "Processing dictation"
-            : isDictating
-              ? "Stop dictation"
-              : "Start dictation"
-        }
+        aria-label={micAriaLabel}
+        title={micTitle}
       >
         {isDictating ? <Square aria-hidden /> : <Mic aria-hidden />}
       </button>

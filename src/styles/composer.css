@@ -331,6 +331,14 @@
   border-color: var(--border-subtle);
 }
 
+.composer-action.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--surface-control-disabled);
+  color: var(--text-fainter);
+  border-color: var(--border-subtle);
+}
+
 .composer-action.is-stop:disabled {
   opacity: 0.4;
   cursor: not-allowed;

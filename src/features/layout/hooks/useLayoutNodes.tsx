@@ -74,6 +74,7 @@ type LayoutNodesOptions = {
     decision: "accept" | "decline",
   ) => void;
   onOpenSettings: () => void;
+  onOpenDictationSettings?: () => void;
   onOpenDebug: () => void;
   showDebugButton: boolean;
   onAddWorkspace: () => void;
@@ -328,6 +329,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       dictationState={options.dictationState}
       dictationLevel={options.dictationLevel}
       onToggleDictation={options.onToggleDictation}
+      onOpenDictationSettings={options.onOpenDictationSettings}
       dictationTranscript={options.dictationTranscript}
       onDictationTranscriptHandled={options.onDictationTranscriptHandled}
       dictationError={options.dictationError}

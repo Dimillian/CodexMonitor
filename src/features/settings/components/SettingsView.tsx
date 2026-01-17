@@ -47,6 +47,7 @@ type SettingsViewProps = {
   onDownloadDictationModel?: () => void;
   onCancelDictationDownload?: () => void;
   onRemoveDictationModel?: () => void;
+  initialSection?: CodexSection;
 };
 
 type SettingsSection = "projects" | "display" | "dictation";
@@ -75,6 +76,7 @@ export function SettingsView({
   onDownloadDictationModel,
   onCancelDictationDownload,
   onRemoveDictationModel,
+  initialSection,
 }: SettingsViewProps) {
   const [activeSection, setActiveSection] = useState<CodexSection>("projects");
   const [codexPathDraft, setCodexPathDraft] = useState(appSettings.codexBin ?? "");
@@ -128,6 +130,12 @@ export function SettingsView({
       return next;
     });
   }, [projects]);
+
+  useEffect(() => {
+    if (initialSection) {
+      setActiveSection(initialSection);
+    }
+  }, [initialSection]);
 
   const codexDirty =
     (codexPathDraft.trim() || null) !== (appSettings.codexBin ?? null);

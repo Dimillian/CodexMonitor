@@ -169,7 +169,11 @@ function MainApp() {
   const [composerInsert, setComposerInsert] = useState<QueuedMessage | null>(
     null
   );
+  type SettingsSection = "projects" | "display" | "dictation" | "codex" | "experimental";
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(
+    null,
+  );
   const [reduceTransparency, setReduceTransparency] = useState(() => {
     const stored = localStorage.getItem("reduceTransparency");
     return stored === "true";
@@ -661,7 +665,13 @@ function MainApp() {
     });
   }
 
-  const handleOpenSettings = () => setSettingsOpen(true);
+  const handleOpenSettings = useCallback(
+    (section?: SettingsSection) => {
+      setSettingsSection(section ?? null);
+      setSettingsOpen(true);
+    },
+    [],
+  );
 
   const orderValue = (entry: WorkspaceInfo) =>
     typeof entry.settings.sortOrder === "number"
@@ -772,7 +782,8 @@ function MainApp() {
     activeRateLimits,
     approvals,
     handleApprovalDecision,
-    onOpenSettings: handleOpenSettings,
+    onOpenSettings: () => handleOpenSettings(),
+    onOpenDictationSettings: () => handleOpenSettings("dictation"),
     onOpenDebug: handleDebugClick,
     showDebugButton,
     onAddWorkspace: handleAddWorkspace,
@@ -1090,7 +1101,10 @@ function MainApp() {
       {settingsOpen && (
         <SettingsView
           workspaces={workspaces}
-          onClose={() => setSettingsOpen(false)}
+          onClose={() => {
+            setSettingsOpen(false);
+            setSettingsSection(null);
+          }}
           onMoveWorkspace={handleMoveWorkspace}
           onDeleteWorkspace={(workspaceId) => {
             void removeWorkspace(workspaceId);
@@ -1112,6 +1126,7 @@ function MainApp() {
           onDownloadDictationModel={dictationModel.download}
           onCancelDictationDownload={dictationModel.cancel}
           onRemoveDictationModel={dictationModel.remove}
+          initialSection={settingsSection ?? undefined}
         />
       )}
     </div>
