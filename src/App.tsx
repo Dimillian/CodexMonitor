@@ -60,6 +60,7 @@ import { useUpdater } from "./features/update/hooks/useUpdater";
 import { useComposerImages } from "./features/composer/hooks/useComposerImages";
 import { useDictationModel } from "./features/dictation/hooks/useDictationModel";
 import { useDictation } from "./features/dictation/hooks/useDictation";
+import { useHoldToDictate } from "./features/dictation/hooks/useHoldToDictate";
 import { useQueuedSend } from "./features/threads/hooks/useQueuedSend";
 import { useWorktreePrompt } from "./features/workspaces/hooks/useWorktreePrompt";
 import { useUiScaleShortcuts } from "./features/layout/hooks/useUiScaleShortcuts";
@@ -175,9 +176,6 @@ function MainApp() {
   });
   const dictationReady = dictationModel.status?.state === "ready";
   const holdDictationKey = (appSettings.dictationHoldKey ?? "").toLowerCase();
-  const holdDictationActive = useRef(false);
-  const holdDictationStopPending = useRef(false);
-  const holdDictationStopTimeout = useRef<number | null>(null);
   const handleToggleDictation = useCallback(async () => {
     if (!appSettings.dictationEnabled || !dictationReady) {
       return;
@@ -217,117 +215,16 @@ function MainApp() {
     return () => window.removeEventListener("keydown", handleEscape);
   }, [dictationState, cancelDictation]);
 
-  useEffect(() => {
-    if (!holdDictationKey) {
-      return;
-    }
-
-    if (holdDictationStopPending.current && dictationState === "listening") {
-      holdDictationStopPending.current = false;
-      if (holdDictationStopTimeout.current !== null) {
-        window.clearTimeout(holdDictationStopTimeout.current);
-        holdDictationStopTimeout.current = null;
-      }
-      void stopDictation();
-    }
-
-    const matchesHoldKey = (event: KeyboardEvent) => {
-      switch (holdDictationKey) {
-        case "alt":
-          return event.key === "Alt";
-        case "shift":
-          return event.key === "Shift";
-        case "control":
-          return event.key === "Control";
-        case "meta":
-          return event.key === "Meta";
-        default:
-          return false;
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!matchesHoldKey(event) || event.repeat) {
-        return;
-      }
-      if (!appSettings.dictationEnabled || !dictationReady) {
-        return;
-      }
-      if (dictationState !== "idle") {
-        return;
-      }
-      holdDictationActive.current = true;
-      holdDictationStopPending.current = false;
-      if (holdDictationStopTimeout.current !== null) {
-        window.clearTimeout(holdDictationStopTimeout.current);
-        holdDictationStopTimeout.current = null;
-      }
-      void startDictation(appSettings.dictationPreferredLanguage);
-    };
-
-    const handleKeyUp = (event: KeyboardEvent) => {
-      if (!matchesHoldKey(event)) {
-        return;
-      }
-      if (!holdDictationActive.current) {
-        return;
-      }
-      holdDictationActive.current = false;
-      holdDictationStopPending.current = true;
-      if (holdDictationStopTimeout.current !== null) {
-        window.clearTimeout(holdDictationStopTimeout.current);
-      }
-      holdDictationStopTimeout.current = window.setTimeout(() => {
-        holdDictationStopPending.current = false;
-        holdDictationStopTimeout.current = null;
-      }, 1500);
-      if (dictationState === "listening") {
-        holdDictationStopPending.current = false;
-        if (holdDictationStopTimeout.current !== null) {
-          window.clearTimeout(holdDictationStopTimeout.current);
-          holdDictationStopTimeout.current = null;
-        }
-        void stopDictation();
-      }
-    };
-
-    const handleBlur = () => {
-      if (!holdDictationActive.current) {
-        return;
-      }
-      holdDictationActive.current = false;
-      holdDictationStopPending.current = false;
-      if (holdDictationStopTimeout.current !== null) {
-        window.clearTimeout(holdDictationStopTimeout.current);
-        holdDictationStopTimeout.current = null;
-      }
-      if (dictationState === "listening") {
-        void cancelDictation();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-    window.addEventListener("blur", handleBlur);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-      window.removeEventListener("blur", handleBlur);
-      if (holdDictationStopTimeout.current !== null) {
-        window.clearTimeout(holdDictationStopTimeout.current);
-        holdDictationStopTimeout.current = null;
-      }
-    };
-  }, [
-    appSettings.dictationEnabled,
-    appSettings.dictationPreferredLanguage,
-    cancelDictation,
-    dictationReady,
-    dictationState,
-    holdDictationKey,
+  useHoldToDictate({
+    enabled: appSettings.dictationEnabled,
+    ready: dictationReady,
+    state: dictationState,
+    preferredLanguage: appSettings.dictationPreferredLanguage,
+    holdKey: holdDictationKey,
     startDictation,
     stopDictation,
-  ]);
+    cancelDictation,
+  });
   const {
     debugOpen,
     setDebugOpen,
