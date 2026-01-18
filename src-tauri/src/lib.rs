@@ -144,6 +144,7 @@ pub fn run() {
             codex::codex_doctor,
             workspaces::list_workspaces,
             workspaces::add_workspace,
+            workspaces::add_clone,
             workspaces::add_worktree,
             workspaces::remove_workspace,
             workspaces::remove_worktree,

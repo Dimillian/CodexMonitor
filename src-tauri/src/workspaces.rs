@@ -54,6 +54,23 @@ fn sanitize_worktree_name(branch: &str) -> String {
     }
 }
 
+fn sanitize_clone_dir_name(name: &str) -> String {
+    let mut result = String::new();
+    for ch in name.chars() {
+        if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.') {
+            result.push(ch);
+        } else {
+            result.push('-');
+        }
+    }
+    let trimmed = result.trim_matches('-').to_string();
+    if trimmed.is_empty() {
+        "copy".to_string()
+    } else {
+        trimmed
+    }
+}
+
 fn list_workspace_files_inner(root: &PathBuf, max_files: usize) -> Vec<String> {
     let mut results = Vec::new();
     let walker = WalkBuilder::new(root)
@@ -158,6 +175,13 @@ async fn git_branch_exists(repo_path: &PathBuf, branch: &str) -> Result<bool, St
     Ok(status.success())
 }
 
+async fn git_get_origin_url(repo_path: &PathBuf) -> Option<String> {
+    match run_git_command(repo_path, &["config", "--get", "remote.origin.url"]).await {
+        Ok(url) if !url.trim().is_empty() => Some(url),
+        _ => None,
+    }
+}
+
 fn unique_worktree_path(base_dir: &PathBuf, name: &str) -> PathBuf {
     let mut candidate = base_dir.join(name);
     if !candidate.exists() {
@@ -171,6 +195,11 @@ fn unique_worktree_path(base_dir: &PathBuf, name: &str) -> PathBuf {
         }
     }
     candidate
+}
+
+fn build_clone_destination_path(copies_folder: &PathBuf, copy_name: &str) -> PathBuf {
+    let safe_name = sanitize_clone_dir_name(copy_name);
+    unique_worktree_path(copies_folder, &safe_name)
 }
 
 #[tauri::command]
@@ -218,6 +247,116 @@ pub(crate) async fn add_workspace(
         parent_id: None,
         worktree: None,
         settings: WorkspaceSettings::default(),
+    };
+
+    let default_bin = {
+        let settings = state.app_settings.lock().await;
+        settings.codex_bin.clone()
+    };
+    let codex_home = resolve_codex_home(&entry, None);
+    let session = spawn_workspace_session(entry.clone(), default_bin, app, codex_home).await?;
+    {
+        let mut workspaces = state.workspaces.lock().await;
+        workspaces.insert(entry.id.clone(), entry.clone());
+        let list: Vec<_> = workspaces.values().cloned().collect();
+        write_workspaces(&state.storage_path, &list)?;
+    }
+    state
+        .sessions
+        .lock()
+        .await
+        .insert(entry.id.clone(), session);
+
+    Ok(WorkspaceInfo {
+        id: entry.id,
+        name: entry.name,
+        path: entry.path,
+        codex_bin: entry.codex_bin,
+        connected: true,
+        kind: entry.kind,
+        parent_id: entry.parent_id,
+        worktree: entry.worktree,
+        settings: entry.settings,
+    })
+}
+
+#[tauri::command]
+pub(crate) async fn add_clone(
+    source_workspace_id: String,
+    copy_name: String,
+    copies_folder: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<WorkspaceInfo, String> {
+    let copy_name = copy_name.trim().to_string();
+    if copy_name.is_empty() {
+        return Err("Copy name is required.".to_string());
+    }
+
+    let copies_folder = copies_folder.trim().to_string();
+    if copies_folder.is_empty() {
+        return Err("Copies folder is required.".to_string());
+    }
+    let copies_folder_path = PathBuf::from(&copies_folder);
+    std::fs::create_dir_all(&copies_folder_path)
+        .map_err(|e| format!("Failed to create copies folder: {e}"))?;
+    if !copies_folder_path.is_dir() {
+        return Err("Copies folder must be a directory.".to_string());
+    }
+
+    let (source_entry, inherited_group_id) = {
+        let workspaces = state.workspaces.lock().await;
+        let source_entry = workspaces
+            .get(&source_workspace_id)
+            .cloned()
+            .ok_or("source workspace not found")?;
+        let inherited_group_id = if source_entry.kind.is_worktree() {
+            source_entry
+                .parent_id
+                .as_ref()
+                .and_then(|parent_id| workspaces.get(parent_id))
+                .and_then(|parent| parent.settings.group_id.clone())
+        } else {
+            source_entry.settings.group_id.clone()
+        };
+        (source_entry, inherited_group_id)
+    };
+
+    let destination_path = build_clone_destination_path(&copies_folder_path, &copy_name);
+    let destination_path_string = destination_path.to_string_lossy().to_string();
+
+    if let Err(error) = run_git_command(
+        &copies_folder_path,
+        &["clone", &source_entry.path, &destination_path_string],
+    )
+    .await
+    {
+        if destination_path.exists() {
+            let _ = std::fs::remove_dir_all(&destination_path);
+        }
+        return Err(error);
+    }
+
+    if let Some(origin_url) = git_get_origin_url(&PathBuf::from(&source_entry.path)).await {
+        let _ = run_git_command(
+            &destination_path,
+            &["remote", "set-url", "origin", &origin_url],
+        )
+        .await;
+    }
+
+    let entry = WorkspaceEntry {
+        id: Uuid::new_v4().to_string(),
+        name: copy_name.clone(),
+        path: destination_path_string,
+        codex_bin: source_entry.codex_bin.clone(),
+        kind: WorkspaceKind::Main,
+        parent_id: None,
+        worktree: None,
+        settings: WorkspaceSettings {
+            group_id: inherited_group_id,
+            ..WorkspaceSettings::default()
+        },
     };
 
     let default_bin = {
@@ -585,7 +724,10 @@ mod tests {
     use std::collections::HashMap;
     use std::path::PathBuf;
 
-    use super::{apply_workspace_settings_update, sanitize_worktree_name, sort_workspaces};
+    use super::{
+        apply_workspace_settings_update, build_clone_destination_path, sanitize_clone_dir_name,
+        sanitize_worktree_name, sort_workspaces,
+    };
     use crate::storage::{read_workspaces, write_workspaces};
     use crate::types::{WorktreeInfo, WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings};
     use uuid::Uuid;
@@ -639,6 +781,44 @@ mod tests {
     fn sanitize_worktree_name_allows_safe_chars() {
         assert_eq!(sanitize_worktree_name("release_1.2.3"), "release_1.2.3");
         assert_eq!(sanitize_worktree_name("feature--x"), "feature--x");
+    }
+
+    #[test]
+    fn sanitize_clone_dir_name_rewrites_specials() {
+        assert_eq!(sanitize_clone_dir_name("feature/new-thing"), "feature-new-thing");
+        assert_eq!(sanitize_clone_dir_name("///"), "copy");
+        assert_eq!(sanitize_clone_dir_name("--name--"), "name");
+    }
+
+    #[test]
+    fn sanitize_clone_dir_name_allows_safe_chars() {
+        assert_eq!(sanitize_clone_dir_name("release_1.2.3"), "release_1.2.3");
+        assert_eq!(sanitize_clone_dir_name("feature--x"), "feature--x");
+    }
+
+    #[test]
+    fn build_clone_destination_path_sanitizes_and_uniquifies() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        let copies_folder = temp_dir.join("copies");
+        std::fs::create_dir_all(&copies_folder).expect("create copies folder");
+
+        let first = build_clone_destination_path(&copies_folder, "feature/new-thing");
+        assert!(first.starts_with(&copies_folder));
+        assert_eq!(
+            first.file_name().and_then(|name| name.to_str()),
+            Some("feature-new-thing")
+        );
+
+        std::fs::create_dir_all(&first).expect("create first clone folder");
+
+        let second = build_clone_destination_path(&copies_folder, "feature/new-thing");
+        assert!(second.starts_with(&copies_folder));
+        assert_ne!(first, second);
+        assert_eq!(
+            second.file_name().and_then(|name| name.to_str()),
+            Some("feature-new-thing-2")
+        );
     }
 
     #[test]
