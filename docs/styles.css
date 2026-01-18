@@ -382,6 +382,98 @@ img {
   color: var(--ink);
 }
 
+.changelog-hero {
+  padding-bottom: 20px;
+}
+
+.section-tight {
+  padding-top: 40px;
+}
+
+.release-status {
+  color: var(--muted);
+  font-size: 1rem;
+  padding: 18px 0 10px;
+}
+
+.release-error {
+  color: var(--accent-2);
+}
+
+.changelog-list {
+  display: grid;
+  gap: 20px;
+}
+
+.release-card {
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+}
+
+.release-header {
+  display: grid;
+  gap: 8px;
+}
+
+.release-title {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: 1.4rem;
+}
+
+.release-meta {
+  display: flex;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.release-tag {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.release-body {
+  display: grid;
+  gap: 12px;
+  color: var(--muted);
+}
+
+.release-body h4 {
+  color: var(--ink);
+  font-size: 1rem;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+}
+
+.release-body p {
+  font-size: 0.95rem;
+}
+
+.release-body a {
+  color: var(--ink);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.release-body code {
+  background: rgba(8, 12, 22, 0.6);
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.release-list {
+  display: grid;
+  gap: 8px;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+.release-empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
 .bg-orb {
   position: fixed;
   border-radius: 50%;

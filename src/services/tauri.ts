@@ -3,6 +3,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import type {
   AppSettings,
   CodexDoctorResult,
+  DictationModelStatus,
+  DictationSessionState,
   WorkspaceInfo,
   WorkspaceSettings,
 } from "../types";
@@ -10,6 +12,8 @@ import type {
   GitFileDiff,
   GitFileStatus,
   GitHubIssuesResponse,
+  GitHubPullRequestDiff,
+  GitHubPullRequestsResponse,
   GitLogResponse,
   ReviewTarget,
 } from "../types";
@@ -177,6 +181,22 @@ export async function getGitHubIssues(
   return invoke("get_github_issues", { workspaceId: workspace_id });
 }
 
+export async function getGitHubPullRequests(
+  workspace_id: string,
+): Promise<GitHubPullRequestsResponse> {
+  return invoke("get_github_pull_requests", { workspaceId: workspace_id });
+}
+
+export async function getGitHubPullRequestDiff(
+  workspace_id: string,
+  prNumber: number,
+): Promise<GitHubPullRequestDiff[]> {
+  return invoke("get_github_pull_request_diff", {
+    workspaceId: workspace_id,
+    prNumber,
+  });
+}
+
 export async function getModelList(workspaceId: string) {
   return invoke<any>("model_list", { workspaceId });
 }
@@ -221,6 +241,60 @@ export async function checkoutGitBranch(workspaceId: string, name: string) {
 
 export async function createGitBranch(workspaceId: string, name: string) {
   return invoke("create_git_branch", { workspaceId, name });
+}
+
+function withModelId(modelId?: string | null) {
+  return modelId ? { modelId } : {};
+}
+
+export async function getDictationModelStatus(
+  modelId?: string | null,
+): Promise<DictationModelStatus> {
+  return invoke<DictationModelStatus>(
+    "dictation_model_status",
+    withModelId(modelId),
+  );
+}
+
+export async function downloadDictationModel(
+  modelId?: string | null,
+): Promise<DictationModelStatus> {
+  return invoke<DictationModelStatus>(
+    "dictation_download_model",
+    withModelId(modelId),
+  );
+}
+
+export async function cancelDictationDownload(
+  modelId?: string | null,
+): Promise<DictationModelStatus> {
+  return invoke<DictationModelStatus>(
+    "dictation_cancel_download",
+    withModelId(modelId),
+  );
+}
+
+export async function removeDictationModel(
+  modelId?: string | null,
+): Promise<DictationModelStatus> {
+  return invoke<DictationModelStatus>(
+    "dictation_remove_model",
+    withModelId(modelId),
+  );
+}
+
+export async function startDictation(
+  preferredLanguage: string | null,
+): Promise<DictationSessionState> {
+  return invoke("dictation_start", { preferredLanguage });
+}
+
+export async function stopDictation(): Promise<DictationSessionState> {
+  return invoke("dictation_stop");
+}
+
+export async function cancelDictation(): Promise<DictationSessionState> {
+  return invoke("dictation_cancel");
 }
 
 export async function openTerminalSession(

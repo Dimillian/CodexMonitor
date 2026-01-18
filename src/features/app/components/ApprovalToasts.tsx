@@ -12,10 +12,6 @@ export function ApprovalToasts({
   workspaces,
   onDecision,
 }: ApprovalToastsProps) {
-  if (!approvals.length) {
-    return null;
-  }
-
   const workspaceLabels = useMemo(
     () => new Map(workspaces.map((workspace) => [workspace.id, workspace.name])),
     [workspaces],
@@ -49,6 +45,10 @@ export function ApprovalToasts({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onDecision, primaryRequest]);
+
+  if (!approvals.length) {
+    return null;
+  }
 
   const formatLabel = (value: string) =>
     value

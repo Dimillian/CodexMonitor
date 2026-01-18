@@ -66,7 +66,7 @@
 
 .composer-input {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   gap: 12px;
   align-items: center;
 }
@@ -197,6 +197,95 @@
   justify-content: center;
 }
 
+.composer-action--mic.is-active {
+  border-color: rgba(120, 235, 190, 0.6);
+  background: rgba(120, 235, 190, 0.12);
+}
+
+.composer-action--mic.is-active:hover {
+  background: rgba(120, 235, 190, 0.18);
+}
+
+.composer-action--mic.is-processing {
+  border-color: rgba(160, 200, 255, 0.6);
+  background: rgba(160, 200, 255, 0.12);
+}
+
+.composer-waveform {
+  margin-top: 10px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-card);
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 40px;
+  position: relative;
+}
+
+.composer-waveform.is-processing {
+  background: linear-gradient(
+    90deg,
+    rgba(100, 200, 255, 0.15),
+    rgba(120, 235, 190, 0.15)
+  );
+}
+
+.composer-waveform-bar {
+  flex: 1;
+  min-width: 2px;
+  border-radius: 999px;
+  background: rgba(180, 220, 255, 0.7);
+  transition: height 0.12s ease;
+}
+
+.composer-waveform-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  pointer-events: none;
+}
+
+.composer-dictation-error {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 120, 120, 0.4);
+  background: rgba(255, 120, 120, 0.08);
+  color: var(--text-strong);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.composer-dictation-error-dismiss {
+  font-size: 11px;
+  padding: 4px 8px;
+}
+
+.composer-dictation-hint {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(120, 190, 255, 0.4);
+  background: rgba(120, 190, 255, 0.12);
+  color: var(--text-strong);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .composer-action.is-stop {
   border-color: rgba(255, 107, 107, 0.6);
   background: rgba(255, 107, 107, 0.12);
@@ -235,6 +324,14 @@
 }
 
 .composer-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--surface-control-disabled);
+  color: var(--text-fainter);
+  border-color: var(--border-subtle);
+}
+
+.composer-action.is-disabled {
   opacity: 0.5;
   cursor: not-allowed;
   background: var(--surface-control-disabled);

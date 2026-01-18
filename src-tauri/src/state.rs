@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex;
 
+use crate::dictation::DictationState;
 use crate::storage::{read_settings, read_workspaces};
 use crate::types::{AppSettings, WorkspaceEntry};
 
@@ -16,6 +17,7 @@ pub(crate) struct AppState {
     pub(crate) storage_path: PathBuf,
     pub(crate) settings_path: PathBuf,
     pub(crate) app_settings: Mutex<AppSettings>,
+    pub(crate) dictation: Mutex<DictationState>,
 }
 
 impl AppState {
@@ -35,6 +37,7 @@ impl AppState {
             storage_path,
             settings_path,
             app_settings: Mutex::new(app_settings),
+            dictation: Mutex::new(DictationState::default()),
         }
     }
 }

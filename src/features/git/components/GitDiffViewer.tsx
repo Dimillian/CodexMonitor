@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { DiffBlock } from "./DiffBlock";
-import { parseDiff } from "../../../utils/diff";
-import { languageFromPath } from "../../../utils/syntax";
-import type { DiffLineReference } from "../../../types";
-import type { ParsedDiffLine } from "../../../utils/diff";
+import { memo, useEffect, useMemo, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { FileDiff, WorkerPoolContextProvider } from "@pierre/diffs/react";
+import type { FileDiffMetadata } from "@pierre/diffs";
+import { parsePatchFiles } from "@pierre/diffs";
+import { workerFactory } from "../../../utils/diffsWorker";
 
 type GitDiffViewerItem = {
   path: string;
@@ -16,271 +16,181 @@ type GitDiffViewerProps = {
   selectedPath: string | null;
   isLoading: boolean;
   error: string | null;
-  onLineReference?: (reference: DiffLineReference) => void;
   onActivePathChange?: (path: string) => void;
 };
 
-type SelectedRange = {
-  path: string;
-  start: number;
-  end: number;
-  anchor: number;
-};
-
-type SelectableDiffLine = ParsedDiffLine & {
-  type: "add" | "del" | "context";
-};
-
-function isSelectableLine(line: ParsedDiffLine): line is SelectableDiffLine {
-  return line.type === "add" || line.type === "del" || line.type === "context";
+const DIFF_SCROLL_CSS = `
+[data-column-number],
+[data-buffer],
+[data-separator-wrapper],
+[data-annotation-content] {
+  position: static !important;
 }
+
+[data-buffer] {
+  background-image: none !important;
+}
+`;
+
+function normalizePatchName(name: string) {
+  if (!name) {
+    return name;
+  }
+  return name.replace(/^(?:a|b)\//, "");
+}
+
+type DiffCardProps = {
+  entry: GitDiffViewerItem;
+  isSelected: boolean;
+};
+
+const DiffCard = memo(function DiffCard({
+  entry,
+  isSelected,
+}: DiffCardProps) {
+  const diffOptions = useMemo(
+    () => ({
+      diffStyle: "split" as const,
+      hunkSeparators: "line-info" as const,
+      overflow: "scroll" as const,
+      unsafeCSS: DIFF_SCROLL_CSS,
+      disableFileHeader: true,
+    }),
+    [],
+  );
+
+  const fileDiff = useMemo(() => {
+    if (!entry.diff.trim()) {
+      return null;
+    }
+    const patch = parsePatchFiles(entry.diff);
+    const parsed = patch[0]?.files[0];
+    if (!parsed) {
+      return null;
+    }
+    const normalizedName = normalizePatchName(parsed.name || entry.path);
+    const normalizedPrevName = parsed.prevName
+      ? normalizePatchName(parsed.prevName)
+      : undefined;
+    return {
+      ...parsed,
+      name: normalizedName,
+      prevName: normalizedPrevName,
+    } satisfies FileDiffMetadata;
+  }, [entry.diff, entry.path]);
+
+  return (
+    <div
+      data-diff-path={entry.path}
+      className={`diff-viewer-item ${isSelected ? "active" : ""}`}
+    >
+      <div className="diff-viewer-header">
+        <span className="diff-viewer-status">{entry.status}</span>
+        <span className="diff-viewer-path">{entry.path}</span>
+      </div>
+      {entry.diff.trim().length > 0 && fileDiff ? (
+        <div className="diff-viewer-output">
+          <FileDiff
+            fileDiff={fileDiff}
+            options={diffOptions}
+            className="diff-viewer-diffs"
+            style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
+          />
+        </div>
+      ) : (
+        <div className="diff-viewer-placeholder">Diff unavailable.</div>
+      )}
+    </div>
+  );
+});
 
 export function GitDiffViewer({
   diffs,
   selectedPath,
   isLoading,
   error,
-  onLineReference,
-  onActivePathChange,
 }: GitDiffViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const itemRefs = useRef(new Map<string, HTMLDivElement>());
-  const lastScrolledPath = useRef<string | null>(null);
-  const lastActivePath = useRef<string | null>(null);
-  const skipAutoScroll = useRef<string | null>(null);
-  const scrollFrame = useRef<number | null>(null);
-  const scrollLock = useRef<{ path: string; expiresAt: number } | null>(null);
-  const [selectedRange, setSelectedRange] = useState<SelectedRange | null>(null);
-
-  useEffect(() => {
-    lastActivePath.current = selectedPath;
-  }, [selectedPath]);
+  const lastScrolledPathRef = useRef<string | null>(null);
+  const poolOptions = useMemo(() => ({ workerFactory }), []);
+  const highlighterOptions = useMemo(
+    () => ({ theme: { dark: "pierre-dark", light: "pierre-light" } }),
+    [],
+  );
+  const indexByPath = useMemo(() => {
+    const map = new Map<string, number>();
+    diffs.forEach((entry, index) => {
+      map.set(entry.path, index);
+    });
+    return map;
+  }, [diffs]);
+  const rowVirtualizer = useVirtualizer({
+    count: diffs.length,
+    getScrollElement: () => containerRef.current,
+    estimateSize: () => 260,
+    overscan: 6,
+  });
+  const virtualItems = rowVirtualizer.getVirtualItems();
 
   useEffect(() => {
     if (!selectedPath) {
       return;
     }
-    if (skipAutoScroll.current) {
-      const skipPath = skipAutoScroll.current;
-      skipAutoScroll.current = null;
-      if (skipPath === selectedPath) {
-        return;
-      }
-    }
-    if (lastScrolledPath.current === selectedPath) {
+    if (lastScrolledPathRef.current === selectedPath) {
       return;
     }
-    const target = itemRefs.current.get(selectedPath);
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-      lastScrolledPath.current = selectedPath;
-      scrollLock.current = {
-        path: selectedPath,
-        expiresAt: performance.now() + 900,
-      };
-    }
-  }, [selectedPath, diffs.length]);
-
-  const updateActivePath = useCallback(() => {
-    const container = containerRef.current;
-    if (!container || !onActivePathChange) {
+    const index = indexByPath.get(selectedPath);
+    if (index === undefined) {
       return;
     }
-    const containerRect = container.getBoundingClientRect();
-    const anchorTop = containerRect.top + 12;
-    if (scrollLock.current) {
-      const now = performance.now();
-      const lock = scrollLock.current;
-      if (now >= lock.expiresAt) {
-        scrollLock.current = null;
-      } else {
-        const lockedNode = itemRefs.current.get(lock.path);
-        if (!lockedNode) {
-          scrollLock.current = null;
-        } else {
-          const rect = lockedNode.getBoundingClientRect();
-          const reachedTarget =
-            rect.top <= anchorTop + 2 && rect.bottom >= containerRect.top;
-          if (reachedTarget) {
-            scrollLock.current = null;
-          }
-        }
-      }
-    }
-    if (scrollLock.current) {
-      return;
-    }
-    let above: { path: string; top: number } | null = null;
-    let below: { path: string; top: number } | null = null;
-
-    for (const [path, node] of itemRefs.current.entries()) {
-      const rect = node.getBoundingClientRect();
-      const isVisible = rect.bottom > containerRect.top && rect.top < containerRect.bottom;
-      if (!isVisible) {
-        continue;
-      }
-      if (rect.top <= anchorTop) {
-        if (!above || rect.top > above.top) {
-          above = { path, top: rect.top };
-        }
-      } else if (!below || rect.top < below.top) {
-        below = { path, top: rect.top };
-      }
-    }
-
-    const nextPath = above?.path ?? below?.path ?? null;
-    if (!nextPath || nextPath === lastActivePath.current) {
-      return;
-    }
-    lastActivePath.current = nextPath;
-    if (nextPath !== selectedPath) {
-      skipAutoScroll.current = nextPath;
-      onActivePathChange(nextPath);
-    }
-  }, [onActivePathChange, selectedPath]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !onActivePathChange) {
-      return;
-    }
-    const handleScroll = () => {
-      if (scrollFrame.current !== null) {
-        return;
-      }
-      scrollFrame.current = window.requestAnimationFrame(() => {
-        scrollFrame.current = null;
-        updateActivePath();
-      });
-    };
-
-    handleScroll();
-    container.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", handleScroll);
-    return () => {
-      container.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleScroll);
-      if (scrollFrame.current !== null) {
-        window.cancelAnimationFrame(scrollFrame.current);
-        scrollFrame.current = null;
-      }
-    };
-  }, [diffs.length, onActivePathChange, updateActivePath]);
-
-  useEffect(() => {
-    if (!selectedRange) {
-      return;
-    }
-    const stillExists = diffs.some((entry) => entry.path === selectedRange.path);
-    if (!stillExists) {
-      setSelectedRange(null);
-    }
-  }, [diffs, selectedRange]);
-
-  const handleLineSelect = (
-    entry: GitDiffViewerItem,
-    parsedLines: ParsedDiffLine[],
-    line: ParsedDiffLine,
-    index: number,
-    isRangeSelect: boolean,
-  ) => {
-    if (!isSelectableLine(line)) {
-      return;
-    }
-    const hasAnchor = selectedRange?.path === entry.path;
-    const anchor = isRangeSelect && hasAnchor ? selectedRange.anchor : index;
-    const start = isRangeSelect ? Math.min(anchor, index) : index;
-    const end = isRangeSelect ? Math.max(anchor, index) : index;
-    setSelectedRange({ path: entry.path, start, end, anchor });
-
-    const selectedLines = parsedLines
-      .slice(start, end + 1)
-      .filter(isSelectableLine);
-    if (selectedLines.length === 0) {
-      return;
-    }
-
-    const typeSet = new Set(selectedLines.map((item) => item.type));
-    const selectionType = typeSet.size === 1 ? selectedLines[0].type : "mixed";
-    const firstOldLine = selectedLines.find((item) => item.oldLine !== null)?.oldLine ?? null;
-    const firstNewLine = selectedLines.find((item) => item.newLine !== null)?.newLine ?? null;
-    const lastOldLine =
-      [...selectedLines].reverse().find((item) => item.oldLine !== null)?.oldLine ??
-      null;
-    const lastNewLine =
-      [...selectedLines].reverse().find((item) => item.newLine !== null)?.newLine ??
-      null;
-
-    onLineReference?.({
-      path: entry.path,
-      type: selectionType,
-      oldLine: firstOldLine,
-      newLine: firstNewLine,
-      endOldLine: lastOldLine,
-      endNewLine: lastNewLine,
-      lines: selectedLines.map((item) => item.text),
-    });
-  };
+    rowVirtualizer.scrollToIndex(index, { align: "start" });
+    lastScrolledPathRef.current = selectedPath;
+  }, [selectedPath, indexByPath, rowVirtualizer]);
 
   return (
-    <div className="diff-viewer" ref={containerRef}>
-      {error && <div className="diff-viewer-empty">{error}</div>}
-      {!error && isLoading && diffs.length > 0 && (
-        <div className="diff-viewer-loading">Refreshing diff...</div>
-      )}
-      {!error && !isLoading && !diffs.length && (
-        <div className="diff-viewer-empty">No changes detected.</div>
-      )}
-      {!error &&
-        diffs.map((entry) => {
-          const isSelected = entry.path === selectedPath;
-          const hasDiff = entry.diff.trim().length > 0;
-          const language = languageFromPath(entry.path);
-          const parsedLines = parseDiff(entry.diff);
-          const selectedRangeForEntry =
-            selectedRange?.path === entry.path
-              ? { start: selectedRange.start, end: selectedRange.end }
-              : null;
-          return (
-            <div
-              key={entry.path}
-              ref={(node) => {
-                if (node) {
-                  itemRefs.current.set(entry.path, node);
-                } else {
-                  itemRefs.current.delete(entry.path);
-                }
-              }}
-              className={`diff-viewer-item ${isSelected ? "active" : ""}`}
-            >
-              <div className="diff-viewer-header">
-                <span className="diff-viewer-status">{entry.status}</span>
-                <span className="diff-viewer-path">{entry.path}</span>
-              </div>
-              {hasDiff ? (
-                <div className="diff-viewer-output">
-                  <DiffBlock
-                    diff={entry.diff}
-                    language={language}
-                    parsedLines={parsedLines}
-                    onLineSelect={(line, index, event) =>
-                      handleLineSelect(
-                        entry,
-                        parsedLines,
-                        line,
-                        index,
-                        "shiftKey" in event && event.shiftKey,
-                      )
-                    }
-                    selectedRange={selectedRangeForEntry}
+    <WorkerPoolContextProvider
+      poolOptions={poolOptions}
+      highlighterOptions={highlighterOptions}
+    >
+      <div className="diff-viewer" ref={containerRef}>
+        {error && <div className="diff-viewer-empty">{error}</div>}
+        {!error && isLoading && diffs.length > 0 && (
+          <div className="diff-viewer-loading diff-viewer-loading-overlay">
+            Refreshing diff...
+          </div>
+        )}
+        {!error && !isLoading && !diffs.length && (
+          <div className="diff-viewer-empty">No changes detected.</div>
+        )}
+        {!error && diffs.length > 0 && (
+          <div
+            className="diff-viewer-list"
+            style={{
+              height: rowVirtualizer.getTotalSize(),
+            }}
+          >
+            {virtualItems.map((virtualRow) => {
+              const entry = diffs[virtualRow.index];
+              return (
+                <div
+                  key={entry.path}
+                  className="diff-viewer-row"
+                  data-index={virtualRow.index}
+                  ref={rowVirtualizer.measureElement}
+                  style={{
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  <DiffCard
+                    entry={entry}
+                    isSelected={entry.path === selectedPath}
                   />
                 </div>
-              ) : (
-                <div className="diff-viewer-placeholder">Diff unavailable.</div>
-              )}
-            </div>
-          );
-        })}
-    </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </WorkerPoolContextProvider>
   );
 }

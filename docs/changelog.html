@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Codex Monitor - Changelog</title>
+    <meta
+      name="description"
+      content="Release notes for Codex Monitor. See what's new in every version."
+    />
+    <meta property="og:title" content="Codex Monitor — Changelog" />
+    <meta
+      property="og:description"
+      content="Release notes for Codex Monitor. See what's new in every version."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://dimillian.github.io/CodexMonitor/changelog.html" />
+    <meta property="og:image" content="https://www.codexmonitor.app/assets/main.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Codex Monitor — Changelog" />
+    <meta
+      name="twitter:description"
+      content="Release notes for Codex Monitor. See what's new in every version."
+    />
+    <meta name="twitter:image" content="https://www.codexmonitor.app/assets/main.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    <div class="bg-orb orb-3"></div>
+
+    <header class="site-header">
+      <div class="container nav">
+        <div class="logo">
+          <img class="logo-mark" src="assets/app-icon.png" alt="Codex Monitor app icon" />
+          Codex Monitor
+        </div>
+        <nav class="nav-links">
+          <a href="index.html#features">Features</a>
+          <a href="index.html#screens">Screens</a>
+          <a href="index.html#workflow">Workflow</a>
+          <a href="changelog.html">Changelog</a>
+          <a href="index.html#cta">Get started</a>
+        </nav>
+        <div class="nav-actions">
+          <a class="btn ghost" href="https://github.com/Dimillian/CodexMonitor" target="_blank" rel="noreferrer">GitHub</a>
+          <a class="btn primary" href="https://github.com/Dimillian/CodexMonitor/releases" target="_blank" rel="noreferrer">Download</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero changelog-hero">
+        <div class="container">
+          <div class="hero-copy">
+            <div class="eyebrow">Release notes</div>
+            <h1>Changelog</h1>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section-tight">
+        <div class="container">
+          <div id="release-status" class="release-status">Loading releases...</div>
+          <div id="release-list" class="changelog-list" aria-live="polite"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-grid">
+        <div>
+          <div class="logo">
+            <img class="logo-mark" src="assets/app-icon.png" alt="Codex Monitor app icon" />
+            Codex Monitor
+          </div>
+          <p>macOS Codex agents orchestration, built by and for individuals who ship fast.</p>
+        </div>
+        <div class="footer-links">
+          <a href="index.html#features">Features</a>
+          <a href="index.html#screens">Screenshots</a>
+          <a href="index.html#workflow">Workflow</a>
+          <a href="changelog.html">Changelog</a>
+          <a href="https://github.com/Dimillian/CodexMonitor" target="_blank" rel="noreferrer">GitHub</a>
+        </div>
+      </div>
+      <div class="container footer-meta">
+        <span>© 2026 Codex Monitor. Made with ❤️ by Codex &amp; <a href="https://x.com/dimillian" target="_blank" rel="noreferrer">Dimillian</a>.</span>
+      </div>
+    </footer>
+
+    <script>
+      const releaseStatus = document.getElementById("release-status");
+      const releaseList = document.getElementById("release-list");
+      const apiUrl = "https://api.github.com/repos/Dimillian/CodexMonitor/releases?per_page=50";
+
+      const formatDate = (dateString) => {
+        if (!dateString) return "Draft";
+        return new Date(dateString).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric"
+        });
+      };
+
+      const parseInline = (text) => {
+        const fragment = document.createDocumentFragment();
+        let remaining = text;
+
+        while (remaining.length > 0) {
+          const linkMatch = remaining.match(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/);
+          const codeMatch = remaining.match(/`([^`]+)`/);
+          const nextMatch = [linkMatch, codeMatch]
+            .filter(Boolean)
+            .sort((a, b) => a.index - b.index)[0];
+
+          if (!nextMatch) {
+            fragment.appendChild(document.createTextNode(remaining));
+            break;
+          }
+
+          if (nextMatch.index > 0) {
+            fragment.appendChild(document.createTextNode(remaining.slice(0, nextMatch.index)));
+          }
+
+          if (nextMatch === linkMatch) {
+            const link = document.createElement("a");
+            link.href = nextMatch[2];
+            link.target = "_blank";
+            link.rel = "noreferrer";
+            link.textContent = nextMatch[1];
+            fragment.appendChild(link);
+            remaining = remaining.slice(nextMatch.index + nextMatch[0].length);
+          } else {
+            const code = document.createElement("code");
+            code.textContent = nextMatch[1];
+            fragment.appendChild(code);
+            remaining = remaining.slice(nextMatch.index + nextMatch[0].length);
+          }
+        }
+
+        return fragment;
+      };
+
+      const renderReleaseBody = (container, body) => {
+        if (!body) {
+          const empty = document.createElement("p");
+          empty.className = "release-empty";
+          empty.textContent = "No release notes provided.";
+          container.appendChild(empty);
+          return;
+        }
+
+        const lines = body.split(/\r?\n/);
+        let list = null;
+
+        lines.forEach((line) => {
+          const trimmed = line.trim();
+
+          if (!trimmed) {
+            if (list) {
+              container.appendChild(list);
+              list = null;
+            }
+            return;
+          }
+
+          const headingMatch = trimmed.match(/^(#{2,3})\s+(.*)/);
+          if (headingMatch) {
+            if (list) {
+              container.appendChild(list);
+              list = null;
+            }
+            const heading = document.createElement("h4");
+            heading.textContent = headingMatch[2];
+            container.appendChild(heading);
+            return;
+          }
+
+          const listMatch = trimmed.match(/^[-*]\s+(.*)/);
+          if (listMatch) {
+            if (!list) {
+              list = document.createElement("ul");
+              list.className = "release-list";
+            }
+            const item = document.createElement("li");
+            item.appendChild(parseInline(listMatch[1]));
+            list.appendChild(item);
+            return;
+          }
+
+          if (list) {
+            container.appendChild(list);
+            list = null;
+          }
+
+          const paragraph = document.createElement("p");
+          paragraph.appendChild(parseInline(trimmed));
+          container.appendChild(paragraph);
+        });
+
+        if (list) {
+          container.appendChild(list);
+        }
+      };
+
+      const renderRelease = (release) => {
+        const card = document.createElement("article");
+        card.className = "glass release-card";
+
+        const header = document.createElement("div");
+        header.className = "release-header";
+
+        const title = document.createElement("h3");
+        title.className = "release-title";
+        title.textContent = release.name || release.tag_name;
+
+        const meta = document.createElement("div");
+        meta.className = "release-meta";
+
+        const tag = document.createElement("span");
+        tag.className = "release-tag";
+        tag.textContent = release.tag_name;
+
+        const date = document.createElement("span");
+        date.className = "release-date";
+        date.textContent = formatDate(release.published_at);
+
+        meta.appendChild(tag);
+        meta.appendChild(date);
+        header.appendChild(title);
+        header.appendChild(meta);
+
+        const body = document.createElement("div");
+        body.className = "release-body";
+        renderReleaseBody(body, release.body || "");
+
+        card.appendChild(header);
+        card.appendChild(body);
+        releaseList.appendChild(card);
+      };
+
+      const showError = (message) => {
+        releaseStatus.textContent = message;
+        releaseStatus.classList.add("release-error");
+      };
+
+      fetch(apiUrl)
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`GitHub API error: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then((releases) => {
+          const filtered = releases.filter((release) => !release.draft);
+          if (!filtered.length) {
+            showError("No releases found yet.");
+            return;
+          }
+
+          releaseStatus.remove();
+          filtered.forEach(renderRelease);
+        })
+        .catch(() => {
+          showError("Unable to load releases right now. Please check again soon.");
+        });
+    </script>
+  </body>
+</html>

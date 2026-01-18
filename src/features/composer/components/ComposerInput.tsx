@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react";
 import type { KeyboardEvent, RefObject } from "react";
 import type { AutocompleteItem } from "../hooks/useComposerAutocomplete";
-import { ImagePlus } from "lucide-react";
+import { ImagePlus, Mic, Square } from "lucide-react";
 import { useComposerImageDrop } from "../hooks/useComposerImageDrop";
 import { ComposerAttachments } from "./ComposerAttachments";
+import { DictationWaveform } from "../../dictation/components/DictationWaveform";
 
 type ComposerInputProps = {
   text: string;
@@ -12,6 +13,15 @@ type ComposerInputProps = {
   canStop: boolean;
   onStop: () => void;
   onSend: () => void;
+  dictationState?: "idle" | "listening" | "processing";
+  dictationLevel?: number;
+  dictationEnabled?: boolean;
+  onToggleDictation?: () => void;
+  onOpenDictationSettings?: () => void;
+  dictationError?: string | null;
+  onDismissDictationError?: () => void;
+  dictationHint?: string | null;
+  onDismissDictationHint?: () => void;
   attachments?: string[];
   onAddAttachment?: () => void;
   onAttachImages?: (paths: string[]) => void;
@@ -34,6 +44,15 @@ export function ComposerInput({
   canStop,
   onStop,
   onSend,
+  dictationState = "idle",
+  dictationLevel = 0,
+  dictationEnabled = false,
+  onToggleDictation,
+  onOpenDictationSettings,
+  dictationError = null,
+  onDismissDictationError,
+  dictationHint = null,
+  onDismissDictationHint,
   attachments = [],
   onAddAttachment,
   onAttachImages,
@@ -110,6 +129,37 @@ export function ComposerInput({
       onSend();
     }
   };
+  const isDictating = dictationState === "listening";
+  const isDictationBusy = dictationState !== "idle";
+  const allowOpenDictationSettings = Boolean(
+    onOpenDictationSettings && !dictationEnabled && !disabled,
+  );
+  const micDisabled =
+    disabled || dictationState === "processing" || !dictationEnabled || !onToggleDictation;
+  const micAriaLabel = allowOpenDictationSettings
+    ? "Open dictation settings"
+    : dictationState === "processing"
+      ? "Dictation processing"
+      : isDictating
+        ? "Stop dictation"
+        : "Start dictation";
+  const micTitle = allowOpenDictationSettings
+    ? "Dictation disabled. Open settings"
+    : dictationState === "processing"
+      ? "Processing dictation"
+      : isDictating
+        ? "Stop dictation"
+        : "Start dictation";
+  const handleMicClick = () => {
+    if (allowOpenDictationSettings) {
+      onOpenDictationSettings?.();
+      return;
+    }
+    if (!onToggleDictation || micDisabled) {
+      return;
+    }
+    onToggleDictation();
+  };
 
   return (
     <div className="composer-input">
@@ -162,6 +212,39 @@ export function ComposerInput({
             onPaste={handlePaste}
           />
         </div>
+        {isDictationBusy && (
+          <DictationWaveform
+            active={isDictating}
+            processing={dictationState === "processing"}
+            level={dictationLevel}
+          />
+        )}
+        {dictationError && (
+          <div className="composer-dictation-error" role="status">
+            <span>{dictationError}</span>
+            <button
+              type="button"
+              className="ghost composer-dictation-error-dismiss"
+              onClick={onDismissDictationError}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+        {dictationHint && (
+          <div className="composer-dictation-hint" role="status">
+            <span>{dictationHint}</span>
+            {onDismissDictationHint && (
+              <button
+                type="button"
+                className="ghost composer-dictation-error-dismiss"
+                onClick={onDismissDictationHint}
+              >
+                Dismiss
+              </button>
+            )}
+          </div>
+        )}
         {suggestionsOpen && (
           <div
             className="composer-suggestions popover-surface"
@@ -214,9 +297,26 @@ export function ComposerInput({
         )}
       </div>
       <button
+        className={`composer-action composer-action--mic${
+          isDictationBusy ? " is-active" : ""
+        }${dictationState === "processing" ? " is-processing" : ""}${
+          micDisabled ? " is-disabled" : ""
+        }`}
+        onClick={handleMicClick}
+        disabled={
+          disabled ||
+          dictationState === "processing" ||
+          (!onToggleDictation && !allowOpenDictationSettings)
+        }
+        aria-label={micAriaLabel}
+        title={micTitle}
+      >
+        {isDictating ? <Square aria-hidden /> : <Mic aria-hidden />}
+      </button>
+      <button
         className={`composer-action${canStop ? " is-stop" : " is-send"}`}
         onClick={handleActionClick}
-        disabled={disabled}
+        disabled={disabled || isDictationBusy}
         aria-label={canStop ? "Stop" : sendLabel}
       >
         {canStop ? (

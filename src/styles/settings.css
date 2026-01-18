@@ -144,6 +144,30 @@
   color: var(--text-subtle);
 }
 
+.settings-download-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-download-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-control);
+  border: 1px solid var(--border-muted);
+  overflow: hidden;
+}
+
+.settings-download-fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(100, 200, 255, 0.7), rgba(120, 235, 190, 0.8));
+}
+
+.settings-download-meta {
+  font-size: 11px;
+  color: var(--text-subtle);
+}
+
 .settings-input {
   flex: 1;
   min-width: 0;
@@ -343,6 +367,10 @@
 }
 
 .settings-toggle-row + .settings-toggle-row {
+  margin-top: 12px;
+}
+
+.settings-toggle-row + .settings-field {
   margin-top: 12px;
 }
 

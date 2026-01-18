@@ -23,9 +23,11 @@ import type {
   ConversationItem,
   CustomPromptOption,
   DebugEntry,
-  DiffLineReference,
+  DictationSessionState,
+  DictationTranscript,
   GitFileStatus,
   GitHubIssue,
+  GitHubPullRequest,
   GitLogEntry,
   ModelOption,
   QueuedMessage,
@@ -72,6 +74,7 @@ type LayoutNodesOptions = {
     decision: "accept" | "decline",
   ) => void;
   onOpenSettings: () => void;
+  onOpenDictationSettings?: () => void;
   onOpenDebug: () => void;
   showDebugButton: boolean;
   onAddWorkspace: () => void;
@@ -117,8 +120,8 @@ type LayoutNodesOptions = {
   activeTab: "projects" | "codex" | "git" | "log";
   onSelectTab: (tab: "projects" | "codex" | "git" | "log") => void;
   tabletNavTab: "codex" | "git" | "log";
-  gitPanelMode: "diff" | "log" | "issues";
-  onGitPanelModeChange: (mode: "diff" | "log" | "issues") => void;
+  gitPanelMode: "diff" | "log" | "issues" | "prs";
+  onGitPanelModeChange: (mode: "diff" | "log" | "issues" | "prs") => void;
   filePanelMode: "git" | "files";
   onToggleFilePanel: () => void;
   fileTreeLoading: boolean;
@@ -145,12 +148,17 @@ type LayoutNodesOptions = {
   gitIssuesTotal: number;
   gitIssuesLoading: boolean;
   gitIssuesError: string | null;
+  gitPullRequests: GitHubPullRequest[];
+  gitPullRequestsTotal: number;
+  gitPullRequestsLoading: boolean;
+  gitPullRequestsError: string | null;
+  selectedPullRequestNumber: number | null;
+  onSelectPullRequest: (pullRequest: GitHubPullRequest) => void;
   gitRemoteUrl: string | null;
   gitDiffs: GitDiffViewerItem[];
   gitDiffLoading: boolean;
   gitDiffError: string | null;
-  onDiffLineReference: (reference: DiffLineReference) => void;
-  onDiffActivePathChange: (path: string) => void;
+  onDiffActivePathChange?: (path: string) => void;
   onSend: (text: string, images: string[]) => void | Promise<void>;
   onQueue: (text: string, images: string[]) => void | Promise<void>;
   onStop: () => void;
@@ -184,6 +192,16 @@ type LayoutNodesOptions = {
   prompts: CustomPromptOption[];
   files: string[];
   textareaRef: RefObject<HTMLTextAreaElement | null>;
+  dictationEnabled: boolean;
+  dictationState: DictationSessionState;
+  dictationLevel: number;
+  onToggleDictation: () => void;
+  dictationTranscript: DictationTranscript | null;
+  onDictationTranscriptHandled: (id: string) => void;
+  dictationError: string | null;
+  onDismissDictationError: () => void;
+  dictationHint: string | null;
+  onDismissDictationHint: () => void;
   showComposer: boolean;
   plan: TurnPlan | null;
   debugEntries: DebugEntry[];
@@ -312,6 +330,17 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       prompts={options.prompts}
       files={options.files}
       textareaRef={options.textareaRef}
+      dictationEnabled={options.dictationEnabled}
+      dictationState={options.dictationState}
+      dictationLevel={options.dictationLevel}
+      onToggleDictation={options.onToggleDictation}
+      onOpenDictationSettings={options.onOpenDictationSettings}
+      dictationTranscript={options.dictationTranscript}
+      onDictationTranscriptHandled={options.onDictationTranscriptHandled}
+      dictationError={options.dictationError}
+      onDismissDictationError={options.onDismissDictationError}
+      dictationHint={options.dictationHint}
+      onDismissDictationHint={options.onDismissDictationHint}
     />
   ) : null;
 
@@ -405,7 +434,6 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         logError={options.gitLogError}
         logLoading={options.gitLogLoading}
         files={options.gitStatus.files}
-        selectedPath={options.selectedDiffPath}
         onSelectFile={options.onSelectDiff}
         logEntries={options.gitLogEntries}
         logTotal={options.gitLogTotal}
@@ -418,6 +446,12 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         issuesTotal={options.gitIssuesTotal}
         issuesLoading={options.gitIssuesLoading}
         issuesError={options.gitIssuesError}
+        pullRequests={options.gitPullRequests}
+        pullRequestsTotal={options.gitPullRequestsTotal}
+        pullRequestsLoading={options.gitPullRequestsLoading}
+        pullRequestsError={options.gitPullRequestsError}
+        selectedPullRequest={options.selectedPullRequestNumber}
+        onSelectPullRequest={options.onSelectPullRequest}
         gitRemoteUrl={options.gitRemoteUrl}
         onToggleFilePanel={options.onToggleFilePanel}
       />
@@ -429,7 +463,6 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       selectedPath={options.selectedDiffPath}
       isLoading={options.gitDiffLoading}
       error={options.gitDiffError}
-      onLineReference={options.onDiffLineReference}
       onActivePathChange={options.onDiffActivePathChange}
     />
   );

@@ -674,7 +674,6 @@ export function useThreads({
     }),
     [
       activeThreadId,
-      activeWorkspaceId,
       handleWorkspaceConnected,
       handleItemUpdate,
       handleToolOutputDelta,
@@ -886,13 +885,34 @@ export function useThreads({
         });
         const uniqueThreads = Array.from(uniqueById.values());
         const activityByThread = threadActivityRef.current[workspace.id] ?? {};
+        const nextActivityByThread = { ...activityByThread };
+        let didChangeActivity = false;
+        uniqueThreads.forEach((thread) => {
+          const threadId = String(thread?.id ?? "");
+          if (!threadId) {
+            return;
+          }
+          const timestamp = getThreadTimestamp(thread);
+          if (timestamp > (nextActivityByThread[threadId] ?? 0)) {
+            nextActivityByThread[threadId] = timestamp;
+            didChangeActivity = true;
+          }
+        });
+        if (didChangeActivity) {
+          const next = {
+            ...threadActivityRef.current,
+            [workspace.id]: nextActivityByThread,
+          };
+          threadActivityRef.current = next;
+          saveThreadActivity(next);
+        }
         uniqueThreads.sort((a, b) => {
           const aId = String(a?.id ?? "");
           const bId = String(b?.id ?? "");
           const aCreated = getThreadTimestamp(a);
           const bCreated = getThreadTimestamp(b);
-          const aActivity = Math.max(activityByThread[aId] ?? 0, aCreated);
-          const bActivity = Math.max(activityByThread[bId] ?? 0, bCreated);
+          const aActivity = Math.max(nextActivityByThread[aId] ?? 0, aCreated);
+          const bActivity = Math.max(nextActivityByThread[bId] ?? 0, bCreated);
           return bActivity - aActivity;
         });
         const summaries = uniqueThreads
@@ -1120,12 +1140,6 @@ export function useThreads({
         threadId,
         text: finalText,
         images,
-      });
-      dispatch({
-        type: "setThreadName",
-        workspaceId: activeWorkspace.id,
-        threadId,
-        name: previewThreadName(finalText, `Agent ${threadId.slice(0, 4)}`),
       });
       markProcessing(threadId, true);
       safeMessageActivity();

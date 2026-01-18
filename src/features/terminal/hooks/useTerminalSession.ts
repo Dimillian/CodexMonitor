@@ -199,7 +199,7 @@ export function useTerminalSession({
         });
       });
     }
-  }, [isVisible]);
+  }, [isVisible, onDebug]);
 
   useEffect(() => {
     return () => {
@@ -258,7 +258,14 @@ export function useTerminalSession({
       setMessage("Failed to start terminal session.");
       onDebug?.(buildErrorDebugEntry("terminal open error", error));
     });
-  }, [activeTerminalId, activeWorkspace, isVisible, onDebug, syncActiveBuffer]);
+  }, [
+    activeTerminalId,
+    activeWorkspace,
+    isVisible,
+    onDebug,
+    refreshTerminal,
+    syncActiveBuffer,
+  ]);
 
   useEffect(() => {
     if (!isVisible || !activeKey || !terminalRef.current || !fitAddonRef.current) {
@@ -313,7 +320,7 @@ export function useTerminalSession({
     return () => {
       observer.disconnect();
     };
-  }, [activeTerminalId, activeWorkspace, hasSession, isVisible]);
+  }, [activeTerminalId, activeWorkspace, hasSession, isVisible, onDebug]);
 
   return {
     status,

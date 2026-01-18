@@ -563,30 +563,31 @@ export function Sidebar({
                                       />
                                       <span className="thread-name">
                                         {thread.name}
+                                      </span>
+                                      <div className="thread-meta">
                                         {relativeTime && (
                                           <span className="thread-time">
-                                            {" "}
-                                            · {relativeTime}
+                                            {relativeTime}
                                           </span>
                                         )}
-                                      </span>
-                                      <div className="thread-menu">
-                                        <button
-                                          className="thread-menu-trigger"
-                                          aria-label="Thread menu"
-                                          onMouseDown={(event) =>
-                                            event.stopPropagation()
-                                          }
-                                          onClick={(event) =>
-                                            showThreadMenu(
-                                              event,
-                                              worktree.id,
-                                              thread.id,
-                                            )
-                                          }
-                                        >
-                                          ...
-                                        </button>
+                                        <div className="thread-menu">
+                                          <button
+                                            className="thread-menu-trigger"
+                                            aria-label="Thread menu"
+                                            onMouseDown={(event) =>
+                                              event.stopPropagation()
+                                            }
+                                            onClick={(event) =>
+                                              showThreadMenu(
+                                                event,
+                                                worktree.id,
+                                                thread.id,
+                                              )
+                                            }
+                                          >
+                                            ...
+                                          </button>
+                                        </div>
                                       </div>
                                     </div>
                                   );
@@ -686,26 +687,27 @@ export function Sidebar({
                             }`}
                             aria-hidden
                           />
-                          <span className="thread-name">
-                            {thread.name}
+                          <span className="thread-name">{thread.name}</span>
+                          <div className="thread-meta">
                             {relativeTime && (
                               <span className="thread-time">
-                                {" "}
-                                · {relativeTime}
+                                {relativeTime}
                               </span>
                             )}
-                          </span>
-                          <div className="thread-menu">
-                            <button
-                              className="thread-menu-trigger"
-                              aria-label="Thread menu"
-                              onMouseDown={(event) => event.stopPropagation()}
-                              onClick={(event) =>
-                                showThreadMenu(event, entry.id, thread.id)
-                              }
-                            >
-                              ...
-                            </button>
+                            <div className="thread-menu">
+                              <button
+                                className="thread-menu-trigger"
+                                aria-label="Thread menu"
+                                onMouseDown={(event) =>
+                                  event.stopPropagation()
+                                }
+                                onClick={(event) =>
+                                  showThreadMenu(event, entry.id, thread.id)
+                                }
+                              >
+                                ...
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );

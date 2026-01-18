@@ -54,6 +54,42 @@ pub(crate) struct GitHubIssuesResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct GitHubPullRequestAuthor {
+    pub(crate) login: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct GitHubPullRequest {
+    pub(crate) number: u64,
+    pub(crate) title: String,
+    pub(crate) url: String,
+    #[serde(rename = "updatedAt")]
+    pub(crate) updated_at: String,
+    #[serde(rename = "headRefName")]
+    pub(crate) head_ref_name: String,
+    #[serde(rename = "baseRefName")]
+    pub(crate) base_ref_name: String,
+    #[serde(rename = "isDraft")]
+    pub(crate) is_draft: bool,
+    #[serde(default)]
+    pub(crate) author: Option<GitHubPullRequestAuthor>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct GitHubPullRequestsResponse {
+    pub(crate) total: usize,
+    #[serde(rename = "pullRequests")]
+    pub(crate) pull_requests: Vec<GitHubPullRequest>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct GitHubPullRequestDiff {
+    pub(crate) path: String,
+    pub(crate) status: String,
+    pub(crate) diff: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct BranchInfo {
     pub(crate) name: String,
     pub(crate) last_commit: i64,
@@ -144,10 +180,34 @@ pub(crate) struct AppSettings {
     )]
     pub(crate) notification_sounds_enabled: bool,
     #[serde(
+        default = "default_experimental_collab_enabled",
+        rename = "experimentalCollabEnabled"
+    )]
+    pub(crate) experimental_collab_enabled: bool,
+    #[serde(
         default = "default_experimental_steer_enabled",
         rename = "experimentalSteerEnabled"
     )]
     pub(crate) experimental_steer_enabled: bool,
+    #[serde(
+        default = "default_experimental_unified_exec_enabled",
+        rename = "experimentalUnifiedExecEnabled"
+    )]
+    pub(crate) experimental_unified_exec_enabled: bool,
+    #[serde(default = "default_dictation_enabled", rename = "dictationEnabled")]
+    pub(crate) dictation_enabled: bool,
+    #[serde(
+        default = "default_dictation_model_id",
+        rename = "dictationModelId"
+    )]
+    pub(crate) dictation_model_id: String,
+    #[serde(default, rename = "dictationPreferredLanguage")]
+    pub(crate) dictation_preferred_language: Option<String>,
+    #[serde(
+        default = "default_dictation_hold_key",
+        rename = "dictationHoldKey"
+    )]
+    pub(crate) dictation_hold_key: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -179,8 +239,28 @@ fn default_notification_sounds_enabled() -> bool {
     true
 }
 
+fn default_experimental_collab_enabled() -> bool {
+    false
+}
+
 fn default_experimental_steer_enabled() -> bool {
     false
+}
+
+fn default_experimental_unified_exec_enabled() -> bool {
+    false
+}
+
+fn default_dictation_enabled() -> bool {
+    false
+}
+
+fn default_dictation_model_id() -> String {
+    "base".to_string()
+}
+
+fn default_dictation_hold_key() -> String {
+    "alt".to_string()
 }
 
 impl Default for AppSettings {
@@ -193,7 +273,13 @@ impl Default for AppSettings {
             default_access_mode: "current".to_string(),
             ui_scale: 1.0,
             notification_sounds_enabled: true,
+            experimental_collab_enabled: false,
             experimental_steer_enabled: false,
+            experimental_unified_exec_enabled: false,
+            dictation_enabled: false,
+            dictation_model_id: default_dictation_model_id(),
+            dictation_preferred_language: None,
+            dictation_hold_key: default_dictation_hold_key(),
         }
     }
 }
@@ -213,6 +299,10 @@ mod tests {
         assert!((settings.ui_scale - 1.0).abs() < f64::EPSILON);
         assert!(settings.notification_sounds_enabled);
         assert!(!settings.experimental_steer_enabled);
+        assert!(!settings.dictation_enabled);
+        assert_eq!(settings.dictation_model_id, "base");
+        assert!(settings.dictation_preferred_language.is_none());
+        assert_eq!(settings.dictation_hold_key, "alt");
     }
 
     #[test]

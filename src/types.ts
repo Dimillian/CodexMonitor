@@ -71,7 +71,13 @@ export type AppSettings = {
   defaultAccessMode: AccessMode;
   uiScale: number;
   notificationSoundsEnabled: boolean;
+  experimentalCollabEnabled: boolean;
   experimentalSteerEnabled: boolean;
+  experimentalUnifiedExecEnabled: boolean;
+  dictationEnabled: boolean;
+  dictationModelId: string;
+  dictationPreferredLanguage: string | null;
+  dictationHoldKey: string | null;
 };
 
 export type CodexDoctorResult = {
@@ -105,16 +111,6 @@ export type GitFileDiff = {
   diff: string;
 };
 
-export type DiffLineReference = {
-  path: string;
-  type: "add" | "del" | "context" | "mixed";
-  oldLine: number | null;
-  newLine: number | null;
-  endOldLine: number | null;
-  endNewLine: number | null;
-  lines: string[];
-};
-
 export type GitLogEntry = {
   sha: string;
   summary: string;
@@ -142,6 +138,32 @@ export type GitHubIssue = {
 export type GitHubIssuesResponse = {
   total: number;
   issues: GitHubIssue[];
+};
+
+export type GitHubUser = {
+  login: string;
+};
+
+export type GitHubPullRequest = {
+  number: number;
+  title: string;
+  url: string;
+  updatedAt: string;
+  headRefName: string;
+  baseRefName: string;
+  isDraft: boolean;
+  author: GitHubUser | null;
+};
+
+export type GitHubPullRequestsResponse = {
+  total: number;
+  pullRequests: GitHubPullRequest[];
+};
+
+export type GitHubPullRequestDiff = {
+  path: string;
+  status: string;
+  diff: string;
 };
 
 export type TokenUsageBreakdown = {
@@ -235,3 +257,32 @@ export type DebugEntry = {
 };
 
 export type TerminalStatus = "idle" | "connecting" | "ready" | "error";
+
+export type DictationModelState = "missing" | "downloading" | "ready" | "error";
+
+export type DictationDownloadProgress = {
+  totalBytes?: number | null;
+  downloadedBytes: number;
+};
+
+export type DictationModelStatus = {
+  state: DictationModelState;
+  modelId: string;
+  progress?: DictationDownloadProgress | null;
+  error?: string | null;
+  path?: string | null;
+};
+
+export type DictationSessionState = "idle" | "listening" | "processing";
+
+export type DictationEvent =
+  | { type: "state"; state: DictationSessionState }
+  | { type: "level"; value: number }
+  | { type: "transcript"; text: string }
+  | { type: "error"; message: string }
+  | { type: "canceled"; message: string };
+
+export type DictationTranscript = {
+  id: string;
+  text: string;
+};

@@ -11,7 +11,13 @@ const defaultSettings: AppSettings = {
   defaultAccessMode: "current",
   uiScale: UI_SCALE_DEFAULT,
   notificationSoundsEnabled: true,
+  experimentalCollabEnabled: false,
   experimentalSteerEnabled: false,
+  experimentalUnifiedExecEnabled: false,
+  dictationEnabled: false,
+  dictationModelId: "base",
+  dictationPreferredLanguage: null,
+  dictationHoldKey: "alt",
 };
 
 function normalizeAppSettings(settings: AppSettings): AppSettings {

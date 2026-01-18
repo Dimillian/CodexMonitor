@@ -2,11 +2,31 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 12px 12px 16px;
   overflow-y: auto;
+  position: relative;
+  padding: 12px 12px 16px;
   flex: 1;
   min-height: 0;
   min-width: 0;
+  background: var(--surface-messages);
+}
+
+.main .diff-viewer {
+  margin-top: calc(-1 * var(--main-topbar-height));
+  padding-top: calc(12px + var(--main-topbar-height));
+}
+
+.diff-viewer-list {
+  position: relative;
+  width: 100%;
+}
+
+.diff-viewer-row {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  padding-bottom: 16px;
 }
 
 .diff-viewer-item {
@@ -14,6 +34,7 @@
   border: 1px solid var(--border-subtle);
   background: var(--surface-diff-card);
   padding: 10px 12px;
+  width: 100%;
 }
 
 .diff-viewer-item.active {
@@ -56,7 +77,21 @@
   color: var(--text-quiet);
   font-family: "SFMono-Regular", "Menlo", "Monaco", monospace;
   max-width: 100%;
-  overflow-x: auto;
+  min-width: 0;
+  width: 100%;
+  overflow: visible;
+  --diffs-font-family: "SFMono-Regular", "Menlo", "Monaco", monospace;
+  --diffs-font-size: 11px;
+  --diffs-line-height: 1.4;
+  --diffs-tab-size: 2;
+}
+
+
+.diff-viewer-output diffs-container {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
 }
 
 .diff-line {
@@ -216,4 +251,12 @@
   color: var(--text-faint);
   font-size: 11px;
   padding: 6px 0;
+}
+
+.diff-viewer-loading-overlay {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  right: 12px;
+  z-index: 2;
 }

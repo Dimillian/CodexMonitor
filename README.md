@@ -28,11 +28,17 @@ CodexMonitor is a macOS Tauri app for orchestrating multiple Codex agents across
 
 - Node.js + npm
 - Rust toolchain (stable)
+- CMake (required to build native Whisper bindings)
 - Codex installed on your system and available as `codex` in `PATH`
 - Git CLI (used for worktree operations)
 - GitHub CLI (`gh`) for the Issues panel (optional)
 
 If the `codex` binary is not in `PATH`, update the backend to pass a custom path per workspace.
+If you hit native build errors, run:
+
+```bash
+npm run doctor
+```
 
 ## Getting Started
 
@@ -85,6 +91,7 @@ src-tauri/
 
 - Workspaces persist to `workspaces.json` under the app data directory.
 - App settings persist to `settings.json` under the app data directory (Codex path, default access mode, UI scale).
+- Experimental settings supported in the UI: Collab mode (`features.collab`), Background terminal (`features.unified_exec`), and Steer mode (`features.steer`), synced to `$CODEX_HOME/config.toml` (or `~/.codex/config.toml`) on load/save.
 - On launch and on window focus, the app reconnects and refreshes thread lists for each workspace.
 - Threads are restored by filtering `thread/list` results using the workspace `cwd`.
 - Selecting a thread always calls `thread/resume` to refresh messages from disk.

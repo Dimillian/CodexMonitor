@@ -233,6 +233,7 @@
   backdrop-filter: none;
 }
 
+
 .main-topbar-left {
   display: flex;
   align-items: center;
@@ -261,6 +262,10 @@
   border: none;
   background: transparent;
   color: var(--text-muted);
+}
+
+.topbar-leading .back-button {
+  margin-left: 0;
 }
 
 
