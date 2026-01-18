@@ -57,18 +57,8 @@ function buildPromptCommand(name: string, args: string) {
   return `/${PROMPTS_PREFIX}${name}${trimmedArgs ? ` ${trimmedArgs}` : ""}`;
 }
 
-function isWorkspacePrompt(prompt: CustomPromptOption, workspacePath: string | null) {
-  if (prompt.scope === "workspace") {
-    return true;
-  }
-  if (prompt.scope === "global") {
-    return false;
-  }
-  if (!workspacePath) {
-    return false;
-  }
-  const normalized = workspacePath.replace(/\\/g, "/").replace(/\/+$/, "");
-  return prompt.path.replace(/\\/g, "/").startsWith(`${normalized}/.codexmonitor/`);
+function isWorkspacePrompt(prompt: CustomPromptOption) {
+  return prompt.scope === "workspace";
 }
 
 export function PromptPanel({
@@ -166,14 +156,14 @@ export function PromptPanel({
     const workspaceEntries: CustomPromptOption[] = [];
     const globalEntries: CustomPromptOption[] = [];
     filteredPrompts.forEach((prompt) => {
-      if (isWorkspacePrompt(prompt, workspacePath)) {
+      if (isWorkspacePrompt(prompt)) {
         workspaceEntries.push(prompt);
       } else {
         globalEntries.push(prompt);
       }
     });
     return { workspacePrompts: workspaceEntries, globalPrompts: globalEntries };
-  }, [filteredPrompts, workspacePath]);
+  }, [filteredPrompts]);
 
   const totalCount = filteredPrompts.length;
   const hasPrompts = totalCount > 0;
@@ -195,7 +185,7 @@ export function PromptPanel({
   };
 
   const startEdit = (prompt: CustomPromptOption) => {
-    const scope = isWorkspacePrompt(prompt, workspacePath) ? "workspace" : "global";
+    const scope = isWorkspacePrompt(prompt) ? "workspace" : "global";
     resetEditorState();
     setEditor({
       mode: "edit",
@@ -215,6 +205,10 @@ export function PromptPanel({
     const name = editor.name.trim();
     if (!name) {
       setEditorError("Name is required.");
+      return;
+    }
+    if (/\s/.test(name)) {
+      setEditorError("Name cannot include whitespace.");
       return;
     }
     setEditorError(null);
@@ -289,7 +283,7 @@ export function PromptPanel({
   ) => {
     event.preventDefault();
     event.stopPropagation();
-    const scope = isWorkspacePrompt(prompt, workspacePath) ? "workspace" : "global";
+    const scope = isWorkspacePrompt(prompt) ? "workspace" : "global";
     const nextScope = scope === "workspace" ? "global" : "workspace";
     const menu = await Menu.new({
       items: [
@@ -525,17 +519,19 @@ export function PromptPanel({
             <div className="prompt-empty-text">
               <div className="prompt-empty-title">No workspace prompts yet</div>
               <div className="prompt-empty-subtitle">
-                Create one here or drop a .md file into{" "}
+                Create one here or drop a .md file into the{" "}
                 {workspacePath ? (
                   <button
                     type="button"
                     className="prompt-empty-link"
                     onClick={() => void onRevealWorkspacePrompts()}
                   >
-                    .codexmonitor/prompts
+                    workspace prompts folder
                   </button>
                 ) : (
-                  <span className="prompt-empty-link is-disabled">.codexmonitor/prompts</span>
+                  <span className="prompt-empty-link is-disabled">
+                    workspace prompts folder
+                  </span>
                 )}
                 .
               </div>

@@ -52,17 +52,6 @@ fn default_prompts_dir() -> Option<PathBuf> {
     resolve_codex_home().map(|home| home.join("prompts"))
 }
 
-fn workspace_parent_path(
-    workspaces: &HashMap<String, WorkspaceEntry>,
-    entry: &WorkspaceEntry,
-) -> Option<String> {
-    entry
-        .parent_id
-        .as_ref()
-        .and_then(|parent_id| workspaces.get(parent_id))
-        .map(|entry| entry.path.clone())
-}
-
 fn require_workspace_entry(
     workspaces: &HashMap<String, WorkspaceEntry>,
     workspace_id: &str,
@@ -73,32 +62,23 @@ fn require_workspace_entry(
         .ok_or_else(|| "workspace not found".to_string())
 }
 
-fn resolve_workspace_codex_home(entry: &WorkspaceEntry, parent_path: Option<&str>) -> Option<PathBuf> {
-    if entry.kind.is_worktree() {
-        if let Some(parent_path) = parent_path {
-            let legacy_home = PathBuf::from(parent_path).join(".codexmonitor");
-            if legacy_home.is_dir() {
-                return Some(legacy_home);
-            }
-        }
-    }
-    let legacy_home = PathBuf::from(&entry.path).join(".codexmonitor");
-    if legacy_home.is_dir() {
-        return Some(legacy_home);
-    }
-    None
+fn app_data_dir(state: &State<'_, AppState>) -> Result<PathBuf, String> {
+    state
+        .settings_path
+        .parent()
+        .map(|path| path.to_path_buf())
+        .ok_or_else(|| "Unable to resolve app data dir.".to_string())
 }
 
-fn workspace_codex_home_path_for_create(
+fn workspace_prompts_dir(
+    state: &State<'_, AppState>,
     entry: &WorkspaceEntry,
-    parent_path: Option<&str>,
-) -> PathBuf {
-    if entry.kind.is_worktree() {
-        if let Some(parent_path) = parent_path {
-            return PathBuf::from(parent_path).join(".codexmonitor");
-        }
-    }
-    PathBuf::from(&entry.path).join(".codexmonitor")
+) -> Result<PathBuf, String> {
+    let data_dir = app_data_dir(state)?;
+    Ok(data_dir
+        .join("workspaces")
+        .join(&entry.id)
+        .join("prompts"))
 }
 
 fn parse_frontmatter(content: &str) -> (Option<String>, Option<String>, String) {
@@ -201,6 +181,9 @@ fn sanitize_prompt_name(name: &str) -> Result<String, String> {
     if trimmed.is_empty() {
         return Err("Prompt name is required.".to_string());
     }
+    if trimmed.chars().any(|ch| ch.is_whitespace()) {
+        return Err("Prompt name cannot include whitespace.".to_string());
+    }
     if trimmed.contains('/') || trimmed.contains('\\') {
         return Err("Prompt name cannot include path separators.".to_string());
     }
@@ -262,16 +245,9 @@ pub(crate) async fn prompts_list(
     let (workspace_dir, global_dir) = {
         let workspaces = state.workspaces.lock().await;
         let entry = workspaces.get(&workspace_id).cloned();
-        let parent_path = entry
+        let workspace_dir = entry
             .as_ref()
-            .and_then(|entry| workspace_parent_path(&workspaces, entry));
-        let workspace_dir = entry.as_ref().map(|entry| {
-            let home = resolve_workspace_codex_home(entry, parent_path.as_deref())
-                .unwrap_or_else(|| {
-                    workspace_codex_home_path_for_create(entry, parent_path.as_deref())
-                });
-            home.join("prompts")
-        });
+            .and_then(|entry| workspace_prompts_dir(&state, entry).ok());
         (workspace_dir, default_prompts_dir())
     };
 
@@ -299,9 +275,7 @@ pub(crate) async fn prompts_workspace_dir(
     let dir = {
         let workspaces = state.workspaces.lock().await;
         let entry = require_workspace_entry(&workspaces, &workspace_id)?;
-        let parent_path = workspace_parent_path(&workspaces, &entry);
-        let home = workspace_codex_home_path_for_create(&entry, parent_path.as_deref());
-        home.join("prompts")
+        workspace_prompts_dir(&state, &entry)?
     };
     fs::create_dir_all(&dir).map_err(|err| err.to_string())?;
     Ok(dir.to_string_lossy().to_string())
@@ -328,12 +302,10 @@ pub(crate) async fn prompts_create(
     let (target_dir, resolved_scope) = {
         let workspaces = state.workspaces.lock().await;
         let entry = require_workspace_entry(&workspaces, &workspace_id)?;
-        let parent_path = workspace_parent_path(&workspaces, &entry);
         match scope.as_str() {
             "workspace" => {
-                let home =
-                    workspace_codex_home_path_for_create(&entry, parent_path.as_deref());
-                (home.join("prompts"), "workspace")
+                let dir = workspace_prompts_dir(&state, &entry)?;
+                (dir, "workspace")
             }
             "global" => {
                 let dir = default_prompts_dir().ok_or("Unable to resolve CODEX_HOME".to_string())?;
@@ -391,10 +363,7 @@ pub(crate) async fn prompts_update(
     let scope = {
         let workspaces = state.workspaces.lock().await;
         let entry = require_workspace_entry(&workspaces, &workspace_id)?;
-        let parent_path = workspace_parent_path(&workspaces, &entry);
-        let workspace_dir =
-            workspace_codex_home_path_for_create(&entry, parent_path.as_deref())
-                .join("prompts");
+        let workspace_dir = workspace_prompts_dir(&state, &entry)?;
         if next_path.starts_with(&workspace_dir) {
             Some("workspace".to_string())
         } else {
@@ -438,10 +407,8 @@ pub(crate) async fn prompts_move(
     let target_dir = {
         let workspaces = state.workspaces.lock().await;
         let entry = require_workspace_entry(&workspaces, &workspace_id)?;
-        let parent_path = workspace_parent_path(&workspaces, &entry);
         match scope.as_str() {
-            "workspace" => workspace_codex_home_path_for_create(&entry, parent_path.as_deref())
-                .join("prompts"),
+            "workspace" => workspace_prompts_dir(&state, &entry)?,
             "global" => default_prompts_dir().ok_or("Unable to resolve CODEX_HOME".to_string())?,
             _ => return Err("Invalid scope.".to_string()),
         }
