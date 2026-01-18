@@ -168,6 +168,7 @@ export function GitDiffPanel({
   gitRootScanLoading = false,
   gitRootScanError = null,
   gitRootScanHasScanned = false,
+  selectedPath = null,
   onGitRootScanDepthChange,
   onScanGitRoots,
   onSelectGitRoot,
@@ -461,7 +462,7 @@ export function GitDiffPanel({
             return (
               <div
                 key={file.path}
-                className="diff-row"
+                className={`diff-row ${selectedPath === file.path ? "active" : ""}`}
                 role="button"
                 tabIndex={0}
                 onClick={() => onSelectFile?.(file.path)}

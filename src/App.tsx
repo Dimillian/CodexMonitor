@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./styles/base.css";
 import "./styles/buttons.css";
 import "./styles/sidebar.css";
@@ -54,6 +53,8 @@ import { useWorkspaceRestore } from "./features/workspaces/hooks/useWorkspaceRes
 import { useResizablePanels } from "./features/layout/hooks/useResizablePanels";
 import { useLayoutMode } from "./features/layout/hooks/useLayoutMode";
 import { useSidebarToggles } from "./features/layout/hooks/useSidebarToggles";
+import { useTransparencyPreference } from "./features/layout/hooks/useTransparencyPreference";
+import { useWindowLabel } from "./features/layout/hooks/useWindowLabel";
 import {
   RightPanelCollapseButton,
   SidebarCollapseButton,
@@ -83,19 +84,6 @@ import type {
   QueuedMessage,
   WorkspaceInfo,
 } from "./types";
-
-function useWindowLabel() {
-  const [label, setLabel] = useState("main");
-  useEffect(() => {
-    try {
-      const window = getCurrentWindow();
-      setLabel(window.label ?? "main");
-    } catch {
-      setLabel("main");
-    }
-  }, []);
-  return label;
-}
 
 function MainApp() {
   const {
@@ -187,10 +175,7 @@ function MainApp() {
   const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(
     null,
   );
-  const [reduceTransparency, setReduceTransparency] = useState(() => {
-    const stored = localStorage.getItem("reduceTransparency");
-    return stored === "true";
-  });
+  const { reduceTransparency, setReduceTransparency } = useTransparencyPreference();
   const dictationReady = dictationModel.status?.state === "ready";
   const holdDictationKey = (appSettings.dictationHoldKey ?? "").toLowerCase();
   const handleToggleDictation = useCallback(async () => {
@@ -308,10 +293,6 @@ function MainApp() {
       prev === "current" ? appSettings.defaultAccessMode : prev
     );
   }, [appSettings.defaultAccessMode]);
-
-  useEffect(() => {
-    localStorage.setItem("reduceTransparency", String(reduceTransparency));
-  }, [reduceTransparency]);
 
   const { status: gitStatus, refresh: refreshGitStatus } =
     useGitStatus(activeWorkspace);
@@ -488,6 +469,7 @@ function MainApp() {
     activeItems,
     approvals,
     threadsByWorkspace,
+    threadParentById,
     threadStatusById,
     threadListLoadingByWorkspace,
     threadListPagingByWorkspace,
@@ -908,6 +890,7 @@ function MainApp() {
     groupedWorkspaces,
     hasWorkspaceGroups: workspaceGroups.length > 0,
     threadsByWorkspace,
+    threadParentById,
     threadStatusById,
     threadListLoadingByWorkspace,
     threadListPagingByWorkspace,

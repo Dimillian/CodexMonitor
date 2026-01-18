@@ -22,6 +22,7 @@ export function useGitDiffs(
   const [state, setState] = useState<GitDiffState>(emptyState);
   const requestIdRef = useRef(0);
   const workspaceIdRef = useRef<string | null>(activeWorkspace?.id ?? null);
+  const cachedDiffsRef = useRef<Map<string, GitFileDiff[]>>(new Map());
 
   const fileKey = useMemo(
     () =>
@@ -53,6 +54,7 @@ export function useGitDiffs(
         return;
       }
       setState({ diffs, isLoading: false, error: null });
+      cachedDiffsRef.current.set(workspaceId, diffs);
     } catch (error) {
       console.error("Failed to load git diffs", error);
       if (
@@ -74,7 +76,16 @@ export function useGitDiffs(
     if (workspaceIdRef.current !== workspaceId) {
       workspaceIdRef.current = workspaceId;
       requestIdRef.current += 1;
-      setState(emptyState);
+      if (!workspaceId) {
+        setState(emptyState);
+        return;
+      }
+      const cached = cachedDiffsRef.current.get(workspaceId);
+      setState({
+        diffs: cached ?? [],
+        isLoading: false,
+        error: null,
+      });
     }
   }, [activeWorkspace?.id]);
 

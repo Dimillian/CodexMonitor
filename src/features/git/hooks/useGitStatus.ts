@@ -24,6 +24,7 @@ export function useGitStatus(activeWorkspace: WorkspaceInfo | null) {
   const [status, setStatus] = useState<GitStatusState>(emptyStatus);
   const requestIdRef = useRef(0);
   const workspaceIdRef = useRef<string | null>(activeWorkspace?.id ?? null);
+  const cachedStatusRef = useRef<Map<string, GitStatusState>>(new Map());
   const workspaceId = activeWorkspace?.id ?? null;
 
   const refresh = useCallback(() => {
@@ -41,7 +42,9 @@ export function useGitStatus(activeWorkspace: WorkspaceInfo | null) {
         ) {
           return;
         }
-        setStatus({ ...data, error: null });
+        const nextStatus = { ...data, error: null };
+        setStatus(nextStatus);
+        cachedStatusRef.current.set(workspaceId, nextStatus);
       })
       .catch((err) => {
         console.error("Failed to load git status", err);
@@ -51,11 +54,13 @@ export function useGitStatus(activeWorkspace: WorkspaceInfo | null) {
         ) {
           return;
         }
-        setStatus({
+        const nextStatus = {
           ...emptyStatus,
           branchName: "unknown",
           error: err instanceof Error ? err.message : String(err),
-        });
+        };
+        setStatus(nextStatus);
+        cachedStatusRef.current.set(workspaceId, nextStatus);
       });
   }, [workspaceId]);
 
@@ -63,7 +68,12 @@ export function useGitStatus(activeWorkspace: WorkspaceInfo | null) {
     if (workspaceIdRef.current !== workspaceId) {
       workspaceIdRef.current = workspaceId;
       requestIdRef.current += 1;
-      setStatus(emptyStatus);
+      if (!workspaceId) {
+        setStatus(emptyStatus);
+        return;
+      }
+      const cached = cachedStatusRef.current.get(workspaceId);
+      setStatus(cached ?? emptyStatus);
     }
   }, [workspaceId]);
 

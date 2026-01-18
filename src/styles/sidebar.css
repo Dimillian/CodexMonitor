@@ -394,7 +394,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 2px 4px 6px;
+  padding: 4px 2px 4px calc(6px + var(--thread-indent, 0px));
   border-radius: 6px;
   color: var(--text-quiet);
   font-size: 12px;

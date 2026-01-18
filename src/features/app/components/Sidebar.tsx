@@ -1,7 +1,7 @@
 import type { RateLimitSnapshot, ThreadSummary, WorkspaceInfo } from "../../../types";
 import { FolderKanban, Layers, ScrollText, Settings } from "lucide-react";
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -20,6 +20,7 @@ type SidebarProps = {
   groupedWorkspaces: WorkspaceGroupSection[];
   hasWorkspaceGroups: boolean;
   threadsByWorkspace: Record<string, ThreadSummary[]>;
+  threadParentById: Record<string, string>;
   threadStatusById: Record<
     string,
     { isProcessing: boolean; hasUnread: boolean; isReviewing: boolean }
@@ -54,6 +55,7 @@ export function Sidebar({
   groupedWorkspaces,
   hasWorkspaceGroups,
   threadsByWorkspace,
+  threadParentById,
   threadStatusById,
   threadListLoadingByWorkspace,
   threadListPagingByWorkspace,
@@ -109,6 +111,43 @@ export function Sidebar({
   const addMenuRef = useRef<HTMLDivElement | null>(null);
   const sidebarBodyRef = useRef<HTMLDivElement | null>(null);
   const [scrollFade, setScrollFade] = useState({ top: false, bottom: false });
+
+  const getThreadRows = useCallback(
+    (threads: ThreadSummary[], isExpanded: boolean) => {
+      const threadIds = new Set(threads.map((thread) => thread.id));
+      const childrenByParent = new Map<string, ThreadSummary[]>();
+      const roots: ThreadSummary[] = [];
+
+      threads.forEach((thread) => {
+        const parentId = threadParentById[thread.id];
+        if (parentId && parentId !== thread.id && threadIds.has(parentId)) {
+          const list = childrenByParent.get(parentId) ?? [];
+          list.push(thread);
+          childrenByParent.set(parentId, list);
+        } else {
+          roots.push(thread);
+        }
+      });
+
+      const visibleRootCount = isExpanded ? roots.length : 3;
+      const visibleRoots = roots.slice(0, visibleRootCount);
+      const rows: Array<{ thread: ThreadSummary; depth: number }> = [];
+      const appendThread = (thread: ThreadSummary, depth: number) => {
+        rows.push({ thread, depth });
+        const children = childrenByParent.get(thread.id) ?? [];
+        children.forEach((child) => appendThread(child, depth + 1));
+      };
+
+      visibleRoots.forEach((thread) => appendThread(thread, 0));
+
+      return {
+        rows,
+        totalRoots: roots.length,
+        hasMoreRoots: roots.length > visibleRootCount,
+      };
+    },
+    [threadParentById],
+  );
 
   const updateScrollFade = useCallback(() => {
     const node = sidebarBodyRef.current;
@@ -388,6 +427,11 @@ export function Sidebar({
                   {group.workspaces.map((entry) => {
                   const threads = threadsByWorkspace[entry.id] ?? [];
                   const isCollapsed = entry.settings.sidebarCollapsed;
+                  const isExpanded = expandedWorkspaces.has(entry.id);
+                  const {
+                    rows: threadRows,
+                    totalRoots: totalThreadRoots,
+                  } = getThreadRows(threads, isExpanded);
                   const showThreads = !isCollapsed && threads.length > 0;
                   const isLoadingThreads =
                     threadListLoadingByWorkspace[entry.id] ?? false;
@@ -596,121 +640,157 @@ export function Sidebar({
                                   </div>
                                   {showWorktreeThreads && (
                                     <div className="thread-list thread-list-nested">
-                                      {(expandedWorkspaces.has(worktree.id)
-                                        ? worktreeThreads
-                                        : worktreeThreads.slice(0, 3)
-                                      ).map((thread) => {
-                                        const relativeTime = getThreadTime(thread);
-                                        return (
-                                          <div
-                                            key={thread.id}
-                                            className={`thread-row ${
-                                              worktree.id === activeWorkspaceId &&
-                                              thread.id === activeThreadId
-                                                ? "active"
-                                                : ""
-                                            }`}
-                                            onClick={() =>
-                                              onSelectThread(worktree.id, thread.id)
-                                            }
-                                            onContextMenu={(event) =>
-                                              showThreadMenu(
-                                                event,
-                                                worktree.id,
-                                                thread.id,
-                                              )
-                                            }
-                                            role="button"
-                                            tabIndex={0}
-                                            onKeyDown={(event) => {
-                                              if (
-                                                event.key === "Enter" ||
-                                                event.key === " "
-                                              ) {
-                                                event.preventDefault();
-                                                onSelectThread(worktree.id, thread.id);
-                                              }
-                                            }}
-                                          >
-                                            <span
-                                              className={`thread-status ${
-                                                threadStatusById[thread.id]?.isReviewing
-                                                  ? "reviewing"
-                                                  : threadStatusById[thread.id]?.isProcessing
-                                                    ? "processing"
-                                                    : threadStatusById[thread.id]?.hasUnread
-                                                      ? "unread"
-                                                      : "ready"
-                                              }`}
-                                              aria-hidden
-                                            />
-                                            <span className="thread-name">
-                                              {thread.name}
-                                            </span>
-                                            <div className="thread-meta">
-                                              {relativeTime && (
-                                                <span className="thread-time">
-                                                  {relativeTime}
-                                                </span>
-                                              )}
-                                              <div className="thread-menu">
-                                                <button
-                                                  className="thread-menu-trigger"
-                                                  aria-label="Thread menu"
-                                                  onMouseDown={(event) =>
-                                                    event.stopPropagation()
-                                                  }
-                                                  onClick={(event) =>
-                                                    showThreadMenu(
-                                                      event,
-                                                      worktree.id,
-                                                      thread.id,
-                                                    )
-                                                  }
-                                                >
-                                                  ...
-                                                </button>
-                                              </div>
-                                            </div>
-                                          </div>
+                                      {(() => {
+                                        const isWorktreeExpanded =
+                                          expandedWorkspaces.has(worktree.id);
+                                        const {
+                                          rows: worktreeThreadRows,
+                                          totalRoots: totalWorktreeRoots,
+                                        } = getThreadRows(
+                                          worktreeThreads,
+                                          isWorktreeExpanded,
                                         );
-                                      })}
-                                      {worktreeThreads.length > 3 && (
-                                        <button
-                                          className="thread-more"
-                                          onClick={(event) => {
-                                            event.stopPropagation();
-                                            setExpandedWorkspaces((prev) => {
-                                              const next = new Set(prev);
-                                              if (next.has(worktree.id)) {
-                                                next.delete(worktree.id);
-                                              } else {
-                                                next.add(worktree.id);
-                                              }
-                                              return next;
-                                            });
-                                          }}
-                                        >
-                                          {expandedWorkspaces.has(worktree.id)
-                                            ? "Show less"
-                                            : "More..."}
-                                        </button>
-                                      )}
-                                      {expandedWorkspaces.has(worktree.id) &&
-                                        worktreeNextCursor && (
-                                          <button
-                                            className="thread-more"
-                                            onClick={(event) => {
-                                              event.stopPropagation();
-                                              onLoadOlderThreads(worktree.id);
-                                            }}
-                                            disabled={isWorktreePaging}
-                                          >
-                                            {isWorktreePaging
-                                              ? "Loading..."
-                                              : "Load older..."}
-                                          </button>
-                                        )}
+                                        return (
+                                          <>
+                                            {worktreeThreadRows.map(
+                                              ({ thread, depth }) => {
+                                                const relativeTime =
+                                                  getThreadTime(thread);
+                                                const indentStyle =
+                                                  depth > 0
+                                                    ? ({
+                                                        "--thread-indent": `${depth * 14}px`,
+                                                      } as CSSProperties)
+                                                    : undefined;
+                                                return (
+                                                  <div
+                                                    key={thread.id}
+                                                    className={`thread-row ${
+                                                      worktree.id ===
+                                                        activeWorkspaceId &&
+                                                      thread.id === activeThreadId
+                                                        ? "active"
+                                                        : ""
+                                                    }`}
+                                                    style={indentStyle}
+                                                    onClick={() =>
+                                                      onSelectThread(
+                                                        worktree.id,
+                                                        thread.id,
+                                                      )
+                                                    }
+                                                    onContextMenu={(event) =>
+                                                      showThreadMenu(
+                                                        event,
+                                                        worktree.id,
+                                                        thread.id,
+                                                      )
+                                                    }
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    onKeyDown={(event) => {
+                                                      if (
+                                                        event.key === "Enter" ||
+                                                        event.key === " "
+                                                      ) {
+                                                        event.preventDefault();
+                                                        onSelectThread(
+                                                          worktree.id,
+                                                          thread.id,
+                                                        );
+                                                      }
+                                                    }}
+                                                  >
+                                                    <span
+                                                      className={`thread-status ${
+                                                        threadStatusById[thread.id]
+                                                          ?.isReviewing
+                                                          ? "reviewing"
+                                                          : threadStatusById[
+                                                                thread.id
+                                                              ]?.isProcessing
+                                                            ? "processing"
+                                                            : threadStatusById[
+                                                                  thread.id
+                                                                ]?.hasUnread
+                                                              ? "unread"
+                                                              : "ready"
+                                                      }`}
+                                                      aria-hidden
+                                                    />
+                                                    <span className="thread-name">
+                                                      {thread.name}
+                                                    </span>
+                                                    <div className="thread-meta">
+                                                      {relativeTime && (
+                                                        <span className="thread-time">
+                                                          {relativeTime}
+                                                        </span>
+                                                      )}
+                                                      <div className="thread-menu">
+                                                        <button
+                                                          className="thread-menu-trigger"
+                                                          aria-label="Thread menu"
+                                                          onMouseDown={(event) =>
+                                                            event.stopPropagation()
+                                                          }
+                                                          onClick={(event) =>
+                                                            showThreadMenu(
+                                                              event,
+                                                              worktree.id,
+                                                              thread.id,
+                                                            )
+                                                          }
+                                                        >
+                                                          ...
+                                                        </button>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                );
+                                              },
+                                            )}
+                                            {totalWorktreeRoots > 3 && (
+                                              <button
+                                                className="thread-more"
+                                                onClick={(event) => {
+                                                  event.stopPropagation();
+                                                  setExpandedWorkspaces(
+                                                    (prev) => {
+                                                      const next = new Set(prev);
+                                                      if (next.has(worktree.id)) {
+                                                        next.delete(worktree.id);
+                                                      } else {
+                                                        next.add(worktree.id);
+                                                      }
+                                                      return next;
+                                                    },
+                                                  );
+                                                }}
+                                              >
+                                                {isWorktreeExpanded
+                                                  ? "Show less"
+                                                  : "More..."}
+                                              </button>
+                                            )}
+                                            {isWorktreeExpanded &&
+                                              worktreeNextCursor && (
+                                                <button
+                                                  className="thread-more"
+                                                  onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    onLoadOlderThreads(worktree.id);
+                                                  }}
+                                                  disabled={isWorktreePaging}
+                                                >
+                                                  {isWorktreePaging
+                                                    ? "Loading..."
+                                                    : "Load older..."}
+                                                </button>
+                                              )}
+                                          </>
+                                        );
+                                      })()}
                                     </div>
                                   )}
                                   {showWorktreeLoader && (
@@ -731,11 +811,14 @@ export function Sidebar({
                       )}
                       {showThreads && (
                         <div className="thread-list">
-                          {(expandedWorkspaces.has(entry.id)
-                            ? threads
-                            : threads.slice(0, 3)
-                          ).map((thread) => {
+                          {threadRows.map(({ thread, depth }) => {
                             const relativeTime = getThreadTime(thread);
+                            const indentStyle =
+                              depth > 0
+                                ? ({
+                                    "--thread-indent": `${depth * 14}px`,
+                                  } as CSSProperties)
+                                : undefined;
                             return (
                               <div
                                 key={thread.id}
@@ -744,7 +827,8 @@ export function Sidebar({
                                   thread.id === activeThreadId
                                     ? "active"
                                     : ""
-                                }`}
+                                  }`}
+                                style={indentStyle}
                                 onClick={() => onSelectThread(entry.id, thread.id)}
                                 onContextMenu={(event) =>
                                   showThreadMenu(event, entry.id, thread.id)
@@ -795,7 +879,7 @@ export function Sidebar({
                               </div>
                             );
                           })}
-                          {threads.length > 3 && (
+                          {totalThreadRoots > 3 && (
                             <button
                               className="thread-more"
                               onClick={(event) => {
@@ -811,12 +895,12 @@ export function Sidebar({
                                 });
                               }}
                             >
-                              {expandedWorkspaces.has(entry.id)
+                              {isExpanded
                                 ? "Show less"
                                 : "More..."}
                             </button>
                           )}
-                          {expandedWorkspaces.has(entry.id) && nextCursor && (
+                          {isExpanded && nextCursor && (
                             <button
                               className="thread-more"
                               onClick={(event) => {
