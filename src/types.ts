@@ -74,7 +74,9 @@ export type AppSettings = {
   defaultAccessMode: AccessMode;
   uiScale: number;
   notificationSoundsEnabled: boolean;
+  experimentalCollabEnabled: boolean;
   experimentalSteerEnabled: boolean;
+  experimentalUnifiedExecEnabled: boolean;
   dictationEnabled: boolean;
   dictationModelId: string;
   dictationPreferredLanguage: string | null;
@@ -229,6 +231,16 @@ export type ModelOption = {
   supportedReasoningEfforts: { reasoningEffort: string; description: string }[];
   defaultReasoningEffort: string;
   isDefault: boolean;
+};
+
+export type CollaborationModeOption = {
+  id: string;
+  label: string;
+  mode: string;
+  model: string;
+  reasoningEffort: string | null;
+  developerInstructions: string | null;
+  value: Record<string, unknown>;
 };
 
 export type SkillOption = {

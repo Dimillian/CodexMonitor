@@ -202,6 +202,7 @@ pub(crate) async fn send_user_message(
     effort: Option<String>,
     access_mode: Option<String>,
     images: Option<Vec<String>>,
+    collaboration_mode: Option<Value>,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
     let sessions = state.sessions.lock().await;
@@ -262,8 +263,23 @@ pub(crate) async fn send_user_message(
         "sandboxPolicy": sandbox_policy,
         "model": model,
         "effort": effort,
+        "collaborationMode": collaboration_mode,
     });
     session.send_request("turn/start", params).await
+}
+
+#[tauri::command]
+pub(crate) async fn collaboration_mode_list(
+    workspace_id: String,
+    state: State<'_, AppState>,
+) -> Result<Value, String> {
+    let sessions = state.sessions.lock().await;
+    let session = sessions
+        .get(&workspace_id)
+        .ok_or("workspace not connected")?;
+    session
+        .send_request("collaborationMode/list", json!({}))
+        .await
 }
 
 #[tauri::command]

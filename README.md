@@ -91,6 +91,7 @@ src-tauri/
 
 - Workspaces persist to `workspaces.json` under the app data directory.
 - App settings persist to `settings.json` under the app data directory (Codex path, default access mode, UI scale).
+- Experimental settings supported in the UI: Collab mode (`features.collab`), Background terminal (`features.unified_exec`), and Steer mode (`features.steer`), synced to `$CODEX_HOME/config.toml` (or `~/.codex/config.toml`) on load/save.
 - On launch and on window focus, the app reconnects and refreshes thread lists for each workspace.
 - Threads are restored by filtering `thread/list` results using the workspace `cwd`.
 - Selecting a thread always calls `thread/resume` to refresh messages from disk.

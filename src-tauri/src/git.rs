@@ -127,7 +127,7 @@ fn parse_pr_diff(diff: &str) -> Vec<GitHubPullRequestDiff> {
     let mut current_new_path: Option<String> = None;
     let mut current_status: Option<String> = None;
 
-    let mut finalize = |lines: &Vec<&str>,
+    let finalize = |lines: &Vec<&str>,
                         old_path: &Option<String>,
                         new_path: &Option<String>,
                         status: &Option<String>,
