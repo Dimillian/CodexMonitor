@@ -13,6 +13,7 @@ type ComposerInputProps = {
   canStop: boolean;
   canSend: boolean;
   isProcessing: boolean;
+  sendShortcutLabel: string;
   onStop: () => void;
   onSend: () => void;
   dictationState?: "idle" | "listening" | "processing";
@@ -46,6 +47,7 @@ export function ComposerInput({
   canStop,
   canSend,
   isProcessing,
+  sendShortcutLabel,
   onStop,
   onSend,
   dictationState = "idle",
@@ -317,33 +319,38 @@ export function ComposerInput({
       >
         {isDictating ? <Square aria-hidden /> : <Mic aria-hidden />}
       </button>
-      <button
-        className={`composer-action${canStop ? " is-stop" : " is-send"}${
-          canStop && isProcessing ? " is-loading" : ""
-        }`}
-        onClick={handleActionClick}
-        disabled={disabled || isDictationBusy || (!canStop && !canSend)}
-        aria-label={canStop ? "Stop" : sendLabel}
+      <span
+        className="composer-action-wrap"
+        data-tooltip={canStop ? "Stop" : `Send (${sendShortcutLabel})`}
       >
-        {canStop ? (
-          <>
-            <span className="composer-action-stop-square" aria-hidden />
-            {isProcessing && (
-              <span className="composer-action-spinner" aria-hidden />
-            )}
-          </>
-        ) : (
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M12 5l6 6m-6-6L6 11m6-6v14"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        )}
-      </button>
+        <button
+          className={`composer-action${canStop ? " is-stop" : " is-send"}${
+            canStop && isProcessing ? " is-loading" : ""
+          }`}
+          onClick={handleActionClick}
+          disabled={disabled || isDictationBusy || (!canStop && !canSend)}
+          aria-label={canStop ? "Stop" : sendLabel}
+        >
+          {canStop ? (
+            <>
+              <span className="composer-action-stop-square" aria-hidden />
+              {isProcessing && (
+                <span className="composer-action-spinner" aria-hidden />
+              )}
+            </>
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M12 5l6 6m-6-6L6 11m6-6v14"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          )}
+        </button>
+      </span>
     </div>
   );
 }

@@ -118,6 +118,13 @@ export function Composer({
   const textareaRef = externalTextareaRef ?? internalRef;
   const isDictationBusy = dictationState !== "idle";
   const canSend = text.trim().length > 0 || attachedImages.length > 0;
+  const isMac =
+    typeof navigator !== "undefined" &&
+    ((navigator as Navigator & { userAgentData?: { platform?: string } })
+      .userAgentData?.platform ?? navigator.platform ?? "")
+      .toLowerCase()
+      .includes("mac");
+  const sendShortcutLabel = isMac ? "⌘+Enter" : "Ctrl+Enter";
 
   useEffect(() => {
     setText((prev) => (prev === draftText ? prev : draftText));
@@ -244,6 +251,7 @@ export function Composer({
         canStop={canStop}
         canSend={canSend}
         isProcessing={isProcessing}
+        sendShortcutLabel={sendShortcutLabel}
         onStop={onStop}
         onSend={handleSend}
         dictationEnabled={dictationEnabled}
@@ -262,7 +270,9 @@ export function Composer({
         onTextChange={handleTextChange}
         onSelectionChange={handleSelectionChange}
         onKeyDown={(event) => {
-          if (event.key === "Enter" && event.shiftKey) {
+          const isEnter = event.key === "Enter";
+          const isSendShortcut = isMac ? event.metaKey : event.ctrlKey;
+          if (isEnter && !isSendShortcut) {
             event.preventDefault();
             const textarea = textareaRef.current;
             if (!textarea) {
@@ -295,7 +305,7 @@ export function Composer({
           if (event.defaultPrevented) {
             return;
           }
-          if (event.key === "Enter" && !event.shiftKey) {
+          if (isEnter && isSendShortcut) {
             if (isDictationBusy) {
               event.preventDefault();
               return;

@@ -198,6 +198,35 @@
   position: relative;
 }
 
+.composer-action-wrap {
+  display: inline-flex;
+  position: relative;
+}
+
+.composer-action-wrap::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%) translateY(4px);
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  color: var(--text-emphasis);
+  background: var(--surface-command);
+  border: 1px solid var(--border-subtle);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+  z-index: 2;
+}
+
+.composer-action-wrap:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 .composer-action--mic.is-active {
   border-color: rgba(120, 235, 190, 0.6);
   background: rgba(120, 235, 190, 0.12);
