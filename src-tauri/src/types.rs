@@ -174,6 +174,12 @@ pub(crate) struct WorkspaceSettings {
 pub(crate) struct AppSettings {
     #[serde(default, rename = "codexBin")]
     pub(crate) codex_bin: Option<String>,
+    #[serde(default, rename = "backendMode")]
+    pub(crate) backend_mode: BackendMode,
+    #[serde(default = "default_remote_backend_host", rename = "remoteBackendHost")]
+    pub(crate) remote_backend_host: String,
+    #[serde(default, rename = "remoteBackendToken")]
+    pub(crate) remote_backend_token: Option<String>,
     #[serde(default = "default_access_mode", rename = "defaultAccessMode")]
     pub(crate) default_access_mode: String,
     #[serde(default = "default_ui_scale", rename = "uiScale")]
@@ -216,8 +222,25 @@ pub(crate) struct AppSettings {
     pub(crate) workspace_groups: Vec<WorkspaceGroup>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum BackendMode {
+    Local,
+    Remote,
+}
+
+impl Default for BackendMode {
+    fn default() -> Self {
+        BackendMode::Local
+    }
+}
+
 fn default_access_mode() -> String {
     "current".to_string()
+}
+
+fn default_remote_backend_host() -> String {
+    "127.0.0.1:4732".to_string()
 }
 
 fn default_ui_scale() -> f64 {
@@ -260,6 +283,9 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             codex_bin: None,
+            backend_mode: BackendMode::Local,
+            remote_backend_host: default_remote_backend_host(),
+            remote_backend_token: None,
             default_access_mode: "current".to_string(),
             ui_scale: 1.0,
             notification_sounds_enabled: true,
@@ -277,12 +303,15 @@ impl Default for AppSettings {
 
 #[cfg(test)]
 mod tests {
-    use super::{AppSettings, WorkspaceEntry, WorkspaceKind};
+    use super::{AppSettings, BackendMode, WorkspaceEntry, WorkspaceKind};
 
     #[test]
     fn app_settings_defaults_from_empty_json() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
         assert!(settings.codex_bin.is_none());
+        assert!(matches!(settings.backend_mode, BackendMode::Local));
+        assert_eq!(settings.remote_backend_host, "127.0.0.1:4732");
+        assert!(settings.remote_backend_token.is_none());
         assert_eq!(settings.default_access_mode, "current");
         assert!((settings.ui_scale - 1.0).abs() < f64::EPSILON);
         assert!(settings.notification_sounds_enabled);
