@@ -1,101 +1,20 @@
-use git2::{BranchType, DiffOptions, Repository, Sort, Status, StatusOptions, Tree};
+use std::path::{Path, PathBuf};
+
+use git2::{BranchType, DiffOptions, Repository, Sort, Status, StatusOptions};
 use serde_json::json;
 use tauri::State;
 use tokio::process::Command;
-use std::path::Path;
 
+use crate::git_utils::{
+    checkout_branch, commit_to_entry, diff_patch_to_string, diff_stats_for_path,
+    list_git_roots as scan_git_roots, parse_github_repo, resolve_git_root,
+};
 use crate::state::AppState;
 use crate::types::{
-    BranchInfo, GitFileDiff, GitFileStatus, GitHubIssue, GitHubIssuesResponse, GitLogEntry,
-    GitLogResponse, GitHubPullRequest, GitHubPullRequestsResponse, GitHubPullRequestDiff,
+    BranchInfo, GitFileDiff, GitFileStatus, GitHubIssue, GitHubIssuesResponse, GitHubPullRequest,
+    GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse,
 };
 use crate::utils::normalize_git_path;
-
-fn commit_to_entry(commit: git2::Commit) -> GitLogEntry {
-    let summary = commit.summary().unwrap_or("").to_string();
-    let author = commit.author().name().unwrap_or("").to_string();
-    let timestamp = commit.time().seconds();
-    GitLogEntry {
-        sha: commit.id().to_string(),
-        summary,
-        author,
-        timestamp,
-    }
-}
-
-fn checkout_branch(repo: &Repository, name: &str) -> Result<(), git2::Error> {
-    let refname = format!("refs/heads/{name}");
-    repo.set_head(&refname)?;
-    let mut options = git2::build::CheckoutBuilder::new();
-    options.safe();
-    repo.checkout_head(Some(&mut options))?;
-    Ok(())
-}
-
-fn diff_stats_for_path(
-    repo: &Repository,
-    head_tree: Option<&Tree>,
-    path: &str,
-    include_index: bool,
-    include_workdir: bool,
-) -> Result<(i64, i64), git2::Error> {
-    let mut additions = 0i64;
-    let mut deletions = 0i64;
-
-    if include_index {
-        let mut options = DiffOptions::new();
-        options.pathspec(path).include_untracked(true);
-        let diff = repo.diff_tree_to_index(head_tree, None, Some(&mut options))?;
-        let stats = diff.stats()?;
-        additions += stats.insertions() as i64;
-        deletions += stats.deletions() as i64;
-    }
-
-    if include_workdir {
-        let mut options = DiffOptions::new();
-        options
-            .pathspec(path)
-            .include_untracked(true)
-            .recurse_untracked_dirs(true)
-            .show_untracked_content(true);
-        let diff = repo.diff_index_to_workdir(None, Some(&mut options))?;
-        let stats = diff.stats()?;
-        additions += stats.insertions() as i64;
-        deletions += stats.deletions() as i64;
-    }
-
-    Ok((additions, deletions))
-}
-
-fn diff_patch_to_string(patch: &mut git2::Patch) -> Result<String, git2::Error> {
-    let buf = patch.to_buf()?;
-    Ok(buf
-        .as_str()
-        .map(|value| value.to_string())
-        .unwrap_or_else(|| String::from_utf8_lossy(&buf).to_string()))
-}
-
-fn parse_github_repo(remote_url: &str) -> Option<String> {
-    let trimmed = remote_url.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    let mut path = if trimmed.starts_with("git@github.com:") {
-        trimmed.trim_start_matches("git@github.com:").to_string()
-    } else if trimmed.starts_with("ssh://git@github.com/") {
-        trimmed.trim_start_matches("ssh://git@github.com/").to_string()
-    } else if let Some(index) = trimmed.find("github.com/") {
-        trimmed[index + "github.com/".len()..].to_string()
-    } else {
-        return None;
-    };
-    path = path.trim_end_matches(".git").trim_end_matches('/').to_string();
-    if path.is_empty() {
-        None
-    } else {
-        Some(path)
-    }
-}
 
 fn github_repo_from_path(path: &Path) -> Result<String, String> {
     let repo = Repository::open(path).map_err(|e| e.to_string())?;
@@ -211,7 +130,6 @@ fn parse_pr_diff(diff: &str) -> Vec<GitHubPullRequestDiff> {
 
     entries
 }
-
 #[tauri::command]
 pub(crate) async fn get_git_status(
     workspace_id: String,
@@ -223,7 +141,8 @@ pub(crate) async fn get_git_status(
         .ok_or("workspace not found")?
         .clone();
 
-    let repo = Repository::open(&entry.path).map_err(|e| e.to_string())?;
+    let repo_root = resolve_git_root(&entry)?;
+    let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
 
     let branch_name = repo
         .head()
@@ -311,6 +230,23 @@ pub(crate) async fn get_git_status(
 }
 
 #[tauri::command]
+pub(crate) async fn list_git_roots(
+    workspace_id: String,
+    depth: Option<usize>,
+    state: State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?
+        .clone();
+
+    let root = PathBuf::from(&entry.path);
+    let depth = depth.unwrap_or(2).clamp(1, 6);
+    Ok(scan_git_roots(&root, depth, 200))
+}
+
+#[tauri::command]
 pub(crate) async fn get_git_diffs(
     workspace_id: String,
     state: State<'_, AppState>,
@@ -321,7 +257,8 @@ pub(crate) async fn get_git_diffs(
         .ok_or("workspace not found")?
         .clone();
 
-    let repo = Repository::open(&entry.path).map_err(|e| e.to_string())?;
+    let repo_root = resolve_git_root(&entry)?;
+    let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
     let head_tree = repo
         .head()
         .ok()
@@ -386,7 +323,8 @@ pub(crate) async fn get_git_log(
         .ok_or("workspace not found")?
         .clone();
 
-    let repo = Repository::open(&entry.path).map_err(|e| e.to_string())?;
+    let repo_root = resolve_git_root(&entry)?;
+    let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
     let max_items = limit.unwrap_or(40);
     let mut revwalk = repo.revwalk().map_err(|e| e.to_string())?;
     revwalk.push_head().map_err(|e| e.to_string())?;
@@ -492,7 +430,8 @@ pub(crate) async fn get_git_remote(
         .ok_or("workspace not found")?
         .clone();
 
-    let repo = Repository::open(&entry.path).map_err(|e| e.to_string())?;
+    let repo_root = resolve_git_root(&entry)?;
+    let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
     let remotes = repo.remotes().map_err(|e| e.to_string())?;
     let name = if remotes.iter().any(|remote| remote == Some("origin")) {
         "origin".to_string()
@@ -522,7 +461,8 @@ pub(crate) async fn get_github_issues(
         .ok_or("workspace not found")?
         .clone();
 
-    let repo_name = github_repo_from_path(Path::new(&entry.path))?;
+    let repo_root = resolve_git_root(&entry)?;
+    let repo_name = github_repo_from_path(&repo_root)?;
 
     let output = Command::new("gh")
         .args([
@@ -535,7 +475,7 @@ pub(crate) async fn get_github_issues(
             "--json",
             "number,title,url,updatedAt",
         ])
-        .current_dir(&entry.path)
+        .current_dir(&repo_root)
         .output()
         .await
         .map_err(|e| format!("Failed to run gh: {e}"))?;
@@ -566,7 +506,7 @@ pub(crate) async fn get_github_issues(
             "--jq",
             ".total_count",
         ])
-        .current_dir(&entry.path)
+        .current_dir(&repo_root)
         .output()
         .await
     {
@@ -591,7 +531,8 @@ pub(crate) async fn get_github_pull_requests(
         .ok_or("workspace not found")?
         .clone();
 
-    let repo_name = github_repo_from_path(Path::new(&entry.path))?;
+    let repo_root = resolve_git_root(&entry)?;
+    let repo_name = github_repo_from_path(&repo_root)?;
 
     let output = Command::new("gh")
         .args([
@@ -606,7 +547,7 @@ pub(crate) async fn get_github_pull_requests(
             "--json",
             "number,title,url,updatedAt,headRefName,baseRefName,isDraft,author",
         ])
-        .current_dir(&entry.path)
+        .current_dir(&repo_root)
         .output()
         .await
         .map_err(|e| format!("Failed to run gh: {e}"))?;
@@ -637,7 +578,7 @@ pub(crate) async fn get_github_pull_requests(
             "--jq",
             ".total_count",
         ])
-        .current_dir(&entry.path)
+        .current_dir(&repo_root)
         .output()
         .await
     {
@@ -666,7 +607,8 @@ pub(crate) async fn get_github_pull_request_diff(
         .ok_or("workspace not found")?
         .clone();
 
-    let repo_name = github_repo_from_path(Path::new(&entry.path))?;
+    let repo_root = resolve_git_root(&entry)?;
+    let repo_name = github_repo_from_path(&repo_root)?;
 
     let output = Command::new("gh")
         .args([
@@ -678,7 +620,7 @@ pub(crate) async fn get_github_pull_request_diff(
             "--color",
             "never",
         ])
-        .current_dir(&entry.path)
+        .current_dir(&repo_root)
         .output()
         .await
         .map_err(|e| format!("Failed to run gh: {e}"))?;
@@ -711,7 +653,8 @@ pub(crate) async fn list_git_branches(
         .get(&workspace_id)
         .ok_or("workspace not found")?
         .clone();
-    let repo = Repository::open(&entry.path).map_err(|e| e.to_string())?;
+    let repo_root = resolve_git_root(&entry)?;
+    let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
     let mut branches = Vec::new();
     let refs = repo
         .branches(Some(BranchType::Local))
@@ -745,7 +688,8 @@ pub(crate) async fn checkout_git_branch(
         .get(&workspace_id)
         .ok_or("workspace not found")?
         .clone();
-    let repo = Repository::open(&entry.path).map_err(|e| e.to_string())?;
+    let repo_root = resolve_git_root(&entry)?;
+    let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
     checkout_branch(&repo, &name).map_err(|e| e.to_string())
 }
 
@@ -760,7 +704,8 @@ pub(crate) async fn create_git_branch(
         .get(&workspace_id)
         .ok_or("workspace not found")?
         .clone();
-    let repo = Repository::open(&entry.path).map_err(|e| e.to_string())?;
+    let repo_root = resolve_git_root(&entry)?;
+    let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
     let head = repo.head().map_err(|e| e.to_string())?;
     let target = head.peel_to_commit().map_err(|e| e.to_string())?;
     repo.branch(&name, &target, false)

@@ -2,6 +2,7 @@ export type WorkspaceSettings = {
   sidebarCollapsed: boolean;
   sortOrder?: number | null;
   groupId?: string | null;
+  gitRoot?: string | null;
 };
 
 export type WorkspaceGroup = {

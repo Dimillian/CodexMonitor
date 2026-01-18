@@ -41,6 +41,7 @@ import { useGitHubIssues } from "./features/git/hooks/useGitHubIssues";
 import { useGitHubPullRequests } from "./features/git/hooks/useGitHubPullRequests";
 import { useGitHubPullRequestDiffs } from "./features/git/hooks/useGitHubPullRequestDiffs";
 import { useGitRemote } from "./features/git/hooks/useGitRemote";
+import { useGitRepoScan } from "./features/git/hooks/useGitRepoScan";
 import { useModels } from "./features/models/hooks/useModels";
 import { useCollaborationModes } from "./features/collaboration/hooks/useCollaborationModes";
 import { useSkills } from "./features/skills/hooks/useSkills";
@@ -75,6 +76,7 @@ import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { usePanelVisibility } from "./features/layout/hooks/usePanelVisibility";
 import { useTerminalController } from "./features/terminal/hooks/useTerminalController";
 import { playNotificationSound } from "./utils/notificationSounds";
+import { pickWorkspacePath } from "./services/tauri";
 import type {
   AccessMode,
   GitHubPullRequest,
@@ -358,6 +360,16 @@ function MainApp() {
   );
   const { remote: gitRemoteUrl } = useGitRemote(activeWorkspace);
   const {
+    repos: gitRootCandidates,
+    isLoading: gitRootScanLoading,
+    error: gitRootScanError,
+    depth: gitRootScanDepth,
+    hasScanned: gitRootScanHasScanned,
+    scan: scanGitRoots,
+    setDepth: setGitRootScanDepth,
+    clear: clearGitRootCandidates,
+  } = useGitRepoScan(activeWorkspace);
+  const {
     models,
     selectedModel,
     selectedModelId,
@@ -396,12 +408,57 @@ function MainApp() {
   };
 
   const resolvedModel = selectedModel?.model ?? null;
+  const activeGitRoot = activeWorkspace?.settings.gitRoot ?? null;
+  const normalizePath = useCallback((value: string) => {
+    return value.replace(/\\/g, "/").replace(/\/+$/, "");
+  }, []);
+  const handleSetGitRoot = useCallback(
+    async (path: string | null) => {
+      if (!activeWorkspace) {
+        return;
+      }
+      await updateWorkspaceSettings(activeWorkspace.id, {
+        ...activeWorkspace.settings,
+        gitRoot: path,
+      });
+      clearGitRootCandidates();
+      refreshGitStatus();
+    },
+    [
+      activeWorkspace,
+      clearGitRootCandidates,
+      refreshGitStatus,
+      updateWorkspaceSettings,
+    ],
+  );
+  const handlePickGitRoot = useCallback(async () => {
+    if (!activeWorkspace) {
+      return;
+    }
+    const selection = await pickWorkspacePath();
+    if (!selection) {
+      return;
+    }
+    const workspacePath = normalizePath(activeWorkspace.path);
+    const selectedPath = normalizePath(selection);
+    let nextRoot: string | null = null;
+    if (selectedPath === workspacePath) {
+      nextRoot = null;
+    } else if (selectedPath.startsWith(`${workspacePath}/`)) {
+      nextRoot = selectedPath.slice(workspacePath.length + 1);
+    } else {
+      nextRoot = selectedPath;
+    }
+    await handleSetGitRoot(nextRoot);
+  }, [activeWorkspace, handleSetGitRoot, normalizePath]);
   const fileStatus =
-    gitStatus.files.length > 0
-      ? `${gitStatus.files.length} file${
-          gitStatus.files.length === 1 ? "" : "s"
-        } changed`
-      : "Working tree clean";
+    gitStatus.error
+      ? "Git status unavailable"
+      : gitStatus.files.length > 0
+        ? `${gitStatus.files.length} file${
+            gitStatus.files.length === 1 ? "" : "s"
+          } changed`
+        : "Working tree clean";
 
   const activeDiffs = diffSource === "pr" ? gitPullRequestDiffs : gitDiffs;
   const activeDiffLoading =
@@ -704,6 +761,10 @@ function MainApp() {
     }
   }
 
+  const handleActiveDiffPath = useCallback((path: string) => {
+    setSelectedDiffPath(path);
+  }, []);
+
   function handleSelectPullRequest(pullRequest: GitHubPullRequest) {
     setSelectedPullRequest(pullRequest);
     setDiffSource("pr");
@@ -988,9 +1049,25 @@ function MainApp() {
     selectedPullRequestNumber: selectedPullRequest?.number ?? null,
     onSelectPullRequest: handleSelectPullRequest,
     gitRemoteUrl,
+    gitRoot: activeGitRoot,
+    gitRootCandidates,
+    gitRootScanDepth,
+    gitRootScanLoading,
+    gitRootScanError,
+    gitRootScanHasScanned,
+    onGitRootScanDepthChange: setGitRootScanDepth,
+    onScanGitRoots: scanGitRoots,
+    onSelectGitRoot: (path) => {
+      void handleSetGitRoot(path);
+    },
+    onClearGitRoot: () => {
+      void handleSetGitRoot(null);
+    },
+    onPickGitRoot: handlePickGitRoot,
     gitDiffs: activeDiffs,
     gitDiffLoading: activeDiffLoading,
     gitDiffError: activeDiffError,
+    onDiffActivePathChange: handleActiveDiffPath,
     onSend: handleSend,
     onQueue: queueMessage,
     onStop: interruptTurn,

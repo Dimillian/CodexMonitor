@@ -163,6 +163,17 @@ type LayoutNodesOptions = {
   selectedPullRequestNumber: number | null;
   onSelectPullRequest: (pullRequest: GitHubPullRequest) => void;
   gitRemoteUrl: string | null;
+  gitRoot: string | null;
+  gitRootCandidates: string[];
+  gitRootScanDepth: number;
+  gitRootScanLoading: boolean;
+  gitRootScanError: string | null;
+  gitRootScanHasScanned: boolean;
+  onGitRootScanDepthChange: (depth: number) => void;
+  onScanGitRoots: () => void;
+  onSelectGitRoot: (path: string) => void;
+  onClearGitRoot: () => void;
+  onPickGitRoot: () => void | Promise<void>;
   gitDiffs: GitDiffViewerItem[];
   gitDiffLoading: boolean;
   gitDiffError: string | null;
@@ -470,6 +481,17 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         onSelectPullRequest={options.onSelectPullRequest}
         gitRemoteUrl={options.gitRemoteUrl}
         onToggleFilePanel={options.onToggleFilePanel}
+        gitRoot={options.gitRoot}
+        gitRootCandidates={options.gitRootCandidates}
+        gitRootScanDepth={options.gitRootScanDepth}
+        gitRootScanLoading={options.gitRootScanLoading}
+        gitRootScanError={options.gitRootScanError}
+        gitRootScanHasScanned={options.gitRootScanHasScanned}
+        onGitRootScanDepthChange={options.onGitRootScanDepthChange}
+        onScanGitRoots={options.onScanGitRoots}
+        onSelectGitRoot={options.onSelectGitRoot}
+        onClearGitRoot={options.onClearGitRoot}
+        onPickGitRoot={options.onPickGitRoot}
       />
     );
 

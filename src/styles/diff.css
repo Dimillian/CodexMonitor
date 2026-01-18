@@ -100,6 +100,122 @@
   margin-bottom: 4px;
 }
 
+.git-root-current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-bottom: 4px;
+}
+
+.git-root-label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.git-root-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.git-root-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-card);
+}
+
+.git-root-title {
+  font-size: 12px;
+  color: var(--text-strong);
+}
+
+.git-root-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.git-root-button {
+  padding: 6px 10px;
+  font-size: 11px;
+  border-radius: 8px;
+}
+
+.git-root-button--icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.git-root-button-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.git-root-depth {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.git-root-select {
+  padding: 5px 22px 5px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-control);
+  color: var(--text-strong);
+  font-size: 11px;
+}
+
+.git-root-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.git-root-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-control);
+  color: var(--text-emphasis);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+}
+
+.git-root-item.active {
+  background: var(--surface-active);
+  border-color: var(--border-accent-soft);
+}
+
+.git-root-item:hover {
+  background: var(--surface-control-hover);
+}
+
+.git-root-tag {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .diff-status {
   font-size: 11px;
   color: var(--text-faint);

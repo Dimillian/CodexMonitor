@@ -160,6 +160,13 @@ export async function getGitStatus(workspace_id: string): Promise<{
   return invoke("get_git_status", { workspaceId: workspace_id });
 }
 
+export async function listGitRoots(
+  workspace_id: string,
+  depth: number,
+): Promise<string[]> {
+  return invoke("list_git_roots", { workspaceId: workspace_id, depth });
+}
+
 export async function getGitDiffs(
   workspace_id: string,
 ): Promise<GitFileDiff[]> {
