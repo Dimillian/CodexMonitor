@@ -20,14 +20,15 @@ import type {
   AccessMode,
   ApprovalRequest,
   BranchInfo,
+  CollaborationModeOption,
   ConversationItem,
   CustomPromptOption,
   DebugEntry,
-  DiffLineReference,
   DictationSessionState,
   DictationTranscript,
   GitFileStatus,
   GitHubIssue,
+  GitHubPullRequest,
   GitLogEntry,
   ModelOption,
   QueuedMessage,
@@ -120,8 +121,8 @@ type LayoutNodesOptions = {
   activeTab: "projects" | "codex" | "git" | "log";
   onSelectTab: (tab: "projects" | "codex" | "git" | "log") => void;
   tabletNavTab: "codex" | "git" | "log";
-  gitPanelMode: "diff" | "log" | "issues";
-  onGitPanelModeChange: (mode: "diff" | "log" | "issues") => void;
+  gitPanelMode: "diff" | "log" | "issues" | "prs";
+  onGitPanelModeChange: (mode: "diff" | "log" | "issues" | "prs") => void;
   filePanelMode: "git" | "files";
   onToggleFilePanel: () => void;
   fileTreeLoading: boolean;
@@ -148,12 +149,17 @@ type LayoutNodesOptions = {
   gitIssuesTotal: number;
   gitIssuesLoading: boolean;
   gitIssuesError: string | null;
+  gitPullRequests: GitHubPullRequest[];
+  gitPullRequestsTotal: number;
+  gitPullRequestsLoading: boolean;
+  gitPullRequestsError: string | null;
+  selectedPullRequestNumber: number | null;
+  onSelectPullRequest: (pullRequest: GitHubPullRequest) => void;
   gitRemoteUrl: string | null;
   gitDiffs: GitDiffViewerItem[];
   gitDiffLoading: boolean;
   gitDiffError: string | null;
-  onDiffLineReference: (reference: DiffLineReference) => void;
-  onDiffActivePathChange: (path: string) => void;
+  onDiffActivePathChange?: (path: string) => void;
   onSend: (text: string, images: string[]) => void | Promise<void>;
   onQueue: (text: string, images: string[]) => void | Promise<void>;
   onStop: () => void;
@@ -175,6 +181,9 @@ type LayoutNodesOptions = {
   onInsertHandled: (id: string) => void;
   onEditQueued: (item: QueuedMessage) => void;
   onDeleteQueued: (id: string) => void;
+  collaborationModes: CollaborationModeOption[];
+  selectedCollaborationModeId: string | null;
+  onSelectCollaborationMode: (id: string | null) => void;
   models: ModelOption[];
   selectedModelId: string | null;
   onSelectModel: (id: string | null) => void;
@@ -313,6 +322,9 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onInsertHandled={options.onInsertHandled}
       onEditQueued={options.onEditQueued}
       onDeleteQueued={options.onDeleteQueued}
+      collaborationModes={options.collaborationModes}
+      selectedCollaborationModeId={options.selectedCollaborationModeId}
+      onSelectCollaborationMode={options.onSelectCollaborationMode}
       models={options.models}
       selectedModelId={options.selectedModelId}
       onSelectModel={options.onSelectModel}
@@ -429,7 +441,6 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         logError={options.gitLogError}
         logLoading={options.gitLogLoading}
         files={options.gitStatus.files}
-        selectedPath={options.selectedDiffPath}
         onSelectFile={options.onSelectDiff}
         logEntries={options.gitLogEntries}
         logTotal={options.gitLogTotal}
@@ -442,6 +453,12 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         issuesTotal={options.gitIssuesTotal}
         issuesLoading={options.gitIssuesLoading}
         issuesError={options.gitIssuesError}
+        pullRequests={options.gitPullRequests}
+        pullRequestsTotal={options.gitPullRequestsTotal}
+        pullRequestsLoading={options.gitPullRequestsLoading}
+        pullRequestsError={options.gitPullRequestsError}
+        selectedPullRequest={options.selectedPullRequestNumber}
+        onSelectPullRequest={options.onSelectPullRequest}
         gitRemoteUrl={options.gitRemoteUrl}
         onToggleFilePanel={options.onToggleFilePanel}
       />
@@ -453,7 +470,6 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       selectedPath={options.selectedDiffPath}
       isLoading={options.gitDiffLoading}
       error={options.gitDiffError}
-      onLineReference={options.onDiffLineReference}
       onActivePathChange={options.onDiffActivePathChange}
     />
   );

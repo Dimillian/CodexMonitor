@@ -197,9 +197,10 @@ function scrollKeyForItems(items: ConversationItem[]) {
       return `${last.id}-${last.status ?? ""}-${last.diff.length}`;
     case "review":
       return `${last.id}-${last.state}-${last.text.length}`;
-    default:
+    default: {
       const _exhaustive: never = last;
       return _exhaustive;
+    }
   }
 }
 

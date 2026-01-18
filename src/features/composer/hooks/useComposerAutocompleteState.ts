@@ -23,6 +23,7 @@ type UseComposerAutocompleteStateArgs = {
 };
 
 const MAX_FILE_SUGGESTIONS = 500;
+const FILE_TRIGGER_PREFIX = new RegExp("^(?:\\s|[\"'`]|\\(|\\[|\\{)$");
 
 function textIncludesFile(text: string, path: string) {
   if (!text || !path) {
@@ -30,9 +31,9 @@ function textIncludesFile(text: string, path: string) {
   }
   const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(
-    "(^|[\\s\"'`(\\[\\{]|@)" +
+    "(^|\\s|[\"'`]|\\(|\\[|\\{|@)" +
       escaped +
-      "(?=$|[\\s\"'`\\)\\]\\}\\.,:;!?])",
+      "(?=$|\\s|[\"'`]|\\)|\\]|\\}|\\.|,|:|;|!|\\?)",
   );
   return pattern.test(text);
 }
@@ -47,7 +48,7 @@ function isFileTriggerActive(text: string, cursor: number | null) {
     return false;
   }
   const prevChar = atIndex > 0 ? beforeCursor[atIndex - 1] : "";
-  if (prevChar && !/[\s"'`(\[{]/.test(prevChar)) {
+  if (prevChar && !FILE_TRIGGER_PREFIX.test(prevChar)) {
     return false;
   }
   const afterAt = beforeCursor.slice(atIndex + 1);

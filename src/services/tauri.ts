@@ -12,6 +12,8 @@ import type {
   GitFileDiff,
   GitFileStatus,
   GitHubIssuesResponse,
+  GitHubPullRequestDiff,
+  GitHubPullRequestsResponse,
   GitLogResponse,
   ReviewTarget,
 } from "../types";
@@ -101,6 +103,7 @@ export async function sendUserMessage(
     effort?: string | null;
     accessMode?: "read-only" | "current" | "full-access";
     images?: string[];
+    collaborationMode?: Record<string, unknown> | null;
   },
 ) {
   return invoke("send_user_message", {
@@ -111,6 +114,7 @@ export async function sendUserMessage(
     effort: options?.effort ?? null,
     accessMode: options?.accessMode ?? null,
     images: options?.images ?? null,
+    collaborationMode: options?.collaborationMode ?? null,
   });
 }
 
@@ -179,8 +183,28 @@ export async function getGitHubIssues(
   return invoke("get_github_issues", { workspaceId: workspace_id });
 }
 
+export async function getGitHubPullRequests(
+  workspace_id: string,
+): Promise<GitHubPullRequestsResponse> {
+  return invoke("get_github_pull_requests", { workspaceId: workspace_id });
+}
+
+export async function getGitHubPullRequestDiff(
+  workspace_id: string,
+  prNumber: number,
+): Promise<GitHubPullRequestDiff[]> {
+  return invoke("get_github_pull_request_diff", {
+    workspaceId: workspace_id,
+    prNumber,
+  });
+}
+
 export async function getModelList(workspaceId: string) {
   return invoke<any>("model_list", { workspaceId });
+}
+
+export async function getCollaborationModes(workspaceId: string) {
+  return invoke<any>("collaboration_mode_list", { workspaceId });
 }
 
 export async function getAccountRateLimits(workspaceId: string) {

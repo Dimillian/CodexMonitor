@@ -21,7 +21,7 @@ export function usePanelVisibility({
       return;
     }
     setDebugOpen((prev) => !prev);
-  }, [isCompact, setActiveTab]);
+  }, [isCompact, setActiveTab, setDebugOpen]);
 
   const onToggleTerminal = useCallback(() => {
     if (!activeWorkspaceId) {

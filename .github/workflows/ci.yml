@@ -30,6 +30,8 @@ jobs:
         run: command -v cmake >/dev/null 2>&1 || brew install cmake
       - name: Install dependencies
         run: npm ci
+      - name: Lint
+        run: npm run lint
       - name: Typecheck
         run: npm run typecheck
       - name: Tauri debug build

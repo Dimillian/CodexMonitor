@@ -1,4 +1,4 @@
-import type { GitHubIssue, GitLogEntry } from "../../../types";
+import type { GitHubIssue, GitHubPullRequest, GitLogEntry } from "../../../types";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
@@ -8,8 +8,8 @@ import { ArrowLeftRight, GitBranch } from "lucide-react";
 import { formatRelativeTime } from "../../../utils/time";
 
 type GitDiffPanelProps = {
-  mode: "diff" | "log" | "issues";
-  onModeChange: (mode: "diff" | "log" | "issues") => void;
+  mode: "diff" | "log" | "issues" | "prs";
+  onModeChange: (mode: "diff" | "log" | "issues" | "prs") => void;
   onToggleFilePanel: () => void;
   branchName: string;
   totalAdditions: number;
@@ -28,8 +28,13 @@ type GitDiffPanelProps = {
   issuesTotal?: number;
   issuesLoading?: boolean;
   issuesError?: string | null;
+  pullRequests?: GitHubPullRequest[];
+  pullRequestsTotal?: number;
+  pullRequestsLoading?: boolean;
+  pullRequestsError?: string | null;
+  selectedPullRequest?: number | null;
+  onSelectPullRequest?: (pullRequest: GitHubPullRequest) => void;
   gitRemoteUrl?: string | null;
-  selectedPath?: string | null;
   onSelectFile?: (path: string) => void;
   files: {
     path: string;
@@ -106,7 +111,6 @@ export function GitDiffPanel({
   logLoading = false,
   logTotal = 0,
   gitRemoteUrl = null,
-  selectedPath,
   onSelectFile,
   files,
   logEntries,
@@ -119,6 +123,12 @@ export function GitDiffPanel({
   issuesTotal = 0,
   issuesLoading = false,
   issuesError = null,
+  pullRequests = [],
+  pullRequestsTotal = 0,
+  pullRequestsLoading = false,
+  pullRequestsError = null,
+  selectedPullRequest = null,
+  onSelectPullRequest,
 }: GitDiffPanelProps) {
   const githubBaseUrl = (() => {
     if (!gitRemoteUrl) {
@@ -167,6 +177,24 @@ export function GitDiffPanel({
     const position = new LogicalPosition(event.clientX, event.clientY);
     await menu.popup(position, window);
   }
+
+  async function showPullRequestMenu(
+    event: ReactMouseEvent<HTMLDivElement>,
+    pullRequest: GitHubPullRequest,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    const openItem = await MenuItem.new({
+      text: "Open on GitHub",
+      action: async () => {
+        await openUrl(pullRequest.url);
+      },
+    });
+    const menu = await Menu.new({ items: [openItem] });
+    const window = getCurrentWindow();
+    const position = new LogicalPosition(event.clientX, event.clientY);
+    await menu.popup(position, window);
+  }
   const logCountLabel = logTotal
     ? `${logTotal} commit${logTotal === 1 ? "" : "s"}`
     : logEntries.length
@@ -201,34 +229,20 @@ export function GitDiffPanel({
           Git
           <ArrowLeftRight className="git-panel-switch-icon" aria-hidden />
         </button>
-        <div className="git-panel-toggle" role="tablist" aria-label="Git panel">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "diff"}
-            className={mode === "diff" ? "active" : ""}
-            onClick={() => onModeChange("diff")}
+        <div className="git-panel-select" role="group" aria-label="Git panel">
+          <select
+            className="git-panel-select-input"
+            value={mode}
+            onChange={(event) =>
+              onModeChange(event.target.value as GitDiffPanelProps["mode"])
+            }
+            aria-label="Git panel view"
           >
-            Diff
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "log"}
-            className={mode === "log" ? "active" : ""}
-            onClick={() => onModeChange("log")}
-          >
-            Log
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "issues"}
-            className={mode === "issues" ? "active" : ""}
-            onClick={() => onModeChange("issues")}
-          >
-            Issues
-          </button>
+            <option value="diff">Diff</option>
+            <option value="log">Log</option>
+            <option value="issues">Issues</option>
+            <option value="prs">PRs</option>
+          </select>
         </div>
       </div>
       {mode === "diff" ? (
@@ -248,7 +262,7 @@ export function GitDiffPanel({
             )}
           </div>
         </>
-      ) : (
+      ) : mode === "issues" ? (
         <>
           <div className="diff-status diff-status-issues">
             <span>GitHub issues</span>
@@ -258,10 +272,22 @@ export function GitDiffPanel({
             <span>{issuesTotal} open</span>
           </div>
         </>
+      ) : (
+        <>
+          <div className="diff-status diff-status-issues">
+            <span>GitHub pull requests</span>
+            {pullRequestsLoading && (
+              <span className="git-panel-spinner" aria-hidden />
+            )}
+          </div>
+          <div className="git-log-sync">
+            <span>{pullRequestsTotal} open</span>
+          </div>
+        </>
       )}
-      {mode !== "issues" && (
+      {mode === "diff" || mode === "log" ? (
         <div className="diff-branch">{branchName || "unknown"}</div>
-      )}
+      ) : null}
       {mode === "diff" ? (
         <div className="diff-list">
           {error && <div className="diff-error">{error}</div>}
@@ -271,13 +297,12 @@ export function GitDiffPanel({
           {files.map((file) => {
             const { name, dir } = splitPath(file.path);
             const { base, extension } = splitNameAndExtension(name);
-            const isSelected = file.path === selectedPath;
             const statusSymbol = getStatusSymbol(file.status);
             const statusClass = getStatusClass(file.status);
             return (
               <div
                 key={file.path}
-                className={`diff-row ${isSelected ? "active" : ""}`}
+                className="diff-row"
                 role="button"
                 tabIndex={0}
                 onClick={() => onSelectFile?.(file.path)}
@@ -416,7 +441,7 @@ export function GitDiffPanel({
             </div>
           )}
         </div>
-      ) : (
+      ) : mode === "issues" ? (
         <div className="git-issues-list">
           {issuesError && <div className="diff-error">{issuesError}</div>}
           {!issuesError && !issuesLoading && !issues.length && (
@@ -442,6 +467,56 @@ export function GitDiffPanel({
                   </span>
                 </div>
               </a>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="git-pr-list">
+          {pullRequestsError && (
+            <div className="diff-error">{pullRequestsError}</div>
+          )}
+          {!pullRequestsError &&
+            !pullRequestsLoading &&
+            !pullRequests.length && (
+            <div className="diff-empty">No open pull requests.</div>
+          )}
+          {pullRequests.map((pullRequest) => {
+            const relativeTime = formatRelativeTime(
+              new Date(pullRequest.updatedAt).getTime(),
+            );
+            const author = pullRequest.author?.login ?? "unknown";
+            const isSelected = selectedPullRequest === pullRequest.number;
+            return (
+              <div
+                key={pullRequest.number}
+                className={`git-pr-entry ${isSelected ? "active" : ""}`}
+                onClick={() => onSelectPullRequest?.(pullRequest)}
+                onContextMenu={(event) => showPullRequestMenu(event, pullRequest)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelectPullRequest?.(pullRequest);
+                  }
+                }}
+              >
+                <div className="git-pr-header">
+                  <span className="git-pr-title">
+                    <span className="git-pr-number">#{pullRequest.number}</span>
+                    <span className="git-pr-title-text">
+                      {pullRequest.title}{" "}
+                      <span className="git-pr-author-inline">@{author}</span>
+                    </span>
+                  </span>
+                  <span className="git-pr-time">{relativeTime}</span>
+                </div>
+                <div className="git-pr-meta">
+                  {pullRequest.isDraft && (
+                    <span className="git-pr-pill git-pr-draft">Draft</span>
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>

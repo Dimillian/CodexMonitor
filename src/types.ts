@@ -67,7 +67,9 @@ export type AppSettings = {
   defaultAccessMode: AccessMode;
   uiScale: number;
   notificationSoundsEnabled: boolean;
+  experimentalCollabEnabled: boolean;
   experimentalSteerEnabled: boolean;
+  experimentalUnifiedExecEnabled: boolean;
   dictationEnabled: boolean;
   dictationModelId: string;
   dictationPreferredLanguage: string | null;
@@ -105,16 +107,6 @@ export type GitFileDiff = {
   diff: string;
 };
 
-export type DiffLineReference = {
-  path: string;
-  type: "add" | "del" | "context" | "mixed";
-  oldLine: number | null;
-  newLine: number | null;
-  endOldLine: number | null;
-  endNewLine: number | null;
-  lines: string[];
-};
-
 export type GitLogEntry = {
   sha: string;
   summary: string;
@@ -142,6 +134,32 @@ export type GitHubIssue = {
 export type GitHubIssuesResponse = {
   total: number;
   issues: GitHubIssue[];
+};
+
+export type GitHubUser = {
+  login: string;
+};
+
+export type GitHubPullRequest = {
+  number: number;
+  title: string;
+  url: string;
+  updatedAt: string;
+  headRefName: string;
+  baseRefName: string;
+  isDraft: boolean;
+  author: GitHubUser | null;
+};
+
+export type GitHubPullRequestsResponse = {
+  total: number;
+  pullRequests: GitHubPullRequest[];
+};
+
+export type GitHubPullRequestDiff = {
+  path: string;
+  status: string;
+  diff: string;
 };
 
 export type TokenUsageBreakdown = {
@@ -205,6 +223,16 @@ export type ModelOption = {
   supportedReasoningEfforts: { reasoningEffort: string; description: string }[];
   defaultReasoningEffort: string;
   isDefault: boolean;
+};
+
+export type CollaborationModeOption = {
+  id: string;
+  label: string;
+  mode: string;
+  model: string;
+  reasoningEffort: string | null;
+  developerInstructions: string | null;
+  value: Record<string, unknown>;
 };
 
 export type SkillOption = {

@@ -272,7 +272,7 @@ function expandNumericPlaceholders(content: string, args: string[]) {
   let index = 0;
   let cachedJoined: string | null = null;
 
-  while (true) {
+  while (index < content.length) {
     const next = content.indexOf("$", index);
     if (next === -1) {
       output += content.slice(index);

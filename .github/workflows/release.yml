@@ -310,17 +310,46 @@ jobs:
           from pathlib import Path
 
           notes = Path("release-artifacts/release-notes.md").read_text().strip()
+          artifacts_dir = Path("release-artifacts")
+
+          platforms = {
+            "darwin-aarch64": {
+              "url": "https://github.com/Dimillian/CodexMonitor/releases/download/v${VERSION}/CodexMonitor.app.tar.gz",
+              "signature": "${SIGNATURE}",
+            }
+          }
+
+          appimages = list(artifacts_dir.rglob("*.AppImage.tar.gz"))
+          if not appimages:
+            appimages = list(artifacts_dir.rglob("*.AppImage"))
+          if not appimages:
+            raise SystemExit("No AppImage artifacts found for latest.json")
+
+          def detect_arch(name):
+            lowered = name.lower()
+            if "aarch64" in lowered or "arm64" in lowered:
+              return "aarch64"
+            if "x86_64" in lowered or "amd64" in lowered:
+              return "x86_64"
+            return None
+
+          for appimage in appimages:
+            arch = detect_arch(appimage.name)
+            if not arch:
+              continue
+            sig_path = appimage.with_suffix(appimage.suffix + ".sig")
+            if not sig_path.exists():
+              raise SystemExit(f"Missing signature for {appimage.name}")
+            platforms[f"linux-{arch}"] = {
+              "url": f"https://github.com/Dimillian/CodexMonitor/releases/download/v${VERSION}/{appimage.name}",
+              "signature": sig_path.read_text().strip(),
+            }
 
           payload = {
             "version": "${VERSION}",
             "notes": notes,
             "pub_date": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "platforms": {
-              "darwin-aarch64": {
-                "url": "https://github.com/Dimillian/CodexMonitor/releases/download/v${VERSION}/CodexMonitor.app.tar.gz",
-                "signature": "${SIGNATURE}",
-              }
-            },
+            "platforms": platforms,
           }
 
           Path("release-artifacts/latest.json").write_text(json.dumps(payload, indent=2) + "\n")

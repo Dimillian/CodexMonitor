@@ -79,6 +79,7 @@ type UseThreadsOptions = {
   onDebug?: (entry: DebugEntry) => void;
   model?: string | null;
   effort?: string | null;
+  collaborationMode?: Record<string, unknown> | null;
   accessMode?: "read-only" | "current" | "full-access";
   customPrompts?: CustomPromptOption[];
   onMessageActivity?: () => void;
@@ -331,6 +332,7 @@ export function useThreads({
   onDebug,
   model,
   effort,
+  collaborationMode,
   accessMode,
   customPrompts = [],
   onMessageActivity,
@@ -674,7 +676,6 @@ export function useThreads({
     }),
     [
       activeThreadId,
-      activeWorkspaceId,
       handleWorkspaceConnected,
       handleItemUpdate,
       handleToolOutputDelta,
@@ -1149,22 +1150,23 @@ export function useThreads({
         timestamp: Date.now(),
         source: "client",
         label: "turn/start",
-        payload: {
-          workspaceId: activeWorkspace.id,
-          threadId,
-          text: finalText,
-          images,
-          model,
-          effort,
-        },
-      });
+          payload: {
+            workspaceId: activeWorkspace.id,
+            threadId,
+            text: finalText,
+            images,
+            model,
+            effort,
+            collaborationMode,
+          },
+        });
       try {
         const response =
           (await sendUserMessageService(
           activeWorkspace.id,
           threadId,
           finalText,
-          { model, effort, accessMode, images },
+          { model, effort, collaborationMode, accessMode, images },
           )) as Record<string, unknown>;
         onDebug?.({
           id: `${Date.now()}-server-turn-start`,
@@ -1216,6 +1218,7 @@ export function useThreads({
       markProcessing,
       activeThreadId,
       effort,
+      collaborationMode,
       accessMode,
       customPrompts,
       model,
