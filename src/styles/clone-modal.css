@@ -57,6 +57,13 @@
   outline-offset: 1px;
 }
 
+.clone-modal-input--path {
+  resize: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
 .clone-modal-folder-row {
   display: flex;
   gap: 8px;

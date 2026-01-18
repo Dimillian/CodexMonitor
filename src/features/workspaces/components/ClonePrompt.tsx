@@ -81,14 +81,17 @@ export function ClonePrompt({
           Copies folder
         </label>
         <div className="clone-modal-folder-row">
-          <input
+          <textarea
             id="clone-copies-folder"
-            className="clone-modal-input"
+            className="clone-modal-input clone-modal-input--path"
             value={copiesFolder}
             placeholder="Not set"
             readOnly
+            rows={1}
+            wrap="off"
             onFocus={(event) => {
-              event.currentTarget.select();
+              const value = event.currentTarget.value;
+              event.currentTarget.setSelectionRange(value.length, value.length);
               requestAnimationFrame(() => {
                 event.currentTarget.scrollLeft = event.currentTarget.scrollWidth;
               });
@@ -105,7 +108,7 @@ export function ClonePrompt({
                 onConfirm();
               }
             }}
-          />
+          ></textarea>
           <button
             type="button"
             className="ghost clone-modal-button"
@@ -127,25 +130,22 @@ export function ClonePrompt({
           <div className="clone-modal-suggested">
             <div className="clone-modal-suggested-label">Suggested</div>
             <div className="clone-modal-suggested-row">
-              <input
-                className="clone-modal-suggested-path"
+              <textarea
+                className="clone-modal-suggested-path clone-modal-input--path"
                 value={suggestedCopiesFolder ?? ""}
                 readOnly
+                rows={1}
+                wrap="off"
                 aria-label="Suggested copies folder"
                 title={suggestedCopiesFolder ?? ""}
                 onFocus={(event) => {
-                  event.currentTarget.select();
+                  const value = event.currentTarget.value;
+                  event.currentTarget.setSelectionRange(value.length, value.length);
                   requestAnimationFrame(() => {
                     event.currentTarget.scrollLeft = event.currentTarget.scrollWidth;
                   });
                 }}
-                onClick={(event) => {
-                  event.currentTarget.select();
-                  requestAnimationFrame(() => {
-                    event.currentTarget.scrollLeft = event.currentTarget.scrollWidth;
-                  });
-                }}
-              />
+              ></textarea>
               <button
                 type="button"
                 className="ghost clone-modal-button"
