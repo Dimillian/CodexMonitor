@@ -198,6 +198,17 @@
   position: relative;
 }
 
+@media (prefers-color-scheme: light) {
+  .composer-action {
+    border-color: var(--border-strong);
+    color: var(--text-strong);
+  }
+
+  .composer-action:hover {
+    color: var(--text-strong);
+  }
+}
+
 .composer-action--mic.is-active {
   border-color: rgba(120, 235, 190, 0.6);
   background: rgba(120, 235, 190, 0.12);

@@ -728,22 +728,10 @@ export function Sidebar({
                                                         </span>
                                                       )}
                                                       <div className="thread-menu">
-                                                        <button
+                                                        <div
                                                           className="thread-menu-trigger"
-                                                          aria-label="Thread menu"
-                                                          onMouseDown={(event) =>
-                                                            event.stopPropagation()
-                                                          }
-                                                          onClick={(event) =>
-                                                            showThreadMenu(
-                                                              event,
-                                                              worktree.id,
-                                                              thread.id,
-                                                            )
-                                                          }
-                                                        >
-                                                          ...
-                                                        </button>
+                                                          aria-hidden="true"
+                                                        />
                                                       </div>
                                                     </div>
                                                   </div>
@@ -862,18 +850,10 @@ export function Sidebar({
                                     </span>
                                   )}
                                   <div className="thread-menu">
-                                    <button
+                                    <div
                                       className="thread-menu-trigger"
-                                      aria-label="Thread menu"
-                                      onMouseDown={(event) =>
-                                        event.stopPropagation()
-                                      }
-                                      onClick={(event) =>
-                                        showThreadMenu(event, entry.id, thread.id)
-                                      }
-                                    >
-                                      ...
-                                    </button>
+                                      aria-hidden="true"
+                                    />
                                   </div>
                                 </div>
                               </div>

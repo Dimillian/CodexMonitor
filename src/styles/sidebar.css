@@ -55,7 +55,7 @@
   overflow-x: hidden;
   -webkit-app-region: no-drag;
   margin-right: calc(-1 * var(--sidebar-padding));
-  padding-right: var(--sidebar-padding);
+  padding-right: calc(var(--sidebar-padding) - 12px);
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   -webkit-mask-size: 100% 100%;
@@ -208,20 +208,49 @@
   transition: all 0.2s ease;
   -webkit-app-region: no-drag;
   overflow-x: hidden;
+  position: relative;
+  isolation: isolate;
+}
+
+.workspace-row::before {
+  content: "";
+  position: absolute;
+  inset: 0 6px 0 0;
+  border-radius: 10px;
+  background: transparent;
+  transition: background 0.2s ease;
+  z-index: -1;
 }
 
 .workspace-row.active {
   background: transparent;
-  border-left: 3px solid var(--border-accent);
-  padding-left: 9px;
+  padding-left: 4px;
 }
 
 .workspace-row:hover {
+  background: transparent;
+}
+
+.workspace-row:hover::before {
   background: var(--surface-card);
+}
+
+.workspace-row.active::before {
+  background: linear-gradient(
+    90deg,
+    var(--border-accent) 0,
+    var(--border-accent) 3px,
+    var(--surface-card) 3px,
+    var(--surface-card) 100%
+  );
 }
 
 .workspace-row.active .workspace-name {
   color: var(--text-strong);
+}
+
+.workspace-row.active .workspace-name-row {
+  padding-left: 6px;
 }
 
 
@@ -394,7 +423,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 2px 4px calc(6px + var(--thread-indent, 0px));
+  padding: 4px 10px 4px calc(6px + var(--thread-indent, 0px));
   border-radius: 6px;
   color: var(--text-quiet);
   font-size: 12px;
@@ -454,7 +483,6 @@
 
 .thread-meta {
   margin-left: auto;
-  margin-right: -12px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
