@@ -42,7 +42,14 @@ export function ClonePrompt({
 
   return (
     <div className="clone-modal" role="dialog" aria-modal="true">
-      <div className="clone-modal-backdrop" onClick={onCancel} />
+      <div
+        className="clone-modal-backdrop"
+        onClick={() => {
+          if (!isBusy) {
+            onCancel();
+          }
+        }}
+      />
       <div className="clone-modal-card">
         <div className="clone-modal-title">New clone agent</div>
         <div className="clone-modal-subtitle">
@@ -60,7 +67,9 @@ export function ClonePrompt({
           onKeyDown={(event) => {
             if (event.key === "Escape") {
               event.preventDefault();
-              onCancel();
+              if (!isBusy) {
+                onCancel();
+              }
             }
             if (event.key === "Enter" && canCreate && !isBusy) {
               event.preventDefault();
@@ -78,10 +87,12 @@ export function ClonePrompt({
             value={copiesFolder}
             placeholder="Not set"
             readOnly
-            onKeyDown={(event) => {
+          onKeyDown={(event) => {
             if (event.key === "Escape") {
               event.preventDefault();
-              onCancel();
+              if (!isBusy) {
+                onCancel();
+              }
             }
             if (event.key === "Enter" && canCreate && !isBusy) {
               event.preventDefault();
