@@ -40,6 +40,7 @@ type SidebarProps = {
   onConnectWorkspace: (workspace: WorkspaceInfo) => void;
   onAddAgent: (workspace: WorkspaceInfo) => void;
   onAddWorktreeAgent: (workspace: WorkspaceInfo) => void;
+  onAddCloneAgent: (workspace: WorkspaceInfo) => void;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
   onSelectThread: (workspaceId: string, threadId: string) => void;
   onDeleteThread: (workspaceId: string, threadId: string) => void;
@@ -71,6 +72,7 @@ export function Sidebar({
   onConnectWorkspace,
   onAddAgent,
   onAddWorktreeAgent,
+  onAddCloneAgent,
   onToggleWorkspaceCollapse,
   onSelectThread,
   onDeleteThread,
@@ -509,6 +511,16 @@ export function Sidebar({
                               }}
                             >
                               New worktree agent
+                            </button>
+                            <button
+                              className="workspace-add-option"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setAddMenuAnchor(null);
+                                onAddCloneAgent(entry);
+                              }}
+                            >
+                              New clone agent
                             </button>
                           </div>,
                           document.body,
