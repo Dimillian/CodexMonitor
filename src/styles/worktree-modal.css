@@ -7,7 +7,12 @@
 .worktree-modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(6, 8, 12, 0.55);
+  backdrop-filter: blur(8px);
+}
+
+.app.reduced-transparency .worktree-modal-backdrop {
+  backdrop-filter: none;
 }
 
 .worktree-modal-card {
@@ -16,8 +21,8 @@
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(420px, calc(100vw - 48px));
-  background: rgba(8, 10, 16, 0.96);
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-card-strong);
+  border: 1px solid var(--border-stronger);
   border-radius: 16px;
   padding: 18px 20px;
   display: flex;
