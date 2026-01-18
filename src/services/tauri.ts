@@ -103,6 +103,7 @@ export async function sendUserMessage(
     effort?: string | null;
     accessMode?: "read-only" | "current" | "full-access";
     images?: string[];
+    collaborationMode?: Record<string, unknown> | null;
   },
 ) {
   return invoke("send_user_message", {
@@ -113,6 +114,7 @@ export async function sendUserMessage(
     effort: options?.effort ?? null,
     accessMode: options?.accessMode ?? null,
     images: options?.images ?? null,
+    collaborationMode: options?.collaborationMode ?? null,
   });
 }
 
@@ -206,6 +208,10 @@ export async function getGitHubPullRequestDiff(
 
 export async function getModelList(workspaceId: string) {
   return invoke<any>("model_list", { workspaceId });
+}
+
+export async function getCollaborationModes(workspaceId: string) {
+  return invoke<any>("collaboration_mode_list", { workspaceId });
 }
 
 export async function getAccountRateLimits(workspaceId: string) {

@@ -17,6 +17,32 @@ function truncateText(text: string, maxLength = MAX_ITEM_TEXT) {
   return `${text.slice(0, sliceLength)}...`;
 }
 
+function normalizeStringList(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.map((entry) => asString(entry)).filter(Boolean);
+  }
+  const single = asString(value);
+  return single ? [single] : [];
+}
+
+function formatCollabAgentStates(value: unknown) {
+  if (!value || typeof value !== "object") {
+    return "";
+  }
+  const entries = Object.entries(value as Record<string, unknown>)
+    .map(([id, state]) => {
+      const status = asString(
+        (state as Record<string, unknown>)?.status ?? state ?? "",
+      );
+      return status ? `${id}: ${status}` : id;
+    })
+    .filter(Boolean);
+  if (entries.length === 0) {
+    return "";
+  }
+  return entries.join("\n");
+}
+
 export function normalizeItem(item: ConversationItem): ConversationItem {
   if (item.kind === "message") {
     return { ...item, text: truncateText(item.text) };
@@ -200,6 +226,33 @@ export function buildConversationItem(
       detail: args,
       status: asString(item.status ?? ""),
       output: asString(item.result ?? item.error ?? ""),
+    };
+  }
+  if (type === "collabToolCall" || type === "collabAgentToolCall") {
+    const tool = asString(item.tool ?? "");
+    const status = asString(item.status ?? "");
+    const sender = asString(item.senderThreadId ?? item.sender_thread_id ?? "");
+    const receivers = [
+      ...normalizeStringList(item.receiverThreadId ?? item.receiver_thread_id),
+      ...normalizeStringList(item.receiverThreadIds ?? item.receiver_thread_ids),
+      ...normalizeStringList(item.newThreadId ?? item.new_thread_id),
+    ];
+    const prompt = asString(item.prompt ?? "");
+    const agentsState = formatCollabAgentStates(
+      item.agentStatus ?? item.agentsStates ?? item.agents_states,
+    );
+    const detailParts = [sender ? `From ${sender}` : ""]
+      .concat(receivers.length > 0 ? `→ ${receivers.join(", ")}` : "")
+      .filter(Boolean);
+    const outputParts = [prompt, agentsState].filter(Boolean);
+    return {
+      id,
+      kind: "tool",
+      toolType: "collabToolCall",
+      title: tool ? `Collab: ${tool}` : "Collab tool call",
+      detail: detailParts.join(" "),
+      status,
+      output: outputParts.join("\n\n"),
     };
   }
   if (type === "webSearch") {

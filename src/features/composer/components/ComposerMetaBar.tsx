@@ -3,6 +3,9 @@ import type { AccessMode, ThreadTokenUsage } from "../../../types";
 
 type ComposerMetaBarProps = {
   disabled: boolean;
+  collaborationModes: { id: string; label: string }[];
+  selectedCollaborationModeId: string | null;
+  onSelectCollaborationMode: (id: string | null) => void;
   models: { id: string; displayName: string; model: string }[];
   selectedModelId: string | null;
   onSelectModel: (id: string) => void;
@@ -16,6 +19,9 @@ type ComposerMetaBarProps = {
 
 export function ComposerMetaBar({
   disabled,
+  collaborationModes,
+  selectedCollaborationModeId,
+  onSelectCollaborationMode,
   models,
   selectedModelId,
   onSelectModel,
@@ -42,6 +48,36 @@ export function ComposerMetaBar({
   return (
     <div className="composer-bar">
       <div className="composer-meta">
+        {collaborationModes.length > 0 && (
+          <div className="composer-select-wrap">
+            <span className="composer-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M7 7h10M7 12h6M7 17h8"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
+            <select
+              className="composer-select composer-select--model"
+              aria-label="Collaboration mode"
+              value={selectedCollaborationModeId ?? ""}
+              onChange={(event) =>
+                onSelectCollaborationMode(event.target.value || null)
+              }
+              disabled={disabled}
+            >
+              <option value="">Default mode</option>
+              {collaborationModes.map((mode) => (
+                <option key={mode.id} value={mode.id}>
+                  {mode.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="composer-select-wrap">
           <span className="composer-icon" aria-hidden>
             <svg viewBox="0 0 24 24" fill="none">
