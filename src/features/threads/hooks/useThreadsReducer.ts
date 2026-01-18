@@ -323,6 +323,9 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
           ? `${textValue}\n${imageLabel}`
           : textValue
         : imageLabel;
+      const hasUserMessage = list.some(
+        (item) => item.kind === "message" && item.role === "user",
+      );
       const message: ConversationItem = {
         id: `${now}-user`,
         kind: "message",
@@ -330,9 +333,22 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         text: combinedText || "[message]",
       };
       const threads = state.threadsByWorkspace[action.workspaceId] ?? [];
-      const updatedThreads = threads.map((thread) =>
-        thread.id === action.threadId ? { ...thread, updatedAt: now } : thread,
-      );
+      const updatedThreads = threads.map((thread) => {
+        if (thread.id !== action.threadId) {
+          return thread;
+        }
+        const shouldRename =
+          !hasUserMessage &&
+          textValue.length > 0 &&
+          thread.name.startsWith("Agent ");
+        const nextName =
+          shouldRename && textValue.length > 38
+            ? `${textValue.slice(0, 38)}…`
+            : shouldRename
+              ? textValue
+              : thread.name;
+        return { ...thread, updatedAt: now, name: nextName };
+      });
       const bumpedThreads = updatedThreads.length
         ? [
             ...updatedThreads.filter((thread) => thread.id === action.threadId),
