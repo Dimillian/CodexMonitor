@@ -24,6 +24,7 @@ import "./styles/settings.css";
 import "./styles/compact-base.css";
 import "./styles/compact-phone.css";
 import "./styles/compact-tablet.css";
+import "./styles/cloud-client.css";
 import successSoundUrl from "./assets/success-notification.mp3";
 import errorSoundUrl from "./assets/error-notification.mp3";
 import { WorktreePrompt } from "./features/workspaces/components/WorktreePrompt";
@@ -31,6 +32,7 @@ import { ClonePrompt } from "./features/workspaces/components/ClonePrompt";
 import { RenameThreadPrompt } from "./features/threads/components/RenameThreadPrompt";
 import { AboutView } from "./features/about/components/AboutView";
 import { SettingsView } from "./features/settings/components/SettingsView";
+import { CloudClientApp } from "./features/cloudClient/components/CloudClientApp";
 import { DesktopLayout } from "./features/layout/components/DesktopLayout";
 import { TabletLayout } from "./features/layout/components/TabletLayout";
 import { PhoneLayout } from "./features/layout/components/PhoneLayout";
@@ -89,10 +91,15 @@ import { useWindowFocusState } from "./features/layout/hooks/useWindowFocusState
 import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { usePanelVisibility } from "./features/layout/hooks/usePanelVisibility";
 import { useTerminalController } from "./features/terminal/hooks/useTerminalController";
-import { playNotificationSound } from "./utils/notificationSounds";
 import {
+  cloudDiscoverRunner,
+  cloudkitStatus,
+  cloudkitTest,
+  natsStatus,
   pickWorkspacePath,
 } from "./services/tauri";
+import { playNotificationSound } from "./utils/notificationSounds";
+import { isAppleMobileDevice } from "./utils/platform";
 import type {
   AccessMode,
   GitHubPullRequest,
@@ -109,6 +116,7 @@ function MainApp() {
     isLoading: appSettingsLoading
   } = useAppSettings();
   useThemePreference(appSettings.theme);
+  const isMobile = isAppleMobileDevice();
   const dictationModel = useDictationModel(appSettings.dictationModelId);
   const {
     state: dictationState,
@@ -193,6 +201,7 @@ function MainApp() {
   );
   type SettingsSection =
     | "projects"
+    | "cloud"
     | "display"
     | "dictation"
     | "shortcuts"
@@ -266,7 +275,7 @@ function MainApp() {
 
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const updater = useUpdater({ onDebug: addDebugEntry });
+  const updater = useUpdater({ enabled: !isMobile, onDebug: addDebugEntry });
   const isWindowFocused = useWindowFocusState();
   const nextTestSoundIsError = useRef(false);
 
@@ -1214,13 +1223,244 @@ function MainApp() {
     onDebug: addDebugEntry,
   });
   const isDefaultScale = Math.abs(uiScale - 1) < 0.001;
+  const isRemoteClient = isMobile && (appSettings.cloudProvider ?? "local") !== "local";
+  const [remoteRunnerId, setRemoteRunnerId] = useState<string | null>(null);
+  const isE2E = import.meta.env.VITE_E2E === "1" && isMobile && isRemoteClient;
+  const [e2eState, setE2eState] = useState<{
+    status: "idle" | "running" | "pass" | "fail";
+    step: string;
+    error: string | null;
+  }>({ status: "idle", step: "idle", error: null });
+
+  const remoteRunnerIdRef = useRef<string | null>(null);
+  const workspacesRef = useRef(workspaces);
+  const activeWorkspaceIdRef = useRef(activeWorkspaceId);
+  const activeThreadIdRef = useRef(activeThreadId);
+  const threadsByWorkspaceRef = useRef(threadsByWorkspace);
+  const threadStatusByIdRef = useRef(threadStatusById);
+  const lastAgentMessageByThreadRef = useRef(lastAgentMessageByThread);
+  const refreshWorkspacesRef = useRef(refreshWorkspaces);
+  const connectWorkspaceRef = useRef(connectWorkspace);
+  const selectWorkspaceRef = useRef(selectWorkspace);
+  const startThreadForWorkspaceRef = useRef(startThreadForWorkspace);
+  const listThreadsForWorkspaceRef = useRef(listThreadsForWorkspace);
+  const setActiveThreadIdRef = useRef(setActiveThreadId);
+  const sendUserMessageRef = useRef(sendUserMessage);
+
+  useEffect(() => {
+    remoteRunnerIdRef.current = remoteRunnerId;
+  }, [remoteRunnerId]);
+  useEffect(() => {
+    workspacesRef.current = workspaces;
+  }, [workspaces]);
+  useEffect(() => {
+    activeWorkspaceIdRef.current = activeWorkspaceId;
+  }, [activeWorkspaceId]);
+  useEffect(() => {
+    activeThreadIdRef.current = activeThreadId;
+  }, [activeThreadId]);
+  useEffect(() => {
+    threadsByWorkspaceRef.current = threadsByWorkspace;
+  }, [threadsByWorkspace]);
+  useEffect(() => {
+    threadStatusByIdRef.current = threadStatusById;
+  }, [threadStatusById]);
+  useEffect(() => {
+    lastAgentMessageByThreadRef.current = lastAgentMessageByThread;
+  }, [lastAgentMessageByThread]);
+  useEffect(() => {
+    refreshWorkspacesRef.current = refreshWorkspaces;
+  }, [refreshWorkspaces]);
+  useEffect(() => {
+    connectWorkspaceRef.current = connectWorkspace;
+  }, [connectWorkspace]);
+  useEffect(() => {
+    selectWorkspaceRef.current = selectWorkspace;
+  }, [selectWorkspace]);
+  useEffect(() => {
+    startThreadForWorkspaceRef.current = startThreadForWorkspace;
+  }, [startThreadForWorkspace]);
+  useEffect(() => {
+    listThreadsForWorkspaceRef.current = listThreadsForWorkspace;
+  }, [listThreadsForWorkspace]);
+  useEffect(() => {
+    setActiveThreadIdRef.current = setActiveThreadId;
+  }, [setActiveThreadId]);
+  useEffect(() => {
+    sendUserMessageRef.current = sendUserMessage;
+  }, [sendUserMessage]);
+
+  useEffect(() => {
+    if (!isRemoteClient) {
+      setRemoteRunnerId(null);
+      return;
+    }
+    let active = true;
+    const tick = async () => {
+      try {
+        const runnerId = await cloudDiscoverRunner();
+        if (active) {
+          setRemoteRunnerId(runnerId);
+        }
+      } catch {
+        if (active) {
+          setRemoteRunnerId(null);
+        }
+      }
+    };
+    void tick();
+    const interval = window.setInterval(() => void tick(), 8000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [isRemoteClient, appSettings.cloudProvider, appSettings.natsUrl, appSettings.cloudKitContainerId]);
+
+  useEffect(() => {
+    if (isRemoteClient && remoteRunnerId) {
+      void refreshWorkspaces();
+    }
+  }, [isRemoteClient, remoteRunnerId, refreshWorkspaces]);
+
+  useEffect(() => {
+    if (!isE2E || e2eState.status !== "idle") {
+      return;
+    }
+    let canceled = false;
+    const sleep = (ms: number) =>
+      new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+    const waitFor = async (predicate: () => boolean, timeoutMs: number) => {
+      const start = Date.now();
+      while (!canceled) {
+        if (predicate()) {
+          return;
+        }
+        if (Date.now() - start > timeoutMs) {
+          throw new Error("Timed out waiting for UI state.");
+        }
+        await sleep(250);
+      }
+    };
+
+    void (async () => {
+      try {
+        setE2eState({
+          status: "running",
+          step: "Discovering macOS runner…",
+          error: null,
+        });
+        const runnerDeadline = Date.now() + 60_000;
+        while (!canceled && !remoteRunnerIdRef.current) {
+          const discovered = await cloudDiscoverRunner().catch(() => null);
+          if (discovered) {
+            remoteRunnerIdRef.current = discovered;
+            setRemoteRunnerId(discovered);
+          }
+          if (remoteRunnerIdRef.current) {
+            break;
+          }
+          if (Date.now() > runnerDeadline) {
+            throw new Error(
+              "No macOS runner discovered. Start CodexMonitor on macOS with Cloud provider set to NATS.",
+            );
+          }
+          await sleep(1000);
+        }
+
+        setE2eState({ status: "running", step: "Loading projects…", error: null });
+        const workspacesDeadline = Date.now() + 60_000;
+        while (!canceled && workspacesRef.current.length === 0) {
+          await refreshWorkspacesRef.current().catch(() => []);
+          if (workspacesRef.current.length > 0) {
+            break;
+          }
+          if (Date.now() > workspacesDeadline) {
+            throw new Error("No projects found on the macOS runner.");
+          }
+          await sleep(1000);
+        }
+
+        const workspace = workspacesRef.current[0];
+        if (!workspace) {
+          throw new Error("No projects found on the macOS runner.");
+        }
+
+        setE2eState({
+          status: "running",
+          step: `Selecting project: ${workspace.name}…`,
+          error: null,
+        });
+        selectWorkspaceRef.current(workspace.id);
+        await waitFor(() => activeWorkspaceIdRef.current === workspace.id, 10_000);
+
+        setE2eState({ status: "running", step: "Connecting…", error: null });
+        await connectWorkspaceRef.current(workspace).catch(() => undefined);
+
+        setE2eState({ status: "running", step: "Loading agents…", error: null });
+        await listThreadsForWorkspaceRef.current(workspace).catch(() => undefined);
+
+        const existingThreads = threadsByWorkspaceRef.current[workspace.id] ?? [];
+        let threadId: string | null = existingThreads.length ? existingThreads[0].id : null;
+
+        if (threadId) {
+          setE2eState({ status: "running", step: "Opening first agent…", error: null });
+          setActiveThreadIdRef.current(threadId, workspace.id);
+        } else {
+          setE2eState({ status: "running", step: "Starting agent…", error: null });
+          threadId = await startThreadForWorkspaceRef.current(workspace.id);
+          if (!threadId) {
+            throw new Error("Failed to start agent thread.");
+          }
+        }
+        await waitFor(() => activeThreadIdRef.current === threadId, 10_000);
+
+        setE2eState({ status: "running", step: "Sending message…", error: null });
+        const sentAt = Date.now();
+        await sendUserMessageRef.current("Erzähl einen Witz.", []);
+
+        setE2eState({ status: "running", step: "Waiting for reply…", error: null });
+        const replyDeadline = Date.now() + 120_000;
+        while (!canceled) {
+          const last = threadId ? lastAgentMessageByThreadRef.current[threadId] : null;
+          if (last?.text?.trim() && last.timestamp > sentAt) {
+            break;
+          }
+          if (Date.now() > replyDeadline) {
+            throw new Error("Timed out waiting for agent reply.");
+          }
+          if (threadId) {
+            setActiveThreadIdRef.current(threadId, workspace.id);
+          }
+          await sleep(3000);
+        }
+
+        setE2eState({ status: "pass", step: "PASS", error: null });
+      } catch (error) {
+        if (canceled) {
+          return;
+        }
+        setE2eState({
+          status: "fail",
+          step: "FAIL",
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    })();
+
+    return () => {
+      canceled = true;
+    };
+  }, [e2eState.status, isE2E]);
   const appClassName = `app ${isCompact ? "layout-compact" : "layout-desktop"}${
     isPhone ? " layout-phone" : ""
   }${isTablet ? " layout-tablet" : ""}${
     reduceTransparency ? " reduced-transparency" : ""
   }${!isCompact && sidebarCollapsed ? " sidebar-collapsed" : ""}${
     !isCompact && rightPanelCollapsed ? " right-panel-collapsed" : ""
-  }${isDefaultScale ? " ui-scale-default" : ""}`;
+  }${isDefaultScale ? " ui-scale-default" : ""}${
+    isMobile ? " force-dark" : ""
+  }`;
+  const showRemoteRunnerNotice = isRemoteClient && !remoteRunnerId;
   const {
     sidebarNode,
     messagesNode,
@@ -1264,6 +1504,14 @@ function MainApp() {
     onOpenDebug: handleDebugClick,
     showDebugButton,
     onAddWorkspace: handleAddWorkspace,
+    onHomeOpenProject: isRemoteClient ? () => handleOpenSettings("cloud") : undefined,
+    onHomeAddWorkspace: isRemoteClient ? () => void refreshWorkspaces() : undefined,
+    homeOpenProjectLabel: isRemoteClient ? "Cloud Settings" : undefined,
+    homeAddWorkspaceLabel: isRemoteClient ? "Refresh Projects" : undefined,
+    homeNoticeTitle: showRemoteRunnerNotice ? "macOS runner required" : null,
+    homeNoticeSubtitle: showRemoteRunnerNotice
+      ? "Start CodexMonitor on macOS (runner). Projects will appear here automatically once discovered."
+      : null,
     onSelectHome: selectHome,
     onSelectWorkspace: (workspaceId) => {
       exitDiffView();
@@ -1565,6 +1813,13 @@ function MainApp() {
       }
     >
       <div className="drag-strip" id="titlebar" data-tauri-drag-region />
+      {isE2E ? (
+        <div className={`e2e-overlay e2e-overlay--${e2eState.status}`} role="status">
+          <div className="e2e-overlay-title">E2E Joke Test</div>
+          <div className="e2e-overlay-step">{e2eState.step}</div>
+          {e2eState.error ? <div className="e2e-overlay-error">{e2eState.error}</div> : null}
+        </div>
+      ) : null}
       <TitlebarExpandControls {...sidebarToggleProps} />
       {isPhone ? (
         <PhoneLayout
@@ -1687,6 +1942,9 @@ function MainApp() {
             await queueSaveSettings(next);
           }}
           onRunDoctor={doctor}
+          onNatsStatus={natsStatus}
+          onCloudKitStatus={cloudkitStatus}
+          onCloudKitTest={cloudkitTest}
           onUpdateWorkspaceCodexBin={async (id, codexBin) => {
             await updateWorkspaceCodexBin(id, codexBin);
           }}
@@ -1708,6 +1966,13 @@ function App() {
   const windowLabel = useWindowLabel();
   if (windowLabel === "about") {
     return <AboutView />;
+  }
+  const cloudClientEnabled =
+    isAppleMobileDevice() &&
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("cloudClient") === "1";
+  if (cloudClientEnabled) {
+    return <CloudClientApp />;
   }
   return <MainApp />;
 }

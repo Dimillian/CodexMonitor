@@ -26,3 +26,10 @@ dist-ssr
 CodexMonitor.zip
 .codex-worktrees/
 .codexmonitor/
+.codexmonitor-logs/
+ilass-private/
+.codexmonitor-artifacts/
+src-tauri/gen/
+codex-monitor-01.png
+codex-monitor-IST.png
+screen_random_32342.png

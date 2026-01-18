@@ -1,11 +1,15 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { isAppleMobileDevice } from "../utils/platform";
 import type {
   AppSettings,
+  CloudKitStatus,
+  CloudKitTestResult,
   CodexDoctorResult,
   DictationModelStatus,
   DictationSessionState,
   LocalUsageSnapshot,
+  NatsStatus,
   WorkspaceInfo,
   WorkspaceSettings,
 } from "../types";
@@ -19,6 +23,54 @@ import type {
   GitLogResponse,
   ReviewTarget,
 } from "../types";
+
+let cachedAppSettings: AppSettings | null = null;
+let cachedRunnerId: string | null = null;
+let cachedRunnerIdAt = 0;
+const RUNNER_CACHE_MS = 9000;
+let subscribedRunnerId: string | null = null;
+
+async function getCloudSettings(): Promise<AppSettings> {
+  return cachedAppSettings ?? getAppSettings();
+}
+
+async function shouldUseCloud(): Promise<boolean> {
+  if (!isAppleMobileDevice()) {
+    return false;
+  }
+  const settings = await getCloudSettings();
+  return (settings.cloudProvider ?? "local") !== "local";
+}
+
+async function getRunnerId(): Promise<string | null> {
+  if (!(await shouldUseCloud())) {
+    return null;
+  }
+  const now = Date.now();
+  if (cachedRunnerId && now - cachedRunnerIdAt < RUNNER_CACHE_MS) {
+    return cachedRunnerId;
+  }
+  const discovered = await invoke<string | null>("cloud_discover_runner");
+  cachedRunnerId = discovered;
+  cachedRunnerIdAt = now;
+  if (discovered && discovered !== subscribedRunnerId) {
+    try {
+      await invoke("cloud_subscribe_runner_events", { runnerId: discovered });
+      subscribedRunnerId = discovered;
+    } catch {
+      // Ignore subscription errors; RPCs can still work without live events.
+    }
+  }
+  return discovered;
+}
+
+async function cloudRpcInternal<T = any>(
+  runnerId: string,
+  method: string,
+  params: any,
+): Promise<T> {
+  return invoke<T>("cloud_rpc", { runnerId, method, params });
+}
 
 export async function pickWorkspacePath(): Promise<string | null> {
   const selection = await open({ directory: true, multiple: false });
@@ -45,6 +97,14 @@ export async function pickImageFiles(): Promise<string[]> {
 }
 
 export async function listWorkspaces(): Promise<WorkspaceInfo[]> {
+  if (await shouldUseCloud()) {
+    const runnerId = await getRunnerId();
+    if (!runnerId) {
+      return [];
+    }
+    const res = await cloudRpcInternal<WorkspaceInfo[]>(runnerId, "list_workspaces", {});
+    return Array.isArray(res) ? res : [];
+  }
   return invoke<WorkspaceInfo[]>("list_workspaces");
 }
 
@@ -105,10 +165,25 @@ export async function openWorkspaceIn(path: string, app: string): Promise<void> 
 }
 
 export async function connectWorkspace(id: string): Promise<void> {
+  if (await shouldUseCloud()) {
+    const runnerId = await getRunnerId();
+    if (!runnerId) {
+      throw new Error("No macOS runner discovered. Start CodexMonitor on macOS.");
+    }
+    await cloudRpcInternal(runnerId, "connect_workspace", { id });
+    return;
+  }
   return invoke("connect_workspace", { id });
 }
 
 export async function startThread(workspaceId: string) {
+  if (await shouldUseCloud()) {
+    const runnerId = await getRunnerId();
+    if (!runnerId) {
+      throw new Error("No macOS runner discovered. Start CodexMonitor on macOS.");
+    }
+    return cloudRpcInternal<any>(runnerId, "start_thread", { workspaceId });
+  }
   return invoke<any>("start_thread", { workspaceId });
 }
 
@@ -124,6 +199,21 @@ export async function sendUserMessage(
     collaborationMode?: Record<string, unknown> | null;
   },
 ) {
+  if (await shouldUseCloud()) {
+    const runnerId = await getRunnerId();
+    if (!runnerId) {
+      throw new Error("No macOS runner discovered. Start CodexMonitor on macOS.");
+    }
+    return cloudRpcInternal(runnerId, "send_user_message", {
+      workspaceId,
+      threadId,
+      text,
+      model: options?.model ?? null,
+      effort: options?.effort ?? null,
+      accessMode: options?.accessMode ?? null,
+      images: options?.images ?? null,
+    });
+  }
   return invoke("send_user_message", {
     workspaceId,
     threadId,
@@ -141,6 +231,13 @@ export async function interruptTurn(
   threadId: string,
   turnId: string,
 ) {
+  if (await shouldUseCloud()) {
+    const runnerId = await getRunnerId();
+    if (!runnerId) {
+      throw new Error("No macOS runner discovered. Start CodexMonitor on macOS.");
+    }
+    return cloudRpcInternal(runnerId, "turn_interrupt", { workspaceId, threadId, turnId });
+  }
   return invoke("turn_interrupt", { workspaceId, threadId, turnId });
 }
 
@@ -154,6 +251,13 @@ export async function startReview(
   if (delivery) {
     payload.delivery = delivery;
   }
+  if (await shouldUseCloud()) {
+    const runnerId = await getRunnerId();
+    if (!runnerId) {
+      throw new Error("No macOS runner discovered. Start CodexMonitor on macOS.");
+    }
+    return cloudRpcInternal(runnerId, "start_review", payload);
+  }
   return invoke("start_review", payload);
 }
 
@@ -162,6 +266,17 @@ export async function respondToServerRequest(
   requestId: number,
   decision: "accept" | "decline",
 ) {
+  if (await shouldUseCloud()) {
+    const runnerId = await getRunnerId();
+    if (!runnerId) {
+      throw new Error("No macOS runner discovered. Start CodexMonitor on macOS.");
+    }
+    return cloudRpcInternal(runnerId, "respond_to_server_request", {
+      workspaceId,
+      requestId,
+      result: { decision },
+    });
+  }
   return invoke("respond_to_server_request", {
     workspaceId,
     requestId,
@@ -266,6 +381,13 @@ export async function localUsageSnapshot(
 }
 
 export async function getModelList(workspaceId: string) {
+  if (await shouldUseCloud()) {
+    const runnerId = await getRunnerId();
+    if (!runnerId) {
+      throw new Error("No macOS runner discovered. Start CodexMonitor on macOS.");
+    }
+    return cloudRpcInternal<any>(runnerId, "model_list", { workspaceId });
+  }
   return invoke<any>("model_list", { workspaceId });
 }
 
@@ -274,14 +396,35 @@ export async function getCollaborationModes(workspaceId: string) {
 }
 
 export async function getAccountRateLimits(workspaceId: string) {
+  if (await shouldUseCloud()) {
+    const runnerId = await getRunnerId();
+    if (!runnerId) {
+      throw new Error("No macOS runner discovered. Start CodexMonitor on macOS.");
+    }
+    return cloudRpcInternal<any>(runnerId, "account_rate_limits", { workspaceId });
+  }
   return invoke<any>("account_rate_limits", { workspaceId });
 }
 
 export async function getSkillsList(workspaceId: string) {
+  if (await shouldUseCloud()) {
+    const runnerId = await getRunnerId();
+    if (!runnerId) {
+      throw new Error("No macOS runner discovered. Start CodexMonitor on macOS.");
+    }
+    return cloudRpcInternal<any>(runnerId, "skills_list", { workspaceId });
+  }
   return invoke<any>("skills_list", { workspaceId });
 }
 
 export async function getPromptsList(workspaceId: string) {
+  if (await shouldUseCloud()) {
+    const runnerId = await getRunnerId();
+    if (!runnerId) {
+      throw new Error("No macOS runner discovered. Start CodexMonitor on macOS.");
+    }
+    return cloudRpcInternal<any>(runnerId, "prompts_list", { workspaceId });
+  }
   return invoke<any>("prompts_list", { workspaceId });
 }
 
@@ -349,11 +492,52 @@ export async function movePrompt(
 }
 
 export async function getAppSettings(): Promise<AppSettings> {
-  return invoke<AppSettings>("get_app_settings");
+  const settings = await invoke<AppSettings>("get_app_settings");
+  cachedAppSettings = settings;
+  return settings;
 }
 
 export async function updateAppSettings(settings: AppSettings): Promise<AppSettings> {
-  return invoke<AppSettings>("update_app_settings", { settings });
+  const updated = await invoke<AppSettings>("update_app_settings", { settings });
+  cachedAppSettings = updated;
+  cachedRunnerId = null;
+  cachedRunnerIdAt = 0;
+  return updated;
+}
+
+export async function natsStatus(): Promise<NatsStatus> {
+  return invoke<NatsStatus>("nats_status");
+}
+
+export async function cloudkitStatus(): Promise<CloudKitStatus> {
+  return invoke<CloudKitStatus>("cloudkit_status");
+}
+
+export async function cloudkitTest(): Promise<CloudKitTestResult> {
+  return invoke<CloudKitTestResult>("cloudkit_test");
+}
+
+export async function cloudDiscoverRunner(): Promise<string | null> {
+  const discovered = await invoke<string | null>("cloud_discover_runner");
+  cachedRunnerId = discovered;
+  cachedRunnerIdAt = Date.now();
+  if (discovered && discovered !== subscribedRunnerId) {
+    try {
+      await invoke("cloud_subscribe_runner_events", { runnerId: discovered });
+      subscribedRunnerId = discovered;
+    } catch {
+      // Ignore subscription errors; RPCs can still work without live events.
+    }
+  }
+  return discovered;
+}
+
+export async function cloudRpc<T = any>(
+  runnerId: string,
+  method: string,
+  params: any,
+): Promise<T> {
+  return cloudRpcInternal<T>(runnerId, method, params);
 }
 
 export async function runCodexDoctor(
@@ -363,6 +547,13 @@ export async function runCodexDoctor(
 }
 
 export async function getWorkspaceFiles(workspaceId: string) {
+  if (await shouldUseCloud()) {
+    const runnerId = await getRunnerId();
+    if (!runnerId) {
+      throw new Error("No macOS runner discovered. Start CodexMonitor on macOS.");
+    }
+    return cloudRpcInternal<string[]>(runnerId, "list_workspace_files", { workspaceId });
+  }
   return invoke<string[]>("list_workspace_files", { workspaceId });
 }
 
@@ -470,13 +661,34 @@ export async function listThreads(
   cursor?: string | null,
   limit?: number | null,
 ) {
+  if (await shouldUseCloud()) {
+    const runnerId = await getRunnerId();
+    if (!runnerId) {
+      return { result: { data: [], nextCursor: null } };
+    }
+    return cloudRpcInternal<any>(runnerId, "list_threads", { workspaceId, cursor, limit });
+  }
   return invoke<any>("list_threads", { workspaceId, cursor, limit });
 }
 
 export async function resumeThread(workspaceId: string, threadId: string) {
+  if (await shouldUseCloud()) {
+    const runnerId = await getRunnerId();
+    if (!runnerId) {
+      throw new Error("No macOS runner discovered. Start CodexMonitor on macOS.");
+    }
+    return cloudRpcInternal<any>(runnerId, "resume_thread", { workspaceId, threadId });
+  }
   return invoke<any>("resume_thread", { workspaceId, threadId });
 }
 
 export async function archiveThread(workspaceId: string, threadId: string) {
+  if (await shouldUseCloud()) {
+    const runnerId = await getRunnerId();
+    if (!runnerId) {
+      throw new Error("No macOS runner discovered. Start CodexMonitor on macOS.");
+    }
+    return cloudRpcInternal<any>(runnerId, "archive_thread", { workspaceId, threadId });
+  }
   return invoke<any>("archive_thread", { workspaceId, threadId });
 }

@@ -144,6 +144,30 @@
   color: var(--text-subtle);
 }
 
+.settings-notice {
+  margin: 10px 0 18px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border-muted);
+  background:
+    linear-gradient(135deg, rgba(255, 175, 85, 0.14), transparent 70%),
+    var(--surface-card);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.settings-notice-title {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-strong);
+}
+
+.settings-notice-subtitle {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
 .settings-download-progress {
   display: flex;
   flex-direction: column;

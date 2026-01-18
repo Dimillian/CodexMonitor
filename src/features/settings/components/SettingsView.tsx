@@ -3,6 +3,7 @@ import { ask, open } from "@tauri-apps/plugin-dialog";
 import {
   ChevronDown,
   ChevronUp,
+  Cloud,
   LayoutGrid,
   SlidersHorizontal,
   Mic,
@@ -16,12 +17,16 @@ import {
 import type {
   AppSettings,
   CodexDoctorResult,
+  CloudKitStatus,
+  CloudKitTestResult,
   DictationModelStatus,
+  NatsStatus,
   WorkspaceGroup,
   WorkspaceInfo,
 } from "../../../types";
 import { formatDownloadSize } from "../../../utils/formatting";
 import { buildShortcutValue, formatShortcut } from "../../../utils/shortcuts";
+import { isAppleMobileDevice } from "../../../utils/platform";
 import { clampUiScale } from "../../../utils/uiScale";
 
 const DICTATION_MODELS = [
@@ -56,6 +61,9 @@ type SettingsViewProps = {
   appSettings: AppSettings;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
   onRunDoctor: (codexBin: string | null) => Promise<CodexDoctorResult>;
+  onNatsStatus: () => Promise<NatsStatus>;
+  onCloudKitStatus: () => Promise<CloudKitStatus>;
+  onCloudKitTest: () => Promise<CloudKitTestResult>;
   onUpdateWorkspaceCodexBin: (id: string, codexBin: string | null) => Promise<void>;
   scaleShortcutTitle: string;
   scaleShortcutText: string;
@@ -67,7 +75,7 @@ type SettingsViewProps = {
   initialSection?: CodexSection;
 };
 
-type SettingsSection = "projects" | "display" | "dictation" | "shortcuts";
+type SettingsSection = "projects" | "cloud" | "display" | "dictation" | "shortcuts";
 type CodexSection = SettingsSection | "codex" | "experimental";
 
 export function SettingsView({
@@ -87,6 +95,9 @@ export function SettingsView({
   appSettings,
   onUpdateAppSettings,
   onRunDoctor,
+  onNatsStatus,
+  onCloudKitStatus,
+  onCloudKitTest,
   onUpdateWorkspaceCodexBin,
   scaleShortcutTitle,
   scaleShortcutText,
@@ -97,10 +108,19 @@ export function SettingsView({
   onRemoveDictationModel,
   initialSection,
 }: SettingsViewProps) {
-  const [activeSection, setActiveSection] = useState<CodexSection>("projects");
+  const [activeSection, setActiveSection] = useState<CodexSection>(
+    isAppleMobileDevice() ? "cloud" : "projects",
+  );
   const [codexPathDraft, setCodexPathDraft] = useState(appSettings.codexBin ?? "");
   const [remoteHostDraft, setRemoteHostDraft] = useState(appSettings.remoteBackendHost);
   const [remoteTokenDraft, setRemoteTokenDraft] = useState(appSettings.remoteBackendToken ?? "");
+  const [natsUrlDraft, setNatsUrlDraft] = useState(appSettings.natsUrl ?? "");
+  const [cloudKitContainerDraft, setCloudKitContainerDraft] = useState(
+    appSettings.cloudKitContainerId ?? "",
+  );
+  const [telegramTokenDraft, setTelegramTokenDraft] = useState(
+    appSettings.telegramBotToken ?? "",
+  );
   const [scaleDraft, setScaleDraft] = useState(
     `${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`,
   );
@@ -112,6 +132,20 @@ export function SettingsView({
     status: "idle" | "running" | "done";
     result: CodexDoctorResult | null;
   }>({ status: "idle", result: null });
+  const [natsStatusState, setNatsStatusState] = useState<{
+    status: "idle" | "running" | "done";
+    result: NatsStatus | null;
+  }>({ status: "idle", result: null });
+  const [cloudKitStatusState, setCloudKitStatusState] = useState<{
+    status: "idle" | "running" | "done";
+    result: CloudKitStatus | null;
+    error: string | null;
+  }>({ status: "idle", result: null, error: null });
+  const [cloudKitTestState, setCloudKitTestState] = useState<{
+    status: "idle" | "running" | "done";
+    result: CloudKitTestResult | null;
+    error: string | null;
+  }>({ status: "idle", result: null, error: null });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [shortcutDrafts, setShortcutDrafts] = useState({
     model: appSettings.composerModelShortcut ?? "",
@@ -144,6 +178,18 @@ export function SettingsView({
   useEffect(() => {
     setRemoteTokenDraft(appSettings.remoteBackendToken ?? "");
   }, [appSettings.remoteBackendToken]);
+
+  useEffect(() => {
+    setNatsUrlDraft(appSettings.natsUrl ?? "");
+  }, [appSettings.natsUrl]);
+
+  useEffect(() => {
+    setCloudKitContainerDraft(appSettings.cloudKitContainerId ?? "");
+  }, [appSettings.cloudKitContainerId]);
+
+  useEffect(() => {
+    setTelegramTokenDraft(appSettings.telegramBotToken ?? "");
+  }, [appSettings.telegramBotToken]);
 
   useEffect(() => {
     setScaleDraft(`${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`);
@@ -196,6 +242,21 @@ export function SettingsView({
     ? Number(trimmedScale.replace("%", ""))
     : Number.NaN;
   const parsedScale = Number.isFinite(parsedPercent) ? parsedPercent / 100 : null;
+
+  const handleSaveCloudSettings = async (patch: Partial<AppSettings>) => {
+    setIsSavingSettings(true);
+    try {
+      await onUpdateAppSettings({
+        ...appSettings,
+        ...patch,
+      });
+      setNatsStatusState({ status: "idle", result: null });
+      setCloudKitStatusState({ status: "idle", result: null, error: null });
+      setCloudKitTestState({ status: "idle", result: null, error: null });
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   const handleSaveCodexSettings = async () => {
     setIsSavingSettings(true);
@@ -407,15 +468,12 @@ export function SettingsView({
       groupProjects.length > 0
         ? `\n\nProjects in this group will move to "${ungroupedLabel}".`
         : "";
-    const confirmed = await ask(
-      `Delete "${group.name}"?${detail}`,
-      {
-        title: "Delete Group",
-        kind: "warning",
-        okLabel: "Delete",
-        cancelLabel: "Cancel",
-      },
-    );
+    const confirmed = await ask(`Delete "${group.name}"?${detail}`, {
+      title: "Delete Group",
+      kind: "warning",
+      okLabel: "Delete",
+      cancelLabel: "Cancel",
+    });
     if (!confirmed) {
       return;
     }
@@ -424,6 +482,59 @@ export function SettingsView({
       await onDeleteWorkspaceGroup(group.id);
     } catch (error) {
       setGroupError(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const handleTestNats = async () => {
+    setNatsStatusState({ status: "running", result: null });
+    try {
+      const url = natsUrlDraft.trim();
+      if (url !== (appSettings.natsUrl ?? "")) {
+        await handleSaveCloudSettings({ natsUrl: url.length ? url : null });
+      }
+      const res = await onNatsStatus();
+      setNatsStatusState({ status: "done", result: res });
+    } catch (error) {
+      setNatsStatusState({
+        status: "done",
+        result: { ok: false, server: null, error: String(error) },
+      });
+    }
+  };
+
+  const handleCloudKitStatus = async () => {
+    setCloudKitStatusState({ status: "running", result: null, error: null });
+    try {
+      const container = cloudKitContainerDraft.trim();
+      if (container !== (appSettings.cloudKitContainerId ?? "")) {
+        await handleSaveCloudSettings({
+          cloudKitContainerId: container.length ? container : null,
+        });
+      }
+      const res = await onCloudKitStatus();
+      setCloudKitStatusState({ status: "done", result: res, error: null });
+    } catch (error) {
+      setCloudKitStatusState({
+        status: "done",
+        result: null,
+        error: String(error),
+      });
+    }
+  };
+
+  const handleCloudKitTest = async () => {
+    setCloudKitTestState({ status: "running", result: null, error: null });
+    try {
+      const container = cloudKitContainerDraft.trim();
+      if (container !== (appSettings.cloudKitContainerId ?? "")) {
+        await handleSaveCloudSettings({
+          cloudKitContainerId: container.length ? container : null,
+        });
+      }
+      const res = await onCloudKitTest();
+      setCloudKitTestState({ status: "done", result: res, error: null });
+    } catch (error) {
+      setCloudKitTestState({ status: "done", result: null, error: String(error) });
     }
   };
 
@@ -444,6 +555,14 @@ export function SettingsView({
         </div>
         <div className="settings-body">
           <aside className="settings-sidebar">
+            <button
+              type="button"
+              className={`settings-nav ${activeSection === "cloud" ? "active" : ""}`}
+              onClick={() => setActiveSection("cloud")}
+            >
+              <Cloud aria-hidden />
+              Cloud
+            </button>
             <button
               type="button"
               className={`settings-nav ${activeSection === "projects" ? "active" : ""}`}
@@ -705,6 +824,234 @@ export function SettingsView({
                   {projects.length === 0 && (
                     <div className="settings-empty">No projects yet.</div>
                   )}
+                </div>
+              </section>
+            )}
+            {activeSection === "cloud" && (
+              <section className="settings-section">
+                <div className="settings-section-title">Cloud</div>
+                <div className="settings-section-subtitle">
+                  Sync and remote control transport. Only one of NATS or CloudKit can be active.
+                </div>
+                {isAppleMobileDevice() && appSettings.cloudProvider !== "local" ? (
+                  <div className="settings-notice" role="status">
+                    <div className="settings-notice-title">macOS runner required</div>
+                    <div className="settings-notice-subtitle">
+                      Start CodexMonitor on macOS (runner) using the same Cloud provider settings. This
+                      iPad client will discover and control your projects remotely.
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="settings-field">
+                  <div className="settings-field-label">Runner ID</div>
+                  <div className="settings-help">{appSettings.runnerId}</div>
+                </div>
+
+                <div className="settings-field">
+                  <div className="settings-field-label">Provider</div>
+                  <div className="settings-field-row">
+                    <button
+                      type="button"
+                      className={`${appSettings.cloudProvider === "local" ? "primary" : "ghost"} settings-button-compact`}
+                      onClick={() => void handleSaveCloudSettings({ cloudProvider: "local" })}
+                      disabled={isSavingSettings}
+                    >
+                      Local
+                    </button>
+                    <button
+                      type="button"
+                      className={`${appSettings.cloudProvider === "nats" ? "primary" : "ghost"} settings-button-compact`}
+                      onClick={() => void handleSaveCloudSettings({ cloudProvider: "nats" })}
+                      disabled={isSavingSettings}
+                    >
+                      NATS
+                    </button>
+                    <button
+                      type="button"
+                      className={`${appSettings.cloudProvider === "cloudkit" ? "primary" : "ghost"} settings-button-compact`}
+                      onClick={() => void handleSaveCloudSettings({ cloudProvider: "cloudkit" })}
+                      disabled={isSavingSettings}
+                    >
+                      CloudKit
+                    </button>
+                  </div>
+                </div>
+
+                {appSettings.cloudProvider === "nats" && (
+                  <>
+                    <div className="settings-section-title">NATS</div>
+                    <div className="settings-field">
+                      <label className="settings-field-label" htmlFor="nats-url">
+                        NATS URL
+                      </label>
+                      <div className="settings-field-row">
+                        <input
+                          id="nats-url"
+                          className="settings-input"
+                          value={natsUrlDraft}
+                          onChange={(event) => setNatsUrlDraft(event.target.value)}
+                          placeholder="nats://user:pass@host:4222"
+                          disabled={isSavingSettings}
+                        />
+                        <button
+                          type="button"
+                          className="ghost settings-button-compact"
+                          onClick={() =>
+                            void handleSaveCloudSettings({
+                              natsUrl: natsUrlDraft.trim() ? natsUrlDraft.trim() : null,
+                            })
+                          }
+                          disabled={isSavingSettings}
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          className="primary settings-button-compact"
+                          onClick={() => void handleTestNats()}
+                          disabled={isSavingSettings || natsStatusState.status === "running"}
+                        >
+                          {natsStatusState.status === "running" ? "Testing..." : "Test"}
+                        </button>
+                      </div>
+                      {natsStatusState.status === "done" && natsStatusState.result && (
+                        <div className="settings-help">
+                          {natsStatusState.result.ok
+                            ? `OK (${natsStatusState.result.server ?? "connected"})`
+                            : `Error: ${natsStatusState.result.error ?? "unknown"}`}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {appSettings.cloudProvider === "cloudkit" && (
+                  <>
+                    <div className="settings-section-title">CloudKit</div>
+                    <div className="settings-field">
+                      <label className="settings-field-label" htmlFor="cloudkit-container">
+                        Container ID
+                      </label>
+                      <div className="settings-field-row">
+                        <input
+                          id="cloudkit-container"
+                          className="settings-input"
+                          value={cloudKitContainerDraft}
+                          onChange={(event) => setCloudKitContainerDraft(event.target.value)}
+                          placeholder="iCloud.com.example.app"
+                          disabled={isSavingSettings}
+                        />
+                        <button
+                          type="button"
+                          className="ghost settings-button-compact"
+                          onClick={() =>
+                            void handleSaveCloudSettings({
+                              cloudKitContainerId: cloudKitContainerDraft.trim()
+                                ? cloudKitContainerDraft.trim()
+                                : null,
+                            })
+                          }
+                          disabled={isSavingSettings}
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          className="primary settings-button-compact"
+                          onClick={() => void handleCloudKitStatus()}
+                          disabled={isSavingSettings || cloudKitStatusState.status === "running"}
+                        >
+                          {cloudKitStatusState.status === "running" ? "Checking..." : "Status"}
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost settings-button-compact"
+                          onClick={() => void handleCloudKitTest()}
+                          disabled={isSavingSettings || cloudKitTestState.status === "running"}
+                        >
+                          {cloudKitTestState.status === "running" ? "Testing..." : "Test"}
+                        </button>
+                      </div>
+                      {cloudKitStatusState.status === "done" &&
+                        (cloudKitStatusState.error || cloudKitStatusState.result) && (
+                          <div className="settings-help">
+                            {cloudKitStatusState.error
+                              ? `Error: ${cloudKitStatusState.error}`
+                              : cloudKitStatusState.result
+                                ? `${cloudKitStatusState.result.status} (available: ${cloudKitStatusState.result.available ? "yes" : "no"})`
+                                : ""}
+                          </div>
+                        )}
+                      {cloudKitTestState.status === "done" &&
+                        (cloudKitTestState.error || cloudKitTestState.result) && (
+                          <div className="settings-help">
+                            {cloudKitTestState.error
+                              ? `Error: ${cloudKitTestState.error}`
+                              : cloudKitTestState.result
+                                ? `OK (${cloudKitTestState.result.recordName}, ${cloudKitTestState.result.durationMs}ms)`
+                                : ""}
+                          </div>
+                        )}
+                    </div>
+                  </>
+                )}
+
+                <div className="settings-section-title">Telegram (optional)</div>
+                <div className="settings-section-subtitle">
+                  Can be enabled independently from NATS/CloudKit.
+                </div>
+
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Enable Telegram</div>
+                    <div className="settings-toggle-subtitle">
+                      Requires a bot token (paired clients enforced in backend).
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.telegramEnabled ? "on" : ""}`}
+                    onClick={() =>
+                      void handleSaveCloudSettings({
+                        telegramEnabled: !appSettings.telegramEnabled,
+                      })
+                    }
+                    aria-pressed={appSettings.telegramEnabled}
+                    disabled={isSavingSettings}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="telegram-token">
+                    Bot token
+                  </label>
+                  <div className="settings-field-row">
+                    <input
+                      id="telegram-token"
+                      className="settings-input"
+                      value={telegramTokenDraft}
+                      onChange={(event) => setTelegramTokenDraft(event.target.value)}
+                      placeholder="123456:ABCDEF..."
+                      disabled={isSavingSettings}
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() =>
+                        void handleSaveCloudSettings({
+                          telegramBotToken: telegramTokenDraft.trim()
+                            ? telegramTokenDraft.trim()
+                            : null,
+                        })
+                      }
+                      disabled={isSavingSettings}
+                    >
+                      Save
+                    </button>
+                  </div>
                 </div>
               </section>
             )}

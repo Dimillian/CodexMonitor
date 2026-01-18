@@ -68,6 +68,70 @@
   --select-caret: rgba(255, 255, 255, 0.6);
   --tabbar-height: 56px;
   --ui-scale: 1;
+  --app-background: transparent;
+}
+
+.app.force-dark {
+  color-scheme: dark;
+  --app-background:
+    radial-gradient(
+        1200px circle at 18% -10%,
+        rgba(100, 200, 255, 0.14),
+        transparent 55%
+      ),
+    radial-gradient(
+        1000px circle at 92% 18%,
+        rgba(255, 144, 200, 0.1),
+        transparent 52%
+      ),
+    #0b0f18;
+  --text-primary: #e6e7ea;
+  --text-strong: #ffffff;
+  --text-emphasis: rgba(255, 255, 255, 0.9);
+  --text-stronger: rgba(255, 255, 255, 0.85);
+  --text-quiet: rgba(255, 255, 255, 0.75);
+  --text-muted: rgba(255, 255, 255, 0.7);
+  --text-subtle: rgba(255, 255, 255, 0.6);
+  --text-faint: rgba(255, 255, 255, 0.5);
+  --text-fainter: rgba(255, 255, 255, 0.45);
+  --text-dim: rgba(255, 255, 255, 0.35);
+  --surface-sidebar: rgba(18, 18, 18, 0.35);
+  --surface-topbar: rgba(10, 14, 20, 0.45);
+  --surface-right-panel: rgba(9, 12, 20, 0.4);
+  --surface-composer: rgba(10, 14, 20, 0.45);
+  --surface-messages: rgba(8, 10, 16, 0.45);
+  --surface-card: rgba(255, 255, 255, 0.04);
+  --surface-card-strong: rgba(255, 255, 255, 0.12);
+  --surface-card-muted: rgba(255, 255, 255, 0.06);
+  --surface-item: rgba(255, 255, 255, 0.02);
+  --surface-control: rgba(255, 255, 255, 0.08);
+  --surface-control-hover: rgba(255, 255, 255, 0.14);
+  --surface-control-disabled: rgba(255, 255, 255, 0.05);
+  --surface-hover: rgba(255, 255, 255, 0.05);
+  --surface-active: rgba(100, 200, 255, 0.14);
+  --surface-approval: rgba(12, 16, 26, 0.6);
+  --surface-debug: rgba(10, 14, 20, 0.55);
+  --surface-command: rgba(10, 12, 18, 0.7);
+  --surface-diff-card: rgba(10, 14, 20, 0.32);
+  --surface-bubble: rgba(255, 255, 255, 0.12);
+  --surface-bubble-user: rgba(77, 153, 255, 0.45);
+  --surface-context-core: rgba(10, 14, 20, 0.9);
+  --surface-popover: rgba(10, 14, 20, 0.995);
+  --surface-review: rgba(255, 144, 200, 0.1);
+  --border-review: rgba(255, 144, 200, 0.35);
+  --surface-review-active: rgba(255, 144, 200, 0.18);
+  --text-review-active: rgba(255, 195, 226, 0.95);
+  --surface-review-done: rgba(120, 255, 200, 0.18);
+  --text-review-done: rgba(170, 255, 220, 0.95);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-muted: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --border-stronger: rgba(255, 255, 255, 0.18);
+  --border-quiet: rgba(255, 255, 255, 0.2);
+  --border-accent: rgba(100, 200, 255, 0.6);
+  --border-accent-soft: rgba(100, 200, 255, 0.3);
+  --text-accent: rgba(164, 195, 255, 0.7);
+  --shadow-accent: rgba(92, 168, 255, 0.28);
 }
 
 :root[data-theme="dark"] {
@@ -269,6 +333,51 @@
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.3);
 }
 
+.e2e-overlay {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(var(--tabbar-height, 56px) + 12px);
+  z-index: 40;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-card-strong);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px);
+}
+
+.app.reduced-transparency .e2e-overlay {
+  backdrop-filter: none;
+}
+
+.e2e-overlay-title {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-strong);
+}
+
+.e2e-overlay-step {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.e2e-overlay-error {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--status-error);
+  white-space: pre-wrap;
+}
+
+.e2e-overlay--pass {
+  border-color: rgba(120, 235, 190, 0.45);
+}
+
+.e2e-overlay--fail {
+  border-color: rgba(255, 110, 110, 0.55);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -290,7 +399,7 @@ body {
   width: calc(100vw / var(--ui-scale, 1));
   display: grid;
   grid-template-columns: var(--sidebar-width, 280px) 1fr;
-  background: transparent;
+  background: var(--app-background, transparent);
   border-radius: 0;
   overflow: hidden;
   position: relative;

@@ -27,6 +27,17 @@ const defaultSettings: AppSettings = {
   dictationPreferredLanguage: null,
   dictationHoldKey: "alt",
   workspaceGroups: [],
+
+  runnerId: "unknown",
+  cloudProvider: "nats",
+  natsUrl:
+    "nats://server1.nats.ilass.com:4222",
+  cloudKitContainerId: "iCloud.com.ilass.codexmonitor",
+
+  telegramEnabled: false,
+  telegramBotToken: null,
+  telegramAllowedUserIds: null,
+  telegramDefaultChatId: null,
 };
 
 function normalizeAppSettings(settings: AppSettings): AppSettings {
@@ -34,6 +45,10 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     ...settings,
     uiScale: clampUiScale(settings.uiScale),
     theme: allowedThemes.has(settings.theme) ? settings.theme : "system",
+    natsUrl: settings.natsUrl?.trim() ? settings.natsUrl.trim() : null,
+    cloudKitContainerId: settings.cloudKitContainerId?.trim()
+      ? settings.cloudKitContainerId.trim()
+      : null,
   };
 }
 

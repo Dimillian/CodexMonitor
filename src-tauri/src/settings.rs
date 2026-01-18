@@ -1,6 +1,7 @@
-use tauri::{State, Window};
+use tauri::{AppHandle, State, Window};
 
 use crate::codex_config;
+use crate::integrations;
 use crate::state::AppState;
 use crate::storage::write_settings;
 use crate::types::AppSettings;
@@ -30,6 +31,7 @@ pub(crate) async fn update_app_settings(
     settings: AppSettings,
     state: State<'_, AppState>,
     window: Window,
+    app: AppHandle,
 ) -> Result<AppSettings, String> {
     let _ = codex_config::write_collab_enabled(settings.experimental_collab_enabled);
     let _ = codex_config::write_steer_enabled(settings.experimental_steer_enabled);
@@ -38,5 +40,6 @@ pub(crate) async fn update_app_settings(
     let mut current = state.app_settings.lock().await;
     *current = settings.clone();
     let _ = window::apply_window_appearance(&window, settings.theme.as_str());
+    tauri::async_runtime::spawn(integrations::apply_settings(app));
     Ok(settings)
 }

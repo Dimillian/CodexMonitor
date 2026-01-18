@@ -93,6 +93,12 @@ type LayoutNodesOptions = {
   onOpenDebug: () => void;
   showDebugButton: boolean;
   onAddWorkspace: () => void;
+  onHomeOpenProject?: () => void;
+  onHomeAddWorkspace?: () => void;
+  homeOpenProjectLabel?: string;
+  homeAddWorkspaceLabel?: string;
+  homeNoticeTitle?: string | null;
+  homeNoticeSubtitle?: string | null;
   onSelectHome: () => void;
   onSelectWorkspace: (workspaceId: string) => void;
   onConnectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
@@ -452,8 +458,12 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
 
   const homeNode = (
     <Home
-      onOpenProject={options.onAddWorkspace}
-      onAddWorkspace={options.onAddWorkspace}
+      onOpenProject={options.onHomeOpenProject ?? options.onAddWorkspace}
+      onAddWorkspace={options.onHomeAddWorkspace ?? options.onAddWorkspace}
+      openProjectLabel={options.homeOpenProjectLabel}
+      addWorkspaceLabel={options.homeAddWorkspaceLabel}
+      noticeTitle={options.homeNoticeTitle ?? null}
+      noticeSubtitle={options.homeNoticeSubtitle ?? null}
       latestAgentRuns={options.latestAgentRuns}
       isLoadingLatestAgents={options.isLoadingLatestAgents}
       localUsageSnapshot={options.localUsageSnapshot}

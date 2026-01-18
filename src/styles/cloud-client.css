@@ -1,0 +1,354 @@
+.cloudClientShell {
+  padding: calc(14px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right))
+    calc(14px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 100vh;
+  border-radius: 18px;
+  background: #0b0f18;
+}
+
+@media (min-width: 820px) {
+  .cloudClientShell {
+    padding: calc(18px + env(safe-area-inset-top))
+      calc(18px + env(safe-area-inset-right))
+      calc(18px + env(safe-area-inset-bottom))
+      calc(18px + env(safe-area-inset-left));
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .cloudClientShell {
+    background: #eef1f6;
+  }
+}
+
+.cloudClientHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-muted);
+  border-radius: 12px;
+  background: var(--surface-card);
+}
+
+.cloudClientBody {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  min-height: calc(100vh - 120px);
+}
+
+@media (min-width: 720px) {
+  .cloudClientBody {
+    grid-template-columns: 340px 1fr;
+    grid-template-areas: "sidebar chat";
+    align-items: stretch;
+  }
+}
+
+@media (min-width: 1100px) {
+  .cloudClientBody {
+    grid-template-columns: 340px 1fr 360px;
+    grid-template-areas: "sidebar chat logs";
+  }
+}
+
+.cloudClientPane {
+  min-height: 0;
+}
+
+.cloudClientSidebar {
+  grid-area: sidebar;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.cloudClientChatPane {
+  grid-area: chat;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cloudClientLogsPane {
+  grid-area: logs;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cloudClientLogsCardSidebar {
+  display: block;
+  min-height: 0;
+}
+
+.cloudClientLogsCardPane {
+  display: none;
+  min-height: 0;
+}
+
+@media (min-width: 1100px) {
+  .cloudClientLogsPane {
+    display: flex;
+  }
+  .cloudClientLogsCardSidebar {
+    display: none;
+  }
+  .cloudClientLogsCardPane {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+  }
+}
+
+@media (min-width: 720px) and (max-width: 1099px) {
+  .cloudClientLogsPane {
+    display: none;
+  }
+}
+
+.cloudClientHeaderActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.cloudClientTitle {
+  font-size: 18px;
+  font-weight: 650;
+  color: var(--text-strong);
+}
+
+.cloudClientSubtitle {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.cloudClientCard {
+  padding: 12px 14px;
+  border: 1px solid var(--border-muted);
+  border-radius: 12px;
+  background: var(--surface-card);
+  min-height: 0;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+}
+
+.cloudClientCardTight {
+  padding: 12px 14px;
+}
+
+.cloudClientCardFill {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.cloudClientSectionTitle {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-stronger);
+  margin-bottom: 10px;
+}
+
+.cloudClientRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cloudClientRowTight {
+  align-items: center;
+  gap: 8px;
+}
+
+.cloudClientGrow {
+  flex: 1;
+}
+
+.cloudClientLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 180px;
+}
+
+.cloudClientInput,
+.cloudClientSelect {
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-control);
+  color: var(--text-primary);
+  padding: 0 10px;
+  outline: none;
+}
+
+.cloudClientInput:focus,
+.cloudClientSelect:focus {
+  border-color: var(--border-accent-soft);
+  box-shadow: 0 0 0 3px rgba(92, 168, 255, 0.12);
+}
+
+.cloudClientHint {
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.cloudClientHintNoTop {
+  margin-top: 0;
+}
+
+.cloudClientHintInline {
+  color: var(--text-muted);
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.cloudClientMono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  color: var(--text-quiet);
+}
+
+.cloudClientList {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.cloudClientListTall {
+  max-height: 460px;
+}
+
+.cloudClientListItem {
+  text-align: left;
+  padding: 10px 10px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-item);
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.cloudClientListItem:hover {
+  background: var(--surface-hover);
+}
+
+.cloudClientListItem.active {
+  border-color: var(--border-accent-soft);
+  background: var(--surface-active);
+}
+
+.cloudClientListTitle {
+  font-weight: 650;
+  color: var(--text-stronger);
+  font-size: 12px;
+}
+
+.cloudClientListSubtitle {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.cloudClientMessages {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 460px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.cloudClientMessagesFill {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  margin-top: 8px;
+}
+
+.cloudClientChatHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cloudClientComposer {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.cloudClientChatCard .cloudClientInput {
+  min-width: 0;
+}
+
+.cloudClientMessage {
+  border: 1px solid var(--border-muted);
+  background: var(--surface-item);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.cloudClientMessageMeta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.cloudClientMessageBody {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.cloudClientLogs {
+  margin-top: 8px;
+  max-height: 220px;
+  overflow: auto;
+  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cloudClientLogsFill {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+
+.cloudClientLogLine {
+  font-size: 12px;
+  color: var(--text-muted);
+  word-break: break-word;
+}
