@@ -845,6 +845,7 @@ function MainApp() {
   } = useLayoutNodes({
     workspaces,
     groupedWorkspaces,
+    hasWorkspaceGroups: workspaceGroups.length > 0,
     threadsByWorkspace,
     threadStatusById,
     threadListLoadingByWorkspace,

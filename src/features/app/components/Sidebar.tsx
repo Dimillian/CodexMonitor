@@ -18,6 +18,7 @@ type WorkspaceGroupSection = {
 type SidebarProps = {
   workspaces: WorkspaceInfo[];
   groupedWorkspaces: WorkspaceGroupSection[];
+  hasWorkspaceGroups: boolean;
   threadsByWorkspace: Record<string, ThreadSummary[]>;
   threadStatusById: Record<
     string,
@@ -51,6 +52,7 @@ type SidebarProps = {
 export function Sidebar({
   workspaces,
   groupedWorkspaces,
+  hasWorkspaceGroups,
   threadsByWorkspace,
   threadStatusById,
   threadListLoadingByWorkspace,
@@ -348,33 +350,36 @@ export function Sidebar({
             const isGroupCollapsed = Boolean(
               groupId && collapsedGroups.has(groupId),
             );
+            const showGroupHeader = Boolean(groupId) || hasWorkspaceGroups;
 
             return (
               <div
                 key={group.id ?? "ungrouped"}
                 className="workspace-group"
               >
-                <div className="workspace-group-header">
-                  <div className="workspace-group-label">{group.name}</div>
-                  {groupId && (
-                    <button
-                      className={`group-toggle ${
-                        isGroupCollapsed ? "" : "expanded"
-                      }`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        toggleGroupCollapse(groupId);
-                      }}
-                      aria-label={
-                        isGroupCollapsed ? "Expand group" : "Collapse group"
-                      }
-                      aria-expanded={!isGroupCollapsed}
-                      type="button"
-                    >
-                      <span className="group-toggle-icon">›</span>
-                    </button>
-                  )}
-                </div>
+                {showGroupHeader && (
+                  <div className="workspace-group-header">
+                    <div className="workspace-group-label">{group.name}</div>
+                    {groupId && (
+                      <button
+                        className={`group-toggle ${
+                          isGroupCollapsed ? "" : "expanded"
+                        }`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleGroupCollapse(groupId);
+                        }}
+                        aria-label={
+                          isGroupCollapsed ? "Expand group" : "Collapse group"
+                        }
+                        aria-expanded={!isGroupCollapsed}
+                        type="button"
+                      >
+                        <span className="group-toggle-icon">›</span>
+                      </button>
+                    )}
+                  </div>
+                )}
                 <div
                   className={`workspace-group-list ${
                     isGroupCollapsed ? "collapsed" : ""

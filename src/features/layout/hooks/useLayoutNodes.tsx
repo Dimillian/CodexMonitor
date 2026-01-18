@@ -64,6 +64,7 @@ type LayoutNodesOptions = {
     name: string;
     workspaces: WorkspaceInfo[];
   }>;
+  hasWorkspaceGroups: boolean;
   threadsByWorkspace: Record<string, ThreadSummary[]>;
   threadStatusById: Record<string, ThreadActivityStatus>;
   threadListLoadingByWorkspace: Record<string, boolean>;
@@ -262,6 +263,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     <Sidebar
       workspaces={options.workspaces}
       groupedWorkspaces={options.groupedWorkspaces}
+      hasWorkspaceGroups={options.hasWorkspaceGroups}
       threadsByWorkspace={options.threadsByWorkspace}
       threadStatusById={options.threadStatusById}
       threadListLoadingByWorkspace={options.threadListLoadingByWorkspace}
