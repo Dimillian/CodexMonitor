@@ -156,6 +156,7 @@ pub fn run() {
             codex::resume_thread,
             codex::list_threads,
             codex::archive_thread,
+            codex::collaboration_mode_list,
             workspaces::connect_workspace,
             git::get_git_status,
             git::get_git_diffs,

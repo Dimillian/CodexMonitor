@@ -282,6 +282,7 @@ impl DaemonState {
         effort: Option<String>,
         access_mode: Option<String>,
         images: Option<Vec<String>>,
+        collaboration_mode: Option<Value>,
     ) -> Result<Value, String> {
         let session = self.get_session(&workspace_id).await?;
         let access_mode = access_mode.unwrap_or_else(|| "current".to_string());
@@ -338,6 +339,7 @@ impl DaemonState {
             "sandboxPolicy": sandbox_policy,
             "model": model,
             "effort": effort,
+            "collaborationMode": collaboration_mode,
         });
         session.send_request("turn/start", params).await
     }
@@ -378,6 +380,13 @@ impl DaemonState {
     async fn model_list(&self, workspace_id: String) -> Result<Value, String> {
         let session = self.get_session(&workspace_id).await?;
         session.send_request("model/list", json!({})).await
+    }
+
+    async fn collaboration_mode_list(&self, workspace_id: String) -> Result<Value, String> {
+        let session = self.get_session(&workspace_id).await?;
+        session
+            .send_request("collaborationMode/list", json!({}))
+            .await
     }
 
     async fn account_rate_limits(&self, workspace_id: String) -> Result<Value, String> {
@@ -664,6 +673,13 @@ fn parse_optional_string_array(value: &Value, key: &str) -> Option<Vec<String>> 
     }
 }
 
+fn parse_optional_value(value: &Value, key: &str) -> Option<Value> {
+    match value {
+        Value::Object(map) => map.get(key).cloned(),
+        _ => None,
+    }
+}
+
 async fn handle_rpc_request(
     state: &DaemonState,
     method: &str,
@@ -743,8 +759,18 @@ async fn handle_rpc_request(
             let effort = parse_optional_string(&params, "effort");
             let access_mode = parse_optional_string(&params, "accessMode");
             let images = parse_optional_string_array(&params, "images");
+            let collaboration_mode = parse_optional_value(&params, "collaborationMode");
             state
-                .send_user_message(workspace_id, thread_id, text, model, effort, access_mode, images)
+                .send_user_message(
+                    workspace_id,
+                    thread_id,
+                    text,
+                    model,
+                    effort,
+                    access_mode,
+                    images,
+                    collaboration_mode,
+                )
                 .await
         }
         "turn_interrupt" => {
@@ -767,6 +793,10 @@ async fn handle_rpc_request(
         "model_list" => {
             let workspace_id = parse_string(&params, "workspaceId")?;
             state.model_list(workspace_id).await
+        }
+        "collaboration_mode_list" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            state.collaboration_mode_list(workspace_id).await
         }
         "account_rate_limits" => {
             let workspace_id = parse_string(&params, "workspaceId")?;

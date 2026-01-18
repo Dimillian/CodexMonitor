@@ -19,6 +19,9 @@ type ComposerProps = {
   disabled?: boolean;
   isProcessing: boolean;
   steerEnabled: boolean;
+  collaborationModes: { id: string; label: string }[];
+  selectedCollaborationModeId: string | null;
+  onSelectCollaborationMode: (id: string | null) => void;
   models: { id: string; displayName: string; model: string }[];
   selectedModelId: string | null;
   onSelectModel: (id: string) => void;
@@ -67,6 +70,9 @@ export function Composer({
   disabled = false,
   isProcessing,
   steerEnabled,
+  collaborationModes,
+  selectedCollaborationModeId,
+  onSelectCollaborationMode,
   models,
   selectedModelId,
   onSelectModel,
@@ -304,6 +310,9 @@ export function Composer({
       />
       <ComposerMetaBar
         disabled={disabled}
+        collaborationModes={collaborationModes}
+        selectedCollaborationModeId={selectedCollaborationModeId}
+        onSelectCollaborationMode={onSelectCollaborationMode}
         models={models}
         selectedModelId={selectedModelId}
         onSelectModel={onSelectModel}

@@ -20,6 +20,7 @@ import type {
   AccessMode,
   ApprovalRequest,
   BranchInfo,
+  CollaborationModeOption,
   ConversationItem,
   CustomPromptOption,
   DebugEntry,
@@ -180,6 +181,9 @@ type LayoutNodesOptions = {
   onInsertHandled: (id: string) => void;
   onEditQueued: (item: QueuedMessage) => void;
   onDeleteQueued: (id: string) => void;
+  collaborationModes: CollaborationModeOption[];
+  selectedCollaborationModeId: string | null;
+  onSelectCollaborationMode: (id: string | null) => void;
   models: ModelOption[];
   selectedModelId: string | null;
   onSelectModel: (id: string | null) => void;
@@ -318,6 +322,9 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onInsertHandled={options.onInsertHandled}
       onEditQueued={options.onEditQueued}
       onDeleteQueued={options.onDeleteQueued}
+      collaborationModes={options.collaborationModes}
+      selectedCollaborationModeId={options.selectedCollaborationModeId}
+      onSelectCollaborationMode={options.onSelectCollaborationMode}
       models={options.models}
       selectedModelId={options.selectedModelId}
       onSelectModel={options.onSelectModel}

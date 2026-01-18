@@ -229,6 +229,16 @@ export type ModelOption = {
   isDefault: boolean;
 };
 
+export type CollaborationModeOption = {
+  id: string;
+  label: string;
+  mode: string;
+  model: string;
+  reasoningEffort: string | null;
+  developerInstructions: string | null;
+  value: Record<string, unknown>;
+};
+
 export type SkillOption = {
   name: string;
   path: string;

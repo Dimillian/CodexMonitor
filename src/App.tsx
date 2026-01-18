@@ -42,6 +42,7 @@ import { useGitHubPullRequests } from "./features/git/hooks/useGitHubPullRequest
 import { useGitHubPullRequestDiffs } from "./features/git/hooks/useGitHubPullRequestDiffs";
 import { useGitRemote } from "./features/git/hooks/useGitRemote";
 import { useModels } from "./features/models/hooks/useModels";
+import { useCollaborationModes } from "./features/collaboration/hooks/useCollaborationModes";
 import { useSkills } from "./features/skills/hooks/useSkills";
 import { useCustomPrompts } from "./features/prompts/hooks/useCustomPrompts";
 import { useWorkspaceFiles } from "./features/workspaces/hooks/useWorkspaceFiles";
@@ -354,6 +355,16 @@ function MainApp() {
     selectedEffort,
     setSelectedEffort
   } = useModels({ activeWorkspace, onDebug: addDebugEntry });
+  const {
+    collaborationModes,
+    selectedCollaborationMode,
+    selectedCollaborationModeId,
+    setSelectedCollaborationModeId,
+  } = useCollaborationModes({
+    activeWorkspace,
+    enabled: appSettings.experimentalCollabEnabled,
+    onDebug: addDebugEntry,
+  });
   const { skills } = useSkills({ activeWorkspace, onDebug: addDebugEntry });
   const { prompts } = useCustomPrompts({ activeWorkspace, onDebug: addDebugEntry });
   const { files, isLoading: isFilesLoading } = useWorkspaceFiles({
@@ -432,6 +443,7 @@ function MainApp() {
     onDebug: addDebugEntry,
     model: resolvedModel,
     effort: selectedEffort,
+    collaborationMode: selectedCollaborationMode?.value ?? null,
     accessMode,
     customPrompts: prompts,
     onMessageActivity: refreshGitStatus
@@ -995,6 +1007,9 @@ function MainApp() {
       }
       removeQueuedMessage(activeThreadId, id);
     },
+    collaborationModes,
+    selectedCollaborationModeId,
+    onSelectCollaborationMode: setSelectedCollaborationModeId,
     models,
     selectedModelId,
     onSelectModel: setSelectedModelId,
