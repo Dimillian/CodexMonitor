@@ -17,13 +17,16 @@ use std::sync::Arc;
 use ignore::WalkBuilder;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::process::Command;
 use tokio::sync::{broadcast, mpsc, Mutex};
 use uuid::Uuid;
 
 use backend::app_server::{spawn_workspace_session, WorkspaceSession};
 use backend::events::{AppServerEvent, EventSink, TerminalOutput};
 use storage::{read_settings, read_workspaces, write_settings, write_workspaces};
-use types::{AppSettings, WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings};
+use types::{
+    AppSettings, WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings, WorktreeInfo,
+};
 
 const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:4732";
 
@@ -55,6 +58,7 @@ struct DaemonConfig {
 }
 
 struct DaemonState {
+    data_dir: PathBuf,
     workspaces: Mutex<HashMap<String, WorkspaceEntry>>,
     sessions: Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     storage_path: PathBuf,
@@ -70,6 +74,7 @@ impl DaemonState {
         let workspaces = read_workspaces(&storage_path).unwrap_or_default();
         let app_settings = read_settings(&settings_path).unwrap_or_default();
         Self {
+            data_dir: config.data_dir.clone(),
             workspaces: Mutex::new(workspaces),
             sessions: Mutex::new(HashMap::new()),
             storage_path,
@@ -77,6 +82,20 @@ impl DaemonState {
             app_settings: Mutex::new(app_settings),
             event_sink,
         }
+    }
+
+    async fn kill_session(&self, workspace_id: &str) {
+        let session = {
+            let mut sessions = self.sessions.lock().await;
+            sessions.remove(workspace_id)
+        };
+
+        let Some(session) = session else {
+            return;
+        };
+
+        let mut child = session.child.lock().await;
+        let _ = child.kill().await;
     }
 
     async fn list_workspaces(&self) -> Vec<WorkspaceInfo> {
@@ -157,6 +176,281 @@ impl DaemonState {
             parent_id: entry.parent_id,
             worktree: entry.worktree,
             settings: entry.settings,
+        })
+    }
+
+    async fn add_worktree(
+        &self,
+        parent_id: String,
+        branch: String,
+        client_version: String,
+    ) -> Result<WorkspaceInfo, String> {
+        let branch = branch.trim().to_string();
+        if branch.trim().is_empty() {
+            return Err("Branch name is required.".to_string());
+        }
+
+        let parent_entry = {
+            let workspaces = self.workspaces.lock().await;
+            workspaces
+                .get(&parent_id)
+                .cloned()
+                .ok_or("parent workspace not found")?
+        };
+
+        if parent_entry.kind.is_worktree() {
+            return Err("Cannot create a worktree from another worktree.".to_string());
+        }
+
+        let worktree_root = self.data_dir.join("worktrees").join(&parent_entry.id);
+        std::fs::create_dir_all(&worktree_root)
+            .map_err(|e| format!("Failed to create worktree directory: {e}"))?;
+
+        let safe_name = sanitize_worktree_name(&branch);
+        let worktree_path = unique_worktree_path(&worktree_root, &safe_name)?;
+        let worktree_path_string = worktree_path.to_string_lossy().to_string();
+
+        let repo_path = PathBuf::from(&parent_entry.path);
+        let branch_exists = git_branch_exists(&repo_path, &branch).await?;
+        if branch_exists {
+            run_git_command(
+                &repo_path,
+                &["worktree", "add", &worktree_path_string, &branch],
+            )
+            .await?;
+        } else if let Some(remote_ref) = git_find_remote_tracking_branch(&repo_path, &branch).await? {
+            run_git_command(
+                &repo_path,
+                &["worktree", "add", "-b", &branch, &worktree_path_string, &remote_ref],
+            )
+            .await?;
+        } else {
+            run_git_command(
+                &repo_path,
+                &["worktree", "add", "-b", &branch, &worktree_path_string],
+            )
+            .await?;
+        }
+
+        let entry = WorkspaceEntry {
+            id: Uuid::new_v4().to_string(),
+            name: branch.to_string(),
+            path: worktree_path_string,
+            codex_bin: parent_entry.codex_bin.clone(),
+            kind: WorkspaceKind::Worktree,
+            parent_id: Some(parent_entry.id.clone()),
+            worktree: Some(WorktreeInfo {
+                branch: branch.to_string(),
+            }),
+            settings: WorkspaceSettings::default(),
+        };
+
+        let default_bin = {
+            let settings = self.app_settings.lock().await;
+            settings.codex_bin.clone()
+        };
+
+        let codex_home = resolve_codex_home(&entry, Some(&parent_entry.path));
+        let session = spawn_workspace_session(
+            entry.clone(),
+            default_bin,
+            client_version,
+            self.event_sink.clone(),
+            codex_home,
+        )
+        .await?;
+
+        let list = {
+            let mut workspaces = self.workspaces.lock().await;
+            workspaces.insert(entry.id.clone(), entry.clone());
+            workspaces.values().cloned().collect::<Vec<_>>()
+        };
+        write_workspaces(&self.storage_path, &list)?;
+
+        self.sessions.lock().await.insert(entry.id.clone(), session);
+
+        Ok(WorkspaceInfo {
+            id: entry.id,
+            name: entry.name,
+            path: entry.path,
+            connected: true,
+            codex_bin: entry.codex_bin,
+            kind: entry.kind,
+            parent_id: entry.parent_id,
+            worktree: entry.worktree,
+            settings: entry.settings,
+        })
+    }
+
+    async fn remove_workspace(&self, id: String) -> Result<(), String> {
+        let (entry, child_worktrees) = {
+            let workspaces = self.workspaces.lock().await;
+            let entry = workspaces.get(&id).cloned().ok_or("workspace not found")?;
+            if entry.kind.is_worktree() {
+                return Err("Use remove_worktree for worktree agents.".to_string());
+            }
+            let children = workspaces
+                .values()
+                .filter(|workspace| workspace.parent_id.as_deref() == Some(&id))
+                .cloned()
+                .collect::<Vec<_>>();
+            (entry, children)
+        };
+
+        let repo_path = PathBuf::from(&entry.path);
+        let mut removed_child_ids = Vec::new();
+        let mut failures = Vec::new();
+
+        for child in &child_worktrees {
+            let child_path = PathBuf::from(&child.path);
+            if child_path.exists() {
+                if let Err(err) = run_git_command(
+                    &repo_path,
+                    &["worktree", "remove", "--force", &child.path],
+                )
+                .await
+                {
+                    failures.push((child.id.clone(), err));
+                    continue;
+                }
+            }
+
+            self.kill_session(&child.id).await;
+            removed_child_ids.push(child.id.clone());
+        }
+
+        let _ = run_git_command(&repo_path, &["worktree", "prune", "--expire", "now"]).await;
+
+        let mut ids_to_remove = removed_child_ids;
+        if failures.is_empty() {
+            self.kill_session(&id).await;
+            ids_to_remove.push(id.clone());
+        }
+
+        if !ids_to_remove.is_empty() {
+            let list = {
+                let mut workspaces = self.workspaces.lock().await;
+                for workspace_id in ids_to_remove {
+                    workspaces.remove(&workspace_id);
+                }
+                workspaces.values().cloned().collect::<Vec<_>>()
+            };
+            write_workspaces(&self.storage_path, &list)?;
+        }
+
+        if failures.is_empty() {
+            return Ok(());
+        }
+
+        let mut message =
+            "Failed to remove one or more worktrees; parent workspace was not removed.".to_string();
+        for (child_id, error) in failures {
+            message.push_str(&format!("\n- {child_id}: {error}"));
+        }
+        Err(message)
+    }
+
+    async fn remove_worktree(&self, id: String) -> Result<(), String> {
+        let (entry, parent) = {
+            let workspaces = self.workspaces.lock().await;
+            let entry = workspaces.get(&id).cloned().ok_or("workspace not found")?;
+            if !entry.kind.is_worktree() {
+                return Err("Not a worktree workspace.".to_string());
+            }
+            let parent_id = entry.parent_id.clone().ok_or("worktree parent not found")?;
+            let parent = workspaces
+                .get(&parent_id)
+                .cloned()
+                .ok_or("worktree parent not found")?;
+            (entry, parent)
+        };
+
+        let parent_path = PathBuf::from(&parent.path);
+        let entry_path = PathBuf::from(&entry.path);
+        if entry_path.exists() {
+            run_git_command(
+                &parent_path,
+                &["worktree", "remove", "--force", &entry.path],
+            )
+            .await?;
+        }
+        let _ = run_git_command(&parent_path, &["worktree", "prune", "--expire", "now"]).await;
+
+        self.kill_session(&entry.id).await;
+
+        let list = {
+            let mut workspaces = self.workspaces.lock().await;
+            workspaces.remove(&entry.id);
+            workspaces.values().cloned().collect::<Vec<_>>()
+        };
+        write_workspaces(&self.storage_path, &list)?;
+
+        Ok(())
+    }
+
+    async fn update_workspace_settings(
+        &self,
+        id: String,
+        settings: WorkspaceSettings,
+    ) -> Result<WorkspaceInfo, String> {
+        let (entry_snapshot, list) = {
+            let mut workspaces = self.workspaces.lock().await;
+            let entry_snapshot = match workspaces.get_mut(&id) {
+                Some(entry) => {
+                    entry.settings = settings.clone();
+                    entry.clone()
+                }
+                None => return Err("workspace not found".to_string()),
+            };
+            let list: Vec<_> = workspaces.values().cloned().collect();
+            (entry_snapshot, list)
+        };
+        write_workspaces(&self.storage_path, &list)?;
+
+        let connected = self.sessions.lock().await.contains_key(&id);
+        Ok(WorkspaceInfo {
+            id: entry_snapshot.id,
+            name: entry_snapshot.name,
+            path: entry_snapshot.path,
+            connected,
+            codex_bin: entry_snapshot.codex_bin,
+            kind: entry_snapshot.kind,
+            parent_id: entry_snapshot.parent_id,
+            worktree: entry_snapshot.worktree,
+            settings: entry_snapshot.settings,
+        })
+    }
+
+    async fn update_workspace_codex_bin(
+        &self,
+        id: String,
+        codex_bin: Option<String>,
+    ) -> Result<WorkspaceInfo, String> {
+        let (entry_snapshot, list) = {
+            let mut workspaces = self.workspaces.lock().await;
+            let entry_snapshot = match workspaces.get_mut(&id) {
+                Some(entry) => {
+                    entry.codex_bin = codex_bin.clone();
+                    entry.clone()
+                }
+                None => return Err("workspace not found".to_string()),
+            };
+            let list: Vec<_> = workspaces.values().cloned().collect();
+            (entry_snapshot, list)
+        };
+        write_workspaces(&self.storage_path, &list)?;
+
+        let connected = self.sessions.lock().await.contains_key(&id);
+        Ok(WorkspaceInfo {
+            id: entry_snapshot.id,
+            name: entry_snapshot.name,
+            path: entry_snapshot.path,
+            connected,
+            codex_bin: entry_snapshot.codex_bin,
+            kind: entry_snapshot.kind,
+            parent_id: entry_snapshot.parent_id,
+            worktree: entry_snapshot.worktree,
+            settings: entry_snapshot.settings,
         })
     }
 
@@ -495,6 +789,118 @@ fn list_workspace_files_inner(root: &PathBuf, max_files: usize) -> Vec<String> {
     results
 }
 
+async fn run_git_command(repo_path: &PathBuf, args: &[&str]) -> Result<String, String> {
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(repo_path)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run git: {e}"))?;
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let detail = if stderr.trim().is_empty() {
+            stdout.trim()
+        } else {
+            stderr.trim()
+        };
+        if detail.is_empty() {
+            Err("Git command failed.".to_string())
+        } else {
+            Err(detail.to_string())
+        }
+    }
+}
+
+async fn git_branch_exists(repo_path: &PathBuf, branch: &str) -> Result<bool, String> {
+    let status = Command::new("git")
+        .args(["show-ref", "--verify", &format!("refs/heads/{branch}")])
+        .current_dir(repo_path)
+        .status()
+        .await
+        .map_err(|e| format!("Failed to run git: {e}"))?;
+    Ok(status.success())
+}
+
+async fn git_remote_branch_exists(repo_path: &PathBuf, remote: &str, branch: &str) -> Result<bool, String> {
+    let status = Command::new("git")
+        .args([
+            "show-ref",
+            "--verify",
+            &format!("refs/remotes/{remote}/{branch}"),
+        ])
+        .current_dir(repo_path)
+        .status()
+        .await
+        .map_err(|e| format!("Failed to run git: {e}"))?;
+    Ok(status.success())
+}
+
+async fn git_list_remotes(repo_path: &PathBuf) -> Result<Vec<String>, String> {
+    let output = run_git_command(repo_path, &["remote"]).await?;
+    Ok(output
+        .lines()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty())
+        .map(|line| line.to_string())
+        .collect())
+}
+
+async fn git_find_remote_tracking_branch(repo_path: &PathBuf, branch: &str) -> Result<Option<String>, String> {
+    if git_remote_branch_exists(repo_path, "origin", branch).await? {
+        return Ok(Some(format!("origin/{branch}")));
+    }
+
+    for remote in git_list_remotes(repo_path).await? {
+        if remote == "origin" {
+            continue;
+        }
+        if git_remote_branch_exists(repo_path, &remote, branch).await? {
+            return Ok(Some(format!("{remote}/{branch}")));
+        }
+    }
+
+    Ok(None)
+}
+
+fn sanitize_worktree_name(branch: &str) -> String {
+    let mut result = String::new();
+    for ch in branch.chars() {
+        if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.') {
+            result.push(ch);
+        } else {
+            result.push('-');
+        }
+    }
+    let trimmed = result.trim_matches('-').to_string();
+    if trimmed.is_empty() {
+        "worktree".to_string()
+    } else {
+        trimmed
+    }
+}
+
+fn unique_worktree_path(base_dir: &PathBuf, name: &str) -> Result<PathBuf, String> {
+    let candidate = base_dir.join(name);
+    if !candidate.exists() {
+        return Ok(candidate);
+    }
+
+    for index in 2..1000 {
+        let next = base_dir.join(format!("{name}-{index}"));
+        if !next.exists() {
+            return Ok(next);
+        }
+    }
+
+    Err(format!(
+        "Failed to find an available worktree path under {}.",
+        base_dir.display()
+    ))
+}
+
 fn default_data_dir() -> PathBuf {
     if let Ok(xdg) = env::var("XDG_DATA_HOME") {
         let trimmed = xdg.trim();
@@ -698,10 +1104,45 @@ async fn handle_rpc_request(
             let workspace = state.add_workspace(path, codex_bin, client_version).await?;
             serde_json::to_value(workspace).map_err(|err| err.to_string())
         }
+        "add_worktree" => {
+            let parent_id = parse_string(&params, "parentId")?;
+            let branch = parse_string(&params, "branch")?;
+            let workspace = state
+                .add_worktree(parent_id, branch, client_version)
+                .await?;
+            serde_json::to_value(workspace).map_err(|err| err.to_string())
+        }
         "connect_workspace" => {
             let id = parse_string(&params, "id")?;
             state.connect_workspace(id, client_version).await?;
             Ok(json!({ "ok": true }))
+        }
+        "remove_workspace" => {
+            let id = parse_string(&params, "id")?;
+            state.remove_workspace(id).await?;
+            Ok(json!({ "ok": true }))
+        }
+        "remove_worktree" => {
+            let id = parse_string(&params, "id")?;
+            state.remove_worktree(id).await?;
+            Ok(json!({ "ok": true }))
+        }
+        "update_workspace_settings" => {
+            let id = parse_string(&params, "id")?;
+            let settings_value = match params {
+                Value::Object(map) => map.get("settings").cloned().unwrap_or(Value::Null),
+                _ => Value::Null,
+            };
+            let settings: WorkspaceSettings =
+                serde_json::from_value(settings_value).map_err(|err| err.to_string())?;
+            let workspace = state.update_workspace_settings(id, settings).await?;
+            serde_json::to_value(workspace).map_err(|err| err.to_string())
+        }
+        "update_workspace_codex_bin" => {
+            let id = parse_string(&params, "id")?;
+            let codex_bin = parse_optional_string(&params, "codex_bin");
+            let workspace = state.update_workspace_codex_bin(id, codex_bin).await?;
+            serde_json::to_value(workspace).map_err(|err| err.to_string())
         }
         "list_workspace_files" => {
             let workspace_id = parse_string(&params, "workspaceId")?;

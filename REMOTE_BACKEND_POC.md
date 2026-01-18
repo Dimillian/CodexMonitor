@@ -52,7 +52,12 @@ printf '{\"id\":3,\"method\":\"list_workspaces\",\"params\":{}}\\n' | nc -w 1 12
 - `ping`
 - `list_workspaces`
 - `add_workspace` (`{ path, codex_bin? }`)
+- `add_worktree` (`{ parentId, branch }`)
 - `connect_workspace` (`{ id }`)
+- `remove_workspace` (`{ id }`)
+- `remove_worktree` (`{ id }`)
+- `update_workspace_settings` (`{ id, settings }`)
+- `update_workspace_codex_bin` (`{ id, codex_bin? }`)
 - `list_workspace_files` (`{ workspaceId }`)
 - `get_app_settings`
 - `update_app_settings` (`{ settings }`)
