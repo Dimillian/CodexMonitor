@@ -24,6 +24,36 @@ import type {
   TurnInterruptParams,
 } from './types.js';
 
+// Available Claude models
+// Note: The Agent SDK doesn't expose a model listing API, so these are hardcoded.
+// Update this list when new models are released.
+const CLAUDE_MODELS = [
+  {
+    id: 'claude-opus-4-5-20251101',
+    model: 'claude-opus-4-5-20251101',
+    displayName: 'Claude Opus 4.5',
+    isDefault: false,
+  },
+  {
+    id: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-20250514',
+    displayName: 'Claude Sonnet 4',
+    isDefault: true,
+  },
+  {
+    id: 'claude-opus-4-20250514',
+    model: 'claude-opus-4-20250514',
+    displayName: 'Claude Opus 4',
+    isDefault: false,
+  },
+  {
+    id: 'claude-3-5-haiku-20241022',
+    model: 'claude-3-5-haiku-20241022',
+    displayName: 'Claude 3.5 Haiku',
+    isDefault: false,
+  },
+];
+
 const SERVER_INFO = {
   name: 'claude-bridge',
   version: '0.1.0',
@@ -118,37 +148,10 @@ class ClaudeBridge {
       return { success: true };
     });
 
-    // Model and account info (return defaults for Claude)
+    // Model and account info
     this.rpc.onRequest('model/list', async () => {
       this.ensureInitialized();
-      return {
-        data: [
-          {
-            id: 'claude-opus-4-5-20251101',
-            model: 'claude-opus-4-5-20251101',
-            displayName: 'Claude Opus 4.5',
-            isDefault: false,
-          },
-          {
-            id: 'claude-sonnet-4-20250514',
-            model: 'claude-sonnet-4-20250514',
-            displayName: 'Claude Sonnet 4',
-            isDefault: true,
-          },
-          {
-            id: 'claude-opus-4-20250514',
-            model: 'claude-opus-4-20250514',
-            displayName: 'Claude Opus 4',
-            isDefault: false,
-          },
-          {
-            id: 'claude-3-5-haiku-20241022',
-            model: 'claude-3-5-haiku-20241022',
-            displayName: 'Claude 3.5 Haiku',
-            isDefault: false,
-          },
-        ],
-      };
+      return { data: CLAUDE_MODELS };
     });
 
     this.rpc.onRequest('account/rateLimits/read', async () => {
