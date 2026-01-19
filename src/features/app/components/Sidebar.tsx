@@ -58,6 +58,7 @@ type SidebarProps = {
   unpinThread: (workspaceId: string, threadId: string) => void;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
   getPinTimestamp: (workspaceId: string, threadId: string) => number | null;
+  onRenameThread: (workspaceId: string, threadId: string) => void;
   onDeleteWorkspace: (workspaceId: string) => void;
   onDeleteWorktree: (workspaceId: string) => void;
   onLoadOlderThreads: (workspaceId: string) => void;
@@ -94,6 +95,7 @@ export function Sidebar({
   unpinThread,
   isThreadPinned,
   getPinTimestamp,
+  onRenameThread,
   onDeleteWorkspace,
   onDeleteWorktree,
   onLoadOlderThreads,
@@ -125,6 +127,7 @@ export function Sidebar({
       onPinThread: pinThread,
       onUnpinThread: unpinThread,
       isThreadPinned,
+      onRenameThread,
       onReloadWorkspaceThreads,
       onDeleteWorkspace,
       onDeleteWorktree,

@@ -26,6 +26,7 @@ import "./styles/compact-tablet.css";
 import successSoundUrl from "./assets/success-notification.mp3";
 import errorSoundUrl from "./assets/error-notification.mp3";
 import { WorktreePrompt } from "./features/workspaces/components/WorktreePrompt";
+import { RenameThreadPrompt } from "./features/threads/components/RenameThreadPrompt";
 import { AboutView } from "./features/about/components/AboutView";
 import { SettingsView } from "./features/settings/components/SettingsView";
 import { DesktopLayout } from "./features/layout/components/DesktopLayout";
@@ -72,6 +73,7 @@ import { useDictationModel } from "./features/dictation/hooks/useDictationModel"
 import { useDictation } from "./features/dictation/hooks/useDictation";
 import { useHoldToDictate } from "./features/dictation/hooks/useHoldToDictate";
 import { useQueuedSend } from "./features/threads/hooks/useQueuedSend";
+import { useRenameThreadPrompt } from "./features/threads/hooks/useRenameThreadPrompt";
 import { useWorktreePrompt } from "./features/workspaces/hooks/useWorktreePrompt";
 import { useUiScaleShortcuts } from "./features/layout/hooks/useUiScaleShortcuts";
 import { useWorkspaceSelection } from "./features/workspaces/hooks/useWorkspaceSelection";
@@ -162,6 +164,7 @@ function MainApp() {
   };
   const [centerMode, setCenterMode] = useState<"chat" | "diff">("chat");
   const [selectedDiffPath, setSelectedDiffPath] = useState<string | null>(null);
+  const [diffScrollRequestId, setDiffScrollRequestId] = useState(0);
   const [gitPanelMode, setGitPanelMode] = useState<
     "diff" | "log" | "issues" | "prs"
   >("diff");
@@ -596,6 +599,7 @@ function MainApp() {
     unpinThread,
     isThreadPinned,
     getPinTimestamp,
+    renameThread,
     startThreadForWorkspace,
     listThreadsForWorkspace,
     loadOlderThreadsForWorkspace,
@@ -619,6 +623,24 @@ function MainApp() {
     activeItems,
     onDebug: addDebugEntry,
   });
+
+  const {
+    renamePrompt,
+    openRenamePrompt,
+    handleRenamePromptChange,
+    handleRenamePromptCancel,
+    handleRenamePromptConfirm,
+  } = useRenameThreadPrompt({
+    threadsByWorkspace,
+    renameThread,
+  });
+
+  const handleRenameThread = useCallback(
+    (workspaceId: string, threadId: string) => {
+      openRenamePrompt(workspaceId, threadId);
+    },
+    [openRenamePrompt],
+  );
 
   const {
     activeImages,
@@ -958,6 +980,7 @@ function MainApp() {
 
   function handleSelectDiff(path: string) {
     setSelectedDiffPath(path);
+    setDiffScrollRequestId((current) => current + 1);
     setCenterMode("diff");
     setGitPanelMode("diff");
     setDiffSource("local");
@@ -1174,6 +1197,9 @@ function MainApp() {
     unpinThread,
     isThreadPinned,
     getPinTimestamp,
+    onRenameThread: (workspaceId, threadId) => {
+      handleRenameThread(workspaceId, threadId);
+    },
     onDeleteWorkspace: (workspaceId) => {
       void removeWorkspace(workspaceId);
     },
@@ -1237,6 +1263,7 @@ function MainApp() {
     gitStatus,
     fileStatus,
     selectedDiffPath,
+    diffScrollRequestId,
     onSelectDiff: handleSelectDiff,
     gitLogEntries,
     gitLogTotal,
@@ -1469,6 +1496,15 @@ function MainApp() {
           onSidebarResizeStart={onSidebarResizeStart}
           onRightPanelResizeStart={onRightPanelResizeStart}
           onPlanPanelResizeStart={onPlanPanelResizeStart}
+        />
+      )}
+      {renamePrompt && (
+        <RenameThreadPrompt
+          currentName={renamePrompt.originalName}
+          name={renamePrompt.name}
+          onChange={handleRenamePromptChange}
+          onCancel={handleRenamePromptCancel}
+          onConfirm={handleRenamePromptConfirm}
         />
       )}
       {worktreePrompt && (

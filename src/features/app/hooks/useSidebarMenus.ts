@@ -8,6 +8,7 @@ type SidebarMenuHandlers = {
   onPinThread: (workspaceId: string, threadId: string) => void;
   onUnpinThread: (workspaceId: string, threadId: string) => void;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
+  onRenameThread: (workspaceId: string, threadId: string) => void;
   onReloadWorkspaceThreads: (workspaceId: string) => void;
   onDeleteWorkspace: (workspaceId: string) => void;
   onDeleteWorktree: (workspaceId: string) => void;
@@ -18,6 +19,7 @@ export function useSidebarMenus({
   onPinThread,
   onUnpinThread,
   isThreadPinned,
+  onRenameThread,
   onReloadWorkspaceThreads,
   onDeleteWorkspace,
   onDeleteWorktree,
@@ -31,7 +33,21 @@ export function useSidebarMenus({
     ) => {
       event.preventDefault();
       event.stopPropagation();
-      const items = [];
+      const renameItem = await MenuItem.new({
+        text: "Rename",
+        action: () => onRenameThread(workspaceId, threadId),
+      });
+      const archiveItem = await MenuItem.new({
+        text: "Archive",
+        action: () => onDeleteThread(workspaceId, threadId),
+      });
+      const copyItem = await MenuItem.new({
+        text: "Copy ID",
+        action: async () => {
+          await navigator.clipboard.writeText(threadId);
+        },
+      });
+      const items = [renameItem];
       if (canPin) {
         const isPinned = isThreadPinned(workspaceId, threadId);
         items.push(
@@ -47,23 +63,13 @@ export function useSidebarMenus({
           }),
         );
       }
-      const archiveItem = await MenuItem.new({
-        text: "Archive",
-        action: () => onDeleteThread(workspaceId, threadId),
-      });
-      const copyItem = await MenuItem.new({
-        text: "Copy ID",
-        action: async () => {
-          await navigator.clipboard.writeText(threadId);
-        },
-      });
       items.push(copyItem, archiveItem);
       const menu = await Menu.new({ items });
       const window = getCurrentWindow();
       const position = new LogicalPosition(event.clientX, event.clientY);
       await menu.popup(position, window);
     },
-    [isThreadPinned, onDeleteThread, onPinThread, onUnpinThread],
+    [isThreadPinned, onDeleteThread, onPinThread, onRenameThread, onUnpinThread],
   );
 
   const showWorkspaceMenu = useCallback(
