@@ -299,8 +299,8 @@ export async function updatePrompt(
   });
 }
 
-export async function deletePrompt(path: string) {
-  return invoke<any>("prompts_delete", { path });
+export async function deletePrompt(workspaceId: string, path: string) {
+  return invoke<any>("prompts_delete", { workspaceId, path });
 }
 
 export async function movePrompt(

@@ -167,15 +167,16 @@ export function useCustomPrompts({ activeWorkspace, onDebug }: UseCustomPromptsO
 
   const deletePrompt = useCallback(
     async (path: string) => {
+      const id = requireWorkspaceId();
       try {
-        await deletePromptService(path);
+        await deletePromptService(id, path);
         await refreshPrompts();
       } catch (error) {
         logPromptError("client-prompts-delete-error", "prompts/delete error", error);
         throw error;
       }
     },
-    [logPromptError, refreshPrompts],
+    [logPromptError, refreshPrompts, requireWorkspaceId],
   );
 
   const movePrompt = useCallback(

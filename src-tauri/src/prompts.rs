@@ -2,6 +2,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use tokio::task;
 use tauri::State;
@@ -79,6 +80,43 @@ fn workspace_prompts_dir(
         .join("workspaces")
         .join(&entry.id)
         .join("prompts"))
+}
+
+fn prompt_roots_for_workspace(
+    state: &State<'_, AppState>,
+    entry: &WorkspaceEntry,
+) -> Result<Vec<PathBuf>, String> {
+    let mut roots = Vec::new();
+    roots.push(workspace_prompts_dir(state, entry)?);
+    if let Some(global_dir) = default_prompts_dir() {
+        roots.push(global_dir);
+    }
+    Ok(roots)
+}
+
+fn ensure_path_within_roots(path: &Path, roots: &[PathBuf]) -> Result<(), String> {
+    let canonical_path = path
+        .canonicalize()
+        .map_err(|_| "Invalid prompt path.".to_string())?;
+    for root in roots {
+        if let Ok(canonical_root) = root.canonicalize() {
+            if canonical_path.starts_with(&canonical_root) {
+                return Ok(());
+            }
+        }
+    }
+    Err("Prompt path is not within allowed directories.".to_string())
+}
+
+fn move_file(src: &Path, dest: &Path) -> Result<(), String> {
+    match fs::rename(src, dest) {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == ErrorKind::CrossDeviceLink => {
+            fs::copy(src, dest).map_err(|err| err.to_string())?;
+            fs::remove_file(src).map_err(|err| err.to_string())
+        }
+        Err(err) => Err(err.to_string()),
+    }
 }
 
 fn parse_frontmatter(content: &str) -> (Option<String>, Option<String>, String) {
@@ -348,6 +386,12 @@ pub(crate) async fn prompts_update(
     if !target_path.exists() {
         return Err("Prompt not found.".to_string());
     }
+    {
+        let workspaces = state.workspaces.lock().await;
+        let entry = require_workspace_entry(&workspaces, &workspace_id)?;
+        let roots = prompt_roots_for_workspace(&state, &entry)?;
+        ensure_path_within_roots(&target_path, &roots)?;
+    }
     let dir = target_path
         .parent()
         .ok_or("Unable to resolve prompt directory.".to_string())?;
@@ -381,10 +425,20 @@ pub(crate) async fn prompts_update(
 }
 
 #[tauri::command]
-pub(crate) async fn prompts_delete(path: String) -> Result<(), String> {
+pub(crate) async fn prompts_delete(
+    state: State<'_, AppState>,
+    workspace_id: String,
+    path: String,
+) -> Result<(), String> {
     let target = PathBuf::from(path);
     if !target.exists() {
         return Ok(());
+    }
+    {
+        let workspaces = state.workspaces.lock().await;
+        let entry = require_workspace_entry(&workspaces, &workspace_id)?;
+        let roots = prompt_roots_for_workspace(&state, &entry)?;
+        ensure_path_within_roots(&target, &roots)?;
     }
     fs::remove_file(&target).map_err(|err| err.to_string())
 }
@@ -400,6 +454,12 @@ pub(crate) async fn prompts_move(
     if !target_path.exists() {
         return Err("Prompt not found.".to_string());
     }
+    let roots = {
+        let workspaces = state.workspaces.lock().await;
+        let entry = require_workspace_entry(&workspaces, &workspace_id)?;
+        prompt_roots_for_workspace(&state, &entry)?
+    };
+    ensure_path_within_roots(&target_path, &roots)?;
     let file_name = target_path
         .file_name()
         .and_then(|value| value.to_str())
@@ -423,7 +483,7 @@ pub(crate) async fn prompts_move(
     if let Some(parent) = next_path.parent() {
         fs::create_dir_all(parent).map_err(|err| err.to_string())?;
     }
-    fs::rename(&target_path, &next_path).map_err(|err| err.to_string())?;
+    move_file(&target_path, &next_path)?;
     let content = fs::read_to_string(&next_path).unwrap_or_default();
     let (description, argument_hint, body) = parse_frontmatter(&content);
     let name = next_path
