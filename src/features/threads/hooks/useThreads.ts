@@ -441,7 +441,7 @@ export function useThreads({
   void pinnedThreadsVersion;
   const pendingInterruptsRef = useRef<Set<string>>(new Set());
   const customNamesRef = useRef<CustomNamesMap>({});
-  const approvalAllowlistRef = useRef<string[][]>([]);
+  const approvalAllowlistRef = useRef<Record<string, string[][]>>({});
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -755,21 +755,22 @@ export function useThreads({
     [onWorkspaceConnected, refreshAccountRateLimits],
   );
 
-  const rememberApprovalPrefix = useCallback((command: string[]) => {
+  const rememberApprovalPrefix = useCallback((workspaceId: string, command: string[]) => {
     const normalized = normalizeCommandTokens(command);
     if (!normalized.length) {
       return;
     }
-    const exists = approvalAllowlistRef.current.some(
+    const allowlist = approvalAllowlistRef.current[workspaceId] ?? [];
+    const exists = allowlist.some(
       (entry) =>
         entry.length === normalized.length &&
         entry.every((token, index) => token === normalized[index]),
     );
     if (!exists) {
-      approvalAllowlistRef.current = [
+      approvalAllowlistRef.current = {
         ...approvalAllowlistRef.current,
-        normalized,
-      ];
+        [workspaceId]: [...allowlist, normalized],
+      };
     }
   }, []);
 
@@ -778,9 +779,11 @@ export function useThreads({
       onWorkspaceConnected: handleWorkspaceConnected,
       onApprovalRequest: (approval: ApprovalRequest) => {
         const commandInfo = getApprovalCommandInfo(approval.params ?? {});
+        const allowlist =
+          approvalAllowlistRef.current[approval.workspace_id] ?? [];
         if (
           commandInfo &&
-          matchesCommandPrefix(commandInfo.tokens, approvalAllowlistRef.current)
+          matchesCommandPrefix(commandInfo.tokens, allowlist)
         ) {
           void respondToServerRequest(
             approval.workspace_id,
@@ -1782,7 +1785,7 @@ export function useThreads({
         });
       }
 
-      rememberApprovalPrefix(command);
+      rememberApprovalPrefix(request.workspace_id, command);
 
       await respondToServerRequest(
         request.workspace_id,
