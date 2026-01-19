@@ -31,11 +31,11 @@ export function useWorkspaceSelection({
 }: UseWorkspaceSelectionOptions): UseWorkspaceSelectionResult {
   const exitDiffView = useCallback(() => {
     setCenterMode("chat");
-    setSelectedDiffPath(null);
-  }, [setCenterMode, setSelectedDiffPath]);
+  }, [setCenterMode]);
 
   const selectWorkspace = useCallback(
     (workspaceId: string) => {
+      setSelectedDiffPath(null);
       const target = workspaces.find((entry) => entry.id === workspaceId);
       if (target?.settings.sidebarCollapsed) {
         void updateWorkspaceSettings(workspaceId, {
@@ -59,11 +59,12 @@ export function useWorkspaceSelection({
 
   const selectHome = useCallback(() => {
     exitDiffView();
+    setSelectedDiffPath(null);
     setActiveWorkspaceId(null);
     if (isCompact) {
       setActiveTab("projects");
     }
-  }, [exitDiffView, isCompact, setActiveTab, setActiveWorkspaceId]);
+  }, [exitDiffView, isCompact, setActiveTab, setActiveWorkspaceId, setSelectedDiffPath]);
 
   return { exitDiffView, selectWorkspace, selectHome };
 }
