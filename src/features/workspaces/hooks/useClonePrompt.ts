@@ -91,10 +91,9 @@ function slugifyWorkspaceName(value: string) {
 
 function defaultCopyName(workspace: WorkspaceInfo) {
   const repoName = basename(workspace.path);
-  const slug = slugifyWorkspaceName(repoName)?.slice(0, 24) ?? null;
-  const date = new Date().toISOString().slice(0, 10);
+  const slug = slugifyWorkspaceName(repoName)?.slice(0, 32) ?? null;
   const suffix = Math.random().toString(36).slice(2, 6);
-  return slug ? `copy-${date}-${suffix}-${slug}` : `copy-${date}-${suffix}`;
+  return slug ? `${slug}-${suffix}` : suffix;
 }
 
 export function useClonePrompt({
