@@ -10,6 +10,7 @@ mod git;
 mod git_utils;
 mod local_usage;
 mod prompts;
+mod remote_backend;
 mod settings;
 mod state;
 mod terminal;

@@ -3,12 +3,14 @@ use std::path::PathBuf;
 use std::process::Stdio;
 
 use ignore::WalkBuilder;
+use serde_json::json;
 use tauri::{AppHandle, Manager, State};
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 use uuid::Uuid;
 
 use crate::codex::spawn_workspace_session;
+use crate::remote_backend;
 use crate::state::AppState;
 use crate::git_utils::resolve_git_root;
 use crate::storage::write_workspaces;
@@ -229,7 +231,13 @@ fn unique_worktree_path(base_dir: &PathBuf, name: &str) -> PathBuf {
 #[tauri::command]
 pub(crate) async fn list_workspaces(
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<Vec<WorkspaceInfo>, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let response = remote_backend::call_remote(&*state, app, "list_workspaces", json!({})).await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
     let workspaces = state.workspaces.lock().await;
     let sessions = state.sessions.lock().await;
     let mut result = Vec::new();
@@ -257,6 +265,17 @@ pub(crate) async fn add_workspace(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<WorkspaceInfo, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let response = remote_backend::call_remote(
+            &*state,
+            app,
+            "add_workspace",
+            json!({ "path": path, "codex_bin": codex_bin }),
+        )
+        .await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
     let name = PathBuf::from(&path)
         .file_name()
         .and_then(|s| s.to_str())
@@ -704,6 +723,13 @@ pub(crate) async fn connect_workspace(
     app: AppHandle,
 ) -> Result<(), String> {
     let (entry, parent_path) = {
+    if remote_backend::is_remote_mode(&*state).await {
+        remote_backend::call_remote(&*state, app, "connect_workspace", json!({ "id": id }))
+            .await?;
+        return Ok(());
+    }
+
+    let (entry, parent_path) = {
         let workspaces = state.workspaces.lock().await;
         workspaces
             .get(&id)
@@ -733,7 +759,19 @@ pub(crate) async fn connect_workspace(
 pub(crate) async fn list_workspace_files(
     workspace_id: String,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<Vec<String>, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let response = remote_backend::call_remote(
+            &*state,
+            app,
+            "list_workspace_files",
+            json!({ "workspaceId": workspace_id }),
+        )
+        .await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
     let workspaces = state.workspaces.lock().await;
     let entry = workspaces
         .get(&workspace_id)
