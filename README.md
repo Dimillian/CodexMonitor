@@ -28,7 +28,7 @@ CodexMonitor is a macOS Tauri app for orchestrating multiple Codex agents across
 
 - Node.js + npm
 - Rust toolchain (stable)
-- CMake (required to build native Whisper bindings)
+- CMake (required for native dependencies; Whisper/dictation uses it on non-Windows)
 - Codex installed on your system and available as `codex` in `PATH`
 - Git CLI (used for worktree operations)
 - GitHub CLI (`gh`) for the Issues panel (optional)
@@ -63,6 +63,21 @@ npm run tauri build
 ```
 
 The macOS app bundle will be in `src-tauri/target/release/bundle/macos/`.
+
+### Windows (opt-in)
+
+Windows builds are opt-in and use a separate Tauri config file to avoid macOS-only window effects.
+
+```bash
+npm run tauri:build:win
+```
+
+Artifacts will be in:
+
+- `src-tauri/target/release/bundle/nsis/` (installer exe)
+- `src-tauri/target/release/bundle/msi/` (msi)
+
+Note: dictation is currently disabled on Windows builds (to avoid requiring LLVM/libclang for `whisper-rs`/bindgen).
 
 ## Type Checking
 
