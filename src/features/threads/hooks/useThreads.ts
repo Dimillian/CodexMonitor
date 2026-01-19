@@ -348,6 +348,7 @@ export function useThreads({
   const [state, dispatch] = useReducer(threadReducer, initialState);
   const loadedThreads = useRef<Record<string, boolean>>({});
   const threadActivityRef = useRef<ThreadActivityMap>(loadThreadActivity());
+  const pendingInterruptsRef = useRef<Set<string>>(new Set());
 
   const recordThreadActivity = useCallback(
     (workspaceId: string, threadId: string, timestamp = Date.now()) => {
@@ -697,6 +698,13 @@ export function useThreads({
           workspaceId,
           threadId,
         });
+        if (pendingInterruptsRef.current.has(threadId)) {
+          pendingInterruptsRef.current.delete(threadId);
+          if (turnId) {
+            void interruptTurnService(workspaceId, threadId, turnId).catch(() => {});
+          }
+          return;
+        }
         markProcessing(threadId, true);
         dispatch({ type: "clearThreadPlan", threadId });
         if (turnId) {
@@ -706,6 +714,7 @@ export function useThreads({
       onTurnCompleted: (_workspaceId: string, threadId: string, _turnId: string) => {
         markProcessing(threadId, false);
         dispatch({ type: "setActiveTurnId", threadId, turnId: null });
+        pendingInterruptsRef.current.delete(threadId);
       },
       onTurnPlanUpdated: (
         workspaceId: string,
@@ -1337,6 +1346,7 @@ export function useThreads({
       text: "Session stopped.",
     });
     if (!activeTurnId) {
+      pendingInterruptsRef.current.add(activeThreadId);
       return;
     }
     onDebug?.({
