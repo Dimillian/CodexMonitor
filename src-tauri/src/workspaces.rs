@@ -7,28 +7,13 @@ use tokio::process::Command;
 use uuid::Uuid;
 
 use crate::codex::spawn_workspace_session;
+use crate::codex_home::resolve_workspace_codex_home;
 use crate::state::AppState;
 use crate::storage::write_workspaces;
 use crate::types::{
     WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings, WorktreeInfo,
 };
 use crate::utils::normalize_git_path;
-
-fn resolve_codex_home(entry: &WorkspaceEntry, parent_path: Option<&str>) -> Option<PathBuf> {
-    if entry.kind.is_worktree() {
-        if let Some(parent_path) = parent_path {
-            let legacy_home = PathBuf::from(parent_path).join(".codexmonitor");
-            if legacy_home.is_dir() {
-                return Some(legacy_home);
-            }
-        }
-    }
-    let legacy_home = PathBuf::from(&entry.path).join(".codexmonitor");
-    if legacy_home.is_dir() {
-        return Some(legacy_home);
-    }
-    None
-}
 
 fn should_skip_dir(name: &str) -> bool {
     matches!(
@@ -224,7 +209,7 @@ pub(crate) async fn add_workspace(
         let settings = state.app_settings.lock().await;
         settings.codex_bin.clone()
     };
-    let codex_home = resolve_codex_home(&entry, None);
+    let codex_home = resolve_workspace_codex_home(&entry, None);
     let session = spawn_workspace_session(entry.clone(), default_bin, app, codex_home).await?;
     {
         let mut workspaces = state.workspaces.lock().await;
@@ -320,7 +305,7 @@ pub(crate) async fn add_worktree(
         let settings = state.app_settings.lock().await;
         settings.codex_bin.clone()
     };
-    let codex_home = resolve_codex_home(&entry, Some(&parent_entry.path));
+    let codex_home = resolve_workspace_codex_home(&entry, Some(&parent_entry.path));
     let session = spawn_workspace_session(entry.clone(), default_bin, app, codex_home).await?;
     {
         let mut workspaces = state.workspaces.lock().await;
@@ -543,7 +528,7 @@ pub(crate) async fn connect_workspace(
         let settings = state.app_settings.lock().await;
         settings.codex_bin.clone()
     };
-    let codex_home = resolve_codex_home(&entry, parent_path.as_deref());
+    let codex_home = resolve_workspace_codex_home(&entry, parent_path.as_deref());
     let session = spawn_workspace_session(entry.clone(), default_bin, app, codex_home).await?;
     state.sessions.lock().await.insert(entry.id, session);
     Ok(())

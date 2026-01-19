@@ -1,16 +1,19 @@
 import { useEffect, useMemo } from "react";
 import type { ApprovalRequest, WorkspaceInfo } from "../../../types";
+import { getApprovalCommandInfo } from "../../../utils/approvalRules";
 
 type ApprovalToastsProps = {
   approvals: ApprovalRequest[];
   workspaces: WorkspaceInfo[];
   onDecision: (request: ApprovalRequest, decision: "accept" | "decline") => void;
+  onRemember?: (request: ApprovalRequest, command: string[]) => void;
 };
 
 export function ApprovalToasts({
   approvals,
   workspaces,
   onDecision,
+  onRemember,
 }: ApprovalToastsProps) {
   const workspaceLabels = useMemo(
     () => new Map(workspaces.map((workspace) => [workspace.id, workspace.name])),
@@ -82,6 +85,7 @@ export function ApprovalToasts({
       {approvals.map((request) => {
         const workspaceName = workspaceLabels.get(request.workspace_id);
         const params = request.params ?? {};
+        const commandInfo = getApprovalCommandInfo(params);
         const entries = Object.entries(params);
         return (
           <div
@@ -130,6 +134,15 @@ export function ApprovalToasts({
               >
                 Decline
               </button>
+              {commandInfo && onRemember ? (
+                <button
+                  className="ghost approval-toast-remember"
+                  onClick={() => onRemember(request, commandInfo.tokens)}
+                  title={`Allow commands that start with ${commandInfo.preview}`}
+                >
+                  Always allow
+                </button>
+              ) : null}
               <button
                 className="primary"
                 onClick={() => onDecision(request, "accept")}

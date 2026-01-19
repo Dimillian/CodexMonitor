@@ -83,6 +83,10 @@ type LayoutNodesOptions = {
     request: ApprovalRequest,
     decision: "accept" | "decline",
   ) => void;
+  handleApprovalRemember: (
+    request: ApprovalRequest,
+    command: string[],
+  ) => void;
   onOpenSettings: () => void;
   onOpenDictationSettings?: () => void;
   onOpenDebug: () => void;
@@ -420,6 +424,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       approvals={options.approvals}
       workspaces={options.workspaces}
       onDecision={options.handleApprovalDecision}
+      onRemember={options.handleApprovalRemember}
     />
   );
 

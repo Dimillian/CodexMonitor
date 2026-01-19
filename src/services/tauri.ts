@@ -152,6 +152,13 @@ export async function respondToServerRequest(
   });
 }
 
+export async function rememberApprovalRule(
+  workspaceId: string,
+  command: string[],
+) {
+  return invoke("remember_approval_rule", { workspaceId, command });
+}
+
 export async function getGitStatus(workspace_id: string): Promise<{
   branchName: string;
   files: GitFileStatus[];

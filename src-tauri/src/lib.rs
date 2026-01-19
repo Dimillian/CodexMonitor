@@ -3,12 +3,14 @@ use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
 mod backend;
 mod codex;
+mod codex_home;
 mod codex_config;
 mod dictation;
 mod event_sink;
 mod git;
 mod git_utils;
 mod prompts;
+mod rules;
 mod settings;
 mod state;
 mod terminal;
@@ -231,6 +233,7 @@ pub fn run() {
             codex::turn_interrupt,
             codex::start_review,
             codex::respond_to_server_request,
+            codex::remember_approval_rule,
             codex::resume_thread,
             codex::list_threads,
             codex::archive_thread,

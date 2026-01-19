@@ -100,6 +100,11 @@
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.approval-toast-remember {
+  white-space: nowrap;
 }
 
 @keyframes approval-toast-in {

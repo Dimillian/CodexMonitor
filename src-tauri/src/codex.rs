@@ -13,7 +13,9 @@ use crate::backend::app_server::{
     build_codex_command_with_bin, build_codex_path_env, check_codex_installation,
     spawn_workspace_session as spawn_workspace_session_inner,
 };
+use crate::codex_home::{resolve_default_codex_home, resolve_workspace_codex_home};
 use crate::event_sink::TauriEventSink;
+use crate::rules;
 use crate::state::AppState;
 use crate::types::WorkspaceEntry;
 
@@ -377,4 +379,45 @@ pub(crate) async fn respond_to_server_request(
         .get(&workspace_id)
         .ok_or("workspace not connected")?;
     session.send_response(request_id, result).await
+}
+
+#[tauri::command]
+pub(crate) async fn remember_approval_rule(
+    workspace_id: String,
+    command: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<Value, String> {
+    let command = command
+        .into_iter()
+        .map(|item| item.trim().to_string())
+        .filter(|item| !item.is_empty())
+        .collect::<Vec<_>>();
+    if command.is_empty() {
+        return Err("empty command".to_string());
+    }
+
+    let (entry, parent_path) = {
+        let workspaces = state.workspaces.lock().await;
+        let entry = workspaces
+            .get(&workspace_id)
+            .ok_or("workspace not found")?
+            .clone();
+        let parent_path = entry
+            .parent_id
+            .as_ref()
+            .and_then(|parent_id| workspaces.get(parent_id))
+            .map(|parent| parent.path.clone());
+        (entry, parent_path)
+    };
+
+    let codex_home = resolve_workspace_codex_home(&entry, parent_path.as_deref())
+        .or_else(resolve_default_codex_home)
+        .ok_or("Unable to resolve CODEX_HOME".to_string())?;
+    let rules_path = rules::default_rules_path(&codex_home);
+    rules::append_prefix_rule(&rules_path, &command)?;
+
+    Ok(json!({
+        "ok": true,
+        "rulesPath": rules_path,
+    }))
 }
