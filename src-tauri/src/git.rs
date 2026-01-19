@@ -365,6 +365,20 @@ pub(crate) async fn revert_git_file(
 }
 
 #[tauri::command]
+pub(crate) async fn revert_git_all(
+    workspace_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?;
+    let repo_root = resolve_git_root(entry)?;
+    run_git_command(&repo_root, &["restore", "--staged", "--worktree", "--", "."]).await?;
+    run_git_command(&repo_root, &["clean", "-f", "-d"]).await
+}
+
+#[tauri::command]
 pub(crate) async fn list_git_roots(
     workspace_id: String,
     depth: Option<usize>,

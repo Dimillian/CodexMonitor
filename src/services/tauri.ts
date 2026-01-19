@@ -83,6 +83,10 @@ export async function removeWorktree(id: string): Promise<void> {
   return invoke("remove_worktree", { id });
 }
 
+export async function applyWorktreeChanges(workspaceId: string): Promise<void> {
+  return invoke("apply_worktree_changes", { workspaceId });
+}
+
 export async function openWorkspaceIn(path: string, app: string): Promise<void> {
   return invoke("open_workspace_in", { path, app });
 }
@@ -197,6 +201,10 @@ export async function unstageGitFile(workspaceId: string, path: string) {
 
 export async function revertGitFile(workspaceId: string, path: string) {
   return invoke("revert_git_file", { workspaceId, path });
+}
+
+export async function revertGitAll(workspaceId: string) {
+  return invoke("revert_git_all", { workspaceId });
 }
 
 export async function getGitHubIssues(

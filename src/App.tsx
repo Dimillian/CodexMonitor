@@ -45,6 +45,7 @@ import { useGitHubPullRequestDiffs } from "./features/git/hooks/useGitHubPullReq
 import { useGitHubPullRequestComments } from "./features/git/hooks/useGitHubPullRequestComments";
 import { useGitRemote } from "./features/git/hooks/useGitRemote";
 import { useGitRepoScan } from "./features/git/hooks/useGitRepoScan";
+import { useGitActions } from "./features/git/hooks/useGitActions";
 import { useModels } from "./features/models/hooks/useModels";
 import { useCollaborationModes } from "./features/collaboration/hooks/useCollaborationModes";
 import { useSkills } from "./features/skills/hooks/useSkills";
@@ -86,9 +87,6 @@ import { useTerminalController } from "./features/terminal/hooks/useTerminalCont
 import { playNotificationSound } from "./utils/notificationSounds";
 import {
   pickWorkspacePath,
-  revertGitFile,
-  stageGitFile,
-  unstageGitFile,
 } from "./services/tauri";
 import type {
   AccessMode,
@@ -165,6 +163,7 @@ function MainApp() {
   const [centerMode, setCenterMode] = useState<"chat" | "diff">("chat");
   const [selectedDiffPath, setSelectedDiffPath] = useState<string | null>(null);
   const [diffScrollRequestId, setDiffScrollRequestId] = useState(0);
+  const pendingDiffScrollRef = useRef(false);
   const [gitPanelMode, setGitPanelMode] = useState<
     "diff" | "log" | "issues" | "prs"
   >("diff");
@@ -447,30 +446,24 @@ function MainApp() {
     await createBranch(name);
     refreshGitStatus();
   };
-  const handleStageGitFile = async (path: string) => {
-    if (!activeWorkspace) {
-      return;
-    }
-    await stageGitFile(activeWorkspace.id, path);
-    refreshGitStatus();
-    refreshGitDiffs();
-  };
-  const handleUnstageGitFile = async (path: string) => {
-    if (!activeWorkspace) {
-      return;
-    }
-    await unstageGitFile(activeWorkspace.id, path);
-    refreshGitStatus();
-    refreshGitDiffs();
-  };
-  const handleRevertGitFile = async (path: string) => {
-    if (!activeWorkspace) {
-      return;
-    }
-    await revertGitFile(activeWorkspace.id, path);
-    refreshGitStatus();
-    refreshGitDiffs();
-  };
+  const alertError = useCallback((error: unknown) => {
+    alert(error instanceof Error ? error.message : String(error));
+  }, []);
+  const {
+    applyWorktreeChanges: handleApplyWorktreeChanges,
+    revertAllGitChanges: handleRevertAllGitChanges,
+    revertGitFile: handleRevertGitFile,
+    stageGitFile: handleStageGitFile,
+    unstageGitFile: handleUnstageGitFile,
+    worktreeApplyError,
+    worktreeApplyLoading,
+    worktreeApplySuccess,
+  } = useGitActions({
+    activeWorkspace,
+    onRefreshGitStatus: refreshGitStatus,
+    onRefreshGitDiffs: refreshGitDiffs,
+    onError: alertError,
+  });
 
   const resolvedModel = selectedModel?.model ?? null;
   const activeGitRoot = activeWorkspace?.settings.gitRoot ?? null;
@@ -805,10 +798,6 @@ function MainApp() {
     [activeWorkspace, connectWorkspace, sendUserMessageToThread, startThreadForWorkspace],
   );
 
-  const alertError = useCallback((error: unknown) => {
-    alert(error instanceof Error ? error.message : String(error));
-  }, []);
-
   const handleCreatePrompt = useCallback(
     async (data: {
       scope: "workspace" | "global";
@@ -882,6 +871,7 @@ function MainApp() {
       alertError(error);
     }
   }, [alertError, getGlobalPromptsDir]);
+
   const isWorktreeWorkspace = activeWorkspace?.kind === "worktree";
   const activeParentWorkspace = isWorktreeWorkspace
     ? workspaces.find((entry) => entry.id === activeWorkspace?.parentId) ?? null
@@ -976,7 +966,7 @@ function MainApp() {
 
   function handleSelectDiff(path: string) {
     setSelectedDiffPath(path);
-    setDiffScrollRequestId((current) => current + 1);
+    pendingDiffScrollRef.current = true;
     setCenterMode("diff");
     setGitPanelMode("diff");
     setDiffSource("local");
@@ -989,6 +979,29 @@ function MainApp() {
   const handleActiveDiffPath = useCallback((path: string) => {
     setSelectedDiffPath(path);
   }, []);
+
+  useEffect(() => {
+    if (!selectedDiffPath) {
+      pendingDiffScrollRef.current = false;
+    }
+  }, [selectedDiffPath]);
+
+  useEffect(() => {
+    if (!pendingDiffScrollRef.current) {
+      return;
+    }
+    if (!selectedDiffPath) {
+      return;
+    }
+    if (centerMode !== "diff") {
+      return;
+    }
+    if (!activeDiffs.some((entry) => entry.path === selectedDiffPath)) {
+      return;
+    }
+    setDiffScrollRequestId((current) => current + 1);
+    pendingDiffScrollRef.current = false;
+  }, [activeDiffs, centerMode, selectedDiffPath]);
 
   function handleSelectPullRequest(pullRequest: GitHubPullRequest) {
     setSelectedPullRequest(pullRequest);
@@ -1256,6 +1269,16 @@ function MainApp() {
     tabletNavTab: tabletTab,
     gitPanelMode,
     onGitPanelModeChange: handleGitPanelModeChange,
+    worktreeApplyLabel: "apply",
+    worktreeApplyTitle: activeParentWorkspace?.name
+      ? `Apply changes to ${activeParentWorkspace.name}`
+      : "Apply changes to parent workspace",
+    worktreeApplyLoading: isWorktreeWorkspace ? worktreeApplyLoading : false,
+    worktreeApplyError: isWorktreeWorkspace ? worktreeApplyError : null,
+    worktreeApplySuccess: isWorktreeWorkspace ? worktreeApplySuccess : false,
+    onApplyWorktreeChanges: isWorktreeWorkspace
+      ? handleApplyWorktreeChanges
+      : undefined,
     gitStatus,
     fileStatus,
     selectedDiffPath,
@@ -1303,6 +1326,7 @@ function MainApp() {
     onStageGitFile: handleStageGitFile,
     onUnstageGitFile: handleUnstageGitFile,
     onRevertGitFile: handleRevertGitFile,
+    onRevertAllGitChanges: handleRevertAllGitChanges,
     gitDiffs: activeDiffs,
     gitDiffLoading: activeDiffLoading,
     gitDiffError: activeDiffError,
