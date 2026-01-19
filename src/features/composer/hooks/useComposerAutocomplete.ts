@@ -34,36 +34,38 @@ type UseComposerAutocompleteArgs = {
 };
 
 const whitespaceRegex = /\s/;
-
-function getTokenStart(text: string, cursor: number) {
-  let index = cursor - 1;
-  while (index >= 0 && !whitespaceRegex.test(text[index])) {
-    index -= 1;
-  }
-  return index + 1;
-}
+const triggerPrefixRegex = /^(?:\s|["'`]|\(|\[|\{)$/;
 
 function resolveAutocompleteState(
   text: string,
   cursor: number,
   triggers: AutocompleteTrigger[],
 ): AutocompleteState {
-  const tokenStart = getTokenStart(text, cursor);
-  if (tokenStart >= text.length) {
+  if (cursor <= 0) {
     return { active: false, trigger: null, query: "", range: null };
   }
-  const triggerChar = text[tokenStart];
-  const matched = triggers.find((entry) => entry.trigger === triggerChar);
-  if (!matched) {
-    return { active: false, trigger: null, query: "", range: null };
+  const triggerSet = new Set(triggers.map((entry) => entry.trigger));
+  let index = cursor - 1;
+  while (index >= 0) {
+    const char = text[index];
+    if (whitespaceRegex.test(char)) {
+      break;
+    }
+    if (triggerSet.has(char)) {
+      const prevChar = index > 0 ? text[index - 1] : "";
+      if (!prevChar || triggerPrefixRegex.test(prevChar)) {
+        const query = text.slice(index + 1, cursor);
+        return {
+          active: true,
+          trigger: char,
+          query,
+          range: { start: index + 1, end: cursor },
+        };
+      }
+    }
+    index -= 1;
   }
-  const query = text.slice(tokenStart + 1, cursor);
-  return {
-    active: true,
-    trigger: triggerChar,
-    query,
-    range: { start: tokenStart + 1, end: cursor },
-  };
+  return { active: false, trigger: null, query: "", range: null };
 }
 
 function basename(label: string) {
