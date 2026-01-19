@@ -202,7 +202,9 @@ export function GitDiffViewer({
         return;
       }
       const scrollTop = container.scrollTop;
+      const canScroll = container.scrollHeight > container.clientHeight;
       const isAtBottom =
+        canScroll &&
         scrollTop + container.clientHeight >= container.scrollHeight - 4;
       let nextPath: string | undefined;
       if (isAtBottom) {
