@@ -348,15 +348,31 @@
 
 .tool-inline-toggle {
   background: none;
-  border: none;
-  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 2px 4px;
   cursor: pointer;
   text-align: left;
+  align-self: flex-start;
+  max-width: 100%;
+  align-items: center;
+  font: inherit;
+  color: inherit;
+  line-height: 1.2;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.tool-inline-toggle:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-subtle);
+  box-shadow: none;
+  transform: none;
 }
 
 .tool-inline-toggle:focus-visible {
-  outline: 1px solid var(--border-strong);
-  border-radius: 6px;
+  outline: none;
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
 }
 
 .tool-inline-bar-toggle {

@@ -35,12 +35,21 @@
 
 .subtitle-button {
   background: none;
-  border: none;
-  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 4px 8px;
   color: inherit;
   font: inherit;
   cursor: pointer;
   -webkit-app-region: no-drag;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.subtitle-button:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  box-shadow: none;
+  transform: none;
 }
 
 .sidebar-nav-icon {
