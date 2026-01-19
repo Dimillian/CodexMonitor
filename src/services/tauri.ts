@@ -6,6 +6,7 @@ import type {
   DictationModelStatus,
   DictationSessionState,
   LocalUsageSnapshot,
+  NativeNotificationPayload,
   WorkspaceInfo,
   WorkspaceSettings,
 } from "../types";
@@ -90,6 +91,12 @@ export async function applyWorktreeChanges(workspaceId: string): Promise<void> {
 
 export async function openWorkspaceIn(path: string, app: string): Promise<void> {
   return invoke("open_workspace_in", { path, app });
+}
+
+export async function sendNativeNotification(
+  payload: NativeNotificationPayload,
+): Promise<boolean> {
+  return invoke<boolean>("send_native_notification", { payload });
 }
 
 export async function connectWorkspace(id: string): Promise<void> {

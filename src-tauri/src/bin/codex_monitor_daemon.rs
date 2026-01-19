@@ -1,10 +1,12 @@
 #[path = "../backend/mod.rs"]
+#[allow(dead_code)]
 mod backend;
 #[path = "../codex_config.rs"]
 mod codex_config;
 #[path = "../storage.rs"]
 mod storage;
 #[path = "../types.rs"]
+#[allow(dead_code)]
 mod types;
 
 use serde_json::{json, Map, Value};
@@ -35,6 +37,7 @@ struct DaemonEventSink {
     tx: broadcast::Sender<DaemonEvent>,
 }
 
+#[allow(dead_code)]
 #[derive(Clone)]
 enum DaemonEvent {
     AppServer(AppServerEvent),
@@ -1060,6 +1063,7 @@ fn parse_optional_u32(value: &Value, key: &str) -> Option<u32> {
     }
 }
 
+#[allow(dead_code)]
 fn parse_optional_bool(value: &Value, key: &str) -> Option<bool> {
     match value {
         Value::Object(map) => map.get(key).and_then(|value| value.as_bool()),

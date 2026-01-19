@@ -16,6 +16,7 @@ const defaultSettings: AppSettings = {
   lastComposerReasoningEffort: null,
   uiScale: UI_SCALE_DEFAULT,
   notificationSoundsEnabled: true,
+  notificationPushEnabled: true,
   experimentalCollabEnabled: false,
   experimentalSteerEnabled: false,
   experimentalUnifiedExecEnabled: false,

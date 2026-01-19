@@ -708,7 +708,28 @@ export function SettingsView({
                 </div>
                 <div className="settings-subsection-title">Sounds</div>
                 <div className="settings-subsection-subtitle">
-                  Control notification audio alerts.
+                  Control notification alerts.
+                </div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Push notifications</div>
+                    <div className="settings-toggle-subtitle">
+                      Show a local notification when an agent finishes or needs approval.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.notificationPushEnabled ? "on" : ""}`}
+                    onClick={() =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        notificationPushEnabled: !appSettings.notificationPushEnabled,
+                      })
+                    }
+                    aria-pressed={appSettings.notificationPushEnabled}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
                 </div>
                 <div className="settings-toggle-row">
                   <div>
