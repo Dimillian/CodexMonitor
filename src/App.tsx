@@ -81,6 +81,7 @@ import { useWorktreePrompt } from "./features/workspaces/hooks/useWorktreePrompt
 import { useClonePrompt } from "./features/workspaces/hooks/useClonePrompt";
 import { useUiScaleShortcuts } from "./features/layout/hooks/useUiScaleShortcuts";
 import { useWorkspaceSelection } from "./features/workspaces/hooks/useWorkspaceSelection";
+import { useLocalUsage } from "./features/home/hooks/useLocalUsage";
 import { useNewAgentShortcut } from "./features/app/hooks/useNewAgentShortcut";
 import { useAgentSoundNotifications } from "./features/notifications/hooks/useAgentSoundNotifications";
 import { useWindowFocusState } from "./features/layout/hooks/useWindowFocusState";
@@ -817,6 +818,12 @@ function MainApp() {
     activePlan && (activePlan.steps.length > 0 || activePlan.explanation)
   );
   const showHome = !activeWorkspace;
+  const {
+    snapshot: localUsageSnapshot,
+    isLoading: isLoadingLocalUsage,
+    error: localUsageError,
+    refresh: refreshLocalUsage,
+  } = useLocalUsage(showHome);
   const canInterrupt = activeThreadId
     ? threadStatusById[activeThreadId]?.isProcessing ?? false
     : false;
@@ -1325,6 +1332,12 @@ function MainApp() {
     onDismissUpdate: updater.dismiss,
     latestAgentRuns,
     isLoadingLatestAgents,
+    localUsageSnapshot,
+    isLoadingLocalUsage,
+    localUsageError,
+    onRefreshLocalUsage: () => {
+      refreshLocalUsage()?.catch(() => {});
+    },
     onSelectHomeThread: (workspaceId, threadId) => {
       exitDiffView();
       selectWorkspace(workspaceId);
