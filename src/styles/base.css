@@ -70,6 +70,10 @@
   --ui-scale: 1;
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
 .app.reduced-transparency {
   --surface-sidebar: rgba(18, 18, 18, 0.92);
   --surface-topbar: rgba(10, 14, 20, 0.94);
@@ -95,8 +99,90 @@
   --surface-popover: rgba(16, 20, 30, 0.995);
 }
 
-  @media (prefers-color-scheme: light) {
-  :root {
+:root[data-theme="light"] {
+  color-scheme: light;
+  --text-primary: #1a1d24;
+  --text-strong: #0e1118;
+  --text-emphasis: rgba(17, 20, 28, 0.9);
+  --text-stronger: rgba(17, 20, 28, 0.85);
+  --text-quiet: rgba(17, 20, 28, 0.75);
+  --text-muted: rgba(17, 20, 28, 0.7);
+  --text-subtle: rgba(17, 20, 28, 0.6);
+  --text-faint: rgba(17, 20, 28, 0.5);
+  --text-fainter: rgba(17, 20, 28, 0.45);
+  --text-dim: rgba(17, 20, 28, 0.35);
+  --surface-sidebar: rgba(246, 247, 250, 0.82);
+  --surface-topbar: rgba(250, 251, 253, 0.9);
+  --surface-right-panel: rgba(245, 247, 250, 0.82);
+  --surface-composer: rgba(250, 251, 253, 0.9);
+  --surface-messages: rgba(238, 241, 246, 0.9);
+  --surface-card: rgba(255, 255, 255, 0.72);
+  --surface-card-strong: rgba(255, 255, 255, 0.92);
+  --surface-card-muted: rgba(255, 255, 255, 0.7);
+  --surface-item: rgba(255, 255, 255, 0.6);
+  --surface-control: rgba(15, 23, 36, 0.08);
+  --surface-control-hover: rgba(15, 23, 36, 0.12);
+  --surface-control-disabled: rgba(15, 23, 36, 0.05);
+  --surface-hover: rgba(15, 23, 36, 0.06);
+  --surface-active: rgba(77, 153, 255, 0.18);
+  --surface-approval: rgba(246, 248, 252, 0.92);
+  --surface-debug: rgba(242, 244, 248, 0.9);
+  --surface-command: rgba(245, 247, 250, 0.95);
+  --surface-diff-card: rgba(240, 243, 248, 0.92);
+  --surface-bubble: rgba(255, 255, 255, 0.9);
+  --surface-bubble-user: rgba(77, 153, 255, 0.22);
+  --surface-context-core: rgba(255, 255, 255, 0.9);
+  --surface-popover: rgba(255, 255, 255, 0.99);
+  --surface-review: rgba(255, 170, 210, 0.25);
+  --border-review: rgba(200, 90, 140, 0.45);
+  --surface-review-active: rgba(255, 170, 210, 0.32);
+  --text-review-active: rgba(120, 30, 70, 0.9);
+  --surface-review-done: rgba(140, 235, 200, 0.35);
+  --text-review-done: rgba(20, 90, 60, 0.9);
+  --border-subtle: rgba(15, 23, 36, 0.08);
+  --border-muted: rgba(15, 23, 36, 0.06);
+  --border-strong: rgba(15, 23, 36, 0.14);
+  --border-stronger: rgba(15, 23, 36, 0.18);
+  --border-quiet: rgba(15, 23, 36, 0.2);
+  --border-accent: rgba(77, 153, 255, 0.5);
+  --border-accent-soft: rgba(77, 153, 255, 0.28);
+  --text-accent: rgba(45, 93, 170, 0.7);
+  --shadow-accent: rgba(90, 140, 210, 0.18);
+  --status-success: rgba(30, 155, 110, 0.9);
+  --status-warning: rgba(215, 120, 20, 0.9);
+  --status-error: rgba(200, 45, 45, 0.9);
+  --status-unknown: rgba(17, 20, 28, 0.25);
+  --select-caret: rgba(15, 23, 36, 0.45);
+}
+
+:root[data-theme="light"] .app.reduced-transparency {
+  --surface-sidebar: rgba(240, 242, 247, 0.98);
+  --surface-topbar: rgba(244, 246, 250, 0.98);
+  --surface-right-panel: rgba(242, 244, 248, 0.98);
+  --surface-composer: rgba(244, 246, 250, 0.98);
+  --surface-messages: rgba(240, 242, 247, 0.98);
+  --surface-card: rgba(255, 255, 255, 0.96);
+  --surface-card-strong: rgba(255, 255, 255, 0.98);
+  --surface-card-muted: rgba(252, 253, 255, 0.96);
+  --surface-item: rgba(250, 251, 253, 0.96);
+  --surface-control: rgba(15, 23, 36, 0.12);
+  --surface-control-hover: rgba(15, 23, 36, 0.18);
+  --surface-control-disabled: rgba(15, 23, 36, 0.08);
+  --surface-hover: rgba(15, 23, 36, 0.1);
+  --surface-active: rgba(77, 153, 255, 0.22);
+  --surface-approval: rgba(248, 249, 252, 0.98);
+  --surface-debug: rgba(246, 248, 252, 0.98);
+  --surface-command: rgba(250, 251, 253, 0.98);
+  --surface-diff-card: rgba(244, 246, 250, 0.98);
+  --surface-bubble: rgba(255, 255, 255, 0.98);
+  --surface-bubble-user: rgba(77, 153, 255, 0.28);
+  --surface-context-core: rgba(255, 255, 255, 0.98);
+  --surface-popover: rgba(255, 255, 255, 0.995);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
     --text-primary: #1a1d24;
     --text-strong: #0e1118;
     --text-emphasis: rgba(17, 20, 28, 0.9);
@@ -118,23 +204,23 @@
     --surface-item: rgba(255, 255, 255, 0.6);
     --surface-control: rgba(15, 23, 36, 0.08);
     --surface-control-hover: rgba(15, 23, 36, 0.12);
-  --surface-control-disabled: rgba(15, 23, 36, 0.05);
-  --surface-hover: rgba(15, 23, 36, 0.06);
-  --surface-active: rgba(77, 153, 255, 0.18);
+    --surface-control-disabled: rgba(15, 23, 36, 0.05);
+    --surface-hover: rgba(15, 23, 36, 0.06);
+    --surface-active: rgba(77, 153, 255, 0.18);
     --surface-approval: rgba(246, 248, 252, 0.92);
     --surface-debug: rgba(242, 244, 248, 0.9);
     --surface-command: rgba(245, 247, 250, 0.95);
     --surface-diff-card: rgba(240, 243, 248, 0.92);
-  --surface-bubble: rgba(255, 255, 255, 0.9);
-  --surface-bubble-user: rgba(77, 153, 255, 0.22);
-  --surface-context-core: rgba(255, 255, 255, 0.9);
-  --surface-popover: rgba(255, 255, 255, 0.99);
-  --surface-review: rgba(255, 170, 210, 0.25);
-  --border-review: rgba(200, 90, 140, 0.45);
-  --surface-review-active: rgba(255, 170, 210, 0.32);
-  --text-review-active: rgba(120, 30, 70, 0.9);
-  --surface-review-done: rgba(140, 235, 200, 0.35);
-  --text-review-done: rgba(20, 90, 60, 0.9);
+    --surface-bubble: rgba(255, 255, 255, 0.9);
+    --surface-bubble-user: rgba(77, 153, 255, 0.22);
+    --surface-context-core: rgba(255, 255, 255, 0.9);
+    --surface-popover: rgba(255, 255, 255, 0.99);
+    --surface-review: rgba(255, 170, 210, 0.25);
+    --border-review: rgba(200, 90, 140, 0.45);
+    --surface-review-active: rgba(255, 170, 210, 0.32);
+    --text-review-active: rgba(120, 30, 70, 0.9);
+    --surface-review-done: rgba(140, 235, 200, 0.35);
+    --text-review-done: rgba(20, 90, 60, 0.9);
     --border-subtle: rgba(15, 23, 36, 0.08);
     --border-muted: rgba(15, 23, 36, 0.06);
     --border-strong: rgba(15, 23, 36, 0.14);
@@ -142,16 +228,16 @@
     --border-quiet: rgba(15, 23, 36, 0.2);
     --border-accent: rgba(77, 153, 255, 0.5);
     --border-accent-soft: rgba(77, 153, 255, 0.28);
-  --text-accent: rgba(45, 93, 170, 0.7);
-  --shadow-accent: rgba(90, 140, 210, 0.18);
-  --status-success: rgba(30, 155, 110, 0.9);
+    --text-accent: rgba(45, 93, 170, 0.7);
+    --shadow-accent: rgba(90, 140, 210, 0.18);
+    --status-success: rgba(30, 155, 110, 0.9);
     --status-warning: rgba(215, 120, 20, 0.9);
     --status-error: rgba(200, 45, 45, 0.9);
     --status-unknown: rgba(17, 20, 28, 0.25);
-  --select-caret: rgba(15, 23, 36, 0.45);
+    --select-caret: rgba(15, 23, 36, 0.45);
   }
 
-  .app.reduced-transparency {
+  :root:not([data-theme]) .app.reduced-transparency {
     --surface-sidebar: rgba(240, 242, 247, 0.98);
     --surface-topbar: rgba(244, 246, 250, 0.98);
     --surface-right-panel: rgba(242, 244, 248, 0.98);

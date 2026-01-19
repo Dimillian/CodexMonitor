@@ -572,6 +572,8 @@ dependencies = [
  "git2",
  "ignore",
  "libc",
+ "objc2-app-kit",
+ "objc2-foundation",
  "portable-pty",
  "reqwest",
  "serde",

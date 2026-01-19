@@ -71,6 +71,7 @@ export type ReviewTarget =
 
 export type AccessMode = "read-only" | "current" | "full-access";
 export type BackendMode = "local" | "remote";
+export type ThemePreference = "system" | "light" | "dark";
 
 export type AppSettings = {
   codexBin: string | null;
@@ -84,6 +85,7 @@ export type AppSettings = {
   lastComposerModelId: string | null;
   lastComposerReasoningEffort: string | null;
   uiScale: number;
+  theme: ThemePreference;
   notificationSoundsEnabled: boolean;
   experimentalCollabEnabled: boolean;
   experimentalSteerEnabled: boolean;

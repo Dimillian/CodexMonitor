@@ -20,6 +20,7 @@ mod rules;
 mod settings;
 mod state;
 mod terminal;
+mod window;
 mod storage;
 mod types;
 mod utils;

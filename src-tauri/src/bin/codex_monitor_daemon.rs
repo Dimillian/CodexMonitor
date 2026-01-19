@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 #[path = "../backend/mod.rs"]
 mod backend;
 #[path = "../codex_home.rs"]
@@ -8,6 +9,7 @@ mod codex_config;
 mod rules;
 #[path = "../storage.rs"]
 mod storage;
+#[allow(dead_code)]
 #[path = "../types.rs"]
 mod types;
 
@@ -42,6 +44,7 @@ struct DaemonEventSink {
 #[derive(Clone)]
 enum DaemonEvent {
     AppServer(AppServerEvent),
+    #[allow(dead_code)]
     TerminalOutput(TerminalOutput),
 }
 
@@ -1084,13 +1087,6 @@ fn parse_optional_u32(value: &Value, key: &str) -> Option<u32> {
                 Some(v as u32)
             }
         }),
-        _ => None,
-    }
-}
-
-fn parse_optional_bool(value: &Value, key: &str) -> Option<bool> {
-    match value {
-        Value::Object(map) => map.get(key).and_then(|value| value.as_bool()),
         _ => None,
     }
 }

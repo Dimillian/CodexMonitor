@@ -198,13 +198,22 @@
   position: relative;
 }
 
+:root[data-theme="light"] .composer-action {
+  border-color: var(--border-strong);
+  color: var(--text-strong);
+}
+
+:root[data-theme="light"] .composer-action:hover {
+  color: var(--text-strong);
+}
+
 @media (prefers-color-scheme: light) {
-  .composer-action {
+  :root:not([data-theme]) .composer-action {
     border-color: var(--border-strong);
     color: var(--text-strong);
   }
 
-  .composer-action:hover {
+  :root:not([data-theme]) .composer-action:hover {
     color: var(--text-strong);
   }
 }

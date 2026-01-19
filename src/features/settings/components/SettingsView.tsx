@@ -718,6 +718,26 @@ export function SettingsView({
                 <div className="settings-subsection-subtitle">
                   Adjust how the window renders backgrounds and effects.
                 </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="theme-select">
+                    Theme
+                  </label>
+                  <select
+                    id="theme-select"
+                    className="settings-select"
+                    value={appSettings.theme}
+                    onChange={(event) =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        theme: event.target.value as AppSettings["theme"],
+                      })
+                    }
+                  >
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                  </select>
+                </div>
                 <div className="settings-toggle-row">
                   <div>
                     <div className="settings-toggle-title">Reduce transparency</div>

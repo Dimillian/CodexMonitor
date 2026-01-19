@@ -61,6 +61,7 @@ import { useResizablePanels } from "./features/layout/hooks/useResizablePanels";
 import { useLayoutMode } from "./features/layout/hooks/useLayoutMode";
 import { useSidebarToggles } from "./features/layout/hooks/useSidebarToggles";
 import { useTransparencyPreference } from "./features/layout/hooks/useTransparencyPreference";
+import { useThemePreference } from "./features/layout/hooks/useThemePreference";
 import { useWindowLabel } from "./features/layout/hooks/useWindowLabel";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
@@ -107,6 +108,7 @@ function MainApp() {
     doctor,
     isLoading: appSettingsLoading
   } = useAppSettings();
+  useThemePreference(appSettings.theme);
   const dictationModel = useDictationModel(appSettings.dictationModelId);
   const {
     state: dictationState,
