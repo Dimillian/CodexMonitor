@@ -1,5 +1,8 @@
 use std::fs;
+use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
+use std::thread;
+use std::time::{Duration, Instant};
 
 const RULES_DIR: &str = "rules";
 const DEFAULT_RULES_FILE: &str = "default.rules";
@@ -17,6 +20,7 @@ pub(crate) fn append_prefix_rule(path: &Path, pattern: &[String]) -> Result<(), 
         fs::create_dir_all(parent).map_err(|err| err.to_string())?;
     }
 
+    let _lock = acquire_rules_lock(path)?;
     let existing = fs::read_to_string(path).unwrap_or_default();
     if rule_already_present(&existing, pattern) {
         return Ok(());
@@ -38,6 +42,38 @@ pub(crate) fn append_prefix_rule(path: &Path, pattern: &[String]) -> Result<(), 
     }
 
     fs::write(path, updated).map_err(|err| err.to_string())
+}
+
+struct RulesFileLock {
+    path: PathBuf,
+}
+
+impl Drop for RulesFileLock {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+    }
+}
+
+fn acquire_rules_lock(path: &Path) -> Result<RulesFileLock, String> {
+    let lock_path = path.with_extension("lock");
+    let deadline = Instant::now() + Duration::from_secs(2);
+
+    loop {
+        match OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&lock_path)
+        {
+            Ok(_) => return Ok(RulesFileLock { path: lock_path }),
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
+                if Instant::now() >= deadline {
+                    return Err("timed out waiting for rules file lock".to_string());
+                }
+                thread::sleep(Duration::from_millis(50));
+            }
+            Err(err) => return Err(err.to_string()),
+        }
+    }
 }
 
 fn format_prefix_rule(pattern: &[String]) -> String {
