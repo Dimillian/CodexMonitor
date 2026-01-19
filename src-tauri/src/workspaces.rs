@@ -722,7 +722,6 @@ pub(crate) async fn connect_workspace(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    let (entry, parent_path) = {
     if remote_backend::is_remote_mode(&*state).await {
         remote_backend::call_remote(&*state, app, "connect_workspace", json!({ "id": id }))
             .await?;
