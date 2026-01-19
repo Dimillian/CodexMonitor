@@ -86,6 +86,7 @@ export type AppSettings = {
   uiScale: number;
   theme: ThemePreference;
   notificationSoundsEnabled: boolean;
+  notificationPushEnabled: boolean;
   experimentalCollabEnabled: boolean;
   experimentalSteerEnabled: boolean;
   experimentalUnifiedExecEnabled: boolean;
@@ -113,6 +114,17 @@ export type ApprovalRequest = {
   request_id: number;
   method: string;
   params: Record<string, unknown>;
+};
+
+export type NotificationClickPayload = {
+  workspaceId: string;
+  threadId?: string | null;
+  kind: "completion" | "approval";
+};
+
+export type NativeNotificationPayload = NotificationClickPayload & {
+  title: string;
+  body?: string;
 };
 
 export type GitFileStatus = {

@@ -17,6 +17,7 @@ const defaultSettings: AppSettings = {
   uiScale: UI_SCALE_DEFAULT,
   theme: "system",
   notificationSoundsEnabled: true,
+  notificationPushEnabled: true,
   experimentalCollabEnabled: false,
   experimentalSteerEnabled: false,
   experimentalUnifiedExecEnabled: false,

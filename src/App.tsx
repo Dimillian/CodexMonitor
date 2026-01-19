@@ -79,11 +79,13 @@ import { useUiScaleShortcuts } from "./features/layout/hooks/useUiScaleShortcuts
 import { useWorkspaceSelection } from "./features/workspaces/hooks/useWorkspaceSelection";
 import { useNewAgentShortcut } from "./features/app/hooks/useNewAgentShortcut";
 import { useAgentSoundNotifications } from "./features/notifications/hooks/useAgentSoundNotifications";
+import { useAgentPushNotifications } from "./features/notifications/hooks/useAgentPushNotifications";
 import { useWindowFocusState } from "./features/layout/hooks/useWindowFocusState";
 import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { usePanelVisibility } from "./features/layout/hooks/usePanelVisibility";
 import { useTerminalController } from "./features/terminal/hooks/useTerminalController";
 import { playNotificationSound } from "./utils/notificationSounds";
+import { listen } from "@tauri-apps/api/event";
 import {
   pickWorkspacePath,
   revertGitFile,
@@ -93,6 +95,7 @@ import {
 import type {
   AccessMode,
   GitHubPullRequest,
+  NotificationClickPayload,
   QueuedMessage,
   WorkspaceInfo,
 } from "./types";
@@ -618,6 +621,14 @@ function MainApp() {
     onMessageActivity: refreshGitStatus
   });
 
+  useAgentPushNotifications({
+    enabled: appSettings.notificationPushEnabled,
+    isWindowFocused,
+    workspaces,
+    threadsByWorkspace,
+    onDebug: addDebugEntry,
+  });
+
   const { handleCopyThread } = useCopyThread({
     activeItems,
     onDebug: addDebugEntry,
@@ -659,6 +670,47 @@ function MainApp() {
     setCenterMode,
     setSelectedDiffPath,
   });
+
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    let canceled = false;
+
+    listen<NotificationClickPayload>("notification-clicked", (event) => {
+      const { workspaceId, threadId } = event.payload ?? {};
+      if (!workspaceId) {
+        return;
+      }
+      selectWorkspace(workspaceId);
+      if (threadId) {
+        setActiveThreadId(threadId, workspaceId);
+      }
+    })
+      .then((handler) => {
+        if (canceled) {
+          try {
+            handler();
+          } catch {
+            // Ignore unlisten errors when already removed.
+          }
+        } else {
+          unlisten = handler;
+        }
+      })
+      .catch(() => {
+        // Ignore notification listener errors (unsupported platform).
+      });
+
+    return () => {
+      canceled = true;
+      if (unlisten) {
+        try {
+          unlisten();
+        } catch {
+          // Ignore unlisten errors when already removed.
+        }
+      }
+    };
+  }, [selectWorkspace, setActiveThreadId]);
   const {
     worktreePrompt,
     openPrompt: openWorktreePrompt,

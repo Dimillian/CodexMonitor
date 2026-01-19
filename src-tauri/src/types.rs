@@ -229,6 +229,11 @@ pub(crate) struct AppSettings {
     )]
     pub(crate) notification_sounds_enabled: bool,
     #[serde(
+        default = "default_notification_push_enabled",
+        rename = "notificationPushEnabled"
+    )]
+    pub(crate) notification_push_enabled: bool,
+    #[serde(
         default = "default_experimental_collab_enabled",
         rename = "experimentalCollabEnabled"
     )]
@@ -306,6 +311,10 @@ fn default_notification_sounds_enabled() -> bool {
     true
 }
 
+fn default_notification_push_enabled() -> bool {
+    true
+}
+
 fn default_experimental_collab_enabled() -> bool {
     false
 }
@@ -350,6 +359,7 @@ impl Default for AppSettings {
             ui_scale: 1.0,
             theme: default_theme(),
             notification_sounds_enabled: true,
+            notification_push_enabled: true,
             experimental_collab_enabled: false,
             experimental_steer_enabled: false,
             experimental_unified_exec_enabled: false,
@@ -391,6 +401,7 @@ mod tests {
         assert!((settings.ui_scale - 1.0).abs() < f64::EPSILON);
         assert_eq!(settings.theme, "system");
         assert!(settings.notification_sounds_enabled);
+        assert!(settings.notification_push_enabled);
         assert!(!settings.experimental_steer_enabled);
         assert!(!settings.dictation_enabled);
         assert_eq!(settings.dictation_model_id, "base");

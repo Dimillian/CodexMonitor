@@ -8,6 +8,7 @@ mod dictation;
 mod event_sink;
 mod git;
 mod git_utils;
+mod notifications;
 mod prompts;
 mod settings;
 mod state;
@@ -215,6 +216,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             settings::get_app_settings,
             settings::update_app_settings,
@@ -263,6 +265,7 @@ pub fn run() {
             prompts::prompts_move,
             prompts::prompts_workspace_dir,
             prompts::prompts_global_dir,
+            notifications::send_native_notification,
             terminal::terminal_open,
             terminal::terminal_write,
             terminal::terminal_resize,
