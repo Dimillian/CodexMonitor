@@ -11,6 +11,8 @@ import "./styles/composer.css";
 import "./styles/diff.css";
 import "./styles/diff-viewer.css";
 import "./styles/file-tree.css";
+import "./styles/panel-tabs.css";
+import "./styles/prompts.css";
 import "./styles/debug.css";
 import "./styles/terminal.css";
 import "./styles/plan.css";
@@ -24,6 +26,7 @@ import "./styles/compact-tablet.css";
 import successSoundUrl from "./assets/success-notification.mp3";
 import errorSoundUrl from "./assets/error-notification.mp3";
 import { WorktreePrompt } from "./features/workspaces/components/WorktreePrompt";
+import { RenameThreadPrompt } from "./features/threads/components/RenameThreadPrompt";
 import { AboutView } from "./features/about/components/AboutView";
 import { SettingsView } from "./features/settings/components/SettingsView";
 import { DesktopLayout } from "./features/layout/components/DesktopLayout";
@@ -56,6 +59,7 @@ import { useLayoutMode } from "./features/layout/hooks/useLayoutMode";
 import { useSidebarToggles } from "./features/layout/hooks/useSidebarToggles";
 import { useTransparencyPreference } from "./features/layout/hooks/useTransparencyPreference";
 import { useWindowLabel } from "./features/layout/hooks/useWindowLabel";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
   RightPanelCollapseButton,
   SidebarCollapseButton,
@@ -69,6 +73,7 @@ import { useDictationModel } from "./features/dictation/hooks/useDictationModel"
 import { useDictation } from "./features/dictation/hooks/useDictation";
 import { useHoldToDictate } from "./features/dictation/hooks/useHoldToDictate";
 import { useQueuedSend } from "./features/threads/hooks/useQueuedSend";
+import { useRenameThreadPrompt } from "./features/threads/hooks/useRenameThreadPrompt";
 import { useWorktreePrompt } from "./features/workspaces/hooks/useWorktreePrompt";
 import { useUiScaleShortcuts } from "./features/layout/hooks/useUiScaleShortcuts";
 import { useWorkspaceSelection } from "./features/workspaces/hooks/useWorkspaceSelection";
@@ -162,7 +167,9 @@ function MainApp() {
   const [gitPanelMode, setGitPanelMode] = useState<
     "diff" | "log" | "issues" | "prs"
   >("diff");
-  const [filePanelMode, setFilePanelMode] = useState<"git" | "files">("git");
+  const [filePanelMode, setFilePanelMode] = useState<
+    "git" | "files" | "prompts"
+  >("git");
   const [selectedPullRequest, setSelectedPullRequest] =
     useState<GitHubPullRequest | null>(null);
   const [diffSource, setDiffSource] = useState<"local" | "pr">("local");
@@ -414,7 +421,15 @@ function MainApp() {
     onDebug: addDebugEntry,
   });
   const { skills } = useSkills({ activeWorkspace, onDebug: addDebugEntry });
-  const { prompts } = useCustomPrompts({ activeWorkspace, onDebug: addDebugEntry });
+  const {
+    prompts,
+    createPrompt,
+    updatePrompt,
+    deletePrompt,
+    movePrompt,
+    getWorkspacePromptsDir,
+    getGlobalPromptsDir,
+  } = useCustomPrompts({ activeWorkspace, onDebug: addDebugEntry });
   const { files, isLoading: isFilesLoading } = useWorkspaceFiles({
     activeWorkspace,
     onDebug: addDebugEntry,
@@ -578,10 +593,12 @@ function MainApp() {
     lastAgentMessageByThread,
     interruptTurn,
     removeThread,
+    renameThread,
     startThreadForWorkspace,
     listThreadsForWorkspace,
     loadOlderThreadsForWorkspace,
     sendUserMessage,
+    sendUserMessageToThread,
     startReview,
     handleApprovalDecision
   } = useThreads({
@@ -600,6 +617,24 @@ function MainApp() {
     activeItems,
     onDebug: addDebugEntry,
   });
+
+  const {
+    renamePrompt,
+    openRenamePrompt,
+    handleRenamePromptChange,
+    handleRenamePromptCancel,
+    handleRenamePromptConfirm,
+  } = useRenameThreadPrompt({
+    threadsByWorkspace,
+    renameThread,
+  });
+
+  const handleRenameThread = useCallback(
+    (workspaceId: string, threadId: string) => {
+      openRenamePrompt(workspaceId, threadId);
+    },
+    [openRenamePrompt],
+  );
 
   const {
     activeImages,
@@ -734,6 +769,114 @@ function MainApp() {
     },
     [activeThreadId]
   );
+
+  const handleSendPrompt = useCallback(
+    (text: string) => {
+      if (!text.trim()) {
+        return;
+      }
+      void handleSend(text, []);
+    },
+    [handleSend],
+  );
+
+  const handleSendPromptToNewAgent = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!activeWorkspace || !trimmed) {
+        return;
+      }
+      if (!activeWorkspace.connected) {
+        await connectWorkspace(activeWorkspace);
+      }
+      const threadId = await startThreadForWorkspace(activeWorkspace.id, {
+        activate: false,
+      });
+      if (!threadId) {
+        return;
+      }
+      await sendUserMessageToThread(activeWorkspace, threadId, trimmed, []);
+    },
+    [activeWorkspace, connectWorkspace, sendUserMessageToThread, startThreadForWorkspace],
+  );
+
+  const alertError = useCallback((error: unknown) => {
+    alert(error instanceof Error ? error.message : String(error));
+  }, []);
+
+  const handleCreatePrompt = useCallback(
+    async (data: {
+      scope: "workspace" | "global";
+      name: string;
+      description?: string | null;
+      argumentHint?: string | null;
+      content: string;
+    }) => {
+      try {
+        await createPrompt(data);
+      } catch (error) {
+        alertError(error);
+      }
+    },
+    [alertError, createPrompt],
+  );
+
+  const handleUpdatePrompt = useCallback(
+    async (data: {
+      path: string;
+      name: string;
+      description?: string | null;
+      argumentHint?: string | null;
+      content: string;
+    }) => {
+      try {
+        await updatePrompt(data);
+      } catch (error) {
+        alertError(error);
+      }
+    },
+    [alertError, updatePrompt],
+  );
+
+  const handleDeletePrompt = useCallback(
+    async (path: string) => {
+      try {
+        await deletePrompt(path);
+      } catch (error) {
+        alertError(error);
+      }
+    },
+    [alertError, deletePrompt],
+  );
+
+  const handleMovePrompt = useCallback(
+    async (data: { path: string; scope: "workspace" | "global" }) => {
+      try {
+        await movePrompt(data);
+      } catch (error) {
+        alertError(error);
+      }
+    },
+    [alertError, movePrompt],
+  );
+
+  const handleRevealWorkspacePrompts = useCallback(async () => {
+    try {
+      const path = await getWorkspacePromptsDir();
+      await revealItemInDir(path);
+    } catch (error) {
+      alertError(error);
+    }
+  }, [alertError, getWorkspacePromptsDir]);
+
+  const handleRevealGeneralPrompts = useCallback(async () => {
+    try {
+      const path = await getGlobalPromptsDir();
+      await revealItemInDir(path);
+    } catch (error) {
+      alertError(error);
+    }
+  }, [alertError, getGlobalPromptsDir]);
   const isWorktreeWorkspace = activeWorkspace?.kind === "worktree";
   const activeParentWorkspace = isWorktreeWorkspace
     ? workspaces.find((entry) => entry.id === activeWorkspace?.parentId) ?? null
@@ -1040,6 +1183,9 @@ function MainApp() {
       });
       removeImagesForThread(threadId);
     },
+    onRenameThread: (workspaceId, threadId) => {
+      handleRenameThread(workspaceId, threadId);
+    },
     onDeleteWorkspace: (workspaceId) => {
       void removeWorkspace(workspaceId);
     },
@@ -1088,9 +1234,7 @@ function MainApp() {
       <RightPanelCollapseButton {...sidebarToggleProps} />
     ) : null,
     filePanelMode,
-    onToggleFilePanel: () => {
-      setFilePanelMode((prev) => (prev === "git" ? "files" : "git"));
-    },
+    onFilePanelModeChange: setFilePanelMode,
     fileTreeLoading: isFilesLoading,
     centerMode,
     onExitDiff: () => {
@@ -1152,6 +1296,14 @@ function MainApp() {
     gitDiffLoading: activeDiffLoading,
     gitDiffError: activeDiffError,
     onDiffActivePathChange: handleActiveDiffPath,
+    onSendPrompt: handleSendPrompt,
+    onSendPromptToNewAgent: handleSendPromptToNewAgent,
+    onCreatePrompt: handleCreatePrompt,
+    onUpdatePrompt: handleUpdatePrompt,
+    onDeletePrompt: handleDeletePrompt,
+    onMovePrompt: handleMovePrompt,
+    onRevealWorkspacePrompts: handleRevealWorkspacePrompts,
+    onRevealGeneralPrompts: handleRevealGeneralPrompts,
     onSend: handleSend,
     onQueue: queueMessage,
     onStop: interruptTurn,
@@ -1329,6 +1481,15 @@ function MainApp() {
           onSidebarResizeStart={onSidebarResizeStart}
           onRightPanelResizeStart={onRightPanelResizeStart}
           onPlanPanelResizeStart={onPlanPanelResizeStart}
+        />
+      )}
+      {renamePrompt && (
+        <RenameThreadPrompt
+          currentName={renamePrompt.originalName}
+          name={renamePrompt.name}
+          onChange={handleRenamePromptChange}
+          onCancel={handleRenamePromptCancel}
+          onConfirm={handleRenamePromptConfirm}
         />
       )}
       {worktreePrompt && (

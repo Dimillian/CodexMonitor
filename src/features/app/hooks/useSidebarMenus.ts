@@ -5,6 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 
 type SidebarMenuHandlers = {
   onDeleteThread: (workspaceId: string, threadId: string) => void;
+  onRenameThread: (workspaceId: string, threadId: string) => void;
   onReloadWorkspaceThreads: (workspaceId: string) => void;
   onDeleteWorkspace: (workspaceId: string) => void;
   onDeleteWorktree: (workspaceId: string) => void;
@@ -12,6 +13,7 @@ type SidebarMenuHandlers = {
 
 export function useSidebarMenus({
   onDeleteThread,
+  onRenameThread,
   onReloadWorkspaceThreads,
   onDeleteWorkspace,
   onDeleteWorktree,
@@ -20,6 +22,10 @@ export function useSidebarMenus({
     async (event: MouseEvent, workspaceId: string, threadId: string) => {
       event.preventDefault();
       event.stopPropagation();
+      const renameItem = await MenuItem.new({
+        text: "Rename",
+        action: () => onRenameThread(workspaceId, threadId),
+      });
       const archiveItem = await MenuItem.new({
         text: "Archive",
         action: () => onDeleteThread(workspaceId, threadId),
@@ -30,12 +36,12 @@ export function useSidebarMenus({
           await navigator.clipboard.writeText(threadId);
         },
       });
-      const menu = await Menu.new({ items: [copyItem, archiveItem] });
+      const menu = await Menu.new({ items: [renameItem, copyItem, archiveItem] });
       const window = getCurrentWindow();
       const position = new LogicalPosition(event.clientX, event.clientY);
       await menu.popup(position, window);
     },
-    [onDeleteThread],
+    [onDeleteThread, onRenameThread],
   );
 
   const showWorkspaceMenu = useCallback(

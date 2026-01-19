@@ -127,6 +127,8 @@ export function GitDiffViewer({
   const listRef = useRef<HTMLDivElement>(null);
   const lastScrolledPathRef = useRef<string | null>(null);
   const activePathRef = useRef<string | null>(null);
+  const ignoreActivePathUntilRef = useRef<number>(0);
+  const lastSelectionFromScrollRef = useRef(false);
   const poolOptions = useMemo(() => ({ workerFactory }), []);
   const highlighterOptions = useMemo(
     () => ({ theme: { dark: "pierre-dark", light: "pierre-light" } }),
@@ -163,13 +165,18 @@ export function GitDiffViewer({
     if (!selectedPath) {
       return;
     }
-    if (lastScrolledPathRef.current === selectedPath) {
+    const shouldSkipScroll =
+      lastSelectionFromScrollRef.current &&
+      lastScrolledPathRef.current === selectedPath;
+    if (shouldSkipScroll) {
+      lastSelectionFromScrollRef.current = false;
       return;
     }
     const index = indexByPath.get(selectedPath);
     if (index === undefined) {
       return;
     }
+    ignoreActivePathUntilRef.current = Date.now() + 250;
     rowVirtualizer.scrollToIndex(index, { align: "start" });
     lastScrolledPathRef.current = selectedPath;
   }, [selectedPath, indexByPath, rowVirtualizer]);
@@ -187,26 +194,39 @@ export function GitDiffViewer({
 
     const updateActivePath = () => {
       frameId = null;
+      if (Date.now() < ignoreActivePathUntilRef.current) {
+        return;
+      }
       const items = rowVirtualizer.getVirtualItems();
       if (!items.length) {
         return;
       }
       const scrollTop = container.scrollTop;
-      const targetOffset = scrollTop + 8;
-      let activeItem = items[0];
-      for (const item of items) {
-        if (item.start <= targetOffset) {
-          activeItem = item;
-        } else {
-          break;
+      const canScroll = container.scrollHeight > container.clientHeight;
+      const isAtBottom =
+        canScroll &&
+        scrollTop + container.clientHeight >= container.scrollHeight - 4;
+      let nextPath: string | undefined;
+      if (isAtBottom) {
+        nextPath = diffs[diffs.length - 1]?.path;
+      } else {
+        const targetOffset = scrollTop + 8;
+        let activeItem = items[0];
+        for (const item of items) {
+          if (item.start <= targetOffset) {
+            activeItem = item;
+          } else {
+            break;
+          }
         }
+        nextPath = diffs[activeItem.index]?.path;
       }
-      const nextPath = diffs[activeItem.index]?.path;
       if (!nextPath || nextPath === activePathRef.current) {
         return;
       }
       activePathRef.current = nextPath;
       lastScrolledPathRef.current = nextPath;
+      lastSelectionFromScrollRef.current = true;
       onActivePathChange(nextPath);
     };
 

@@ -37,8 +37,10 @@ import { expandCustomPromptText } from "../../../utils/customPrompts";
 import { initialState, threadReducer } from "./useThreadsReducer";
 
 const STORAGE_KEY_THREAD_ACTIVITY = "codexmonitor.threadLastUserActivity";
+const STORAGE_KEY_CUSTOM_NAMES = "codexmonitor.threadCustomNames";
 
 type ThreadActivityMap = Record<string, Record<string, number>>;
+type CustomNamesMap = Record<string, string>;
 
 function loadThreadActivity(): ThreadActivityMap {
   if (typeof window === "undefined") {
@@ -70,6 +72,46 @@ function saveThreadActivity(activity: ThreadActivityMap) {
     );
   } catch {
     // Best-effort persistence; ignore write failures.
+  }
+}
+
+function makeCustomNameKey(workspaceId: string, threadId: string): string {
+  return `${workspaceId}:${threadId}`;
+}
+
+function loadCustomNames(): CustomNamesMap {
+  if (typeof window === "undefined") {
+    return {};
+  }
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY_CUSTOM_NAMES);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw) as CustomNamesMap;
+    if (!parsed || typeof parsed !== "object") {
+      return {};
+    }
+    return parsed;
+  } catch {
+    return {};
+  }
+}
+
+function saveCustomName(workspaceId: string, threadId: string, name: string): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    const current = loadCustomNames();
+    const key = makeCustomNameKey(workspaceId, threadId);
+    current[key] = name;
+    window.localStorage.setItem(
+      STORAGE_KEY_CUSTOM_NAMES,
+      JSON.stringify(current),
+    );
+  } catch {
+    // Best-effort persistence.
   }
 }
 
@@ -349,6 +391,26 @@ export function useThreads({
   const loadedThreads = useRef<Record<string, boolean>>({});
   const threadActivityRef = useRef<ThreadActivityMap>(loadThreadActivity());
   const pendingInterruptsRef = useRef<Set<string>>(new Set());
+  const customNamesRef = useRef<CustomNamesMap>({});
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+    customNamesRef.current = loadCustomNames();
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === STORAGE_KEY_CUSTOM_NAMES) {
+        customNamesRef.current = loadCustomNames();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  const getCustomName = useCallback((workspaceId: string, threadId: string) => {
+    const key = makeCustomNameKey(workspaceId, threadId);
+    return customNamesRef.current[key];
+  }, []);
 
   const recordThreadActivity = useCallback(
     (workspaceId: string, threadId: string, timestamp = Date.now()) => {
@@ -611,7 +673,15 @@ export function useThreads({
       }) => {
         dispatch({ type: "ensureThread", workspaceId, threadId });
         markProcessing(threadId, true);
-        dispatch({ type: "appendAgentDelta", workspaceId, threadId, itemId, delta });
+        const hasCustomName = Boolean(getCustomName(workspaceId, threadId));
+        dispatch({
+          type: "appendAgentDelta",
+          workspaceId,
+          threadId,
+          itemId,
+          delta,
+          hasCustomName,
+        });
       },
       onAgentMessageCompleted: ({
         workspaceId,
@@ -626,12 +696,14 @@ export function useThreads({
       }) => {
         const timestamp = Date.now();
         dispatch({ type: "ensureThread", workspaceId, threadId });
+        const hasCustomName = Boolean(getCustomName(workspaceId, threadId));
         dispatch({
           type: "completeAgentMessage",
           workspaceId,
           threadId,
           itemId,
           text,
+          hasCustomName,
         });
         dispatch({
           type: "setLastAgentMessage",
@@ -778,6 +850,7 @@ export function useThreads({
     }),
     [
       activeThreadId,
+      getCustomName,
       handleWorkspaceConnected,
       handleItemUpdate,
       handleToolOutputDelta,
@@ -792,7 +865,8 @@ export function useThreads({
   useAppServerEvents(handlers);
 
   const startThreadForWorkspace = useCallback(
-    async (workspaceId: string) => {
+    async (workspaceId: string, options?: { activate?: boolean }) => {
+      const shouldActivate = options?.activate !== false;
       onDebug?.({
         id: `${Date.now()}-client-thread-start`,
         timestamp: Date.now(),
@@ -813,7 +887,9 @@ export function useThreads({
         const threadId = String(thread?.id ?? "");
         if (threadId) {
           dispatch({ type: "ensureThread", workspaceId, threadId });
-          dispatch({ type: "setActiveThreadId", workspaceId, threadId });
+          if (shouldActivate) {
+            dispatch({ type: "setActiveThreadId", workspaceId, threadId });
+          }
           loadedThreads.current[threadId] = true;
           return threadId;
         }
@@ -887,7 +963,8 @@ export function useThreads({
             isReviewing: isReviewingFromThread(thread),
           });
           const preview = asString(thread?.preview ?? "");
-          if (preview) {
+          const customName = getCustomName(workspaceId, threadId);
+          if (!customName && preview) {
             dispatch({
               type: "setThreadName",
               workspaceId,
@@ -926,7 +1003,7 @@ export function useThreads({
         return null;
       }
     },
-    [applyCollabThreadLinksFromThread, onDebug, state.itemsByThread],
+    [applyCollabThreadLinksFromThread, getCustomName, onDebug, state.itemsByThread],
   );
 
   const listThreadsForWorkspace = useCallback(
@@ -1023,16 +1100,19 @@ export function useThreads({
         const summaries = uniqueThreads
           .slice(0, targetCount)
           .map((thread, index) => {
+            const id = String(thread?.id ?? "");
             const preview = asString(thread?.preview ?? "").trim();
+            const customName = getCustomName(workspace.id, id);
             const fallbackName = `Agent ${index + 1}`;
-            const name =
-              preview.length > 0
+            const name = customName
+              ? customName
+              : preview.length > 0
                 ? preview.length > 38
                   ? `${preview.slice(0, 38)}…`
                   : preview
                 : fallbackName;
             return {
-              id: String(thread?.id ?? ""),
+              id,
               name,
               updatedAt: getThreadTimestamp(thread),
             };
@@ -1077,7 +1157,7 @@ export function useThreads({
         });
       }
     },
-    [onDebug],
+    [getCustomName, onDebug],
   );
 
   const loadOlderThreadsForWorkspace = useCallback(
@@ -1140,9 +1220,11 @@ export function useThreads({
             return;
           }
           const preview = asString(thread?.preview ?? "").trim();
+          const customName = getCustomName(workspace.id, id);
           const fallbackName = `Agent ${existing.length + additions.length + 1}`;
-          const name =
-            preview.length > 0
+          const name = customName
+            ? customName
+            : preview.length > 0
               ? preview.length > 38
                 ? `${preview.slice(0, 38)}…`
                 : preview
@@ -1192,7 +1274,12 @@ export function useThreads({
         });
       }
     },
-    [onDebug, state.threadListCursorByWorkspace, state.threadsByWorkspace],
+    [
+      getCustomName,
+      onDebug,
+      state.threadListCursorByWorkspace,
+      state.threadsByWorkspace,
+    ],
   );
 
   const ensureThreadForActiveWorkspace = useCallback(async () => {
@@ -1211,40 +1298,37 @@ export function useThreads({
     return threadId;
   }, [activeWorkspace, activeThreadId, resumeThreadForWorkspace, startThreadForWorkspace]);
 
-  const sendUserMessage = useCallback(
-    async (text: string, images: string[] = []) => {
-      if (!activeWorkspace || (!text.trim() && images.length === 0)) {
-        return;
-      }
+  const sendMessageToThread = useCallback(
+    async (
+      workspace: WorkspaceInfo,
+      threadId: string,
+      text: string,
+      images: string[] = [],
+      options?: { skipPromptExpansion?: boolean },
+    ) => {
       const messageText = text.trim();
-      const promptExpansion = expandCustomPromptText(messageText, customPrompts);
-      if (promptExpansion && "error" in promptExpansion) {
-        if (activeThreadId) {
-          pushThreadErrorMessage(activeThreadId, promptExpansion.error);
+      if (!messageText && images.length === 0) {
+        return;
+      }
+      let finalText = messageText;
+      if (!options?.skipPromptExpansion) {
+        const promptExpansion = expandCustomPromptText(messageText, customPrompts);
+        if (promptExpansion && "error" in promptExpansion) {
+          pushThreadErrorMessage(threadId, promptExpansion.error);
           safeMessageActivity();
-        } else {
-          onDebug?.({
-            id: `${Date.now()}-client-prompt-expand-error`,
-            timestamp: Date.now(),
-            source: "error",
-            label: "prompt/expand error",
-            payload: promptExpansion.error,
-          });
+          return;
         }
-        return;
+        finalText = promptExpansion?.expanded ?? messageText;
       }
-      const finalText = promptExpansion?.expanded ?? messageText;
-      const threadId = await ensureThreadForActiveWorkspace();
-      if (!threadId) {
-        return;
-      }
-      recordThreadActivity(activeWorkspace.id, threadId);
+      recordThreadActivity(workspace.id, threadId);
+      const hasCustomName = Boolean(getCustomName(workspace.id, threadId));
       dispatch({
         type: "addUserMessage",
-        workspaceId: activeWorkspace.id,
+        workspaceId: workspace.id,
         threadId,
         text: finalText,
         images,
+        hasCustomName,
       });
       markProcessing(threadId, true);
       safeMessageActivity();
@@ -1253,23 +1337,23 @@ export function useThreads({
         timestamp: Date.now(),
         source: "client",
         label: "turn/start",
-          payload: {
-            workspaceId: activeWorkspace.id,
-            threadId,
-            text: finalText,
-            images,
-            model,
-            effort,
-            collaborationMode,
-          },
-        });
+        payload: {
+          workspaceId: workspace.id,
+          threadId,
+          text: finalText,
+          images,
+          model,
+          effort,
+          collaborationMode,
+        },
+      });
       try {
         const response =
           (await sendUserMessageService(
-          activeWorkspace.id,
-          threadId,
-          finalText,
-          { model, effort, collaborationMode, accessMode, images },
+            workspace.id,
+            threadId,
+            finalText,
+            { model, effort, collaborationMode, accessMode, images },
           )) as Record<string, unknown>;
         onDebug?.({
           id: `${Date.now()}-server-turn-start`,
@@ -1317,20 +1401,76 @@ export function useThreads({
       }
     },
     [
-      activeWorkspace,
-      markProcessing,
-      activeThreadId,
-      effort,
-      collaborationMode,
       accessMode,
+      collaborationMode,
       customPrompts,
+      effort,
+      getCustomName,
+      markProcessing,
       model,
       onDebug,
       pushThreadErrorMessage,
       recordThreadActivity,
-      ensureThreadForActiveWorkspace,
       safeMessageActivity,
     ],
+  );
+
+  const sendUserMessage = useCallback(
+    async (text: string, images: string[] = []) => {
+      if (!activeWorkspace) {
+        return;
+      }
+      const messageText = text.trim();
+      if (!messageText && images.length === 0) {
+        return;
+      }
+      const promptExpansion = expandCustomPromptText(messageText, customPrompts);
+      if (promptExpansion && "error" in promptExpansion) {
+        if (activeThreadId) {
+          pushThreadErrorMessage(activeThreadId, promptExpansion.error);
+          safeMessageActivity();
+        } else {
+          onDebug?.({
+            id: `${Date.now()}-client-prompt-expand-error`,
+            timestamp: Date.now(),
+            source: "error",
+            label: "prompt/expand error",
+            payload: promptExpansion.error,
+          });
+        }
+        return;
+      }
+      const finalText = promptExpansion?.expanded ?? messageText;
+      const threadId = await ensureThreadForActiveWorkspace();
+      if (!threadId) {
+        return;
+      }
+      await sendMessageToThread(activeWorkspace, threadId, finalText, images, {
+        skipPromptExpansion: true,
+      });
+    },
+    [
+      activeThreadId,
+      activeWorkspace,
+      customPrompts,
+      ensureThreadForActiveWorkspace,
+      onDebug,
+      pushThreadErrorMessage,
+      safeMessageActivity,
+      sendMessageToThread,
+    ],
+  );
+
+  const sendUserMessageToThread = useCallback(
+    async (
+      workspace: WorkspaceInfo,
+      threadId: string,
+      text: string,
+      images: string[] = [],
+    ) => {
+      await sendMessageToThread(workspace, threadId, text, images);
+    },
+    [sendMessageToThread],
   );
 
   const interruptTurn = useCallback(async () => {
@@ -1516,6 +1656,16 @@ export function useThreads({
     })();
   }, [onDebug]);
 
+  const renameThread = useCallback(
+    (workspaceId: string, threadId: string, newName: string) => {
+      saveCustomName(workspaceId, threadId, newName);
+      const key = makeCustomNameKey(workspaceId, threadId);
+      customNamesRef.current[key] = newName;
+      dispatch({ type: "setThreadName", workspaceId, threadId, name: newName });
+    },
+    [dispatch],
+  );
+
   useEffect(() => {
     if (activeWorkspace?.connected) {
       void refreshAccountRateLimits(activeWorkspace.id);
@@ -1541,11 +1691,13 @@ export function useThreads({
     refreshAccountRateLimits,
     interruptTurn,
     removeThread,
+    renameThread,
     startThread,
     startThreadForWorkspace,
     listThreadsForWorkspace,
     loadOlderThreadsForWorkspace,
     sendUserMessage,
+    sendUserMessageToThread,
     startReview,
     handleApprovalDecision,
   };
