@@ -148,6 +148,7 @@ type LayoutNodesOptions = {
   };
   fileStatus: string;
   selectedDiffPath: string | null;
+  diffScrollRequestId: number;
   onSelectDiff: (path: string) => void;
   gitLogEntries: GitLogEntry[];
   gitLogTotal: number;
@@ -562,6 +563,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     <GitDiffViewer
       diffs={options.gitDiffs}
       selectedPath={options.selectedDiffPath}
+      scrollRequestId={options.diffScrollRequestId}
       isLoading={options.gitDiffLoading}
       error={options.gitDiffError}
       pullRequest={options.selectedPullRequest}
