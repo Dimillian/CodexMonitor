@@ -1,0 +1,127 @@
+.clone-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+.clone-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.clone-modal-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(520px, calc(100vw - 48px));
+  background: rgba(8, 10, 16, 0.96);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.clone-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.clone-modal-subtitle {
+  font-size: 13px;
+  color: var(--text-subtle);
+}
+
+.clone-modal-label {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.clone-modal-input {
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card-muted);
+  color: var(--text-strong);
+  padding: 10px 12px;
+  font-size: 13px;
+  width: 100%;
+}
+
+.clone-modal-input:focus {
+  outline: 2px solid rgba(77, 163, 255, 0.35);
+  outline-offset: 1px;
+}
+
+.clone-modal-input--path {
+  resize: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.clone-modal-input--path::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.clone-modal-folder-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.clone-modal-suggested {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.clone-modal-suggested-label {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.clone-modal-suggested-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.clone-modal-suggested-path {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card-muted);
+  color: var(--text-subtle);
+  font-size: 12px;
+}
+
+.clone-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.clone-modal-error {
+  font-size: 12px;
+  color: #ff8f8f;
+  background: rgba(255, 79, 79, 0.12);
+  border: 1px solid rgba(255, 79, 79, 0.4);
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+
+.clone-modal-button {
+  padding: 6px 12px;
+  border-radius: 10px;
+  white-space: nowrap;
+}

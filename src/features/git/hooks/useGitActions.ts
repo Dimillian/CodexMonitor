@@ -54,10 +54,18 @@ export function useGitActions({
       if (!workspaceId) {
         return;
       }
-      await stageGitFileService(workspaceId, path);
-      refreshGitData();
+      const actionWorkspaceId = workspaceId;
+      try {
+        await stageGitFileService(actionWorkspaceId, path);
+      } catch (error) {
+        onError?.(error);
+      } finally {
+        if (workspaceIdRef.current === actionWorkspaceId) {
+          refreshGitData();
+        }
+      }
     },
-    [refreshGitData, workspaceId],
+    [onError, refreshGitData, workspaceId],
   );
 
   const unstageGitFile = useCallback(
@@ -65,10 +73,18 @@ export function useGitActions({
       if (!workspaceId) {
         return;
       }
-      await unstageGitFileService(workspaceId, path);
-      refreshGitData();
+      const actionWorkspaceId = workspaceId;
+      try {
+        await unstageGitFileService(actionWorkspaceId, path);
+      } catch (error) {
+        onError?.(error);
+      } finally {
+        if (workspaceIdRef.current === actionWorkspaceId) {
+          refreshGitData();
+        }
+      }
     },
-    [refreshGitData, workspaceId],
+    [onError, refreshGitData, workspaceId],
   );
 
   const revertGitFile = useCallback(
@@ -76,10 +92,18 @@ export function useGitActions({
       if (!workspaceId) {
         return;
       }
-      await revertGitFileService(workspaceId, path);
-      refreshGitData();
+      const actionWorkspaceId = workspaceId;
+      try {
+        await revertGitFileService(actionWorkspaceId, path);
+      } catch (error) {
+        onError?.(error);
+      } finally {
+        if (workspaceIdRef.current === actionWorkspaceId) {
+          refreshGitData();
+        }
+      }
     },
-    [refreshGitData, workspaceId],
+    [onError, refreshGitData, workspaceId],
   );
 
   const revertAllGitChanges = useCallback(async () => {

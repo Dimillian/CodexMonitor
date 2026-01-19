@@ -196,7 +196,7 @@
 
 .workspace-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   padding: 8px 4px;
   border-radius: 0;
@@ -257,6 +257,10 @@
 .workspace-name {
   font-weight: 600;
   font-size: 14px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 
@@ -264,6 +268,7 @@
   font-size: 12px;
   color: var(--text-muted);
   align-self: center;
+  flex-shrink: 0;
   padding: 2px 8px;
   border-radius: 999px;
   border: 1px solid var(--border-quiet);
@@ -305,12 +310,14 @@
   align-items: center;
   gap: 8px;
   justify-content: space-between;
+  min-width: 0;
 }
 
 .workspace-title {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
 }
 
 .workspace-toggle {
@@ -602,7 +609,7 @@
 
 .worktree-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   padding: 6px 4px;
   border-radius: 6px;

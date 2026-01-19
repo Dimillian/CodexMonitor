@@ -213,6 +213,8 @@ pub(crate) struct WorkspaceGroup {
     pub(crate) name: String,
     #[serde(default, rename = "sortOrder")]
     pub(crate) sort_order: Option<u32>,
+    #[serde(default, rename = "copiesFolder")]
+    pub(crate) copies_folder: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -396,7 +398,9 @@ impl Default for AppSettings {
 
 #[cfg(test)]
 mod tests {
-    use super::{AppSettings, BackendMode, WorkspaceEntry, WorkspaceKind, WorkspaceSettings};
+    use super::{
+        AppSettings, BackendMode, WorkspaceEntry, WorkspaceGroup, WorkspaceKind, WorkspaceSettings,
+    };
 
     #[test]
     fn app_settings_defaults_from_empty_json() {
@@ -428,6 +432,33 @@ mod tests {
         assert!(settings.dictation_preferred_language.is_none());
         assert_eq!(settings.dictation_hold_key, "alt");
         assert!(settings.workspace_groups.is_empty());
+    }
+
+    #[test]
+    fn workspace_group_defaults_from_minimal_json() {
+        let group: WorkspaceGroup =
+            serde_json::from_str(r#"{"id":"g1","name":"Group"}"#).expect("group deserialize");
+        assert!(group.sort_order.is_none());
+        assert!(group.copies_folder.is_none());
+    }
+
+    #[test]
+    fn app_settings_round_trip_preserves_workspace_group_copies_folder() {
+        let mut settings = AppSettings::default();
+        settings.workspace_groups = vec![WorkspaceGroup {
+            id: "g1".to_string(),
+            name: "Group".to_string(),
+            sort_order: Some(2),
+            copies_folder: Some("/tmp/group-copies".to_string()),
+        }];
+
+        let json = serde_json::to_string(&settings).expect("serialize settings");
+        let decoded: AppSettings = serde_json::from_str(&json).expect("deserialize settings");
+        assert_eq!(decoded.workspace_groups.len(), 1);
+        assert_eq!(
+            decoded.workspace_groups[0].copies_folder.as_deref(),
+            Some("/tmp/group-copies")
+        );
     }
 
     #[test]

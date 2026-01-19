@@ -1,0 +1,22 @@
+{
+  "app": {
+    "windows": [
+      {
+        "title": "CodexMonitor",
+        "width": 1200,
+        "height": 700,
+        "minWidth": 360,
+        "minHeight": 600,
+        "dragDropEnabled": true,
+        "titleBarStyle": "Visible",
+        "hiddenTitle": false,
+        "transparent": false,
+        "devtools": true,
+        "windowEffects": null
+      }
+    ]
+  },
+  "bundle": {
+    "createUpdaterArtifacts": false
+  }
+}

@@ -55,6 +55,18 @@ export async function addWorkspace(
   return invoke<WorkspaceInfo>("add_workspace", { path, codex_bin });
 }
 
+export async function addClone(
+  sourceWorkspaceId: string,
+  copiesFolder: string,
+  copyName: string,
+): Promise<WorkspaceInfo> {
+  return invoke<WorkspaceInfo>("add_clone", {
+    sourceWorkspaceId,
+    copiesFolder,
+    copyName,
+  });
+}
+
 export async function addWorktree(
   parentId: string,
   branch: string,

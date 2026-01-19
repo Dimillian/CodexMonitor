@@ -127,7 +127,7 @@ export function ThreadList({
           {isExpanded ? "Show less" : "More..."}
         </button>
       )}
-      {isExpanded && nextCursor && (
+      {nextCursor && (isExpanded || totalThreadRoots <= 3) && (
         <button
           className="thread-more"
           onClick={(event) => {
@@ -136,7 +136,11 @@ export function ThreadList({
           }}
           disabled={isPaging}
         >
-          {isPaging ? "Loading..." : "Load older..."}
+          {isPaging
+            ? "Loading..."
+            : totalThreadRoots === 0
+              ? "Search older..."
+              : "Load older..."}
         </button>
       )}
     </div>

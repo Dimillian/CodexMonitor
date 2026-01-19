@@ -89,8 +89,6 @@ export function WorktreeSection({
         {worktrees.map((worktree) => {
           const worktreeThreads = threadsByWorkspace[worktree.id] ?? [];
           const worktreeCollapsed = worktree.settings.sidebarCollapsed;
-          const showWorktreeThreads =
-            !worktreeCollapsed && worktreeThreads.length > 0;
           const isLoadingWorktreeThreads =
             threadListLoadingByWorkspace[worktree.id] ?? false;
           const showWorktreeLoader =
@@ -99,6 +97,9 @@ export function WorktreeSection({
             worktreeThreads.length === 0;
           const worktreeNextCursor =
             threadListCursorByWorkspace[worktree.id] ?? null;
+          const showWorktreeThreadList =
+            !worktreeCollapsed &&
+            (worktreeThreads.length > 0 || Boolean(worktreeNextCursor));
           const isWorktreePaging =
             threadListPagingByWorkspace[worktree.id] ?? false;
           const isWorktreeExpanded = expandedWorkspaces.has(worktree.id);
@@ -122,7 +123,7 @@ export function WorktreeSection({
               onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
               onConnectWorkspace={onConnectWorkspace}
             >
-              {showWorktreeThreads && (
+              {showWorktreeThreadList && (
                 <ThreadList
                   workspaceId={worktree.id}
                   pinnedRows={[]}

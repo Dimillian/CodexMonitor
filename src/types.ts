@@ -9,6 +9,7 @@ export type WorkspaceGroup = {
   id: string;
   name: string;
   sortOrder?: number | null;
+  copiesFolder?: string | null;
 };
 
 export type WorkspaceKind = "main" | "worktree";

@@ -185,6 +185,10 @@ function normalizeStringList(value: unknown) {
   return single ? [single] : [];
 }
 
+function normalizeRootPath(value: string) {
+  return value.replace(/\\/g, "/").replace(/\/+$/, "");
+}
+
 function extractRpcErrorMessage(response: unknown) {
   if (!response || typeof response !== "object") {
     return null;
@@ -1154,6 +1158,7 @@ export function useThreads({
 
   const listThreadsForWorkspace = useCallback(
     async (workspace: WorkspaceInfo) => {
+      const workspacePath = normalizeRootPath(workspace.path);
       dispatch({
         type: "setThreadListLoading",
         workspaceId: workspace.id,
@@ -1172,11 +1177,16 @@ export function useThreads({
         payload: { workspaceId: workspace.id, path: workspace.path },
       });
       try {
+        const knownActivityByThread = threadActivityRef.current[workspace.id] ?? {};
+        const hasKnownActivity = Object.keys(knownActivityByThread).length > 0;
         const matchingThreads: Record<string, unknown>[] = [];
         const targetCount = 20;
         const pageSize = 20;
+        const maxPagesWithoutMatch = hasKnownActivity ? Number.POSITIVE_INFINITY : 5;
+        let pagesFetched = 0;
         let cursor: string | null = null;
         do {
+          pagesFetched += 1;
           const response =
             (await listThreadsService(
               workspace.id,
@@ -1198,10 +1208,14 @@ export function useThreads({
             (result?.nextCursor ?? result?.next_cursor ?? null) as string | null;
           matchingThreads.push(
             ...data.filter(
-              (thread) => String(thread?.cwd ?? "") === workspace.path,
+              (thread) =>
+                normalizeRootPath(String(thread?.cwd ?? "")) === workspacePath,
             ),
           );
           cursor = nextCursor;
+          if (matchingThreads.length === 0 && pagesFetched >= maxPagesWithoutMatch) {
+            break;
+          }
         } while (cursor && matchingThreads.length < targetCount);
 
         const uniqueById = new Map<string, Record<string, unknown>>();
@@ -1312,6 +1326,7 @@ export function useThreads({
       if (!nextCursor) {
         return;
       }
+      const workspacePath = normalizeRootPath(workspace.path);
       const existing = state.threadsByWorkspace[workspace.id] ?? [];
       dispatch({
         type: "setThreadListPaging",
@@ -1329,8 +1344,11 @@ export function useThreads({
         const matchingThreads: Record<string, unknown>[] = [];
         const targetCount = 20;
         const pageSize = 20;
+        const maxPagesWithoutMatch = 10;
+        let pagesFetched = 0;
         let cursor: string | null = nextCursor;
         do {
+          pagesFetched += 1;
           const response =
             (await listThreadsService(
               workspace.id,
@@ -1352,10 +1370,14 @@ export function useThreads({
             (result?.nextCursor ?? result?.next_cursor ?? null) as string | null;
           matchingThreads.push(
             ...data.filter(
-              (thread) => String(thread?.cwd ?? "") === workspace.path,
+              (thread) =>
+                normalizeRootPath(String(thread?.cwd ?? "")) === workspacePath,
             ),
           );
           cursor = next;
+          if (matchingThreads.length === 0 && pagesFetched >= maxPagesWithoutMatch) {
+            break;
+          }
         } while (cursor && matchingThreads.length < targetCount);
 
         const existingIds = new Set(existing.map((thread) => thread.id));

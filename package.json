@@ -9,12 +9,15 @@
     "build:appimage": "NO_STRIP=1 tauri build --bundles appimage",
     "doctor": "sh scripts/doctor.sh",
     "doctor:strict": "sh scripts/doctor.sh --strict",
+    "doctor:win": "node scripts/doctor.mjs --strict",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "npm run doctor:strict && tauri dev",
-    "tauri:build": "npm run doctor:strict && tauri build"
+    "tauri:build": "npm run doctor:strict && tauri build",
+    "tauri:dev:win": "npm run doctor:win && tauri dev --config src-tauri/tauri.windows.conf.json",
+    "tauri:build:win": "npm run doctor:win && tauri build --config src-tauri/tauri.windows.conf.json"
   },
   "dependencies": {
     "@pierre/diffs": "^1.0.6",

@@ -8,6 +8,7 @@ import type {
 } from "../../../types";
 import { ask } from "@tauri-apps/plugin-dialog";
 import {
+  addClone as addCloneService,
   addWorkspace as addWorkspaceService,
   addWorktree as addWorktreeService,
   connectWorkspace as connectWorkspaceService,
@@ -260,6 +261,47 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     }
   }
 
+  async function addCloneAgent(
+    source: WorkspaceInfo,
+    copyName: string,
+    copiesFolder: string,
+  ) {
+    const trimmedName = copyName.trim();
+    if (!trimmedName) {
+      return null;
+    }
+    const trimmedFolder = copiesFolder.trim();
+    if (!trimmedFolder) {
+      throw new Error("Copies folder is required.");
+    }
+    onDebug?.({
+      id: `${Date.now()}-client-add-clone`,
+      timestamp: Date.now(),
+      source: "client",
+      label: "clone/add",
+      payload: {
+        sourceWorkspaceId: source.id,
+        copyName: trimmedName,
+        copiesFolder: trimmedFolder,
+      },
+    });
+    try {
+      const workspace = await addCloneService(source.id, trimmedFolder, trimmedName);
+      setWorkspaces((prev) => [...prev, workspace]);
+      setActiveWorkspaceId(workspace.id);
+      return workspace;
+    } catch (error) {
+      onDebug?.({
+        id: `${Date.now()}-client-add-clone-error`,
+        timestamp: Date.now(),
+        source: "error",
+        label: "clone/add error",
+        payload: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
   async function connectWorkspace(entry: WorkspaceInfo) {
     onDebug?.({
       id: `${Date.now()}-client-connect-workspace`,
@@ -413,6 +455,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
         id: createGroupId(),
         name: trimmed,
         sortOrder: nextSortOrder,
+        copiesFolder: null,
       };
       await updateWorkspaceGroups([...currentGroups, nextGroup]);
       return nextGroup;
@@ -640,6 +683,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     activeWorkspaceId,
     setActiveWorkspaceId,
     addWorkspace,
+    addCloneAgent,
     addWorktreeAgent,
     connectWorkspace,
     markWorkspaceConnected,

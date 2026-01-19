@@ -368,6 +368,38 @@ export function SettingsView({
     }
   };
 
+  const updateGroupCopiesFolder = async (
+    groupId: string,
+    copiesFolder: string | null,
+  ) => {
+    setGroupError(null);
+    try {
+      await onUpdateAppSettings({
+        ...appSettings,
+        workspaceGroups: appSettings.workspaceGroups.map((entry) =>
+          entry.id === groupId ? { ...entry, copiesFolder } : entry,
+        ),
+      });
+    } catch (error) {
+      setGroupError(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const handleChooseGroupCopiesFolder = async (group: WorkspaceGroup) => {
+    const selection = await open({ multiple: false, directory: true });
+    if (!selection || Array.isArray(selection)) {
+      return;
+    }
+    await updateGroupCopiesFolder(group.id, selection);
+  };
+
+  const handleClearGroupCopiesFolder = async (group: WorkspaceGroup) => {
+    if (!group.copiesFolder) {
+      return;
+    }
+    await updateGroupCopiesFolder(group.id, null);
+  };
+
   const handleDeleteGroup = async (group: WorkspaceGroup) => {
     const groupProjects =
       groupedWorkspaces.find((entry) => entry.id === group.id)?.workspaces ?? [];
@@ -502,25 +534,61 @@ export function SettingsView({
                     <div className="settings-group-list">
                       {workspaceGroups.map((group, index) => (
                         <div key={group.id} className="settings-group-row">
-                          <input
-                            className="settings-input settings-input--compact"
-                            value={groupDrafts[group.id] ?? group.name}
-                            onChange={(event) =>
-                              setGroupDrafts((prev) => ({
-                                ...prev,
-                                [group.id]: event.target.value,
-                              }))
-                            }
-                            onBlur={() => {
-                              void handleRenameGroup(group);
-                            }}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                void handleRenameGroup(group);
+                          <div className="settings-group-fields">
+                            <input
+                              className="settings-input settings-input--compact"
+                              value={groupDrafts[group.id] ?? group.name}
+                              onChange={(event) =>
+                                setGroupDrafts((prev) => ({
+                                  ...prev,
+                                  [group.id]: event.target.value,
+                                }))
                               }
-                            }}
-                          />
+                              onBlur={() => {
+                                void handleRenameGroup(group);
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  void handleRenameGroup(group);
+                                }
+                              }}
+                            />
+                            <div className="settings-group-copies">
+                              <div className="settings-group-copies-label">
+                                Copies folder
+                              </div>
+                              <div className="settings-group-copies-row">
+                                <div
+                                  className={`settings-group-copies-path${
+                                    group.copiesFolder ? "" : " empty"
+                                  }`}
+                                  title={group.copiesFolder ?? ""}
+                                >
+                                  {group.copiesFolder ?? "Not set"}
+                                </div>
+                                <button
+                                  type="button"
+                                  className="ghost settings-button-compact"
+                                  onClick={() => {
+                                    void handleChooseGroupCopiesFolder(group);
+                                  }}
+                                >
+                                  Choose…
+                                </button>
+                                <button
+                                  type="button"
+                                  className="ghost settings-button-compact"
+                                  onClick={() => {
+                                    void handleClearGroupCopiesFolder(group);
+                                  }}
+                                  disabled={!group.copiesFolder}
+                                >
+                                  Clear
+                                </button>
+                              </div>
+                            </div>
+                          </div>
                           <div className="settings-group-actions">
                             <button
                               type="button"

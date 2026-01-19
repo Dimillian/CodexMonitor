@@ -81,7 +81,7 @@ export function useFileLinkOpener(workspacePath?: string | null) {
       const resolvedPath = resolveFilePath(stripLineSuffix(rawPath), workspacePath);
       const openLabel =
         target.id === "finder"
-          ? "Open in Finder"
+          ? revealLabel()
           : target.appName
             ? `Open in ${target.appName}`
             : "Open Link";
@@ -92,18 +92,16 @@ export function useFileLinkOpener(workspacePath?: string | null) {
             await openFileLink(rawPath);
           },
         }),
-        await MenuItem.new({
-          text: "Open Link in New Window",
-          action: async () => {
-            await openFileLink(rawPath);
-          },
-        }),
-        await MenuItem.new({
-          text: revealLabel(),
-          action: async () => {
-            await revealItemInDir(resolvedPath);
-          },
-        }),
+        ...(target.id === "finder"
+          ? []
+          : [
+              await MenuItem.new({
+                text: revealLabel(),
+                action: async () => {
+                  await revealItemInDir(resolvedPath);
+                },
+              }),
+            ]),
         await MenuItem.new({
           text: "Download Linked File",
           enabled: false,
