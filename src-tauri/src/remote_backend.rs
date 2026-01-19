@@ -16,6 +16,40 @@ const DISCONNECTED_MESSAGE: &str = "remote backend disconnected";
 
 type PendingMap = HashMap<u64, oneshot::Sender<Result<Value, String>>>;
 
+pub(crate) fn normalize_path_for_remote(path: String) -> String {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return path;
+    }
+
+    if let Some(normalized) = normalize_wsl_unc_path(trimmed) {
+        return normalized;
+    }
+
+    path
+}
+
+fn normalize_wsl_unc_path(path: &str) -> Option<String> {
+    let lower = path.to_ascii_lowercase();
+    let (prefix_len, raw) = if lower.starts_with("\\\\wsl$\\") {
+        (7, path)
+    } else if lower.starts_with("\\\\wsl.localhost\\") {
+        (16, path)
+    } else {
+        return None;
+    };
+
+    let remainder = raw.get(prefix_len..)?;
+    let mut segments = remainder.split('\\').filter(|segment| !segment.is_empty());
+    segments.next()?;
+    let joined = segments.collect::<Vec<_>>().join("/");
+    Some(if joined.is_empty() {
+        "/".to_string()
+    } else {
+        format!("/{joined}")
+    })
+}
+
 #[derive(Clone)]
 pub(crate) struct RemoteBackend {
     inner: Arc<RemoteBackendInner>,

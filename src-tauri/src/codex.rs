@@ -254,6 +254,12 @@ pub(crate) async fn send_user_message(
     app: AppHandle,
 ) -> Result<Value, String> {
     if remote_backend::is_remote_mode(&*state).await {
+        let images = images.map(|paths| {
+            paths
+                .into_iter()
+                .map(remote_backend::normalize_path_for_remote)
+                .collect::<Vec<_>>()
+        });
         return remote_backend::call_remote(
             &*state,
             app,
