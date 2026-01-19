@@ -4,6 +4,11 @@ use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 mod backend;
 mod codex;
 mod codex_config;
+#[cfg(not(target_os = "windows"))]
+#[path = "dictation.rs"]
+mod dictation;
+#[cfg(target_os = "windows")]
+#[path = "dictation_stub.rs"]
 mod dictation;
 mod event_sink;
 mod git;
