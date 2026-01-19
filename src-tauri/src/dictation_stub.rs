@@ -4,6 +4,7 @@ use tauri::{AppHandle, Emitter, State};
 use crate::state::AppState;
 
 const DEFAULT_MODEL_ID: &str = "base";
+const UNSUPPORTED_MESSAGE: &str = "Dictation is not supported on Windows builds.";
 
 #[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -62,7 +63,7 @@ impl Default for DictationState {
                 state: DictationModelState::Error,
                 model_id: DEFAULT_MODEL_ID.to_string(),
                 progress: None,
-                error: Some("Dictation is not supported on Windows builds yet.".to_string()),
+                error: Some(UNSUPPORTED_MESSAGE.to_string()),
                 path: None,
             },
             session_state: DictationSessionState::Idle,
@@ -83,10 +84,7 @@ fn windows_unsupported_status(model_id: Option<String>) -> DictationModelStatus 
         state: DictationModelState::Error,
         model_id: model_id.unwrap_or_else(|| DEFAULT_MODEL_ID.to_string()),
         progress: None,
-        error: Some(
-            "Dictation requires whisper/clang tooling which is currently disabled on Windows."
-                .to_string(),
-        ),
+        error: Some(UNSUPPORTED_MESSAGE.to_string()),
         path: None,
     }
 }
@@ -154,7 +152,7 @@ pub(crate) async fn dictation_start(
         let mut dictation = state.dictation.lock().await;
         dictation.session_state = DictationSessionState::Idle;
     }
-    let message = "Dictation is not supported on Windows builds.".to_string();
+    let message = UNSUPPORTED_MESSAGE.to_string();
     emit_event(&app, DictationEvent::Error { message: message.clone() });
     Err(message)
 }
@@ -168,7 +166,7 @@ pub(crate) async fn dictation_stop(
         let mut dictation = state.dictation.lock().await;
         dictation.session_state = DictationSessionState::Idle;
     }
-    let message = "Dictation is not supported on Windows builds.".to_string();
+    let message = UNSUPPORTED_MESSAGE.to_string();
     emit_event(&app, DictationEvent::Error { message: message.clone() });
     Err(message)
 }
