@@ -198,15 +198,13 @@
   position: relative;
 }
 
-@media (prefers-color-scheme: light) {
-  .composer-action {
-    border-color: var(--border-strong);
-    color: var(--text-strong);
-  }
+.app.theme-light .composer-action {
+  border-color: var(--border-strong);
+  color: var(--text-strong);
+}
 
-  .composer-action:hover {
-    color: var(--text-strong);
-  }
+.app.theme-light .composer-action:hover {
+  color: var(--text-strong);
 }
 
 .composer-action--mic.is-active {

@@ -221,6 +221,8 @@ pub(crate) struct AppSettings {
     pub(crate) last_composer_reasoning_effort: Option<String>,
     #[serde(default = "default_ui_scale", rename = "uiScale")]
     pub(crate) ui_scale: f64,
+    #[serde(default = "default_theme", rename = "theme")]
+    pub(crate) theme: String,
     #[serde(
         default = "default_notification_sounds_enabled",
         rename = "notificationSoundsEnabled"
@@ -284,6 +286,10 @@ fn default_ui_scale() -> f64 {
     1.0
 }
 
+fn default_theme() -> String {
+    "system".to_string()
+}
+
 fn default_composer_model_shortcut() -> Option<String> {
     Some("cmd+shift+m".to_string())
 }
@@ -342,6 +348,7 @@ impl Default for AppSettings {
             last_composer_model_id: None,
             last_composer_reasoning_effort: None,
             ui_scale: 1.0,
+            theme: default_theme(),
             notification_sounds_enabled: true,
             experimental_collab_enabled: false,
             experimental_steer_enabled: false,
@@ -382,6 +389,7 @@ mod tests {
         assert!(settings.last_composer_model_id.is_none());
         assert!(settings.last_composer_reasoning_effort.is_none());
         assert!((settings.ui_scale - 1.0).abs() < f64::EPSILON);
+        assert_eq!(settings.theme, "system");
         assert!(settings.notification_sounds_enabled);
         assert!(!settings.experimental_steer_enabled);
         assert!(!settings.dictation_enabled);

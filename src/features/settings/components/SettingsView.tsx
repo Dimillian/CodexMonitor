@@ -706,6 +706,30 @@ export function SettingsView({
                     </button>
                   </div>
                 </div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Theme</div>
+                    <div className="settings-toggle-subtitle">
+                      Follow macOS appearance or force a light/dark theme.
+                    </div>
+                  </div>
+                  <select
+                    id="theme-preference"
+                    className="settings-select settings-select--theme"
+                    value={appSettings.theme}
+                    onChange={(event) =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        theme: event.target.value as AppSettings["theme"],
+                      })
+                    }
+                    aria-label="Theme"
+                  >
+                    <option value="system">System</option>
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                  </select>
+                </div>
                 <div className="settings-subsection-title">Sounds</div>
                 <div className="settings-subsection-subtitle">
                   Control notification audio alerts.

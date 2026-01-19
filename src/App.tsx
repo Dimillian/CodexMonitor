@@ -1101,7 +1101,34 @@ function MainApp() {
     onDebug: addDebugEntry,
   });
   const isDefaultScale = Math.abs(uiScale - 1) < 0.001;
-  const appClassName = `app ${isCompact ? "layout-compact" : "layout-desktop"}${
+  const [systemTheme, setSystemTheme] = useState<"dark" | "light">(() => {
+    if (typeof window === "undefined" || !window.matchMedia) {
+      return "dark";
+    }
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) {
+      return;
+    }
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (event: MediaQueryListEvent) => {
+      setSystemTheme(event.matches ? "dark" : "light");
+    };
+    setSystemTheme(media.matches ? "dark" : "light");
+    if (media.addEventListener) {
+      media.addEventListener("change", handleChange);
+      return () => media.removeEventListener("change", handleChange);
+    }
+    media.addListener(handleChange);
+    return () => media.removeListener(handleChange);
+  }, []);
+  const resolvedTheme =
+    appSettings.theme === "system" ? systemTheme : appSettings.theme;
+  const themeClassName = resolvedTheme === "light" ? "theme-light" : "theme-dark";
+  const appClassName = `app ${themeClassName} ${
+    isCompact ? "layout-compact" : "layout-desktop"
+  }${
     isPhone ? " layout-phone" : ""
   }${isTablet ? " layout-tablet" : ""}${
     reduceTransparency ? " reduced-transparency" : ""
@@ -1145,6 +1172,7 @@ function MainApp() {
     activeRateLimits,
     approvals,
     handleApprovalDecision,
+    themePreference: resolvedTheme,
     onOpenSettings: () => handleOpenSettings(),
     onOpenDictationSettings: () => handleOpenSettings("dictation"),
     onOpenDebug: handleDebugClick,

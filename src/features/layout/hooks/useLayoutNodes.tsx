@@ -195,6 +195,7 @@ type LayoutNodesOptions = {
   gitDiffs: GitDiffViewerItem[];
   gitDiffLoading: boolean;
   gitDiffError: string | null;
+  themePreference?: "system" | "dark" | "light";
   onDiffActivePathChange?: (path: string) => void;
   onSendPrompt: (text: string) => void | Promise<void>;
   onSendPromptToNewAgent: (text: string) => void | Promise<void>;
@@ -574,6 +575,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       scrollRequestId={options.diffScrollRequestId}
       isLoading={options.gitDiffLoading}
       error={options.gitDiffError}
+      themePreference={options.themePreference}
       pullRequest={options.selectedPullRequest}
       pullRequestComments={options.selectedPullRequestComments}
       pullRequestCommentsLoading={options.selectedPullRequestCommentsLoading}

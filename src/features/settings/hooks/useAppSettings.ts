@@ -15,6 +15,7 @@ const defaultSettings: AppSettings = {
   lastComposerModelId: null,
   lastComposerReasoningEffort: null,
   uiScale: UI_SCALE_DEFAULT,
+  theme: "system",
   notificationSoundsEnabled: true,
   experimentalCollabEnabled: false,
   experimentalSteerEnabled: false,
@@ -27,9 +28,16 @@ const defaultSettings: AppSettings = {
 };
 
 function normalizeAppSettings(settings: AppSettings): AppSettings {
+  const theme =
+    settings.theme === "light" ||
+    settings.theme === "dark" ||
+    settings.theme === "system"
+      ? settings.theme
+      : "system";
   return {
     ...settings,
     uiScale: clampUiScale(settings.uiScale),
+    theme,
   };
 }
 

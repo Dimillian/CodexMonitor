@@ -73,11 +73,9 @@
   animation: working-shimmer 2.2s ease-in-out infinite;
 }
 
-@media (prefers-color-scheme: light) {
-  .working-text {
-    color: var(--text-muted);
-    background: none;
-  }
+.app.theme-light .working-text {
+  color: var(--text-muted);
+  background: none;
 }
 
 .turn-complete {

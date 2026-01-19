@@ -20,6 +20,7 @@ type GitDiffViewerProps = {
   scrollRequestId?: number;
   isLoading: boolean;
   error: string | null;
+  themePreference?: "system" | "dark" | "light";
   pullRequest?: GitHubPullRequest | null;
   pullRequestComments?: GitHubPullRequestComment[];
   pullRequestCommentsLoading?: boolean;
@@ -119,6 +120,7 @@ export function GitDiffViewer({
   scrollRequestId,
   isLoading,
   error,
+  themePreference = "system",
   pullRequest,
   pullRequestComments,
   pullRequestCommentsLoading = false,
@@ -131,10 +133,15 @@ export function GitDiffViewer({
   const ignoreActivePathUntilRef = useRef<number>(0);
   const lastScrollRequestIdRef = useRef<number | null>(null);
   const poolOptions = useMemo(() => ({ workerFactory }), []);
-  const highlighterOptions = useMemo(
-    () => ({ theme: { dark: "pierre-dark", light: "pierre-light" } }),
-    [],
-  );
+  const highlighterOptions = useMemo(() => {
+    if (themePreference === "dark") {
+      return { theme: "pierre-dark" };
+    }
+    if (themePreference === "light") {
+      return { theme: "pierre-light" };
+    }
+    return { theme: { dark: "pierre-dark", light: "pierre-light" } };
+  }, [themePreference]);
   const indexByPath = useMemo(() => {
     const map = new Map<string, number>();
     diffs.forEach((entry, index) => {

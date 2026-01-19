@@ -223,6 +223,10 @@
   font-size: 11px;
 }
 
+.settings-select--theme {
+  min-width: 180px;
+}
+
 .settings-section-title {
   font-size: 15px;
   font-weight: 600;
