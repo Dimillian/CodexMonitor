@@ -68,21 +68,17 @@
   --select-caret: rgba(255, 255, 255, 0.6);
   --tabbar-height: 56px;
   --ui-scale: 1;
-  --app-backdrop: transparent;
 }
 
 .app.theme-light {
   color-scheme: light;
-  --app-backdrop: rgba(246, 248, 252, 0.9);
 }
 
 .app.theme-dark {
   color-scheme: dark;
-  --app-backdrop: rgba(8, 10, 16, 0.86);
 }
 
 .app.reduced-transparency {
-  --app-backdrop: rgba(8, 10, 16, 0.95);
   --surface-sidebar: rgba(18, 18, 18, 0.92);
   --surface-topbar: rgba(10, 14, 20, 0.94);
   --surface-right-panel: rgba(9, 12, 20, 0.92);
@@ -108,7 +104,6 @@
 }
 
 .app.theme-light {
-  --app-backdrop: rgba(246, 248, 252, 0.9);
   --text-primary: #1a1d24;
   --text-strong: #0e1118;
   --text-emphasis: rgba(17, 20, 28, 0.9);
@@ -164,7 +159,6 @@
 }
 
 .app.theme-light.reduced-transparency {
-  --app-backdrop: rgba(248, 249, 252, 0.98);
   --surface-sidebar: rgba(240, 242, 247, 0.98);
   --surface-topbar: rgba(244, 246, 250, 0.98);
   --surface-right-panel: rgba(242, 244, 248, 0.98);
@@ -216,7 +210,7 @@ body {
   width: calc(100vw / var(--ui-scale, 1));
   display: grid;
   grid-template-columns: var(--sidebar-width, 280px) 1fr;
-  background: var(--app-backdrop);
+  background: transparent;
   color: var(--text-primary);
   border-radius: 0;
   overflow: hidden;
