@@ -1,6 +1,5 @@
 {
   "app": {
-    "macOSPrivateApi": false,
     "windows": [
       {
         "title": "CodexMonitor",
