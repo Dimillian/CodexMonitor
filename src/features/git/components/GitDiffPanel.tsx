@@ -4,13 +4,15 @@ import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { ArrowLeftRight, GitBranch } from "lucide-react";
+import { ArrowLeftRight } from "lucide-react";
 import { formatRelativeTime } from "../../../utils/time";
+import { PanelTabs, type PanelTabId } from "../../layout/components/PanelTabs";
 
 type GitDiffPanelProps = {
   mode: "diff" | "log" | "issues" | "prs";
   onModeChange: (mode: "diff" | "log" | "issues" | "prs") => void;
-  onToggleFilePanel: () => void;
+  filePanelMode: PanelTabId;
+  onFilePanelModeChange: (mode: PanelTabId) => void;
   branchName: string;
   totalAdditions: number;
   totalDeletions: number;
@@ -143,7 +145,8 @@ function isMissingRepo(error: string | null | undefined) {
 export function GitDiffPanel({
   mode,
   onModeChange,
-  onToggleFilePanel,
+  filePanelMode,
+  onFilePanelModeChange,
   branchName,
   totalAdditions,
   totalDeletions,
@@ -332,17 +335,7 @@ export function GitDiffPanel({
   return (
     <aside className="diff-panel">
       <div className="git-panel-header">
-        <button
-          type="button"
-          className="git-panel-title git-panel-title-button"
-          onClick={onToggleFilePanel}
-          aria-label="Show file tree"
-          title="Show file tree"
-        >
-          <GitBranch className="git-panel-icon" />
-          Git
-          <ArrowLeftRight className="git-panel-switch-icon" aria-hidden />
-        </button>
+        <PanelTabs active={filePanelMode} onSelect={onFilePanelModeChange} />
         <div className="git-panel-select" role="group" aria-label="Git panel">
           <select
             className="git-panel-select-input"

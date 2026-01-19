@@ -276,6 +276,7 @@ export type CustomPromptOption = {
   description?: string;
   argumentHint?: string;
   content: string;
+  scope?: "workspace" | "global";
 };
 
 export type BranchInfo = {

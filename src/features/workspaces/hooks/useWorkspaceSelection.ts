@@ -36,6 +36,7 @@ export function useWorkspaceSelection({
 
   const selectWorkspace = useCallback(
     (workspaceId: string) => {
+      setSelectedDiffPath(null);
       const target = workspaces.find((entry) => entry.id === workspaceId);
       if (target?.settings.sidebarCollapsed) {
         void updateWorkspaceSettings(workspaceId, {
@@ -52,6 +53,7 @@ export function useWorkspaceSelection({
       isCompact,
       setActiveTab,
       setActiveWorkspaceId,
+      setSelectedDiffPath,
       updateWorkspaceSettings,
       workspaces,
     ],
@@ -59,11 +61,12 @@ export function useWorkspaceSelection({
 
   const selectHome = useCallback(() => {
     exitDiffView();
+    setSelectedDiffPath(null);
     setActiveWorkspaceId(null);
     if (isCompact) {
       setActiveTab("projects");
     }
-  }, [exitDiffView, isCompact, setActiveTab, setActiveWorkspaceId]);
+  }, [exitDiffView, isCompact, setActiveTab, setActiveWorkspaceId, setSelectedDiffPath]);
 
   return { exitDiffView, selectWorkspace, selectHome };
 }
