@@ -117,6 +117,7 @@ export function Composer({
   const internalRef = useRef<HTMLTextAreaElement | null>(null);
   const textareaRef = externalTextareaRef ?? internalRef;
   const isDictationBusy = dictationState !== "idle";
+  const canSend = text.trim().length > 0 || attachedImages.length > 0;
 
   useEffect(() => {
     setText((prev) => (prev === draftText ? prev : draftText));
@@ -241,6 +242,8 @@ export function Composer({
         disabled={disabled}
         sendLabel={sendLabel}
         canStop={canStop}
+        canSend={canSend}
+        isProcessing={isProcessing}
         onStop={onStop}
         onSend={handleSend}
         dictationEnabled={dictationEnabled}

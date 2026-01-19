@@ -11,6 +11,8 @@ type ComposerInputProps = {
   disabled: boolean;
   sendLabel: string;
   canStop: boolean;
+  canSend: boolean;
+  isProcessing: boolean;
   onStop: () => void;
   onSend: () => void;
   dictationState?: "idle" | "listening" | "processing";
@@ -42,6 +44,8 @@ export function ComposerInput({
   disabled,
   sendLabel,
   canStop,
+  canSend,
+  isProcessing,
   onStop,
   onSend,
   dictationState = "idle",
@@ -314,13 +318,20 @@ export function ComposerInput({
         {isDictating ? <Square aria-hidden /> : <Mic aria-hidden />}
       </button>
       <button
-        className={`composer-action${canStop ? " is-stop" : " is-send"}`}
+        className={`composer-action${canStop ? " is-stop" : " is-send"}${
+          canStop && isProcessing ? " is-loading" : ""
+        }`}
         onClick={handleActionClick}
-        disabled={disabled || isDictationBusy}
+        disabled={disabled || isDictationBusy || (!canStop && !canSend)}
         aria-label={canStop ? "Stop" : sendLabel}
       >
         {canStop ? (
-          <span className="composer-action-stop-square" aria-hidden />
+          <>
+            <span className="composer-action-stop-square" aria-hidden />
+            {isProcessing && (
+              <span className="composer-action-spinner" aria-hidden />
+            )}
+          </>
         ) : (
           <svg viewBox="0 0 24 24" fill="none" aria-hidden>
             <path

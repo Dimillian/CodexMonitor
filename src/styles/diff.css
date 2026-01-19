@@ -237,6 +237,26 @@
   min-height: 0;
 }
 
+.diff-section {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.diff-section-title {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 6px 6px 2px;
+}
+
+.diff-section-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
 .diff-empty {
   font-size: 12px;
   color: var(--text-faint);

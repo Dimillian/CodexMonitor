@@ -12,6 +12,7 @@ import type {
   GitFileDiff,
   GitFileStatus,
   GitHubIssuesResponse,
+  GitHubPullRequestComment,
   GitHubPullRequestDiff,
   GitHubPullRequestsResponse,
   GitLogResponse,
@@ -154,6 +155,8 @@ export async function respondToServerRequest(
 export async function getGitStatus(workspace_id: string): Promise<{
   branchName: string;
   files: GitFileStatus[];
+  stagedFiles: GitFileStatus[];
+  unstagedFiles: GitFileStatus[];
   totalAdditions: number;
   totalDeletions: number;
 }> {
@@ -184,6 +187,18 @@ export async function getGitRemote(workspace_id: string): Promise<string | null>
   return invoke("get_git_remote", { workspaceId: workspace_id });
 }
 
+export async function stageGitFile(workspaceId: string, path: string) {
+  return invoke("stage_git_file", { workspaceId, path });
+}
+
+export async function unstageGitFile(workspaceId: string, path: string) {
+  return invoke("unstage_git_file", { workspaceId, path });
+}
+
+export async function revertGitFile(workspaceId: string, path: string) {
+  return invoke("revert_git_file", { workspaceId, path });
+}
+
 export async function getGitHubIssues(
   workspace_id: string,
 ): Promise<GitHubIssuesResponse> {
@@ -201,6 +216,16 @@ export async function getGitHubPullRequestDiff(
   prNumber: number,
 ): Promise<GitHubPullRequestDiff[]> {
   return invoke("get_github_pull_request_diff", {
+    workspaceId: workspace_id,
+    prNumber,
+  });
+}
+
+export async function getGitHubPullRequestComments(
+  workspace_id: string,
+  prNumber: number,
+): Promise<GitHubPullRequestComment[]> {
+  return invoke("get_github_pull_request_comments", {
     workspaceId: workspace_id,
     prNumber,
   });

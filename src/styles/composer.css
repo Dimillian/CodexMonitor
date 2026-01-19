@@ -195,6 +195,18 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+}
+
+@media (prefers-color-scheme: light) {
+  .composer-action {
+    border-color: var(--border-strong);
+    color: var(--text-strong);
+  }
+
+  .composer-action:hover {
+    color: var(--text-strong);
+  }
 }
 
 .composer-action--mic.is-active {
@@ -312,6 +324,16 @@
   background: currentColor;
 }
 
+.composer-action-spinner {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 120, 120, 0.35);
+  border-top-color: rgba(255, 120, 120, 0.9);
+  animation: composer-action-spin 0.8s linear infinite;
+}
+
 
 .composer.is-disabled {
   opacity: 0.7;
@@ -346,6 +368,14 @@
   color: rgba(255, 196, 196, 0.4);
 }
 
+@keyframes composer-action-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 .composer-select:disabled {
   cursor: not-allowed;

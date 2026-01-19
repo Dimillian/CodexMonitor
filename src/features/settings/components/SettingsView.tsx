@@ -6,6 +6,7 @@ import {
   LayoutGrid,
   SlidersHorizontal,
   Mic,
+  Keyboard,
   Stethoscope,
   TerminalSquare,
   Trash2,
@@ -20,6 +21,7 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import { formatDownloadSize } from "../../../utils/formatting";
+import { buildShortcutValue, formatShortcut } from "../../../utils/shortcuts";
 import { clampUiScale } from "../../../utils/uiScale";
 
 const DICTATION_MODELS = [
@@ -65,7 +67,7 @@ type SettingsViewProps = {
   initialSection?: CodexSection;
 };
 
-type SettingsSection = "projects" | "display" | "dictation";
+type SettingsSection = "projects" | "display" | "dictation" | "shortcuts";
 type CodexSection = SettingsSection | "codex" | "experimental";
 
 export function SettingsView({
@@ -111,6 +113,11 @@ export function SettingsView({
     result: CodexDoctorResult | null;
   }>({ status: "idle", result: null });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [shortcutDrafts, setShortcutDrafts] = useState({
+    model: appSettings.composerModelShortcut ?? "",
+    access: appSettings.composerAccessShortcut ?? "",
+    reasoning: appSettings.composerReasoningShortcut ?? "",
+  });
   const dictationReady = dictationModelStatus?.state === "ready";
   const dictationProgress = dictationModelStatus?.progress ?? null;
   const selectedDictationModel = useMemo(() => {
@@ -141,6 +148,18 @@ export function SettingsView({
   useEffect(() => {
     setScaleDraft(`${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`);
   }, [appSettings.uiScale]);
+
+  useEffect(() => {
+    setShortcutDrafts({
+      model: appSettings.composerModelShortcut ?? "",
+      access: appSettings.composerAccessShortcut ?? "",
+      reasoning: appSettings.composerReasoningShortcut ?? "",
+    });
+  }, [
+    appSettings.composerAccessShortcut,
+    appSettings.composerModelShortcut,
+    appSettings.composerReasoningShortcut,
+  ]);
 
   useEffect(() => {
     setOverrideDrafts((prev) => {
@@ -275,6 +294,43 @@ export function SettingsView({
     }
   };
 
+  const updateShortcut = async (
+    key: "composerModelShortcut" | "composerAccessShortcut" | "composerReasoningShortcut",
+    value: string | null,
+  ) => {
+    setShortcutDrafts((prev) => ({
+      ...prev,
+      [key === "composerModelShortcut"
+        ? "model"
+        : key === "composerAccessShortcut"
+          ? "access"
+          : "reasoning"]: value ?? "",
+    }));
+    await onUpdateAppSettings({
+      ...appSettings,
+      [key]: value,
+    });
+  };
+
+  const handleShortcutKeyDown = (
+    event: React.KeyboardEvent<HTMLInputElement>,
+    key: "composerModelShortcut" | "composerAccessShortcut" | "composerReasoningShortcut",
+  ) => {
+    if (event.key === "Tab") {
+      return;
+    }
+    event.preventDefault();
+    if (event.key === "Backspace" || event.key === "Delete") {
+      void updateShortcut(key, null);
+      return;
+    }
+    const value = buildShortcutValue(event.nativeEvent);
+    if (!value) {
+      return;
+    }
+    void updateShortcut(key, value);
+  };
+
   const trimmedGroupName = newGroupName.trim();
   const canCreateGroup = Boolean(trimmedGroupName);
 
@@ -379,6 +435,14 @@ export function SettingsView({
             >
               <Mic aria-hidden />
               Dictation
+            </button>
+            <button
+              type="button"
+              className={`settings-nav ${activeSection === "shortcuts" ? "active" : ""}`}
+              onClick={() => setActiveSection("shortcuts")}
+            >
+              <Keyboard aria-hidden />
+              Shortcuts
             </button>
             <button
               type="button"
@@ -878,6 +942,86 @@ export function SettingsView({
                     </div>
                   </div>
                 )}
+              </section>
+            )}
+            {activeSection === "shortcuts" && (
+              <section className="settings-section">
+                <div className="settings-section-title">Shortcuts</div>
+                <div className="settings-section-subtitle">
+                  Customize composer shortcuts for cycling modes.
+                </div>
+                <div className="settings-field">
+                  <div className="settings-field-label">Cycle model</div>
+                  <div className="settings-field-row">
+                    <input
+                      className="settings-input settings-input--shortcut"
+                      value={formatShortcut(shortcutDrafts.model)}
+                      onKeyDown={(event) =>
+                        handleShortcutKeyDown(event, "composerModelShortcut")
+                      }
+                      placeholder="Type shortcut"
+                      readOnly
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => void updateShortcut("composerModelShortcut", null)}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Press a new shortcut while focused. Default: {formatShortcut("cmd+shift+m")}
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <div className="settings-field-label">Cycle access mode</div>
+                  <div className="settings-field-row">
+                    <input
+                      className="settings-input settings-input--shortcut"
+                      value={formatShortcut(shortcutDrafts.access)}
+                      onKeyDown={(event) =>
+                        handleShortcutKeyDown(event, "composerAccessShortcut")
+                      }
+                      placeholder="Type shortcut"
+                      readOnly
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => void updateShortcut("composerAccessShortcut", null)}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Default: {formatShortcut("cmd+shift+a")}
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <div className="settings-field-label">Cycle reasoning mode</div>
+                  <div className="settings-field-row">
+                    <input
+                      className="settings-input settings-input--shortcut"
+                      value={formatShortcut(shortcutDrafts.reasoning)}
+                      onKeyDown={(event) =>
+                        handleShortcutKeyDown(event, "composerReasoningShortcut")
+                      }
+                      placeholder="Type shortcut"
+                      readOnly
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => void updateShortcut("composerReasoningShortcut", null)}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Default: {formatShortcut("cmd+shift+r")}
+                  </div>
+                </div>
               </section>
             )}
             {activeSection === "codex" && (

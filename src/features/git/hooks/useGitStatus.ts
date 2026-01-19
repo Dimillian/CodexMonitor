@@ -5,6 +5,8 @@ import { getGitStatus } from "../../../services/tauri";
 type GitStatusState = {
   branchName: string;
   files: GitFileStatus[];
+  stagedFiles: GitFileStatus[];
+  unstagedFiles: GitFileStatus[];
   totalAdditions: number;
   totalDeletions: number;
   error: string | null;
@@ -13,6 +15,8 @@ type GitStatusState = {
 const emptyStatus: GitStatusState = {
   branchName: "",
   files: [],
+  stagedFiles: [],
+  unstagedFiles: [],
   totalAdditions: 0,
   totalDeletions: 0,
   error: null,

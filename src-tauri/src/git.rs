@@ -11,10 +11,68 @@ use crate::git_utils::{
 };
 use crate::state::AppState;
 use crate::types::{
-    BranchInfo, GitFileDiff, GitFileStatus, GitHubIssue, GitHubIssuesResponse, GitHubPullRequest,
-    GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse,
+    BranchInfo, GitFileDiff, GitFileStatus, GitHubIssue, GitHubIssuesResponse,
+    GitHubPullRequest, GitHubPullRequestComment, GitHubPullRequestDiff,
+    GitHubPullRequestsResponse, GitLogResponse,
 };
 use crate::utils::normalize_git_path;
+
+async fn run_git_command(repo_root: &Path, args: &[&str]) -> Result<(), String> {
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(repo_root)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run git: {e}"))?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let detail = if stderr.trim().is_empty() {
+        stdout.trim()
+    } else {
+        stderr.trim()
+    };
+    if detail.is_empty() {
+        return Err("Git command failed.".to_string());
+    }
+    Err(detail.to_string())
+}
+
+fn status_for_index(status: Status) -> Option<&'static str> {
+    if status.contains(Status::INDEX_NEW) {
+        Some("A")
+    } else if status.contains(Status::INDEX_MODIFIED) {
+        Some("M")
+    } else if status.contains(Status::INDEX_DELETED) {
+        Some("D")
+    } else if status.contains(Status::INDEX_RENAMED) {
+        Some("R")
+    } else if status.contains(Status::INDEX_TYPECHANGE) {
+        Some("T")
+    } else {
+        None
+    }
+}
+
+fn status_for_workdir(status: Status) -> Option<&'static str> {
+    if status.contains(Status::WT_NEW) {
+        Some("A")
+    } else if status.contains(Status::WT_MODIFIED) {
+        Some("M")
+    } else if status.contains(Status::WT_DELETED) {
+        Some("D")
+    } else if status.contains(Status::WT_RENAMED) {
+        Some("R")
+    } else if status.contains(Status::WT_TYPECHANGE) {
+        Some("T")
+    } else {
+        None
+    }
+}
 
 fn github_repo_from_path(path: &Path) -> Result<String, String> {
     let repo = Repository::open(path).map_err(|e| e.to_string())?;
@@ -165,6 +223,8 @@ pub(crate) async fn get_git_status(
     let head_tree = repo.head().ok().and_then(|head| head.peel_to_tree().ok());
 
     let mut files = Vec::new();
+    let mut staged_files = Vec::new();
+    let mut unstaged_files = Vec::new();
     let mut total_additions = 0i64;
     let mut total_deletions = 0i64;
     for entry in statuses.iter() {
@@ -173,21 +233,6 @@ pub(crate) async fn get_git_status(
             continue;
         }
         let status = entry.status();
-        let status_str = if status.contains(Status::WT_NEW) || status.contains(Status::INDEX_NEW) {
-            "A"
-        } else if status.contains(Status::WT_MODIFIED) || status.contains(Status::INDEX_MODIFIED) {
-            "M"
-        } else if status.contains(Status::WT_DELETED) || status.contains(Status::INDEX_DELETED) {
-            "D"
-        } else if status.contains(Status::WT_RENAMED) || status.contains(Status::INDEX_RENAMED) {
-            "R"
-        } else if status.contains(Status::WT_TYPECHANGE)
-            || status.contains(Status::INDEX_TYPECHANGE)
-        {
-            "T"
-        } else {
-            "--"
-        };
         let normalized_path = normalize_git_path(path);
         let include_index = status.intersects(
             Status::INDEX_NEW
@@ -203,30 +248,120 @@ pub(crate) async fn get_git_status(
                 | Status::WT_RENAMED
                 | Status::WT_TYPECHANGE,
         );
-        let (additions, deletions) = diff_stats_for_path(
-            &repo,
-            head_tree.as_ref(),
-            path,
-            include_index,
-            include_workdir,
-        )
-        .map_err(|e| e.to_string())?;
-        total_additions += additions;
-        total_deletions += deletions;
-        files.push(GitFileStatus {
-            path: normalized_path,
-            status: status_str.to_string(),
-            additions,
-            deletions,
-        });
+        let mut combined_additions = 0i64;
+        let mut combined_deletions = 0i64;
+
+        if include_index {
+            let (additions, deletions) =
+                diff_stats_for_path(&repo, head_tree.as_ref(), path, true, false)
+                    .map_err(|e| e.to_string())?;
+            if let Some(status_str) = status_for_index(status) {
+                staged_files.push(GitFileStatus {
+                    path: normalized_path.clone(),
+                    status: status_str.to_string(),
+                    additions,
+                    deletions,
+                });
+            }
+            combined_additions += additions;
+            combined_deletions += deletions;
+            total_additions += additions;
+            total_deletions += deletions;
+        }
+
+        if include_workdir {
+            let (additions, deletions) =
+                diff_stats_for_path(&repo, head_tree.as_ref(), path, false, true)
+                    .map_err(|e| e.to_string())?;
+            if let Some(status_str) = status_for_workdir(status) {
+                unstaged_files.push(GitFileStatus {
+                    path: normalized_path.clone(),
+                    status: status_str.to_string(),
+                    additions,
+                    deletions,
+                });
+            }
+            combined_additions += additions;
+            combined_deletions += deletions;
+            total_additions += additions;
+            total_deletions += deletions;
+        }
+
+        if include_index || include_workdir {
+            let status_str = status_for_workdir(status)
+                .or_else(|| status_for_index(status))
+                .unwrap_or("--");
+            files.push(GitFileStatus {
+                path: normalized_path,
+                status: status_str.to_string(),
+                additions: combined_additions,
+                deletions: combined_deletions,
+            });
+        }
     }
 
     Ok(json!({
         "branchName": branch_name,
         "files": files,
+        "stagedFiles": staged_files,
+        "unstagedFiles": unstaged_files,
         "totalAdditions": total_additions,
         "totalDeletions": total_deletions,
     }))
+}
+
+#[tauri::command]
+pub(crate) async fn stage_git_file(
+    workspace_id: String,
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?
+        .clone();
+
+    let repo_root = resolve_git_root(&entry)?;
+    run_git_command(&repo_root, &["add", "--", &path]).await
+}
+
+#[tauri::command]
+pub(crate) async fn unstage_git_file(
+    workspace_id: String,
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?
+        .clone();
+
+    let repo_root = resolve_git_root(&entry)?;
+    run_git_command(&repo_root, &["restore", "--staged", "--", &path]).await
+}
+
+#[tauri::command]
+pub(crate) async fn revert_git_file(
+    workspace_id: String,
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?
+        .clone();
+
+    let repo_root = resolve_git_root(&entry)?;
+    if run_git_command(&repo_root, &["restore", "--staged", "--worktree", "--", &path])
+        .await
+        .is_ok()
+    {
+        return Ok(());
+    }
+    run_git_command(&repo_root, &["clean", "-f", "--", &path]).await
 }
 
 #[tauri::command]
@@ -545,7 +680,7 @@ pub(crate) async fn get_github_pull_requests(
             "--limit",
             "50",
             "--json",
-            "number,title,url,updatedAt,headRefName,baseRefName,isDraft,author",
+            "number,title,url,updatedAt,createdAt,body,headRefName,baseRefName,isDraft,author",
         ])
         .current_dir(&repo_root)
         .output()
@@ -641,6 +776,52 @@ pub(crate) async fn get_github_pull_request_diff(
 
     let diff_text = String::from_utf8_lossy(&output.stdout);
     Ok(parse_pr_diff(&diff_text))
+}
+
+#[tauri::command]
+pub(crate) async fn get_github_pull_request_comments(
+    workspace_id: String,
+    pr_number: u64,
+    state: State<'_, AppState>,
+) -> Result<Vec<GitHubPullRequestComment>, String> {
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?
+        .clone();
+
+    let repo_root = resolve_git_root(&entry)?;
+    let repo_name = github_repo_from_path(&repo_root)?;
+
+    let comments_endpoint =
+        format!("/repos/{repo_name}/issues/{pr_number}/comments?per_page=30");
+    let jq_filter = r#"[.[] | {id, body, createdAt: .created_at, url: .html_url, author: (if .user then {login: .user.login} else null end)}]"#;
+
+    let output = Command::new("gh")
+        .args(["api", &comments_endpoint, "--jq", jq_filter])
+        .current_dir(&repo_root)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run gh: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let detail = if stderr.trim().is_empty() {
+            stdout.trim()
+        } else {
+            stderr.trim()
+        };
+        if detail.is_empty() {
+            return Err("GitHub CLI command failed.".to_string());
+        }
+        return Err(detail.to_string());
+    }
+
+    let comments: Vec<GitHubPullRequestComment> =
+        serde_json::from_slice(&output.stdout).map_err(|e| e.to_string())?;
+
+    Ok(comments)
 }
 
 #[tauri::command]

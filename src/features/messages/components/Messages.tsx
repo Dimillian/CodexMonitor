@@ -221,7 +221,7 @@ export const Messages = memo(function Messages({
   const copyTimeoutRef = useRef<number | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const scrollKey = scrollKeyForItems(items);
-  const openFileLink = useFileLinkOpener(workspacePath);
+  const { openFileLink, showFileLinkMenu } = useFileLinkOpener(workspacePath);
 
   const isNearBottom = (node: HTMLDivElement) =>
     node.scrollHeight - node.scrollTop - node.clientHeight <= SCROLL_THRESHOLD_PX;
@@ -343,6 +343,7 @@ export const Messages = memo(function Messages({
                   value={item.text}
                   className="markdown"
                   onOpenFileLink={openFileLink}
+                  onOpenFileLinkMenu={showFileLinkMenu}
                 />
                 <button
                   type="button"
@@ -414,6 +415,7 @@ export const Messages = memo(function Messages({
                       isExpanded ? "" : "tool-inline-clamp"
                     }`}
                     onOpenFileLink={openFileLink}
+                    onOpenFileLinkMenu={showFileLinkMenu}
                   />
                 )}
               </div>
@@ -440,6 +442,7 @@ export const Messages = memo(function Messages({
                   value={item.text}
                   className="item-text markdown"
                   onOpenFileLink={openFileLink}
+                  onOpenFileLinkMenu={showFileLinkMenu}
                 />
               )}
             </div>
@@ -575,6 +578,7 @@ export const Messages = memo(function Messages({
                     value={item.detail}
                     className="item-text markdown"
                     onOpenFileLink={openFileLink}
+                    onOpenFileLinkMenu={showFileLinkMenu}
                   />
                 )}
                 {showToolOutput && summary.output && (
@@ -583,6 +587,7 @@ export const Messages = memo(function Messages({
                     className="tool-inline-output markdown"
                     codeBlock
                     onOpenFileLink={openFileLink}
+                    onOpenFileLinkMenu={showFileLinkMenu}
                   />
                 )}
               </div>

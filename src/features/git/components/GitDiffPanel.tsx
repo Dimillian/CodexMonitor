@@ -50,12 +50,21 @@ type GitDiffPanelProps = {
   onPickGitRoot?: () => void | Promise<void>;
   selectedPath?: string | null;
   onSelectFile?: (path: string) => void;
-  files: {
+  stagedFiles: {
     path: string;
     status: string;
     additions: number;
     deletions: number;
   }[];
+  unstagedFiles: {
+    path: string;
+    status: string;
+    additions: number;
+    deletions: number;
+  }[];
+  onStageFile?: (path: string) => Promise<void> | void;
+  onUnstageFile?: (path: string) => Promise<void> | void;
+  onRevertFile?: (path: string) => Promise<void> | void;
   logEntries: GitLogEntry[];
 };
 
@@ -148,7 +157,6 @@ export function GitDiffPanel({
   logTotal = 0,
   gitRemoteUrl = null,
   onSelectFile,
-  files,
   logEntries,
   logAhead = 0,
   logBehind = 0,
@@ -172,6 +180,11 @@ export function GitDiffPanel({
   gitRootScanError = null,
   gitRootScanHasScanned = false,
   selectedPath = null,
+  stagedFiles = [],
+  unstagedFiles = [],
+  onStageFile,
+  onUnstageFile,
+  onRevertFile,
   onGitRootScanDepthChange,
   onScanGitRoots,
   onSelectGitRoot,
@@ -239,6 +252,53 @@ export function GitDiffPanel({
       },
     });
     const menu = await Menu.new({ items: [openItem] });
+    const window = getCurrentWindow();
+    const position = new LogicalPosition(event.clientX, event.clientY);
+    await menu.popup(position, window);
+  }
+
+  async function showFileMenu(
+    event: ReactMouseEvent<HTMLDivElement>,
+    path: string,
+    mode: "staged" | "unstaged",
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    const items: MenuItem[] = [];
+    if (mode === "staged" && onUnstageFile) {
+      items.push(
+        await MenuItem.new({
+          text: "Unstage file",
+          action: async () => {
+            await onUnstageFile(path);
+          },
+        }),
+      );
+    }
+    if (mode === "unstaged" && onStageFile) {
+      items.push(
+        await MenuItem.new({
+          text: "Stage file",
+          action: async () => {
+            await onStageFile(path);
+          },
+        }),
+      );
+    }
+    if (onRevertFile) {
+      items.push(
+        await MenuItem.new({
+          text: "Revert changes",
+          action: async () => {
+            await onRevertFile(path);
+          },
+        }),
+      );
+    }
+    if (!items.length) {
+      return;
+    }
+    const menu = await Menu.new({ items });
     const window = getCurrentWindow();
     const position = new LogicalPosition(event.clientX, event.clientY);
     await menu.popup(position, window);
@@ -444,50 +504,119 @@ export function GitDiffPanel({
               )}
             </div>
           )}
-          {!error && !files.length && (
+          {!error && !stagedFiles.length && !unstagedFiles.length && (
             <div className="diff-empty">No changes detected.</div>
           )}
-          {files.map((file) => {
-            const { name, dir } = splitPath(file.path);
-            const { base, extension } = splitNameAndExtension(name);
-            const statusSymbol = getStatusSymbol(file.status);
-            const statusClass = getStatusClass(file.status);
-            return (
-              <div
-                key={file.path}
-                className={`diff-row ${selectedPath === file.path ? "active" : ""}`}
-                role="button"
-                tabIndex={0}
-                onClick={() => onSelectFile?.(file.path)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onSelectFile?.(file.path);
-                  }
-                }}
-              >
-                <span className={`diff-icon ${statusClass}`} aria-hidden>
-                  {statusSymbol}
-                </span>
-                <div className="diff-file">
-                  <div className="diff-path">
-                    <span className="diff-name">
-                      <span className="diff-name-base">{base}</span>
-                      {extension && (
-                        <span className="diff-name-ext">.{extension}</span>
-                      )}
-                    </span>
-                    <span className="diff-counts-inline">
-                      <span className="diff-add">+{file.additions}</span>
-                      <span className="diff-sep">/</span>
-                      <span className="diff-del">-{file.deletions}</span>
-                    </span>
+          {(stagedFiles.length > 0 || unstagedFiles.length > 0) && (
+            <>
+              {stagedFiles.length > 0 && (
+                <div className="diff-section">
+                  <div className="diff-section-title">
+                    Staged ({stagedFiles.length})
                   </div>
-                  {dir && <div className="diff-dir">{dir}</div>}
+                  <div className="diff-section-list">
+                    {stagedFiles.map((file) => {
+                      const { name, dir } = splitPath(file.path);
+                      const { base, extension } = splitNameAndExtension(name);
+                      const statusSymbol = getStatusSymbol(file.status);
+                      const statusClass = getStatusClass(file.status);
+                      return (
+                        <div
+                          key={`staged-${file.path}`}
+                          className={`diff-row ${selectedPath === file.path ? "active" : ""}`}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => onSelectFile?.(file.path)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              onSelectFile?.(file.path);
+                            }
+                          }}
+                          onContextMenu={(event) =>
+                            showFileMenu(event, file.path, "staged")
+                          }
+                        >
+                          <span className={`diff-icon ${statusClass}`} aria-hidden>
+                            {statusSymbol}
+                          </span>
+                          <div className="diff-file">
+                            <div className="diff-path">
+                              <span className="diff-name">
+                                <span className="diff-name-base">{base}</span>
+                                {extension && (
+                                  <span className="diff-name-ext">.{extension}</span>
+                                )}
+                              </span>
+                              <span className="diff-counts-inline">
+                                <span className="diff-add">+{file.additions}</span>
+                                <span className="diff-sep">/</span>
+                                <span className="diff-del">-{file.deletions}</span>
+                              </span>
+                            </div>
+                            {dir && <div className="diff-dir">{dir}</div>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              )}
+              {unstagedFiles.length > 0 && (
+                <div className="diff-section">
+                  <div className="diff-section-title">
+                    Unstaged ({unstagedFiles.length})
+                  </div>
+                  <div className="diff-section-list">
+                    {unstagedFiles.map((file) => {
+                      const { name, dir } = splitPath(file.path);
+                      const { base, extension } = splitNameAndExtension(name);
+                      const statusSymbol = getStatusSymbol(file.status);
+                      const statusClass = getStatusClass(file.status);
+                      return (
+                        <div
+                          key={`unstaged-${file.path}`}
+                          className={`diff-row ${selectedPath === file.path ? "active" : ""}`}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => onSelectFile?.(file.path)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              onSelectFile?.(file.path);
+                            }
+                          }}
+                          onContextMenu={(event) =>
+                            showFileMenu(event, file.path, "unstaged")
+                          }
+                        >
+                          <span className={`diff-icon ${statusClass}`} aria-hidden>
+                            {statusSymbol}
+                          </span>
+                          <div className="diff-file">
+                            <div className="diff-path">
+                              <span className="diff-name">
+                                <span className="diff-name-base">{base}</span>
+                                {extension && (
+                                  <span className="diff-name-ext">.{extension}</span>
+                                )}
+                              </span>
+                              <span className="diff-counts-inline">
+                                <span className="diff-add">+{file.additions}</span>
+                                <span className="diff-sep">/</span>
+                                <span className="diff-del">-{file.deletions}</span>
+                              </span>
+                            </div>
+                            {dir && <div className="diff-dir">{dir}</div>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       ) : mode === "log" ? (
         <div className="git-log-list">

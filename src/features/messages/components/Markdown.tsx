@@ -14,6 +14,7 @@ type MarkdownProps = {
   className?: string;
   codeBlock?: boolean;
   onOpenFileLink?: (path: string) => void;
+  onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
 };
 
 export function Markdown({
@@ -21,12 +22,21 @@ export function Markdown({
   className,
   codeBlock,
   onOpenFileLink,
+  onOpenFileLinkMenu,
 }: MarkdownProps) {
   const content = codeBlock ? `\`\`\`\n${value}\n\`\`\`` : value;
   const handleFileLinkClick = (event: React.MouseEvent, path: string) => {
     event.preventDefault();
     event.stopPropagation();
     onOpenFileLink?.(path);
+  };
+  const handleFileLinkContextMenu = (
+    event: React.MouseEvent,
+    path: string,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onOpenFileLinkMenu?.(event, path);
   };
   return (
     <div className={className}>
@@ -60,6 +70,9 @@ export function Markdown({
                 <a
                   href={href}
                   onClick={(event) => handleFileLinkClick(event, path)}
+                  onContextMenu={(event) =>
+                    handleFileLinkContextMenu(event, path)
+                  }
                 >
                   {children}
                 </a>
@@ -102,7 +115,13 @@ export function Markdown({
             }
             const href = toFileLink(text);
             return (
-              <a href={href} onClick={(event) => handleFileLinkClick(event, text)}>
+              <a
+                href={href}
+                onClick={(event) => handleFileLinkClick(event, text)}
+                onContextMenu={(event) =>
+                  handleFileLinkContextMenu(event, text)
+                }
+              >
                 <code>{children}</code>
               </a>
             );
