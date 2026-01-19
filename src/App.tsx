@@ -1195,7 +1195,6 @@ function MainApp() {
     approvals,
     handleApprovalDecision,
     handleApprovalRemember,
-    themePreference: resolvedTheme,
     onOpenSettings: () => handleOpenSettings(),
     onOpenDictationSettings: () => handleOpenSettings("dictation"),
     onOpenDebug: handleDebugClick,
