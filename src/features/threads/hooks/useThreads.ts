@@ -783,7 +783,8 @@ export function useThreads({
   useAppServerEvents(handlers);
 
   const startThreadForWorkspace = useCallback(
-    async (workspaceId: string) => {
+    async (workspaceId: string, options?: { activate?: boolean }) => {
+      const shouldActivate = options?.activate !== false;
       onDebug?.({
         id: `${Date.now()}-client-thread-start`,
         timestamp: Date.now(),
@@ -804,7 +805,9 @@ export function useThreads({
         const threadId = String(thread?.id ?? "");
         if (threadId) {
           dispatch({ type: "ensureThread", workspaceId, threadId });
-          dispatch({ type: "setActiveThreadId", workspaceId, threadId });
+          if (shouldActivate) {
+            dispatch({ type: "setActiveThreadId", workspaceId, threadId });
+          }
           loadedThreads.current[threadId] = true;
           return threadId;
         }
@@ -1202,37 +1205,32 @@ export function useThreads({
     return threadId;
   }, [activeWorkspace, activeThreadId, resumeThreadForWorkspace, startThreadForWorkspace]);
 
-  const sendUserMessage = useCallback(
-    async (text: string, images: string[] = []) => {
-      if (!activeWorkspace || (!text.trim() && images.length === 0)) {
-        return;
-      }
+  const sendMessageToThread = useCallback(
+    async (
+      workspace: WorkspaceInfo,
+      threadId: string,
+      text: string,
+      images: string[] = [],
+      options?: { skipPromptExpansion?: boolean },
+    ) => {
       const messageText = text.trim();
-      const promptExpansion = expandCustomPromptText(messageText, customPrompts);
-      if (promptExpansion && "error" in promptExpansion) {
-        if (activeThreadId) {
-          pushThreadErrorMessage(activeThreadId, promptExpansion.error);
+      if (!messageText && images.length === 0) {
+        return;
+      }
+      let finalText = messageText;
+      if (!options?.skipPromptExpansion) {
+        const promptExpansion = expandCustomPromptText(messageText, customPrompts);
+        if (promptExpansion && "error" in promptExpansion) {
+          pushThreadErrorMessage(threadId, promptExpansion.error);
           safeMessageActivity();
-        } else {
-          onDebug?.({
-            id: `${Date.now()}-client-prompt-expand-error`,
-            timestamp: Date.now(),
-            source: "error",
-            label: "prompt/expand error",
-            payload: promptExpansion.error,
-          });
+          return;
         }
-        return;
+        finalText = promptExpansion?.expanded ?? messageText;
       }
-      const finalText = promptExpansion?.expanded ?? messageText;
-      const threadId = await ensureThreadForActiveWorkspace();
-      if (!threadId) {
-        return;
-      }
-      recordThreadActivity(activeWorkspace.id, threadId);
+      recordThreadActivity(workspace.id, threadId);
       dispatch({
         type: "addUserMessage",
-        workspaceId: activeWorkspace.id,
+        workspaceId: workspace.id,
         threadId,
         text: finalText,
         images,
@@ -1244,23 +1242,23 @@ export function useThreads({
         timestamp: Date.now(),
         source: "client",
         label: "turn/start",
-          payload: {
-            workspaceId: activeWorkspace.id,
-            threadId,
-            text: finalText,
-            images,
-            model,
-            effort,
-            collaborationMode,
-          },
-        });
+        payload: {
+          workspaceId: workspace.id,
+          threadId,
+          text: finalText,
+          images,
+          model,
+          effort,
+          collaborationMode,
+        },
+      });
       try {
         const response =
           (await sendUserMessageService(
-          activeWorkspace.id,
-          threadId,
-          finalText,
-          { model, effort, collaborationMode, accessMode, images },
+            workspace.id,
+            threadId,
+            finalText,
+            { model, effort, collaborationMode, accessMode, images },
           )) as Record<string, unknown>;
         onDebug?.({
           id: `${Date.now()}-server-turn-start`,
@@ -1308,20 +1306,75 @@ export function useThreads({
       }
     },
     [
-      activeWorkspace,
-      markProcessing,
-      activeThreadId,
-      effort,
-      collaborationMode,
       accessMode,
+      collaborationMode,
       customPrompts,
+      effort,
+      markProcessing,
       model,
       onDebug,
       pushThreadErrorMessage,
       recordThreadActivity,
-      ensureThreadForActiveWorkspace,
       safeMessageActivity,
     ],
+  );
+
+  const sendUserMessage = useCallback(
+    async (text: string, images: string[] = []) => {
+      if (!activeWorkspace) {
+        return;
+      }
+      const messageText = text.trim();
+      if (!messageText && images.length === 0) {
+        return;
+      }
+      const promptExpansion = expandCustomPromptText(messageText, customPrompts);
+      if (promptExpansion && "error" in promptExpansion) {
+        if (activeThreadId) {
+          pushThreadErrorMessage(activeThreadId, promptExpansion.error);
+          safeMessageActivity();
+        } else {
+          onDebug?.({
+            id: `${Date.now()}-client-prompt-expand-error`,
+            timestamp: Date.now(),
+            source: "error",
+            label: "prompt/expand error",
+            payload: promptExpansion.error,
+          });
+        }
+        return;
+      }
+      const finalText = promptExpansion?.expanded ?? messageText;
+      const threadId = await ensureThreadForActiveWorkspace();
+      if (!threadId) {
+        return;
+      }
+      await sendMessageToThread(activeWorkspace, threadId, finalText, images, {
+        skipPromptExpansion: true,
+      });
+    },
+    [
+      activeThreadId,
+      activeWorkspace,
+      customPrompts,
+      ensureThreadForActiveWorkspace,
+      onDebug,
+      pushThreadErrorMessage,
+      safeMessageActivity,
+      sendMessageToThread,
+    ],
+  );
+
+  const sendUserMessageToThread = useCallback(
+    async (
+      workspace: WorkspaceInfo,
+      threadId: string,
+      text: string,
+      images: string[] = [],
+    ) => {
+      await sendMessageToThread(workspace, threadId, text, images);
+    },
+    [sendMessageToThread],
   );
 
   const interruptTurn = useCallback(async () => {
@@ -1536,6 +1589,7 @@ export function useThreads({
     listThreadsForWorkspace,
     loadOlderThreadsForWorkspace,
     sendUserMessage,
+    sendUserMessageToThread,
     startReview,
     handleApprovalDecision,
   };
