@@ -29,27 +29,15 @@ import type {
 // Update this list when new models are released.
 const CLAUDE_MODELS = [
   {
-    id: 'claude-opus-4-5-20251101',
-    model: 'claude-opus-4-5-20251101',
-    displayName: 'Claude Opus 4.5',
-    isDefault: false,
-  },
-  {
     id: 'claude-sonnet-4-20250514',
     model: 'claude-sonnet-4-20250514',
     displayName: 'Claude Sonnet 4',
     isDefault: true,
   },
   {
-    id: 'claude-opus-4-20250514',
-    model: 'claude-opus-4-20250514',
-    displayName: 'Claude Opus 4',
-    isDefault: false,
-  },
-  {
-    id: 'claude-3-5-haiku-20241022',
-    model: 'claude-3-5-haiku-20241022',
-    displayName: 'Claude 3.5 Haiku',
+    id: 'claude-opus-4-5-20251101',
+    model: 'claude-opus-4-5-20251101',
+    displayName: 'Claude Opus 4.5',
     isDefault: false,
   },
 ];
