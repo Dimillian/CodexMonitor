@@ -947,7 +947,7 @@ export function useThreads({
       try {
         const matchingThreads: Record<string, unknown>[] = [];
         const targetCount = 20;
-        const pageSize = 100;
+        const pageSize = 20;
         let cursor: string | null = null;
         do {
           const response =
@@ -1100,7 +1100,7 @@ export function useThreads({
       try {
         const matchingThreads: Record<string, unknown>[] = [];
         const targetCount = 20;
-        const pageSize = 100;
+        const pageSize = 20;
         let cursor: string | null = nextCursor;
         do {
           const response =
