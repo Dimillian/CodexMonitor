@@ -124,6 +124,12 @@ class ClaudeBridge {
       return {
         data: [
           {
+            id: 'claude-opus-4-5-20251101',
+            model: 'claude-opus-4-5-20251101',
+            displayName: 'Claude Opus 4.5',
+            isDefault: false,
+          },
+          {
             id: 'claude-sonnet-4-20250514',
             model: 'claude-sonnet-4-20250514',
             displayName: 'Claude Sonnet 4',
