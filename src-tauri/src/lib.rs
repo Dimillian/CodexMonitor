@@ -35,7 +35,7 @@ pub fn run() {
                 .build(handle)?;
             let app_menu = Submenu::with_items(
                 handle,
-                app_name,
+                app_name.clone(),
                 true,
                 &[
                     &about_item,
