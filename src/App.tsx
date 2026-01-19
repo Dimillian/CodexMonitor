@@ -78,6 +78,7 @@ import { useRenameThreadPrompt } from "./features/threads/hooks/useRenameThreadP
 import { useWorktreePrompt } from "./features/workspaces/hooks/useWorktreePrompt";
 import { useUiScaleShortcuts } from "./features/layout/hooks/useUiScaleShortcuts";
 import { useWorkspaceSelection } from "./features/workspaces/hooks/useWorkspaceSelection";
+import { useLocalUsage } from "./features/home/hooks/useLocalUsage";
 import { useNewAgentShortcut } from "./features/app/hooks/useNewAgentShortcut";
 import { useAgentSoundNotifications } from "./features/notifications/hooks/useAgentSoundNotifications";
 import { useWindowFocusState } from "./features/layout/hooks/useWindowFocusState";
@@ -317,6 +318,34 @@ function MainApp() {
 
   const { status: gitStatus, refresh: refreshGitStatus } =
     useGitStatus(activeWorkspace);
+  const gitStatusRefreshTimeoutRef = useRef<number | null>(null);
+  const activeWorkspaceIdRef = useRef<string | null>(activeWorkspace?.id ?? null);
+  useEffect(() => {
+    activeWorkspaceIdRef.current = activeWorkspace?.id ?? null;
+  }, [activeWorkspace?.id]);
+  useEffect(() => {
+    return () => {
+      if (gitStatusRefreshTimeoutRef.current !== null) {
+        window.clearTimeout(gitStatusRefreshTimeoutRef.current);
+      }
+    };
+  }, []);
+  const queueGitStatusRefresh = useCallback(() => {
+    const workspaceId = activeWorkspaceIdRef.current;
+    if (!workspaceId) {
+      return;
+    }
+    if (gitStatusRefreshTimeoutRef.current !== null) {
+      window.clearTimeout(gitStatusRefreshTimeoutRef.current);
+    }
+    gitStatusRefreshTimeoutRef.current = window.setTimeout(() => {
+      gitStatusRefreshTimeoutRef.current = null;
+      if (activeWorkspaceIdRef.current !== workspaceId) {
+        return;
+      }
+      refreshGitStatus();
+    }, 500);
+  }, [refreshGitStatus]);
   const compactTab = isTablet ? tabletTab : activeTab;
   const shouldLoadDiffs =
     centerMode === "diff" || (isCompact && compactTab === "git");
@@ -608,7 +637,7 @@ function MainApp() {
     collaborationMode: selectedCollaborationMode?.value ?? null,
     accessMode,
     customPrompts: prompts,
-    onMessageActivity: refreshGitStatus
+    onMessageActivity: queueGitStatusRefresh
   });
 
   const { handleCopyThread } = useCopyThread({
@@ -732,6 +761,12 @@ function MainApp() {
     activePlan && (activePlan.steps.length > 0 || activePlan.explanation)
   );
   const showHome = !activeWorkspace;
+  const {
+    snapshot: localUsageSnapshot,
+    isLoading: isLoadingLocalUsage,
+    error: localUsageError,
+    refresh: refreshLocalUsage,
+  } = useLocalUsage(showHome);
   const canInterrupt = activeThreadId
     ? threadStatusById[activeThreadId]?.isProcessing ?? false
     : false;
@@ -1234,6 +1269,12 @@ function MainApp() {
     onDismissUpdate: updater.dismiss,
     latestAgentRuns,
     isLoadingLatestAgents,
+    localUsageSnapshot,
+    isLoadingLocalUsage,
+    localUsageError,
+    onRefreshLocalUsage: () => {
+      refreshLocalUsage()?.catch(() => {});
+    },
     onSelectHomeThread: (workspaceId, threadId) => {
       exitDiffView();
       selectWorkspace(workspaceId);

@@ -13,6 +13,7 @@ mod dictation;
 mod event_sink;
 mod git;
 mod git_utils;
+mod local_usage;
 mod prompts;
 mod settings;
 mod state;
@@ -40,7 +41,7 @@ pub fn run() {
                 .build(handle)?;
             let app_menu = Submenu::with_items(
                 handle,
-                app_name,
+                app_name.clone(),
                 true,
                 &[
                     &about_item,
@@ -280,7 +281,8 @@ pub fn run() {
             dictation::dictation_remove_model,
             dictation::dictation_start,
             dictation::dictation_stop,
-            dictation::dictation_cancel
+            dictation::dictation_cancel,
+            local_usage::local_usage_snapshot
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

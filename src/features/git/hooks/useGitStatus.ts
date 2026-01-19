@@ -30,6 +30,20 @@ export function useGitStatus(activeWorkspace: WorkspaceInfo | null) {
   const cachedStatusRef = useRef<Map<string, GitStatusState>>(new Map());
   const workspaceId = activeWorkspace?.id ?? null;
 
+  const resolveBranchName = useCallback(
+    (incoming: string | undefined, cached: GitStatusState | undefined) => {
+      const trimmed = incoming?.trim();
+      if (trimmed && trimmed !== "unknown") {
+        return trimmed;
+      }
+      const cachedBranch = cached?.branchName?.trim();
+      return cachedBranch && cachedBranch !== "unknown"
+        ? cachedBranch
+        : trimmed ?? "";
+    },
+    [],
+  );
+
   const refresh = useCallback(() => {
     if (!workspaceId) {
       setStatus(emptyStatus);
@@ -46,10 +60,7 @@ export function useGitStatus(activeWorkspace: WorkspaceInfo | null) {
           return;
         }
         const cached = cachedStatusRef.current.get(workspaceId);
-        const resolvedBranchName =
-          data.branchName && data.branchName !== "unknown"
-            ? data.branchName
-            : cached?.branchName ?? data.branchName;
+        const resolvedBranchName = resolveBranchName(data.branchName, cached);
         const nextStatus = {
           ...data,
           branchName: resolvedBranchName,
@@ -68,18 +79,12 @@ export function useGitStatus(activeWorkspace: WorkspaceInfo | null) {
         }
         const message = err instanceof Error ? err.message : String(err);
         const cached = cachedStatusRef.current.get(workspaceId);
-        const nextStatus = {
-          ...(cached ?? emptyStatus),
-          branchName:
-            cached?.branchName && cached.branchName !== "unknown"
-              ? cached.branchName
-              : "unknown",
-          error: message,
-        };
+        const nextStatus = cached
+          ? { ...cached, error: message }
+          : { ...emptyStatus, branchName: "unknown", error: message };
         setStatus(nextStatus);
-        cachedStatusRef.current.set(workspaceId, nextStatus);
       });
-  }, [workspaceId]);
+  }, [resolveBranchName, workspaceId]);
 
   useEffect(() => {
     if (workspaceIdRef.current !== workspaceId) {

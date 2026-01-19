@@ -5,6 +5,7 @@ import type {
   CodexDoctorResult,
   DictationModelStatus,
   DictationSessionState,
+  LocalUsageSnapshot,
   WorkspaceInfo,
   WorkspaceSettings,
 } from "../types";
@@ -237,6 +238,12 @@ export async function getGitHubPullRequestComments(
     workspaceId: workspace_id,
     prNumber,
   });
+}
+
+export async function localUsageSnapshot(
+  days?: number,
+): Promise<LocalUsageSnapshot> {
+  return invoke("local_usage_snapshot", { days: days ?? 30 });
 }
 
 export async function getModelList(workspaceId: string) {

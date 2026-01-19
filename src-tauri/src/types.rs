@@ -106,6 +106,45 @@ pub(crate) struct GitHubPullRequestComment {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LocalUsageDay {
+    pub(crate) day: String,
+    pub(crate) input_tokens: i64,
+    pub(crate) cached_input_tokens: i64,
+    pub(crate) output_tokens: i64,
+    pub(crate) total_tokens: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LocalUsageTotals {
+    pub(crate) last7_days_tokens: i64,
+    pub(crate) last30_days_tokens: i64,
+    pub(crate) average_daily_tokens: i64,
+    pub(crate) cache_hit_rate_percent: f64,
+    pub(crate) peak_day: Option<String>,
+    pub(crate) peak_day_tokens: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LocalUsageModel {
+    pub(crate) model: String,
+    pub(crate) tokens: i64,
+    pub(crate) share_percent: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LocalUsageSnapshot {
+    pub(crate) updated_at: i64,
+    pub(crate) days: Vec<LocalUsageDay>,
+    pub(crate) totals: LocalUsageTotals,
+    #[serde(default)]
+    pub(crate) top_models: Vec<LocalUsageModel>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct BranchInfo {
     pub(crate) name: String,
     pub(crate) last_commit: i64,

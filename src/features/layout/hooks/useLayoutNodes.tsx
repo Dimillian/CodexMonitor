@@ -32,6 +32,7 @@ import type {
   GitHubPullRequestComment,
   GitHubPullRequest,
   GitLogEntry,
+  LocalUsageSnapshot,
   ModelOption,
   QueuedMessage,
   RateLimitSnapshot,
@@ -118,6 +119,10 @@ type LayoutNodesOptions = {
     isProcessing: boolean;
   }>;
   isLoadingLatestAgents: boolean;
+  localUsageSnapshot: LocalUsageSnapshot | null;
+  isLoadingLocalUsage: boolean;
+  localUsageError: string | null;
+  onRefreshLocalUsage: () => void;
   onSelectHomeThread: (workspaceId: string, threadId: string) => void;
   activeWorkspace: WorkspaceInfo | null;
   activeParentWorkspace: WorkspaceInfo | null;
@@ -444,6 +449,10 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onAddWorkspace={options.onAddWorkspace}
       latestAgentRuns={options.latestAgentRuns}
       isLoadingLatestAgents={options.isLoadingLatestAgents}
+      localUsageSnapshot={options.localUsageSnapshot}
+      isLoadingLocalUsage={options.isLoadingLocalUsage}
+      localUsageError={options.localUsageError}
+      onRefreshLocalUsage={options.onRefreshLocalUsage}
       onSelectThread={options.onSelectHomeThread}
     />
   );

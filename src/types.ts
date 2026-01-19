@@ -204,6 +204,36 @@ export type ThreadTokenUsage = {
   modelContextWindow: number | null;
 };
 
+export type LocalUsageDay = {
+  day: string;
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+};
+
+export type LocalUsageTotals = {
+  last7DaysTokens: number;
+  last30DaysTokens: number;
+  averageDailyTokens: number;
+  cacheHitRatePercent: number;
+  peakDay: string | null;
+  peakDayTokens: number;
+};
+
+export type LocalUsageModel = {
+  model: string;
+  tokens: number;
+  sharePercent: number;
+};
+
+export type LocalUsageSnapshot = {
+  updatedAt: number;
+  days: LocalUsageDay[];
+  totals: LocalUsageTotals;
+  topModels: LocalUsageModel[];
+};
+
 export type TurnPlanStepStatus = "pending" | "inProgress" | "completed";
 
 export type TurnPlanStep = {
