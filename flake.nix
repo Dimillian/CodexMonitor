@@ -1,5 +1,5 @@
 {
-  description = "CodexMonitor development environment";
+  description = "CodexMonitor Tauri app for orchestrating Codex agents";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -33,6 +33,13 @@
           '';
         };
 
+        tauriConfig = builtins.toJSON {
+          build = {
+            frontendDist = "dist";
+            devUrl = null;
+          };
+        };
+
         appPackage = pkgs.rustPlatform.buildRustPackage {
           pname = "codex-monitor";
           version = packageJson.version;
@@ -55,10 +62,17 @@
             pkgs.openssl
           ] ++ linuxPackages;
 
+          TAURI_CONFIG = tauriConfig;
+
           preBuild = ''
-            mkdir -p ../dist
-            cp -R ${frontend}/dist/. ../dist
+            mkdir -p dist
+            cp -R ${frontend}/dist/. dist
           '';
+
+          cargoBuildFlags = [
+            "--features"
+            "custom-protocol"
+          ];
 
           installPhase = ''
             mkdir -p $out/bin
