@@ -314,17 +314,12 @@ pub(crate) async fn add_clone(
         return Err("Copies folder must be a directory.".to_string());
     }
 
-    let (source_entry, inherited_group_id, source_parent_path) = {
+    let (source_entry, inherited_group_id) = {
         let workspaces = state.workspaces.lock().await;
         let source_entry = workspaces
             .get(&source_workspace_id)
             .cloned()
             .ok_or("source workspace not found")?;
-        let source_parent_path = source_entry
-            .parent_id
-            .as_ref()
-            .and_then(|parent_id| workspaces.get(parent_id))
-            .map(|parent| parent.path.clone());
         let inherited_group_id = if source_entry.kind.is_worktree() {
             source_entry
                 .parent_id
@@ -334,7 +329,7 @@ pub(crate) async fn add_clone(
         } else {
             source_entry.settings.group_id.clone()
         };
-        (source_entry, inherited_group_id, source_parent_path)
+        (source_entry, inherited_group_id)
     };
 
     let destination_path = build_clone_destination_path(&copies_folder_path, &copy_name);
@@ -356,27 +351,6 @@ pub(crate) async fn add_clone(
             &["remote", "set-url", "origin", &origin_url],
         )
         .await;
-    }
-
-    let destination_codex_home = destination_path.join(".codexmonitor");
-    if !destination_codex_home.exists() {
-        let source_codex_home =
-            resolve_codex_home(&source_entry, source_parent_path.as_deref());
-        if let Some(source_codex_home) = source_codex_home.filter(|home| home.is_dir()) {
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::symlink;
-                if symlink(&source_codex_home, &destination_codex_home).is_err() {
-                    let _ = std::fs::create_dir_all(&destination_codex_home);
-                }
-            }
-            #[cfg(not(unix))]
-            {
-                let _ = std::fs::create_dir_all(&destination_codex_home);
-            }
-        } else {
-            let _ = std::fs::create_dir_all(&destination_codex_home);
-        }
     }
 
     let entry = WorkspaceEntry {

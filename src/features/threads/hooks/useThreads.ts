@@ -1022,11 +1022,16 @@ export function useThreads({
         payload: { workspaceId: workspace.id, path: workspace.path },
       });
       try {
+        const knownActivityByThread = threadActivityRef.current[workspace.id] ?? {};
+        const hasKnownActivity = Object.keys(knownActivityByThread).length > 0;
         const matchingThreads: Record<string, unknown>[] = [];
         const targetCount = 20;
         const pageSize = 20;
+        const maxPagesWithoutMatch = hasKnownActivity ? Number.POSITIVE_INFINITY : 5;
+        let pagesFetched = 0;
         let cursor: string | null = null;
         do {
+          pagesFetched += 1;
           const response =
             (await listThreadsService(
               workspace.id,
@@ -1052,7 +1057,14 @@ export function useThreads({
                 normalizeRootPath(String(thread?.cwd ?? "")) === workspacePath,
             ),
           );
-          cursor = nextCursor;
+          if (
+            matchingThreads.length === 0 &&
+            pagesFetched >= maxPagesWithoutMatch
+          ) {
+            cursor = null;
+          } else {
+            cursor = nextCursor;
+          }
         } while (cursor && matchingThreads.length < targetCount);
 
         const uniqueById = new Map<string, Record<string, unknown>>();
