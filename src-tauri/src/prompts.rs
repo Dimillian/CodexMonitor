@@ -2,7 +2,6 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use tokio::task;
 use tauri::State;
@@ -108,10 +107,20 @@ fn ensure_path_within_roots(path: &Path, roots: &[PathBuf]) -> Result<(), String
     Err("Prompt path is not within allowed directories.".to_string())
 }
 
+#[cfg(unix)]
+fn is_cross_device_error(err: &std::io::Error) -> bool {
+    err.raw_os_error() == Some(libc::EXDEV)
+}
+
+#[cfg(not(unix))]
+fn is_cross_device_error(_err: &std::io::Error) -> bool {
+    false
+}
+
 fn move_file(src: &Path, dest: &Path) -> Result<(), String> {
     match fs::rename(src, dest) {
         Ok(()) => Ok(()),
-        Err(err) if err.kind() == ErrorKind::CrossDeviceLink => {
+        Err(err) if is_cross_device_error(&err) => {
             fs::copy(src, dest).map_err(|err| err.to_string())?;
             fs::remove_file(src).map_err(|err| err.to_string())
         }
