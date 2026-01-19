@@ -16,7 +16,7 @@ describe('mapDecisionToPermissionResult', () => {
   it('denies when decision is decline', () => {
     const result = mapDecisionToPermissionResult({ decision: 'decline' }, 'tool-2');
     expect(result.behavior).toBe('deny');
-    expect(result.message).toBe('Tool use denied by user.');
+    expect((result as { message?: string }).message).toBe('Tool use denied by user.');
     expect(result.toolUseID).toBe('tool-2');
   });
 
@@ -37,7 +37,7 @@ describe('tool event builders', () => {
     );
     expect(item.type).toBe('fileChange');
     expect(outputMethod).toBe('item/fileChange/outputDelta');
-    expect(item.status).toBe('running');
+    expect((item as { status?: string }).status).toBe('running');
     const event = buildToolOutputEvent('thread-1', 'turn-1', 'tool-4', 'diff', outputMethod);
     expect(event.method).toBe('item/fileChange/outputDelta');
     expect(event.params.itemId).toBe('tool-4');
@@ -52,7 +52,7 @@ describe('tool event builders', () => {
     );
     expect(item.type).toBe('commandExecution');
     expect(outputMethod).toBe('item/commandExecution/outputDelta');
-    expect(item.status).toBe('running');
+    expect((item as { status?: string }).status).toBe('running');
     const event = buildToolOutputEvent('thread-2', 'turn-2', 'tool-5', 'out', outputMethod);
     expect(event.method).toBe('item/commandExecution/outputDelta');
     expect(event.params.itemId).toBe('tool-5');

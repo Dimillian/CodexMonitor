@@ -290,11 +290,13 @@ export function buildToolItem(
   };
 }
 
+type ContentBlock = { type: string; text?: string; thinking?: string };
+
 function extractAssistantText(message: SDKAssistantMessage['message']): string {
   const blocks = Array.isArray(message.content) ? message.content : [];
   return blocks
-    .filter((block) => block.type === 'text')
-    .map((block) => (block as { text?: string }).text ?? '')
+    .filter((block: ContentBlock) => block.type === 'text')
+    .map((block: ContentBlock) => block.text ?? '')
     .join('')
     .trim();
 }
@@ -302,8 +304,8 @@ function extractAssistantText(message: SDKAssistantMessage['message']): string {
 function extractAssistantThinking(message: SDKAssistantMessage['message']): string {
   const blocks = Array.isArray(message.content) ? message.content : [];
   return blocks
-    .filter((block) => block.type === 'thinking')
-    .map((block) => (block as { thinking?: string }).thinking ?? '')
+    .filter((block: ContentBlock) => block.type === 'thinking')
+    .map((block: ContentBlock) => block.thinking ?? '')
     .join('')
     .trim();
 }
@@ -437,7 +439,10 @@ export class ClaudeSession {
     delta: string,
     isFinal: boolean,
   ): void {
-    let item = turn.items.find((entry) => entry.id === itemId && entry.type === 'agentMessage');
+    type AgentMessageItem = Extract<StoredItem, { type: 'agentMessage' }>;
+    let item = turn.items.find(
+      (entry): entry is AgentMessageItem => entry.id === itemId && entry.type === 'agentMessage',
+    );
     if (!item) {
       item = { id: itemId, type: 'agentMessage', text: '' };
       turn.items.push(item);
@@ -446,13 +451,16 @@ export class ClaudeSession {
   }
 
   private upsertReasoningMessage(
-    thread: StoredThread,
+    _thread: StoredThread,
     turn: StoredTurn,
     itemId: string,
     delta: string,
     isFinal: boolean,
   ): void {
-    let item = turn.items.find((entry) => entry.id === itemId && entry.type === 'reasoning');
+    type ReasoningItem = Extract<StoredItem, { type: 'reasoning' }>;
+    let item = turn.items.find(
+      (entry): entry is ReasoningItem => entry.id === itemId && entry.type === 'reasoning',
+    );
     if (!item) {
       item = { id: itemId, type: 'reasoning', content: '' };
       turn.items.push(item);
@@ -467,26 +475,28 @@ export class ClaudeSession {
     delta: string,
     method: ToolOutputMethod,
   ): void {
-    const item = turn.items.find(
-      (entry) =>
-        entry.id === itemId &&
-        (entry.type === 'commandExecution' || entry.type === 'fileChange'),
-    ) as
-      | Extract<StoredItem, { type: 'commandExecution' }>
-      | Extract<StoredItem, { type: 'fileChange' }>
-      | undefined;
-    if (!item) {
-      return;
-    }
+    type CommandItem = Extract<StoredItem, { type: 'commandExecution' }>;
+    type FileChangeItem = Extract<StoredItem, { type: 'fileChange' }>;
     if (method === 'item/fileChange/outputDelta') {
+      const item = turn.items.find(
+        (entry): entry is FileChangeItem => entry.id === itemId && entry.type === 'fileChange',
+      );
+      if (!item) {
+        return;
+      }
       const current = item.diff ?? '';
-      const next = `${current}${delta}`;
-      item.diff = next;
+      item.diff = `${current}${delta}`;
       if (Array.isArray(item.changes) && item.changes.length > 0) {
         const change = item.changes[0];
         const currentDiff = change.diff ?? '';
         change.diff = `${currentDiff}${delta}`;
       }
+      return;
+    }
+    const item = turn.items.find(
+      (entry): entry is CommandItem => entry.id === itemId && entry.type === 'commandExecution',
+    );
+    if (!item) {
       return;
     }
     const current = item.aggregatedOutput ?? '';
@@ -887,7 +897,7 @@ export class ClaudeSession {
         hooks,
         includePartialMessages: true,
         persistSession: true,
-        abortController: this.abortController,
+        abortController: this.abortController ?? undefined,
         stderr: (data: string) => {
           this.rpc.notify('codex/stderr', { message: data.trim() });
         },
