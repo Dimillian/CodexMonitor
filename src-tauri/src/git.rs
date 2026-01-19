@@ -254,7 +254,7 @@ pub(crate) async fn get_git_status(
         if include_index {
             let (additions, deletions) =
                 diff_stats_for_path(&repo, head_tree.as_ref(), path, true, false)
-                    .map_err(|e| e.to_string())?;
+                    .unwrap_or((0, 0));
             if let Some(status_str) = status_for_index(status) {
                 staged_files.push(GitFileStatus {
                     path: normalized_path.clone(),
@@ -272,7 +272,7 @@ pub(crate) async fn get_git_status(
         if include_workdir {
             let (additions, deletions) =
                 diff_stats_for_path(&repo, head_tree.as_ref(), path, false, true)
-                    .map_err(|e| e.to_string())?;
+                    .unwrap_or((0, 0));
             if let Some(status_str) = status_for_workdir(status) {
                 unstaged_files.push(GitFileStatus {
                     path: normalized_path.clone(),

@@ -98,8 +98,10 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       if (method === "turn/started") {
         const params = message.params as Record<string, unknown>;
         const turn = params.turn as Record<string, unknown> | undefined;
-        const threadId = String(turn?.threadId ?? turn?.thread_id ?? "");
-        const turnId = String(turn?.id ?? "");
+        const threadId = String(
+          params.threadId ?? params.thread_id ?? turn?.threadId ?? turn?.thread_id ?? "",
+        );
+        const turnId = String(turn?.id ?? params.turnId ?? params.turn_id ?? "");
         if (threadId) {
           handlers.onTurnStarted?.(workspace_id, threadId, turnId);
         }
@@ -125,8 +127,10 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       if (method === "turn/completed") {
         const params = message.params as Record<string, unknown>;
         const turn = params.turn as Record<string, unknown> | undefined;
-        const threadId = String(turn?.threadId ?? turn?.thread_id ?? "");
-        const turnId = String(turn?.id ?? "");
+        const threadId = String(
+          params.threadId ?? params.thread_id ?? turn?.threadId ?? turn?.thread_id ?? "",
+        );
+        const turnId = String(turn?.id ?? params.turnId ?? params.turn_id ?? "");
         if (threadId) {
           handlers.onTurnCompleted?.(workspace_id, threadId, turnId);
         }
