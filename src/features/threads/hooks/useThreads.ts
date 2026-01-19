@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type {
   ApprovalRequest,
   AppServerEvent,
@@ -37,9 +37,12 @@ import { expandCustomPromptText } from "../../../utils/customPrompts";
 import { initialState, threadReducer } from "./useThreadsReducer";
 
 const STORAGE_KEY_THREAD_ACTIVITY = "codexmonitor.threadLastUserActivity";
+const STORAGE_KEY_PINNED_THREADS = "codexmonitor.pinnedThreads";
 const STORAGE_KEY_CUSTOM_NAMES = "codexmonitor.threadCustomNames";
+const MAX_PINS_SOFT_LIMIT = 5;
 
 type ThreadActivityMap = Record<string, Record<string, number>>;
+type PinnedThreadsMap = Record<string, number>;
 type CustomNamesMap = Record<string, string>;
 
 function loadThreadActivity(): ThreadActivityMap {
@@ -112,6 +115,43 @@ function saveCustomName(workspaceId: string, threadId: string, name: string): vo
     );
   } catch {
     // Best-effort persistence.
+  }
+}
+
+function makePinKey(workspaceId: string, threadId: string): string {
+  return `${workspaceId}:${threadId}`;
+}
+
+function loadPinnedThreads(): PinnedThreadsMap {
+  if (typeof window === "undefined") {
+    return {};
+  }
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY_PINNED_THREADS);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw) as PinnedThreadsMap;
+    if (!parsed || typeof parsed !== "object") {
+      return {};
+    }
+    return parsed;
+  } catch {
+    return {};
+  }
+}
+
+function savePinnedThreads(pinned: PinnedThreadsMap) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.setItem(
+      STORAGE_KEY_PINNED_THREADS,
+      JSON.stringify(pinned),
+    );
+  } catch {
+    // Best-effort persistence; ignore write failures.
   }
 }
 
@@ -394,6 +434,10 @@ export function useThreads({
   const [state, dispatch] = useReducer(threadReducer, initialState);
   const loadedThreads = useRef<Record<string, boolean>>({});
   const threadActivityRef = useRef<ThreadActivityMap>(loadThreadActivity());
+  const pinnedThreadsRef = useRef<PinnedThreadsMap>(loadPinnedThreads());
+  const [pinnedThreadsVersion, setPinnedThreadsVersion] = useState(0);
+  void pinnedThreadsVersion;
+  const pendingInterruptsRef = useRef<Set<string>>(new Set());
   const customNamesRef = useRef<CustomNamesMap>({});
 
   useEffect(() => {
@@ -427,6 +471,69 @@ export function useThreads({
       };
       threadActivityRef.current = next;
       saveThreadActivity(next);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    pinnedThreadsRef.current = loadPinnedThreads();
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== STORAGE_KEY_PINNED_THREADS) {
+        return;
+      }
+      pinnedThreadsRef.current = loadPinnedThreads();
+      setPinnedThreadsVersion((version) => version + 1);
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  const pinThread = useCallback((workspaceId: string, threadId: string): boolean => {
+    const key = makePinKey(workspaceId, threadId);
+    if (key in pinnedThreadsRef.current) {
+      return false;
+    }
+    const currentPinsForWorkspace = Object.keys(pinnedThreadsRef.current).filter(
+      (entry) => entry.startsWith(`${workspaceId}:`),
+    ).length;
+    if (currentPinsForWorkspace >= MAX_PINS_SOFT_LIMIT) {
+      console.warn(
+        `Pin limit reached (${MAX_PINS_SOFT_LIMIT}). Consider unpinning some threads.`,
+      );
+    }
+    const next = { ...pinnedThreadsRef.current, [key]: Date.now() };
+    pinnedThreadsRef.current = next;
+    savePinnedThreads(next);
+    setPinnedThreadsVersion((version) => version + 1);
+    return true;
+  }, []);
+
+  const unpinThread = useCallback((workspaceId: string, threadId: string) => {
+    const key = makePinKey(workspaceId, threadId);
+    if (!(key in pinnedThreadsRef.current)) {
+      return;
+    }
+    const { [key]: _removed, ...rest } = pinnedThreadsRef.current;
+    pinnedThreadsRef.current = rest;
+    savePinnedThreads(rest);
+    setPinnedThreadsVersion((version) => version + 1);
+  }, []);
+
+  const isThreadPinned = useCallback(
+    (workspaceId: string, threadId: string): boolean => {
+      const key = makePinKey(workspaceId, threadId);
+      return key in pinnedThreadsRef.current;
+    },
+    [],
+  );
+
+  const getPinTimestamp = useCallback(
+    (workspaceId: string, threadId: string): number | null => {
+      const key = makePinKey(workspaceId, threadId);
+      return pinnedThreadsRef.current[key] ?? null;
     },
     [],
   );
@@ -773,6 +880,13 @@ export function useThreads({
           workspaceId,
           threadId,
         });
+        if (pendingInterruptsRef.current.has(threadId)) {
+          pendingInterruptsRef.current.delete(threadId);
+          if (turnId) {
+            void interruptTurnService(workspaceId, threadId, turnId).catch(() => {});
+          }
+          return;
+        }
         markProcessing(threadId, true);
         dispatch({ type: "clearThreadPlan", threadId });
         if (turnId) {
@@ -782,6 +896,7 @@ export function useThreads({
       onTurnCompleted: (_workspaceId: string, threadId: string, _turnId: string) => {
         markProcessing(threadId, false);
         dispatch({ type: "setActiveTurnId", threadId, turnId: null });
+        pendingInterruptsRef.current.delete(threadId);
       },
       onTurnPlanUpdated: (
         workspaceId: string,
@@ -1489,9 +1604,6 @@ export function useThreads({
       return;
     }
     const activeTurnId = state.activeTurnIdByThread[activeThreadId] ?? null;
-    if (!activeTurnId) {
-      return;
-    }
     markProcessing(activeThreadId, false);
     dispatch({ type: "setActiveTurnId", threadId: activeThreadId, turnId: null });
     dispatch({
@@ -1499,6 +1611,10 @@ export function useThreads({
       threadId: activeThreadId,
       text: "Session stopped.",
     });
+    if (!activeTurnId) {
+      pendingInterruptsRef.current.add(activeThreadId);
+      return;
+    }
     onDebug?.({
       id: `${Date.now()}-client-turn-interrupt`,
       timestamp: Date.now(),
@@ -1649,22 +1765,26 @@ export function useThreads({
     [activeWorkspaceId, resumeThreadForWorkspace],
   );
 
-  const removeThread = useCallback((workspaceId: string, threadId: string) => {
-    dispatch({ type: "removeThread", workspaceId, threadId });
-    (async () => {
-      try {
-        await archiveThreadService(workspaceId, threadId);
-      } catch (error) {
-        onDebug?.({
-          id: `${Date.now()}-client-thread-archive-error`,
-          timestamp: Date.now(),
-          source: "error",
-          label: "thread/archive error",
-          payload: error instanceof Error ? error.message : String(error),
-        });
-      }
-    })();
-  }, [onDebug]);
+  const removeThread = useCallback(
+    (workspaceId: string, threadId: string) => {
+      unpinThread(workspaceId, threadId);
+      dispatch({ type: "removeThread", workspaceId, threadId });
+      (async () => {
+        try {
+          await archiveThreadService(workspaceId, threadId);
+        } catch (error) {
+          onDebug?.({
+            id: `${Date.now()}-client-thread-archive-error`,
+            timestamp: Date.now(),
+            source: "error",
+            label: "thread/archive error",
+            payload: error instanceof Error ? error.message : String(error),
+          });
+        }
+      })();
+    },
+    [onDebug, unpinThread],
+  );
 
   const renameThread = useCallback(
     (workspaceId: string, threadId: string, newName: string) => {
@@ -1701,6 +1821,10 @@ export function useThreads({
     refreshAccountRateLimits,
     interruptTurn,
     removeThread,
+    pinThread,
+    unpinThread,
+    isThreadPinned,
+    getPinTimestamp,
     renameThread,
     startThread,
     startThreadForWorkspace,

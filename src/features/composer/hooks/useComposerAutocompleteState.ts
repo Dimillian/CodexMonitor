@@ -55,6 +55,26 @@ function isFileTriggerActive(text: string, cursor: number | null) {
   return afterAt.length === 0 || !/\s/.test(afterAt);
 }
 
+function getFileTriggerQuery(text: string, cursor: number | null) {
+  if (!text || cursor === null) {
+    return null;
+  }
+  const beforeCursor = text.slice(0, cursor);
+  const atIndex = beforeCursor.lastIndexOf("@");
+  if (atIndex < 0) {
+    return null;
+  }
+  const prevChar = atIndex > 0 ? beforeCursor[atIndex - 1] : "";
+  if (prevChar && !FILE_TRIGGER_PREFIX.test(prevChar)) {
+    return null;
+  }
+  const afterAt = beforeCursor.slice(atIndex + 1);
+  if (/\s/.test(afterAt)) {
+    return null;
+  }
+  return afterAt;
+}
+
 export function useComposerAutocompleteState({
   text,
   selectionStart,
@@ -80,14 +100,20 @@ export function useComposerAutocompleteState({
   const fileItems = useMemo<AutocompleteItem[]>(
     () =>
       isFileTriggerActive(text, selectionStart)
-        ? files
-            .filter((path) => !textIncludesFile(text, path))
-            .slice(0, MAX_FILE_SUGGESTIONS)
-            .map((path) => ({
+        ? (() => {
+            const query = getFileTriggerQuery(text, selectionStart) ?? "";
+            const candidates = files.filter(
+              (path) => !textIncludesFile(text, path),
+            );
+            const limited = query
+              ? candidates
+              : candidates.slice(0, MAX_FILE_SUGGESTIONS);
+            return limited.map((path) => ({
               id: path,
               label: path,
               insertText: path,
-            }))
+            }));
+          })()
         : [],
     [files, selectionStart, text],
   );

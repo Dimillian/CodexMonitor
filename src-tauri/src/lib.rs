@@ -35,7 +35,7 @@ pub fn run() {
                 .build(handle)?;
             let app_menu = Submenu::with_items(
                 handle,
-                app_name,
+                app_name.clone(),
                 true,
                 &[
                     &about_item,
@@ -49,6 +49,19 @@ pub fn run() {
                 ],
             )?;
 
+            #[cfg(target_os = "linux")]
+            let file_menu = {
+                let close_window_item =
+                    MenuItemBuilder::with_id("file_close_window", "Close Window").build(handle)?;
+                let quit_item = MenuItemBuilder::with_id("file_quit", "Quit").build(handle)?;
+                Submenu::with_items(
+                    handle,
+                    "File",
+                    true,
+                    &[&close_window_item, &quit_item],
+                )?
+            };
+            #[cfg(not(target_os = "linux"))]
             let file_menu = Submenu::with_items(
                 handle,
                 "File",
@@ -75,6 +88,14 @@ pub fn run() {
                 ],
             )?;
 
+            #[cfg(target_os = "linux")]
+            let view_menu = {
+                let fullscreen_item =
+                    MenuItemBuilder::with_id("view_fullscreen", "Toggle Full Screen")
+                        .build(handle)?;
+                Submenu::with_items(handle, "View", true, &[&fullscreen_item])?
+            };
+            #[cfg(not(target_os = "linux"))]
             let view_menu = Submenu::with_items(
                 handle,
                 "View",
@@ -82,6 +103,27 @@ pub fn run() {
                 &[&PredefinedMenuItem::fullscreen(handle, None)?],
             )?;
 
+            #[cfg(target_os = "linux")]
+            let window_menu = {
+                let minimize_item =
+                    MenuItemBuilder::with_id("window_minimize", "Minimize").build(handle)?;
+                let maximize_item =
+                    MenuItemBuilder::with_id("window_maximize", "Maximize").build(handle)?;
+                let close_item =
+                    MenuItemBuilder::with_id("window_close", "Close Window").build(handle)?;
+                Submenu::with_items(
+                    handle,
+                    "Window",
+                    true,
+                    &[
+                        &minimize_item,
+                        &maximize_item,
+                        &PredefinedMenuItem::separator(handle)?,
+                        &close_item,
+                    ],
+                )?
+            };
+            #[cfg(not(target_os = "linux"))]
             let window_menu = Submenu::with_items(
                 handle,
                 "Window",
@@ -94,6 +136,14 @@ pub fn run() {
                 ],
             )?;
 
+            #[cfg(target_os = "linux")]
+            let help_menu = {
+                let about_item =
+                    MenuItemBuilder::with_id("help_about", format!("About {app_name}"))
+                        .build(handle)?;
+                Submenu::with_items(handle, "Help", true, &[&about_item])?
+            };
+            #[cfg(not(target_os = "linux"))]
             let help_menu = Submenu::with_items(handle, "Help", true, &[])?;
 
             Menu::with_items(
@@ -109,22 +159,49 @@ pub fn run() {
             )
         })
         .on_menu_event(|app, event| {
-            if event.id() == "about" {
-                if let Some(window) = app.get_webview_window("about") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                    return;
+            match event.id().as_ref() {
+                "about" | "help_about" => {
+                    if let Some(window) = app.get_webview_window("about") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                        return;
+                    }
+                    let _ = WebviewWindowBuilder::new(
+                        app,
+                        "about",
+                        WebviewUrl::App("index.html".into()),
+                    )
+                    .title("About Codex Monitor")
+                    .resizable(false)
+                    .inner_size(360.0, 240.0)
+                    .center()
+                    .build();
                 }
-                let _ = WebviewWindowBuilder::new(
-                    app,
-                    "about",
-                    WebviewUrl::App("index.html".into()),
-                )
-                .title("About Codex Monitor")
-                .resizable(false)
-                .inner_size(360.0, 240.0)
-                .center()
-                .build();
+                "file_close_window" | "window_close" => {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.close();
+                    }
+                }
+                "file_quit" => {
+                    app.exit(0);
+                }
+                "view_fullscreen" => {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let is_fullscreen = window.is_fullscreen().unwrap_or(false);
+                        let _ = window.set_fullscreen(!is_fullscreen);
+                    }
+                }
+                "window_minimize" => {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.minimize();
+                    }
+                }
+                "window_maximize" => {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.maximize();
+                    }
+                }
+                _ => {}
             }
         })
         .setup(|app| {
@@ -148,6 +225,7 @@ pub fn run() {
             workspaces::add_worktree,
             workspaces::remove_workspace,
             workspaces::remove_worktree,
+            workspaces::apply_worktree_changes,
             workspaces::update_workspace_settings,
             workspaces::update_workspace_codex_bin,
             codex::start_thread,
@@ -168,6 +246,7 @@ pub fn run() {
             git::stage_git_file,
             git::unstage_git_file,
             git::revert_git_file,
+            git::revert_git_all,
             git::get_github_issues,
             git::get_github_pull_requests,
             git::get_github_pull_request_diff,

@@ -97,6 +97,10 @@ type LayoutNodesOptions = {
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
   onSelectThread: (workspaceId: string, threadId: string) => void;
   onDeleteThread: (workspaceId: string, threadId: string) => void;
+  pinThread: (workspaceId: string, threadId: string) => boolean;
+  unpinThread: (workspaceId: string, threadId: string) => void;
+  isThreadPinned: (workspaceId: string, threadId: string) => boolean;
+  getPinTimestamp: (workspaceId: string, threadId: string) => number | null;
   onRenameThread: (workspaceId: string, threadId: string) => void;
   onDeleteWorkspace: (workspaceId: string) => void;
   onDeleteWorktree: (workspaceId: string) => void;
@@ -135,6 +139,12 @@ type LayoutNodesOptions = {
   tabletNavTab: "codex" | "git" | "log";
   gitPanelMode: "diff" | "log" | "issues" | "prs";
   onGitPanelModeChange: (mode: "diff" | "log" | "issues" | "prs") => void;
+  worktreeApplyLabel: string;
+  worktreeApplyTitle: string | null;
+  worktreeApplyLoading: boolean;
+  worktreeApplyError: string | null;
+  worktreeApplySuccess: boolean;
+  onApplyWorktreeChanges?: () => void | Promise<void>;
   filePanelMode: "git" | "files" | "prompts";
   onFilePanelModeChange: (mode: "git" | "files" | "prompts") => void;
   fileTreeLoading: boolean;
@@ -189,6 +199,7 @@ type LayoutNodesOptions = {
   onStageGitFile: (path: string) => Promise<void>;
   onUnstageGitFile: (path: string) => Promise<void>;
   onRevertGitFile: (path: string) => Promise<void>;
+  onRevertAllGitChanges: () => Promise<void>;
   gitDiffs: GitDiffViewerItem[];
   gitDiffLoading: boolean;
   gitDiffError: string | null;
@@ -333,6 +344,10 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onToggleWorkspaceCollapse={options.onToggleWorkspaceCollapse}
       onSelectThread={options.onSelectThread}
       onDeleteThread={options.onDeleteThread}
+      pinThread={options.pinThread}
+      unpinThread={options.unpinThread}
+      isThreadPinned={options.isThreadPinned}
+      getPinTimestamp={options.getPinTimestamp}
       onRenameThread={options.onRenameThread}
       onDeleteWorkspace={options.onDeleteWorkspace}
       onDeleteWorktree={options.onDeleteWorktree}
@@ -514,6 +529,12 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         onModeChange={options.onGitPanelModeChange}
         filePanelMode={options.filePanelMode}
         onFilePanelModeChange={options.onFilePanelModeChange}
+        worktreeApplyLabel={options.worktreeApplyLabel}
+        worktreeApplyTitle={options.worktreeApplyTitle}
+        worktreeApplyLoading={options.worktreeApplyLoading}
+        worktreeApplyError={options.worktreeApplyError}
+        worktreeApplySuccess={options.worktreeApplySuccess}
+        onApplyWorktreeChanges={options.onApplyWorktreeChanges}
         branchName={options.gitStatus.branchName || "unknown"}
         totalAdditions={options.gitStatus.totalAdditions}
         totalDeletions={options.gitStatus.totalDeletions}
@@ -557,6 +578,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         onStageFile={options.onStageGitFile}
         onUnstageFile={options.onUnstageGitFile}
         onRevertFile={options.onRevertGitFile}
+        onRevertAllChanges={options.onRevertAllGitChanges}
       />
     );
   }

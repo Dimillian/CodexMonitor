@@ -23,7 +23,6 @@ const emptyStatus: GitStatusState = {
 };
 
 const REFRESH_INTERVAL_MS = 3000;
-
 export function useGitStatus(activeWorkspace: WorkspaceInfo | null) {
   const [status, setStatus] = useState<GitStatusState>(emptyStatus);
   const requestIdRef = useRef(0);
@@ -46,7 +45,16 @@ export function useGitStatus(activeWorkspace: WorkspaceInfo | null) {
         ) {
           return;
         }
-        const nextStatus = { ...data, error: null };
+        const cached = cachedStatusRef.current.get(workspaceId);
+        const resolvedBranchName =
+          data.branchName && data.branchName !== "unknown"
+            ? data.branchName
+            : cached?.branchName ?? data.branchName;
+        const nextStatus = {
+          ...data,
+          branchName: resolvedBranchName,
+          error: null,
+        };
         setStatus(nextStatus);
         cachedStatusRef.current.set(workspaceId, nextStatus);
       })
@@ -58,10 +66,15 @@ export function useGitStatus(activeWorkspace: WorkspaceInfo | null) {
         ) {
           return;
         }
+        const message = err instanceof Error ? err.message : String(err);
+        const cached = cachedStatusRef.current.get(workspaceId);
         const nextStatus = {
-          ...emptyStatus,
-          branchName: "unknown",
-          error: err instanceof Error ? err.message : String(err),
+          ...(cached ?? emptyStatus),
+          branchName:
+            cached?.branchName && cached.branchName !== "unknown"
+              ? cached.branchName
+              : "unknown",
+          error: message,
         };
         setStatus(nextStatus);
         cachedStatusRef.current.set(workspaceId, nextStatus);

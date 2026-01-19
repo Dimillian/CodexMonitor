@@ -74,6 +74,7 @@
 .git-panel-select {
   display: inline-flex;
   align-items: center;
+  position: relative;
 }
 
 .git-panel-select-input {
@@ -83,15 +84,31 @@
   font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 4px 26px 4px 10px;
+  padding: 8px 30px 8px 30px;
   border-radius: 999px;
   cursor: pointer;
+  min-height: 32px;
   appearance: none;
   background-image: linear-gradient(45deg, transparent 50%, var(--text-dim) 50%),
     linear-gradient(135deg, var(--text-dim) 50%, transparent 50%);
   background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
   background-size: 5px 5px, 5px 5px;
   background-repeat: no-repeat;
+}
+
+.git-panel-select-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  position: absolute;
+  left: 12px;
+  pointer-events: none;
+}
+
+.git-panel-select-icon svg {
+  width: 12px;
+  height: 12px;
 }
 
 .diff-branch {
@@ -244,11 +261,29 @@
 }
 
 .diff-section-title {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  padding: 6px 6px 2px;
+  padding: 6px 0 2px;
+}
+
+.diff-section-title--row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.diff-section-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .diff-section-list {
@@ -318,6 +353,7 @@
   border-color: rgba(255, 107, 107, 0.45);
   background: rgba(255, 107, 107, 0.12);
 }
+
 
 .diff-icon-renamed,
 .diff-icon-typechange,
