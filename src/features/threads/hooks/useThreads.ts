@@ -1329,9 +1329,6 @@ export function useThreads({
       return;
     }
     const activeTurnId = state.activeTurnIdByThread[activeThreadId] ?? null;
-    if (!activeTurnId) {
-      return;
-    }
     markProcessing(activeThreadId, false);
     dispatch({ type: "setActiveTurnId", threadId: activeThreadId, turnId: null });
     dispatch({
@@ -1339,6 +1336,9 @@ export function useThreads({
       threadId: activeThreadId,
       text: "Session stopped.",
     });
+    if (!activeTurnId) {
+      return;
+    }
     onDebug?.({
       id: `${Date.now()}-client-turn-interrupt`,
       timestamp: Date.now(),

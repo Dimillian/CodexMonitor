@@ -572,7 +572,6 @@ function MainApp() {
     threadListLoadingByWorkspace,
     threadListPagingByWorkspace,
     threadListCursorByWorkspace,
-    activeTurnIdByThread,
     tokenUsageByThread,
     rateLimitsByWorkspace,
     planByThread,
@@ -701,10 +700,7 @@ function MainApp() {
   );
   const showHome = !activeWorkspace;
   const canInterrupt = activeThreadId
-    ? Boolean(
-        threadStatusById[activeThreadId]?.isProcessing &&
-          activeTurnIdByThread[activeThreadId]
-      )
+    ? threadStatusById[activeThreadId]?.isProcessing ?? false
     : false;
   const isProcessing = activeThreadId
     ? threadStatusById[activeThreadId]?.isProcessing ?? false
