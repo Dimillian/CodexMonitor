@@ -417,7 +417,7 @@ pub(crate) async fn add_clone(
         let settings = state.app_settings.lock().await;
         settings.codex_bin.clone()
     };
-    let codex_home = resolve_codex_home(&entry, None);
+    let codex_home = resolve_workspace_codex_home(&entry, None);
     let session = match spawn_workspace_session(entry.clone(), default_bin, app, codex_home).await {
         Ok(session) => session,
         Err(error) => {
