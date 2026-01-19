@@ -9,6 +9,7 @@ mod dictation;
 mod event_sink;
 mod git;
 mod git_utils;
+mod local_usage;
 mod prompts;
 mod rules;
 mod settings;
@@ -37,7 +38,7 @@ pub fn run() {
                 .build(handle)?;
             let app_menu = Submenu::with_items(
                 handle,
-                app_name,
+                app_name.clone(),
                 true,
                 &[
                     &about_item,
@@ -226,6 +227,7 @@ pub fn run() {
             workspaces::add_worktree,
             workspaces::remove_workspace,
             workspaces::remove_worktree,
+            workspaces::apply_worktree_changes,
             workspaces::update_workspace_settings,
             workspaces::update_workspace_codex_bin,
             codex::start_thread,
@@ -247,6 +249,7 @@ pub fn run() {
             git::stage_git_file,
             git::unstage_git_file,
             git::revert_git_file,
+            git::revert_git_all,
             git::get_github_issues,
             git::get_github_pull_requests,
             git::get_github_pull_request_diff,
@@ -276,7 +279,8 @@ pub fn run() {
             dictation::dictation_remove_model,
             dictation::dictation_start,
             dictation::dictation_stop,
-            dictation::dictation_cancel
+            dictation::dictation_cancel,
+            local_usage::local_usage_snapshot
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

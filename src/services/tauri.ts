@@ -5,6 +5,7 @@ import type {
   CodexDoctorResult,
   DictationModelStatus,
   DictationSessionState,
+  LocalUsageSnapshot,
   WorkspaceInfo,
   WorkspaceSettings,
 } from "../types";
@@ -81,6 +82,10 @@ export async function removeWorkspace(id: string): Promise<void> {
 
 export async function removeWorktree(id: string): Promise<void> {
   return invoke("remove_worktree", { id });
+}
+
+export async function applyWorktreeChanges(workspaceId: string): Promise<void> {
+  return invoke("apply_worktree_changes", { workspaceId });
 }
 
 export async function openWorkspaceIn(path: string, app: string): Promise<void> {
@@ -206,6 +211,10 @@ export async function revertGitFile(workspaceId: string, path: string) {
   return invoke("revert_git_file", { workspaceId, path });
 }
 
+export async function revertGitAll(workspaceId: string) {
+  return invoke("revert_git_all", { workspaceId });
+}
+
 export async function getGitHubIssues(
   workspace_id: string,
 ): Promise<GitHubIssuesResponse> {
@@ -236,6 +245,12 @@ export async function getGitHubPullRequestComments(
     workspaceId: workspace_id,
     prNumber,
   });
+}
+
+export async function localUsageSnapshot(
+  days?: number,
+): Promise<LocalUsageSnapshot> {
+  return invoke("local_usage_snapshot", { days: days ?? 30 });
 }
 
 export async function getModelList(workspaceId: string) {

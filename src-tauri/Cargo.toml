@@ -36,6 +36,7 @@ cpal = "0.15"
 whisper-rs = "0.12"
 sha2 = "0.10"
 libc = "0.2"
+chrono = { version = "0.4", features = ["clock"] }
 
 [target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
 tauri-plugin-updater = "2"
