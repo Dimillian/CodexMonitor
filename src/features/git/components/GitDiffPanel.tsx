@@ -4,7 +4,16 @@ import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { ArrowLeftRight, FileText, GitBranch, ScrollText, Search } from "lucide-react";
+import {
+  ArrowLeftRight,
+  Check,
+  FileText,
+  GitBranch,
+  RotateCcw,
+  ScrollText,
+  Search,
+  Upload,
+} from "lucide-react";
 import { formatRelativeTime } from "../../../utils/time";
 import { PanelTabs, type PanelTabId } from "../../layout/components/PanelTabs";
 
@@ -13,6 +22,13 @@ type GitDiffPanelProps = {
   onModeChange: (mode: "diff" | "log" | "issues" | "prs") => void;
   filePanelMode: PanelTabId;
   onFilePanelModeChange: (mode: PanelTabId) => void;
+  worktreeApplyLabel?: string;
+  worktreeApplyTitle?: string | null;
+  worktreeApplyLoading?: boolean;
+  worktreeApplyError?: string | null;
+  worktreeApplySuccess?: boolean;
+  onApplyWorktreeChanges?: () => void | Promise<void>;
+  onRevertAllChanges?: () => void | Promise<void>;
   branchName: string;
   totalAdditions: number;
   totalDeletions: number;
@@ -147,6 +163,13 @@ export function GitDiffPanel({
   onModeChange,
   filePanelMode,
   onFilePanelModeChange,
+  worktreeApplyLabel = "apply",
+  worktreeApplyTitle = null,
+  worktreeApplyLoading = false,
+  worktreeApplyError = null,
+  worktreeApplySuccess = false,
+  onApplyWorktreeChanges,
+  onRevertAllChanges,
   branchName,
   totalAdditions,
   totalDeletions,
@@ -343,6 +366,23 @@ export function GitDiffPanel({
     Boolean(gitRootScanError) ||
     gitRootCandidates.length > 0;
   const normalizedGitRoot = normalizeRootPath(gitRoot);
+  const hasWorktreeChanges = stagedFiles.length > 0 || unstagedFiles.length > 0;
+  const showApplyWorktree =
+    mode === "diff" && Boolean(onApplyWorktreeChanges) && hasWorktreeChanges;
+  const hasAnyChanges = stagedFiles.length > 0 || unstagedFiles.length > 0;
+  const showRevertAll = mode === "diff" && Boolean(onRevertAllChanges) && hasAnyChanges;
+  const showRevertAllInStaged = showRevertAll && stagedFiles.length > 0;
+  const showRevertAllInUnstaged = showRevertAll && unstagedFiles.length > 0;
+  const worktreeApplyButtonLabel = worktreeApplySuccess
+    ? "applied"
+    : worktreeApplyLoading
+      ? "applying..."
+      : worktreeApplyLabel;
+  const worktreeApplyIcon = worktreeApplySuccess ? (
+    <Check size={12} aria-hidden />
+  ) : (
+    <Upload size={12} aria-hidden />
+  );
   const depthOptions = [1, 2, 3, 4, 5, 6];
   return (
     <aside className="diff-panel">
@@ -370,6 +410,7 @@ export function GitDiffPanel({
       {mode === "diff" ? (
         <>
           <div className="diff-status">{diffStatusLabel}</div>
+          {worktreeApplyError && <div className="diff-error">{worktreeApplyError}</div>}
         </>
       ) : mode === "log" ? (
         <>
@@ -526,8 +567,35 @@ export function GitDiffPanel({
             <>
               {stagedFiles.length > 0 && (
                 <div className="diff-section">
-                  <div className="diff-section-title">
-                    Staged ({stagedFiles.length})
+                  <div className="diff-section-title diff-section-title--row">
+                    <span>Staged ({stagedFiles.length})</span>
+                    {showRevertAllInStaged && (
+                      <button
+                        type="button"
+                        className="ghost diff-section-action"
+                        onClick={() => {
+                          void onRevertAllChanges?.();
+                        }}
+                        title="Revert all changes"
+                      >
+                        <RotateCcw size={12} aria-hidden />
+                        revert
+                      </button>
+                    )}
+                    {showApplyWorktree && unstagedFiles.length === 0 && (
+                      <button
+                        type="button"
+                        className="ghost diff-section-action"
+                        onClick={() => {
+                          void onApplyWorktreeChanges?.();
+                        }}
+                        title={worktreeApplyTitle ?? undefined}
+                        disabled={worktreeApplyLoading || worktreeApplySuccess}
+                      >
+                        {worktreeApplyIcon}
+                        {worktreeApplyButtonLabel}
+                      </button>
+                    )}
                   </div>
                   <div className="diff-section-list">
                     {stagedFiles.map((file) => {
@@ -579,8 +647,35 @@ export function GitDiffPanel({
               )}
               {unstagedFiles.length > 0 && (
                 <div className="diff-section">
-                  <div className="diff-section-title">
-                    Unstaged ({unstagedFiles.length})
+                  <div className="diff-section-title diff-section-title--row">
+                    <span>Unstaged ({unstagedFiles.length})</span>
+                    {showRevertAllInUnstaged && (
+                      <button
+                        type="button"
+                        className="ghost diff-section-action"
+                        onClick={() => {
+                          void onRevertAllChanges?.();
+                        }}
+                        title="Revert all changes"
+                      >
+                        <RotateCcw size={12} aria-hidden />
+                        revert
+                      </button>
+                    )}
+                    {showApplyWorktree && (
+                      <button
+                        type="button"
+                        className="ghost diff-section-action"
+                        onClick={() => {
+                          void onApplyWorktreeChanges?.();
+                        }}
+                        title={worktreeApplyTitle ?? undefined}
+                        disabled={worktreeApplyLoading || worktreeApplySuccess}
+                      >
+                        {worktreeApplyIcon}
+                        {worktreeApplyButtonLabel}
+                      </button>
+                    )}
                   </div>
                   <div className="diff-section-list">
                     {unstagedFiles.map((file) => {
