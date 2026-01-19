@@ -233,6 +233,20 @@ function mergeStreamingText(existing: string, delta: string) {
   return `${existing}${delta}`;
 }
 
+function dropLatestLocalReviewStart(list: ConversationItem[]) {
+  for (let index = list.length - 1; index >= 0; index -= 1) {
+    const item = list[index];
+    if (
+      item.kind === "review" &&
+      item.state === "started" &&
+      item.id.startsWith("review-start-")
+    ) {
+      return [...list.slice(0, index), ...list.slice(index + 1)];
+    }
+  }
+  return list;
+}
+
 export function threadReducer(state: ThreadState, action: ThreadAction): ThreadState {
   switch (action.type) {
     case "setActiveThreadId":
@@ -573,8 +587,15 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       };
     }
     case "upsertItem": {
-      const list = state.itemsByThread[action.threadId] ?? [];
+      let list = state.itemsByThread[action.threadId] ?? [];
       const item = normalizeItem(action.item);
+      if (
+        item.kind === "review" &&
+        item.state === "started" &&
+        !item.id.startsWith("review-start-")
+      ) {
+        list = dropLatestLocalReviewStart(list);
+      }
       return {
         ...state,
         itemsByThread: {

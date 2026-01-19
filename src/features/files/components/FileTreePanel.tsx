@@ -5,7 +5,6 @@ import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
-  ArrowLeftRight,
   ChevronsUpDown,
   File,
   FileArchive,
@@ -19,6 +18,7 @@ import {
   Folder,
   Search,
 } from "lucide-react";
+import { PanelTabs, type PanelTabId } from "../../layout/components/PanelTabs";
 
 type FileTreeNode = {
   name: string;
@@ -31,7 +31,8 @@ type FileTreePanelProps = {
   workspacePath: string;
   files: string[];
   isLoading: boolean;
-  onToggleFilePanel: () => void;
+  filePanelMode: PanelTabId;
+  onFilePanelModeChange: (mode: PanelTabId) => void;
 };
 
 type FileTreeBuildNode = {
@@ -177,7 +178,8 @@ export function FileTreePanel({
   workspacePath,
   files,
   isLoading,
-  onToggleFilePanel,
+  filePanelMode,
+  onFilePanelModeChange,
 }: FileTreePanelProps) {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
@@ -326,17 +328,7 @@ export function FileTreePanel({
   return (
     <aside className="diff-panel file-tree-panel">
       <div className="git-panel-header">
-        <button
-          type="button"
-          className="git-panel-title git-panel-title-button"
-          onClick={onToggleFilePanel}
-          aria-label="Show git panel"
-          title="Show git panel"
-        >
-          <Folder className="git-panel-icon" />
-          Files
-          <ArrowLeftRight className="git-panel-switch-icon" aria-hidden />
-        </button>
+        <PanelTabs active={filePanelMode} onSelect={onFilePanelModeChange} />
         <div className="file-tree-meta">
           <div className="file-tree-count">
           {filteredFiles.length

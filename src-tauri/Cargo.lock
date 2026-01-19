@@ -568,6 +568,7 @@ dependencies = [
  "fix-path-env",
  "git2",
  "ignore",
+ "libc",
  "portable-pty",
  "reqwest",
  "serde",

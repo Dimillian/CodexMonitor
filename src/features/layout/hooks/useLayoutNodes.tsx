@@ -10,6 +10,7 @@ import { Composer } from "../../composer/components/Composer";
 import { GitDiffPanel } from "../../git/components/GitDiffPanel";
 import { GitDiffViewer } from "../../git/components/GitDiffViewer";
 import { FileTreePanel } from "../../files/components/FileTreePanel";
+import { PromptPanel } from "../../prompts/components/PromptPanel";
 import { DebugPanel } from "../../debug/components/DebugPanel";
 import { PlanPanel } from "../../plan/components/PlanPanel";
 import { TabBar } from "../../app/components/TabBar";
@@ -132,8 +133,8 @@ type LayoutNodesOptions = {
   tabletNavTab: "codex" | "git" | "log";
   gitPanelMode: "diff" | "log" | "issues" | "prs";
   onGitPanelModeChange: (mode: "diff" | "log" | "issues" | "prs") => void;
-  filePanelMode: "git" | "files";
-  onToggleFilePanel: () => void;
+  filePanelMode: "git" | "files" | "prompts";
+  onFilePanelModeChange: (mode: "git" | "files" | "prompts") => void;
   fileTreeLoading: boolean;
   gitStatus: {
     branchName: string;
@@ -189,6 +190,26 @@ type LayoutNodesOptions = {
   gitDiffLoading: boolean;
   gitDiffError: string | null;
   onDiffActivePathChange?: (path: string) => void;
+  onSendPrompt: (text: string) => void | Promise<void>;
+  onSendPromptToNewAgent: (text: string) => void | Promise<void>;
+  onCreatePrompt: (data: {
+    scope: "workspace" | "global";
+    name: string;
+    description?: string | null;
+    argumentHint?: string | null;
+    content: string;
+  }) => void | Promise<void>;
+  onUpdatePrompt: (data: {
+    path: string;
+    name: string;
+    description?: string | null;
+    argumentHint?: string | null;
+    content: string;
+  }) => void | Promise<void>;
+  onDeletePrompt: (path: string) => void | Promise<void>;
+  onMovePrompt: (data: { path: string; scope: "workspace" | "global" }) => void | Promise<void>;
+  onRevealWorkspacePrompts: () => void | Promise<void>;
+  onRevealGeneralPrompts: () => void | Promise<void>;
   onSend: (text: string, images: string[]) => void | Promise<void>;
   onQueue: (text: string, images: string[]) => void | Promise<void>;
   onStop: () => void;
@@ -453,18 +474,41 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     <TabBar activeTab={options.activeTab} onSelect={options.onSelectTab} />
   );
 
-  const gitDiffPanelNode =
-    options.filePanelMode === "files" && options.activeWorkspace ? (
+  let gitDiffPanelNode: ReactNode;
+  if (options.filePanelMode === "files" && options.activeWorkspace) {
+    gitDiffPanelNode = (
       <FileTreePanel
         workspacePath={options.activeWorkspace.path}
         files={options.files}
         isLoading={options.fileTreeLoading}
-        onToggleFilePanel={options.onToggleFilePanel}
+        filePanelMode={options.filePanelMode}
+        onFilePanelModeChange={options.onFilePanelModeChange}
       />
-    ) : (
+    );
+  } else if (options.filePanelMode === "prompts") {
+    gitDiffPanelNode = (
+      <PromptPanel
+        prompts={options.prompts}
+        workspacePath={options.activeWorkspace?.path ?? null}
+        filePanelMode={options.filePanelMode}
+        onFilePanelModeChange={options.onFilePanelModeChange}
+        onSendPrompt={options.onSendPrompt}
+        onSendPromptToNewAgent={options.onSendPromptToNewAgent}
+        onCreatePrompt={options.onCreatePrompt}
+        onUpdatePrompt={options.onUpdatePrompt}
+        onDeletePrompt={options.onDeletePrompt}
+        onMovePrompt={options.onMovePrompt}
+        onRevealWorkspacePrompts={options.onRevealWorkspacePrompts}
+        onRevealGeneralPrompts={options.onRevealGeneralPrompts}
+      />
+    );
+  } else {
+    gitDiffPanelNode = (
       <GitDiffPanel
         mode={options.gitPanelMode}
         onModeChange={options.onGitPanelModeChange}
+        filePanelMode={options.filePanelMode}
+        onFilePanelModeChange={options.onFilePanelModeChange}
         branchName={options.gitStatus.branchName || "unknown"}
         totalAdditions={options.gitStatus.totalAdditions}
         totalDeletions={options.gitStatus.totalDeletions}
@@ -494,7 +538,6 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         selectedPullRequest={options.selectedPullRequestNumber}
         onSelectPullRequest={options.onSelectPullRequest}
         gitRemoteUrl={options.gitRemoteUrl}
-        onToggleFilePanel={options.onToggleFilePanel}
         gitRoot={options.gitRoot}
         gitRootCandidates={options.gitRootCandidates}
         gitRootScanDepth={options.gitRootScanDepth}
@@ -511,6 +554,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         onRevertFile={options.onRevertGitFile}
       />
     );
+  }
 
   const gitDiffViewerNode = (
     <GitDiffViewer
