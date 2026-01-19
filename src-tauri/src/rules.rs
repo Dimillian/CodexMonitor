@@ -2,7 +2,7 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 const RULES_DIR: &str = "rules";
 const DEFAULT_RULES_FILE: &str = "default.rules";
@@ -57,6 +57,7 @@ impl Drop for RulesFileLock {
 fn acquire_rules_lock(path: &Path) -> Result<RulesFileLock, String> {
     let lock_path = path.with_extension("lock");
     let deadline = Instant::now() + Duration::from_secs(2);
+    let stale_after = Duration::from_secs(30);
 
     loop {
         match OpenOptions::new()
@@ -66,6 +67,10 @@ fn acquire_rules_lock(path: &Path) -> Result<RulesFileLock, String> {
         {
             Ok(_) => return Ok(RulesFileLock { path: lock_path }),
             Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
+                if is_lock_stale(&lock_path, stale_after) {
+                    let _ = fs::remove_file(&lock_path);
+                    continue;
+                }
                 if Instant::now() >= deadline {
                     return Err("timed out waiting for rules file lock".to_string());
                 }
@@ -74,6 +79,19 @@ fn acquire_rules_lock(path: &Path) -> Result<RulesFileLock, String> {
             Err(err) => return Err(err.to_string()),
         }
     }
+}
+
+fn is_lock_stale(path: &Path, stale_after: Duration) -> bool {
+    let Ok(metadata) = fs::metadata(path) else {
+        return false;
+    };
+    let Ok(modified) = metadata.modified() else {
+        return false;
+    };
+    let Ok(age) = SystemTime::now().duration_since(modified) else {
+        return false;
+    };
+    age > stale_after
 }
 
 fn format_prefix_rule(pattern: &[String]) -> String {
