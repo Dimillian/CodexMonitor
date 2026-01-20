@@ -51,6 +51,7 @@ import { useGitRemote } from "./features/git/hooks/useGitRemote";
 import { useGitRepoScan } from "./features/git/hooks/useGitRepoScan";
 import { usePullRequestComposer } from "./features/git/hooks/usePullRequestComposer";
 import { useGitActions } from "./features/git/hooks/useGitActions";
+import { useAutoExitEmptyDiff } from "./features/git/hooks/useAutoExitEmptyDiff";
 import { useModels } from "./features/models/hooks/useModels";
 import { useCollaborationModes } from "./features/collaboration/hooks/useCollaborationModes";
 import { useSkills } from "./features/skills/hooks/useSkills";
@@ -734,6 +735,18 @@ function MainApp() {
     accessMode,
     customPrompts: prompts,
     onMessageActivity: queueGitStatusRefresh
+  });
+
+  useAutoExitEmptyDiff({
+    centerMode,
+    activeDiffCount: activeDiffs.length,
+    activeDiffLoading,
+    activeDiffError,
+    activeThreadId,
+    isCompact,
+    setCenterMode,
+    setSelectedDiffPath,
+    setActiveTab,
   });
 
   const { handleCopyThread } = useCopyThread({
