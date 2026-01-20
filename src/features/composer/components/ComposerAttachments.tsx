@@ -1,3 +1,4 @@
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { Image, X } from "lucide-react";
 
 type ComposerAttachmentsProps = {
@@ -18,6 +19,20 @@ function fileTitle(path: string) {
   return parts.length ? parts[parts.length - 1] : path;
 }
 
+function attachmentPreviewSrc(path: string) {
+  if (path.startsWith("data:")) {
+    return path;
+  }
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+  try {
+    return convertFileSrc(path);
+  } catch {
+    return "";
+  }
+}
+
 export function ComposerAttachments({
   attachments,
   disabled,
@@ -32,15 +47,27 @@ export function ComposerAttachments({
       {attachments.map((path) => {
         const title = fileTitle(path);
         const titleAttr = path.startsWith("data:") ? "Pasted image" : path;
+        const previewSrc = attachmentPreviewSrc(path);
         return (
           <div
             key={path}
             className="composer-attachment"
             title={titleAttr}
           >
-            <span className="composer-icon" aria-hidden>
-              <Image size={14} />
-            </span>
+            {previewSrc && (
+              <span className="composer-attachment-preview" aria-hidden>
+                <img src={previewSrc} alt="" />
+              </span>
+            )}
+            {previewSrc ? (
+              <span className="composer-attachment-thumb" aria-hidden>
+                <img src={previewSrc} alt="" />
+              </span>
+            ) : (
+              <span className="composer-icon" aria-hidden>
+                <Image size={14} />
+              </span>
+            )}
             <span className="composer-attachment-name">{title}</span>
             <button
               type="button"

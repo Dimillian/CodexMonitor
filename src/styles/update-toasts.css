@@ -92,6 +92,17 @@
   justify-content: flex-end;
 }
 
+.update-toast-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.update-toast-body-inline {
+  margin-bottom: 0;
+}
+
 @keyframes update-toast-in {
   from {
     opacity: 0;

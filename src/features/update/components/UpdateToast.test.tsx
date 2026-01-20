@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { UpdateState } from "../hooks/useUpdater";
 import { UpdateToast } from "./UpdateToast";
@@ -65,5 +65,19 @@ describe("UpdateToast", () => {
 
     expect(onDismiss).toHaveBeenCalledTimes(1);
     expect(onUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders latest state and allows dismiss", () => {
+    const onDismiss = vi.fn();
+    const state: UpdateState = { stage: "latest" };
+
+    const { container } = render(
+      <UpdateToast state={state} onUpdate={vi.fn()} onDismiss={onDismiss} />,
+    );
+    const scoped = within(container);
+
+    expect(scoped.getByText("You’re up to date.")).toBeTruthy();
+    fireEvent.click(scoped.getByRole("button", { name: "Dismiss" }));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 });

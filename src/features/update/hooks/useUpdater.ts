@@ -12,6 +12,7 @@ type UpdateStage =
   | "downloading"
   | "installing"
   | "restarting"
+  | "latest"
   | "error";
 
 type UpdateProgress = {
@@ -34,21 +35,40 @@ type UseUpdaterOptions = {
 export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
   const [state, setState] = useState<UpdateState>({ stage: "idle" });
   const updateRef = useRef<Update | null>(null);
+  const latestTimeoutRef = useRef<number | null>(null);
+  const latestToastDurationMs = 2000;
+
+  const clearLatestTimeout = useCallback(() => {
+    if (latestTimeoutRef.current !== null) {
+      window.clearTimeout(latestTimeoutRef.current);
+      latestTimeoutRef.current = null;
+    }
+  }, []);
 
   const resetToIdle = useCallback(async () => {
+    clearLatestTimeout();
     const update = updateRef.current;
     updateRef.current = null;
     setState({ stage: "idle" });
     await update?.close();
-  }, []);
+  }, [clearLatestTimeout]);
 
-  const checkForUpdates = useCallback(async () => {
+  const checkForUpdates = useCallback(async (options?: { announceNoUpdate?: boolean }) => {
     let update: Awaited<ReturnType<typeof check>> | null = null;
     try {
+      clearLatestTimeout();
       setState({ stage: "checking" });
       update = await check();
       if (!update) {
-        setState({ stage: "idle" });
+        if (options?.announceNoUpdate) {
+          setState({ stage: "latest" });
+          latestTimeoutRef.current = window.setTimeout(() => {
+            latestTimeoutRef.current = null;
+            setState({ stage: "idle" });
+          }, latestToastDurationMs);
+        } else {
+          setState({ stage: "idle" });
+        }
         return;
       }
 
@@ -73,7 +93,7 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
         await update?.close();
       }
     }
-  }, [onDebug]);
+  }, [clearLatestTimeout, onDebug]);
 
   const startUpdate = useCallback(async () => {
     const update = updateRef.current;
@@ -152,10 +172,16 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
     void checkForUpdates();
   }, [checkForUpdates, enabled]);
 
+  useEffect(() => {
+    return () => {
+      clearLatestTimeout();
+    };
+  }, [clearLatestTimeout]);
 
   return {
     state,
     startUpdate,
+    checkForUpdates,
     dismiss: resetToIdle,
   };
 }

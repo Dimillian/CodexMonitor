@@ -134,6 +134,58 @@
   color: var(--text-muted);
   font-size: 11px;
   max-width: 100%;
+  position: relative;
+}
+
+.composer-attachment:hover .composer-attachment-preview,
+.composer-attachment:focus-within .composer-attachment-preview {
+  opacity: 1;
+  transform: translate(-50%, -6px) scale(1);
+  pointer-events: auto;
+}
+
+.composer-attachment-preview {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  width: 240px;
+  height: 180px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-quiet);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
+  opacity: 0;
+  transform: translate(-50%, -2px) scale(0.98);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.composer-attachment-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.composer-attachment-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-item);
+  flex: 0 0 auto;
+}
+
+.composer-attachment-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .composer-attachment-name {
