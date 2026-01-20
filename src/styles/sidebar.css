@@ -286,15 +286,17 @@
   white-space: nowrap;
 }
 
-.workspace-provider-badge {
-  font-size: 10px;
-  font-weight: 500;
+.provider-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   color: var(--text-muted);
-  background: var(--surface-subtle);
-  padding: 1px 5px;
-  border-radius: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  opacity: 0.7;
+}
+
+.provider-logo svg {
+  display: block;
 }
 
 
