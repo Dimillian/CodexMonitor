@@ -41,7 +41,7 @@ describe("useWorkspaces.renameWorktree", () => {
     const renameWorktreeMock = vi.mocked(renameWorktree);
     listWorkspacesMock.mockResolvedValue([worktree]);
 
-    let resolveRename: (value: WorkspaceInfo) => void;
+    let resolveRename: (value: WorkspaceInfo) => void = () => {};
     const renamePromise = new Promise<WorkspaceInfo>((resolve) => {
       resolveRename = resolve;
     });
@@ -83,7 +83,7 @@ describe("useWorkspaces.renameWorktree", () => {
     const listWorkspacesMock = vi.mocked(listWorkspaces);
     const renameWorktreeMock = vi.mocked(renameWorktree);
     listWorkspacesMock.mockResolvedValue([worktree]);
-    let rejectRename: (error: Error) => void;
+    let rejectRename: (error: Error) => void = () => {};
     const renamePromise = new Promise<WorkspaceInfo>((_, reject) => {
       rejectRename = reject;
     });
