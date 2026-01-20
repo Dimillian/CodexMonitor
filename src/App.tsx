@@ -61,6 +61,7 @@ import { useGitBranches } from "./features/git/hooks/useGitBranches";
 import { useDebugLog } from "./features/debug/hooks/useDebugLog";
 import { useWorkspaceRefreshOnFocus } from "./features/workspaces/hooks/useWorkspaceRefreshOnFocus";
 import { useWorkspaceRestore } from "./features/workspaces/hooks/useWorkspaceRestore";
+import { useRenameWorktreePrompt } from "./features/workspaces/hooks/useRenameWorktreePrompt";
 import { useResizablePanels } from "./features/layout/hooks/useResizablePanels";
 import { useLayoutMode } from "./features/layout/hooks/useLayoutMode";
 import { useSidebarToggles } from "./features/layout/hooks/useSidebarToggles";
@@ -354,6 +355,8 @@ function MainApp() {
     assignWorkspaceGroup,
     removeWorkspace,
     removeWorktree,
+    renameWorktree,
+    renameWorktreeUpstream,
     hasLoaded,
     refreshWorkspaces
   } = useWorkspaces({
@@ -720,6 +723,8 @@ function MainApp() {
     startThreadForWorkspace,
     listThreadsForWorkspace,
     loadOlderThreadsForWorkspace,
+    resetWorkspaceThreads,
+    refreshThread,
     sendUserMessage,
     sendUserMessageToThread,
     startReview,
@@ -765,12 +770,44 @@ function MainApp() {
     renameThread,
   });
 
+  const {
+    renamePrompt: renameWorktreePrompt,
+    notice: renameWorktreeNotice,
+    upstreamPrompt: renameWorktreeUpstreamPrompt,
+    confirmUpstream: confirmRenameWorktreeUpstream,
+    openRenamePrompt: openRenameWorktreePrompt,
+    handleRenameChange: handleRenameWorktreeChange,
+    handleRenameCancel: handleRenameWorktreeCancel,
+    handleRenameConfirm: handleRenameWorktreeConfirm,
+  } = useRenameWorktreePrompt({
+    workspaces,
+    activeWorkspaceId,
+    renameWorktree,
+    renameWorktreeUpstream,
+    onRenameSuccess: (workspaceId) => {
+      resetWorkspaceThreads(workspaceId);
+      const workspace = workspaces.find((entry) => entry.id === workspaceId);
+      if (workspace) {
+        void listThreadsForWorkspace(workspace);
+      }
+      if (activeThreadId && activeWorkspaceId === workspaceId) {
+        void refreshThread(workspaceId, activeThreadId);
+      }
+    },
+  });
+
   const handleRenameThread = useCallback(
     (workspaceId: string, threadId: string) => {
       openRenamePrompt(workspaceId, threadId);
     },
     [openRenamePrompt],
   );
+
+  const handleOpenRenameWorktree = useCallback(() => {
+    if (activeWorkspace) {
+      openRenameWorktreePrompt(activeWorkspace.id);
+    }
+  }, [activeWorkspace, openRenameWorktreePrompt]);
 
   const {
     activeImages,
@@ -1259,6 +1296,37 @@ function MainApp() {
   const worktreeLabel = isWorktreeWorkspace
     ? activeWorkspace?.worktree?.branch ?? activeWorkspace?.name ?? null
     : null;
+  const activeRenamePrompt =
+    renameWorktreePrompt?.workspaceId === activeWorkspace?.id
+      ? renameWorktreePrompt
+      : null;
+  const worktreeRename =
+    isWorktreeWorkspace && activeWorkspace
+      ? {
+          name: activeRenamePrompt?.name ?? worktreeLabel ?? "",
+          error: activeRenamePrompt?.error ?? null,
+          notice: renameWorktreeNotice,
+          isSubmitting: activeRenamePrompt?.isSubmitting ?? false,
+          isDirty: activeRenamePrompt
+            ? activeRenamePrompt.name.trim() !==
+              activeRenamePrompt.originalName.trim()
+            : false,
+          upstream:
+            renameWorktreeUpstreamPrompt?.workspaceId === activeWorkspace.id
+              ? {
+                  oldBranch: renameWorktreeUpstreamPrompt.oldBranch,
+                  newBranch: renameWorktreeUpstreamPrompt.newBranch,
+                  error: renameWorktreeUpstreamPrompt.error,
+                  isSubmitting: renameWorktreeUpstreamPrompt.isSubmitting,
+                  onConfirm: confirmRenameWorktreeUpstream,
+                }
+              : null,
+          onFocus: handleOpenRenameWorktree,
+          onChange: handleRenameWorktreeChange,
+          onCancel: handleRenameWorktreeCancel,
+          onCommit: handleRenameWorktreeConfirm,
+        }
+      : null;
   const baseWorkspaceRef = useRef(activeParentWorkspace ?? activeWorkspace);
 
   useEffect(() => {
@@ -1729,6 +1797,7 @@ function MainApp() {
     activeWorkspace,
     activeParentWorkspace,
     worktreeLabel,
+    worktreeRename: worktreeRename ?? undefined,
     isWorktreeWorkspace,
     branchName: gitStatus.branchName || "unknown",
     branches,

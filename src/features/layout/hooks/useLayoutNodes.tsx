@@ -60,6 +60,25 @@ type GitDiffViewerItem = {
   diff: string;
 };
 
+type WorktreeRenameState = {
+  name: string;
+  error: string | null;
+  notice: string | null;
+  isSubmitting: boolean;
+  isDirty: boolean;
+  upstream?: {
+    oldBranch: string;
+    newBranch: string;
+    error: string | null;
+    isSubmitting: boolean;
+    onConfirm: () => void;
+  } | null;
+  onFocus: () => void;
+  onChange: (value: string) => void;
+  onCancel: () => void;
+  onCommit: () => void;
+};
+
 type LayoutNodesOptions = {
   workspaces: WorkspaceInfo[];
   groupedWorkspaces: Array<{
@@ -132,6 +151,7 @@ type LayoutNodesOptions = {
   activeWorkspace: WorkspaceInfo | null;
   activeParentWorkspace: WorkspaceInfo | null;
   worktreeLabel: string | null;
+  worktreeRename?: WorktreeRenameState;
   isWorktreeWorkspace: boolean;
   branchName: string;
   branches: BranchInfo[];
@@ -493,6 +513,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       workspace={options.activeWorkspace}
       parentName={options.activeParentWorkspace?.name ?? null}
       worktreeLabel={options.worktreeLabel}
+      worktreeRename={options.worktreeRename}
       disableBranchMenu={options.isWorktreeWorkspace}
       parentPath={options.activeParentWorkspace?.path ?? null}
       worktreePath={options.isWorktreeWorkspace ? options.activeWorkspace.path : null}

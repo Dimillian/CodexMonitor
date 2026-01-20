@@ -97,6 +97,21 @@ export async function removeWorktree(id: string): Promise<void> {
   return invoke("remove_worktree", { id });
 }
 
+export async function renameWorktree(
+  id: string,
+  branch: string,
+): Promise<WorkspaceInfo> {
+  return invoke<WorkspaceInfo>("rename_worktree", { id, branch });
+}
+
+export async function renameWorktreeUpstream(
+  id: string,
+  oldBranch: string,
+  newBranch: string,
+): Promise<void> {
+  return invoke("rename_worktree_upstream", { id, oldBranch, newBranch });
+}
+
 export async function applyWorktreeChanges(workspaceId: string): Promise<void> {
   return invoke("apply_worktree_changes", { workspaceId });
 }

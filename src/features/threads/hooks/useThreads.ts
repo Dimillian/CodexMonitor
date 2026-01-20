@@ -439,6 +439,7 @@ export function useThreads({
 }: UseThreadsOptions) {
   const [state, dispatch] = useReducer(threadReducer, initialState);
   const loadedThreads = useRef<Record<string, boolean>>({});
+  const replaceOnResumeRef = useRef<Record<string, boolean>>({});
   const threadActivityRef = useRef<ThreadActivityMap>(loadThreadActivity());
   const pinnedThreadsRef = useRef<PinnedThreadsMap>(loadPinnedThreads());
   const [pinnedThreadsVersion, setPinnedThreadsVersion] = useState(0);
@@ -1065,7 +1066,12 @@ export function useThreads({
   }, [activeWorkspaceId, startThreadForWorkspace]);
 
   const resumeThreadForWorkspace = useCallback(
-    async (workspaceId: string, threadId: string, force = false) => {
+    async (
+      workspaceId: string,
+      threadId: string,
+      force = false,
+      replaceLocal = false,
+    ) => {
       if (!threadId) {
         return null;
       }
@@ -1101,8 +1107,17 @@ export function useThreads({
           applyCollabThreadLinksFromThread(threadId, thread);
           const items = buildItemsFromThread(thread);
           const localItems = state.itemsByThread[threadId] ?? [];
+          const shouldReplace =
+            replaceLocal || replaceOnResumeRef.current[threadId] === true;
+          if (shouldReplace) {
+            replaceOnResumeRef.current[threadId] = false;
+          }
           const mergedItems =
-            items.length > 0 ? mergeThreadItems(items, localItems) : localItems;
+            items.length > 0
+              ? shouldReplace
+                ? items
+                : mergeThreadItems(items, localItems)
+              : localItems;
           if (mergedItems.length > 0) {
             dispatch({ type: "setThreadItems", threadId, items: mergedItems });
           }
@@ -1153,6 +1168,33 @@ export function useThreads({
       }
     },
     [applyCollabThreadLinksFromThread, getCustomName, onDebug, state.itemsByThread],
+  );
+
+  const refreshThread = useCallback(
+    async (workspaceId: string, threadId: string) => {
+      if (!threadId) {
+        return null;
+      }
+      replaceOnResumeRef.current[threadId] = true;
+      return resumeThreadForWorkspace(workspaceId, threadId, true, true);
+    },
+    [resumeThreadForWorkspace],
+  );
+
+  const resetWorkspaceThreads = useCallback(
+    (workspaceId: string) => {
+      const threadIds = new Set<string>();
+      const list = state.threadsByWorkspace[workspaceId] ?? [];
+      list.forEach((thread) => threadIds.add(thread.id));
+      const activeThread = state.activeThreadIdByWorkspace[workspaceId];
+      if (activeThread) {
+        threadIds.add(activeThread);
+      }
+      threadIds.forEach((threadId) => {
+        loadedThreads.current[threadId] = false;
+      });
+    },
+    [state.activeThreadIdByWorkspace, state.threadsByWorkspace],
   );
 
   const listThreadsForWorkspace = useCallback(
@@ -1901,6 +1943,8 @@ export function useThreads({
     startThread,
     startThreadForWorkspace,
     listThreadsForWorkspace,
+    refreshThread,
+    resetWorkspaceThreads,
     loadOlderThreadsForWorkspace,
     sendUserMessage,
     sendUserMessageToThread,

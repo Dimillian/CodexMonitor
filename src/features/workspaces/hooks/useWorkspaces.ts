@@ -16,6 +16,8 @@ import {
   pickWorkspacePath,
   removeWorkspace as removeWorkspaceService,
   removeWorktree as removeWorktreeService,
+  renameWorktree as renameWorktreeService,
+  renameWorktreeUpstream as renameWorktreeUpstreamService,
   updateWorkspaceCodexBin as updateWorkspaceCodexBinService,
   updateWorkspaceSettings as updateWorkspaceSettingsService,
 } from "../../../services/tauri";
@@ -673,6 +675,81 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     }
   }
 
+  async function renameWorktree(workspaceId: string, branch: string) {
+    const trimmed = branch.trim();
+    onDebug?.({
+      id: `${Date.now()}-client-rename-worktree`,
+      timestamp: Date.now(),
+      source: "client",
+      label: "worktree/rename",
+      payload: { workspaceId, branch: trimmed },
+    });
+    let previous: WorkspaceInfo | null = null;
+    if (trimmed) {
+      setWorkspaces((prev) =>
+        prev.map((entry) => {
+          if (entry.id !== workspaceId) {
+            return entry;
+          }
+          previous = entry;
+          return {
+            ...entry,
+            name: trimmed,
+            worktree: entry.worktree ? { ...entry.worktree, branch: trimmed } : { branch: trimmed },
+          };
+        }),
+      );
+    }
+    try {
+      const updated = await renameWorktreeService(workspaceId, trimmed);
+      setWorkspaces((prev) =>
+        prev.map((entry) => (entry.id === workspaceId ? updated : entry)),
+      );
+      return updated;
+    } catch (error) {
+      if (previous) {
+        const restore = previous;
+        setWorkspaces((prev) =>
+          prev.map((entry) => (entry.id === workspaceId ? restore : entry)),
+        );
+      }
+      onDebug?.({
+        id: `${Date.now()}-client-rename-worktree-error`,
+        timestamp: Date.now(),
+        source: "error",
+        label: "worktree/rename error",
+        payload: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
+  async function renameWorktreeUpstream(
+    workspaceId: string,
+    oldBranch: string,
+    newBranch: string,
+  ) {
+    onDebug?.({
+      id: `${Date.now()}-client-rename-worktree-upstream`,
+      timestamp: Date.now(),
+      source: "client",
+      label: "worktree/rename-upstream",
+      payload: { workspaceId, oldBranch, newBranch },
+    });
+    try {
+      await renameWorktreeUpstreamService(workspaceId, oldBranch, newBranch);
+    } catch (error) {
+      onDebug?.({
+        id: `${Date.now()}-client-rename-worktree-upstream-error`,
+        timestamp: Date.now(),
+        source: "error",
+        label: "worktree/rename-upstream error",
+        payload: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
   return {
     workspaces,
     workspaceGroups,
@@ -696,6 +773,8 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     assignWorkspaceGroup,
     removeWorkspace,
     removeWorktree,
+    renameWorktree,
+    renameWorktreeUpstream,
     hasLoaded,
     refreshWorkspaces,
   };

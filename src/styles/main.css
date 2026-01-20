@@ -458,6 +458,7 @@
 }
 
 .worktree-info-subtle {
+  text-wrap: auto;
   font-size: 11px;
   color: var(--text-faint);
 }
@@ -476,6 +477,60 @@
 
 .worktree-info-reveal:hover {
   border-color: var(--border-strong);
+}
+
+.worktree-info-rename {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.worktree-info-input {
+  border: 1px solid var(--border-muted);
+  background: rgba(12, 16, 26, 0.94);
+  color: var(--text-stronger);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  flex: 1;
+}
+
+.worktree-info-input:focus {
+  outline: none;
+  border-color: var(--border-strong);
+}
+
+.worktree-info-confirm {
+  border: 1px solid var(--border-muted);
+  background: rgba(12, 16, 26, 0.94);
+  color: var(--text-stronger);
+  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.worktree-info-confirm:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.worktree-info-error {
+  font-size: 11px;
+  color: var(--text-danger);
+}
+
+.worktree-info-upstream {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.worktree-info-upstream-button {
+  align-self: flex-start;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
 }
 
 .workspace-branch-menu {
