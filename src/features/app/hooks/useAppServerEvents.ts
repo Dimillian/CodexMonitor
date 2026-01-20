@@ -41,6 +41,12 @@ type AppServerEventHandlers = {
   onReasoningSummaryDelta?: (workspaceId: string, threadId: string, itemId: string, delta: string) => void;
   onReasoningTextDelta?: (workspaceId: string, threadId: string, itemId: string, delta: string) => void;
   onCommandOutputDelta?: (workspaceId: string, threadId: string, itemId: string, delta: string) => void;
+  onTerminalInteraction?: (
+    workspaceId: string,
+    threadId: string,
+    itemId: string,
+    stdin: string,
+  ) => void;
   onFileChangeOutputDelta?: (workspaceId: string, threadId: string, itemId: string, delta: string) => void;
   onTurnDiffUpdated?: (workspaceId: string, threadId: string, diff: string) => void;
   onThreadTokenUsageUpdated?: (
@@ -242,6 +248,17 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         const delta = String(params.delta ?? "");
         if (threadId && itemId && delta) {
           handlers.onCommandOutputDelta?.(workspace_id, threadId, itemId, delta);
+        }
+        return;
+      }
+
+      if (method === "item/commandExecution/terminalInteraction") {
+        const params = message.params as Record<string, unknown>;
+        const threadId = String(params.threadId ?? params.thread_id ?? "");
+        const itemId = String(params.itemId ?? params.item_id ?? "");
+        const stdin = String(params.stdin ?? "");
+        if (threadId && itemId) {
+          handlers.onTerminalInteraction?.(workspace_id, threadId, itemId, stdin);
         }
         return;
       }

@@ -752,6 +752,18 @@ export function useThreads({
     [markProcessing, safeMessageActivity],
   );
 
+  const handleTerminalInteraction = useCallback(
+    (threadId: string, itemId: string, stdin: string) => {
+      if (!stdin) {
+        return;
+      }
+      const normalized = stdin.replace(/\r\n/g, "\n");
+      const suffix = normalized.endsWith("\n") ? "" : "\n";
+      handleToolOutputDelta(threadId, itemId, `\n[stdin]\n${normalized}${suffix}`);
+    },
+    [handleToolOutputDelta],
+  );
+
   const handleWorkspaceConnected = useCallback(
     (workspaceId: string) => {
       onWorkspaceConnected(workspaceId);
@@ -906,6 +918,14 @@ export function useThreads({
         delta: string,
       ) => {
         handleToolOutputDelta(threadId, itemId, delta);
+      },
+      onTerminalInteraction: (
+        _workspaceId: string,
+        threadId: string,
+        itemId: string,
+        stdin: string,
+      ) => {
+        handleTerminalInteraction(threadId, itemId, stdin);
       },
       onFileChangeOutputDelta: (
         _workspaceId: string,
