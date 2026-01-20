@@ -4,7 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkspaceInfo } from "../../../types";
 import type { useAppServerEvents } from "../../app/hooks/useAppServerEvents";
 import { useThreadRows } from "../../app/hooks/useThreadRows";
-import { listThreads, resumeThread, sendUserMessage } from "../../../services/tauri";
+import {
+  interruptTurn,
+  listThreads,
+  resumeThread,
+  sendUserMessage,
+} from "../../../services/tauri";
 import { useThreads } from "./useThreads";
 
 type AppServerHandlers = Parameters<typeof useAppServerEvents>[0];
@@ -306,6 +311,37 @@ describe("useThreads UX integration", () => {
       explanation: "Thread 2 plan",
       steps: [{ step: "Step 2", status: "completed" }],
     });
+  });
+
+  it("interrupts immediately even before a turn id is available", async () => {
+    const interruptMock = vi.mocked(interruptTurn);
+    interruptMock.mockResolvedValue({ result: {} });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-1");
+    });
+
+    await act(async () => {
+      await result.current.interruptTurn();
+    });
+
+    expect(interruptMock).toHaveBeenCalledWith("ws-1", "thread-1", "pending");
+
+    act(() => {
+      handlers?.onTurnStarted?.("ws-1", "thread-1", "turn-1");
+    });
+
+    await waitFor(() => {
+      expect(interruptMock).toHaveBeenCalledWith("ws-1", "thread-1", "turn-1");
+    });
+    expect(interruptMock).toHaveBeenCalledTimes(2);
   });
 
   it("orders thread lists, applies custom names, and keeps pin ordering stable", async () => {

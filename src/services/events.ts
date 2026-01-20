@@ -9,82 +9,162 @@ export type TerminalOutputEvent = {
   data: string;
 };
 
-export async function subscribeAppServerEvents(
+type SubscriptionOptions = {
+  onError?: (error: unknown) => void;
+};
+
+type Listener<T> = (payload: T) => void;
+
+function createEventHub<T>(eventName: string) {
+  const listeners = new Set<Listener<T>>();
+  let unlisten: Unsubscribe | null = null;
+  let listenPromise: Promise<Unsubscribe> | null = null;
+
+  const start = (options?: SubscriptionOptions) => {
+    if (unlisten || listenPromise) {
+      return;
+    }
+    listenPromise = listen<T>(eventName, (event) => {
+      for (const listener of listeners) {
+        try {
+          listener(event.payload);
+        } catch (error) {
+          console.error(`[events] ${eventName} listener failed`, error);
+        }
+      }
+    });
+    listenPromise
+      .then((handler) => {
+        listenPromise = null;
+        if (listeners.size === 0) {
+          handler();
+          return;
+        }
+        unlisten = handler;
+      })
+      .catch((error) => {
+        listenPromise = null;
+        options?.onError?.(error);
+      });
+  };
+
+  const stop = () => {
+    if (unlisten) {
+      try {
+        unlisten();
+      } catch {
+        // Ignore double-unlisten when tearing down.
+      }
+      unlisten = null;
+    }
+  };
+
+  const subscribe = (
+    onEvent: Listener<T>,
+    options?: SubscriptionOptions,
+  ): Unsubscribe => {
+    listeners.add(onEvent);
+    start(options);
+    return () => {
+      listeners.delete(onEvent);
+      if (listeners.size === 0) {
+        stop();
+      }
+    };
+  };
+
+  return { subscribe };
+}
+
+const appServerHub = createEventHub<AppServerEvent>("app-server-event");
+const dictationDownloadHub = createEventHub<DictationModelStatus>("dictation-download");
+const dictationEventHub = createEventHub<DictationEvent>("dictation-event");
+const terminalOutputHub = createEventHub<TerminalOutputEvent>("terminal-output");
+const updaterCheckHub = createEventHub<void>("updater-check");
+const menuNewAgentHub = createEventHub<void>("menu-new-agent");
+const menuNewWorktreeAgentHub = createEventHub<void>("menu-new-worktree-agent");
+const menuNewCloneAgentHub = createEventHub<void>("menu-new-clone-agent");
+const menuAddWorkspaceHub = createEventHub<void>("menu-add-workspace");
+const menuOpenSettingsHub = createEventHub<void>("menu-open-settings");
+
+export function subscribeAppServerEvents(
   onEvent: (event: AppServerEvent) => void,
-): Promise<Unsubscribe> {
-  return listen<AppServerEvent>("app-server-event", (event) => {
-    onEvent(event.payload);
-  });
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return appServerHub.subscribe(onEvent, options);
 }
 
-export async function subscribeDictationDownload(
+export function subscribeDictationDownload(
   onEvent: (event: DictationModelStatus) => void,
-): Promise<Unsubscribe> {
-  return listen<DictationModelStatus>("dictation-download", (event) => {
-    onEvent(event.payload);
-  });
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return dictationDownloadHub.subscribe(onEvent, options);
 }
 
-export async function subscribeDictationEvents(
+export function subscribeDictationEvents(
   onEvent: (event: DictationEvent) => void,
-): Promise<Unsubscribe> {
-  return listen<DictationEvent>("dictation-event", (event) => {
-    onEvent(event.payload);
-  });
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return dictationEventHub.subscribe(onEvent, options);
 }
 
-export async function subscribeTerminalOutput(
+export function subscribeTerminalOutput(
   onEvent: (event: TerminalOutputEvent) => void,
-): Promise<Unsubscribe> {
-  return listen<TerminalOutputEvent>("terminal-output", (event) => {
-    onEvent(event.payload);
-  });
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return terminalOutputHub.subscribe(onEvent, options);
 }
 
-export async function subscribeUpdaterCheck(
+export function subscribeUpdaterCheck(
   onEvent: () => void,
-): Promise<Unsubscribe> {
-  return listen("updater-check", () => {
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return updaterCheckHub.subscribe(() => {
     onEvent();
-  });
+  }, options);
 }
 
-export async function subscribeMenuNewAgent(
+export function subscribeMenuNewAgent(
   onEvent: () => void,
-): Promise<Unsubscribe> {
-  return listen("menu-new-agent", () => {
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return menuNewAgentHub.subscribe(() => {
     onEvent();
-  });
+  }, options);
 }
 
-export async function subscribeMenuNewWorktreeAgent(
+export function subscribeMenuNewWorktreeAgent(
   onEvent: () => void,
-): Promise<Unsubscribe> {
-  return listen("menu-new-worktree-agent", () => {
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return menuNewWorktreeAgentHub.subscribe(() => {
     onEvent();
-  });
+  }, options);
 }
 
-export async function subscribeMenuNewCloneAgent(
+export function subscribeMenuNewCloneAgent(
   onEvent: () => void,
-): Promise<Unsubscribe> {
-  return listen("menu-new-clone-agent", () => {
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return menuNewCloneAgentHub.subscribe(() => {
     onEvent();
-  });
+  }, options);
 }
 
-export async function subscribeMenuAddWorkspace(
+export function subscribeMenuAddWorkspace(
   onEvent: () => void,
-): Promise<Unsubscribe> {
-  return listen("menu-add-workspace", () => {
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return menuAddWorkspaceHub.subscribe(() => {
     onEvent();
-  });
+  }, options);
 }
 
-export async function subscribeMenuOpenSettings(
+export function subscribeMenuOpenSettings(
   onEvent: () => void,
-): Promise<Unsubscribe> {
-  return listen("menu-open-settings", () => {
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return menuOpenSettingsHub.subscribe(() => {
     onEvent();
-  });
+  }, options);
 }

@@ -56,9 +56,7 @@ type AppServerEventHandlers = {
 
 export function useAppServerEvents(handlers: AppServerEventHandlers) {
   useEffect(() => {
-    let unlisten: (() => void) | null = null;
-    let canceled = false;
-    subscribeAppServerEvents((payload) => {
+    const unlisten = subscribeAppServerEvents((payload) => {
       handlers.onAppServerEvent?.(payload);
 
       const { workspace_id, message } = payload;
@@ -258,27 +256,10 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         }
         return;
       }
-    }).then((handler) => {
-      if (canceled) {
-        try {
-          handler();
-        } catch {
-          // Ignore unlisten errors when already removed.
-        }
-      } else {
-        unlisten = handler;
-      }
     });
 
     return () => {
-      canceled = true;
-      if (unlisten) {
-        try {
-          unlisten();
-        } catch {
-          // Ignore unlisten errors when already removed.
-        }
-      }
+      unlisten();
     };
   }, [handlers]);
 }
