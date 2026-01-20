@@ -63,4 +63,40 @@ describe("Home", () => {
       screen.getByText("Start a thread to see the latest responses here."),
     ).toBeTruthy();
   });
+
+  it("renders usage cards in time mode", () => {
+    render(
+      <Home
+        {...baseProps}
+        usageMetric="time"
+        localUsageSnapshot={{
+          updatedAt: Date.now(),
+          days: [
+            {
+              day: "2026-01-20",
+              inputTokens: 10,
+              cachedInputTokens: 0,
+              outputTokens: 5,
+              totalTokens: 15,
+              agentTimeMs: 120000,
+              agentRuns: 2,
+            },
+          ],
+          totals: {
+            last7DaysTokens: 15,
+            last30DaysTokens: 15,
+            averageDailyTokens: 15,
+            cacheHitRatePercent: 0,
+            peakDay: "2026-01-20",
+            peakDayTokens: 15,
+          },
+          topModels: [],
+        }}
+      />,
+    );
+
+    expect(screen.getAllByText("agent time").length).toBeGreaterThan(0);
+    expect(screen.getByText("Runs")).toBeTruthy();
+    expect(screen.getByText("Peak day")).toBeTruthy();
+  });
 });
