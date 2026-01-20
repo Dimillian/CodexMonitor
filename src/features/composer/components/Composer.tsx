@@ -6,6 +6,7 @@ import type {
   ThreadTokenUsage,
 } from "../../../types";
 import { computeDictationInsertion } from "../../../utils/dictation";
+import { isComposingEvent } from "../../../utils/keys";
 import { useComposerAutocompleteState } from "../hooks/useComposerAutocompleteState";
 import { ComposerInput } from "./ComposerInput";
 import { ComposerMetaBar } from "./ComposerMetaBar";
@@ -262,6 +263,9 @@ export function Composer({
         onTextChange={handleTextChange}
         onSelectionChange={handleSelectionChange}
         onKeyDown={(event) => {
+          if (isComposingEvent(event)) {
+            return;
+          }
           if (event.key === "Enter" && event.shiftKey) {
             event.preventDefault();
             const textarea = textareaRef.current;
