@@ -40,7 +40,13 @@ impl WorkspaceSession {
         self.pending.lock().await.insert(id, tx);
         self.write_message(json!({ "id": id, "method": method, "params": params }))
             .await?;
-        rx.await.map_err(|_| "request canceled".to_string())
+
+        // Add 30-second timeout to prevent indefinite hangs
+        match timeout(Duration::from_secs(30), async { rx.await }).await {
+            Ok(Ok(value)) => Ok(value),
+            Ok(Err(_)) => Err(format!("{} request canceled (channel closed)", method)),
+            Err(_) => Err(format!("{} request timed out after 30s", method)),
+        }
     }
 
     pub(crate) async fn send_notification(

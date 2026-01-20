@@ -578,6 +578,7 @@ dependencies = [
  "objc2-av-foundation",
  "objc2-foundation",
  "portable-pty",
+ "rand 0.8.5",
  "reqwest",
  "serde",
  "serde_json",
@@ -588,6 +589,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-process",
  "tauri-plugin-updater",
+ "thiserror 2.0.17",
  "tokio",
  "uuid",
  "whisper-rs",
@@ -4954,7 +4956,19 @@ dependencies = [
  "pin-project-lite",
  "signal-hook-registry",
  "socket2",
+ "tokio-macros",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "tokio-macros"
+version = "2.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af407857209536a95c8e56f8231ef2c2e2aff839b22e07a1ffcbc617e9db9fa5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.114",
 ]
 
 [[package]]

@@ -183,17 +183,12 @@ pub(crate) struct WorkspaceInfo {
     pub(crate) settings: WorkspaceSettings,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum WorkspaceKind {
+    #[default]
     Main,
     Worktree,
-}
-
-impl Default for WorkspaceKind {
-    fn default() -> Self {
-        WorkspaceKind::Main
-    }
 }
 
 impl WorkspaceKind {
@@ -302,17 +297,12 @@ pub(crate) struct AppSettings {
     pub(crate) workspace_groups: Vec<WorkspaceGroup>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum BackendMode {
+    #[default]
     Local,
     Remote,
-}
-
-impl Default for BackendMode {
-    fn default() -> Self {
-        BackendMode::Local
-    }
 }
 
 fn default_access_mode() -> String {

@@ -882,7 +882,36 @@ pub(crate) async fn connect_workspace(
     };
     let codex_home = resolve_workspace_codex_home(&entry, parent_path.as_deref());
     let session = spawn_workspace_session(entry.clone(), default_bin, app, codex_home).await?;
-    state.sessions.lock().await.insert(entry.id, session);
+
+    // CRITICAL: Proper session cleanup to prevent deadlock and state corruption
+    // 1. Extract existing session while holding lock
+    // 2. Release lock before cleanup to prevent deadlock
+    // 3. Only insert new session if cleanup succeeds
+    let workspace_id = entry.id.clone();
+    let existing_session = {
+        let mut sessions = state.sessions.lock().await;
+        sessions.insert(workspace_id.clone(), session)
+    };
+
+    // Cleanup happens OUTSIDE the lock to prevent deadlock
+    if let Some(old_session) = existing_session {
+        let mut child = old_session.child.lock().await;
+        match child.kill().await {
+            Ok(_) => {
+                println!("Cleaned up previous session for workspace: {}", workspace_id);
+            }
+            Err(e) => {
+                eprintln!("Failed to kill previous session for workspace {}: {}", workspace_id, e);
+                // CRITICAL: Return error instead of proceeding to prevent state corruption
+                return Err(format!(
+                    "Failed to clean up previous session for workspace {}: {}. \
+                    Please restart the application and try again.",
+                    workspace_id, e
+                ));
+            }
+        }
+    }
+
     Ok(())
 }
 

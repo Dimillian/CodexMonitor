@@ -52,3 +52,16 @@ button:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 12px 18px rgba(0, 0, 0, 0.2);
 }
+
+/* Focus indicators for keyboard navigation */
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 2px;
+}
+
+/* Hide default outline for mouse users */
+button:focus:not(:focus-visible) {
+  outline: none;
+}

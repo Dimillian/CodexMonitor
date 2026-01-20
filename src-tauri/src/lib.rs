@@ -1,3 +1,5 @@
+#![recursion_limit = "512"]
+
 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
@@ -5,6 +7,11 @@ mod backend;
 mod codex;
 mod codex_home;
 mod codex_config;
+// Infrastructure modules - public for documentation examples and external use
+pub mod error;
+pub mod metrics;
+pub mod retry;
+pub mod validation;
 #[cfg(not(target_os = "windows"))]
 #[path = "dictation.rs"]
 mod dictation;
@@ -214,7 +221,7 @@ pub fn run() {
             }
         })
         .setup(|app| {
-            let state = state::AppState::load(&app.handle());
+            let state = state::AppState::load(app.handle());
             app.manage(state);
             #[cfg(desktop)]
             app.handle()

@@ -15,7 +15,7 @@
   --text-muted: rgba(255, 255, 255, 0.7);
   --text-subtle: rgba(255, 255, 255, 0.6);
   --text-faint: rgba(255, 255, 255, 0.5);
-  --text-fainter: rgba(255, 255, 255, 0.45);
+  --text-fainter: rgba(255, 255, 255, 0.5);
   --text-dim: rgba(255, 255, 255, 0.35);
   --surface-sidebar: rgba(18, 18, 18, 0.35);
   --surface-topbar: rgba(10, 14, 20, 0.45);
@@ -191,7 +191,7 @@
     --text-muted: rgba(17, 20, 28, 0.7);
     --text-subtle: rgba(17, 20, 28, 0.6);
     --text-faint: rgba(17, 20, 28, 0.5);
-    --text-fainter: rgba(17, 20, 28, 0.45);
+    --text-fainter: rgba(17, 20, 28, 0.5);
     --text-dim: rgba(17, 20, 28, 0.35);
     --surface-sidebar: rgba(246, 247, 250, 0.82);
     --surface-topbar: rgba(250, 251, 253, 0.9);

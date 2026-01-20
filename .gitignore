@@ -26,3 +26,5 @@ dist-ssr
 CodexMonitor.zip
 .codex-worktrees/
 .codexmonitor/
+.ralph/
+.spec/

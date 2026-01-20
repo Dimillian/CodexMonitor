@@ -60,7 +60,7 @@ async fn request_microphone_permission() -> Result<bool, String> {
     match status {
         AVAuthorizationStatus::Authorized => Ok(true),
         AVAuthorizationStatus::Denied | AVAuthorizationStatus::Restricted => Ok(false),
-        AVAuthorizationStatus::NotDetermined | _ => {
+        _ => {
             // Trigger the permission request (this shows the system dialog)
             // We do this in a sync context to avoid RcBlock Send issues
             trigger_microphone_permission_request()?;
@@ -274,7 +274,7 @@ async fn clear_processing_cancel(
     if dictation
         .processing_cancel
         .as_ref()
-        .map_or(false, |flag| Arc::ptr_eq(flag, cancel_flag))
+        .is_some_and(|flag| Arc::ptr_eq(flag, cancel_flag))
     {
         dictation.processing_cancel = None;
         return true;

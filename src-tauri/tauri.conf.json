@@ -22,7 +22,7 @@
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
         "transparent": true,
-        "devtools": true,
+        "devtools": false,
         "windowEffects": {
           "effects": [
             "hudWindow"
@@ -33,7 +33,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'"
     }
   },
   "bundle": {
