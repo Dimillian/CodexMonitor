@@ -102,7 +102,6 @@ import {
   subscribeMenuNewWorktreeAgent,
   subscribeMenuOpenSettings,
   subscribeUpdaterCheck,
-  type MenuEventPayload,
 } from "./services/events";
 import type {
   AccessMode,
@@ -362,7 +361,6 @@ function MainApp() {
   const gitStatusRefreshTimeoutRef = useRef<number | null>(null);
   const activeWorkspaceIdRef = useRef<string | null>(activeWorkspace?.id ?? null);
   const activeWorkspaceRef = useRef(activeWorkspace);
-  const lastMenuEventIdRef = useRef<number | null>(null);
   useEffect(() => {
     activeWorkspaceIdRef.current = activeWorkspace?.id ?? null;
   }, [activeWorkspace?.id]);
@@ -1213,55 +1211,32 @@ function MainApp() {
     [],
   );
 
-  const shouldHandleMenuEvent = useCallback((payload: MenuEventPayload) => {
-    if (lastMenuEventIdRef.current === payload.id) {
-      return false;
-    }
-    lastMenuEventIdRef.current = payload.id;
-    return true;
-  }, []);
-
-  useTauriEvent(subscribeMenuNewAgent, (payload: MenuEventPayload) => {
-    if (!shouldHandleMenuEvent(payload)) {
-      return;
-    }
+  useTauriEvent(subscribeMenuNewAgent, () => {
     const workspace = activeWorkspaceRef.current;
     if (workspace) {
       void handleAddAgent(workspace);
     }
   });
 
-  useTauriEvent(subscribeMenuNewWorktreeAgent, (payload: MenuEventPayload) => {
-    if (!shouldHandleMenuEvent(payload)) {
-      return;
-    }
+  useTauriEvent(subscribeMenuNewWorktreeAgent, () => {
     const workspace = baseWorkspaceRef.current;
     if (workspace) {
       void handleAddWorktreeAgent(workspace);
     }
   });
 
-  useTauriEvent(subscribeMenuNewCloneAgent, (payload: MenuEventPayload) => {
-    if (!shouldHandleMenuEvent(payload)) {
-      return;
-    }
+  useTauriEvent(subscribeMenuNewCloneAgent, () => {
     const workspace = baseWorkspaceRef.current;
     if (workspace) {
       void handleAddCloneAgent(workspace);
     }
   });
 
-  useTauriEvent(subscribeMenuAddWorkspace, (payload: MenuEventPayload) => {
-    if (!shouldHandleMenuEvent(payload)) {
-      return;
-    }
+  useTauriEvent(subscribeMenuAddWorkspace, () => {
     void handleAddWorkspace();
   });
 
-  useTauriEvent(subscribeMenuOpenSettings, (payload: MenuEventPayload) => {
-    if (!shouldHandleMenuEvent(payload)) {
-      return;
-    }
+  useTauriEvent(subscribeMenuOpenSettings, () => {
     handleOpenSettings();
   });
 

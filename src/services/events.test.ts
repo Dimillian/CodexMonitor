@@ -57,9 +57,7 @@ describe("events subscriptions", () => {
         }),
     );
 
-    const cleanup = subscribeMenuNewAgent(() => {
-      // Ensure callback signature accepts payload without using it.
-    });
+    const cleanup = subscribeMenuNewAgent(() => {});
     cleanup();
 
     resolveListener(unlisten);

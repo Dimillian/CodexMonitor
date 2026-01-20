@@ -1,7 +1,5 @@
 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
-use serde::Serialize;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 mod backend;
 mod codex;
@@ -346,20 +344,10 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-#[derive(Clone, Serialize)]
-struct MenuEventPayload {
-    id: u64,
-}
-
-static MENU_EVENT_COUNTER: AtomicU64 = AtomicU64::new(1);
-
 fn emit_menu_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: &str) {
-    let payload = MenuEventPayload {
-        id: MENU_EVENT_COUNTER.fetch_add(1, Ordering::Relaxed),
-    };
     if let Some(window) = app.get_webview_window("main") {
-        let _ = window.emit(event, payload);
+        let _ = window.emit(event, ());
     } else {
-        let _ = app.emit(event, payload);
+        let _ = app.emit(event, ());
     }
 }
