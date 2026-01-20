@@ -47,6 +47,7 @@ import { useGitHubPullRequestDiffs } from "./features/git/hooks/useGitHubPullReq
 import { useGitHubPullRequestComments } from "./features/git/hooks/useGitHubPullRequestComments";
 import { useGitRemote } from "./features/git/hooks/useGitRemote";
 import { useGitRepoScan } from "./features/git/hooks/useGitRepoScan";
+import { usePullRequestComposer } from "./features/git/hooks/usePullRequestComposer";
 import { useGitActions } from "./features/git/hooks/useGitActions";
 import { useModels } from "./features/models/hooks/useModels";
 import { useCollaborationModes } from "./features/collaboration/hooks/useCollaborationModes";
@@ -924,6 +925,7 @@ function MainApp() {
     [activeWorkspace, connectWorkspace, sendUserMessageToThread, startThreadForWorkspace],
   );
 
+
   const handleCreatePrompt = useCallback(
     async (data: {
       scope: "workspace" | "global";
@@ -1134,16 +1136,34 @@ function MainApp() {
     pendingDiffScrollRef.current = false;
   }, [activeDiffs, centerMode, selectedDiffPath]);
 
-  function handleSelectPullRequest(pullRequest: GitHubPullRequest) {
-    setSelectedPullRequest(pullRequest);
-    setDiffSource("pr");
-    setSelectedDiffPath(null);
-    setCenterMode("diff");
-    setGitPanelMode("prs");
-    if (isCompact) {
-      setActiveTab("git");
-    }
-  }
+  const {
+    handleSelectPullRequest,
+    resetPullRequestSelection,
+    composerSendLabel,
+    handleComposerSend,
+    handleComposerQueue,
+  } = usePullRequestComposer({
+    activeWorkspace,
+    selectedPullRequest,
+    gitPullRequestDiffs,
+    filePanelMode,
+    gitPanelMode,
+    centerMode,
+    isCompact,
+    setSelectedPullRequest,
+    setDiffSource,
+    setSelectedDiffPath,
+    setCenterMode,
+    setGitPanelMode,
+    setPrefillDraft,
+    setActiveTab,
+    connectWorkspace,
+    startThreadForWorkspace,
+    sendUserMessageToThread,
+    clearActiveImages,
+    handleSend,
+    queueMessage,
+  });
 
   function handleGitPanelModeChange(
     mode: "diff" | "log" | "issues" | "prs",
@@ -1295,9 +1315,13 @@ function MainApp() {
     onOpenDebug: handleDebugClick,
     showDebugButton,
     onAddWorkspace: handleAddWorkspace,
-    onSelectHome: selectHome,
+    onSelectHome: () => {
+      resetPullRequestSelection();
+      selectHome();
+    },
     onSelectWorkspace: (workspaceId) => {
       exitDiffView();
+      resetPullRequestSelection();
       selectWorkspace(workspaceId);
     },
     onConnectWorkspace: async (workspace) => {
@@ -1321,6 +1345,7 @@ function MainApp() {
     },
     onSelectThread: (workspaceId, threadId) => {
       exitDiffView();
+      resetPullRequestSelection();
       selectWorkspace(workspaceId);
       setActiveThreadId(threadId, workspaceId);
     },
@@ -1478,8 +1503,8 @@ function MainApp() {
     onMovePrompt: handleMovePrompt,
     onRevealWorkspacePrompts: handleRevealWorkspacePrompts,
     onRevealGeneralPrompts: handleRevealGeneralPrompts,
-    onSend: handleSend,
-    onQueue: queueMessage,
+    onSend: handleComposerSend,
+    onQueue: handleComposerQueue,
     onStop: interruptTurn,
     canStop: canInterrupt,
     isReviewing,
@@ -1546,6 +1571,7 @@ function MainApp() {
     onDismissDictationError: clearDictationError,
     dictationHint,
     onDismissDictationHint: clearDictationHint,
+    composerSendLabel,
     showComposer,
     plan: activePlan,
     debugEntries,

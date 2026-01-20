@@ -280,6 +280,7 @@ type LayoutNodesOptions = {
   dictationHint: string | null;
   onDismissDictationHint: () => void;
   showComposer: boolean;
+  composerSendLabel?: string;
   plan: TurnPlan | null;
   debugEntries: DebugEntry[];
   debugOpen: boolean;
@@ -389,7 +390,10 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       disabled={options.isReviewing}
       contextUsage={options.activeTokenUsage}
       queuedMessages={options.activeQueue}
-      sendLabel={options.isProcessing && !options.steerEnabled ? "Queue" : "Send"}
+      sendLabel={
+        options.composerSendLabel ??
+        (options.isProcessing && !options.steerEnabled ? "Queue" : "Send")
+      }
       steerEnabled={options.steerEnabled}
       isProcessing={options.isProcessing}
       draftText={options.draftText}
