@@ -15,6 +15,7 @@ use crate::backend::app_server::{
 };
 use crate::codex_home::{resolve_default_codex_home, resolve_workspace_codex_home};
 use crate::event_sink::TauriEventSink;
+use crate::remote_backend;
 use crate::rules;
 use crate::state::AppState;
 use crate::types::WorkspaceEntry;
@@ -133,7 +134,18 @@ pub(crate) async fn codex_doctor(
 pub(crate) async fn start_thread(
     workspace_id: String,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "start_thread",
+            json!({ "workspaceId": workspace_id }),
+        )
+        .await;
+    }
+
     let sessions = state.sessions.lock().await;
     let session = sessions
         .get(&workspace_id)
@@ -150,7 +162,18 @@ pub(crate) async fn resume_thread(
     workspace_id: String,
     thread_id: String,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "resume_thread",
+            json!({ "workspaceId": workspace_id, "threadId": thread_id }),
+        )
+        .await;
+    }
+
     let sessions = state.sessions.lock().await;
     let session = sessions
         .get(&workspace_id)
@@ -167,7 +190,18 @@ pub(crate) async fn list_threads(
     cursor: Option<String>,
     limit: Option<u32>,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "list_threads",
+            json!({ "workspaceId": workspace_id, "cursor": cursor, "limit": limit }),
+        )
+        .await;
+    }
+
     let sessions = state.sessions.lock().await;
     let session = sessions
         .get(&workspace_id)
@@ -184,7 +218,18 @@ pub(crate) async fn archive_thread(
     workspace_id: String,
     thread_id: String,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "archive_thread",
+            json!({ "workspaceId": workspace_id, "threadId": thread_id }),
+        )
+        .await;
+    }
+
     let sessions = state.sessions.lock().await;
     let session = sessions
         .get(&workspace_id)
@@ -206,7 +251,27 @@ pub(crate) async fn send_user_message(
     images: Option<Vec<String>>,
     collaboration_mode: Option<Value>,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "send_user_message",
+            json!({
+                "workspaceId": workspace_id,
+                "threadId": thread_id,
+                "text": text,
+                "model": model,
+                "effort": effort,
+                "accessMode": access_mode,
+                "images": images,
+                "collaborationMode": collaboration_mode,
+            }),
+        )
+        .await;
+    }
+
     let sessions = state.sessions.lock().await;
     let session = sessions
         .get(&workspace_id)
@@ -274,7 +339,18 @@ pub(crate) async fn send_user_message(
 pub(crate) async fn collaboration_mode_list(
     workspace_id: String,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "collaboration_mode_list",
+            json!({ "workspaceId": workspace_id }),
+        )
+        .await;
+    }
+
     let sessions = state.sessions.lock().await;
     let session = sessions
         .get(&workspace_id)
@@ -290,7 +366,18 @@ pub(crate) async fn turn_interrupt(
     thread_id: String,
     turn_id: String,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "turn_interrupt",
+            json!({ "workspaceId": workspace_id, "threadId": thread_id, "turnId": turn_id }),
+        )
+        .await;
+    }
+
     let sessions = state.sessions.lock().await;
     let session = sessions
         .get(&workspace_id)
@@ -309,7 +396,23 @@ pub(crate) async fn start_review(
     target: Value,
     delivery: Option<String>,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "start_review",
+            json!({
+                "workspaceId": workspace_id,
+                "threadId": thread_id,
+                "target": target,
+                "delivery": delivery,
+            }),
+        )
+        .await;
+    }
+
     let sessions = state.sessions.lock().await;
     let session = sessions
         .get(&workspace_id)
@@ -329,7 +432,18 @@ pub(crate) async fn start_review(
 pub(crate) async fn model_list(
     workspace_id: String,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "model_list",
+            json!({ "workspaceId": workspace_id }),
+        )
+        .await;
+    }
+
     let sessions = state.sessions.lock().await;
     let session = sessions
         .get(&workspace_id)
@@ -342,7 +456,18 @@ pub(crate) async fn model_list(
 pub(crate) async fn account_rate_limits(
     workspace_id: String,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "account_rate_limits",
+            json!({ "workspaceId": workspace_id }),
+        )
+        .await;
+    }
+
     let sessions = state.sessions.lock().await;
     let session = sessions
         .get(&workspace_id)
@@ -356,7 +481,18 @@ pub(crate) async fn account_rate_limits(
 pub(crate) async fn skills_list(
     workspace_id: String,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "skills_list",
+            json!({ "workspaceId": workspace_id }),
+        )
+        .await;
+    }
+
     let sessions = state.sessions.lock().await;
     let session = sessions
         .get(&workspace_id)
@@ -373,7 +509,19 @@ pub(crate) async fn respond_to_server_request(
     request_id: u64,
     result: Value,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<(), String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        remote_backend::call_remote(
+            &*state,
+            app,
+            "respond_to_server_request",
+            json!({ "workspaceId": workspace_id, "requestId": request_id, "result": result }),
+        )
+        .await?;
+        return Ok(());
+    }
+
     let sessions = state.sessions.lock().await;
     let session = sessions
         .get(&workspace_id)

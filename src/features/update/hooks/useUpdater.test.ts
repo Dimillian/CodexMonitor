@@ -63,6 +63,24 @@ describe("useUpdater", () => {
     expect(result.current.state.stage).toBe("idle");
   });
 
+  it("announces when no update is available for manual checks", async () => {
+    vi.useFakeTimers();
+    checkMock.mockResolvedValue(null);
+    const { result } = renderHook(() => useUpdater({}));
+
+    await act(async () => {
+      await result.current.checkForUpdates({ announceNoUpdate: true });
+    });
+
+    expect(result.current.state.stage).toBe("latest");
+
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(result.current.state.stage).toBe("idle");
+  });
+
   it("downloads and restarts when update is available", async () => {
     const close = vi.fn();
     const downloadAndInstall = vi.fn(async (onEvent) => {

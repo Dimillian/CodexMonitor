@@ -1,5 +1,5 @@
 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 mod backend;
 mod codex;
@@ -16,6 +16,7 @@ mod git;
 mod git_utils;
 mod local_usage;
 mod prompts;
+mod remote_backend;
 mod rules;
 mod settings;
 mod state;
@@ -42,12 +43,16 @@ pub fn run() {
             let app_name = handle.package_info().name.clone();
             let about_item = MenuItemBuilder::with_id("about", format!("About {app_name}"))
                 .build(handle)?;
+            let check_updates_item =
+                MenuItemBuilder::with_id("check_for_updates", "Check for Updates...")
+                    .build(handle)?;
             let app_menu = Submenu::with_items(
                 handle,
                 app_name.clone(),
                 true,
                 &[
                     &about_item,
+                    &check_updates_item,
                     &PredefinedMenuItem::separator(handle)?,
                     &PredefinedMenuItem::services(handle, None)?,
                     &PredefinedMenuItem::separator(handle)?,
@@ -185,6 +190,9 @@ pub fn run() {
                     .inner_size(360.0, 240.0)
                     .center()
                     .build();
+                }
+                "check_for_updates" => {
+                    let _ = app.emit("updater-check", ());
                 }
                 "file_close_window" | "window_close" => {
                     if let Some(window) = app.get_webview_window("main") {

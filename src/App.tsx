@@ -93,6 +93,7 @@ import { playNotificationSound } from "./utils/notificationSounds";
 import {
   pickWorkspacePath,
 } from "./services/tauri";
+import { subscribeUpdaterCheck } from "./services/events";
 import type {
   AccessMode,
   GitHubPullRequest,
@@ -266,9 +267,39 @@ function MainApp() {
 
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const updater = useUpdater({ onDebug: addDebugEntry });
+  const {
+    state: updaterState,
+    startUpdate,
+    checkForUpdates,
+    dismiss: dismissUpdate,
+  } = useUpdater({ onDebug: addDebugEntry });
   const isWindowFocused = useWindowFocusState();
   const nextTestSoundIsError = useRef(false);
+
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    subscribeUpdaterCheck(() => {
+      void checkForUpdates({ announceNoUpdate: true });
+    })
+      .then((handler) => {
+        unlisten = handler;
+      })
+      .catch((error) => {
+        addDebugEntry({
+          id: `${Date.now()}-client-updater-menu-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "updater/menu-error",
+          payload: error instanceof Error ? error.message : String(error),
+        });
+      });
+
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, [addDebugEntry, checkForUpdates]);
 
   useAgentSoundNotifications({
     enabled: appSettings.notificationSoundsEnabled,
@@ -1331,9 +1362,9 @@ function MainApp() {
       }
       void listThreadsForWorkspace(workspace);
     },
-    updaterState: updater.state,
-    onUpdate: updater.startUpdate,
-    onDismissUpdate: updater.dismiss,
+    updaterState,
+    onUpdate: startUpdate,
+    onDismissUpdate: dismissUpdate,
     latestAgentRuns,
     isLoadingLatestAgents,
     localUsageSnapshot,

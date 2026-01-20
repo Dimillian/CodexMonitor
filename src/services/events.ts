@@ -40,3 +40,11 @@ export async function subscribeTerminalOutput(
     onEvent(event.payload);
   });
 }
+
+export async function subscribeUpdaterCheck(
+  onEvent: () => void,
+): Promise<Unsubscribe> {
+  return listen("updater-check", () => {
+    onEvent();
+  });
+}

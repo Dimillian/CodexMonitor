@@ -11,6 +11,10 @@ vi.mock("@tauri-apps/api/window", () => ({
   }),
 }));
 
+vi.mock("@tauri-apps/api/core", () => ({
+  convertFileSrc: (path: string) => `tauri://${path}`,
+}));
+
 type HarnessProps = {
   activeThreadId: string | null;
   activeWorkspaceId: string | null;

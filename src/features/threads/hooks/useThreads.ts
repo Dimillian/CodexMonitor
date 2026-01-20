@@ -928,7 +928,6 @@ export function useThreads({
           return;
         }
         markProcessing(threadId, true);
-        dispatch({ type: "clearThreadPlan", threadId });
         if (turnId) {
           dispatch({ type: "setActiveTurnId", threadId, turnId });
         }
