@@ -286,6 +286,8 @@ pub fn run() {
             workspaces::add_worktree,
             workspaces::remove_workspace,
             workspaces::remove_worktree,
+            workspaces::rename_worktree,
+            workspaces::rename_worktree_upstream,
             workspaces::apply_worktree_changes,
             workspaces::update_workspace_settings,
             workspaces::update_workspace_codex_bin,

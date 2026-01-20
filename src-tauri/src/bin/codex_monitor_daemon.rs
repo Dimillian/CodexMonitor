@@ -395,6 +395,223 @@ impl DaemonState {
         Ok(())
     }
 
+    async fn rename_worktree(
+        &self,
+        id: String,
+        branch: String,
+        client_version: String,
+    ) -> Result<WorkspaceInfo, String> {
+        let trimmed = branch.trim();
+        if trimmed.is_empty() {
+            return Err("Branch name is required.".to_string());
+        }
+
+        let (entry, parent) = {
+            let workspaces = self.workspaces.lock().await;
+            let entry = workspaces.get(&id).cloned().ok_or("workspace not found")?;
+            if !entry.kind.is_worktree() {
+                return Err("Not a worktree workspace.".to_string());
+            }
+            let parent_id = entry.parent_id.clone().ok_or("worktree parent not found")?;
+            let parent = workspaces
+                .get(&parent_id)
+                .cloned()
+                .ok_or("worktree parent not found")?;
+            (entry, parent)
+        };
+
+        let old_branch = entry
+            .worktree
+            .as_ref()
+            .map(|worktree| worktree.branch.clone())
+            .ok_or("worktree metadata missing")?;
+        if old_branch == trimmed {
+            return Err("Branch name is unchanged.".to_string());
+        }
+
+        let parent_root = PathBuf::from(&parent.path);
+
+        let (final_branch, _was_suffixed) =
+            unique_branch_name(&parent_root, trimmed, None).await?;
+        if final_branch == old_branch {
+            return Err("Branch name is unchanged.".to_string());
+        }
+
+        run_git_command(
+            &parent_root,
+            &["branch", "-m", &old_branch, &final_branch],
+        )
+        .await?;
+
+        let worktree_root = self.data_dir.join("worktrees").join(&parent.id);
+        std::fs::create_dir_all(&worktree_root)
+            .map_err(|e| format!("Failed to create worktree directory: {e}"))?;
+
+        let safe_name = sanitize_worktree_name(&final_branch);
+        let current_path = PathBuf::from(&entry.path);
+        let next_path =
+            unique_worktree_path_for_rename(&worktree_root, &safe_name, &current_path)?;
+        let next_path_string = next_path.to_string_lossy().to_string();
+        if next_path_string != entry.path {
+            if let Err(error) = run_git_command(
+                &parent_root,
+                &["worktree", "move", &entry.path, &next_path_string],
+            )
+            .await
+            {
+                let _ = run_git_command(
+                    &parent_root,
+                    &["branch", "-m", &final_branch, &old_branch],
+                )
+                .await;
+                return Err(error);
+            }
+        }
+
+        let (entry_snapshot, list) = {
+            let mut workspaces = self.workspaces.lock().await;
+            let entry = match workspaces.get_mut(&id) {
+                Some(entry) => entry,
+                None => return Err("workspace not found".to_string()),
+            };
+            entry.name = final_branch.clone();
+            entry.path = next_path_string.clone();
+            match entry.worktree.as_mut() {
+                Some(worktree) => {
+                    worktree.branch = final_branch.clone();
+                }
+                None => {
+                    entry.worktree = Some(WorktreeInfo {
+                        branch: final_branch.clone(),
+                    });
+                }
+            }
+            let snapshot = entry.clone();
+            let list: Vec<_> = workspaces.values().cloned().collect();
+            (snapshot, list)
+        };
+        write_workspaces(&self.storage_path, &list)?;
+
+        let was_connected = self.sessions.lock().await.contains_key(&entry_snapshot.id);
+        if was_connected {
+            self.kill_session(&entry_snapshot.id).await;
+            let default_bin = {
+                let settings = self.app_settings.lock().await;
+                settings.codex_bin.clone()
+            };
+            let codex_home =
+                codex_home::resolve_workspace_codex_home(&entry_snapshot, Some(&parent.path));
+            let session = spawn_workspace_session(
+                entry_snapshot.clone(),
+                default_bin,
+                client_version,
+                self.event_sink.clone(),
+                codex_home,
+            )
+            .await?;
+            self.sessions
+                .lock()
+                .await
+                .insert(entry_snapshot.id.clone(), session);
+        }
+
+        let connected = self.sessions.lock().await.contains_key(&entry_snapshot.id);
+        Ok(WorkspaceInfo {
+            id: entry_snapshot.id,
+            name: entry_snapshot.name,
+            path: entry_snapshot.path,
+            connected,
+            codex_bin: entry_snapshot.codex_bin,
+            kind: entry_snapshot.kind,
+            parent_id: entry_snapshot.parent_id,
+            worktree: entry_snapshot.worktree,
+            settings: entry_snapshot.settings,
+        })
+    }
+
+    async fn rename_worktree_upstream(
+        &self,
+        id: String,
+        old_branch: String,
+        new_branch: String,
+    ) -> Result<(), String> {
+        let old_branch = old_branch.trim();
+        let new_branch = new_branch.trim();
+        if old_branch.is_empty() || new_branch.is_empty() {
+            return Err("Branch name is required.".to_string());
+        }
+        if old_branch == new_branch {
+            return Err("Branch name is unchanged.".to_string());
+        }
+
+        let (_entry, parent) = {
+            let workspaces = self.workspaces.lock().await;
+            let entry = workspaces.get(&id).cloned().ok_or("workspace not found")?;
+            if !entry.kind.is_worktree() {
+                return Err("Not a worktree workspace.".to_string());
+            }
+            let parent_id = entry.parent_id.clone().ok_or("worktree parent not found")?;
+            let parent = workspaces
+                .get(&parent_id)
+                .cloned()
+                .ok_or("worktree parent not found")?;
+            (entry, parent)
+        };
+
+        let parent_root = PathBuf::from(&parent.path);
+        if !git_branch_exists(&parent_root, new_branch).await? {
+            return Err("Local branch not found.".to_string());
+        }
+
+        let remote_for_old = git_find_remote_for_branch(&parent_root, old_branch).await?;
+        let remote_name = match remote_for_old.as_ref() {
+            Some(remote) => remote.clone(),
+            None => {
+                if git_remote_exists(&parent_root, "origin").await? {
+                    "origin".to_string()
+                } else {
+                    return Err("No git remote configured for this worktree.".to_string());
+                }
+            }
+        };
+
+        if git_remote_branch_exists_live(&parent_root, &remote_name, new_branch).await? {
+            return Err("Remote branch already exists.".to_string());
+        }
+
+        if remote_for_old.is_some() {
+            run_git_command(
+                &parent_root,
+                &[
+                    "push",
+                    &remote_name,
+                    &format!("{new_branch}:{new_branch}"),
+                ],
+            )
+            .await?;
+            run_git_command(
+                &parent_root,
+                &["push", &remote_name, &format!(":{old_branch}")],
+            )
+            .await?;
+        } else {
+            run_git_command(&parent_root, &["push", &remote_name, new_branch]).await?;
+        }
+
+        run_git_command(
+            &parent_root,
+            &[
+                "branch",
+                "--set-upstream-to",
+                &format!("{remote_name}/{new_branch}"),
+                new_branch,
+            ],
+        )
+        .await?;
+
+        Ok(())
+    }
+
     async fn update_workspace_settings(
         &self,
         id: String,
@@ -855,6 +1072,50 @@ async fn git_branch_exists(repo_path: &PathBuf, branch: &str) -> Result<bool, St
     Ok(status.success())
 }
 
+async fn git_remote_exists(repo_path: &PathBuf, remote: &str) -> Result<bool, String> {
+    let status = Command::new("git")
+        .args(["remote", "get-url", remote])
+        .current_dir(repo_path)
+        .status()
+        .await
+        .map_err(|e| format!("Failed to run git: {e}"))?;
+    Ok(status.success())
+}
+
+async fn git_remote_branch_exists_live(
+    repo_path: &PathBuf,
+    remote: &str,
+    branch: &str,
+) -> Result<bool, String> {
+    let output = Command::new("git")
+        .args([
+            "ls-remote",
+            "--heads",
+            remote,
+            &format!("refs/heads/{branch}"),
+        ])
+        .current_dir(repo_path)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run git: {e}"))?;
+    if output.status.success() {
+        Ok(!String::from_utf8_lossy(&output.stdout).trim().is_empty())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let detail = if stderr.trim().is_empty() {
+            stdout.trim()
+        } else {
+            stderr.trim()
+        };
+        if detail.is_empty() {
+            Err("Git command failed.".to_string())
+        } else {
+            Err(detail.to_string())
+        }
+    }
+}
+
 async fn git_remote_branch_exists(repo_path: &PathBuf, remote: &str, branch: &str) -> Result<bool, String> {
     let status = Command::new("git")
         .args([
@@ -869,6 +1130,37 @@ async fn git_remote_branch_exists(repo_path: &PathBuf, remote: &str, branch: &st
     Ok(status.success())
 }
 
+async fn unique_branch_name(
+    repo_path: &PathBuf,
+    desired: &str,
+    remote: Option<&str>,
+) -> Result<(String, bool), String> {
+    let mut candidate = desired.to_string();
+    if desired.is_empty() {
+        return Ok((candidate, false));
+    }
+    if !git_branch_exists(repo_path, &candidate).await?
+        && match remote {
+            Some(remote) => !git_remote_branch_exists_live(repo_path, remote, &candidate).await?,
+            None => true,
+        }
+    {
+        return Ok((candidate, false));
+    }
+    for index in 2..1000 {
+        candidate = format!("{desired}-{index}");
+        let local_exists = git_branch_exists(repo_path, &candidate).await?;
+        let remote_exists = match remote {
+            Some(remote) => git_remote_branch_exists_live(repo_path, remote, &candidate).await?,
+            None => false,
+        };
+        if !local_exists && !remote_exists {
+            return Ok((candidate, true));
+        }
+    }
+    Err("Unable to find an available branch name.".to_string())
+}
+
 async fn git_list_remotes(repo_path: &PathBuf) -> Result<Vec<String>, String> {
     let output = run_git_command(repo_path, &["remote"]).await?;
     Ok(output
@@ -877,6 +1169,28 @@ async fn git_list_remotes(repo_path: &PathBuf) -> Result<Vec<String>, String> {
         .filter(|line| !line.is_empty())
         .map(|line| line.to_string())
         .collect())
+}
+
+async fn git_find_remote_for_branch(
+    repo_path: &PathBuf,
+    branch: &str,
+) -> Result<Option<String>, String> {
+    if git_remote_exists(repo_path, "origin").await?
+        && git_remote_branch_exists_live(repo_path, "origin", branch).await?
+    {
+        return Ok(Some("origin".to_string()));
+    }
+
+    for remote in git_list_remotes(repo_path).await? {
+        if remote == "origin" {
+            continue;
+        }
+        if git_remote_branch_exists_live(repo_path, &remote, branch).await? {
+            return Ok(Some(remote));
+        }
+    }
+
+    Ok(None)
 }
 
 async fn git_find_remote_tracking_branch(repo_path: &PathBuf, branch: &str) -> Result<Option<String>, String> {
@@ -926,6 +1240,30 @@ fn unique_worktree_path(base_dir: &PathBuf, name: &str) -> Result<PathBuf, Strin
         }
     }
 
+    Err(format!(
+        "Failed to find an available worktree path under {}.",
+        base_dir.display()
+    ))
+}
+
+fn unique_worktree_path_for_rename(
+    base_dir: &PathBuf,
+    name: &str,
+    current_path: &PathBuf,
+) -> Result<PathBuf, String> {
+    let candidate = base_dir.join(name);
+    if candidate == *current_path {
+        return Ok(candidate);
+    }
+    if !candidate.exists() {
+        return Ok(candidate);
+    }
+    for index in 2..1000 {
+        let next = base_dir.join(format!("{name}-{index}"));
+        if next == *current_path || !next.exists() {
+            return Ok(next);
+        }
+    }
     Err(format!(
         "Failed to find an available worktree path under {}.",
         base_dir.display()
@@ -1153,6 +1491,21 @@ async fn handle_rpc_request(
         "remove_worktree" => {
             let id = parse_string(&params, "id")?;
             state.remove_worktree(id).await?;
+            Ok(json!({ "ok": true }))
+        }
+        "rename_worktree" => {
+            let id = parse_string(&params, "id")?;
+            let branch = parse_string(&params, "branch")?;
+            let workspace = state.rename_worktree(id, branch, client_version).await?;
+            serde_json::to_value(workspace).map_err(|err| err.to_string())
+        }
+        "rename_worktree_upstream" => {
+            let id = parse_string(&params, "id")?;
+            let old_branch = parse_string(&params, "oldBranch")?;
+            let new_branch = parse_string(&params, "newBranch")?;
+            state
+                .rename_worktree_upstream(id, old_branch, new_branch)
+                .await?;
             Ok(json!({ "ok": true }))
         }
         "update_workspace_settings" => {
