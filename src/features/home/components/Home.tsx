@@ -1,5 +1,6 @@
 import { RefreshCw } from "lucide-react";
 import type { LocalUsageSnapshot } from "../../../types";
+import { isAppleMobileDevice } from "../../../utils/platform";
 import { formatRelativeTime } from "../../../utils/time";
 
 type LatestAgentRun = {
@@ -15,6 +16,10 @@ type LatestAgentRun = {
 type HomeProps = {
   onOpenProject: () => void;
   onAddWorkspace: () => void;
+  openProjectLabel?: string;
+  addWorkspaceLabel?: string;
+  noticeTitle?: string | null;
+  noticeSubtitle?: string | null;
   latestAgentRuns: LatestAgentRun[];
   isLoadingLatestAgents: boolean;
   localUsageSnapshot: LocalUsageSnapshot | null;
@@ -27,6 +32,10 @@ type HomeProps = {
 export function Home({
   onOpenProject,
   onAddWorkspace,
+  openProjectLabel,
+  addWorkspaceLabel,
+  noticeTitle,
+  noticeSubtitle,
   latestAgentRuns,
   isLoadingLatestAgents,
   localUsageSnapshot,
@@ -91,6 +100,7 @@ export function Home({
     : null;
   const showUsageSkeleton = isLoadingLocalUsage && !localUsageSnapshot;
   const showUsageEmpty = !isLoadingLocalUsage && !localUsageSnapshot;
+  const showHomeActions = !isAppleMobileDevice();
 
   return (
     <div className="home">
@@ -100,6 +110,14 @@ export function Home({
           Orchestrate agents across your local projects.
         </div>
       </div>
+      {noticeTitle ? (
+        <div className="home-notice" role="status">
+          <div className="home-notice-title">{noticeTitle}</div>
+          {noticeSubtitle ? (
+            <div className="home-notice-subtitle">{noticeSubtitle}</div>
+          ) : null}
+        </div>
+      ) : null}
       <div className="home-latest">
         <div className="home-latest-header">
           <div className="home-latest-label">Latest agents</div>
@@ -155,28 +173,30 @@ export function Home({
           </div>
         )}
       </div>
-      <div className="home-actions">
-        <button
-          className="home-button primary"
-          onClick={onOpenProject}
-          data-tauri-drag-region="false"
-        >
-          <span className="home-icon" aria-hidden>
-            ⌘
-          </span>
-          Open Project
-        </button>
-        <button
-          className="home-button secondary"
-          onClick={onAddWorkspace}
-          data-tauri-drag-region="false"
-        >
-          <span className="home-icon" aria-hidden>
-            +
-          </span>
-          Add Workspace
-        </button>
-      </div>
+      {showHomeActions ? (
+        <div className="home-actions">
+          <button
+            className="home-button primary"
+            onClick={onOpenProject}
+            data-tauri-drag-region="false"
+          >
+            <span className="home-icon" aria-hidden>
+              ⌘
+            </span>
+            {openProjectLabel ?? "Open Project"}
+          </button>
+          <button
+            className="home-button secondary"
+            onClick={onAddWorkspace}
+            data-tauri-drag-region="false"
+          >
+            <span className="home-icon" aria-hidden>
+              +
+            </span>
+            {addWorkspaceLabel ?? "Add Workspace"}
+          </button>
+        </div>
+      ) : null}
       <div className="home-usage">
         <div className="home-section-header">
           <div className="home-section-title">Usage snapshot</div>

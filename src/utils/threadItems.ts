@@ -453,6 +453,18 @@ export function mergeThreadItems(
     }
     remoteMessageCounts.set(key, (remoteMessageCounts.get(key) ?? 0) + 1);
   });
+  const tailWindowSize = 12;
+  const remoteTailMessageCounts = new Map<string, number>();
+  remoteItems.slice(-tailWindowSize).forEach((item) => {
+    if (item.kind !== "message" || item.role !== "assistant") {
+      return;
+    }
+    const key = messageDedupKey(item);
+    if (!key) {
+      return;
+    }
+    remoteTailMessageCounts.set(key, (remoteTailMessageCounts.get(key) ?? 0) + 1);
+  });
   const merged = remoteItems.map((item) => {
     const local = localItems.find((entry) => entry.id === item.id);
     return local ? chooseRicherItem(item, local) : item;
@@ -464,6 +476,14 @@ export function mergeThreadItems(
         const count = key ? remoteMessageCounts.get(key) ?? 0 : 0;
         if (count > 0) {
           remoteMessageCounts.set(key as string, count - 1);
+          return;
+        }
+      }
+      if (item.kind === "message" && item.role === "assistant") {
+        const key = messageDedupKey(item);
+        const count = key ? remoteTailMessageCounts.get(key) ?? 0 : 0;
+        if (count > 0) {
+          remoteTailMessageCounts.set(key as string, count - 1);
           return;
         }
       }

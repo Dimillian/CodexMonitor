@@ -68,6 +68,26 @@
   --select-caret: rgba(255, 255, 255, 0.6);
   --tabbar-height: 56px;
   --ui-scale: 1;
+  --app-background: transparent;
+}
+
+.app.mobile {
+  --app-background:
+    radial-gradient(
+        1200px circle at 18% -10%,
+        rgba(100, 200, 255, 0.14),
+        transparent 55%
+      ),
+    radial-gradient(
+        1000px circle at 92% 18%,
+        rgba(255, 144, 200, 0.1),
+        transparent 52%
+      ),
+    #0b0f18;
+}
+
+:root[data-theme="light"] .app.mobile {
+  --app-background: #eef1f6;
 }
 
 :root[data-theme="dark"] {
@@ -237,6 +257,10 @@
     --select-caret: rgba(15, 23, 36, 0.45);
   }
 
+  :root:not([data-theme]) .app.mobile {
+    --app-background: #eef1f6;
+  }
+
   :root:not([data-theme]) .app.reduced-transparency {
     --surface-sidebar: rgba(240, 242, 247, 0.98);
     --surface-topbar: rgba(244, 246, 250, 0.98);
@@ -269,6 +293,51 @@
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.3);
 }
 
+.e2e-overlay {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(var(--tabbar-height, 56px) + 12px);
+  z-index: 40;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-card-strong);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px);
+}
+
+.app.reduced-transparency .e2e-overlay {
+  backdrop-filter: none;
+}
+
+.e2e-overlay-title {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-strong);
+}
+
+.e2e-overlay-step {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.e2e-overlay-error {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--status-error);
+  white-space: pre-wrap;
+}
+
+.e2e-overlay--pass {
+  border-color: rgba(120, 235, 190, 0.45);
+}
+
+.e2e-overlay--fail {
+  border-color: rgba(255, 110, 110, 0.55);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -290,7 +359,7 @@ body {
   width: calc(100vw / var(--ui-scale, 1));
   display: grid;
   grid-template-columns: var(--sidebar-width, 280px) 1fr;
-  background: transparent;
+  background: var(--app-background, transparent);
   border-radius: 0;
   overflow: hidden;
   position: relative;

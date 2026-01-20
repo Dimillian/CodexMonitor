@@ -73,6 +73,9 @@ export type AccessMode = "read-only" | "current" | "full-access";
 export type BackendMode = "local" | "remote";
 export type ThemePreference = "system" | "light" | "dark";
 
+export type CloudProvider = "local" | "nats" | "cloudkit";
+export type NatsAuthMode = "url" | "userpass" | "creds";
+
 export type AppSettings = {
   codexBin: string | null;
   backendMode: BackendMode;
@@ -95,6 +98,21 @@ export type AppSettings = {
   dictationPreferredLanguage: string | null;
   dictationHoldKey: string | null;
   workspaceGroups: WorkspaceGroup[];
+
+  runnerId: string;
+  cloudProvider: CloudProvider;
+  natsUrl: string | null;
+  natsAuthMode: NatsAuthMode;
+  natsUsername: string | null;
+  natsPassword: string | null;
+  natsCreds: string | null;
+  cloudKitContainerId: string | null;
+
+  telegramEnabled: boolean;
+  telegramBotToken: string | null;
+  telegramAllowedUserIds: number[] | null;
+  telegramDefaultChatId: number | null;
+  telegramPairingSecret: string;
 };
 
 export type CodexDoctorResult = {
@@ -107,6 +125,29 @@ export type CodexDoctorResult = {
   nodeOk: boolean;
   nodeVersion: string | null;
   nodeDetails: string | null;
+};
+
+export type NatsStatus = {
+  ok: boolean;
+  server: string | null;
+  error: string | null;
+};
+
+export type TelegramBotStatus = {
+  ok: boolean;
+  username: string | null;
+  id: number | null;
+  error: string | null;
+};
+
+export type CloudKitStatus = {
+  available: boolean;
+  status: string;
+};
+
+export type CloudKitTestResult = {
+  recordName: string;
+  durationMs: number;
 };
 
 export type ApprovalRequest = {

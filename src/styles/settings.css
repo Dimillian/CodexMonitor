@@ -144,6 +144,30 @@
   color: var(--text-subtle);
 }
 
+.settings-notice {
+  margin: 10px 0 18px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border-muted);
+  background:
+    linear-gradient(135deg, rgba(255, 175, 85, 0.14), transparent 70%),
+    var(--surface-card);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.settings-notice-title {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-strong);
+}
+
+.settings-notice-subtitle {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
 .settings-download-progress {
   display: flex;
   flex-direction: column;
@@ -193,6 +217,24 @@
 .settings-input--shortcut {
   font-family: "SF Mono", "Fira Mono", "Menlo", monospace;
   letter-spacing: 0.02em;
+}
+
+.settings-mono {
+  font-family: "SF Mono", "Fira Mono", "Menlo", monospace;
+  letter-spacing: 0.02em;
+}
+
+.settings-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-control);
+  color: var(--text-strong);
+  font-size: 12px;
+  resize: vertical;
+  min-height: 140px;
+  line-height: 1.4;
 }
 
 

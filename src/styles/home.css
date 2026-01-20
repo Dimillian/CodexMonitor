@@ -35,6 +35,29 @@
   color: var(--text-muted);
 }
 
+.home-notice {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border-muted);
+  background:
+    linear-gradient(135deg, rgba(255, 175, 85, 0.14), transparent 70%),
+    var(--surface-card);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.home-notice-title {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text-strong);
+}
+
+.home-notice-subtitle {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
 .home-latest {
   display: flex;
   flex-direction: column;

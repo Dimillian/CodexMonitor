@@ -7,6 +7,7 @@ import type {
   WorkspaceSettings,
 } from "../../../types";
 import { ask } from "@tauri-apps/plugin-dialog";
+import { isAppleMobileDevice } from "../../../utils/platform";
 import {
   addClone as addCloneService,
   addWorkspace as addWorkspaceService,
@@ -98,6 +99,16 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
   useEffect(() => {
     void refreshWorkspaces();
   }, [refreshWorkspaces]);
+
+  useEffect(() => {
+    if (!isAppleMobileDevice() || workspaces.length > 0) {
+      return;
+    }
+    const handle = window.setInterval(() => {
+      void refreshWorkspaces();
+    }, 4000);
+    return () => window.clearInterval(handle);
+  }, [refreshWorkspaces, workspaces.length]);
 
   const activeWorkspace = useMemo(
     () => workspaces.find((entry) => entry.id === activeWorkspaceId) ?? null,

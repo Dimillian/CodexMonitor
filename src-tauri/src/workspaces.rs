@@ -59,7 +59,7 @@ fn sanitize_clone_dir_name(name: &str) -> String {
     }
 }
 
-fn list_workspace_files_inner(root: &PathBuf, max_files: usize) -> Vec<String> {
+pub(crate) fn list_workspace_files_inner(root: &PathBuf, max_files: usize) -> Vec<String> {
     let mut results = Vec::new();
     let walker = WalkBuilder::new(root)
         // Allow hidden entries.

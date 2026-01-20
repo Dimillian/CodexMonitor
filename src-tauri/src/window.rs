@@ -1,4 +1,6 @@
-use tauri::{Theme, Window};
+use tauri::Window;
+#[cfg(desktop)]
+use tauri::Theme;
 
 #[cfg(test)]
 use std::sync::{Mutex, OnceLock};
@@ -47,6 +49,12 @@ fn apply_macos_window_appearance(window: &Window, theme: &str) -> Result<(), Str
     Ok(())
 }
 
+#[cfg(not(desktop))]
+pub(crate) fn apply_window_appearance(_window: &Window, _theme: &str) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(desktop)]
 pub(crate) fn apply_window_appearance(window: &Window, theme: &str) -> Result<(), String> {
     #[cfg(test)]
     if let Some(handler) = WINDOW_APPEARANCE_OVERRIDE

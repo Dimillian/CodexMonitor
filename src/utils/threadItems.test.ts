@@ -173,4 +173,25 @@ describe("threadItems", () => {
       text: "Hello",
     });
   });
+
+  it("dedupes duplicate assistant messages near the end of a thread merge", () => {
+    const remote: ConversationItem[] = [
+      { id: "u1", kind: "message", role: "user", text: "Tell me a joke" },
+      { id: "a1", kind: "message", role: "assistant", text: "One joke." },
+    ];
+    const local: ConversationItem[] = [
+      { id: "u1", kind: "message", role: "user", text: "Tell me a joke" },
+      { id: "a1-local", kind: "message", role: "assistant", text: "One joke." },
+    ];
+    const merged = mergeThreadItems(remote, local);
+    const assistantMessages = merged.filter(
+      (item) => item.kind === "message" && item.role === "assistant",
+    );
+    expect(assistantMessages).toHaveLength(1);
+    expect(assistantMessages[0]).toMatchObject({
+      kind: "message",
+      role: "assistant",
+      text: "One joke.",
+    });
+  });
 });

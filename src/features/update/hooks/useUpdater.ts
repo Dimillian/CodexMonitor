@@ -31,6 +31,11 @@ type UseUpdaterOptions = {
   onDebug?: (entry: DebugEntry) => void;
 };
 
+function isUpdaterUnsupportedError(message: string) {
+  const normalized = message.toLowerCase();
+  return normalized.includes("plugin not found") || normalized.includes("not allowed");
+}
+
 export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
   const [state, setState] = useState<UpdateState>({ stage: "idle" });
   const updateRef = useRef<Update | null>(null);
@@ -60,6 +65,17 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : JSON.stringify(error);
+      if (isUpdaterUnsupportedError(message)) {
+        onDebug?.({
+          id: `${Date.now()}-client-updater-unsupported`,
+          timestamp: Date.now(),
+          source: "client",
+          label: "updater/unsupported",
+          payload: message,
+        });
+        setState({ stage: "idle" });
+        return;
+      }
       onDebug?.({
         id: `${Date.now()}-client-updater-error`,
         timestamp: Date.now(),
@@ -130,6 +146,17 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : JSON.stringify(error);
+      if (isUpdaterUnsupportedError(message)) {
+        onDebug?.({
+          id: `${Date.now()}-client-updater-unsupported`,
+          timestamp: Date.now(),
+          source: "client",
+          label: "updater/unsupported",
+          payload: message,
+        });
+        await resetToIdle();
+        return;
+      }
       onDebug?.({
         id: `${Date.now()}-client-updater-error`,
         timestamp: Date.now(),
@@ -143,7 +170,7 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
         error: message,
       }));
     }
-  }, [checkForUpdates, onDebug]);
+  }, [checkForUpdates, onDebug, resetToIdle]);
 
   useEffect(() => {
     if (!enabled || import.meta.env.DEV || !isTauri()) {
