@@ -213,6 +213,23 @@ type LayoutNodesOptions = {
   gitDiffLoading: boolean;
   gitDiffError: string | null;
   onDiffActivePathChange?: (path: string) => void;
+  commitMessage: string;
+  commitMessageLoading: boolean;
+  commitMessageError: string | null;
+  onCommitMessageChange: (value: string) => void;
+  onGenerateCommitMessage: () => void | Promise<void>;
+  onCommit?: () => void | Promise<void>;
+  onCommitAndPush?: () => void | Promise<void>;
+  onCommitAndSync?: () => void | Promise<void>;
+  onPush?: () => void | Promise<void>;
+  onSync?: () => void | Promise<void>;
+  commitLoading?: boolean;
+  pushLoading?: boolean;
+  syncLoading?: boolean;
+  commitError?: string | null;
+  pushError?: string | null;
+  syncError?: string | null;
+  commitsAhead?: number;
   onSendPrompt: (text: string) => void | Promise<void>;
   onSendPromptToNewAgent: (text: string) => void | Promise<void>;
   onCreatePrompt: (data: {
@@ -593,6 +610,23 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         onUnstageFile={options.onUnstageGitFile}
         onRevertFile={options.onRevertGitFile}
         onRevertAllChanges={options.onRevertAllGitChanges}
+        commitMessage={options.commitMessage}
+        commitMessageLoading={options.commitMessageLoading}
+        commitMessageError={options.commitMessageError}
+        onCommitMessageChange={options.onCommitMessageChange}
+        onGenerateCommitMessage={options.onGenerateCommitMessage}
+        onCommit={options.onCommit}
+        onCommitAndPush={options.onCommitAndPush}
+        onCommitAndSync={options.onCommitAndSync}
+        onPush={options.onPush}
+        onSync={options.onSync}
+        commitLoading={options.commitLoading}
+        pushLoading={options.pushLoading}
+        syncLoading={options.syncLoading}
+        commitError={options.commitError}
+        pushError={options.pushError}
+        syncError={options.syncError}
+        commitsAhead={options.commitsAhead}
       />
     );
   }

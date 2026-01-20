@@ -227,6 +227,25 @@ export async function revertGitAll(workspaceId: string) {
   return invoke("revert_git_all", { workspaceId });
 }
 
+export async function commitGit(
+  workspaceId: string,
+  message: string,
+): Promise<void> {
+  return invoke("commit_git", { workspaceId, message });
+}
+
+export async function pushGit(workspaceId: string): Promise<void> {
+  return invoke("push_git", { workspaceId });
+}
+
+export async function pullGit(workspaceId: string): Promise<void> {
+  return invoke("pull_git", { workspaceId });
+}
+
+export async function syncGit(workspaceId: string): Promise<void> {
+  return invoke("sync_git", { workspaceId });
+}
+
 export async function getGitHubIssues(
   workspace_id: string,
 ): Promise<GitHubIssuesResponse> {
@@ -479,4 +498,16 @@ export async function resumeThread(workspaceId: string, threadId: string) {
 
 export async function archiveThread(workspaceId: string, threadId: string) {
   return invoke<any>("archive_thread", { workspaceId, threadId });
+}
+
+export async function getCommitMessagePrompt(
+  workspaceId: string,
+): Promise<string> {
+  return invoke("get_commit_message_prompt", { workspaceId });
+}
+
+export async function generateCommitMessage(
+  workspaceId: string,
+): Promise<string> {
+  return invoke("generate_commit_message", { workspaceId });
 }

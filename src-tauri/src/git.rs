@@ -379,6 +379,69 @@ pub(crate) async fn revert_git_all(
 }
 
 #[tauri::command]
+pub(crate) async fn commit_git(
+    workspace_id: String,
+    message: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?
+        .clone();
+
+    let repo_root = resolve_git_root(&entry)?;
+    run_git_command(&repo_root, &["commit", "-m", &message]).await
+}
+
+#[tauri::command]
+pub(crate) async fn push_git(
+    workspace_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?
+        .clone();
+
+    let repo_root = resolve_git_root(&entry)?;
+    run_git_command(&repo_root, &["push"]).await
+}
+
+#[tauri::command]
+pub(crate) async fn pull_git(
+    workspace_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?
+        .clone();
+
+    let repo_root = resolve_git_root(&entry)?;
+    run_git_command(&repo_root, &["pull"]).await
+}
+
+#[tauri::command]
+pub(crate) async fn sync_git(
+    workspace_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?
+        .clone();
+
+    let repo_root = resolve_git_root(&entry)?;
+    // Pull first, then push (like VSCode sync)
+    run_git_command(&repo_root, &["pull"]).await?;
+    run_git_command(&repo_root, &["push"]).await
+}
+
+#[tauri::command]
 pub(crate) async fn list_git_roots(
     workspace_id: String,
     depth: Option<usize>,
@@ -393,6 +456,73 @@ pub(crate) async fn list_git_roots(
     let root = PathBuf::from(&entry.path);
     let depth = depth.unwrap_or(2).clamp(1, 6);
     Ok(scan_git_roots(&root, depth, 200))
+}
+
+/// Helper function to get the combined diff for a workspace (used by commit message generation)
+pub(crate) async fn get_workspace_diff(
+    workspace_id: &str,
+    state: &State<'_, AppState>,
+) -> Result<String, String> {
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(workspace_id)
+        .ok_or("workspace not found")?
+        .clone();
+    drop(workspaces);
+
+    let repo_root = resolve_git_root(&entry)?;
+    let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
+    let head_tree = repo
+        .head()
+        .ok()
+        .and_then(|head| head.peel_to_tree().ok());
+
+    let mut options = DiffOptions::new();
+    options
+        .include_untracked(true)
+        .recurse_untracked_dirs(true)
+        .show_untracked_content(true);
+
+    let diff = match head_tree.as_ref() {
+        Some(tree) => repo
+            .diff_tree_to_workdir_with_index(Some(tree), Some(&mut options))
+            .map_err(|e| e.to_string())?,
+        None => repo
+            .diff_tree_to_workdir_with_index(None, Some(&mut options))
+            .map_err(|e| e.to_string())?,
+    };
+
+    let mut combined_diff = String::new();
+    for (index, delta) in diff.deltas().enumerate() {
+        let path = delta
+            .new_file()
+            .path()
+            .or_else(|| delta.old_file().path());
+        let Some(path) = path else {
+            continue;
+        };
+        let patch = match git2::Patch::from_diff(&diff, index) {
+            Ok(patch) => patch,
+            Err(_) => continue,
+        };
+        let Some(mut patch) = patch else {
+            continue;
+        };
+        let content = match diff_patch_to_string(&mut patch) {
+            Ok(content) => content,
+            Err(_) => continue,
+        };
+        if content.trim().is_empty() {
+            continue;
+        }
+        if !combined_diff.is_empty() {
+            combined_diff.push_str("\n\n");
+        }
+        combined_diff.push_str(&format!("=== {} ===\n", path.display()));
+        combined_diff.push_str(&content);
+    }
+
+    Ok(combined_diff)
 }
 
 #[tauri::command]

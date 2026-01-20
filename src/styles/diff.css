@@ -323,6 +323,15 @@
   border-color: var(--border-accent-soft);
 }
 
+.diff-row.selected {
+  background: var(--surface-hover);
+  border-color: var(--border-accent-soft);
+}
+
+.diff-row.selected.active {
+  background: var(--surface-active);
+}
+
 .diff-icon {
   width: 16px;
   height: 16px;
@@ -686,4 +695,215 @@
 
 .git-log-sep {
   color: var(--text-dim);
+}
+
+/* Commit message generation */
+.commit-message-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.commit-message-input-wrapper {
+  position: relative;
+}
+
+.commit-message-input {
+  width: 100%;
+  font-family: "SF Mono", Menlo, Monaco, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 8px 36px 8px 10px;
+  resize: vertical;
+  min-height: 48px;
+  max-height: 120px;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.commit-message-input::placeholder {
+  color: var(--text-faint);
+}
+
+.commit-message-input:focus {
+  outline: none;
+  border-color: var(--border-accent-soft);
+  color: var(--text-emphasis);
+}
+
+.commit-message-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.commit-message-generate-button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.commit-message-generate-button:hover:not(:disabled) {
+  background: var(--surface-control-hover);
+  color: var(--text-emphasis);
+}
+
+.commit-message-generate-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.commit-message-generate-button svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.commit-message-loader {
+  width: 14px;
+  height: 14px;
+  animation: spin 1s linear infinite;
+}
+
+.commit-message-error {
+  font-size: 11px;
+  color: rgba(255, 160, 160, 0.9);
+  padding: 2px 0;
+}
+
+/* Commit button */
+.commit-button-container {
+  margin-top: 4px;
+}
+
+.commit-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.commit-button:hover:not(:disabled) {
+  background: var(--surface-control-hover);
+  border-color: var(--border-accent-soft);
+  color: var(--text-emphasis);
+}
+
+.commit-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.commit-button-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--border-subtle);
+  border-top-color: var(--text-emphasis);
+  animation: spin 0.9s linear infinite;
+}
+
+/* Push section */
+.push-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.push-sync-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.push-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.push-button:hover:not(:disabled) {
+  background: var(--surface-control-hover);
+  border-color: var(--border-accent-soft);
+  color: var(--text-emphasis);
+}
+
+.push-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.push-button-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-emphasis);
+  background: var(--surface-control);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.push-button-secondary:hover:not(:disabled) {
+  background: var(--surface-control-hover);
+  border-color: var(--border-accent-soft);
+}
+
+.push-button-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.push-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-emphasis);
+  background: var(--surface-card-strong);
+  border-radius: 9px;
 }
