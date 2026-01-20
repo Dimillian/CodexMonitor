@@ -128,13 +128,16 @@ type TurnErrorEvent = {
 export function mapDecisionToPermissionResult(
   response: unknown,
   toolUseId?: string,
+  originalInput?: Record<string, unknown>,
 ): PermissionResult {
   const data = response as { decision?: string; approved?: boolean } | null;
-  if (data?.approved === true) {
-    return { behavior: 'allow', toolUseID: toolUseId };
-  }
-  if (data?.decision === 'accept') {
-    return { behavior: 'allow', toolUseID: toolUseId };
+  // Claude SDK expects { behavior: 'allow', updatedInput: Record } for allow
+  if (data?.approved === true || data?.decision === 'accept') {
+    return {
+      behavior: 'allow',
+      updatedInput: originalInput ?? {},
+      toolUseID: toolUseId,
+    };
   }
   if (data?.decision === 'decline') {
     return {
@@ -689,7 +692,7 @@ export class ClaudeSession {
         requestId,
       });
 
-      return mapDecisionToPermissionResult(response, details.toolUseId);
+      return mapDecisionToPermissionResult(response, details.toolUseId, args);
     } catch {
       return {
         behavior: 'deny',
