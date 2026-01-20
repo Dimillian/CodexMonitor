@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ask, open } from "@tauri-apps/plugin-dialog";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   ChevronDown,
   ChevronUp,
@@ -21,6 +22,7 @@ import type {
   CloudKitTestResult,
   DictationModelStatus,
   NatsStatus,
+  TelegramBotStatus,
   WorkspaceGroup,
   WorkspaceInfo,
 } from "../../../types";
@@ -64,6 +66,8 @@ type SettingsViewProps = {
   onNatsStatus: () => Promise<NatsStatus>;
   onCloudKitStatus: () => Promise<CloudKitStatus>;
   onCloudKitTest: () => Promise<CloudKitTestResult>;
+  onTelegramBotStatus: () => Promise<TelegramBotStatus>;
+  onTelegramRegisterLink: () => Promise<string>;
   onUpdateWorkspaceCodexBin: (id: string, codexBin: string | null) => Promise<void>;
   scaleShortcutTitle: string;
   scaleShortcutText: string;
@@ -98,6 +102,8 @@ export function SettingsView({
   onNatsStatus,
   onCloudKitStatus,
   onCloudKitTest,
+  onTelegramBotStatus,
+  onTelegramRegisterLink,
   onUpdateWorkspaceCodexBin,
   scaleShortcutTitle,
   scaleShortcutText,
@@ -109,12 +115,16 @@ export function SettingsView({
   initialSection,
 }: SettingsViewProps) {
   const [activeSection, setActiveSection] = useState<CodexSection>(
-    isAppleMobileDevice() ? "cloud" : "projects",
+    initialSection ?? "projects",
   );
   const [codexPathDraft, setCodexPathDraft] = useState(appSettings.codexBin ?? "");
   const [remoteHostDraft, setRemoteHostDraft] = useState(appSettings.remoteBackendHost);
   const [remoteTokenDraft, setRemoteTokenDraft] = useState(appSettings.remoteBackendToken ?? "");
   const [natsUrlDraft, setNatsUrlDraft] = useState(appSettings.natsUrl ?? "");
+  const [natsAuthModeDraft, setNatsAuthModeDraft] = useState(appSettings.natsAuthMode);
+  const [natsUsernameDraft, setNatsUsernameDraft] = useState(appSettings.natsUsername ?? "");
+  const [natsPasswordDraft, setNatsPasswordDraft] = useState(appSettings.natsPassword ?? "");
+  const [natsCredsDraft, setNatsCredsDraft] = useState(appSettings.natsCreds ?? "");
   const [cloudKitContainerDraft, setCloudKitContainerDraft] = useState(
     appSettings.cloudKitContainerId ?? "",
   );
@@ -136,6 +146,15 @@ export function SettingsView({
     status: "idle" | "running" | "done";
     result: NatsStatus | null;
   }>({ status: "idle", result: null });
+  const [telegramStatusState, setTelegramStatusState] = useState<{
+    status: "idle" | "running" | "done";
+    result: TelegramBotStatus | null;
+    error: string | null;
+  }>({ status: "idle", result: null, error: null });
+  const [telegramRegisterState, setTelegramRegisterState] = useState<{
+    status: "idle" | "running" | "done";
+    error: string | null;
+  }>({ status: "idle", error: null });
   const [cloudKitStatusState, setCloudKitStatusState] = useState<{
     status: "idle" | "running" | "done";
     result: CloudKitStatus | null;
@@ -182,6 +201,22 @@ export function SettingsView({
   useEffect(() => {
     setNatsUrlDraft(appSettings.natsUrl ?? "");
   }, [appSettings.natsUrl]);
+
+  useEffect(() => {
+    setNatsAuthModeDraft(appSettings.natsAuthMode);
+  }, [appSettings.natsAuthMode]);
+
+  useEffect(() => {
+    setNatsUsernameDraft(appSettings.natsUsername ?? "");
+  }, [appSettings.natsUsername]);
+
+  useEffect(() => {
+    setNatsPasswordDraft(appSettings.natsPassword ?? "");
+  }, [appSettings.natsPassword]);
+
+  useEffect(() => {
+    setNatsCredsDraft(appSettings.natsCreds ?? "");
+  }, [appSettings.natsCreds]);
 
   useEffect(() => {
     setCloudKitContainerDraft(appSettings.cloudKitContainerId ?? "");
@@ -251,6 +286,8 @@ export function SettingsView({
         ...patch,
       });
       setNatsStatusState({ status: "idle", result: null });
+      setTelegramStatusState({ status: "idle", result: null, error: null });
+      setTelegramRegisterState({ status: "idle", error: null });
       setCloudKitStatusState({ status: "idle", result: null, error: null });
       setCloudKitTestState({ status: "idle", result: null, error: null });
     } finally {
@@ -502,6 +539,43 @@ export function SettingsView({
     }
   };
 
+  const telegramPairingCode = useMemo(() => {
+    const filtered = (appSettings.telegramPairingSecret ?? "")
+      .split("")
+      .filter((ch) => /[0-9a-zA-Z]/.test(ch))
+      .join("")
+      .toLowerCase();
+    return filtered.length > 32 ? filtered.slice(0, 32) : filtered;
+  }, [appSettings.telegramPairingSecret]);
+
+  const handleTestTelegram = async () => {
+    setTelegramStatusState({ status: "running", result: null, error: null });
+    try {
+      const status = await onTelegramBotStatus();
+      setTelegramStatusState({ status: "done", result: status, error: null });
+    } catch (error) {
+      setTelegramStatusState({
+        status: "done",
+        result: null,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+
+  const handleTelegramRegister = async () => {
+    setTelegramRegisterState({ status: "running", error: null });
+    try {
+      const link = await onTelegramRegisterLink();
+      await openUrl(link);
+      setTelegramRegisterState({ status: "done", error: null });
+    } catch (error) {
+      setTelegramRegisterState({
+        status: "done",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+
   const handleCloudKitStatus = async () => {
     setCloudKitStatusState({ status: "running", result: null, error: null });
     try {
@@ -557,14 +631,6 @@ export function SettingsView({
           <aside className="settings-sidebar">
             <button
               type="button"
-              className={`settings-nav ${activeSection === "cloud" ? "active" : ""}`}
-              onClick={() => setActiveSection("cloud")}
-            >
-              <Cloud aria-hidden />
-              Cloud
-            </button>
-            <button
-              type="button"
               className={`settings-nav ${activeSection === "projects" ? "active" : ""}`}
               onClick={() => setActiveSection("projects")}
             >
@@ -602,6 +668,14 @@ export function SettingsView({
             >
               <TerminalSquare aria-hidden />
               Codex
+            </button>
+            <button
+              type="button"
+              className={`settings-nav ${activeSection === "cloud" ? "active" : ""}`}
+              onClick={() => setActiveSection("cloud")}
+            >
+              <Cloud aria-hidden />
+              Cloud
             </button>
             <button
               type="button"
@@ -882,6 +956,145 @@ export function SettingsView({
                   <>
                     <div className="settings-section-title">NATS</div>
                     <div className="settings-field">
+                      <label className="settings-field-label" htmlFor="nats-auth-mode">
+                        Auth
+                      </label>
+                      <div className="settings-field-row">
+                        <select
+                          id="nats-auth-mode"
+                          className="settings-select"
+                          value={natsAuthModeDraft}
+                          onChange={(event) =>
+                            setNatsAuthModeDraft(event.target.value as AppSettings["natsAuthMode"])
+                          }
+                          disabled={isSavingSettings}
+                        >
+                          <option value="url">From URL</option>
+                          <option value="userpass">Username / password</option>
+                          <option value="creds">Creds (.creds)</option>
+                        </select>
+                        <button
+                          type="button"
+                          className="ghost settings-button-compact"
+                          onClick={() =>
+                            void handleSaveCloudSettings({
+                              natsAuthMode: natsAuthModeDraft,
+                            })
+                          }
+                          disabled={isSavingSettings}
+                        >
+                          Save
+                        </button>
+                      </div>
+                      <div className="settings-help">
+                        URL auth accepts <span className="settings-mono">nats://token@host:4222</span>{" "}
+                        or <span className="settings-mono">nats://user:pass@host:4222</span>.
+                      </div>
+                    </div>
+
+                    {natsAuthModeDraft === "userpass" && (
+                      <>
+                        <div className="settings-field">
+                          <label className="settings-field-label" htmlFor="nats-username">
+                            Username
+                          </label>
+                          <div className="settings-field-row">
+                            <input
+                              id="nats-username"
+                              className="settings-input"
+                              value={natsUsernameDraft}
+                              onChange={(event) => setNatsUsernameDraft(event.target.value)}
+                              placeholder="username"
+                              disabled={isSavingSettings}
+                              autoCapitalize="none"
+                              autoCorrect="off"
+                              spellCheck={false}
+                            />
+                            <button
+                              type="button"
+                              className="ghost settings-button-compact"
+                              onClick={() =>
+                                void handleSaveCloudSettings({
+                                  natsUsername: natsUsernameDraft.trim()
+                                    ? natsUsernameDraft.trim()
+                                    : null,
+                                })
+                              }
+                              disabled={isSavingSettings}
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                        <div className="settings-field">
+                          <label className="settings-field-label" htmlFor="nats-password">
+                            Password
+                          </label>
+                          <div className="settings-field-row">
+                            <input
+                              id="nats-password"
+                              className="settings-input"
+                              type="password"
+                              value={natsPasswordDraft}
+                              onChange={(event) => setNatsPasswordDraft(event.target.value)}
+                              placeholder="password"
+                              disabled={isSavingSettings}
+                              autoCapitalize="none"
+                              autoCorrect="off"
+                              spellCheck={false}
+                            />
+                            <button
+                              type="button"
+                              className="ghost settings-button-compact"
+                              onClick={() =>
+                                void handleSaveCloudSettings({
+                                  natsPassword: natsPasswordDraft.length ? natsPasswordDraft : null,
+                                })
+                              }
+                              disabled={isSavingSettings}
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {natsAuthModeDraft === "creds" && (
+                      <div className="settings-field">
+                        <label className="settings-field-label" htmlFor="nats-creds">
+                          Creds (.creds)
+                        </label>
+                        <textarea
+                          id="nats-creds"
+                          className="settings-textarea"
+                          value={natsCredsDraft}
+                          onChange={(event) => setNatsCredsDraft(event.target.value)}
+                          placeholder="-----BEGIN NATS USER JWT-----"
+                          disabled={isSavingSettings}
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          rows={8}
+                        />
+                        <div className="settings-field-row">
+                          <button
+                            type="button"
+                            className="ghost settings-button-compact"
+                            onClick={() =>
+                              void handleSaveCloudSettings({
+                                natsCreds: natsCredsDraft.trim() ? natsCredsDraft.trim() : null,
+                              })
+                            }
+                            disabled={isSavingSettings}
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="settings-field">
                       <label className="settings-field-label" htmlFor="nats-url">
                         NATS URL
                       </label>
@@ -891,7 +1104,11 @@ export function SettingsView({
                           className="settings-input"
                           value={natsUrlDraft}
                           onChange={(event) => setNatsUrlDraft(event.target.value)}
-                          placeholder="nats://user:pass@host:4222"
+                          placeholder={
+                            natsAuthModeDraft === "url"
+                              ? "nats://user:pass@host:4222"
+                              : "nats://host:4222"
+                          }
                           disabled={isSavingSettings}
                         />
                         <button
@@ -1052,6 +1269,51 @@ export function SettingsView({
                       Save
                     </button>
                   </div>
+                </div>
+
+                <div className="settings-field">
+                  <div className="settings-field-label">Pairing</div>
+                  <div className="settings-field-row">
+                    <button
+                      type="button"
+                      className="primary settings-button-compact"
+                      onClick={() => void handleTelegramRegister()}
+                      disabled={
+                        isSavingSettings ||
+                        telegramRegisterState.status === "running" ||
+                        !telegramTokenDraft.trim()
+                      }
+                    >
+                      {telegramRegisterState.status === "running" ? "Opening..." : "Register"}
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => void handleTestTelegram()}
+                      disabled={isSavingSettings || telegramStatusState.status === "running"}
+                    >
+                      {telegramStatusState.status === "running" ? "Testing..." : "Test bot"}
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Pairing code: <span className="settings-mono">{telegramPairingCode}</span>{" "}
+                    (manual: <span className="settings-mono">/link {telegramPairingCode}</span>)
+                  </div>
+                  {telegramRegisterState.status === "done" && telegramRegisterState.error ? (
+                    <div className="settings-help">
+                      Error: {telegramRegisterState.error}
+                    </div>
+                  ) : null}
+                  {telegramStatusState.status === "done" &&
+                    (telegramStatusState.error || telegramStatusState.result) && (
+                      <div className="settings-help">
+                        {telegramStatusState.error
+                          ? `Error: ${telegramStatusState.error}`
+                          : telegramStatusState.result?.ok
+                            ? `OK (@${telegramStatusState.result.username ?? "unknown"})`
+                            : `Error: ${telegramStatusState.result?.error ?? "unknown"}`}
+                      </div>
+                    )}
                 </div>
               </section>
             )}

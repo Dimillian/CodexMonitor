@@ -42,11 +42,16 @@ const baseSettings: AppSettings = {
   runnerId: "unknown",
   cloudProvider: "local",
   natsUrl: null,
+  natsAuthMode: "url",
+  natsUsername: null,
+  natsPassword: null,
+  natsCreds: null,
   cloudKitContainerId: null,
   telegramEnabled: false,
   telegramBotToken: null,
   telegramAllowedUserIds: null,
   telegramDefaultChatId: null,
+  telegramPairingSecret: "unknown",
 };
 
 const createDoctorResult = () => ({
@@ -93,6 +98,10 @@ const renderDisplaySection = (
     onNatsStatus: vi.fn().mockResolvedValue({ ok: false, server: null, error: null }),
     onCloudKitStatus: vi.fn().mockResolvedValue({ available: false, status: "unavailable" }),
     onCloudKitTest: vi.fn().mockResolvedValue({ recordName: "test", durationMs: 0 }),
+    onTelegramBotStatus: vi
+      .fn()
+      .mockResolvedValue({ ok: false, username: null, id: null, error: null }),
+    onTelegramRegisterLink: vi.fn().mockResolvedValue("https://t.me/example"),
     onUpdateWorkspaceCodexBin: vi.fn().mockResolvedValue(undefined),
     scaleShortcutTitle: "Scale shortcut",
     scaleShortcutText: "Use Command +/-",

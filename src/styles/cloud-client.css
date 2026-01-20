@@ -197,6 +197,17 @@
   outline: none;
 }
 
+.cloudClientTextarea {
+  border-radius: 10px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-control);
+  color: var(--text-primary);
+  padding: 10px;
+  outline: none;
+  resize: vertical;
+  min-height: 140px;
+}
+
 .cloudClientInput:focus,
 .cloudClientSelect:focus {
   border-color: var(--border-accent-soft);

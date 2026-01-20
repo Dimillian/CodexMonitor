@@ -256,6 +256,20 @@ impl Default for CloudProvider {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum NatsAuthMode {
+    Url,
+    Userpass,
+    Creds,
+}
+
+impl Default for NatsAuthMode {
+    fn default() -> Self {
+        NatsAuthMode::Url
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct AppSettings {
     #[serde(default, rename = "codexBin")]
@@ -334,6 +348,14 @@ pub(crate) struct AppSettings {
     pub(crate) cloud_provider: CloudProvider,
     #[serde(default = "default_nats_url", rename = "natsUrl")]
     pub(crate) nats_url: Option<String>,
+    #[serde(default, rename = "natsAuthMode")]
+    pub(crate) nats_auth_mode: NatsAuthMode,
+    #[serde(default, rename = "natsUsername")]
+    pub(crate) nats_username: Option<String>,
+    #[serde(default, rename = "natsPassword")]
+    pub(crate) nats_password: Option<String>,
+    #[serde(default, rename = "natsCreds")]
+    pub(crate) nats_creds: Option<String>,
     #[serde(default = "default_cloudkit_container_id", rename = "cloudKitContainerId")]
     pub(crate) cloudkit_container_id: Option<String>,
 
@@ -345,6 +367,11 @@ pub(crate) struct AppSettings {
     pub(crate) telegram_allowed_user_ids: Option<Vec<i64>>,
     #[serde(default, rename = "telegramDefaultChatId")]
     pub(crate) telegram_default_chat_id: Option<i64>,
+    #[serde(
+        default = "default_telegram_pairing_secret",
+        rename = "telegramPairingSecret"
+    )]
+    pub(crate) telegram_pairing_secret: String,
 }
 
 fn default_access_mode() -> String {
@@ -420,6 +447,10 @@ fn default_cloudkit_container_id() -> Option<String> {
     None
 }
 
+fn default_telegram_pairing_secret() -> String {
+    "unknown".to_string()
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -447,11 +478,16 @@ impl Default for AppSettings {
             runner_id: default_runner_id(),
             cloud_provider: CloudProvider::default(),
             nats_url: default_nats_url(),
+            nats_auth_mode: NatsAuthMode::default(),
+            nats_username: None,
+            nats_password: None,
+            nats_creds: None,
             cloudkit_container_id: default_cloudkit_container_id(),
             telegram_enabled: false,
             telegram_bot_token: None,
             telegram_allowed_user_ids: None,
             telegram_default_chat_id: None,
+            telegram_pairing_secret: default_telegram_pairing_secret(),
         }
     }
 }
@@ -459,7 +495,8 @@ impl Default for AppSettings {
 #[cfg(test)]
 mod tests {
     use super::{
-        AppSettings, BackendMode, CloudProvider, WorkspaceEntry, WorkspaceGroup, WorkspaceKind,
+        AppSettings, BackendMode, CloudProvider, NatsAuthMode, WorkspaceEntry, WorkspaceGroup,
+        WorkspaceKind,
         WorkspaceSettings,
     };
 
@@ -496,8 +533,13 @@ mod tests {
         assert_eq!(settings.runner_id, "unknown");
         assert!(matches!(settings.cloud_provider, CloudProvider::Local));
         assert!(settings.nats_url.is_none());
+        assert!(matches!(settings.nats_auth_mode, NatsAuthMode::Url));
+        assert!(settings.nats_username.is_none());
+        assert!(settings.nats_password.is_none());
+        assert!(settings.nats_creds.is_none());
         assert!(settings.cloudkit_container_id.is_none());
         assert!(!settings.telegram_enabled);
+        assert_eq!(settings.telegram_pairing_secret, "unknown");
         assert!(settings.workspace_groups.is_empty());
     }
 

@@ -10,6 +10,7 @@ import type {
   DictationSessionState,
   LocalUsageSnapshot,
   NatsStatus,
+  TelegramBotStatus,
   WorkspaceInfo,
   WorkspaceSettings,
 } from "../types";
@@ -515,6 +516,14 @@ export async function cloudkitStatus(): Promise<CloudKitStatus> {
 
 export async function cloudkitTest(): Promise<CloudKitTestResult> {
   return invoke<CloudKitTestResult>("cloudkit_test");
+}
+
+export async function telegramBotStatus(): Promise<TelegramBotStatus> {
+  return invoke<TelegramBotStatus>("telegram_bot_status");
+}
+
+export async function telegramRegisterLink(): Promise<string> {
+  return invoke<string>("telegram_register_link");
 }
 
 export async function cloudDiscoverRunner(): Promise<string | null> {

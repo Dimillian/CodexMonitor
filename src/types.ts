@@ -74,6 +74,7 @@ export type BackendMode = "local" | "remote";
 export type ThemePreference = "system" | "light" | "dark";
 
 export type CloudProvider = "local" | "nats" | "cloudkit";
+export type NatsAuthMode = "url" | "userpass" | "creds";
 
 export type AppSettings = {
   codexBin: string | null;
@@ -101,12 +102,17 @@ export type AppSettings = {
   runnerId: string;
   cloudProvider: CloudProvider;
   natsUrl: string | null;
+  natsAuthMode: NatsAuthMode;
+  natsUsername: string | null;
+  natsPassword: string | null;
+  natsCreds: string | null;
   cloudKitContainerId: string | null;
 
   telegramEnabled: boolean;
   telegramBotToken: string | null;
   telegramAllowedUserIds: number[] | null;
   telegramDefaultChatId: number | null;
+  telegramPairingSecret: string;
 };
 
 export type CodexDoctorResult = {
@@ -124,6 +130,13 @@ export type CodexDoctorResult = {
 export type NatsStatus = {
   ok: boolean;
   server: string | null;
+  error: string | null;
+};
+
+export type TelegramBotStatus = {
+  ok: boolean;
+  username: string | null;
+  id: number | null;
   error: string | null;
 };
 

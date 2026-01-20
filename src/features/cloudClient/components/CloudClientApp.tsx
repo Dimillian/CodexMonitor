@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppSettings } from "../../settings/hooks/useAppSettings";
 import { useCloudClient } from "../hooks/useCloudClient";
-import type { CloudProvider, ConversationItem } from "../../../types";
+import type { CloudProvider, ConversationItem, NatsAuthMode } from "../../../types";
 
 function formatTime(timestamp: number) {
   try {
@@ -55,11 +55,33 @@ export function CloudClientApp() {
   const ranE2ERef = useRef(false);
 
   const [natsUrlDraft, setNatsUrlDraft] = useState(appSettings.natsUrl ?? "");
+  const [natsAuthModeDraft, setNatsAuthModeDraft] = useState<NatsAuthMode>(
+    appSettings.natsAuthMode,
+  );
+  const [natsUsernameDraft, setNatsUsernameDraft] = useState(appSettings.natsUsername ?? "");
+  const [natsPasswordDraft, setNatsPasswordDraft] = useState(appSettings.natsPassword ?? "");
+  const [natsCredsDraft, setNatsCredsDraft] = useState(appSettings.natsCreds ?? "");
   const [messageDraft, setMessageDraft] = useState("");
 
   useEffect(() => {
     setNatsUrlDraft(appSettings.natsUrl ?? "");
   }, [appSettings.natsUrl]);
+
+  useEffect(() => {
+    setNatsAuthModeDraft(appSettings.natsAuthMode);
+  }, [appSettings.natsAuthMode]);
+
+  useEffect(() => {
+    setNatsUsernameDraft(appSettings.natsUsername ?? "");
+  }, [appSettings.natsUsername]);
+
+  useEffect(() => {
+    setNatsPasswordDraft(appSettings.natsPassword ?? "");
+  }, [appSettings.natsPassword]);
+
+  useEffect(() => {
+    setNatsCredsDraft(appSettings.natsCreds ?? "");
+  }, [appSettings.natsCreds]);
 
   const provider = (appSettings.cloudProvider ?? "local") as CloudProvider;
   const providerDraft = provider;
@@ -83,6 +105,10 @@ export function CloudClientApp() {
       ...appSettings,
       cloudProvider: nextProvider,
       natsUrl: natsUrlDraft.trim(),
+      natsAuthMode: natsAuthModeDraft,
+      natsUsername: natsUsernameDraft.trim() ? natsUsernameDraft.trim() : null,
+      natsPassword: natsPasswordDraft.length ? natsPasswordDraft : null,
+      natsCreds: natsCredsDraft.trim() ? natsCredsDraft.trim() : null,
     };
     setAppSettings(next);
     await saveSettings(next);
@@ -156,13 +182,75 @@ export function CloudClientApp() {
                 className="cloudClientInput"
                 value={natsUrlDraft}
                 onChange={(event) => setNatsUrlDraft(event.target.value)}
-                placeholder="nats://token@host:4222"
+                placeholder={natsAuthModeDraft === "url" ? "nats://token@host:4222" : "nats://host:4222"}
                 disabled={busy || providerDraft !== "nats"}
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
               />
             </label>
+            <label className="cloudClientLabel">
+              NATS Auth
+              <select
+                className="cloudClientSelect"
+                value={natsAuthModeDraft}
+                onChange={(event) => setNatsAuthModeDraft(event.target.value as NatsAuthMode)}
+                disabled={busy || providerDraft !== "nats"}
+              >
+                <option value="url">from URL</option>
+                <option value="userpass">username/password</option>
+                <option value="creds">creds (.creds)</option>
+              </select>
+            </label>
+
+            {natsAuthModeDraft === "userpass" ? (
+              <>
+                <label className="cloudClientLabel">
+                  NATS Username
+                  <input
+                    className="cloudClientInput"
+                    value={natsUsernameDraft}
+                    onChange={(event) => setNatsUsernameDraft(event.target.value)}
+                    placeholder="username"
+                    disabled={busy || providerDraft !== "nats"}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                </label>
+                <label className="cloudClientLabel">
+                  NATS Password
+                  <input
+                    className="cloudClientInput"
+                    type="password"
+                    value={natsPasswordDraft}
+                    onChange={(event) => setNatsPasswordDraft(event.target.value)}
+                    placeholder="password"
+                    disabled={busy || providerDraft !== "nats"}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                </label>
+              </>
+            ) : null}
+
+            {natsAuthModeDraft === "creds" ? (
+              <label className="cloudClientLabel">
+                NATS Creds
+                <textarea
+                  className="cloudClientTextarea"
+                  value={natsCredsDraft}
+                  onChange={(event) => setNatsCredsDraft(event.target.value)}
+                  placeholder="-----BEGIN NATS USER JWT-----"
+                  disabled={busy || providerDraft !== "nats"}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  rows={7}
+                />
+              </label>
+            ) : null}
             <div className="cloudClientRow cloudClientRowTight">
               <button
                 className="button"

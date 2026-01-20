@@ -23,6 +23,9 @@ mod event_sink;
 mod git;
 #[cfg(desktop)]
 mod git_utils;
+#[cfg(mobile)]
+#[path = "git_utils_mobile.rs"]
+mod git_utils;
 mod integrations;
 #[cfg(mobile)]
 #[path = "git_mobile.rs"]
@@ -320,6 +323,8 @@ pub fn run() {
             integrations::cloud_discover_runner,
             integrations::cloud_rpc,
             integrations::cloud_subscribe_runner_events,
+            integrations::telegram_bot_status,
+            integrations::telegram_register_link,
             #[cfg(desktop)]
             local_usage::local_usage_snapshot,
         ])

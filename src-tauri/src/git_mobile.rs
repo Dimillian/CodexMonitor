@@ -3,7 +3,7 @@ use tauri::State;
 use crate::state::AppState;
 use crate::types::{
     GitFileDiff, GitHubIssuesResponse, GitHubPullRequestDiff, GitHubPullRequestsResponse,
-    GitLogResponse,
+    GitHubPullRequestComment, GitLogResponse,
 };
 
 fn unsupported() -> String {
@@ -44,6 +44,50 @@ pub(crate) async fn get_git_remote(
 }
 
 #[tauri::command]
+pub(crate) async fn list_git_roots(
+    _workspace_id: String,
+    _depth: Option<usize>,
+    _state: State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    Err(unsupported())
+}
+
+#[tauri::command]
+pub(crate) async fn stage_git_file(
+    _workspace_id: String,
+    _path: String,
+    _state: State<'_, AppState>,
+) -> Result<(), String> {
+    Err(unsupported())
+}
+
+#[tauri::command]
+pub(crate) async fn unstage_git_file(
+    _workspace_id: String,
+    _path: String,
+    _state: State<'_, AppState>,
+) -> Result<(), String> {
+    Err(unsupported())
+}
+
+#[tauri::command]
+pub(crate) async fn revert_git_file(
+    _workspace_id: String,
+    _path: String,
+    _state: State<'_, AppState>,
+) -> Result<(), String> {
+    Err(unsupported())
+}
+
+#[tauri::command]
+pub(crate) async fn revert_git_all(
+    _workspace_id: String,
+    _state: State<'_, AppState>,
+) -> Result<(), String> {
+    Err(unsupported())
+}
+
+#[tauri::command]
 pub(crate) async fn get_github_issues(
     _workspace_id: String,
     _state: State<'_, AppState>,
@@ -65,6 +109,15 @@ pub(crate) async fn get_github_pull_request_diff(
     _pr_number: u64,
     _state: State<'_, AppState>,
 ) -> Result<Vec<GitHubPullRequestDiff>, String> {
+    Err(unsupported())
+}
+
+#[tauri::command]
+pub(crate) async fn get_github_pull_request_comments(
+    _workspace_id: String,
+    _pr_number: u64,
+    _state: State<'_, AppState>,
+) -> Result<Vec<GitHubPullRequestComment>, String> {
     Err(unsupported())
 }
 
@@ -93,4 +146,3 @@ pub(crate) async fn create_git_branch(
 ) -> Result<(), String> {
     Err(unsupported())
 }
-

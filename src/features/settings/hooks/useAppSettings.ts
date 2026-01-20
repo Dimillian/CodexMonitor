@@ -4,6 +4,7 @@ import { getAppSettings, runCodexDoctor, updateAppSettings } from "../../../serv
 import { clampUiScale, UI_SCALE_DEFAULT } from "../../../utils/uiScale";
 
 const allowedThemes = new Set(["system", "light", "dark"]);
+const allowedNatsAuthModes = new Set(["url", "userpass", "creds"]);
 
 const defaultSettings: AppSettings = {
   codexBin: null,
@@ -31,12 +32,17 @@ const defaultSettings: AppSettings = {
   runnerId: "unknown",
   cloudProvider: "local",
   natsUrl: null,
+  natsAuthMode: "url",
+  natsUsername: null,
+  natsPassword: null,
+  natsCreds: null,
   cloudKitContainerId: null,
 
   telegramEnabled: false,
   telegramBotToken: null,
   telegramAllowedUserIds: null,
   telegramDefaultChatId: null,
+  telegramPairingSecret: "unknown",
 };
 
 function normalizeAppSettings(settings: AppSettings): AppSettings {
@@ -45,6 +51,12 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     uiScale: clampUiScale(settings.uiScale),
     theme: allowedThemes.has(settings.theme) ? settings.theme : "system",
     natsUrl: settings.natsUrl?.trim() ? settings.natsUrl.trim() : null,
+    natsAuthMode: allowedNatsAuthModes.has(settings.natsAuthMode)
+      ? settings.natsAuthMode
+      : "url",
+    natsUsername: settings.natsUsername?.trim() ? settings.natsUsername.trim() : null,
+    natsPassword: settings.natsPassword?.length ? settings.natsPassword : null,
+    natsCreds: settings.natsCreds?.trim() ? settings.natsCreds.trim() : null,
     cloudKitContainerId: settings.cloudKitContainerId?.trim()
       ? settings.cloudKitContainerId.trim()
       : null,

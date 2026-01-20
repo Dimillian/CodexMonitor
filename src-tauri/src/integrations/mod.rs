@@ -1,3 +1,4 @@
+#[cfg(not(mobile))]
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -11,6 +12,7 @@ use crate::state::AppState;
 use crate::types::CloudProvider;
 
 mod nats;
+mod telegram;
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct NatsStatus {
@@ -76,6 +78,7 @@ impl RpcResponse {
 pub(crate) struct IntegrationsRuntime {
     cloud: Option<CloudRuntime>,
     cloud_listener: Option<CloudListenerRuntime>,
+    telegram: Option<TelegramRuntime>,
 }
 
 pub(crate) struct CloudRuntime {
@@ -92,11 +95,17 @@ pub(crate) struct CloudListenerRuntime {
     handle: JoinHandle<()>,
 }
 
+pub(crate) struct TelegramRuntime {
+    handle: JoinHandle<()>,
+    tx: mpsc::UnboundedSender<telegram::TelegramEvent>,
+}
+
 impl Default for IntegrationsRuntime {
     fn default() -> Self {
         Self {
             cloud: None,
             cloud_listener: None,
+            telegram: None,
         }
     }
 }
@@ -113,6 +122,12 @@ impl IntegrationsRuntime {
             runtime.handle.abort();
         }
     }
+
+    fn stop_telegram(&mut self) {
+        if let Some(runtime) = self.telegram.take() {
+            runtime.handle.abort();
+        }
+    }
 }
 
 #[cfg(mobile)]
@@ -120,6 +135,7 @@ pub(crate) async fn apply_settings(app: AppHandle) {
     let state = app.state::<AppState>();
     let provider = state.app_settings.lock().await.cloud_provider.clone();
     let mut integrations = state.integrations.lock().await;
+    integrations.stop_telegram();
     integrations.stop_cloud();
     if matches!(provider, CloudProvider::Local) {
         integrations.stop_cloud_listener();
@@ -128,15 +144,36 @@ pub(crate) async fn apply_settings(app: AppHandle) {
 
 #[cfg(not(mobile))]
 pub(crate) async fn apply_settings(app: AppHandle) {
+    let app_for_telegram = app.clone();
     let app_for_task = app.clone();
     let state = app.state::<AppState>();
     let settings = state.app_settings.lock().await.clone();
 
     let mut integrations = state.integrations.lock().await;
+    if integrations.telegram.is_none() {
+        let (tx, rx) = mpsc::unbounded_channel::<telegram::TelegramEvent>();
+        integrations.telegram = Some(TelegramRuntime {
+            handle: tokio::spawn(async move {
+                telegram::telegram_loop(app_for_telegram, rx).await;
+            }),
+            tx,
+        });
+    }
 
     let provider = settings.cloud_provider.clone();
+    let nats_config = if matches!(provider, CloudProvider::Nats) {
+        Some(nats::NatsConnectConfig {
+            url: settings.nats_url.clone().unwrap_or_default(),
+            auth_mode: settings.nats_auth_mode.clone(),
+            username: settings.nats_username.clone(),
+            password: settings.nats_password.clone(),
+            creds: settings.nats_creds.clone(),
+        })
+    } else {
+        None
+    };
     let config = match provider {
-        CloudProvider::Nats => settings.nats_url.clone(),
+        CloudProvider::Nats => nats_config.as_ref().map(nats::config_key),
         CloudProvider::Cloudkit => settings.cloudkit_container_id.clone(),
         CloudProvider::Local => None,
     };
@@ -170,9 +207,15 @@ pub(crate) async fn apply_settings(app: AppHandle) {
 
     let handle = match provider {
         CloudProvider::Nats => {
-            let nats_url = settings.nats_url.clone().unwrap_or_default();
+            let nats_config = nats_config.unwrap_or(nats::NatsConnectConfig {
+                url: settings.nats_url.clone().unwrap_or_default(),
+                auth_mode: settings.nats_auth_mode.clone(),
+                username: settings.nats_username.clone(),
+                password: settings.nats_password.clone(),
+                creds: settings.nats_creds.clone(),
+            });
             tokio::spawn(async move {
-                nats::run_nats_cloud(app_for_task, runner_id, nats_url, event_rx).await;
+                nats::run_nats_cloud(app_for_task, runner_id, nats_config, event_rx).await;
             })
         }
         CloudProvider::Cloudkit => {
@@ -203,6 +246,12 @@ pub(crate) fn try_emit_app_server_event(app: &AppHandle, event: AppServerEvent) 
     let Some(integrations) = integrations.ok() else {
         return;
     };
+    if let Some(telegram) = integrations.telegram.as_ref() {
+        let _ = telegram.tx.send(telegram::TelegramEvent::AppServerEvent {
+            workspace_id: event.workspace_id.clone(),
+            message: event.message.clone(),
+        });
+    }
     let Some(cloud) = integrations.cloud.as_ref() else {
         return;
     };
@@ -580,8 +629,14 @@ pub(crate) async fn handle_nats_command(app: &AppHandle, payload: &str) -> Optio
 pub(crate) async fn nats_status(app: AppHandle) -> Result<NatsStatus, String> {
     let state = app.state::<AppState>();
     let settings = state.app_settings.lock().await;
-    let url = settings.nats_url.clone().unwrap_or_default();
-    nats::nats_status(url).await
+    let config = nats::NatsConnectConfig {
+        url: settings.nats_url.clone().unwrap_or_default(),
+        auth_mode: settings.nats_auth_mode.clone(),
+        username: settings.nats_username.clone(),
+        password: settings.nats_password.clone(),
+        creds: settings.nats_creds.clone(),
+    };
+    nats::nats_status(&config).await
 }
 
 #[tauri::command]
@@ -598,15 +653,31 @@ pub(crate) async fn cloudkit_test() -> Result<CloudKitTestResult, String> {
 }
 
 #[tauri::command]
+pub(crate) async fn telegram_bot_status(app: AppHandle) -> Result<telegram::TelegramBotStatus, String> {
+    telegram::bot_status(app).await
+}
+
+#[tauri::command]
+pub(crate) async fn telegram_register_link(app: AppHandle) -> Result<String, String> {
+    telegram::register_link(app).await
+}
+
+#[tauri::command]
 pub(crate) async fn cloud_discover_runner(app: AppHandle) -> Result<Option<String>, String> {
     let state = app.state::<AppState>();
     let settings = state.app_settings.lock().await.clone();
     match settings.cloud_provider {
         CloudProvider::Nats => {
-            let url = settings
-                .nats_url
-                .ok_or("NATS URL not configured.".to_string())?;
-            nats::nats_discover_runner(&url, 7000).await
+            let config = nats::NatsConnectConfig {
+                url: settings
+                    .nats_url
+                    .ok_or("NATS URL not configured.".to_string())?,
+                auth_mode: settings.nats_auth_mode,
+                username: settings.nats_username,
+                password: settings.nats_password,
+                creds: settings.nats_creds,
+            };
+            nats::nats_discover_runner(&config, 7000).await
         }
         _ => Ok(None),
     }
@@ -631,14 +702,20 @@ pub(crate) async fn cloud_rpc(
             handle_rpc_inner(&app, &req).await
         }
         CloudProvider::Nats => {
-            let url = settings
-                .nats_url
-                .ok_or("NATS URL not configured.".to_string())?;
+            let config = nats::NatsConnectConfig {
+                url: settings
+                    .nats_url
+                    .ok_or("NATS URL not configured.".to_string())?,
+                auth_mode: settings.nats_auth_mode,
+                username: settings.nats_username,
+                password: settings.nats_password,
+                creds: settings.nats_creds,
+            };
             let id = json!(uuid::Uuid::new_v4().to_string());
             let req_json = serde_json::to_string(&RpcRequest { id: id.clone(), method, params })
                 .map_err(|e| e.to_string())?;
             let reply_json = nats::nats_request(
-                &url,
+                &config,
                 format!("cm.cmd.{runner_id}"),
                 req_json,
                 15_000,
@@ -667,8 +744,19 @@ pub(crate) async fn cloud_subscribe_runner_events(
     let state = app.state::<AppState>();
     let settings = state.app_settings.lock().await.clone();
     let provider = settings.cloud_provider.clone();
+    let nats_config = if matches!(provider, CloudProvider::Nats) {
+        Some(nats::NatsConnectConfig {
+            url: settings.nats_url.clone().unwrap_or_default(),
+            auth_mode: settings.nats_auth_mode.clone(),
+            username: settings.nats_username.clone(),
+            password: settings.nats_password.clone(),
+            creds: settings.nats_creds.clone(),
+        })
+    } else {
+        None
+    };
     let config = match provider {
-        CloudProvider::Nats => settings.nats_url.clone(),
+        CloudProvider::Nats => nats_config.as_ref().map(nats::config_key),
         CloudProvider::Cloudkit => settings.cloudkit_container_id.clone(),
         CloudProvider::Local => None,
     };
@@ -700,13 +788,12 @@ pub(crate) async fn cloud_subscribe_runner_events(
 
     match provider {
         CloudProvider::Nats => {
-            let url = settings
-                .nats_url
-                .ok_or("NATS URL not configured.".to_string())?;
+            let nats_connect_config = nats_config.ok_or("NATS URL not configured.".to_string())?;
             let app_for_task = app.clone();
             let runner_id_for_task = runner_id.clone();
             let handle = tokio::spawn(async move {
-                nats::run_nats_event_listener(app_for_task, runner_id_for_task, url).await;
+                nats::run_nats_event_listener(app_for_task, runner_id_for_task, nats_connect_config)
+                    .await;
             });
             integrations.cloud_listener = Some(CloudListenerRuntime {
                 provider,

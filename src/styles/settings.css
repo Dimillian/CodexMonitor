@@ -219,6 +219,24 @@
   letter-spacing: 0.02em;
 }
 
+.settings-mono {
+  font-family: "SF Mono", "Fira Mono", "Menlo", monospace;
+  letter-spacing: 0.02em;
+}
+
+.settings-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-control);
+  color: var(--text-strong);
+  font-size: 12px;
+  resize: vertical;
+  min-height: 140px;
+  line-height: 1.4;
+}
+
 
 .settings-scale-controls {
   display: flex;

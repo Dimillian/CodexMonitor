@@ -39,6 +39,12 @@ impl AppState {
             app_settings.runner_id = Uuid::new_v4().to_string();
             settings_changed = true;
         }
+        if app_settings.telegram_pairing_secret.trim().is_empty()
+            || app_settings.telegram_pairing_secret == "unknown"
+        {
+            app_settings.telegram_pairing_secret = Uuid::new_v4().to_string();
+            settings_changed = true;
+        }
         if app_settings
             .nats_url
             .as_deref()
