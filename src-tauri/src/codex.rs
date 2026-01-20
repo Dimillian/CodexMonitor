@@ -270,6 +270,7 @@ pub(crate) async fn send_user_message(
                 "effort": effort,
                 "accessMode": access_mode,
                 "images": images,
+                "collaborationMode": collaboration_mode,
             }),
         )
         .await;
@@ -342,7 +343,18 @@ pub(crate) async fn send_user_message(
 pub(crate) async fn collaboration_mode_list(
     workspace_id: String,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "collaboration_mode_list",
+            json!({ "workspaceId": workspace_id }),
+        )
+        .await;
+    }
+
     let sessions = state.sessions.lock().await;
     let session = sessions
         .get(&workspace_id)
