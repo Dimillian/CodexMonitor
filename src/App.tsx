@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlignLeft, Columns2 } from "lucide-react";
 import "./styles/base.css";
 import "./styles/buttons.css";
 import "./styles/sidebar.css";
@@ -41,6 +42,7 @@ import { useWindowDrag } from "./features/layout/hooks/useWindowDrag";
 import { useGitStatus } from "./features/git/hooks/useGitStatus";
 import { useGitDiffs } from "./features/git/hooks/useGitDiffs";
 import { useGitLog } from "./features/git/hooks/useGitLog";
+import { useGitCommitDiffs } from "./features/git/hooks/useGitCommitDiffs";
 import { useGitHubIssues } from "./features/git/hooks/useGitHubIssues";
 import { useGitHubPullRequests } from "./features/git/hooks/useGitHubPullRequests";
 import { useGitHubPullRequestDiffs } from "./features/git/hooks/useGitHubPullRequestDiffs";
@@ -189,12 +191,16 @@ function MainApp() {
   const [gitPanelMode, setGitPanelMode] = useState<
     "diff" | "log" | "issues" | "prs"
   >("diff");
+  const [gitDiffViewStyle, setGitDiffViewStyle] = useState<
+    "split" | "unified"
+  >("split");
   const [filePanelMode, setFilePanelMode] = useState<
     "git" | "files" | "prompts"
   >("git");
   const [selectedPullRequest, setSelectedPullRequest] =
     useState<GitHubPullRequest | null>(null);
-  const [diffSource, setDiffSource] = useState<"local" | "pr">("local");
+  const [selectedCommitSha, setSelectedCommitSha] = useState<string | null>(null);
+  const [diffSource, setDiffSource] = useState<"local" | "pr" | "commit">("local");
   const [accessMode, setAccessMode] = useState<AccessMode>("current");
   const [activeTab, setActiveTab] = useState<
     "projects" | "codex" | "git" | "log"
@@ -421,6 +427,15 @@ function MainApp() {
     refresh: refreshGitLog,
   } = useGitLog(activeWorkspace, shouldLoadGitLog);
   const {
+    diffs: gitCommitDiffs,
+    isLoading: gitCommitDiffsLoading,
+    error: gitCommitDiffsError,
+  } = useGitCommitDiffs(
+    activeWorkspace,
+    selectedCommitSha,
+    shouldLoadDiffs && diffSource === "commit"
+  );
+  const {
     issues: gitIssues,
     total: gitIssuesTotal,
     isLoading: gitIssuesLoading,
@@ -598,11 +613,24 @@ function MainApp() {
           } changed`
         : "Working tree clean";
 
-  const activeDiffs = diffSource === "pr" ? gitPullRequestDiffs : gitDiffs;
+  const activeDiffs =
+    diffSource === "pr"
+      ? gitPullRequestDiffs
+      : diffSource === "commit"
+        ? gitCommitDiffs
+        : gitDiffs;
   const activeDiffLoading =
-    diffSource === "pr" ? gitPullRequestDiffsLoading : isDiffLoading;
+    diffSource === "pr"
+      ? gitPullRequestDiffsLoading
+      : diffSource === "commit"
+        ? gitCommitDiffsLoading
+        : isDiffLoading;
   const activeDiffError =
-    diffSource === "pr" ? gitPullRequestDiffsError : diffError;
+    diffSource === "pr"
+      ? gitPullRequestDiffsError
+      : diffSource === "commit"
+        ? gitCommitDiffsError
+        : diffError;
 
   useEffect(() => {
     if (appSettingsLoading) {
@@ -649,6 +677,22 @@ function MainApp() {
     }
     setSelectedDiffPath(gitPullRequestDiffs[0].path);
   }, [centerMode, diffSource, gitPullRequestDiffs, selectedDiffPath]);
+
+  useEffect(() => {
+    if (diffSource !== "commit" || centerMode !== "diff") {
+      return;
+    }
+    if (!gitCommitDiffs.length) {
+      return;
+    }
+    if (
+      selectedDiffPath &&
+      gitCommitDiffs.some((entry) => entry.path === selectedDiffPath)
+    ) {
+      return;
+    }
+    setSelectedDiffPath(gitCommitDiffs[0].path);
+  }, [centerMode, diffSource, gitCommitDiffs, selectedDiffPath]);
 
   const {
     setActiveThreadId,
@@ -1344,6 +1388,20 @@ function MainApp() {
     setCenterMode("diff");
     setGitPanelMode("diff");
     setDiffSource("local");
+    setSelectedCommitSha(null);
+    setSelectedPullRequest(null);
+    if (isCompact) {
+      setActiveTab("git");
+    }
+  }
+
+  function handleSelectCommit(sha: string) {
+    setSelectedCommitSha(sha);
+    setSelectedDiffPath(null);
+    pendingDiffScrollRef.current = true;
+    setCenterMode("diff");
+    setGitPanelMode("log");
+    setDiffSource("commit");
     setSelectedPullRequest(null);
     if (isCompact) {
       setActiveTab("git");
@@ -1416,6 +1474,13 @@ function MainApp() {
       }
       setDiffSource("local");
       setSelectedPullRequest(null);
+    }
+    if (mode !== "log") {
+      if (diffSource === "commit") {
+        setSelectedDiffPath(null);
+        setDiffSource("local");
+      }
+      setSelectedCommitSha(null);
     }
   }
 
@@ -1692,9 +1757,41 @@ function MainApp() {
     onCopyThread: handleCopyThread,
     onToggleTerminal: handleToggleTerminal,
     showTerminalButton: !isCompact,
-    mainHeaderActionsNode: !isCompact && !rightPanelCollapsed ? (
-      <RightPanelCollapseButton {...sidebarToggleProps} />
-    ) : null,
+    mainHeaderActionsNode: (
+      <>
+        {centerMode === "diff" && (
+          <div className="diff-view-toggle" role="group" aria-label="Diff view">
+            <button
+              type="button"
+              className={`diff-view-toggle-button${
+                gitDiffViewStyle === "split" ? " is-active" : ""
+              }`}
+              onClick={() => setGitDiffViewStyle("split")}
+              aria-pressed={gitDiffViewStyle === "split"}
+              title="Dual-panel diff"
+              data-tauri-drag-region="false"
+            >
+              <Columns2 size={14} aria-hidden />
+            </button>
+            <button
+              type="button"
+              className={`diff-view-toggle-button${
+                gitDiffViewStyle === "unified" ? " is-active" : ""
+              }`}
+              onClick={() => setGitDiffViewStyle("unified")}
+              aria-pressed={gitDiffViewStyle === "unified"}
+              title="Single-column diff"
+              data-tauri-drag-region="false"
+            >
+              <AlignLeft size={14} aria-hidden />
+            </button>
+          </div>
+        )}
+        {!isCompact && !rightPanelCollapsed ? (
+          <RightPanelCollapseButton {...sidebarToggleProps} />
+        ) : null}
+      </>
+    ),
     filePanelMode,
     onFilePanelModeChange: setFilePanelMode,
     fileTreeLoading: isFilesLoading,
@@ -1708,6 +1805,7 @@ function MainApp() {
     tabletNavTab: tabletTab,
     gitPanelMode,
     onGitPanelModeChange: handleGitPanelModeChange,
+    gitDiffViewStyle,
     worktreeApplyLabel: "apply",
     worktreeApplyTitle: activeParentWorkspace?.name
       ? `Apply changes to ${activeParentWorkspace.name}`
@@ -1732,6 +1830,7 @@ function MainApp() {
     gitLogUpstream,
     gitLogError,
     gitLogLoading,
+    selectedCommitSha,
     gitIssues,
     gitIssuesTotal,
     gitIssuesLoading,
@@ -1745,7 +1844,13 @@ function MainApp() {
     selectedPullRequestComments: diffSource === "pr" ? gitPullRequestComments : [],
     selectedPullRequestCommentsLoading: gitPullRequestCommentsLoading,
     selectedPullRequestCommentsError: gitPullRequestCommentsError,
-    onSelectPullRequest: handleSelectPullRequest,
+    onSelectPullRequest: (pullRequest) => {
+      setSelectedCommitSha(null);
+      handleSelectPullRequest(pullRequest);
+    },
+    onSelectCommit: (entry) => {
+      handleSelectCommit(entry.sha);
+    },
     gitRemoteUrl,
     gitRoot: activeGitRoot,
     gitRootCandidates,

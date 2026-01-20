@@ -77,6 +77,12 @@
   position: relative;
 }
 
+.git-panel-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .git-panel-select-input {
   border: 1px solid var(--border-subtle);
   background: var(--surface-control);
@@ -243,6 +249,7 @@
   align-items: center;
   gap: 6px;
 }
+
 
 .diff-list {
   display: flex;
@@ -500,7 +507,7 @@
   gap: 4px;
   padding: 6px 0;
   border-bottom: 1px solid var(--border-subtle);
-  cursor: context-menu;
+  cursor: pointer;
 }
 
 .git-issue-entry {
@@ -561,6 +568,13 @@
 
 .git-log-entry:last-child {
   border-bottom: none;
+}
+
+.git-log-entry.active {
+  background: color-mix(in srgb, var(--accent-strong) 16%, transparent);
+  border-radius: 8px;
+  padding: 8px;
+  margin: -2px -6px;
 }
 
 .git-log-summary {

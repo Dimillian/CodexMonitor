@@ -15,6 +15,13 @@ pub(crate) struct GitFileDiff {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct GitCommitDiff {
+    pub(crate) path: String,
+    pub(crate) status: String,
+    pub(crate) diff: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct GitLogEntry {
     pub(crate) sha: String,
     pub(crate) summary: String,

@@ -12,6 +12,7 @@ import type {
 import type {
   GitFileDiff,
   GitFileStatus,
+  GitCommitDiff,
   GitHubIssuesResponse,
   GitHubPullRequestComment,
   GitHubPullRequestDiff,
@@ -205,6 +206,13 @@ export async function getGitLog(
   limit = 40,
 ): Promise<GitLogResponse> {
   return invoke("get_git_log", { workspaceId: workspace_id, limit });
+}
+
+export async function getGitCommitDiff(
+  workspace_id: string,
+  sha: string,
+): Promise<GitCommitDiff[]> {
+  return invoke("get_git_commit_diff", { workspaceId: workspace_id, sha });
 }
 
 export async function getGitRemote(workspace_id: string): Promise<string | null> {

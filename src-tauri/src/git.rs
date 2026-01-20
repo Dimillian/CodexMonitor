@@ -11,7 +11,7 @@ use crate::git_utils::{
 };
 use crate::state::AppState;
 use crate::types::{
-    BranchInfo, GitFileDiff, GitFileStatus, GitHubIssue, GitHubIssuesResponse,
+    BranchInfo, GitCommitDiff, GitFileDiff, GitFileStatus, GitHubIssue, GitHubIssuesResponse,
     GitHubPullRequest, GitHubPullRequestComment, GitHubPullRequestDiff,
     GitHubPullRequestsResponse, GitLogResponse,
 };
@@ -122,6 +122,17 @@ fn status_for_workdir(status: Status) -> Option<&'static str> {
         Some("T")
     } else {
         None
+    }
+}
+
+fn status_for_delta(status: git2::Delta) -> &'static str {
+    match status {
+        git2::Delta::Added => "A",
+        git2::Delta::Modified => "M",
+        git2::Delta::Deleted => "D",
+        git2::Delta::Renamed => "R",
+        git2::Delta::Typechange => "T",
+        _ => "M",
     }
 }
 
@@ -782,6 +793,66 @@ pub(crate) async fn get_git_log(
         behind_entries,
         upstream,
     })
+}
+
+#[tauri::command]
+pub(crate) async fn get_git_commit_diff(
+    workspace_id: String,
+    sha: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<GitCommitDiff>, String> {
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?
+        .clone();
+
+    let repo_root = resolve_git_root(&entry)?;
+    let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
+    let oid = git2::Oid::from_str(&sha).map_err(|e| e.to_string())?;
+    let commit = repo.find_commit(oid).map_err(|e| e.to_string())?;
+    let commit_tree = commit.tree().map_err(|e| e.to_string())?;
+    let parent_tree = commit
+        .parent(0)
+        .ok()
+        .and_then(|parent| parent.tree().ok());
+
+    let mut options = DiffOptions::new();
+    let diff = repo
+        .diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), Some(&mut options))
+        .map_err(|e| e.to_string())?;
+
+    let mut results = Vec::new();
+    for (index, delta) in diff.deltas().enumerate() {
+        let path = delta
+            .new_file()
+            .path()
+            .or_else(|| delta.old_file().path());
+        let Some(path) = path else {
+            continue;
+        };
+        let patch = match git2::Patch::from_diff(&diff, index) {
+            Ok(patch) => patch,
+            Err(_) => continue,
+        };
+        let Some(mut patch) = patch else {
+            continue;
+        };
+        let content = match diff_patch_to_string(&mut patch) {
+            Ok(content) => content,
+            Err(_) => continue,
+        };
+        if content.trim().is_empty() {
+            continue;
+        }
+        results.push(GitCommitDiff {
+            path: normalize_git_path(path.to_string_lossy().as_ref()),
+            status: status_for_delta(delta.status()).to_string(),
+            diff: content,
+        });
+    }
+
+    Ok(results)
 }
 
 #[tauri::command]

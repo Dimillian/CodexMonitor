@@ -306,6 +306,7 @@ pub fn run() {
             git::list_git_roots,
             git::get_git_diffs,
             git::get_git_log,
+            git::get_git_commit_diff,
             git::get_git_remote,
             git::stage_git_file,
             git::stage_git_all,

@@ -128,6 +128,12 @@ export type GitFileDiff = {
   diff: string;
 };
 
+export type GitCommitDiff = {
+  path: string;
+  status: string;
+  diff: string;
+};
+
 export type GitLogEntry = {
   sha: string;
   summary: string;

@@ -41,6 +41,41 @@
   flex-shrink: 0;
 }
 
+.diff-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.diff-view-toggle-button {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diff-view-toggle-button + .diff-view-toggle-button {
+  border-left: 1px solid var(--border-subtle);
+}
+
+.diff-view-toggle-button:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+  background: var(--surface-control-hover);
+  color: var(--text-stronger);
+}
+
+.diff-view-toggle-button.is-active {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-stronger);
+}
+
 .open-app-menu {
   position: relative;
 }

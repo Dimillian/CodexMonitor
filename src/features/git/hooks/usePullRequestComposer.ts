@@ -14,7 +14,7 @@ type UsePullRequestComposerOptions = {
   centerMode: "chat" | "diff";
   isCompact: boolean;
   setSelectedPullRequest: (pullRequest: GitHubPullRequest | null) => void;
-  setDiffSource: (source: "local" | "pr") => void;
+  setDiffSource: (source: "local" | "pr" | "commit") => void;
   setSelectedDiffPath: (path: string | null) => void;
   setCenterMode: (mode: "chat" | "diff") => void;
   setGitPanelMode: (mode: "diff" | "log" | "issues" | "prs") => void;
