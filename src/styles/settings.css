@@ -283,13 +283,56 @@
 
 .settings-group-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--border-muted);
   background: var(--surface-card);
+}
+
+.settings-group-fields {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-group-copies {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-group-copies-label {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.settings-group-copies-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-group-copies-path {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-control);
+  color: var(--text-strong);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-group-copies-path.empty {
+  color: var(--text-faint);
 }
 
 .settings-group-actions {

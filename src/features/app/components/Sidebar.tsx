@@ -18,6 +18,7 @@ import { getUsageLabels } from "../utils/usageLabels";
 import { formatRelativeTimeShort } from "../../../utils/time";
 
 const COLLAPSED_GROUPS_STORAGE_KEY = "codexmonitor.collapsedGroups";
+const UNGROUPED_COLLAPSE_ID = "__ungrouped__";
 const ADD_MENU_WIDTH = 200;
 
 type WorkspaceGroupSection = {
@@ -52,6 +53,7 @@ type SidebarProps = {
   onConnectWorkspace: (workspace: WorkspaceInfo) => void;
   onAddAgent: (workspace: WorkspaceInfo) => void;
   onAddWorktreeAgent: (workspace: WorkspaceInfo) => void;
+  onAddCloneAgent: (workspace: WorkspaceInfo) => void;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
   onSelectThread: (workspaceId: string, threadId: string) => void;
   onDeleteThread: (workspaceId: string, threadId: string) => void;
@@ -89,6 +91,7 @@ export function Sidebar({
   onConnectWorkspace,
   onAddAgent,
   onAddWorktreeAgent,
+  onAddCloneAgent,
   onToggleWorkspaceCollapse,
   onSelectThread,
   onDeleteThread,
@@ -288,15 +291,16 @@ export function Sidebar({
           )}
           {groupedWorkspaces.map((group) => {
             const groupId = group.id;
-            const isGroupCollapsed = Boolean(
-              groupId && collapsedGroups.has(groupId),
-            );
             const showGroupHeader = Boolean(groupId) || hasWorkspaceGroups;
+            const toggleId = groupId ?? (showGroupHeader ? UNGROUPED_COLLAPSE_ID : null);
+            const isGroupCollapsed = Boolean(
+              toggleId && collapsedGroups.has(toggleId),
+            );
 
             return (
               <WorkspaceGroup
                 key={group.id ?? "ungrouped"}
-                groupId={groupId}
+                toggleId={toggleId}
                 name={group.name}
                 showHeader={showGroupHeader}
                 isCollapsed={isGroupCollapsed}
@@ -315,13 +319,14 @@ export function Sidebar({
                     entry.id,
                     getPinTimestamp,
                   );
-                  const showThreads = !isCollapsed && threads.length > 0;
+                  const nextCursor =
+                    threadListCursorByWorkspace[entry.id] ?? null;
+                  const showThreadList =
+                    !isCollapsed && (threads.length > 0 || Boolean(nextCursor));
                   const isLoadingThreads =
                     threadListLoadingByWorkspace[entry.id] ?? false;
                   const showThreadLoader =
                     !isCollapsed && isLoadingThreads && threads.length === 0;
-                  const nextCursor =
-                    threadListCursorByWorkspace[entry.id] ?? null;
                   const isPaging = threadListPagingByWorkspace[entry.id] ?? false;
                   const worktrees = worktreesByParent.get(entry.id) ?? [];
                   const addMenuOpen = addMenuAnchor?.workspaceId === entry.id;
@@ -371,6 +376,16 @@ export function Sidebar({
                             >
                               New worktree agent
                             </button>
+                            <button
+                              className="workspace-add-option"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setAddMenuAnchor(null);
+                                onAddCloneAgent(entry);
+                              }}
+                            >
+                              New clone agent
+                            </button>
                           </div>,
                           document.body,
                         )}
@@ -399,7 +414,7 @@ export function Sidebar({
                           onLoadOlderThreads={onLoadOlderThreads}
                         />
                       )}
-                      {showThreads && (
+                      {showThreadList && (
                         <ThreadList
                           workspaceId={entry.id}
                           pinnedRows={[]}

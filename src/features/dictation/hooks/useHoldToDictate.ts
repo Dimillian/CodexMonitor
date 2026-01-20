@@ -9,8 +9,8 @@ type UseHoldToDictateArgs = {
   preferredLanguage: string | null;
   holdKey: string;
   startDictation: (preferredLanguage: string | null) => void | Promise<void>;
-  stopDictation: () => void;
-  cancelDictation: () => void;
+  stopDictation: () => void | Promise<void>;
+  cancelDictation: () => void | Promise<void>;
 };
 
 const HOLD_STOP_GRACE_MS = 1500;
@@ -30,6 +30,16 @@ export function useHoldToDictate({
   const holdDictationStopTimeout = useRef<number | null>(null);
 
   useEffect(() => {
+    const safeInvoke = (action: () => void | Promise<void>) => {
+      try {
+        void Promise.resolve(action()).catch(() => {
+          // Errors are surfaced through dictation events.
+        });
+      } catch {
+        // Errors are surfaced through dictation events.
+      }
+    };
+
     const normalizedHoldKey = holdKey.toLowerCase();
     if (!normalizedHoldKey) {
       return;
@@ -41,7 +51,7 @@ export function useHoldToDictate({
         window.clearTimeout(holdDictationStopTimeout.current);
         holdDictationStopTimeout.current = null;
       }
-      stopDictation();
+      safeInvoke(stopDictation);
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -60,7 +70,7 @@ export function useHoldToDictate({
         window.clearTimeout(holdDictationStopTimeout.current);
         holdDictationStopTimeout.current = null;
       }
-      startDictation(preferredLanguage);
+      safeInvoke(() => startDictation(preferredLanguage));
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
@@ -85,7 +95,7 @@ export function useHoldToDictate({
           window.clearTimeout(holdDictationStopTimeout.current);
           holdDictationStopTimeout.current = null;
         }
-        stopDictation();
+        safeInvoke(stopDictation);
       }
     };
 
@@ -100,7 +110,7 @@ export function useHoldToDictate({
         holdDictationStopTimeout.current = null;
       }
       if (state === "listening") {
-        cancelDictation();
+        safeInvoke(cancelDictation);
       }
     };
 

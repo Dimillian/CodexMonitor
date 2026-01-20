@@ -21,6 +21,7 @@ type ThreadListProps = {
   nextCursor: string | null;
   isPaging: boolean;
   nested?: boolean;
+  showLoadOlder?: boolean;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   threadStatusById: ThreadStatusMap;
@@ -46,6 +47,7 @@ export function ThreadList({
   nextCursor,
   isPaging,
   nested,
+  showLoadOlder = true,
   activeWorkspaceId,
   activeThreadId,
   threadStatusById,
@@ -127,7 +129,7 @@ export function ThreadList({
           {isExpanded ? "Show less" : "More..."}
         </button>
       )}
-      {isExpanded && nextCursor && (
+      {showLoadOlder && nextCursor && (isExpanded || totalThreadRoots <= 3) && (
         <button
           className="thread-more"
           onClick={(event) => {
@@ -136,7 +138,11 @@ export function ThreadList({
           }}
           disabled={isPaging}
         >
-          {isPaging ? "Loading..." : "Load older..."}
+          {isPaging
+            ? "Loading..."
+            : totalThreadRoots === 0
+              ? "Search older..."
+              : "Load older..."}
         </button>
       )}
     </div>

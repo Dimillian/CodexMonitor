@@ -84,6 +84,10 @@ type LayoutNodesOptions = {
     request: ApprovalRequest,
     decision: "accept" | "decline",
   ) => void;
+  handleApprovalRemember: (
+    request: ApprovalRequest,
+    command: string[],
+  ) => void;
   onOpenSettings: () => void;
   onOpenDictationSettings?: () => void;
   onOpenDebug: () => void;
@@ -94,6 +98,7 @@ type LayoutNodesOptions = {
   onConnectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
   onAddAgent: (workspace: WorkspaceInfo) => Promise<void>;
   onAddWorktreeAgent: (workspace: WorkspaceInfo) => Promise<void>;
+  onAddCloneAgent: (workspace: WorkspaceInfo) => Promise<void>;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
   onSelectThread: (workspaceId: string, threadId: string) => void;
   onDeleteThread: (workspaceId: string, threadId: string) => void;
@@ -275,6 +280,7 @@ type LayoutNodesOptions = {
   dictationHint: string | null;
   onDismissDictationHint: () => void;
   showComposer: boolean;
+  composerSendLabel?: string;
   plan: TurnPlan | null;
   debugEntries: DebugEntry[];
   debugOpen: boolean;
@@ -344,6 +350,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onConnectWorkspace={options.onConnectWorkspace}
       onAddAgent={options.onAddAgent}
       onAddWorktreeAgent={options.onAddWorktreeAgent}
+      onAddCloneAgent={options.onAddCloneAgent}
       onToggleWorkspaceCollapse={options.onToggleWorkspaceCollapse}
       onSelectThread={options.onSelectThread}
       onDeleteThread={options.onDeleteThread}
@@ -384,7 +391,10 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       disabled={options.isReviewing}
       contextUsage={options.activeTokenUsage}
       queuedMessages={options.activeQueue}
-      sendLabel={options.isProcessing && !options.steerEnabled ? "Queue" : "Send"}
+      sendLabel={
+        options.composerSendLabel ??
+        (options.isProcessing && !options.steerEnabled ? "Queue" : "Send")
+      }
       steerEnabled={options.steerEnabled}
       isProcessing={options.isProcessing}
       draftText={options.draftText}
@@ -433,6 +443,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       approvals={options.approvals}
       workspaces={options.workspaces}
       onDecision={options.handleApprovalDecision}
+      onRemember={options.handleApprovalRemember}
     />
   );
 

@@ -234,6 +234,14 @@ fn scan_file(
                 output: (output - prev.output).max(0),
             };
             previous_totals = Some(UsageTotals { input, cached, output });
+        } else {
+            // Some streams emit `last_token_usage` deltas between `total_token_usage` snapshots.
+            // Treat those as already-counted to avoid double-counting when the next total arrives.
+            let mut next = previous_totals.unwrap_or_default();
+            next.input += delta.input;
+            next.cached += delta.cached;
+            next.output += delta.output;
+            previous_totals = Some(next);
         }
 
         if delta.input == 0 && delta.cached == 0 && delta.output == 0 {
@@ -343,4 +351,76 @@ fn day_dir_for_key(root: &Path, day_key: &str) -> PathBuf {
     let month = parts.next().unwrap_or("01");
     let day = parts.next().unwrap_or("01");
     root.join(year).join(month).join(day)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use uuid::Uuid;
+
+    fn write_temp_jsonl(lines: &[&str]) -> PathBuf {
+        let mut path = std::env::temp_dir();
+        path.push(format!(
+            "codexmonitor-local-usage-test-{}.jsonl",
+            Uuid::new_v4()
+        ));
+        let mut file = File::create(&path).expect("create temp jsonl");
+        for line in lines {
+            writeln!(file, "{line}").expect("write jsonl line");
+        }
+        path
+    }
+
+    #[test]
+    fn scan_file_does_not_double_count_last_and_total_usage() {
+        let day_key = "2026-01-19";
+        let path = write_temp_jsonl(&[
+            r#"{"payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}}}"#,
+            r#"{"payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}}}"#,
+        ]);
+
+        let mut daily: HashMap<String, DailyTotals> = HashMap::new();
+        let mut model_totals: HashMap<String, i64> = HashMap::new();
+        scan_file(&path, day_key, &mut daily, &mut model_totals).expect("scan file");
+
+        let totals = daily.get(day_key).copied().unwrap_or_default();
+        assert_eq!(totals.input, 10);
+        assert_eq!(totals.output, 5);
+    }
+
+    #[test]
+    fn scan_file_counts_last_deltas_before_total_snapshot_once() {
+        let day_key = "2026-01-19";
+        let path = write_temp_jsonl(&[
+            r#"{"payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}}}"#,
+            r#"{"payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":20,"cached_input_tokens":0,"output_tokens":10}}}}"#,
+        ]);
+
+        let mut daily: HashMap<String, DailyTotals> = HashMap::new();
+        let mut model_totals: HashMap<String, i64> = HashMap::new();
+        scan_file(&path, day_key, &mut daily, &mut model_totals).expect("scan file");
+
+        let totals = daily.get(day_key).copied().unwrap_or_default();
+        assert_eq!(totals.input, 20);
+        assert_eq!(totals.output, 10);
+    }
+
+    #[test]
+    fn scan_file_does_not_double_count_last_between_total_snapshots() {
+        let day_key = "2026-01-19";
+        let path = write_temp_jsonl(&[
+            r#"{"payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}}}"#,
+            r#"{"payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":2,"cached_input_tokens":0,"output_tokens":1}}}}"#,
+            r#"{"payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":12,"cached_input_tokens":0,"output_tokens":6}}}}"#,
+        ]);
+
+        let mut daily: HashMap<String, DailyTotals> = HashMap::new();
+        let mut model_totals: HashMap<String, i64> = HashMap::new();
+        scan_file(&path, day_key, &mut daily, &mut model_totals).expect("scan file");
+
+        let totals = daily.get(day_key).copied().unwrap_or_default();
+        assert_eq!(totals.input, 12);
+        assert_eq!(totals.output, 6);
+    }
 }

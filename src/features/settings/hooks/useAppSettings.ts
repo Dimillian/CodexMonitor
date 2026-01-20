@@ -3,6 +3,8 @@ import type { AppSettings } from "../../../types";
 import { getAppSettings, runCodexDoctor, updateAppSettings } from "../../../services/tauri";
 import { clampUiScale, UI_SCALE_DEFAULT } from "../../../utils/uiScale";
 
+const allowedThemes = new Set(["system", "light", "dark"]);
+
 const defaultSettings: AppSettings = {
   codexBin: null,
   claudeBin: null,
@@ -16,6 +18,7 @@ const defaultSettings: AppSettings = {
   lastComposerModelId: null,
   lastComposerReasoningEffort: null,
   uiScale: UI_SCALE_DEFAULT,
+  theme: "system",
   notificationSoundsEnabled: true,
   experimentalCollabEnabled: false,
   experimentalSteerEnabled: false,
@@ -31,6 +34,7 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
   return {
     ...settings,
     uiScale: clampUiScale(settings.uiScale),
+    theme: allowedThemes.has(settings.theme) ? settings.theme : "system",
   };
 }
 
@@ -51,6 +55,8 @@ export function useAppSettings() {
             }),
           );
         }
+      } catch {
+        // Defaults stay in place if loading settings fails.
       } finally {
         if (active) {
           setIsLoading(false);

@@ -14,7 +14,13 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import {
+  getApprovalCommandInfo,
+  matchesCommandPrefix,
+  normalizeCommandTokens,
+} from "../../../utils/approvalRules";
+import {
   respondToServerRequest,
+  rememberApprovalRule,
   sendUserMessage as sendUserMessageService,
   startReview as startReviewService,
   startThread as startThreadService,
@@ -177,6 +183,10 @@ function normalizeStringList(value: unknown) {
   }
   const single = asString(value);
   return single ? [single] : [];
+}
+
+function normalizeRootPath(value: string) {
+  return value.replace(/\\/g, "/").replace(/\/+$/, "");
 }
 
 function extractRpcErrorMessage(response: unknown) {
@@ -435,6 +445,7 @@ export function useThreads({
   void pinnedThreadsVersion;
   const pendingInterruptsRef = useRef<Set<string>>(new Set());
   const customNamesRef = useRef<CustomNamesMap>({});
+  const approvalAllowlistRef = useRef<Record<string, string[][]>>({});
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -748,10 +759,43 @@ export function useThreads({
     [onWorkspaceConnected, refreshAccountRateLimits],
   );
 
+  const rememberApprovalPrefix = useCallback((workspaceId: string, command: string[]) => {
+    const normalized = normalizeCommandTokens(command);
+    if (!normalized.length) {
+      return;
+    }
+    const allowlist = approvalAllowlistRef.current[workspaceId] ?? [];
+    const exists = allowlist.some(
+      (entry) =>
+        entry.length === normalized.length &&
+        entry.every((token, index) => token === normalized[index]),
+    );
+    if (!exists) {
+      approvalAllowlistRef.current = {
+        ...approvalAllowlistRef.current,
+        [workspaceId]: [...allowlist, normalized],
+      };
+    }
+  }, []);
+
   const handlers = useMemo(
     () => ({
       onWorkspaceConnected: handleWorkspaceConnected,
       onApprovalRequest: (approval: ApprovalRequest) => {
+        const commandInfo = getApprovalCommandInfo(approval.params ?? {});
+        const allowlist =
+          approvalAllowlistRef.current[approval.workspace_id] ?? [];
+        if (
+          commandInfo &&
+          matchesCommandPrefix(commandInfo.tokens, allowlist)
+        ) {
+          void respondToServerRequest(
+            approval.workspace_id,
+            approval.request_id,
+            "accept",
+          );
+          return;
+        }
         dispatch({ type: "addApproval", approval });
       },
       onAppServerEvent: (event: AppServerEvent) => {
@@ -884,7 +928,6 @@ export function useThreads({
           return;
         }
         markProcessing(threadId, true);
-        dispatch({ type: "clearThreadPlan", threadId });
         if (turnId) {
           dispatch({ type: "setActiveTurnId", threadId, turnId });
         }
@@ -1114,6 +1157,7 @@ export function useThreads({
 
   const listThreadsForWorkspace = useCallback(
     async (workspace: WorkspaceInfo) => {
+      const workspacePath = normalizeRootPath(workspace.path);
       dispatch({
         type: "setThreadListLoading",
         workspaceId: workspace.id,
@@ -1132,11 +1176,16 @@ export function useThreads({
         payload: { workspaceId: workspace.id, path: workspace.path },
       });
       try {
+        const knownActivityByThread = threadActivityRef.current[workspace.id] ?? {};
+        const hasKnownActivity = Object.keys(knownActivityByThread).length > 0;
         const matchingThreads: Record<string, unknown>[] = [];
         const targetCount = 20;
         const pageSize = 20;
+        const maxPagesWithoutMatch = hasKnownActivity ? Number.POSITIVE_INFINITY : 5;
+        let pagesFetched = 0;
         let cursor: string | null = null;
         do {
+          pagesFetched += 1;
           const response =
             (await listThreadsService(
               workspace.id,
@@ -1158,10 +1207,14 @@ export function useThreads({
             (result?.nextCursor ?? result?.next_cursor ?? null) as string | null;
           matchingThreads.push(
             ...data.filter(
-              (thread) => String(thread?.cwd ?? "") === workspace.path,
+              (thread) =>
+                normalizeRootPath(String(thread?.cwd ?? "")) === workspacePath,
             ),
           );
           cursor = nextCursor;
+          if (matchingThreads.length === 0 && pagesFetched >= maxPagesWithoutMatch) {
+            break;
+          }
         } while (cursor && matchingThreads.length < targetCount);
 
         const uniqueById = new Map<string, Record<string, unknown>>();
@@ -1272,6 +1325,7 @@ export function useThreads({
       if (!nextCursor) {
         return;
       }
+      const workspacePath = normalizeRootPath(workspace.path);
       const existing = state.threadsByWorkspace[workspace.id] ?? [];
       dispatch({
         type: "setThreadListPaging",
@@ -1289,8 +1343,11 @@ export function useThreads({
         const matchingThreads: Record<string, unknown>[] = [];
         const targetCount = 20;
         const pageSize = 20;
+        const maxPagesWithoutMatch = 10;
+        let pagesFetched = 0;
         let cursor: string | null = nextCursor;
         do {
+          pagesFetched += 1;
           const response =
             (await listThreadsService(
               workspace.id,
@@ -1312,10 +1369,14 @@ export function useThreads({
             (result?.nextCursor ?? result?.next_cursor ?? null) as string | null;
           matchingThreads.push(
             ...data.filter(
-              (thread) => String(thread?.cwd ?? "") === workspace.path,
+              (thread) =>
+                normalizeRootPath(String(thread?.cwd ?? "")) === workspacePath,
             ),
           );
           cursor = next;
+          if (matchingThreads.length === 0 && pagesFetched >= maxPagesWithoutMatch) {
+            break;
+          }
         } while (cursor && matchingThreads.length < targetCount);
 
         const existingIds = new Set(existing.map((thread) => thread.id));
@@ -1731,6 +1792,36 @@ export function useThreads({
     [],
   );
 
+  const handleApprovalRemember = useCallback(
+    async (request: ApprovalRequest, command: string[]) => {
+      try {
+        await rememberApprovalRule(request.workspace_id, command);
+      } catch (error) {
+        onDebug?.({
+          id: `${Date.now()}-client-approval-rule-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "approval rule error",
+          payload: error instanceof Error ? error.message : String(error),
+        });
+      }
+
+      rememberApprovalPrefix(request.workspace_id, command);
+
+      await respondToServerRequest(
+        request.workspace_id,
+        request.request_id,
+        "accept",
+      );
+      dispatch({
+        type: "removeApproval",
+        requestId: request.request_id,
+        workspaceId: request.workspace_id,
+      });
+    },
+    [onDebug, rememberApprovalPrefix],
+  );
+
   const setActiveThreadId = useCallback(
     (threadId: string | null, workspaceId?: string) => {
       const targetId = workspaceId ?? activeWorkspaceId;
@@ -1814,5 +1905,6 @@ export function useThreads({
     sendUserMessageToThread,
     startReview,
     handleApprovalDecision,
+    handleApprovalRemember,
   };
 }

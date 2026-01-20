@@ -213,6 +213,8 @@ pub(crate) struct WorkspaceGroup {
     pub(crate) name: String,
     #[serde(default, rename = "sortOrder")]
     pub(crate) sort_order: Option<u32>,
+    #[serde(default, rename = "copiesFolder")]
+    pub(crate) copies_folder: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -264,6 +266,8 @@ pub(crate) struct AppSettings {
     pub(crate) last_composer_reasoning_effort: Option<String>,
     #[serde(default = "default_ui_scale", rename = "uiScale")]
     pub(crate) ui_scale: f64,
+    #[serde(default = "default_theme", rename = "theme")]
+    pub(crate) theme: String,
     #[serde(
         default = "default_notification_sounds_enabled",
         rename = "notificationSoundsEnabled"
@@ -352,6 +356,10 @@ fn default_ui_scale() -> f64 {
     1.0
 }
 
+fn default_theme() -> String {
+    "system".to_string()
+}
+
 fn default_composer_model_shortcut() -> Option<String> {
     Some("cmd+shift+m".to_string())
 }
@@ -411,6 +419,7 @@ impl Default for AppSettings {
             last_composer_model_id: None,
             last_composer_reasoning_effort: None,
             ui_scale: 1.0,
+            theme: default_theme(),
             notification_sounds_enabled: true,
             experimental_collab_enabled: false,
             experimental_steer_enabled: false,
@@ -427,7 +436,8 @@ impl Default for AppSettings {
 #[cfg(test)]
 mod tests {
     use super::{
-        AppSettings, BackendMode, ProviderType, WorkspaceEntry, WorkspaceKind, WorkspaceSettings,
+        AppSettings, BackendMode, ProviderType, WorkspaceEntry, WorkspaceGroup, WorkspaceKind,
+        WorkspaceSettings,
     };
 
     #[test]
@@ -453,6 +463,7 @@ mod tests {
         assert!(settings.last_composer_model_id.is_none());
         assert!(settings.last_composer_reasoning_effort.is_none());
         assert!((settings.ui_scale - 1.0).abs() < f64::EPSILON);
+        assert_eq!(settings.theme, "system");
         assert!(settings.notification_sounds_enabled);
         assert!(!settings.experimental_steer_enabled);
         assert!(!settings.dictation_enabled);
@@ -460,6 +471,33 @@ mod tests {
         assert!(settings.dictation_preferred_language.is_none());
         assert_eq!(settings.dictation_hold_key, "alt");
         assert!(settings.workspace_groups.is_empty());
+    }
+
+    #[test]
+    fn workspace_group_defaults_from_minimal_json() {
+        let group: WorkspaceGroup =
+            serde_json::from_str(r#"{"id":"g1","name":"Group"}"#).expect("group deserialize");
+        assert!(group.sort_order.is_none());
+        assert!(group.copies_folder.is_none());
+    }
+
+    #[test]
+    fn app_settings_round_trip_preserves_workspace_group_copies_folder() {
+        let mut settings = AppSettings::default();
+        settings.workspace_groups = vec![WorkspaceGroup {
+            id: "g1".to_string(),
+            name: "Group".to_string(),
+            sort_order: Some(2),
+            copies_folder: Some("/tmp/group-copies".to_string()),
+        }];
+
+        let json = serde_json::to_string(&settings).expect("serialize settings");
+        let decoded: AppSettings = serde_json::from_str(&json).expect("deserialize settings");
+        assert_eq!(decoded.workspace_groups.len(), 1);
+        assert_eq!(
+            decoded.workspace_groups[0].copies_folder.as_deref(),
+            Some("/tmp/group-copies")
+        );
     }
 
     #[test]

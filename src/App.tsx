@@ -19,6 +19,7 @@ import "./styles/plan.css";
 import "./styles/about.css";
 import "./styles/tabbar.css";
 import "./styles/worktree-modal.css";
+import "./styles/clone-modal.css";
 import "./styles/settings.css";
 import "./styles/compact-base.css";
 import "./styles/compact-phone.css";
@@ -26,6 +27,7 @@ import "./styles/compact-tablet.css";
 import successSoundUrl from "./assets/success-notification.mp3";
 import errorSoundUrl from "./assets/error-notification.mp3";
 import { WorktreePrompt } from "./features/workspaces/components/WorktreePrompt";
+import { ClonePrompt } from "./features/workspaces/components/ClonePrompt";
 import { RenameThreadPrompt } from "./features/threads/components/RenameThreadPrompt";
 import { AboutView } from "./features/about/components/AboutView";
 import { SettingsView } from "./features/settings/components/SettingsView";
@@ -45,6 +47,7 @@ import { useGitHubPullRequestDiffs } from "./features/git/hooks/useGitHubPullReq
 import { useGitHubPullRequestComments } from "./features/git/hooks/useGitHubPullRequestComments";
 import { useGitRemote } from "./features/git/hooks/useGitRemote";
 import { useGitRepoScan } from "./features/git/hooks/useGitRepoScan";
+import { usePullRequestComposer } from "./features/git/hooks/usePullRequestComposer";
 import { useGitActions } from "./features/git/hooks/useGitActions";
 import { useModels } from "./features/models/hooks/useModels";
 import { useCollaborationModes } from "./features/collaboration/hooks/useCollaborationModes";
@@ -59,6 +62,7 @@ import { useResizablePanels } from "./features/layout/hooks/useResizablePanels";
 import { useLayoutMode } from "./features/layout/hooks/useLayoutMode";
 import { useSidebarToggles } from "./features/layout/hooks/useSidebarToggles";
 import { useTransparencyPreference } from "./features/layout/hooks/useTransparencyPreference";
+import { useThemePreference } from "./features/layout/hooks/useThemePreference";
 import { useWindowLabel } from "./features/layout/hooks/useWindowLabel";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
@@ -76,6 +80,7 @@ import { useHoldToDictate } from "./features/dictation/hooks/useHoldToDictate";
 import { useQueuedSend } from "./features/threads/hooks/useQueuedSend";
 import { useRenameThreadPrompt } from "./features/threads/hooks/useRenameThreadPrompt";
 import { useWorktreePrompt } from "./features/workspaces/hooks/useWorktreePrompt";
+import { useClonePrompt } from "./features/workspaces/hooks/useClonePrompt";
 import { useUiScaleShortcuts } from "./features/layout/hooks/useUiScaleShortcuts";
 import { useWorkspaceSelection } from "./features/workspaces/hooks/useWorkspaceSelection";
 import { useLocalUsage } from "./features/home/hooks/useLocalUsage";
@@ -89,6 +94,14 @@ import { playNotificationSound } from "./utils/notificationSounds";
 import {
   pickWorkspacePath,
 } from "./services/tauri";
+import {
+  subscribeMenuAddWorkspace,
+  subscribeMenuNewAgent,
+  subscribeMenuNewCloneAgent,
+  subscribeMenuNewWorktreeAgent,
+  subscribeMenuOpenSettings,
+  subscribeUpdaterCheck,
+} from "./services/events";
 import type {
   AccessMode,
   GitHubPullRequest,
@@ -105,6 +118,7 @@ function MainApp() {
     doctor,
     isLoading: appSettingsLoading
   } = useAppSettings();
+  useThemePreference(appSettings.theme);
   const dictationModel = useDictationModel(appSettings.dictationModelId);
   const {
     state: dictationState,
@@ -262,9 +276,39 @@ function MainApp() {
 
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const updater = useUpdater({ onDebug: addDebugEntry });
+  const {
+    state: updaterState,
+    startUpdate,
+    checkForUpdates,
+    dismiss: dismissUpdate,
+  } = useUpdater({ onDebug: addDebugEntry });
   const isWindowFocused = useWindowFocusState();
   const nextTestSoundIsError = useRef(false);
+
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    subscribeUpdaterCheck(() => {
+      void checkForUpdates({ announceNoUpdate: true });
+    })
+      .then((handler) => {
+        unlisten = handler;
+      })
+      .catch((error) => {
+        addDebugEntry({
+          id: `${Date.now()}-client-updater-menu-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "updater/menu-error",
+          payload: error instanceof Error ? error.message : String(error),
+        });
+      });
+
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, [addDebugEntry, checkForUpdates]);
 
   useAgentSoundNotifications({
     enabled: appSettings.notificationSoundsEnabled,
@@ -290,6 +334,7 @@ function MainApp() {
     activeWorkspaceId,
     setActiveWorkspaceId,
     addWorkspace,
+    addCloneAgent,
     addWorktreeAgent,
     connectWorkspace,
     markWorkspaceConnected,
@@ -628,7 +673,8 @@ function MainApp() {
     sendUserMessage,
     sendUserMessageToThread,
     startReview,
-    handleApprovalDecision
+    handleApprovalDecision,
+    handleApprovalRemember
   } = useThreads({
     activeWorkspace,
     onWorkspaceConnected: markWorkspaceConnected,
@@ -699,6 +745,59 @@ function MainApp() {
         timestamp: Date.now(),
         source: "error",
         label: "worktree/add error",
+        payload: message,
+      });
+    },
+  });
+
+  const resolveCloneProjectContext = useCallback(
+    (workspace: WorkspaceInfo) => {
+      const groupId = workspace.settings.groupId ?? null;
+      const group = groupId
+        ? appSettings.workspaceGroups.find((entry) => entry.id === groupId)
+        : null;
+      return {
+        groupId,
+        copiesFolder: group?.copiesFolder ?? null,
+      };
+    },
+    [appSettings.workspaceGroups],
+  );
+
+  const persistProjectCopiesFolder = useCallback(
+    async (groupId: string, copiesFolder: string) => {
+      await queueSaveSettings({
+        ...appSettings,
+        workspaceGroups: appSettings.workspaceGroups.map((entry) =>
+          entry.id === groupId ? { ...entry, copiesFolder } : entry,
+        ),
+      });
+    },
+    [appSettings, queueSaveSettings],
+  );
+
+  const {
+    clonePrompt,
+    openPrompt: openClonePrompt,
+    confirmPrompt: confirmClonePrompt,
+    cancelPrompt: cancelClonePrompt,
+    updateCopyName: updateCloneCopyName,
+    chooseCopiesFolder: chooseCloneCopiesFolder,
+    useSuggestedCopiesFolder: useSuggestedCloneCopiesFolder,
+    clearCopiesFolder: clearCloneCopiesFolder,
+  } = useClonePrompt({
+    addCloneAgent,
+    connectWorkspace,
+    onSelectWorkspace: selectWorkspace,
+    resolveProjectContext: resolveCloneProjectContext,
+    persistProjectCopiesFolder,
+    onCompactActivate: isCompact ? () => setActiveTab("codex") : undefined,
+    onError: (message) => {
+      addDebugEntry({
+        id: `${Date.now()}-client-add-clone-error`,
+        timestamp: Date.now(),
+        source: "error",
+        label: "clone/add error",
         payload: message,
       });
     },
@@ -834,6 +933,7 @@ function MainApp() {
     [activeWorkspace, connectWorkspace, sendUserMessageToThread, startThreadForWorkspace],
   );
 
+
   const handleCreatePrompt = useCallback(
     async (data: {
       scope: "workspace" | "global";
@@ -947,16 +1047,7 @@ function MainApp() {
     listThreadsForWorkspace
   });
 
-  useNewAgentShortcut({
-    isEnabled: Boolean(activeWorkspace),
-    onTrigger: () => {
-      if (activeWorkspace) {
-        void handleAddAgent(activeWorkspace);
-      }
-    },
-  });
-
-  async function handleAddWorkspace() {
+  const handleAddWorkspace = useCallback(async () => {
     try {
       const workspace = await addWorkspace();
       if (workspace) {
@@ -976,29 +1067,56 @@ function MainApp() {
       });
       alert(`Failed to add workspace.\n\n${message}`);
     }
-  }
+  }, [addDebugEntry, addWorkspace, isCompact, setActiveTab, setActiveThreadId]);
 
+  const handleAddAgent = useCallback(
+    async (workspace: (typeof workspaces)[number]) => {
+      exitDiffView();
+      selectWorkspace(workspace.id);
+      if (!workspace.connected) {
+        await connectWorkspace(workspace);
+      }
+      await startThreadForWorkspace(workspace.id);
+      if (isCompact) {
+        setActiveTab("codex");
+      }
+      // Focus the composer input after creating the agent
+      setTimeout(() => composerInputRef.current?.focus(), 0);
+    },
+    [
+      connectWorkspace,
+      exitDiffView,
+      isCompact,
+      selectWorkspace,
+      setActiveTab,
+      startThreadForWorkspace,
+    ],
+  );
 
-  async function handleAddAgent(workspace: (typeof workspaces)[number]) {
-    exitDiffView();
-    selectWorkspace(workspace.id);
-    if (!workspace.connected) {
-      await connectWorkspace(workspace);
-    }
-    await startThreadForWorkspace(workspace.id);
-    if (isCompact) {
-      setActiveTab("codex");
-    }
-    // Focus the composer input after creating the agent
-    setTimeout(() => composerInputRef.current?.focus(), 0);
-  }
+  const handleAddWorktreeAgent = useCallback(
+    async (workspace: (typeof workspaces)[number]) => {
+      exitDiffView();
+      openWorktreePrompt(workspace);
+    },
+    [exitDiffView, openWorktreePrompt],
+  );
 
-  async function handleAddWorktreeAgent(
-    workspace: (typeof workspaces)[number]
-  ) {
-    exitDiffView();
-    openWorktreePrompt(workspace);
-  }
+  const handleAddCloneAgent = useCallback(
+    async (workspace: (typeof workspaces)[number]) => {
+      exitDiffView();
+      openClonePrompt(workspace);
+    },
+    [exitDiffView, openClonePrompt],
+  );
+
+  useNewAgentShortcut({
+    isEnabled: Boolean(activeWorkspace),
+    onTrigger: () => {
+      if (activeWorkspace) {
+        void handleAddAgent(activeWorkspace);
+      }
+    },
+  });
 
   function handleSelectDiff(path: string) {
     setSelectedDiffPath(path);
@@ -1039,16 +1157,34 @@ function MainApp() {
     pendingDiffScrollRef.current = false;
   }, [activeDiffs, centerMode, selectedDiffPath]);
 
-  function handleSelectPullRequest(pullRequest: GitHubPullRequest) {
-    setSelectedPullRequest(pullRequest);
-    setDiffSource("pr");
-    setSelectedDiffPath(null);
-    setCenterMode("diff");
-    setGitPanelMode("prs");
-    if (isCompact) {
-      setActiveTab("git");
-    }
-  }
+  const {
+    handleSelectPullRequest,
+    resetPullRequestSelection,
+    composerSendLabel,
+    handleComposerSend,
+    handleComposerQueue,
+  } = usePullRequestComposer({
+    activeWorkspace,
+    selectedPullRequest,
+    gitPullRequestDiffs,
+    filePanelMode,
+    gitPanelMode,
+    centerMode,
+    isCompact,
+    setSelectedPullRequest,
+    setDiffSource,
+    setSelectedDiffPath,
+    setCenterMode,
+    setGitPanelMode,
+    setPrefillDraft,
+    setActiveTab,
+    connectWorkspace,
+    startThreadForWorkspace,
+    sendUserMessageToThread,
+    clearActiveImages,
+    handleSend,
+    queueMessage,
+  });
 
   function handleGitPanelModeChange(
     mode: "diff" | "log" | "issues" | "prs",
@@ -1071,6 +1207,87 @@ function MainApp() {
     },
     [],
   );
+
+  useEffect(() => {
+    let unlistenNewAgent: (() => void) | null = null;
+    let unlistenNewWorktree: (() => void) | null = null;
+    let unlistenNewClone: (() => void) | null = null;
+    let unlistenAddWorkspace: (() => void) | null = null;
+    let unlistenOpenSettings: (() => void) | null = null;
+    const baseWorkspace = activeParentWorkspace ?? activeWorkspace;
+
+    subscribeMenuNewAgent(() => {
+      if (activeWorkspace) {
+        void handleAddAgent(activeWorkspace);
+      }
+    })
+      .then((handler) => {
+        unlistenNewAgent = handler;
+      })
+      .catch(() => {});
+
+    subscribeMenuNewWorktreeAgent(() => {
+      if (baseWorkspace) {
+        void handleAddWorktreeAgent(baseWorkspace);
+      }
+    })
+      .then((handler) => {
+        unlistenNewWorktree = handler;
+      })
+      .catch(() => {});
+
+    subscribeMenuNewCloneAgent(() => {
+      if (baseWorkspace) {
+        void handleAddCloneAgent(baseWorkspace);
+      }
+    })
+      .then((handler) => {
+        unlistenNewClone = handler;
+      })
+      .catch(() => {});
+
+    subscribeMenuAddWorkspace(() => {
+      void handleAddWorkspace();
+    })
+      .then((handler) => {
+        unlistenAddWorkspace = handler;
+      })
+      .catch(() => {});
+
+    subscribeMenuOpenSettings(() => {
+      handleOpenSettings();
+    })
+      .then((handler) => {
+        unlistenOpenSettings = handler;
+      })
+      .catch(() => {});
+
+    return () => {
+      if (unlistenNewAgent) {
+        unlistenNewAgent();
+      }
+      if (unlistenNewWorktree) {
+        unlistenNewWorktree();
+      }
+      if (unlistenNewClone) {
+        unlistenNewClone();
+      }
+      if (unlistenAddWorkspace) {
+        unlistenAddWorkspace();
+      }
+      if (unlistenOpenSettings) {
+        unlistenOpenSettings();
+      }
+    };
+  }, [
+    activeParentWorkspace,
+    activeWorkspace,
+    handleAddAgent,
+    handleAddCloneAgent,
+    handleAddWorkspace,
+    handleAddWorktreeAgent,
+    handleOpenSettings,
+  ]);
 
   const orderValue = (entry: WorkspaceInfo) =>
     typeof entry.settings.sortOrder === "number"
@@ -1194,14 +1411,19 @@ function MainApp() {
     activeRateLimits,
     approvals,
     handleApprovalDecision,
+    handleApprovalRemember,
     onOpenSettings: () => handleOpenSettings(),
     onOpenDictationSettings: () => handleOpenSettings("dictation"),
     onOpenDebug: handleDebugClick,
     showDebugButton,
     onAddWorkspace: handleAddWorkspace,
-    onSelectHome: selectHome,
+    onSelectHome: () => {
+      resetPullRequestSelection();
+      selectHome();
+    },
     onSelectWorkspace: (workspaceId) => {
       exitDiffView();
+      resetPullRequestSelection();
       selectWorkspace(workspaceId);
     },
     onConnectWorkspace: async (workspace) => {
@@ -1212,6 +1434,7 @@ function MainApp() {
     },
     onAddAgent: handleAddAgent,
     onAddWorktreeAgent: handleAddWorktreeAgent,
+    onAddCloneAgent: handleAddCloneAgent,
     onToggleWorkspaceCollapse: (workspaceId, collapsed) => {
       const target = workspaces.find((entry) => entry.id === workspaceId);
       if (!target) {
@@ -1224,6 +1447,7 @@ function MainApp() {
     },
     onSelectThread: (workspaceId, threadId) => {
       exitDiffView();
+      resetPullRequestSelection();
       selectWorkspace(workspaceId);
       setActiveThreadId(threadId, workspaceId);
     },
@@ -1265,9 +1489,9 @@ function MainApp() {
       }
       void listThreadsForWorkspace(workspace);
     },
-    updaterState: updater.state,
-    onUpdate: updater.startUpdate,
-    onDismissUpdate: updater.dismiss,
+    updaterState,
+    onUpdate: startUpdate,
+    onDismissUpdate: dismissUpdate,
     latestAgentRuns,
     isLoadingLatestAgents,
     localUsageSnapshot,
@@ -1381,8 +1605,8 @@ function MainApp() {
     onMovePrompt: handleMovePrompt,
     onRevealWorkspacePrompts: handleRevealWorkspacePrompts,
     onRevealGeneralPrompts: handleRevealGeneralPrompts,
-    onSend: handleSend,
-    onQueue: queueMessage,
+    onSend: handleComposerSend,
+    onQueue: handleComposerQueue,
     onStop: interruptTurn,
     canStop: canInterrupt,
     isReviewing,
@@ -1449,6 +1673,7 @@ function MainApp() {
     onDismissDictationError: clearDictationError,
     dictationHint,
     onDismissDictationHint: clearDictationHint,
+    composerSendLabel,
     showComposer,
     plan: activePlan,
     debugEntries,
@@ -1578,6 +1803,22 @@ function MainApp() {
           onChange={updateWorktreeBranch}
           onCancel={cancelWorktreePrompt}
           onConfirm={confirmWorktreePrompt}
+        />
+      )}
+      {clonePrompt && (
+        <ClonePrompt
+          workspaceName={clonePrompt.workspace.name}
+          copyName={clonePrompt.copyName}
+          copiesFolder={clonePrompt.copiesFolder}
+          suggestedCopiesFolder={clonePrompt.suggestedCopiesFolder}
+          error={clonePrompt.error}
+          isBusy={clonePrompt.isSubmitting}
+          onCopyNameChange={updateCloneCopyName}
+          onChooseCopiesFolder={chooseCloneCopiesFolder}
+          onUseSuggestedCopiesFolder={useSuggestedCloneCopiesFolder}
+          onClearCopiesFolder={clearCloneCopiesFolder}
+          onCancel={cancelClonePrompt}
+          onConfirm={confirmClonePrompt}
         />
       )}
       {settingsOpen && (

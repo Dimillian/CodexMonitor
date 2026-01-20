@@ -55,6 +55,18 @@ export async function addWorkspace(
   return invoke<WorkspaceInfo>("add_workspace", { path, codex_bin });
 }
 
+export async function addClone(
+  sourceWorkspaceId: string,
+  copiesFolder: string,
+  copyName: string,
+): Promise<WorkspaceInfo> {
+  return invoke<WorkspaceInfo>("add_clone", {
+    sourceWorkspaceId,
+    copiesFolder,
+    copyName,
+  });
+}
+
 export async function addWorktree(
   parentId: string,
   branch: string,
@@ -155,6 +167,13 @@ export async function respondToServerRequest(
     requestId,
     result: { decision },
   });
+}
+
+export async function rememberApprovalRule(
+  workspaceId: string,
+  command: string[],
+) {
+  return invoke("remember_approval_rule", { workspaceId, command });
 }
 
 export async function getGitStatus(workspace_id: string): Promise<{

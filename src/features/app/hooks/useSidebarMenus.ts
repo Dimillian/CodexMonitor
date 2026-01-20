@@ -44,7 +44,11 @@ export function useSidebarMenus({
       const copyItem = await MenuItem.new({
         text: "Copy ID",
         action: async () => {
-          await navigator.clipboard.writeText(threadId);
+          try {
+            await navigator.clipboard.writeText(threadId);
+          } catch {
+            // Clipboard failures are non-fatal here.
+          }
         },
       });
       const items = [renameItem];

@@ -1,9 +1,15 @@
+#[allow(dead_code)]
 #[path = "../backend/mod.rs"]
 mod backend;
+#[path = "../codex_home.rs"]
+mod codex_home;
 #[path = "../codex_config.rs"]
 mod codex_config;
+#[path = "../rules.rs"]
+mod rules;
 #[path = "../storage.rs"]
 mod storage;
+#[allow(dead_code)]
 #[path = "../types.rs"]
 mod types;
 
@@ -38,6 +44,7 @@ struct DaemonEventSink {
 #[derive(Clone)]
 enum DaemonEvent {
     AppServer(AppServerEvent),
+    #[allow(dead_code)]
     TerminalOutput(TerminalOutput),
 }
 
@@ -147,7 +154,7 @@ impl DaemonState {
             settings.codex_bin.clone()
         };
 
-        let codex_home = resolve_codex_home(&entry, None);
+        let codex_home = codex_home::resolve_workspace_codex_home(&entry, None);
         let session = spawn_workspace_session(
             entry.clone(),
             default_bin,
@@ -250,7 +257,7 @@ impl DaemonState {
             settings.codex_bin.clone()
         };
 
-        let codex_home = resolve_codex_home(&entry, Some(&parent_entry.path));
+        let codex_home = codex_home::resolve_workspace_codex_home(&entry, Some(&parent_entry.path));
         let session = spawn_workspace_session(
             entry.clone(),
             default_bin,
@@ -485,7 +492,7 @@ impl DaemonState {
         } else {
             None
         };
-        let codex_home = resolve_codex_home(&entry, parent_path.as_deref());
+        let codex_home = codex_home::resolve_workspace_codex_home(&entry, parent_path.as_deref());
         let session = spawn_workspace_session(
             entry,
             default_bin,
@@ -708,6 +715,46 @@ impl DaemonState {
         session.send_response(request_id, result).await?;
         Ok(json!({ "ok": true }))
     }
+
+    async fn remember_approval_rule(
+        &self,
+        workspace_id: String,
+        command: Vec<String>,
+    ) -> Result<Value, String> {
+        let command = command
+            .into_iter()
+            .map(|item| item.trim().to_string())
+            .filter(|item| !item.is_empty())
+            .collect::<Vec<_>>();
+        if command.is_empty() {
+            return Err("empty command".to_string());
+        }
+
+        let (entry, parent_path) = {
+            let workspaces = self.workspaces.lock().await;
+            let entry = workspaces
+                .get(&workspace_id)
+                .ok_or("workspace not found")?
+                .clone();
+            let parent_path = entry
+                .parent_id
+                .as_ref()
+                .and_then(|parent_id| workspaces.get(parent_id))
+                .map(|parent| parent.path.clone());
+            (entry, parent_path)
+        };
+
+        let codex_home = codex_home::resolve_workspace_codex_home(&entry, parent_path.as_deref())
+            .or_else(codex_home::resolve_default_codex_home)
+            .ok_or("Unable to resolve CODEX_HOME".to_string())?;
+        let rules_path = rules::default_rules_path(&codex_home);
+        rules::append_prefix_rule(&rules_path, &command)?;
+
+        Ok(json!({
+            "ok": true,
+            "rulesPath": rules_path,
+        }))
+    }
 }
 
 fn sort_workspaces(workspaces: &mut [WorkspaceInfo]) {
@@ -719,22 +766,6 @@ fn sort_workspaces(workspaces: &mut [WorkspaceInfo]) {
         }
         a.name.cmp(&b.name)
     });
-}
-
-fn resolve_codex_home(entry: &WorkspaceEntry, parent_path: Option<&str>) -> Option<PathBuf> {
-    if entry.kind.is_worktree() {
-        if let Some(parent_path) = parent_path {
-            let legacy_home = PathBuf::from(parent_path).join(".codexmonitor");
-            if legacy_home.is_dir() {
-                return Some(legacy_home);
-            }
-        }
-    }
-    let legacy_home = PathBuf::from(&entry.path).join(".codexmonitor");
-    if legacy_home.is_dir() {
-        return Some(legacy_home);
-    }
-    None
 }
 
 fn should_skip_dir(name: &str) -> bool {
@@ -1060,13 +1091,6 @@ fn parse_optional_u32(value: &Value, key: &str) -> Option<u32> {
     }
 }
 
-fn parse_optional_bool(value: &Value, key: &str) -> Option<bool> {
-    match value {
-        Value::Object(map) => map.get(key).and_then(|value| value.as_bool()),
-        _ => None,
-    }
-}
-
 fn parse_optional_string_array(value: &Value, key: &str) -> Option<Vec<String>> {
     match value {
         Value::Object(map) => map.get(key).and_then(|value| value.as_array()).map(|items| {
@@ -1077,6 +1101,10 @@ fn parse_optional_string_array(value: &Value, key: &str) -> Option<Vec<String>> 
         }),
         _ => None,
     }
+}
+
+fn parse_string_array(value: &Value, key: &str) -> Result<Vec<String>, String> {
+    parse_optional_string_array(value, key).ok_or_else(|| format!("missing `{key}`"))
 }
 
 fn parse_optional_value(value: &Value, key: &str) -> Option<Value> {
@@ -1258,6 +1286,11 @@ async fn handle_rpc_request(
             state
                 .respond_to_server_request(workspace_id, request_id, result)
                 .await
+        }
+        "remember_approval_rule" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let command = parse_string_array(&params, "command")?;
+            state.remember_approval_rule(workspace_id, command).await
         }
         _ => Err(format!("unknown method: {method}")),
     }

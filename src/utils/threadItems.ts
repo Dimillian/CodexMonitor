@@ -419,6 +419,24 @@ function chooseRicherItem(remote: ConversationItem, local: ConversationItem) {
   return remote;
 }
 
+function isOptimisticMessage(item: ConversationItem) {
+  if (item.kind !== "message") {
+    return false;
+  }
+  return /^\d+-(user|assistant)$/.test(item.id);
+}
+
+function messageDedupKey(item: ConversationItem) {
+  if (item.kind !== "message") {
+    return null;
+  }
+  const text = item.text.trim();
+  if (!text) {
+    return null;
+  }
+  return `${item.role}:${text}`;
+}
+
 export function mergeThreadItems(
   remoteItems: ConversationItem[],
   localItems: ConversationItem[],
@@ -427,12 +445,28 @@ export function mergeThreadItems(
     return remoteItems;
   }
   const byId = new Map(remoteItems.map((item) => [item.id, item]));
+  const remoteMessageCounts = new Map<string, number>();
+  remoteItems.forEach((item) => {
+    const key = messageDedupKey(item);
+    if (!key) {
+      return;
+    }
+    remoteMessageCounts.set(key, (remoteMessageCounts.get(key) ?? 0) + 1);
+  });
   const merged = remoteItems.map((item) => {
     const local = localItems.find((entry) => entry.id === item.id);
     return local ? chooseRicherItem(item, local) : item;
   });
   localItems.forEach((item) => {
     if (!byId.has(item.id)) {
+      if (isOptimisticMessage(item)) {
+        const key = messageDedupKey(item);
+        const count = key ? remoteMessageCounts.get(key) ?? 0 : 0;
+        if (count > 0) {
+          remoteMessageCounts.set(key as string, count - 1);
+          return;
+        }
+      }
       merged.push(item);
     }
   });

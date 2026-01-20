@@ -74,9 +74,21 @@ npm run tauri build
 npm run typecheck
 ```
 
+## Tests
+
+```bash
+npm run test
+```
+
+```bash
+npm run test:watch
+```
+
 ## Validation
 
-- At the end of a task, run `npm run lint` first, then `npm run typecheck`.
+- At the end of a task, run `npm run lint` first.
+- Run `npm run test` when you touched thread handling, settings, updater, or any shared utils.
+- Finish with `npm run typecheck`.
 
 ## Common Changes
 

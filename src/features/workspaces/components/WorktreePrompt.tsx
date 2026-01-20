@@ -28,7 +28,14 @@ export function WorktreePrompt({
 
   return (
     <div className="worktree-modal" role="dialog" aria-modal="true">
-      <div className="worktree-modal-backdrop" onClick={onCancel} />
+      <div
+        className="worktree-modal-backdrop"
+        onClick={() => {
+          if (!isBusy) {
+            onCancel();
+          }
+        }}
+      />
       <div className="worktree-modal-card">
         <div className="worktree-modal-title">New worktree agent</div>
         <div className="worktree-modal-subtitle">
@@ -46,9 +53,11 @@ export function WorktreePrompt({
           onKeyDown={(event) => {
             if (event.key === "Escape") {
               event.preventDefault();
-              onCancel();
+              if (!isBusy) {
+                onCancel();
+              }
             }
-            if (event.key === "Enter") {
+            if (event.key === "Enter" && !isBusy) {
               event.preventDefault();
               onConfirm();
             }

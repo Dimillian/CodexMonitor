@@ -1,18 +1,27 @@
 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 mod backend;
 mod codex;
+mod codex_home;
 mod codex_config;
+#[cfg(not(target_os = "windows"))]
+#[path = "dictation.rs"]
+mod dictation;
+#[cfg(target_os = "windows")]
+#[path = "dictation_stub.rs"]
 mod dictation;
 mod event_sink;
 mod git;
 mod git_utils;
 mod local_usage;
 mod prompts;
+mod remote_backend;
+mod rules;
 mod settings;
 mod state;
 mod terminal;
+mod window;
 mod storage;
 mod types;
 mod utils;
@@ -34,12 +43,19 @@ pub fn run() {
             let app_name = handle.package_info().name.clone();
             let about_item = MenuItemBuilder::with_id("about", format!("About {app_name}"))
                 .build(handle)?;
+            let check_updates_item =
+                MenuItemBuilder::with_id("check_for_updates", "Check for Updates...")
+                    .build(handle)?;
+            let settings_item =
+                MenuItemBuilder::with_id("file_open_settings", "Settings...").build(handle)?;
             let app_menu = Submenu::with_items(
                 handle,
                 app_name.clone(),
                 true,
                 &[
                     &about_item,
+                    &check_updates_item,
+                    &settings_item,
                     &PredefinedMenuItem::separator(handle)?,
                     &PredefinedMenuItem::services(handle, None)?,
                     &PredefinedMenuItem::separator(handle)?,
@@ -50,6 +66,17 @@ pub fn run() {
                 ],
             )?;
 
+            let new_agent_item =
+                MenuItemBuilder::with_id("file_new_agent", "New Agent").build(handle)?;
+            let new_worktree_agent_item =
+                MenuItemBuilder::with_id("file_new_worktree_agent", "New Worktree Agent")
+                    .build(handle)?;
+            let new_clone_agent_item =
+                MenuItemBuilder::with_id("file_new_clone_agent", "New Clone Agent")
+                    .build(handle)?;
+            let add_workspace_item =
+                MenuItemBuilder::with_id("file_add_workspace", "Add Workspace...").build(handle)?;
+
             #[cfg(target_os = "linux")]
             let file_menu = {
                 let close_window_item =
@@ -59,7 +86,16 @@ pub fn run() {
                     handle,
                     "File",
                     true,
-                    &[&close_window_item, &quit_item],
+                    &[
+                        &new_agent_item,
+                        &new_worktree_agent_item,
+                        &new_clone_agent_item,
+                        &PredefinedMenuItem::separator(handle)?,
+                        &add_workspace_item,
+                        &PredefinedMenuItem::separator(handle)?,
+                        &close_window_item,
+                        &quit_item,
+                    ],
                 )?
             };
             #[cfg(not(target_os = "linux"))]
@@ -68,6 +104,12 @@ pub fn run() {
                 "File",
                 true,
                 &[
+                    &new_agent_item,
+                    &new_worktree_agent_item,
+                    &new_clone_agent_item,
+                    &PredefinedMenuItem::separator(handle)?,
+                    &add_workspace_item,
+                    &PredefinedMenuItem::separator(handle)?,
                     &PredefinedMenuItem::close_window(handle, None)?,
                     #[cfg(not(target_os = "macos"))]
                     &PredefinedMenuItem::quit(handle, None)?,
@@ -178,6 +220,24 @@ pub fn run() {
                     .center()
                     .build();
                 }
+                "check_for_updates" => {
+                    let _ = app.emit("updater-check", ());
+                }
+                "file_new_agent" => {
+                    let _ = app.emit("menu-new-agent", ());
+                }
+                "file_new_worktree_agent" => {
+                    let _ = app.emit("menu-new-worktree-agent", ());
+                }
+                "file_new_clone_agent" => {
+                    let _ = app.emit("menu-new-clone-agent", ());
+                }
+                "file_add_workspace" => {
+                    let _ = app.emit("menu-add-workspace", ());
+                }
+                "file_open_settings" => {
+                    let _ = app.emit("menu-open-settings", ());
+                }
                 "file_close_window" | "window_close" => {
                     if let Some(window) = app.get_webview_window("main") {
                         let _ = window.close();
@@ -222,6 +282,7 @@ pub fn run() {
             codex::codex_doctor,
             workspaces::list_workspaces,
             workspaces::add_workspace,
+            workspaces::add_clone,
             workspaces::add_worktree,
             workspaces::remove_workspace,
             workspaces::remove_worktree,
@@ -233,6 +294,7 @@ pub fn run() {
             codex::turn_interrupt,
             codex::start_review,
             codex::respond_to_server_request,
+            codex::remember_approval_rule,
             codex::resume_thread,
             codex::list_threads,
             codex::archive_thread,

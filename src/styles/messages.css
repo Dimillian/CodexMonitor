@@ -73,8 +73,13 @@
   animation: working-shimmer 2.2s ease-in-out infinite;
 }
 
+:root[data-theme="light"] .working-text {
+  color: var(--text-muted);
+  background: none;
+}
+
 @media (prefers-color-scheme: light) {
-  .working-text {
+  :root:not([data-theme]) .working-text {
     color: var(--text-muted);
     background: none;
   }

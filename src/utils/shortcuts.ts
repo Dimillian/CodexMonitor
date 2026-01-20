@@ -16,6 +16,7 @@ const MODIFIER_LABELS: Record<string, string> = {
 
 const KEY_LABELS: Record<string, string> = {
   " ": "Space",
+  space: "Space",
   escape: "Esc",
   arrowup: "↑",
   arrowdown: "↓",
@@ -92,6 +93,10 @@ export function formatShortcut(value: string | null | undefined): string {
 export function buildShortcutValue(event: KeyboardEvent): string | null {
   const key = normalizeKey(event.key);
   if (!key) {
+    return null;
+  }
+  const hasPrimaryModifier = event.metaKey || event.ctrlKey || event.altKey;
+  if (!hasPrimaryModifier) {
     return null;
   }
   const modifiers = [];

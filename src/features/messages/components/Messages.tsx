@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Check, Copy } from "lucide-react";
 import type { ConversationItem } from "../../../types";
 import { Markdown } from "./Markdown";
@@ -23,6 +23,47 @@ type ToolSummary = {
 };
 
 type StatusTone = "completed" | "processing" | "failed" | "unknown";
+
+type WorkingIndicatorProps = {
+  isThinking: boolean;
+  processingStartedAt?: number | null;
+  lastDurationMs?: number | null;
+  hasItems: boolean;
+};
+
+type MessageRowProps = {
+  item: Extract<ConversationItem, { kind: "message" }>;
+  isCopied: boolean;
+  onCopy: (item: Extract<ConversationItem, { kind: "message" }>) => void;
+  onOpenFileLink?: (path: string) => void;
+  onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
+};
+
+type ReasoningRowProps = {
+  item: Extract<ConversationItem, { kind: "reasoning" }>;
+  isExpanded: boolean;
+  onToggle: (id: string) => void;
+  onOpenFileLink?: (path: string) => void;
+  onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
+};
+
+type ReviewRowProps = {
+  item: Extract<ConversationItem, { kind: "review" }>;
+  onOpenFileLink?: (path: string) => void;
+  onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
+};
+
+type DiffRowProps = {
+  item: Extract<ConversationItem, { kind: "diff" }>;
+};
+
+type ToolRowProps = {
+  item: Extract<ConversationItem, { kind: "tool" }>;
+  isExpanded: boolean;
+  onToggle: (id: string) => void;
+  onOpenFileLink?: (path: string) => void;
+  onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
+};
 
 function basename(path: string) {
   if (!path) {
@@ -150,6 +191,13 @@ function cleanCommandText(commandText: string) {
   return stripped.trim();
 }
 
+function formatDurationMs(durationMs: number) {
+  const durationSeconds = Math.max(0, Math.floor(durationMs / 1000));
+  const durationMinutes = Math.floor(durationSeconds / 60);
+  const durationRemainder = durationSeconds % 60;
+  return `${durationMinutes}:${String(durationRemainder).padStart(2, "0")}`;
+}
+
 function statusToneFromText(status?: string): StatusTone {
   if (!status) {
     return "unknown";
@@ -204,6 +252,321 @@ function scrollKeyForItems(items: ConversationItem[]) {
   }
 }
 
+const WorkingIndicator = memo(function WorkingIndicator({
+  isThinking,
+  processingStartedAt = null,
+  lastDurationMs = null,
+  hasItems,
+}: WorkingIndicatorProps) {
+  const [elapsedMs, setElapsedMs] = useState(0);
+
+  useEffect(() => {
+    if (!isThinking || !processingStartedAt) {
+      setElapsedMs(0);
+      return undefined;
+    }
+    setElapsedMs(Date.now() - processingStartedAt);
+    const interval = window.setInterval(() => {
+      setElapsedMs(Date.now() - processingStartedAt);
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [isThinking, processingStartedAt]);
+
+  return (
+    <>
+      {isThinking && (
+        <div className="working">
+          <span className="working-spinner" aria-hidden />
+          <div className="working-timer">
+            <span className="working-timer-clock">{formatDurationMs(elapsedMs)}</span>
+          </div>
+          <span className="working-text">Working…</span>
+        </div>
+      )}
+      {!isThinking && lastDurationMs !== null && hasItems && (
+        <div className="turn-complete" aria-live="polite">
+          <span className="turn-complete-line" aria-hidden />
+          <span className="turn-complete-label">
+            Done in {formatDurationMs(lastDurationMs)}
+          </span>
+          <span className="turn-complete-line" aria-hidden />
+        </div>
+      )}
+    </>
+  );
+});
+
+const MessageRow = memo(function MessageRow({
+  item,
+  isCopied,
+  onCopy,
+  onOpenFileLink,
+  onOpenFileLinkMenu,
+}: MessageRowProps) {
+  return (
+    <div className={`message ${item.role}`}>
+      <div className="bubble message-bubble">
+        <Markdown
+          value={item.text}
+          className="markdown"
+          onOpenFileLink={onOpenFileLink}
+          onOpenFileLinkMenu={onOpenFileLinkMenu}
+        />
+        <button
+          type="button"
+          className={`ghost message-copy-button${isCopied ? " is-copied" : ""}`}
+          onClick={() => onCopy(item)}
+          aria-label="Copy message"
+          title="Copy message"
+        >
+          <span className="message-copy-icon" aria-hidden>
+            <Copy className="message-copy-icon-copy" size={14} />
+            <Check className="message-copy-icon-check" size={14} />
+          </span>
+        </button>
+      </div>
+    </div>
+  );
+});
+
+const ReasoningRow = memo(function ReasoningRow({
+  item,
+  isExpanded,
+  onToggle,
+  onOpenFileLink,
+  onOpenFileLinkMenu,
+}: ReasoningRowProps) {
+  const summaryText = item.summary || item.content;
+  const summaryLines = summaryText.split("\n");
+  const trimmedLines = summaryLines.map((line) => line.trim());
+  const titleLineIndex = trimmedLines.findIndex(Boolean);
+  const rawTitle =
+    titleLineIndex >= 0 ? trimmedLines[titleLineIndex] : "Reasoning";
+  const cleanTitle = rawTitle
+    .replace(/[`*_~]/g, "")
+    .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+    .trim();
+  const summaryTitle =
+    cleanTitle.length > 80
+      ? `${cleanTitle.slice(0, 80)}…`
+      : cleanTitle || "Reasoning";
+  const reasoningTone: StatusTone = summaryText ? "completed" : "processing";
+  const bodyText =
+    titleLineIndex >= 0
+      ? summaryLines
+          .filter((_, index) => index !== titleLineIndex)
+          .join("\n")
+          .trim()
+      : "";
+  const showReasoningBody = Boolean(bodyText);
+  return (
+    <div className="tool-inline reasoning-inline">
+      <button
+        type="button"
+        className="tool-inline-bar-toggle"
+        onClick={() => onToggle(item.id)}
+        aria-expanded={isExpanded}
+        aria-label="Toggle reasoning details"
+      />
+      <div className="tool-inline-content">
+        <button
+          type="button"
+          className="tool-inline-summary tool-inline-toggle"
+          onClick={() => onToggle(item.id)}
+          aria-expanded={isExpanded}
+        >
+          <span className={`tool-inline-dot ${reasoningTone}`} aria-hidden />
+          <span className="tool-inline-value">{summaryTitle}</span>
+        </button>
+        {showReasoningBody && (
+          <Markdown
+            value={bodyText}
+            className={`reasoning-inline-detail markdown ${
+              isExpanded ? "" : "tool-inline-clamp"
+            }`}
+            onOpenFileLink={onOpenFileLink}
+            onOpenFileLinkMenu={onOpenFileLinkMenu}
+          />
+        )}
+      </div>
+    </div>
+  );
+});
+
+const ReviewRow = memo(function ReviewRow({
+  item,
+  onOpenFileLink,
+  onOpenFileLinkMenu,
+}: ReviewRowProps) {
+  const title = item.state === "started" ? "Review started" : "Review completed";
+  return (
+    <div className="item-card review">
+      <div className="review-header">
+        <span className="review-title">{title}</span>
+        <span
+          className={`review-badge ${item.state === "started" ? "active" : "done"}`}
+        >
+          Review
+        </span>
+      </div>
+      {item.text && (
+        <Markdown
+          value={item.text}
+          className="item-text markdown"
+          onOpenFileLink={onOpenFileLink}
+          onOpenFileLinkMenu={onOpenFileLinkMenu}
+        />
+      )}
+    </div>
+  );
+});
+
+const DiffRow = memo(function DiffRow({ item }: DiffRowProps) {
+  return (
+    <div className="item-card diff">
+      <div className="diff-header">
+        <span className="diff-title">{item.title}</span>
+        {item.status && <span className="item-status">{item.status}</span>}
+      </div>
+      <div className="diff-viewer-output">
+        <DiffBlock diff={item.diff} language={languageFromPath(item.title)} />
+      </div>
+    </div>
+  );
+});
+
+const ToolRow = memo(function ToolRow({
+  item,
+  isExpanded,
+  onToggle,
+  onOpenFileLink,
+  onOpenFileLinkMenu,
+}: ToolRowProps) {
+  const isFileChange = item.toolType === "fileChange";
+  const isCommand = item.toolType === "commandExecution";
+  const commandText = isCommand
+    ? item.title.replace(/^Command:\s*/i, "").trim()
+    : "";
+  const summary = buildToolSummary(item, commandText);
+  const changeNames = (item.changes ?? [])
+    .map((change) => basename(change.path))
+    .filter(Boolean);
+  const hasChanges = changeNames.length > 0;
+  const tone = toolStatusTone(item, hasChanges);
+  const summaryLabel = isFileChange
+    ? changeNames.length > 1
+      ? "files edited"
+      : "file edited"
+    : isCommand
+      ? ""
+      : summary.label;
+  const summaryValue = isFileChange
+    ? changeNames.length > 1
+      ? `${changeNames[0]} +${changeNames.length - 1}`
+      : changeNames[0] || "changes"
+    : summary.value;
+  const shouldFadeCommand =
+    isCommand && !isExpanded && (summaryValue?.length ?? 0) > 80;
+  const showToolOutput = isExpanded && (!isFileChange || !hasChanges);
+  return (
+    <div className={`tool-inline ${isExpanded ? "tool-inline-expanded" : ""}`}>
+      <button
+        type="button"
+        className="tool-inline-bar-toggle"
+        onClick={() => onToggle(item.id)}
+        aria-expanded={isExpanded}
+        aria-label="Toggle tool details"
+      />
+      <div className="tool-inline-content">
+        <button
+          type="button"
+          className="tool-inline-summary tool-inline-toggle"
+          onClick={() => onToggle(item.id)}
+          aria-expanded={isExpanded}
+        >
+          <span className={`tool-inline-dot ${tone}`} aria-hidden />
+          {summaryLabel && (
+            <span className="tool-inline-label">{summaryLabel}:</span>
+          )}
+          {summaryValue && (
+            <span
+              className={`tool-inline-value ${isCommand ? "tool-inline-command" : ""} ${
+                isCommand && isExpanded ? "tool-inline-command-full" : ""
+              }`}
+            >
+              {isCommand ? (
+                <span
+                  className={`tool-inline-command-text ${
+                    shouldFadeCommand ? "tool-inline-command-fade" : ""
+                  }`}
+                >
+                  {summaryValue}
+                </span>
+              ) : (
+                summaryValue
+              )}
+            </span>
+          )}
+        </button>
+        {isExpanded && summary.detail && !isFileChange && (
+          <div className="tool-inline-detail">{summary.detail}</div>
+        )}
+        {isExpanded && isCommand && item.detail && (
+          <div className="tool-inline-detail tool-inline-muted">
+            cwd: {item.detail}
+          </div>
+        )}
+        {isExpanded && isFileChange && hasChanges && (
+          <div className="tool-inline-change-list">
+            {item.changes?.map((change, index) => (
+              <div
+                key={`${change.path}-${index}`}
+                className="tool-inline-change"
+              >
+                <div className="tool-inline-change-header">
+                  {change.kind && (
+                    <span className="tool-inline-change-kind">
+                      {change.kind.toUpperCase()}
+                    </span>
+                  )}
+                  <span className="tool-inline-change-path">
+                    {basename(change.path)}
+                  </span>
+                </div>
+                {change.diff && (
+                  <div className="diff-viewer-output">
+                    <DiffBlock
+                      diff={change.diff}
+                      language={languageFromPath(change.path)}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {isExpanded && isFileChange && !hasChanges && item.detail && (
+          <Markdown
+            value={item.detail}
+            className="item-text markdown"
+            onOpenFileLink={onOpenFileLink}
+            onOpenFileLinkMenu={onOpenFileLinkMenu}
+          />
+        )}
+        {showToolOutput && summary.output && (
+          <Markdown
+            value={summary.output}
+            className="tool-inline-output markdown"
+            codeBlock
+            onOpenFileLink={onOpenFileLink}
+            onOpenFileLinkMenu={onOpenFileLinkMenu}
+          />
+        )}
+      </div>
+    </div>
+  );
+});
+
 export const Messages = memo(function Messages({
   items,
   threadId,
@@ -219,7 +582,6 @@ export const Messages = memo(function Messages({
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const copyTimeoutRef = useRef<number | null>(null);
-  const [elapsedMs, setElapsedMs] = useState(0);
   const scrollKey = scrollKeyForItems(items);
   const { openFileLink, showFileLinkMenu } = useFileLinkOpener(workspacePath);
 
@@ -236,7 +598,7 @@ export const Messages = memo(function Messages({
   useEffect(() => {
     autoScrollRef.current = true;
   }, [threadId]);
-  const toggleExpanded = (id: string) => {
+  const toggleExpanded = useCallback((id: string) => {
     setExpandedItems((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -246,7 +608,7 @@ export const Messages = memo(function Messages({
       }
       return next;
     });
-  };
+  }, []);
 
   const visibleItems = items;
 
@@ -258,20 +620,23 @@ export const Messages = memo(function Messages({
     };
   }, []);
 
-  const handleCopyMessage = async (item: Extract<ConversationItem, { kind: "message" }>) => {
-    try {
-      await navigator.clipboard.writeText(item.text);
-      setCopiedMessageId(item.id);
-      if (copyTimeoutRef.current) {
-        window.clearTimeout(copyTimeoutRef.current);
+  const handleCopyMessage = useCallback(
+    async (item: Extract<ConversationItem, { kind: "message" }>) => {
+      try {
+        await navigator.clipboard.writeText(item.text);
+        setCopiedMessageId(item.id);
+        if (copyTimeoutRef.current) {
+          window.clearTimeout(copyTimeoutRef.current);
+        }
+        copyTimeoutRef.current = window.setTimeout(() => {
+          setCopiedMessageId(null);
+        }, 1200);
+      } catch {
+        // No-op: clipboard errors can occur in restricted contexts.
       }
-      copyTimeoutRef.current = window.setTimeout(() => {
-        setCopiedMessageId(null);
-      }, 1200);
-    } catch {
-      // No-op: clipboard errors can occur in restricted contexts.
-    }
-  };
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!bottomRef.current) {
@@ -302,31 +667,6 @@ export const Messages = memo(function Messages({
     };
   }, [scrollKey, isThinking]);
 
-  useEffect(() => {
-    if (!isThinking || !processingStartedAt) {
-      setElapsedMs(0);
-      return undefined;
-    }
-    setElapsedMs(Date.now() - processingStartedAt);
-    const interval = window.setInterval(() => {
-      setElapsedMs(Date.now() - processingStartedAt);
-    }, 1000);
-    return () => window.clearInterval(interval);
-  }, [isThinking, processingStartedAt]);
-
-  const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
-  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
-  const elapsedRemainder = elapsedSeconds % 60;
-  const formattedElapsed = `${elapsedMinutes}:${String(elapsedRemainder).padStart(2, "0")}`;
-  const lastDurationSeconds = lastDurationMs
-    ? Math.max(0, Math.floor(lastDurationMs / 1000))
-    : 0;
-  const lastDurationMinutes = Math.floor(lastDurationSeconds / 60);
-  const lastDurationRemainder = lastDurationSeconds % 60;
-  const formattedLastDuration = `${lastDurationMinutes}:${String(
-    lastDurationRemainder,
-  ).padStart(2, "0")}`;
-
   return (
     <div
       className="messages messages-full"
@@ -337,283 +677,63 @@ export const Messages = memo(function Messages({
         if (item.kind === "message") {
           const isCopied = copiedMessageId === item.id;
           return (
-            <div key={item.id} className={`message ${item.role}`}>
-              <div className="bubble message-bubble">
-                <Markdown
-                  value={item.text}
-                  className="markdown"
-                  onOpenFileLink={openFileLink}
-                  onOpenFileLinkMenu={showFileLinkMenu}
-                />
-                <button
-                  type="button"
-                  className={`ghost message-copy-button${isCopied ? " is-copied" : ""}`}
-                  onClick={() => handleCopyMessage(item)}
-                  aria-label="Copy message"
-                  title="Copy message"
-                >
-                  <span className="message-copy-icon" aria-hidden>
-                    <Copy className="message-copy-icon-copy" size={14} />
-                    <Check className="message-copy-icon-check" size={14} />
-                  </span>
-                </button>
-              </div>
-            </div>
+            <MessageRow
+              key={item.id}
+              item={item}
+              isCopied={isCopied}
+              onCopy={handleCopyMessage}
+              onOpenFileLink={openFileLink}
+              onOpenFileLinkMenu={showFileLinkMenu}
+            />
           );
         }
         if (item.kind === "reasoning") {
-          const summaryText = item.summary || item.content;
-          const summaryLines = summaryText.split("\n");
-          const trimmedLines = summaryLines.map((line) => line.trim());
-          const titleLineIndex = trimmedLines.findIndex(Boolean);
-          const rawTitle =
-            titleLineIndex >= 0 ? trimmedLines[titleLineIndex] : "Reasoning";
-          const cleanTitle = rawTitle
-            .replace(/[`*_~]/g, "")
-            .replace(/\[(.*?)\]\(.*?\)/g, "$1")
-            .trim();
-          const summaryTitle =
-            cleanTitle.length > 80
-              ? `${cleanTitle.slice(0, 80)}…`
-              : cleanTitle || "Reasoning";
-          const reasoningTone: StatusTone = summaryText ? "completed" : "processing";
           const isExpanded = expandedItems.has(item.id);
-          const bodyText =
-            titleLineIndex >= 0
-              ? summaryLines
-                  .filter((_, index) => index !== titleLineIndex)
-                  .join("\n")
-                  .trim()
-              : "";
-          const showReasoningBody = Boolean(bodyText);
           return (
-            <div key={item.id} className="tool-inline reasoning-inline">
-              <button
-                type="button"
-                className="tool-inline-bar-toggle"
-                onClick={() => toggleExpanded(item.id)}
-                aria-expanded={expandedItems.has(item.id)}
-                aria-label="Toggle reasoning details"
-              />
-              <div className="tool-inline-content">
-                <button
-                  type="button"
-                  className="tool-inline-summary tool-inline-toggle"
-                  onClick={() => toggleExpanded(item.id)}
-                  aria-expanded={expandedItems.has(item.id)}
-                >
-                  <span
-                    className={`tool-inline-dot ${reasoningTone}`}
-                    aria-hidden
-                  />
-                  <span className="tool-inline-value">{summaryTitle}</span>
-                </button>
-                {showReasoningBody && (
-                  <Markdown
-                    value={bodyText}
-                    className={`reasoning-inline-detail markdown ${
-                      isExpanded ? "" : "tool-inline-clamp"
-                    }`}
-                    onOpenFileLink={openFileLink}
-                    onOpenFileLinkMenu={showFileLinkMenu}
-                  />
-                )}
-              </div>
-            </div>
+            <ReasoningRow
+              key={item.id}
+              item={item}
+              isExpanded={isExpanded}
+              onToggle={toggleExpanded}
+              onOpenFileLink={openFileLink}
+              onOpenFileLinkMenu={showFileLinkMenu}
+            />
           );
         }
         if (item.kind === "review") {
-          const title =
-            item.state === "started" ? "Review started" : "Review completed";
           return (
-            <div key={item.id} className="item-card review">
-              <div className="review-header">
-                <span className="review-title">{title}</span>
-                <span
-                  className={`review-badge ${
-                    item.state === "started" ? "active" : "done"
-                  }`}
-                >
-                  Review
-                </span>
-              </div>
-              {item.text && (
-                <Markdown
-                  value={item.text}
-                  className="item-text markdown"
-                  onOpenFileLink={openFileLink}
-                  onOpenFileLinkMenu={showFileLinkMenu}
-                />
-              )}
-            </div>
+            <ReviewRow
+              key={item.id}
+              item={item}
+              onOpenFileLink={openFileLink}
+              onOpenFileLinkMenu={showFileLinkMenu}
+            />
           );
         }
         if (item.kind === "diff") {
-          return (
-            <div key={item.id} className="item-card diff">
-              <div className="diff-header">
-                <span className="diff-title">{item.title}</span>
-                {item.status && <span className="item-status">{item.status}</span>}
-              </div>
-              <div className="diff-viewer-output">
-                <DiffBlock diff={item.diff} language={languageFromPath(item.title)} />
-              </div>
-            </div>
-          );
+          return <DiffRow key={item.id} item={item} />;
         }
         if (item.kind === "tool") {
-          const isFileChange = item.toolType === "fileChange";
-          const isCommand = item.toolType === "commandExecution";
-          const commandText = isCommand
-            ? item.title.replace(/^Command:\s*/i, "").trim()
-            : "";
-          const summary = buildToolSummary(item, commandText);
-          const changeNames = (item.changes ?? [])
-            .map((change) => basename(change.path))
-            .filter(Boolean);
-          const hasChanges = changeNames.length > 0;
-          const tone = toolStatusTone(item, hasChanges);
           const isExpanded = expandedItems.has(item.id);
-          const summaryLabel = isFileChange
-            ? changeNames.length > 1
-              ? "files edited"
-              : "file edited"
-            : isCommand
-              ? ""
-            : summary.label;
-          const summaryValue = isFileChange
-            ? changeNames.length > 1
-              ? `${changeNames[0]} +${changeNames.length - 1}`
-              : changeNames[0] || "changes"
-            : summary.value;
-          const shouldFadeCommand =
-            isCommand && !isExpanded && (summaryValue?.length ?? 0) > 80;
-          const showToolOutput = isExpanded && (!isFileChange || !hasChanges);
           return (
-            <div
+            <ToolRow
               key={item.id}
-              className={`tool-inline ${
-                expandedItems.has(item.id) ? "tool-inline-expanded" : ""
-              }`}
-            >
-              <button
-                type="button"
-                className="tool-inline-bar-toggle"
-                onClick={() => toggleExpanded(item.id)}
-                aria-expanded={expandedItems.has(item.id)}
-                aria-label="Toggle tool details"
-              />
-              <div className="tool-inline-content">
-                <button
-                  type="button"
-                  className="tool-inline-summary tool-inline-toggle"
-                  onClick={() => toggleExpanded(item.id)}
-                  aria-expanded={expandedItems.has(item.id)}
-                >
-                  <span className={`tool-inline-dot ${tone}`} aria-hidden />
-                  {summaryLabel && (
-                    <span className="tool-inline-label">{summaryLabel}:</span>
-                  )}
-                  {summaryValue && (
-                    <span
-                      className={`tool-inline-value ${
-                        isCommand ? "tool-inline-command" : ""
-                      } ${isCommand && isExpanded ? "tool-inline-command-full" : ""}`}
-                    >
-                      {isCommand ? (
-                        <span
-                          className={`tool-inline-command-text ${
-                            shouldFadeCommand ? "tool-inline-command-fade" : ""
-                          }`}
-                        >
-                          {summaryValue}
-                        </span>
-                      ) : (
-                        summaryValue
-                      )}
-                    </span>
-                  )}
-                </button>
-                {isExpanded && summary.detail && !isFileChange && (
-                  <div className="tool-inline-detail">
-                    {summary.detail}
-                  </div>
-                )}
-                {isExpanded && isCommand && item.detail && (
-                  <div className="tool-inline-detail tool-inline-muted">
-                    cwd: {item.detail}
-                  </div>
-                )}
-                {isExpanded && isFileChange && hasChanges && (
-                  <div className="tool-inline-change-list">
-                    {item.changes?.map((change, index) => (
-                      <div
-                        key={`${change.path}-${index}`}
-                        className="tool-inline-change"
-                      >
-                        <div className="tool-inline-change-header">
-                          {change.kind && (
-                            <span className="tool-inline-change-kind">
-                              {change.kind.toUpperCase()}
-                            </span>
-                          )}
-                          <span className="tool-inline-change-path">
-                            {basename(change.path)}
-                          </span>
-                        </div>
-                        {change.diff && (
-                          <div className="diff-viewer-output">
-                            <DiffBlock
-                              diff={change.diff}
-                              language={languageFromPath(change.path)}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {isExpanded && isFileChange && !hasChanges && item.detail && (
-                  <Markdown
-                    value={item.detail}
-                    className="item-text markdown"
-                    onOpenFileLink={openFileLink}
-                    onOpenFileLinkMenu={showFileLinkMenu}
-                  />
-                )}
-                {showToolOutput && summary.output && (
-                  <Markdown
-                    value={summary.output}
-                    className="tool-inline-output markdown"
-                    codeBlock
-                    onOpenFileLink={openFileLink}
-                    onOpenFileLinkMenu={showFileLinkMenu}
-                  />
-                )}
-              </div>
-            </div>
+              item={item}
+              isExpanded={isExpanded}
+              onToggle={toggleExpanded}
+              onOpenFileLink={openFileLink}
+              onOpenFileLinkMenu={showFileLinkMenu}
+            />
           );
         }
         return null;
       })}
-      {isThinking && (
-        <div className="working">
-          <span className="working-spinner" aria-hidden />
-          <div className="working-timer">
-            <span className="working-timer-clock">{formattedElapsed}</span>
-          </div>
-          <span className="working-text">Working…</span>
-        </div>
-      )}
-      {!isThinking && lastDurationMs !== null && items.length > 0 && (
-        <div className="turn-complete" aria-live="polite">
-          <span className="turn-complete-line" aria-hidden />
-          <span className="turn-complete-label">
-            Done in {formattedLastDuration}
-          </span>
-          <span className="turn-complete-line" aria-hidden />
-        </div>
-      )}
+      <WorkingIndicator
+        isThinking={isThinking}
+        processingStartedAt={processingStartedAt}
+        lastDurationMs={lastDurationMs}
+        hasItems={items.length > 0}
+      />
       {!items.length && (
         <div className="empty messages-empty">
           Start a thread and send a prompt to the agent.
