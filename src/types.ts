@@ -213,6 +213,8 @@ export type LocalUsageDay = {
   cachedInputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  agentTimeMs: number;
+  agentRuns: number;
 };
 
 export type LocalUsageTotals = {

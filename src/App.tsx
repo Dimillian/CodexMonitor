@@ -821,12 +821,40 @@ function MainApp() {
     activePlan && (activePlan.steps.length > 0 || activePlan.explanation)
   );
   const showHome = !activeWorkspace;
+  const [usageMetric, setUsageMetric] = useState<"tokens" | "time">("tokens");
+  const [usageWorkspaceId, setUsageWorkspaceId] = useState<string | null>(null);
+  const usageWorkspaceOptions = useMemo(
+    () =>
+      workspaces.map((workspace) => {
+        const groupName = getWorkspaceGroupName(workspace.id);
+        const label = groupName
+          ? `${groupName} / ${workspace.name}`
+          : workspace.name;
+        return { id: workspace.id, label };
+      }),
+    [getWorkspaceGroupName, workspaces],
+  );
+  const usageWorkspacePath = useMemo(() => {
+    if (!usageWorkspaceId) {
+      return null;
+    }
+    return workspaces.find((workspace) => workspace.id === usageWorkspaceId)?.path ?? null;
+  }, [usageWorkspaceId, workspaces]);
+  useEffect(() => {
+    if (!usageWorkspaceId) {
+      return;
+    }
+    if (workspaces.some((workspace) => workspace.id === usageWorkspaceId)) {
+      return;
+    }
+    setUsageWorkspaceId(null);
+  }, [usageWorkspaceId, workspaces]);
   const {
     snapshot: localUsageSnapshot,
     isLoading: isLoadingLocalUsage,
     error: localUsageError,
     refresh: refreshLocalUsage,
-  } = useLocalUsage(showHome);
+  } = useLocalUsage(showHome, usageWorkspacePath);
   const canInterrupt = activeThreadId
     ? threadStatusById[activeThreadId]?.isProcessing ?? false
     : false;
@@ -1342,6 +1370,11 @@ function MainApp() {
     onRefreshLocalUsage: () => {
       refreshLocalUsage()?.catch(() => {});
     },
+    usageMetric,
+    onUsageMetricChange: setUsageMetric,
+    usageWorkspaceId,
+    usageWorkspaceOptions,
+    onUsageWorkspaceChange: setUsageWorkspaceId,
     onSelectHomeThread: (workspaceId, threadId) => {
       exitDiffView();
       selectWorkspace(workspaceId);

@@ -12,6 +12,11 @@ const baseProps = {
   isLoadingLocalUsage: false,
   localUsageError: null,
   onRefreshLocalUsage: vi.fn(),
+  usageMetric: "tokens",
+  onUsageMetricChange: vi.fn(),
+  usageWorkspaceId: null,
+  usageWorkspaceOptions: [],
+  onUsageWorkspaceChange: vi.fn(),
   onSelectThread: vi.fn(),
 };
 

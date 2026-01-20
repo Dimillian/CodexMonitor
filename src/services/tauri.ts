@@ -261,8 +261,13 @@ export async function getGitHubPullRequestComments(
 
 export async function localUsageSnapshot(
   days?: number,
+  workspacePath?: string | null,
 ): Promise<LocalUsageSnapshot> {
-  return invoke("local_usage_snapshot", { days: days ?? 30 });
+  const payload: { days: number; workspacePath?: string } = { days: days ?? 30 };
+  if (workspacePath) {
+    payload.workspacePath = workspacePath;
+  }
+  return invoke("local_usage_snapshot", payload);
 }
 
 export async function getModelList(workspaceId: string) {
