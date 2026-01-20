@@ -59,6 +59,16 @@ export function UpdateToast({ state, onUpdate, onDismiss }: UpdateToastProps) {
             </div>
           </>
         )}
+        {state.stage === "latest" && (
+          <div className="update-toast-inline">
+            <div className="update-toast-body update-toast-body-inline">
+              You’re up to date.
+            </div>
+            <button className="secondary" onClick={onDismiss}>
+              Dismiss
+            </button>
+          </div>
+        )}
         {state.stage === "downloading" && (
           <>
             <div className="update-toast-body">
