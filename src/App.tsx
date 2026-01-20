@@ -206,7 +206,7 @@ function MainApp() {
     | "display"
     | "dictation"
     | "shortcuts"
-    | "codex"
+    | "backends"
     | "experimental";
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(

@@ -70,7 +70,7 @@ type SettingsViewProps = {
 };
 
 type SettingsSection = "projects" | "display" | "dictation" | "shortcuts";
-type CodexSection = SettingsSection | "codex" | "experimental";
+type CodexSection = SettingsSection | "backends" | "experimental";
 
 export function SettingsView({
   workspaceGroups,
@@ -509,11 +509,11 @@ export function SettingsView({
             </button>
             <button
               type="button"
-              className={`settings-nav ${activeSection === "codex" ? "active" : ""}`}
-              onClick={() => setActiveSection("codex")}
+              className={`settings-nav ${activeSection === "backends" ? "active" : ""}`}
+              onClick={() => setActiveSection("backends")}
             >
               <TerminalSquare aria-hidden />
-              Codex
+              Backends
             </button>
             <button
               type="button"
@@ -1143,11 +1143,83 @@ export function SettingsView({
                 </div>
               </section>
             )}
-            {activeSection === "codex" && (
+            {activeSection === "backends" && (
               <section className="settings-section">
-                <div className="settings-section-title">Codex</div>
+                <div className="settings-section-title">Backends</div>
                 <div className="settings-section-subtitle">
-                  Configure the Codex CLI used by CodexMonitor and validate the install.
+                  Configure AI agent backends and connection settings.
+                </div>
+                <div className="settings-subsection-title">Workspace settings</div>
+                <div className="settings-subsection-subtitle">
+                  Configure provider and CLI path per workspace.
+                </div>
+                <div className="settings-field">
+                  <div className="settings-overrides">
+                    {projects.map((workspace) => (
+                      <div key={workspace.id} className="settings-override-row">
+                        <div className="settings-override-info">
+                          <div className="settings-project-name">{workspace.name}</div>
+                          <div className="settings-project-path">{workspace.path}</div>
+                        </div>
+                        <div className="settings-override-actions">
+                          <select
+                            className="settings-select settings-select--compact"
+                            value={workspace.settings.providerType}
+                            onChange={(event) => {
+                              void onUpdateWorkspaceProviderType(
+                                workspace.id,
+                                event.target.value as ProviderType,
+                              );
+                            }}
+                            aria-label="Agent provider"
+                          >
+                            <option value="codex">Codex</option>
+                            <option value="claude">Claude</option>
+                          </select>
+                          <input
+                            className="settings-input settings-input--compact"
+                            value={overrideDrafts[workspace.id] ?? ""}
+                            placeholder="CLI path override"
+                            onChange={(event) =>
+                              setOverrideDrafts((prev) => ({
+                                ...prev,
+                                [workspace.id]: event.target.value,
+                              }))
+                            }
+                            onBlur={async () => {
+                              const draft = overrideDrafts[workspace.id] ?? "";
+                              const nextValue = draft.trim() || null;
+                              if (nextValue === (workspace.codex_bin ?? null)) {
+                                return;
+                              }
+                              await onUpdateWorkspaceCodexBin(workspace.id, nextValue);
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="ghost"
+                            onClick={async () => {
+                              setOverrideDrafts((prev) => ({
+                                ...prev,
+                                [workspace.id]: "",
+                              }));
+                              await onUpdateWorkspaceCodexBin(workspace.id, null);
+                            }}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {projects.length === 0 && (
+                      <div className="settings-empty">No projects yet.</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="settings-subsection-title">Provider paths</div>
+                <div className="settings-subsection-subtitle">
+                  Configure CLI paths for each agent provider.
                 </div>
                 <div className="settings-field">
                   <label className="settings-field-label" htmlFor="codex-path">
@@ -1273,6 +1345,10 @@ export function SettingsView({
                   </div>
                 </div>
 
+                <div className="settings-subsection-title">Defaults</div>
+                <div className="settings-subsection-subtitle">
+                  Configure default behavior for new sessions.
+                </div>
                 <div className="settings-field">
                   <label className="settings-field-label" htmlFor="default-access">
                     Default access mode
@@ -1360,74 +1436,6 @@ export function SettingsView({
                     </div>
                   </div>
                 )}
-
-                <div className="settings-field">
-                  <div className="settings-field-label">Workspace overrides</div>
-                  <div className="settings-subsection-subtitle">
-                    Configure provider and CLI path per workspace.
-                  </div>
-                  <div className="settings-overrides">
-                    {projects.map((workspace) => (
-                      <div key={workspace.id} className="settings-override-row">
-                        <div className="settings-override-info">
-                          <div className="settings-project-name">{workspace.name}</div>
-                          <div className="settings-project-path">{workspace.path}</div>
-                        </div>
-                        <div className="settings-override-actions">
-                          <select
-                            className="settings-select settings-select--compact"
-                            value={workspace.settings.providerType}
-                            onChange={(event) => {
-                              void onUpdateWorkspaceProviderType(
-                                workspace.id,
-                                event.target.value as ProviderType,
-                              );
-                            }}
-                            aria-label="Agent provider"
-                          >
-                            <option value="codex">Codex</option>
-                            <option value="claude">Claude</option>
-                          </select>
-                          <input
-                            className="settings-input settings-input--compact"
-                            value={overrideDrafts[workspace.id] ?? ""}
-                            placeholder="CLI path override"
-                            onChange={(event) =>
-                              setOverrideDrafts((prev) => ({
-                                ...prev,
-                                [workspace.id]: event.target.value,
-                              }))
-                            }
-                            onBlur={async () => {
-                              const draft = overrideDrafts[workspace.id] ?? "";
-                              const nextValue = draft.trim() || null;
-                              if (nextValue === (workspace.codex_bin ?? null)) {
-                                return;
-                              }
-                              await onUpdateWorkspaceCodexBin(workspace.id, nextValue);
-                            }}
-                          />
-                          <button
-                            type="button"
-                            className="ghost"
-                            onClick={async () => {
-                              setOverrideDrafts((prev) => ({
-                                ...prev,
-                                [workspace.id]: "",
-                              }));
-                              await onUpdateWorkspaceCodexBin(workspace.id, null);
-                            }}
-                          >
-                            Clear
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    {projects.length === 0 && (
-                      <div className="settings-empty">No projects yet.</div>
-                    )}
-                  </div>
-                </div>
 
               </section>
             )}
