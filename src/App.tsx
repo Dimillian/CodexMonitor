@@ -784,14 +784,11 @@ function MainApp() {
     activeWorkspaceId,
     renameWorktree,
     renameWorktreeUpstream,
-    onRenameSuccess: (workspaceId) => {
-      resetWorkspaceThreads(workspaceId);
-      const workspace = workspaces.find((entry) => entry.id === workspaceId);
-      if (workspace) {
-        void listThreadsForWorkspace(workspace);
-      }
-      if (activeThreadId && activeWorkspaceId === workspaceId) {
-        void refreshThread(workspaceId, activeThreadId);
+    onRenameSuccess: (workspace) => {
+      resetWorkspaceThreads(workspace.id);
+      void listThreadsForWorkspace(workspace);
+      if (activeThreadId && activeWorkspaceId === workspace.id) {
+        void refreshThread(workspace.id, activeThreadId);
       }
     },
   });

@@ -26,7 +26,7 @@ type UseRenameWorktreePromptOptions = {
     oldBranch: string,
     newBranch: string,
   ) => Promise<void>;
-  onRenameSuccess?: (workspaceId: string) => void;
+  onRenameSuccess?: (workspace: WorkspaceInfo) => void;
 };
 
 export function useRenameWorktreePrompt({
@@ -151,7 +151,7 @@ export function useRenameWorktreePrompt({
     try {
       const updated = await renameWorktree(target.workspaceId, trimmed);
       const actualName = updated.worktree?.branch ?? updated.name;
-      onRenameSuccess?.(updated.id);
+      onRenameSuccess?.(updated);
       if (actualName !== target.originalName) {
         setUpstreamPrompt({
           workspaceId: target.workspaceId,
