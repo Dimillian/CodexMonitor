@@ -6,23 +6,41 @@ CodexMonitor is a macOS Tauri app for orchestrating multiple Codex agents across
 
 ## Features
 
-- Add and persist workspaces with a home dashboard of recent agent activity.
-- Spawn one `codex app-server` per workspace, stream JSON-RPC events, and resume threads on selection.
-- Start agent threads, send messages, render reasoning/tool/diff items, and handle approvals.
-- Worktree agents per workspace (create/delete git worktrees under `.codex-worktrees`) with quick worktree info.
-- Git panel with diff stats, file diffs, commit log, and GitHub Issues (via `gh`); open commits on GitHub when a remote is detected.
-- Branch list with checkout and create flows.
-- Model picker, reasoning effort selector, access mode (read-only/current/full-access), and context usage ring.
-- Skills menu and composer autocomplete for `$skill`, `/prompts:...`, `/review ...`, and `@file` tokens.
-- Plan panel for per-turn planning updates plus turn interrupt controls.
-- Review runs against uncommitted changes, base branch, commits, or custom instructions.
-- Debug panel for warning/error events with clipboard export.
-- Sidebar usage + credits meter for account rate limits.
-- Composer queueing plus image attachments (picker, drag/drop, paste) with per-thread drafts.
-- Resizable sidebar/right/plan/debug panels with persisted sizes.
-- Responsive layouts for desktop/tablet/phone with tabbed navigation.
-- In-app updater with toast-driven download/install.
-- macOS overlay title bar with vibrancy effects and optional reduced transparency.
+### Workspaces & Threads
+
+- Add and persist workspaces, group/sort them, and jump into recent agent activity from the home dashboard.
+- Spawn one `codex app-server` per workspace, resume threads, and track unread/running state.
+- Worktree and clone agents for isolated work; worktrees live under the app data directory (legacy `.codex-worktrees` supported).
+- Thread management: pin/rename/archive/copy, per-thread drafts, and stop/interrupt in-flight turns.
+- Optional remote backend (daemon) mode for running Codex on another machine.
+
+### Composer & Agent Controls
+
+- Compose with queueing plus image attachments (picker, drag/drop, paste).
+- Autocomplete for skills (`$`), prompts (`/prompts:`), reviews (`/review`), and file paths (`@`).
+- Model picker, collaboration modes (when enabled), reasoning effort, access mode, and context usage ring.
+- Dictation with hold-to-talk shortcuts and live waveform (Whisper).
+- Render reasoning/tool/diff items and handle approval prompts.
+
+### Git & GitHub
+
+- Diff stats, staged/unstaged file diffs, revert/stage controls, and commit log.
+- Branch list with checkout/create plus upstream ahead/behind counts.
+- GitHub Issues and Pull Requests via `gh` (lists, diffs, comments) and open commits/PRs in the browser.
+- PR composer: "Ask PR" to send PR context into a new agent thread.
+
+### Files & Prompts
+
+- File tree with search, file-type icons, and Reveal in Finder.
+- Prompt library for global/workspace prompts: create/edit/delete/move and run in current or new threads.
+
+### UI & Experience
+
+- Resizable sidebar/right/plan/terminal/debug panels with persisted sizes.
+- Responsive layouts (desktop/tablet/phone) with tabbed navigation.
+- Sidebar usage and credits meter for account rate limits plus a home usage snapshot.
+- Terminal dock with multiple tabs for background commands (experimental).
+- In-app updates with toast-driven download/install, debug panel copy/clear, sound notifications, and macOS overlay title bar with vibrancy + reduced transparency toggle.
 
 ## Requirements
 

@@ -48,6 +48,24 @@ CodexMonitor is a macOS Tauri app that orchestrates Codex agents across local wo
 - Threads are fetched via `thread/list`, filtered by `cwd`, and resumed via `thread/resume` when selected.
 - Archiving uses `thread/archive` and removes the thread from the UI list.
 
+## Event Stack (Tauri → React)
+
+The app uses a shared event hub for Tauri events so each event has exactly one native `listen` and fan-outs to React subscribers.
+
+- **Backend emits**: `src-tauri/src/lib.rs` uses `emit_menu_event` (or `app.emit`) to send events to the `"main"` window.
+- **Frontend hub**: `src/services/events.ts` defines `createEventHub` and module-level hubs (one per event). These hubs call `listen` once and dispatch to subscribers. Each listener call is wrapped in `try/catch` so one handler cannot block others.
+- **React subscription**: components/hooks call `useTauriEvent` with a `subscribeX` function from `src/services/events.ts`. Avoid calling `listen` directly from React.
+
+### Adding a new Tauri event
+
+1) **Backend emit**: add a new menu item or command in `src-tauri/src/lib.rs` that calls `app.emit("event-name", payload)` or `emit_menu_event(...)`.
+2) **Frontend hub**: add a hub and subscription in `src/services/events.ts`:
+   - Define the payload type (or reuse an existing one).
+   - Create `const myEventHub = createEventHub<MyPayload>("event-name");`
+   - Export `subscribeMyEvent(onEvent, options)` that delegates to the hub.
+3) **React usage**: wire it up with `useTauriEvent(subscribeMyEvent, handler)` in a hook/component (usually `src/App.tsx` or a feature hook).
+4) **Tests**: update `src/services/events.test.ts` if you add new subscription helpers.
+
 ## Workspace Persistence
 
 - Workspaces are stored in `workspaces.json` under the app data directory.
