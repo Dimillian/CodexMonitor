@@ -215,6 +215,10 @@ export async function stageGitFile(workspaceId: string, path: string) {
   return invoke("stage_git_file", { workspaceId, path });
 }
 
+export async function stageGitAll(workspaceId: string): Promise<void> {
+  return invoke("stage_git_all", { workspaceId });
+}
+
 export async function unstageGitFile(workspaceId: string, path: string) {
   return invoke("unstage_git_file", { workspaceId, path });
 }

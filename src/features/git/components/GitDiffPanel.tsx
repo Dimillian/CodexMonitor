@@ -180,20 +180,22 @@ function isMissingRepo(error: string | null | undefined) {
 
 type CommitButtonProps = {
   commitMessage: string;
-  stagedFiles: { path: string }[];
+  hasStagedFiles: boolean;
+  hasUnstagedFiles: boolean;
   commitLoading: boolean;
   onCommit?: () => void | Promise<void>;
 };
 
 function CommitButton({
   commitMessage,
-  stagedFiles,
+  hasStagedFiles,
+  hasUnstagedFiles,
   commitLoading,
   onCommit,
 }: CommitButtonProps) {
   const hasMessage = commitMessage.trim().length > 0;
-  const hasStagedFiles = stagedFiles.length > 0;
-  const canCommit = hasMessage && hasStagedFiles && !commitLoading;
+  const hasChanges = hasStagedFiles || hasUnstagedFiles;
+  const canCommit = hasMessage && hasChanges && !commitLoading;
 
   const handleCommit = () => {
     if (canCommit) {
@@ -208,7 +210,15 @@ function CommitButton({
         className="commit-button"
         onClick={handleCommit}
         disabled={!canCommit}
-        title={!hasMessage ? "Enter a commit message" : !hasStagedFiles ? "Stage files to commit" : "Commit staged changes"}
+        title={
+          !hasMessage
+            ? "Enter a commit message"
+            : !hasChanges
+              ? "No changes to commit"
+              : hasStagedFiles
+                ? "Commit staged changes"
+                : "Commit all unstaged changes"
+        }
       >
         {commitLoading ? (
           <span className="commit-button-spinner" aria-hidden />
@@ -226,7 +236,7 @@ function CommitButton({
           >
             <path d="M20 6 9 17l-5-5" />
           </svg>
-        )}
+          )}
         <span>{commitLoading ? "Committing..." : "Commit"}</span>
       </button>
     </div>
@@ -566,12 +576,13 @@ export function GitDiffPanel({
   const showRevertAll = mode === "diff" && Boolean(onRevertAllChanges) && hasAnyChanges;
   const showRevertAllInStaged = showRevertAll && stagedFiles.length > 0;
   const showRevertAllInUnstaged = showRevertAll && unstagedFiles.length > 0;
+  const canGenerateCommitMessage = hasAnyChanges;
   const showGenerateCommitMessage =
     mode === "diff" && Boolean(onGenerateCommitMessage) && hasAnyChanges;
   const worktreeApplyButtonLabel = worktreeApplySuccess
     ? "applied"
     : worktreeApplyLoading
-      ? "applying..."
+    ? "applying..."
       : worktreeApplyLabel;
   const worktreeApplyIcon = worktreeApplySuccess ? (
     <Check size={12} aria-hidden />
@@ -770,10 +781,17 @@ export function GitDiffPanel({
                   type="button"
                   className="commit-message-generate-button"
                   onClick={() => {
+                    if (!canGenerateCommitMessage) {
+                      return;
+                    }
                     void onGenerateCommitMessage?.();
                   }}
-                  disabled={commitMessageLoading}
-                  title="Generate commit message with AI"
+                  disabled={commitMessageLoading || !canGenerateCommitMessage}
+                  title={
+                    stagedFiles.length > 0
+                      ? "Generate commit message from staged changes"
+                      : "Generate commit message from unstaged changes"
+                  }
                   aria-label="Generate commit message"
                 >
                   {commitMessageLoading ? (
@@ -835,7 +853,8 @@ export function GitDiffPanel({
               )}
               <CommitButton
                 commitMessage={commitMessage}
-                stagedFiles={stagedFiles}
+                hasStagedFiles={stagedFiles.length > 0}
+                hasUnstagedFiles={unstagedFiles.length > 0}
                 commitLoading={commitLoading}
                 onCommit={onCommit}
               />

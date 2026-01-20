@@ -96,6 +96,7 @@ import {
   pickWorkspacePath,
   generateCommitMessage,
   commitGit,
+  stageGitAll,
   pushGit,
   syncGit,
 } from "./services/tauri";
@@ -920,6 +921,16 @@ function MainApp() {
   const [commitMessage, setCommitMessage] = useState("");
   const [commitMessageLoading, setCommitMessageLoading] = useState(false);
   const [commitMessageError, setCommitMessageError] = useState<string | null>(null);
+  const hasStagedChanges = gitStatus.stagedFiles.length > 0;
+  const hasUnstagedChanges = gitStatus.unstagedFiles.length > 0;
+  const hasWorktreeChanges = hasStagedChanges || hasUnstagedChanges;
+
+  const ensureStagedForCommit = useCallback(async () => {
+    if (!activeWorkspace || hasStagedChanges || !hasUnstagedChanges) {
+      return;
+    }
+    await stageGitAll(activeWorkspace.id);
+  }, [activeWorkspace, hasStagedChanges, hasUnstagedChanges]);
 
   const handleCommitMessageChange = useCallback((value: string) => {
     setCommitMessage(value);
@@ -929,18 +940,27 @@ function MainApp() {
     if (!activeWorkspace || commitMessageLoading) {
       return;
     }
+    const workspaceId = activeWorkspace.id;
     setCommitMessageLoading(true);
     setCommitMessageError(null);
     try {
       // Generate commit message in background
-      const message = await generateCommitMessage(activeWorkspace.id);
+      const message = await generateCommitMessage(workspaceId);
+      if (activeWorkspaceIdRef.current !== workspaceId) {
+        return;
+      }
       setCommitMessage(message);
     } catch (error) {
+      if (activeWorkspaceIdRef.current !== workspaceId) {
+        return;
+      }
       setCommitMessageError(
         error instanceof Error ? error.message : String(error)
       );
     } finally {
-      setCommitMessageLoading(false);
+      if (activeWorkspaceIdRef.current === workspaceId) {
+        setCommitMessageLoading(false);
+      }
     }
   }, [activeWorkspace, commitMessageLoading]);
 
@@ -948,6 +968,7 @@ function MainApp() {
   useEffect(() => {
     setCommitMessage("");
     setCommitMessageError(null);
+    setCommitMessageLoading(false);
   }, [activeWorkspaceId]);
 
   // Git commit/push/sync state
@@ -959,12 +980,13 @@ function MainApp() {
   const [syncError, setSyncError] = useState<string | null>(null);
 
   const handleCommit = useCallback(async () => {
-    if (!activeWorkspace || commitLoading || !commitMessage.trim()) {
+    if (!activeWorkspace || commitLoading || !commitMessage.trim() || !hasWorktreeChanges) {
       return;
     }
     setCommitLoading(true);
     setCommitError(null);
     try {
+      await ensureStagedForCommit();
       await commitGit(activeWorkspace.id, commitMessage.trim());
       setCommitMessage("");
       // Refresh git status after commit
@@ -975,10 +997,10 @@ function MainApp() {
     } finally {
       setCommitLoading(false);
     }
-  }, [activeWorkspace, commitLoading, commitMessage, refreshGitStatus, refreshGitLog]);
+  }, [activeWorkspace, commitLoading, commitMessage, ensureStagedForCommit, hasWorktreeChanges, refreshGitStatus, refreshGitLog]);
 
   const handleCommitAndPush = useCallback(async () => {
-    if (!activeWorkspace || commitLoading || pushLoading || !commitMessage.trim()) {
+    if (!activeWorkspace || commitLoading || pushLoading || !commitMessage.trim() || !hasWorktreeChanges) {
       return;
     }
     let commitSucceeded = false;
@@ -987,6 +1009,7 @@ function MainApp() {
     setCommitError(null);
     setPushError(null);
     try {
+      await ensureStagedForCommit();
       await commitGit(activeWorkspace.id, commitMessage.trim());
       commitSucceeded = true;
       setCommitMessage("");
@@ -1006,10 +1029,10 @@ function MainApp() {
       setCommitLoading(false);
       setPushLoading(false);
     }
-  }, [activeWorkspace, commitLoading, pushLoading, commitMessage, refreshGitStatus, refreshGitLog]);
+  }, [activeWorkspace, commitLoading, pushLoading, commitMessage, ensureStagedForCommit, hasWorktreeChanges, refreshGitStatus, refreshGitLog]);
 
   const handleCommitAndSync = useCallback(async () => {
-    if (!activeWorkspace || commitLoading || syncLoading || !commitMessage.trim()) {
+    if (!activeWorkspace || commitLoading || syncLoading || !commitMessage.trim() || !hasWorktreeChanges) {
       return;
     }
     let commitSucceeded = false;
@@ -1018,6 +1041,7 @@ function MainApp() {
     setCommitError(null);
     setSyncError(null);
     try {
+      await ensureStagedForCommit();
       await commitGit(activeWorkspace.id, commitMessage.trim());
       commitSucceeded = true;
       setCommitMessage("");
@@ -1037,7 +1061,7 @@ function MainApp() {
       setCommitLoading(false);
       setSyncLoading(false);
     }
-  }, [activeWorkspace, commitLoading, syncLoading, commitMessage, refreshGitStatus, refreshGitLog]);
+  }, [activeWorkspace, commitLoading, syncLoading, commitMessage, ensureStagedForCommit, hasWorktreeChanges, refreshGitStatus, refreshGitLog]);
 
   const handlePush = useCallback(async () => {
     if (!activeWorkspace || pushLoading) {

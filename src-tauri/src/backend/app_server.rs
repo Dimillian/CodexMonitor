@@ -244,7 +244,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
             // Check if this event is for a background thread
             let thread_id = value
                 .get("params")
-                .and_then(|p| p.get("threadId"))
+                .and_then(|p| p.get("threadId").or_else(|| p.get("thread_id")))
                 .and_then(|t| t.as_str())
                 .map(|s| s.to_string());
 

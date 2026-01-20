@@ -125,6 +125,39 @@ fn status_for_workdir(status: Status) -> Option<&'static str> {
     }
 }
 
+fn build_combined_diff(diff: &git2::Diff) -> String {
+    let mut combined_diff = String::new();
+    for (index, delta) in diff.deltas().enumerate() {
+        let path = delta
+            .new_file()
+            .path()
+            .or_else(|| delta.old_file().path());
+        let Some(path) = path else {
+            continue;
+        };
+        let patch = match git2::Patch::from_diff(diff, index) {
+            Ok(patch) => patch,
+            Err(_) => continue,
+        };
+        let Some(mut patch) = patch else {
+            continue;
+        };
+        let content = match diff_patch_to_string(&mut patch) {
+            Ok(content) => content,
+            Err(_) => continue,
+        };
+        if content.trim().is_empty() {
+            continue;
+        }
+        if !combined_diff.is_empty() {
+            combined_diff.push_str("\n\n");
+        }
+        combined_diff.push_str(&format!("=== {} ===\n", path.display()));
+        combined_diff.push_str(&content);
+    }
+    combined_diff
+}
+
 fn github_repo_from_path(path: &Path) -> Result<String, String> {
     let repo = Repository::open(path).map_err(|e| e.to_string())?;
     let remotes = repo.remotes().map_err(|e| e.to_string())?;
@@ -378,6 +411,21 @@ pub(crate) async fn stage_git_file(
 }
 
 #[tauri::command]
+pub(crate) async fn stage_git_all(
+    workspace_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?
+        .clone();
+
+    let repo_root = resolve_git_root(&entry)?;
+    run_git_command(&repo_root, &["add", "-A"]).await
+}
+
+#[tauri::command]
 pub(crate) async fn unstage_git_file(
     workspace_id: String,
     path: String,
@@ -538,38 +586,26 @@ pub(crate) async fn get_workspace_diff(
             .diff_tree_to_index(None, Some(&index), Some(&mut options))
             .map_err(|e| e.to_string())?,
     };
-
-    let mut combined_diff = String::new();
-    for (index, delta) in diff.deltas().enumerate() {
-        let path = delta
-            .new_file()
-            .path()
-            .or_else(|| delta.old_file().path());
-        let Some(path) = path else {
-            continue;
-        };
-        let patch = match git2::Patch::from_diff(&diff, index) {
-            Ok(patch) => patch,
-            Err(_) => continue,
-        };
-        let Some(mut patch) = patch else {
-            continue;
-        };
-        let content = match diff_patch_to_string(&mut patch) {
-            Ok(content) => content,
-            Err(_) => continue,
-        };
-        if content.trim().is_empty() {
-            continue;
-        }
-        if !combined_diff.is_empty() {
-            combined_diff.push_str("\n\n");
-        }
-        combined_diff.push_str(&format!("=== {} ===\n", path.display()));
-        combined_diff.push_str(&content);
+    let combined_diff = build_combined_diff(&diff);
+    if !combined_diff.trim().is_empty() {
+        return Ok(combined_diff);
     }
 
-    Ok(combined_diff)
+    let mut options = DiffOptions::new();
+    options
+        .include_untracked(true)
+        .recurse_untracked_dirs(true)
+        .show_untracked_content(true);
+    let diff = match head_tree.as_ref() {
+        Some(tree) => repo
+            .diff_tree_to_workdir_with_index(Some(tree), Some(&mut options))
+            .map_err(|e| e.to_string())?,
+        None => repo
+            .diff_tree_to_workdir_with_index(None, Some(&mut options))
+            .map_err(|e| e.to_string())?,
+    };
+
+    Ok(build_combined_diff(&diff))
 }
 
 #[tauri::command]
