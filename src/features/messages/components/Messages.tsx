@@ -1,5 +1,19 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { Check, Copy } from "lucide-react";
+import {
+  Brain,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Diff,
+  FileDiff,
+  FileText,
+  Image,
+  Search,
+  Terminal,
+  Users,
+  Wrench,
+} from "lucide-react";
 import type { ConversationItem } from "../../../types";
 import { Markdown } from "./Markdown";
 import { DiffBlock } from "../../git/components/DiffBlock";
@@ -65,6 +79,19 @@ type ToolRowProps = {
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
 };
 
+type ToolGroupItem = Extract<ConversationItem, { kind: "tool" | "reasoning" }>;
+
+type ToolGroup = {
+  id: string;
+  items: ToolGroupItem[];
+  toolCount: number;
+  messageCount: number;
+};
+
+type MessageListEntry =
+  | { kind: "item"; item: ConversationItem }
+  | { kind: "toolGroup"; group: ToolGroup };
+
 function basename(path: string) {
   if (!path) {
     return "";
@@ -108,6 +135,52 @@ function toolNameFromTitle(title: string) {
   const [, toolPart = ""] = title.split(":");
   const segments = toolPart.split("/").map((segment) => segment.trim());
   return segments.length ? segments[segments.length - 1] : "";
+}
+
+function formatCount(value: number, singular: string, plural: string) {
+  return `${value} ${value === 1 ? singular : plural}`;
+}
+
+function isToolGroupItem(item: ConversationItem): item is ToolGroupItem {
+  return item.kind === "tool" || item.kind === "reasoning";
+}
+
+function buildToolGroups(items: ConversationItem[]): MessageListEntry[] {
+  const entries: MessageListEntry[] = [];
+  let buffer: ToolGroupItem[] = [];
+
+  const flush = () => {
+    if (buffer.length === 0) {
+      return;
+    }
+    const toolCount = buffer.filter((item) => item.kind === "tool").length;
+    const messageCount = buffer.length - toolCount;
+    if (toolCount === 0 || buffer.length === 1) {
+      buffer.forEach((item) => entries.push({ kind: "item", item }));
+    } else {
+      entries.push({
+        kind: "toolGroup",
+        group: {
+          id: buffer[0].id,
+          items: buffer,
+          toolCount,
+          messageCount,
+        },
+      });
+    }
+    buffer = [];
+  };
+
+  items.forEach((item) => {
+    if (isToolGroupItem(item)) {
+      buffer.push(item);
+    } else {
+      flush();
+      entries.push({ kind: "item", item });
+    }
+  });
+  flush();
+  return entries;
 }
 
 function buildToolSummary(
@@ -173,6 +246,43 @@ function buildToolSummary(
     detail: item.detail || "",
     output: item.output || "",
   };
+}
+
+function toolIconForSummary(
+  item: Extract<ConversationItem, { kind: "tool" }>,
+  summary: ToolSummary,
+) {
+  if (item.toolType === "commandExecution") {
+    return Terminal;
+  }
+  if (item.toolType === "fileChange") {
+    return FileDiff;
+  }
+  if (item.toolType === "webSearch") {
+    return Search;
+  }
+  if (item.toolType === "imageView") {
+    return Image;
+  }
+  if (item.toolType === "collabToolCall") {
+    return Users;
+  }
+
+  const label = summary.label.toLowerCase();
+  if (label === "read") {
+    return FileText;
+  }
+  if (label === "searched") {
+    return Search;
+  }
+
+  const toolName = toolNameFromTitle(item.title).toLowerCase();
+  const title = item.title.toLowerCase();
+  if (toolName.includes("diff") || title.includes("diff")) {
+    return Diff;
+  }
+
+  return Wrench;
 }
 
 function cleanCommandText(commandText: string) {
@@ -375,7 +485,11 @@ const ReasoningRow = memo(function ReasoningRow({
           onClick={() => onToggle(item.id)}
           aria-expanded={isExpanded}
         >
-          <span className={`tool-inline-dot ${reasoningTone}`} aria-hidden />
+          <Brain
+            className={`tool-inline-icon ${reasoningTone}`}
+            size={14}
+            aria-hidden
+          />
           <span className="tool-inline-value">{summaryTitle}</span>
         </button>
         {showReasoningBody && (
@@ -453,6 +567,7 @@ const ToolRow = memo(function ToolRow({
     .filter(Boolean);
   const hasChanges = changeNames.length > 0;
   const tone = toolStatusTone(item, hasChanges);
+  const ToolIcon = toolIconForSummary(item, summary);
   const summaryLabel = isFileChange
     ? changeNames.length > 1
       ? "files edited"
@@ -484,7 +599,7 @@ const ToolRow = memo(function ToolRow({
           onClick={() => onToggle(item.id)}
           aria-expanded={isExpanded}
         >
-          <span className={`tool-inline-dot ${tone}`} aria-hidden />
+          <ToolIcon className={`tool-inline-icon ${tone}`} size={14} aria-hidden />
           {summaryLabel && (
             <span className="tool-inline-label">{summaryLabel}:</span>
           )}
@@ -580,6 +695,9 @@ export const Messages = memo(function Messages({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const autoScrollRef = useRef(true);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [collapsedToolGroups, setCollapsedToolGroups] = useState<Set<string>>(
+    new Set(),
+  );
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const copyTimeoutRef = useRef<number | null>(null);
   const scrollKey = scrollKeyForItems(items);
@@ -600,6 +718,18 @@ export const Messages = memo(function Messages({
   }, [threadId]);
   const toggleExpanded = useCallback((id: string) => {
     setExpandedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleToolGroup = useCallback((id: string) => {
+    setCollapsedToolGroups((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
@@ -667,66 +797,112 @@ export const Messages = memo(function Messages({
     };
   }, [scrollKey, isThinking]);
 
+  const groupedItems = buildToolGroups(visibleItems);
+
+  const renderItem = (item: ConversationItem) => {
+    if (item.kind === "message") {
+      const isCopied = copiedMessageId === item.id;
+      return (
+        <MessageRow
+          key={item.id}
+          item={item}
+          isCopied={isCopied}
+          onCopy={handleCopyMessage}
+          onOpenFileLink={openFileLink}
+          onOpenFileLinkMenu={showFileLinkMenu}
+        />
+      );
+    }
+    if (item.kind === "reasoning") {
+      const isExpanded = expandedItems.has(item.id);
+      return (
+        <ReasoningRow
+          key={item.id}
+          item={item}
+          isExpanded={isExpanded}
+          onToggle={toggleExpanded}
+          onOpenFileLink={openFileLink}
+          onOpenFileLinkMenu={showFileLinkMenu}
+        />
+      );
+    }
+    if (item.kind === "review") {
+      return (
+        <ReviewRow
+          key={item.id}
+          item={item}
+          onOpenFileLink={openFileLink}
+          onOpenFileLinkMenu={showFileLinkMenu}
+        />
+      );
+    }
+    if (item.kind === "diff") {
+      return <DiffRow key={item.id} item={item} />;
+    }
+    if (item.kind === "tool") {
+      const isExpanded = expandedItems.has(item.id);
+      return (
+        <ToolRow
+          key={item.id}
+          item={item}
+          isExpanded={isExpanded}
+          onToggle={toggleExpanded}
+          onOpenFileLink={openFileLink}
+          onOpenFileLinkMenu={showFileLinkMenu}
+        />
+      );
+    }
+    return null;
+  };
+
   return (
     <div
       className="messages messages-full"
       ref={containerRef}
       onScroll={updateAutoScroll}
     >
-      {visibleItems.map((item) => {
-        if (item.kind === "message") {
-          const isCopied = copiedMessageId === item.id;
+      {groupedItems.map((entry) => {
+        if (entry.kind === "toolGroup") {
+          const { group } = entry;
+          const isCollapsed = collapsedToolGroups.has(group.id);
+          const summaryParts = [
+            formatCount(group.toolCount, "tool call", "tool calls"),
+          ];
+          if (group.messageCount > 0) {
+            summaryParts.push(formatCount(group.messageCount, "message", "messages"));
+          }
+          const summaryText = summaryParts.join(", ");
+          const groupBodyId = `tool-group-${group.id}`;
+          const ChevronIcon = isCollapsed ? ChevronDown : ChevronUp;
           return (
-            <MessageRow
-              key={item.id}
-              item={item}
-              isCopied={isCopied}
-              onCopy={handleCopyMessage}
-              onOpenFileLink={openFileLink}
-              onOpenFileLinkMenu={showFileLinkMenu}
-            />
+            <div
+              key={`tool-group-${group.id}`}
+              className={`tool-group ${isCollapsed ? "tool-group-collapsed" : ""}`}
+            >
+              <div className="tool-group-header">
+                <button
+                  type="button"
+                  className="tool-group-toggle"
+                  onClick={() => toggleToolGroup(group.id)}
+                  aria-expanded={!isCollapsed}
+                  aria-controls={groupBodyId}
+                  aria-label={isCollapsed ? "Expand tool calls" : "Collapse tool calls"}
+                >
+                  <span className="tool-group-chevron" aria-hidden>
+                    <ChevronIcon size={14} />
+                  </span>
+                  <span className="tool-group-summary">{summaryText}</span>
+                </button>
+              </div>
+              {!isCollapsed && (
+                <div className="tool-group-body" id={groupBodyId}>
+                  {group.items.map(renderItem)}
+                </div>
+              )}
+            </div>
           );
         }
-        if (item.kind === "reasoning") {
-          const isExpanded = expandedItems.has(item.id);
-          return (
-            <ReasoningRow
-              key={item.id}
-              item={item}
-              isExpanded={isExpanded}
-              onToggle={toggleExpanded}
-              onOpenFileLink={openFileLink}
-              onOpenFileLinkMenu={showFileLinkMenu}
-            />
-          );
-        }
-        if (item.kind === "review") {
-          return (
-            <ReviewRow
-              key={item.id}
-              item={item}
-              onOpenFileLink={openFileLink}
-              onOpenFileLinkMenu={showFileLinkMenu}
-            />
-          );
-        }
-        if (item.kind === "diff") {
-          return <DiffRow key={item.id} item={item} />;
-        }
-        if (item.kind === "tool") {
-          const isExpanded = expandedItems.has(item.id);
-          return (
-            <ToolRow
-              key={item.id}
-              item={item}
-              isExpanded={isExpanded}
-              onToggle={toggleExpanded}
-              onOpenFileLink={openFileLink}
-              onOpenFileLinkMenu={showFileLinkMenu}
-            />
-          );
-        }
-        return null;
+        return renderItem(entry.item);
       })}
       <WorkingIndicator
         isThinking={isThinking}

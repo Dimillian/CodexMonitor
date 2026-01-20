@@ -702,9 +702,31 @@
   min-height: 0;
   min-width: 0;
   -webkit-app-region: no-drag;
-  padding: var(--main-topbar-height) 0 0;
+  padding: 0;
   grid-column: 1;
   grid-row: 1 / 3;
+  position: relative;
+}
+
+.content-layer {
+  position: absolute;
+  inset: 0;
+  top: var(--main-topbar-height);
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+}
+
+.content-layer.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.content-layer.is-active {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
 }
 
 .app.reduced-transparency .content {

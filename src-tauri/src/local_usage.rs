@@ -1,6 +1,6 @@
-use chrono::{Duration, Local};
+use chrono::{DateTime, Duration, Local, TimeZone, Utc};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
@@ -13,6 +13,8 @@ struct DailyTotals {
     input: i64,
     cached: i64,
     output: i64,
+    agent_ms: i64,
+    agent_runs: i64,
 }
 
 #[derive(Default, Clone, Copy)]
@@ -22,16 +24,31 @@ struct UsageTotals {
     output: i64,
 }
 
+const MAX_ACTIVITY_GAP_MS: i64 = 2 * 60 * 1000;
+
 #[tauri::command]
-pub(crate) async fn local_usage_snapshot(days: Option<u32>) -> Result<LocalUsageSnapshot, String> {
+pub(crate) async fn local_usage_snapshot(
+    days: Option<u32>,
+    workspace_path: Option<String>,
+) -> Result<LocalUsageSnapshot, String> {
     let days = days.unwrap_or(30).clamp(1, 90);
-    let snapshot = tokio::task::spawn_blocking(move || scan_local_usage(days))
-        .await
-        .map_err(|err| err.to_string())??;
+    let workspace_path = workspace_path.and_then(|value| {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(PathBuf::from(trimmed))
+        }
+    });
+    let snapshot = tokio::task::spawn_blocking(move || {
+        scan_local_usage(days, workspace_path.as_deref())
+    })
+    .await
+    .map_err(|err| err.to_string())??;
     Ok(snapshot)
 }
 
-fn scan_local_usage(days: u32) -> Result<LocalUsageSnapshot, String> {
+fn scan_local_usage(days: u32, workspace_path: Option<&Path>) -> Result<LocalUsageSnapshot, String> {
     let updated_at = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -62,7 +79,7 @@ fn scan_local_usage(days: u32) -> Result<LocalUsageSnapshot, String> {
             if path.extension().and_then(|ext| ext.to_str()) != Some("jsonl") {
                 continue;
             }
-            scan_file(&path, day_key, &mut daily, &mut model_totals)?;
+            scan_file(&path, &mut daily, &mut model_totals, workspace_path)?;
         }
     }
 
@@ -88,6 +105,8 @@ fn build_snapshot(
             cached_input_tokens: totals.cached,
             output_tokens: totals.output,
             total_tokens: total,
+            agent_time_ms: totals.agent_ms,
+            agent_runs: totals.agent_runs,
         });
     }
 
@@ -148,9 +167,9 @@ fn build_snapshot(
 
 fn scan_file(
     path: &Path,
-    day_key: &str,
     daily: &mut HashMap<String, DailyTotals>,
     model_totals: &mut HashMap<String, i64>,
+    workspace_path: Option<&Path>,
 ) -> Result<(), String> {
     let file = match File::open(path) {
         Ok(file) => file,
@@ -161,6 +180,10 @@ fn scan_file(
     let reader = BufReader::new(file);
     let mut previous_totals: Option<UsageTotals> = None;
     let mut current_model: Option<String> = None;
+    let mut last_activity_ms: Option<i64> = None;
+    let mut seen_runs: HashSet<i64> = HashSet::new();
+    let mut match_known = workspace_path.is_none();
+    let mut matches_workspace = workspace_path.is_none();
 
     for line in reader.lines() {
         let line = match line {
@@ -171,94 +194,200 @@ fn scan_file(
             continue;
         }
 
-        if line.contains("\"type\":\"turn_context\"") {
-            if let Ok(value) = serde_json::from_str::<Value>(&line) {
-                if let Some(model) = extract_model_from_turn_context(&value) {
-                    current_model = Some(model);
-                }
-            }
-            continue;
-        }
-
-        if !line.contains("\"token_count\"") {
-            continue;
-        }
-
         let value = match serde_json::from_str::<Value>(&line) {
             Ok(value) => value,
             Err(_) => continue,
         };
-        let payload = value.get("payload").and_then(|value| value.as_object());
-        let payload_type = payload
-            .and_then(|payload| payload.get("type"))
-            .and_then(|value| value.as_str());
-        if payload_type != Some("token_count") {
+        let entry_type = value
+            .get("type")
+            .and_then(|value| value.as_str())
+            .unwrap_or("");
+
+        if entry_type == "session_meta" || entry_type == "turn_context" {
+            if let Some(cwd) = extract_cwd(&value) {
+                if let Some(filter) = workspace_path {
+                    matches_workspace = path_matches_workspace(&cwd, filter);
+                    match_known = true;
+                    if !matches_workspace {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if entry_type == "turn_context" {
+            if let Some(model) = extract_model_from_turn_context(&value) {
+                current_model = Some(model);
+            }
             continue;
         }
-        let info = payload.and_then(|payload| payload.get("info")).and_then(|v| v.as_object());
-        let (input, cached, output, used_total) = if let Some(info) = info {
-            if let Some(total) = find_usage_map(info, &["total_token_usage", "totalTokenUsage"]) {
-                (
-                    read_i64(total, &["input_tokens", "inputTokens"]),
-                    read_i64(total, &["cached_input_tokens", "cache_read_input_tokens", "cachedInputTokens", "cacheReadInputTokens"]),
-                    read_i64(total, &["output_tokens", "outputTokens"]),
-                    true,
-                )
-            } else if let Some(last) =
-                find_usage_map(info, &["last_token_usage", "lastTokenUsage"])
-            {
-                (
-                    read_i64(last, &["input_tokens", "inputTokens"]),
-                    read_i64(last, &["cached_input_tokens", "cache_read_input_tokens", "cachedInputTokens", "cacheReadInputTokens"]),
-                    read_i64(last, &["output_tokens", "outputTokens"]),
-                    false,
-                )
-            } else {
+
+        if entry_type == "session_meta" {
+            continue;
+        }
+
+        if !matches_workspace {
+            if match_known {
+                break;
+            }
+            continue;
+        }
+
+        if !match_known {
+            continue;
+        }
+
+        if entry_type == "event_msg" || entry_type.is_empty() {
+            let payload = value.get("payload").and_then(|value| value.as_object());
+            let payload_type = payload
+                .and_then(|payload| payload.get("type"))
+                .and_then(|value| value.as_str());
+
+            if payload_type == Some("agent_message") {
+                if let Some(timestamp_ms) = read_timestamp_ms(&value) {
+                    if seen_runs.insert(timestamp_ms) {
+                        if let Some(day_key) = day_key_for_timestamp_ms(timestamp_ms) {
+                            if let Some(entry) = daily.get_mut(&day_key) {
+                                entry.agent_runs += 1;
+                            }
+                        }
+                    }
+                    track_activity(daily, &mut last_activity_ms, timestamp_ms);
+                }
                 continue;
             }
-        } else {
-            continue;
-        };
 
-        let mut delta = UsageTotals {
-            input,
-            cached,
-            output,
-        };
+            if payload_type == Some("agent_reasoning") {
+                if let Some(timestamp_ms) = read_timestamp_ms(&value) {
+                    track_activity(daily, &mut last_activity_ms, timestamp_ms);
+                }
+                continue;
+            }
 
-        if used_total {
-            let prev = previous_totals.unwrap_or_default();
-            delta = UsageTotals {
-                input: (input - prev.input).max(0),
-                cached: (cached - prev.cached).max(0),
-                output: (output - prev.output).max(0),
+            if payload_type != Some("token_count") {
+                continue;
+            }
+
+            let info = payload.and_then(|payload| payload.get("info")).and_then(|v| v.as_object());
+            let (input, cached, output, used_total) = if let Some(info) = info {
+                if let Some(total) =
+                    find_usage_map(info, &["total_token_usage", "totalTokenUsage"])
+                {
+                    (
+                        read_i64(total, &["input_tokens", "inputTokens"]),
+                        read_i64(
+                            total,
+                            &[
+                                "cached_input_tokens",
+                                "cache_read_input_tokens",
+                                "cachedInputTokens",
+                                "cacheReadInputTokens",
+                            ],
+                        ),
+                        read_i64(total, &["output_tokens", "outputTokens"]),
+                        true,
+                    )
+                } else if let Some(last) =
+                    find_usage_map(info, &["last_token_usage", "lastTokenUsage"])
+                {
+                    (
+                        read_i64(last, &["input_tokens", "inputTokens"]),
+                        read_i64(
+                            last,
+                            &[
+                                "cached_input_tokens",
+                                "cache_read_input_tokens",
+                                "cachedInputTokens",
+                                "cacheReadInputTokens",
+                            ],
+                        ),
+                        read_i64(last, &["output_tokens", "outputTokens"]),
+                        false,
+                    )
+                } else {
+                    continue;
+                }
+            } else {
+                continue;
             };
-            previous_totals = Some(UsageTotals { input, cached, output });
-        } else {
-            // Some streams emit `last_token_usage` deltas between `total_token_usage` snapshots.
-            // Treat those as already-counted to avoid double-counting when the next total arrives.
-            let mut next = previous_totals.unwrap_or_default();
-            next.input += delta.input;
-            next.cached += delta.cached;
-            next.output += delta.output;
-            previous_totals = Some(next);
-        }
 
-        if delta.input == 0 && delta.cached == 0 && delta.output == 0 {
+            let mut delta = UsageTotals {
+                input,
+                cached,
+                output,
+            };
+
+            if used_total {
+                let prev = previous_totals.unwrap_or_default();
+                delta = UsageTotals {
+                    input: (input - prev.input).max(0),
+                    cached: (cached - prev.cached).max(0),
+                    output: (output - prev.output).max(0),
+                };
+                previous_totals = Some(UsageTotals { input, cached, output });
+            } else {
+                // Some streams emit `last_token_usage` deltas between `total_token_usage` snapshots.
+                // Treat those as already-counted to avoid double-counting when the next total arrives.
+                let mut next = previous_totals.unwrap_or_default();
+                next.input += delta.input;
+                next.cached += delta.cached;
+                next.output += delta.output;
+                previous_totals = Some(next);
+            }
+
+            if delta.input == 0 && delta.cached == 0 && delta.output == 0 {
+                continue;
+            }
+
+            let timestamp_ms = read_timestamp_ms(&value);
+            if let Some(day_key) = timestamp_ms.and_then(|ms| day_key_for_timestamp_ms(ms)) {
+                if let Some(entry) = daily.get_mut(&day_key) {
+                    let cached = delta.cached.min(delta.input);
+                    entry.input += delta.input;
+                    entry.cached += cached;
+                    entry.output += delta.output;
+
+                    let model = current_model
+                        .clone()
+                        .or_else(|| extract_model_from_token_count(&value))
+                        .unwrap_or_else(|| "unknown".to_string());
+                    *model_totals.entry(model).or_insert(0) += delta.input + delta.output;
+                }
+            }
+
+            if let Some(timestamp_ms) = timestamp_ms {
+                track_activity(daily, &mut last_activity_ms, timestamp_ms);
+            }
             continue;
         }
 
-        let cached = delta.cached.min(delta.input);
-        let entry = daily.entry(day_key.to_string()).or_default();
-        entry.input += delta.input;
-        entry.cached += cached;
-        entry.output += delta.output;
+        if entry_type == "response_item" {
+            let payload = value.get("payload").and_then(|value| value.as_object());
+            let payload_type = payload
+                .and_then(|payload| payload.get("type"))
+                .and_then(|value| value.as_str());
+            let role = payload
+                .and_then(|payload| payload.get("role"))
+                .and_then(|value| value.as_str())
+                .unwrap_or("");
 
-        let model = current_model
-            .clone()
-            .or_else(|| extract_model_from_token_count(&value))
-            .unwrap_or_else(|| "unknown".to_string());
-        *model_totals.entry(model).or_insert(0) += delta.input + delta.output;
+            if role == "assistant" {
+                if let Some(timestamp_ms) = read_timestamp_ms(&value) {
+                    if seen_runs.insert(timestamp_ms) {
+                        if let Some(day_key) = day_key_for_timestamp_ms(timestamp_ms) {
+                            if let Some(entry) = daily.get_mut(&day_key) {
+                                entry.agent_runs += 1;
+                            }
+                        }
+                    }
+                    track_activity(daily, &mut last_activity_ms, timestamp_ms);
+                }
+            } else if payload_type != Some("message") {
+                if let Some(timestamp_ms) = read_timestamp_ms(&value) {
+                    track_activity(daily, &mut last_activity_ms, timestamp_ms);
+                }
+            }
+        }
     }
 
     Ok(())
@@ -302,6 +431,58 @@ fn read_i64(map: &serde_json::Map<String, Value>, keys: &[&str]) -> i64 {
         .find_map(|key| map.get(*key))
         .and_then(|value| value.as_i64().or_else(|| value.as_f64().map(|value| value as i64)))
         .unwrap_or(0)
+}
+
+fn read_timestamp_ms(value: &Value) -> Option<i64> {
+    let raw = value.get("timestamp")?;
+    if let Some(text) = raw.as_str() {
+        return DateTime::parse_from_rfc3339(text)
+            .map(|value| value.timestamp_millis())
+            .ok();
+    }
+    let numeric = raw
+        .as_i64()
+        .or_else(|| raw.as_f64().map(|value| value as i64))?;
+    if numeric > 0 && numeric < 1_000_000_000_000 {
+        return Some(numeric * 1000);
+    }
+    Some(numeric)
+}
+
+fn track_activity(
+    daily: &mut HashMap<String, DailyTotals>,
+    last_activity_ms: &mut Option<i64>,
+    timestamp_ms: i64,
+) {
+    if let Some(prev_ms) = *last_activity_ms {
+        let delta = timestamp_ms - prev_ms;
+        if delta > 0 && delta <= MAX_ACTIVITY_GAP_MS {
+            if let Some(day_key) = day_key_for_timestamp_ms(timestamp_ms) {
+                if let Some(entry) = daily.get_mut(&day_key) {
+                    entry.agent_ms += delta;
+                }
+            }
+        }
+    }
+    *last_activity_ms = Some(timestamp_ms);
+}
+
+fn day_key_for_timestamp_ms(timestamp_ms: i64) -> Option<String> {
+    let utc = Utc.timestamp_millis_opt(timestamp_ms).single()?;
+    Some(utc.with_timezone(&Local).format("%Y-%m-%d").to_string())
+}
+
+fn extract_cwd(value: &Value) -> Option<String> {
+    value
+        .get("payload")
+        .and_then(|payload| payload.get("cwd"))
+        .and_then(|cwd| cwd.as_str())
+        .map(|cwd| cwd.to_string())
+}
+
+fn path_matches_workspace(cwd: &str, workspace_path: &Path) -> bool {
+    let cwd_path = Path::new(cwd);
+    cwd_path == workspace_path || cwd_path.starts_with(workspace_path)
 }
 
 fn make_day_keys(days: u32) -> Vec<String> {
@@ -357,6 +538,7 @@ fn day_dir_for_key(root: &Path, day_key: &str) -> PathBuf {
 mod tests {
     use super::*;
     use std::io::Write;
+    use std::path::Path;
     use uuid::Uuid;
 
     fn write_temp_jsonl(lines: &[&str]) -> PathBuf {
@@ -376,13 +558,14 @@ mod tests {
     fn scan_file_does_not_double_count_last_and_total_usage() {
         let day_key = "2026-01-19";
         let path = write_temp_jsonl(&[
-            r#"{"payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}}}"#,
-            r#"{"payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}}}"#,
+            r#"{"timestamp":"2026-01-19T12:00:00.000Z","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}}}"#,
+            r#"{"timestamp":"2026-01-19T12:00:01.000Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}}}"#,
         ]);
 
         let mut daily: HashMap<String, DailyTotals> = HashMap::new();
+        daily.insert(day_key.to_string(), DailyTotals::default());
         let mut model_totals: HashMap<String, i64> = HashMap::new();
-        scan_file(&path, day_key, &mut daily, &mut model_totals).expect("scan file");
+        scan_file(&path, &mut daily, &mut model_totals, None).expect("scan file");
 
         let totals = daily.get(day_key).copied().unwrap_or_default();
         assert_eq!(totals.input, 10);
@@ -393,13 +576,14 @@ mod tests {
     fn scan_file_counts_last_deltas_before_total_snapshot_once() {
         let day_key = "2026-01-19";
         let path = write_temp_jsonl(&[
-            r#"{"payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}}}"#,
-            r#"{"payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":20,"cached_input_tokens":0,"output_tokens":10}}}}"#,
+            r#"{"timestamp":"2026-01-19T12:00:00.000Z","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}}}"#,
+            r#"{"timestamp":"2026-01-19T12:00:01.000Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":20,"cached_input_tokens":0,"output_tokens":10}}}}"#,
         ]);
 
         let mut daily: HashMap<String, DailyTotals> = HashMap::new();
+        daily.insert(day_key.to_string(), DailyTotals::default());
         let mut model_totals: HashMap<String, i64> = HashMap::new();
-        scan_file(&path, day_key, &mut daily, &mut model_totals).expect("scan file");
+        scan_file(&path, &mut daily, &mut model_totals, None).expect("scan file");
 
         let totals = daily.get(day_key).copied().unwrap_or_default();
         assert_eq!(totals.input, 20);
@@ -410,17 +594,95 @@ mod tests {
     fn scan_file_does_not_double_count_last_between_total_snapshots() {
         let day_key = "2026-01-19";
         let path = write_temp_jsonl(&[
-            r#"{"payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}}}"#,
-            r#"{"payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":2,"cached_input_tokens":0,"output_tokens":1}}}}"#,
-            r#"{"payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":12,"cached_input_tokens":0,"output_tokens":6}}}}"#,
+            r#"{"timestamp":"2026-01-19T12:00:00.000Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}}}"#,
+            r#"{"timestamp":"2026-01-19T12:00:01.000Z","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":2,"cached_input_tokens":0,"output_tokens":1}}}}"#,
+            r#"{"timestamp":"2026-01-19T12:00:02.000Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":12,"cached_input_tokens":0,"output_tokens":6}}}}"#,
         ]);
 
         let mut daily: HashMap<String, DailyTotals> = HashMap::new();
+        daily.insert(day_key.to_string(), DailyTotals::default());
         let mut model_totals: HashMap<String, i64> = HashMap::new();
-        scan_file(&path, day_key, &mut daily, &mut model_totals).expect("scan file");
+        scan_file(&path, &mut daily, &mut model_totals, None).expect("scan file");
 
         let totals = daily.get(day_key).copied().unwrap_or_default();
         assert_eq!(totals.input, 12);
         assert_eq!(totals.output, 6);
+    }
+
+    #[test]
+    fn scan_file_tracks_agent_time_from_activity() {
+        let day_key = "2026-01-19";
+        let path = write_temp_jsonl(&[
+            r#"{"timestamp":"2026-01-19T12:00:00.000Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":1,"cached_input_tokens":0,"output_tokens":1}}}}"#,
+            r#"{"timestamp":"2026-01-19T12:00:05.000Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":2,"cached_input_tokens":0,"output_tokens":2}}}}"#,
+        ]);
+
+        let mut daily: HashMap<String, DailyTotals> = HashMap::new();
+        daily.insert(day_key.to_string(), DailyTotals::default());
+        let mut model_totals: HashMap<String, i64> = HashMap::new();
+        scan_file(&path, &mut daily, &mut model_totals, None).expect("scan file");
+
+        let totals = daily.get(day_key).copied().unwrap_or_default();
+        assert_eq!(totals.agent_ms, 5_000);
+    }
+
+    #[test]
+    fn scan_file_counts_runs_from_assistant_messages() {
+        let day_key = "2026-01-19";
+        let path = write_temp_jsonl(&[
+            r#"{"timestamp":"2026-01-19T12:00:05.000Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"a"}]}}"#,
+            r#"{"timestamp":"2026-01-19T12:00:10.000Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"b"}]}}"#,
+        ]);
+
+        let mut daily: HashMap<String, DailyTotals> = HashMap::new();
+        daily.insert(day_key.to_string(), DailyTotals::default());
+        let mut model_totals: HashMap<String, i64> = HashMap::new();
+        scan_file(&path, &mut daily, &mut model_totals, None).expect("scan file");
+
+        let totals = daily.get(day_key).copied().unwrap_or_default();
+        assert_eq!(totals.agent_runs, 2);
+    }
+
+    #[test]
+    fn scan_file_ignores_large_gaps_between_activity() {
+        let day_key = "2026-01-19";
+        let path = write_temp_jsonl(&[
+            r#"{"timestamp":"2026-01-19T12:00:00.000Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":1,"cached_input_tokens":0,"output_tokens":1}}}}"#,
+            r#"{"timestamp":"2026-01-19T12:10:00.000Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":2,"cached_input_tokens":0,"output_tokens":2}}}}"#,
+            r#"{"timestamp":"2026-01-19T12:10:10.000Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":3,"cached_input_tokens":0,"output_tokens":3}}}}"#,
+        ]);
+
+        let mut daily: HashMap<String, DailyTotals> = HashMap::new();
+        daily.insert(day_key.to_string(), DailyTotals::default());
+        let mut model_totals: HashMap<String, i64> = HashMap::new();
+        scan_file(&path, &mut daily, &mut model_totals, None).expect("scan file");
+
+        let totals = daily.get(day_key).copied().unwrap_or_default();
+        assert_eq!(totals.agent_ms, 10_000);
+    }
+
+    #[test]
+    fn scan_file_skips_workspace_mismatch() {
+        let day_key = "2026-01-19";
+        let path = write_temp_jsonl(&[
+            r#"{"timestamp":"2026-01-19T12:00:00.000Z","type":"session_meta","payload":{"cwd":"/tmp/project-alpha"}}"#,
+            r#"{"timestamp":"2026-01-19T12:00:10.000Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"ok"}]}}"#,
+            r#"{"timestamp":"2026-01-19T12:00:12.000Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}}}"#,
+        ]);
+
+        let mut daily: HashMap<String, DailyTotals> = HashMap::new();
+        daily.insert(day_key.to_string(), DailyTotals::default());
+        let mut model_totals: HashMap<String, i64> = HashMap::new();
+        scan_file(
+            &path,
+            &mut daily,
+            &mut model_totals,
+            Some(Path::new("/tmp/other-project")),
+        )
+        .expect("scan file");
+
+        let totals = daily.get(day_key).copied().unwrap_or_default();
+        assert_eq!(totals.agent_ms, 0);
+        assert_eq!(totals.input, 0);
     }
 }
