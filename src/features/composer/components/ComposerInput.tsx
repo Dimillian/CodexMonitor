@@ -1,12 +1,14 @@
 import { useEffect, useRef } from "react";
 import type { KeyboardEvent, RefObject } from "react";
 import type { AutocompleteItem } from "../hooks/useComposerAutocomplete";
+import type { ProviderType } from "../../../types";
 import { ImagePlus, Mic, Square } from "lucide-react";
 import { useComposerImageDrop } from "../hooks/useComposerImageDrop";
 import { ComposerAttachments } from "./ComposerAttachments";
 import { DictationWaveform } from "../../dictation/components/DictationWaveform";
 
 type ComposerInputProps = {
+  providerType?: ProviderType;
   text: string;
   disabled: boolean;
   sendLabel: string;
@@ -40,6 +42,7 @@ type ComposerInputProps = {
 };
 
 export function ComposerInput({
+  providerType,
   text,
   disabled,
   sendLabel,
@@ -196,7 +199,9 @@ export function ComposerInput({
             placeholder={
               disabled
                 ? "Review in progress. Chat will re-enable when it completes."
-                : "Ask Codex to do something..."
+                : providerType === "claude"
+                  ? "Ask Claude to do something..."
+                  : "Ask Codex to do something..."
             }
             value={text}
             onChange={(event) =>

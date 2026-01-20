@@ -1096,36 +1096,10 @@ export class ClaudeSession {
         if (event.delta.type === 'text_delta') {
           const delta = event.delta.text ?? '';
           if (delta) {
-            // Treat text as reasoning (shown in collapsible thinking section)
-            // This prevents messy interleaving of text between tool calls
-            if (!this.currentReasoningItemId) {
-              const reasoningId = randomUUID();
-              this.currentReasoningItemId = reasoningId;
-              const reasoningItem: StoredItem = {
-                id: reasoningId,
-                type: 'reasoning',
-                summary: '',
-                content: '',
-              };
-              turn.items.push(reasoningItem);
-              this.touchThread(thread);
-              this.rpc.notify('item/started', {
-                threadId: thread.id,
-                turnId,
-                item: reasoningItem,
-              });
-            }
-            const reasoningId = this.currentReasoningItemId;
-            this.rpc.notify('item/reasoning/summaryTextDelta', {
-              threadId: thread.id,
-              turnId,
-              itemId: reasoningId,
-              delta,
-            });
-            this.upsertReasoningMessage(thread, turn, reasoningId, delta, false);
-            this.touchThread(thread);
-            // Also track for final message
+            // Text deltas are Claude's response text - only add to agent message
+            // Thinking/reasoning is handled separately via thinking_delta events
             this.upsertAgentMessage(thread, turn, itemId, delta, false);
+            this.touchThread(thread);
           }
         }
         if (event.delta.type === 'thinking_delta') {

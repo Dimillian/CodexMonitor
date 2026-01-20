@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   CustomPromptOption,
   DictationTranscript,
+  ProviderType,
   QueuedMessage,
   ThreadTokenUsage,
 } from "../../../types";
@@ -12,6 +13,7 @@ import { ComposerMetaBar } from "./ComposerMetaBar";
 import { ComposerQueue } from "./ComposerQueue";
 
 type ComposerProps = {
+  providerType?: ProviderType;
   onSend: (text: string, images: string[]) => void;
   onQueue: (text: string, images: string[]) => void;
   onStop: () => void;
@@ -63,6 +65,7 @@ type ComposerProps = {
 };
 
 export function Composer({
+  providerType,
   onSend,
   onQueue,
   onStop,
@@ -238,6 +241,7 @@ export function Composer({
         onDeleteQueued={onDeleteQueued}
       />
       <ComposerInput
+        providerType={providerType}
         text={text}
         disabled={disabled}
         sendLabel={sendLabel}
