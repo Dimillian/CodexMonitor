@@ -1,7 +1,7 @@
 {
   "name": "codex-monitor",
   "private": true,
-  "version": "0.7.5",
+  "version": "0.7.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
