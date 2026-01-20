@@ -35,7 +35,10 @@ export function useQueuedSend({
   const [queuedByThread, setQueuedByThread] = useState<
     Record<string, QueuedMessage[]>
   >({});
-  const [flushingByThread, setFlushingByThread] = useState<
+  const [inFlightByThread, setInFlightByThread] = useState<
+    Record<string, QueuedMessage | null>
+  >({});
+  const [hasStartedByThread, setHasStartedByThread] = useState<
     Record<string, boolean>
   >({});
 
@@ -144,10 +147,39 @@ export function useQueuedSend({
   );
 
   useEffect(() => {
+    if (!activeThreadId) {
+      return;
+    }
+    const inFlight = inFlightByThread[activeThreadId];
+    if (!inFlight) {
+      return;
+    }
+    if (isProcessing || isReviewing) {
+      if (!hasStartedByThread[activeThreadId]) {
+        setHasStartedByThread((prev) => ({
+          ...prev,
+          [activeThreadId]: true,
+        }));
+      }
+      return;
+    }
+    if (hasStartedByThread[activeThreadId]) {
+      setInFlightByThread((prev) => ({ ...prev, [activeThreadId]: null }));
+      setHasStartedByThread((prev) => ({ ...prev, [activeThreadId]: false }));
+    }
+  }, [
+    activeThreadId,
+    hasStartedByThread,
+    inFlightByThread,
+    isProcessing,
+    isReviewing,
+  ]);
+
+  useEffect(() => {
     if (!activeThreadId || isProcessing || isReviewing) {
       return;
     }
-    if (flushingByThread[activeThreadId]) {
+    if (inFlightByThread[activeThreadId]) {
       return;
     }
     const queue = queuedByThread[activeThreadId] ?? [];
@@ -156,7 +188,8 @@ export function useQueuedSend({
     }
     const threadId = activeThreadId;
     const nextItem = queue[0];
-    setFlushingByThread((prev) => ({ ...prev, [threadId]: true }));
+    setInFlightByThread((prev) => ({ ...prev, [threadId]: nextItem }));
+    setHasStartedByThread((prev) => ({ ...prev, [threadId]: false }));
     setQueuedByThread((prev) => ({
       ...prev,
       [threadId]: (prev[threadId] ?? []).slice(1),
@@ -169,14 +202,14 @@ export function useQueuedSend({
           await sendUserMessage(nextItem.text, nextItem.images ?? []);
         }
       } catch {
+        setInFlightByThread((prev) => ({ ...prev, [threadId]: null }));
+        setHasStartedByThread((prev) => ({ ...prev, [threadId]: false }));
         prependQueuedMessage(threadId, nextItem);
-      } finally {
-        setFlushingByThread((prev) => ({ ...prev, [threadId]: false }));
       }
     })();
   }, [
     activeThreadId,
-    flushingByThread,
+    inFlightByThread,
     isProcessing,
     isReviewing,
     prependQueuedMessage,

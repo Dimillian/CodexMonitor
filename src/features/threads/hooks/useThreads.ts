@@ -1645,6 +1645,7 @@ export function useThreads({
       return;
     }
     const activeTurnId = state.activeTurnIdByThread[activeThreadId] ?? null;
+    const turnId = activeTurnId ?? "pending";
     markProcessing(activeThreadId, false);
     dispatch({ type: "setActiveTurnId", threadId: activeThreadId, turnId: null });
     dispatch({
@@ -1654,7 +1655,6 @@ export function useThreads({
     });
     if (!activeTurnId) {
       pendingInterruptsRef.current.add(activeThreadId);
-      return;
     }
     onDebug?.({
       id: `${Date.now()}-client-turn-interrupt`,
@@ -1664,14 +1664,15 @@ export function useThreads({
       payload: {
         workspaceId: activeWorkspace.id,
         threadId: activeThreadId,
-        turnId: activeTurnId,
+        turnId,
+        queued: !activeTurnId,
       },
     });
     try {
       const response = await interruptTurnService(
         activeWorkspace.id,
         activeThreadId,
-        activeTurnId,
+        turnId,
       );
       onDebug?.({
         id: `${Date.now()}-server-turn-interrupt`,
