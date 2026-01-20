@@ -48,3 +48,43 @@ export async function subscribeUpdaterCheck(
     onEvent();
   });
 }
+
+export async function subscribeMenuNewAgent(
+  onEvent: () => void,
+): Promise<Unsubscribe> {
+  return listen("menu-new-agent", () => {
+    onEvent();
+  });
+}
+
+export async function subscribeMenuNewWorktreeAgent(
+  onEvent: () => void,
+): Promise<Unsubscribe> {
+  return listen("menu-new-worktree-agent", () => {
+    onEvent();
+  });
+}
+
+export async function subscribeMenuNewCloneAgent(
+  onEvent: () => void,
+): Promise<Unsubscribe> {
+  return listen("menu-new-clone-agent", () => {
+    onEvent();
+  });
+}
+
+export async function subscribeMenuAddWorkspace(
+  onEvent: () => void,
+): Promise<Unsubscribe> {
+  return listen("menu-add-workspace", () => {
+    onEvent();
+  });
+}
+
+export async function subscribeMenuOpenSettings(
+  onEvent: () => void,
+): Promise<Unsubscribe> {
+  return listen("menu-open-settings", () => {
+    onEvent();
+  });
+}

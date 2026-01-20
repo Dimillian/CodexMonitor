@@ -94,7 +94,14 @@ import { playNotificationSound } from "./utils/notificationSounds";
 import {
   pickWorkspacePath,
 } from "./services/tauri";
-import { subscribeUpdaterCheck } from "./services/events";
+import {
+  subscribeMenuAddWorkspace,
+  subscribeMenuNewAgent,
+  subscribeMenuNewCloneAgent,
+  subscribeMenuNewWorktreeAgent,
+  subscribeMenuOpenSettings,
+  subscribeUpdaterCheck,
+} from "./services/events";
 import type {
   AccessMode,
   GitHubPullRequest,
@@ -1039,16 +1046,7 @@ function MainApp() {
     listThreadsForWorkspace
   });
 
-  useNewAgentShortcut({
-    isEnabled: Boolean(activeWorkspace),
-    onTrigger: () => {
-      if (activeWorkspace) {
-        void handleAddAgent(activeWorkspace);
-      }
-    },
-  });
-
-  async function handleAddWorkspace() {
+  const handleAddWorkspace = useCallback(async () => {
     try {
       const workspace = await addWorkspace();
       if (workspace) {
@@ -1068,34 +1066,56 @@ function MainApp() {
       });
       alert(`Failed to add workspace.\n\n${message}`);
     }
-  }
+  }, [addDebugEntry, addWorkspace, isCompact, setActiveTab, setActiveThreadId]);
 
+  const handleAddAgent = useCallback(
+    async (workspace: (typeof workspaces)[number]) => {
+      exitDiffView();
+      selectWorkspace(workspace.id);
+      if (!workspace.connected) {
+        await connectWorkspace(workspace);
+      }
+      await startThreadForWorkspace(workspace.id);
+      if (isCompact) {
+        setActiveTab("codex");
+      }
+      // Focus the composer input after creating the agent
+      setTimeout(() => composerInputRef.current?.focus(), 0);
+    },
+    [
+      connectWorkspace,
+      exitDiffView,
+      isCompact,
+      selectWorkspace,
+      setActiveTab,
+      startThreadForWorkspace,
+    ],
+  );
 
-  async function handleAddAgent(workspace: (typeof workspaces)[number]) {
-    exitDiffView();
-    selectWorkspace(workspace.id);
-    if (!workspace.connected) {
-      await connectWorkspace(workspace);
-    }
-    await startThreadForWorkspace(workspace.id);
-    if (isCompact) {
-      setActiveTab("codex");
-    }
-    // Focus the composer input after creating the agent
-    setTimeout(() => composerInputRef.current?.focus(), 0);
-  }
+  const handleAddWorktreeAgent = useCallback(
+    async (workspace: (typeof workspaces)[number]) => {
+      exitDiffView();
+      openWorktreePrompt(workspace);
+    },
+    [exitDiffView, openWorktreePrompt],
+  );
 
-  async function handleAddWorktreeAgent(
-    workspace: (typeof workspaces)[number]
-  ) {
-    exitDiffView();
-    openWorktreePrompt(workspace);
-  }
+  const handleAddCloneAgent = useCallback(
+    async (workspace: (typeof workspaces)[number]) => {
+      exitDiffView();
+      openClonePrompt(workspace);
+    },
+    [exitDiffView, openClonePrompt],
+  );
 
-  async function handleAddCloneAgent(workspace: (typeof workspaces)[number]) {
-    exitDiffView();
-    openClonePrompt(workspace);
-  }
+  useNewAgentShortcut({
+    isEnabled: Boolean(activeWorkspace),
+    onTrigger: () => {
+      if (activeWorkspace) {
+        void handleAddAgent(activeWorkspace);
+      }
+    },
+  });
 
   function handleSelectDiff(path: string) {
     setSelectedDiffPath(path);
@@ -1186,6 +1206,87 @@ function MainApp() {
     },
     [],
   );
+
+  useEffect(() => {
+    let unlistenNewAgent: (() => void) | null = null;
+    let unlistenNewWorktree: (() => void) | null = null;
+    let unlistenNewClone: (() => void) | null = null;
+    let unlistenAddWorkspace: (() => void) | null = null;
+    let unlistenOpenSettings: (() => void) | null = null;
+    const baseWorkspace = activeParentWorkspace ?? activeWorkspace;
+
+    subscribeMenuNewAgent(() => {
+      if (activeWorkspace) {
+        void handleAddAgent(activeWorkspace);
+      }
+    })
+      .then((handler) => {
+        unlistenNewAgent = handler;
+      })
+      .catch(() => {});
+
+    subscribeMenuNewWorktreeAgent(() => {
+      if (baseWorkspace) {
+        void handleAddWorktreeAgent(baseWorkspace);
+      }
+    })
+      .then((handler) => {
+        unlistenNewWorktree = handler;
+      })
+      .catch(() => {});
+
+    subscribeMenuNewCloneAgent(() => {
+      if (baseWorkspace) {
+        void handleAddCloneAgent(baseWorkspace);
+      }
+    })
+      .then((handler) => {
+        unlistenNewClone = handler;
+      })
+      .catch(() => {});
+
+    subscribeMenuAddWorkspace(() => {
+      void handleAddWorkspace();
+    })
+      .then((handler) => {
+        unlistenAddWorkspace = handler;
+      })
+      .catch(() => {});
+
+    subscribeMenuOpenSettings(() => {
+      handleOpenSettings();
+    })
+      .then((handler) => {
+        unlistenOpenSettings = handler;
+      })
+      .catch(() => {});
+
+    return () => {
+      if (unlistenNewAgent) {
+        unlistenNewAgent();
+      }
+      if (unlistenNewWorktree) {
+        unlistenNewWorktree();
+      }
+      if (unlistenNewClone) {
+        unlistenNewClone();
+      }
+      if (unlistenAddWorkspace) {
+        unlistenAddWorkspace();
+      }
+      if (unlistenOpenSettings) {
+        unlistenOpenSettings();
+      }
+    };
+  }, [
+    activeParentWorkspace,
+    activeWorkspace,
+    handleAddAgent,
+    handleAddCloneAgent,
+    handleAddWorkspace,
+    handleAddWorktreeAgent,
+    handleOpenSettings,
+  ]);
 
   const orderValue = (entry: WorkspaceInfo) =>
     typeof entry.settings.sortOrder === "number"
