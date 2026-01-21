@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { subscribeWindowDragDrop } from "../../../services/dragDrop";
 
 const imageExtensions = [
   ".png",
@@ -43,6 +43,30 @@ function readFilesAsDataUrls(files: File[]) {
   ).then((items) => items.filter(Boolean));
 }
 
+function getDragPosition(position: { x: number; y: number }) {
+  return position;
+}
+
+function normalizeDragPosition(
+  position: { x: number; y: number },
+  lastClientPosition: { x: number; y: number } | null,
+) {
+  const scale = window.devicePixelRatio || 1;
+  if (scale === 1 || !lastClientPosition) {
+    return getDragPosition(position);
+  }
+  const logicalDistance = Math.hypot(
+    position.x - lastClientPosition.x,
+    position.y - lastClientPosition.y,
+  );
+  const scaled = { x: position.x / scale, y: position.y / scale };
+  const scaledDistance = Math.hypot(
+    scaled.x - lastClientPosition.x,
+    scaled.y - lastClientPosition.y,
+  );
+  return scaledDistance < logicalDistance ? scaled : position;
+}
+
 type UseComposerImageDropArgs = {
   disabled: boolean;
   onAttachImages?: (paths: string[]) => void;
@@ -54,53 +78,49 @@ export function useComposerImageDrop({
 }: UseComposerImageDropArgs) {
   const [isDragOver, setIsDragOver] = useState(false);
   const dropTargetRef = useRef<HTMLDivElement | null>(null);
+  const lastClientPositionRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     let unlisten: (() => void) | null = null;
-    const register = async () => {
-      try {
-        const appWindow = getCurrentWindow();
-        unlisten = await appWindow.onDragDropEvent((event) => {
-          if (disabled || !dropTargetRef.current) {
-            return;
-          }
-          if (event.payload.type === "leave") {
-            setIsDragOver(false);
-            return;
-          }
-          const position = event.payload.position;
-          const scale = window.devicePixelRatio || 1;
-          const x = position.x / scale;
-          const y = position.y / scale;
-          const rect = dropTargetRef.current.getBoundingClientRect();
-          const isInside =
-            x >= rect.left &&
-            x <= rect.right &&
-            y >= rect.top &&
-            y <= rect.bottom;
-          if (event.payload.type === "over" || event.payload.type === "enter") {
-            setIsDragOver(isInside);
-            return;
-          }
-          if (event.payload.type === "drop") {
-            setIsDragOver(false);
-            if (!isInside) {
-              return;
-            }
-            const imagePaths = event.payload.paths
-              .map((path) => path.trim())
-              .filter(Boolean)
-              .filter(isImagePath);
-            if (imagePaths.length > 0) {
-              onAttachImages?.(imagePaths);
-            }
-          }
-        });
-      } catch {
-        unlisten = null;
+    if (disabled) {
+      return undefined;
+    }
+    unlisten = subscribeWindowDragDrop((event) => {
+      if (!dropTargetRef.current) {
+        return;
       }
-    };
-    void register();
+      if (event.payload.type === "leave") {
+        setIsDragOver(false);
+        return;
+      }
+      const position = normalizeDragPosition(
+        event.payload.position,
+        lastClientPositionRef.current,
+      );
+      const rect = dropTargetRef.current.getBoundingClientRect();
+      const isInside =
+        position.x >= rect.left &&
+        position.x <= rect.right &&
+        position.y >= rect.top &&
+        position.y <= rect.bottom;
+      if (event.payload.type === "over" || event.payload.type === "enter") {
+        setIsDragOver(isInside);
+        return;
+      }
+      if (event.payload.type === "drop") {
+        setIsDragOver(false);
+        if (!isInside) {
+          return;
+        }
+        const imagePaths = (event.payload.paths ?? [])
+          .map((path) => path.trim())
+          .filter(Boolean)
+          .filter(isImagePath);
+        if (imagePaths.length > 0) {
+          onAttachImages?.(imagePaths);
+        }
+      }
+    });
     return () => {
       if (unlisten) {
         unlisten();
@@ -113,6 +133,7 @@ export function useComposerImageDrop({
       return;
     }
     if (isDragFileTransfer(event.dataTransfer?.types)) {
+      lastClientPositionRef.current = { x: event.clientX, y: event.clientY };
       event.preventDefault();
       setIsDragOver(true);
     }
@@ -125,6 +146,7 @@ export function useComposerImageDrop({
   const handleDragLeave = () => {
     if (isDragOver) {
       setIsDragOver(false);
+      lastClientPositionRef.current = null;
     }
   };
 
@@ -134,6 +156,7 @@ export function useComposerImageDrop({
     }
     event.preventDefault();
     setIsDragOver(false);
+    lastClientPositionRef.current = null;
     const files = Array.from(event.dataTransfer?.files ?? []);
     const items = Array.from(event.dataTransfer?.items ?? []);
     const itemFiles = items

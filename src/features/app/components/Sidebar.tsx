@@ -1,6 +1,8 @@
 import type { RateLimitSnapshot, ThreadSummary, WorkspaceInfo } from "../../../types";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { RefObject } from "react";
+import { FolderOpen } from "lucide-react";
 import { SidebarCornerActions } from "./SidebarCornerActions";
 import { SidebarFooter } from "./SidebarFooter";
 import { SidebarHeader } from "./SidebarHeader";
@@ -66,6 +68,13 @@ type SidebarProps = {
   onDeleteWorktree: (workspaceId: string) => void;
   onLoadOlderThreads: (workspaceId: string) => void;
   onReloadWorkspaceThreads: (workspaceId: string) => void;
+  workspaceDropTargetRef: RefObject<HTMLElement | null>;
+  isWorkspaceDropActive: boolean;
+  workspaceDropText: string;
+  onWorkspaceDragOver: (event: React.DragEvent<HTMLElement>) => void;
+  onWorkspaceDragEnter: (event: React.DragEvent<HTMLElement>) => void;
+  onWorkspaceDragLeave: (event: React.DragEvent<HTMLElement>) => void;
+  onWorkspaceDrop: (event: React.DragEvent<HTMLElement>) => void;
 };
 
 export function Sidebar({
@@ -104,6 +113,13 @@ export function Sidebar({
   onDeleteWorktree,
   onLoadOlderThreads,
   onReloadWorkspaceThreads,
+  workspaceDropTargetRef,
+  isWorkspaceDropActive,
+  workspaceDropText,
+  onWorkspaceDragOver,
+  onWorkspaceDragEnter,
+  onWorkspaceDragLeave,
+  onWorkspaceDrop,
 }: SidebarProps) {
   const [expandedWorkspaces, setExpandedWorkspaces] = useState(
     new Set<string>(),
@@ -262,8 +278,32 @@ export function Sidebar({
   }, [addMenuAnchor]);
 
   return (
-    <aside className="sidebar">
+    <aside
+      className="sidebar"
+      ref={workspaceDropTargetRef}
+      onDragOver={onWorkspaceDragOver}
+      onDragEnter={onWorkspaceDragEnter}
+      onDragLeave={onWorkspaceDragLeave}
+      onDrop={onWorkspaceDrop}
+    >
       <SidebarHeader onSelectHome={onSelectHome} onAddWorkspace={onAddWorkspace} />
+      <div
+        className={`workspace-drop-overlay${
+          isWorkspaceDropActive ? " is-active" : ""
+        }`}
+        aria-hidden
+      >
+        <div
+          className={`workspace-drop-overlay-text${
+            workspaceDropText === "Adding Project..." ? " is-busy" : ""
+          }`}
+        >
+          {workspaceDropText === "Drop Project Here" && (
+            <FolderOpen className="workspace-drop-overlay-icon" aria-hidden />
+          )}
+          {workspaceDropText}
+        </div>
+      </div>
       <div
         className={`sidebar-body${scrollFade.top ? " fade-top" : ""}${
           scrollFade.bottom ? " fade-bottom" : ""

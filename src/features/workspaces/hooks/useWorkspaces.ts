@@ -12,6 +12,7 @@ import {
   addWorkspace as addWorkspaceService,
   addWorktree as addWorktreeService,
   connectWorkspace as connectWorkspaceService,
+  isWorkspacePathDir as isWorkspacePathDirService,
   listWorkspaces,
   pickWorkspacePath,
   removeWorkspace as removeWorkspaceService,
@@ -205,34 +206,59 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     [getWorkspaceGroupId, workspaceById, workspaceGroupById],
   );
 
-  async function addWorkspace() {
+  const addWorkspaceFromPath = useCallback(
+    async (path: string) => {
+      const selection = path.trim();
+      if (!selection) {
+        return null;
+      }
+      onDebug?.({
+        id: `${Date.now()}-client-add-workspace`,
+        timestamp: Date.now(),
+        source: "client",
+        label: "workspace/add",
+        payload: { path: selection },
+      });
+      try {
+        const workspace = await addWorkspaceService(selection, defaultCodexBin ?? null);
+        setWorkspaces((prev) => [...prev, workspace]);
+        setActiveWorkspaceId(workspace.id);
+        return workspace;
+      } catch (error) {
+        onDebug?.({
+          id: `${Date.now()}-client-add-workspace-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "workspace/add error",
+          payload: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
+    },
+    [defaultCodexBin, onDebug],
+  );
+
+  const addWorkspace = useCallback(async () => {
     const selection = await pickWorkspacePath();
     if (!selection) {
       return null;
     }
-    onDebug?.({
-      id: `${Date.now()}-client-add-workspace`,
-      timestamp: Date.now(),
-      source: "client",
-      label: "workspace/add",
-      payload: { path: selection },
-    });
-    try {
-      const workspace = await addWorkspaceService(selection, defaultCodexBin ?? null);
-      setWorkspaces((prev) => [...prev, workspace]);
-      setActiveWorkspaceId(workspace.id);
-      return workspace;
-    } catch (error) {
-      onDebug?.({
-        id: `${Date.now()}-client-add-workspace-error`,
-        timestamp: Date.now(),
-        source: "error",
-        label: "workspace/add error",
-        payload: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
+    return addWorkspaceFromPath(selection);
+  }, [addWorkspaceFromPath]);
+
+  const filterWorkspacePaths = useCallback(async (paths: string[]) => {
+    const trimmed = paths.map((path) => path.trim()).filter(Boolean);
+    if (trimmed.length === 0) {
+      return [];
     }
-  }
+    const checks = await Promise.all(
+      trimmed.map(async (path) => ({
+        path,
+        isDir: await isWorkspacePathDirService(path),
+      })),
+    );
+    return checks.filter((entry) => entry.isDir).map((entry) => entry.path);
+  }, []);
 
   async function addWorktreeAgent(parent: WorkspaceInfo, branch: string) {
     const trimmed = branch.trim();
@@ -760,6 +786,8 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     activeWorkspaceId,
     setActiveWorkspaceId,
     addWorkspace,
+    addWorkspaceFromPath,
+    filterWorkspacePaths,
     addCloneAgent,
     addWorktreeAgent,
     connectWorkspace,

@@ -9,18 +9,16 @@ let mockOnDragDropEvent:
       payload: {
         type: "enter" | "over" | "leave" | "drop";
         position: { x: number; y: number };
-        paths: string[];
+        paths?: string[];
       };
     }) => void)
   | null = null;
 
-vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: () => ({
-    onDragDropEvent: (handler: typeof mockOnDragDropEvent) => {
-      mockOnDragDropEvent = handler;
-      return Promise.resolve(() => {});
-    },
-  }),
+vi.mock("../../../services/dragDrop", () => ({
+  subscribeWindowDragDrop: (handler: typeof mockOnDragDropEvent) => {
+    mockOnDragDropEvent = handler;
+    return () => {};
+  },
 }));
 
 type HookResult = ReturnType<typeof useComposerImageDrop>;

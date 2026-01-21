@@ -5,10 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 import { useComposerImages } from "../hooks/useComposerImages";
 import { ComposerInput } from "./ComposerInput";
 
-vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: () => ({
-    onDragDropEvent: vi.fn().mockResolvedValue(() => {}),
-  }),
+vi.mock("../../../services/dragDrop", () => ({
+  subscribeWindowDragDrop: vi.fn(() => () => {}),
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({

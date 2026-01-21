@@ -1002,6 +1002,7 @@ export function useThreads({
       getCustomName,
       handleWorkspaceConnected,
       handleItemUpdate,
+      handleTerminalInteraction,
       handleToolOutputDelta,
       markProcessing,
       onDebug,

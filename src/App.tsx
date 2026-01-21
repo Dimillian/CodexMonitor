@@ -37,6 +37,7 @@ import { TabletLayout } from "./features/layout/components/TabletLayout";
 import { PhoneLayout } from "./features/layout/components/PhoneLayout";
 import { useLayoutNodes } from "./features/layout/hooks/useLayoutNodes";
 import { useWorkspaces } from "./features/workspaces/hooks/useWorkspaces";
+import { useWorkspaceDropZone } from "./features/workspaces/hooks/useWorkspaceDropZone";
 import { useThreads } from "./features/threads/hooks/useThreads";
 import { useWindowDrag } from "./features/layout/hooks/useWindowDrag";
 import { useGitStatus } from "./features/git/hooks/useGitStatus";
@@ -342,6 +343,7 @@ function MainApp() {
     activeWorkspaceId,
     setActiveWorkspaceId,
     addWorkspace,
+    addWorkspaceFromPath,
     addCloneAgent,
     addWorktreeAgent,
     connectWorkspace,
@@ -1389,14 +1391,21 @@ function MainApp() {
     listThreadsForWorkspace
   });
 
+  const handleWorkspaceAdded = useCallback(
+    (workspace: WorkspaceInfo) => {
+      setActiveThreadId(null, workspace.id);
+      if (isCompact) {
+        setActiveTab("codex");
+      }
+    },
+    [isCompact, setActiveTab, setActiveThreadId],
+  );
+
   const handleAddWorkspace = useCallback(async () => {
     try {
       const workspace = await addWorkspace();
       if (workspace) {
-        setActiveThreadId(null, workspace.id);
-        if (isCompact) {
-          setActiveTab("codex");
-        }
+        handleWorkspaceAdded(workspace);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -1409,7 +1418,55 @@ function MainApp() {
       });
       alert(`Failed to add workspace.\n\n${message}`);
     }
-  }, [addDebugEntry, addWorkspace, isCompact, setActiveTab, setActiveThreadId]);
+  }, [addDebugEntry, addWorkspace, handleWorkspaceAdded]);
+
+  const handleAddWorkspaceFromPath = useCallback(
+    async (path: string) => {
+      try {
+        const workspace = await addWorkspaceFromPath(path);
+        if (workspace) {
+          handleWorkspaceAdded(workspace);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        addDebugEntry({
+          id: `${Date.now()}-client-add-workspace-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "workspace/add error",
+          payload: message
+        });
+        alert(`Failed to add workspace.\n\n${message}`);
+      }
+    },
+    [addDebugEntry, addWorkspaceFromPath, handleWorkspaceAdded],
+  );
+
+  const handleDropWorkspacePaths = useCallback(
+    async (paths: string[]) => {
+      const uniquePaths = Array.from(
+        new Set(paths.filter((path) => path.length > 0)),
+      );
+      if (uniquePaths.length === 0) {
+        return;
+      }
+      uniquePaths.forEach((path) => {
+        void handleAddWorkspaceFromPath(path);
+      });
+    },
+    [handleAddWorkspaceFromPath],
+  );
+
+  const {
+    dropTargetRef: workspaceDropTargetRef,
+    isDragOver: isWorkspaceDropActive,
+    handleDragOver: handleWorkspaceDragOver,
+    handleDragEnter: handleWorkspaceDragEnter,
+    handleDragLeave: handleWorkspaceDragLeave,
+    handleDrop: handleWorkspaceDrop,
+  } = useWorkspaceDropZone({
+    onDropPaths: handleDropWorkspacePaths,
+  });
 
   const handleAddAgent = useCallback(
     async (workspace: (typeof workspaces)[number]) => {
@@ -1678,6 +1735,8 @@ function MainApp() {
     onDebug: addDebugEntry,
   });
   const isDefaultScale = Math.abs(uiScale - 1) < 0.001;
+  const dropOverlayActive = isWorkspaceDropActive;
+  const dropOverlayText = "Drop Project Here";
   const appClassName = `app ${isCompact ? "layout-compact" : "layout-desktop"}${
     isPhone ? " layout-phone" : ""
   }${isTablet ? " layout-tablet" : ""}${
@@ -2068,6 +2127,13 @@ function MainApp() {
       setCenterMode("chat");
     },
     onGoProjects: () => setActiveTab("projects"),
+    workspaceDropTargetRef,
+    isWorkspaceDropActive: dropOverlayActive,
+    workspaceDropText: dropOverlayText,
+    onWorkspaceDragOver: handleWorkspaceDragOver,
+    onWorkspaceDragEnter: handleWorkspaceDragEnter,
+    onWorkspaceDragLeave: handleWorkspaceDragLeave,
+    onWorkspaceDrop: handleWorkspaceDrop,
   });
 
   const desktopTopbarLeftNodeWithToggle = !isCompact ? (

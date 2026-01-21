@@ -14,6 +14,63 @@
   transition: opacity 200ms ease, transform 200ms ease;
 }
 
+.workspace-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 12, 16, 0.4);
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.workspace-drop-overlay.is-active {
+  opacity: 1;
+}
+
+.workspace-drop-overlay-text {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-strong);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.workspace-drop-overlay-icon {
+  width: 18px;
+  height: 18px;
+  opacity: 0.8;
+}
+
+.workspace-drop-overlay-text.is-busy {
+  color: transparent;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.25),
+    rgba(255, 255, 255, 0.85),
+    rgba(255, 255, 255, 0.25)
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: drop-text-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes drop-text-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 .sidebar-header {
   display: flex;
   justify-content: space-between;
