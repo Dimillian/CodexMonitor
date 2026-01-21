@@ -168,7 +168,7 @@ describe("threadItems", () => {
     }
   });
 
-  it("dedupes local optimistic messages on merge (expected behavior)", () => {
+  it("dedupes adjacent user messages with identical content", () => {
     const remote: ConversationItem[] = [
       {
         id: "remote-1",
@@ -188,13 +188,74 @@ describe("threadItems", () => {
     const merged = mergeThreadItems(remote, local);
     expect(merged).toHaveLength(1);
     expect(merged[0]).toMatchObject({
+      id: "remote-1",
       kind: "message",
       role: "user",
       text: "Hello",
     });
   });
 
-  it("keeps later optimistic duplicates when the matching remote item is already local", () => {
+  it("keeps non-adjacent user messages with identical content", () => {
+    const remote: ConversationItem[] = [
+      {
+        id: "remote-1",
+        kind: "message",
+        role: "user",
+        text: "Repeat",
+      },
+      {
+        id: "assistant-1",
+        kind: "message",
+        role: "assistant",
+        text: "Reply",
+      },
+    ];
+    const local: ConversationItem[] = [
+      {
+        id: "1234-user",
+        kind: "message",
+        role: "user",
+        text: "Repeat",
+      },
+    ];
+    const merged = mergeThreadItems(remote, local);
+    const userRepeats = merged.filter(
+      (item) =>
+        item.kind === "message" &&
+        item.role === "user" &&
+        item.text === "Repeat",
+    );
+    expect(userRepeats).toHaveLength(2);
+  });
+
+  it("dedupes adjacent assistant messages with identical content", () => {
+    const remote: ConversationItem[] = [
+      {
+        id: "assistant-remote",
+        kind: "message",
+        role: "assistant",
+        text: "Same reply",
+      },
+    ];
+    const local: ConversationItem[] = [
+      {
+        id: "assistant-local",
+        kind: "message",
+        role: "assistant",
+        text: "Same reply",
+      },
+    ];
+    const merged = mergeThreadItems(remote, local);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toMatchObject({
+      id: "assistant-remote",
+      kind: "message",
+      role: "assistant",
+      text: "Same reply",
+    });
+  });
+
+  it("drops later user duplicates even when a matching remote item is already local", () => {
     const remote: ConversationItem[] = [
       {
         id: "remote-1",
@@ -218,15 +279,9 @@ describe("threadItems", () => {
       },
     ];
     const merged = mergeThreadItems(remote, local);
-    expect(merged).toHaveLength(2);
+    expect(merged).toHaveLength(1);
     expect(merged[0]).toMatchObject({
       id: "remote-1",
-      kind: "message",
-      role: "user",
-      text: "Hello",
-    });
-    expect(merged[1]).toMatchObject({
-      id: "9999-user",
       kind: "message",
       role: "user",
       text: "Hello",

@@ -4,16 +4,14 @@ import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import {
-  ArrowLeftRight,
-  Check,
-  FileText,
-  GitBranch,
-  RotateCcw,
-  ScrollText,
-  Search,
-  Upload,
-} from "lucide-react";
+import ArrowLeftRight from "lucide-react/dist/esm/icons/arrow-left-right";
+import Check from "lucide-react/dist/esm/icons/check";
+import FileText from "lucide-react/dist/esm/icons/file-text";
+import GitBranch from "lucide-react/dist/esm/icons/git-branch";
+import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
+import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
+import Search from "lucide-react/dist/esm/icons/search";
+import Upload from "lucide-react/dist/esm/icons/upload";
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { formatRelativeTime } from "../../../utils/time";
 import { PanelTabs, type PanelTabId } from "../../layout/components/PanelTabs";

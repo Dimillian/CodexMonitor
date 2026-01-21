@@ -1,11 +1,9 @@
-import {
-  PanelLeftClose,
-  PanelLeftOpen,
-  PanelRightClose,
-  PanelRightOpen,
-} from "lucide-react";
+import PanelLeftClose from "lucide-react/dist/esm/icons/panel-left-close";
+import PanelLeftOpen from "lucide-react/dist/esm/icons/panel-left-open";
+import PanelRightClose from "lucide-react/dist/esm/icons/panel-right-close";
+import PanelRightOpen from "lucide-react/dist/esm/icons/panel-right-open";
 
-type SidebarToggleControlsProps = {
+export type SidebarToggleProps = {
   isCompact: boolean;
   sidebarCollapsed: boolean;
   rightPanelCollapsed: boolean;
@@ -19,7 +17,7 @@ export function SidebarCollapseButton({
   isCompact,
   sidebarCollapsed,
   onCollapseSidebar,
-}: SidebarToggleControlsProps) {
+}: SidebarToggleProps) {
   if (isCompact || sidebarCollapsed) {
     return null;
   }
@@ -41,7 +39,7 @@ export function RightPanelCollapseButton({
   isCompact,
   rightPanelCollapsed,
   onCollapseRightPanel,
-}: SidebarToggleControlsProps) {
+}: SidebarToggleProps) {
   if (isCompact || rightPanelCollapsed) {
     return null;
   }
@@ -65,7 +63,7 @@ export function TitlebarExpandControls({
   rightPanelCollapsed,
   onExpandSidebar,
   onExpandRightPanel,
-}: SidebarToggleControlsProps) {
+}: SidebarToggleProps) {
   if (isCompact || (!sidebarCollapsed && !rightPanelCollapsed)) {
     return null;
   }

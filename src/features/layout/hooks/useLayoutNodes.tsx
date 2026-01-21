@@ -1,5 +1,5 @@
 import type { DragEvent, MouseEvent, ReactNode, RefObject } from "react";
-import { ArrowLeft } from "lucide-react";
+import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
 import { Sidebar } from "../../app/components/Sidebar";
 import { Home } from "../../home/components/Home";
 import { MainHeader } from "../../app/components/MainHeader";

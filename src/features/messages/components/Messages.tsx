@@ -1,19 +1,17 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import {
-  Brain,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Copy,
-  Diff,
-  FileDiff,
-  FileText,
-  Image,
-  Search,
-  Terminal,
-  Users,
-  Wrench,
-} from "lucide-react";
+import Brain from "lucide-react/dist/esm/icons/brain";
+import Check from "lucide-react/dist/esm/icons/check";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
+import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
+import Copy from "lucide-react/dist/esm/icons/copy";
+import Diff from "lucide-react/dist/esm/icons/diff";
+import FileDiff from "lucide-react/dist/esm/icons/file-diff";
+import FileText from "lucide-react/dist/esm/icons/file-text";
+import Image from "lucide-react/dist/esm/icons/image";
+import Search from "lucide-react/dist/esm/icons/search";
+import Terminal from "lucide-react/dist/esm/icons/terminal";
+import Users from "lucide-react/dist/esm/icons/users";
+import Wrench from "lucide-react/dist/esm/icons/wrench";
 import type { ConversationItem } from "../../../types";
 import { Markdown } from "./Markdown";
 import { DiffBlock } from "../../git/components/DiffBlock";

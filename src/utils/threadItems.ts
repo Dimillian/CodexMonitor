@@ -433,22 +433,32 @@ function chooseRicherItem(remote: ConversationItem, local: ConversationItem) {
   return remote;
 }
 
-function isOptimisticMessage(item: ConversationItem) {
-  if (item.kind !== "message") {
-    return false;
-  }
-  return /^\d+-(user|assistant)$/.test(item.id);
-}
+const DEDUPE_MESSAGE_ROLES = new Set(["user", "assistant"]);
 
-function messageDedupKey(item: ConversationItem) {
-  if (item.kind !== "message") {
-    return null;
+function dedupeAdjacentMessageDuplicates(
+  items: ConversationItem[],
+  remoteIds: Set<string>,
+) {
+  const deduped: ConversationItem[] = [];
+  for (const item of items) {
+    const previous = deduped[deduped.length - 1];
+    if (
+      item.kind === "message" &&
+      DEDUPE_MESSAGE_ROLES.has(item.role) &&
+      previous?.kind === "message" &&
+      previous.role === item.role &&
+      previous.text.trim() === item.text.trim()
+    ) {
+      const previousIsRemote = remoteIds.has(previous.id);
+      const currentIsRemote = remoteIds.has(item.id);
+      if (currentIsRemote && !previousIsRemote) {
+        deduped[deduped.length - 1] = item;
+      }
+      continue;
+    }
+    deduped.push(item);
   }
-  const text = item.text.trim();
-  if (!text) {
-    return null;
-  }
-  return `${item.role}:${text}`;
+  return deduped;
 }
 
 export function mergeThreadItems(
@@ -458,35 +468,16 @@ export function mergeThreadItems(
   if (!localItems.length) {
     return remoteItems;
   }
+  const remoteIds = new Set(remoteItems.map((item) => item.id));
   const byId = new Map(remoteItems.map((item) => [item.id, item]));
-  const localIds = new Set(localItems.map((item) => item.id));
-  const remoteMessageCounts = new Map<string, number>();
-  remoteItems.forEach((item) => {
-    if (localIds.has(item.id)) {
-      return;
-    }
-    const key = messageDedupKey(item);
-    if (!key) {
-      return;
-    }
-    remoteMessageCounts.set(key, (remoteMessageCounts.get(key) ?? 0) + 1);
-  });
   const merged = remoteItems.map((item) => {
     const local = localItems.find((entry) => entry.id === item.id);
     return local ? chooseRicherItem(item, local) : item;
   });
   localItems.forEach((item) => {
     if (!byId.has(item.id)) {
-      if (isOptimisticMessage(item)) {
-        const key = messageDedupKey(item);
-        const count = key ? remoteMessageCounts.get(key) ?? 0 : 0;
-        if (count > 0) {
-          remoteMessageCounts.set(key as string, count - 1);
-          return;
-        }
-      }
       merged.push(item);
     }
   });
-  return merged;
+  return dedupeAdjacentMessageDuplicates(merged, remoteIds);
 }

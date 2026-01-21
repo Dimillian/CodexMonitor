@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Copy, Terminal } from "lucide-react";
+import Check from "lucide-react/dist/esm/icons/check";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
+import Copy from "lucide-react/dist/esm/icons/copy";
+import Terminal from "lucide-react/dist/esm/icons/terminal";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { openWorkspaceIn } from "../../../services/tauri";
 import type { BranchInfo, WorkspaceInfo } from "../../../types";

@@ -1,18 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { ask, open } from "@tauri-apps/plugin-dialog";
-import {
-  ChevronDown,
-  ChevronUp,
-  LayoutGrid,
-  SlidersHorizontal,
-  Mic,
-  Keyboard,
-  Stethoscope,
-  TerminalSquare,
-  Trash2,
-  X,
-  FlaskConical,
-} from "lucide-react";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
+import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
+import LayoutGrid from "lucide-react/dist/esm/icons/layout-grid";
+import SlidersHorizontal from "lucide-react/dist/esm/icons/sliders-horizontal";
+import Mic from "lucide-react/dist/esm/icons/mic";
+import Keyboard from "lucide-react/dist/esm/icons/keyboard";
+import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
+import TerminalSquare from "lucide-react/dist/esm/icons/terminal-square";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2";
+import X from "lucide-react/dist/esm/icons/x";
+import FlaskConical from "lucide-react/dist/esm/icons/flask-conical";
 import type {
   AppSettings,
   CodexDoctorResult,
@@ -32,7 +30,7 @@ const DICTATION_MODELS = [
   { id: "large-v3", label: "Large V3", size: "3.0 GB", note: "Best accuracy, heavy download." },
 ];
 
-type SettingsViewProps = {
+export type SettingsViewProps = {
   workspaceGroups: WorkspaceGroup[];
   groupedWorkspaces: Array<{
     id: string | null;

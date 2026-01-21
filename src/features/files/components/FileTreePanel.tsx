@@ -4,20 +4,18 @@ import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import {
-  ChevronsUpDown,
-  File,
-  FileArchive,
-  FileAudio,
-  FileCode,
-  FileImage,
-  FileJson,
-  FileSpreadsheet,
-  FileText,
-  FileVideo,
-  Folder,
-  Search,
-} from "lucide-react";
+import ChevronsUpDown from "lucide-react/dist/esm/icons/chevrons-up-down";
+import File from "lucide-react/dist/esm/icons/file";
+import FileArchive from "lucide-react/dist/esm/icons/file-archive";
+import FileAudio from "lucide-react/dist/esm/icons/file-audio";
+import FileCode from "lucide-react/dist/esm/icons/file-code";
+import FileImage from "lucide-react/dist/esm/icons/file-image";
+import FileJson from "lucide-react/dist/esm/icons/file-json";
+import FileSpreadsheet from "lucide-react/dist/esm/icons/file-spreadsheet";
+import FileText from "lucide-react/dist/esm/icons/file-text";
+import FileVideo from "lucide-react/dist/esm/icons/file-video";
+import Folder from "lucide-react/dist/esm/icons/folder";
+import Search from "lucide-react/dist/esm/icons/search";
 import { PanelTabs, type PanelTabId } from "../../layout/components/PanelTabs";
 
 type FileTreeNode = {

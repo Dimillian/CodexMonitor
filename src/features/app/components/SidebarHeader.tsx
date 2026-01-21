@@ -1,4 +1,4 @@
-import { FolderKanban } from "lucide-react";
+import FolderKanban from "lucide-react/dist/esm/icons/folder-kanban";
 
 type SidebarHeaderProps = {
   onSelectHome: () => void;
