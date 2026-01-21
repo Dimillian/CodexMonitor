@@ -17,6 +17,8 @@ use crate::types::{
 };
 use crate::utils::normalize_git_path;
 
+const INDEX_SKIP_WORKTREE_FLAG: u16 = 0x4000;
+
 async fn run_git_command(repo_root: &Path, args: &[&str]) -> Result<(), String> {
     let output = Command::new("git")
         .args(args)
@@ -354,6 +356,7 @@ pub(crate) async fn get_git_status(
         .map_err(|e| e.to_string())?;
 
     let head_tree = repo.head().ok().and_then(|head| head.peel_to_tree().ok());
+    let index = repo.index().ok();
 
     let mut files = Vec::new();
     let mut staged_files = Vec::new();
@@ -364,6 +367,13 @@ pub(crate) async fn get_git_status(
         let path = entry.path().unwrap_or("");
         if path.is_empty() {
             continue;
+        }
+        if let Some(index) = index.as_ref() {
+            if let Some(entry) = index.get_path(Path::new(path), 0) {
+                if entry.flags_extended & INDEX_SKIP_WORKTREE_FLAG != 0 {
+                    continue;
+                }
+            }
         }
         let status = entry.status();
         let normalized_path = normalize_git_path(path);
