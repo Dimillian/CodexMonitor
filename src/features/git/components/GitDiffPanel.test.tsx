@@ -28,6 +28,10 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
   openUrl: vi.fn(),
 }));
 
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  ask: vi.fn(async () => true),
+}));
+
 const logEntries: GitLogEntry[] = [];
 
 const baseProps = {
