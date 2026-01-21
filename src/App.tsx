@@ -2192,8 +2192,14 @@ function MainApp() {
         }`}
         aria-hidden
       >
-        <div className="workspace-drop-overlay-text">
-          <FolderOpen className="workspace-drop-overlay-icon" aria-hidden />
+        <div
+          className={`workspace-drop-overlay-text${
+            dropOverlayText === "Adding Project..." ? " is-busy" : ""
+          }`}
+        >
+          {dropOverlayText === "Drop Project Here" && (
+            <FolderOpen className="workspace-drop-overlay-icon" aria-hidden />
+          )}
           {dropOverlayText}
         </div>
       </div>
