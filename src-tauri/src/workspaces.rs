@@ -412,6 +412,25 @@ pub(crate) async fn list_workspaces(
 }
 
 #[tauri::command]
+pub(crate) async fn is_workspace_path_dir(
+    path: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<bool, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let response = remote_backend::call_remote(
+            &*state,
+            app,
+            "is_workspace_path_dir",
+            json!({ "path": path }),
+        )
+        .await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+    Ok(PathBuf::from(&path).is_dir())
+}
+
+#[tauri::command]
 pub(crate) async fn add_workspace(
     path: String,
     codex_bin: Option<String>,
@@ -427,6 +446,10 @@ pub(crate) async fn add_workspace(
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
+    if !PathBuf::from(&path).is_dir() {
+        return Err("Workspace path must be a folder.".to_string());
     }
 
     let name = PathBuf::from(&path)

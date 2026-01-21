@@ -851,3 +851,28 @@
     display: none;
   }
 }
+
+.workspace-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 12, 16, 0.4);
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.workspace-drop-overlay.is-active {
+  opacity: 1;
+}
+
+.workspace-drop-overlay-text {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-strong);
+}

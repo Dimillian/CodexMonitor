@@ -37,6 +37,7 @@ import { TabletLayout } from "./features/layout/components/TabletLayout";
 import { PhoneLayout } from "./features/layout/components/PhoneLayout";
 import { useLayoutNodes } from "./features/layout/hooks/useLayoutNodes";
 import { useWorkspaces } from "./features/workspaces/hooks/useWorkspaces";
+import { useWorkspaceDropZone } from "./features/workspaces/hooks/useWorkspaceDropZone";
 import { useThreads } from "./features/threads/hooks/useThreads";
 import { useWindowDrag } from "./features/layout/hooks/useWindowDrag";
 import { useGitStatus } from "./features/git/hooks/useGitStatus";
@@ -342,6 +343,8 @@ function MainApp() {
     activeWorkspaceId,
     setActiveWorkspaceId,
     addWorkspace,
+    addWorkspaceFromPath,
+    filterWorkspacePaths,
     addCloneAgent,
     addWorktreeAgent,
     connectWorkspace,
@@ -1389,14 +1392,21 @@ function MainApp() {
     listThreadsForWorkspace
   });
 
+  const handleWorkspaceAdded = useCallback(
+    (workspace: WorkspaceInfo) => {
+      setActiveThreadId(null, workspace.id);
+      if (isCompact) {
+        setActiveTab("codex");
+      }
+    },
+    [isCompact, setActiveTab, setActiveThreadId],
+  );
+
   const handleAddWorkspace = useCallback(async () => {
     try {
       const workspace = await addWorkspace();
       if (workspace) {
-        setActiveThreadId(null, workspace.id);
-        if (isCompact) {
-          setActiveTab("codex");
-        }
+        handleWorkspaceAdded(workspace);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -1409,7 +1419,53 @@ function MainApp() {
       });
       alert(`Failed to add workspace.\n\n${message}`);
     }
-  }, [addDebugEntry, addWorkspace, isCompact, setActiveTab, setActiveThreadId]);
+  }, [addDebugEntry, addWorkspace, handleWorkspaceAdded]);
+
+  const handleAddWorkspaceFromPath = useCallback(
+    async (path: string) => {
+      try {
+        const workspace = await addWorkspaceFromPath(path);
+        if (workspace) {
+          handleWorkspaceAdded(workspace);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        addDebugEntry({
+          id: `${Date.now()}-client-add-workspace-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "workspace/add error",
+          payload: message
+        });
+        alert(`Failed to add workspace.\n\n${message}`);
+      }
+    },
+    [addDebugEntry, addWorkspaceFromPath, handleWorkspaceAdded],
+  );
+
+  const handleDropWorkspacePaths = useCallback(
+    async (paths: string[]) => {
+      const uniquePaths = Array.from(
+        new Set(paths.map((path) => path.trim()).filter(Boolean)),
+      );
+      const allowedPaths = await filterWorkspacePaths(uniquePaths);
+      allowedPaths.forEach((path) => {
+        void handleAddWorkspaceFromPath(path);
+      });
+    },
+    [filterWorkspacePaths, handleAddWorkspaceFromPath],
+  );
+
+  const {
+    dropTargetRef: workspaceDropTargetRef,
+    isDragOver: isWorkspaceDropActive,
+    handleDragOver: handleWorkspaceDragOver,
+    handleDragEnter: handleWorkspaceDragEnter,
+    handleDragLeave: handleWorkspaceDragLeave,
+    handleDrop: handleWorkspaceDrop,
+  } = useWorkspaceDropZone({
+    onDropPaths: handleDropWorkspacePaths,
+  });
 
   const handleAddAgent = useCallback(
     async (workspace: (typeof workspaces)[number]) => {
@@ -2096,9 +2152,22 @@ function MainApp() {
           "--ui-scale": String(uiScale)
         } as React.CSSProperties
       }
+      ref={workspaceDropTargetRef}
+      onDragOver={handleWorkspaceDragOver}
+      onDragEnter={handleWorkspaceDragEnter}
+      onDragLeave={handleWorkspaceDragLeave}
+      onDrop={handleWorkspaceDrop}
     >
       <div className="drag-strip" id="titlebar" data-tauri-drag-region />
       <TitlebarExpandControls {...sidebarToggleProps} />
+      <div
+        className={`workspace-drop-overlay${
+          isWorkspaceDropActive ? " is-active" : ""
+        }`}
+        aria-hidden
+      >
+        <div className="workspace-drop-overlay-text">Drop Project Here</div>
+      </div>
       {isPhone ? (
         <PhoneLayout
           approvalToastsNode={approvalToastsNode}
