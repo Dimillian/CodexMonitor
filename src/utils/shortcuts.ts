@@ -24,6 +24,22 @@ const KEY_LABELS: Record<string, string> = {
   arrowright: "→",
 };
 
+const ACCELERATOR_KEYS: Record<string, string> = {
+  " ": "Space",
+  space: "Space",
+  escape: "Esc",
+  esc: "Esc",
+  enter: "Enter",
+  return: "Enter",
+  tab: "Tab",
+  backspace: "Backspace",
+  delete: "Delete",
+  arrowup: "Up",
+  arrowdown: "Down",
+  arrowleft: "Left",
+  arrowright: "Right",
+};
+
 const MODIFIER_KEYS = new Set(["shift", "control", "alt", "meta"]);
 
 function normalizeKey(key: string) {
@@ -130,4 +146,30 @@ export function matchesShortcut(event: KeyboardEvent, value: string | null | und
     parsed.alt === event.altKey &&
     parsed.shift === event.shiftKey
   );
+}
+
+export function toMenuAccelerator(value: string | null | undefined): string | null {
+  const parsed = parseShortcut(value);
+  if (!parsed) {
+    return null;
+  }
+  const parts: string[] = [];
+  if (parsed.meta) {
+    parts.push("CmdOrCtrl");
+  } else if (parsed.ctrl) {
+    parts.push("Ctrl");
+  }
+  if (parsed.alt) {
+    parts.push("Alt");
+  }
+  if (parsed.shift) {
+    parts.push("Shift");
+  }
+  const key =
+    ACCELERATOR_KEYS[parsed.key] ??
+    (parsed.key.length === 1 ? parsed.key.toUpperCase() : parsed.key);
+  if (!key) {
+    return null;
+  }
+  return [...parts, key].join("+");
 }

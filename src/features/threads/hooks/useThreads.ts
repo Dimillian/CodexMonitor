@@ -1003,6 +1003,7 @@ export function useThreads({
       handleWorkspaceConnected,
       handleItemUpdate,
       handleToolOutputDelta,
+      handleTerminalInteraction,
       markProcessing,
       onDebug,
       recordThreadActivity,

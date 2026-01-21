@@ -86,6 +86,14 @@ const menuNewWorktreeAgentHub = createEventHub<void>("menu-new-worktree-agent");
 const menuNewCloneAgentHub = createEventHub<void>("menu-new-clone-agent");
 const menuAddWorkspaceHub = createEventHub<void>("menu-add-workspace");
 const menuOpenSettingsHub = createEventHub<void>("menu-open-settings");
+const menuToggleDebugPanelHub = createEventHub<void>("menu-toggle-debug-panel");
+const menuToggleTerminalHub = createEventHub<void>("menu-toggle-terminal");
+const menuCycleModelHub = createEventHub<void>("menu-composer-cycle-model");
+const menuCycleAccessHub = createEventHub<void>("menu-composer-cycle-access");
+const menuCycleReasoningHub = createEventHub<void>("menu-composer-cycle-reasoning");
+const menuComposerCycleModelHub = createEventHub<void>("menu-composer-cycle-model");
+const menuComposerCycleAccessHub = createEventHub<void>("menu-composer-cycle-access");
+const menuComposerCycleReasoningHub = createEventHub<void>("menu-composer-cycle-reasoning");
 
 export function subscribeAppServerEvents(
   onEvent: (event: AppServerEvent) => void,
@@ -165,6 +173,78 @@ export function subscribeMenuOpenSettings(
   options?: SubscriptionOptions,
 ): Unsubscribe {
   return menuOpenSettingsHub.subscribe(() => {
+    onEvent();
+  }, options);
+}
+
+export function subscribeMenuToggleDebugPanel(
+  onEvent: () => void,
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return menuToggleDebugPanelHub.subscribe(() => {
+    onEvent();
+  }, options);
+}
+
+export function subscribeMenuToggleTerminal(
+  onEvent: () => void,
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return menuToggleTerminalHub.subscribe(() => {
+    onEvent();
+  }, options);
+}
+
+export function subscribeMenuCycleModel(
+  onEvent: () => void,
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return menuCycleModelHub.subscribe(() => {
+    onEvent();
+  }, options);
+}
+
+export function subscribeMenuCycleAccessMode(
+  onEvent: () => void,
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return menuCycleAccessHub.subscribe(() => {
+    onEvent();
+  }, options);
+}
+
+export function subscribeMenuCycleReasoning(
+  onEvent: () => void,
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return menuCycleReasoningHub.subscribe(() => {
+    onEvent();
+  }, options);
+}
+
+export function subscribeMenuComposerCycleModel(
+  onEvent: () => void,
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return menuComposerCycleModelHub.subscribe(() => {
+    onEvent();
+  }, options);
+}
+
+export function subscribeMenuComposerCycleAccess(
+  onEvent: () => void,
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return menuComposerCycleAccessHub.subscribe(() => {
+    onEvent();
+  }, options);
+}
+
+export function subscribeMenuComposerCycleReasoning(
+  onEvent: () => void,
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return menuComposerCycleReasoningHub.subscribe(() => {
     onEvent();
   }, options);
 }

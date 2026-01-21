@@ -407,6 +407,17 @@ export async function updateAppSettings(settings: AppSettings): Promise<AppSetti
   return invoke<AppSettings>("update_app_settings", { settings });
 }
 
+type MenuAcceleratorUpdate = {
+  id: string;
+  accelerator: string | null;
+};
+
+export async function setMenuAccelerators(
+  updates: MenuAcceleratorUpdate[],
+): Promise<void> {
+  return invoke("menu_set_accelerators", { updates });
+}
+
 export async function runCodexDoctor(
   codexBin: string | null,
 ): Promise<CodexDoctorResult> {

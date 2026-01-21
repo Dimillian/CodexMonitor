@@ -78,6 +78,7 @@ import { useAppSettings } from "./features/settings/hooks/useAppSettings";
 import { useUpdater } from "./features/update/hooks/useUpdater";
 import { useComposerImages } from "./features/composer/hooks/useComposerImages";
 import { useComposerShortcuts } from "./features/composer/hooks/useComposerShortcuts";
+import { useComposerMenuActions } from "./features/composer/hooks/useComposerMenuActions";
 import { useDictationModel } from "./features/dictation/hooks/useDictationModel";
 import { useDictation } from "./features/dictation/hooks/useDictation";
 import { useHoldToDictate } from "./features/dictation/hooks/useHoldToDictate";
@@ -94,9 +95,11 @@ import { useAgentSoundNotifications } from "./features/notifications/hooks/useAg
 import { useWindowFocusState } from "./features/layout/hooks/useWindowFocusState";
 import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { usePanelVisibility } from "./features/layout/hooks/usePanelVisibility";
+import { usePanelShortcuts } from "./features/layout/hooks/usePanelShortcuts";
 import { useTerminalController } from "./features/terminal/hooks/useTerminalController";
 import { playNotificationSound } from "./utils/notificationSounds";
 import { shouldApplyCommitMessage } from "./utils/commitMessage";
+import { useMenuAccelerators } from "./features/app/hooks/useMenuAccelerators";
 import {
   pickWorkspacePath,
   generateCommitMessage,
@@ -111,6 +114,8 @@ import {
   subscribeMenuNewCloneAgent,
   subscribeMenuNewWorktreeAgent,
   subscribeMenuOpenSettings,
+  subscribeMenuToggleDebugPanel,
+  subscribeMenuToggleTerminal,
   subscribeUpdaterCheck,
 } from "./services/events";
 import type {
@@ -119,6 +124,7 @@ import type {
   QueuedMessage,
   WorkspaceInfo,
 } from "./types";
+
 
 function MainApp() {
   const {
@@ -509,6 +515,19 @@ function MainApp() {
     selectedEffort,
     onSelectEffort: setSelectedEffort,
   });
+
+  useComposerMenuActions({
+    models,
+    selectedModelId,
+    onSelectModel: setSelectedModelId,
+    accessMode,
+    onSelectAccessMode: setAccessMode,
+    reasoningOptions,
+    selectedEffort,
+    onSelectEffort: setSelectedEffort,
+    onFocusComposer: () => composerInputRef.current?.focus(),
+  });
+
   const {
     collaborationModes,
     selectedCollaborationMode,
@@ -1678,6 +1697,87 @@ function MainApp() {
     terminalOpen,
     onDebug: addDebugEntry,
   });
+
+  useTauriEvent(subscribeMenuToggleDebugPanel, () => {
+    handleDebugClick();
+  });
+
+  useTauriEvent(subscribeMenuToggleTerminal, () => {
+    handleToggleTerminal();
+  });
+
+  const menuAccelerators = useMemo(
+    () => [
+      {
+        id: "file_new_agent",
+        shortcut: appSettings.newAgentShortcut,
+      },
+      {
+        id: "file_new_worktree_agent",
+        shortcut: appSettings.newWorktreeAgentShortcut,
+      },
+      {
+        id: "file_new_clone_agent",
+        shortcut: appSettings.newCloneAgentShortcut,
+      },
+      {
+        id: "view_toggle_debug_panel",
+        shortcut: appSettings.toggleDebugPanelShortcut,
+      },
+      {
+        id: "view_toggle_terminal",
+        shortcut: appSettings.toggleTerminalShortcut,
+      },
+      {
+        id: "composer_cycle_model",
+        shortcut: appSettings.composerModelShortcut,
+      },
+      {
+        id: "composer_cycle_access",
+        shortcut: appSettings.composerAccessShortcut,
+      },
+      {
+        id: "composer_cycle_reasoning",
+        shortcut: appSettings.composerReasoningShortcut,
+      },
+    ],
+    [
+      appSettings.composerAccessShortcut,
+      appSettings.composerModelShortcut,
+      appSettings.composerReasoningShortcut,
+      appSettings.newAgentShortcut,
+      appSettings.newCloneAgentShortcut,
+      appSettings.newWorktreeAgentShortcut,
+      appSettings.toggleDebugPanelShortcut,
+      appSettings.toggleTerminalShortcut,
+    ],
+  );
+
+  usePanelShortcuts({
+    toggleDebugPanelShortcut: appSettings.toggleDebugPanelShortcut,
+    toggleTerminalShortcut: appSettings.toggleTerminalShortcut,
+    onToggleDebug: handleDebugClick,
+    onToggleTerminal: handleToggleTerminal,
+  });
+
+  const handleMenuAcceleratorError = useCallback(
+    (error: unknown) => {
+      addDebugEntry({
+        id: `${Date.now()}-client-menu-accelerator-error`,
+        timestamp: Date.now(),
+        source: "error",
+        label: "menu/accelerator-error",
+        payload: error instanceof Error ? error.message : String(error),
+      });
+    },
+    [addDebugEntry],
+  );
+
+  useMenuAccelerators({
+    accelerators: menuAccelerators,
+    onError: handleMenuAcceleratorError,
+  });
+
   const isDefaultScale = Math.abs(uiScale - 1) < 0.001;
   const appClassName = `app ${isCompact ? "layout-compact" : "layout-desktop"}${
     isPhone ? " layout-phone" : ""
