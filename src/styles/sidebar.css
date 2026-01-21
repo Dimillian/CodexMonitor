@@ -687,6 +687,11 @@
   gap: 4px;
 }
 
+.worktree-card.deleting {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 .worktree-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -708,8 +713,16 @@
   padding-left: 6px;
 }
 
+.worktree-row.deleting {
+  cursor: default;
+}
+
 .worktree-row:hover {
   background: var(--surface-card);
+}
+
+.worktree-row.deleting:hover {
+  background: var(--surface-card-muted);
 }
 
 .worktree-label {
@@ -720,10 +733,35 @@
   text-overflow: ellipsis;
 }
 
+.worktree-row.deleting .worktree-label {
+  color: var(--text-faint);
+}
+
 .worktree-actions {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.worktree-deleting {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.worktree-deleting-spinner {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--border-subtle);
+  border-top-color: var(--text-strong);
+  animation: spin 0.9s linear infinite;
+}
+
+.worktree-deleting-label {
+  letter-spacing: 0.01em;
 }
 
 .worktree-toggle {

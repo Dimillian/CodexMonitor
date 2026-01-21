@@ -61,6 +61,26 @@ describe("threadItems", () => {
     expect(secondOutput).toBe(output);
   });
 
+  it("drops assistant review summaries that duplicate completed review items", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "review-1",
+        kind: "review",
+        state: "completed",
+        text: "Review summary",
+      },
+      {
+        id: "msg-1",
+        kind: "message",
+        role: "assistant",
+        text: "Review summary",
+      },
+    ];
+    const prepared = prepareThreadItems(items);
+    expect(prepared).toHaveLength(1);
+    expect(prepared[0].kind).toBe("review");
+  });
+
   it("builds file change items with summary details", () => {
     const item = buildConversationItem({
       type: "fileChange",

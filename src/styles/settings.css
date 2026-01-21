@@ -252,6 +252,13 @@
   margin-bottom: 12px;
 }
 
+.settings-divider {
+  height: 1px;
+  background: var(--border-muted);
+  margin: 16px 0;
+  border-radius: 999px;
+}
+
 .settings-projects {
   display: flex;
   flex-direction: column;

@@ -155,6 +155,34 @@ describe("threadReducer", () => {
     expect(items[1]?.id).toBe("review-mode-1");
   });
 
+  it("ignores duplicate review items with identical id, state, and text", () => {
+    const firstReview: ConversationItem = {
+      id: "review-mode",
+      kind: "review",
+      state: "started",
+      text: "Reviewing changes",
+    };
+    const next = threadReducer(
+      {
+        ...initialState,
+        itemsByThread: { "thread-1": [firstReview] },
+      },
+      {
+        type: "upsertItem",
+        threadId: "thread-1",
+        item: {
+          id: "review-mode",
+          kind: "review",
+          state: "started",
+          text: "Reviewing changes",
+        },
+      },
+    );
+    const items = next.itemsByThread["thread-1"] ?? [];
+    expect(items).toHaveLength(1);
+    expect(items[0]?.id).toBe("review-mode");
+  });
+
   it("dedupes review items with identical content", () => {
     const firstReview: ConversationItem = {
       id: "review-mode",

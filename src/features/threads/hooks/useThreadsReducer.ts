@@ -293,6 +293,20 @@ function ensureUniqueReviewId(list: ConversationItem[], item: ConversationItem) 
   return { ...item, id: candidate };
 }
 
+function isDuplicateReviewById(
+  list: ConversationItem[],
+  target: Extract<ConversationItem, { kind: "review" }>,
+) {
+  const normalizedText = target.text.trim();
+  return list.some(
+    (item) =>
+      item.kind === "review" &&
+      item.id === target.id &&
+      item.state === target.state &&
+      item.text.trim() === normalizedText,
+  );
+}
+
 export function threadReducer(state: ThreadState, action: ThreadAction): ThreadState {
   switch (action.type) {
     case "setActiveThreadId":
@@ -645,6 +659,9 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         !item.id.startsWith("review-start-")
       ) {
         list = dropLatestLocalReviewStart(list);
+      }
+      if (item.kind === "review" && isDuplicateReviewById(list, item)) {
+        return state;
       }
       if (item.kind === "review") {
         const existing = findMatchingReview(list, item);

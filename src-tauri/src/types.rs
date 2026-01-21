@@ -267,6 +267,58 @@ pub(crate) struct AppSettings {
         rename = "composerReasoningShortcut"
     )]
     pub(crate) composer_reasoning_shortcut: Option<String>,
+    #[serde(default = "default_new_agent_shortcut", rename = "newAgentShortcut")]
+    pub(crate) new_agent_shortcut: Option<String>,
+    #[serde(
+        default = "default_new_worktree_agent_shortcut",
+        rename = "newWorktreeAgentShortcut"
+    )]
+    pub(crate) new_worktree_agent_shortcut: Option<String>,
+    #[serde(
+        default = "default_new_clone_agent_shortcut",
+        rename = "newCloneAgentShortcut"
+    )]
+    pub(crate) new_clone_agent_shortcut: Option<String>,
+    #[serde(
+        default = "default_toggle_projects_sidebar_shortcut",
+        rename = "toggleProjectsSidebarShortcut"
+    )]
+    pub(crate) toggle_projects_sidebar_shortcut: Option<String>,
+    #[serde(
+        default = "default_toggle_git_sidebar_shortcut",
+        rename = "toggleGitSidebarShortcut"
+    )]
+    pub(crate) toggle_git_sidebar_shortcut: Option<String>,
+    #[serde(
+        default = "default_toggle_debug_panel_shortcut",
+        rename = "toggleDebugPanelShortcut"
+    )]
+    pub(crate) toggle_debug_panel_shortcut: Option<String>,
+    #[serde(
+        default = "default_toggle_terminal_shortcut",
+        rename = "toggleTerminalShortcut"
+    )]
+    pub(crate) toggle_terminal_shortcut: Option<String>,
+    #[serde(
+        default = "default_cycle_agent_next_shortcut",
+        rename = "cycleAgentNextShortcut"
+    )]
+    pub(crate) cycle_agent_next_shortcut: Option<String>,
+    #[serde(
+        default = "default_cycle_agent_prev_shortcut",
+        rename = "cycleAgentPrevShortcut"
+    )]
+    pub(crate) cycle_agent_prev_shortcut: Option<String>,
+    #[serde(
+        default = "default_cycle_workspace_next_shortcut",
+        rename = "cycleWorkspaceNextShortcut"
+    )]
+    pub(crate) cycle_workspace_next_shortcut: Option<String>,
+    #[serde(
+        default = "default_cycle_workspace_prev_shortcut",
+        rename = "cycleWorkspacePrevShortcut"
+    )]
+    pub(crate) cycle_workspace_prev_shortcut: Option<String>,
     #[serde(default, rename = "lastComposerModelId")]
     pub(crate) last_composer_model_id: Option<String>,
     #[serde(default, rename = "lastComposerReasoningEffort")]
@@ -354,6 +406,50 @@ fn default_composer_reasoning_shortcut() -> Option<String> {
     Some("cmd+shift+r".to_string())
 }
 
+fn default_new_agent_shortcut() -> Option<String> {
+    Some("cmd+n".to_string())
+}
+
+fn default_new_worktree_agent_shortcut() -> Option<String> {
+    Some("cmd+shift+n".to_string())
+}
+
+fn default_new_clone_agent_shortcut() -> Option<String> {
+    Some("cmd+alt+n".to_string())
+}
+
+fn default_toggle_projects_sidebar_shortcut() -> Option<String> {
+    Some("cmd+shift+p".to_string())
+}
+
+fn default_toggle_git_sidebar_shortcut() -> Option<String> {
+    Some("cmd+shift+g".to_string())
+}
+
+fn default_toggle_debug_panel_shortcut() -> Option<String> {
+    Some("cmd+shift+d".to_string())
+}
+
+fn default_toggle_terminal_shortcut() -> Option<String> {
+    Some("cmd+shift+t".to_string())
+}
+
+fn default_cycle_agent_next_shortcut() -> Option<String> {
+    Some("cmd+ctrl+down".to_string())
+}
+
+fn default_cycle_agent_prev_shortcut() -> Option<String> {
+    Some("cmd+ctrl+up".to_string())
+}
+
+fn default_cycle_workspace_next_shortcut() -> Option<String> {
+    Some("cmd+shift+down".to_string())
+}
+
+fn default_cycle_workspace_prev_shortcut() -> Option<String> {
+    Some("cmd+shift+up".to_string())
+}
+
 fn default_notification_sounds_enabled() -> bool {
     true
 }
@@ -397,6 +493,17 @@ impl Default for AppSettings {
             composer_model_shortcut: default_composer_model_shortcut(),
             composer_access_shortcut: default_composer_access_shortcut(),
             composer_reasoning_shortcut: default_composer_reasoning_shortcut(),
+            new_agent_shortcut: default_new_agent_shortcut(),
+            new_worktree_agent_shortcut: default_new_worktree_agent_shortcut(),
+            new_clone_agent_shortcut: default_new_clone_agent_shortcut(),
+            toggle_projects_sidebar_shortcut: default_toggle_projects_sidebar_shortcut(),
+            toggle_git_sidebar_shortcut: default_toggle_git_sidebar_shortcut(),
+            toggle_debug_panel_shortcut: default_toggle_debug_panel_shortcut(),
+            toggle_terminal_shortcut: default_toggle_terminal_shortcut(),
+            cycle_agent_next_shortcut: default_cycle_agent_next_shortcut(),
+            cycle_agent_prev_shortcut: default_cycle_agent_prev_shortcut(),
+            cycle_workspace_next_shortcut: default_cycle_workspace_next_shortcut(),
+            cycle_workspace_prev_shortcut: default_cycle_workspace_prev_shortcut(),
             last_composer_model_id: None,
             last_composer_reasoning_effort: None,
             ui_scale: 1.0,
@@ -439,6 +546,30 @@ mod tests {
         assert_eq!(
             settings.composer_reasoning_shortcut.as_deref(),
             Some("cmd+shift+r")
+        );
+        assert_eq!(
+            settings.toggle_debug_panel_shortcut.as_deref(),
+            Some("cmd+shift+d")
+        );
+        assert_eq!(
+            settings.toggle_terminal_shortcut.as_deref(),
+            Some("cmd+shift+t")
+        );
+        assert_eq!(
+            settings.cycle_agent_next_shortcut.as_deref(),
+            Some("cmd+ctrl+down")
+        );
+        assert_eq!(
+            settings.cycle_agent_prev_shortcut.as_deref(),
+            Some("cmd+ctrl+up")
+        );
+        assert_eq!(
+            settings.cycle_workspace_next_shortcut.as_deref(),
+            Some("cmd+shift+down")
+        );
+        assert_eq!(
+            settings.cycle_workspace_prev_shortcut.as_deref(),
+            Some("cmd+shift+up")
         );
         assert!(settings.last_composer_model_id.is_none());
         assert!(settings.last_composer_reasoning_effort.is_none());

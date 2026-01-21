@@ -83,7 +83,21 @@ export function normalizeItem(item: ConversationItem): ConversationItem {
 }
 
 export function prepareThreadItems(items: ConversationItem[]) {
-  const normalized = items.map((item) => normalizeItem(item));
+  const filtered: ConversationItem[] = [];
+  for (const item of items) {
+    const last = filtered[filtered.length - 1];
+    if (
+      item.kind === "message" &&
+      item.role === "assistant" &&
+      last?.kind === "review" &&
+      last.state === "completed" &&
+      item.text.trim() === last.text.trim()
+    ) {
+      continue;
+    }
+    filtered.push(item);
+  }
+  const normalized = filtered.map((item) => normalizeItem(item));
   const limited =
     normalized.length > MAX_ITEMS_PER_THREAD
       ? normalized.slice(-MAX_ITEMS_PER_THREAD)

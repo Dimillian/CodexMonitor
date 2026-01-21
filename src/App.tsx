@@ -79,6 +79,7 @@ import { useAppSettings } from "./features/settings/hooks/useAppSettings";
 import { useUpdater } from "./features/update/hooks/useUpdater";
 import { useComposerImages } from "./features/composer/hooks/useComposerImages";
 import { useComposerShortcuts } from "./features/composer/hooks/useComposerShortcuts";
+import { useComposerMenuActions } from "./features/composer/hooks/useComposerMenuActions";
 import { useDictationModel } from "./features/dictation/hooks/useDictationModel";
 import { useDictation } from "./features/dictation/hooks/useDictation";
 import { useHoldToDictate } from "./features/dictation/hooks/useHoldToDictate";
@@ -90,14 +91,17 @@ import { useUiScaleShortcuts } from "./features/layout/hooks/useUiScaleShortcuts
 import { useWorkspaceSelection } from "./features/workspaces/hooks/useWorkspaceSelection";
 import { useLocalUsage } from "./features/home/hooks/useLocalUsage";
 import { useNewAgentShortcut } from "./features/app/hooks/useNewAgentShortcut";
+import { useThreadRows } from "./features/app/hooks/useThreadRows";
 import { useTauriEvent } from "./features/app/hooks/useTauriEvent";
 import { useAgentSoundNotifications } from "./features/notifications/hooks/useAgentSoundNotifications";
 import { useWindowFocusState } from "./features/layout/hooks/useWindowFocusState";
 import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { usePanelVisibility } from "./features/layout/hooks/usePanelVisibility";
+import { usePanelShortcuts } from "./features/layout/hooks/usePanelShortcuts";
 import { useTerminalController } from "./features/terminal/hooks/useTerminalController";
 import { playNotificationSound } from "./utils/notificationSounds";
 import { shouldApplyCommitMessage } from "./utils/commitMessage";
+import { useMenuAccelerators } from "./features/app/hooks/useMenuAccelerators";
 import {
   pickWorkspacePath,
   generateCommitMessage,
@@ -108,10 +112,18 @@ import {
 } from "./services/tauri";
 import {
   subscribeMenuAddWorkspace,
+  subscribeMenuNextAgent,
+  subscribeMenuPrevAgent,
+  subscribeMenuNextWorkspace,
+  subscribeMenuPrevWorkspace,
   subscribeMenuNewAgent,
   subscribeMenuNewCloneAgent,
   subscribeMenuNewWorktreeAgent,
   subscribeMenuOpenSettings,
+  subscribeMenuToggleGitSidebar,
+  subscribeMenuToggleProjectsSidebar,
+  subscribeMenuToggleDebugPanel,
+  subscribeMenuToggleTerminal,
   subscribeUpdaterCheck,
 } from "./services/events";
 import type {
@@ -120,6 +132,7 @@ import type {
   QueuedMessage,
   WorkspaceInfo,
 } from "./types";
+
 
 function MainApp() {
   const {
@@ -359,6 +372,7 @@ function MainApp() {
     removeWorktree,
     renameWorktree,
     renameWorktreeUpstream,
+    deletingWorktreeIds,
     hasLoaded,
     refreshWorkspaces
   } = useWorkspaces({
@@ -511,6 +525,19 @@ function MainApp() {
     selectedEffort,
     onSelectEffort: setSelectedEffort,
   });
+
+  useComposerMenuActions({
+    models,
+    selectedModelId,
+    onSelectModel: setSelectedModelId,
+    accessMode,
+    onSelectAccessMode: setAccessMode,
+    reasoningOptions,
+    selectedEffort,
+    onSelectEffort: setSelectedEffort,
+    onFocusComposer: () => composerInputRef.current?.focus(),
+  });
+
   const {
     collaborationModes,
     selectedCollaborationMode,
@@ -743,9 +770,15 @@ function MainApp() {
     customPrompts: prompts,
     onMessageActivity: queueGitStatusRefresh
   });
+  const activeThreadIdRef = useRef<string | null>(activeThreadId ?? null);
+  const { getThreadRows } = useThreadRows(threadParentById);
+  useEffect(() => {
+    activeThreadIdRef.current = activeThreadId ?? null;
+  }, [activeThreadId]);
 
   useAutoExitEmptyDiff({
     centerMode,
+    autoExitEnabled: diffSource === "local",
     activeDiffCount: activeDiffs.length,
     activeDiffLoading,
     activeDiffError,
@@ -1734,6 +1767,277 @@ function MainApp() {
     terminalOpen,
     onDebug: addDebugEntry,
   });
+
+  const orderedWorkspaceIds = useMemo(() => {
+    const worktreesByParent = new Map<string, WorkspaceInfo[]>();
+    workspaces
+      .filter(
+        (entry) =>
+          (entry.kind ?? "main") === "worktree" && Boolean(entry.parentId),
+      )
+      .forEach((entry) => {
+        const parentId = entry.parentId as string;
+        const list = worktreesByParent.get(parentId) ?? [];
+        list.push(entry);
+        worktreesByParent.set(parentId, list);
+      });
+    worktreesByParent.forEach((entries) => {
+      entries.sort((a, b) => a.name.localeCompare(b.name));
+    });
+
+    const ordered: WorkspaceInfo[] = [];
+    groupedWorkspaces.forEach((group) => {
+      group.workspaces.forEach((workspace) => {
+        ordered.push(workspace);
+        const worktrees = worktreesByParent.get(workspace.id);
+        if (worktrees?.length) {
+          ordered.push(...worktrees);
+        }
+      });
+    });
+
+    const seen = new Set(ordered.map((entry) => entry.id));
+    workspaces.forEach((entry) => {
+      if (!seen.has(entry.id)) {
+        ordered.push(entry);
+      }
+    });
+
+    return ordered.map((entry) => entry.id);
+  }, [groupedWorkspaces, workspaces]);
+
+  const getOrderedThreadIds = useCallback(
+    (workspaceId: string) => {
+      const threads = threadsByWorkspace[workspaceId] ?? [];
+      if (!threads.length) {
+        return [];
+      }
+      const { pinnedRows, unpinnedRows } = getThreadRows(
+        threads,
+        true,
+        workspaceId,
+        getPinTimestamp,
+      );
+      return [...pinnedRows, ...unpinnedRows].map((row) => row.thread.id);
+    },
+    [getPinTimestamp, getThreadRows, threadsByWorkspace],
+  );
+
+  const handleCycleAgent = useCallback(
+    (direction: "next" | "prev") => {
+      const workspaceId = activeWorkspaceIdRef.current;
+      if (!workspaceId) {
+        return;
+      }
+      const orderedThreadIds = getOrderedThreadIds(workspaceId);
+      if (!orderedThreadIds.length) {
+        return;
+      }
+      const currentThreadId = activeThreadIdRef.current;
+      let index = currentThreadId
+        ? orderedThreadIds.indexOf(currentThreadId)
+        : -1;
+      if (index === -1) {
+        index = direction === "next" ? -1 : 0;
+      }
+      const nextIndex =
+        direction === "next"
+          ? (index + 1) % orderedThreadIds.length
+          : (index - 1 + orderedThreadIds.length) % orderedThreadIds.length;
+      const nextThreadId = orderedThreadIds[nextIndex];
+      exitDiffView();
+      resetPullRequestSelection();
+      selectWorkspace(workspaceId);
+      setActiveThreadId(nextThreadId, workspaceId);
+    },
+    [
+      exitDiffView,
+      getOrderedThreadIds,
+      resetPullRequestSelection,
+      selectWorkspace,
+      setActiveThreadId,
+    ],
+  );
+
+  const handleCycleWorkspace = useCallback(
+    (direction: "next" | "prev") => {
+      if (!orderedWorkspaceIds.length) {
+        return;
+      }
+      const currentWorkspaceId = activeWorkspaceIdRef.current;
+      let index = currentWorkspaceId
+        ? orderedWorkspaceIds.indexOf(currentWorkspaceId)
+        : -1;
+      if (index === -1) {
+        index = direction === "next" ? -1 : 0;
+      }
+      const nextIndex =
+        direction === "next"
+          ? (index + 1) % orderedWorkspaceIds.length
+          : (index - 1 + orderedWorkspaceIds.length) % orderedWorkspaceIds.length;
+      const nextWorkspaceId = orderedWorkspaceIds[nextIndex];
+      exitDiffView();
+      resetPullRequestSelection();
+      selectWorkspace(nextWorkspaceId);
+      const orderedThreadIds = getOrderedThreadIds(nextWorkspaceId);
+      if (orderedThreadIds.length > 0) {
+        setActiveThreadId(orderedThreadIds[0], nextWorkspaceId);
+      } else {
+        setActiveThreadId(null, nextWorkspaceId);
+      }
+    },
+    [
+      exitDiffView,
+      getOrderedThreadIds,
+      orderedWorkspaceIds,
+      resetPullRequestSelection,
+      selectWorkspace,
+      setActiveThreadId,
+    ],
+  );
+
+  useTauriEvent(subscribeMenuNextAgent, () => {
+    handleCycleAgent("next");
+  });
+
+  useTauriEvent(subscribeMenuPrevAgent, () => {
+    handleCycleAgent("prev");
+  });
+
+  useTauriEvent(subscribeMenuNextWorkspace, () => {
+    handleCycleWorkspace("next");
+  });
+
+  useTauriEvent(subscribeMenuPrevWorkspace, () => {
+    handleCycleWorkspace("prev");
+  });
+
+  useTauriEvent(subscribeMenuToggleDebugPanel, () => {
+    handleDebugClick();
+  });
+
+  useTauriEvent(subscribeMenuToggleTerminal, () => {
+    handleToggleTerminal();
+  });
+
+  useTauriEvent(subscribeMenuToggleProjectsSidebar, () => {
+    if (sidebarCollapsed) {
+      expandSidebar();
+    } else {
+      collapseSidebar();
+    }
+  });
+
+  useTauriEvent(subscribeMenuToggleGitSidebar, () => {
+    if (rightPanelCollapsed) {
+      expandRightPanel();
+    } else {
+      collapseRightPanel();
+    }
+  });
+
+  const menuAccelerators = useMemo(
+    () => [
+      {
+        id: "file_new_agent",
+        shortcut: appSettings.newAgentShortcut,
+      },
+      {
+        id: "file_new_worktree_agent",
+        shortcut: appSettings.newWorktreeAgentShortcut,
+      },
+      {
+        id: "file_new_clone_agent",
+        shortcut: appSettings.newCloneAgentShortcut,
+      },
+      {
+        id: "view_toggle_projects_sidebar",
+        shortcut: appSettings.toggleProjectsSidebarShortcut,
+      },
+      {
+        id: "view_toggle_git_sidebar",
+        shortcut: appSettings.toggleGitSidebarShortcut,
+      },
+      {
+        id: "view_toggle_debug_panel",
+        shortcut: appSettings.toggleDebugPanelShortcut,
+      },
+      {
+        id: "view_toggle_terminal",
+        shortcut: appSettings.toggleTerminalShortcut,
+      },
+      {
+        id: "view_next_agent",
+        shortcut: appSettings.cycleAgentNextShortcut,
+      },
+      {
+        id: "view_prev_agent",
+        shortcut: appSettings.cycleAgentPrevShortcut,
+      },
+      {
+        id: "view_next_workspace",
+        shortcut: appSettings.cycleWorkspaceNextShortcut,
+      },
+      {
+        id: "view_prev_workspace",
+        shortcut: appSettings.cycleWorkspacePrevShortcut,
+      },
+      {
+        id: "composer_cycle_model",
+        shortcut: appSettings.composerModelShortcut,
+      },
+      {
+        id: "composer_cycle_access",
+        shortcut: appSettings.composerAccessShortcut,
+      },
+      {
+        id: "composer_cycle_reasoning",
+        shortcut: appSettings.composerReasoningShortcut,
+      },
+    ],
+    [
+      appSettings.composerAccessShortcut,
+      appSettings.composerModelShortcut,
+      appSettings.composerReasoningShortcut,
+      appSettings.cycleAgentNextShortcut,
+      appSettings.cycleAgentPrevShortcut,
+      appSettings.cycleWorkspaceNextShortcut,
+      appSettings.cycleWorkspacePrevShortcut,
+      appSettings.newAgentShortcut,
+      appSettings.newCloneAgentShortcut,
+      appSettings.newWorktreeAgentShortcut,
+      appSettings.toggleGitSidebarShortcut,
+      appSettings.toggleDebugPanelShortcut,
+      appSettings.toggleProjectsSidebarShortcut,
+      appSettings.toggleTerminalShortcut,
+    ],
+  );
+
+  usePanelShortcuts({
+    toggleDebugPanelShortcut: appSettings.toggleDebugPanelShortcut,
+    toggleTerminalShortcut: appSettings.toggleTerminalShortcut,
+    onToggleDebug: handleDebugClick,
+    onToggleTerminal: handleToggleTerminal,
+  });
+
+  const handleMenuAcceleratorError = useCallback(
+    (error: unknown) => {
+      addDebugEntry({
+        id: `${Date.now()}-client-menu-accelerator-error`,
+        timestamp: Date.now(),
+        source: "error",
+        label: "menu/accelerator-error",
+        payload: error instanceof Error ? error.message : String(error),
+      });
+    },
+    [addDebugEntry],
+  );
+
+  useMenuAccelerators({
+    accelerators: menuAccelerators,
+    onError: handleMenuAcceleratorError,
+  });
+
   const isDefaultScale = Math.abs(uiScale - 1) < 0.001;
   const dropOverlayActive = isWorkspaceDropActive;
   const dropOverlayText = "Drop Project Here";
@@ -1768,6 +2072,7 @@ function MainApp() {
     workspaces,
     groupedWorkspaces,
     hasWorkspaceGroups: workspaceGroups.length > 0,
+    deletingWorktreeIds,
     threadsByWorkspace,
     threadParentById,
     threadStatusById,

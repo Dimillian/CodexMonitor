@@ -300,7 +300,7 @@
   bottom: 100%;
   left: 50%;
   transform: translate(-50%, -8px);
-  background: var(--surface-command);
+  background: var(--surface-popover);
   color: var(--text-stronger);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;

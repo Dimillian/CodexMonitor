@@ -8,6 +8,7 @@ import {
   findPromptArgRangeAtCursor,
   getPromptArgumentHint,
 } from "../../../utils/customPrompts";
+import { isComposingEvent } from "../../../utils/keys";
 
 type Skill = { name: string; description?: string };
 type UseComposerAutocompleteStateArgs = {
@@ -268,6 +269,9 @@ export function useComposerAutocompleteState({
   const handleInputKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (disabled) {
+        return;
+      }
+      if (isComposingEvent(event)) {
         return;
       }
       if (isAutocompleteOpen) {

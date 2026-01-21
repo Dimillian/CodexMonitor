@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 type AutoExitEmptyDiffOptions = {
   centerMode: "chat" | "diff";
+  autoExitEnabled: boolean;
   activeDiffCount: number;
   activeDiffLoading: boolean;
   activeDiffError: string | null;
@@ -14,6 +15,7 @@ type AutoExitEmptyDiffOptions = {
 
 export function useAutoExitEmptyDiff({
   centerMode,
+  autoExitEnabled,
   activeDiffCount,
   activeDiffLoading,
   activeDiffError,
@@ -25,6 +27,9 @@ export function useAutoExitEmptyDiff({
 }: AutoExitEmptyDiffOptions) {
   useEffect(() => {
     if (centerMode !== "diff") {
+      return;
+    }
+    if (!autoExitEnabled) {
       return;
     }
     if (activeDiffLoading || activeDiffError) {
@@ -45,6 +50,7 @@ export function useAutoExitEmptyDiff({
     activeDiffCount,
     activeDiffError,
     activeDiffLoading,
+    autoExitEnabled,
     activeThreadId,
     centerMode,
     isCompact,

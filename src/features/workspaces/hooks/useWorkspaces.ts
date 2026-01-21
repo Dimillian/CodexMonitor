@@ -6,7 +6,7 @@ import type {
   WorkspaceInfo,
   WorkspaceSettings,
 } from "../../../types";
-import { ask } from "@tauri-apps/plugin-dialog";
+import { ask, message } from "@tauri-apps/plugin-dialog";
 import {
   addClone as addCloneService,
   addWorkspace as addWorkspaceService,
@@ -77,6 +77,9 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
   const [workspaces, setWorkspaces] = useState<WorkspaceInfo[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [deletingWorktreeIds, setDeletingWorktreeIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const { onDebug, defaultCodexBin, appSettings, onUpdateAppSettings } = options;
 
   const refreshWorkspaces = useCallback(async () => {
@@ -678,6 +681,11 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
       return;
     }
 
+    setDeletingWorktreeIds((prev) => {
+      const next = new Set(prev);
+      next.add(workspaceId);
+      return next;
+    });
     onDebug?.({
       id: `${Date.now()}-client-remove-worktree`,
       timestamp: Date.now(),
@@ -690,14 +698,24 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
       setWorkspaces((prev) => prev.filter((entry) => entry.id !== workspaceId));
       setActiveWorkspaceId((prev) => (prev === workspaceId ? null : prev));
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       onDebug?.({
         id: `${Date.now()}-client-remove-worktree-error`,
         timestamp: Date.now(),
         source: "error",
         label: "worktree/remove error",
-        payload: error instanceof Error ? error.message : String(error),
+        payload: errorMessage,
       });
-      throw error;
+      void message(errorMessage, {
+        title: "Delete worktree failed",
+        kind: "error",
+      });
+    } finally {
+      setDeletingWorktreeIds((prev) => {
+        const next = new Set(prev);
+        next.delete(workspaceId);
+        return next;
+      });
     }
   }
 
@@ -803,6 +821,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     removeWorktree,
     renameWorktree,
     renameWorktreeUpstream,
+    deletingWorktreeIds,
     hasLoaded,
     refreshWorkspaces,
   };

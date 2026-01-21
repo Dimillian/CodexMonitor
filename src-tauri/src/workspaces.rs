@@ -131,7 +131,7 @@ fn apply_workspace_settings_update(
 }
 
 async fn run_git_command(repo_path: &PathBuf, args: &[&str]) -> Result<String, String> {
-    let output = Command::new("git")
+  let output = Command::new("git")
         .args(args)
         .current_dir(repo_path)
         .output()
@@ -153,6 +153,10 @@ async fn run_git_command(repo_path: &PathBuf, args: &[&str]) -> Result<String, S
             Err(detail.to_string())
         }
     }
+}
+
+fn is_missing_worktree_error(error: &str) -> bool {
+    error.contains("is not a working tree")
 }
 
 async fn run_git_command_bytes(repo_path: &PathBuf, args: &[&str]) -> Result<Vec<u8>, String> {
@@ -760,11 +764,22 @@ pub(crate) async fn remove_workspace(
         }
         let child_path = PathBuf::from(&child.path);
         if child_path.exists() {
-            run_git_command(
+            if let Err(error) = run_git_command(
                 &parent_path,
                 &["worktree", "remove", "--force", &child.path],
             )
-            .await?;
+            .await
+            {
+                if is_missing_worktree_error(&error) {
+                    if child_path.exists() {
+                        std::fs::remove_dir_all(&child_path).map_err(|err| {
+                            format!("Failed to remove worktree folder: {err}")
+                        })?;
+                    }
+                } else {
+                    return Err(error);
+                }
+            }
         }
     }
     let _ = run_git_command(&parent_path, &["worktree", "prune", "--expire", "now"]).await;
@@ -820,11 +835,22 @@ pub(crate) async fn remove_worktree(
     let parent_path = PathBuf::from(&parent.path);
     let entry_path = PathBuf::from(&entry.path);
     if entry_path.exists() {
-        run_git_command(
+        if let Err(error) = run_git_command(
             &parent_path,
             &["worktree", "remove", "--force", &entry.path],
         )
-        .await?;
+        .await
+        {
+            if is_missing_worktree_error(&error) {
+                if entry_path.exists() {
+                    std::fs::remove_dir_all(&entry_path).map_err(|err| {
+                        format!("Failed to remove worktree folder: {err}")
+                    })?;
+                }
+            } else {
+                return Err(error);
+            }
+        }
     }
     let _ = run_git_command(&parent_path, &["worktree", "prune", "--expire", "now"]).await;
 

@@ -40,6 +40,7 @@ chrono = { version = "0.4", features = ["clock"] }
 
 [target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
 tauri-plugin-updater = "2"
+tauri-plugin-window-state = "2"
 
 [target."cfg(not(target_os = \"windows\"))".dependencies]
 cpal = "0.15"
