@@ -274,6 +274,17 @@
   }
 }
 
+.prompt-panel-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+  padding-bottom: 12px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .prompt-row,
   .prompt-empty-card,
