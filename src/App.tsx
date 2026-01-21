@@ -1049,25 +1049,6 @@ function MainApp() {
     [isCompact, setActiveTab, setActiveThreadId],
   );
 
-  const handleAddWorkspace = useCallback(async () => {
-    try {
-      const workspace = await addWorkspace();
-      if (workspace) {
-        handleWorkspaceAdded(workspace);
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      addDebugEntry({
-        id: `${Date.now()}-client-add-workspace-error`,
-        timestamp: Date.now(),
-        source: "error",
-        label: "workspace/add error",
-        payload: message
-      });
-      alert(`Failed to add workspace.\n\n${message}`);
-    }
-  }, [addDebugEntry, addWorkspace, handleWorkspaceAdded]);
-
   const handleAddWorkspaceFromPath = useCallback(
     async (path: string) => {
       try {
