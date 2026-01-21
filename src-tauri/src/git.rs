@@ -44,6 +44,65 @@ async fn run_git_command(repo_root: &Path, args: &[&str]) -> Result<(), String> 
     Err(detail.to_string())
 }
 
+fn action_paths_for_file(repo_root: &Path, path: &str) -> Vec<String> {
+    let target = normalize_git_path(path).trim().to_string();
+    if target.is_empty() {
+        return Vec::new();
+    }
+
+    let repo = match Repository::open(repo_root) {
+        Ok(repo) => repo,
+        Err(_) => return vec![target],
+    };
+
+    let mut status_options = StatusOptions::new();
+    status_options
+        .include_untracked(true)
+        .recurse_untracked_dirs(true)
+        .renames_head_to_index(true)
+        .renames_index_to_workdir(true)
+        .include_ignored(false);
+
+    let statuses = match repo.statuses(Some(&mut status_options)) {
+        Ok(statuses) => statuses,
+        Err(_) => return vec![target],
+    };
+
+    for entry in statuses.iter() {
+        let status = entry.status();
+        if !(status.contains(Status::WT_RENAMED) || status.contains(Status::INDEX_RENAMED)) {
+            continue;
+        }
+        let delta = entry.index_to_workdir().or_else(|| entry.head_to_index());
+        let Some(delta) = delta else {
+            continue;
+        };
+        let (Some(old_path), Some(new_path)) =
+            (delta.old_file().path(), delta.new_file().path())
+        else {
+            continue;
+        };
+        let old_path = normalize_git_path(old_path.to_string_lossy().as_ref());
+        let new_path = normalize_git_path(new_path.to_string_lossy().as_ref());
+        if old_path != target && new_path != target {
+            continue;
+        }
+        if old_path == new_path || new_path.is_empty() {
+            return vec![target];
+        }
+        let mut result = Vec::new();
+        if !old_path.is_empty() {
+            result.push(old_path);
+        }
+        if !new_path.is_empty() && !result.contains(&new_path) {
+            result.push(new_path);
+        }
+        return if result.is_empty() { vec![target] } else { result };
+    }
+
+    vec![target]
+}
+
 fn parse_upstream_ref(name: &str) -> Option<(String, String)> {
     let trimmed = name.strip_prefix("refs/remotes/").unwrap_or(name);
     let mut parts = trimmed.splitn(2, '/');
@@ -459,14 +518,21 @@ pub(crate) async fn stage_git_file(
     path: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let workspaces = state.workspaces.lock().await;
-    let entry = workspaces
-        .get(&workspace_id)
-        .ok_or("workspace not found")?
-        .clone();
+    let entry = {
+        let workspaces = state.workspaces.lock().await;
+        workspaces
+            .get(&workspace_id)
+            .cloned()
+            .ok_or("workspace not found")?
+    };
 
     let repo_root = resolve_git_root(&entry)?;
-    run_git_command(&repo_root, &["add", "--", &path]).await
+    // If libgit2 reports a rename, we want a single UI action to stage both the
+    // old + new paths so the change actually moves to the staged section.
+    for path in action_paths_for_file(&repo_root, &path) {
+        run_git_command(&repo_root, &["add", "-A", "--", &path]).await?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -474,11 +540,13 @@ pub(crate) async fn stage_git_all(
     workspace_id: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let workspaces = state.workspaces.lock().await;
-    let entry = workspaces
-        .get(&workspace_id)
-        .ok_or("workspace not found")?
-        .clone();
+    let entry = {
+        let workspaces = state.workspaces.lock().await;
+        workspaces
+            .get(&workspace_id)
+            .cloned()
+            .ok_or("workspace not found")?
+    };
 
     let repo_root = resolve_git_root(&entry)?;
     run_git_command(&repo_root, &["add", "-A"]).await
@@ -490,14 +558,19 @@ pub(crate) async fn unstage_git_file(
     path: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let workspaces = state.workspaces.lock().await;
-    let entry = workspaces
-        .get(&workspace_id)
-        .ok_or("workspace not found")?
-        .clone();
+    let entry = {
+        let workspaces = state.workspaces.lock().await;
+        workspaces
+            .get(&workspace_id)
+            .cloned()
+            .ok_or("workspace not found")?
+    };
 
     let repo_root = resolve_git_root(&entry)?;
-    run_git_command(&repo_root, &["restore", "--staged", "--", &path]).await
+    for path in action_paths_for_file(&repo_root, &path) {
+        run_git_command(&repo_root, &["restore", "--staged", "--", &path]).await?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -506,20 +579,28 @@ pub(crate) async fn revert_git_file(
     path: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let workspaces = state.workspaces.lock().await;
-    let entry = workspaces
-        .get(&workspace_id)
-        .ok_or("workspace not found")?
-        .clone();
+    let entry = {
+        let workspaces = state.workspaces.lock().await;
+        workspaces
+            .get(&workspace_id)
+            .cloned()
+            .ok_or("workspace not found")?
+    };
 
     let repo_root = resolve_git_root(&entry)?;
-    if run_git_command(&repo_root, &["restore", "--staged", "--worktree", "--", &path])
+    for path in action_paths_for_file(&repo_root, &path) {
+        if run_git_command(
+            &repo_root,
+            &["restore", "--staged", "--worktree", "--", &path],
+        )
         .await
         .is_ok()
-    {
-        return Ok(());
+        {
+            continue;
+        }
+        run_git_command(&repo_root, &["clean", "-f", "--", &path]).await?;
     }
-    run_git_command(&repo_root, &["clean", "-f", "--", &path]).await
+    Ok(())
 }
 
 #[tauri::command]
@@ -1243,5 +1324,37 @@ mod tests {
         let diff = collect_workspace_diff(&root).expect("collect diff");
         assert!(diff.contains("unstaged.txt"));
         assert!(diff.contains("unstaged"));
+    }
+
+    #[test]
+    fn action_paths_for_file_expands_renames() {
+        let (root, repo) = create_temp_repo();
+        fs::write(root.join("a.txt"), "hello\n").expect("write file");
+
+        let mut index = repo.index().expect("repo index");
+        index
+            .add_path(Path::new("a.txt"))
+            .expect("add path");
+        let tree_id = index.write_tree().expect("write tree");
+        let tree = repo.find_tree(tree_id).expect("find tree");
+        let sig =
+            git2::Signature::now("Test", "test@example.com").expect("signature");
+        repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+            .expect("commit");
+
+        fs::rename(root.join("a.txt"), root.join("b.txt")).expect("rename file");
+
+        // Stage the rename so libgit2 reports it as an INDEX_RENAMED entry.
+        let mut index = repo.index().expect("repo index");
+        index
+            .remove_path(Path::new("a.txt"))
+            .expect("remove old path");
+        index
+            .add_path(Path::new("b.txt"))
+            .expect("add new path");
+        index.write().expect("write index");
+
+        let paths = action_paths_for_file(&root, "b.txt");
+        assert_eq!(paths, vec!["a.txt".to_string(), "b.txt".to_string()]);
     }
 }

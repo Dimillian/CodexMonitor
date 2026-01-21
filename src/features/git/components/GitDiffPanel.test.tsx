@@ -28,6 +28,10 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
   openUrl: vi.fn(),
 }));
 
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  ask: vi.fn(async () => true),
+}));
+
 const logEntries: GitLogEntry[] = [];
 
 const baseProps = {
@@ -63,6 +67,23 @@ describe("GitDiffPanel", () => {
     expect((commitButton as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(commitButton);
     expect(onCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it("exposes revert-all action from the header", () => {
+    const onRevertAllChanges = vi.fn();
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        onRevertAllChanges={onRevertAllChanges}
+        unstagedFiles={[
+          { path: "file.txt", status: "M", additions: 1, deletions: 0 },
+        ]}
+      />,
+    );
+
+    const revertAllButton = screen.getByRole("button", { name: "Revert all changes" });
+    fireEvent.click(revertAllButton);
+    expect(onRevertAllChanges).toHaveBeenCalledTimes(1);
   });
 
 });

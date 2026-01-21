@@ -4,6 +4,7 @@ import {
   applyWorktreeChanges as applyWorktreeChangesService,
   revertGitAll,
   revertGitFile as revertGitFileService,
+  stageGitAll as stageGitAllService,
   stageGitFile as stageGitFileService,
   unstageGitFile as unstageGitFileService,
 } from "../../../services/tauri";
@@ -67,6 +68,22 @@ export function useGitActions({
     },
     [onError, refreshGitData, workspaceId],
   );
+
+  const stageGitAll = useCallback(async () => {
+    if (!workspaceId) {
+      return;
+    }
+    const actionWorkspaceId = workspaceId;
+    try {
+      await stageGitAllService(actionWorkspaceId);
+    } catch (error) {
+      onError?.(error);
+    } finally {
+      if (workspaceIdRef.current === actionWorkspaceId) {
+        refreshGitData();
+      }
+    }
+  }, [onError, refreshGitData, workspaceId]);
 
   const unstageGitFile = useCallback(
     async (path: string) => {
@@ -167,6 +184,7 @@ export function useGitActions({
     applyWorktreeChanges,
     revertAllGitChanges,
     revertGitFile,
+    stageGitAll,
     stageGitFile,
     unstageGitFile,
     worktreeApplyError,

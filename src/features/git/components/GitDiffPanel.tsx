@@ -1,13 +1,16 @@
 import type { GitHubIssue, GitHubPullRequest, GitLogEntry } from "../../../types";
-import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { ask } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import ArrowLeftRight from "lucide-react/dist/esm/icons/arrow-left-right";
 import Check from "lucide-react/dist/esm/icons/check";
 import FileText from "lucide-react/dist/esm/icons/file-text";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
+import Minus from "lucide-react/dist/esm/icons/minus";
+import Plus from "lucide-react/dist/esm/icons/plus";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
 import Search from "lucide-react/dist/esm/icons/search";
@@ -77,6 +80,7 @@ type GitDiffPanelProps = {
     additions: number;
     deletions: number;
   }[];
+  onStageAllChanges?: () => void | Promise<void>;
   onStageFile?: (path: string) => Promise<void> | void;
   onUnstageFile?: (path: string) => Promise<void> | void;
   onRevertFile?: (path: string) => Promise<void> | void;
@@ -256,23 +260,34 @@ type DiffFileRowProps = {
   file: DiffFile;
   isSelected: boolean;
   isActive: boolean;
+  section: "staged" | "unstaged";
   onClick: (event: ReactMouseEvent<HTMLDivElement>) => void;
   onKeySelect: () => void;
   onContextMenu: (event: ReactMouseEvent<HTMLDivElement>) => void;
+  onStageFile?: (path: string) => Promise<void> | void;
+  onUnstageFile?: (path: string) => Promise<void> | void;
+  onDiscardFile?: (path: string) => Promise<void> | void;
 };
 
 function DiffFileRow({
   file,
   isSelected,
   isActive,
+  section,
   onClick,
   onKeySelect,
   onContextMenu,
+  onStageFile,
+  onUnstageFile,
+  onDiscardFile,
 }: DiffFileRowProps) {
   const { name, dir } = splitPath(file.path);
   const { base, extension } = splitNameAndExtension(name);
   const statusSymbol = getStatusSymbol(file.status);
   const statusClass = getStatusClass(file.status);
+  const showStage = section === "unstaged" && Boolean(onStageFile);
+  const showUnstage = section === "staged" && Boolean(onUnstageFile);
+  const showDiscard = section === "unstaged" && Boolean(onDiscardFile);
   return (
     <div
       className={`diff-row ${isActive ? "active" : ""} ${isSelected ? "selected" : ""}`}
@@ -296,13 +311,62 @@ function DiffFileRow({
             <span className="diff-name-base">{base}</span>
             {extension && <span className="diff-name-ext">.{extension}</span>}
           </span>
-          <span className="diff-counts-inline">
-            <span className="diff-add">+{file.additions}</span>
-            <span className="diff-sep">/</span>
-            <span className="diff-del">-{file.deletions}</span>
-          </span>
         </div>
         {dir && <div className="diff-dir">{dir}</div>}
+      </div>
+      <div className="diff-row-meta">
+        <span
+          className="diff-counts-inline"
+          aria-label={`+${file.additions} -${file.deletions}`}
+        >
+          <span className="diff-add">+{file.additions}</span>
+          <span className="diff-sep">/</span>
+          <span className="diff-del">-{file.deletions}</span>
+        </span>
+        <div className="diff-row-actions" role="group" aria-label="File actions">
+          {showStage && (
+            <button
+              type="button"
+              className="diff-row-action diff-row-action--stage"
+              onClick={(event) => {
+                event.stopPropagation();
+                void onStageFile?.(file.path);
+              }}
+              data-tooltip="Stage Changes"
+              aria-label="Stage file"
+            >
+              <Plus size={12} aria-hidden />
+            </button>
+          )}
+          {showUnstage && (
+            <button
+              type="button"
+              className="diff-row-action diff-row-action--unstage"
+              onClick={(event) => {
+                event.stopPropagation();
+                void onUnstageFile?.(file.path);
+              }}
+              data-tooltip="Unstage Changes"
+              aria-label="Unstage file"
+            >
+              <Minus size={12} aria-hidden />
+            </button>
+          )}
+          {showDiscard && (
+            <button
+              type="button"
+              className="diff-row-action diff-row-action--discard"
+              onClick={(event) => {
+                event.stopPropagation();
+                void onDiscardFile?.(file.path);
+              }}
+              data-tooltip="Discard Changes"
+              aria-label="Discard changes"
+            >
+              <RotateCcw size={12} aria-hidden />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -314,16 +378,12 @@ type DiffSectionProps = {
   section: "staged" | "unstaged";
   selectedFiles: Set<string>;
   selectedPath: string | null;
-  showRevertAll: boolean;
-  showApplyWorktree: boolean;
-  worktreeApplyTitle?: string | null;
-  worktreeApplyLoading: boolean;
-  worktreeApplySuccess: boolean;
-  worktreeApplyButtonLabel: string;
-  worktreeApplyIcon: ReactNode;
-  onRevertAllChanges?: () => void | Promise<void>;
-  onApplyWorktreeChanges?: () => void | Promise<void>;
   onSelectFile?: (path: string) => void;
+  onStageAllChanges?: () => Promise<void> | void;
+  onStageFile?: (path: string) => Promise<void> | void;
+  onUnstageFile?: (path: string) => Promise<void> | void;
+  onDiscardFile?: (path: string) => Promise<void> | void;
+  onDiscardFiles?: (paths: string[]) => Promise<void> | void;
   onFileClick: (
     event: ReactMouseEvent<HTMLDivElement>,
     path: string,
@@ -342,51 +402,88 @@ function DiffSection({
   section,
   selectedFiles,
   selectedPath,
-  showRevertAll,
-  showApplyWorktree,
-  worktreeApplyTitle,
-  worktreeApplyLoading,
-  worktreeApplySuccess,
-  worktreeApplyButtonLabel,
-  worktreeApplyIcon,
-  onRevertAllChanges,
-  onApplyWorktreeChanges,
   onSelectFile,
+  onStageAllChanges,
+  onStageFile,
+  onUnstageFile,
+  onDiscardFile,
+  onDiscardFiles,
   onFileClick,
   onShowFileMenu,
 }: DiffSectionProps) {
+  const filePaths = files.map((file) => file.path);
+  const canStageAll =
+    section === "unstaged" &&
+    (Boolean(onStageAllChanges) || Boolean(onStageFile)) &&
+    filePaths.length > 0;
+  const canUnstageAll = section === "staged" && Boolean(onUnstageFile) && filePaths.length > 0;
+  const canDiscardAll = section === "unstaged" && Boolean(onDiscardFiles) && filePaths.length > 0;
+  const showSectionActions = canStageAll || canUnstageAll || canDiscardAll;
+
   return (
     <div className="diff-section">
       <div className="diff-section-title diff-section-title--row">
         <span>
           {title} ({files.length})
         </span>
-        {showRevertAll && (
-          <button
-            type="button"
-            className="ghost diff-section-action"
-            onClick={() => {
-              void onRevertAllChanges?.();
-            }}
-            title="Revert all changes"
+        {showSectionActions && (
+          <div
+            className="diff-section-actions"
+            role="group"
+            aria-label={`${title} actions`}
           >
-            <RotateCcw size={12} aria-hidden />
-            revert
-          </button>
-        )}
-        {showApplyWorktree && (
-          <button
-            type="button"
-            className="ghost diff-section-action"
-            onClick={() => {
-              void onApplyWorktreeChanges?.();
-            }}
-            title={worktreeApplyTitle ?? undefined}
-            disabled={worktreeApplyLoading || worktreeApplySuccess}
-          >
-            {worktreeApplyIcon}
-            {worktreeApplyButtonLabel}
-          </button>
+            {canStageAll && (
+              <button
+                type="button"
+                className="diff-row-action diff-row-action--stage"
+                onClick={() => {
+                  if (onStageAllChanges) {
+                    void onStageAllChanges();
+                    return;
+                  }
+                  void (async () => {
+                    for (const path of filePaths) {
+                      await onStageFile?.(path);
+                    }
+                  })();
+                }}
+                data-tooltip="Stage All Changes"
+                aria-label="Stage all changes"
+              >
+                <Plus size={12} aria-hidden />
+              </button>
+            )}
+            {canUnstageAll && (
+              <button
+                type="button"
+                className="diff-row-action diff-row-action--unstage"
+                onClick={() => {
+                  void (async () => {
+                    for (const path of filePaths) {
+                      await onUnstageFile?.(path);
+                    }
+                  })();
+                }}
+                data-tooltip="Unstage All Changes"
+                aria-label="Unstage all changes"
+              >
+                <Minus size={12} aria-hidden />
+              </button>
+            )}
+            {canDiscardAll && (
+              <button
+                type="button"
+                className="diff-row-action diff-row-action--discard"
+                onClick={() => {
+                  void onDiscardFiles?.(filePaths);
+                }}
+                data-tooltip="Discard All Changes"
+                aria-label="Discard all changes"
+              >
+                <RotateCcw size={12} aria-hidden />
+              </button>
+            )}
+          </div>
         )}
       </div>
       <div className="diff-section-list">
@@ -399,9 +496,13 @@ function DiffSection({
               file={file}
               isSelected={isSelected}
               isActive={isActive}
+              section={section}
               onClick={(event) => onFileClick(event, file.path, section)}
               onKeySelect={() => onSelectFile?.(file.path)}
               onContextMenu={(event) => onShowFileMenu(event, file.path, section)}
+              onStageFile={onStageFile}
+              onUnstageFile={onUnstageFile}
+              onDiscardFile={onDiscardFile}
             />
           );
         })}
@@ -458,7 +559,6 @@ export function GitDiffPanel({
   onModeChange,
   filePanelMode,
   onFilePanelModeChange,
-  worktreeApplyLabel = "apply",
   worktreeApplyTitle = null,
   worktreeApplyLoading = false,
   worktreeApplyError = null,
@@ -502,6 +602,7 @@ export function GitDiffPanel({
   selectedPath = null,
   stagedFiles = [],
   unstagedFiles = [],
+  onStageAllChanges,
   onStageFile,
   onUnstageFile,
   onRevertFile,
@@ -699,6 +800,40 @@ export function GitDiffPanel({
     [],
   );
 
+  const discardFiles = useCallback(
+    async (paths: string[]) => {
+      if (!onRevertFile) {
+        return;
+      }
+      const isSingle = paths.length === 1;
+      const previewLimit = 6;
+      const preview = paths.slice(0, previewLimit).join("\n");
+      const more =
+        paths.length > previewLimit ? `\n… and ${paths.length - previewLimit} more` : "";
+      const message = isSingle
+        ? `Discard changes in:\n\n${paths[0]}\n\nThis cannot be undone.`
+        : `Discard changes in these files?\n\n${preview}${more}\n\nThis cannot be undone.`;
+      const confirmed = await ask(message, {
+        title: "Discard changes",
+        kind: "warning",
+      });
+      if (!confirmed) {
+        return;
+      }
+      for (const path of paths) {
+        await onRevertFile(path);
+      }
+    },
+    [onRevertFile],
+  );
+
+  const discardFile = useCallback(
+    async (path: string) => {
+      await discardFiles([path]);
+    },
+    [discardFiles],
+  );
+
   const showFileMenu = useCallback(
     async (
       event: ReactMouseEvent<HTMLDivElement>,
@@ -768,11 +903,9 @@ export function GitDiffPanel({
       if (onRevertFile) {
         items.push(
           await MenuItem.new({
-            text: `Revert change${plural}${countSuffix}`,
+            text: `Discard change${plural}${countSuffix}`,
             action: async () => {
-              for (const p of targetPaths) {
-                await onRevertFile(p);
-              }
+              await discardFiles(targetPaths);
             },
           }),
         );
@@ -786,7 +919,15 @@ export function GitDiffPanel({
       const position = new LogicalPosition(event.clientX, event.clientY);
       await menu.popup(position, window);
     },
-    [selectedFiles, stagedFiles, unstagedFiles, onUnstageFile, onStageFile, onRevertFile],
+    [
+      selectedFiles,
+      stagedFiles,
+      unstagedFiles,
+      onUnstageFile,
+      onStageFile,
+      onRevertFile,
+      discardFiles,
+    ],
   );
   const logCountLabel = logTotal
     ? `${logTotal} commit${logTotal === 1 ? "" : "s"}`
@@ -816,21 +957,14 @@ export function GitDiffPanel({
     Boolean(gitRootScanError) ||
     gitRootCandidates.length > 0;
   const normalizedGitRoot = normalizeRootPath(gitRoot);
-  const hasWorktreeChanges = stagedFiles.length > 0 || unstagedFiles.length > 0;
-  const showApplyWorktree =
-    mode === "diff" && Boolean(onApplyWorktreeChanges) && hasWorktreeChanges;
   const hasAnyChanges = stagedFiles.length > 0 || unstagedFiles.length > 0;
-  const showRevertAll = mode === "diff" && Boolean(onRevertAllChanges) && hasAnyChanges;
-  const showRevertAllInStaged = showRevertAll && stagedFiles.length > 0;
-  const showRevertAllInUnstaged = showRevertAll && unstagedFiles.length > 0;
+  const showApplyWorktree =
+    mode === "diff" && Boolean(onApplyWorktreeChanges) && hasAnyChanges;
+  const showRevertAll =
+    mode === "diff" && Boolean(onRevertAllChanges) && hasAnyChanges;
   const canGenerateCommitMessage = hasAnyChanges;
   const showGenerateCommitMessage =
     mode === "diff" && Boolean(onGenerateCommitMessage) && hasAnyChanges;
-  const worktreeApplyButtonLabel = worktreeApplySuccess
-    ? "applied"
-    : worktreeApplyLoading
-    ? "applying..."
-      : worktreeApplyLabel;
   const worktreeApplyIcon = worktreeApplySuccess ? (
     <Check size={12} aria-hidden />
   ) : (
@@ -859,6 +993,33 @@ export function GitDiffPanel({
               <option value="prs">PRs</option>
             </select>
           </div>
+          {showApplyWorktree && (
+            <button
+              type="button"
+              className="diff-row-action diff-row-action--apply"
+              onClick={() => {
+                void onApplyWorktreeChanges?.();
+              }}
+              disabled={worktreeApplyLoading || worktreeApplySuccess}
+              data-tooltip={worktreeApplyTitle ?? "Apply changes to parent workspace"}
+              aria-label="Apply worktree changes"
+            >
+              {worktreeApplyIcon}
+            </button>
+          )}
+          {showRevertAll && (
+            <button
+              type="button"
+              className="diff-row-action diff-row-action--discard"
+              onClick={() => {
+                void onRevertAllChanges?.();
+              }}
+              data-tooltip="Revert all changes"
+              aria-label="Revert all changes"
+            >
+              <RotateCcw size={12} aria-hidden />
+            </button>
+          )}
         </div>
       </div>
       {mode === "diff" ? (
@@ -1143,16 +1304,10 @@ export function GitDiffPanel({
                   section="staged"
                   selectedFiles={selectedFiles}
                   selectedPath={selectedPath}
-                  showRevertAll={showRevertAllInStaged}
-                  showApplyWorktree={showApplyWorktree && unstagedFiles.length === 0}
-                  worktreeApplyTitle={worktreeApplyTitle}
-                  worktreeApplyLoading={worktreeApplyLoading}
-                  worktreeApplySuccess={worktreeApplySuccess}
-                  worktreeApplyButtonLabel={worktreeApplyButtonLabel}
-                  worktreeApplyIcon={worktreeApplyIcon}
-                  onRevertAllChanges={onRevertAllChanges}
-                  onApplyWorktreeChanges={onApplyWorktreeChanges}
                   onSelectFile={onSelectFile}
+                  onUnstageFile={onUnstageFile}
+                  onDiscardFile={onRevertFile ? discardFile : undefined}
+                  onDiscardFiles={onRevertFile ? discardFiles : undefined}
                   onFileClick={handleFileClick}
                   onShowFileMenu={showFileMenu}
                 />
@@ -1164,16 +1319,11 @@ export function GitDiffPanel({
                   section="unstaged"
                   selectedFiles={selectedFiles}
                   selectedPath={selectedPath}
-                  showRevertAll={showRevertAllInUnstaged}
-                  showApplyWorktree={showApplyWorktree}
-                  worktreeApplyTitle={worktreeApplyTitle}
-                  worktreeApplyLoading={worktreeApplyLoading}
-                  worktreeApplySuccess={worktreeApplySuccess}
-                  worktreeApplyButtonLabel={worktreeApplyButtonLabel}
-                  worktreeApplyIcon={worktreeApplyIcon}
-                  onRevertAllChanges={onRevertAllChanges}
-                  onApplyWorktreeChanges={onApplyWorktreeChanges}
                   onSelectFile={onSelectFile}
+                  onStageAllChanges={onStageAllChanges}
+                  onStageFile={onStageFile}
+                  onDiscardFile={onRevertFile ? discardFile : undefined}
+                  onDiscardFiles={onRevertFile ? discardFiles : undefined}
                   onFileClick={handleFileClick}
                   onShowFileMenu={showFileMenu}
                 />
