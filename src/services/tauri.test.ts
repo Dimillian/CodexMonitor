@@ -5,6 +5,7 @@ import {
   getGitHubIssues,
   getGitLog,
   getGitStatus,
+  stageGitAll,
   respondToServerRequest,
   sendUserMessage,
   startReview,
@@ -77,6 +78,17 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("get_git_log", {
       workspaceId: "ws-3",
       limit: 40,
+    });
+  });
+
+  it("invokes stage_git_all", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await stageGitAll("ws-6");
+
+    expect(invokeMock).toHaveBeenCalledWith("stage_git_all", {
+      workspaceId: "ws-6",
     });
   });
 

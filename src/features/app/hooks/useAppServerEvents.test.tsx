@@ -23,7 +23,7 @@ const unlisten = vi.fn();
 beforeEach(() => {
   listener = null;
   unlisten.mockReset();
-  vi.mocked(subscribeAppServerEvents).mockImplementation(async (cb) => {
+  vi.mocked(subscribeAppServerEvents).mockImplementation((cb) => {
     listener = cb;
     return unlisten;
   });

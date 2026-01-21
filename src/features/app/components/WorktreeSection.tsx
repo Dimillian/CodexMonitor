@@ -133,6 +133,7 @@ export function WorktreeSection({
                   nextCursor={worktreeNextCursor}
                   isPaging={isWorktreePaging}
                   nested
+                  showLoadOlder={false}
                   activeWorkspaceId={activeWorkspaceId}
                   activeThreadId={activeThreadId}
                   threadStatusById={threadStatusById}

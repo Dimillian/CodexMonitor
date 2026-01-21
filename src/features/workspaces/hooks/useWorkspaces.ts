@@ -12,10 +12,13 @@ import {
   addWorkspace as addWorkspaceService,
   addWorktree as addWorktreeService,
   connectWorkspace as connectWorkspaceService,
+  isWorkspacePathDir as isWorkspacePathDirService,
   listWorkspaces,
   pickWorkspacePath,
   removeWorkspace as removeWorkspaceService,
   removeWorktree as removeWorktreeService,
+  renameWorktree as renameWorktreeService,
+  renameWorktreeUpstream as renameWorktreeUpstreamService,
   updateWorkspaceCodexBin as updateWorkspaceCodexBinService,
   updateWorkspaceSettings as updateWorkspaceSettingsService,
 } from "../../../services/tauri";
@@ -203,34 +206,59 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     [getWorkspaceGroupId, workspaceById, workspaceGroupById],
   );
 
-  async function addWorkspace() {
+  const addWorkspaceFromPath = useCallback(
+    async (path: string) => {
+      const selection = path.trim();
+      if (!selection) {
+        return null;
+      }
+      onDebug?.({
+        id: `${Date.now()}-client-add-workspace`,
+        timestamp: Date.now(),
+        source: "client",
+        label: "workspace/add",
+        payload: { path: selection },
+      });
+      try {
+        const workspace = await addWorkspaceService(selection, defaultCodexBin ?? null);
+        setWorkspaces((prev) => [...prev, workspace]);
+        setActiveWorkspaceId(workspace.id);
+        return workspace;
+      } catch (error) {
+        onDebug?.({
+          id: `${Date.now()}-client-add-workspace-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "workspace/add error",
+          payload: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
+    },
+    [defaultCodexBin, onDebug],
+  );
+
+  const addWorkspace = useCallback(async () => {
     const selection = await pickWorkspacePath();
     if (!selection) {
       return null;
     }
-    onDebug?.({
-      id: `${Date.now()}-client-add-workspace`,
-      timestamp: Date.now(),
-      source: "client",
-      label: "workspace/add",
-      payload: { path: selection },
-    });
-    try {
-      const workspace = await addWorkspaceService(selection, defaultCodexBin ?? null);
-      setWorkspaces((prev) => [...prev, workspace]);
-      setActiveWorkspaceId(workspace.id);
-      return workspace;
-    } catch (error) {
-      onDebug?.({
-        id: `${Date.now()}-client-add-workspace-error`,
-        timestamp: Date.now(),
-        source: "error",
-        label: "workspace/add error",
-        payload: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
+    return addWorkspaceFromPath(selection);
+  }, [addWorkspaceFromPath]);
+
+  const filterWorkspacePaths = useCallback(async (paths: string[]) => {
+    const trimmed = paths.map((path) => path.trim()).filter(Boolean);
+    if (trimmed.length === 0) {
+      return [];
     }
-  }
+    const checks = await Promise.all(
+      trimmed.map(async (path) => ({
+        path,
+        isDir: await isWorkspacePathDirService(path),
+      })),
+    );
+    return checks.filter((entry) => entry.isDir).map((entry) => entry.path);
+  }, []);
 
   async function addWorktreeAgent(parent: WorkspaceInfo, branch: string) {
     const trimmed = branch.trim();
@@ -673,6 +701,81 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     }
   }
 
+  async function renameWorktree(workspaceId: string, branch: string) {
+    const trimmed = branch.trim();
+    onDebug?.({
+      id: `${Date.now()}-client-rename-worktree`,
+      timestamp: Date.now(),
+      source: "client",
+      label: "worktree/rename",
+      payload: { workspaceId, branch: trimmed },
+    });
+    let previous: WorkspaceInfo | null = null;
+    if (trimmed) {
+      setWorkspaces((prev) =>
+        prev.map((entry) => {
+          if (entry.id !== workspaceId) {
+            return entry;
+          }
+          previous = entry;
+          return {
+            ...entry,
+            name: trimmed,
+            worktree: entry.worktree ? { ...entry.worktree, branch: trimmed } : { branch: trimmed },
+          };
+        }),
+      );
+    }
+    try {
+      const updated = await renameWorktreeService(workspaceId, trimmed);
+      setWorkspaces((prev) =>
+        prev.map((entry) => (entry.id === workspaceId ? updated : entry)),
+      );
+      return updated;
+    } catch (error) {
+      if (previous) {
+        const restore = previous;
+        setWorkspaces((prev) =>
+          prev.map((entry) => (entry.id === workspaceId ? restore : entry)),
+        );
+      }
+      onDebug?.({
+        id: `${Date.now()}-client-rename-worktree-error`,
+        timestamp: Date.now(),
+        source: "error",
+        label: "worktree/rename error",
+        payload: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
+  async function renameWorktreeUpstream(
+    workspaceId: string,
+    oldBranch: string,
+    newBranch: string,
+  ) {
+    onDebug?.({
+      id: `${Date.now()}-client-rename-worktree-upstream`,
+      timestamp: Date.now(),
+      source: "client",
+      label: "worktree/rename-upstream",
+      payload: { workspaceId, oldBranch, newBranch },
+    });
+    try {
+      await renameWorktreeUpstreamService(workspaceId, oldBranch, newBranch);
+    } catch (error) {
+      onDebug?.({
+        id: `${Date.now()}-client-rename-worktree-upstream-error`,
+        timestamp: Date.now(),
+        source: "error",
+        label: "worktree/rename-upstream error",
+        payload: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
   return {
     workspaces,
     workspaceGroups,
@@ -683,6 +786,8 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     activeWorkspaceId,
     setActiveWorkspaceId,
     addWorkspace,
+    addWorkspaceFromPath,
+    filterWorkspacePaths,
     addCloneAgent,
     addWorktreeAgent,
     connectWorkspace,
@@ -696,6 +801,8 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     assignWorkspaceGroup,
     removeWorkspace,
     removeWorktree,
+    renameWorktree,
+    renameWorktreeUpstream,
     hasLoaded,
     refreshWorkspaces,
   };

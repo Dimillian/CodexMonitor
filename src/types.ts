@@ -128,6 +128,12 @@ export type GitFileDiff = {
   diff: string;
 };
 
+export type GitCommitDiff = {
+  path: string;
+  status: string;
+  diff: string;
+};
+
 export type GitLogEntry = {
   sha: string;
   summary: string;
@@ -213,6 +219,8 @@ export type LocalUsageDay = {
   cachedInputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  agentTimeMs: number;
+  agentRuns: number;
 };
 
 export type LocalUsageTotals = {

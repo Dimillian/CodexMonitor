@@ -12,6 +12,7 @@ import type {
 import type {
   GitFileDiff,
   GitFileStatus,
+  GitCommitDiff,
   GitHubIssuesResponse,
   GitHubPullRequestComment,
   GitHubPullRequestDiff,
@@ -55,6 +56,10 @@ export async function addWorkspace(
   return invoke<WorkspaceInfo>("add_workspace", { path, codex_bin });
 }
 
+export async function isWorkspacePathDir(path: string): Promise<boolean> {
+  return invoke<boolean>("is_workspace_path_dir", { path });
+}
+
 export async function addClone(
   sourceWorkspaceId: string,
   copiesFolder: string,
@@ -94,6 +99,21 @@ export async function removeWorkspace(id: string): Promise<void> {
 
 export async function removeWorktree(id: string): Promise<void> {
   return invoke("remove_worktree", { id });
+}
+
+export async function renameWorktree(
+  id: string,
+  branch: string,
+): Promise<WorkspaceInfo> {
+  return invoke<WorkspaceInfo>("rename_worktree", { id, branch });
+}
+
+export async function renameWorktreeUpstream(
+  id: string,
+  oldBranch: string,
+  newBranch: string,
+): Promise<void> {
+  return invoke("rename_worktree_upstream", { id, oldBranch, newBranch });
 }
 
 export async function applyWorktreeChanges(workspaceId: string): Promise<void> {
@@ -207,12 +227,23 @@ export async function getGitLog(
   return invoke("get_git_log", { workspaceId: workspace_id, limit });
 }
 
+export async function getGitCommitDiff(
+  workspace_id: string,
+  sha: string,
+): Promise<GitCommitDiff[]> {
+  return invoke("get_git_commit_diff", { workspaceId: workspace_id, sha });
+}
+
 export async function getGitRemote(workspace_id: string): Promise<string | null> {
   return invoke("get_git_remote", { workspaceId: workspace_id });
 }
 
 export async function stageGitFile(workspaceId: string, path: string) {
   return invoke("stage_git_file", { workspaceId, path });
+}
+
+export async function stageGitAll(workspaceId: string): Promise<void> {
+  return invoke("stage_git_all", { workspaceId });
 }
 
 export async function unstageGitFile(workspaceId: string, path: string) {
@@ -225,6 +256,25 @@ export async function revertGitFile(workspaceId: string, path: string) {
 
 export async function revertGitAll(workspaceId: string) {
   return invoke("revert_git_all", { workspaceId });
+}
+
+export async function commitGit(
+  workspaceId: string,
+  message: string,
+): Promise<void> {
+  return invoke("commit_git", { workspaceId, message });
+}
+
+export async function pushGit(workspaceId: string): Promise<void> {
+  return invoke("push_git", { workspaceId });
+}
+
+export async function pullGit(workspaceId: string): Promise<void> {
+  return invoke("pull_git", { workspaceId });
+}
+
+export async function syncGit(workspaceId: string): Promise<void> {
+  return invoke("sync_git", { workspaceId });
 }
 
 export async function getGitHubIssues(
@@ -261,8 +311,13 @@ export async function getGitHubPullRequestComments(
 
 export async function localUsageSnapshot(
   days?: number,
+  workspacePath?: string | null,
 ): Promise<LocalUsageSnapshot> {
-  return invoke("local_usage_snapshot", { days: days ?? 30 });
+  const payload: { days: number; workspacePath?: string } = { days: days ?? 30 };
+  if (workspacePath) {
+    payload.workspacePath = workspacePath;
+  }
+  return invoke("local_usage_snapshot", payload);
 }
 
 export async function getModelList(workspaceId: string) {
@@ -479,4 +534,16 @@ export async function resumeThread(workspaceId: string, threadId: string) {
 
 export async function archiveThread(workspaceId: string, threadId: string) {
   return invoke<any>("archive_thread", { workspaceId, threadId });
+}
+
+export async function getCommitMessagePrompt(
+  workspaceId: string,
+): Promise<string> {
+  return invoke("get_commit_message_prompt", { workspaceId });
+}
+
+export async function generateCommitMessage(
+  workspaceId: string,
+): Promise<string> {
+  return invoke("generate_commit_message", { workspaceId });
 }

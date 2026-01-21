@@ -445,8 +445,12 @@ export function mergeThreadItems(
     return remoteItems;
   }
   const byId = new Map(remoteItems.map((item) => [item.id, item]));
+  const localIds = new Set(localItems.map((item) => item.id));
   const remoteMessageCounts = new Map<string, number>();
   remoteItems.forEach((item) => {
+    if (localIds.has(item.id)) {
+      return;
+    }
     const key = messageDedupKey(item);
     if (!key) {
       return;

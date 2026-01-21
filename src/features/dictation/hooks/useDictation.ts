@@ -31,63 +31,48 @@ export function useDictation(): UseDictationResult {
 
   useEffect(() => {
     let active = true;
-    let unlisten: (() => void) | null = null;
-
-    void (async () => {
-      try {
-        const handler = await subscribeDictationEvents((event: DictationEvent) => {
-          if (!active) {
-            return;
-          }
-          if (event.type === "state") {
-            setState(event.state);
-            if (event.state === "idle") {
-              setLevel(0);
-            }
-            return;
-          }
-          if (event.type === "level") {
-            setLevel(event.value);
-            return;
-          }
-          if (event.type === "transcript") {
-            setTranscript({
-              id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-              text: event.text,
-            });
-            return;
-          }
-          if (event.type === "error") {
-            setError(event.message);
-            return;
-          }
-          if (event.type === "canceled") {
-            setHint(event.message);
-            if (hintTimeoutRef.current) {
-              window.clearTimeout(hintTimeoutRef.current);
-            }
-            hintTimeoutRef.current = window.setTimeout(() => {
-              setHint(null);
-              hintTimeoutRef.current = null;
-            }, 2000);
-            return;
-          }
-        });
-        if (active) {
-          unlisten = handler;
-        } else {
-          handler();
-        }
-      } catch {
-        // Ignore dictation event errors.
+    const unlisten = subscribeDictationEvents((event: DictationEvent) => {
+      if (!active) {
+        return;
       }
-    })();
+      if (event.type === "state") {
+        setState(event.state);
+        if (event.state === "idle") {
+          setLevel(0);
+        }
+        return;
+      }
+      if (event.type === "level") {
+        setLevel(event.value);
+        return;
+      }
+      if (event.type === "transcript") {
+        setTranscript({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          text: event.text,
+        });
+        return;
+      }
+      if (event.type === "error") {
+        setError(event.message);
+        return;
+      }
+      if (event.type === "canceled") {
+        setHint(event.message);
+        if (hintTimeoutRef.current) {
+          window.clearTimeout(hintTimeoutRef.current);
+        }
+        hintTimeoutRef.current = window.setTimeout(() => {
+          setHint(null);
+          hintTimeoutRef.current = null;
+        }, 2000);
+        return;
+      }
+    });
 
     return () => {
       active = false;
-      if (unlisten) {
-        unlisten();
-      }
+      unlisten();
       if (hintTimeoutRef.current) {
         window.clearTimeout(hintTimeoutRef.current);
         hintTimeoutRef.current = null;

@@ -15,6 +15,13 @@ pub(crate) struct GitFileDiff {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct GitCommitDiff {
+    pub(crate) path: String,
+    pub(crate) status: String,
+    pub(crate) diff: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct GitLogEntry {
     pub(crate) sha: String,
     pub(crate) summary: String,
@@ -113,6 +120,10 @@ pub(crate) struct LocalUsageDay {
     pub(crate) cached_input_tokens: i64,
     pub(crate) output_tokens: i64,
     pub(crate) total_tokens: i64,
+    #[serde(default)]
+    pub(crate) agent_time_ms: i64,
+    #[serde(default)]
+    pub(crate) agent_runs: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

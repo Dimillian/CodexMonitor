@@ -114,36 +114,24 @@ export function useTerminalSession({
   );
 
   useEffect(() => {
-    let unlisten: (() => void) | null = null;
-    let canceled = false;
-    subscribeTerminalOutput((payload: TerminalOutputEvent) => {
-      const { workspaceId, terminalId, data } = payload;
-      const key = `${workspaceId}:${terminalId}`;
-      const next = appendBuffer(outputBuffersRef.current.get(key), data);
-      outputBuffersRef.current.set(key, next);
-      if (activeKeyRef.current === key) {
-        writeToTerminal(data);
-      }
-    })
-      .then((handler) => {
-        if (canceled) {
-          handler();
-          return;
+    const unlisten = subscribeTerminalOutput(
+      (payload: TerminalOutputEvent) => {
+        const { workspaceId, terminalId, data } = payload;
+        const key = `${workspaceId}:${terminalId}`;
+        const next = appendBuffer(outputBuffersRef.current.get(key), data);
+        outputBuffersRef.current.set(key, next);
+        if (activeKeyRef.current === key) {
+          writeToTerminal(data);
         }
-        unlisten = handler;
-      })
-      .catch((error) => {
-        onDebug?.(buildErrorDebugEntry("terminal listen error", error));
-      });
+      },
+      {
+        onError: (error) => {
+          onDebug?.(buildErrorDebugEntry("terminal listen error", error));
+        },
+      },
+    );
     return () => {
-      canceled = true;
-      if (unlisten) {
-        try {
-          unlisten();
-        } catch {
-          // Ignore double-unlisten when tearing down.
-        }
-      }
+      unlisten();
     };
   }, [onDebug, writeToTerminal]);
 

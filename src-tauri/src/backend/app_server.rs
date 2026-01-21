@@ -9,11 +9,19 @@ use std::time::Duration;
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, Command};
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::timeout;
 
 use crate::backend::events::{AppServerEvent, EventSink};
 use crate::types::WorkspaceEntry;
+
+fn extract_thread_id(value: &Value) -> Option<String> {
+    value
+        .get("params")
+        .and_then(|p| p.get("threadId").or_else(|| p.get("thread_id")))
+        .and_then(|t| t.as_str())
+        .map(|s| s.to_string())
+}
 
 pub(crate) struct WorkspaceSession {
     pub(crate) entry: WorkspaceEntry,
@@ -21,6 +29,8 @@ pub(crate) struct WorkspaceSession {
     pub(crate) stdin: Mutex<ChildStdin>,
     pub(crate) pending: Mutex<HashMap<u64, oneshot::Sender<Value>>>,
     pub(crate) next_id: AtomicU64,
+    /// Callbacks for background threads - events for these threadIds are sent through the channel
+    pub(crate) background_thread_callbacks: Mutex<HashMap<String, mpsc::UnboundedSender<Value>>>,
 }
 
 impl WorkspaceSession {
@@ -208,6 +218,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
         stdin: Mutex::new(stdin),
         pending: Mutex::new(HashMap::new()),
         next_id: AtomicU64::new(1),
+        background_thread_callbacks: Mutex::new(HashMap::new()),
     });
 
     let session_clone = Arc::clone(&session);
@@ -237,26 +248,54 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
             let maybe_id = value.get("id").and_then(|id| id.as_u64());
             let has_method = value.get("method").is_some();
             let has_result_or_error = value.get("result").is_some() || value.get("error").is_some();
+
+            // Check if this event is for a background thread
+            let thread_id = extract_thread_id(&value);
+
             if let Some(id) = maybe_id {
                 if has_result_or_error {
                     if let Some(tx) = session_clone.pending.lock().await.remove(&id) {
                         let _ = tx.send(value);
                     }
                 } else if has_method {
+                    // Check for background thread callback
+                    let mut sent_to_background = false;
+                    if let Some(ref tid) = thread_id {
+                        let callbacks = session_clone.background_thread_callbacks.lock().await;
+                        if let Some(tx) = callbacks.get(tid) {
+                            let _ = tx.send(value.clone());
+                            sent_to_background = true;
+                        }
+                    }
+                    // Don't emit to frontend if this is a background thread event
+                    if !sent_to_background {
+                        let payload = AppServerEvent {
+                            workspace_id: workspace_id.clone(),
+                            message: value,
+                        };
+                        event_sink_clone.emit_app_server_event(payload);
+                    }
+                } else if let Some(tx) = session_clone.pending.lock().await.remove(&id) {
+                    let _ = tx.send(value);
+                }
+            } else if has_method {
+                // Check for background thread callback
+                let mut sent_to_background = false;
+                if let Some(ref tid) = thread_id {
+                    let callbacks = session_clone.background_thread_callbacks.lock().await;
+                    if let Some(tx) = callbacks.get(tid) {
+                        let _ = tx.send(value.clone());
+                        sent_to_background = true;
+                    }
+                }
+                // Don't emit to frontend if this is a background thread event
+                if !sent_to_background {
                     let payload = AppServerEvent {
                         workspace_id: workspace_id.clone(),
                         message: value,
                     };
                     event_sink_clone.emit_app_server_event(payload);
-                } else if let Some(tx) = session_clone.pending.lock().await.remove(&id) {
-                    let _ = tx.send(value);
                 }
-            } else if has_method {
-                let payload = AppServerEvent {
-                    workspace_id: workspace_id.clone(),
-                    message: value,
-                };
-                event_sink_clone.emit_app_server_event(payload);
             }
         }
     });
@@ -316,4 +355,28 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     event_sink.emit_app_server_event(payload);
 
     Ok(session)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::extract_thread_id;
+    use serde_json::json;
+
+    #[test]
+    fn extract_thread_id_reads_camel_case() {
+        let value = json!({ "params": { "threadId": "thread-123" } });
+        assert_eq!(extract_thread_id(&value), Some("thread-123".to_string()));
+    }
+
+    #[test]
+    fn extract_thread_id_reads_snake_case() {
+        let value = json!({ "params": { "thread_id": "thread-456" } });
+        assert_eq!(extract_thread_id(&value), Some("thread-456".to_string()));
+    }
+
+    #[test]
+    fn extract_thread_id_returns_none_when_missing() {
+        let value = json!({ "params": {} });
+        assert_eq!(extract_thread_id(&value), None);
+    }
 }

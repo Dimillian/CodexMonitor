@@ -41,6 +41,12 @@ type AppServerEventHandlers = {
   onReasoningSummaryDelta?: (workspaceId: string, threadId: string, itemId: string, delta: string) => void;
   onReasoningTextDelta?: (workspaceId: string, threadId: string, itemId: string, delta: string) => void;
   onCommandOutputDelta?: (workspaceId: string, threadId: string, itemId: string, delta: string) => void;
+  onTerminalInteraction?: (
+    workspaceId: string,
+    threadId: string,
+    itemId: string,
+    stdin: string,
+  ) => void;
   onFileChangeOutputDelta?: (workspaceId: string, threadId: string, itemId: string, delta: string) => void;
   onTurnDiffUpdated?: (workspaceId: string, threadId: string, diff: string) => void;
   onThreadTokenUsageUpdated?: (
@@ -56,9 +62,7 @@ type AppServerEventHandlers = {
 
 export function useAppServerEvents(handlers: AppServerEventHandlers) {
   useEffect(() => {
-    let unlisten: (() => void) | null = null;
-    let canceled = false;
-    subscribeAppServerEvents((payload) => {
+    const unlisten = subscribeAppServerEvents((payload) => {
       handlers.onAppServerEvent?.(payload);
 
       const { workspace_id, message } = payload;
@@ -248,6 +252,17 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         return;
       }
 
+      if (method === "item/commandExecution/terminalInteraction") {
+        const params = message.params as Record<string, unknown>;
+        const threadId = String(params.threadId ?? params.thread_id ?? "");
+        const itemId = String(params.itemId ?? params.item_id ?? "");
+        const stdin = String(params.stdin ?? "");
+        if (threadId && itemId) {
+          handlers.onTerminalInteraction?.(workspace_id, threadId, itemId, stdin);
+        }
+        return;
+      }
+
       if (method === "item/fileChange/outputDelta") {
         const params = message.params as Record<string, unknown>;
         const threadId = String(params.threadId ?? params.thread_id ?? "");
@@ -258,27 +273,10 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         }
         return;
       }
-    }).then((handler) => {
-      if (canceled) {
-        try {
-          handler();
-        } catch {
-          // Ignore unlisten errors when already removed.
-        }
-      } else {
-        unlisten = handler;
-      }
     });
 
     return () => {
-      canceled = true;
-      if (unlisten) {
-        try {
-          unlisten();
-        } catch {
-          // Ignore unlisten errors when already removed.
-        }
-      }
+      unlisten();
     };
   }, [handlers]);
 }

@@ -18,6 +18,7 @@ import { getUsageLabels } from "../utils/usageLabels";
 import { formatRelativeTimeShort } from "../../../utils/time";
 
 const COLLAPSED_GROUPS_STORAGE_KEY = "codexmonitor.collapsedGroups";
+const UNGROUPED_COLLAPSE_ID = "__ungrouped__";
 const ADD_MENU_WIDTH = 200;
 
 type WorkspaceGroupSection = {
@@ -290,15 +291,16 @@ export function Sidebar({
           )}
           {groupedWorkspaces.map((group) => {
             const groupId = group.id;
-            const isGroupCollapsed = Boolean(
-              groupId && collapsedGroups.has(groupId),
-            );
             const showGroupHeader = Boolean(groupId) || hasWorkspaceGroups;
+            const toggleId = groupId ?? (showGroupHeader ? UNGROUPED_COLLAPSE_ID : null);
+            const isGroupCollapsed = Boolean(
+              toggleId && collapsedGroups.has(toggleId),
+            );
 
             return (
               <WorkspaceGroup
                 key={group.id ?? "ungrouped"}
-                groupId={groupId}
+                toggleId={toggleId}
                 name={group.name}
                 showHeader={showGroupHeader}
                 isCollapsed={isGroupCollapsed}

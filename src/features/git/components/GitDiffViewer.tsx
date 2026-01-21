@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { FileDiff, WorkerPoolContextProvider } from "@pierre/diffs/react";
 import type { FileDiffMetadata } from "@pierre/diffs";
@@ -20,6 +20,7 @@ type GitDiffViewerProps = {
   scrollRequestId?: number;
   isLoading: boolean;
   error: string | null;
+  diffStyle?: "split" | "unified";
   pullRequest?: GitHubPullRequest | null;
   pullRequestComments?: GitHubPullRequestComment[];
   pullRequestCommentsLoading?: boolean;
@@ -38,6 +39,41 @@ const DIFF_SCROLL_CSS = `
 [data-buffer] {
   background-image: none !important;
 }
+
+[data-diffs-header],
+[data-diffs],
+[data-error-wrapper] {
+  --diffs-light-bg: rgba(255, 255, 255, 0.35);
+  --diffs-dark-bg: rgba(10, 12, 16, 0.35);
+}
+
+[data-diffs-header][data-theme-type='light'],
+[data-diffs][data-theme-type='light'] {
+  --diffs-bg: rgba(255, 255, 255, 0.35);
+}
+
+[data-diffs-header][data-theme-type='dark'],
+[data-diffs][data-theme-type='dark'] {
+  --diffs-bg: rgba(10, 12, 16, 0.35);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-diffs-header]:not([data-theme-type]),
+  [data-diffs]:not([data-theme-type]),
+  [data-diffs-header][data-theme-type='system'],
+  [data-diffs][data-theme-type='system'] {
+    --diffs-bg: rgba(10, 12, 16, 0.35);
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  [data-diffs-header]:not([data-theme-type]),
+  [data-diffs]:not([data-theme-type]),
+  [data-diffs-header][data-theme-type='system'],
+  [data-diffs][data-theme-type='system'] {
+    --diffs-bg: rgba(255, 255, 255, 0.35);
+  }
+}
 `;
 
 function normalizePatchName(name: string) {
@@ -50,21 +86,23 @@ function normalizePatchName(name: string) {
 type DiffCardProps = {
   entry: GitDiffViewerItem;
   isSelected: boolean;
+  diffStyle: "split" | "unified";
 };
 
 const DiffCard = memo(function DiffCard({
   entry,
   isSelected,
+  diffStyle,
 }: DiffCardProps) {
   const diffOptions = useMemo(
     () => ({
-      diffStyle: "split" as const,
+      diffStyle,
       hunkSeparators: "line-info" as const,
       overflow: "scroll" as const,
       unsafeCSS: DIFF_SCROLL_CSS,
       disableFileHeader: true,
     }),
-    [],
+    [diffStyle],
   );
 
   const fileDiff = useMemo(() => {
@@ -113,12 +151,202 @@ const DiffCard = memo(function DiffCard({
   );
 });
 
+type PullRequestSummaryProps = {
+  pullRequest: GitHubPullRequest;
+  hasDiffs: boolean;
+  diffStats: { additions: number; deletions: number };
+  onJumpToFirstFile: () => void;
+  pullRequestComments?: GitHubPullRequestComment[];
+  pullRequestCommentsLoading: boolean;
+  pullRequestCommentsError?: string | null;
+};
+
+const PullRequestSummary = memo(function PullRequestSummary({
+  pullRequest,
+  hasDiffs,
+  diffStats,
+  onJumpToFirstFile,
+  pullRequestComments,
+  pullRequestCommentsLoading,
+  pullRequestCommentsError,
+}: PullRequestSummaryProps) {
+  const prUpdatedLabel = pullRequest.updatedAt
+    ? formatRelativeTime(new Date(pullRequest.updatedAt).getTime())
+    : null;
+  const prAuthor = pullRequest.author?.login ?? "unknown";
+  const prBody = pullRequest.body?.trim() ?? "";
+  const [isTimelineExpanded, setIsTimelineExpanded] = useState(false);
+  const sortedComments = useMemo(() => {
+    if (!pullRequestComments?.length) {
+      return [];
+    }
+    return [...pullRequestComments].sort((a, b) => {
+      return (
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+    });
+  }, [pullRequestComments]);
+  const visibleCommentCount = 3;
+  const visibleComments = isTimelineExpanded
+    ? sortedComments
+    : sortedComments.slice(-visibleCommentCount);
+  const hiddenCommentCount = Math.max(
+    0,
+    sortedComments.length - visibleComments.length,
+  );
+
+  useEffect(() => {
+    setIsTimelineExpanded(false);
+  }, [pullRequest.number]);
+
+  return (
+    <section className="diff-viewer-pr" aria-label="Pull request summary">
+      <div className="diff-viewer-pr-header">
+        <div className="diff-viewer-pr-header-row">
+          <div className="diff-viewer-pr-title">
+            <span className="diff-viewer-pr-number">#{pullRequest.number}</span>
+            <span className="diff-viewer-pr-title-text">
+              {pullRequest.title}
+            </span>
+          </div>
+          {hasDiffs && (
+            <button
+              type="button"
+              className="ghost diff-viewer-pr-jump"
+              onClick={onJumpToFirstFile}
+              aria-label="Jump to first file"
+            >
+              <span className="diff-viewer-pr-jump-add">
+                +{diffStats.additions}
+              </span>
+              <span className="diff-viewer-pr-jump-sep">/</span>
+              <span className="diff-viewer-pr-jump-del">
+                -{diffStats.deletions}
+              </span>
+            </button>
+          )}
+        </div>
+        <div className="diff-viewer-pr-meta">
+          <span className="diff-viewer-pr-author">@{prAuthor}</span>
+          {prUpdatedLabel && (
+            <>
+              <span className="diff-viewer-pr-sep">·</span>
+              <span>{prUpdatedLabel}</span>
+            </>
+          )}
+          <span className="diff-viewer-pr-sep">·</span>
+          <span className="diff-viewer-pr-branch">
+            {pullRequest.baseRefName} ← {pullRequest.headRefName}
+          </span>
+          {pullRequest.isDraft && (
+            <span className="diff-viewer-pr-pill">Draft</span>
+          )}
+        </div>
+      </div>
+      <div className="diff-viewer-pr-body">
+        {prBody ? (
+          <Markdown
+            value={prBody}
+            className="diff-viewer-pr-markdown markdown"
+          />
+        ) : (
+          <div className="diff-viewer-pr-empty">No description provided.</div>
+        )}
+      </div>
+      <div className="diff-viewer-pr-timeline">
+        <div className="diff-viewer-pr-timeline-header">
+          <span className="diff-viewer-pr-timeline-title">Activity</span>
+          <span className="diff-viewer-pr-timeline-count">
+            {sortedComments.length} comment
+            {sortedComments.length === 1 ? "" : "s"}
+          </span>
+          {hiddenCommentCount > 0 && (
+            <button
+              type="button"
+              className="ghost diff-viewer-pr-timeline-button"
+              onClick={() => setIsTimelineExpanded(true)}
+            >
+              Show all
+            </button>
+          )}
+          {isTimelineExpanded &&
+            sortedComments.length > visibleCommentCount && (
+              <button
+                type="button"
+                className="ghost diff-viewer-pr-timeline-button"
+                onClick={() => setIsTimelineExpanded(false)}
+              >
+                Collapse
+              </button>
+            )}
+        </div>
+        <div className="diff-viewer-pr-timeline-list">
+          {pullRequestCommentsLoading && (
+            <div className="diff-viewer-pr-timeline-state">
+              Loading comments…
+            </div>
+          )}
+          {pullRequestCommentsError && (
+            <div className="diff-viewer-pr-timeline-state diff-viewer-pr-timeline-error">
+              {pullRequestCommentsError}
+            </div>
+          )}
+          {!pullRequestCommentsLoading &&
+            !pullRequestCommentsError &&
+            !sortedComments.length && (
+              <div className="diff-viewer-pr-timeline-state">
+                No comments yet.
+              </div>
+            )}
+          {hiddenCommentCount > 0 && !isTimelineExpanded && (
+            <div className="diff-viewer-pr-timeline-divider">
+              {hiddenCommentCount} earlier comment
+              {hiddenCommentCount === 1 ? "" : "s"}
+            </div>
+          )}
+          {visibleComments.map((comment) => {
+            const commentAuthor = comment.author?.login ?? "unknown";
+            const commentTime = formatRelativeTime(
+              new Date(comment.createdAt).getTime(),
+            );
+            return (
+              <div key={comment.id} className="diff-viewer-pr-timeline-item">
+                <div className="diff-viewer-pr-timeline-marker" />
+                <div className="diff-viewer-pr-timeline-content">
+                  <div className="diff-viewer-pr-timeline-meta">
+                    <span className="diff-viewer-pr-timeline-author">
+                      @{commentAuthor}
+                    </span>
+                    <span className="diff-viewer-pr-sep">·</span>
+                    <span>{commentTime}</span>
+                  </div>
+                  {comment.body.trim() ? (
+                    <Markdown
+                      value={comment.body}
+                      className="diff-viewer-pr-comment markdown"
+                    />
+                  ) : (
+                    <div className="diff-viewer-pr-timeline-text">
+                      No comment body.
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+});
+
 export function GitDiffViewer({
   diffs,
   selectedPath,
   scrollRequestId,
   isLoading,
   error,
+  diffStyle = "split",
   pullRequest,
   pullRequestComments,
   pullRequestCommentsLoading = false,
@@ -130,6 +358,8 @@ export function GitDiffViewer({
   const activePathRef = useRef<string | null>(null);
   const ignoreActivePathUntilRef = useRef<number>(0);
   const lastScrollRequestIdRef = useRef<number | null>(null);
+  const onActivePathChangeRef = useRef(onActivePathChange);
+  const hasActivePathHandler = Boolean(onActivePathChange);
   const poolOptions = useMemo(() => ({ workerFactory }), []);
   const highlighterOptions = useMemo(
     () => ({ theme: { dark: "pierre-dark", light: "pierre-light" } }),
@@ -183,8 +413,12 @@ export function GitDiffViewer({
   }, [selectedPath]);
 
   useEffect(() => {
+    onActivePathChangeRef.current = onActivePathChange;
+  }, [onActivePathChange]);
+
+  useEffect(() => {
     const container = containerRef.current;
-    if (!container || !onActivePathChange) {
+    if (!container || !hasActivePathHandler) {
       return;
     }
     let frameId: number | null = null;
@@ -222,7 +456,7 @@ export function GitDiffViewer({
         return;
       }
       activePathRef.current = nextPath;
-      onActivePathChange(nextPath);
+      onActivePathChangeRef.current?.(nextPath);
     };
 
     const handleScroll = () => {
@@ -240,14 +474,8 @@ export function GitDiffViewer({
       }
       container.removeEventListener("scroll", handleScroll);
     };
-  }, [diffs, onActivePathChange, rowVirtualizer]);
+  }, [diffs, rowVirtualizer, hasActivePathHandler]);
 
-  const prUpdatedLabel = pullRequest?.updatedAt
-    ? formatRelativeTime(new Date(pullRequest.updatedAt).getTime())
-    : null;
-  const prAuthor = pullRequest?.author?.login ?? "unknown";
-  const prBody = pullRequest?.body?.trim() ?? "";
-  const [isTimelineExpanded, setIsTimelineExpanded] = useState(false);
   const diffStats = useMemo(() => {
     let additions = 0;
     let deletions = 0;
@@ -276,30 +504,7 @@ export function GitDiffViewer({
     }
     return { additions, deletions };
   }, [diffs]);
-  const sortedComments = useMemo(() => {
-    if (!pullRequestComments?.length) {
-      return [];
-    }
-    return [...pullRequestComments].sort((a, b) => {
-      return (
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
-    });
-  }, [pullRequestComments]);
-  const visibleCommentCount = 3;
-  const visibleComments = isTimelineExpanded
-    ? sortedComments
-    : sortedComments.slice(-visibleCommentCount);
-  const hiddenCommentCount = Math.max(
-    0,
-    sortedComments.length - visibleComments.length,
-  );
-
-  useEffect(() => {
-    setIsTimelineExpanded(false);
-  }, [pullRequest?.number]);
-
-  const handleScrollToFirstFile = () => {
+  const handleScrollToFirstFile = useCallback(() => {
     if (!diffs.length) {
       return;
     }
@@ -311,7 +516,7 @@ export function GitDiffViewer({
       return;
     }
     rowVirtualizer.scrollToIndex(0, { align: "start" });
-  };
+  }, [diffs.length, rowVirtualizer]);
 
   return (
     <WorkerPoolContextProvider
@@ -320,149 +525,15 @@ export function GitDiffViewer({
     >
       <div className="diff-viewer" ref={containerRef}>
         {pullRequest && (
-          <section className="diff-viewer-pr" aria-label="Pull request summary">
-            <div className="diff-viewer-pr-header">
-              <div className="diff-viewer-pr-header-row">
-                <div className="diff-viewer-pr-title">
-                  <span className="diff-viewer-pr-number">
-                    #{pullRequest.number}
-                  </span>
-                  <span className="diff-viewer-pr-title-text">
-                    {pullRequest.title}
-                  </span>
-                </div>
-                {diffs.length > 0 && (
-                  <button
-                    type="button"
-                    className="ghost diff-viewer-pr-jump"
-                    onClick={handleScrollToFirstFile}
-                    aria-label="Jump to first file"
-                  >
-                    <span className="diff-viewer-pr-jump-add">
-                      +{diffStats.additions}
-                    </span>
-                    <span className="diff-viewer-pr-jump-sep">/</span>
-                    <span className="diff-viewer-pr-jump-del">
-                      -{diffStats.deletions}
-                    </span>
-                  </button>
-                )}
-              </div>
-              <div className="diff-viewer-pr-meta">
-                <span className="diff-viewer-pr-author">@{prAuthor}</span>
-                {prUpdatedLabel && (
-                  <>
-                    <span className="diff-viewer-pr-sep">·</span>
-                    <span>{prUpdatedLabel}</span>
-                  </>
-                )}
-                <span className="diff-viewer-pr-sep">·</span>
-                <span className="diff-viewer-pr-branch">
-                  {pullRequest.baseRefName} ← {pullRequest.headRefName}
-                </span>
-                {pullRequest.isDraft && (
-                  <span className="diff-viewer-pr-pill">Draft</span>
-                )}
-              </div>
-            </div>
-            <div className="diff-viewer-pr-body">
-              {prBody ? (
-                <Markdown
-                  value={prBody}
-                  className="diff-viewer-pr-markdown markdown"
-                />
-              ) : (
-                <div className="diff-viewer-pr-empty">
-                  No description provided.
-                </div>
-              )}
-            </div>
-            <div className="diff-viewer-pr-timeline">
-              <div className="diff-viewer-pr-timeline-header">
-                <span className="diff-viewer-pr-timeline-title">Activity</span>
-                <span className="diff-viewer-pr-timeline-count">
-                  {sortedComments.length} comment
-                  {sortedComments.length === 1 ? "" : "s"}
-                </span>
-                {hiddenCommentCount > 0 && (
-                  <button
-                    type="button"
-                    className="ghost diff-viewer-pr-timeline-button"
-                    onClick={() => setIsTimelineExpanded(true)}
-                  >
-                    Show all
-                  </button>
-                )}
-                {isTimelineExpanded && sortedComments.length > visibleCommentCount && (
-                  <button
-                    type="button"
-                    className="ghost diff-viewer-pr-timeline-button"
-                    onClick={() => setIsTimelineExpanded(false)}
-                  >
-                    Collapse
-                  </button>
-                )}
-              </div>
-              <div className="diff-viewer-pr-timeline-list">
-                {pullRequestCommentsLoading && (
-                  <div className="diff-viewer-pr-timeline-state">
-                    Loading comments…
-                  </div>
-                )}
-                {pullRequestCommentsError && (
-                  <div className="diff-viewer-pr-timeline-state diff-viewer-pr-timeline-error">
-                    {pullRequestCommentsError}
-                  </div>
-                )}
-                {!pullRequestCommentsLoading &&
-                  !pullRequestCommentsError &&
-                  !sortedComments.length && (
-                    <div className="diff-viewer-pr-timeline-state">
-                      No comments yet.
-                    </div>
-                  )}
-                {hiddenCommentCount > 0 && !isTimelineExpanded && (
-                  <div className="diff-viewer-pr-timeline-divider">
-                    {hiddenCommentCount} earlier comment
-                    {hiddenCommentCount === 1 ? "" : "s"}
-                  </div>
-                )}
-                {visibleComments.map((comment) => {
-                  const commentAuthor = comment.author?.login ?? "unknown";
-                  const commentTime = formatRelativeTime(
-                    new Date(comment.createdAt).getTime(),
-                  );
-                  return (
-                    <div
-                      key={comment.id}
-                      className="diff-viewer-pr-timeline-item"
-                    >
-                      <div className="diff-viewer-pr-timeline-marker" />
-                      <div className="diff-viewer-pr-timeline-content">
-                        <div className="diff-viewer-pr-timeline-meta">
-                          <span className="diff-viewer-pr-timeline-author">
-                            @{commentAuthor}
-                          </span>
-                          <span className="diff-viewer-pr-sep">·</span>
-                          <span>{commentTime}</span>
-                        </div>
-                        {comment.body.trim() ? (
-                          <Markdown
-                            value={comment.body}
-                            className="diff-viewer-pr-comment markdown"
-                          />
-                        ) : (
-                          <div className="diff-viewer-pr-timeline-text">
-                            No comment body.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
+          <PullRequestSummary
+            pullRequest={pullRequest}
+            hasDiffs={diffs.length > 0}
+            diffStats={diffStats}
+            onJumpToFirstFile={handleScrollToFirstFile}
+            pullRequestComments={pullRequestComments}
+            pullRequestCommentsLoading={pullRequestCommentsLoading}
+            pullRequestCommentsError={pullRequestCommentsError}
+          />
         )}
         {!error && stickyEntry && (
           <div className="diff-viewer-sticky">
@@ -509,6 +580,7 @@ export function GitDiffViewer({
                   <DiffCard
                     entry={entry}
                     isSelected={entry.path === selectedPath}
+                    diffStyle={diffStyle}
                   />
                 </div>
               );

@@ -26,7 +26,6 @@ export function useDictationModel(modelId: string | null): UseDictationModelResu
 
   useEffect(() => {
     let active = true;
-    let unlisten: (() => void) | null = null;
 
     void (async () => {
       try {
@@ -37,28 +36,20 @@ export function useDictationModel(modelId: string | null): UseDictationModelResu
       } catch {
         // Ignore dictation status errors during startup.
       }
-
-      try {
-        const handler = await subscribeDictationDownload((event) => {
-          if (!modelId || event.modelId === modelId) {
-            setStatus(event);
-          }
-        });
-        if (active) {
-          unlisten = handler;
-        } else {
-          handler();
-        }
-      } catch {
-        // Ignore dictation event errors.
-      }
     })();
+
+    const unlisten = subscribeDictationDownload((event) => {
+      if (!active) {
+        return;
+      }
+      if (!modelId || event.modelId === modelId) {
+        setStatus(event);
+      }
+    });
 
     return () => {
       active = false;
-      if (unlisten) {
-        unlisten();
-      }
+      unlisten();
     };
   }, [modelId]);
 

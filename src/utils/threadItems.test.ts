@@ -173,4 +173,43 @@ describe("threadItems", () => {
       text: "Hello",
     });
   });
+
+  it("keeps later optimistic duplicates when the matching remote item is already local", () => {
+    const remote: ConversationItem[] = [
+      {
+        id: "remote-1",
+        kind: "message",
+        role: "user",
+        text: "Hello",
+      },
+    ];
+    const local: ConversationItem[] = [
+      {
+        id: "remote-1",
+        kind: "message",
+        role: "user",
+        text: "Hello",
+      },
+      {
+        id: "9999-user",
+        kind: "message",
+        role: "user",
+        text: "Hello",
+      },
+    ];
+    const merged = mergeThreadItems(remote, local);
+    expect(merged).toHaveLength(2);
+    expect(merged[0]).toMatchObject({
+      id: "remote-1",
+      kind: "message",
+      role: "user",
+      text: "Hello",
+    });
+    expect(merged[1]).toMatchObject({
+      id: "9999-user",
+      kind: "message",
+      role: "user",
+      text: "Hello",
+    });
+  });
 });

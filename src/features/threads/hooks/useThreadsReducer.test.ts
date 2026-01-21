@@ -126,6 +126,63 @@ describe("threadReducer", () => {
     expect(items[0]?.id).toBe("remote-review-1");
   });
 
+  it("appends review items when ids repeat", () => {
+    const firstReview: ConversationItem = {
+      id: "review-mode",
+      kind: "review",
+      state: "started",
+      text: "Reviewing changes",
+    };
+    const next = threadReducer(
+      {
+        ...initialState,
+        itemsByThread: { "thread-1": [firstReview] },
+      },
+      {
+        type: "upsertItem",
+        threadId: "thread-1",
+        item: {
+          id: "review-mode",
+          kind: "review",
+          state: "completed",
+          text: "Reviewing changes",
+        },
+      },
+    );
+    const items = next.itemsByThread["thread-1"] ?? [];
+    expect(items).toHaveLength(2);
+    expect(items[0]?.id).toBe("review-mode");
+    expect(items[1]?.id).toBe("review-mode-1");
+  });
+
+  it("dedupes review items with identical content", () => {
+    const firstReview: ConversationItem = {
+      id: "review-mode",
+      kind: "review",
+      state: "completed",
+      text: "Reviewing changes",
+    };
+    const next = threadReducer(
+      {
+        ...initialState,
+        itemsByThread: { "thread-1": [firstReview] },
+      },
+      {
+        type: "upsertItem",
+        threadId: "thread-1",
+        item: {
+          id: "review-mode-duplicate",
+          kind: "review",
+          state: "completed",
+          text: "Reviewing changes",
+        },
+      },
+    );
+    const items = next.itemsByThread["thread-1"] ?? [];
+    expect(items).toHaveLength(1);
+    expect(items[0]?.id).toBe("review-mode");
+  });
+
   it("appends reasoning summary and content when missing", () => {
     const withSummary = threadReducer(initialState, {
       type: "appendReasoningSummary",

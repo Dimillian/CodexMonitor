@@ -263,6 +263,36 @@ function dropLatestLocalReviewStart(list: ConversationItem[]) {
   return list;
 }
 
+function findMatchingReview(
+  list: ConversationItem[],
+  target: Extract<ConversationItem, { kind: "review" }>,
+) {
+  const normalizedText = target.text.trim();
+  return list.find(
+    (item) =>
+      item.kind === "review" &&
+      item.state === target.state &&
+      item.text.trim() === normalizedText,
+  );
+}
+
+function ensureUniqueReviewId(list: ConversationItem[], item: ConversationItem) {
+  if (item.kind !== "review") {
+    return item;
+  }
+  if (!list.some((entry) => entry.id === item.id)) {
+    return item;
+  }
+  const existingIds = new Set(list.map((entry) => entry.id));
+  let suffix = 1;
+  let candidate = `${item.id}-${suffix}`;
+  while (existingIds.has(candidate)) {
+    suffix += 1;
+    candidate = `${item.id}-${suffix}`;
+  }
+  return { ...item, id: candidate };
+}
+
 export function threadReducer(state: ThreadState, action: ThreadAction): ThreadState {
   switch (action.type) {
     case "setActiveThreadId":
@@ -616,11 +646,18 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       ) {
         list = dropLatestLocalReviewStart(list);
       }
+      if (item.kind === "review") {
+        const existing = findMatchingReview(list, item);
+        if (existing && existing.id !== item.id) {
+          return state;
+        }
+      }
+      const nextItem = ensureUniqueReviewId(list, item);
       return {
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems(upsertItem(list, item)),
+          [action.threadId]: prepareThreadItems(upsertItem(list, nextItem)),
         },
       };
     }

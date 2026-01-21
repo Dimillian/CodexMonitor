@@ -30,6 +30,24 @@ type MainHeaderProps = {
   isTerminalOpen: boolean;
   showTerminalButton?: boolean;
   extraActionsNode?: ReactNode;
+  worktreeRename?: {
+    name: string;
+    error: string | null;
+    notice: string | null;
+    isSubmitting: boolean;
+    isDirty: boolean;
+    upstream?: {
+      oldBranch: string;
+      newBranch: string;
+      error: string | null;
+      isSubmitting: boolean;
+      onConfirm: () => void;
+    } | null;
+    onFocus: () => void;
+    onChange: (value: string) => void;
+    onCancel: () => void;
+    onCommit: () => void;
+  };
 };
 
 type OpenTarget = {
@@ -56,6 +74,7 @@ export function MainHeader({
   isTerminalOpen,
   showTerminalButton = true,
   extraActionsNode,
+  worktreeRename,
 }: MainHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -67,7 +86,10 @@ export function MainHeader({
   const menuRef = useRef<HTMLDivElement | null>(null);
   const infoRef = useRef<HTMLDivElement | null>(null);
   const openMenuRef = useRef<HTMLDivElement | null>(null);
+  const renameInputRef = useRef<HTMLInputElement | null>(null);
+  const renameConfirmRef = useRef<HTMLButtonElement | null>(null);
   const [openMenuOpen, setOpenMenuOpen] = useState(false);
+  const renameOnCancel = worktreeRename?.onCancel;
   const [openAppId, setOpenAppId] = useState<OpenTarget["id"]>(() => (
     getStoredOpenAppId()
   ));
@@ -145,6 +167,12 @@ export function MainHeader({
   }, [infoOpen, menuOpen, openMenuOpen]);
 
   useEffect(() => {
+    if (!infoOpen && renameOnCancel) {
+      renameOnCancel();
+    }
+  }, [infoOpen, renameOnCancel]);
+
+  useEffect(() => {
     return () => {
       if (copyTimeoutRef.current) {
         window.clearTimeout(copyTimeoutRef.current);
@@ -206,6 +234,92 @@ export function MainHeader({
               </button>
               {infoOpen && (
                 <div className="worktree-info-popover popover-surface" role="dialog">
+                  {worktreeRename && (
+                    <div className="worktree-info-rename">
+                      <span className="worktree-info-label">Name</span>
+                      <div className="worktree-info-command">
+                        <input
+                          ref={renameInputRef}
+                          className="worktree-info-input"
+                          value={worktreeRename.name}
+                          onFocus={() => {
+                            worktreeRename.onFocus();
+                            renameInputRef.current?.select();
+                          }}
+                          onChange={(event) => worktreeRename.onChange(event.target.value)}
+                          onBlur={(event) => {
+                            const nextTarget = event.relatedTarget as Node | null;
+                            if (
+                              renameConfirmRef.current &&
+                              nextTarget &&
+                              renameConfirmRef.current.contains(nextTarget)
+                            ) {
+                              return;
+                            }
+                            if (!worktreeRename.isSubmitting && worktreeRename.isDirty) {
+                              worktreeRename.onCommit();
+                            }
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === "Escape") {
+                              event.preventDefault();
+                              if (!worktreeRename.isSubmitting) {
+                                worktreeRename.onCancel();
+                              }
+                            }
+                            if (event.key === "Enter" && !worktreeRename.isSubmitting) {
+                              event.preventDefault();
+                              worktreeRename.onCommit();
+                            }
+                          }}
+                          data-tauri-drag-region="false"
+                          disabled={worktreeRename.isSubmitting}
+                        />
+                        <button
+                          type="button"
+                          className="icon-button worktree-info-confirm"
+                          ref={renameConfirmRef}
+                          onClick={() => worktreeRename.onCommit()}
+                          disabled={
+                            worktreeRename.isSubmitting || !worktreeRename.isDirty
+                          }
+                          aria-label="Confirm rename"
+                          title="Confirm rename"
+                        >
+                          <Check aria-hidden />
+                        </button>
+                      </div>
+                      {worktreeRename.error && (
+                        <div className="worktree-info-error">{worktreeRename.error}</div>
+                      )}
+                      {worktreeRename.notice && (
+                        <span className="worktree-info-subtle">
+                          {worktreeRename.notice}
+                        </span>
+                      )}
+                      {worktreeRename.upstream && (
+                        <div className="worktree-info-upstream">
+                          <span className="worktree-info-subtle">
+                            Do you want to update the upstream branch to{" "}
+                            <strong>{worktreeRename.upstream.newBranch}</strong>?
+                          </span>
+                          <button
+                            type="button"
+                            className="ghost worktree-info-upstream-button"
+                            onClick={worktreeRename.upstream.onConfirm}
+                            disabled={worktreeRename.upstream.isSubmitting}
+                          >
+                            Update upstream
+                          </button>
+                          {worktreeRename.upstream.error && (
+                            <div className="worktree-info-error">
+                              {worktreeRename.upstream.error}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="worktree-info-title">Worktree</div>
                   <div className="worktree-info-row">
                     <span className="worktree-info-label">
