@@ -1,34 +1,47 @@
-import { useEffect } from "react";
-import { matchesShortcut } from "../../../utils/shortcuts";
+import { useEffect, useMemo } from "react";
 
 type UseInterruptShortcutOptions = {
   isEnabled: boolean;
-  shortcut: string | null;
   onTrigger: () => void | Promise<void>;
 };
 
-export function useInterruptShortcut({
-  isEnabled,
-  shortcut,
-  onTrigger,
-}: UseInterruptShortcutOptions) {
+function isEditableTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  if (target.isContentEditable) {
+    return true;
+  }
+  return Boolean(
+    target.closest(
+      'input, textarea, select, [contenteditable=""], [contenteditable="true"], [role="textbox"]',
+    ),
+  );
+}
+
+export function useInterruptShortcut({ isEnabled, onTrigger }: UseInterruptShortcutOptions) {
+  const isMac = useMemo(() => {
+    if (typeof navigator === "undefined") {
+      return false;
+    }
+    return /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+  }, []);
+
   useEffect(() => {
-    if (!isEnabled || !shortcut) {
+    if (!isEnabled || !isMac) {
       return;
     }
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat || event.defaultPrevented) {
+      if (event.defaultPrevented || event.repeat) {
         return;
       }
-      const target = event.target;
-      if (
-        target instanceof HTMLElement &&
-        (target.isContentEditable ||
-          target.closest("input, textarea, select, [contenteditable='true']"))
-      ) {
+      if (isEditableTarget(event.target)) {
         return;
       }
-      if (!matchesShortcut(event, shortcut)) {
+      if (!event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) {
+        return;
+      }
+      if (event.key.toLowerCase() !== "c") {
         return;
       }
       event.preventDefault();
@@ -36,5 +49,5 @@ export function useInterruptShortcut({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isEnabled, onTrigger, shortcut]);
+  }, [isEnabled, isMac, onTrigger]);
 }
