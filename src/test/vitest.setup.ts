@@ -58,9 +58,9 @@ if (!("requestAnimationFrame" in globalThis)) {
   });
 }
 
-if (!("localStorage" in globalThis)) {
+const createLocalStorage = () => {
   const store = new Map<string, string>();
-  const localStorage = {
+  return {
     getItem: (key: string) => (store.has(key) ? store.get(key) ?? null : null),
     setItem: (key: string, value: string) => {
       store.set(key, value);
@@ -76,5 +76,10 @@ if (!("localStorage" in globalThis)) {
       return store.size;
     },
   };
-  Object.defineProperty(globalThis, "localStorage", { value: localStorage });
-}
+};
+
+Object.defineProperty(globalThis, "localStorage", {
+  value: createLocalStorage(),
+  configurable: true,
+  writable: true,
+});

@@ -77,6 +77,7 @@ import { useAppMenuEvents } from "./features/app/hooks/useAppMenuEvents";
 import { useWorkspaceActions } from "./features/app/hooks/useWorkspaceActions";
 import { useWorkspaceCycling } from "./features/app/hooks/useWorkspaceCycling";
 import { useThreadRows } from "./features/app/hooks/useThreadRows";
+import { useStopTurnShortcut } from "./features/app/hooks/useStopTurnShortcut";
 import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { useTerminalController } from "./features/terminal/hooks/useTerminalController";
 import { useGitCommitController } from "./features/app/hooks/useGitCommitController";
@@ -806,6 +807,7 @@ function MainApp() {
   const canInterrupt = activeThreadId
     ? threadStatusById[activeThreadId]?.isProcessing ?? false
     : false;
+  useStopTurnShortcut({ canStop: canInterrupt, onStop: interruptTurn });
   const isProcessing = activeThreadId
     ? threadStatusById[activeThreadId]?.isProcessing ?? false
     : false;

@@ -1005,7 +1005,6 @@ export function useThreads({
       handleItemUpdate,
       handleTerminalInteraction,
       handleToolOutputDelta,
-      handleTerminalInteraction,
       markProcessing,
       onDebug,
       recordThreadActivity,
