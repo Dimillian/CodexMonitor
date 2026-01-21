@@ -290,7 +290,7 @@ function DiffFileRow({
       onContextMenu={onContextMenu}
     >
       <span className={`diff-icon ${statusClass}`} aria-hidden>
-        {statusSymbol}
+        <span className="diff-icon-text">{statusSymbol}</span>
       </span>
       <div className="diff-file">
         <div className="diff-path">

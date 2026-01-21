@@ -29,6 +29,19 @@
   z-index: 1;
 }
 
+.settings-window::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--surface-app, #111);
+  border-radius: inherit;
+  z-index: 0;
+}
+
+.settings-window > * {
+  position: relative;
+  z-index: 1;
+}
 
 .settings-titlebar {
   display: flex;
@@ -36,7 +49,7 @@
   justify-content: space-between;
   padding: 12px 16px;
   border-bottom: 1px solid var(--border-muted);
-  background: var(--surface-topbar);
+  background: #111;
 }
 
 .app.reduced-transparency .settings-backdrop {
@@ -100,7 +113,7 @@
 .settings-content {
   padding: 20px 24px;
   overflow-y: auto;
-  background: var(--surface-messages);
+  background: #111;
 }
 
 .settings-field {
@@ -216,6 +229,13 @@
   background: var(--surface-control);
   color: var(--text-strong);
   font-size: 12px;
+
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  box-shadow: none;
+  background-image: none;
 }
 
 .settings-select--compact {
@@ -529,7 +549,7 @@
   width: 16px;
   height: 16px;
   border-radius: 999px;
-  background: var(--surface-card-strong);
+  background: white;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 

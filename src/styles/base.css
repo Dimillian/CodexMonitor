@@ -264,7 +264,7 @@
 }
 
 .popover-surface {
-  background: var(--surface-popover);
+  background: #222;
   border: 1px solid var(--border-muted);
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.3);
 }

@@ -1,6 +1,7 @@
 import type { MouseEvent } from "react";
 
 import type { WorkspaceInfo } from "../../../types";
+import { Plus } from "lucide-react";
 
 type WorkspaceCardProps = {
   workspace: WorkspaceInfo;
@@ -67,7 +68,8 @@ export function WorkspaceCard({
               </button>
             </div>
             <button
-              className="ghost workspace-add"
+              className="ghost plus-button"
+              style={{height: "24px", width: "24px", padding: "0 0 0 0", display: "flex", justifyContent: "center", alignItems: "center"}}
               onClick={(event) => {
                 event.stopPropagation();
                 const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
@@ -91,7 +93,7 @@ export function WorkspaceCard({
               aria-label="Add agent options"
               aria-expanded={addMenuOpen}
             >
-              +
+              <Plus size={12}></Plus>
             </button>
           </div>
         </div>

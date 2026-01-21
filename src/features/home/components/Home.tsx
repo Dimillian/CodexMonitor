@@ -238,7 +238,7 @@ export function Home({
       </div>
       <div className="home-actions">
         <button
-          className="home-button primary"
+          className="home-button primary bouncing_button"
           onClick={onOpenProject}
           data-tauri-drag-region="false"
         >
@@ -248,7 +248,7 @@ export function Home({
           Open Project
         </button>
         <button
-          className="home-button secondary"
+          className="home-button secondary bouncing_button"
           onClick={onAddWorkspace}
           data-tauri-drag-region="false"
         >

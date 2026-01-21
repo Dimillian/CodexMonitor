@@ -299,8 +299,8 @@
 }
 
 .workspace-add {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 999px;
   border: 1px solid var(--border-stronger);
   background: var(--surface-card-muted);

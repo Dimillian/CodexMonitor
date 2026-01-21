@@ -48,7 +48,19 @@ button:disabled {
   height: 16px;
 }
 
-button:hover:not(:disabled) {
+.bouncing_button:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 12px 18px rgba(0, 0, 0, 0.2);
+}
+
+.plus-button {
+  opacity: 0;
+}
+
+.sidebar-header:hover .plus-button {
+  opacity: 1;
+}
+
+.workspace-card:hover .plus-button {
+  opacity: 1;
 }

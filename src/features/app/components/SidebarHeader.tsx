@@ -1,4 +1,4 @@
-import { FolderKanban } from "lucide-react";
+import { FolderKanban, Plus } from "lucide-react";
 
 type SidebarHeaderProps = {
   onSelectHome: () => void;
@@ -20,12 +20,13 @@ export function SidebarHeader({ onSelectHome, onAddWorkspace }: SidebarHeaderPro
         </button>
       </div>
       <button
-        className="ghost workspace-add"
+        className="ghost plus-button"
+        style={{height: "24px", width: "24px", padding: "0 0 0 0", display: "flex", justifyContent: "center", alignItems: "center"}}
         onClick={onAddWorkspace}
         data-tauri-drag-region="false"
         aria-label="Add workspace"
       >
-        +
+        <Plus size={12}></Plus>
       </button>
     </div>
   );

@@ -3,7 +3,6 @@
   flex-direction: column;
   gap: 8px;
   -webkit-app-region: no-drag;
-  padding: 12px var(--main-panel-padding) 24px;
   border-top: 1px solid var(--border-subtle);
   background: var(--surface-composer);
   grid-column: 1;
@@ -67,6 +66,7 @@
 .composer-input {
   display: grid;
   grid-template-columns: 1fr auto auto;
+  padding: 12px 16px 24px;
   gap: 12px;
   align-items: center;
 }
@@ -512,6 +512,10 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  padding-top: 4px;
+  padding-left: 16px;
+  padding-right: 4px;
+  padding-bottom: 8px;
 }
 
 .composer-context {
@@ -522,6 +526,8 @@
   gap: 8px;
   font-size: 11px;
   color: var(--text-muted);
+  padding-right: 12px;
+  margin-top: -6px;
 }
 
 .composer-context-ring {
@@ -584,7 +590,6 @@
 }
 
 .composer-icon {
-  display: inline-flex;
   width: 14px;
   height: 14px;
   color: var(--text-muted);
