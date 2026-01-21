@@ -82,6 +82,7 @@ import { useAppMenuEvents } from "./features/app/hooks/useAppMenuEvents";
 import { useWorkspaceActions } from "./features/app/hooks/useWorkspaceActions";
 import { useWorkspaceCycling } from "./features/app/hooks/useWorkspaceCycling";
 import { useThreadRows } from "./features/app/hooks/useThreadRows";
+import { useInterruptShortcut } from "./features/app/hooks/useInterruptShortcut";
 import { useLiquidGlassEffect } from "./features/app/hooks/useLiquidGlassEffect";
 import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { useTerminalController } from "./features/terminal/hooks/useTerminalController";
@@ -1200,6 +1201,14 @@ function MainApp() {
     handleDrop: handleWorkspaceDrop,
   } = useWorkspaceDropZone({
     onDropPaths: handleDropWorkspacePaths,
+  });
+
+  useInterruptShortcut({
+    isEnabled: canInterrupt,
+    shortcut: appSettings.interruptShortcut,
+    onTrigger: () => {
+      void interruptTurn();
+    },
   });
 
   const {
