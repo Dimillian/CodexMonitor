@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlignLeft, Columns2 } from "lucide-react";
+import { AlignLeft, Columns2, FolderOpen } from "lucide-react";
 import "./styles/base.css";
 import "./styles/buttons.css";
 import "./styles/sidebar.css";
@@ -1443,8 +1443,30 @@ function MainApp() {
     [addDebugEntry, addWorkspaceFromPath, handleWorkspaceAdded],
   );
 
+  const dropIndicatorTimeoutRef = useRef<number | null>(null);
+  const [dropIndicatorActive, setDropIndicatorActive] = useState(false);
+  const showDropAddIndicator = useCallback(() => {
+    setDropIndicatorActive(true);
+    if (dropIndicatorTimeoutRef.current !== null) {
+      window.clearTimeout(dropIndicatorTimeoutRef.current);
+    }
+    dropIndicatorTimeoutRef.current = window.setTimeout(() => {
+      dropIndicatorTimeoutRef.current = null;
+      setDropIndicatorActive(false);
+    }, 900);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (dropIndicatorTimeoutRef.current !== null) {
+        window.clearTimeout(dropIndicatorTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleDropWorkspacePaths = useCallback(
     async (paths: string[]) => {
+      showDropAddIndicator();
       const uniquePaths = Array.from(
         new Set(paths.map((path) => path.trim()).filter(Boolean)),
       );
@@ -1453,7 +1475,7 @@ function MainApp() {
         void handleAddWorkspaceFromPath(path);
       });
     },
-    [filterWorkspacePaths, handleAddWorkspaceFromPath],
+    [filterWorkspacePaths, handleAddWorkspaceFromPath, showDropAddIndicator],
   );
 
   const {
@@ -1734,6 +1756,10 @@ function MainApp() {
     onDebug: addDebugEntry,
   });
   const isDefaultScale = Math.abs(uiScale - 1) < 0.001;
+  const dropOverlayActive = isWorkspaceDropActive || dropIndicatorActive;
+  const dropOverlayText = isWorkspaceDropActive
+    ? "Drop Project Here"
+    : "Adding Project...";
   const appClassName = `app ${isCompact ? "layout-compact" : "layout-desktop"}${
     isPhone ? " layout-phone" : ""
   }${isTablet ? " layout-tablet" : ""}${
@@ -2162,11 +2188,14 @@ function MainApp() {
       <TitlebarExpandControls {...sidebarToggleProps} />
       <div
         className={`workspace-drop-overlay${
-          isWorkspaceDropActive ? " is-active" : ""
+          dropOverlayActive ? " is-active" : ""
         }`}
         aria-hidden
       >
-        <div className="workspace-drop-overlay-text">Drop Project Here</div>
+        <div className="workspace-drop-overlay-text">
+          <FolderOpen className="workspace-drop-overlay-icon" aria-hidden />
+          {dropOverlayText}
+        </div>
       </div>
       {isPhone ? (
         <PhoneLayout

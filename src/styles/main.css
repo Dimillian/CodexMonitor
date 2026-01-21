@@ -875,4 +875,13 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text-strong);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.workspace-drop-overlay-icon {
+  width: 18px;
+  height: 18px;
+  opacity: 0.8;
 }
