@@ -267,6 +267,8 @@ pub(crate) struct AppSettings {
         rename = "composerReasoningShortcut"
     )]
     pub(crate) composer_reasoning_shortcut: Option<String>,
+    #[serde(default = "default_interrupt_shortcut", rename = "interruptShortcut")]
+    pub(crate) interrupt_shortcut: Option<String>,
     #[serde(default = "default_new_agent_shortcut", rename = "newAgentShortcut")]
     pub(crate) new_agent_shortcut: Option<String>,
     #[serde(
@@ -425,6 +427,10 @@ fn default_composer_reasoning_shortcut() -> Option<String> {
     Some("cmd+shift+r".to_string())
 }
 
+fn default_interrupt_shortcut() -> Option<String> {
+    Some("ctrl+c".to_string())
+}
+
 fn default_new_agent_shortcut() -> Option<String> {
     Some("cmd+n".to_string())
 }
@@ -512,6 +518,7 @@ impl Default for AppSettings {
             composer_model_shortcut: default_composer_model_shortcut(),
             composer_access_shortcut: default_composer_access_shortcut(),
             composer_reasoning_shortcut: default_composer_reasoning_shortcut(),
+            interrupt_shortcut: default_interrupt_shortcut(),
             new_agent_shortcut: default_new_agent_shortcut(),
             new_worktree_agent_shortcut: default_new_worktree_agent_shortcut(),
             new_clone_agent_shortcut: default_new_clone_agent_shortcut(),
@@ -569,6 +576,7 @@ mod tests {
             settings.composer_reasoning_shortcut.as_deref(),
             Some("cmd+shift+r")
         );
+        assert_eq!(settings.interrupt_shortcut.as_deref(), Some("ctrl+c"));
         assert_eq!(
             settings.toggle_debug_panel_shortcut.as_deref(),
             Some("cmd+shift+d")
