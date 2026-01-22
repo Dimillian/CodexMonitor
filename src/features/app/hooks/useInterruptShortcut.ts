@@ -1,33 +1,26 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
+import { matchesShortcut } from "../../../utils/shortcuts";
 
 type UseInterruptShortcutOptions = {
   isEnabled: boolean;
+  shortcut: string | null;
   onTrigger: () => void | Promise<void>;
 };
 
 export function useInterruptShortcut({
   isEnabled,
+  shortcut,
   onTrigger,
 }: UseInterruptShortcutOptions) {
-  const isMac = useMemo(() => {
-    if (typeof navigator === "undefined") {
-      return false;
-    }
-    return /Mac|iPhone|iPad|iPod/.test(navigator.platform);
-  }, []);
-
   useEffect(() => {
-    if (!isEnabled || !isMac) {
+    if (!isEnabled || !shortcut) {
       return;
     }
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.repeat) {
         return;
       }
-      if (!event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) {
-        return;
-      }
-      if (event.key.toLowerCase() !== "c") {
+      if (!matchesShortcut(event, shortcut)) {
         return;
       }
       event.preventDefault();
@@ -35,5 +28,5 @@ export function useInterruptShortcut({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isEnabled, isMac, onTrigger]);
+  }, [isEnabled, onTrigger, shortcut]);
 }

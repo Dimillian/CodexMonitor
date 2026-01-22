@@ -149,6 +149,17 @@ export function matchesShortcut(event: KeyboardEvent, value: string | null | und
   );
 }
 
+export function isMacPlatform(): boolean {
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+  return /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+}
+
+export function getDefaultInterruptShortcut(): string {
+  return isMacPlatform() ? "ctrl+c" : "ctrl+shift+c";
+}
+
 export function toMenuAccelerator(value: string | null | undefined): string | null {
   const parsed = parseShortcut(value);
   if (!parsed) {

@@ -15,6 +15,7 @@ import {
   OPEN_APP_STORAGE_KEY,
 } from "../../app/constants";
 import { normalizeOpenAppTargets } from "../../app/utils/openApp";
+import { getDefaultInterruptShortcut } from "../../../utils/shortcuts";
 
 const allowedThemes = new Set(["system", "light", "dark"]);
 
@@ -28,6 +29,7 @@ const defaultSettings: AppSettings = {
   composerAccessShortcut: "cmd+shift+a",
   composerReasoningShortcut: "cmd+shift+r",
   composerCollaborationShortcut: "shift+tab",
+  interruptShortcut: getDefaultInterruptShortcut(),
   newAgentShortcut: "cmd+n",
   newWorktreeAgentShortcut: "cmd+shift+n",
   newCloneAgentShortcut: "cmd+alt+n",

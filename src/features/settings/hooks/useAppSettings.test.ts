@@ -68,6 +68,7 @@ describe("useAppSettings", () => {
     expect(result.current.settings.codeFontFamily).toContain("SF Mono");
     expect(result.current.settings.backendMode).toBe("local");
     expect(result.current.settings.dictationModelId).toBe("base");
+    expect(result.current.settings.interruptShortcut).toBeTruthy();
   });
 
   it("persists settings via updateAppSettings and updates local state", async () => {

@@ -27,6 +27,7 @@ const baseSettings: AppSettings = {
   composerAccessShortcut: null,
   composerReasoningShortcut: null,
   composerCollaborationShortcut: null,
+  interruptShortcut: null,
   newAgentShortcut: null,
   newWorktreeAgentShortcut: null,
   newCloneAgentShortcut: null,
