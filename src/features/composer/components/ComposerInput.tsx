@@ -1,7 +1,9 @@
 import { useEffect, useRef } from "react";
-import type { KeyboardEvent, RefObject } from "react";
+import type { ClipboardEvent, KeyboardEvent, RefObject } from "react";
 import type { AutocompleteItem } from "../hooks/useComposerAutocomplete";
 import ImagePlus from "lucide-react/dist/esm/icons/image-plus";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
+import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import Mic from "lucide-react/dist/esm/icons/mic";
 import Square from "lucide-react/dist/esm/icons/square";
 import { useComposerImageDrop } from "../hooks/useComposerImageDrop";
@@ -31,8 +33,11 @@ type ComposerInputProps = {
   onAttachImages?: (paths: string[]) => void;
   onRemoveAttachment?: (path: string) => void;
   onTextChange: (next: string, selectionStart: number | null) => void;
+  onTextPaste?: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
   onSelectionChange: (selectionStart: number | null) => void;
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   suggestionsOpen: boolean;
   suggestions: AutocompleteItem[];
@@ -64,8 +69,11 @@ export function ComposerInput({
   onAttachImages,
   onRemoveAttachment,
   onTextChange,
+  onTextPaste,
   onSelectionChange,
   onKeyDown,
+  isExpanded = false,
+  onToggleExpand,
   textareaRef,
   suggestionsOpen,
   suggestions,
@@ -75,7 +83,8 @@ export function ComposerInput({
 }: ComposerInputProps) {
   const suggestionListRef = useRef<HTMLDivElement | null>(null);
   const suggestionRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const maxTextareaHeight = 120;
+  const minTextareaHeight = isExpanded ? 180 : 60;
+  const maxTextareaHeight = isExpanded ? 320 : 120;
   const isFileSuggestion = (item: AutocompleteItem) =>
     item.label.includes("/") || item.label.includes("\\");
   const fileTitle = (path: string) => {
@@ -122,11 +131,16 @@ export function ComposerInput({
       return;
     }
     textarea.style.height = "auto";
-    const nextHeight = Math.min(textarea.scrollHeight, maxTextareaHeight);
+    textarea.style.minHeight = `${minTextareaHeight}px`;
+    textarea.style.maxHeight = `${maxTextareaHeight}px`;
+    const nextHeight = Math.min(
+      Math.max(textarea.scrollHeight, minTextareaHeight),
+      maxTextareaHeight,
+    );
     textarea.style.height = `${nextHeight}px`;
     textarea.style.overflowY =
       textarea.scrollHeight > maxTextareaHeight ? "auto" : "hidden";
-  }, [text, textareaRef]);
+  }, [maxTextareaHeight, minTextareaHeight, text, textareaRef]);
 
   const handleActionClick = () => {
     if (canStop) {
@@ -215,7 +229,12 @@ export function ComposerInput({
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onPaste={handlePaste}
+            onPaste={(event) => {
+              void handlePaste(event);
+              if (!event.defaultPrevented) {
+                onTextPaste?.(event);
+              }
+            }}
           />
         </div>
         {isDictationBusy && (
@@ -302,6 +321,17 @@ export function ComposerInput({
           </div>
         )}
       </div>
+      <button
+        className={`composer-action composer-action--expand${
+          isExpanded ? " is-active" : ""
+        }`}
+        onClick={onToggleExpand}
+        disabled={disabled || !onToggleExpand}
+        aria-label={isExpanded ? "Collapse input" : "Expand input"}
+        title={isExpanded ? "Collapse input" : "Expand input"}
+      >
+        {isExpanded ? <ChevronDown aria-hidden /> : <ChevronUp aria-hidden />}
+      </button>
       <button
         className={`composer-action composer-action--mic${
           isDictationBusy ? " is-active" : ""

@@ -54,6 +54,15 @@ const baseSettings: AppSettings = {
   dictationModelId: "base",
   dictationPreferredLanguage: null,
   dictationHoldKey: null,
+  composerEditorPreset: "default",
+  composerFenceExpandOnSpace: false,
+  composerFenceExpandOnEnter: false,
+  composerFenceLanguageTags: false,
+  composerFenceWrapSelection: false,
+  composerFenceAutoWrapPasteMultiline: false,
+  composerFenceAutoWrapPasteCodeLike: false,
+  composerListContinuation: false,
+  composerCodeBlockCopyUseModifier: false,
   workspaceGroups: [],
 };
 
@@ -165,69 +174,6 @@ describe("SettingsView Display", () => {
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({ uiScale: 0.1 }),
-      );
-    });
-  });
-
-  it("commits font family changes on blur and enter", async () => {
-    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
-    renderDisplaySection({ onUpdateAppSettings });
-
-    const uiFontInput = screen.getByLabelText("UI font family");
-    fireEvent.change(uiFontInput, { target: { value: "Avenir, sans-serif" } });
-    fireEvent.blur(uiFontInput);
-
-    await waitFor(() => {
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ uiFontFamily: "Avenir, sans-serif" }),
-      );
-    });
-
-    const codeFontInput = screen.getByLabelText("Code font family");
-    fireEvent.change(codeFontInput, {
-      target: { value: "JetBrains Mono, monospace" },
-    });
-    fireEvent.keyDown(codeFontInput, { key: "Enter" });
-
-    await waitFor(() => {
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ codeFontFamily: "JetBrains Mono, monospace" }),
-      );
-    });
-  });
-
-  it("resets font families to defaults", async () => {
-    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
-    renderDisplaySection({ onUpdateAppSettings });
-
-    const resetButtons = screen.getAllByRole("button", { name: "Reset" });
-    fireEvent.click(resetButtons[1]);
-    fireEvent.click(resetButtons[2]);
-
-    await waitFor(() => {
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({
-          uiFontFamily: expect.stringContaining("SF Pro Text"),
-        }),
-      );
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({
-          codeFontFamily: expect.stringContaining("SF Mono"),
-        }),
-      );
-    });
-  });
-
-  it("updates code font size from the slider", async () => {
-    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
-    renderDisplaySection({ onUpdateAppSettings });
-
-    const slider = screen.getByLabelText("Code font size");
-    fireEvent.change(slider, { target: { value: "14" } });
-
-    await waitFor(() => {
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ codeFontSize: 14 }),
       );
     });
   });

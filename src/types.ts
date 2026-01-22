@@ -73,6 +73,20 @@ export type AccessMode = "read-only" | "current" | "full-access";
 export type BackendMode = "local" | "remote";
 export type ThemePreference = "system" | "light" | "dark";
 
+
+export type ComposerEditorPreset = "default" | "helpful" | "smart";
+
+export type ComposerEditorSettings = {
+  preset: ComposerEditorPreset;
+  expandFenceOnSpace: boolean;
+  expandFenceOnEnter: boolean;
+  fenceLanguageTags: boolean;
+  fenceWrapSelection: boolean;
+  autoWrapPasteMultiline: boolean;
+  autoWrapPasteCodeLike: boolean;
+  continueListOnShiftEnter: boolean;
+};
+
 export type AppSettings = {
   codexBin: string | null;
   backendMode: BackendMode;
@@ -108,6 +122,15 @@ export type AppSettings = {
   dictationModelId: string;
   dictationPreferredLanguage: string | null;
   dictationHoldKey: string | null;
+  composerEditorPreset: ComposerEditorPreset;
+  composerFenceExpandOnSpace: boolean;
+  composerFenceExpandOnEnter: boolean;
+  composerFenceLanguageTags: boolean;
+  composerFenceWrapSelection: boolean;
+  composerFenceAutoWrapPasteMultiline: boolean;
+  composerFenceAutoWrapPasteCodeLike: boolean;
+  composerListContinuation: boolean;
+  composerCodeBlockCopyUseModifier: boolean;
   workspaceGroups: WorkspaceGroup[];
 };
 

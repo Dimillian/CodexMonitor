@@ -367,6 +367,27 @@ pub(crate) struct AppSettings {
         rename = "dictationHoldKey"
     )]
     pub(crate) dictation_hold_key: String,
+    #[serde(default = "default_composer_editor_preset", rename = "composerEditorPreset")]
+    pub(crate) composer_editor_preset: String,
+    #[serde(default = "default_composer_fence_expand_on_space", rename = "composerFenceExpandOnSpace")]
+    pub(crate) composer_fence_expand_on_space: bool,
+    #[serde(default = "default_composer_fence_expand_on_enter", rename = "composerFenceExpandOnEnter")]
+    pub(crate) composer_fence_expand_on_enter: bool,
+    #[serde(default = "default_composer_fence_language_tags", rename = "composerFenceLanguageTags")]
+    pub(crate) composer_fence_language_tags: bool,
+    #[serde(default = "default_composer_fence_wrap_selection", rename = "composerFenceWrapSelection")]
+    pub(crate) composer_fence_wrap_selection: bool,
+    #[serde(default = "default_composer_fence_auto_wrap_paste_multiline", rename = "composerFenceAutoWrapPasteMultiline")]
+    pub(crate) composer_fence_auto_wrap_paste_multiline: bool,
+    #[serde(default = "default_composer_fence_auto_wrap_paste_code_like", rename = "composerFenceAutoWrapPasteCodeLike")]
+    pub(crate) composer_fence_auto_wrap_paste_code_like: bool,
+    #[serde(default = "default_composer_list_continuation", rename = "composerListContinuation")]
+    pub(crate) composer_list_continuation: bool,
+    #[serde(
+        default = "default_composer_code_block_copy_use_modifier",
+        rename = "composerCodeBlockCopyUseModifier"
+    )]
+    pub(crate) composer_code_block_copy_use_modifier: bool,
     #[serde(default = "default_workspace_groups", rename = "workspaceGroups")]
     pub(crate) workspace_groups: Vec<WorkspaceGroup>,
 }
@@ -497,6 +518,42 @@ fn default_dictation_hold_key() -> String {
     "alt".to_string()
 }
 
+fn default_composer_editor_preset() -> String {
+    "default".to_string()
+}
+
+fn default_composer_fence_expand_on_space() -> bool {
+    false
+}
+
+fn default_composer_fence_expand_on_enter() -> bool {
+    false
+}
+
+fn default_composer_fence_language_tags() -> bool {
+    false
+}
+
+fn default_composer_fence_wrap_selection() -> bool {
+    false
+}
+
+fn default_composer_fence_auto_wrap_paste_multiline() -> bool {
+    false
+}
+
+fn default_composer_fence_auto_wrap_paste_code_like() -> bool {
+    false
+}
+
+fn default_composer_list_continuation() -> bool {
+    false
+}
+
+fn default_composer_code_block_copy_use_modifier() -> bool {
+    false
+}
+
 fn default_workspace_groups() -> Vec<WorkspaceGroup> {
     Vec::new()
 }
@@ -538,6 +595,15 @@ impl Default for AppSettings {
             dictation_model_id: default_dictation_model_id(),
             dictation_preferred_language: None,
             dictation_hold_key: default_dictation_hold_key(),
+            composer_editor_preset: default_composer_editor_preset(),
+            composer_fence_expand_on_space: default_composer_fence_expand_on_space(),
+            composer_fence_expand_on_enter: default_composer_fence_expand_on_enter(),
+            composer_fence_language_tags: default_composer_fence_language_tags(),
+            composer_fence_wrap_selection: default_composer_fence_wrap_selection(),
+            composer_fence_auto_wrap_paste_multiline: default_composer_fence_auto_wrap_paste_multiline(),
+            composer_fence_auto_wrap_paste_code_like: default_composer_fence_auto_wrap_paste_code_like(),
+            composer_list_continuation: default_composer_list_continuation(),
+            composer_code_block_copy_use_modifier: default_composer_code_block_copy_use_modifier(),
             workspace_groups: default_workspace_groups(),
         }
     }
@@ -606,6 +672,15 @@ mod tests {
         assert_eq!(settings.dictation_model_id, "base");
         assert!(settings.dictation_preferred_language.is_none());
         assert_eq!(settings.dictation_hold_key, "alt");
+        assert_eq!(settings.composer_editor_preset, "default");
+        assert!(!settings.composer_fence_expand_on_space);
+        assert!(!settings.composer_fence_expand_on_enter);
+        assert!(!settings.composer_fence_language_tags);
+        assert!(!settings.composer_fence_wrap_selection);
+        assert!(!settings.composer_fence_auto_wrap_paste_multiline);
+        assert!(!settings.composer_fence_auto_wrap_paste_code_like);
+        assert!(!settings.composer_list_continuation);
+        assert!(!settings.composer_code_block_copy_use_modifier);
         assert!(settings.workspace_groups.is_empty());
     }
 

@@ -698,6 +698,65 @@
   color: #b08cff;
 }
 
+
+.message .markdown-codeblock {
+  border: 1px solid var(--border-stronger);
+  border-left: 3px solid var(--border-accent);
+  border-radius: 10px;
+  background: var(--surface-command);
+  overflow: hidden;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.14);
+}
+
+.message .markdown-codeblock + .markdown-codeblock {
+  margin-top: 6px;
+}
+
+.message .markdown-codeblock-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--surface-control);
+  border-bottom: 1px solid var(--border-strong);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.message .markdown-codeblock-language {
+  font-weight: 600;
+}
+
+.message .markdown-codeblock-copy {
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-stronger);
+}
+
+.message .markdown-codeblock-copy:hover {
+  background: var(--surface-control-hover);
+}
+
+.message .markdown-codeblock-copy.is-copied {
+  border-color: var(--border-accent);
+}
+
+.message .markdown-codeblock pre {
+  margin: 0;
+  padding: 10px 12px 12px;
+  white-space: pre;
+  overflow-x: auto;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .markdown ul,
 .markdown ol {
   padding-left: 14px;
