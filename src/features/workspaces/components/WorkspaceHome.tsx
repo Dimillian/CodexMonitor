@@ -631,8 +631,11 @@ export function WorkspaceHome({
                       No instances were started.
                     </div>
                   ) : (
-                    <div className="workspace-home-empty">
-                      Instances are preparing...
+                    <div className="workspace-home-empty workspace-home-pending">
+                      <span className="working-spinner" aria-hidden />
+                      <span className="workspace-home-pending-text">
+                        Instances are preparing...
+                      </span>
                     </div>
                   )}
                 </div>
