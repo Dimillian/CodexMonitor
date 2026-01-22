@@ -715,18 +715,24 @@
   display: flex;
   min-height: 0;
   min-width: 0;
+  isolation: isolate;
 }
 
 .content-layer.is-hidden {
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
+  position: absolute;
+  z-index: -1;
+  contain: layout style paint;
 }
 
 .content-layer.is-active {
   opacity: 1;
   pointer-events: auto;
   visibility: visible;
+  z-index: 0;
+  contain: layout style paint;
 }
 
 .app.reduced-transparency .content {
