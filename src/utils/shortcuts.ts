@@ -157,7 +157,7 @@ export function isMacPlatform(): boolean {
 }
 
 export function getDefaultInterruptShortcut(): string {
-  return isMacPlatform() ? "ctrl+c" : "ctrl+shift+c";
+  return "ctrl+shift+c";
 }
 
 export function toMenuAccelerator(value: string | null | undefined): string | null {
