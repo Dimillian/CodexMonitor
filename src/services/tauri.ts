@@ -324,6 +324,13 @@ export async function getModelList(workspaceId: string) {
   return invoke<any>("model_list", { workspaceId });
 }
 
+export async function generateRunMetadata(workspaceId: string, prompt: string) {
+  return invoke<{ title: string; worktreeName: string }>("generate_run_metadata", {
+    workspaceId,
+    prompt,
+  });
+}
+
 export async function getCollaborationModes(workspaceId: string) {
   return invoke<any>("collaboration_mode_list", { workspaceId });
 }

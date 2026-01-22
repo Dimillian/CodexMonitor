@@ -85,6 +85,7 @@ pub fn run() {
             codex::remember_approval_rule,
             codex::get_commit_message_prompt,
             codex::generate_commit_message,
+            codex::generate_run_metadata,
             codex::resume_thread,
             codex::list_threads,
             codex::archive_thread,

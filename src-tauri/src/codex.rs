@@ -760,3 +760,229 @@ Changes:\n{diff}"
 
     Ok(trimmed)
 }
+
+#[tauri::command]
+pub(crate) async fn generate_run_metadata(
+    workspace_id: String,
+    prompt: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "generate_run_metadata",
+            json!({ "workspaceId": workspace_id, "prompt": prompt }),
+        )
+        .await;
+    }
+
+    let cleaned_prompt = prompt.trim();
+    if cleaned_prompt.is_empty() {
+        return Err("Prompt is required.".to_string());
+    }
+
+    let session = {
+        let sessions = state.sessions.lock().await;
+        sessions
+            .get(&workspace_id)
+            .ok_or("workspace not connected")?
+            .clone()
+    };
+
+    let title_prompt = format!(
+        "You create concise run metadata for a coding task.\n\
+Return ONLY a JSON object with keys:\n\
+- title: short, clear, 3-7 words, Title Case\n\
+- worktreeName: lower-case, kebab-case slug prefixed with fix/ or feat/.\n\
+\n\
+Choose fix/ when the task is a bug fix, error, regression, crash, or cleanup. \
+Otherwise use feat/.\n\
+\n\
+Examples:\n\
+{{\"title\":\"Fix Login Redirect Loop\",\"worktreeName\":\"fix/login-redirect-loop\"}}\n\
+{{\"title\":\"Add Workspace Home View\",\"worktreeName\":\"feat/workspace-home\"}}\n\
+\n\
+Task:\n{cleaned_prompt}"
+    );
+
+    let thread_params = json!({
+        "cwd": session.entry.path,
+        "approvalPolicy": "never"
+    });
+    let thread_result = session.send_request("thread/start", thread_params).await?;
+
+    if let Some(error) = thread_result.get("error") {
+        let error_msg = error
+            .get("message")
+            .and_then(|m| m.as_str())
+            .unwrap_or("Unknown error starting thread");
+        return Err(error_msg.to_string());
+    }
+
+    let thread_id = thread_result
+        .get("result")
+        .and_then(|r| r.get("threadId"))
+        .or_else(|| thread_result.get("result").and_then(|r| r.get("thread")).and_then(|t| t.get("id")))
+        .or_else(|| thread_result.get("threadId"))
+        .or_else(|| thread_result.get("thread").and_then(|t| t.get("id")))
+        .and_then(|t| t.as_str())
+        .ok_or_else(|| format!("Failed to get threadId from thread/start response: {:?}", thread_result))?
+        .to_string();
+
+    let (tx, mut rx) = mpsc::unbounded_channel::<Value>();
+    {
+        let mut callbacks = session.background_thread_callbacks.lock().await;
+        callbacks.insert(thread_id.clone(), tx);
+    }
+
+    let turn_params = json!({
+        "threadId": thread_id,
+        "input": [{ "type": "text", "text": title_prompt }],
+        "cwd": session.entry.path,
+        "approvalPolicy": "never",
+        "sandboxPolicy": { "type": "readOnly" },
+    });
+    let turn_result = session.send_request("turn/start", turn_params).await;
+    let turn_result = match turn_result {
+        Ok(result) => result,
+        Err(error) => {
+            {
+                let mut callbacks = session.background_thread_callbacks.lock().await;
+                callbacks.remove(&thread_id);
+            }
+            let archive_params = json!({ "threadId": thread_id.as_str() });
+            let _ = session.send_request("thread/archive", archive_params).await;
+            return Err(error);
+        }
+    };
+
+    if let Some(error) = turn_result.get("error") {
+        let error_msg = error
+            .get("message")
+            .and_then(|m| m.as_str())
+            .unwrap_or("Unknown error starting turn");
+        {
+            let mut callbacks = session.background_thread_callbacks.lock().await;
+            callbacks.remove(&thread_id);
+        }
+        let archive_params = json!({ "threadId": thread_id.as_str() });
+        let _ = session.send_request("thread/archive", archive_params).await;
+        return Err(error_msg.to_string());
+    }
+
+    let mut response_text = String::new();
+    let timeout_duration = Duration::from_secs(60);
+    let collect_result = timeout(timeout_duration, async {
+        while let Some(event) = rx.recv().await {
+            let method = event.get("method").and_then(|m| m.as_str()).unwrap_or("");
+            match method {
+                "item/agentMessage/delta" => {
+                    if let Some(params) = event.get("params") {
+                        if let Some(delta) = params.get("delta").and_then(|d| d.as_str()) {
+                            response_text.push_str(delta);
+                        }
+                    }
+                }
+                "turn/completed" => break,
+                "turn/error" => {
+                    let error_msg = event
+                        .get("params")
+                        .and_then(|p| p.get("error"))
+                        .and_then(|e| e.as_str())
+                        .unwrap_or("Unknown error during metadata generation");
+                    return Err(error_msg.to_string());
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    })
+    .await;
+
+    {
+        let mut callbacks = session.background_thread_callbacks.lock().await;
+        callbacks.remove(&thread_id);
+    }
+
+    let archive_params = json!({ "threadId": thread_id });
+    let _ = session.send_request("thread/archive", archive_params).await;
+
+    match collect_result {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => return Err(e),
+        Err(_) => return Err("Timeout waiting for metadata generation".to_string()),
+    }
+
+    let trimmed = response_text.trim();
+    if trimmed.is_empty() {
+        return Err("No metadata was generated".to_string());
+    }
+
+    let json_value = extract_json_value(trimmed)
+        .ok_or_else(|| "Failed to parse metadata JSON".to_string())?;
+    let title = json_value
+        .get("title")
+        .and_then(|v| v.as_str())
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| "Missing title in metadata".to_string())?;
+    let worktree_name = json_value
+        .get("worktreeName")
+        .or_else(|| json_value.get("worktree_name"))
+        .and_then(|v| v.as_str())
+        .map(|v| sanitize_run_worktree_name(v))
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| "Missing worktree name in metadata".to_string())?;
+
+    Ok(json!({
+        "title": title,
+        "worktreeName": worktree_name
+    }))
+}
+
+fn extract_json_value(raw: &str) -> Option<Value> {
+    let start = raw.find('{')?;
+    let end = raw.rfind('}')?;
+    if end <= start {
+        return None;
+    }
+    serde_json::from_str::<Value>(&raw[start..=end]).ok()
+}
+
+fn sanitize_run_worktree_name(value: &str) -> String {
+    let trimmed = value.trim().to_lowercase();
+    let mut cleaned = String::new();
+    let mut last_dash = false;
+    for ch in trimmed.chars() {
+        let next = if ch.is_ascii_alphanumeric() || ch == '/' {
+            last_dash = false;
+            Some(ch)
+        } else if ch == '-' || ch.is_whitespace() || ch == '_' {
+            if last_dash {
+                None
+            } else {
+                last_dash = true;
+                Some('-')
+            }
+        } else {
+            None
+        };
+        if let Some(ch) = next {
+            cleaned.push(ch);
+        }
+    }
+    while cleaned.ends_with('-') || cleaned.ends_with('/') {
+        cleaned.pop();
+    }
+    if cleaned.starts_with("fix/") || cleaned.starts_with("feat/") {
+        cleaned
+    } else if cleaned.starts_with("fix-") {
+        cleaned.replacen("fix-", "fix/", 1)
+    } else if cleaned.starts_with("feat-") {
+        cleaned.replacen("feat-", "feat/", 1)
+    } else {
+        format!("feat/{}", cleaned.trim_start_matches('/'))
+    }
+}
