@@ -74,15 +74,40 @@ const buildRunTitle = (prompt: string) => {
   return normalized;
 };
 
-const buildWorktreeBranch = (prompt: string) => {
+const PREFIX_RULES: Array<{ prefix: string; keywords: string[] }> = [
+  { prefix: "test", keywords: ["test", "tests", "testing"] },
+  { prefix: "docs", keywords: ["doc", "docs", "documentation", "readme"] },
+  { prefix: "chore", keywords: ["chore", "cleanup", "maintenance"] },
+  { prefix: "refactor", keywords: ["refactor"] },
+  { prefix: "perf", keywords: ["perf", "performance", "optimize", "optimization"] },
+  { prefix: "build", keywords: ["build", "bundle", "compile"] },
+  { prefix: "ci", keywords: ["ci", "pipeline", "workflow"] },
+  { prefix: "style", keywords: ["style", "format", "lint"] },
+  {
+    prefix: "fix",
+    keywords: [
+      "fix",
+      "bug",
+      "error",
+      "issue",
+      "broken",
+      "regression",
+      "crash",
+      "failure",
+    ],
+  },
+];
+
+const resolveWorktreePrefix = (prompt: string) => {
   const lower = prompt.toLowerCase();
-  const isFix =
-    lower.includes("fix") ||
-    lower.includes("bug") ||
-    lower.includes("error") ||
-    lower.includes("issue") ||
-    lower.includes("broken") ||
-    lower.includes("regression");
+  const matched = PREFIX_RULES.find((rule) =>
+    rule.keywords.some((keyword) => lower.includes(keyword)),
+  );
+  return matched?.prefix ?? "feat";
+};
+
+const buildWorktreeBranch = (prompt: string) => {
+  const prefix = resolveWorktreePrefix(prompt);
   const base = prompt
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, " ")
@@ -91,7 +116,7 @@ const buildWorktreeBranch = (prompt: string) => {
     .slice(0, 4)
     .join("-");
   const slug = base || `run-${Math.random().toString(36).slice(2, 6)}`;
-  return `${isFix ? "fix" : "feat"}/${slug}`;
+  return `${prefix}/${slug}`;
 };
 
 const resolveModelLabel = (model: ModelOption | null, fallback: string) =>
@@ -102,14 +127,36 @@ const normalizeWorktreeName = (value: string | null | undefined) => {
     return null;
   }
   const trimmed = value.trim().toLowerCase();
-  if (trimmed.startsWith("fix/") || trimmed.startsWith("feat/")) {
+  if (
+    trimmed.startsWith("fix/") ||
+    trimmed.startsWith("feat/") ||
+    trimmed.startsWith("chore/") ||
+    trimmed.startsWith("test/") ||
+    trimmed.startsWith("docs/") ||
+    trimmed.startsWith("refactor/") ||
+    trimmed.startsWith("perf/") ||
+    trimmed.startsWith("build/") ||
+    trimmed.startsWith("ci/") ||
+    trimmed.startsWith("style/")
+  ) {
     return trimmed;
   }
-  if (trimmed.startsWith("fix-")) {
-    return `fix/${trimmed.slice(4)}`;
-  }
-  if (trimmed.startsWith("feat-")) {
-    return `feat/${trimmed.slice(5)}`;
+  const dashPrefixes = [
+    ["fix-", "fix/"],
+    ["feat-", "feat/"],
+    ["chore-", "chore/"],
+    ["test-", "test/"],
+    ["docs-", "docs/"],
+    ["refactor-", "refactor/"],
+    ["perf-", "perf/"],
+    ["build-", "build/"],
+    ["ci-", "ci/"],
+    ["style-", "style/"],
+  ];
+  for (const [dash, slash] of dashPrefixes) {
+    if (trimmed.startsWith(dash)) {
+      return `${slash}${trimmed.slice(dash.length)}`;
+    }
   }
   return `feat/${trimmed.replace(/^\//, "")}`;
 };

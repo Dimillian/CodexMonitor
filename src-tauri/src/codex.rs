@@ -795,14 +795,18 @@ pub(crate) async fn generate_run_metadata(
         "You create concise run metadata for a coding task.\n\
 Return ONLY a JSON object with keys:\n\
 - title: short, clear, 3-7 words, Title Case\n\
-- worktreeName: lower-case, kebab-case slug prefixed with fix/ or feat/.\n\
+- worktreeName: lower-case, kebab-case slug prefixed with one of: \
+feat/, fix/, chore/, test/, docs/, refactor/, perf/, build/, ci/, style/.\n\
 \n\
 Choose fix/ when the task is a bug fix, error, regression, crash, or cleanup. \
+Use the closest match for chores/tests/docs/refactors/perf/build/ci/style. \
 Otherwise use feat/.\n\
 \n\
 Examples:\n\
 {{\"title\":\"Fix Login Redirect Loop\",\"worktreeName\":\"fix/login-redirect-loop\"}}\n\
 {{\"title\":\"Add Workspace Home View\",\"worktreeName\":\"feat/workspace-home\"}}\n\
+{{\"title\":\"Update Lint Config\",\"worktreeName\":\"chore/update-lint-config\"}}\n\
+{{\"title\":\"Add Coverage Tests\",\"worktreeName\":\"test/add-coverage-tests\"}}\n\
 \n\
 Task:\n{cleaned_prompt}"
     );
@@ -976,13 +980,18 @@ fn sanitize_run_worktree_name(value: &str) -> String {
     while cleaned.ends_with('-') || cleaned.ends_with('/') {
         cleaned.pop();
     }
-    if cleaned.starts_with("fix/") || cleaned.starts_with("feat/") {
-        cleaned
-    } else if cleaned.starts_with("fix-") {
-        cleaned.replacen("fix-", "fix/", 1)
-    } else if cleaned.starts_with("feat-") {
-        cleaned.replacen("feat-", "feat/", 1)
-    } else {
-        format!("feat/{}", cleaned.trim_start_matches('/'))
+    let allowed_prefixes = [
+        "feat/", "fix/", "chore/", "test/", "docs/", "refactor/", "perf/",
+        "build/", "ci/", "style/",
+    ];
+    if allowed_prefixes.iter().any(|prefix| cleaned.starts_with(prefix)) {
+        return cleaned;
     }
+    for prefix in allowed_prefixes.iter() {
+        let dash_prefix = prefix.replace('/', "-");
+        if cleaned.starts_with(&dash_prefix) {
+            return cleaned.replacen(&dash_prefix, prefix, 1);
+        }
+    }
+    format!("feat/{}", cleaned.trim_start_matches('/'))
 }
