@@ -1701,6 +1701,8 @@ function MainApp() {
       onDismissDictationError={clearDictationError}
       dictationHint={dictationHint}
       onDismissDictationHint={clearDictationHint}
+      dictationTranscript={dictationTranscript}
+      onDictationTranscriptHandled={clearDictationTranscript}
     />
   ) : null;
 

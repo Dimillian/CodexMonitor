@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import type { ModelOption, WorkspaceInfo } from "../../../types";
+import type { DictationTranscript, ModelOption, WorkspaceInfo } from "../../../types";
 import { ComposerInput } from "../../composer/components/ComposerInput";
 import { useComposerImages } from "../../composer/hooks/useComposerImages";
 import type { DictationSessionState } from "../../../types";
@@ -10,6 +10,7 @@ import Laptop from "lucide-react/dist/esm/icons/laptop";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
+import { computeDictationInsertion } from "../../../utils/dictation";
 
 type ThreadStatus = {
   isProcessing: boolean;
@@ -45,6 +46,8 @@ type WorkspaceHomeProps = {
   onDismissDictationError: () => void;
   dictationHint: string | null;
   onDismissDictationHint: () => void;
+  dictationTranscript: DictationTranscript | null;
+  onDictationTranscriptHandled: (id: string) => void;
 };
 
 const INSTANCE_OPTIONS = [1, 2, 3, 4];
@@ -86,10 +89,13 @@ export function WorkspaceHome({
   onDismissDictationError,
   dictationHint,
   onDismissDictationHint,
+  dictationTranscript,
+  onDictationTranscriptHandled,
 }: WorkspaceHomeProps) {
   const [showIcon, setShowIcon] = useState(true);
   const [runModeOpen, setRunModeOpen] = useState(false);
   const [modelsOpen, setModelsOpen] = useState(false);
+  const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const iconPath = useMemo(() => buildIconPath(workspace.path), [workspace.path]);
   const iconSrc = useMemo(() => convertFileSrc(iconPath), [iconPath]);
   const runModeRef = useRef<HTMLDivElement | null>(null);
@@ -127,6 +133,42 @@ export function WorkspaceHome({
       document.removeEventListener("mousedown", handleClick);
     };
   }, []);
+
+  useEffect(() => {
+    if (!dictationTranscript) {
+      return;
+    }
+    const textToInsert = dictationTranscript.text.trim();
+    if (!textToInsert) {
+      onDictationTranscriptHandled(dictationTranscript.id);
+      return;
+    }
+    const textarea = textareaRef.current;
+    const start = textarea?.selectionStart ?? selectionStart ?? prompt.length;
+    const end = textarea?.selectionEnd ?? start;
+    const { nextText, nextCursor } = computeDictationInsertion(
+      prompt,
+      textToInsert,
+      start,
+      end,
+    );
+    onPromptChange(nextText);
+    requestAnimationFrame(() => {
+      if (!textareaRef.current) {
+        return;
+      }
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(nextCursor, nextCursor);
+      setSelectionStart(nextCursor);
+    });
+    onDictationTranscriptHandled(dictationTranscript.id);
+  }, [
+    dictationTranscript,
+    onDictationTranscriptHandled,
+    onPromptChange,
+    prompt,
+    selectionStart,
+  ]);
 
   const handleRunSubmit = async () => {
     if (!prompt.trim() && activeImages.length === 0) {
@@ -211,10 +253,13 @@ export function WorkspaceHome({
             }}
             onAttachImages={attachImages}
             onRemoveAttachment={removeImage}
-            onTextChange={(next) => {
+            onTextChange={(next, cursor) => {
               onPromptChange(next);
+              if (cursor !== null) {
+                setSelectionStart(cursor);
+              }
             }}
-            onSelectionChange={() => {}}
+            onSelectionChange={setSelectionStart}
             onKeyDown={handleComposerKeyDown}
             isExpanded={false}
             onToggleExpand={undefined}
