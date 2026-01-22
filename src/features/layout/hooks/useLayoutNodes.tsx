@@ -23,6 +23,7 @@ import type {
   BranchInfo,
   CollaborationModeOption,
   ConversationItem,
+  ComposerEditorSettings,
   CustomPromptOption,
   DebugEntry,
   DictationSessionState,
@@ -99,6 +100,7 @@ type LayoutNodesOptions = {
   activeThreadId: string | null;
   activeItems: ConversationItem[];
   activeRateLimits: RateLimitSnapshot | null;
+  codeBlockCopyUseModifier: boolean;
   approvals: ApprovalRequest[];
   handleApprovalDecision: (
     request: ApprovalRequest,
@@ -323,6 +325,9 @@ type LayoutNodesOptions = {
   prompts: CustomPromptOption[];
   files: string[];
   textareaRef: RefObject<HTMLTextAreaElement | null>;
+  composerEditorSettings: ComposerEditorSettings;
+  composerEditorExpanded: boolean;
+  onToggleComposerEditorExpanded: () => void;
   dictationEnabled: boolean;
   dictationState: DictationSessionState;
   dictationLevel: number;
@@ -433,6 +438,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       items={options.activeItems}
       threadId={options.activeThreadId ?? null}
       workspacePath={options.activeWorkspace?.path ?? null}
+      codeBlockCopyUseModifier={options.codeBlockCopyUseModifier}
       isThinking={
         options.activeThreadId
           ? options.threadStatusById[options.activeThreadId]?.isProcessing ?? false
@@ -485,6 +491,9 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       prompts={options.prompts}
       files={options.files}
       textareaRef={options.textareaRef}
+      editorSettings={options.composerEditorSettings}
+      editorExpanded={options.composerEditorExpanded}
+      onToggleEditorExpanded={options.onToggleComposerEditorExpanded}
       dictationEnabled={options.dictationEnabled}
       dictationState={options.dictationState}
       dictationLevel={options.dictationLevel}

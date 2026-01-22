@@ -537,6 +537,11 @@
   justify-content: flex-end;
 }
 
+.app.reduced-transparency .settings-toggle:not(.on) {
+  background: var(--surface-control-hover);
+  border-color: var(--border-stronger);
+}
+
 .settings-toggle-knob {
   width: 16px;
   height: 16px;

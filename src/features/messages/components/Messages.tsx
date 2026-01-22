@@ -25,6 +25,7 @@ type MessagesProps = {
   processingStartedAt?: number | null;
   lastDurationMs?: number | null;
   workspacePath?: string | null;
+  codeBlockCopyUseModifier?: boolean;
 };
 
 type ToolSummary = {
@@ -47,6 +48,7 @@ type MessageRowProps = {
   item: Extract<ConversationItem, { kind: "message" }>;
   isCopied: boolean;
   onCopy: (item: Extract<ConversationItem, { kind: "message" }>) => void;
+  codeBlockCopyUseModifier?: boolean;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
 };
@@ -408,6 +410,7 @@ const MessageRow = memo(function MessageRow({
   item,
   isCopied,
   onCopy,
+  codeBlockCopyUseModifier,
   onOpenFileLink,
   onOpenFileLinkMenu,
 }: MessageRowProps) {
@@ -417,6 +420,8 @@ const MessageRow = memo(function MessageRow({
         <Markdown
           value={item.text}
           className="markdown"
+          codeBlockStyle="message"
+          codeBlockCopyUseModifier={codeBlockCopyUseModifier}
           onOpenFileLink={onOpenFileLink}
           onOpenFileLinkMenu={onOpenFileLinkMenu}
         />
@@ -687,6 +692,7 @@ export const Messages = memo(function Messages({
   processingStartedAt = null,
   lastDurationMs = null,
   workspacePath = null,
+  codeBlockCopyUseModifier = false,
 }: MessagesProps) {
   const SCROLL_THRESHOLD_PX = 120;
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -806,6 +812,7 @@ export const Messages = memo(function Messages({
           item={item}
           isCopied={isCopied}
           onCopy={handleCopyMessage}
+          codeBlockCopyUseModifier={codeBlockCopyUseModifier}
           onOpenFileLink={openFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
         />

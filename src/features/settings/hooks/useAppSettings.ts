@@ -48,6 +48,15 @@ const defaultSettings: AppSettings = {
   dictationModelId: "base",
   dictationPreferredLanguage: null,
   dictationHoldKey: "alt",
+  composerEditorPreset: "default",
+  composerFenceExpandOnSpace: false,
+  composerFenceExpandOnEnter: false,
+  composerFenceLanguageTags: false,
+  composerFenceWrapSelection: false,
+  composerFenceAutoWrapPasteMultiline: false,
+  composerFenceAutoWrapPasteCodeLike: false,
+  composerListContinuation: false,
+  composerCodeBlockCopyUseModifier: false,
   workspaceGroups: [],
 };
 

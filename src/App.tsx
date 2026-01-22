@@ -60,6 +60,7 @@ import { useAppSettingsController } from "./features/app/hooks/useAppSettingsCon
 import { useUpdaterController } from "./features/app/hooks/useUpdaterController";
 import { useComposerShortcuts } from "./features/composer/hooks/useComposerShortcuts";
 import { useComposerMenuActions } from "./features/composer/hooks/useComposerMenuActions";
+import { useComposerEditorState } from "./features/composer/hooks/useComposerEditorState";
 import { useDictationController } from "./features/app/hooks/useDictationController";
 import { useComposerController } from "./features/app/hooks/useComposerController";
 import { useRenameThreadPrompt } from "./features/threads/hooks/useRenameThreadPrompt";
@@ -84,6 +85,7 @@ import { useGitCommitController } from "./features/app/hooks/useGitCommitControl
 import { pickWorkspacePath } from "./services/tauri";
 import type {
   AccessMode,
+  ComposerEditorSettings,
   WorkspaceInfo,
 } from "./types";
 
@@ -504,6 +506,33 @@ function MainApp() {
     setAppSettings,
     queueSaveSettings,
   });
+
+  const { isExpanded: composerEditorExpanded, toggleExpanded: toggleComposerEditorExpanded } =
+    useComposerEditorState();
+
+  const composerEditorSettings = useMemo<ComposerEditorSettings>(
+    () => ({
+      preset: appSettings.composerEditorPreset,
+      expandFenceOnSpace: appSettings.composerFenceExpandOnSpace,
+      expandFenceOnEnter: appSettings.composerFenceExpandOnEnter,
+      fenceLanguageTags: appSettings.composerFenceLanguageTags,
+      fenceWrapSelection: appSettings.composerFenceWrapSelection,
+      autoWrapPasteMultiline: appSettings.composerFenceAutoWrapPasteMultiline,
+      autoWrapPasteCodeLike: appSettings.composerFenceAutoWrapPasteCodeLike,
+      continueListOnShiftEnter: appSettings.composerListContinuation,
+    }),
+    [
+      appSettings.composerEditorPreset,
+      appSettings.composerFenceExpandOnSpace,
+      appSettings.composerFenceExpandOnEnter,
+      appSettings.composerFenceLanguageTags,
+      appSettings.composerFenceWrapSelection,
+      appSettings.composerFenceAutoWrapPasteMultiline,
+      appSettings.composerFenceAutoWrapPasteCodeLike,
+      appSettings.composerListContinuation,
+    ],
+  );
+
 
   useSyncSelectedDiffPath({
     diffSource,
@@ -1285,6 +1314,7 @@ function MainApp() {
     activeThreadId,
     activeItems,
     activeRateLimits,
+    codeBlockCopyUseModifier: appSettings.composerCodeBlockCopyUseModifier,
     approvals,
     handleApprovalDecision,
     handleApprovalRemember,
@@ -1558,6 +1588,9 @@ function MainApp() {
     prompts,
     files,
     textareaRef: composerInputRef,
+    composerEditorSettings,
+    composerEditorExpanded,
+    onToggleComposerEditorExpanded: toggleComposerEditorExpanded,
     dictationEnabled: appSettings.dictationEnabled && dictationReady,
     dictationState,
     dictationLevel,

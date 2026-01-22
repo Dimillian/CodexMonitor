@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ClipboardEvent } from "react";
 import type {
+  ComposerEditorSettings,
   CustomPromptOption,
   DictationTranscript,
   QueuedMessage,
@@ -7,6 +8,14 @@ import type {
 } from "../../../types";
 import { computeDictationInsertion } from "../../../utils/dictation";
 import { isComposingEvent } from "../../../utils/keys";
+import {
+  getFenceTriggerLine,
+  getLineIndent,
+  getListContinuation,
+  isCodeLikeSingleLine,
+  isCursorInsideFence,
+  normalizePastedText,
+} from "../../../utils/composerText";
 import { useComposerAutocompleteState } from "../hooks/useComposerAutocompleteState";
 import { ComposerInput } from "./ComposerInput";
 import { ComposerMetaBar } from "./ComposerMetaBar";
@@ -50,6 +59,9 @@ type ComposerProps = {
   insertText?: QueuedMessage | null;
   onInsertHandled?: (id: string) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
+  editorSettings?: ComposerEditorSettings;
+  editorExpanded?: boolean;
+  onToggleEditorExpanded?: () => void;
   dictationEnabled?: boolean;
   dictationState?: "idle" | "listening" | "processing";
   dictationLevel?: number;
@@ -61,6 +73,17 @@ type ComposerProps = {
   onDismissDictationError?: () => void;
   dictationHint?: string | null;
   onDismissDictationHint?: () => void;
+};
+
+const DEFAULT_EDITOR_SETTINGS: ComposerEditorSettings = {
+  preset: "default",
+  expandFenceOnSpace: false,
+  expandFenceOnEnter: false,
+  fenceLanguageTags: false,
+  fenceWrapSelection: false,
+  autoWrapPasteMultiline: false,
+  autoWrapPasteCodeLike: false,
+  continueListOnShiftEnter: false,
 };
 
 export function Composer({
@@ -101,6 +124,9 @@ export function Composer({
   insertText = null,
   onInsertHandled,
   textareaRef: externalTextareaRef,
+  editorSettings: editorSettingsProp,
+  editorExpanded = false,
+  onToggleEditorExpanded,
   dictationEnabled = false,
   dictationState = "idle",
   dictationLevel = 0,
@@ -117,8 +143,18 @@ export function Composer({
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const internalRef = useRef<HTMLTextAreaElement | null>(null);
   const textareaRef = externalTextareaRef ?? internalRef;
+  const editorSettings = editorSettingsProp ?? DEFAULT_EDITOR_SETTINGS;
   const isDictationBusy = dictationState !== "idle";
   const canSend = text.trim().length > 0 || attachedImages.length > 0;
+  const {
+    expandFenceOnSpace,
+    expandFenceOnEnter,
+    fenceLanguageTags,
+    fenceWrapSelection,
+    autoWrapPasteMultiline,
+    autoWrapPasteCodeLike,
+    continueListOnShiftEnter,
+  } = editorSettings;
 
   useEffect(() => {
     setText((prev) => (prev === draftText ? prev : draftText));
@@ -231,6 +267,120 @@ export function Composer({
     textareaRef,
   ]);
 
+  const applyTextInsertion = useCallback(
+    (nextText: string, nextCursor: number) => {
+      setComposerText(nextText);
+      requestAnimationFrame(() => {
+        const textarea = textareaRef.current;
+        if (!textarea) {
+          return;
+        }
+        textarea.focus();
+        textarea.setSelectionRange(nextCursor, nextCursor);
+        handleSelectionChange(nextCursor);
+      });
+    },
+    [handleSelectionChange, setComposerText, textareaRef],
+  );
+
+  const handleTextPaste = useCallback(
+    (event: ClipboardEvent<HTMLTextAreaElement>) => {
+      if (disabled) {
+        return;
+      }
+      if (!autoWrapPasteMultiline && !autoWrapPasteCodeLike) {
+        return;
+      }
+      const pasted = event.clipboardData?.getData("text/plain") ?? "";
+      if (!pasted) {
+        return;
+      }
+      const textarea = textareaRef.current;
+      if (!textarea) {
+        return;
+      }
+      const start = textarea.selectionStart ?? text.length;
+      const end = textarea.selectionEnd ?? start;
+      if (isCursorInsideFence(text, start)) {
+        return;
+      }
+      const normalized = normalizePastedText(pasted);
+      if (!normalized) {
+        return;
+      }
+      const isMultiline = normalized.includes("\n");
+      if (isMultiline && !autoWrapPasteMultiline) {
+        return;
+      }
+      if (
+        !isMultiline &&
+        !(autoWrapPasteCodeLike && isCodeLikeSingleLine(normalized))
+      ) {
+        return;
+      }
+      event.preventDefault();
+      const indent = getLineIndent(text, start);
+      const content = indent
+        ? normalized
+            .split("\n")
+            .map((line) => `${indent}${line}`)
+            .join("\n")
+        : normalized;
+      const before = text.slice(0, start);
+      const after = text.slice(end);
+      const block = `${indent}\`\`\`\n${content}\n${indent}\`\`\``;
+      const nextText = `${before}${block}${after}`;
+      const nextCursor = before.length + block.length;
+      applyTextInsertion(nextText, nextCursor);
+    },
+    [
+      applyTextInsertion,
+      autoWrapPasteCodeLike,
+      autoWrapPasteMultiline,
+      disabled,
+      text,
+      textareaRef,
+    ],
+  );
+
+  const tryExpandFence = useCallback(
+    (start: number, end: number) => {
+      if (start !== end && !fenceWrapSelection) {
+        return false;
+      }
+      const fence = getFenceTriggerLine(text, start, fenceLanguageTags);
+      if (!fence) {
+        return false;
+      }
+      const before = text.slice(0, fence.lineStart);
+      const after = text.slice(fence.lineEnd);
+      const openFence = `${fence.indent}\`\`\`${fence.tag}`;
+      const closeFence = `${fence.indent}\`\`\``;
+      if (fenceWrapSelection && start !== end) {
+        const selection = normalizePastedText(text.slice(start, end));
+        const content = fence.indent
+          ? selection
+              .split("\n")
+              .map((line) => `${fence.indent}${line}`)
+              .join("\n")
+          : selection;
+        const block = `${openFence}\n${content}\n${closeFence}`;
+        const nextText = `${before}${block}${after}`;
+        const nextCursor = before.length + block.length;
+        applyTextInsertion(nextText, nextCursor);
+        return true;
+      }
+      const block = `${openFence}\n${fence.indent}\n${closeFence}`;
+      const nextText = `${before}${block}${after}`;
+      const nextCursor =
+        before.length + openFence.length + 1 + fence.indent.length;
+      applyTextInsertion(nextText, nextCursor);
+      return true;
+    },
+    [applyTextInsertion, fenceLanguageTags, fenceWrapSelection, text],
+  );
+
+
   return (
     <footer className={`composer${disabled ? " is-disabled" : ""}`}>
       <ComposerQueue
@@ -262,11 +412,52 @@ export function Composer({
         onRemoveAttachment={onRemoveImage}
         onTextChange={handleTextChange}
         onSelectionChange={handleSelectionChange}
+        onTextPaste={handleTextPaste}
+        isExpanded={editorExpanded}
+        onToggleExpand={onToggleEditorExpanded}
         onKeyDown={(event) => {
           if (isComposingEvent(event)) {
             return;
           }
+          if (
+            expandFenceOnSpace &&
+            event.key === " " &&
+            !event.shiftKey &&
+            !event.metaKey &&
+            !event.ctrlKey &&
+            !event.altKey
+          ) {
+            const textarea = textareaRef.current;
+            if (!textarea) {
+              return;
+            }
+            const start = textarea.selectionStart ?? text.length;
+            const end = textarea.selectionEnd ?? start;
+            if (tryExpandFence(start, end)) {
+              event.preventDefault();
+              return;
+            }
+          }
           if (event.key === "Enter" && event.shiftKey) {
+            if (continueListOnShiftEnter && !isAutocompleteOpen) {
+              const textarea = textareaRef.current;
+              if (textarea) {
+                const start = textarea.selectionStart ?? text.length;
+                const end = textarea.selectionEnd ?? start;
+                if (start === end) {
+                  const marker = getListContinuation(text, start);
+                  if (marker) {
+                    event.preventDefault();
+                    const before = text.slice(0, start);
+                    const after = text.slice(end);
+                    const nextText = `${before}\n${marker}${after}`;
+                    const nextCursor = before.length + 1 + marker.length;
+                    applyTextInsertion(nextText, nextCursor);
+                    return;
+                  }
+                }
+              }
+            }
             event.preventDefault();
             const textarea = textareaRef.current;
             if (!textarea) {
@@ -276,12 +467,7 @@ export function Composer({
             const end = textarea.selectionEnd ?? start;
             const nextText = `${text.slice(0, start)}\n${text.slice(end)}`;
             const nextCursor = start + 1;
-            setComposerText(nextText);
-            requestAnimationFrame(() => {
-              textarea.focus();
-              textarea.setSelectionRange(nextCursor, nextCursor);
-              handleSelectionChange(nextCursor);
-            });
+            applyTextInsertion(nextText, nextCursor);
             return;
           }
           if (
@@ -300,6 +486,17 @@ export function Composer({
             return;
           }
           if (event.key === "Enter" && !event.shiftKey) {
+            if (expandFenceOnEnter) {
+              const textarea = textareaRef.current;
+              if (textarea) {
+                const start = textarea.selectionStart ?? text.length;
+                const end = textarea.selectionEnd ?? start;
+                if (tryExpandFence(start, end)) {
+                  event.preventDefault();
+                  return;
+                }
+              }
+            }
             if (isDictationBusy) {
               event.preventDefault();
               return;
