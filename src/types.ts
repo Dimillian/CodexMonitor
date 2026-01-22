@@ -54,6 +54,7 @@ export type ConversationItem =
       detail: string;
       status?: string;
       output?: string;
+      durationMs?: number | null;
       changes?: { path: string; kind?: string; diff?: string }[];
     };
 

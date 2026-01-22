@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Brain from "lucide-react/dist/esm/icons/brain";
 import Check from "lucide-react/dist/esm/icons/check";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
@@ -77,6 +77,11 @@ type ToolRowProps = {
   onToggle: (id: string) => void;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
+  onRequestAutoScroll?: () => void;
+};
+
+type CommandOutputProps = {
+  output: string;
 };
 
 type ToolGroupItem = Extract<ConversationItem, { kind: "tool" | "reasoning" }>;
@@ -558,6 +563,7 @@ const ToolRow = memo(function ToolRow({
   onToggle,
   onOpenFileLink,
   onOpenFileLinkMenu,
+  onRequestAutoScroll,
 }: ToolRowProps) {
   const isFileChange = item.toolType === "fileChange";
   const isCommand = item.toolType === "commandExecution";
@@ -586,6 +592,36 @@ const ToolRow = memo(function ToolRow({
   const shouldFadeCommand =
     isCommand && !isExpanded && (summaryValue?.length ?? 0) > 80;
   const showToolOutput = isExpanded && (!isFileChange || !hasChanges);
+  const normalizedStatus = (item.status ?? "").toLowerCase();
+  const isCommandRunning = isCommand && /in[_\s-]*progress|running|started/.test(normalizedStatus);
+  const commandDurationMs =
+    typeof item.durationMs === "number" ? item.durationMs : null;
+  const isLongRunning = commandDurationMs !== null && commandDurationMs >= 1200;
+  const [showLiveOutput, setShowLiveOutput] = useState(false);
+
+  useEffect(() => {
+    if (!isCommandRunning) {
+      setShowLiveOutput(false);
+      return;
+    }
+    const timeoutId = window.setTimeout(() => {
+      setShowLiveOutput(true);
+    }, 600);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [isCommandRunning]);
+
+  const showCommandOutput =
+    isCommand &&
+    summary.output &&
+    (isExpanded || (isCommandRunning && showLiveOutput) || isLongRunning);
+
+  useEffect(() => {
+    if (showCommandOutput && isCommandRunning && showLiveOutput) {
+      onRequestAutoScroll?.();
+    }
+  }, [isCommandRunning, onRequestAutoScroll, showCommandOutput, showLiveOutput]);
   return (
     <div className={`tool-inline ${isExpanded ? "tool-inline-expanded" : ""}`}>
       <button
@@ -671,7 +707,8 @@ const ToolRow = memo(function ToolRow({
             onOpenFileLinkMenu={onOpenFileLinkMenu}
           />
         )}
-        {showToolOutput && summary.output && (
+        {showCommandOutput && <CommandOutput output={summary.output ?? ""} />}
+        {showToolOutput && summary.output && !isCommand && (
           <Markdown
             value={summary.output}
             className="tool-inline-output markdown"
@@ -680,6 +717,66 @@ const ToolRow = memo(function ToolRow({
             onOpenFileLinkMenu={onOpenFileLinkMenu}
           />
         )}
+      </div>
+    </div>
+  );
+});
+
+const CommandOutput = memo(function CommandOutput({ output }: CommandOutputProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [isPinned, setIsPinned] = useState(true);
+  const lines = useMemo(() => {
+    if (!output) {
+      return [];
+    }
+    return output.split(/\r?\n/);
+  }, [output]);
+  const maxStoredLines = 200;
+  const lineWindow = useMemo(() => {
+    if (lines.length <= maxStoredLines) {
+      return { offset: 0, lines };
+    }
+    const startIndex = lines.length - maxStoredLines;
+    return { offset: startIndex, lines: lines.slice(startIndex) };
+  }, [lines]);
+
+  const handleScroll = useCallback(() => {
+    const node = containerRef.current;
+    if (!node) {
+      return;
+    }
+    const threshold = 6;
+    const distanceFromBottom = node.scrollHeight - node.scrollTop - node.clientHeight;
+    setIsPinned(distanceFromBottom <= threshold);
+  }, []);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node || !isPinned) {
+      return;
+    }
+    node.scrollTop = node.scrollHeight;
+  }, [lineWindow, isPinned]);
+
+  if (lineWindow.lines.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="tool-inline-terminal" role="log" aria-live="polite">
+      <div
+        className="tool-inline-terminal-lines"
+        ref={containerRef}
+        onScroll={handleScroll}
+      >
+        {lineWindow.lines.map((line, index) => (
+          <div
+            key={`${lineWindow.offset + index}-${line}`}
+            className="tool-inline-terminal-line"
+          >
+            {line || " "}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -716,6 +813,19 @@ export const Messages = memo(function Messages({
     }
     autoScrollRef.current = isNearBottom(containerRef.current);
   };
+
+  const requestAutoScroll = useCallback(() => {
+    if (!bottomRef.current) {
+      return;
+    }
+    const container = containerRef.current;
+    const shouldScroll =
+      autoScrollRef.current || (container ? isNearBottom(container) : true);
+    if (!shouldScroll) {
+      return;
+    }
+    bottomRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [isNearBottom]);
 
   useEffect(() => {
     autoScrollRef.current = true;
@@ -854,6 +964,7 @@ export const Messages = memo(function Messages({
           onToggle={toggleExpanded}
           onOpenFileLink={openFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
+          onRequestAutoScroll={requestAutoScroll}
         />
       );
     }

@@ -564,7 +564,7 @@ export function GitDiffPanel({
   worktreeApplyError = null,
   worktreeApplySuccess = false,
   onApplyWorktreeChanges,
-  onRevertAllChanges,
+  onRevertAllChanges: _onRevertAllChanges,
   branchName,
   totalAdditions,
   totalDeletions,
@@ -960,8 +960,6 @@ export function GitDiffPanel({
   const hasAnyChanges = stagedFiles.length > 0 || unstagedFiles.length > 0;
   const showApplyWorktree =
     mode === "diff" && Boolean(onApplyWorktreeChanges) && hasAnyChanges;
-  const showRevertAll =
-    mode === "diff" && Boolean(onRevertAllChanges) && hasAnyChanges;
   const canGenerateCommitMessage = hasAnyChanges;
   const showGenerateCommitMessage =
     mode === "diff" && Boolean(onGenerateCommitMessage) && hasAnyChanges;
@@ -1005,19 +1003,6 @@ export function GitDiffPanel({
               aria-label="Apply worktree changes"
             >
               {worktreeApplyIcon}
-            </button>
-          )}
-          {showRevertAll && (
-            <button
-              type="button"
-              className="diff-row-action diff-row-action--discard"
-              onClick={() => {
-                void onRevertAllChanges?.();
-              }}
-              data-tooltip="Revert all changes"
-              aria-label="Revert all changes"
-            >
-              <RotateCcw size={12} aria-hidden />
             </button>
           )}
         </div>

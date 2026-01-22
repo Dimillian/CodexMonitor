@@ -540,6 +540,39 @@
   color: var(--text-quiet);
 }
 
+.tool-inline-terminal {
+  background: var(--surface-command);
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--text-quiet);
+  font-family: "SF Mono", "SF Pro Text", ui-monospace, SFMono-Regular, Menlo,
+    Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.tool-inline-terminal-lines {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  line-height: 1.35;
+  max-height: calc(1.35em * 6);
+  min-height: calc(1.35em * 5);
+  overflow-y: auto;
+  overflow-x: hidden;
+  gap: 2px;
+  scrollbar-width: thin;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 18px);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 18px);
+}
+
+.tool-inline-terminal-line {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+
 .tool-group {
   display: flex;
   flex-direction: column;

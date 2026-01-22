@@ -22,6 +22,15 @@ import type {
 import { formatDownloadSize } from "../../../utils/formatting";
 import { buildShortcutValue, formatShortcut } from "../../../utils/shortcuts";
 import { clampUiScale } from "../../../utils/uiScale";
+import {
+  DEFAULT_CODE_FONT_FAMILY,
+  DEFAULT_UI_FONT_FAMILY,
+  CODE_FONT_SIZE_DEFAULT,
+  CODE_FONT_SIZE_MAX,
+  CODE_FONT_SIZE_MIN,
+  clampCodeFontSize,
+  normalizeFontFamily,
+} from "../../../utils/fonts";
 
 const DICTATION_MODELS = [
   { id: "tiny", label: "Tiny", size: "75 MB", note: "Fastest, least accurate." },
@@ -206,6 +215,11 @@ export function SettingsView({
   const [scaleDraft, setScaleDraft] = useState(
     `${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`,
   );
+  const [uiFontDraft, setUiFontDraft] = useState(appSettings.uiFontFamily);
+  const [codeFontDraft, setCodeFontDraft] = useState(appSettings.codeFontFamily);
+  const [codeFontSizeDraft, setCodeFontSizeDraft] = useState(
+    appSettings.codeFontSize,
+  );
   const [overrideDrafts, setOverrideDrafts] = useState<Record<string, string>>({});
   const [groupDrafts, setGroupDrafts] = useState<Record<string, string>>({});
   const [newGroupName, setNewGroupName] = useState("");
@@ -262,6 +276,18 @@ export function SettingsView({
   useEffect(() => {
     setScaleDraft(`${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`);
   }, [appSettings.uiScale]);
+
+  useEffect(() => {
+    setUiFontDraft(appSettings.uiFontFamily);
+  }, [appSettings.uiFontFamily]);
+
+  useEffect(() => {
+    setCodeFontDraft(appSettings.codeFontFamily);
+  }, [appSettings.codeFontFamily]);
+
+  useEffect(() => {
+    setCodeFontSizeDraft(appSettings.codeFontSize);
+  }, [appSettings.codeFontSize]);
 
   useEffect(() => {
     setShortcutDrafts({
@@ -396,6 +422,48 @@ export function SettingsView({
     await onUpdateAppSettings({
       ...appSettings,
       uiScale: 1,
+    });
+  };
+
+  const handleCommitUiFont = async () => {
+    const nextFont = normalizeFontFamily(
+      uiFontDraft,
+      DEFAULT_UI_FONT_FAMILY,
+    );
+    setUiFontDraft(nextFont);
+    if (nextFont === appSettings.uiFontFamily) {
+      return;
+    }
+    await onUpdateAppSettings({
+      ...appSettings,
+      uiFontFamily: nextFont,
+    });
+  };
+
+  const handleCommitCodeFont = async () => {
+    const nextFont = normalizeFontFamily(
+      codeFontDraft,
+      DEFAULT_CODE_FONT_FAMILY,
+    );
+    setCodeFontDraft(nextFont);
+    if (nextFont === appSettings.codeFontFamily) {
+      return;
+    }
+    await onUpdateAppSettings({
+      ...appSettings,
+      codeFontFamily: nextFont,
+    });
+  };
+
+  const handleCommitCodeFontSize = async (nextSize: number) => {
+    const clampedSize = clampCodeFontSize(nextSize);
+    setCodeFontSizeDraft(clampedSize);
+    if (clampedSize === appSettings.codeFontSize) {
+      return;
+    }
+    await onUpdateAppSettings({
+      ...appSettings,
+      codeFontSize: clampedSize,
     });
   };
 
@@ -941,6 +1009,119 @@ export function SettingsView({
                     >
                       Reset
                     </button>
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="ui-font-family">
+                    UI font family
+                  </label>
+                  <div className="settings-field-row">
+                    <input
+                      id="ui-font-family"
+                      type="text"
+                      className="settings-input"
+                      value={uiFontDraft}
+                      onChange={(event) => setUiFontDraft(event.target.value)}
+                      onBlur={() => {
+                        void handleCommitUiFont();
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          void handleCommitUiFont();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => {
+                        setUiFontDraft(DEFAULT_UI_FONT_FAMILY);
+                        void onUpdateAppSettings({
+                          ...appSettings,
+                          uiFontFamily: DEFAULT_UI_FONT_FAMILY,
+                        });
+                      }}
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Applies to all UI text. Leave empty to use the default system font stack.
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="code-font-family">
+                    Code font family
+                  </label>
+                  <div className="settings-field-row">
+                    <input
+                      id="code-font-family"
+                      type="text"
+                      className="settings-input"
+                      value={codeFontDraft}
+                      onChange={(event) => setCodeFontDraft(event.target.value)}
+                      onBlur={() => {
+                        void handleCommitCodeFont();
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          void handleCommitCodeFont();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => {
+                        setCodeFontDraft(DEFAULT_CODE_FONT_FAMILY);
+                        void onUpdateAppSettings({
+                          ...appSettings,
+                          codeFontFamily: DEFAULT_CODE_FONT_FAMILY,
+                        });
+                      }}
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Applies to git diffs and other mono-spaced readouts.
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="code-font-size">
+                    Code font size
+                  </label>
+                  <div className="settings-field-row">
+                    <input
+                      id="code-font-size"
+                      type="range"
+                      min={CODE_FONT_SIZE_MIN}
+                      max={CODE_FONT_SIZE_MAX}
+                      step={1}
+                      className="settings-input settings-input--range"
+                      value={codeFontSizeDraft}
+                      onChange={(event) => {
+                        const nextValue = Number(event.target.value);
+                        setCodeFontSizeDraft(nextValue);
+                        void handleCommitCodeFontSize(nextValue);
+                      }}
+                    />
+                    <div className="settings-scale-value">{codeFontSizeDraft}px</div>
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => {
+                        setCodeFontSizeDraft(CODE_FONT_SIZE_DEFAULT);
+                        void handleCommitCodeFontSize(CODE_FONT_SIZE_DEFAULT);
+                      }}
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Adjusts code and diff text size.
                   </div>
                 </div>
                 <div className="settings-subsection-title">Sounds</div>

@@ -9,6 +9,17 @@ function asString(value: unknown) {
   return typeof value === "string" ? value : value ? String(value) : "";
 }
 
+function asNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
 function truncateText(text: string, maxLength = MAX_ITEM_TEXT) {
   if (text.length <= maxLength) {
     return text;
@@ -172,6 +183,7 @@ export function buildConversationItem(
     const command = Array.isArray(item.command)
       ? item.command.map((part) => asString(part)).join(" ")
       : asString(item.command ?? "");
+    const durationMs = asNumber(item.durationMs ?? item.duration_ms);
     return {
       id,
       kind: "tool",
@@ -180,6 +192,7 @@ export function buildConversationItem(
       detail: asString(item.cwd ?? ""),
       status: asString(item.status ?? ""),
       output: asString(item.aggregatedOutput ?? ""),
+      durationMs,
     };
   }
   if (type === "fileChange") {
