@@ -289,6 +289,7 @@ pub(crate) async fn add_workspace(
 ) -> Result<WorkspaceInfo, String> {
     if remote_backend::is_remote_mode(&*state).await {
         let path = remote_backend::normalize_path_for_remote(path);
+        let codex_bin = codex_bin.map(remote_backend::normalize_path_for_remote);
         let response = remote_backend::call_remote(
             &*state,
             app,
@@ -883,6 +884,7 @@ pub(crate) async fn update_workspace_codex_bin(
     app: AppHandle,
 ) -> Result<WorkspaceInfo, String> {
     if remote_backend::is_remote_mode(&*state).await {
+        let codex_bin = codex_bin.map(remote_backend::normalize_path_for_remote);
         let response = remote_backend::call_remote(
             &*state,
             app,
