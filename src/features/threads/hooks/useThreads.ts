@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import * as Sentry from "@sentry/react";
 import type {
+  AccessMode,
   ApprovalRequest,
   AppServerEvent,
   ConversationItem,
@@ -51,6 +52,14 @@ const MAX_PINS_SOFT_LIMIT = 5;
 type ThreadActivityMap = Record<string, Record<string, number>>;
 type PinnedThreadsMap = Record<string, number>;
 type CustomNamesMap = Record<string, string>;
+
+type SendMessageOptions = {
+  skipPromptExpansion?: boolean;
+  model?: string | null;
+  effort?: string | null;
+  collaborationMode?: Record<string, unknown> | null;
+  accessMode?: AccessMode;
+};
 
 function loadThreadActivity(): ThreadActivityMap {
   if (typeof window === "undefined") {
@@ -1005,7 +1014,6 @@ export function useThreads({
       handleItemUpdate,
       handleTerminalInteraction,
       handleToolOutputDelta,
-      handleTerminalInteraction,
       markProcessing,
       onDebug,
       recordThreadActivity,
@@ -1522,7 +1530,7 @@ export function useThreads({
       threadId: string,
       text: string,
       images: string[] = [],
-      options?: { skipPromptExpansion?: boolean },
+      options?: SendMessageOptions,
     ) => {
       const messageText = text.trim();
       if (!messageText && images.length === 0) {
@@ -1538,15 +1546,26 @@ export function useThreads({
         }
         finalText = promptExpansion?.expanded ?? messageText;
       }
+      const resolvedModel =
+        options?.model !== undefined ? options.model : model;
+      const resolvedEffort =
+        options?.effort !== undefined ? options.effort : effort;
+      const resolvedCollaborationMode =
+        options?.collaborationMode !== undefined
+          ? options.collaborationMode
+          : collaborationMode;
+      const resolvedAccessMode =
+        options?.accessMode !== undefined ? options.accessMode : accessMode;
+
       Sentry.metrics.count("prompt_sent", 1, {
         attributes: {
           workspace_id: workspace.id,
           thread_id: threadId,
           has_images: images.length > 0 ? "true" : "false",
           text_length: String(finalText.length),
-          model: model ?? "unknown",
-          effort: effort ?? "unknown",
-          collaboration_mode: collaborationMode ?? "unknown",
+          model: resolvedModel ?? "unknown",
+          effort: resolvedEffort ?? "unknown",
+          collaboration_mode: resolvedCollaborationMode ?? "unknown",
         },
       });
       recordThreadActivity(workspace.id, threadId);
@@ -1571,9 +1590,9 @@ export function useThreads({
           threadId,
           text: finalText,
           images,
-          model,
-          effort,
-          collaborationMode,
+          model: resolvedModel,
+          effort: resolvedEffort,
+          collaborationMode: resolvedCollaborationMode,
         },
       });
       try {
@@ -1582,7 +1601,13 @@ export function useThreads({
             workspace.id,
             threadId,
             finalText,
-            { model, effort, collaborationMode, accessMode, images },
+            {
+              model: resolvedModel,
+              effort: resolvedEffort,
+              collaborationMode: resolvedCollaborationMode,
+              accessMode: resolvedAccessMode,
+              images,
+            },
           )) as Record<string, unknown>;
         onDebug?.({
           id: `${Date.now()}-server-turn-start`,
@@ -1696,8 +1721,9 @@ export function useThreads({
       threadId: string,
       text: string,
       images: string[] = [],
+      options?: SendMessageOptions,
     ) => {
-      await sendMessageToThread(workspace, threadId, text, images);
+      await sendMessageToThread(workspace, threadId, text, images, options);
     },
     [sendMessageToThread],
   );

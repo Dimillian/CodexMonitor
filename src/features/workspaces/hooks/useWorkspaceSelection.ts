@@ -7,6 +7,7 @@ type UseWorkspaceSelectionOptions = {
   isCompact: boolean;
   setActiveTab: (tab: "projects" | "codex" | "git" | "log") => void;
   setActiveWorkspaceId: (workspaceId: string | null) => void;
+  setActiveThreadId?: (threadId: string | null, workspaceId: string) => void;
   updateWorkspaceSettings: (
     workspaceId: string,
     settings: WorkspaceSettings,
@@ -26,6 +27,7 @@ export function useWorkspaceSelection({
   isCompact,
   setActiveTab,
   setActiveWorkspaceId,
+  setActiveThreadId,
   updateWorkspaceSettings,
   setCenterMode,
   setSelectedDiffPath,
@@ -45,6 +47,7 @@ export function useWorkspaceSelection({
           sidebarCollapsed: false,
         });
       }
+      setActiveThreadId?.(null, workspaceId);
       setActiveWorkspaceId(workspaceId);
       Sentry.metrics.count("workspace_switched", 1, {
         attributes: {
@@ -60,6 +63,7 @@ export function useWorkspaceSelection({
     [
       isCompact,
       setActiveTab,
+      setActiveThreadId,
       setActiveWorkspaceId,
       setSelectedDiffPath,
       updateWorkspaceSettings,

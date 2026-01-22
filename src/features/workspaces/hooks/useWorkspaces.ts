@@ -270,7 +270,11 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     return checks.filter((entry) => entry.isDir).map((entry) => entry.path);
   }, []);
 
-  async function addWorktreeAgent(parent: WorkspaceInfo, branch: string) {
+  async function addWorktreeAgent(
+    parent: WorkspaceInfo,
+    branch: string,
+    options?: { activate?: boolean },
+  ) {
     const trimmed = branch.trim();
     if (!trimmed) {
       return null;
@@ -285,7 +289,9 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     try {
       const workspace = await addWorktreeService(parent.id, trimmed);
       setWorkspaces((prev) => [...prev, workspace]);
-      setActiveWorkspaceId(workspace.id);
+      if (options?.activate !== false) {
+        setActiveWorkspaceId(workspace.id);
+      }
       Sentry.metrics.count("worktree_agent_created", 1, {
         attributes: {
           workspace_id: workspace.id,

@@ -27,6 +27,7 @@ type UsePullRequestComposerOptions = {
     threadId: string,
     text: string,
     images?: string[],
+    options?: { model?: string | null; effort?: string | null },
   ) => Promise<void>;
   clearActiveImages: () => void;
   handleSend: (text: string, images: string[]) => Promise<void>;
