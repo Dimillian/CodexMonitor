@@ -57,6 +57,7 @@ pub fn run() {
     let builder = builder.plugin(tauri_plugin_window_state::Builder::default().build());
 
     builder
+        .plugin(tauri_plugin_liquid_glass::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
@@ -111,6 +112,7 @@ pub fn run() {
             git::get_github_pull_request_diff,
             git::get_github_pull_request_comments,
             workspaces::list_workspace_files,
+            workspaces::read_workspace_file,
             workspaces::open_workspace_in,
             git::list_git_branches,
             git::checkout_git_branch,

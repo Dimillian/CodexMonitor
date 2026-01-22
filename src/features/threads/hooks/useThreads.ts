@@ -725,11 +725,17 @@ export function useThreads({
       }
       const converted = buildConversationItem(item);
       if (converted) {
-        dispatch({ type: "upsertItem", threadId, item: converted });
+        dispatch({
+          type: "upsertItem",
+          workspaceId,
+          threadId,
+          item: converted,
+          hasCustomName: Boolean(getCustomName(workspaceId, threadId)),
+        });
       }
       safeMessageActivity();
     },
-    [applyCollabThreadLinks, markProcessing, safeMessageActivity],
+    [applyCollabThreadLinks, getCustomName, markProcessing, safeMessageActivity],
   );
 
   const handleToolOutputDelta = useCallback(
@@ -1569,15 +1575,6 @@ export function useThreads({
         },
       });
       recordThreadActivity(workspace.id, threadId);
-      const hasCustomName = Boolean(getCustomName(workspace.id, threadId));
-      dispatch({
-        type: "addUserMessage",
-        workspaceId: workspace.id,
-        threadId,
-        text: finalText,
-        images,
-        hasCustomName,
-      });
       markProcessing(threadId, true);
       safeMessageActivity();
       onDebug?.({
@@ -1659,7 +1656,6 @@ export function useThreads({
       collaborationMode,
       customPrompts,
       effort,
-      getCustomName,
       markProcessing,
       model,
       onDebug,

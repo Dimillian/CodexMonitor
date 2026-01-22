@@ -67,8 +67,9 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
         .build(handle)?;
     let check_updates_item =
         MenuItemBuilder::with_id("check_for_updates", "Check for Updates...").build(handle)?;
-    let settings_item =
-        MenuItemBuilder::with_id("file_open_settings", "Settings...").build(handle)?;
+    let settings_item = MenuItemBuilder::with_id("file_open_settings", "Settings...")
+        .accelerator("CmdOrCtrl+,")
+        .build(handle)?;
     let app_menu = Submenu::with_items(
         handle,
         app_name.clone(),

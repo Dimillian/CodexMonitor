@@ -2,7 +2,7 @@
   --sidebar-padding: 20px;
   padding: 36px var(--sidebar-padding) 56px;
   background: var(--surface-sidebar);
-  backdrop-filter: blur(32px) saturate(1.35);
+  backdrop-filter: none;
   border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
@@ -913,6 +913,7 @@
   }
 }
 .app.reduced-transparency .sidebar {
+  background: var(--surface-sidebar-opaque);
   backdrop-filter: none;
 }
 

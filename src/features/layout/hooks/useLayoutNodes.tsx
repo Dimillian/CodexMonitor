@@ -324,6 +324,7 @@ type LayoutNodesOptions = {
   skills: SkillOption[];
   prompts: CustomPromptOption[];
   files: string[];
+  onInsertComposerText: (text: string) => void;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   composerEditorSettings: ComposerEditorSettings;
   composerEditorExpanded: boolean;
@@ -596,11 +597,13 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
   if (options.filePanelMode === "files" && options.activeWorkspace) {
     gitDiffPanelNode = (
       <FileTreePanel
+        workspaceId={options.activeWorkspace.id}
         workspacePath={options.activeWorkspace.path}
         files={options.files}
         isLoading={options.fileTreeLoading}
         filePanelMode={options.filePanelMode}
         onFilePanelModeChange={options.onFilePanelModeChange}
+        onInsertText={options.onInsertComposerText}
       />
     );
   } else if (options.filePanelMode === "prompts") {

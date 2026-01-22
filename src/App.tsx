@@ -64,6 +64,7 @@ import { useComposerMenuActions } from "./features/composer/hooks/useComposerMen
 import { useComposerEditorState } from "./features/composer/hooks/useComposerEditorState";
 import { useDictationController } from "./features/app/hooks/useDictationController";
 import { useComposerController } from "./features/app/hooks/useComposerController";
+import { useComposerInsert } from "./features/app/hooks/useComposerInsert";
 import { useRenameThreadPrompt } from "./features/threads/hooks/useRenameThreadPrompt";
 import { useWorktreePrompt } from "./features/workspaces/hooks/useWorktreePrompt";
 import { useClonePrompt } from "./features/workspaces/hooks/useClonePrompt";
@@ -79,6 +80,7 @@ import { useAppMenuEvents } from "./features/app/hooks/useAppMenuEvents";
 import { useWorkspaceActions } from "./features/app/hooks/useWorkspaceActions";
 import { useWorkspaceCycling } from "./features/app/hooks/useWorkspaceCycling";
 import { useThreadRows } from "./features/app/hooks/useThreadRows";
+import { useLiquidGlassEffect } from "./features/app/hooks/useLiquidGlassEffect";
 import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { useTerminalController } from "./features/terminal/hooks/useTerminalController";
 import { useGitCommitController } from "./features/app/hooks/useGitCommitController";
@@ -145,6 +147,7 @@ function MainApp() {
     handleCopyDebug,
     clearDebugEntries,
   } = useDebugLog();
+  useLiquidGlassEffect({ reduceTransparency, onDebug: addDebugEntry });
   const [accessMode, setAccessMode] = useState<AccessMode>("current");
   const [activeTab, setActiveTab] = useState<
     "projects" | "codex" | "git" | "log"
@@ -876,6 +879,13 @@ function MainApp() {
     connectWorkspace,
     sendUserMessage,
     startReview,
+  });
+
+  const handleInsertComposerText = useComposerInsert({
+    activeThreadId,
+    draftText: activeDraft,
+    onDraftChange: handleDraftChange,
+    textareaRef: composerInputRef,
   });
 
   const {
@@ -1625,6 +1635,7 @@ function MainApp() {
     skills,
     prompts,
     files,
+    onInsertComposerText: handleInsertComposerText,
     textareaRef: composerInputRef,
     composerEditorSettings,
     composerEditorExpanded,

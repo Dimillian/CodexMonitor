@@ -439,6 +439,16 @@ export async function getWorkspaceFiles(workspaceId: string) {
   return invoke<string[]>("list_workspace_files", { workspaceId });
 }
 
+export async function readWorkspaceFile(
+  workspaceId: string,
+  path: string,
+): Promise<{ content: string; truncated: boolean }> {
+  return invoke<{ content: string; truncated: boolean }>("read_workspace_file", {
+    workspaceId,
+    path,
+  });
+}
+
 export async function listGitBranches(workspaceId: string) {
   return invoke<any>("list_git_branches", { workspaceId });
 }

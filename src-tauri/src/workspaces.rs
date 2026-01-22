@@ -1,8 +1,11 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Read;
 use std::path::PathBuf;
 use std::process::Stdio;
 
 use ignore::WalkBuilder;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tauri::{AppHandle, Manager, State};
 use tokio::io::AsyncWriteExt;
@@ -105,6 +108,77 @@ fn list_workspace_files_inner(root: &PathBuf, max_files: usize) -> Vec<String> {
     results
 }
 
+const MAX_WORKSPACE_FILE_BYTES: u64 = 400_000;
+
+#[derive(Serialize, Deserialize, Clone)]
+pub(crate) struct WorkspaceFileResponse {
+    content: String,
+    truncated: bool,
+}
+
+fn read_workspace_file_inner(
+    root: &PathBuf,
+    relative_path: &str,
+) -> Result<WorkspaceFileResponse, String> {
+    let canonical_root = root
+        .canonicalize()
+        .map_err(|err| format!("Failed to resolve workspace root: {err}"))?;
+    let candidate = canonical_root.join(relative_path);
+    let canonical_path = candidate
+        .canonicalize()
+        .map_err(|err| format!("Failed to open file: {err}"))?;
+    if !canonical_path.starts_with(&canonical_root) {
+        return Err("Invalid file path".to_string());
+    }
+    let metadata = std::fs::metadata(&canonical_path)
+        .map_err(|err| format!("Failed to read file metadata: {err}"))?;
+    if !metadata.is_file() {
+        return Err("Path is not a file".to_string());
+    }
+
+    let mut file =
+        File::open(&canonical_path).map_err(|err| format!("Failed to open file: {err}"))?;
+    let mut buffer = Vec::new();
+    file.take(MAX_WORKSPACE_FILE_BYTES + 1)
+        .read_to_end(&mut buffer)
+        .map_err(|err| format!("Failed to read file: {err}"))?;
+
+    let truncated = buffer.len() > MAX_WORKSPACE_FILE_BYTES as usize;
+    if truncated {
+        buffer.truncate(MAX_WORKSPACE_FILE_BYTES as usize);
+    }
+
+    let content =
+        String::from_utf8(buffer).map_err(|_| "File is not valid UTF-8".to_string())?;
+    Ok(WorkspaceFileResponse { content, truncated })
+}
+
+#[tauri::command]
+pub(crate) async fn read_workspace_file(
+    workspace_id: String,
+    path: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<WorkspaceFileResponse, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let response = remote_backend::call_remote(
+            &*state,
+            app,
+            "read_workspace_file",
+            json!({ "workspaceId": workspace_id, "path": path }),
+        )
+        .await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?;
+    let root = PathBuf::from(&entry.path);
+    read_workspace_file_inner(&root, &path)
+}
+
 fn sort_workspaces(list: &mut Vec<WorkspaceInfo>) {
     list.sort_by(|a, b| {
         let a_order = a.settings.sort_order.unwrap_or(u32::MAX);
@@ -131,7 +205,7 @@ fn apply_workspace_settings_update(
 }
 
 async fn run_git_command(repo_path: &PathBuf, args: &[&str]) -> Result<String, String> {
-  let output = Command::new("git")
+    let output = Command::new("git")
         .args(args)
         .current_dir(repo_path)
         .output()

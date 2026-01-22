@@ -368,6 +368,8 @@ export function GitDiffViewer({
   const ignoreActivePathUntilRef = useRef<number>(0);
   const lastScrollRequestIdRef = useRef<number | null>(null);
   const onActivePathChangeRef = useRef(onActivePathChange);
+  const rowResizeObserversRef = useRef(new Map<Element, ResizeObserver>());
+  const rowNodesByPathRef = useRef(new Map<string, HTMLDivElement>());
   const hasActivePathHandler = Boolean(onActivePathChange);
   const poolOptions = useMemo(() => ({ workerFactory }), []);
   const highlighterOptions = useMemo(
@@ -388,6 +390,33 @@ export function GitDiffViewer({
     overscan: 6,
   });
   const virtualItems = rowVirtualizer.getVirtualItems();
+  const setRowRef = useCallback(
+    (path: string) => (node: HTMLDivElement | null) => {
+      const prevNode = rowNodesByPathRef.current.get(path);
+      if (prevNode && prevNode !== node) {
+        const prevObserver = rowResizeObserversRef.current.get(prevNode);
+        if (prevObserver) {
+          prevObserver.disconnect();
+          rowResizeObserversRef.current.delete(prevNode);
+        }
+      }
+      if (!node) {
+        rowNodesByPathRef.current.delete(path);
+        return;
+      }
+      rowNodesByPathRef.current.set(path, node);
+      rowVirtualizer.measureElement(node);
+      if (rowResizeObserversRef.current.has(node)) {
+        return;
+      }
+      const observer = new ResizeObserver(() => {
+        rowVirtualizer.measureElement(node);
+      });
+      observer.observe(node);
+      rowResizeObserversRef.current.set(node, observer);
+    },
+    [rowVirtualizer],
+  );
   const stickyEntry = useMemo(() => {
     if (!diffs.length) {
       return null;
@@ -416,6 +445,15 @@ export function GitDiffViewer({
     rowVirtualizer.scrollToIndex(index, { align: "start" });
     lastScrollRequestIdRef.current = scrollRequestId;
   }, [selectedPath, scrollRequestId, indexByPath, rowVirtualizer]);
+
+  useEffect(() => {
+    return () => {
+      for (const observer of rowResizeObserversRef.current.values()) {
+        observer.disconnect();
+      }
+      rowResizeObserversRef.current.clear();
+    };
+  }, []);
 
   useEffect(() => {
     activePathRef.current = selectedPath;
@@ -581,7 +619,7 @@ export function GitDiffViewer({
                   key={entry.path}
                   className="diff-viewer-row"
                   data-index={virtualRow.index}
-                  ref={rowVirtualizer.measureElement}
+                  ref={setRowRef(entry.path)}
                   style={{
                     transform: `translate3d(0, ${virtualRow.start}px, 0)`,
                   }}
