@@ -804,8 +804,11 @@ export const Messages = memo(function Messages({
   const scrollKey = scrollKeyForItems(items);
   const { openFileLink, showFileLinkMenu } = useFileLinkOpener(workspacePath);
 
-  const isNearBottom = (node: HTMLDivElement) =>
-    node.scrollHeight - node.scrollTop - node.clientHeight <= SCROLL_THRESHOLD_PX;
+  const isNearBottom = useCallback(
+    (node: HTMLDivElement) =>
+      node.scrollHeight - node.scrollTop - node.clientHeight <= SCROLL_THRESHOLD_PX,
+    [SCROLL_THRESHOLD_PX],
+  );
 
   const updateAutoScroll = () => {
     if (!containerRef.current) {
@@ -909,7 +912,7 @@ export const Messages = memo(function Messages({
         window.cancelAnimationFrame(raf2);
       }
     };
-  }, [scrollKey, isThinking]);
+  }, [scrollKey, isThinking, isNearBottom]);
 
   const groupedItems = buildToolGroups(visibleItems);
 

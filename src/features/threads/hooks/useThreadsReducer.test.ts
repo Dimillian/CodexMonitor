@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { ConversationItem, ThreadSummary } from "../../../types";
 import { initialState, threadReducer } from "./useThreadsReducer";
 import type { ThreadState } from "./useThreadsReducer";
@@ -21,26 +21,29 @@ describe("threadReducer", () => {
     const threads: ThreadSummary[] = [
       { id: "thread-1", name: "Agent 1", updatedAt: 1 },
     ];
-    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1234);
     const next = threadReducer(
       {
         ...initialState,
         threadsByWorkspace: { "ws-1": threads },
       },
       {
-        type: "addUserMessage",
+        type: "upsertItem",
         workspaceId: "ws-1",
         threadId: "thread-1",
-        text: "Hello there",
+        item: {
+          id: "user-1",
+          kind: "message",
+          role: "user",
+          text: "Hello there",
+        },
         hasCustomName: false,
       },
     );
-    nowSpy.mockRestore();
     expect(next.threadsByWorkspace["ws-1"]?.[0]?.name).toBe("Hello there");
     const items = next.itemsByThread["thread-1"] ?? [];
     expect(items).toHaveLength(1);
     if (items[0]?.kind === "message") {
-      expect(items[0].id).toBe("1234-user");
+      expect(items[0].id).toBe("user-1");
       expect(items[0].text).toBe("Hello there");
     }
   });
@@ -117,6 +120,7 @@ describe("threadReducer", () => {
       },
       {
         type: "upsertItem",
+        workspaceId: "ws-1",
         threadId: "thread-1",
         item: incomingReview,
       },
@@ -140,6 +144,7 @@ describe("threadReducer", () => {
       },
       {
         type: "upsertItem",
+        workspaceId: "ws-1",
         threadId: "thread-1",
         item: {
           id: "review-mode",
@@ -169,6 +174,7 @@ describe("threadReducer", () => {
       },
       {
         type: "upsertItem",
+        workspaceId: "ws-1",
         threadId: "thread-1",
         item: {
           id: "review-mode",
@@ -197,6 +203,7 @@ describe("threadReducer", () => {
       },
       {
         type: "upsertItem",
+        workspaceId: "ws-1",
         threadId: "thread-1",
         item: {
           id: "review-mode-duplicate",

@@ -276,6 +276,7 @@
   width: 100%;
   padding-bottom: 0;
   will-change: transform;
+  isolation: isolate;
 }
 
 .diff-viewer-item {
@@ -286,6 +287,7 @@
   width: 100%;
   border-bottom: 1px solid var(--border-subtle);
   position: relative;
+  isolation: isolate;
 }
 
 .diff-viewer-item.active {
@@ -378,6 +380,9 @@
   min-width: 0;
   width: 100%;
   overflow: visible;
+  position: relative;
+  contain: layout style;
+  isolation: isolate;
   --diffs-font-family: var(--code-font-family);
   --diffs-font-size: var(--code-font-size, 11px);
   --diffs-line-height: 1.4;
@@ -389,6 +394,9 @@
   border-radius: 0;
   padding: 0;
   box-shadow: none;
+  position: relative;
+  contain: layout style;
+  isolation: isolate;
 }
 
 .diff-viewer-output diffs-container {
