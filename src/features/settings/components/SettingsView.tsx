@@ -1115,28 +1115,6 @@ export function SettingsView({
                     <span className="settings-toggle-knob" />
                   </button>
                 </div>
-                <div className="settings-toggle-row">
-                  <div>
-                    <div className="settings-toggle-title">Copy blocks without fences</div>
-                    <div className="settings-toggle-subtitle">
-                      When enabled, Copy is plain text. Hold Option to include ``` fences.
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className={`settings-toggle ${appSettings.composerCodeBlockCopyUseModifier ? "on" : ""}`}
-                    onClick={() =>
-                      void onUpdateAppSettings({
-                        ...appSettings,
-                        composerCodeBlockCopyUseModifier:
-                          !appSettings.composerCodeBlockCopyUseModifier,
-                      })
-                    }
-                    aria-pressed={appSettings.composerCodeBlockCopyUseModifier}
-                  >
-                    <span className="settings-toggle-knob" />
-                  </button>
-                </div>
                 <div className="settings-divider" />
                 <div className="settings-subsection-title">Pasting</div>
                 <div className="settings-toggle-row">
