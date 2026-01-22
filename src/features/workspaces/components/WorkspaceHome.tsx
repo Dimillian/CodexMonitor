@@ -567,6 +567,20 @@ export function WorkspaceHome({
                   {run.error && (
                     <div className="workspace-home-run-error">{run.error}</div>
                   )}
+                  {run.instanceErrors.length > 0 && (
+                    <div className="workspace-home-run-error-list">
+                      {run.instanceErrors.slice(0, 2).map((entry, index) => (
+                        <div className="workspace-home-run-error-item" key={index}>
+                          {entry.message}
+                        </div>
+                      ))}
+                      {run.instanceErrors.length > 2 && (
+                        <div className="workspace-home-run-error-item">
+                          +{run.instanceErrors.length - 2} more
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {hasInstances ? (
                     <div className="workspace-home-instance-list">
                       {run.instances.map((instance) => {

@@ -23,6 +23,7 @@ export type WorkspaceHomeRun = {
   instances: WorkspaceHomeRunInstance[];
   status: "pending" | "ready" | "partial" | "failed";
   error: string | null;
+  instanceErrors: Array<{ message: string }>;
 };
 
 type UseWorkspaceHomeOptions = {
@@ -388,6 +389,7 @@ export function useWorkspaceHome({
       instances: [],
       status: "pending",
       error: null,
+      instanceErrors: [],
     };
 
     setState((prev) => ({
@@ -434,6 +436,7 @@ export function useWorkspaceHome({
 
     const instances: WorkspaceHomeRunInstance[] = [];
     let runError: string | null = null;
+    const instanceErrors: Array<{ message: string }> = [];
     try {
       if (runMode === "local") {
         try {
@@ -457,7 +460,9 @@ export function useWorkspaceHome({
             sequence: 1,
           });
         } catch (error) {
-          runError = error instanceof Error ? error.message : String(error);
+          const message = error instanceof Error ? error.message : String(error);
+          runError = message;
+          instanceErrors.push({ message });
         }
       } else {
         let instanceCounter = 0;
@@ -514,6 +519,7 @@ export function useWorkspaceHome({
               failureCount += 1;
               const message = error instanceof Error ? error.message : String(error);
               runError ??= message;
+              instanceErrors.push({ message });
             }
           }
         }
@@ -536,8 +542,9 @@ export function useWorkspaceHome({
         instances,
         status,
         error: runError,
+        instanceErrors,
       });
-      if (runError) {
+      if (runError && status === "failed") {
         setWorkspaceError(runError);
       }
       setSubmitting(false);

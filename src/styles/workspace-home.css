@@ -248,6 +248,20 @@
   border: 1px solid rgba(236, 72, 153, 0.2);
 }
 
+.workspace-home-run-error-list {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.workspace-home-run-error-item {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-muted);
+}
+
 .workspace-home-run-time {
   font-size: 12px;
   color: var(--text-faint);
