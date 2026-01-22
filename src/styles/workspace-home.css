@@ -93,7 +93,7 @@
 }
 
 .workspace-home-dropdown {
-  min-width: 190px;
+  left: 0;
 }
 
 .workspace-home-mode-icon {
@@ -107,7 +107,7 @@
 }
 
 .workspace-home-model-dropdown {
-  min-width: 240px;
+  width: 190px !important;
 }
 
 .workspace-home-model-option {

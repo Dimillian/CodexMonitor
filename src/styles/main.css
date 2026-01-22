@@ -97,6 +97,9 @@
 
 .open-app-button .open-app-action,
 .open-app-button .open-app-toggle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   border: none;
   background: transparent;
   box-shadow: none;

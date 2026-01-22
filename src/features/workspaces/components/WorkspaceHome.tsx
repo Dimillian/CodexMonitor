@@ -90,7 +90,6 @@ export function WorkspaceHome({
   const [showIcon, setShowIcon] = useState(true);
   const [runModeOpen, setRunModeOpen] = useState(false);
   const [modelsOpen, setModelsOpen] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
   const iconPath = useMemo(() => buildIconPath(workspace.path), [workspace.path]);
   const iconSrc = useMemo(() => convertFileSrc(iconPath), [iconPath]);
   const runModeRef = useRef<HTMLDivElement | null>(null);
@@ -217,8 +216,8 @@ export function WorkspaceHome({
             }}
             onSelectionChange={() => {}}
             onKeyDown={handleComposerKeyDown}
-            isExpanded={isExpanded}
-            onToggleExpand={() => setIsExpanded((prev) => !prev)}
+            isExpanded={false}
+            onToggleExpand={undefined}
             textareaRef={textareaRef}
             suggestionsOpen={false}
             suggestions={[]}
@@ -396,11 +395,6 @@ export function WorkspaceHome({
             </div>
           )}
         </div>
-        {runMode === "local" && (
-          <div className="workspace-home-mode-note">
-            Uses {selectedModelLabel} in this workspace.
-          </div>
-        )}
       </div>
 
       <div className="workspace-home-runs">
