@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+} from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type {
   CustomPromptOption,
@@ -18,6 +26,7 @@ import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import { computeDictationInsertion } from "../../../utils/dictation";
+import { getCaretPosition } from "../../../utils/caretPosition";
 
 type ThreadStatus = {
   isProcessing: boolean;
@@ -70,6 +79,8 @@ const buildIconPath = (workspacePath: string) => {
 const resolveModelLabel = (model: ModelOption | null) =>
   model?.displayName?.trim() || model?.model?.trim() || "Default model";
 
+const CARET_ANCHOR_GAP = 8;
+
 export function WorkspaceHome({
   workspace,
   runs,
@@ -109,6 +120,9 @@ export function WorkspaceHome({
   const [runModeOpen, setRunModeOpen] = useState(false);
   const [modelsOpen, setModelsOpen] = useState(false);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
+  const [suggestionsStyle, setSuggestionsStyle] = useState<
+    CSSProperties | undefined
+  >(undefined);
   const iconPath = useMemo(() => buildIconPath(workspace.path), [workspace.path]);
   const iconSrc = useMemo(() => convertFileSrc(iconPath), [iconPath]);
   const runModeRef = useRef<HTMLDivElement | null>(null);
@@ -148,6 +162,32 @@ export function WorkspaceHome({
   useEffect(() => {
     setShowIcon(true);
   }, [workspace.id]);
+
+  useLayoutEffect(() => {
+    if (!isAutocompleteOpen) {
+      setSuggestionsStyle(undefined);
+      return;
+    }
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return;
+    }
+    const cursor =
+      textarea.selectionStart ?? selectionStart ?? prompt.length ?? 0;
+    const caret = getCaretPosition(textarea, cursor);
+    if (!caret) {
+      return;
+    }
+    const maxWidth = Math.min(textarea.clientWidth || 0, 420);
+    const maxLeft = Math.max(0, (textarea.clientWidth || 0) - maxWidth);
+    const left = Math.min(Math.max(0, caret.left), maxLeft);
+    setSuggestionsStyle({
+      top: caret.top + caret.lineHeight + CARET_ANCHOR_GAP,
+      left,
+      bottom: "auto",
+      right: "auto",
+    });
+  }, [isAutocompleteOpen, prompt, selectionStart]);
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
@@ -301,6 +341,7 @@ export function WorkspaceHome({
             highlightIndex={highlightIndex}
             onHighlightIndex={setHighlightIndex}
             onSelectSuggestion={applyAutocomplete}
+            suggestionsStyle={suggestionsStyle}
           />
         </div>
         {error && <div className="workspace-home-error">{error}</div>}
