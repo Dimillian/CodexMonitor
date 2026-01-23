@@ -303,15 +303,25 @@ body {
   border-radius: 0;
   overflow: hidden;
   position: relative;
-  transform: scale(var(--ui-scale, 1));
-  transform-origin: top left;
+  zoom: var(--ui-scale, 1);
   --main-topbar-height: 44px;
   transition: grid-template-columns 220ms ease;
   font-family: var(--ui-font-family);
 }
 
 .app.ui-scale-default {
-  transform: none;
+  zoom: 1;
+}
+
+@supports not (zoom: 1) {
+  .app {
+    transform: scale(var(--ui-scale, 1));
+    transform-origin: top left;
+  }
+
+  .app.ui-scale-default {
+    transform: none;
+  }
 }
 
 .drag-strip {
