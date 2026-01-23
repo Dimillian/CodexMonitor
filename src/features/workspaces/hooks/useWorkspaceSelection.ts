@@ -47,7 +47,6 @@ export function useWorkspaceSelection({
           sidebarCollapsed: false,
         });
       }
-      setActiveThreadId?.(null, workspaceId);
       setActiveWorkspaceId(workspaceId);
       Sentry.metrics.count("workspace_switched", 1, {
         attributes: {
