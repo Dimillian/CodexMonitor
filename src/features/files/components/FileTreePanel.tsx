@@ -8,6 +8,7 @@ import {
 } from "react";
 import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -157,7 +158,12 @@ function getFileIcon(name: string) {
     case "gif":
     case "svg":
     case "webp":
+    case "avif":
+    case "bmp":
     case "heic":
+    case "heif":
+    case "tif":
+    case "tiff":
       return FileImage;
     case "mp4":
     case "mov":
@@ -184,6 +190,26 @@ function getFileIcon(name: string) {
     default:
       return File;
   }
+}
+
+const imageExtensions = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "svg",
+  "webp",
+  "avif",
+  "bmp",
+  "heic",
+  "heif",
+  "tif",
+  "tiff",
+]);
+
+function isImagePath(path: string) {
+  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  return imageExtensions.has(ext);
 }
 
 export function FileTreePanel({
@@ -216,6 +242,10 @@ export function FileTreePanel({
   const showLoading = isLoading && files.length === 0;
   const deferredQuery = useDeferredValue(query);
   const normalizedQuery = deferredQuery.trim().toLowerCase();
+  const previewKind = useMemo(
+    () => (previewPath && isImagePath(previewPath) ? "image" : "text"),
+    [previewPath],
+  );
 
   const filteredFiles = useMemo(() => {
     if (!normalizedQuery) {
@@ -328,6 +358,17 @@ export function FileTreePanel({
     [workspacePath],
   );
 
+  const previewImageSrc = useMemo(() => {
+    if (!previewPath || previewKind !== "image") {
+      return null;
+    }
+    try {
+      return convertFileSrc(resolvePath(previewPath));
+    } catch {
+      return null;
+    }
+  }, [previewPath, previewKind, resolvePath]);
+
   const openPreview = useCallback((path: string, target: HTMLElement) => {
     const rect = target.getBoundingClientRect();
     const estimatedWidth = 640;
@@ -356,6 +397,15 @@ export function FileTreePanel({
       return;
     }
     let cancelled = false;
+    if (previewKind === "image") {
+      setPreviewContent("");
+      setPreviewTruncated(false);
+      setPreviewError(null);
+      setPreviewLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
     setPreviewLoading(true);
     setPreviewError(null);
     readWorkspaceFile(workspaceId, previewPath)
@@ -380,7 +430,7 @@ export function FileTreePanel({
     return () => {
       cancelled = true;
     };
-  }, [previewPath, workspaceId]);
+  }, [previewKind, previewPath, workspaceId]);
 
   const handleSelectLine = useCallback(
     (index: number, event: MouseEvent<HTMLButtonElement>) => {
@@ -397,7 +447,7 @@ export function FileTreePanel({
   );
 
   const handleAddSelection = useCallback(() => {
-    if (!previewPath || !previewSelection || !onInsertText) {
+    if (previewKind !== "text" || !previewPath || !previewSelection || !onInsertText) {
       return;
     }
     const lines = previewContent.split("\n");
@@ -410,7 +460,14 @@ export function FileTreePanel({
     const snippet = `${previewPath}:${rangeLabel}\n${fence}\n${selected.join("\n")}\n\`\`\``;
     onInsertText(snippet);
     closePreview();
-  }, [previewContent, previewPath, previewSelection, onInsertText, closePreview]);
+  }, [
+    previewContent,
+    previewKind,
+    previewPath,
+    previewSelection,
+    onInsertText,
+    closePreview,
+  ]);
 
   const showFileMenu = useCallback(
     async (event: MouseEvent<HTMLButtonElement>, relativePath: string) => {
@@ -557,6 +614,8 @@ export function FileTreePanel({
               absolutePath={resolvePath(previewPath)}
               content={previewContent}
               truncated={previewTruncated}
+              previewKind={previewKind}
+              imageSrc={previewImageSrc}
               selection={previewSelection}
               onSelectLine={handleSelectLine}
               onClearSelection={() => setPreviewSelection(null)}
