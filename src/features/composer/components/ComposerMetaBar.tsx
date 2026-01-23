@@ -33,6 +33,7 @@ export function ComposerMetaBar({
   onSelectAccessMode,
   contextUsage = null,
 }: ComposerMetaBarProps) {
+  const isCollaborationOverrideActive = Boolean(selectedCollaborationModeId);
   const contextWindow = contextUsage?.modelContextWindow ?? null;
   const lastTokens = contextUsage?.last.totalTokens ?? 0;
   const totalTokens = contextUsage?.total.totalTokens ?? 0;
@@ -112,7 +113,7 @@ export function ComposerMetaBar({
             aria-label="Model"
             value={selectedModelId ?? ""}
             onChange={(event) => onSelectModel(event.target.value)}
-            disabled={disabled}
+            disabled={disabled || isCollaborationOverrideActive}
           >
             {models.length === 0 && <option value="">No models</option>}
             {models.map((model) => (
@@ -156,7 +157,7 @@ export function ComposerMetaBar({
             aria-label="Thinking mode"
             value={selectedEffort ?? ""}
             onChange={(event) => onSelectEffort(event.target.value)}
-            disabled={disabled}
+            disabled={disabled || isCollaborationOverrideActive}
           >
             {reasoningOptions.length === 0 && <option value="">Default</option>}
             {reasoningOptions.map((effort) => (
