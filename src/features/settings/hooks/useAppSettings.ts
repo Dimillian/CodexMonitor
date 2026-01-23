@@ -2,6 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import type { AppSettings } from "../../../types";
 import { getAppSettings, runCodexDoctor, updateAppSettings } from "../../../services/tauri";
 import { clampUiScale, UI_SCALE_DEFAULT } from "../../../utils/uiScale";
+import {
+  DEFAULT_CODE_FONT_FAMILY,
+  DEFAULT_UI_FONT_FAMILY,
+  CODE_FONT_SIZE_DEFAULT,
+  clampCodeFontSize,
+  normalizeFontFamily,
+} from "../../../utils/fonts";
 
 const allowedThemes = new Set(["system", "light", "dark"]);
 
@@ -14,10 +21,24 @@ const defaultSettings: AppSettings = {
   composerModelShortcut: "cmd+shift+m",
   composerAccessShortcut: "cmd+shift+a",
   composerReasoningShortcut: "cmd+shift+r",
+  newAgentShortcut: "cmd+n",
+  newWorktreeAgentShortcut: "cmd+shift+n",
+  newCloneAgentShortcut: "cmd+alt+n",
+  toggleProjectsSidebarShortcut: "cmd+shift+p",
+  toggleGitSidebarShortcut: "cmd+shift+g",
+  toggleDebugPanelShortcut: "cmd+shift+d",
+  toggleTerminalShortcut: "cmd+shift+t",
+  cycleAgentNextShortcut: "cmd+ctrl+down",
+  cycleAgentPrevShortcut: "cmd+ctrl+up",
+  cycleWorkspaceNextShortcut: "cmd+shift+down",
+  cycleWorkspacePrevShortcut: "cmd+shift+up",
   lastComposerModelId: null,
   lastComposerReasoningEffort: null,
   uiScale: UI_SCALE_DEFAULT,
   theme: "system",
+  uiFontFamily: DEFAULT_UI_FONT_FAMILY,
+  codeFontFamily: DEFAULT_CODE_FONT_FAMILY,
+  codeFontSize: CODE_FONT_SIZE_DEFAULT,
   notificationSoundsEnabled: true,
   experimentalCollabEnabled: false,
   experimentalSteerEnabled: false,
@@ -26,6 +47,15 @@ const defaultSettings: AppSettings = {
   dictationModelId: "base",
   dictationPreferredLanguage: null,
   dictationHoldKey: "alt",
+  composerEditorPreset: "default",
+  composerFenceExpandOnSpace: false,
+  composerFenceExpandOnEnter: false,
+  composerFenceLanguageTags: false,
+  composerFenceWrapSelection: false,
+  composerFenceAutoWrapPasteMultiline: false,
+  composerFenceAutoWrapPasteCodeLike: false,
+  composerListContinuation: false,
+  composerCodeBlockCopyUseModifier: false,
   workspaceGroups: [],
 };
 
@@ -34,6 +64,15 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     ...settings,
     uiScale: clampUiScale(settings.uiScale),
     theme: allowedThemes.has(settings.theme) ? settings.theme : "system",
+    uiFontFamily: normalizeFontFamily(
+      settings.uiFontFamily,
+      DEFAULT_UI_FONT_FAMILY,
+    ),
+    codeFontFamily: normalizeFontFamily(
+      settings.codeFontFamily,
+      DEFAULT_CODE_FONT_FAMILY,
+    ),
+    codeFontSize: clampCodeFontSize(settings.codeFontSize),
   };
 }
 

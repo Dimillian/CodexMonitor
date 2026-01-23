@@ -1,18 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { ask, open } from "@tauri-apps/plugin-dialog";
-import {
-  ChevronDown,
-  ChevronUp,
-  LayoutGrid,
-  SlidersHorizontal,
-  Mic,
-  Keyboard,
-  Stethoscope,
-  TerminalSquare,
-  Trash2,
-  X,
-  FlaskConical,
-} from "lucide-react";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
+import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
+import LayoutGrid from "lucide-react/dist/esm/icons/layout-grid";
+import SlidersHorizontal from "lucide-react/dist/esm/icons/sliders-horizontal";
+import Mic from "lucide-react/dist/esm/icons/mic";
+import Keyboard from "lucide-react/dist/esm/icons/keyboard";
+import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
+import TerminalSquare from "lucide-react/dist/esm/icons/terminal-square";
+import FileText from "lucide-react/dist/esm/icons/file-text";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2";
+import X from "lucide-react/dist/esm/icons/x";
+import FlaskConical from "lucide-react/dist/esm/icons/flask-conical";
 import type {
   AppSettings,
   CodexDoctorResult,
@@ -23,6 +22,15 @@ import type {
 import { formatDownloadSize } from "../../../utils/formatting";
 import { buildShortcutValue, formatShortcut } from "../../../utils/shortcuts";
 import { clampUiScale } from "../../../utils/uiScale";
+import {
+  DEFAULT_CODE_FONT_FAMILY,
+  DEFAULT_UI_FONT_FAMILY,
+  CODE_FONT_SIZE_DEFAULT,
+  CODE_FONT_SIZE_MAX,
+  CODE_FONT_SIZE_MIN,
+  clampCodeFontSize,
+  normalizeFontFamily,
+} from "../../../utils/fonts";
 
 const DICTATION_MODELS = [
   { id: "tiny", label: "Tiny", size: "75 MB", note: "Fastest, least accurate." },
@@ -32,7 +40,60 @@ const DICTATION_MODELS = [
   { id: "large-v3", label: "Large V3", size: "3.0 GB", note: "Best accuracy, heavy download." },
 ];
 
-type SettingsViewProps = {
+type ComposerPreset = AppSettings["composerEditorPreset"];
+
+type ComposerPresetSettings = Pick<
+  AppSettings,
+  | "composerFenceExpandOnSpace"
+  | "composerFenceExpandOnEnter"
+  | "composerFenceLanguageTags"
+  | "composerFenceWrapSelection"
+  | "composerFenceAutoWrapPasteMultiline"
+  | "composerFenceAutoWrapPasteCodeLike"
+  | "composerListContinuation"
+  | "composerCodeBlockCopyUseModifier"
+>;
+
+const COMPOSER_PRESET_LABELS: Record<ComposerPreset, string> = {
+  default: "Default (no helpers)",
+  helpful: "Helpful",
+  smart: "Smart",
+};
+
+const COMPOSER_PRESET_CONFIGS: Record<ComposerPreset, ComposerPresetSettings> = {
+  default: {
+    composerFenceExpandOnSpace: false,
+    composerFenceExpandOnEnter: false,
+    composerFenceLanguageTags: false,
+    composerFenceWrapSelection: false,
+    composerFenceAutoWrapPasteMultiline: false,
+    composerFenceAutoWrapPasteCodeLike: false,
+    composerListContinuation: false,
+    composerCodeBlockCopyUseModifier: false,
+  },
+  helpful: {
+    composerFenceExpandOnSpace: true,
+    composerFenceExpandOnEnter: false,
+    composerFenceLanguageTags: true,
+    composerFenceWrapSelection: true,
+    composerFenceAutoWrapPasteMultiline: true,
+    composerFenceAutoWrapPasteCodeLike: false,
+    composerListContinuation: true,
+    composerCodeBlockCopyUseModifier: false,
+  },
+  smart: {
+    composerFenceExpandOnSpace: true,
+    composerFenceExpandOnEnter: false,
+    composerFenceLanguageTags: true,
+    composerFenceWrapSelection: true,
+    composerFenceAutoWrapPasteMultiline: true,
+    composerFenceAutoWrapPasteCodeLike: true,
+    composerListContinuation: true,
+    composerCodeBlockCopyUseModifier: false,
+  },
+};
+
+export type SettingsViewProps = {
   workspaceGroups: WorkspaceGroup[];
   groupedWorkspaces: Array<{
     id: string | null;
@@ -67,8 +128,55 @@ type SettingsViewProps = {
   initialSection?: CodexSection;
 };
 
-type SettingsSection = "projects" | "display" | "dictation" | "shortcuts";
+type SettingsSection = "projects" | "display" | "composer" | "dictation" | "shortcuts";
 type CodexSection = SettingsSection | "codex" | "experimental";
+type ShortcutSettingKey =
+  | "composerModelShortcut"
+  | "composerAccessShortcut"
+  | "composerReasoningShortcut"
+  | "newAgentShortcut"
+  | "newWorktreeAgentShortcut"
+  | "newCloneAgentShortcut"
+  | "toggleProjectsSidebarShortcut"
+  | "toggleGitSidebarShortcut"
+  | "toggleDebugPanelShortcut"
+  | "toggleTerminalShortcut"
+  | "cycleAgentNextShortcut"
+  | "cycleAgentPrevShortcut"
+  | "cycleWorkspaceNextShortcut"
+  | "cycleWorkspacePrevShortcut";
+type ShortcutDraftKey =
+  | "model"
+  | "access"
+  | "reasoning"
+  | "newAgent"
+  | "newWorktreeAgent"
+  | "newCloneAgent"
+  | "projectsSidebar"
+  | "gitSidebar"
+  | "debugPanel"
+  | "terminal"
+  | "cycleAgentNext"
+  | "cycleAgentPrev"
+  | "cycleWorkspaceNext"
+  | "cycleWorkspacePrev";
+
+const shortcutDraftKeyBySetting: Record<ShortcutSettingKey, ShortcutDraftKey> = {
+  composerModelShortcut: "model",
+  composerAccessShortcut: "access",
+  composerReasoningShortcut: "reasoning",
+  newAgentShortcut: "newAgent",
+  newWorktreeAgentShortcut: "newWorktreeAgent",
+  newCloneAgentShortcut: "newCloneAgent",
+  toggleProjectsSidebarShortcut: "projectsSidebar",
+  toggleGitSidebarShortcut: "gitSidebar",
+  toggleDebugPanelShortcut: "debugPanel",
+  toggleTerminalShortcut: "terminal",
+  cycleAgentNextShortcut: "cycleAgentNext",
+  cycleAgentPrevShortcut: "cycleAgentPrev",
+  cycleWorkspaceNextShortcut: "cycleWorkspaceNext",
+  cycleWorkspacePrevShortcut: "cycleWorkspacePrev",
+};
 
 export function SettingsView({
   workspaceGroups,
@@ -104,6 +212,11 @@ export function SettingsView({
   const [scaleDraft, setScaleDraft] = useState(
     `${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`,
   );
+  const [uiFontDraft, setUiFontDraft] = useState(appSettings.uiFontFamily);
+  const [codeFontDraft, setCodeFontDraft] = useState(appSettings.codeFontFamily);
+  const [codeFontSizeDraft, setCodeFontSizeDraft] = useState(
+    appSettings.codeFontSize,
+  );
   const [overrideDrafts, setOverrideDrafts] = useState<Record<string, string>>({});
   const [groupDrafts, setGroupDrafts] = useState<Record<string, string>>({});
   const [newGroupName, setNewGroupName] = useState("");
@@ -117,6 +230,17 @@ export function SettingsView({
     model: appSettings.composerModelShortcut ?? "",
     access: appSettings.composerAccessShortcut ?? "",
     reasoning: appSettings.composerReasoningShortcut ?? "",
+    newAgent: appSettings.newAgentShortcut ?? "",
+    newWorktreeAgent: appSettings.newWorktreeAgentShortcut ?? "",
+    newCloneAgent: appSettings.newCloneAgentShortcut ?? "",
+    projectsSidebar: appSettings.toggleProjectsSidebarShortcut ?? "",
+    gitSidebar: appSettings.toggleGitSidebarShortcut ?? "",
+    debugPanel: appSettings.toggleDebugPanelShortcut ?? "",
+    terminal: appSettings.toggleTerminalShortcut ?? "",
+    cycleAgentNext: appSettings.cycleAgentNextShortcut ?? "",
+    cycleAgentPrev: appSettings.cycleAgentPrevShortcut ?? "",
+    cycleWorkspaceNext: appSettings.cycleWorkspaceNextShortcut ?? "",
+    cycleWorkspacePrev: appSettings.cycleWorkspacePrevShortcut ?? "",
   });
   const dictationReady = dictationModelStatus?.state === "ready";
   const dictationProgress = dictationModelStatus?.progress ?? null;
@@ -132,6 +256,33 @@ export function SettingsView({
     () => groupedWorkspaces.flatMap((group) => group.workspaces),
     [groupedWorkspaces],
   );
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.key !== "Escape") {
+        return;
+      }
+      event.preventDefault();
+      onClose();
+    };
+
+    const handleCloseShortcut = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) {
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w") {
+        event.preventDefault();
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    window.addEventListener("keydown", handleCloseShortcut);
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+      window.removeEventListener("keydown", handleCloseShortcut);
+    };
+  }, [onClose]);
 
   useEffect(() => {
     setCodexPathDraft(appSettings.codexBin ?? "");
@@ -150,15 +301,49 @@ export function SettingsView({
   }, [appSettings.uiScale]);
 
   useEffect(() => {
+    setUiFontDraft(appSettings.uiFontFamily);
+  }, [appSettings.uiFontFamily]);
+
+  useEffect(() => {
+    setCodeFontDraft(appSettings.codeFontFamily);
+  }, [appSettings.codeFontFamily]);
+
+  useEffect(() => {
+    setCodeFontSizeDraft(appSettings.codeFontSize);
+  }, [appSettings.codeFontSize]);
+
+  useEffect(() => {
     setShortcutDrafts({
       model: appSettings.composerModelShortcut ?? "",
       access: appSettings.composerAccessShortcut ?? "",
       reasoning: appSettings.composerReasoningShortcut ?? "",
+      newAgent: appSettings.newAgentShortcut ?? "",
+      newWorktreeAgent: appSettings.newWorktreeAgentShortcut ?? "",
+      newCloneAgent: appSettings.newCloneAgentShortcut ?? "",
+      projectsSidebar: appSettings.toggleProjectsSidebarShortcut ?? "",
+      gitSidebar: appSettings.toggleGitSidebarShortcut ?? "",
+      debugPanel: appSettings.toggleDebugPanelShortcut ?? "",
+      terminal: appSettings.toggleTerminalShortcut ?? "",
+      cycleAgentNext: appSettings.cycleAgentNextShortcut ?? "",
+      cycleAgentPrev: appSettings.cycleAgentPrevShortcut ?? "",
+      cycleWorkspaceNext: appSettings.cycleWorkspaceNextShortcut ?? "",
+      cycleWorkspacePrev: appSettings.cycleWorkspacePrevShortcut ?? "",
     });
   }, [
     appSettings.composerAccessShortcut,
     appSettings.composerModelShortcut,
     appSettings.composerReasoningShortcut,
+    appSettings.newAgentShortcut,
+    appSettings.newWorktreeAgentShortcut,
+    appSettings.newCloneAgentShortcut,
+    appSettings.toggleProjectsSidebarShortcut,
+    appSettings.toggleGitSidebarShortcut,
+    appSettings.toggleDebugPanelShortcut,
+    appSettings.toggleTerminalShortcut,
+    appSettings.cycleAgentNextShortcut,
+    appSettings.cycleAgentPrevShortcut,
+    appSettings.cycleWorkspaceNextShortcut,
+    appSettings.cycleWorkspacePrevShortcut,
   ]);
 
   useEffect(() => {
@@ -261,6 +446,57 @@ export function SettingsView({
     });
   };
 
+  const handleCommitUiFont = async () => {
+    const nextFont = normalizeFontFamily(
+      uiFontDraft,
+      DEFAULT_UI_FONT_FAMILY,
+    );
+    setUiFontDraft(nextFont);
+    if (nextFont === appSettings.uiFontFamily) {
+      return;
+    }
+    await onUpdateAppSettings({
+      ...appSettings,
+      uiFontFamily: nextFont,
+    });
+  };
+
+  const handleCommitCodeFont = async () => {
+    const nextFont = normalizeFontFamily(
+      codeFontDraft,
+      DEFAULT_CODE_FONT_FAMILY,
+    );
+    setCodeFontDraft(nextFont);
+    if (nextFont === appSettings.codeFontFamily) {
+      return;
+    }
+    await onUpdateAppSettings({
+      ...appSettings,
+      codeFontFamily: nextFont,
+    });
+  };
+
+  const handleCommitCodeFontSize = async (nextSize: number) => {
+    const clampedSize = clampCodeFontSize(nextSize);
+    setCodeFontSizeDraft(clampedSize);
+    if (clampedSize === appSettings.codeFontSize) {
+      return;
+    }
+    await onUpdateAppSettings({
+      ...appSettings,
+      codeFontSize: clampedSize,
+    });
+  };
+
+  const handleComposerPresetChange = (preset: ComposerPreset) => {
+    const config = COMPOSER_PRESET_CONFIGS[preset];
+    void onUpdateAppSettings({
+      ...appSettings,
+      composerEditorPreset: preset,
+      ...config,
+    });
+  };
+
   const handleBrowseCodex = async () => {
     const selection = await open({ multiple: false, directory: false });
     if (!selection || Array.isArray(selection)) {
@@ -294,17 +530,11 @@ export function SettingsView({
     }
   };
 
-  const updateShortcut = async (
-    key: "composerModelShortcut" | "composerAccessShortcut" | "composerReasoningShortcut",
-    value: string | null,
-  ) => {
+  const updateShortcut = async (key: ShortcutSettingKey, value: string | null) => {
+    const draftKey = shortcutDraftKeyBySetting[key];
     setShortcutDrafts((prev) => ({
       ...prev,
-      [key === "composerModelShortcut"
-        ? "model"
-        : key === "composerAccessShortcut"
-          ? "access"
-          : "reasoning"]: value ?? "",
+      [draftKey]: value ?? "",
     }));
     await onUpdateAppSettings({
       ...appSettings,
@@ -314,7 +544,7 @@ export function SettingsView({
 
   const handleShortcutKeyDown = (
     event: React.KeyboardEvent<HTMLInputElement>,
-    key: "composerModelShortcut" | "composerAccessShortcut" | "composerReasoningShortcut",
+    key: ShortcutSettingKey,
   ) => {
     if (event.key === "Tab") {
       return;
@@ -459,6 +689,14 @@ export function SettingsView({
             >
               <SlidersHorizontal aria-hidden />
               Display &amp; Sound
+            </button>
+            <button
+              type="button"
+              className={`settings-nav ${activeSection === "composer" ? "active" : ""}`}
+              onClick={() => setActiveSection("composer")}
+            >
+              <FileText aria-hidden />
+              Composer
             </button>
             <button
               type="button"
@@ -794,6 +1032,119 @@ export function SettingsView({
                     </button>
                   </div>
                 </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="ui-font-family">
+                    UI font family
+                  </label>
+                  <div className="settings-field-row">
+                    <input
+                      id="ui-font-family"
+                      type="text"
+                      className="settings-input"
+                      value={uiFontDraft}
+                      onChange={(event) => setUiFontDraft(event.target.value)}
+                      onBlur={() => {
+                        void handleCommitUiFont();
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          void handleCommitUiFont();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => {
+                        setUiFontDraft(DEFAULT_UI_FONT_FAMILY);
+                        void onUpdateAppSettings({
+                          ...appSettings,
+                          uiFontFamily: DEFAULT_UI_FONT_FAMILY,
+                        });
+                      }}
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Applies to all UI text. Leave empty to use the default system font stack.
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="code-font-family">
+                    Code font family
+                  </label>
+                  <div className="settings-field-row">
+                    <input
+                      id="code-font-family"
+                      type="text"
+                      className="settings-input"
+                      value={codeFontDraft}
+                      onChange={(event) => setCodeFontDraft(event.target.value)}
+                      onBlur={() => {
+                        void handleCommitCodeFont();
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          void handleCommitCodeFont();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => {
+                        setCodeFontDraft(DEFAULT_CODE_FONT_FAMILY);
+                        void onUpdateAppSettings({
+                          ...appSettings,
+                          codeFontFamily: DEFAULT_CODE_FONT_FAMILY,
+                        });
+                      }}
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Applies to git diffs and other mono-spaced readouts.
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="code-font-size">
+                    Code font size
+                  </label>
+                  <div className="settings-field-row">
+                    <input
+                      id="code-font-size"
+                      type="range"
+                      min={CODE_FONT_SIZE_MIN}
+                      max={CODE_FONT_SIZE_MAX}
+                      step={1}
+                      className="settings-input settings-input--range"
+                      value={codeFontSizeDraft}
+                      onChange={(event) => {
+                        const nextValue = Number(event.target.value);
+                        setCodeFontSizeDraft(nextValue);
+                        void handleCommitCodeFontSize(nextValue);
+                      }}
+                    />
+                    <div className="settings-scale-value">{codeFontSizeDraft}px</div>
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => {
+                        setCodeFontSizeDraft(CODE_FONT_SIZE_DEFAULT);
+                        void handleCommitCodeFontSize(CODE_FONT_SIZE_DEFAULT);
+                      }}
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Adjusts code and diff text size.
+                  </div>
+                </div>
                 <div className="settings-subsection-title">Sounds</div>
                 <div className="settings-subsection-subtitle">
                   Control notification audio alerts.
@@ -826,6 +1177,219 @@ export function SettingsView({
                     onClick={onTestNotificationSound}
                   >
                     Test sound
+                  </button>
+                </div>
+              </section>
+            )}
+            {activeSection === "composer" && (
+              <section className="settings-section">
+                <div className="settings-section-title">Composer</div>
+                <div className="settings-section-subtitle">
+                  Control helpers and formatting behavior inside the message editor.
+                </div>
+                <div className="settings-subsection-title">Presets</div>
+                <div className="settings-subsection-subtitle">
+                  Choose a starting point and fine-tune the toggles below.
+                </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="composer-preset">
+                    Preset
+                  </label>
+                  <select
+                    id="composer-preset"
+                    className="settings-select"
+                    value={appSettings.composerEditorPreset}
+                    onChange={(event) =>
+                      handleComposerPresetChange(
+                        event.target.value as ComposerPreset,
+                      )
+                    }
+                  >
+                    {Object.entries(COMPOSER_PRESET_LABELS).map(([preset, label]) => (
+                      <option key={preset} value={preset}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="settings-help">
+                    Presets update the toggles below. Customize any setting after selecting.
+                  </div>
+                </div>
+                <div className="settings-divider" />
+                <div className="settings-subsection-title">Code fences</div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Expand fences on Space</div>
+                    <div className="settings-toggle-subtitle">
+                      Typing ``` then Space inserts a fenced block.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.composerFenceExpandOnSpace ? "on" : ""}`}
+                    onClick={() =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        composerFenceExpandOnSpace: !appSettings.composerFenceExpandOnSpace,
+                      })
+                    }
+                    aria-pressed={appSettings.composerFenceExpandOnSpace}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Expand fences on Enter</div>
+                    <div className="settings-toggle-subtitle">
+                      Use Enter to expand ``` lines when enabled.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.composerFenceExpandOnEnter ? "on" : ""}`}
+                    onClick={() =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        composerFenceExpandOnEnter: !appSettings.composerFenceExpandOnEnter,
+                      })
+                    }
+                    aria-pressed={appSettings.composerFenceExpandOnEnter}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Support language tags</div>
+                    <div className="settings-toggle-subtitle">
+                      Allows ```lang + Space to include a language.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.composerFenceLanguageTags ? "on" : ""}`}
+                    onClick={() =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        composerFenceLanguageTags: !appSettings.composerFenceLanguageTags,
+                      })
+                    }
+                    aria-pressed={appSettings.composerFenceLanguageTags}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Wrap selection in fences</div>
+                    <div className="settings-toggle-subtitle">
+                      Wraps selected text when creating a fence.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.composerFenceWrapSelection ? "on" : ""}`}
+                    onClick={() =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        composerFenceWrapSelection: !appSettings.composerFenceWrapSelection,
+                      })
+                    }
+                    aria-pressed={appSettings.composerFenceWrapSelection}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Copy blocks without fences</div>
+                    <div className="settings-toggle-subtitle">
+                      When enabled, Copy is plain text. Hold Option to include ``` fences.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.composerCodeBlockCopyUseModifier ? "on" : ""}`}
+                    onClick={() =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        composerCodeBlockCopyUseModifier:
+                          !appSettings.composerCodeBlockCopyUseModifier,
+                      })
+                    }
+                    aria-pressed={appSettings.composerCodeBlockCopyUseModifier}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+                <div className="settings-divider" />
+                <div className="settings-subsection-title">Pasting</div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Auto-wrap multi-line paste</div>
+                    <div className="settings-toggle-subtitle">
+                      Wraps multi-line paste inside a fenced block.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.composerFenceAutoWrapPasteMultiline ? "on" : ""}`}
+                    onClick={() =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        composerFenceAutoWrapPasteMultiline:
+                          !appSettings.composerFenceAutoWrapPasteMultiline,
+                      })
+                    }
+                    aria-pressed={appSettings.composerFenceAutoWrapPasteMultiline}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Auto-wrap code-like single lines</div>
+                    <div className="settings-toggle-subtitle">
+                      Wraps long single-line code snippets on paste.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.composerFenceAutoWrapPasteCodeLike ? "on" : ""}`}
+                    onClick={() =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        composerFenceAutoWrapPasteCodeLike:
+                          !appSettings.composerFenceAutoWrapPasteCodeLike,
+                      })
+                    }
+                    aria-pressed={appSettings.composerFenceAutoWrapPasteCodeLike}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+                <div className="settings-divider" />
+                <div className="settings-subsection-title">Lists</div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Continue lists on Shift+Enter</div>
+                    <div className="settings-toggle-subtitle">
+                      Continues numbered and bulleted lists when the line has content.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.composerListContinuation ? "on" : ""}`}
+                    onClick={() =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        composerListContinuation: !appSettings.composerListContinuation,
+                      })
+                    }
+                    aria-pressed={appSettings.composerListContinuation}
+                  >
+                    <span className="settings-toggle-knob" />
                   </button>
                 </div>
               </section>
@@ -1036,7 +1600,88 @@ export function SettingsView({
               <section className="settings-section">
                 <div className="settings-section-title">Shortcuts</div>
                 <div className="settings-section-subtitle">
-                  Customize composer shortcuts for cycling modes.
+                  Customize keyboard shortcuts for file actions, composer, panels, and navigation.
+                </div>
+                <div className="settings-subsection-title">File</div>
+                <div className="settings-subsection-subtitle">
+                  Create agents and worktrees from the keyboard.
+                </div>
+                <div className="settings-field">
+                  <div className="settings-field-label">New Agent</div>
+                  <div className="settings-field-row">
+                    <input
+                      className="settings-input settings-input--shortcut"
+                      value={formatShortcut(shortcutDrafts.newAgent)}
+                      onKeyDown={(event) =>
+                        handleShortcutKeyDown(event, "newAgentShortcut")
+                      }
+                      placeholder="Type shortcut"
+                      readOnly
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => void updateShortcut("newAgentShortcut", null)}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Default: {formatShortcut("cmd+n")}
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <div className="settings-field-label">New Worktree Agent</div>
+                  <div className="settings-field-row">
+                    <input
+                      className="settings-input settings-input--shortcut"
+                      value={formatShortcut(shortcutDrafts.newWorktreeAgent)}
+                      onKeyDown={(event) =>
+                        handleShortcutKeyDown(event, "newWorktreeAgentShortcut")
+                      }
+                      placeholder="Type shortcut"
+                      readOnly
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => void updateShortcut("newWorktreeAgentShortcut", null)}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Default: {formatShortcut("cmd+shift+n")}
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <div className="settings-field-label">New Clone Agent</div>
+                  <div className="settings-field-row">
+                    <input
+                      className="settings-input settings-input--shortcut"
+                      value={formatShortcut(shortcutDrafts.newCloneAgent)}
+                      onKeyDown={(event) =>
+                        handleShortcutKeyDown(event, "newCloneAgentShortcut")
+                      }
+                      placeholder="Type shortcut"
+                      readOnly
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => void updateShortcut("newCloneAgentShortcut", null)}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Default: {formatShortcut("cmd+alt+n")}
+                  </div>
+                </div>
+                <div className="settings-divider" />
+                <div className="settings-subsection-title">Composer</div>
+                <div className="settings-subsection-subtitle">
+                  Cycle between model, access, and reasoning modes.
                 </div>
                 <div className="settings-field">
                   <div className="settings-field-label">Cycle model</div>
@@ -1108,6 +1753,208 @@ export function SettingsView({
                   </div>
                   <div className="settings-help">
                     Default: {formatShortcut("cmd+shift+r")}
+                  </div>
+                </div>
+                <div className="settings-divider" />
+                <div className="settings-subsection-title">Panels</div>
+                <div className="settings-subsection-subtitle">
+                  Toggle sidebars and panels.
+                </div>
+                <div className="settings-field">
+                  <div className="settings-field-label">Toggle projects sidebar</div>
+                  <div className="settings-field-row">
+                    <input
+                      className="settings-input settings-input--shortcut"
+                      value={formatShortcut(shortcutDrafts.projectsSidebar)}
+                      onKeyDown={(event) =>
+                        handleShortcutKeyDown(event, "toggleProjectsSidebarShortcut")
+                      }
+                      placeholder="Type shortcut"
+                      readOnly
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => void updateShortcut("toggleProjectsSidebarShortcut", null)}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Default: {formatShortcut("cmd+shift+p")}
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <div className="settings-field-label">Toggle git sidebar</div>
+                  <div className="settings-field-row">
+                    <input
+                      className="settings-input settings-input--shortcut"
+                      value={formatShortcut(shortcutDrafts.gitSidebar)}
+                      onKeyDown={(event) =>
+                        handleShortcutKeyDown(event, "toggleGitSidebarShortcut")
+                      }
+                      placeholder="Type shortcut"
+                      readOnly
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => void updateShortcut("toggleGitSidebarShortcut", null)}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Default: {formatShortcut("cmd+shift+g")}
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <div className="settings-field-label">Toggle debug panel</div>
+                  <div className="settings-field-row">
+                    <input
+                      className="settings-input settings-input--shortcut"
+                      value={formatShortcut(shortcutDrafts.debugPanel)}
+                      onKeyDown={(event) =>
+                        handleShortcutKeyDown(event, "toggleDebugPanelShortcut")
+                      }
+                      placeholder="Type shortcut"
+                      readOnly
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => void updateShortcut("toggleDebugPanelShortcut", null)}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Default: {formatShortcut("cmd+shift+d")}
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <div className="settings-field-label">Toggle terminal panel</div>
+                  <div className="settings-field-row">
+                    <input
+                      className="settings-input settings-input--shortcut"
+                      value={formatShortcut(shortcutDrafts.terminal)}
+                      onKeyDown={(event) =>
+                        handleShortcutKeyDown(event, "toggleTerminalShortcut")
+                      }
+                      placeholder="Type shortcut"
+                      readOnly
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => void updateShortcut("toggleTerminalShortcut", null)}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Default: {formatShortcut("cmd+shift+t")}
+                  </div>
+                </div>
+                <div className="settings-divider" />
+                <div className="settings-subsection-title">Navigation</div>
+                <div className="settings-subsection-subtitle">
+                  Cycle between agents and workspaces.
+                </div>
+                <div className="settings-field">
+                  <div className="settings-field-label">Next agent</div>
+                  <div className="settings-field-row">
+                    <input
+                      className="settings-input settings-input--shortcut"
+                      value={formatShortcut(shortcutDrafts.cycleAgentNext)}
+                      onKeyDown={(event) =>
+                        handleShortcutKeyDown(event, "cycleAgentNextShortcut")
+                      }
+                      placeholder="Type shortcut"
+                      readOnly
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => void updateShortcut("cycleAgentNextShortcut", null)}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Default: {formatShortcut("cmd+ctrl+down")}
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <div className="settings-field-label">Previous agent</div>
+                  <div className="settings-field-row">
+                    <input
+                      className="settings-input settings-input--shortcut"
+                      value={formatShortcut(shortcutDrafts.cycleAgentPrev)}
+                      onKeyDown={(event) =>
+                        handleShortcutKeyDown(event, "cycleAgentPrevShortcut")
+                      }
+                      placeholder="Type shortcut"
+                      readOnly
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => void updateShortcut("cycleAgentPrevShortcut", null)}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Default: {formatShortcut("cmd+ctrl+up")}
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <div className="settings-field-label">Next workspace</div>
+                  <div className="settings-field-row">
+                    <input
+                      className="settings-input settings-input--shortcut"
+                      value={formatShortcut(shortcutDrafts.cycleWorkspaceNext)}
+                      onKeyDown={(event) =>
+                        handleShortcutKeyDown(event, "cycleWorkspaceNextShortcut")
+                      }
+                      placeholder="Type shortcut"
+                      readOnly
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => void updateShortcut("cycleWorkspaceNextShortcut", null)}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Default: {formatShortcut("cmd+shift+down")}
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <div className="settings-field-label">Previous workspace</div>
+                  <div className="settings-field-row">
+                    <input
+                      className="settings-input settings-input--shortcut"
+                      value={formatShortcut(shortcutDrafts.cycleWorkspacePrev)}
+                      onKeyDown={(event) =>
+                        handleShortcutKeyDown(event, "cycleWorkspacePrevShortcut")
+                      }
+                      placeholder="Type shortcut"
+                      readOnly
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => void updateShortcut("cycleWorkspacePrevShortcut", null)}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Default: {formatShortcut("cmd+shift+up")}
                   </div>
                 </div>
               </section>

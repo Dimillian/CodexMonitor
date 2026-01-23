@@ -9,6 +9,17 @@ function asString(value: unknown) {
   return typeof value === "string" ? value : value ? String(value) : "";
 }
 
+function asNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
 function truncateText(text: string, maxLength = MAX_ITEM_TEXT) {
   if (text.length <= maxLength) {
     return text;
@@ -83,7 +94,21 @@ export function normalizeItem(item: ConversationItem): ConversationItem {
 }
 
 export function prepareThreadItems(items: ConversationItem[]) {
-  const normalized = items.map((item) => normalizeItem(item));
+  const filtered: ConversationItem[] = [];
+  for (const item of items) {
+    const last = filtered[filtered.length - 1];
+    if (
+      item.kind === "message" &&
+      item.role === "assistant" &&
+      last?.kind === "review" &&
+      last.state === "completed" &&
+      item.text.trim() === last.text.trim()
+    ) {
+      continue;
+    }
+    filtered.push(item);
+  }
+  const normalized = filtered.map((item) => normalizeItem(item));
   const limited =
     normalized.length > MAX_ITEMS_PER_THREAD
       ? normalized.slice(-MAX_ITEMS_PER_THREAD)
@@ -144,8 +169,18 @@ export function buildConversationItem(
   if (!id || !type) {
     return null;
   }
-  if (type === "agentMessage" || type === "userMessage") {
+  if (type === "agentMessage") {
     return null;
+  }
+  if (type === "userMessage") {
+    const content = Array.isArray(item.content) ? item.content : [];
+    const text = userInputsToText(content);
+    return {
+      id,
+      kind: "message",
+      role: "user",
+      text: text || "[message]",
+    };
   }
   if (type === "reasoning") {
     const summary = asString(item.summary ?? "");
@@ -158,6 +193,7 @@ export function buildConversationItem(
     const command = Array.isArray(item.command)
       ? item.command.map((part) => asString(part)).join(" ")
       : asString(item.command ?? "");
+    const durationMs = asNumber(item.durationMs ?? item.duration_ms);
     return {
       id,
       kind: "tool",
@@ -166,6 +202,7 @@ export function buildConversationItem(
       detail: asString(item.cwd ?? ""),
       status: asString(item.status ?? ""),
       output: asString(item.aggregatedOutput ?? ""),
+      durationMs,
     };
   }
   if (type === "fileChange") {
@@ -419,24 +456,6 @@ function chooseRicherItem(remote: ConversationItem, local: ConversationItem) {
   return remote;
 }
 
-function isOptimisticMessage(item: ConversationItem) {
-  if (item.kind !== "message") {
-    return false;
-  }
-  return /^\d+-(user|assistant)$/.test(item.id);
-}
-
-function messageDedupKey(item: ConversationItem) {
-  if (item.kind !== "message") {
-    return null;
-  }
-  const text = item.text.trim();
-  if (!text) {
-    return null;
-  }
-  return `${item.role}:${text}`;
-}
-
 export function mergeThreadItems(
   remoteItems: ConversationItem[],
   localItems: ConversationItem[],
@@ -445,32 +464,12 @@ export function mergeThreadItems(
     return remoteItems;
   }
   const byId = new Map(remoteItems.map((item) => [item.id, item]));
-  const localIds = new Set(localItems.map((item) => item.id));
-  const remoteMessageCounts = new Map<string, number>();
-  remoteItems.forEach((item) => {
-    if (localIds.has(item.id)) {
-      return;
-    }
-    const key = messageDedupKey(item);
-    if (!key) {
-      return;
-    }
-    remoteMessageCounts.set(key, (remoteMessageCounts.get(key) ?? 0) + 1);
-  });
   const merged = remoteItems.map((item) => {
     const local = localItems.find((entry) => entry.id === item.id);
     return local ? chooseRicherItem(item, local) : item;
   });
   localItems.forEach((item) => {
     if (!byId.has(item.id)) {
-      if (isOptimisticMessage(item)) {
-        const key = messageDedupKey(item);
-        const count = key ? remoteMessageCounts.get(key) ?? 0 : 0;
-        if (count > 0) {
-          remoteMessageCounts.set(key as string, count - 1);
-          return;
-        }
-      }
       merged.push(item);
     }
   });

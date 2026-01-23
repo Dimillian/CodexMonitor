@@ -1,4 +1,5 @@
-import { ScrollText, Settings } from "lucide-react";
+import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
+import Settings from "lucide-react/dist/esm/icons/settings";
 
 type SidebarCornerActionsProps = {
   onOpenSettings: () => void;

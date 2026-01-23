@@ -1,7 +1,7 @@
 {
   "name": "codex-monitor",
   "private": true,
-  "version": "0.7.7",
+  "version": "0.7.17",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@pierre/diffs": "^1.0.6",
+    "@sentry/react": "^10.36.0",
     "@tanstack/react-virtual": "^3.13.18",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2",
@@ -36,7 +37,8 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "tauri-plugin-liquid-glass-api": "^0.1.6"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

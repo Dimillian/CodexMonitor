@@ -9,6 +9,9 @@
     "dialog:default",
     "process:default",
     "updater:default",
+    "window-state:default",
+    "liquid-glass:default",
+    "core:window:allow-set-effects",
     "core:window:allow-start-dragging"
   ]
 }

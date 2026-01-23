@@ -19,6 +19,7 @@ describe("WorktreeSection", () => {
     render(
       <WorktreeSection
         worktrees={[worktree]}
+        deletingWorktreeIds={new Set()}
         threadsByWorkspace={{ [worktree.id]: [] }}
         threadStatusById={{}}
         threadListLoadingByWorkspace={{ [worktree.id]: false }}

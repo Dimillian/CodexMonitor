@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { ConversationItem, ThreadSummary } from "../../../types";
 import { initialState, threadReducer } from "./useThreadsReducer";
 import type { ThreadState } from "./useThreadsReducer";
@@ -21,26 +21,29 @@ describe("threadReducer", () => {
     const threads: ThreadSummary[] = [
       { id: "thread-1", name: "Agent 1", updatedAt: 1 },
     ];
-    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1234);
     const next = threadReducer(
       {
         ...initialState,
         threadsByWorkspace: { "ws-1": threads },
       },
       {
-        type: "addUserMessage",
+        type: "upsertItem",
         workspaceId: "ws-1",
         threadId: "thread-1",
-        text: "Hello there",
+        item: {
+          id: "user-1",
+          kind: "message",
+          role: "user",
+          text: "Hello there",
+        },
         hasCustomName: false,
       },
     );
-    nowSpy.mockRestore();
     expect(next.threadsByWorkspace["ws-1"]?.[0]?.name).toBe("Hello there");
     const items = next.itemsByThread["thread-1"] ?? [];
     expect(items).toHaveLength(1);
     if (items[0]?.kind === "message") {
-      expect(items[0].id).toBe("1234-user");
+      expect(items[0].id).toBe("user-1");
       expect(items[0].text).toBe("Hello there");
     }
   });
@@ -117,6 +120,7 @@ describe("threadReducer", () => {
       },
       {
         type: "upsertItem",
+        workspaceId: "ws-1",
         threadId: "thread-1",
         item: incomingReview,
       },
@@ -124,6 +128,94 @@ describe("threadReducer", () => {
     const items = next.itemsByThread["thread-1"] ?? [];
     expect(items).toHaveLength(1);
     expect(items[0]?.id).toBe("remote-review-1");
+  });
+
+  it("appends review items when ids repeat", () => {
+    const firstReview: ConversationItem = {
+      id: "review-mode",
+      kind: "review",
+      state: "started",
+      text: "Reviewing changes",
+    };
+    const next = threadReducer(
+      {
+        ...initialState,
+        itemsByThread: { "thread-1": [firstReview] },
+      },
+      {
+        type: "upsertItem",
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        item: {
+          id: "review-mode",
+          kind: "review",
+          state: "completed",
+          text: "Reviewing changes",
+        },
+      },
+    );
+    const items = next.itemsByThread["thread-1"] ?? [];
+    expect(items).toHaveLength(2);
+    expect(items[0]?.id).toBe("review-mode");
+    expect(items[1]?.id).toBe("review-mode-1");
+  });
+
+  it("ignores duplicate review items with identical id, state, and text", () => {
+    const firstReview: ConversationItem = {
+      id: "review-mode",
+      kind: "review",
+      state: "started",
+      text: "Reviewing changes",
+    };
+    const next = threadReducer(
+      {
+        ...initialState,
+        itemsByThread: { "thread-1": [firstReview] },
+      },
+      {
+        type: "upsertItem",
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        item: {
+          id: "review-mode",
+          kind: "review",
+          state: "started",
+          text: "Reviewing changes",
+        },
+      },
+    );
+    const items = next.itemsByThread["thread-1"] ?? [];
+    expect(items).toHaveLength(1);
+    expect(items[0]?.id).toBe("review-mode");
+  });
+
+  it("dedupes review items with identical content", () => {
+    const firstReview: ConversationItem = {
+      id: "review-mode",
+      kind: "review",
+      state: "completed",
+      text: "Reviewing changes",
+    };
+    const next = threadReducer(
+      {
+        ...initialState,
+        itemsByThread: { "thread-1": [firstReview] },
+      },
+      {
+        type: "upsertItem",
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        item: {
+          id: "review-mode-duplicate",
+          kind: "review",
+          state: "completed",
+          text: "Reviewing changes",
+        },
+      },
+    );
+    const items = next.itemsByThread["thread-1"] ?? [];
+    expect(items).toHaveLength(1);
+    expect(items[0]?.id).toBe("review-mode");
   });
 
   it("appends reasoning summary and content when missing", () => {

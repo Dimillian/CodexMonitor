@@ -36,6 +36,9 @@ describe("useAppSettings", () => {
         theme: "nope" as unknown as AppSettings["theme"],
         backendMode: "remote",
         remoteBackendHost: "example:1234",
+        uiFontFamily: "",
+        codeFontFamily: "  ",
+        codeFontSize: 25,
       } as AppSettings,
     );
 
@@ -45,6 +48,9 @@ describe("useAppSettings", () => {
 
     expect(result.current.settings.uiScale).toBe(UI_SCALE_MAX);
     expect(result.current.settings.theme).toBe("system");
+    expect(result.current.settings.uiFontFamily).toContain("SF Pro Text");
+    expect(result.current.settings.codeFontFamily).toContain("SF Mono");
+    expect(result.current.settings.codeFontSize).toBe(16);
     expect(result.current.settings.backendMode).toBe("remote");
     expect(result.current.settings.remoteBackendHost).toBe("example:1234");
   });
@@ -58,6 +64,8 @@ describe("useAppSettings", () => {
 
     expect(result.current.settings.uiScale).toBe(UI_SCALE_DEFAULT);
     expect(result.current.settings.theme).toBe("system");
+    expect(result.current.settings.uiFontFamily).toContain("SF Pro Text");
+    expect(result.current.settings.codeFontFamily).toContain("SF Mono");
     expect(result.current.settings.backendMode).toBe("local");
     expect(result.current.settings.dictationModelId).toBe("base");
   });
@@ -72,12 +80,18 @@ describe("useAppSettings", () => {
       ...result.current.settings,
       theme: "nope" as unknown as AppSettings["theme"],
       uiScale: 0.04,
+      uiFontFamily: "",
+      codeFontFamily: "  ",
+      codeFontSize: 2,
       notificationSoundsEnabled: false,
     };
     const saved: AppSettings = {
       ...result.current.settings,
       theme: "dark",
       uiScale: 2.4,
+      uiFontFamily: "Avenir, sans-serif",
+      codeFontFamily: "JetBrains Mono, monospace",
+      codeFontSize: 13,
       notificationSoundsEnabled: false,
     };
     updateAppSettingsMock.mockResolvedValue(saved);
@@ -91,6 +105,9 @@ describe("useAppSettings", () => {
       expect.objectContaining({
         theme: "system",
         uiScale: 0.1,
+        uiFontFamily: expect.stringContaining("SF Pro Text"),
+        codeFontFamily: expect.stringContaining("SF Mono"),
+        codeFontSize: 9,
         notificationSoundsEnabled: false,
       }),
     );

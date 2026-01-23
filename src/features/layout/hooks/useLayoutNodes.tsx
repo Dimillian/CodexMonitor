@@ -1,5 +1,5 @@
-import type { MouseEvent, ReactNode, RefObject } from "react";
-import { ArrowLeft } from "lucide-react";
+import type { DragEvent, MouseEvent, ReactNode, RefObject } from "react";
+import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
 import { Sidebar } from "../../app/components/Sidebar";
 import { Home } from "../../home/components/Home";
 import { MainHeader } from "../../app/components/MainHeader";
@@ -23,6 +23,7 @@ import type {
   BranchInfo,
   CollaborationModeOption,
   ConversationItem,
+  ComposerEditorSettings,
   CustomPromptOption,
   DebugEntry,
   DictationSessionState,
@@ -60,6 +61,25 @@ type GitDiffViewerItem = {
   diff: string;
 };
 
+type WorktreeRenameState = {
+  name: string;
+  error: string | null;
+  notice: string | null;
+  isSubmitting: boolean;
+  isDirty: boolean;
+  upstream?: {
+    oldBranch: string;
+    newBranch: string;
+    error: string | null;
+    isSubmitting: boolean;
+    onConfirm: () => void;
+  } | null;
+  onFocus: () => void;
+  onChange: (value: string) => void;
+  onCancel: () => void;
+  onCommit: () => void;
+};
+
 type LayoutNodesOptions = {
   workspaces: WorkspaceInfo[];
   groupedWorkspaces: Array<{
@@ -68,6 +88,7 @@ type LayoutNodesOptions = {
     workspaces: WorkspaceInfo[];
   }>;
   hasWorkspaceGroups: boolean;
+  deletingWorktreeIds: Set<string>;
   threadsByWorkspace: Record<string, ThreadSummary[]>;
   threadParentById: Record<string, string>;
   threadStatusById: Record<string, ThreadActivityStatus>;
@@ -79,6 +100,7 @@ type LayoutNodesOptions = {
   activeThreadId: string | null;
   activeItems: ConversationItem[];
   activeRateLimits: RateLimitSnapshot | null;
+  codeBlockCopyUseModifier: boolean;
   approvals: ApprovalRequest[];
   handleApprovalDecision: (
     request: ApprovalRequest,
@@ -111,6 +133,13 @@ type LayoutNodesOptions = {
   onDeleteWorktree: (workspaceId: string) => void;
   onLoadOlderThreads: (workspaceId: string) => void;
   onReloadWorkspaceThreads: (workspaceId: string) => void;
+  workspaceDropTargetRef: RefObject<HTMLElement | null>;
+  isWorkspaceDropActive: boolean;
+  workspaceDropText: string;
+  onWorkspaceDragOver: (event: DragEvent<HTMLElement>) => void;
+  onWorkspaceDragEnter: (event: DragEvent<HTMLElement>) => void;
+  onWorkspaceDragLeave: (event: DragEvent<HTMLElement>) => void;
+  onWorkspaceDrop: (event: DragEvent<HTMLElement>) => void;
   updaterState: UpdateState;
   onUpdate: () => void;
   onDismissUpdate: () => void;
@@ -128,10 +157,16 @@ type LayoutNodesOptions = {
   isLoadingLocalUsage: boolean;
   localUsageError: string | null;
   onRefreshLocalUsage: () => void;
+  usageMetric: "tokens" | "time";
+  onUsageMetricChange: (metric: "tokens" | "time") => void;
+  usageWorkspaceId: string | null;
+  usageWorkspaceOptions: Array<{ id: string; label: string }>;
+  onUsageWorkspaceChange: (workspaceId: string | null) => void;
   onSelectHomeThread: (workspaceId: string, threadId: string) => void;
   activeWorkspace: WorkspaceInfo | null;
   activeParentWorkspace: WorkspaceInfo | null;
   worktreeLabel: string | null;
+  worktreeRename?: WorktreeRenameState;
   isWorktreeWorkspace: boolean;
   branchName: string;
   branches: BranchInfo[];
@@ -148,6 +183,7 @@ type LayoutNodesOptions = {
   tabletNavTab: "codex" | "git" | "log";
   gitPanelMode: "diff" | "log" | "issues" | "prs";
   onGitPanelModeChange: (mode: "diff" | "log" | "issues" | "prs") => void;
+  gitDiffViewStyle: "split" | "unified";
   worktreeApplyLabel: string;
   worktreeApplyTitle: string | null;
   worktreeApplyLoading: boolean;
@@ -177,6 +213,8 @@ type LayoutNodesOptions = {
   gitLogAheadEntries: GitLogEntry[];
   gitLogBehindEntries: GitLogEntry[];
   gitLogUpstream: string | null;
+  selectedCommitSha: string | null;
+  onSelectCommit: (entry: GitLogEntry) => void;
   gitLogError: string | null;
   gitLogLoading: boolean;
   gitIssues: GitHubIssue[];
@@ -205,6 +243,7 @@ type LayoutNodesOptions = {
   onSelectGitRoot: (path: string) => void;
   onClearGitRoot: () => void;
   onPickGitRoot: () => void | Promise<void>;
+  onStageGitAll: () => Promise<void>;
   onStageGitFile: (path: string) => Promise<void>;
   onUnstageGitFile: (path: string) => Promise<void>;
   onRevertGitFile: (path: string) => Promise<void>;
@@ -213,6 +252,23 @@ type LayoutNodesOptions = {
   gitDiffLoading: boolean;
   gitDiffError: string | null;
   onDiffActivePathChange?: (path: string) => void;
+  commitMessage: string;
+  commitMessageLoading: boolean;
+  commitMessageError: string | null;
+  onCommitMessageChange: (value: string) => void;
+  onGenerateCommitMessage: () => void | Promise<void>;
+  onCommit?: () => void | Promise<void>;
+  onCommitAndPush?: () => void | Promise<void>;
+  onCommitAndSync?: () => void | Promise<void>;
+  onPush?: () => void | Promise<void>;
+  onSync?: () => void | Promise<void>;
+  commitLoading?: boolean;
+  pushLoading?: boolean;
+  syncLoading?: boolean;
+  commitError?: string | null;
+  pushError?: string | null;
+  syncError?: string | null;
+  commitsAhead?: number;
   onSendPrompt: (text: string) => void | Promise<void>;
   onSendPromptToNewAgent: (text: string) => void | Promise<void>;
   onCreatePrompt: (data: {
@@ -268,7 +324,11 @@ type LayoutNodesOptions = {
   skills: SkillOption[];
   prompts: CustomPromptOption[];
   files: string[];
+  onInsertComposerText: (text: string) => void;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
+  composerEditorSettings: ComposerEditorSettings;
+  composerEditorExpanded: boolean;
+  onToggleComposerEditorExpanded: () => void;
   dictationEnabled: boolean;
   dictationState: DictationSessionState;
   dictationLevel: number;
@@ -331,6 +391,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       workspaces={options.workspaces}
       groupedWorkspaces={options.groupedWorkspaces}
       hasWorkspaceGroups={options.hasWorkspaceGroups}
+      deletingWorktreeIds={options.deletingWorktreeIds}
       threadsByWorkspace={options.threadsByWorkspace}
       threadParentById={options.threadParentById}
       threadStatusById={options.threadStatusById}
@@ -363,6 +424,13 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onDeleteWorktree={options.onDeleteWorktree}
       onLoadOlderThreads={options.onLoadOlderThreads}
       onReloadWorkspaceThreads={options.onReloadWorkspaceThreads}
+      workspaceDropTargetRef={options.workspaceDropTargetRef}
+      isWorkspaceDropActive={options.isWorkspaceDropActive}
+      workspaceDropText={options.workspaceDropText}
+      onWorkspaceDragOver={options.onWorkspaceDragOver}
+      onWorkspaceDragEnter={options.onWorkspaceDragEnter}
+      onWorkspaceDragLeave={options.onWorkspaceDragLeave}
+      onWorkspaceDrop={options.onWorkspaceDrop}
     />
   );
 
@@ -371,6 +439,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       items={options.activeItems}
       threadId={options.activeThreadId ?? null}
       workspacePath={options.activeWorkspace?.path ?? null}
+      codeBlockCopyUseModifier={options.codeBlockCopyUseModifier}
       isThinking={
         options.activeThreadId
           ? options.threadStatusById[options.activeThreadId]?.isProcessing ?? false
@@ -423,6 +492,9 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       prompts={options.prompts}
       files={options.files}
       textareaRef={options.textareaRef}
+      editorSettings={options.composerEditorSettings}
+      editorExpanded={options.composerEditorExpanded}
+      onToggleEditorExpanded={options.onToggleComposerEditorExpanded}
       dictationEnabled={options.dictationEnabled}
       dictationState={options.dictationState}
       dictationLevel={options.dictationLevel}
@@ -464,6 +536,11 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       isLoadingLocalUsage={options.isLoadingLocalUsage}
       localUsageError={options.localUsageError}
       onRefreshLocalUsage={options.onRefreshLocalUsage}
+      usageMetric={options.usageMetric}
+      onUsageMetricChange={options.onUsageMetricChange}
+      usageWorkspaceId={options.usageWorkspaceId}
+      usageWorkspaceOptions={options.usageWorkspaceOptions}
+      onUsageWorkspaceChange={options.onUsageWorkspaceChange}
       onSelectThread={options.onSelectHomeThread}
     />
   );
@@ -473,6 +550,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       workspace={options.activeWorkspace}
       parentName={options.activeParentWorkspace?.name ?? null}
       worktreeLabel={options.worktreeLabel}
+      worktreeRename={options.worktreeRename}
       disableBranchMenu={options.isWorktreeWorkspace}
       parentPath={options.activeParentWorkspace?.path ?? null}
       worktreePath={options.isWorktreeWorkspace ? options.activeWorkspace.path : null}
@@ -512,15 +590,20 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     <TabBar activeTab={options.activeTab} onSelect={options.onSelectTab} />
   );
 
+  const sidebarSelectedDiffPath =
+    options.centerMode === "diff" ? options.selectedDiffPath : null;
+
   let gitDiffPanelNode: ReactNode;
   if (options.filePanelMode === "files" && options.activeWorkspace) {
     gitDiffPanelNode = (
       <FileTreePanel
+        workspaceId={options.activeWorkspace.id}
         workspacePath={options.activeWorkspace.path}
         files={options.files}
         isLoading={options.fileTreeLoading}
         filePanelMode={options.filePanelMode}
         onFilePanelModeChange={options.onFilePanelModeChange}
+        onInsertText={options.onInsertComposerText}
       />
     );
   } else if (options.filePanelMode === "prompts") {
@@ -563,7 +646,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         stagedFiles={options.gitStatus.stagedFiles}
         unstagedFiles={options.gitStatus.unstagedFiles}
         onSelectFile={options.onSelectDiff}
-        selectedPath={options.selectedDiffPath}
+        selectedPath={sidebarSelectedDiffPath}
         logEntries={options.gitLogEntries}
         logTotal={options.gitLogTotal}
         logAhead={options.gitLogAhead}
@@ -571,6 +654,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         logAheadEntries={options.gitLogAheadEntries}
         logBehindEntries={options.gitLogBehindEntries}
         logUpstream={options.gitLogUpstream}
+        selectedCommitSha={options.selectedCommitSha}
+        onSelectCommit={options.onSelectCommit}
         issues={options.gitIssues}
         issuesTotal={options.gitIssuesTotal}
         issuesLoading={options.gitIssuesLoading}
@@ -593,10 +678,28 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         onSelectGitRoot={options.onSelectGitRoot}
         onClearGitRoot={options.onClearGitRoot}
         onPickGitRoot={options.onPickGitRoot}
+        onStageAllChanges={options.onStageGitAll}
         onStageFile={options.onStageGitFile}
         onUnstageFile={options.onUnstageGitFile}
         onRevertFile={options.onRevertGitFile}
         onRevertAllChanges={options.onRevertAllGitChanges}
+        commitMessage={options.commitMessage}
+        commitMessageLoading={options.commitMessageLoading}
+        commitMessageError={options.commitMessageError}
+        onCommitMessageChange={options.onCommitMessageChange}
+        onGenerateCommitMessage={options.onGenerateCommitMessage}
+        onCommit={options.onCommit}
+        onCommitAndPush={options.onCommitAndPush}
+        onCommitAndSync={options.onCommitAndSync}
+        onPush={options.onPush}
+        onSync={options.onSync}
+        commitLoading={options.commitLoading}
+        pushLoading={options.pushLoading}
+        syncLoading={options.syncLoading}
+        commitError={options.commitError}
+        pushError={options.pushError}
+        syncError={options.syncError}
+        commitsAhead={options.commitsAhead}
       />
     );
   }
@@ -608,6 +711,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       scrollRequestId={options.diffScrollRequestId}
       isLoading={options.gitDiffLoading}
       error={options.gitDiffError}
+      diffStyle={options.gitDiffViewStyle}
       pullRequest={options.selectedPullRequest}
       pullRequestComments={options.selectedPullRequestComments}
       pullRequestCommentsLoading={options.selectedPullRequestCommentsLoading}

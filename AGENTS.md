@@ -38,6 +38,11 @@ CodexMonitor is a macOS Tauri app that orchestrates Codex agents across local wo
 - **Styles**: one CSS file per UI area in `src/styles/` (no global refactors in components).
 - **Backend IPC**: add new commands in `src-tauri/src/lib.rs` and mirror them in the service.
 - **App-server protocol**: do not send any requests before `initialize/initialized`.
+- **Keep `src/App.tsx` lean**:
+  - Keep it to wiring: hook composition, top-level layout, and route/section assembly.
+  - Move stateful logic/effects into hooks under `src/features/app/hooks/`.
+  - Keep Tauri IPC, menu listeners, and subscriptions out of `src/App.tsx` (use hooks/services).
+  - If a block grows beyond ~60 lines or needs its own state/effects, extract it.
 
 ## App-Server Flow
 

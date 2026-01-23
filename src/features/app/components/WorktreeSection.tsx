@@ -1,4 +1,4 @@
-import { Layers } from "lucide-react";
+import Layers from "lucide-react/dist/esm/icons/layers";
 import type { MouseEvent } from "react";
 
 import type { ThreadSummary, WorkspaceInfo } from "../../../types";
@@ -20,6 +20,7 @@ type ThreadRowsResult = {
 
 type WorktreeSectionProps = {
   worktrees: WorkspaceInfo[];
+  deletingWorktreeIds: Set<string>;
   threadsByWorkspace: Record<string, ThreadSummary[]>;
   threadStatusById: ThreadStatusMap;
   threadListLoadingByWorkspace: Record<string, boolean>;
@@ -54,6 +55,7 @@ type WorktreeSectionProps = {
 
 export function WorktreeSection({
   worktrees,
+  deletingWorktreeIds,
   threadsByWorkspace,
   threadStatusById,
   threadListLoadingByWorkspace,
@@ -118,6 +120,7 @@ export function WorktreeSection({
               key={worktree.id}
               worktree={worktree}
               isActive={worktree.id === activeWorkspaceId}
+              isDeleting={deletingWorktreeIds.has(worktree.id)}
               onSelectWorkspace={onSelectWorkspace}
               onShowWorktreeMenu={onShowWorktreeMenu}
               onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}

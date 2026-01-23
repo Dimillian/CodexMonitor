@@ -158,7 +158,7 @@ describe("useThreads UX integration", () => {
         item.role === "user" &&
         item.text === "Hello",
     );
-    expect(userHelloMessages).toHaveLength(2);
+    expect(userHelloMessages).toHaveLength(1);
 
     const assistantMerged = activeItems.find(
       (item) =>

@@ -190,6 +190,11 @@
   text-align: right;
 }
 
+.settings-input--range {
+  width: 160px;
+  accent-color: var(--border-accent);
+}
+
 .settings-input--shortcut {
   font-family: "SF Mono", "Fira Mono", "Menlo", monospace;
   letter-spacing: 0.02em;
@@ -250,6 +255,13 @@
   font-size: 12px;
   color: var(--text-subtle);
   margin-bottom: 12px;
+}
+
+.settings-divider {
+  height: 1px;
+  background: var(--border-muted);
+  margin: 16px 0;
+  border-radius: 999px;
 }
 
 .settings-projects {
@@ -523,6 +535,11 @@
   background: linear-gradient(135deg, rgba(100, 200, 255, 0.6), rgba(120, 235, 190, 0.6));
   border-color: var(--border-accent);
   justify-content: flex-end;
+}
+
+.app.reduced-transparency .settings-toggle:not(.on) {
+  background: var(--surface-control-hover);
+  border-color: var(--border-stronger);
 }
 
 .settings-toggle-knob {

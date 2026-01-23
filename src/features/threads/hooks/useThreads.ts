@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import * as Sentry from "@sentry/react";
 import type {
   ApprovalRequest,
   AppServerEvent,
@@ -405,27 +406,6 @@ function normalizePlanUpdate(
   };
 }
 
-function formatReviewLabel(target: ReturnType<typeof parseReviewTarget>) {
-  if (target.type === "uncommittedChanges") {
-    return "current changes";
-  }
-  if (target.type === "baseBranch") {
-    return `base branch ${target.branch}`;
-  }
-  if (target.type === "commit") {
-    return target.title
-      ? `commit ${target.sha}: ${target.title}`
-      : `commit ${target.sha}`;
-  }
-  const instructions = target.instructions.trim();
-  if (!instructions) {
-    return "custom review";
-  }
-  return instructions.length > 80
-    ? `${instructions.slice(0, 80)}…`
-    : instructions;
-}
-
 export function useThreads({
   activeWorkspace,
   onWorkspaceConnected,
@@ -439,6 +419,7 @@ export function useThreads({
 }: UseThreadsOptions) {
   const [state, dispatch] = useReducer(threadReducer, initialState);
   const loadedThreads = useRef<Record<string, boolean>>({});
+  const replaceOnResumeRef = useRef<Record<string, boolean>>({});
   const threadActivityRef = useRef<ThreadActivityMap>(loadThreadActivity());
   const pinnedThreadsRef = useRef<PinnedThreadsMap>(loadPinnedThreads());
   const [pinnedThreadsVersion, setPinnedThreadsVersion] = useState(0);
@@ -735,11 +716,17 @@ export function useThreads({
       }
       const converted = buildConversationItem(item);
       if (converted) {
-        dispatch({ type: "upsertItem", threadId, item: converted });
+        dispatch({
+          type: "upsertItem",
+          workspaceId,
+          threadId,
+          item: converted,
+          hasCustomName: Boolean(getCustomName(workspaceId, threadId)),
+        });
       }
       safeMessageActivity();
     },
-    [applyCollabThreadLinks, markProcessing, safeMessageActivity],
+    [applyCollabThreadLinks, getCustomName, markProcessing, safeMessageActivity],
   );
 
   const handleToolOutputDelta = useCallback(
@@ -749,6 +736,18 @@ export function useThreads({
       safeMessageActivity();
     },
     [markProcessing, safeMessageActivity],
+  );
+
+  const handleTerminalInteraction = useCallback(
+    (threadId: string, itemId: string, stdin: string) => {
+      if (!stdin) {
+        return;
+      }
+      const normalized = stdin.replace(/\r\n/g, "\n");
+      const suffix = normalized.endsWith("\n") ? "" : "\n";
+      handleToolOutputDelta(threadId, itemId, `\n[stdin]\n${normalized}${suffix}`);
+    },
+    [handleToolOutputDelta],
   );
 
   const handleWorkspaceConnected = useCallback(
@@ -906,6 +905,14 @@ export function useThreads({
       ) => {
         handleToolOutputDelta(threadId, itemId, delta);
       },
+      onTerminalInteraction: (
+        _workspaceId: string,
+        threadId: string,
+        itemId: string,
+        stdin: string,
+      ) => {
+        handleTerminalInteraction(threadId, itemId, stdin);
+      },
       onFileChangeOutputDelta: (
         _workspaceId: string,
         threadId: string,
@@ -1002,6 +1009,7 @@ export function useThreads({
       getCustomName,
       handleWorkspaceConnected,
       handleItemUpdate,
+      handleTerminalInteraction,
       handleToolOutputDelta,
       markProcessing,
       onDebug,
@@ -1038,6 +1046,13 @@ export function useThreads({
           dispatch({ type: "ensureThread", workspaceId, threadId });
           if (shouldActivate) {
             dispatch({ type: "setActiveThreadId", workspaceId, threadId });
+            Sentry.metrics.count("thread_switched", 1, {
+              attributes: {
+                workspace_id: workspaceId,
+                thread_id: threadId,
+                reason: "start",
+              },
+            });
           }
           loadedThreads.current[threadId] = true;
           return threadId;
@@ -1065,7 +1080,12 @@ export function useThreads({
   }, [activeWorkspaceId, startThreadForWorkspace]);
 
   const resumeThreadForWorkspace = useCallback(
-    async (workspaceId: string, threadId: string, force = false) => {
+    async (
+      workspaceId: string,
+      threadId: string,
+      force = false,
+      replaceLocal = false,
+    ) => {
       if (!threadId) {
         return null;
       }
@@ -1101,8 +1121,17 @@ export function useThreads({
           applyCollabThreadLinksFromThread(threadId, thread);
           const items = buildItemsFromThread(thread);
           const localItems = state.itemsByThread[threadId] ?? [];
+          const shouldReplace =
+            replaceLocal || replaceOnResumeRef.current[threadId] === true;
+          if (shouldReplace) {
+            replaceOnResumeRef.current[threadId] = false;
+          }
           const mergedItems =
-            items.length > 0 ? mergeThreadItems(items, localItems) : localItems;
+            items.length > 0
+              ? shouldReplace
+                ? items
+                : mergeThreadItems(items, localItems)
+              : localItems;
           if (mergedItems.length > 0) {
             dispatch({ type: "setThreadItems", threadId, items: mergedItems });
           }
@@ -1153,6 +1182,33 @@ export function useThreads({
       }
     },
     [applyCollabThreadLinksFromThread, getCustomName, onDebug, state.itemsByThread],
+  );
+
+  const refreshThread = useCallback(
+    async (workspaceId: string, threadId: string) => {
+      if (!threadId) {
+        return null;
+      }
+      replaceOnResumeRef.current[threadId] = true;
+      return resumeThreadForWorkspace(workspaceId, threadId, true, true);
+    },
+    [resumeThreadForWorkspace],
+  );
+
+  const resetWorkspaceThreads = useCallback(
+    (workspaceId: string) => {
+      const threadIds = new Set<string>();
+      const list = state.threadsByWorkspace[workspaceId] ?? [];
+      list.forEach((thread) => threadIds.add(thread.id));
+      const activeThread = state.activeThreadIdByWorkspace[workspaceId];
+      if (activeThread) {
+        threadIds.add(activeThread);
+      }
+      threadIds.forEach((threadId) => {
+        loadedThreads.current[threadId] = false;
+      });
+    },
+    [state.activeThreadIdByWorkspace, state.threadsByWorkspace],
   );
 
   const listThreadsForWorkspace = useCallback(
@@ -1487,16 +1543,18 @@ export function useThreads({
         }
         finalText = promptExpansion?.expanded ?? messageText;
       }
-      recordThreadActivity(workspace.id, threadId);
-      const hasCustomName = Boolean(getCustomName(workspace.id, threadId));
-      dispatch({
-        type: "addUserMessage",
-        workspaceId: workspace.id,
-        threadId,
-        text: finalText,
-        images,
-        hasCustomName,
+      Sentry.metrics.count("prompt_sent", 1, {
+        attributes: {
+          workspace_id: workspace.id,
+          thread_id: threadId,
+          has_images: images.length > 0 ? "true" : "false",
+          text_length: String(finalText.length),
+          model: model ?? "unknown",
+          effort: effort ?? "unknown",
+          collaboration_mode: collaborationMode ?? "unknown",
+        },
       });
+      recordThreadActivity(workspace.id, threadId);
       markProcessing(threadId, true);
       safeMessageActivity();
       onDebug?.({
@@ -1572,7 +1630,6 @@ export function useThreads({
       collaborationMode,
       customPrompts,
       effort,
-      getCustomName,
       markProcessing,
       model,
       onDebug,
@@ -1705,16 +1762,6 @@ export function useThreads({
       const target = parseReviewTarget(text);
       markProcessing(threadId, true);
       dispatch({ type: "markReviewing", threadId, isReviewing: true });
-      dispatch({
-        type: "upsertItem",
-        threadId,
-        item: {
-          id: `review-start-${threadId}-${Date.now()}`,
-          kind: "review",
-          state: "started",
-          text: formatReviewLabel(target),
-        },
-      });
       safeMessageActivity();
       onDebug?.({
         id: `${Date.now()}-client-review-start`,
@@ -1831,6 +1878,13 @@ export function useThreads({
       }
       dispatch({ type: "setActiveThreadId", workspaceId: targetId, threadId });
       if (threadId) {
+        Sentry.metrics.count("thread_switched", 1, {
+          attributes: {
+            workspace_id: targetId,
+            thread_id: threadId,
+            reason: "select",
+          },
+        });
         void resumeThreadForWorkspace(targetId, threadId, true);
       }
     },
@@ -1901,6 +1955,8 @@ export function useThreads({
     startThread,
     startThreadForWorkspace,
     listThreadsForWorkspace,
+    refreshThread,
+    resetWorkspaceThreads,
     loadOlderThreadsForWorkspace,
     sendUserMessage,
     sendUserMessageToThread,

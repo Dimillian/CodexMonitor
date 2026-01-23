@@ -1,5 +1,17 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Brain from "lucide-react/dist/esm/icons/brain";
+import Check from "lucide-react/dist/esm/icons/check";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
+import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
+import Copy from "lucide-react/dist/esm/icons/copy";
+import Diff from "lucide-react/dist/esm/icons/diff";
+import FileDiff from "lucide-react/dist/esm/icons/file-diff";
+import FileText from "lucide-react/dist/esm/icons/file-text";
+import Image from "lucide-react/dist/esm/icons/image";
+import Search from "lucide-react/dist/esm/icons/search";
+import Terminal from "lucide-react/dist/esm/icons/terminal";
+import Users from "lucide-react/dist/esm/icons/users";
+import Wrench from "lucide-react/dist/esm/icons/wrench";
 import type { ConversationItem } from "../../../types";
 import { Markdown } from "./Markdown";
 import { DiffBlock } from "../../git/components/DiffBlock";
@@ -13,6 +25,7 @@ type MessagesProps = {
   processingStartedAt?: number | null;
   lastDurationMs?: number | null;
   workspacePath?: string | null;
+  codeBlockCopyUseModifier?: boolean;
 };
 
 type ToolSummary = {
@@ -35,6 +48,7 @@ type MessageRowProps = {
   item: Extract<ConversationItem, { kind: "message" }>;
   isCopied: boolean;
   onCopy: (item: Extract<ConversationItem, { kind: "message" }>) => void;
+  codeBlockCopyUseModifier?: boolean;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
 };
@@ -63,7 +77,25 @@ type ToolRowProps = {
   onToggle: (id: string) => void;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
+  onRequestAutoScroll?: () => void;
 };
+
+type CommandOutputProps = {
+  output: string;
+};
+
+type ToolGroupItem = Extract<ConversationItem, { kind: "tool" | "reasoning" }>;
+
+type ToolGroup = {
+  id: string;
+  items: ToolGroupItem[];
+  toolCount: number;
+  messageCount: number;
+};
+
+type MessageListEntry =
+  | { kind: "item"; item: ConversationItem }
+  | { kind: "toolGroup"; group: ToolGroup };
 
 function basename(path: string) {
   if (!path) {
@@ -108,6 +140,52 @@ function toolNameFromTitle(title: string) {
   const [, toolPart = ""] = title.split(":");
   const segments = toolPart.split("/").map((segment) => segment.trim());
   return segments.length ? segments[segments.length - 1] : "";
+}
+
+function formatCount(value: number, singular: string, plural: string) {
+  return `${value} ${value === 1 ? singular : plural}`;
+}
+
+function isToolGroupItem(item: ConversationItem): item is ToolGroupItem {
+  return item.kind === "tool" || item.kind === "reasoning";
+}
+
+function buildToolGroups(items: ConversationItem[]): MessageListEntry[] {
+  const entries: MessageListEntry[] = [];
+  let buffer: ToolGroupItem[] = [];
+
+  const flush = () => {
+    if (buffer.length === 0) {
+      return;
+    }
+    const toolCount = buffer.filter((item) => item.kind === "tool").length;
+    const messageCount = buffer.length - toolCount;
+    if (toolCount === 0 || buffer.length === 1) {
+      buffer.forEach((item) => entries.push({ kind: "item", item }));
+    } else {
+      entries.push({
+        kind: "toolGroup",
+        group: {
+          id: buffer[0].id,
+          items: buffer,
+          toolCount,
+          messageCount,
+        },
+      });
+    }
+    buffer = [];
+  };
+
+  items.forEach((item) => {
+    if (isToolGroupItem(item)) {
+      buffer.push(item);
+    } else {
+      flush();
+      entries.push({ kind: "item", item });
+    }
+  });
+  flush();
+  return entries;
 }
 
 function buildToolSummary(
@@ -173,6 +251,43 @@ function buildToolSummary(
     detail: item.detail || "",
     output: item.output || "",
   };
+}
+
+function toolIconForSummary(
+  item: Extract<ConversationItem, { kind: "tool" }>,
+  summary: ToolSummary,
+) {
+  if (item.toolType === "commandExecution") {
+    return Terminal;
+  }
+  if (item.toolType === "fileChange") {
+    return FileDiff;
+  }
+  if (item.toolType === "webSearch") {
+    return Search;
+  }
+  if (item.toolType === "imageView") {
+    return Image;
+  }
+  if (item.toolType === "collabToolCall") {
+    return Users;
+  }
+
+  const label = summary.label.toLowerCase();
+  if (label === "read") {
+    return FileText;
+  }
+  if (label === "searched") {
+    return Search;
+  }
+
+  const toolName = toolNameFromTitle(item.title).toLowerCase();
+  const title = item.title.toLowerCase();
+  if (toolName.includes("diff") || title.includes("diff")) {
+    return Diff;
+  }
+
+  return Wrench;
 }
 
 function cleanCommandText(commandText: string) {
@@ -300,6 +415,7 @@ const MessageRow = memo(function MessageRow({
   item,
   isCopied,
   onCopy,
+  codeBlockCopyUseModifier,
   onOpenFileLink,
   onOpenFileLinkMenu,
 }: MessageRowProps) {
@@ -309,6 +425,8 @@ const MessageRow = memo(function MessageRow({
         <Markdown
           value={item.text}
           className="markdown"
+          codeBlockStyle="message"
+          codeBlockCopyUseModifier={codeBlockCopyUseModifier}
           onOpenFileLink={onOpenFileLink}
           onOpenFileLinkMenu={onOpenFileLinkMenu}
         />
@@ -375,7 +493,11 @@ const ReasoningRow = memo(function ReasoningRow({
           onClick={() => onToggle(item.id)}
           aria-expanded={isExpanded}
         >
-          <span className={`tool-inline-dot ${reasoningTone}`} aria-hidden />
+          <Brain
+            className={`tool-inline-icon ${reasoningTone}`}
+            size={14}
+            aria-hidden
+          />
           <span className="tool-inline-value">{summaryTitle}</span>
         </button>
         {showReasoningBody && (
@@ -441,6 +563,7 @@ const ToolRow = memo(function ToolRow({
   onToggle,
   onOpenFileLink,
   onOpenFileLinkMenu,
+  onRequestAutoScroll,
 }: ToolRowProps) {
   const isFileChange = item.toolType === "fileChange";
   const isCommand = item.toolType === "commandExecution";
@@ -453,6 +576,7 @@ const ToolRow = memo(function ToolRow({
     .filter(Boolean);
   const hasChanges = changeNames.length > 0;
   const tone = toolStatusTone(item, hasChanges);
+  const ToolIcon = toolIconForSummary(item, summary);
   const summaryLabel = isFileChange
     ? changeNames.length > 1
       ? "files edited"
@@ -468,6 +592,36 @@ const ToolRow = memo(function ToolRow({
   const shouldFadeCommand =
     isCommand && !isExpanded && (summaryValue?.length ?? 0) > 80;
   const showToolOutput = isExpanded && (!isFileChange || !hasChanges);
+  const normalizedStatus = (item.status ?? "").toLowerCase();
+  const isCommandRunning = isCommand && /in[_\s-]*progress|running|started/.test(normalizedStatus);
+  const commandDurationMs =
+    typeof item.durationMs === "number" ? item.durationMs : null;
+  const isLongRunning = commandDurationMs !== null && commandDurationMs >= 1200;
+  const [showLiveOutput, setShowLiveOutput] = useState(false);
+
+  useEffect(() => {
+    if (!isCommandRunning) {
+      setShowLiveOutput(false);
+      return;
+    }
+    const timeoutId = window.setTimeout(() => {
+      setShowLiveOutput(true);
+    }, 600);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [isCommandRunning]);
+
+  const showCommandOutput =
+    isCommand &&
+    summary.output &&
+    (isExpanded || (isCommandRunning && showLiveOutput) || isLongRunning);
+
+  useEffect(() => {
+    if (showCommandOutput && isCommandRunning && showLiveOutput) {
+      onRequestAutoScroll?.();
+    }
+  }, [isCommandRunning, onRequestAutoScroll, showCommandOutput, showLiveOutput]);
   return (
     <div className={`tool-inline ${isExpanded ? "tool-inline-expanded" : ""}`}>
       <button
@@ -484,7 +638,7 @@ const ToolRow = memo(function ToolRow({
           onClick={() => onToggle(item.id)}
           aria-expanded={isExpanded}
         >
-          <span className={`tool-inline-dot ${tone}`} aria-hidden />
+          <ToolIcon className={`tool-inline-icon ${tone}`} size={14} aria-hidden />
           {summaryLabel && (
             <span className="tool-inline-label">{summaryLabel}:</span>
           )}
@@ -553,7 +707,8 @@ const ToolRow = memo(function ToolRow({
             onOpenFileLinkMenu={onOpenFileLinkMenu}
           />
         )}
-        {showToolOutput && summary.output && (
+        {showCommandOutput && <CommandOutput output={summary.output ?? ""} />}
+        {showToolOutput && summary.output && !isCommand && (
           <Markdown
             value={summary.output}
             className="tool-inline-output markdown"
@@ -567,6 +722,66 @@ const ToolRow = memo(function ToolRow({
   );
 });
 
+const CommandOutput = memo(function CommandOutput({ output }: CommandOutputProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [isPinned, setIsPinned] = useState(true);
+  const lines = useMemo(() => {
+    if (!output) {
+      return [];
+    }
+    return output.split(/\r?\n/);
+  }, [output]);
+  const maxStoredLines = 200;
+  const lineWindow = useMemo(() => {
+    if (lines.length <= maxStoredLines) {
+      return { offset: 0, lines };
+    }
+    const startIndex = lines.length - maxStoredLines;
+    return { offset: startIndex, lines: lines.slice(startIndex) };
+  }, [lines]);
+
+  const handleScroll = useCallback(() => {
+    const node = containerRef.current;
+    if (!node) {
+      return;
+    }
+    const threshold = 6;
+    const distanceFromBottom = node.scrollHeight - node.scrollTop - node.clientHeight;
+    setIsPinned(distanceFromBottom <= threshold);
+  }, []);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node || !isPinned) {
+      return;
+    }
+    node.scrollTop = node.scrollHeight;
+  }, [lineWindow, isPinned]);
+
+  if (lineWindow.lines.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="tool-inline-terminal" role="log" aria-live="polite">
+      <div
+        className="tool-inline-terminal-lines"
+        ref={containerRef}
+        onScroll={handleScroll}
+      >
+        {lineWindow.lines.map((line, index) => (
+          <div
+            key={`${lineWindow.offset + index}-${line}`}
+            className="tool-inline-terminal-line"
+          >
+            {line || " "}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+
 export const Messages = memo(function Messages({
   items,
   threadId,
@@ -574,19 +789,26 @@ export const Messages = memo(function Messages({
   processingStartedAt = null,
   lastDurationMs = null,
   workspacePath = null,
+  codeBlockCopyUseModifier = false,
 }: MessagesProps) {
   const SCROLL_THRESHOLD_PX = 120;
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const autoScrollRef = useRef(true);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [collapsedToolGroups, setCollapsedToolGroups] = useState<Set<string>>(
+    new Set(),
+  );
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const copyTimeoutRef = useRef<number | null>(null);
   const scrollKey = scrollKeyForItems(items);
   const { openFileLink, showFileLinkMenu } = useFileLinkOpener(workspacePath);
 
-  const isNearBottom = (node: HTMLDivElement) =>
-    node.scrollHeight - node.scrollTop - node.clientHeight <= SCROLL_THRESHOLD_PX;
+  const isNearBottom = useCallback(
+    (node: HTMLDivElement) =>
+      node.scrollHeight - node.scrollTop - node.clientHeight <= SCROLL_THRESHOLD_PX,
+    [SCROLL_THRESHOLD_PX],
+  );
 
   const updateAutoScroll = () => {
     if (!containerRef.current) {
@@ -595,11 +817,36 @@ export const Messages = memo(function Messages({
     autoScrollRef.current = isNearBottom(containerRef.current);
   };
 
+  const requestAutoScroll = useCallback(() => {
+    if (!bottomRef.current) {
+      return;
+    }
+    const container = containerRef.current;
+    const shouldScroll =
+      autoScrollRef.current || (container ? isNearBottom(container) : true);
+    if (!shouldScroll) {
+      return;
+    }
+    bottomRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [isNearBottom]);
+
   useEffect(() => {
     autoScrollRef.current = true;
   }, [threadId]);
   const toggleExpanded = useCallback((id: string) => {
     setExpandedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleToolGroup = useCallback((id: string) => {
+    setCollapsedToolGroups((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
@@ -665,7 +912,67 @@ export const Messages = memo(function Messages({
         window.cancelAnimationFrame(raf2);
       }
     };
-  }, [scrollKey, isThinking]);
+  }, [scrollKey, isThinking, isNearBottom]);
+
+  const groupedItems = buildToolGroups(visibleItems);
+
+  const renderItem = (item: ConversationItem) => {
+    if (item.kind === "message") {
+      const isCopied = copiedMessageId === item.id;
+      return (
+        <MessageRow
+          key={item.id}
+          item={item}
+          isCopied={isCopied}
+          onCopy={handleCopyMessage}
+          codeBlockCopyUseModifier={codeBlockCopyUseModifier}
+          onOpenFileLink={openFileLink}
+          onOpenFileLinkMenu={showFileLinkMenu}
+        />
+      );
+    }
+    if (item.kind === "reasoning") {
+      const isExpanded = expandedItems.has(item.id);
+      return (
+        <ReasoningRow
+          key={item.id}
+          item={item}
+          isExpanded={isExpanded}
+          onToggle={toggleExpanded}
+          onOpenFileLink={openFileLink}
+          onOpenFileLinkMenu={showFileLinkMenu}
+        />
+      );
+    }
+    if (item.kind === "review") {
+      return (
+        <ReviewRow
+          key={item.id}
+          item={item}
+          onOpenFileLink={openFileLink}
+          onOpenFileLinkMenu={showFileLinkMenu}
+        />
+      );
+    }
+    if (item.kind === "diff") {
+      return <DiffRow key={item.id} item={item} />;
+    }
+    if (item.kind === "tool") {
+      const isExpanded = expandedItems.has(item.id);
+      return (
+        <ToolRow
+          key={item.id}
+          item={item}
+          isExpanded={isExpanded}
+          onToggle={toggleExpanded}
+          onOpenFileLink={openFileLink}
+          onOpenFileLinkMenu={showFileLinkMenu}
+          onRequestAutoScroll={requestAutoScroll}
+        />
+      );
+    }
+    return null;
+  };
 
   return (
     <div
@@ -673,60 +980,48 @@ export const Messages = memo(function Messages({
       ref={containerRef}
       onScroll={updateAutoScroll}
     >
-      {visibleItems.map((item) => {
-        if (item.kind === "message") {
-          const isCopied = copiedMessageId === item.id;
+      {groupedItems.map((entry) => {
+        if (entry.kind === "toolGroup") {
+          const { group } = entry;
+          const isCollapsed = collapsedToolGroups.has(group.id);
+          const summaryParts = [
+            formatCount(group.toolCount, "tool call", "tool calls"),
+          ];
+          if (group.messageCount > 0) {
+            summaryParts.push(formatCount(group.messageCount, "message", "messages"));
+          }
+          const summaryText = summaryParts.join(", ");
+          const groupBodyId = `tool-group-${group.id}`;
+          const ChevronIcon = isCollapsed ? ChevronDown : ChevronUp;
           return (
-            <MessageRow
-              key={item.id}
-              item={item}
-              isCopied={isCopied}
-              onCopy={handleCopyMessage}
-              onOpenFileLink={openFileLink}
-              onOpenFileLinkMenu={showFileLinkMenu}
-            />
+            <div
+              key={`tool-group-${group.id}`}
+              className={`tool-group ${isCollapsed ? "tool-group-collapsed" : ""}`}
+            >
+              <div className="tool-group-header">
+                <button
+                  type="button"
+                  className="tool-group-toggle"
+                  onClick={() => toggleToolGroup(group.id)}
+                  aria-expanded={!isCollapsed}
+                  aria-controls={groupBodyId}
+                  aria-label={isCollapsed ? "Expand tool calls" : "Collapse tool calls"}
+                >
+                  <span className="tool-group-chevron" aria-hidden>
+                    <ChevronIcon size={14} />
+                  </span>
+                  <span className="tool-group-summary">{summaryText}</span>
+                </button>
+              </div>
+              {!isCollapsed && (
+                <div className="tool-group-body" id={groupBodyId}>
+                  {group.items.map(renderItem)}
+                </div>
+              )}
+            </div>
           );
         }
-        if (item.kind === "reasoning") {
-          const isExpanded = expandedItems.has(item.id);
-          return (
-            <ReasoningRow
-              key={item.id}
-              item={item}
-              isExpanded={isExpanded}
-              onToggle={toggleExpanded}
-              onOpenFileLink={openFileLink}
-              onOpenFileLinkMenu={showFileLinkMenu}
-            />
-          );
-        }
-        if (item.kind === "review") {
-          return (
-            <ReviewRow
-              key={item.id}
-              item={item}
-              onOpenFileLink={openFileLink}
-              onOpenFileLinkMenu={showFileLinkMenu}
-            />
-          );
-        }
-        if (item.kind === "diff") {
-          return <DiffRow key={item.id} item={item} />;
-        }
-        if (item.kind === "tool") {
-          const isExpanded = expandedItems.has(item.id);
-          return (
-            <ToolRow
-              key={item.id}
-              item={item}
-              isExpanded={isExpanded}
-              onToggle={toggleExpanded}
-              onOpenFileLink={openFileLink}
-              onOpenFileLinkMenu={showFileLinkMenu}
-            />
-          );
-        }
-        return null;
+        return renderItem(entry.item);
       })}
       <WorkingIndicator
         isThinking={isThinking}

@@ -261,55 +261,133 @@ img {
   font-size: 0.95rem;
 }
 
-.screens {
+.bento-grid {
   display: grid;
-  gap: 24px;
-}
-
-.shot-large {
-  padding: 18px;
-}
-
-.shot-large img {
-  border-radius: 16px;
-  width: 100%;
-  height: auto;
-}
-
-.shot-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(12, 1fr);
   gap: 18px;
 }
 
-.shot-small {
-  padding: 16px;
+.bento-tile {
+  padding: 18px;
   display: grid;
-  gap: 12px;
+  gap: 14px;
+  min-height: 200px;
+  overflow: hidden;
   transition: transform 0.25s ease, box-shadow 0.25s ease, border 0.25s ease;
 }
 
-.shot-small figcaption {
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-.shot-wide {
-  grid-column: span 2;
-}
-
-.shot-small img {
-  border-radius: 14px;
-  width: 100%;
-  height: auto;
-  object-fit: contain;
-  background: rgba(8, 12, 22, 0.6);
-}
-
-.shot-small:hover {
+.bento-tile:hover {
   transform: translateY(-6px);
   border-color: rgba(255, 255, 255, 0.2);
   box-shadow: 0 28px 60px rgba(6, 12, 26, 0.6);
+}
+
+.bento-media {
+  border-radius: 16px;
+  background: rgba(8, 12, 22, 0.65);
+  padding: 10px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.bento-media img {
+  border-radius: 12px;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bento-title {
+  display: block;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.bento-copy {
+  display: block;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.bento-pill {
+  justify-self: start;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: rgba(10, 18, 32, 0.7);
+}
+
+.bento-main {
+  grid-column: span 7;
+  min-height: 320px;
+}
+
+.bento-main .bento-media {
+  aspect-ratio: 16 / 9;
+}
+
+.bento-chat .bento-media {
+  aspect-ratio: 4 / 3;
+}
+
+.bento-projects .bento-media,
+.bento-git .bento-media,
+.bento-files .bento-media {
+  aspect-ratio: 5 / 4;
+}
+
+.bento-chat {
+  grid-column: span 5;
+}
+
+.bento-projects {
+  grid-column: span 4;
+}
+
+.bento-git {
+  grid-column: span 4;
+}
+
+.bento-files {
+  grid-column: span 4;
+}
+
+.bento-diff {
+  grid-column: span 8;
+  min-height: 320px;
+}
+
+.bento-diff .bento-media {
+  aspect-ratio: 21 / 9;
+}
+
+.bento-skills {
+  grid-column: span 4;
+}
+
+.bento-skills .bento-media {
+  aspect-ratio: 4 / 3;
+}
+
+.bento-future,
+.bento-future-alt {
+  grid-column: span 6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 160px;
+  background: linear-gradient(135deg, rgba(15, 25, 45, 0.7), rgba(10, 16, 30, 0.5));
+}
+
+.bento-future-alt {
+  background: linear-gradient(135deg, rgba(10, 20, 38, 0.7), rgba(18, 12, 28, 0.6));
 }
 
 .workflow {
@@ -549,8 +627,38 @@ img {
     width: 100%;
   }
 
-  .shot-wide {
-    grid-column: auto;
+  .bento-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .bento-main,
+  .bento-chat,
+  .bento-projects,
+  .bento-git,
+  .bento-files,
+  .bento-diff,
+  .bento-skills,
+  .bento-future,
+  .bento-future-alt {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 520px) {
+  .bento-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bento-main,
+  .bento-chat,
+  .bento-projects,
+  .bento-git,
+  .bento-files,
+  .bento-diff,
+  .bento-skills,
+  .bento-future,
+  .bento-future-alt {
+    grid-column: span 1;
   }
 }
 

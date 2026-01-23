@@ -99,8 +99,8 @@
 }
 
 .diff-viewer-pr-branch {
-  font-family: "SFMono-Regular", "Menlo", "Monaco", monospace;
-  font-size: 11px;
+  font-family: var(--code-font-family);
+  font-size: var(--code-font-size, 11px);
   padding: 2px 6px;
   border-radius: 999px;
   border: 1px solid var(--border-subtle);
@@ -276,6 +276,7 @@
   width: 100%;
   padding-bottom: 0;
   will-change: transform;
+  isolation: isolate;
 }
 
 .diff-viewer-item {
@@ -286,6 +287,7 @@
   width: 100%;
   border-bottom: 1px solid var(--border-subtle);
   position: relative;
+  isolation: isolate;
 }
 
 .diff-viewer-item.active {
@@ -371,15 +373,18 @@
   background: var(--surface-command);
   border-radius: 8px;
   padding: 8px;
-  font-size: 11px;
+  font-size: var(--code-font-size, 11px);
   color: var(--text-quiet);
-  font-family: "SFMono-Regular", "Menlo", "Monaco", monospace;
+  font-family: var(--code-font-family);
   max-width: 100%;
   min-width: 0;
   width: 100%;
   overflow: visible;
-  --diffs-font-family: "SFMono-Regular", "Menlo", "Monaco", monospace;
-  --diffs-font-size: 11px;
+  position: relative;
+  contain: layout style;
+  isolation: isolate;
+  --diffs-font-family: var(--code-font-family);
+  --diffs-font-size: var(--code-font-size, 11px);
   --diffs-line-height: 1.4;
   --diffs-tab-size: 2;
 }
@@ -389,6 +394,9 @@
   border-radius: 0;
   padding: 0;
   box-shadow: none;
+  position: relative;
+  contain: layout style;
+  isolation: isolate;
 }
 
 .diff-viewer-output diffs-container {

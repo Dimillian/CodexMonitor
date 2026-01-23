@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from "react";
+import { useEffect, useRef, type MouseEvent, type ReactNode } from "react";
 import { MainTopbar } from "../../app/components/MainTopbar";
 
 type DesktopLayoutProps = {
@@ -44,6 +44,40 @@ export function DesktopLayout({
   onRightPanelResizeStart,
   onPlanPanelResizeStart,
 }: DesktopLayoutProps) {
+  const diffLayerRef = useRef<HTMLDivElement | null>(null);
+  const chatLayerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const diffLayer = diffLayerRef.current;
+    const chatLayer = chatLayerRef.current;
+
+    if (diffLayer) {
+      if (centerMode === "diff") {
+        diffLayer.removeAttribute("inert");
+      } else {
+        diffLayer.setAttribute("inert", "");
+      }
+    }
+
+    if (chatLayer) {
+      if (centerMode === "chat") {
+        chatLayer.removeAttribute("inert");
+      } else {
+        chatLayer.setAttribute("inert", "");
+      }
+    }
+
+    const hiddenLayer = centerMode === "diff" ? chatLayer : diffLayer;
+    const activeElement = document.activeElement;
+    if (
+      hiddenLayer &&
+      activeElement instanceof HTMLElement &&
+      hiddenLayer.contains(activeElement)
+    ) {
+      activeElement.blur();
+    }
+  }, [centerMode]);
+
   return (
     <>
       {sidebarNode}
@@ -64,7 +98,20 @@ export function DesktopLayout({
             <MainTopbar leftNode={topbarLeftNode} />
             {approvalToastsNode}
             <div className="content">
-              {centerMode === "diff" ? gitDiffViewerNode : messagesNode}
+              <div
+                className={`content-layer ${centerMode === "diff" ? "is-active" : "is-hidden"}`}
+                aria-hidden={centerMode !== "diff"}
+                ref={diffLayerRef}
+              >
+                {gitDiffViewerNode}
+              </div>
+              <div
+                className={`content-layer ${centerMode === "chat" ? "is-active" : "is-hidden"}`}
+                aria-hidden={centerMode !== "chat"}
+                ref={chatLayerRef}
+              >
+                {messagesNode}
+              </div>
             </div>
 
             <div

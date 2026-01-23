@@ -1,14 +1,24 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
+const packageJson = JSON.parse(
+  readFileSync(new URL("./package.json", import.meta.url), "utf-8"),
+) as {
+  version: string;
+};
+
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
   worker: {
     format: "es",
+  },
+  define: {
+    __APP_VERSION__: JSON.stringify(packageJson.version),
   },
   test: {
     environment: "node",

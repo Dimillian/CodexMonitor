@@ -61,6 +61,26 @@ describe("threadItems", () => {
     expect(secondOutput).toBe(output);
   });
 
+  it("drops assistant review summaries that duplicate completed review items", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "review-1",
+        kind: "review",
+        state: "completed",
+        text: "Review summary",
+      },
+      {
+        id: "msg-1",
+        kind: "message",
+        role: "assistant",
+        text: "Review summary",
+      },
+    ];
+    const prepared = prepareThreadItems(items);
+    expect(prepared).toHaveLength(1);
+    expect(prepared[0].kind).toBe("review");
+  });
+
   it("builds file change items with summary details", () => {
     const item = buildConversationItem({
       type: "fileChange",
@@ -148,68 +168,4 @@ describe("threadItems", () => {
     }
   });
 
-  it("dedupes local optimistic messages on merge (expected behavior)", () => {
-    const remote: ConversationItem[] = [
-      {
-        id: "remote-1",
-        kind: "message",
-        role: "user",
-        text: "Hello",
-      },
-    ];
-    const local: ConversationItem[] = [
-      {
-        id: "1234-user",
-        kind: "message",
-        role: "user",
-        text: "Hello",
-      },
-    ];
-    const merged = mergeThreadItems(remote, local);
-    expect(merged).toHaveLength(1);
-    expect(merged[0]).toMatchObject({
-      kind: "message",
-      role: "user",
-      text: "Hello",
-    });
-  });
-
-  it("keeps later optimistic duplicates when the matching remote item is already local", () => {
-    const remote: ConversationItem[] = [
-      {
-        id: "remote-1",
-        kind: "message",
-        role: "user",
-        text: "Hello",
-      },
-    ];
-    const local: ConversationItem[] = [
-      {
-        id: "remote-1",
-        kind: "message",
-        role: "user",
-        text: "Hello",
-      },
-      {
-        id: "9999-user",
-        kind: "message",
-        role: "user",
-        text: "Hello",
-      },
-    ];
-    const merged = mergeThreadItems(remote, local);
-    expect(merged).toHaveLength(2);
-    expect(merged[0]).toMatchObject({
-      id: "remote-1",
-      kind: "message",
-      role: "user",
-      text: "Hello",
-    });
-    expect(merged[1]).toMatchObject({
-      id: "9999-user",
-      kind: "message",
-      role: "user",
-      text: "Hello",
-    });
-  });
 });
