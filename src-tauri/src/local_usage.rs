@@ -497,33 +497,7 @@ fn make_day_keys(days: u32) -> Vec<String> {
 }
 
 fn resolve_codex_sessions_root() -> Option<PathBuf> {
-    resolve_codex_home().map(|home| home.join("sessions"))
-}
-
-fn resolve_codex_home() -> Option<PathBuf> {
-    if let Ok(value) = std::env::var("CODEX_HOME") {
-        let trimmed = value.trim();
-        if !trimmed.is_empty() {
-            return Some(PathBuf::from(trimmed));
-        }
-    }
-    resolve_home_dir().map(|home| home.join(".codex"))
-}
-
-fn resolve_home_dir() -> Option<PathBuf> {
-    if let Ok(value) = std::env::var("HOME") {
-        let trimmed = value.trim();
-        if !trimmed.is_empty() {
-            return Some(PathBuf::from(trimmed));
-        }
-    }
-    if let Ok(value) = std::env::var("USERPROFILE") {
-        let trimmed = value.trim();
-        if !trimmed.is_empty() {
-            return Some(PathBuf::from(trimmed));
-        }
-    }
-    None
+    crate::codex_home::resolve_default_codex_home().map(|home| home.join("sessions"))
 }
 
 fn day_dir_for_key(root: &Path, day_key: &str) -> PathBuf {

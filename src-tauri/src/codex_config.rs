@@ -1,4 +1,3 @@
-use std::env;
 use std::fs;
 use std::path::PathBuf;
 
@@ -58,30 +57,7 @@ fn write_feature_flag(key: &str, enabled: bool) -> Result<(), String> {
 }
 
 pub(crate) fn config_toml_path() -> Option<PathBuf> {
-    resolve_codex_home().map(|home| home.join("config.toml"))
-}
-
-fn resolve_codex_home() -> Option<PathBuf> {
-    if let Ok(value) = env::var("CODEX_HOME") {
-        if !value.trim().is_empty() {
-            return Some(PathBuf::from(value.trim()));
-        }
-    }
-    resolve_home_dir().map(|home| home.join(".codex"))
-}
-
-fn resolve_home_dir() -> Option<PathBuf> {
-    if let Ok(value) = env::var("HOME") {
-        if !value.trim().is_empty() {
-            return Some(PathBuf::from(value));
-        }
-    }
-    if let Ok(value) = env::var("USERPROFILE") {
-        if !value.trim().is_empty() {
-            return Some(PathBuf::from(value));
-        }
-    }
-    None
+    crate::codex_home::resolve_default_codex_home().map(|home| home.join("config.toml"))
 }
 
 fn find_feature_flag(contents: &str, key: &str) -> Option<bool> {

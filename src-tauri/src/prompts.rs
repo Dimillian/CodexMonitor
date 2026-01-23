@@ -1,6 +1,5 @@
 use serde::Serialize;
 use std::collections::HashMap;
-use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tokio::task;
@@ -21,35 +20,8 @@ pub(crate) struct CustomPromptEntry {
     pub(crate) scope: Option<String>,
 }
 
-fn resolve_home_dir() -> Option<PathBuf> {
-    if let Ok(value) = env::var("HOME") {
-        if !value.trim().is_empty() {
-            return Some(PathBuf::from(value));
-        }
-    }
-    if let Ok(value) = env::var("USERPROFILE") {
-        if !value.trim().is_empty() {
-            return Some(PathBuf::from(value));
-        }
-    }
-    None
-}
-
-fn resolve_codex_home() -> Option<PathBuf> {
-    if let Ok(value) = env::var("CODEX_HOME") {
-        if !value.trim().is_empty() {
-            let path = PathBuf::from(value.trim());
-            if path.exists() {
-                return path.canonicalize().ok().or(Some(path));
-            }
-            return None;
-        }
-    }
-    resolve_home_dir().map(|home| home.join(".codex"))
-}
-
 fn default_prompts_dir() -> Option<PathBuf> {
-    resolve_codex_home().map(|home| home.join("prompts"))
+    crate::codex_home::resolve_default_codex_home().map(|home| home.join("prompts"))
 }
 
 fn require_workspace_entry(

@@ -1030,7 +1030,6 @@ impl DaemonState {
         };
 
         let codex_home = codex_home::resolve_workspace_codex_home(&entry, parent_path.as_deref())
-            .or_else(codex_home::resolve_default_codex_home)
             .ok_or("Unable to resolve CODEX_HOME".to_string())?;
         let rules_path = rules::default_rules_path(&codex_home);
         rules::append_prefix_rule(&rules_path, &command)?;

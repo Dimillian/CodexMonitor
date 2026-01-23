@@ -19,7 +19,7 @@ pub(crate) fn resolve_workspace_codex_home(
     if legacy_home.is_dir() {
         return Some(legacy_home);
     }
-    None
+    resolve_default_codex_home()
 }
 
 pub(crate) fn resolve_default_codex_home() -> Option<PathBuf> {
