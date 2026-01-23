@@ -5,6 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 
 type SidebarMenuHandlers = {
   onDeleteThread: (workspaceId: string, threadId: string) => void;
+  onSyncThread: (workspaceId: string, threadId: string) => void;
   onPinThread: (workspaceId: string, threadId: string) => void;
   onUnpinThread: (workspaceId: string, threadId: string) => void;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
@@ -16,6 +17,7 @@ type SidebarMenuHandlers = {
 
 export function useSidebarMenus({
   onDeleteThread,
+  onSyncThread,
   onPinThread,
   onUnpinThread,
   isThreadPinned,
@@ -37,6 +39,10 @@ export function useSidebarMenus({
         text: "Rename",
         action: () => onRenameThread(workspaceId, threadId),
       });
+      const syncItem = await MenuItem.new({
+        text: "Sync from server",
+        action: () => onSyncThread(workspaceId, threadId),
+      });
       const archiveItem = await MenuItem.new({
         text: "Archive",
         action: () => onDeleteThread(workspaceId, threadId),
@@ -51,7 +57,7 @@ export function useSidebarMenus({
           }
         },
       });
-      const items = [renameItem];
+      const items = [renameItem, syncItem];
       if (canPin) {
         const isPinned = isThreadPinned(workspaceId, threadId);
         items.push(
@@ -73,7 +79,14 @@ export function useSidebarMenus({
       const position = new LogicalPosition(event.clientX, event.clientY);
       await menu.popup(position, window);
     },
-    [isThreadPinned, onDeleteThread, onPinThread, onRenameThread, onUnpinThread],
+    [
+      isThreadPinned,
+      onDeleteThread,
+      onPinThread,
+      onRenameThread,
+      onSyncThread,
+      onUnpinThread,
+    ],
   );
 
   const showWorkspaceMenu = useCallback(

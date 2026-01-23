@@ -3,6 +3,7 @@ import type { ConversationItem } from "../types";
 import {
   buildConversationItem,
   buildConversationItemFromThreadItem,
+  getThreadTimestamp,
   mergeThreadItems,
   normalizeItem,
   prepareThreadItems,
@@ -166,6 +167,16 @@ describe("threadItems", () => {
       expect(item.detail).toContain("thread-b, thread-c");
       expect(item.output).toBe("Coordinate work\n\nagent-1: running");
     }
+  });
+
+  it("parses ISO timestamps for thread updates", () => {
+    const timestamp = getThreadTimestamp({ updated_at: "2025-01-01T00:00:00Z" });
+    expect(timestamp).toBe(Date.parse("2025-01-01T00:00:00Z"));
+  });
+
+  it("returns 0 for invalid thread timestamps", () => {
+    const timestamp = getThreadTimestamp({ updated_at: "not-a-date" });
+    expect(timestamp).toBe(0);
   });
 
 });

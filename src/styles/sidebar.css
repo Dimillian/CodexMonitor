@@ -14,6 +14,19 @@
   transition: opacity 200ms ease, transform 200ms ease;
 }
 
+.sidebar,
+.sidebar * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.sidebar input,
+.sidebar textarea,
+.sidebar [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .workspace-drop-overlay {
   position: absolute;
   inset: 0;

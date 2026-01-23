@@ -5,19 +5,13 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import { getCollaborationModes } from "../../../services/tauri";
+import { formatCollaborationModeLabel } from "../../../utils/collaborationModes";
 
 type UseCollaborationModesOptions = {
   activeWorkspace: WorkspaceInfo | null;
   enabled: boolean;
   onDebug?: (entry: DebugEntry) => void;
 };
-
-function titleCase(value: string) {
-  if (!value) {
-    return value;
-  }
-  return `${value[0].toUpperCase()}${value.slice(1)}`;
-}
 
 export function useCollaborationModes({
   activeWorkspace,
@@ -76,7 +70,7 @@ export function useCollaborationModes({
             item.developerInstructions ?? item.developer_instructions ?? null;
           return {
             id: mode,
-            label: titleCase(mode),
+            label: formatCollaborationModeLabel(mode),
             mode,
             model,
             reasoningEffort: reasoningEffort ? String(reasoningEffort) : null,

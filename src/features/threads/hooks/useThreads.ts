@@ -179,6 +179,7 @@ type UseThreadsOptions = {
   effort?: string | null;
   collaborationMode?: Record<string, unknown> | null;
   accessMode?: "read-only" | "current" | "full-access";
+  steerEnabled?: boolean;
   customPrompts?: CustomPromptOption[];
   onMessageActivity?: () => void;
 };
@@ -423,6 +424,7 @@ export function useThreads({
   effort,
   collaborationMode,
   accessMode,
+  steerEnabled = false,
   customPrompts = [],
   onMessageActivity,
 }: UseThreadsOptions) {
@@ -864,6 +866,12 @@ export function useThreads({
           hasCustomName,
         });
         dispatch({
+          type: "setThreadTimestamp",
+          workspaceId,
+          threadId,
+          timestamp,
+        });
+        dispatch({
           type: "setLastAgentMessage",
           threadId,
           text,
@@ -1127,6 +1135,7 @@ export function useThreads({
           | Record<string, unknown>
           | null;
         if (thread) {
+          dispatch({ type: "ensureThread", workspaceId, threadId });
           applyCollabThreadLinksFromThread(threadId, thread);
           const items = buildItemsFromThread(thread);
           const localItems = state.itemsByThread[threadId] ?? [];
@@ -1135,11 +1144,21 @@ export function useThreads({
           if (shouldReplace) {
             replaceOnResumeRef.current[threadId] = false;
           }
+          if (localItems.length > 0 && !shouldReplace) {
+            loadedThreads.current[threadId] = true;
+            return threadId;
+          }
+          const hasOverlap =
+            items.length > 0 &&
+            localItems.length > 0 &&
+            items.some((item) => localItems.some((local) => local.id === item.id));
           const mergedItems =
             items.length > 0
               ? shouldReplace
                 ? items
-                : mergeThreadItems(items, localItems)
+                : localItems.length > 0 && !hasOverlap
+                  ? localItems
+                  : mergeThreadItems(items, localItems)
               : localItems;
           if (mergedItems.length > 0) {
             dispatch({ type: "setThreadItems", threadId, items: mergedItems });
@@ -1563,6 +1582,28 @@ export function useThreads({
       const resolvedAccessMode =
         options?.accessMode !== undefined ? options.accessMode : accessMode;
 
+      const wasProcessing =
+        (state.threadStatusById[threadId]?.isProcessing ?? false) &&
+        steerEnabled;
+      if (wasProcessing) {
+        const optimisticText = finalText || (images.length > 0 ? "[image]" : "");
+        if (optimisticText) {
+          dispatch({
+            type: "upsertItem",
+            workspaceId: workspace.id,
+            threadId,
+            item: {
+              id: `optimistic-user-${Date.now()}-${Math.random()
+                .toString(36)
+                .slice(2, 8)}`,
+              kind: "message",
+              role: "user",
+              text: optimisticText,
+            },
+            hasCustomName: Boolean(getCustomName(workspace.id, threadId)),
+          });
+        }
+      }
       Sentry.metrics.count("prompt_sent", 1, {
         attributes: {
           workspace_id: workspace.id,
@@ -1574,7 +1615,14 @@ export function useThreads({
           collaboration_mode: resolvedCollaborationMode ?? "unknown",
         },
       });
-      recordThreadActivity(workspace.id, threadId);
+      const timestamp = Date.now();
+      recordThreadActivity(workspace.id, threadId, timestamp);
+      dispatch({
+        type: "setThreadTimestamp",
+        workspaceId: workspace.id,
+        threadId,
+        timestamp,
+      });
       markProcessing(threadId, true);
       safeMessageActivity();
       onDebug?.({
@@ -1656,12 +1704,15 @@ export function useThreads({
       collaborationMode,
       customPrompts,
       effort,
+      getCustomName,
       markProcessing,
       model,
       onDebug,
       pushThreadErrorMessage,
       recordThreadActivity,
       safeMessageActivity,
+      state.threadStatusById,
+      steerEnabled,
     ],
   );
 

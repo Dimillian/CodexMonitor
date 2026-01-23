@@ -447,11 +447,12 @@ export function GitDiffViewer({
   }, [selectedPath, scrollRequestId, indexByPath, rowVirtualizer]);
 
   useEffect(() => {
+    const observers = rowResizeObserversRef.current;
     return () => {
-      for (const observer of rowResizeObserversRef.current.values()) {
+      for (const observer of observers.values()) {
         observer.disconnect();
       }
-      rowResizeObserversRef.current.clear();
+      observers.clear();
     };
   }, []);
 

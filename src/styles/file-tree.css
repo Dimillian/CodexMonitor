@@ -258,6 +258,29 @@
   max-height: 70vh;
 }
 
+.file-preview-body--image {
+  gap: 12px;
+}
+
+.file-preview-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--surface-command);
+  overflow: auto;
+  max-height: 60vh;
+}
+
+.file-preview-image img {
+  max-width: 100%;
+  max-height: 58vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+}
+
 .file-preview-toolbar {
   display: flex;
   align-items: center;

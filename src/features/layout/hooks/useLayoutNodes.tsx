@@ -95,7 +95,6 @@ type LayoutNodesOptions = {
   threadListLoadingByWorkspace: Record<string, boolean>;
   threadListPagingByWorkspace: Record<string, boolean>;
   threadListCursorByWorkspace: Record<string, string | null>;
-  lastAgentMessageByThread: Record<string, { text: string; timestamp: number }>;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   activeItems: ConversationItem[];
@@ -124,6 +123,7 @@ type LayoutNodesOptions = {
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
   onSelectThread: (workspaceId: string, threadId: string) => void;
   onDeleteThread: (workspaceId: string, threadId: string) => void;
+  onSyncThread: (workspaceId: string, threadId: string) => void;
   pinThread: (workspaceId: string, threadId: string) => boolean;
   unpinThread: (workspaceId: string, threadId: string) => void;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
@@ -398,7 +398,6 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       threadListLoadingByWorkspace={options.threadListLoadingByWorkspace}
       threadListPagingByWorkspace={options.threadListPagingByWorkspace}
       threadListCursorByWorkspace={options.threadListCursorByWorkspace}
-      lastAgentMessageByThread={options.lastAgentMessageByThread}
       activeWorkspaceId={options.activeWorkspaceId}
       activeThreadId={options.activeThreadId}
       accountRateLimits={options.activeRateLimits}
@@ -415,6 +414,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onToggleWorkspaceCollapse={options.onToggleWorkspaceCollapse}
       onSelectThread={options.onSelectThread}
       onDeleteThread={options.onDeleteThread}
+      onSyncThread={options.onSyncThread}
       pinThread={options.pinThread}
       unpinThread={options.unpinThread}
       isThreadPinned={options.isThreadPinned}

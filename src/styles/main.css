@@ -26,6 +26,24 @@
   -webkit-app-region: drag;
 }
 
+.main-header,
+.main-header *,
+.main-topbar,
+.main-topbar * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.main-header input,
+.main-header textarea,
+.main-header [contenteditable="true"],
+.main-topbar input,
+.main-topbar textarea,
+.main-topbar [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .workspace-header {
   display: flex;
   align-items: center;

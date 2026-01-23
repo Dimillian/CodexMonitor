@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ask, open } from "@tauri-apps/plugin-dialog";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import LayoutGrid from "lucide-react/dist/esm/icons/layout-grid";
@@ -22,6 +23,7 @@ import type {
 import { formatDownloadSize } from "../../../utils/formatting";
 import { buildShortcutValue, formatShortcut } from "../../../utils/shortcuts";
 import { clampUiScale } from "../../../utils/uiScale";
+import { getCodexConfigPath } from "../../../services/tauri";
 import {
   DEFAULT_CODE_FONT_FAMILY,
   DEFAULT_UI_FONT_FAMILY,
@@ -225,6 +227,7 @@ export function SettingsView({
     status: "idle" | "running" | "done";
     result: CodexDoctorResult | null;
   }>({ status: "idle", result: null });
+  const [openConfigError, setOpenConfigError] = useState<string | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [shortcutDrafts, setShortcutDrafts] = useState({
     model: appSettings.composerModelShortcut ?? "",
@@ -345,6 +348,18 @@ export function SettingsView({
     appSettings.cycleWorkspaceNextShortcut,
     appSettings.cycleWorkspacePrevShortcut,
   ]);
+
+  const handleOpenConfig = useCallback(async () => {
+    setOpenConfigError(null);
+    try {
+      const configPath = await getCodexConfigPath();
+      await revealItemInDir(configPath);
+    } catch (error) {
+      setOpenConfigError(
+        error instanceof Error ? error.message : "Unable to open config.",
+      );
+    }
+  }, []);
 
   useEffect(() => {
     setOverrideDrafts((prev) => {
@@ -2198,7 +2213,21 @@ export function SettingsView({
                 </div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">Collab mode</div>
+                    <div className="settings-toggle-title">Config file</div>
+                    <div className="settings-toggle-subtitle">
+                      Open the Codex config in Finder.
+                    </div>
+                  </div>
+                  <button type="button" className="ghost" onClick={handleOpenConfig}>
+                    Open in Finder
+                  </button>
+                </div>
+                {openConfigError && (
+                  <div className="settings-help">{openConfigError}</div>
+                )}
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Multi-agent</div>
                     <div className="settings-toggle-subtitle">
                       Enable multi-agent collaboration tools in Codex.
                     </div>
@@ -2213,6 +2242,30 @@ export function SettingsView({
                       })
                     }
                     aria-pressed={appSettings.experimentalCollabEnabled}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Collaboration modes</div>
+                    <div className="settings-toggle-subtitle">
+                      Enable collaboration mode presets (Default, Plan, Pair programming, Execute).
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${
+                      appSettings.experimentalCollaborationModesEnabled ? "on" : ""
+                    }`}
+                    onClick={() =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        experimentalCollaborationModesEnabled:
+                          !appSettings.experimentalCollaborationModesEnabled,
+                      })
+                    }
+                    aria-pressed={appSettings.experimentalCollaborationModesEnabled}
                   >
                     <span className="settings-toggle-knob" />
                   </button>

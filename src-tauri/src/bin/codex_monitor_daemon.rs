@@ -773,6 +773,9 @@ impl DaemonState {
 
     async fn update_app_settings(&self, settings: AppSettings) -> Result<AppSettings, String> {
         let _ = codex_config::write_collab_enabled(settings.experimental_collab_enabled);
+        let _ = codex_config::write_collaboration_modes_enabled(
+            settings.experimental_collaboration_modes_enabled,
+        );
         let _ = codex_config::write_steer_enabled(settings.experimental_steer_enabled);
         let _ = codex_config::write_unified_exec_enabled(settings.experimental_unified_exec_enabled);
         write_settings(&self.settings_path, &settings)?;
@@ -1654,6 +1657,11 @@ async fn handle_rpc_request(
             if let Ok(Some(collab_enabled)) = codex_config::read_collab_enabled() {
                 settings.experimental_collab_enabled = collab_enabled;
             }
+            if let Ok(Some(collaboration_modes_enabled)) =
+                codex_config::read_collaboration_modes_enabled()
+            {
+                settings.experimental_collaboration_modes_enabled = collaboration_modes_enabled;
+            }
             if let Ok(Some(steer_enabled)) = codex_config::read_steer_enabled() {
                 settings.experimental_steer_enabled = steer_enabled;
             }
@@ -1671,6 +1679,14 @@ async fn handle_rpc_request(
                 serde_json::from_value(settings_value).map_err(|err| err.to_string())?;
             let updated = state.update_app_settings(settings).await?;
             serde_json::to_value(updated).map_err(|err| err.to_string())
+        }
+        "get_codex_config_path" => {
+            let path = codex_config::config_toml_path()
+                .ok_or("Unable to resolve CODEX_HOME".to_string())?;
+            let path = path
+                .to_str()
+                .ok_or("Unable to resolve CODEX_HOME".to_string())?;
+            Ok(Value::String(path.to_string()))
         }
         "start_thread" => {
             let workspace_id = parse_string(&params, "workspaceId")?;

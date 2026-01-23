@@ -402,7 +402,7 @@ function MainApp() {
     setSelectedCollaborationModeId,
   } = useCollaborationModes({
     activeWorkspace,
-    enabled: appSettings.experimentalCollabEnabled,
+    enabled: appSettings.experimentalCollaborationModesEnabled,
     onDebug: addDebugEntry,
   });
   const { skills } = useSkills({ activeWorkspace, onDebug: addDebugEntry });
@@ -588,6 +588,7 @@ function MainApp() {
     effort: selectedEffort,
     collaborationMode: selectedCollaborationMode?.value ?? null,
     accessMode,
+    steerEnabled: appSettings.experimentalSteerEnabled,
     customPrompts: prompts,
     onMessageActivity: queueGitStatusRefresh
   });
@@ -1356,7 +1357,6 @@ function MainApp() {
     threadListLoadingByWorkspace,
     threadListPagingByWorkspace,
     threadListCursorByWorkspace,
-    lastAgentMessageByThread,
     activeWorkspaceId,
     activeThreadId,
     activeItems,
@@ -1408,6 +1408,9 @@ function MainApp() {
       removeThread(workspaceId, threadId);
       clearDraftForThread(threadId);
       removeImagesForThread(threadId);
+    },
+    onSyncThread: (workspaceId, threadId) => {
+      void refreshThread(workspaceId, threadId);
     },
     pinThread,
     unpinThread,

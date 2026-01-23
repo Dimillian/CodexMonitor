@@ -9,6 +9,8 @@ type FilePreviewPopoverProps = {
   absolutePath: string;
   content: string;
   truncated: boolean;
+  previewKind?: "text" | "image";
+  imageSrc?: string | null;
   selection: { start: number; end: number } | null;
   onSelectLine: (index: number, event: MouseEvent<HTMLButtonElement>) => void;
   onClearSelection: () => void;
@@ -24,6 +26,8 @@ export function FilePreviewPopover({
   absolutePath,
   content,
   truncated,
+  previewKind = "text",
+  imageSrc = null,
   selection,
   onSelectLine,
   onClearSelection,
@@ -33,18 +37,26 @@ export function FilePreviewPopover({
   isLoading = false,
   error = null,
 }: FilePreviewPopoverProps) {
-  const lines = useMemo(() => content.split("\n"), [content]);
+  const isImagePreview = previewKind === "image";
+  const lines = useMemo(
+    () => (isImagePreview ? [] : content.split("\n")),
+    [content, isImagePreview],
+  );
   const language = useMemo(() => languageFromPath(path), [path]);
   const selectionLabel = selection
     ? `Lines ${selection.start + 1}-${selection.end + 1}`
-    : "No selection";
+    : isImagePreview
+      ? "Image preview"
+      : "No selection";
   const highlightedLines = useMemo(
     () =>
-      lines.map((line) => {
-        const html = highlightLine(line, language);
-        return html || "&nbsp;";
-      }),
-    [lines, language],
+      isImagePreview
+        ? []
+        : lines.map((line) => {
+            const html = highlightLine(line, language);
+            return html || "&nbsp;";
+          }),
+    [lines, language, isImagePreview],
   );
 
   return (
@@ -70,6 +82,24 @@ export function FilePreviewPopover({
         <div className="file-preview-status">Loading file...</div>
       ) : error ? (
         <div className="file-preview-status file-preview-error">{error}</div>
+      ) : isImagePreview ? (
+        <div className="file-preview-body file-preview-body--image">
+          <div className="file-preview-toolbar">
+            <span className="file-preview-selection">{selectionLabel}</span>
+            <div className="file-preview-actions">
+              <OpenAppMenu path={absolutePath} />
+            </div>
+          </div>
+          {imageSrc ? (
+            <div className="file-preview-image">
+              <img src={imageSrc} alt={path} />
+            </div>
+          ) : (
+            <div className="file-preview-status file-preview-error">
+              Image preview unavailable.
+            </div>
+          )}
+        </div>
       ) : (
         <div className="file-preview-body">
           <div className="file-preview-toolbar">

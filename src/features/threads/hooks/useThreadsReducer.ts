@@ -147,6 +147,12 @@ export type ThreadAction =
   | { type: "addAssistantMessage"; threadId: string; text: string }
   | { type: "setThreadName"; workspaceId: string; threadId: string; name: string }
   | {
+      type: "setThreadTimestamp";
+      workspaceId: string;
+      threadId: string;
+      timestamp: number;
+    }
+  | {
       type: "appendAgentDelta";
       workspaceId: string;
       threadId: string;
@@ -349,7 +355,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       const thread: ThreadSummary = {
         id: action.threadId,
         name: `Agent ${list.length + 1}`,
-        updatedAt: Date.now(),
+        updatedAt: 0,
       };
       return {
         ...state,
@@ -529,6 +535,34 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         },
       };
     }
+    case "setThreadTimestamp": {
+      const list = state.threadsByWorkspace[action.workspaceId] ?? [];
+      if (!list.length) {
+        return state;
+      }
+      let didChange = false;
+      const next = list.map((thread) => {
+        if (thread.id !== action.threadId) {
+          return thread;
+        }
+        const current = thread.updatedAt ?? 0;
+        if (current >= action.timestamp) {
+          return thread;
+        }
+        didChange = true;
+        return { ...thread, updatedAt: action.timestamp };
+      });
+      if (!didChange) {
+        return state;
+      }
+      return {
+        ...state,
+        threadsByWorkspace: {
+          ...state.threadsByWorkspace,
+          [action.workspaceId]: next,
+        },
+      };
+    }
     case "appendAgentDelta": {
       const list = [...(state.itemsByThread[action.threadId] ?? [])];
       const index = list.findIndex((msg) => msg.id === action.itemId);
@@ -628,7 +662,6 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       let nextThreadsByWorkspace = state.threadsByWorkspace;
       if (isUserMessage) {
         const threads = state.threadsByWorkspace[action.workspaceId] ?? [];
-        const now = Date.now();
         const textValue = renameText;
         const updatedThreads = threads.map((thread) => {
           if (thread.id !== action.threadId) {
@@ -646,7 +679,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
               : shouldRename
                 ? textValue
                 : thread.name;
-          return { ...thread, updatedAt: now, name: nextName };
+          return { ...thread, name: nextName };
         });
         const bumpedThreads = updatedThreads.length
           ? [

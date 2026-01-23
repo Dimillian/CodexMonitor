@@ -70,6 +70,25 @@ describe("threadReducer", () => {
     expect(next.threadsByWorkspace["ws-1"]?.[0]?.name).toBe("Assistant note");
   });
 
+  it("updates thread timestamp when newer activity arrives", () => {
+    const threads: ThreadSummary[] = [
+      { id: "thread-1", name: "Agent 1", updatedAt: 1000 },
+    ];
+    const next = threadReducer(
+      {
+        ...initialState,
+        threadsByWorkspace: { "ws-1": threads },
+      },
+      {
+        type: "setThreadTimestamp",
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        timestamp: 1500,
+      },
+    );
+    expect(next.threadsByWorkspace["ws-1"]?.[0]?.updatedAt).toBe(1500);
+  });
+
   it("tracks processing durations", () => {
     const started = threadReducer(
       {

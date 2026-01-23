@@ -9,6 +9,19 @@
   min-height: 0;
 }
 
+.diff-panel,
+.diff-panel * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.diff-panel input,
+.diff-panel textarea,
+.diff-panel [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .app.reduced-transparency .diff-panel {
   background: var(--surface-right-panel);
   border: 1px solid var(--border-subtle);

@@ -556,9 +556,9 @@
 .composer-context-ring::after {
   content: attr(data-tooltip);
   position: absolute;
-  left: 50%;
+  right: 0;
   bottom: calc(100% + 6px);
-  transform: translateX(-50%) translateY(4px);
+  transform: translateY(4px);
   padding: 4px 8px;
   border-radius: 999px;
   background: var(--surface-command);
@@ -573,7 +573,7 @@
 
 .composer-context-ring:hover::after {
   opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  transform: translateY(0);
 }
 
 .composer-context-value {
@@ -629,6 +629,11 @@
 .composer-select--model {
   width: 110px;
   max-width: 110px;
+}
+
+.composer-select--collab {
+  width: 88px;
+  max-width: 88px;
 }
 
 .composer-select--effort {

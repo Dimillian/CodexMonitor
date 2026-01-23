@@ -43,7 +43,6 @@ type SidebarProps = {
   threadListLoadingByWorkspace: Record<string, boolean>;
   threadListPagingByWorkspace: Record<string, boolean>;
   threadListCursorByWorkspace: Record<string, string | null>;
-  lastAgentMessageByThread: Record<string, { text: string; timestamp: number }>;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   accountRateLimits: RateLimitSnapshot | null;
@@ -60,6 +59,7 @@ type SidebarProps = {
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
   onSelectThread: (workspaceId: string, threadId: string) => void;
   onDeleteThread: (workspaceId: string, threadId: string) => void;
+  onSyncThread: (workspaceId: string, threadId: string) => void;
   pinThread: (workspaceId: string, threadId: string) => boolean;
   unpinThread: (workspaceId: string, threadId: string) => void;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
@@ -89,7 +89,6 @@ export function Sidebar({
   threadListLoadingByWorkspace,
   threadListPagingByWorkspace,
   threadListCursorByWorkspace,
-  lastAgentMessageByThread,
   activeWorkspaceId,
   activeThreadId,
   accountRateLimits,
@@ -106,6 +105,7 @@ export function Sidebar({
   onToggleWorkspaceCollapse,
   onSelectThread,
   onDeleteThread,
+  onSyncThread,
   pinThread,
   unpinThread,
   isThreadPinned,
@@ -146,6 +146,7 @@ export function Sidebar({
   const { showThreadMenu, showWorkspaceMenu, showWorktreeMenu } =
     useSidebarMenus({
       onDeleteThread,
+      onSyncThread,
       onPinThread: pinThread,
       onUnpinThread: unpinThread,
       isThreadPinned,
@@ -253,11 +254,10 @@ export function Sidebar({
 
   const getThreadTime = useCallback(
     (thread: ThreadSummary) => {
-      const lastMessage = lastAgentMessageByThread[thread.id];
-      const timestamp = lastMessage?.timestamp ?? thread.updatedAt ?? null;
+      const timestamp = thread.updatedAt ?? null;
       return timestamp ? formatRelativeTimeShort(timestamp) : null;
     },
-    [lastAgentMessageByThread],
+    [],
   );
 
   useEffect(() => {

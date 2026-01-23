@@ -136,7 +136,7 @@ fn read_workspace_file_inner(
         return Err("Path is not a file".to_string());
     }
 
-    let mut file =
+    let file =
         File::open(&canonical_path).map_err(|err| format!("Failed to open file: {err}"))?;
     let mut buffer = Vec::new();
     file.take(MAX_WORKSPACE_FILE_BYTES + 1)

@@ -41,6 +41,7 @@ const defaultSettings: AppSettings = {
   codeFontSize: CODE_FONT_SIZE_DEFAULT,
   notificationSoundsEnabled: true,
   experimentalCollabEnabled: false,
+  experimentalCollaborationModesEnabled: false,
   experimentalSteerEnabled: false,
   experimentalUnifiedExecEnabled: false,
   dictationEnabled: false,

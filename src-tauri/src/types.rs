@@ -344,6 +344,11 @@ pub(crate) struct AppSettings {
     )]
     pub(crate) experimental_collab_enabled: bool,
     #[serde(
+        default = "default_experimental_collaboration_modes_enabled",
+        rename = "experimentalCollaborationModesEnabled"
+    )]
+    pub(crate) experimental_collaboration_modes_enabled: bool,
+    #[serde(
         default = "default_experimental_steer_enabled",
         rename = "experimentalSteerEnabled"
     )]
@@ -498,6 +503,10 @@ fn default_experimental_collab_enabled() -> bool {
     false
 }
 
+fn default_experimental_collaboration_modes_enabled() -> bool {
+    false
+}
+
 fn default_experimental_steer_enabled() -> bool {
     false
 }
@@ -589,6 +598,7 @@ impl Default for AppSettings {
             code_font_size: default_code_font_size(),
             notification_sounds_enabled: true,
             experimental_collab_enabled: false,
+            experimental_collaboration_modes_enabled: false,
             experimental_steer_enabled: false,
             experimental_unified_exec_enabled: false,
             dictation_enabled: false,

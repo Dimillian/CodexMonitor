@@ -146,9 +146,23 @@ export function getThreadTimestamp(thread: Record<string, unknown>) {
   const raw =
     (thread.updatedAt ?? thread.updated_at ?? thread.createdAt ?? thread.created_at) ??
     0;
-  const numeric = typeof raw === "string" ? Number(raw) : Number(raw);
+  let numeric: number;
+  if (typeof raw === "string") {
+    const asNumber = Number(raw);
+    if (Number.isFinite(asNumber)) {
+      numeric = asNumber;
+    } else {
+      const parsed = Date.parse(raw);
+      if (!Number.isFinite(parsed)) {
+        return 0;
+      }
+      numeric = parsed;
+    }
+  } else {
+    numeric = Number(raw);
+  }
   if (!Number.isFinite(numeric) || numeric <= 0) {
-    return Date.now();
+    return 0;
   }
   return numeric < 1_000_000_000_000 ? numeric * 1000 : numeric;
 }

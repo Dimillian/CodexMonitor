@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { AccessMode, ThreadTokenUsage } from "../../../types";
+import { formatCollaborationModeLabel } from "../../../utils/collaborationModes";
 
 type ComposerMetaBarProps = {
   disabled: boolean;
@@ -61,7 +62,7 @@ export function ComposerMetaBar({
               </svg>
             </span>
             <select
-              className="composer-select composer-select--model"
+              className="composer-select composer-select--model composer-select--collab"
               aria-label="Collaboration mode"
               value={selectedCollaborationModeId ?? ""}
               onChange={(event) =>
@@ -69,10 +70,10 @@ export function ComposerMetaBar({
               }
               disabled={disabled}
             >
-              <option value="">Default mode</option>
+              <option value="">Default</option>
               {collaborationModes.map((mode) => (
                 <option key={mode.id} value={mode.id}>
-                  {mode.label}
+                  {formatCollaborationModeLabel(mode.label || mode.id)}
                 </option>
               ))}
             </select>
