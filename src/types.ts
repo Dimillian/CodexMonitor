@@ -117,6 +117,7 @@ export type AppSettings = {
   codeFontSize: number;
   notificationSoundsEnabled: boolean;
   experimentalCollabEnabled: boolean;
+  experimentalCollaborationModesEnabled: boolean;
   experimentalSteerEnabled: boolean;
   experimentalUnifiedExecEnabled: boolean;
   dictationEnabled: boolean;

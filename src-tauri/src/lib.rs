@@ -64,6 +64,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             settings::get_app_settings,
             settings::update_app_settings,
+            settings::get_codex_config_path,
             menu::menu_set_accelerators,
             codex::codex_doctor,
             workspaces::list_workspaces,

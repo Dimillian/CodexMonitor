@@ -49,6 +49,10 @@ export async function listWorkspaces(): Promise<WorkspaceInfo[]> {
   return invoke<WorkspaceInfo[]>("list_workspaces");
 }
 
+export async function getCodexConfigPath(): Promise<string> {
+  return invoke<string>("get_codex_config_path");
+}
+
 export async function addWorkspace(
   path: string,
   codex_bin: string | null,

@@ -12,6 +12,10 @@ pub(crate) fn read_collab_enabled() -> Result<Option<bool>, String> {
     read_feature_flag("collab")
 }
 
+pub(crate) fn read_collaboration_modes_enabled() -> Result<Option<bool>, String> {
+    read_feature_flag("collaboration_modes")
+}
+
 pub(crate) fn read_unified_exec_enabled() -> Result<Option<bool>, String> {
     read_feature_flag("unified_exec")
 }
@@ -22,6 +26,10 @@ pub(crate) fn write_steer_enabled(enabled: bool) -> Result<(), String> {
 
 pub(crate) fn write_collab_enabled(enabled: bool) -> Result<(), String> {
     write_feature_flag("collab", enabled)
+}
+
+pub(crate) fn write_collaboration_modes_enabled(enabled: bool) -> Result<(), String> {
+    write_feature_flag("collaboration_modes", enabled)
 }
 
 pub(crate) fn write_unified_exec_enabled(enabled: bool) -> Result<(), String> {
@@ -49,7 +57,7 @@ fn write_feature_flag(key: &str, enabled: bool) -> Result<(), String> {
     fs::write(&path, updated).map_err(|err| err.to_string())
 }
 
-fn config_toml_path() -> Option<PathBuf> {
+pub(crate) fn config_toml_path() -> Option<PathBuf> {
     resolve_codex_home().map(|home| home.join("config.toml"))
 }
 

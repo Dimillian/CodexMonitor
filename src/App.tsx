@@ -399,7 +399,7 @@ function MainApp() {
     setSelectedCollaborationModeId,
   } = useCollaborationModes({
     activeWorkspace,
-    enabled: appSettings.experimentalCollabEnabled,
+    enabled: appSettings.experimentalCollaborationModesEnabled,
     onDebug: addDebugEntry,
   });
   const { skills } = useSkills({ activeWorkspace, onDebug: addDebugEntry });
@@ -585,6 +585,7 @@ function MainApp() {
     effort: selectedEffort,
     collaborationMode: selectedCollaborationMode?.value ?? null,
     accessMode,
+    steerEnabled: appSettings.experimentalSteerEnabled,
     customPrompts: prompts,
     onMessageActivity: queueGitStatusRefresh
   });
