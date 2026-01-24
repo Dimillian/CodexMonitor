@@ -523,6 +523,10 @@ export async function startDictation(
   return invoke("dictation_start", { preferredLanguage });
 }
 
+export async function requestDictationPermission(): Promise<boolean> {
+  return invoke("dictation_request_permission");
+}
+
 export async function stopDictation(): Promise<DictationSessionState> {
   return invoke("dictation_stop");
 }
