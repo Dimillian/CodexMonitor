@@ -64,7 +64,7 @@ export function WorkspaceGroup({
         </div>
       )}
       <div className={`workspace-group-list ${isCollapsed ? "collapsed" : ""}`}>
-        {children}
+        <div className="workspace-group-content">{children}</div>
       </div>
     </div>
   );

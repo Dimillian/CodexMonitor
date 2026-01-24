@@ -223,24 +223,29 @@
 }
 
 .workspace-group-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-rows: 1fr;
   margin-top: 8px;
-  max-height: 1200px;
   opacity: 1;
-  overflow: hidden;
   transform: translateY(0);
   transition:
-    max-height 0.2s ease,
+    grid-template-rows 0.2s ease,
     opacity 0.2s ease,
     transform 0.2s ease,
     margin-top 0.2s ease;
 }
 
+.workspace-group-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+  min-height: 0;
+}
+
 .workspace-group-list.collapsed {
   margin-top: 0;
-  max-height: 0;
+  grid-template-rows: 0fr;
   opacity: 0;
   transform: translateY(-4px);
 }
