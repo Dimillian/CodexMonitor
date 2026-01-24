@@ -173,9 +173,17 @@ function PreBlock({ node, children, copyUseModifier }: PreProps) {
   if (!className && !value && children) {
     return <pre>{children}</pre>;
   }
-  const urlLines = !className ? extractUrlLines(value) : null;
+  const urlLines = extractUrlLines(value);
   if (urlLines) {
     return <LinkBlock urls={urlLines} />;
+  }
+  const isSingleLine = !value.includes("\n");
+  if (isSingleLine) {
+    return (
+      <pre className="markdown-codeblock-single">
+        <code className={className}>{value}</code>
+      </pre>
+    );
   }
   return (
     <CodeBlock
