@@ -61,6 +61,11 @@ type GitDiffViewerItem = {
   path: string;
   status: string;
   diff: string;
+  isImage?: boolean;
+  oldImageData?: string | null;
+  newImageData?: string | null;
+  oldImageMime?: string | null;
+  newImageMime?: string | null;
 };
 
 type WorktreeRenameState = {
