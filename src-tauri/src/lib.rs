@@ -2,8 +2,8 @@ use tauri::Manager;
 
 mod backend;
 mod codex;
-mod codex_home;
 mod codex_config;
+mod codex_home;
 #[cfg(not(target_os = "windows"))]
 #[path = "dictation.rs"]
 mod dictation;
@@ -20,20 +20,20 @@ mod remote_backend;
 mod rules;
 mod settings;
 mod state;
-mod terminal;
-mod window;
 mod storage;
+mod terminal;
 mod types;
 mod utils;
+mod window;
 mod workspaces;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(target_os = "linux")]
     {
-        // Avoid WebKit compositing issues on some Linux setups (GBM buffer errors).
-        if std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none() {
-            std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
+        // Avoid WebKit compositing issues on NVIDIA Linux setups (GBM buffer errors).
+        if std::env::var_os("__NV_PRIME_RENDER_OFFLOAD").is_none() {
+            std::env::set_var("__NV_PRIME_RENDER_OFFLOAD", "1");
         }
     }
 
