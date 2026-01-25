@@ -241,6 +241,19 @@ pub(crate) struct WorkspaceSettings {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct OpenAppTarget {
+    pub(crate) id: String,
+    pub(crate) label: String,
+    pub(crate) kind: String,
+    #[serde(default, rename = "appName")]
+    pub(crate) app_name: Option<String>,
+    #[serde(default)]
+    pub(crate) command: Option<String>,
+    #[serde(default)]
+    pub(crate) args: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct AppSettings {
     #[serde(default, rename = "codexBin")]
     pub(crate) codex_bin: Option<String>,
@@ -395,6 +408,10 @@ pub(crate) struct AppSettings {
     pub(crate) composer_code_block_copy_use_modifier: bool,
     #[serde(default = "default_workspace_groups", rename = "workspaceGroups")]
     pub(crate) workspace_groups: Vec<WorkspaceGroup>,
+    #[serde(default = "default_open_app_targets", rename = "openAppTargets")]
+    pub(crate) open_app_targets: Vec<OpenAppTarget>,
+    #[serde(default = "default_selected_open_app_id", rename = "selectedOpenAppId")]
+    pub(crate) selected_open_app_id: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -567,6 +584,63 @@ fn default_workspace_groups() -> Vec<WorkspaceGroup> {
     Vec::new()
 }
 
+fn default_open_app_targets() -> Vec<OpenAppTarget> {
+    vec![
+        OpenAppTarget {
+            id: "vscode".to_string(),
+            label: "VS Code".to_string(),
+            kind: "app".to_string(),
+            app_name: Some("Visual Studio Code".to_string()),
+            command: None,
+            args: Vec::new(),
+        },
+        OpenAppTarget {
+            id: "cursor".to_string(),
+            label: "Cursor".to_string(),
+            kind: "app".to_string(),
+            app_name: Some("Cursor".to_string()),
+            command: None,
+            args: Vec::new(),
+        },
+        OpenAppTarget {
+            id: "zed".to_string(),
+            label: "Zed".to_string(),
+            kind: "app".to_string(),
+            app_name: Some("Zed".to_string()),
+            command: None,
+            args: Vec::new(),
+        },
+        OpenAppTarget {
+            id: "ghostty".to_string(),
+            label: "Ghostty".to_string(),
+            kind: "app".to_string(),
+            app_name: Some("Ghostty".to_string()),
+            command: None,
+            args: Vec::new(),
+        },
+        OpenAppTarget {
+            id: "antigravity".to_string(),
+            label: "Antigravity".to_string(),
+            kind: "app".to_string(),
+            app_name: Some("Antigravity".to_string()),
+            command: None,
+            args: Vec::new(),
+        },
+        OpenAppTarget {
+            id: "finder".to_string(),
+            label: "Finder".to_string(),
+            kind: "finder".to_string(),
+            app_name: None,
+            command: None,
+            args: Vec::new(),
+        },
+    ]
+}
+
+fn default_selected_open_app_id() -> String {
+    "vscode".to_string()
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -615,6 +689,8 @@ impl Default for AppSettings {
             composer_list_continuation: default_composer_list_continuation(),
             composer_code_block_copy_use_modifier: default_composer_code_block_copy_use_modifier(),
             workspace_groups: default_workspace_groups(),
+            open_app_targets: default_open_app_targets(),
+            selected_open_app_id: default_selected_open_app_id(),
         }
     }
 }
@@ -692,6 +768,9 @@ mod tests {
         assert!(!settings.composer_list_continuation);
         assert!(!settings.composer_code_block_copy_use_modifier);
         assert!(settings.workspace_groups.is_empty());
+        assert_eq!(settings.selected_open_app_id, "vscode");
+        assert_eq!(settings.open_app_targets.len(), 6);
+        assert_eq!(settings.open_app_targets[0].id, "vscode");
     }
 
     #[test]

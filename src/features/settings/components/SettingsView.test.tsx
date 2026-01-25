@@ -65,6 +65,17 @@ const baseSettings: AppSettings = {
   composerListContinuation: false,
   composerCodeBlockCopyUseModifier: false,
   workspaceGroups: [],
+  openAppTargets: [
+    {
+      id: "vscode",
+      label: "VS Code",
+      kind: "app",
+      appName: "Visual Studio Code",
+      command: null,
+      args: [],
+    },
+  ],
+  selectedOpenAppId: "vscode",
 };
 
 const createDoctorResult = () => ({

@@ -93,6 +93,7 @@ import type {
   ComposerEditorSettings,
   WorkspaceInfo,
 } from "./types";
+import { OPEN_APP_STORAGE_KEY } from "./features/app/constants";
 
 const AboutView = lazy(() =>
   import("./features/about/components/AboutView").then((module) => ({
@@ -710,6 +711,19 @@ function MainApp() {
       };
     },
     [appSettings.workspaceGroups],
+  );
+
+  const handleSelectOpenAppId = useCallback(
+    (id: string) => {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(OPEN_APP_STORAGE_KEY, id);
+      }
+      void queueSaveSettings({
+        ...appSettings,
+        selectedOpenAppId: id,
+      });
+    },
+    [appSettings, queueSaveSettings],
   );
 
   const persistProjectCopiesFolder = useCallback(
@@ -1366,6 +1380,9 @@ function MainApp() {
     activeItems,
     activeRateLimits,
     codeBlockCopyUseModifier: appSettings.composerCodeBlockCopyUseModifier,
+    openAppTargets: appSettings.openAppTargets,
+    selectedOpenAppId: appSettings.selectedOpenAppId,
+    onSelectOpenAppId: handleSelectOpenAppId,
     approvals,
     userInputRequests,
     handleApprovalDecision,

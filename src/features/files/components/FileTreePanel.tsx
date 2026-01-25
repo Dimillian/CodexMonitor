@@ -28,6 +28,7 @@ import Folder from "lucide-react/dist/esm/icons/folder";
 import Search from "lucide-react/dist/esm/icons/search";
 import { PanelTabs, type PanelTabId } from "../../layout/components/PanelTabs";
 import { readWorkspaceFile } from "../../../services/tauri";
+import type { OpenAppTarget } from "../../../types";
 import { languageFromPath } from "../../../utils/syntax";
 import { FilePreviewPopover } from "./FilePreviewPopover";
 
@@ -46,6 +47,9 @@ type FileTreePanelProps = {
   filePanelMode: PanelTabId;
   onFilePanelModeChange: (mode: PanelTabId) => void;
   onInsertText?: (text: string) => void;
+  openTargets: OpenAppTarget[];
+  selectedOpenAppId: string;
+  onSelectOpenAppId: (id: string) => void;
 };
 
 type FileTreeBuildNode = {
@@ -220,6 +224,9 @@ export function FileTreePanel({
   filePanelMode,
   onFilePanelModeChange,
   onInsertText,
+  openTargets,
+  selectedOpenAppId,
+  onSelectOpenAppId,
 }: FileTreePanelProps) {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
@@ -616,6 +623,9 @@ export function FileTreePanel({
               truncated={previewTruncated}
               previewKind={previewKind}
               imageSrc={previewImageSrc}
+              openTargets={openTargets}
+              selectedOpenAppId={selectedOpenAppId}
+              onSelectOpenAppId={onSelectOpenAppId}
               selection={previewSelection}
               onSelectLine={handleSelectLine}
               onClearSelection={() => setPreviewSelection(null)}

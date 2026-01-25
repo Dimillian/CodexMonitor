@@ -88,6 +88,15 @@ export type ComposerEditorSettings = {
   continueListOnShiftEnter: boolean;
 };
 
+export type OpenAppTarget = {
+  id: string;
+  label: string;
+  kind: "app" | "command" | "finder";
+  appName?: string | null;
+  command?: string | null;
+  args: string[];
+};
+
 export type AppSettings = {
   codexBin: string | null;
   backendMode: BackendMode;
@@ -134,6 +143,8 @@ export type AppSettings = {
   composerListContinuation: boolean;
   composerCodeBlockCopyUseModifier: boolean;
   workspaceGroups: WorkspaceGroup[];
+  openAppTargets: OpenAppTarget[];
+  selectedOpenAppId: string;
 };
 
 export type CodexDoctorResult = {

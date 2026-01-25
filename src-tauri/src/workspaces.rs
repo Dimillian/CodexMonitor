@@ -1456,14 +1456,26 @@ pub(crate) async fn list_workspace_files(
 #[tauri::command]
 pub(crate) async fn open_workspace_in(
     path: String,
-    app: String,
+    app: Option<String>,
+    args: Vec<String>,
+    command: Option<String>,
 ) -> Result<(), String> {
-    let status = std::process::Command::new("open")
-        .arg("-a")
-        .arg(app)
-        .arg(path)
-        .status()
-        .map_err(|error| format!("Failed to open app: {error}"))?;
+    let status = if let Some(command) = command {
+        let mut cmd = std::process::Command::new(command);
+        cmd.args(args).arg(path);
+        cmd.status()
+            .map_err(|error| format!("Failed to open app: {error}"))?
+    } else if let Some(app) = app {
+        let mut cmd = std::process::Command::new("open");
+        cmd.arg("-a").arg(app).arg(path);
+        if !args.is_empty() {
+            cmd.arg("--args").args(args);
+        }
+        cmd.status()
+            .map_err(|error| format!("Failed to open app: {error}"))?
+    } else {
+        return Err("Missing app or command".to_string());
+    };
     if status.success() {
         Ok(())
     } else {
