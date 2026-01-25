@@ -3,6 +3,7 @@ import { useDictation } from "../../dictation/hooks/useDictation";
 import { useDictationModel } from "../../dictation/hooks/useDictationModel";
 import { useHoldToDictate } from "../../dictation/hooks/useHoldToDictate";
 import type { AppSettings } from "../../../types";
+import { requestDictationPermission } from "../../../services/tauri";
 
 type DictationController = {
   dictationModel: ReturnType<typeof useDictationModel>;
@@ -38,6 +39,8 @@ export function useDictationController(appSettings: AppSettings): DictationContr
   } = useDictation();
   const dictationReady = dictationModel.status?.state === "ready";
   const holdDictationKey = (appSettings.dictationHoldKey ?? "").toLowerCase();
+  const permissionRequestPendingRef = useRef(false);
+  const permissionRequestedRef = useRef(false);
 
   const handleToggleDictation = useCallback(async () => {
     if (!appSettings.dictationEnabled || !dictationReady) {
@@ -95,6 +98,32 @@ export function useDictationController(appSettings: AppSettings): DictationContr
     stopDictation,
     cancelDictation,
   });
+
+  useEffect(() => {
+    if (!appSettings.dictationEnabled) {
+      permissionRequestedRef.current = false;
+      return;
+    }
+    if (permissionRequestPendingRef.current) {
+      return;
+    }
+    if (!dictationReady) {
+      permissionRequestedRef.current = false;
+      return;
+    }
+    if (permissionRequestedRef.current) {
+      return;
+    }
+    permissionRequestedRef.current = true;
+    permissionRequestPendingRef.current = true;
+    void requestDictationPermission()
+      .catch(() => {
+        // Errors are surfaced during dictation start.
+      })
+      .finally(() => {
+        permissionRequestPendingRef.current = false;
+      });
+  }, [appSettings.dictationEnabled, dictationReady]);
 
   return {
     dictationModel,

@@ -834,6 +834,11 @@ pub(crate) async fn dictation_start(
 }
 
 #[tauri::command]
+pub(crate) async fn dictation_request_permission(app: AppHandle) -> Result<bool, String> {
+    request_microphone_permission(&app).await
+}
+
+#[tauri::command]
 pub(crate) async fn dictation_stop(
     app: AppHandle,
     state: State<'_, AppState>,
