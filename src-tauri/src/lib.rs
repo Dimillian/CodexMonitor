@@ -66,6 +66,7 @@ pub fn run() {
             settings::update_app_settings,
             settings::get_codex_config_path,
             menu::menu_set_accelerators,
+            menu::app_quit,
             codex::codex_doctor,
             workspaces::list_workspaces,
             workspaces::is_workspace_path_dir,

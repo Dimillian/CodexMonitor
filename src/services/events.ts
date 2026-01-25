@@ -90,6 +90,7 @@ const menuToggleProjectsSidebarHub = createEventHub<void>("menu-toggle-projects-
 const menuToggleGitSidebarHub = createEventHub<void>("menu-toggle-git-sidebar");
 const menuToggleDebugPanelHub = createEventHub<void>("menu-toggle-debug-panel");
 const menuToggleTerminalHub = createEventHub<void>("menu-toggle-terminal");
+const menuQuitHub = createEventHub<void>("menu-quit");
 const menuNextAgentHub = createEventHub<void>("menu-next-agent");
 const menuPrevAgentHub = createEventHub<void>("menu-prev-agent");
 const menuNextWorkspaceHub = createEventHub<void>("menu-next-workspace");
@@ -215,6 +216,15 @@ export function subscribeMenuToggleTerminal(
   options?: SubscriptionOptions,
 ): Unsubscribe {
   return menuToggleTerminalHub.subscribe(() => {
+    onEvent();
+  }, options);
+}
+
+export function subscribeMenuQuit(
+  onEvent: () => void,
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return menuQuitHub.subscribe(() => {
     onEvent();
   }, options);
 }

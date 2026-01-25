@@ -3,7 +3,9 @@ use std::sync::Mutex;
 
 use serde::Deserialize;
 use tauri::menu::{Menu, MenuItem, MenuItemBuilder, PredefinedMenuItem, Submenu};
-use tauri::{Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
+
+use crate::state::AppState;
 
 pub struct MenuItemRegistry<R: Runtime> {
     items: Mutex<HashMap<String, MenuItem<R>>>,
@@ -58,6 +60,11 @@ pub fn menu_set_accelerators<R: Runtime>(
     Ok(())
 }
 
+#[tauri::command]
+pub fn app_quit(app: AppHandle) {
+    app.exit(0);
+}
+
 pub(crate) fn build_menu<R: tauri::Runtime>(
     handle: &tauri::AppHandle<R>,
 ) -> tauri::Result<Menu<R>> {
@@ -69,6 +76,10 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
         MenuItemBuilder::with_id("check_for_updates", "Check for Updates...").build(handle)?;
     let settings_item = MenuItemBuilder::with_id("file_open_settings", "Settings...")
         .accelerator("CmdOrCtrl+,")
+        .build(handle)?;
+    #[cfg(target_os = "macos")]
+    let app_quit_item = MenuItemBuilder::with_id("app_quit", format!("Quit {app_name}"))
+        .accelerator("CmdOrCtrl+Q")
         .build(handle)?;
     let app_menu = Submenu::with_items(
         handle,
@@ -84,6 +95,9 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
             &PredefinedMenuItem::hide(handle, None)?,
             &PredefinedMenuItem::hide_others(handle, None)?,
             &PredefinedMenuItem::separator(handle)?,
+            #[cfg(target_os = "macos")]
+            &app_quit_item,
+            #[cfg(not(target_os = "macos"))]
             &PredefinedMenuItem::quit(handle, None)?,
         ],
     )?;
@@ -347,6 +361,13 @@ pub(crate) fn handle_menu_event<R: tauri::Runtime>(
         "file_quit" => {
             app.exit(0);
         }
+        "app_quit" => {
+            if should_hold_to_quit(app) {
+                emit_menu_event(app, "menu-quit");
+            } else {
+                app.exit(0);
+            }
+        }
         "view_fullscreen" => {
             if let Some(window) = app.get_webview_window("main") {
                 let is_fullscreen = window.is_fullscreen().unwrap_or(false);
@@ -384,4 +405,12 @@ fn emit_menu_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: &str) {
     } else {
         let _ = app.emit(event, ());
     }
+}
+
+fn should_hold_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
+    let state = app.state::<AppState>();
+    tauri::async_runtime::block_on(async {
+        let settings = state.app_settings.lock().await;
+        settings.experimental_hold_to_quit_enabled
+    })
 }

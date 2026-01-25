@@ -51,6 +51,7 @@ const baseSettings: AppSettings = {
   experimentalCollaborationModesEnabled: false,
   experimentalSteerEnabled: false,
   experimentalUnifiedExecEnabled: false,
+  experimentalHoldToQuitEnabled: false,
   dictationEnabled: false,
   dictationModelId: "base",
   dictationPreferredLanguage: null,
@@ -149,7 +150,13 @@ describe("SettingsView Display", () => {
     if (!row) {
       throw new Error("Expected reduce transparency row");
     }
-    fireEvent.click(within(row).getByRole("button"));
+    const toggle = row.querySelector(
+      "button.settings-toggle",
+    ) as HTMLButtonElement | null;
+    if (!toggle) {
+      throw new Error("Expected hold-to-quit toggle");
+    }
+    fireEvent.click(toggle);
 
     expect(onToggleTransparency).toHaveBeenCalledWith(true);
   });
@@ -260,6 +267,67 @@ describe("SettingsView Display", () => {
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({ notificationSoundsEnabled: true }),
+      );
+    });
+  });
+});
+
+describe("SettingsView Experimental", () => {
+  it("toggles hold-to-quit in experimental settings", async () => {
+    cleanup();
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    const props: ComponentProps<typeof SettingsView> = {
+      reduceTransparency: false,
+      onToggleTransparency: vi.fn(),
+      appSettings: baseSettings,
+      onUpdateAppSettings,
+      workspaceGroups: [],
+      groupedWorkspaces: [],
+      ungroupedLabel: "Ungrouped",
+      onClose: vi.fn(),
+      onMoveWorkspace: vi.fn(),
+      onDeleteWorkspace: vi.fn(),
+      onCreateWorkspaceGroup: vi.fn().mockResolvedValue(null),
+      onRenameWorkspaceGroup: vi.fn().mockResolvedValue(null),
+      onMoveWorkspaceGroup: vi.fn().mockResolvedValue(null),
+      onDeleteWorkspaceGroup: vi.fn().mockResolvedValue(null),
+      onAssignWorkspaceGroup: vi.fn().mockResolvedValue(null),
+      onRunDoctor: vi.fn().mockResolvedValue(createDoctorResult()),
+      onUpdateWorkspaceCodexBin: vi.fn().mockResolvedValue(undefined),
+      scaleShortcutTitle: "Scale shortcut",
+      scaleShortcutText: "Use Command +/-",
+      onTestNotificationSound: vi.fn(),
+      dictationModelStatus: null,
+      onDownloadDictationModel: vi.fn(),
+      onCancelDictationDownload: vi.fn(),
+      onRemoveDictationModel: vi.fn(),
+    };
+
+    render(<SettingsView {...props} />);
+    const sidebar = document.querySelector(
+      ".settings-sidebar",
+    ) as HTMLElement | null;
+    if (!sidebar) {
+      throw new Error("Expected settings sidebar");
+    }
+    const experimentalButton = within(sidebar).getByRole("button", {
+      name: "Experimental",
+    });
+    fireEvent.click(experimentalButton);
+
+    const row = screen
+      .getByText("Hold ⌘Q to quit")
+      .closest(".settings-toggle-row") as HTMLElement | null;
+    if (!row) {
+      throw new Error("Expected hold-to-quit row");
+    }
+    fireEvent.click(within(row).getByRole("button"));
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          experimentalHoldToQuitEnabled: true,
+        }),
       );
     });
   });

@@ -9,6 +9,7 @@ import "./styles/messages.css";
 import "./styles/approval-toasts.css";
 import "./styles/request-user-input.css";
 import "./styles/update-toasts.css";
+import "./styles/quit-hold.css";
 import "./styles/composer.css";
 import "./styles/diff.css";
 import "./styles/diff-viewer.css";
@@ -31,6 +32,7 @@ import errorSoundUrl from "./assets/error-notification.mp3";
 import { AppLayout } from "./features/app/components/AppLayout";
 import { AppModals } from "./features/app/components/AppModals";
 import { MainHeaderActions } from "./features/app/components/MainHeaderActions";
+import { QuitHoldIndicator } from "./features/app/components/QuitHoldIndicator";
 import { useLayoutNodes } from "./features/layout/hooks/useLayoutNodes";
 import { useWorkspaceDropZone } from "./features/workspaces/hooks/useWorkspaceDropZone";
 import { useThreads } from "./features/threads/hooks/useThreads";
@@ -78,6 +80,7 @@ import { useSettingsModalState } from "./features/app/hooks/useSettingsModalStat
 import { usePersistComposerSettings } from "./features/app/hooks/usePersistComposerSettings";
 import { useSyncSelectedDiffPath } from "./features/app/hooks/useSyncSelectedDiffPath";
 import { useMenuAcceleratorController } from "./features/app/hooks/useMenuAcceleratorController";
+import { useHoldToQuit } from "./features/app/hooks/useHoldToQuit";
 import { useAppMenuEvents } from "./features/app/hooks/useAppMenuEvents";
 import { useWorkspaceActions } from "./features/app/hooks/useWorkspaceActions";
 import { useWorkspaceCycling } from "./features/app/hooks/useWorkspaceCycling";
@@ -1331,6 +1334,9 @@ function MainApp() {
   });
 
   useMenuAcceleratorController({ appSettings, onDebug: addDebugEntry });
+  const { state: quitHoldState } = useHoldToQuit({
+    enabled: appSettings.experimentalHoldToQuitEnabled,
+  });
 
   const isDefaultScale = Math.abs(uiScale - 1) < 0.001;
   const dropOverlayActive = isWorkspaceDropActive;
@@ -1790,6 +1796,10 @@ function MainApp() {
           />
         </Suspense>
       ) : null}
+      <QuitHoldIndicator
+        isActive={quitHoldState.status === "holding"}
+        progress={quitHoldState.progress}
+      />
       <AppLayout
         isPhone={isPhone}
         isTablet={isTablet}
