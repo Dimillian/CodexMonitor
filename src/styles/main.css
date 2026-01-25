@@ -609,6 +609,16 @@
   gap: 6px;
 }
 
+.branch-search {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.branch-search .branch-input {
+  flex: 1;
+}
+
 
 .branch-action {
   display: inline-flex;
@@ -671,6 +681,18 @@
 
 .branch-create-button:hover {
   background: var(--surface-control-hover);
+}
+
+.branch-create-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  background: var(--surface-card);
+}
+
+.branch-create-hint {
+  font-size: 11px;
+  color: var(--text-faint);
+  padding: 2px 8px 0;
 }
 
 .branch-list {

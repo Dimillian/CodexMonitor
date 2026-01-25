@@ -71,8 +71,7 @@ export function MainHeader({
 }: MainHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [newBranch, setNewBranch] = useState("");
+  const [branchQuery, setBranchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState(false);
   const copyTimeoutRef = useRef<number | null>(null);
@@ -82,7 +81,50 @@ export function MainHeader({
   const renameConfirmRef = useRef<HTMLButtonElement | null>(null);
   const renameOnCancel = worktreeRename?.onCancel;
 
-  const recentBranches = branches.slice(0, 12);
+  const recentBranches = branches;
+  const trimmedQuery = branchQuery.trim();
+  const lowercaseQuery = trimmedQuery.toLowerCase();
+  const filteredBranches =
+    trimmedQuery.length > 0
+      ? recentBranches.filter((branch) =>
+          branch.name.toLowerCase().includes(lowercaseQuery),
+        )
+      : recentBranches.slice(0, 12);
+  const exactMatch = trimmedQuery
+    ? recentBranches.find((branch) => branch.name === trimmedQuery) ?? null
+    : null;
+  const canCreate = trimmedQuery.length > 0 && !exactMatch;
+  const branchValidationMessage = (() => {
+    if (trimmedQuery.length === 0) {
+      return null;
+    }
+    if (trimmedQuery === "." || trimmedQuery === "..") {
+      return "Branch name cannot be '.' or '..'.";
+    }
+    if (/\s/.test(trimmedQuery)) {
+      return "Branch name cannot contain spaces.";
+    }
+    if (trimmedQuery.startsWith("/") || trimmedQuery.endsWith("/")) {
+      return "Branch name cannot start or end with '/'.";
+    }
+    if (trimmedQuery.endsWith(".lock")) {
+      return "Branch name cannot end with '.lock'.";
+    }
+    if (trimmedQuery.includes("..")) {
+      return "Branch name cannot contain '..'.";
+    }
+    if (trimmedQuery.includes("@{")) {
+      return "Branch name cannot contain '@{'.";
+    }
+    const invalidChars = ["~", "^", ":", "?", "*", "[", "\\"];
+    if (invalidChars.some((char) => trimmedQuery.includes(char))) {
+      return "Branch name contains invalid characters.";
+    }
+    if (trimmedQuery.endsWith(".")) {
+      return "Branch name cannot end with '.'.";
+    }
+    return null;
+  })();
   const resolvedWorktreePath = worktreePath ?? workspace.path;
   const relativeWorktreePath =
     parentPath && resolvedWorktreePath.startsWith(`${parentPath}/`)
@@ -101,8 +143,7 @@ export function MainHeader({
       if (!menuContains && !infoContains) {
         setMenuOpen(false);
         setInfoOpen(false);
-        setIsCreating(false);
-        setNewBranch("");
+        setBranchQuery("");
         setError(null);
       }
     };
@@ -319,55 +360,93 @@ export function MainHeader({
                   data-tauri-drag-region="false"
                 >
                   <div className="branch-actions">
-                    {!isCreating ? (
-                      <button
-                        type="button"
-                        className="branch-action"
-                        onClick={() => setIsCreating(true)}
-                        data-tauri-drag-region="false"
-                      >
-                        <span className="branch-action-icon">+</span>
-                        Create branch
-                      </button>
-                    ) : (
-                      <div className="branch-create">
-                        <input
-                          value={newBranch}
-                          onChange={(event) => setNewBranch(event.target.value)}
-                          placeholder="new-branch-name"
-                          className="branch-input"
-                          autoFocus
-                          data-tauri-drag-region="false"
-                        />
-                        <button
-                          type="button"
-                          className="branch-create-button"
-                          onClick={async () => {
-                            const name = newBranch.trim();
-                            if (!name) {
-                              return;
-                            }
+                    <div className="branch-search">
+                      <input
+                        value={branchQuery}
+                        onChange={(event) => {
+                          setBranchQuery(event.target.value);
+                          setError(null);
+                        }}
+                        onKeyDown={async (event) => {
+                          if (event.key !== "Enter") {
+                            return;
+                          }
+                          event.preventDefault();
+                          if (branchValidationMessage) {
+                            setError(branchValidationMessage);
+                            return;
+                          }
+                          if (canCreate) {
                             try {
-                              await onCreateBranch(name);
+                              await onCreateBranch(trimmedQuery);
                               setMenuOpen(false);
-                              setIsCreating(false);
-                              setNewBranch("");
+                              setBranchQuery("");
                               setError(null);
                             } catch (err) {
                               setError(
                                 err instanceof Error ? err.message : String(err),
                               );
                             }
-                          }}
-                          data-tauri-drag-region="false"
-                        >
-                          Create + checkout
-                        </button>
+                            return;
+                          }
+                          if (exactMatch && exactMatch.name !== branchName) {
+                            try {
+                              await onCheckoutBranch(exactMatch.name);
+                              setMenuOpen(false);
+                              setBranchQuery("");
+                              setError(null);
+                            } catch (err) {
+                              setError(
+                                err instanceof Error ? err.message : String(err),
+                              );
+                            }
+                          }
+                        }}
+                        placeholder="Search or create branch"
+                        className="branch-input"
+                        autoFocus
+                        data-tauri-drag-region="false"
+                        aria-label="Search branches"
+                      />
+                      <button
+                        type="button"
+                        className="branch-create-button"
+                        disabled={!canCreate || Boolean(branchValidationMessage)}
+                        onClick={async () => {
+                          if (branchValidationMessage) {
+                            setError(branchValidationMessage);
+                            return;
+                          }
+                          if (!canCreate) {
+                            return;
+                          }
+                          try {
+                            await onCreateBranch(trimmedQuery);
+                            setMenuOpen(false);
+                            setBranchQuery("");
+                            setError(null);
+                          } catch (err) {
+                            setError(
+                              err instanceof Error ? err.message : String(err),
+                            );
+                          }
+                        }}
+                        data-tauri-drag-region="false"
+                      >
+                        Create
+                      </button>
+                    </div>
+                    {branchValidationMessage && (
+                      <div className="branch-error">{branchValidationMessage}</div>
+                    )}
+                    {canCreate && !branchValidationMessage && (
+                      <div className="branch-create-hint">
+                        Create branch “{trimmedQuery}”
                       </div>
                     )}
                   </div>
                   <div className="branch-list" role="none">
-                    {recentBranches.map((branch) => (
+                    {filteredBranches.map((branch) => (
                       <button
                         key={branch.name}
                         type="button"
@@ -381,8 +460,7 @@ export function MainHeader({
                           try {
                             await onCheckoutBranch(branch.name);
                             setMenuOpen(false);
-                            setIsCreating(false);
-                            setNewBranch("");
+                            setBranchQuery("");
                             setError(null);
                           } catch (err) {
                             setError(
@@ -396,7 +474,7 @@ export function MainHeader({
                         {branch.name}
                       </button>
                     ))}
-                    {recentBranches.length === 0 && (
+                    {filteredBranches.length === 0 && (
                       <div className="branch-empty">No branches found</div>
                     )}
                   </div>
