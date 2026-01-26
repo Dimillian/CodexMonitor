@@ -88,6 +88,7 @@ import { useThreadRows } from "./features/app/hooks/useThreadRows";
 import { useLiquidGlassEffect } from "./features/app/hooks/useLiquidGlassEffect";
 import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { useTerminalController } from "./features/terminal/hooks/useTerminalController";
+import { useWorkspaceLaunchScript } from "./features/app/hooks/useWorkspaceLaunchScript";
 import { useGitCommitController } from "./features/app/hooks/useGitCommitController";
 import { WorkspaceHome } from "./features/workspaces/components/WorkspaceHome";
 import { useWorkspaceHome } from "./features/workspaces/hooks/useWorkspaceHome";
@@ -97,6 +98,8 @@ import type {
   ComposerEditorSettings,
   WorkspaceInfo,
 } from "./types";
+import { OPEN_APP_STORAGE_KEY } from "./features/app/constants";
+import { useOpenAppIcons } from "./features/app/hooks/useOpenAppIcons";
 
 const AboutView = lazy(() =>
   import("./features/about/components/AboutView").then((module) => ({
@@ -219,6 +222,7 @@ function MainApp() {
     terminalOpen,
     handleDebugClick,
     handleToggleTerminal,
+    openTerminal,
   } = useLayoutController({
     uiScale,
     activeWorkspaceId,
@@ -373,14 +377,31 @@ function MainApp() {
     preferredEffort: appSettings.lastComposerReasoningEffort,
   });
 
+  const {
+    collaborationModes,
+    selectedCollaborationMode,
+    selectedCollaborationModeId,
+    setSelectedCollaborationModeId,
+  } = useCollaborationModes({
+    activeWorkspace,
+    enabled: appSettings.experimentalCollaborationModesEnabled,
+    onDebug: addDebugEntry,
+  });
+
   useComposerShortcuts({
     textareaRef: composerInputRef,
     modelShortcut: appSettings.composerModelShortcut,
     accessShortcut: appSettings.composerAccessShortcut,
     reasoningShortcut: appSettings.composerReasoningShortcut,
+    collaborationShortcut: appSettings.experimentalCollaborationModesEnabled
+      ? appSettings.composerCollaborationShortcut
+      : null,
     models,
+    collaborationModes,
     selectedModelId,
     onSelectModel: setSelectedModelId,
+    selectedCollaborationModeId,
+    onSelectCollaborationMode: setSelectedCollaborationModeId,
     accessMode,
     onSelectAccessMode: setAccessMode,
     reasoningOptions,
@@ -392,23 +413,15 @@ function MainApp() {
     models,
     selectedModelId,
     onSelectModel: setSelectedModelId,
+    collaborationModes,
+    selectedCollaborationModeId,
+    onSelectCollaborationMode: setSelectedCollaborationModeId,
     accessMode,
     onSelectAccessMode: setAccessMode,
     reasoningOptions,
     selectedEffort,
     onSelectEffort: setSelectedEffort,
     onFocusComposer: () => composerInputRef.current?.focus(),
-  });
-
-  const {
-    collaborationModes,
-    selectedCollaborationMode,
-    selectedCollaborationModeId,
-    setSelectedCollaborationModeId,
-  } = useCollaborationModes({
-    activeWorkspace,
-    enabled: appSettings.experimentalCollaborationModesEnabled,
-    onDebug: addDebugEntry,
   });
   const { skills } = useSkills({ activeWorkspace, onDebug: addDebugEntry });
   const {
@@ -556,12 +569,8 @@ function MainApp() {
   const { collaborationModePayload } = useCollaborationModeSelection({
     selectedCollaborationMode,
     selectedCollaborationModeId,
-    models,
-    selectedModelId,
     selectedEffort,
     resolvedModel,
-    setSelectedModelId,
-    setSelectedEffort,
   });
 
   const {
@@ -726,6 +735,28 @@ function MainApp() {
     },
     [appSettings.workspaceGroups],
   );
+
+  const handleSelectOpenAppId = useCallback(
+    (id: string) => {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(OPEN_APP_STORAGE_KEY, id);
+      }
+      setAppSettings((current) => {
+        if (current.selectedOpenAppId === id) {
+          return current;
+        }
+        const nextSettings = {
+          ...current,
+          selectedOpenAppId: id,
+        };
+        void queueSaveSettings(nextSettings);
+        return nextSettings;
+      });
+    },
+    [queueSaveSettings, setAppSettings],
+  );
+
+  const openAppIconById = useOpenAppIcons(appSettings.openAppTargets);
 
   const persistProjectCopiesFolder = useCallback(
     async (groupId: string, copiesFolder: string) => {
@@ -1284,11 +1315,28 @@ function MainApp() {
     onNewTerminal,
     onCloseTerminal,
     terminalState,
+    ensureTerminalWithTitle,
+    restartTerminalSession,
   } = useTerminalController({
     activeWorkspaceId,
     activeWorkspace,
     terminalOpen,
     onDebug: addDebugEntry,
+  });
+
+  const ensureLaunchTerminal = useCallback(
+    (workspaceId: string) => ensureTerminalWithTitle(workspaceId, "launch", "Launch"),
+    [ensureTerminalWithTitle],
+  );
+
+  const launchScriptState = useWorkspaceLaunchScript({
+    activeWorkspace,
+    updateWorkspaceSettings,
+    openTerminal,
+    ensureLaunchTerminal,
+    restartLaunchSession: restartTerminalSession,
+    terminalState,
+    activeTerminalId,
   });
 
   const { handleCycleAgent, handleCycleWorkspace } = useWorkspaceCycling({
@@ -1384,6 +1432,10 @@ function MainApp() {
     activeItems,
     activeRateLimits,
     codeBlockCopyUseModifier: appSettings.composerCodeBlockCopyUseModifier,
+    openAppTargets: appSettings.openAppTargets,
+    openAppIconById,
+    selectedOpenAppId: appSettings.selectedOpenAppId,
+    onSelectOpenAppId: handleSelectOpenAppId,
     approvals,
     userInputRequests,
     handleApprovalDecision,
@@ -1500,6 +1552,16 @@ function MainApp() {
     onCopyThread: handleCopyThread,
     onToggleTerminal: handleToggleTerminal,
     showTerminalButton: !isCompact,
+    launchScript: launchScriptState.launchScript,
+    launchScriptEditorOpen: launchScriptState.editorOpen,
+    launchScriptDraft: launchScriptState.draftScript,
+    launchScriptSaving: launchScriptState.isSaving,
+    launchScriptError: launchScriptState.error,
+    onRunLaunchScript: launchScriptState.onRunLaunchScript,
+    onOpenLaunchScriptEditor: launchScriptState.onOpenEditor,
+    onCloseLaunchScriptEditor: launchScriptState.onCloseEditor,
+    onLaunchScriptDraftChange: launchScriptState.onDraftScriptChange,
+    onSaveLaunchScript: launchScriptState.onSaveLaunchScript,
     mainHeaderActionsNode: (
       <MainHeaderActions
         centerMode={centerMode}
@@ -1869,6 +1931,7 @@ function MainApp() {
           reduceTransparency,
           onToggleTransparency: setReduceTransparency,
           appSettings,
+          openAppIconById,
           onUpdateAppSettings: async (next) => {
             await queueSaveSettings(next);
           },

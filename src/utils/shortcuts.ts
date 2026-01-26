@@ -112,7 +112,8 @@ export function buildShortcutValue(event: KeyboardEvent): string | null {
     return null;
   }
   const hasPrimaryModifier = event.metaKey || event.ctrlKey || event.altKey;
-  if (!hasPrimaryModifier) {
+  const allowShiftOnly = event.shiftKey && key === "tab";
+  if (!hasPrimaryModifier && !allowShiftOnly) {
     return null;
   }
   const modifiers = [];

@@ -26,6 +26,7 @@ export type TerminalSessionState = {
   message: string;
   containerRef: RefObject<HTMLDivElement | null>;
   hasSession: boolean;
+  readyKey: string | null;
   cleanupTerminalSession: (workspaceId: string, terminalId: string) => void;
 };
 
@@ -61,14 +62,23 @@ export function useTerminalSession({
   const [status, setStatus] = useState<TerminalStatus>("idle");
   const [message, setMessage] = useState("Open a terminal to start a session.");
   const [hasSession, setHasSession] = useState(false);
+  const [readyKey, setReadyKey] = useState<string | null>(null);
+  const [sessionResetCounter, setSessionResetCounter] = useState(0);
   const cleanupTerminalSession = useCallback((workspaceId: string, terminalId: string) => {
     const key = `${workspaceId}:${terminalId}`;
     outputBuffersRef.current.delete(key);
     openedSessionsRef.current.delete(key);
+    if (readyKey === key) {
+      setReadyKey(null);
+    }
+    setSessionResetCounter((prev) => prev + 1);
     if (activeKeyRef.current === key) {
       terminalRef.current?.reset();
+      setHasSession(false);
+      setStatus("idle");
+      setMessage("Open a terminal to start a session.");
     }
-  }, []);
+  }, [readyKey]);
 
   const activeKey = useMemo(() => {
     if (!activeWorkspace || !activeTerminalId) {
@@ -204,17 +214,21 @@ export function useTerminalSession({
   useEffect(() => {
     if (!isVisible) {
       setHasSession(false);
+      setReadyKey(null);
       return;
     }
     if (!activeWorkspace || !activeTerminalId) {
       setStatus("idle");
       setMessage("Open a terminal to start a session.");
       setHasSession(false);
+      setReadyKey(null);
       return;
     }
     if (!terminalRef.current || !fitAddonRef.current) {
       setStatus("idle");
       setMessage("Preparing terminal...");
+      setHasSession(false);
+      setReadyKey(null);
       return;
     }
     const key = `${activeWorkspace.id}:${activeTerminalId}`;
@@ -233,6 +247,7 @@ export function useTerminalSession({
       setStatus("ready");
       setMessage("Terminal ready.");
       setHasSession(true);
+      setReadyKey(key);
       if (renderedKeyRef.current !== key) {
         syncActiveBuffer(key);
         renderedKeyRef.current = key;
@@ -253,6 +268,7 @@ export function useTerminalSession({
     onDebug,
     refreshTerminal,
     syncActiveBuffer,
+    sessionResetCounter,
   ]);
 
   useEffect(() => {
@@ -315,6 +331,7 @@ export function useTerminalSession({
     message,
     containerRef,
     hasSession,
+    readyKey,
     cleanupTerminalSession,
   };
 }

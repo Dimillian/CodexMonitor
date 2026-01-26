@@ -3,6 +3,7 @@ export type WorkspaceSettings = {
   sortOrder?: number | null;
   groupId?: string | null;
   gitRoot?: string | null;
+  launchScript?: string | null;
 };
 
 export type WorkspaceGroup = {
@@ -88,6 +89,15 @@ export type ComposerEditorSettings = {
   continueListOnShiftEnter: boolean;
 };
 
+export type OpenAppTarget = {
+  id: string;
+  label: string;
+  kind: "app" | "command" | "finder";
+  appName?: string | null;
+  command?: string | null;
+  args: string[];
+};
+
 export type AppSettings = {
   codexBin: string | null;
   backendMode: BackendMode;
@@ -97,6 +107,7 @@ export type AppSettings = {
   composerModelShortcut: string | null;
   composerAccessShortcut: string | null;
   composerReasoningShortcut: string | null;
+  composerCollaborationShortcut: string | null;
   newAgentShortcut: string | null;
   newWorktreeAgentShortcut: string | null;
   newCloneAgentShortcut: string | null;
@@ -135,6 +146,8 @@ export type AppSettings = {
   composerListContinuation: boolean;
   composerCodeBlockCopyUseModifier: boolean;
   workspaceGroups: WorkspaceGroup[];
+  openAppTargets: OpenAppTarget[];
+  selectedOpenAppId: string;
 };
 
 export type CodexDoctorResult = {
@@ -199,12 +212,24 @@ export type GitFileStatus = {
 export type GitFileDiff = {
   path: string;
   diff: string;
+  isBinary?: boolean;
+  isImage?: boolean;
+  oldImageData?: string | null;
+  newImageData?: string | null;
+  oldImageMime?: string | null;
+  newImageMime?: string | null;
 };
 
 export type GitCommitDiff = {
   path: string;
   status: string;
   diff: string;
+  isBinary?: boolean;
+  isImage?: boolean;
+  oldImageData?: string | null;
+  newImageData?: string | null;
+  oldImageMime?: string | null;
+  newImageMime?: string | null;
 };
 
 export type GitLogEntry = {

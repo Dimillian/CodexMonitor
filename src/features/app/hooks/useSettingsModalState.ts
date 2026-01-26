@@ -5,6 +5,7 @@ export type SettingsSection =
   | "display"
   | "dictation"
   | "shortcuts"
+  | "open-apps"
   | "codex"
   | "experimental";
 

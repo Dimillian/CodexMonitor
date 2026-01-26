@@ -35,6 +35,7 @@ import type {
   GitLogEntry,
   LocalUsageSnapshot,
   ModelOption,
+  OpenAppTarget,
   QueuedMessage,
   RateLimitSnapshot,
   RequestUserInputRequest,
@@ -61,6 +62,11 @@ type GitDiffViewerItem = {
   path: string;
   status: string;
   diff: string;
+  isImage?: boolean;
+  oldImageData?: string | null;
+  newImageData?: string | null;
+  oldImageMime?: string | null;
+  newImageMime?: string | null;
 };
 
 type WorktreeRenameState = {
@@ -102,6 +108,10 @@ type LayoutNodesOptions = {
   activeItems: ConversationItem[];
   activeRateLimits: RateLimitSnapshot | null;
   codeBlockCopyUseModifier: boolean;
+  openAppTargets: OpenAppTarget[];
+  openAppIconById: Record<string, string>;
+  selectedOpenAppId: string;
+  onSelectOpenAppId: (id: string) => void;
   approvals: ApprovalRequest[];
   userInputRequests: RequestUserInputRequest[];
   handleApprovalDecision: (
@@ -182,6 +192,16 @@ type LayoutNodesOptions = {
   onCopyThread: () => void | Promise<void>;
   onToggleTerminal: () => void;
   showTerminalButton: boolean;
+  launchScript: string | null;
+  launchScriptEditorOpen: boolean;
+  launchScriptDraft: string;
+  launchScriptSaving: boolean;
+  launchScriptError: string | null;
+  onRunLaunchScript: () => void;
+  onOpenLaunchScriptEditor: () => void;
+  onCloseLaunchScriptEditor: () => void;
+  onLaunchScriptDraftChange: (value: string) => void;
+  onSaveLaunchScript: () => void;
   mainHeaderActionsNode?: ReactNode;
   centerMode: "chat" | "diff";
   onExitDiff: () => void;
@@ -447,6 +467,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       threadId={options.activeThreadId ?? null}
       workspaceId={options.activeWorkspace?.id ?? null}
       workspacePath={options.activeWorkspace?.path ?? null}
+      openTargets={options.openAppTargets}
+      selectedOpenAppId={options.selectedOpenAppId}
       codeBlockCopyUseModifier={options.codeBlockCopyUseModifier}
       userInputRequests={options.userInputRequests}
       onUserInputSubmit={options.handleUserInputSubmit}
@@ -564,6 +586,10 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       disableBranchMenu={options.isWorktreeWorkspace}
       parentPath={options.activeParentWorkspace?.path ?? null}
       worktreePath={options.isWorktreeWorkspace ? options.activeWorkspace.path : null}
+      openTargets={options.openAppTargets}
+      openAppIconById={options.openAppIconById}
+      selectedOpenAppId={options.selectedOpenAppId}
+      onSelectOpenAppId={options.onSelectOpenAppId}
       branchName={options.branchName}
       branches={options.branches}
       onCheckoutBranch={options.onCheckoutBranch}
@@ -573,6 +599,16 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onToggleTerminal={options.onToggleTerminal}
       isTerminalOpen={options.terminalOpen}
       showTerminalButton={options.showTerminalButton}
+      launchScript={options.launchScript}
+      launchScriptEditorOpen={options.launchScriptEditorOpen}
+      launchScriptDraft={options.launchScriptDraft}
+      launchScriptSaving={options.launchScriptSaving}
+      launchScriptError={options.launchScriptError}
+      onRunLaunchScript={options.onRunLaunchScript}
+      onOpenLaunchScriptEditor={options.onOpenLaunchScriptEditor}
+      onCloseLaunchScriptEditor={options.onCloseLaunchScriptEditor}
+      onLaunchScriptDraftChange={options.onLaunchScriptDraftChange}
+      onSaveLaunchScript={options.onSaveLaunchScript}
       extraActionsNode={options.mainHeaderActionsNode}
     />
   ) : null;
@@ -614,6 +650,10 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         filePanelMode={options.filePanelMode}
         onFilePanelModeChange={options.onFilePanelModeChange}
         onInsertText={options.onInsertComposerText}
+        openTargets={options.openAppTargets}
+        openAppIconById={options.openAppIconById}
+        selectedOpenAppId={options.selectedOpenAppId}
+        onSelectOpenAppId={options.onSelectOpenAppId}
       />
     );
   } else if (options.filePanelMode === "prompts") {
