@@ -38,6 +38,7 @@ type ComposerProps = {
   reasoningOptions: string[];
   selectedEffort: string | null;
   onSelectEffort: (effort: string) => void;
+  reasoningSupported: boolean;
   accessMode: "read-only" | "current" | "full-access";
   onSelectAccessMode: (mode: "read-only" | "current" | "full-access") => void;
   skills: { name: string; description?: string }[];
@@ -103,6 +104,7 @@ export function Composer({
   reasoningOptions,
   selectedEffort,
   onSelectEffort,
+  reasoningSupported,
   accessMode,
   onSelectAccessMode,
   skills,
@@ -523,6 +525,7 @@ export function Composer({
         reasoningOptions={reasoningOptions}
         selectedEffort={selectedEffort}
         onSelectEffort={onSelectEffort}
+        reasoningSupported={reasoningSupported}
         accessMode={accessMode}
         onSelectAccessMode={onSelectAccessMode}
         contextUsage={contextUsage}

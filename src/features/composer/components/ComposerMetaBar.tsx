@@ -13,6 +13,7 @@ type ComposerMetaBarProps = {
   reasoningOptions: string[];
   selectedEffort: string | null;
   onSelectEffort: (effort: string) => void;
+  reasoningSupported: boolean;
   accessMode: AccessMode;
   onSelectAccessMode: (mode: AccessMode) => void;
   contextUsage?: ThreadTokenUsage | null;
@@ -29,6 +30,7 @@ export function ComposerMetaBar({
   reasoningOptions,
   selectedEffort,
   onSelectEffort,
+  reasoningSupported,
   accessMode,
   onSelectAccessMode,
   contextUsage = null,
@@ -155,7 +157,7 @@ export function ComposerMetaBar({
             aria-label="Thinking mode"
             value={selectedEffort ?? ""}
             onChange={(event) => onSelectEffort(event.target.value)}
-            disabled={disabled}
+            disabled={disabled || !reasoningSupported}
           >
             {reasoningOptions.length === 0 && <option value="">Default</option>}
             {reasoningOptions.map((effort) => (

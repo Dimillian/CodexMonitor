@@ -48,6 +48,15 @@ function formatReview(item: Extract<ConversationItem, { kind: "review" }>) {
   return `Review (${item.state}): ${item.text}`;
 }
 
+function formatExplore(item: Extract<ConversationItem, { kind: "explore" }>) {
+  const title = item.status === "exploring" ? "Exploring" : "Explored";
+  const lines = item.entries.map((entry) => {
+    const prefix = entry.kind[0].toUpperCase() + entry.kind.slice(1);
+    return `- ${prefix} ${entry.label}${entry.detail ? ` (${entry.detail})` : ""}`;
+  });
+  return [title, ...lines].join("\n");
+}
+
 export function buildThreadTranscript(items: ConversationItem[]) {
   return items
     .map((item) => {
@@ -56,6 +65,8 @@ export function buildThreadTranscript(items: ConversationItem[]) {
           return formatMessage(item);
         case "reasoning":
           return formatReasoning(item);
+        case "explore":
+          return formatExplore(item);
         case "tool":
           return formatTool(item);
         case "diff":

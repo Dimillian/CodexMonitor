@@ -204,13 +204,16 @@ export function useCustomPrompts({ activeWorkspace, onDebug }: UseCustomPromptsO
   }, [logPromptError, requireWorkspaceId]);
 
   const getGlobalPromptsDir = useCallback(async () => {
+    if (!workspaceId) {
+      return null;
+    }
     try {
-      return await getGlobalPromptsDirService();
+      return await getGlobalPromptsDirService(workspaceId);
     } catch (error) {
       logPromptError("client-prompts-global-dir-error", "prompts/global dir error", error);
       throw error;
     }
-  }, [logPromptError]);
+  }, [logPromptError, workspaceId]);
 
   return {
     prompts: promptOptions,

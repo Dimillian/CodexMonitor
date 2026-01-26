@@ -1,7 +1,10 @@
-use tauri::{Manager, RunEvent, WindowEvent};
+use tauri::Manager;
+#[cfg(target_os = "macos")]
+use tauri::{RunEvent, WindowEvent};
 
 mod backend;
 mod codex;
+mod codex_args;
 mod codex_config;
 mod codex_home;
 #[cfg(not(target_os = "windows"))]
@@ -75,6 +78,7 @@ pub fn run() {
             settings::get_app_settings,
             settings::update_app_settings,
             settings::get_codex_config_path,
+            codex::get_config_model,
             menu::menu_set_accelerators,
             codex::codex_doctor,
             workspaces::list_workspaces,
@@ -157,6 +161,7 @@ pub fn run() {
         .expect("error while running tauri application");
 
     app.run(|app_handle, event| {
+        #[cfg(target_os = "macos")]
         if let RunEvent::Reopen { .. } = event {
             if let Some(window) = app_handle.get_webview_window("main") {
                 let _ = window.show();

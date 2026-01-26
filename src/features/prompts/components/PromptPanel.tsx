@@ -41,6 +41,7 @@ type PromptPanelProps = {
   onMovePrompt: (data: { path: string; scope: "workspace" | "global" }) => void | Promise<void>;
   onRevealWorkspacePrompts: () => void | Promise<void>;
   onRevealGeneralPrompts: () => void | Promise<void>;
+  canRevealGeneralPrompts: boolean;
 };
 
 const PROMPTS_PREFIX = "prompts:";
@@ -77,6 +78,7 @@ export function PromptPanel({
   onMovePrompt,
   onRevealWorkspacePrompts,
   onRevealGeneralPrompts,
+  canRevealGeneralPrompts,
 }: PromptPanelProps) {
   const [query, setQuery] = useState("");
   const [argsByPrompt, setArgsByPrompt] = useState<Record<string, string>>({});
@@ -567,13 +569,19 @@ export function PromptPanel({
                 <div className="prompt-empty-title">No general prompts yet</div>
                 <div className="prompt-empty-subtitle">
                   Create one here or drop a .md file into{" "}
-                  <button
-                    type="button"
-                    className="prompt-empty-link"
-                    onClick={() => void onRevealGeneralPrompts()}
-                  >
-                    ~/.codex/prompts
-                  </button>
+                  {canRevealGeneralPrompts ? (
+                    <button
+                      type="button"
+                      className="prompt-empty-link"
+                      onClick={() => void onRevealGeneralPrompts()}
+                    >
+                      CODEX_HOME/prompts
+                    </button>
+                  ) : (
+                    <span className="prompt-empty-link is-disabled">
+                      CODEX_HOME/prompts
+                    </span>
+                  )}
                   .
                 </div>
               </div>

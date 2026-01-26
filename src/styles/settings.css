@@ -549,6 +549,14 @@
 }
 
 .settings-override-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 280px;
+}
+
+.settings-override-field {
   display: inline-flex;
   align-items: center;
   gap: 6px;

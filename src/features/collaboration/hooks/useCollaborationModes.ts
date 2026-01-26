@@ -140,15 +140,19 @@ export function useCollaborationModes({
     if (previousWorkspaceId.current !== workspaceId) {
       previousWorkspaceId.current = workspaceId;
       setModes([]);
-      setSelectedModeId(null);
       lastFetchedWorkspaceId.current = null;
     }
   }, [workspaceId]);
 
   useEffect(() => {
-    if (!workspaceId || !isConnected || !enabled) {
+    if (!enabled) {
       setModes([]);
       setSelectedModeId(null);
+      lastFetchedWorkspaceId.current = null;
+      return;
+    }
+    if (!workspaceId || !isConnected) {
+      setModes([]);
       lastFetchedWorkspaceId.current = null;
       return;
     }

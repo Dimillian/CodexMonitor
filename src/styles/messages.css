@@ -213,6 +213,16 @@
   background: var(--surface-bubble-user);
 }
 
+.message.assistant .bubble {
+  max-width: 100%;
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--surface-card-muted);
+  border-left: 2px solid var(--border-accent-soft);
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
 .item-card {
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
@@ -493,6 +503,54 @@
   color: var(--text-faint);
 }
 
+.explore-inline .tool-inline-bar-toggle {
+  cursor: default;
+  pointer-events: none;
+}
+
+.explore-inline-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-stronger);
+}
+
+.explore-inline-title {
+  font-weight: 600;
+}
+
+.explore-inline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.explore-inline-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.explore-inline-kind {
+  color: var(--text-subtle);
+  font-weight: 600;
+}
+
+.explore-inline-label {
+  color: var(--text-stronger);
+  min-width: 0;
+}
+
+.explore-inline-detail {
+  color: var(--text-faint);
+  font-size: 11px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .tool-inline-clamp {
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -734,15 +792,11 @@
 
 .message .markdown-codeblock {
   border: 1px solid var(--border-stronger);
-  border-left: 3px solid var(--border-accent);
   border-radius: 10px;
   background: var(--surface-command);
   overflow: hidden;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.14);
-}
-
-.message .markdown-codeblock + .markdown-codeblock {
-  margin-top: 6px;
+  margin: 6px 0;
 }
 
 .message .markdown-codeblock-header {
@@ -788,6 +842,24 @@
   overflow-x: auto;
   font-size: 11px;
   line-height: 1.35;
+}
+
+.message .markdown-codeblock-single {
+  margin: 6px 0;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border-stronger);
+  border-radius: 10px;
+  background: var(--surface-command);
+  white-space: pre;
+  overflow-x: auto;
+  font-size: 11px;
+  line-height: 1.35;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.14);
+}
+
+.message .markdown-codeblock-single code {
+  display: block;
+  font-family: "SFMono-Regular", "Menlo", "Monaco", monospace;
 }
 
 .message .markdown-linkblock {

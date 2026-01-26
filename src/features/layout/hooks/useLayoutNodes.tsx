@@ -316,6 +316,7 @@ type LayoutNodesOptions = {
   onMovePrompt: (data: { path: string; scope: "workspace" | "global" }) => void | Promise<void>;
   onRevealWorkspacePrompts: () => void | Promise<void>;
   onRevealGeneralPrompts: () => void | Promise<void>;
+  canRevealGeneralPrompts: boolean;
   onSend: (text: string, images: string[]) => void | Promise<void>;
   onQueue: (text: string, images: string[]) => void | Promise<void>;
   onStop: () => void;
@@ -346,6 +347,7 @@ type LayoutNodesOptions = {
   reasoningOptions: string[];
   selectedEffort: string | null;
   onSelectEffort: (effort: string | null) => void;
+  reasoningSupported: boolean;
   accessMode: AccessMode;
   onSelectAccessMode: (mode: AccessMode) => void;
   skills: SkillOption[];
@@ -518,6 +520,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       reasoningOptions={options.reasoningOptions}
       selectedEffort={options.selectedEffort}
       onSelectEffort={options.onSelectEffort}
+      reasoningSupported={options.reasoningSupported}
       accessMode={options.accessMode}
       onSelectAccessMode={options.onSelectAccessMode}
       skills={options.skills}
@@ -671,6 +674,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         onMovePrompt={options.onMovePrompt}
         onRevealWorkspacePrompts={options.onRevealWorkspacePrompts}
         onRevealGeneralPrompts={options.onRevealGeneralPrompts}
+        canRevealGeneralPrompts={options.canRevealGeneralPrompts}
       />
     );
   } else {

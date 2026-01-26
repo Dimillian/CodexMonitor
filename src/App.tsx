@@ -365,6 +365,7 @@ function MainApp() {
     selectedModel,
     selectedModelId,
     setSelectedModelId,
+    reasoningSupported,
     reasoningOptions,
     selectedEffort,
     setSelectedEffort
@@ -405,6 +406,7 @@ function MainApp() {
     reasoningOptions,
     selectedEffort,
     onSelectEffort: setSelectedEffort,
+    reasoningSupported,
   });
 
   useComposerMenuActions({
@@ -419,6 +421,7 @@ function MainApp() {
     reasoningOptions,
     selectedEffort,
     onSelectEffort: setSelectedEffort,
+    reasoningSupported,
     onFocusComposer: () => composerInputRef.current?.focus(),
   });
   const { skills } = useSkills({ activeWorkspace, onDebug: addDebugEntry });
@@ -468,6 +471,7 @@ function MainApp() {
   });
 
   const resolvedModel = selectedModel?.model ?? null;
+  const resolvedEffort = reasoningSupported ? selectedEffort : null;
   const activeGitRoot = activeWorkspace?.settings.gitRoot ?? null;
   const normalizePath = useCallback((value: string) => {
     return value.replace(/\\/g, "/").replace(/\/+$/, "");
@@ -478,7 +482,6 @@ function MainApp() {
         return;
       }
       await updateWorkspaceSettings(activeWorkspace.id, {
-        ...activeWorkspace.settings,
         gitRoot: path,
       });
       clearGitRootCandidates();
@@ -567,7 +570,7 @@ function MainApp() {
   const { collaborationModePayload } = useCollaborationModeSelection({
     selectedCollaborationMode,
     selectedCollaborationModeId,
-    selectedEffort,
+    selectedEffort: resolvedEffort,
     resolvedModel,
   });
 
@@ -610,7 +613,7 @@ function MainApp() {
     onWorkspaceConnected: markWorkspaceConnected,
     onDebug: addDebugEntry,
     model: resolvedModel,
-    effort: selectedEffort,
+    effort: resolvedEffort,
     collaborationMode: collaborationModePayload,
     accessMode,
     steerEnabled: appSettings.experimentalSteerEnabled,
@@ -1073,6 +1076,9 @@ function MainApp() {
   const handleRevealGeneralPrompts = useCallback(async () => {
     try {
       const path = await getGlobalPromptsDir();
+      if (!path) {
+        return;
+      }
       await revealItemInDir(path);
     } catch (error) {
       alertError(error);
@@ -1303,7 +1309,6 @@ function MainApp() {
     await Promise.all(
       next.map((entry, idx) =>
         updateWorkspaceSettings(entry.id, {
-          ...entry.settings,
           sortOrder: idx
         })
       )
@@ -1473,7 +1478,6 @@ function MainApp() {
         return;
       }
       void updateWorkspaceSettings(workspaceId, {
-        ...target.settings,
         sidebarCollapsed: collapsed,
       });
     },
@@ -1683,6 +1687,7 @@ function MainApp() {
     onMovePrompt: handleMovePrompt,
     onRevealWorkspacePrompts: handleRevealWorkspacePrompts,
     onRevealGeneralPrompts: handleRevealGeneralPrompts,
+    canRevealGeneralPrompts: Boolean(activeWorkspace),
     onSend: handleComposerSend,
     onQueue: handleComposerQueue,
     onStop: interruptTurn,
@@ -1721,6 +1726,7 @@ function MainApp() {
     reasoningOptions,
     selectedEffort,
     onSelectEffort: setSelectedEffort,
+    reasoningSupported,
     accessMode,
     onSelectAccessMode: setAccessMode,
     skills,
@@ -1936,6 +1942,9 @@ function MainApp() {
           onRunDoctor: doctor,
           onUpdateWorkspaceCodexBin: async (id, codexBin) => {
             await updateWorkspaceCodexBin(id, codexBin);
+          },
+          onUpdateWorkspaceSettings: async (id, settings) => {
+            await updateWorkspaceSettings(id, settings);
           },
           scaleShortcutTitle,
           scaleShortcutText,

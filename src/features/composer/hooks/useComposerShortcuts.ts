@@ -21,6 +21,7 @@ type UseComposerShortcutsOptions = {
   reasoningOptions: string[];
   selectedEffort: string | null;
   onSelectEffort: (effort: string) => void;
+  reasoningSupported: boolean;
 };
 
 const ACCESS_ORDER: AccessMode[] = ["read-only", "current", "full-access"];
@@ -42,6 +43,7 @@ export function useComposerShortcuts({
   reasoningOptions,
   selectedEffort,
   onSelectEffort,
+  reasoningSupported,
 }: UseComposerShortcutsOptions) {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -76,7 +78,7 @@ export function useComposerShortcuts({
       }
       if (matchesShortcut(event, reasoningShortcut)) {
         event.preventDefault();
-        if (reasoningOptions.length === 0) {
+        if (!reasoningSupported || reasoningOptions.length === 0) {
           return;
         }
         const currentIndex = reasoningOptions.indexOf(selectedEffort ?? "");
@@ -122,6 +124,7 @@ export function useComposerShortcuts({
     onSelectModel,
     reasoningOptions,
     reasoningShortcut,
+    reasoningSupported,
     selectedCollaborationModeId,
     selectedEffort,
     selectedModelId,

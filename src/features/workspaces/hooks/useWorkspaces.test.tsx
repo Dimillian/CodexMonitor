@@ -7,6 +7,7 @@ import {
   listWorkspaces,
   renameWorktree,
   renameWorktreeUpstream,
+  updateWorkspaceSettings,
 } from "../../../services/tauri";
 import { useWorkspaces } from "./useWorkspaces";
 
@@ -35,6 +36,28 @@ const worktree: WorkspaceInfo = {
   parentId: "parent-1",
   worktree: { branch: "feature/old" },
   settings: { sidebarCollapsed: false },
+};
+
+const workspaceOne: WorkspaceInfo = {
+  id: "ws-1",
+  name: "workspace-one",
+  path: "/tmp/ws-1",
+  connected: true,
+  kind: "main",
+  parentId: null,
+  worktree: null,
+  settings: { sidebarCollapsed: false, groupId: null },
+};
+
+const workspaceTwo: WorkspaceInfo = {
+  id: "ws-2",
+  name: "workspace-two",
+  path: "/tmp/ws-2",
+  connected: true,
+  kind: "main",
+  parentId: null,
+  worktree: null,
+  settings: { sidebarCollapsed: false, groupId: null },
 };
 
 describe("useWorkspaces.renameWorktree", () => {
@@ -147,6 +170,50 @@ describe("useWorkspaces.renameWorktree", () => {
       "feature/old",
       "feature/new",
     );
+  });
+});
+
+describe("useWorkspaces.updateWorkspaceSettings", () => {
+  it("does not throw when multiple updates are queued in the same tick", async () => {
+    const listWorkspacesMock = vi.mocked(listWorkspaces);
+    const updateWorkspaceSettingsMock = vi.mocked(updateWorkspaceSettings);
+    listWorkspacesMock.mockResolvedValue([workspaceOne, workspaceTwo]);
+    updateWorkspaceSettingsMock.mockImplementation(async (workspaceId, settings) => {
+      const base = workspaceId === workspaceOne.id ? workspaceOne : workspaceTwo;
+      return { ...base, settings };
+    });
+
+    const { result } = renderHook(() => useWorkspaces());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    let updatePromise: Promise<WorkspaceInfo[]>;
+    act(() => {
+      updatePromise = Promise.all([
+        result.current.updateWorkspaceSettings(workspaceOne.id, {
+          sidebarCollapsed: true,
+        }),
+        result.current.updateWorkspaceSettings(workspaceTwo.id, {
+          sidebarCollapsed: true,
+        }),
+      ]);
+    });
+
+    await act(async () => {
+      await updatePromise;
+    });
+
+    expect(updateWorkspaceSettingsMock).toHaveBeenCalledTimes(2);
+    expect(
+      result.current.workspaces.find((entry) => entry.id === workspaceOne.id)
+        ?.settings.sidebarCollapsed,
+    ).toBe(true);
+    expect(
+      result.current.workspaces.find((entry) => entry.id === workspaceTwo.id)
+        ?.settings.sidebarCollapsed,
+    ).toBe(true);
   });
 });
 

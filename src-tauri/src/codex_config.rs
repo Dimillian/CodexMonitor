@@ -1,5 +1,7 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+use toml::Value as TomlValue;
 
 const FEATURES_TABLE: &str = "[features]";
 
@@ -58,6 +60,35 @@ fn write_feature_flag(key: &str, enabled: bool) -> Result<(), String> {
 
 pub(crate) fn config_toml_path() -> Option<PathBuf> {
     crate::codex_home::resolve_default_codex_home().map(|home| home.join("config.toml"))
+}
+
+pub(crate) fn read_config_model(codex_home: Option<PathBuf>) -> Result<Option<String>, String> {
+    let path = codex_home
+        .or_else(crate::codex_home::resolve_default_codex_home)
+        .map(|home| home.join("config.toml"));
+    let Some(path) = path else {
+        return Err("Unable to resolve CODEX_HOME".to_string());
+    };
+    read_config_model_from_path(&path)
+}
+
+fn read_config_model_from_path(path: &Path) -> Result<Option<String>, String> {
+    if !path.exists() {
+        return Ok(None);
+    }
+    let contents = fs::read_to_string(path).map_err(|err| err.to_string())?;
+    Ok(parse_model_from_toml(&contents))
+}
+
+fn parse_model_from_toml(contents: &str) -> Option<String> {
+    let parsed: TomlValue = toml::from_str(contents).ok()?;
+    let model = parsed.get("model")?.as_str()?;
+    let trimmed = model.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
 }
 
 fn find_feature_flag(contents: &str, key: &str) -> Option<bool> {

@@ -3,6 +3,8 @@ export type WorkspaceSettings = {
   sortOrder?: number | null;
   groupId?: string | null;
   gitRoot?: string | null;
+  codexHome?: string | null;
+  codexArgs?: string | null;
   launchScript?: string | null;
 };
 
@@ -47,6 +49,12 @@ export type ConversationItem =
   | { id: string; kind: "reasoning"; summary: string; content: string }
   | { id: string; kind: "diff"; title: string; diff: string; status?: string }
   | { id: string; kind: "review"; state: "started" | "completed"; text: string }
+  | {
+      id: string;
+      kind: "explore";
+      status: "exploring" | "explored";
+      entries: { kind: "read" | "search" | "list" | "run"; label: string; detail?: string }[];
+    }
   | {
       id: string;
       kind: "tool";
@@ -100,6 +108,7 @@ export type OpenAppTarget = {
 
 export type AppSettings = {
   codexBin: string | null;
+  codexArgs: string | null;
   backendMode: BackendMode;
   remoteBackendHost: string;
   remoteBackendToken: string | null;
@@ -388,7 +397,7 @@ export type ModelOption = {
   displayName: string;
   description: string;
   supportedReasoningEfforts: { reasoningEffort: string; description: string }[];
-  defaultReasoningEffort: string;
+  defaultReasoningEffort: string | null;
   isDefault: boolean;
 };
 

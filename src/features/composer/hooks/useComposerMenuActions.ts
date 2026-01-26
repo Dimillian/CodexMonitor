@@ -22,6 +22,7 @@ type UseComposerMenuActionsOptions = {
   reasoningOptions: string[];
   selectedEffort: string | null;
   onSelectEffort: (effort: string) => void;
+  reasoningSupported: boolean;
   onFocusComposer?: () => void;
 };
 
@@ -39,6 +40,7 @@ export function useComposerMenuActions({
   reasoningOptions,
   selectedEffort,
   onSelectEffort,
+  reasoningSupported,
   onFocusComposer,
 }: UseComposerMenuActionsOptions) {
   const handlers = useMemo(
@@ -83,7 +85,7 @@ export function useComposerMenuActions({
         }
       },
       cycleReasoning() {
-        if (reasoningOptions.length === 0) {
+        if (!reasoningSupported || reasoningOptions.length === 0) {
           return;
         }
         const currentIndex = reasoningOptions.indexOf(selectedEffort ?? "");
@@ -106,6 +108,7 @@ export function useComposerMenuActions({
       onSelectEffort,
       onSelectModel,
       reasoningOptions,
+      reasoningSupported,
       selectedCollaborationModeId,
       selectedEffort,
       selectedModelId,

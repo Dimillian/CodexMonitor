@@ -94,11 +94,15 @@ type ToolRowProps = {
   onRequestAutoScroll?: () => void;
 };
 
+type ExploreRowProps = {
+  item: Extract<ConversationItem, { kind: "explore" }>;
+};
+
 type CommandOutputProps = {
   output: string;
 };
 
-type ToolGroupItem = Extract<ConversationItem, { kind: "tool" | "reasoning" }>;
+type ToolGroupItem = Extract<ConversationItem, { kind: "tool" | "reasoning" | "explore" }>;
 
 type ToolGroup = {
   id: string;
@@ -161,7 +165,7 @@ function formatCount(value: number, singular: string, plural: string) {
 }
 
 function isToolGroupItem(item: ConversationItem): item is ToolGroupItem {
-  return item.kind === "tool" || item.kind === "reasoning";
+  return item.kind === "tool" || item.kind === "reasoning" || item.kind === "explore";
 }
 
 function buildToolGroups(items: ConversationItem[]): MessageListEntry[] {
@@ -172,7 +176,9 @@ function buildToolGroups(items: ConversationItem[]): MessageListEntry[] {
     if (buffer.length === 0) {
       return;
     }
-    const toolCount = buffer.filter((item) => item.kind === "tool").length;
+    const toolCount = buffer.filter(
+      (item) => item.kind === "tool" || item.kind === "explore",
+    ).length;
     const messageCount = buffer.length - toolCount;
     if (toolCount === 0 || buffer.length === 1) {
       buffer.forEach((item) => entries.push({ kind: "item", item }));
@@ -368,6 +374,8 @@ function scrollKeyForItems(items: ConversationItem[]) {
       return `${last.id}-${last.text.length}`;
     case "reasoning":
       return `${last.id}-${last.summary.length}-${last.content.length}`;
+    case "explore":
+      return `${last.id}-${last.status}-${last.entries.length}`;
     case "tool":
       return `${last.id}-${last.status ?? ""}-${last.output?.length ?? 0}`;
     case "diff":
@@ -796,6 +804,42 @@ const CommandOutput = memo(function CommandOutput({ output }: CommandOutputProps
   );
 });
 
+function exploreKindLabel(kind: ExploreRowProps["item"]["entries"][number]["kind"]) {
+  return kind[0].toUpperCase() + kind.slice(1);
+}
+
+const ExploreRow = memo(function ExploreRow({ item }: ExploreRowProps) {
+  const title = item.status === "exploring" ? "Exploring" : "Explored";
+  return (
+    <div className="tool-inline explore-inline">
+      <div className="tool-inline-bar-toggle" aria-hidden />
+      <div className="tool-inline-content">
+        <div className="explore-inline-header">
+          <Terminal
+            className={`tool-inline-icon ${
+              item.status === "exploring" ? "processing" : "completed"
+            }`}
+            size={14}
+            aria-hidden
+          />
+          <span className="explore-inline-title">{title}</span>
+        </div>
+        <div className="explore-inline-list">
+          {item.entries.map((entry, index) => (
+            <div key={`${entry.kind}-${entry.label}-${index}`} className="explore-inline-item">
+              <span className="explore-inline-kind">{exploreKindLabel(entry.kind)}</span>
+              <span className="explore-inline-label">{entry.label}</span>
+              {entry.detail && entry.detail !== entry.label && (
+                <span className="explore-inline-detail">{entry.detail}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+});
+
 export const Messages = memo(function Messages({
   items,
   threadId,
@@ -1011,6 +1055,9 @@ export const Messages = memo(function Messages({
           onRequestAutoScroll={requestAutoScroll}
         />
       );
+    }
+    if (item.kind === "explore") {
+      return <ExploreRow key={item.id} item={item} />;
     }
     return null;
   };

@@ -21,6 +21,7 @@ const allowedThemes = new Set(["system", "light", "dark"]);
 
 const defaultSettings: AppSettings = {
   codexBin: null,
+  codexArgs: null,
   backendMode: "local",
   remoteBackendHost: "127.0.0.1:4732",
   remoteBackendToken: null,
@@ -94,6 +95,8 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
       : normalizedTargets[0]?.id ?? DEFAULT_OPEN_APP_ID;
   return {
     ...settings,
+    codexBin: settings.codexBin?.trim() ? settings.codexBin.trim() : null,
+    codexArgs: settings.codexArgs?.trim() ? settings.codexArgs.trim() : null,
     uiScale: clampUiScale(settings.uiScale),
     theme: allowedThemes.has(settings.theme) ? settings.theme : "system",
     uiFontFamily: normalizeFontFamily(
@@ -152,9 +155,12 @@ export function useAppSettings() {
     return saved;
   }, []);
 
-  const doctor = useCallback(async (codexBin: string | null) => {
-    return runCodexDoctor(codexBin);
-  }, []);
+  const doctor = useCallback(
+    async (codexBin: string | null, codexArgs: string | null) => {
+      return runCodexDoctor(codexBin, codexArgs);
+    },
+    [],
+  );
 
   return {
     settings,

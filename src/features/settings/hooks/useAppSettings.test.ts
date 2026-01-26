@@ -79,6 +79,7 @@ describe("useAppSettings", () => {
 
     const next: AppSettings = {
       ...result.current.settings,
+      codexArgs: "--profile dev",
       theme: "nope" as unknown as AppSettings["theme"],
       uiScale: 0.04,
       uiFontFamily: "",
@@ -88,6 +89,7 @@ describe("useAppSettings", () => {
     };
     const saved: AppSettings = {
       ...result.current.settings,
+      codexArgs: "--profile dev",
       theme: "dark",
       uiScale: 2.4,
       uiFontFamily: "Avenir, sans-serif",
@@ -124,10 +126,13 @@ describe("useAppSettings", () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    await expect(result.current.doctor("/bin/codex")).rejects.toThrow(
+    await expect(result.current.doctor("/bin/codex", "--profile test")).rejects.toThrow(
       "doctor fail",
     );
-    expect(runCodexDoctorMock).toHaveBeenCalledWith("/bin/codex");
+    expect(runCodexDoctorMock).toHaveBeenCalledWith(
+      "/bin/codex",
+      "--profile test",
+    );
   });
 
   it("returns doctor results", async () => {
@@ -148,7 +153,7 @@ describe("useAppSettings", () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    await expect(result.current.doctor("/bin/codex")).resolves.toEqual(
+    await expect(result.current.doctor("/bin/codex", null)).resolves.toEqual(
       response,
     );
   });

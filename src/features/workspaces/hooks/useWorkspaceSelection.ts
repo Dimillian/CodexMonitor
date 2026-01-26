@@ -10,7 +10,7 @@ type UseWorkspaceSelectionOptions = {
   setActiveWorkspaceId: (workspaceId: string | null) => void;
   updateWorkspaceSettings: (
     workspaceId: string,
-    settings: WorkspaceSettings,
+    settings: Partial<WorkspaceSettings>,
   ) => Promise<WorkspaceInfo>;
   setCenterMode: (mode: "chat" | "diff") => void;
   setSelectedDiffPath: (path: string | null) => void;
@@ -44,7 +44,6 @@ export function useWorkspaceSelection({
       const didSwitch = activeWorkspaceId !== workspaceId;
       if (target?.settings.sidebarCollapsed) {
         void updateWorkspaceSettings(workspaceId, {
-          ...target.settings,
           sidebarCollapsed: false,
         });
       }

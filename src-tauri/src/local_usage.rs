@@ -5,8 +5,13 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
+use tauri::State;
 
-use crate::types::{LocalUsageDay, LocalUsageModel, LocalUsageSnapshot, LocalUsageTotals};
+use crate::codex_home::{resolve_default_codex_home, resolve_workspace_codex_home};
+use crate::state::AppState;
+use crate::types::{
+    LocalUsageDay, LocalUsageModel, LocalUsageSnapshot, LocalUsageTotals, WorkspaceEntry,
+};
 
 #[derive(Default, Clone, Copy)]
 struct DailyTotals {
@@ -30,6 +35,7 @@ const MAX_ACTIVITY_GAP_MS: i64 = 2 * 60 * 1000;
 pub(crate) async fn local_usage_snapshot(
     days: Option<u32>,
     workspace_path: Option<String>,
+    state: State<'_, AppState>,
 ) -> Result<LocalUsageSnapshot, String> {
     let days = days.unwrap_or(30).clamp(1, 90);
     let workspace_path = workspace_path.and_then(|value| {
@@ -40,15 +46,23 @@ pub(crate) async fn local_usage_snapshot(
             Some(PathBuf::from(trimmed))
         }
     });
+    let sessions_roots = {
+        let workspaces = state.workspaces.lock().await;
+        resolve_sessions_roots(&workspaces, workspace_path.as_deref())
+    };
     let snapshot = tokio::task::spawn_blocking(move || {
-        scan_local_usage(days, workspace_path.as_deref())
+        scan_local_usage(days, workspace_path.as_deref(), &sessions_roots)
     })
     .await
     .map_err(|err| err.to_string())??;
     Ok(snapshot)
 }
 
-fn scan_local_usage(days: u32, workspace_path: Option<&Path>) -> Result<LocalUsageSnapshot, String> {
+fn scan_local_usage(
+    days: u32,
+    workspace_path: Option<&Path>,
+    sessions_roots: &[PathBuf],
+) -> Result<LocalUsageSnapshot, String> {
     let updated_at = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -61,25 +75,27 @@ fn scan_local_usage(days: u32, workspace_path: Option<&Path>) -> Result<LocalUsa
         .collect();
     let mut model_totals: HashMap<String, i64> = HashMap::new();
 
-    let Some(root) = resolve_codex_sessions_root() else {
+    if sessions_roots.is_empty() {
         return Ok(build_snapshot(updated_at, day_keys, daily, HashMap::new()));
-    };
+    }
 
-    for day_key in &day_keys {
-        let day_dir = day_dir_for_key(&root, day_key);
-        if !day_dir.exists() {
-            continue;
-        }
-        let entries = match std::fs::read_dir(&day_dir) {
-            Ok(entries) => entries,
-            Err(_) => continue,
-        };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.extension().and_then(|ext| ext.to_str()) != Some("jsonl") {
+    for root in sessions_roots {
+        for day_key in &day_keys {
+            let day_dir = day_dir_for_key(root, day_key);
+            if !day_dir.exists() {
                 continue;
             }
-            scan_file(&path, &mut daily, &mut model_totals, workspace_path)?;
+            let entries = match std::fs::read_dir(&day_dir) {
+                Ok(entries) => entries,
+                Err(_) => continue,
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|ext| ext.to_str()) != Some("jsonl") {
+                    continue;
+                }
+                scan_file(&path, &mut daily, &mut model_totals, workspace_path)?;
+            }
         }
     }
 
@@ -496,8 +512,68 @@ fn make_day_keys(days: u32) -> Vec<String> {
         .collect()
 }
 
-fn resolve_codex_sessions_root() -> Option<PathBuf> {
-    crate::codex_home::resolve_default_codex_home().map(|home| home.join("sessions"))
+fn resolve_codex_sessions_root(codex_home_override: Option<PathBuf>) -> Option<PathBuf> {
+    codex_home_override
+        .or_else(resolve_default_codex_home)
+        .map(|home| home.join("sessions"))
+}
+
+fn resolve_sessions_roots(
+    workspaces: &HashMap<String, WorkspaceEntry>,
+    workspace_path: Option<&Path>,
+) -> Vec<PathBuf> {
+    if let Some(workspace_path) = workspace_path {
+        let codex_home_override =
+            resolve_workspace_codex_home_for_path(workspaces, Some(workspace_path));
+        return resolve_codex_sessions_root(codex_home_override).into_iter().collect();
+    }
+
+    let mut roots = Vec::new();
+    let mut seen = HashSet::new();
+
+    if let Some(root) = resolve_codex_sessions_root(None) {
+        if seen.insert(root.clone()) {
+            roots.push(root);
+        }
+    }
+
+    for entry in workspaces.values() {
+        let parent_entry = entry
+            .parent_id
+            .as_ref()
+            .and_then(|parent_id| workspaces.get(parent_id));
+        let Some(codex_home) = resolve_workspace_codex_home(entry, parent_entry) else {
+            continue;
+        };
+        if let Some(root) = resolve_codex_sessions_root(Some(codex_home)) {
+            if seen.insert(root.clone()) {
+                roots.push(root);
+            }
+        }
+    }
+
+    roots
+}
+
+fn resolve_workspace_codex_home_for_path(
+    workspaces: &HashMap<String, crate::types::WorkspaceEntry>,
+    workspace_path: Option<&Path>,
+) -> Option<PathBuf> {
+    let workspace_path = workspace_path?;
+    let entry = workspaces
+        .values()
+        .filter(|entry| {
+            let entry_path = Path::new(&entry.path);
+            workspace_path == entry_path || workspace_path.starts_with(entry_path)
+        })
+        .max_by_key(|entry| entry.path.len())?;
+
+    let parent_entry = entry
+        .parent_id
+        .as_ref()
+        .and_then(|parent_id| workspaces.get(parent_id));
+
+    resolve_workspace_codex_home(entry, parent_entry)
 }
 
 fn day_dir_for_key(root: &Path, day_key: &str) -> PathBuf {
@@ -511,8 +587,11 @@ fn day_dir_for_key(root: &Path, day_key: &str) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::{WorkspaceKind, WorkspaceSettings};
+    use chrono::NaiveDateTime;
     use std::io::Write;
     use std::path::Path;
+    use std::{fs, path::PathBuf};
     use uuid::Uuid;
 
     fn write_temp_jsonl(lines: &[&str]) -> PathBuf {
@@ -522,6 +601,27 @@ mod tests {
             Uuid::new_v4()
         ));
         let mut file = File::create(&path).expect("create temp jsonl");
+        for line in lines {
+            writeln!(file, "{line}").expect("write jsonl line");
+        }
+        path
+    }
+
+    fn make_temp_sessions_root() -> PathBuf {
+        let mut root = std::env::temp_dir();
+        root.push(format!(
+            "codexmonitor-local-usage-root-{}",
+            Uuid::new_v4()
+        ));
+        fs::create_dir_all(&root).expect("create temp root");
+        root
+    }
+
+    fn write_session_file(root: &Path, day_key: &str, lines: &[String]) -> PathBuf {
+        let day_dir = day_dir_for_key(root, day_key);
+        fs::create_dir_all(&day_dir).expect("create day dir");
+        let path = day_dir.join(format!("usage-{}.jsonl", Uuid::new_v4()));
+        let mut file = File::create(&path).expect("create session jsonl");
         for line in lines {
             writeln!(file, "{line}").expect("write jsonl line");
         }
@@ -658,5 +758,96 @@ mod tests {
         let totals = daily.get(day_key).copied().unwrap_or_default();
         assert_eq!(totals.agent_ms, 0);
         assert_eq!(totals.input, 0);
+    }
+
+    #[test]
+    fn scan_local_usage_aggregates_multiple_session_roots() {
+        let day_keys = make_day_keys(2);
+        let day_key = day_keys
+            .last()
+            .cloned()
+            .unwrap_or_else(|| Local::now().format("%Y-%m-%d").to_string());
+        let naive = NaiveDateTime::parse_from_str(
+            &format!("{day_key} 12:00:00"),
+            "%Y-%m-%d %H:%M:%S",
+        )
+        .expect("timestamp");
+        let timestamp_ms = Local
+            .from_local_datetime(&naive)
+            .single()
+            .expect("timestamp")
+            .timestamp_millis();
+
+        let root_a = make_temp_sessions_root();
+        let root_b = make_temp_sessions_root();
+
+        let line_a = format!(
+            r#"{{"timestamp":{timestamp_ms},"payload":{{"type":"token_count","info":{{"total_token_usage":{{"input_tokens":5,"cached_input_tokens":0,"output_tokens":2}}}}}}}}"#
+        );
+        let line_b = format!(
+            r#"{{"timestamp":{timestamp_ms},"payload":{{"type":"token_count","info":{{"total_token_usage":{{"input_tokens":3,"cached_input_tokens":0,"output_tokens":1}}}}}}}}"#
+        );
+
+        write_session_file(&root_a, &day_key, &[line_a]);
+        write_session_file(&root_b, &day_key, &[line_b]);
+
+        let snapshot = scan_local_usage(2, None, &[root_a, root_b]).expect("scan usage");
+        let day = snapshot
+            .days
+            .iter()
+            .find(|entry| entry.day == day_key)
+            .expect("day entry");
+
+        assert_eq!(day.input_tokens, 8);
+        assert_eq!(day.output_tokens, 3);
+        assert_eq!(snapshot.totals.last30_days_tokens, 11);
+    }
+
+    #[test]
+    fn resolve_sessions_roots_includes_workspace_overrides() {
+        let mut workspaces = HashMap::new();
+        let mut settings_a = WorkspaceSettings::default();
+        settings_a.codex_home = Some(
+            std::env::temp_dir()
+                .join(format!("codex-home-a-{}", Uuid::new_v4()))
+                .to_string_lossy()
+                .to_string(),
+        );
+        let entry_a = WorkspaceEntry {
+            id: "a".to_string(),
+            name: "A".to_string(),
+            path: "/tmp/project-a".to_string(),
+            codex_bin: None,
+            kind: WorkspaceKind::Main,
+            parent_id: None,
+            worktree: None,
+            settings: settings_a,
+        };
+        let mut settings_b = WorkspaceSettings::default();
+        settings_b.codex_home = Some(
+            std::env::temp_dir()
+                .join(format!("codex-home-b-{}", Uuid::new_v4()))
+                .to_string_lossy()
+                .to_string(),
+        );
+        let entry_b = WorkspaceEntry {
+            id: "b".to_string(),
+            name: "B".to_string(),
+            path: "/tmp/project-b".to_string(),
+            codex_bin: None,
+            kind: WorkspaceKind::Main,
+            parent_id: None,
+            worktree: None,
+            settings: settings_b,
+        };
+        workspaces.insert(entry_a.id.clone(), entry_a.clone());
+        workspaces.insert(entry_b.id.clone(), entry_b.clone());
+
+        let roots = resolve_sessions_roots(&workspaces, None);
+        let expected_a = PathBuf::from(entry_a.settings.codex_home.unwrap()).join("sessions");
+        let expected_b = PathBuf::from(entry_b.settings.codex_home.unwrap()).join("sessions");
+
+        assert!(roots.iter().any(|root| root == &expected_a));
+        assert!(roots.iter().any(|root| root == &expected_b));
     }
 }
