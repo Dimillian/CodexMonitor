@@ -562,12 +562,8 @@ function MainApp() {
   const { collaborationModePayload } = useCollaborationModeSelection({
     selectedCollaborationMode,
     selectedCollaborationModeId,
-    models,
-    selectedModelId,
     selectedEffort,
     resolvedModel,
-    setSelectedModelId,
-    setSelectedEffort,
   });
 
   const {

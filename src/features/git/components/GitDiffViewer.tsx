@@ -7,11 +7,17 @@ import { workerFactory } from "../../../utils/diffsWorker";
 import type { GitHubPullRequest, GitHubPullRequestComment } from "../../../types";
 import { formatRelativeTime } from "../../../utils/time";
 import { Markdown } from "../../messages/components/Markdown";
+import { ImageDiffCard } from "./ImageDiffCard";
 
 type GitDiffViewerItem = {
   path: string;
   status: string;
   diff: string;
+  isImage?: boolean;
+  oldImageData?: string | null;
+  newImageData?: string | null;
+  oldImageMime?: string | null;
+  newImageMime?: string | null;
 };
 
 type GitDiffViewerProps = {
@@ -625,11 +631,23 @@ export function GitDiffViewer({
                     transform: `translate3d(0, ${virtualRow.start}px, 0)`,
                   }}
                 >
-                  <DiffCard
-                    entry={entry}
-                    isSelected={entry.path === selectedPath}
-                    diffStyle={diffStyle}
-                  />
+                  {entry.isImage ? (
+                    <ImageDiffCard
+                      path={entry.path}
+                      status={entry.status}
+                      oldImageData={entry.oldImageData}
+                      newImageData={entry.newImageData}
+                      oldImageMime={entry.oldImageMime}
+                      newImageMime={entry.newImageMime}
+                      isSelected={entry.path === selectedPath}
+                    />
+                  ) : (
+                    <DiffCard
+                      entry={entry}
+                      isSelected={entry.path === selectedPath}
+                      diffStyle={diffStyle}
+                    />
+                  )}
                 </div>
               );
             })}

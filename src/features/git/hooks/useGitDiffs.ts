@@ -98,13 +98,21 @@ export function useGitDiffs(
 
   const orderedDiffs = useMemo(() => {
     const diffByPath = new Map(
-      state.diffs.map((entry) => [entry.path, entry.diff]),
+      state.diffs.map((entry) => [entry.path, entry]),
     );
-    return files.map((file) => ({
-      path: file.path,
-      status: file.status,
-      diff: diffByPath.get(file.path) ?? "",
-    }));
+    return files.map((file) => {
+      const entry = diffByPath.get(file.path);
+      return {
+        path: file.path,
+        status: file.status,
+        diff: entry?.diff ?? "",
+        isImage: entry?.isImage,
+        oldImageData: entry?.oldImageData,
+        newImageData: entry?.newImageData,
+        oldImageMime: entry?.oldImageMime,
+        newImageMime: entry?.newImageMime,
+      };
+    });
   }, [files, state.diffs]);
 
   return {

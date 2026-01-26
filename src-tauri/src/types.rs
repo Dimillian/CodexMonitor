@@ -12,6 +12,18 @@ pub(crate) struct GitFileStatus {
 pub(crate) struct GitFileDiff {
     pub(crate) path: String,
     pub(crate) diff: String,
+    #[serde(default, rename = "isBinary")]
+    pub(crate) is_binary: bool,
+    #[serde(default, rename = "isImage")]
+    pub(crate) is_image: bool,
+    #[serde(rename = "oldImageData")]
+    pub(crate) old_image_data: Option<String>,
+    #[serde(rename = "newImageData")]
+    pub(crate) new_image_data: Option<String>,
+    #[serde(rename = "oldImageMime")]
+    pub(crate) old_image_mime: Option<String>,
+    #[serde(rename = "newImageMime")]
+    pub(crate) new_image_mime: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -19,6 +31,18 @@ pub(crate) struct GitCommitDiff {
     pub(crate) path: String,
     pub(crate) status: String,
     pub(crate) diff: String,
+    #[serde(default, rename = "isBinary")]
+    pub(crate) is_binary: bool,
+    #[serde(default, rename = "isImage")]
+    pub(crate) is_image: bool,
+    #[serde(rename = "oldImageData")]
+    pub(crate) old_image_data: Option<String>,
+    #[serde(rename = "newImageData")]
+    pub(crate) new_image_data: Option<String>,
+    #[serde(rename = "oldImageMime")]
+    pub(crate) old_image_mime: Option<String>,
+    #[serde(rename = "newImageMime")]
+    pub(crate) new_image_mime: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
