@@ -1,4 +1,4 @@
-use tauri::Manager;
+use tauri::{Manager, RunEvent, WindowEvent};
 
 mod backend;
 mod codex;
@@ -42,6 +42,15 @@ pub fn run() {
         .manage(menu::MenuItemRegistry::<tauri::Wry>::default())
         .menu(menu::build_menu)
         .on_menu_event(menu::handle_menu_event)
+        .on_window_event(|window, event| {
+            if window.label() != "main" {
+                return;
+            }
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
+            }
+        })
         .setup(|app| {
             let state = state::AppState::load(&app.handle());
             app.manage(state);
@@ -56,7 +65,7 @@ pub fn run() {
     #[cfg(desktop)]
     let builder = builder.plugin(tauri_plugin_window_state::Builder::default().build());
 
-    builder
+    let app = builder
         .plugin(tauri_plugin_liquid_glass::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -144,6 +153,15 @@ pub fn run() {
             dictation::dictation_cancel,
             local_usage::local_usage_snapshot
         ])
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
         .expect("error while running tauri application");
+
+    app.run(|app_handle, event| {
+        if let RunEvent::Reopen { .. } = event {
+            if let Some(window) = app_handle.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }
+    });
 }

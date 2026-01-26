@@ -429,6 +429,8 @@ pub(crate) fn handle_menu_event<R: tauri::Runtime>(
 
 fn emit_menu_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: &str) {
     if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
         let _ = window.emit(event, ());
     } else {
         let _ = app.emit(event, ());
