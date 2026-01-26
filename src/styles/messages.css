@@ -734,15 +734,11 @@
 
 .message .markdown-codeblock {
   border: 1px solid var(--border-stronger);
-  border-left: 3px solid var(--border-accent);
   border-radius: 10px;
   background: var(--surface-command);
   overflow: hidden;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.14);
-}
-
-.message .markdown-codeblock + .markdown-codeblock {
-  margin-top: 6px;
+  margin: 6px 0;
 }
 
 .message .markdown-codeblock-header {
@@ -788,6 +784,24 @@
   overflow-x: auto;
   font-size: 11px;
   line-height: 1.35;
+}
+
+.message .markdown-codeblock-single {
+  margin: 6px 0;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border-stronger);
+  border-radius: 10px;
+  background: var(--surface-command);
+  white-space: pre;
+  overflow-x: auto;
+  font-size: 11px;
+  line-height: 1.35;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.14);
+}
+
+.message .markdown-codeblock-single code {
+  display: block;
+  font-family: "SFMono-Regular", "Menlo", "Monaco", monospace;
 }
 
 .message .markdown-linkblock {
