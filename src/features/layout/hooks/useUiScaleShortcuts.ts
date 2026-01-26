@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import type { AppSettings } from "../../../types";
 import { clampUiScale, UI_SCALE_STEP } from "../../../utils/uiScale";
 
@@ -22,6 +23,15 @@ export function useUiScaleShortcuts({
   saveSettings,
 }: UseUiScaleShortcutsOptions): UseUiScaleShortcutsResult {
   const uiScale = clampUiScale(settings.uiScale);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    getCurrentWebview()
+      .setZoom(uiScale)
+      .catch(() => undefined);
+  }, [uiScale]);
 
   const scaleShortcutLabel = useMemo(() => {
     if (typeof navigator === "undefined") {

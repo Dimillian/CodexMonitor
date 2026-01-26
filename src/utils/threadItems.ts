@@ -4,7 +4,7 @@ const MAX_ITEMS_PER_THREAD = 200;
 const MAX_ITEM_TEXT = 20000;
 const TOOL_OUTPUT_RECENT_ITEMS = 40;
 const NO_TRUNCATE_TOOL_TYPES = new Set(["fileChange", "commandExecution"]);
-const READ_COMMANDS = new Set(["cat", "sed", "head", "tail", "less", "more"]);
+const READ_COMMANDS = new Set(["cat", "sed", "head", "tail", "less", "more", "nl"]);
 const LIST_COMMANDS = new Set(["ls", "tree", "find", "fd"]);
 const SEARCH_COMMANDS = new Set(["rg", "grep", "ripgrep", "findstr"]);
 const PATH_HINT_REGEX = /[\\/]/;
@@ -124,9 +124,9 @@ function cleanCommandText(commandText: string) {
   }
   const trimmed = commandText.trim();
   const shellMatch = trimmed.match(
-    /^(?:\/\S+\/)?(?:bash|zsh|sh|fish)(?:\.exe)?\s+-lc\s+(['"])([\s\S]+)\1$/,
+    /^(?:\/\S+\/)?(?:bash|zsh|sh|fish)(?:\.exe)?\s+-lc\s+(?:(['"])([\s\S]+)\1|([\s\S]+))$/,
   );
-  const inner = shellMatch ? shellMatch[2] : trimmed;
+  const inner = shellMatch ? (shellMatch[2] ?? shellMatch[3] ?? "") : trimmed;
   const cdMatch = inner.match(
     /^\s*cd\s+[^&;]+(?:\s*&&\s*|\s*;\s*)([\s\S]+)$/i,
   );
@@ -152,8 +152,40 @@ function tokenizeCommand(command: string) {
 function splitCommandSegments(command: string) {
   return command
     .split(/\s*(?:&&|;)\s*/g)
+    .map((segment) => trimAtPipe(segment))
     .map((segment) => segment.trim())
     .filter(Boolean);
+}
+
+function trimAtPipe(command: string) {
+  if (!command) {
+    return "";
+  }
+  let inSingle = false;
+  let inDouble = false;
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index];
+    if (char === "'" && !inDouble) {
+      inSingle = !inSingle;
+      continue;
+    }
+    if (char === '"' && !inSingle) {
+      inDouble = !inDouble;
+      continue;
+    }
+    if (char !== "|" || inSingle || inDouble) {
+      continue;
+    }
+    const prev = index > 0 ? command[index - 1] : "";
+    const next = index + 1 < command.length ? command[index + 1] : "";
+    const prevIsSpace = prev === "" || /\s/.test(prev);
+    const nextIsSpace = next === "" || /\s/.test(next);
+    if (!prevIsSpace || !nextIsSpace) {
+      continue;
+    }
+    return command.slice(0, index).trim();
+  }
+  return command.trim();
 }
 
 function isOptionToken(token: string) {

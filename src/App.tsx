@@ -126,7 +126,6 @@ function MainApp() {
     appSettingsLoading,
     reduceTransparency,
     setReduceTransparency,
-    uiScale,
     scaleShortcutTitle,
     scaleShortcutText,
     queueSaveSettings,
@@ -223,7 +222,6 @@ function MainApp() {
     openTerminal,
     closeTerminal: closeTerminalPanel,
   } = useLayoutController({
-    uiScale,
     activeWorkspaceId,
     setActiveTab,
     setDebugOpen,
@@ -1395,7 +1393,6 @@ function MainApp() {
   });
 
   useMenuAcceleratorController({ appSettings, onDebug: addDebugEntry });
-  const isDefaultScale = Math.abs(uiScale - 1) < 0.001;
   const dropOverlayActive = isWorkspaceDropActive;
   const dropOverlayText = "Drop Project Here";
   const appClassName = `app ${isCompact ? "layout-compact" : "layout-desktop"}${
@@ -1404,7 +1401,7 @@ function MainApp() {
     reduceTransparency ? " reduced-transparency" : ""
   }${!isCompact && sidebarCollapsed ? " sidebar-collapsed" : ""}${
     !isCompact && rightPanelCollapsed ? " right-panel-collapsed" : ""
-  }${isDefaultScale ? " ui-scale-default" : ""}`;
+  }`;
   const {
     sidebarNode,
     messagesNode,
@@ -1844,7 +1841,6 @@ function MainApp() {
           "--plan-panel-height": `${planPanelHeight}px`,
           "--terminal-panel-height": `${terminalPanelHeight}px`,
           "--debug-panel-height": `${debugPanelHeight}px`,
-          "--ui-scale": String(uiScale),
           "--ui-font-family": appSettings.uiFontFamily,
           "--code-font-family": appSettings.codeFontFamily,
           "--code-font-size": `${appSettings.codeFontSize}px`

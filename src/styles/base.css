@@ -295,23 +295,17 @@ body {
 }
 
 .app {
-  height: calc(100vh / var(--ui-scale, 1));
-  width: calc(100vw / var(--ui-scale, 1));
+  height: 100vh;
+  width: 100vw;
   display: grid;
   grid-template-columns: var(--sidebar-width, 280px) 1fr;
   background: transparent;
   border-radius: 0;
   overflow: hidden;
   position: relative;
-  transform: scale(var(--ui-scale, 1));
-  transform-origin: top left;
   --main-topbar-height: 44px;
   transition: grid-template-columns 220ms ease;
   font-family: var(--ui-font-family);
-}
-
-.app.ui-scale-default {
-  transform: none;
 }
 
 .drag-strip {

@@ -73,6 +73,7 @@ describe("useThreadActions", () => {
       threadsByWorkspace: {},
       activeThreadIdByWorkspace: {},
       threadListCursorByWorkspace: {},
+      threadStatusById: {},
       getCustomName: () => undefined,
       threadActivityRef,
       loadedThreadsRef,
@@ -152,6 +153,40 @@ describe("useThreadActions", () => {
 
     expect(threadId).toBe("thread-1");
     expect(resumeThread).not.toHaveBeenCalled();
+  });
+
+  it("skips resume while processing unless forced", async () => {
+    const options = {
+      loadedThreadsRef: { current: { "thread-1": true } },
+      threadStatusById: {
+        "thread-1": {
+          isProcessing: true,
+          hasUnread: false,
+          isReviewing: false,
+          processingStartedAt: 123,
+          lastDurationMs: null,
+        },
+      },
+    };
+    const { result: skipResult } = renderActions(options);
+
+    await act(async () => {
+      await skipResult.current.resumeThreadForWorkspace("ws-1", "thread-1");
+    });
+
+    expect(resumeThread).not.toHaveBeenCalled();
+
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: { thread: { id: "thread-1", updated_at: 1 } },
+    });
+
+    const { result: forceResult } = renderActions(options);
+
+    await act(async () => {
+      await forceResult.current.resumeThreadForWorkspace("ws-1", "thread-1", true);
+    });
+
+    expect(resumeThread).toHaveBeenCalledWith("ws-1", "thread-1");
   });
 
   it("resumes thread, sets items, status, name, and last message", async () => {

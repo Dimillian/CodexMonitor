@@ -146,6 +146,7 @@ export function useThreads({
     threadsByWorkspace: state.threadsByWorkspace,
     activeThreadIdByWorkspace: state.activeThreadIdByWorkspace,
     threadListCursorByWorkspace: state.threadListCursorByWorkspace,
+    threadStatusById: state.threadStatusById,
     onDebug,
     getCustomName,
     threadActivityRef,
@@ -224,7 +225,7 @@ export function useThreads({
         });
       }
       if (threadId) {
-        void resumeThreadForWorkspace(targetId, threadId, true);
+        void resumeThreadForWorkspace(targetId, threadId);
       }
     },
     [activeWorkspaceId, resumeThreadForWorkspace, state.activeThreadIdByWorkspace],

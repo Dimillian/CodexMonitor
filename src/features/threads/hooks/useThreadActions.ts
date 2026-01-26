@@ -32,6 +32,7 @@ type UseThreadActionsOptions = {
   threadsByWorkspace: ThreadState["threadsByWorkspace"];
   activeThreadIdByWorkspace: ThreadState["activeThreadIdByWorkspace"];
   threadListCursorByWorkspace: ThreadState["threadListCursorByWorkspace"];
+  threadStatusById: ThreadState["threadStatusById"];
   onDebug?: (entry: DebugEntry) => void;
   getCustomName: (workspaceId: string, threadId: string) => string | undefined;
   threadActivityRef: MutableRefObject<Record<string, Record<string, number>>>;
@@ -49,6 +50,7 @@ export function useThreadActions({
   threadsByWorkspace,
   activeThreadIdByWorkspace,
   threadListCursorByWorkspace,
+  threadStatusById,
   onDebug,
   getCustomName,
   threadActivityRef,
@@ -111,6 +113,17 @@ export function useThreadActions({
         return null;
       }
       if (!force && loadedThreadsRef.current[threadId]) {
+        return threadId;
+      }
+      const status = threadStatusById[threadId];
+      if (status?.isProcessing && loadedThreadsRef.current[threadId] && !force) {
+        onDebug?.({
+          id: `${Date.now()}-client-thread-resume-skipped`,
+          timestamp: Date.now(),
+          source: "client",
+          label: "thread/resume skipped",
+          payload: { workspaceId, threadId, reason: "active-turn" },
+        });
         return threadId;
       }
       onDebug?.({
@@ -221,6 +234,7 @@ export function useThreadActions({
       loadedThreadsRef,
       onDebug,
       replaceOnResumeRef,
+      threadStatusById,
     ],
   );
 
