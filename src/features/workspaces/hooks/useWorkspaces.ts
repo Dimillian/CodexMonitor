@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as Sentry from "@sentry/react";
 import type {
   AppSettings,
@@ -81,6 +81,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
   const [deletingWorktreeIds, setDeletingWorktreeIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const workspaceSettingsRef = useRef<Map<string, WorkspaceSettings>>(new Map());
   const { onDebug, defaultCodexBin, appSettings, onUpdateAppSettings } = options;
 
   const refreshWorkspaces = useCallback(async () => {
@@ -105,6 +106,14 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
   useEffect(() => {
     void refreshWorkspaces();
   }, [refreshWorkspaces]);
+
+  useEffect(() => {
+    const next = new Map<string, WorkspaceSettings>();
+    workspaces.forEach((entry) => {
+      next.set(entry.id, entry.settings);
+    });
+    workspaceSettingsRef.current = next;
+  }, [workspaces]);
 
   const activeWorkspace = useMemo(
     () => workspaces.find((entry) => entry.id === activeWorkspaceId) ?? null,
@@ -395,34 +404,39 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
         label: "workspace/settings",
         payload: { workspaceId, patch },
       });
-      let previous: WorkspaceInfo | null = null;
-      let nextSettings: WorkspaceSettings | null = null;
+      const currentWorkspace = workspaces.find((entry) => entry.id === workspaceId) ?? null;
+      const currentSettings =
+        workspaceSettingsRef.current.get(workspaceId) ?? currentWorkspace?.settings ?? null;
+      if (!currentWorkspace || !currentSettings) {
+        throw new Error("workspace not found");
+      }
+      const previousSettings = currentSettings;
+      const nextSettings = { ...currentSettings, ...patch };
+      workspaceSettingsRef.current.set(workspaceId, nextSettings);
       setWorkspaces((prev) =>
         prev.map((entry) => {
           if (entry.id !== workspaceId) {
             return entry;
           }
-          previous = entry;
-          nextSettings = { ...entry.settings, ...patch };
           return { ...entry, settings: nextSettings };
         }),
       );
-      if (!nextSettings) {
-        throw new Error("workspace not found");
-      }
       try {
         const updated = await updateWorkspaceSettingsService(workspaceId, nextSettings);
+        workspaceSettingsRef.current.set(workspaceId, updated.settings);
         setWorkspaces((prev) =>
           prev.map((entry) => (entry.id === workspaceId ? updated : entry)),
         );
         return updated;
       } catch (error) {
-        if (previous) {
-          const restore = previous;
-          setWorkspaces((prev) =>
-            prev.map((entry) => (entry.id === workspaceId ? restore : entry)),
-          );
-        }
+        workspaceSettingsRef.current.set(workspaceId, previousSettings);
+        setWorkspaces((prev) =>
+          prev.map((entry) =>
+            entry.id === workspaceId
+              ? { ...entry, settings: previousSettings }
+              : entry,
+          ),
+        );
         onDebug?.({
           id: `${Date.now()}-client-update-workspace-settings-error`,
           timestamp: Date.now(),
@@ -433,7 +447,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
         throw error;
       }
     },
-    [onDebug],
+    [onDebug, workspaces],
   );
 
   async function updateWorkspaceCodexBin(workspaceId: string, codexBin: string | null) {
