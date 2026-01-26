@@ -22,6 +22,9 @@ use objc2_av_foundation::{AVAuthorizationStatus, AVCaptureDevice, AVMediaTypeAud
 const DEFAULT_MODEL_ID: &str = "base";
 const MAX_CAPTURE_SECONDS: u32 = 120;
 
+#[cfg(target_os = "macos")]
+static MIC_PERMISSION_REQUESTED: AtomicBool = AtomicBool::new(false);
+
 /// Checks microphone authorization status on macOS.
 #[cfg(target_os = "macos")]
 fn check_microphone_authorization() -> Result<AVAuthorizationStatus, String> {
@@ -59,38 +62,60 @@ async fn request_microphone_permission(app: &AppHandle) -> Result<bool, String> 
 
     match status {
         AVAuthorizationStatus::Authorized => Ok(true),
-        AVAuthorizationStatus::Denied | AVAuthorizationStatus::Restricted => Ok(false),
+        AVAuthorizationStatus::Denied | AVAuthorizationStatus::Restricted => {
+            // Some macOS versions report Denied before the first prompt; try once per process.
+            if MIC_PERMISSION_REQUESTED.swap(true, Ordering::SeqCst) {
+                return Ok(false);
+            }
+            trigger_microphone_permission_request_on_main_thread(app).await?;
+            let updated_status = check_microphone_authorization()?;
+            Ok(updated_status == AVAuthorizationStatus::Authorized)
+        }
         AVAuthorizationStatus::NotDetermined | _ => {
-            // Trigger the permission request (this shows the system dialog)
-            // Ensure we do this on the main thread so the system dialog appears.
-            let (tx, rx) = oneshot::channel();
-            let app_handle = app.clone();
-            app_handle
-                .run_on_main_thread(move || {
-                    let _ = tx.send(trigger_microphone_permission_request());
-                })
-                .map_err(|error| error.to_string())?;
+            MIC_PERMISSION_REQUESTED.store(true, Ordering::SeqCst);
+            trigger_microphone_permission_request_on_main_thread(app).await?;
+            wait_for_microphone_permission_change(status).await
+        }
+    }
+}
 
-            match rx.await {
-                Ok(Ok(())) => {}
-                Ok(Err(error)) => return Err(error),
-                Err(_) => return Err("Failed to request microphone permission.".to_string()),
-            }
+#[cfg(target_os = "macos")]
+async fn trigger_microphone_permission_request_on_main_thread(
+    app: &AppHandle,
+) -> Result<(), String> {
+    // Trigger the permission request (this shows the system dialog)
+    // Ensure we do this on the main thread so the system dialog appears.
+    let (tx, rx) = oneshot::channel();
+    let app_handle = app.clone();
+    app_handle
+        .run_on_main_thread(move || {
+            let _ = tx.send(trigger_microphone_permission_request());
+        })
+        .map_err(|error| error.to_string())?;
 
-            // Poll the authorization status until it changes from NotDetermined
-            let mut attempts = 0;
-            loop {
-                tokio::time::sleep(Duration::from_millis(100)).await;
-                let new_status = check_microphone_authorization()?;
-                if new_status != AVAuthorizationStatus::NotDetermined {
-                    return Ok(new_status == AVAuthorizationStatus::Authorized);
-                }
-                attempts += 1;
-                if attempts > 600 {
-                    // 60 seconds timeout
-                    return Err("Microphone permission request timed out.".to_string());
-                }
-            }
+    match rx.await {
+        Ok(Ok(())) => Ok(()),
+        Ok(Err(error)) => Err(error),
+        Err(_) => Err("Failed to request microphone permission.".to_string()),
+    }
+}
+
+#[cfg(target_os = "macos")]
+async fn wait_for_microphone_permission_change(
+    pending_status: AVAuthorizationStatus,
+) -> Result<bool, String> {
+    // Poll the authorization status until it changes from the pending status.
+    let mut attempts = 0;
+    loop {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        let new_status = check_microphone_authorization()?;
+        if new_status != pending_status {
+            return Ok(new_status == AVAuthorizationStatus::Authorized);
+        }
+        attempts += 1;
+        if attempts > 600 {
+            // 60 seconds timeout
+            return Err("Microphone permission request timed out.".to_string());
         }
     }
 }
