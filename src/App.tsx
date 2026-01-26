@@ -43,6 +43,7 @@ import { useGitActions } from "./features/git/hooks/useGitActions";
 import { useAutoExitEmptyDiff } from "./features/git/hooks/useAutoExitEmptyDiff";
 import { useModels } from "./features/models/hooks/useModels";
 import { useCollaborationModes } from "./features/collaboration/hooks/useCollaborationModes";
+import { useCollaborationModeSelection } from "./features/collaboration/hooks/useCollaborationModeSelection";
 import { useSkills } from "./features/skills/hooks/useSkills";
 import { useCustomPrompts } from "./features/prompts/hooks/useCustomPrompts";
 import { useWorkspaceFiles } from "./features/workspaces/hooks/useWorkspaceFiles";
@@ -369,14 +370,31 @@ function MainApp() {
     preferredEffort: appSettings.lastComposerReasoningEffort,
   });
 
+  const {
+    collaborationModes,
+    selectedCollaborationMode,
+    selectedCollaborationModeId,
+    setSelectedCollaborationModeId,
+  } = useCollaborationModes({
+    activeWorkspace,
+    enabled: appSettings.experimentalCollaborationModesEnabled,
+    onDebug: addDebugEntry,
+  });
+
   useComposerShortcuts({
     textareaRef: composerInputRef,
     modelShortcut: appSettings.composerModelShortcut,
     accessShortcut: appSettings.composerAccessShortcut,
     reasoningShortcut: appSettings.composerReasoningShortcut,
+    collaborationShortcut: appSettings.experimentalCollaborationModesEnabled
+      ? appSettings.composerCollaborationShortcut
+      : null,
     models,
+    collaborationModes,
     selectedModelId,
     onSelectModel: setSelectedModelId,
+    selectedCollaborationModeId,
+    onSelectCollaborationMode: setSelectedCollaborationModeId,
     accessMode,
     onSelectAccessMode: setAccessMode,
     reasoningOptions,
@@ -388,23 +406,15 @@ function MainApp() {
     models,
     selectedModelId,
     onSelectModel: setSelectedModelId,
+    collaborationModes,
+    selectedCollaborationModeId,
+    onSelectCollaborationMode: setSelectedCollaborationModeId,
     accessMode,
     onSelectAccessMode: setAccessMode,
     reasoningOptions,
     selectedEffort,
     onSelectEffort: setSelectedEffort,
     onFocusComposer: () => composerInputRef.current?.focus(),
-  });
-
-  const {
-    collaborationModes,
-    selectedCollaborationMode,
-    selectedCollaborationModeId,
-    setSelectedCollaborationModeId,
-  } = useCollaborationModes({
-    activeWorkspace,
-    enabled: appSettings.experimentalCollaborationModesEnabled,
-    onDebug: addDebugEntry,
   });
   const { skills } = useSkills({ activeWorkspace, onDebug: addDebugEntry });
   const {
@@ -549,6 +559,13 @@ function MainApp() {
     setSelectedDiffPath,
   });
 
+  const { collaborationModePayload } = useCollaborationModeSelection({
+    selectedCollaborationMode,
+    selectedCollaborationModeId,
+    selectedEffort,
+    resolvedModel,
+  });
+
   const {
     setActiveThreadId,
     activeThreadId,
@@ -582,14 +599,14 @@ function MainApp() {
     startReview,
     handleApprovalDecision,
     handleApprovalRemember,
-    handleUserInputSubmit
+    handleUserInputSubmit,
   } = useThreads({
     activeWorkspace,
     onWorkspaceConnected: markWorkspaceConnected,
     onDebug: addDebugEntry,
     model: resolvedModel,
     effort: selectedEffort,
-    collaborationMode: selectedCollaborationMode?.value ?? null,
+    collaborationMode: collaborationModePayload,
     accessMode,
     steerEnabled: appSettings.experimentalSteerEnabled,
     customPrompts: prompts,

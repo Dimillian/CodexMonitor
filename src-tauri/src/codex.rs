@@ -261,20 +261,24 @@ pub(crate) async fn send_user_message(
                 .map(remote_backend::normalize_path_for_remote)
                 .collect::<Vec<_>>()
         });
+        let mut payload = Map::new();
+        payload.insert("workspaceId".to_string(), json!(workspace_id));
+        payload.insert("threadId".to_string(), json!(thread_id));
+        payload.insert("text".to_string(), json!(text));
+        payload.insert("model".to_string(), json!(model));
+        payload.insert("effort".to_string(), json!(effort));
+        payload.insert("accessMode".to_string(), json!(access_mode));
+        payload.insert("images".to_string(), json!(images));
+        if let Some(mode) = collaboration_mode {
+            if !mode.is_null() {
+                payload.insert("collaborationMode".to_string(), mode);
+            }
+        }
         return remote_backend::call_remote(
             &*state,
             app,
             "send_user_message",
-            json!({
-                "workspaceId": workspace_id,
-                "threadId": thread_id,
-                "text": text,
-                "model": model,
-                "effort": effort,
-                "accessMode": access_mode,
-                "images": images,
-                "collaborationMode": collaboration_mode,
-            }),
+            Value::Object(payload),
         )
         .await;
     }
@@ -329,17 +333,22 @@ pub(crate) async fn send_user_message(
         return Err("empty user message".to_string());
     }
 
-    let params = json!({
-        "threadId": thread_id,
-        "input": input,
-        "cwd": session.entry.path,
-        "approvalPolicy": approval_policy,
-        "sandboxPolicy": sandbox_policy,
-        "model": model,
-        "effort": effort,
-        "collaborationMode": collaboration_mode,
-    });
-    session.send_request("turn/start", params).await
+    let mut params = Map::new();
+    params.insert("threadId".to_string(), json!(thread_id));
+    params.insert("input".to_string(), json!(input));
+    params.insert("cwd".to_string(), json!(session.entry.path));
+    params.insert("approvalPolicy".to_string(), json!(approval_policy));
+    params.insert("sandboxPolicy".to_string(), json!(sandbox_policy));
+    params.insert("model".to_string(), json!(model));
+    params.insert("effort".to_string(), json!(effort));
+    if let Some(mode) = collaboration_mode {
+        if !mode.is_null() {
+            params.insert("collaborationMode".to_string(), mode);
+        }
+    }
+    session
+        .send_request("turn/start", Value::Object(params))
+        .await
 }
 
 #[tauri::command]

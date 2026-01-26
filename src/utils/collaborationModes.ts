@@ -22,6 +22,9 @@ export function formatCollaborationModeLabel(value: string) {
   if (lower === "custom") {
     return "Custom";
   }
+  if (lower === "code") {
+    return "Code";
+  }
   return normalized
     .split(" ")
     .filter(Boolean)

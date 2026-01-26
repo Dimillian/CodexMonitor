@@ -109,6 +109,12 @@ export function useThreadMessaging({
         options?.collaborationMode !== undefined
           ? options.collaborationMode
           : collaborationMode;
+      const sanitizedCollaborationMode =
+        resolvedCollaborationMode &&
+        typeof resolvedCollaborationMode === "object" &&
+        "settings" in resolvedCollaborationMode
+          ? resolvedCollaborationMode
+          : null;
       const resolvedAccessMode =
         options?.accessMode !== undefined ? options.accessMode : accessMode;
 
@@ -141,7 +147,7 @@ export function useThreadMessaging({
           text_length: String(finalText.length),
           model: resolvedModel ?? "unknown",
           effort: resolvedEffort ?? "unknown",
-          collaboration_mode: resolvedCollaborationMode ?? "unknown",
+          collaboration_mode: sanitizedCollaborationMode ?? "unknown",
         },
       });
       const timestamp = Date.now();
@@ -166,7 +172,7 @@ export function useThreadMessaging({
           images,
           model: resolvedModel,
           effort: resolvedEffort,
-          collaborationMode: resolvedCollaborationMode,
+          collaborationMode: sanitizedCollaborationMode,
         },
       });
       try {
@@ -178,7 +184,7 @@ export function useThreadMessaging({
             {
               model: resolvedModel,
               effort: resolvedEffort,
-              collaborationMode: resolvedCollaborationMode,
+              collaborationMode: sanitizedCollaborationMode,
               accessMode: resolvedAccessMode,
               images,
             },

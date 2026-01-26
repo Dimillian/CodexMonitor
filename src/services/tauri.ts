@@ -148,7 +148,7 @@ export async function sendUserMessage(
     collaborationMode?: Record<string, unknown> | null;
   },
 ) {
-  return invoke("send_user_message", {
+  const payload: Record<string, unknown> = {
     workspaceId,
     threadId,
     text,
@@ -156,8 +156,11 @@ export async function sendUserMessage(
     effort: options?.effort ?? null,
     accessMode: options?.accessMode ?? null,
     images: options?.images ?? null,
-    collaborationMode: options?.collaborationMode ?? null,
-  });
+  };
+  if (options?.collaborationMode) {
+    payload.collaborationMode = options.collaborationMode;
+  }
+  return invoke("send_user_message", payload);
 }
 
 export async function interruptTurn(

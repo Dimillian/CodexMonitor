@@ -66,15 +66,23 @@ export function useMenuAcceleratorController({ appSettings, onDebug }: Params) {
         id: "composer_cycle_reasoning",
         shortcut: appSettings.composerReasoningShortcut,
       },
+      {
+        id: "composer_cycle_collaboration",
+        shortcut: appSettings.experimentalCollaborationModesEnabled
+          ? appSettings.composerCollaborationShortcut
+          : null,
+      },
     ],
     [
       appSettings.composerAccessShortcut,
+      appSettings.composerCollaborationShortcut,
       appSettings.composerModelShortcut,
       appSettings.composerReasoningShortcut,
       appSettings.cycleAgentNextShortcut,
       appSettings.cycleAgentPrevShortcut,
       appSettings.cycleWorkspaceNextShortcut,
       appSettings.cycleWorkspacePrevShortcut,
+      appSettings.experimentalCollaborationModesEnabled,
       appSettings.newAgentShortcut,
       appSettings.newCloneAgentShortcut,
       appSettings.newWorktreeAgentShortcut,

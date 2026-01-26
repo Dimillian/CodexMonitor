@@ -21,6 +21,7 @@ const defaultSettings: AppSettings = {
   composerModelShortcut: "cmd+shift+m",
   composerAccessShortcut: "cmd+shift+a",
   composerReasoningShortcut: "cmd+shift+r",
+  composerCollaborationShortcut: "shift+tab",
   newAgentShortcut: "cmd+n",
   newWorktreeAgentShortcut: "cmd+shift+n",
   newCloneAgentShortcut: "cmd+alt+n",

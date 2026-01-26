@@ -110,7 +110,6 @@ describe("tauri invoke wrappers", () => {
       effort: null,
       accessMode: "full-access",
       images: ["image.png"],
-      collaborationMode: null,
     });
   });
 
