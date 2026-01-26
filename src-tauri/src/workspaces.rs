@@ -1389,38 +1389,47 @@ pub(crate) async fn update_workspace_settings(
         return serde_json::from_value(response).map_err(|err| err.to_string());
     }
 
-    let (entry_snapshot, list, parent_entry, previous_codex_home) = {
+    let (previous_entry, entry_snapshot, parent_entry, previous_codex_home) = {
         let mut workspaces = state.workspaces.lock().await;
-        let previous_codex_home = workspaces
+        let previous_entry = workspaces
             .get(&id)
-            .and_then(|entry| entry.settings.codex_home.clone());
+            .cloned()
+            .ok_or_else(|| "workspace not found".to_string())?;
+        let previous_codex_home = previous_entry.settings.codex_home.clone();
         let entry_snapshot = apply_workspace_settings_update(&mut workspaces, &id, settings)?;
         let parent_entry = entry_snapshot
             .parent_id
             .as_ref()
             .and_then(|parent_id| workspaces.get(parent_id))
             .cloned();
-        let list: Vec<_> = workspaces.values().cloned().collect();
-        (entry_snapshot, list, parent_entry, previous_codex_home)
+        (previous_entry, entry_snapshot, parent_entry, previous_codex_home)
     };
-    write_workspaces(&state.storage_path, &list)?;
 
     let codex_home_changed = previous_codex_home != entry_snapshot.settings.codex_home;
     let connected = state.sessions.lock().await.contains_key(&id);
     if connected && codex_home_changed {
+        let rollback_entry = previous_entry.clone();
         let (default_bin, codex_args) = {
             let settings = state.app_settings.lock().await;
             (settings.codex_bin.clone(), settings.codex_args.clone())
         };
         let codex_home = resolve_workspace_codex_home(&entry_snapshot, parent_entry.as_ref());
-        let new_session = spawn_workspace_session(
+        let new_session = match spawn_workspace_session(
             entry_snapshot.clone(),
             default_bin,
             codex_args,
             app,
             codex_home,
         )
-        .await?;
+        .await
+        {
+            Ok(session) => session,
+            Err(error) => {
+                let mut workspaces = state.workspaces.lock().await;
+                workspaces.insert(rollback_entry.id.clone(), rollback_entry);
+                return Err(error);
+            }
+        };
         if let Some(old_session) = state
             .sessions
             .lock()
@@ -1431,6 +1440,11 @@ pub(crate) async fn update_workspace_settings(
             let _ = child.kill().await;
         }
     }
+    let list: Vec<_> = {
+        let workspaces = state.workspaces.lock().await;
+        workspaces.values().cloned().collect()
+    };
+    write_workspaces(&state.storage_path, &list)?;
     Ok(WorkspaceInfo {
         id: entry_snapshot.id,
         name: entry_snapshot.name,

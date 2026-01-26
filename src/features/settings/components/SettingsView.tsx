@@ -96,6 +96,24 @@ const COMPOSER_PRESET_CONFIGS: Record<ComposerPreset, ComposerPresetSettings> = 
   },
 };
 
+const normalizeOverrideValue = (value: string): string | null => {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+};
+
+const buildWorkspaceOverrideDrafts = (
+  projects: WorkspaceInfo[],
+  prev: Record<string, string>,
+  getValue: (workspace: WorkspaceInfo) => string | null | undefined,
+): Record<string, string> => {
+  const next: Record<string, string> = {};
+  projects.forEach((workspace) => {
+    const existing = prev[workspace.id];
+    next[workspace.id] = existing ?? getValue(workspace) ?? "";
+  });
+  return next;
+};
+
 export type SettingsViewProps = {
   workspaceGroups: WorkspaceGroup[];
   groupedWorkspaces: Array<{
@@ -383,20 +401,20 @@ export function SettingsView({
   }, []);
 
   useEffect(() => {
-    setCodexBinOverrideDrafts((prev) => {
-      const next: Record<string, string> = {};
-      projects.forEach((workspace) => {
-        next[workspace.id] = prev[workspace.id] ?? workspace.codex_bin ?? "";
-      });
-      return next;
-    });
-    setCodexHomeOverrideDrafts((prev) => {
-      const next: Record<string, string> = {};
-      projects.forEach((workspace) => {
-        next[workspace.id] = prev[workspace.id] ?? workspace.settings.codexHome ?? "";
-      });
-      return next;
-    });
+    setCodexBinOverrideDrafts((prev) =>
+      buildWorkspaceOverrideDrafts(
+        projects,
+        prev,
+        (workspace) => workspace.codex_bin ?? null,
+      ),
+    );
+    setCodexHomeOverrideDrafts((prev) =>
+      buildWorkspaceOverrideDrafts(
+        projects,
+        prev,
+        (workspace) => workspace.settings.codexHome ?? null,
+      ),
+    );
   }, [projects]);
 
   useEffect(() => {
@@ -2227,7 +2245,7 @@ export function SettingsView({
                               }
                               onBlur={async () => {
                                 const draft = codexBinOverrideDrafts[workspace.id] ?? "";
-                                const nextValue = draft.trim() || null;
+                                const nextValue = normalizeOverrideValue(draft);
                                 if (nextValue === (workspace.codex_bin ?? null)) {
                                   return;
                                 }
@@ -2262,7 +2280,7 @@ export function SettingsView({
                               }
                               onBlur={async () => {
                                 const draft = codexHomeOverrideDrafts[workspace.id] ?? "";
-                                const nextValue = draft.trim() || null;
+                                const nextValue = normalizeOverrideValue(draft);
                                 if (nextValue === (workspace.settings.codexHome ?? null)) {
                                   return;
                                 }

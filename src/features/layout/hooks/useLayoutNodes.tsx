@@ -296,6 +296,7 @@ type LayoutNodesOptions = {
   onMovePrompt: (data: { path: string; scope: "workspace" | "global" }) => void | Promise<void>;
   onRevealWorkspacePrompts: () => void | Promise<void>;
   onRevealGeneralPrompts: () => void | Promise<void>;
+  canRevealGeneralPrompts: boolean;
   onSend: (text: string, images: string[]) => void | Promise<void>;
   onQueue: (text: string, images: string[]) => void | Promise<void>;
   onStop: () => void;
@@ -631,6 +632,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         onMovePrompt={options.onMovePrompt}
         onRevealWorkspacePrompts={options.onRevealWorkspacePrompts}
         onRevealGeneralPrompts={options.onRevealGeneralPrompts}
+        canRevealGeneralPrompts={options.canRevealGeneralPrompts}
       />
     );
   } else {

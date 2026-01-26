@@ -188,9 +188,9 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     entry: WorkspaceEntry,
     default_codex_bin: Option<String>,
     codex_args: Option<String>,
+    codex_home: Option<PathBuf>,
     client_version: String,
     event_sink: E,
-    codex_home: Option<PathBuf>,
 ) -> Result<Arc<WorkspaceSession>, String> {
     let codex_bin = entry
         .codex_bin

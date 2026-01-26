@@ -64,6 +64,7 @@ const defaultSettings: AppSettings = {
 function normalizeAppSettings(settings: AppSettings): AppSettings {
   return {
     ...settings,
+    codexBin: settings.codexBin?.trim() ? settings.codexBin.trim() : null,
     codexArgs: settings.codexArgs?.trim() ? settings.codexArgs.trim() : null,
     uiScale: clampUiScale(settings.uiScale),
     theme: allowedThemes.has(settings.theme) ? settings.theme : "system",

@@ -1041,6 +1041,9 @@ function MainApp() {
   const handleRevealGeneralPrompts = useCallback(async () => {
     try {
       const path = await getGlobalPromptsDir();
+      if (!path) {
+        return;
+      }
       await revealItemInDir(path);
     } catch (error) {
       alertError(error);
@@ -1613,6 +1616,7 @@ function MainApp() {
     onMovePrompt: handleMovePrompt,
     onRevealWorkspacePrompts: handleRevealWorkspacePrompts,
     onRevealGeneralPrompts: handleRevealGeneralPrompts,
+    canRevealGeneralPrompts: Boolean(activeWorkspace),
     onSend: handleComposerSend,
     onQueue: handleComposerQueue,
     onStop: interruptTurn,

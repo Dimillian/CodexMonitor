@@ -178,9 +178,9 @@ impl DaemonState {
             entry.clone(),
             default_bin,
             codex_args,
+            codex_home,
             client_version,
             self.event_sink.clone(),
-            codex_home,
         )
         .await?;
 
@@ -282,9 +282,9 @@ impl DaemonState {
             entry.clone(),
             default_bin,
             codex_args,
+            codex_home,
             client_version,
             self.event_sink.clone(),
-            codex_home,
         )
         .await?;
 
@@ -547,9 +547,9 @@ impl DaemonState {
                 entry_snapshot.clone(),
                 default_bin,
                 codex_args,
+                codex_home,
                 client_version,
                 self.event_sink.clone(),
-                codex_home,
             )
             .await
             {
@@ -767,9 +767,9 @@ impl DaemonState {
             entry,
             default_bin,
             codex_args,
+            codex_home,
             client_version,
             self.event_sink.clone(),
-            codex_home,
         )
         .await?;
 

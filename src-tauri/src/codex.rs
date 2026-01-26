@@ -35,9 +35,9 @@ pub(crate) async fn spawn_workspace_session(
         entry,
         default_codex_bin,
         codex_args,
+        codex_home,
         client_version,
         event_sink,
-        codex_home,
     )
     .await
 }
