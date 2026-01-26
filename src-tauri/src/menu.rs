@@ -1,11 +1,15 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::sync::atomic::Ordering;
 
 use serde::Deserialize;
 use tauri::menu::{Menu, MenuItem, MenuItemBuilder, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
+use tokio::time::{Duration, sleep};
 
 use crate::state::AppState;
+
+const MENU_QUIT_FALLBACK_MS: u64 = 2000;
 
 pub struct MenuItemRegistry<R: Runtime> {
     items: Mutex<HashMap<String, MenuItem<R>>>,
@@ -63,6 +67,12 @@ pub fn menu_set_accelerators<R: Runtime>(
 #[tauri::command]
 pub fn app_quit(app: AppHandle) {
     app.exit(0);
+}
+
+#[tauri::command]
+pub fn ack_menu_quit(app: AppHandle) {
+    let state = app.state::<AppState>();
+    state.menu_quit_ack.store(true, Ordering::SeqCst);
 }
 
 pub(crate) fn build_menu<R: tauri::Runtime>(
@@ -363,7 +373,25 @@ pub(crate) fn handle_menu_event<R: tauri::Runtime>(
         }
         "app_quit" => {
             if should_hold_to_quit(app) {
-                emit_menu_event(app, "menu-quit");
+                let state = app.state::<AppState>();
+                state.menu_quit_ack.store(false, Ordering::SeqCst);
+                if let Some(window) = app.get_webview_window("main") {
+                    if window.emit("menu-quit", ()).is_err() {
+                        app.exit(0);
+                        return;
+                    }
+                } else {
+                    app.exit(0);
+                    return;
+                }
+                let app_handle = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    sleep(Duration::from_millis(MENU_QUIT_FALLBACK_MS)).await;
+                    let state = app_handle.state::<AppState>();
+                    if !state.menu_quit_ack.load(Ordering::SeqCst) {
+                        app_handle.exit(0);
+                    }
+                });
             } else {
                 app.exit(0);
             }

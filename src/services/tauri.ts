@@ -57,6 +57,10 @@ export async function requestAppQuit(): Promise<void> {
   return invoke("app_quit");
 }
 
+export async function ackMenuQuit(): Promise<void> {
+  return invoke("ack_menu_quit");
+}
+
 export async function addWorkspace(
   path: string,
   codex_bin: string | null,

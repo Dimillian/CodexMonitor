@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { subscribeMenuQuit } from "../../../services/events";
-import { requestAppQuit } from "../../../services/tauri";
+import { ackMenuQuit, requestAppQuit } from "../../../services/tauri";
 import { useTauriEvent } from "./useTauriEvent";
 
 export type QuitHoldState = {
@@ -160,6 +160,7 @@ export function useHoldToQuit({ enabled }: UseHoldToQuitOptions) {
   useTauriEvent(
     subscribeMenuQuit,
     () => {
+      void ackMenuQuit();
       if (!enabled || !isMac) {
         void requestAppQuit();
         return;

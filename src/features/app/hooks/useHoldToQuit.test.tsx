@@ -5,6 +5,7 @@ import { requestAppQuit } from "../../../services/tauri";
 import { useHoldToQuit } from "./useHoldToQuit";
 
 vi.mock("../../../services/tauri", () => ({
+  ackMenuQuit: vi.fn(),
   requestAppQuit: vi.fn(),
 }));
 vi.mock("../../../services/events", () => ({
