@@ -23,7 +23,11 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import { formatDownloadSize } from "../../../utils/formatting";
-import { buildShortcutValue, formatShortcut } from "../../../utils/shortcuts";
+import {
+  buildShortcutValue,
+  formatShortcut,
+  getDefaultInterruptShortcut,
+} from "../../../utils/shortcuts";
 import { clampUiScale } from "../../../utils/uiScale";
 import { getCodexConfigPath } from "../../../services/tauri";
 import {
@@ -1992,7 +1996,7 @@ export function SettingsView({
                     </button>
                   </div>
                   <div className="settings-help">
-                    Default: {formatShortcut("ctrl+shift+c")}
+                    Default: {formatShortcut(getDefaultInterruptShortcut())}
                   </div>
                 </div>
                 <div className="settings-divider" />

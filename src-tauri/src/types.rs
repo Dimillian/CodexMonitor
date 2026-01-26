@@ -502,7 +502,12 @@ fn default_composer_reasoning_shortcut() -> Option<String> {
 }
 
 fn default_interrupt_shortcut() -> Option<String> {
-    Some("ctrl+shift+c".to_string())
+    let value = if cfg!(target_os = "macos") {
+        "ctrl+c"
+    } else {
+        "ctrl+shift+c"
+    };
+    Some(value.to_string())
 }
 
 fn default_composer_collaboration_shortcut() -> Option<String> {
@@ -768,7 +773,12 @@ mod tests {
             settings.composer_collaboration_shortcut.as_deref(),
             Some("shift+tab")
         );
-        assert_eq!(settings.interrupt_shortcut.as_deref(), Some("ctrl+shift+c"));
+        let expected_interrupt = if cfg!(target_os = "macos") {
+            "ctrl+c"
+        } else {
+            "ctrl+shift+c"
+        };
+        assert_eq!(settings.interrupt_shortcut.as_deref(), Some(expected_interrupt));
         assert_eq!(
             settings.toggle_debug_panel_shortcut.as_deref(),
             Some("cmd+shift+d")
