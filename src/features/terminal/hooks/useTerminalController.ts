@@ -9,6 +9,7 @@ type UseTerminalControllerOptions = {
   activeWorkspaceId: string | null;
   activeWorkspace: WorkspaceInfo | null;
   terminalOpen: boolean;
+  onCloseTerminalPanel?: () => void;
   onDebug: (entry: DebugEntry) => void;
 };
 
@@ -16,6 +17,7 @@ export function useTerminalController({
   activeWorkspaceId,
   activeWorkspace,
   terminalOpen,
+  onCloseTerminalPanel,
   onDebug,
 }: UseTerminalControllerOptions) {
   const cleanupTerminalRef = useRef<((workspaceId: string, terminalId: string) => void) | null>(
@@ -86,9 +88,14 @@ export function useTerminalController({
       if (!activeWorkspaceId) {
         return;
       }
+      const shouldClosePanel =
+        terminalTabs.length === 1 && terminalTabs[0]?.id === terminalId;
       closeTerminal(activeWorkspaceId, terminalId);
+      if (shouldClosePanel) {
+        onCloseTerminalPanel?.();
+      }
     },
-    [activeWorkspaceId, closeTerminal],
+    [activeWorkspaceId, closeTerminal, onCloseTerminalPanel, terminalTabs],
   );
 
   const restartTerminalSession = useCallback(

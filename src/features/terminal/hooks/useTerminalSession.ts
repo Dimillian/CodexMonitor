@@ -21,6 +21,16 @@ type UseTerminalSessionOptions = {
   onDebug?: (entry: DebugEntry) => void;
 };
 
+type TerminalAppearance = {
+  theme: {
+    background: string;
+    foreground: string;
+    cursor: string;
+    selection?: string;
+  };
+  fontFamily: string;
+};
+
 export type TerminalSessionState = {
   status: TerminalStatus;
   message: string;
@@ -41,6 +51,48 @@ function appendBuffer(existing: string | undefined, data: string): string {
 function shouldIgnoreTerminalError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   return message.includes("Terminal session not found");
+}
+
+function getTerminalAppearance(container: HTMLElement | null): TerminalAppearance {
+  if (typeof window === "undefined") {
+    return {
+      theme: {
+        background: "transparent",
+        foreground: "#d9dee7",
+        cursor: "#d9dee7",
+      },
+      fontFamily: "Menlo, Monaco, \"Courier New\", monospace",
+    };
+  }
+
+  const target = container ?? document.documentElement;
+  const styles = getComputedStyle(target);
+  const background =
+    styles.getPropertyValue("--terminal-background").trim() ||
+    styles.getPropertyValue("--surface-debug").trim() ||
+    styles.getPropertyValue("--surface-panel").trim() ||
+    "#11151b";
+  const foreground =
+    styles.getPropertyValue("--terminal-foreground").trim() ||
+    styles.getPropertyValue("--text-stronger").trim() ||
+    "#d9dee7";
+  const cursor =
+    styles.getPropertyValue("--terminal-cursor").trim() || foreground;
+  const selection = styles.getPropertyValue("--terminal-selection").trim();
+  const fontFamily =
+    styles.getPropertyValue("--terminal-font-family").trim() ||
+    styles.getPropertyValue("--code-font-family").trim() ||
+    "Menlo, Monaco, \"Courier New\", monospace";
+
+  return {
+    theme: {
+      background,
+      foreground,
+      cursor,
+      selection: selection || undefined,
+    },
+    fontFamily,
+  };
 }
 
 export function useTerminalSession({
@@ -159,16 +211,13 @@ export function useTerminalSession({
     }
 
     if (!terminalRef.current && containerRef.current) {
+      const appearance = getTerminalAppearance(containerRef.current);
       const terminal = new Terminal({
         cursorBlink: true,
         fontSize: 12,
-        fontFamily: "Menlo, Monaco, \"Courier New\", monospace",
+        fontFamily: appearance.fontFamily,
         allowTransparency: true,
-        theme: {
-          background: "transparent",
-          foreground: "#d9dee7",
-          cursor: "#d9dee7",
-        },
+        theme: appearance.theme,
         scrollback: 5000,
       });
       const fitAddon = new FitAddon();

@@ -7,6 +7,11 @@
   grid-row: 4;
   height: var(--terminal-panel-height, 220px);
   -webkit-app-region: no-drag;
+  --terminal-background: var(--surface-debug);
+  --terminal-foreground: var(--text-stronger);
+  --terminal-cursor: var(--text-stronger);
+  --terminal-selection: rgba(100, 200, 255, 0.25);
+  --terminal-font-family: var(--code-font-family);
 }
 
 .terminal-panel-resizer {
@@ -119,7 +124,7 @@
   height: 100%;
   border-radius: 0;
   overflow: hidden;
-  background: transparent;
+  background: var(--terminal-background);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   box-sizing: border-box;
 }
@@ -127,7 +132,7 @@
 .terminal-surface .xterm,
 .terminal-surface .xterm-screen,
 .terminal-surface .xterm-viewport {
-  background: transparent !important;
+  background: var(--terminal-background) !important;
 }
 
 .terminal-surface .xterm {
@@ -141,6 +146,11 @@
   height: 100% !important;
 }
 
+.terminal-surface .composition-view {
+  background: var(--terminal-background);
+  color: var(--terminal-foreground);
+}
+
 .terminal-overlay {
   position: absolute;
   inset: 0;
@@ -148,7 +158,6 @@
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  background: rgba(15, 17, 21, 0.85);
   color: var(--text-muted);
   pointer-events: none;
   text-align: center;
@@ -158,4 +167,8 @@
 
 .terminal-status {
   max-width: 280px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 8px 12px;
 }

@@ -221,6 +221,7 @@ function MainApp() {
     handleDebugClick,
     handleToggleTerminal,
     openTerminal,
+    closeTerminal: closeTerminalPanel,
   } = useLayoutController({
     uiScale,
     activeWorkspaceId,
@@ -1332,6 +1333,7 @@ function MainApp() {
     activeWorkspaceId,
     activeWorkspace,
     terminalOpen,
+    onCloseTerminalPanel: closeTerminalPanel,
     onDebug: addDebugEntry,
   });
 

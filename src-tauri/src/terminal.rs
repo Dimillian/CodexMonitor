@@ -31,6 +31,17 @@ fn shell_path() -> String {
     std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string())
 }
 
+fn resolve_locale() -> String {
+    let candidate = std::env::var("LC_ALL")
+        .or_else(|_| std::env::var("LANG"))
+        .unwrap_or_else(|_| "en_US.UTF-8".to_string());
+    let lower = candidate.to_lowercase();
+    if lower.contains("utf-8") || lower.contains("utf8") {
+        return candidate;
+    }
+    "en_US.UTF-8".to_string()
+}
+
 fn spawn_terminal_reader(
     event_sink: impl EventSink,
     workspace_id: String,
@@ -39,17 +50,54 @@ fn spawn_terminal_reader(
 ) {
     std::thread::spawn(move || {
         let mut buffer = [0u8; 8192];
+        let mut pending: Vec<u8> = Vec::new();
         loop {
             match reader.read(&mut buffer) {
                 Ok(0) => break,
                 Ok(count) => {
-                    let data = String::from_utf8_lossy(&buffer[..count]).to_string();
-                    let payload = TerminalOutput {
-                        workspace_id: workspace_id.clone(),
-                        terminal_id: terminal_id.clone(),
-                        data,
-                    };
-                    event_sink.emit_terminal_output(payload);
+                    pending.extend_from_slice(&buffer[..count]);
+                    loop {
+                        match std::str::from_utf8(&pending) {
+                            Ok(decoded) => {
+                                if !decoded.is_empty() {
+                                    let payload = TerminalOutput {
+                                        workspace_id: workspace_id.clone(),
+                                        terminal_id: terminal_id.clone(),
+                                        data: decoded.to_string(),
+                                    };
+                                    event_sink.emit_terminal_output(payload);
+                                }
+                                pending.clear();
+                                break;
+                            }
+                            Err(error) => {
+                                let valid_up_to = error.valid_up_to();
+                                if valid_up_to == 0 {
+                                    if error.error_len().is_none() {
+                                        break;
+                                    }
+                                    let invalid_len = error.error_len().unwrap_or(1);
+                                    pending.drain(..invalid_len.min(pending.len()));
+                                    continue;
+                                }
+                                let chunk = String::from_utf8_lossy(&pending[..valid_up_to]).to_string();
+                                if !chunk.is_empty() {
+                                    let payload = TerminalOutput {
+                                        workspace_id: workspace_id.clone(),
+                                        terminal_id: terminal_id.clone(),
+                                        data: chunk,
+                                    };
+                                    event_sink.emit_terminal_output(payload);
+                                }
+                                pending.drain(..valid_up_to);
+                                if error.error_len().is_none() {
+                                    break;
+                                }
+                                let invalid_len = error.error_len().unwrap_or(1);
+                                pending.drain(..invalid_len.min(pending.len()));
+                            }
+                        }
+                    }
                 }
                 Err(_) => break,
             }
@@ -106,6 +154,10 @@ pub(crate) async fn terminal_open(
     cmd.cwd(cwd);
     cmd.arg("-i");
     cmd.env("TERM", "xterm-256color");
+    let locale = resolve_locale();
+    cmd.env("LANG", &locale);
+    cmd.env("LC_ALL", &locale);
+    cmd.env("LC_CTYPE", &locale);
 
     let child = pair
         .slave

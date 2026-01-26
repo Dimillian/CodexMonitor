@@ -37,10 +37,15 @@ export function usePanelVisibility({
     setTerminalOpen(true);
   }, [activeWorkspaceId]);
 
+  const closeTerminal = useCallback(() => {
+    setTerminalOpen(false);
+  }, []);
+
   return {
     terminalOpen,
     onToggleDebug,
     onToggleTerminal,
     openTerminal,
+    closeTerminal,
   };
 }
