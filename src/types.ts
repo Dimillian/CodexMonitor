@@ -131,7 +131,6 @@ export type AppSettings = {
   experimentalCollaborationModesEnabled: boolean;
   experimentalSteerEnabled: boolean;
   experimentalUnifiedExecEnabled: boolean;
-  experimentalHoldToQuitEnabled: boolean;
   dictationEnabled: boolean;
   dictationModelId: string;
   dictationPreferredLanguage: string | null;

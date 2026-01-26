@@ -1,15 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
-use std::sync::atomic::Ordering;
 
 use serde::Deserialize;
 use tauri::menu::{Menu, MenuItem, MenuItemBuilder, PredefinedMenuItem, Submenu};
-use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
-use tokio::time::{Duration, sleep};
-
-use crate::state::AppState;
-
-const MENU_QUIT_FALLBACK_MS: u64 = 2000;
+use tauri::{Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
 
 pub struct MenuItemRegistry<R: Runtime> {
     items: Mutex<HashMap<String, MenuItem<R>>>,
@@ -64,17 +58,6 @@ pub fn menu_set_accelerators<R: Runtime>(
     Ok(())
 }
 
-#[tauri::command]
-pub fn app_quit(app: AppHandle) {
-    app.exit(0);
-}
-
-#[tauri::command]
-pub fn ack_menu_quit(app: AppHandle) {
-    let state = app.state::<AppState>();
-    state.menu_quit_ack.store(true, Ordering::SeqCst);
-}
-
 pub(crate) fn build_menu<R: tauri::Runtime>(
     handle: &tauri::AppHandle<R>,
 ) -> tauri::Result<Menu<R>> {
@@ -86,10 +69,6 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
         MenuItemBuilder::with_id("check_for_updates", "Check for Updates...").build(handle)?;
     let settings_item = MenuItemBuilder::with_id("file_open_settings", "Settings...")
         .accelerator("CmdOrCtrl+,")
-        .build(handle)?;
-    #[cfg(target_os = "macos")]
-    let app_quit_item = MenuItemBuilder::with_id("app_quit", format!("Quit {app_name}"))
-        .accelerator("CmdOrCtrl+Q")
         .build(handle)?;
     let app_menu = Submenu::with_items(
         handle,
@@ -105,9 +84,6 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
             &PredefinedMenuItem::hide(handle, None)?,
             &PredefinedMenuItem::hide_others(handle, None)?,
             &PredefinedMenuItem::separator(handle)?,
-            #[cfg(target_os = "macos")]
-            &app_quit_item,
-            #[cfg(not(target_os = "macos"))]
             &PredefinedMenuItem::quit(handle, None)?,
         ],
     )?;
@@ -383,31 +359,6 @@ pub(crate) fn handle_menu_event<R: tauri::Runtime>(
         "file_quit" => {
             app.exit(0);
         }
-        "app_quit" => {
-            if should_hold_to_quit(app) {
-                let state = app.state::<AppState>();
-                state.menu_quit_ack.store(false, Ordering::SeqCst);
-                if let Some(window) = app.get_webview_window("main") {
-                    if window.emit("menu-quit", ()).is_err() {
-                        app.exit(0);
-                        return;
-                    }
-                } else {
-                    app.exit(0);
-                    return;
-                }
-                let app_handle = app.clone();
-                tauri::async_runtime::spawn(async move {
-                    sleep(Duration::from_millis(MENU_QUIT_FALLBACK_MS)).await;
-                    let state = app_handle.state::<AppState>();
-                    if !state.menu_quit_ack.load(Ordering::SeqCst) {
-                        app_handle.exit(0);
-                    }
-                });
-            } else {
-                app.exit(0);
-            }
-        }
         "view_fullscreen" => {
             if let Some(window) = app.get_webview_window("main") {
                 let is_fullscreen = window.is_fullscreen().unwrap_or(false);
@@ -450,12 +401,4 @@ fn emit_menu_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: &str) {
     } else {
         let _ = app.emit(event, ());
     }
-}
-
-fn should_hold_to_quit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
-    let state = app.state::<AppState>();
-    tauri::async_runtime::block_on(async {
-        let settings = state.app_settings.lock().await;
-        settings.experimental_hold_to_quit_enabled
-    })
 }

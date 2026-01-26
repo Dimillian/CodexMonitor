@@ -53,14 +53,6 @@ export async function getCodexConfigPath(): Promise<string> {
   return invoke<string>("get_codex_config_path");
 }
 
-export async function requestAppQuit(): Promise<void> {
-  return invoke("app_quit");
-}
-
-export async function ackMenuQuit(): Promise<void> {
-  return invoke("ack_menu_quit");
-}
-
 export async function addWorkspace(
   path: string,
   codex_bin: string | null,

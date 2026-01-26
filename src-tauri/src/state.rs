@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
-
 use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex;
 
@@ -20,7 +18,6 @@ pub(crate) struct AppState {
     pub(crate) settings_path: PathBuf,
     pub(crate) app_settings: Mutex<AppSettings>,
     pub(crate) dictation: Mutex<DictationState>,
-    pub(crate) menu_quit_ack: AtomicBool,
 }
 
 impl AppState {
@@ -42,7 +39,6 @@ impl AppState {
             settings_path,
             app_settings: Mutex::new(app_settings),
             dictation: Mutex::new(DictationState::default()),
-            menu_quit_ack: AtomicBool::new(false),
         }
     }
 }

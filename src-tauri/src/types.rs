@@ -402,11 +402,6 @@ pub(crate) struct AppSettings {
         rename = "experimentalUnifiedExecEnabled"
     )]
     pub(crate) experimental_unified_exec_enabled: bool,
-    #[serde(
-        default = "default_experimental_hold_to_quit_enabled",
-        rename = "experimentalHoldToQuitEnabled"
-    )]
-    pub(crate) experimental_hold_to_quit_enabled: bool,
     #[serde(default = "default_dictation_enabled", rename = "dictationEnabled")]
     pub(crate) dictation_enabled: bool,
     #[serde(
@@ -572,10 +567,6 @@ fn default_experimental_unified_exec_enabled() -> bool {
     false
 }
 
-fn default_experimental_hold_to_quit_enabled() -> bool {
-    false
-}
-
 fn default_dictation_enabled() -> bool {
     false
 }
@@ -720,7 +711,6 @@ impl Default for AppSettings {
             experimental_collaboration_modes_enabled: false,
             experimental_steer_enabled: false,
             experimental_unified_exec_enabled: false,
-            experimental_hold_to_quit_enabled: false,
             dictation_enabled: false,
             dictation_model_id: default_dictation_model_id(),
             dictation_preferred_language: None,
@@ -804,7 +794,6 @@ mod tests {
         assert_eq!(settings.code_font_size, 11);
         assert!(settings.notification_sounds_enabled);
         assert!(!settings.experimental_steer_enabled);
-        assert!(!settings.experimental_hold_to_quit_enabled);
         assert!(!settings.dictation_enabled);
         assert_eq!(settings.dictation_model_id, "base");
         assert!(settings.dictation_preferred_language.is_none());

@@ -46,6 +46,7 @@ pub fn run() {
             if window.label() != "main" {
                 return;
             }
+            #[cfg(target_os = "macos")]
             if let WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 let _ = window.hide();
@@ -75,8 +76,6 @@ pub fn run() {
             settings::update_app_settings,
             settings::get_codex_config_path,
             menu::menu_set_accelerators,
-            menu::app_quit,
-            menu::ack_menu_quit,
             codex::codex_doctor,
             workspaces::list_workspaces,
             workspaces::is_workspace_path_dir,

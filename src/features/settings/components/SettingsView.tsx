@@ -2599,30 +2599,6 @@ export function SettingsView({
                 )}
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">Hold ⌘Q to quit</div>
-                    <div className="settings-toggle-subtitle">
-                      Show a hold-to-quit progress bar at the top of the window.
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className={`settings-toggle ${
-                      appSettings.experimentalHoldToQuitEnabled ? "on" : ""
-                    }`}
-                    onClick={() =>
-                      void onUpdateAppSettings({
-                        ...appSettings,
-                        experimentalHoldToQuitEnabled:
-                          !appSettings.experimentalHoldToQuitEnabled,
-                      })
-                    }
-                    aria-pressed={appSettings.experimentalHoldToQuitEnabled}
-                  >
-                    <span className="settings-toggle-knob" />
-                  </button>
-                </div>
-                <div className="settings-toggle-row">
-                  <div>
                     <div className="settings-toggle-title">Multi-agent</div>
                     <div className="settings-toggle-subtitle">
                       Enable multi-agent collaboration tools in Codex.
