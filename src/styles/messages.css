@@ -761,11 +761,26 @@
   overflow-x: auto;
 }
 
+:root {
+  --message-link-color: rgba(196, 154, 255, 0.96);
+}
+
+:root[data-theme="light"] {
+  --message-link-color: rgba(109, 40, 217, 1);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --message-link-color: rgba(109, 40, 217, 1);
+  }
+}
+
 .markdown {
   white-space: normal;
   overflow-wrap: anywhere;
-  font-size: 12px;
-  line-height: 1.25;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-stronger);
 }
 
 .markdown > * {
@@ -773,7 +788,7 @@
 }
 
 .markdown > * + * {
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .markdown pre {
@@ -786,7 +801,12 @@
 }
 
 .message .markdown :not(pre) > code {
-  color: #b08cff;
+  color: var(--text-stronger);
+  background: color-mix(in srgb, var(--surface-command) 82%, transparent);
+  border: 1px solid var(--border-subtle);
+  padding: 1px 5px;
+  border-radius: 6px;
+  font-size: 0.97em;
 }
 
 
@@ -870,7 +890,7 @@
 }
 
 .message .markdown-linkblock a {
-  color: var(--text-accent);
+  color: var(--message-link-color);
   text-decoration: underline;
 }
 
@@ -880,17 +900,79 @@
 
 .markdown ul,
 .markdown ol {
+  padding-left: 18px;
+  margin: 0;
+  list-style-position: outside;
+}
+
+.markdown ul ul,
+.markdown ol ol,
+.markdown ul ol,
+.markdown ol ul {
+  margin-top: 6px;
+  margin-left: 8px;
   padding-left: 14px;
 }
 
-.markdown li + li {
-  margin-top: 0;
+.markdown li {
+  margin: 4px 0;
+  padding-left: 4px;
 }
 
-.markdown li {
-  margin: 0;
+.message.assistant .markdown li > ul,
+.message.assistant .markdown li > ol {
+  margin-top: 6px;
+  margin-left: 8px;
+  padding-left: 14px;
 }
 
 .markdown li p {
   margin: 0;
+}
+
+.message.assistant .markdown :where(p, ul, ol, pre, blockquote) {
+  max-width: 94ch;
+}
+
+.markdown :where(strong) {
+  font-weight: 600;
+}
+
+.markdown :where(em) {
+  color: var(--text-muted);
+}
+
+.markdown :where(h1, h2, h3, h4) {
+  font-size: 1em;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.markdown :where(blockquote) {
+  margin: 0;
+  padding: 6px 10px;
+  border-left: 2px solid var(--border-accent-soft);
+  background: color-mix(in srgb, var(--surface-card-strong) 65%, transparent);
+  border-radius: 6px;
+  color: var(--text-muted);
+}
+
+.markdown a {
+  color: var(--message-link-color);
+  text-underline-offset: 2px;
+}
+
+.markdown a:hover {
+  color: var(--text-stronger);
+}
+
+.message .markdown a,
+.message .markdown a:visited {
+  color: var(--message-link-color);
+  font-size: 0.98em;
+}
+
+.message .markdown a code {
+  color: var(--message-link-color);
+  font-size: 0.97em;
 }
