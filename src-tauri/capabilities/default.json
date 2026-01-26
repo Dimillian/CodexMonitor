@@ -5,6 +5,7 @@
   "windows": ["main", "about"],
   "permissions": [
     "core:default",
+    "core:webview:allow-set-webview-zoom",
     "opener:default",
     "dialog:default",
     "process:default",

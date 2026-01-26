@@ -11,11 +11,11 @@ type RenderedHook = {
   unmount: () => void;
 };
 
-function renderResizablePanels(uiScale = 1): RenderedHook {
+function renderResizablePanels(): RenderedHook {
   let result: HookResult | undefined;
 
   function Test() {
-    result = useResizablePanels(uiScale);
+    result = useResizablePanels();
     return null;
   }
 
