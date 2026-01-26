@@ -42,6 +42,30 @@ export function useTerminalTabs({
     return id;
   }, []);
 
+  const ensureTerminalWithTitle = useCallback(
+    (workspaceId: string, terminalId: string, title: string) => {
+      setTabsByWorkspace((prev) => {
+        const existing = prev[workspaceId] ?? [];
+        const index = existing.findIndex((tab) => tab.id === terminalId);
+        if (index === -1) {
+          return {
+            ...prev,
+            [workspaceId]: [...existing, { id: terminalId, title }],
+          };
+        }
+        if (existing[index].title === title) {
+          return prev;
+        }
+        const nextTabs = existing.slice();
+        nextTabs[index] = { ...existing[index], title };
+        return { ...prev, [workspaceId]: nextTabs };
+      });
+      setActiveTerminalIdByWorkspace((prev) => ({ ...prev, [workspaceId]: terminalId }));
+      return terminalId;
+    },
+    [],
+  );
+
   const closeTerminal = useCallback(
     (workspaceId: string, terminalId: string) => {
       setTabsByWorkspace((prev) => {
@@ -103,6 +127,7 @@ export function useTerminalTabs({
     terminals,
     activeTerminalId,
     createTerminal,
+    ensureTerminalWithTitle,
     closeTerminal,
     setActiveTerminal,
     ensureTerminal,

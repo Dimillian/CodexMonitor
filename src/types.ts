@@ -3,6 +3,7 @@ export type WorkspaceSettings = {
   sortOrder?: number | null;
   groupId?: string | null;
   gitRoot?: string | null;
+  launchScript?: string | null;
 };
 
 export type WorkspaceGroup = {

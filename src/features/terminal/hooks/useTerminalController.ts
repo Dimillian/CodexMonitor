@@ -38,6 +38,7 @@ export function useTerminalController({
     terminals: terminalTabs,
     activeTerminalId,
     createTerminal,
+    ensureTerminalWithTitle,
     closeTerminal,
     setActiveTerminal,
     ensureTerminal,
@@ -90,6 +91,22 @@ export function useTerminalController({
     [activeWorkspaceId, closeTerminal],
   );
 
+  const restartTerminalSession = useCallback(
+    async (workspaceId: string, terminalId: string) => {
+      cleanupTerminalRef.current?.(workspaceId, terminalId);
+      try {
+        await closeTerminalSession(workspaceId, terminalId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.includes("Terminal session not found")) {
+          onDebug(buildErrorDebugEntry("terminal close error", error));
+          throw error;
+        }
+      }
+    },
+    [onDebug],
+  );
+
   return {
     terminalTabs,
     activeTerminalId,
@@ -97,5 +114,7 @@ export function useTerminalController({
     onNewTerminal,
     onCloseTerminal,
     terminalState,
+    ensureTerminalWithTitle,
+    restartTerminalSession,
   };
 }

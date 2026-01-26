@@ -192,6 +192,16 @@ type LayoutNodesOptions = {
   onCopyThread: () => void | Promise<void>;
   onToggleTerminal: () => void;
   showTerminalButton: boolean;
+  launchScript: string | null;
+  launchScriptEditorOpen: boolean;
+  launchScriptDraft: string;
+  launchScriptSaving: boolean;
+  launchScriptError: string | null;
+  onRunLaunchScript: () => void;
+  onOpenLaunchScriptEditor: () => void;
+  onCloseLaunchScriptEditor: () => void;
+  onLaunchScriptDraftChange: (value: string) => void;
+  onSaveLaunchScript: () => void;
   mainHeaderActionsNode?: ReactNode;
   centerMode: "chat" | "diff";
   onExitDiff: () => void;
@@ -589,6 +599,16 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onToggleTerminal={options.onToggleTerminal}
       isTerminalOpen={options.terminalOpen}
       showTerminalButton={options.showTerminalButton}
+      launchScript={options.launchScript}
+      launchScriptEditorOpen={options.launchScriptEditorOpen}
+      launchScriptDraft={options.launchScriptDraft}
+      launchScriptSaving={options.launchScriptSaving}
+      launchScriptError={options.launchScriptError}
+      onRunLaunchScript={options.onRunLaunchScript}
+      onOpenLaunchScriptEditor={options.onOpenLaunchScriptEditor}
+      onCloseLaunchScriptEditor={options.onCloseLaunchScriptEditor}
+      onLaunchScriptDraftChange={options.onLaunchScriptDraftChange}
+      onSaveLaunchScript={options.onSaveLaunchScript}
       extraActionsNode={options.mainHeaderActionsNode}
     />
   ) : null;

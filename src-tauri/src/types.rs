@@ -262,6 +262,8 @@ pub(crate) struct WorkspaceSettings {
     pub(crate) group_id: Option<String>,
     #[serde(default, rename = "gitRoot")]
     pub(crate) git_root: Option<String>,
+    #[serde(default, rename = "launchScript")]
+    pub(crate) launch_script: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
