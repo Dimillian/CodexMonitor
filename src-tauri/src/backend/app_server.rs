@@ -13,6 +13,7 @@ use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::timeout;
 
 use crate::backend::events::{AppServerEvent, EventSink};
+use crate::codex_args::apply_codex_args;
 use crate::types::WorkspaceEntry;
 
 fn extract_thread_id(value: &Value) -> Option<String> {
@@ -186,6 +187,7 @@ pub(crate) async fn check_codex_installation(
 pub(crate) async fn spawn_workspace_session<E: EventSink>(
     entry: WorkspaceEntry,
     default_codex_bin: Option<String>,
+    codex_args: Option<String>,
     client_version: String,
     event_sink: E,
     codex_home: Option<PathBuf>,
@@ -198,6 +200,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     let _ = check_codex_installation(codex_bin.clone()).await?;
 
     let mut command = build_codex_command_with_bin(codex_bin);
+    apply_codex_args(&mut command, codex_args.as_deref())?;
     command.current_dir(&entry.path);
     command.arg("app-server");
     if let Some(codex_home) = codex_home {

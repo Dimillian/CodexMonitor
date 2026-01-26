@@ -572,7 +572,7 @@ export function PromptPanel({
                     className="prompt-empty-link"
                     onClick={() => void onRevealGeneralPrompts()}
                   >
-                    ~/.codex/prompts
+                    CODEX_HOME/prompts
                   </button>
                   .
                 </div>

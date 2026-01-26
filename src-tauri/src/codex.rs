@@ -14,7 +14,8 @@ use crate::backend::app_server::{
     build_codex_command_with_bin, build_codex_path_env, check_codex_installation,
     spawn_workspace_session as spawn_workspace_session_inner,
 };
-use crate::codex_home::resolve_workspace_codex_home;
+use crate::codex_args::apply_codex_args;
+use crate::codex_home::{resolve_default_codex_home, resolve_workspace_codex_home};
 use crate::event_sink::TauriEventSink;
 use crate::remote_backend;
 use crate::rules;
@@ -24,6 +25,7 @@ use crate::types::WorkspaceEntry;
 pub(crate) async fn spawn_workspace_session(
     entry: WorkspaceEntry,
     default_codex_bin: Option<String>,
+    codex_args: Option<String>,
     app_handle: AppHandle,
     codex_home: Option<PathBuf>,
 ) -> Result<Arc<WorkspaceSession>, String> {
@@ -32,6 +34,7 @@ pub(crate) async fn spawn_workspace_session(
     spawn_workspace_session_inner(
         entry,
         default_codex_bin,
+        codex_args,
         client_version,
         event_sink,
         codex_home,
@@ -42,19 +45,25 @@ pub(crate) async fn spawn_workspace_session(
 #[tauri::command]
 pub(crate) async fn codex_doctor(
     codex_bin: Option<String>,
+    codex_args: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
-    let default_bin = {
+    let (default_bin, default_args) = {
         let settings = state.app_settings.lock().await;
-        settings.codex_bin.clone()
+        (settings.codex_bin.clone(), settings.codex_args.clone())
     };
     let resolved = codex_bin
         .clone()
         .filter(|value| !value.trim().is_empty())
         .or(default_bin);
+    let resolved_args = codex_args
+        .clone()
+        .filter(|value| !value.trim().is_empty())
+        .or(default_args);
     let path_env = build_codex_path_env(resolved.as_deref());
     let version = check_codex_installation(resolved.clone()).await?;
     let mut command = build_codex_command_with_bin(resolved.clone());
+    apply_codex_args(&mut command, resolved_args.as_deref())?;
     command.arg("app-server");
     command.arg("--help");
     command.stdout(std::process::Stdio::piped());
@@ -584,21 +593,22 @@ pub(crate) async fn remember_approval_rule(
         return Err("empty command".to_string());
     }
 
-    let (entry, parent_path) = {
+    let (entry, parent_entry) = {
         let workspaces = state.workspaces.lock().await;
         let entry = workspaces
             .get(&workspace_id)
             .ok_or("workspace not found")?
             .clone();
-        let parent_path = entry
+        let parent_entry = entry
             .parent_id
             .as_ref()
             .and_then(|parent_id| workspaces.get(parent_id))
-            .map(|parent| parent.path.clone());
-        (entry, parent_path)
+            .cloned();
+        (entry, parent_entry)
     };
 
-    let codex_home = resolve_workspace_codex_home(&entry, parent_path.as_deref())
+    let codex_home = resolve_workspace_codex_home(&entry, parent_entry.as_ref())
+        .or_else(resolve_default_codex_home)
         .ok_or("Unable to resolve CODEX_HOME".to_string())?;
     let rules_path = rules::default_rules_path(&codex_home);
     rules::append_prefix_rule(&rules_path, &command)?;

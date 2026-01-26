@@ -3,6 +3,7 @@ export type WorkspaceSettings = {
   sortOrder?: number | null;
   groupId?: string | null;
   gitRoot?: string | null;
+  codexHome?: string | null;
 };
 
 export type WorkspaceGroup = {
@@ -90,6 +91,7 @@ export type ComposerEditorSettings = {
 
 export type AppSettings = {
   codexBin: string | null;
+  codexArgs: string | null;
   backendMode: BackendMode;
   remoteBackendHost: string;
   remoteBackendToken: string | null;

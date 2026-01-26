@@ -17,6 +17,7 @@ import type {
   AppSettings,
   CodexDoctorResult,
   DictationModelStatus,
+  WorkspaceSettings,
   WorkspaceGroup,
   WorkspaceInfo,
 } from "../../../types";
@@ -118,8 +119,15 @@ export type SettingsViewProps = {
   onToggleTransparency: (value: boolean) => void;
   appSettings: AppSettings;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
-  onRunDoctor: (codexBin: string | null) => Promise<CodexDoctorResult>;
+  onRunDoctor: (
+    codexBin: string | null,
+    codexArgs: string | null,
+  ) => Promise<CodexDoctorResult>;
   onUpdateWorkspaceCodexBin: (id: string, codexBin: string | null) => Promise<void>;
+  onUpdateWorkspaceSettings: (
+    id: string,
+    settings: WorkspaceSettings,
+  ) => Promise<void>;
   scaleShortcutTitle: string;
   scaleShortcutText: string;
   onTestNotificationSound: () => void;
@@ -198,6 +206,7 @@ export function SettingsView({
   onUpdateAppSettings,
   onRunDoctor,
   onUpdateWorkspaceCodexBin,
+  onUpdateWorkspaceSettings,
   scaleShortcutTitle,
   scaleShortcutText,
   onTestNotificationSound,
@@ -209,6 +218,7 @@ export function SettingsView({
 }: SettingsViewProps) {
   const [activeSection, setActiveSection] = useState<CodexSection>("projects");
   const [codexPathDraft, setCodexPathDraft] = useState(appSettings.codexBin ?? "");
+  const [codexArgsDraft, setCodexArgsDraft] = useState(appSettings.codexArgs ?? "");
   const [remoteHostDraft, setRemoteHostDraft] = useState(appSettings.remoteBackendHost);
   const [remoteTokenDraft, setRemoteTokenDraft] = useState(appSettings.remoteBackendToken ?? "");
   const [scaleDraft, setScaleDraft] = useState(
@@ -216,10 +226,13 @@ export function SettingsView({
   );
   const [uiFontDraft, setUiFontDraft] = useState(appSettings.uiFontFamily);
   const [codeFontDraft, setCodeFontDraft] = useState(appSettings.codeFontFamily);
-  const [codeFontSizeDraft, setCodeFontSizeDraft] = useState(
-    appSettings.codeFontSize,
-  );
-  const [overrideDrafts, setOverrideDrafts] = useState<Record<string, string>>({});
+  const [codeFontSizeDraft, setCodeFontSizeDraft] = useState(appSettings.codeFontSize);
+  const [codexBinOverrideDrafts, setCodexBinOverrideDrafts] = useState<
+    Record<string, string>
+  >({});
+  const [codexHomeOverrideDrafts, setCodexHomeOverrideDrafts] = useState<
+    Record<string, string>
+  >({});
   const [groupDrafts, setGroupDrafts] = useState<Record<string, string>>({});
   const [newGroupName, setNewGroupName] = useState("");
   const [groupError, setGroupError] = useState<string | null>(null);
@@ -259,6 +272,10 @@ export function SettingsView({
     () => groupedWorkspaces.flatMap((group) => group.workspaces),
     [groupedWorkspaces],
   );
+  const hasCodexHomeOverrides = useMemo(
+    () => projects.some((workspace) => workspace.settings.codexHome != null),
+    [projects],
+  );
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -290,6 +307,10 @@ export function SettingsView({
   useEffect(() => {
     setCodexPathDraft(appSettings.codexBin ?? "");
   }, [appSettings.codexBin]);
+
+  useEffect(() => {
+    setCodexArgsDraft(appSettings.codexArgs ?? "");
+  }, [appSettings.codexArgs]);
 
   useEffect(() => {
     setRemoteHostDraft(appSettings.remoteBackendHost);
@@ -362,11 +383,17 @@ export function SettingsView({
   }, []);
 
   useEffect(() => {
-    setOverrideDrafts((prev) => {
+    setCodexBinOverrideDrafts((prev) => {
       const next: Record<string, string> = {};
       projects.forEach((workspace) => {
-        next[workspace.id] =
-          prev[workspace.id] ?? workspace.codex_bin ?? "";
+        next[workspace.id] = prev[workspace.id] ?? workspace.codex_bin ?? "";
+      });
+      return next;
+    });
+    setCodexHomeOverrideDrafts((prev) => {
+      const next: Record<string, string> = {};
+      projects.forEach((workspace) => {
+        next[workspace.id] = prev[workspace.id] ?? workspace.settings.codexHome ?? "";
       });
       return next;
     });
@@ -388,8 +415,11 @@ export function SettingsView({
     }
   }, [initialSection]);
 
+  const nextCodexBin = codexPathDraft.trim() ? codexPathDraft.trim() : null;
+  const nextCodexArgs = codexArgsDraft.trim() ? codexArgsDraft.trim() : null;
   const codexDirty =
-    (codexPathDraft.trim() || null) !== (appSettings.codexBin ?? null);
+    nextCodexBin !== (appSettings.codexBin ?? null) ||
+    nextCodexArgs !== (appSettings.codexArgs ?? null);
 
   const trimmedScale = scaleDraft.trim();
   const parsedPercent = trimmedScale
@@ -402,7 +432,8 @@ export function SettingsView({
     try {
       await onUpdateAppSettings({
         ...appSettings,
-        codexBin: codexPathDraft.trim() ? codexPathDraft.trim() : null,
+        codexBin: nextCodexBin,
+        codexArgs: nextCodexArgs,
       });
     } finally {
       setIsSavingSettings(false);
@@ -523,16 +554,14 @@ export function SettingsView({
   const handleRunDoctor = async () => {
     setDoctorState({ status: "running", result: null });
     try {
-      const result = await onRunDoctor(
-        codexPathDraft.trim() ? codexPathDraft.trim() : null,
-      );
+      const result = await onRunDoctor(nextCodexBin, nextCodexArgs);
       setDoctorState({ status: "done", result });
     } catch (error) {
       setDoctorState({
         status: "done",
         result: {
           ok: false,
-          codexBin: codexPathDraft.trim() ? codexPathDraft.trim() : null,
+          codexBin: nextCodexBin,
           version: null,
           appServerOk: false,
           details: error instanceof Error ? error.message : String(error),
@@ -2006,6 +2035,29 @@ export function SettingsView({
                   <div className="settings-help">
                     Leave empty to use the system PATH resolution.
                   </div>
+                  <label className="settings-field-label" htmlFor="codex-args">
+                    Default Codex args
+                  </label>
+                  <div className="settings-field-row">
+                    <input
+                      id="codex-args"
+                      className="settings-input"
+                      value={codexArgsDraft}
+                      placeholder="--profile personal"
+                      onChange={(event) => setCodexArgsDraft(event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => setCodexArgsDraft("")}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Extra flags passed before <code>app-server</code>. Use quotes for values with
+                    spaces.
+                  </div>
                 <div className="settings-field-actions">
                   {codexDirty && (
                     <button
@@ -2162,38 +2214,82 @@ export function SettingsView({
                           <div className="settings-project-path">{workspace.path}</div>
                         </div>
                         <div className="settings-override-actions">
-                          <input
-                            className="settings-input settings-input--compact"
-                            value={overrideDrafts[workspace.id] ?? ""}
-                            placeholder="Use default"
-                            onChange={(event) =>
-                              setOverrideDrafts((prev) => ({
-                                ...prev,
-                                [workspace.id]: event.target.value,
-                              }))
-                            }
-                            onBlur={async () => {
-                              const draft = overrideDrafts[workspace.id] ?? "";
-                              const nextValue = draft.trim() || null;
-                              if (nextValue === (workspace.codex_bin ?? null)) {
-                                return;
+                          <div className="settings-override-field">
+                            <input
+                              className="settings-input settings-input--compact"
+                              value={codexBinOverrideDrafts[workspace.id] ?? ""}
+                              placeholder="Codex binary override"
+                              onChange={(event) =>
+                                setCodexBinOverrideDrafts((prev) => ({
+                                  ...prev,
+                                  [workspace.id]: event.target.value,
+                                }))
                               }
-                              await onUpdateWorkspaceCodexBin(workspace.id, nextValue);
-                            }}
-                          />
-                          <button
-                            type="button"
-                            className="ghost"
-                            onClick={async () => {
-                              setOverrideDrafts((prev) => ({
-                                ...prev,
-                                [workspace.id]: "",
-                              }));
-                              await onUpdateWorkspaceCodexBin(workspace.id, null);
-                            }}
-                          >
-                            Clear
-                          </button>
+                              onBlur={async () => {
+                                const draft = codexBinOverrideDrafts[workspace.id] ?? "";
+                                const nextValue = draft.trim() || null;
+                                if (nextValue === (workspace.codex_bin ?? null)) {
+                                  return;
+                                }
+                                await onUpdateWorkspaceCodexBin(workspace.id, nextValue);
+                              }}
+                              aria-label={`Codex binary override for ${workspace.name}`}
+                            />
+                            <button
+                              type="button"
+                              className="ghost"
+                              onClick={async () => {
+                                setCodexBinOverrideDrafts((prev) => ({
+                                  ...prev,
+                                  [workspace.id]: "",
+                                }));
+                                await onUpdateWorkspaceCodexBin(workspace.id, null);
+                              }}
+                            >
+                              Clear
+                            </button>
+                          </div>
+                          <div className="settings-override-field">
+                            <input
+                              className="settings-input settings-input--compact"
+                              value={codexHomeOverrideDrafts[workspace.id] ?? ""}
+                              placeholder="CODEX_HOME override"
+                              onChange={(event) =>
+                                setCodexHomeOverrideDrafts((prev) => ({
+                                  ...prev,
+                                  [workspace.id]: event.target.value,
+                                }))
+                              }
+                              onBlur={async () => {
+                                const draft = codexHomeOverrideDrafts[workspace.id] ?? "";
+                                const nextValue = draft.trim() || null;
+                                if (nextValue === (workspace.settings.codexHome ?? null)) {
+                                  return;
+                                }
+                                await onUpdateWorkspaceSettings(workspace.id, {
+                                  ...workspace.settings,
+                                  codexHome: nextValue,
+                                });
+                              }}
+                              aria-label={`CODEX_HOME override for ${workspace.name}`}
+                            />
+                            <button
+                              type="button"
+                              className="ghost"
+                              onClick={async () => {
+                                setCodexHomeOverrideDrafts((prev) => ({
+                                  ...prev,
+                                  [workspace.id]: "",
+                                }));
+                                await onUpdateWorkspaceSettings(workspace.id, {
+                                  ...workspace.settings,
+                                  codexHome: null,
+                                });
+                              }}
+                            >
+                              Clear
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -2211,6 +2307,13 @@ export function SettingsView({
                 <div className="settings-section-subtitle">
                   Preview features that may change or be removed.
                 </div>
+                {hasCodexHomeOverrides && (
+                  <div className="settings-help">
+                    Experimental flags are stored in the default CODEX_HOME config.toml.
+                    <br />
+                    Workspace overrides are not updated.
+                  </div>
+                )}
                 <div className="settings-toggle-row">
                   <div>
                     <div className="settings-toggle-title">Config file</div>

@@ -1,6 +1,8 @@
 #[allow(dead_code)]
 #[path = "../backend/mod.rs"]
 mod backend;
+#[path = "../codex_args.rs"]
+mod codex_args;
 #[path = "../codex_home.rs"]
 mod codex_home;
 #[path = "../codex_config.rs"]
@@ -166,15 +168,16 @@ impl DaemonState {
             settings: WorkspaceSettings::default(),
         };
 
-        let default_bin = {
+        let (default_bin, codex_args) = {
             let settings = self.app_settings.lock().await;
-            settings.codex_bin.clone()
+            (settings.codex_bin.clone(), settings.codex_args.clone())
         };
 
         let codex_home = codex_home::resolve_workspace_codex_home(&entry, None);
         let session = spawn_workspace_session(
             entry.clone(),
             default_bin,
+            codex_args,
             client_version,
             self.event_sink.clone(),
             codex_home,
@@ -269,15 +272,16 @@ impl DaemonState {
             settings: WorkspaceSettings::default(),
         };
 
-        let default_bin = {
+        let (default_bin, codex_args) = {
             let settings = self.app_settings.lock().await;
-            settings.codex_bin.clone()
+            (settings.codex_bin.clone(), settings.codex_args.clone())
         };
 
-        let codex_home = codex_home::resolve_workspace_codex_home(&entry, Some(&parent_entry.path));
+        let codex_home = codex_home::resolve_workspace_codex_home(&entry, Some(&parent_entry));
         let session = spawn_workspace_session(
             entry.clone(),
             default_bin,
+            codex_args,
             client_version,
             self.event_sink.clone(),
             codex_home,
@@ -533,15 +537,16 @@ impl DaemonState {
         let was_connected = self.sessions.lock().await.contains_key(&entry_snapshot.id);
         if was_connected {
             self.kill_session(&entry_snapshot.id).await;
-            let default_bin = {
+            let (default_bin, codex_args) = {
                 let settings = self.app_settings.lock().await;
-                settings.codex_bin.clone()
+                (settings.codex_bin.clone(), settings.codex_args.clone())
             };
             let codex_home =
-                codex_home::resolve_workspace_codex_home(&entry_snapshot, Some(&parent.path));
+                codex_home::resolve_workspace_codex_home(&entry_snapshot, Some(&parent));
             match spawn_workspace_session(
                 entry_snapshot.clone(),
                 default_bin,
+                codex_args,
                 client_version,
                 self.event_sink.clone(),
                 codex_home,
@@ -742,25 +747,26 @@ impl DaemonState {
                 .ok_or("workspace not found")?
         };
 
-        let default_bin = {
+        let (default_bin, codex_args) = {
             let settings = self.app_settings.lock().await;
-            settings.codex_bin.clone()
+            (settings.codex_bin.clone(), settings.codex_args.clone())
         };
 
-        let parent_path = if entry.kind.is_worktree() {
+        let parent_entry = if entry.kind.is_worktree() {
             let workspaces = self.workspaces.lock().await;
             entry
                 .parent_id
                 .as_deref()
                 .and_then(|parent_id| workspaces.get(parent_id))
-                .map(|parent| parent.path.clone())
+                .cloned()
         } else {
             None
         };
-        let codex_home = codex_home::resolve_workspace_codex_home(&entry, parent_path.as_deref());
+        let codex_home = codex_home::resolve_workspace_codex_home(&entry, parent_entry.as_ref());
         let session = spawn_workspace_session(
             entry,
             default_bin,
+            codex_args,
             client_version,
             self.event_sink.clone(),
             codex_home,
@@ -1015,21 +1021,22 @@ impl DaemonState {
             return Err("empty command".to_string());
         }
 
-        let (entry, parent_path) = {
+        let (entry, parent_entry) = {
             let workspaces = self.workspaces.lock().await;
             let entry = workspaces
                 .get(&workspace_id)
                 .ok_or("workspace not found")?
                 .clone();
-            let parent_path = entry
+            let parent_entry = entry
                 .parent_id
                 .as_ref()
                 .and_then(|parent_id| workspaces.get(parent_id))
-                .map(|parent| parent.path.clone());
-            (entry, parent_path)
+                .cloned();
+            (entry, parent_entry)
         };
 
-        let codex_home = codex_home::resolve_workspace_codex_home(&entry, parent_path.as_deref())
+        let codex_home = codex_home::resolve_workspace_codex_home(&entry, parent_entry.as_ref())
+            .or_else(codex_home::resolve_default_codex_home)
             .ok_or("Unable to resolve CODEX_HOME".to_string())?;
         let rules_path = rules::default_rules_path(&codex_home);
         rules::append_prefix_rule(&rules_path, &command)?;

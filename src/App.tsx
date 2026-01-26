@@ -1866,6 +1866,9 @@ function MainApp() {
           onUpdateWorkspaceCodexBin: async (id, codexBin) => {
             await updateWorkspaceCodexBin(id, codexBin);
           },
+          onUpdateWorkspaceSettings: async (id, settings) => {
+            await updateWorkspaceSettings(id, settings);
+          },
           scaleShortcutTitle,
           scaleShortcutText,
           onTestNotificationSound: handleTestNotificationSound,
