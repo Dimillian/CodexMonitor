@@ -78,12 +78,18 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     typeof window === "undefined"
       ? null
       : window.localStorage.getItem(OPEN_APP_STORAGE_KEY);
-  const selectedOpenAppId =
-    normalizedTargets.find(
-      (target) =>
-        target.id === settings.selectedOpenAppId ||
-        (storedOpenAppId ? target.id === storedOpenAppId : false),
-    )?.id ?? normalizedTargets[0]?.id ?? DEFAULT_OPEN_APP_ID;
+  const hasPersistedSelection = normalizedTargets.some(
+    (target) => target.id === settings.selectedOpenAppId,
+  );
+  const hasStoredSelection =
+    !hasPersistedSelection &&
+    storedOpenAppId !== null &&
+    normalizedTargets.some((target) => target.id === storedOpenAppId);
+  const selectedOpenAppId = hasPersistedSelection
+    ? settings.selectedOpenAppId
+    : hasStoredSelection
+      ? storedOpenAppId
+      : normalizedTargets[0]?.id ?? DEFAULT_OPEN_APP_ID;
   return {
     ...settings,
     uiScale: clampUiScale(settings.uiScale),
