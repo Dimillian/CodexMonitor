@@ -126,6 +126,7 @@ pub fn run() {
             workspaces::list_workspace_files,
             workspaces::read_workspace_file,
             workspaces::open_workspace_in,
+            workspaces::get_open_app_icon,
             git::list_git_branches,
             git::checkout_git_branch,
             git::create_git_branch,

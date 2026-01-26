@@ -9,9 +9,13 @@ type UseComposerShortcutsOptions = {
   modelShortcut: string | null;
   accessShortcut: string | null;
   reasoningShortcut: string | null;
+  collaborationShortcut: string | null;
   models: ModelOption[];
+  collaborationModes: { id: string; label: string }[];
   selectedModelId: string | null;
   onSelectModel: (id: string) => void;
+  selectedCollaborationModeId: string | null;
+  onSelectCollaborationMode: (id: string | null) => void;
   accessMode: AccessMode;
   onSelectAccessMode: (mode: AccessMode) => void;
   reasoningOptions: string[];
@@ -26,9 +30,13 @@ export function useComposerShortcuts({
   modelShortcut,
   accessShortcut,
   reasoningShortcut,
+  collaborationShortcut,
   models,
+  collaborationModes,
   selectedModelId,
   onSelectModel,
+  selectedCollaborationModeId,
+  onSelectCollaborationMode,
   accessMode,
   onSelectAccessMode,
   reasoningOptions,
@@ -78,6 +86,24 @@ export function useComposerShortcuts({
         if (nextEffort) {
           onSelectEffort(nextEffort);
         }
+        return;
+      }
+      if (
+        collaborationModes.length > 0 &&
+        matchesShortcut(event, collaborationShortcut)
+      ) {
+        event.preventDefault();
+        const currentIndex = collaborationModes.findIndex(
+          (mode) => mode.id === selectedCollaborationModeId,
+        );
+        const nextIndex =
+          currentIndex >= 0
+            ? (currentIndex + 1) % collaborationModes.length
+            : 0;
+        const nextMode = collaborationModes[nextIndex];
+        if (nextMode) {
+          onSelectCollaborationMode(nextMode.id);
+        }
       }
     };
 
@@ -86,13 +112,17 @@ export function useComposerShortcuts({
   }, [
     accessMode,
     accessShortcut,
+    collaborationModes,
+    collaborationShortcut,
     modelShortcut,
     models,
+    onSelectCollaborationMode,
     onSelectAccessMode,
     onSelectEffort,
     onSelectModel,
     reasoningOptions,
     reasoningShortcut,
+    selectedCollaborationModeId,
     selectedEffort,
     selectedModelId,
     textareaRef,

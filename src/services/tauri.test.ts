@@ -5,6 +5,8 @@ import {
   getGitHubIssues,
   getGitLog,
   getGitStatus,
+  getOpenAppIcon,
+  openWorkspaceIn,
   stageGitAll,
   respondToServerRequest,
   respondToUserInputRequest,
@@ -90,6 +92,34 @@ describe("tauri invoke wrappers", () => {
 
     expect(invokeMock).toHaveBeenCalledWith("stage_git_all", {
       workspaceId: "ws-6",
+    });
+  });
+
+  it("maps openWorkspaceIn options", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await openWorkspaceIn("/tmp/project", {
+      appName: "Xcode",
+      args: ["--reuse-window"],
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("open_workspace_in", {
+      path: "/tmp/project",
+      app: "Xcode",
+      command: null,
+      args: ["--reuse-window"],
+    });
+  });
+
+  it("invokes get_open_app_icon", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce("data:image/png;base64,abc");
+
+    await getOpenAppIcon("Xcode");
+
+    expect(invokeMock).toHaveBeenCalledWith("get_open_app_icon", {
+      appName: "Xcode",
     });
   });
 

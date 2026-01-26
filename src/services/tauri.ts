@@ -132,8 +132,24 @@ export async function applyWorktreeChanges(workspaceId: string): Promise<void> {
   return invoke("apply_worktree_changes", { workspaceId });
 }
 
-export async function openWorkspaceIn(path: string, app: string): Promise<void> {
-  return invoke("open_workspace_in", { path, app });
+export async function openWorkspaceIn(
+  path: string,
+  options: {
+    appName?: string | null;
+    command?: string | null;
+    args?: string[];
+  },
+): Promise<void> {
+  return invoke("open_workspace_in", {
+    path,
+    app: options.appName ?? null,
+    command: options.command ?? null,
+    args: options.args ?? [],
+  });
+}
+
+export async function getOpenAppIcon(appName: string): Promise<string | null> {
+  return invoke<string | null>("get_open_app_icon", { appName });
 }
 
 export async function connectWorkspace(id: string): Promise<void> {

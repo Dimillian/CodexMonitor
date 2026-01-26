@@ -7,6 +7,23 @@ use ignore::WalkBuilder;
 use crate::types::{GitLogEntry, WorkspaceEntry};
 use crate::utils::normalize_git_path;
 
+pub(crate) fn image_mime_type(path: &str) -> Option<&'static str> {
+    let ext = Path::new(path)
+        .extension()
+        .and_then(|value| value.to_str())?
+        .to_ascii_lowercase();
+    match ext.as_str() {
+        "png" => Some("image/png"),
+        "jpg" | "jpeg" => Some("image/jpeg"),
+        "gif" => Some("image/gif"),
+        "webp" => Some("image/webp"),
+        "svg" => Some("image/svg+xml"),
+        "bmp" => Some("image/bmp"),
+        "ico" => Some("image/x-icon"),
+        _ => None,
+    }
+}
+
 pub(crate) fn commit_to_entry(commit: git2::Commit) -> GitLogEntry {
     let summary = commit.summary().unwrap_or("").to_string();
     let author = commit.author().name().unwrap_or("").to_string();
@@ -69,6 +86,21 @@ pub(crate) fn diff_patch_to_string(patch: &mut git2::Patch) -> Result<String, gi
         .as_str()
         .map(|value| value.to_string())
         .unwrap_or_else(|| String::from_utf8_lossy(&buf).to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::image_mime_type;
+
+    #[test]
+    fn image_mime_type_detects_known_extensions() {
+        assert_eq!(image_mime_type("icon.PNG"), Some("image/png"));
+        assert_eq!(image_mime_type("photo.jpeg"), Some("image/jpeg"));
+        assert_eq!(image_mime_type("vector.SVG"), Some("image/svg+xml"));
+        assert_eq!(image_mime_type("glyph.ico"), Some("image/x-icon"));
+        assert_eq!(image_mime_type("readme.txt"), None);
+    }
+
 }
 
 pub(crate) fn parse_github_repo(remote_url: &str) -> Option<String> {

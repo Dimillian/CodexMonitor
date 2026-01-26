@@ -3,6 +3,7 @@ import type { AccessMode } from "../../../types";
 import { useTauriEvent } from "../../app/hooks/useTauriEvent";
 import {
   subscribeMenuCycleAccessMode,
+  subscribeMenuCycleCollaborationMode,
   subscribeMenuCycleModel,
   subscribeMenuCycleReasoning,
 } from "../../../services/events";
@@ -13,6 +14,9 @@ type UseComposerMenuActionsOptions = {
   models: ModelOption[];
   selectedModelId: string | null;
   onSelectModel: (id: string) => void;
+  collaborationModes: { id: string; label: string }[];
+  selectedCollaborationModeId: string | null;
+  onSelectCollaborationMode: (id: string | null) => void;
   accessMode: AccessMode;
   onSelectAccessMode: (mode: AccessMode) => void;
   reasoningOptions: string[];
@@ -27,6 +31,9 @@ export function useComposerMenuActions({
   models,
   selectedModelId,
   onSelectModel,
+  collaborationModes,
+  selectedCollaborationModeId,
+  onSelectCollaborationMode,
   accessMode,
   onSelectAccessMode,
   reasoningOptions,
@@ -58,6 +65,23 @@ export function useComposerMenuActions({
           onSelectAccessMode(nextAccess);
         }
       },
+      cycleCollaborationMode() {
+        if (collaborationModes.length === 0) {
+          return;
+        }
+        const currentIndex = collaborationModes.findIndex(
+          (mode) => mode.id === selectedCollaborationModeId,
+        );
+        const nextIndex =
+          currentIndex >= 0
+            ? (currentIndex + 1) % collaborationModes.length
+            : 0;
+        const nextMode = collaborationModes[nextIndex];
+        if (nextMode) {
+          onFocusComposer?.();
+          onSelectCollaborationMode(nextMode.id);
+        }
+      },
       cycleReasoning() {
         if (reasoningOptions.length === 0) {
           return;
@@ -74,12 +98,15 @@ export function useComposerMenuActions({
     }),
     [
       accessMode,
+      collaborationModes,
       models,
       onFocusComposer,
+      onSelectCollaborationMode,
       onSelectAccessMode,
       onSelectEffort,
       onSelectModel,
       reasoningOptions,
+      selectedCollaborationModeId,
       selectedEffort,
       selectedModelId,
     ],
@@ -91,6 +118,10 @@ export function useComposerMenuActions({
 
   useTauriEvent(subscribeMenuCycleAccessMode, () => {
     handlers.cycleAccessMode();
+  });
+
+  useTauriEvent(subscribeMenuCycleCollaborationMode, () => {
+    handlers.cycleCollaborationMode();
   });
 
   useTauriEvent(subscribeMenuCycleReasoning, () => {

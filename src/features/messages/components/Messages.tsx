@@ -14,6 +14,7 @@ import Users from "lucide-react/dist/esm/icons/users";
 import Wrench from "lucide-react/dist/esm/icons/wrench";
 import type {
   ConversationItem,
+  OpenAppTarget,
   RequestUserInputRequest,
   RequestUserInputResponse,
 } from "../../../types";
@@ -31,6 +32,8 @@ type MessagesProps = {
   processingStartedAt?: number | null;
   lastDurationMs?: number | null;
   workspacePath?: string | null;
+  openTargets: OpenAppTarget[];
+  selectedOpenAppId: string;
   codeBlockCopyUseModifier?: boolean;
   userInputRequests?: RequestUserInputRequest[];
   onUserInputSubmit?: (
@@ -801,6 +804,8 @@ export const Messages = memo(function Messages({
   processingStartedAt = null,
   lastDurationMs = null,
   workspacePath = null,
+  openTargets,
+  selectedOpenAppId,
   codeBlockCopyUseModifier = false,
   userInputRequests = [],
   onUserInputSubmit,
@@ -824,7 +829,11 @@ export const Messages = memo(function Messages({
         )?.request_id ?? null)
       : null;
   const scrollKey = `${scrollKeyForItems(items)}-${activeUserInputRequestId ?? "no-input"}`;
-  const { openFileLink, showFileLinkMenu } = useFileLinkOpener(workspacePath);
+  const { openFileLink, showFileLinkMenu } = useFileLinkOpener(
+    workspacePath,
+    openTargets,
+    selectedOpenAppId,
+  );
 
   const isNearBottom = useCallback(
     (node: HTMLDivElement) =>

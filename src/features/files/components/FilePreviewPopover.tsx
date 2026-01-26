@@ -3,6 +3,7 @@ import type { CSSProperties, MouseEvent } from "react";
 import X from "lucide-react/dist/esm/icons/x";
 import { highlightLine, languageFromPath } from "../../../utils/syntax";
 import { OpenAppMenu } from "../../app/components/OpenAppMenu";
+import type { OpenAppTarget } from "../../../types";
 
 type FilePreviewPopoverProps = {
   path: string;
@@ -11,6 +12,10 @@ type FilePreviewPopoverProps = {
   truncated: boolean;
   previewKind?: "text" | "image";
   imageSrc?: string | null;
+  openTargets: OpenAppTarget[];
+  openAppIconById: Record<string, string>;
+  selectedOpenAppId: string;
+  onSelectOpenAppId: (id: string) => void;
   selection: { start: number; end: number } | null;
   onSelectLine: (index: number, event: MouseEvent<HTMLButtonElement>) => void;
   onClearSelection: () => void;
@@ -28,6 +33,10 @@ export function FilePreviewPopover({
   truncated,
   previewKind = "text",
   imageSrc = null,
+  openTargets,
+  openAppIconById,
+  selectedOpenAppId,
+  onSelectOpenAppId,
   selection,
   onSelectLine,
   onClearSelection,
@@ -87,7 +96,13 @@ export function FilePreviewPopover({
           <div className="file-preview-toolbar">
             <span className="file-preview-selection">{selectionLabel}</span>
             <div className="file-preview-actions">
-              <OpenAppMenu path={absolutePath} />
+              <OpenAppMenu
+                path={absolutePath}
+                openTargets={openTargets}
+                selectedOpenAppId={selectedOpenAppId}
+                onSelectOpenAppId={onSelectOpenAppId}
+                iconById={openAppIconById}
+              />
             </div>
           </div>
           {imageSrc ? (
@@ -105,7 +120,13 @@ export function FilePreviewPopover({
           <div className="file-preview-toolbar">
             <span className="file-preview-selection">{selectionLabel}</span>
             <div className="file-preview-actions">
-              <OpenAppMenu path={absolutePath} />
+              <OpenAppMenu
+                path={absolutePath}
+                openTargets={openTargets}
+                selectedOpenAppId={selectedOpenAppId}
+                onSelectOpenAppId={onSelectOpenAppId}
+                iconById={openAppIconById}
+              />
               <button
                 type="button"
                 className="ghost file-preview-action"

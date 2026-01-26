@@ -26,6 +26,7 @@ const baseSettings: AppSettings = {
   composerModelShortcut: null,
   composerAccessShortcut: null,
   composerReasoningShortcut: null,
+  composerCollaborationShortcut: null,
   newAgentShortcut: null,
   newWorktreeAgentShortcut: null,
   newCloneAgentShortcut: null,
@@ -66,6 +67,17 @@ const baseSettings: AppSettings = {
   composerListContinuation: false,
   composerCodeBlockCopyUseModifier: false,
   workspaceGroups: [],
+  openAppTargets: [
+    {
+      id: "vscode",
+      label: "VS Code",
+      kind: "app",
+      appName: "Visual Studio Code",
+      command: null,
+      args: [],
+    },
+  ],
+  selectedOpenAppId: "vscode",
 };
 
 const createDoctorResult = () => ({
@@ -96,6 +108,7 @@ const renderDisplaySection = (
     reduceTransparency: options.reduceTransparency ?? false,
     onToggleTransparency,
     appSettings: { ...baseSettings, ...options.appSettings },
+    openAppIconById: {},
     onUpdateAppSettings,
     workspaceGroups: [],
     groupedWorkspaces: [],
@@ -352,6 +365,7 @@ describe("SettingsView Shortcuts", () => {
         reduceTransparency={false}
         onToggleTransparency={vi.fn()}
         appSettings={baseSettings}
+        openAppIconById={{}}
         onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
         onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
@@ -390,6 +404,7 @@ describe("SettingsView Shortcuts", () => {
         reduceTransparency={false}
         onToggleTransparency={vi.fn()}
         appSettings={baseSettings}
+        openAppIconById={{}}
         onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
         onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}

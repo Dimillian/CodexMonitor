@@ -5,21 +5,24 @@ import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { openWorkspaceIn } from "../../../services/tauri";
-import { getStoredOpenAppId } from "../../app/utils/openApp";
-import type { OpenAppId } from "../../app/constants";
+import type { OpenAppTarget } from "../../../types";
 
 type OpenTarget = {
-  id: OpenAppId;
-  appName?: string;
+  id: string;
+  label: string;
+  appName?: string | null;
+  kind: OpenAppTarget["kind"];
+  command?: string | null;
+  args: string[];
 };
 
-const OPEN_TARGETS: Record<OpenTarget["id"], OpenTarget> = {
-  vscode: { id: "vscode", appName: "Visual Studio Code" },
-  cursor: { id: "cursor", appName: "Cursor" },
-  zed: { id: "zed", appName: "Zed" },
-  ghostty: { id: "ghostty", appName: "Ghostty" },
-  antigravity: { id: "antigravity", appName: "Antigravity" },
-  finder: { id: "finder" },
+const DEFAULT_OPEN_TARGET: OpenTarget = {
+  id: "vscode",
+  label: "VS Code",
+  appName: "Visual Studio Code",
+  kind: "app",
+  command: null,
+  args: [],
 };
 
 function resolveFilePath(path: string, workspacePath?: string | null) {
@@ -53,38 +56,67 @@ function revealLabel() {
   return "Reveal in File Manager";
 }
 
-export function useFileLinkOpener(workspacePath?: string | null) {
+export function useFileLinkOpener(
+  workspacePath: string | null,
+  openTargets: OpenAppTarget[],
+  selectedOpenAppId: string,
+) {
   const openFileLink = useCallback(
     async (rawPath: string) => {
-      const openAppId = getStoredOpenAppId();
-      const target = OPEN_TARGETS[openAppId] ?? OPEN_TARGETS.vscode;
+      const target = {
+        ...DEFAULT_OPEN_TARGET,
+        ...(openTargets.find((entry) => entry.id === selectedOpenAppId) ??
+          openTargets[0]),
+      };
       const resolvedPath = resolveFilePath(stripLineSuffix(rawPath), workspacePath);
 
-      if (target.id === "finder") {
+      if (target.kind === "finder") {
         await revealItemInDir(resolvedPath);
         return;
       }
 
-      if (target.appName) {
-        await openWorkspaceIn(resolvedPath, target.appName);
+      if (target.kind === "command") {
+        if (!target.command) {
+          return;
+        }
+        await openWorkspaceIn(resolvedPath, {
+          command: target.command,
+          args: target.args,
+        });
+        return;
       }
+
+      const appName = (target.appName || target.label || "").trim();
+      if (!appName) {
+        return;
+      }
+      await openWorkspaceIn(resolvedPath, {
+        appName,
+        args: target.args,
+      });
     },
-    [workspacePath],
+    [openTargets, selectedOpenAppId, workspacePath],
   );
 
   const showFileLinkMenu = useCallback(
     async (event: MouseEvent, rawPath: string) => {
       event.preventDefault();
       event.stopPropagation();
-      const openAppId = getStoredOpenAppId();
-      const target = OPEN_TARGETS[openAppId] ?? OPEN_TARGETS.vscode;
+      const target = {
+        ...DEFAULT_OPEN_TARGET,
+        ...(openTargets.find((entry) => entry.id === selectedOpenAppId) ??
+          openTargets[0]),
+      };
       const resolvedPath = resolveFilePath(stripLineSuffix(rawPath), workspacePath);
+      const appName = (target.appName || target.label || "").trim();
       const openLabel =
-        target.id === "finder"
+        target.kind === "finder"
           ? revealLabel()
-          : target.appName
-            ? `Open in ${target.appName}`
-            : "Open Link";
+          : target.kind === "command"
+            ? `Open in ${target.label}`
+            : appName
+              ? `Open in ${appName}`
+              : "Open Link";
       const items = [
         await MenuItem.new({
           text: openLabel,
@@ -92,7 +124,7 @@ export function useFileLinkOpener(workspacePath?: string | null) {
             await openFileLink(rawPath);
           },
         }),
-        ...(target.id === "finder"
+        ...(target.kind === "finder"
           ? []
           : [
               await MenuItem.new({
@@ -127,7 +159,7 @@ export function useFileLinkOpener(workspacePath?: string | null) {
       const position = new LogicalPosition(event.clientX, event.clientY);
       await menu.popup(position, window);
     },
-    [openFileLink, workspacePath],
+    [openFileLink, openTargets, selectedOpenAppId, workspacePath],
   );
 
   return { openFileLink, showFileLinkMenu };
