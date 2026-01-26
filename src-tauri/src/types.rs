@@ -266,6 +266,8 @@ pub(crate) struct WorkspaceSettings {
     pub(crate) codex_home: Option<String>,
     #[serde(default, rename = "codexArgs")]
     pub(crate) codex_args: Option<String>,
+    #[serde(default, rename = "launchScript")]
+    pub(crate) launch_script: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -285,8 +287,6 @@ pub(crate) struct OpenAppTarget {
 pub(crate) struct AppSettings {
     #[serde(default, rename = "codexBin")]
     pub(crate) codex_bin: Option<String>,
-    #[serde(default, rename = "codexArgs")]
-    pub(crate) codex_args: Option<String>,
     #[serde(default, rename = "backendMode")]
     pub(crate) backend_mode: BackendMode,
     #[serde(default = "default_remote_backend_host", rename = "remoteBackendHost")]
@@ -684,7 +684,6 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             codex_bin: None,
-            codex_args: None,
             backend_mode: BackendMode::Local,
             remote_backend_host: default_remote_backend_host(),
             remote_backend_token: None,
@@ -746,7 +745,6 @@ mod tests {
     fn app_settings_defaults_from_empty_json() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
         assert!(settings.codex_bin.is_none());
-        assert!(settings.codex_args.is_none());
         assert!(matches!(settings.backend_mode, BackendMode::Local));
         assert_eq!(settings.remote_backend_host, "127.0.0.1:4732");
         assert!(settings.remote_backend_token.is_none());
@@ -857,7 +855,6 @@ mod tests {
         assert!(entry.worktree.is_none());
         assert!(entry.settings.sort_order.is_none());
         assert!(entry.settings.group_id.is_none());
-        assert!(entry.settings.codex_args.is_none());
     }
 
     #[test]
@@ -867,6 +864,5 @@ mod tests {
         assert!(settings.sort_order.is_none());
         assert!(settings.group_id.is_none());
         assert!(settings.git_root.is_none());
-        assert!(settings.codex_args.is_none());
     }
 }

@@ -6,6 +6,7 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { BranchInfo, OpenAppTarget, WorkspaceInfo } from "../../../types";
 import type { ReactNode } from "react";
 import { OpenAppMenu } from "./OpenAppMenu";
+import { LaunchScriptButton } from "./LaunchScriptButton";
 
 type MainHeaderProps = {
   workspace: WorkspaceInfo;
@@ -28,6 +29,16 @@ type MainHeaderProps = {
   isTerminalOpen: boolean;
   showTerminalButton?: boolean;
   extraActionsNode?: ReactNode;
+  launchScript?: string | null;
+  launchScriptEditorOpen?: boolean;
+  launchScriptDraft?: string;
+  launchScriptSaving?: boolean;
+  launchScriptError?: string | null;
+  onRunLaunchScript?: () => void;
+  onOpenLaunchScriptEditor?: () => void;
+  onCloseLaunchScriptEditor?: () => void;
+  onLaunchScriptDraftChange?: (value: string) => void;
+  onSaveLaunchScript?: () => void;
   worktreeRename?: {
     name: string;
     error: string | null;
@@ -69,6 +80,16 @@ export function MainHeader({
   isTerminalOpen,
   showTerminalButton = true,
   extraActionsNode,
+  launchScript = null,
+  launchScriptEditorOpen = false,
+  launchScriptDraft = "",
+  launchScriptSaving = false,
+  launchScriptError = null,
+  onRunLaunchScript,
+  onOpenLaunchScriptEditor,
+  onCloseLaunchScriptEditor,
+  onLaunchScriptDraftChange,
+  onSaveLaunchScript,
   worktreeRename,
 }: MainHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -488,6 +509,24 @@ export function MainHeader({
         </div>
       </div>
       <div className="main-header-actions">
+        {onRunLaunchScript &&
+          onOpenLaunchScriptEditor &&
+          onCloseLaunchScriptEditor &&
+          onLaunchScriptDraftChange &&
+          onSaveLaunchScript && (
+            <LaunchScriptButton
+              launchScript={launchScript}
+              editorOpen={launchScriptEditorOpen}
+              draftScript={launchScriptDraft}
+              isSaving={launchScriptSaving}
+              error={launchScriptError}
+              onRun={onRunLaunchScript}
+              onOpenEditor={onOpenLaunchScriptEditor}
+              onCloseEditor={onCloseLaunchScriptEditor}
+              onDraftChange={onLaunchScriptDraftChange}
+              onSave={onSaveLaunchScript}
+            />
+          )}
         <OpenAppMenu
           path={resolvedWorktreePath}
           openTargets={openTargets}
