@@ -23,23 +23,28 @@ export function useWindowFocusState() {
 			}
 		};
 
-		const windowHandle = getCurrentWindow();
-		windowHandle
-			.listen("tauri://focus", handleFocus)
-			.then((handler) => {
-				unlistenFocus = handler;
-			})
-			.catch(() => {
-				// Ignore; fallback listeners below cover focus changes.
-			});
-		windowHandle
-			.listen("tauri://blur", handleBlur)
-			.then((handler) => {
-				unlistenBlur = handler;
-			})
-			.catch(() => {
-				// Ignore; fallback listeners below cover focus changes.
-			});
+		try {
+			const windowHandle = getCurrentWindow();
+			windowHandle
+				.listen("tauri://focus", handleFocus)
+				.then((handler) => {
+					unlistenFocus = handler;
+				})
+				.catch(() => {
+					// Ignore; fallback listeners below cover focus changes.
+				});
+			windowHandle
+				.listen("tauri://blur", handleBlur)
+				.then((handler) => {
+					unlistenBlur = handler;
+				})
+				.catch(() => {
+					// Ignore; fallback listeners below cover focus changes.
+				});
+		} catch {
+			// In non-Tauri environments, getCurrentWindow can throw.
+			// The DOM listeners below still provide focus state.
+		}
 
 		window.addEventListener("focus", handleFocus);
 		window.addEventListener("blur", handleBlur);

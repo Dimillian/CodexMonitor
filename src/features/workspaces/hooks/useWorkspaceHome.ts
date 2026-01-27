@@ -47,6 +47,7 @@ type UseWorkspaceHomeOptions = {
     images?: string[],
     options?: { model?: string | null; effort?: string | null },
   ) => Promise<void>;
+  onWorktreeCreated?: (worktree: WorkspaceInfo, parent: WorkspaceInfo) => Promise<void> | void;
 };
 
 type WorkspaceHomeState = {
@@ -169,6 +170,7 @@ export function useWorkspaceHome({
   connectWorkspace,
   startThreadForWorkspace,
   sendUserMessageToThread,
+  onWorktreeCreated,
 }: UseWorkspaceHomeOptions) {
   const [state, setState] = useState<WorkspaceHomeState>({
     runsByWorkspace: {},
@@ -510,6 +512,11 @@ export function useWorkspaceHome({
               if (!worktreeWorkspace.connected) {
                 await connectWorkspace(worktreeWorkspace);
               }
+              try {
+                await onWorktreeCreated?.(worktreeWorkspace, activeWorkspace);
+              } catch {
+                // Setup script errors are handled by the caller; runs should still proceed.
+              }
               const threadId = await startThreadForWorkspace(worktreeWorkspace.id, {
                 activate: false,
               });
@@ -574,6 +581,7 @@ export function useWorkspaceHome({
     activeWorkspaceId,
     addWorktreeAgent,
     connectWorkspace,
+    onWorktreeCreated,
     draft,
     isSubmitting,
     modelLookup,

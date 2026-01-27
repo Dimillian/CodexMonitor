@@ -20,7 +20,9 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: min(420px, calc(100vw - 48px));
+  width: min(560px, calc(100vw - 48px));
+  max-height: calc(100vh - 64px);
+  overflow: auto;
   background: var(--surface-card-strong);
   border: 1px solid var(--border-stronger);
   border-radius: 16px;
@@ -57,6 +59,40 @@
 }
 
 .worktree-modal-input:focus {
+  outline: 2px solid rgba(77, 163, 255, 0.35);
+  outline-offset: 1px;
+}
+
+.worktree-modal-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 4px 0 2px;
+}
+
+.worktree-modal-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.worktree-modal-hint {
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+.worktree-modal-textarea {
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card-muted);
+  color: var(--text-strong);
+  padding: 10px 12px;
+  font-size: 13px;
+  min-height: 96px;
+  resize: vertical;
+  font-family: var(--code-font-family, Menlo, Monaco, "Courier New", monospace);
+}
+
+.worktree-modal-textarea:focus {
   outline: 2px solid rgba(77, 163, 255, 0.35);
   outline-offset: 1px;
 }

@@ -5,6 +5,7 @@ type DesktopLayoutProps = {
   sidebarNode: ReactNode;
   updateToastNode: ReactNode;
   approvalToastsNode: ReactNode;
+  errorToastsNode: ReactNode;
   homeNode: ReactNode;
   showHome: boolean;
   showWorkspace: boolean;
@@ -27,6 +28,7 @@ export function DesktopLayout({
   sidebarNode,
   updateToastNode,
   approvalToastsNode,
+  errorToastsNode,
   homeNode,
   showHome,
   showWorkspace,
@@ -91,6 +93,7 @@ export function DesktopLayout({
 
       <section className="main">
         {updateToastNode}
+        {errorToastsNode}
         {showHome && homeNode}
 
         {showWorkspace && (

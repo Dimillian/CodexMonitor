@@ -3,21 +3,29 @@ import { useEffect, useRef } from "react";
 type WorktreePromptProps = {
   workspaceName: string;
   branch: string;
+  setupScript: string;
+  scriptError?: string | null;
   error?: string | null;
   onChange: (value: string) => void;
+  onSetupScriptChange: (value: string) => void;
   onCancel: () => void;
   onConfirm: () => void;
   isBusy?: boolean;
+  isSavingScript?: boolean;
 };
 
 export function WorktreePrompt({
   workspaceName,
   branch,
+  setupScript,
+  scriptError = null,
   error = null,
   onChange,
+  onSetupScriptChange,
   onCancel,
   onConfirm,
   isBusy = false,
+  isSavingScript = false,
 }: WorktreePromptProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -63,6 +71,21 @@ export function WorktreePrompt({
             }
           }}
         />
+        <div className="worktree-modal-divider" />
+        <div className="worktree-modal-section-title">Worktree setup script</div>
+        <div className="worktree-modal-hint">
+          Runs once in a dedicated terminal after each new worktree is created.
+        </div>
+        <textarea
+          id="worktree-setup-script"
+          className="worktree-modal-textarea"
+          value={setupScript}
+          onChange={(event) => onSetupScriptChange(event.target.value)}
+          placeholder="pnpm install"
+          rows={4}
+          disabled={isBusy || isSavingScript}
+        />
+        {scriptError && <div className="worktree-modal-error">{scriptError}</div>}
         {error && <div className="worktree-modal-error">{error}</div>}
         <div className="worktree-modal-actions">
           <button

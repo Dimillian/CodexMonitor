@@ -40,7 +40,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 6px 20px;
+  padding: 6px 0;
   font-size: 12px;
 }
 
@@ -101,7 +101,7 @@
   min-height: 0;
   display: flex;
   overflow: hidden;
-  padding: 0 20px 12px;
+  padding: 0;
 }
 
 .terminal-body > .terminal-shell {
@@ -139,7 +139,7 @@
   height: 100%;
   width: 100%;
   box-sizing: border-box;
-  padding: 8px 0 6px;
+  padding: 8px 12px 8px;
 }
 
 .terminal-surface .xterm-viewport {

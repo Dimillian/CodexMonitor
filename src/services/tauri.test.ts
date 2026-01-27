@@ -6,6 +6,7 @@ import {
   getGitLog,
   getGitStatus,
   getOpenAppIcon,
+  listWorkspaces,
   openWorkspaceIn,
   stageGitAll,
   respondToServerRequest,
@@ -62,6 +63,16 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("get_github_issues", {
       workspaceId: "ws-2",
     });
+  });
+
+  it("returns an empty list when the Tauri invoke bridge is missing", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockRejectedValueOnce(
+      new TypeError("Cannot read properties of undefined (reading 'invoke')"),
+    );
+
+    await expect(listWorkspaces()).resolves.toEqual([]);
+    expect(invokeMock).toHaveBeenCalledWith("list_workspaces");
   });
 
   it("applies default limit for git log", async () => {

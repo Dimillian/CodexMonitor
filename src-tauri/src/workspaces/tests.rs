@@ -46,6 +46,7 @@ fn workspace_with_id_and_kind(
             codex_home: None,
             codex_args: None,
             launch_script: None,
+            worktree_setup_script: None,
         },
     }
 }
@@ -196,6 +197,7 @@ fn update_workspace_settings_persists_sort_and_group() {
     settings.sidebar_collapsed = true;
     settings.git_root = Some("/tmp".to_string());
     settings.launch_script = Some("npm run dev".to_string());
+    settings.worktree_setup_script = Some("pnpm install".to_string());
 
     let updated =
         apply_workspace_settings_update(&mut workspaces, &id, settings.clone()).expect("update");
@@ -204,6 +206,10 @@ fn update_workspace_settings_persists_sort_and_group() {
     assert!(updated.settings.sidebar_collapsed);
     assert_eq!(updated.settings.git_root.as_deref(), Some("/tmp"));
     assert_eq!(updated.settings.launch_script.as_deref(), Some("npm run dev"));
+    assert_eq!(
+        updated.settings.worktree_setup_script.as_deref(),
+        Some("pnpm install"),
+    );
 
     let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
     std::fs::create_dir_all(&temp_dir).expect("create temp dir");
@@ -218,4 +224,8 @@ fn update_workspace_settings_persists_sort_and_group() {
     assert!(stored.settings.sidebar_collapsed);
     assert_eq!(stored.settings.git_root.as_deref(), Some("/tmp"));
     assert_eq!(stored.settings.launch_script.as_deref(), Some("npm run dev"));
+    assert_eq!(
+        stored.settings.worktree_setup_script.as_deref(),
+        Some("pnpm install"),
+    );
 }

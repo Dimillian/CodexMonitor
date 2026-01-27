@@ -170,3 +170,10 @@ The `useThreads` hook is a composition layer that wires together focused hooks a
 - UI preferences (panel sizes, reduced transparency toggle, recent thread activity) live in `localStorage`.
 - GitHub issues require `gh` to be installed and authenticated.
 - Custom prompts are loaded from `$CODEX_HOME/prompts` (or `~/.codex/prompts`) and support optional frontmatter metadata.
+
+## Error Toasts
+
+- Use `pushErrorToast` from `src/services/toasts.ts` to surface user-facing errors.
+- Example: `pushErrorToast({ title: "Couldn’t open workspace", message: errorMessage });`
+- The toast UI is wired at the app level via `useErrorToasts` in `src/features/notifications/hooks/useErrorToasts.ts` and rendered by `src/features/notifications/components/ErrorToasts.tsx`.
+- Styles live in `src/styles/error-toasts.css` and are imported by `src/App.tsx`.

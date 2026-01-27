@@ -18,6 +18,7 @@ type AppLayoutProps = {
   composerNode: ReactNode;
   approvalToastsNode: ReactNode;
   updateToastNode: ReactNode;
+  errorToastsNode: ReactNode;
   homeNode: ReactNode;
   mainHeaderNode: ReactNode;
   desktopTopbarLeftNode: ReactNode;
@@ -52,6 +53,7 @@ export const AppLayout = memo(function AppLayout({
   composerNode,
   approvalToastsNode,
   updateToastNode,
+  errorToastsNode,
   homeNode,
   mainHeaderNode,
   desktopTopbarLeftNode,
@@ -75,6 +77,7 @@ export const AppLayout = memo(function AppLayout({
       <PhoneLayout
         approvalToastsNode={approvalToastsNode}
         updateToastNode={updateToastNode}
+        errorToastsNode={errorToastsNode}
         tabBarNode={tabBarNode}
         sidebarNode={sidebarNode}
         activeTab={activeTab}
@@ -99,6 +102,7 @@ export const AppLayout = memo(function AppLayout({
         tabletNavNode={tabletNavNode}
         approvalToastsNode={approvalToastsNode}
         updateToastNode={updateToastNode}
+        errorToastsNode={errorToastsNode}
         homeNode={homeNode}
         showHome={showHome}
         showWorkspace={activeWorkspace && !showHome}
@@ -120,6 +124,7 @@ export const AppLayout = memo(function AppLayout({
       sidebarNode={sidebarNode}
       updateToastNode={updateToastNode}
       approvalToastsNode={approvalToastsNode}
+      errorToastsNode={errorToastsNode}
       homeNode={homeNode}
       showHome={showHome}
       showWorkspace={activeWorkspace && !showHome}

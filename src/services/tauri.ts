@@ -21,6 +21,14 @@ import type {
   ReviewTarget,
 } from "../types";
 
+function isMissingTauriInvokeError(error: unknown) {
+  return (
+    error instanceof TypeError &&
+    (error.message.includes("reading 'invoke'") ||
+      error.message.includes("reading \"invoke\""))
+  );
+}
+
 export async function pickWorkspacePath(): Promise<string | null> {
   const selection = await open({ directory: true, multiple: false });
   if (!selection || Array.isArray(selection)) {
@@ -46,7 +54,17 @@ export async function pickImageFiles(): Promise<string[]> {
 }
 
 export async function listWorkspaces(): Promise<WorkspaceInfo[]> {
-  return invoke<WorkspaceInfo[]>("list_workspaces");
+  try {
+    return await invoke<WorkspaceInfo[]>("list_workspaces");
+  } catch (error) {
+    if (isMissingTauriInvokeError(error)) {
+      // In non-Tauri environments (e.g., Electron/web previews), the invoke
+      // bridge may be missing. Treat this as "no workspaces" instead of crashing.
+      console.warn("Tauri invoke bridge unavailable; returning empty workspaces list.");
+      return [];
+    }
+    throw error;
+  }
 }
 
 export async function getCodexConfigPath(): Promise<string> {
@@ -93,6 +111,21 @@ export async function addWorktree(
   branch: string,
 ): Promise<WorkspaceInfo> {
   return invoke<WorkspaceInfo>("add_worktree", { parentId, branch });
+}
+
+export type WorktreeSetupStatus = {
+  shouldRun: boolean;
+  script: string | null;
+};
+
+export async function getWorktreeSetupStatus(
+  workspaceId: string,
+): Promise<WorktreeSetupStatus> {
+  return invoke<WorktreeSetupStatus>("worktree_setup_status", { workspaceId });
+}
+
+export async function markWorktreeSetupRan(workspaceId: string): Promise<void> {
+  return invoke("worktree_setup_mark_ran", { workspaceId });
 }
 
 export async function updateWorkspaceSettings(
