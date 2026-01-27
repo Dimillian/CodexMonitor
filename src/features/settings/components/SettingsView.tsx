@@ -14,6 +14,7 @@ import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import X from "lucide-react/dist/esm/icons/x";
 import FlaskConical from "lucide-react/dist/esm/icons/flask-conical";
 import ExternalLink from "lucide-react/dist/esm/icons/external-link";
+import Globe from "lucide-react/dist/esm/icons/globe";
 import type {
   AppSettings,
   CodexDoctorResult,
@@ -171,7 +172,8 @@ type SettingsSection =
   | "composer"
   | "dictation"
   | "shortcuts"
-  | "open-apps";
+  | "open-apps"
+  | "network";
 type CodexSection = SettingsSection | "codex" | "experimental";
 type ShortcutSettingKey =
   | "composerModelShortcut"
@@ -276,6 +278,7 @@ export function SettingsView({
   const [codexArgsDraft, setCodexArgsDraft] = useState(appSettings.codexArgs ?? "");
   const [remoteHostDraft, setRemoteHostDraft] = useState(appSettings.remoteBackendHost);
   const [remoteTokenDraft, setRemoteTokenDraft] = useState(appSettings.remoteBackendToken ?? "");
+  const [proxyUrlDraft, setProxyUrlDraft] = useState(appSettings.proxyUrl ?? "");
   const [scaleDraft, setScaleDraft] = useState(
     `${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`,
   );
@@ -385,6 +388,10 @@ export function SettingsView({
   useEffect(() => {
     setRemoteTokenDraft(appSettings.remoteBackendToken ?? "");
   }, [appSettings.remoteBackendToken]);
+
+  useEffect(() => {
+    setProxyUrlDraft(appSettings.proxyUrl ?? "");
+  }, [appSettings.proxyUrl]);
 
   useEffect(() => {
     setScaleDraft(`${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`);
@@ -543,6 +550,18 @@ export function SettingsView({
     await onUpdateAppSettings({
       ...appSettings,
       remoteBackendToken: nextToken,
+    });
+  };
+
+  const handleCommitProxyUrl = async () => {
+    const nextProxyUrl = proxyUrlDraft.trim() ? proxyUrlDraft.trim() : null;
+    setProxyUrlDraft(nextProxyUrl ?? "");
+    if (nextProxyUrl === appSettings.proxyUrl) {
+      return;
+    }
+    await onUpdateAppSettings({
+      ...appSettings,
+      proxyUrl: nextProxyUrl,
     });
   };
 
@@ -982,6 +1001,14 @@ export function SettingsView({
             >
               <FlaskConical aria-hidden />
               Experimental
+            </button>
+            <button
+              type="button"
+              className={`settings-nav ${activeSection === "network" ? "active" : ""}`}
+              onClick={() => setActiveSection("network")}
+            >
+              <Globe aria-hidden />
+              Network
             </button>
           </aside>
           <div className="settings-content">
@@ -2885,6 +2912,58 @@ export function SettingsView({
                   >
                     <span className="settings-toggle-knob" />
                   </button>
+                </div>
+              </section>
+            )}
+            {activeSection === "network" && (
+              <section className="settings-section">
+                <div className="settings-section-title">Network</div>
+                <div className="settings-section-subtitle">
+                  Configure an outbound network proxy (currently used for updater requests).
+                </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="proxy-url">
+                    Proxy
+                  </label>
+                  <div className="settings-field-row">
+                    <input
+                      id="proxy-url"
+                      className="settings-input settings-input--compact"
+                      value={proxyUrlDraft}
+                      placeholder="http://127.0.0.1:7890"
+                      onChange={(event) => setProxyUrlDraft(event.target.value)}
+                      onBlur={() => {
+                        void handleCommitProxyUrl();
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          void handleCommitProxyUrl();
+                        }
+                      }}
+                      aria-label="Proxy URL"
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => {
+                        setProxyUrlDraft("");
+                        void onUpdateAppSettings({
+                          ...appSettings,
+                          proxyUrl: null,
+                        });
+                      }}
+                      disabled={!appSettings.proxyUrl && !proxyUrlDraft.trim()}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Used for updater requests (check + download). Examples:
+                    {" "}
+                    <code>http://user:pass@host:port</code>,{" "}
+                    <code>socks5h://127.0.0.1:7891</code>
+                  </div>
                 </div>
               </section>
             )}

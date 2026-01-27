@@ -29,10 +29,11 @@ export type UpdateState = {
 
 type UseUpdaterOptions = {
   enabled?: boolean;
+  proxyUrl?: string | null;
   onDebug?: (entry: DebugEntry) => void;
 };
 
-export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
+export function useUpdater({ enabled = true, proxyUrl, onDebug }: UseUpdaterOptions) {
   const [state, setState] = useState<UpdateState>({ stage: "idle" });
   const updateRef = useRef<Update | null>(null);
   const latestTimeoutRef = useRef<number | null>(null);
@@ -58,7 +59,8 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
     try {
       clearLatestTimeout();
       setState({ stage: "checking" });
-      update = await check();
+      const trimmedProxyUrl = proxyUrl?.trim() ?? "";
+      update = await check(trimmedProxyUrl ? { proxy: trimmedProxyUrl } : undefined);
       if (!update) {
         if (options?.announceNoUpdate) {
           setState({ stage: "latest" });
@@ -93,7 +95,7 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
         await update?.close();
       }
     }
-  }, [clearLatestTimeout, onDebug]);
+  }, [clearLatestTimeout, onDebug, proxyUrl]);
 
   const startUpdate = useCallback(async () => {
     const update = updateRef.current;

@@ -112,6 +112,15 @@ export type AppSettings = {
   backendMode: BackendMode;
   remoteBackendHost: string;
   remoteBackendToken: string | null;
+  /**
+   * Single proxy URL used for outbound network requests.
+   *
+   * Currently only applied to updater requests (check + download).
+   * Supported schemes depend on the native client implementation:
+   * - http:// / https://
+   * - socks5:// / socks5h:// (when built with socks support)
+   */
+  proxyUrl: string | null;
   defaultAccessMode: AccessMode;
   composerModelShortcut: string | null;
   composerAccessShortcut: string | null;

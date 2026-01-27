@@ -8,6 +8,8 @@ import { subscribeUpdaterCheck } from "../../../services/events";
 import type { DebugEntry } from "../../../types";
 
 type Params = {
+  enabled?: boolean;
+  proxyUrl?: string | null;
   notificationSoundsEnabled: boolean;
   onDebug: (entry: DebugEntry) => void;
   successSoundUrl: string;
@@ -15,12 +17,16 @@ type Params = {
 };
 
 export function useUpdaterController({
+  enabled = true,
+  proxyUrl,
   notificationSoundsEnabled,
   onDebug,
   successSoundUrl,
   errorSoundUrl,
 }: Params) {
   const { state: updaterState, startUpdate, checkForUpdates, dismiss } = useUpdater({
+    enabled,
+    proxyUrl,
     onDebug,
   });
   const isWindowFocused = useWindowFocusState();
