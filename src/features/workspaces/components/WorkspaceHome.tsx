@@ -20,12 +20,18 @@ import { useComposerImages } from "../../composer/hooks/useComposerImages";
 import { useComposerAutocompleteState } from "../../composer/hooks/useComposerAutocompleteState";
 import { usePromptHistory } from "../../composer/hooks/usePromptHistory";
 import type { DictationSessionState } from "../../../types";
-import type { WorkspaceHomeRun, WorkspaceRunMode } from "../hooks/useWorkspaceHome";
+import type {
+  WorkspaceHomeRun,
+  WorkspaceHomeRunInstance,
+  WorkspaceRunMode,
+} from "../hooks/useWorkspaceHome";
 import { formatRelativeTime } from "../../../utils/time";
 import Laptop from "lucide-react/dist/esm/icons/laptop";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
+import Save from "lucide-react/dist/esm/icons/save";
 import { computeDictationInsertion } from "../../../utils/dictation";
 import { getCaretPosition } from "../../../utils/caretPosition";
 import { isComposingEvent } from "../../../utils/keys";
@@ -38,6 +44,8 @@ type ThreadStatus = {
 type WorkspaceHomeProps = {
   workspace: WorkspaceInfo;
   runs: WorkspaceHomeRun[];
+  recentThreadInstances: WorkspaceHomeRunInstance[];
+  recentThreadsUpdatedAt: number | null;
   prompt: string;
   onPromptChange: (value: string) => void;
   onStartRun: (images?: string[]) => Promise<boolean>;
@@ -69,6 +77,16 @@ type WorkspaceHomeProps = {
   onDismissDictationHint: () => void;
   dictationTranscript: DictationTranscript | null;
   onDictationTranscriptHandled: (id: string) => void;
+  agentMdContent: string;
+  agentMdExists: boolean;
+  agentMdTruncated: boolean;
+  agentMdLoading: boolean;
+  agentMdSaving: boolean;
+  agentMdError: string | null;
+  agentMdDirty: boolean;
+  onAgentMdChange: (value: string) => void;
+  onAgentMdRefresh: () => void;
+  onAgentMdSave: () => void;
 };
 
 const INSTANCE_OPTIONS = [1, 2, 3, 4];
@@ -83,9 +101,19 @@ const resolveModelLabel = (model: ModelOption | null) =>
 
 const CARET_ANCHOR_GAP = 8;
 
+const buildLabelCounts = (instances: WorkspaceHomeRunInstance[]) => {
+  const counts = new Map<string, number>();
+  instances.forEach((instance) => {
+    counts.set(instance.modelLabel, (counts.get(instance.modelLabel) ?? 0) + 1);
+  });
+  return counts;
+};
+
 export function WorkspaceHome({
   workspace,
   runs,
+  recentThreadInstances,
+  recentThreadsUpdatedAt,
   prompt,
   onPromptChange,
   onStartRun,
@@ -117,6 +145,16 @@ export function WorkspaceHome({
   onDismissDictationHint,
   dictationTranscript,
   onDictationTranscriptHandled,
+  agentMdContent,
+  agentMdExists,
+  agentMdTruncated,
+  agentMdLoading,
+  agentMdSaving,
+  agentMdError,
+  agentMdDirty,
+  onAgentMdChange,
+  onAgentMdRefresh,
+  onAgentMdSave,
 }: WorkspaceHomeProps) {
   const [showIcon, setShowIcon] = useState(true);
   const [runModeOpen, setRunModeOpen] = useState(false);
@@ -335,6 +373,72 @@ export function WorkspaceHome({
   const showRunMode = (workspace.kind ?? "main") !== "worktree";
   const runModeLabel = runMode === "local" ? "Local" : "Worktree";
   const RunModeIcon = runMode === "local" ? Laptop : GitBranch;
+  const agentMdStatus = agentMdLoading
+    ? "Loading…"
+    : agentMdSaving
+      ? "Saving…"
+      : agentMdExists
+        ? ""
+        : "Not found";
+  const agentMdMetaParts: string[] = [];
+  if (agentMdStatus) {
+    agentMdMetaParts.push(agentMdStatus);
+  }
+  if (agentMdTruncated) {
+    agentMdMetaParts.push("Truncated");
+  }
+  const agentMdMeta = agentMdMetaParts.join(" · ");
+  const agentMdSaveLabel = agentMdExists ? "Save" : "Create";
+  const agentMdSaveDisabled = agentMdLoading || agentMdSaving || !agentMdDirty;
+  const agentMdRefreshDisabled = agentMdLoading || agentMdSaving;
+
+  const renderInstanceList = (instances: WorkspaceHomeRunInstance[]) => {
+    const labelCounts = buildLabelCounts(instances);
+    return (
+      <div className="workspace-home-instance-list">
+        {instances.map((instance) => {
+          const status = threadStatusById[instance.threadId];
+          const statusLabel = status?.isProcessing
+            ? "Running"
+            : status?.isReviewing
+              ? "Reviewing"
+              : "Idle";
+          const stateClass = status?.isProcessing
+            ? "is-running"
+            : status?.isReviewing
+              ? "is-reviewing"
+              : "is-idle";
+          const isActive =
+            instance.threadId === activeThreadId &&
+            instance.workspaceId === activeWorkspaceId;
+          const totalForLabel = labelCounts.get(instance.modelLabel) ?? 1;
+          const label =
+            totalForLabel > 1
+              ? `${instance.modelLabel} ${instance.sequence}`
+              : instance.modelLabel;
+          return (
+            <button
+              className={`workspace-home-instance ${stateClass}${
+                isActive ? " is-active" : ""
+              }`}
+              key={instance.id}
+              type="button"
+              onClick={() => onSelectInstance(instance.workspaceId, instance.threadId)}
+            >
+              <span className="workspace-home-instance-title">{label}</span>
+              <span
+                className={`workspace-home-instance-status${
+                  status?.isProcessing ? " is-running" : ""
+                }`}
+              >
+                {statusLabel}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="workspace-home">
@@ -570,6 +674,51 @@ export function WorkspaceHome({
         </div>
       </div>
 
+      <div className="workspace-home-agent">
+        <div className="workspace-home-section-header">
+          <div className="workspace-home-section-title">AGENTS.md</div>
+          <div className="workspace-home-section-actions">
+            {agentMdMeta && <div className="workspace-home-section-meta">{agentMdMeta}</div>}
+            <button
+              type="button"
+              className="ghost workspace-home-icon-button"
+              onClick={onAgentMdRefresh}
+              disabled={agentMdRefreshDisabled}
+              aria-label="Refresh AGENTS.md"
+              title="Refresh"
+            >
+              <RefreshCw size={14} aria-hidden />
+            </button>
+            <button
+              type="button"
+              className="ghost workspace-home-icon-button"
+              onClick={onAgentMdSave}
+              disabled={agentMdSaveDisabled}
+              aria-label={agentMdSaveLabel === "Create" ? "Create AGENTS.md" : "Save AGENTS.md"}
+              title={agentMdSaveLabel}
+            >
+              <Save size={14} aria-hidden />
+            </button>
+          </div>
+        </div>
+        <div className="workspace-home-agent-card">
+          {agentMdTruncated && (
+            <div className="workspace-home-agent-warning">
+              Showing the first part of a large file.
+            </div>
+          )}
+          {agentMdError && <div className="workspace-home-error">{agentMdError}</div>}
+          <textarea
+            className="workspace-home-agent-textarea"
+            value={agentMdContent}
+            onChange={(event) => onAgentMdChange(event.target.value)}
+            placeholder="Add workspace instructions for the agent…"
+            spellCheck={false}
+            disabled={agentMdLoading}
+          />
+        </div>
+      </div>
+
       <div className="workspace-home-runs">
         <div className="workspace-home-section-header">
           <div className="workspace-home-section-title">Recent runs</div>
@@ -582,13 +731,6 @@ export function WorkspaceHome({
           <div className="workspace-home-run-grid">
             {runs.map((run) => {
               const hasInstances = run.instances.length > 0;
-              const labelCounts = new Map<string, number>();
-              run.instances.forEach((instance) => {
-                labelCounts.set(
-                  instance.modelLabel,
-                  (labelCounts.get(instance.modelLabel) ?? 0) + 1,
-                );
-              });
               return (
                 <div className="workspace-home-run-card" key={run.id}>
                   <div className="workspace-home-run-header">
@@ -624,50 +766,7 @@ export function WorkspaceHome({
                     </div>
                   )}
                   {hasInstances ? (
-                    <div className="workspace-home-instance-list">
-                      {run.instances.map((instance) => {
-                        const status = threadStatusById[instance.threadId];
-                        const statusLabel = status?.isProcessing
-                          ? "Running"
-                          : status?.isReviewing
-                            ? "Reviewing"
-                            : "Idle";
-                        const stateClass = status?.isProcessing
-                          ? "is-running"
-                          : status?.isReviewing
-                            ? "is-reviewing"
-                            : "is-idle";
-                        const isActive =
-                          instance.threadId === activeThreadId &&
-                          instance.workspaceId === activeWorkspaceId;
-                        const totalForLabel = labelCounts.get(instance.modelLabel) ?? 1;
-                        const label =
-                          totalForLabel > 1
-                            ? `${instance.modelLabel} ${instance.sequence}`
-                            : instance.modelLabel;
-                        return (
-                          <button
-                            className={`workspace-home-instance ${stateClass}${
-                              isActive ? " is-active" : ""
-                            }`}
-                            key={instance.id}
-                            type="button"
-                            onClick={() =>
-                              onSelectInstance(instance.workspaceId, instance.threadId)
-                            }
-                          >
-                            <span className="workspace-home-instance-title">{label}</span>
-                            <span
-                              className={`workspace-home-instance-status${
-                                status?.isProcessing ? " is-running" : ""
-                              }`}
-                            >
-                              {statusLabel}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    renderInstanceList(run.instances)
                   ) : run.status === "failed" ? (
                     <div className="workspace-home-empty">
                       No instances were started.
@@ -683,6 +782,37 @@ export function WorkspaceHome({
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      <div className="workspace-home-runs">
+        <div className="workspace-home-section-header">
+          <div className="workspace-home-section-title">Recent threads</div>
+        </div>
+        {recentThreadInstances.length === 0 ? (
+          <div className="workspace-home-empty">
+            Threads from the sidebar will appear here.
+          </div>
+        ) : (
+          <div className="workspace-home-run-grid">
+            <div className="workspace-home-run-card">
+              <div className="workspace-home-run-header">
+                <div>
+                  <div className="workspace-home-run-title">Agents activity</div>
+                  <div className="workspace-home-run-meta">
+                    {recentThreadInstances.length} thread
+                    {recentThreadInstances.length === 1 ? "" : "s"}
+                  </div>
+                </div>
+                {recentThreadsUpdatedAt ? (
+                  <div className="workspace-home-run-time">
+                    {formatRelativeTime(recentThreadsUpdatedAt)}
+                  </div>
+                ) : null}
+              </div>
+              {renderInstanceList(recentThreadInstances)}
+            </div>
           </div>
         )}
       </div>

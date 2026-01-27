@@ -72,6 +72,12 @@
   gap: 12px;
 }
 
+.workspace-home-section-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .workspace-home-section-title {
   font-size: 12px;
   text-transform: uppercase;
@@ -89,6 +95,61 @@
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
+}
+
+.workspace-home-agent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.workspace-home-agent-card {
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.workspace-home-agent-warning {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--surface-muted);
+  border: 1px solid var(--border-muted);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.workspace-home-agent-textarea {
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+  border-radius: 10px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-1);
+  color: var(--text-strong);
+  font-family: var(--code-font-family);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 12px;
+}
+
+.workspace-home-agent-textarea:focus {
+  outline: none;
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.16);
+}
+
+.workspace-home-icon-button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
 }
 
 .workspace-home-control .open-app-button {

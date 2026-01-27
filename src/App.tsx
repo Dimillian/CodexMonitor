@@ -94,6 +94,7 @@ import { useWorktreeSetupScript } from "./features/app/hooks/useWorktreeSetupScr
 import { useGitCommitController } from "./features/app/hooks/useGitCommitController";
 import { WorkspaceHome } from "./features/workspaces/components/WorkspaceHome";
 import { useWorkspaceHome } from "./features/workspaces/hooks/useWorkspaceHome";
+import { useWorkspaceAgentMd } from "./features/workspaces/hooks/useWorkspaceAgentMd";
 import { pickWorkspacePath } from "./services/tauri";
 import type {
   AccessMode,
@@ -1015,6 +1016,49 @@ function MainApp() {
     sendUserMessageToThread,
     onWorktreeCreated: handleWorktreeCreated,
   });
+  const RECENT_THREAD_LIMIT = 8;
+  const { recentThreadInstances, recentThreadsUpdatedAt } = useMemo(() => {
+    if (!activeWorkspaceId) {
+      return { recentThreadInstances: [], recentThreadsUpdatedAt: null };
+    }
+    const threads = threadsByWorkspace[activeWorkspaceId] ?? [];
+    if (threads.length === 0) {
+      return { recentThreadInstances: [], recentThreadsUpdatedAt: null };
+    }
+    const sorted = [...threads].sort((a, b) => b.updatedAt - a.updatedAt);
+    const slice = sorted.slice(0, RECENT_THREAD_LIMIT);
+    const updatedAt = slice.reduce(
+      (max, thread) => (thread.updatedAt > max ? thread.updatedAt : max),
+      0,
+    );
+    const instances = slice.map((thread, index) => ({
+      id: `recent-${thread.id}`,
+      workspaceId: activeWorkspaceId,
+      threadId: thread.id,
+      modelId: null,
+      modelLabel: thread.name?.trim() || "Untitled thread",
+      sequence: index + 1,
+    }));
+    return {
+      recentThreadInstances: instances,
+      recentThreadsUpdatedAt: updatedAt > 0 ? updatedAt : null,
+    };
+  }, [activeWorkspaceId, threadsByWorkspace]);
+  const {
+    content: agentMdContent,
+    exists: agentMdExists,
+    truncated: agentMdTruncated,
+    isLoading: agentMdLoading,
+    isSaving: agentMdSaving,
+    error: agentMdError,
+    isDirty: agentMdDirty,
+    setContent: setAgentMdContent,
+    refresh: refreshAgentMd,
+    save: saveAgentMd,
+  } = useWorkspaceAgentMd({
+    activeWorkspace,
+    onDebug: addDebugEntry,
+  });
 
   const {
     commitMessage,
@@ -1832,6 +1876,8 @@ function MainApp() {
     <WorkspaceHome
       workspace={activeWorkspace}
       runs={workspaceRuns}
+      recentThreadInstances={recentThreadInstances}
+      recentThreadsUpdatedAt={recentThreadsUpdatedAt}
       prompt={workspacePrompt}
       onPromptChange={setWorkspacePrompt}
       onStartRun={startWorkspaceRun}
@@ -1863,6 +1909,20 @@ function MainApp() {
       onDismissDictationHint={clearDictationHint}
       dictationTranscript={dictationTranscript}
       onDictationTranscriptHandled={clearDictationTranscript}
+      agentMdContent={agentMdContent}
+      agentMdExists={agentMdExists}
+      agentMdTruncated={agentMdTruncated}
+      agentMdLoading={agentMdLoading}
+      agentMdSaving={agentMdSaving}
+      agentMdError={agentMdError}
+      agentMdDirty={agentMdDirty}
+      onAgentMdChange={setAgentMdContent}
+      onAgentMdRefresh={() => {
+        void refreshAgentMd();
+      }}
+      onAgentMdSave={() => {
+        void saveAgentMd();
+      }}
     />
   ) : null;
 

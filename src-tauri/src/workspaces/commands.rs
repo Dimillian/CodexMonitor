@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 #[cfg(target_os = "macos")]
 use super::macos::get_open_app_icon_inner;
+use super::agent_md::{read_agent_md_inner, write_agent_md_inner, AgentMdResponse};
 use super::files::{list_workspace_files_inner, read_workspace_file_inner, WorkspaceFileResponse};
 use super::git::{
     git_branch_exists, git_find_remote_for_branch, git_get_origin_url, git_remote_branch_exists,
@@ -52,6 +53,57 @@ fn normalize_setup_script(script: Option<String>) -> Option<String> {
         Some(value) => Some(value),
         None => None,
     }
+}
+
+#[tauri::command]
+pub(crate) async fn read_agent_md(
+    workspace_id: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<AgentMdResponse, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let response = remote_backend::call_remote(
+            &*state,
+            app,
+            "read_agent_md",
+            json!({ "workspaceId": workspace_id }),
+        )
+        .await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?;
+    let root = PathBuf::from(&entry.path);
+    read_agent_md_inner(&root)
+}
+
+#[tauri::command]
+pub(crate) async fn write_agent_md(
+    workspace_id: String,
+    content: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        remote_backend::call_remote(
+            &*state,
+            app,
+            "write_agent_md",
+            json!({ "workspaceId": workspace_id, "content": content }),
+        )
+        .await?;
+        return Ok(());
+    }
+
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?;
+    let root = PathBuf::from(&entry.path);
+    write_agent_md_inner(&root, &content)
 }
 
 #[tauri::command]

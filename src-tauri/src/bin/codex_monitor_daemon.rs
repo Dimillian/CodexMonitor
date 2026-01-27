@@ -102,6 +102,13 @@ struct WorkspaceFileResponse {
     truncated: bool,
 }
 
+#[derive(Serialize, Deserialize)]
+struct AgentMdResponse {
+    exists: bool,
+    content: String,
+    truncated: bool,
+}
+
 impl DaemonState {
     fn load(config: &DaemonConfig, event_sink: DaemonEventSink) -> Self {
         let storage_path = config.data_dir.join("workspaces.json");
@@ -1078,6 +1085,32 @@ impl DaemonState {
         read_workspace_file_inner(&root, &path)
     }
 
+    async fn read_agent_md(&self, workspace_id: String) -> Result<AgentMdResponse, String> {
+        let entry = {
+            let workspaces = self.workspaces.lock().await;
+            workspaces
+                .get(&workspace_id)
+                .cloned()
+                .ok_or("workspace not found")?
+        };
+
+        let root = PathBuf::from(entry.path);
+        read_agent_md_inner(&root)
+    }
+
+    async fn write_agent_md(&self, workspace_id: String, content: String) -> Result<(), String> {
+        let entry = {
+            let workspaces = self.workspaces.lock().await;
+            workspaces
+                .get(&workspace_id)
+                .cloned()
+                .ok_or("workspace not found")?
+        };
+
+        let root = PathBuf::from(entry.path);
+        write_agent_md_inner(&root, &content)
+    }
+
     async fn start_thread(&self, workspace_id: String) -> Result<Value, String> {
         let session = self.get_session(&workspace_id).await?;
         let params = json!({
@@ -1393,8 +1426,7 @@ fn read_workspace_file_inner(
         return Err("Path is not a file".to_string());
     }
 
-    let mut file =
-        File::open(&canonical_path).map_err(|err| format!("Failed to open file: {err}"))?;
+    let file = File::open(&canonical_path).map_err(|err| format!("Failed to open file: {err}"))?;
     let mut buffer = Vec::new();
     file.take(MAX_WORKSPACE_FILE_BYTES + 1)
         .read_to_end(&mut buffer)
@@ -1408,6 +1440,68 @@ fn read_workspace_file_inner(
     let content =
         String::from_utf8(buffer).map_err(|_| "File is not valid UTF-8".to_string())?;
     Ok(WorkspaceFileResponse { content, truncated })
+}
+
+const AGENT_MD_FILENAME: &str = "AGENTS.md";
+
+fn canonical_root(root: &PathBuf) -> Result<PathBuf, String> {
+    root.canonicalize()
+        .map_err(|err| format!("Failed to resolve workspace root: {err}"))
+}
+
+fn read_agent_md_inner(root: &PathBuf) -> Result<AgentMdResponse, String> {
+    let canonical_root = canonical_root(root)?;
+    let agent_path = canonical_root.join(AGENT_MD_FILENAME);
+
+    if !agent_path.exists() {
+        return Ok(AgentMdResponse {
+            exists: false,
+            content: String::new(),
+            truncated: false,
+        });
+    }
+
+    let canonical_path = agent_path
+        .canonicalize()
+        .map_err(|err| format!("Failed to open file: {err}"))?;
+    if !canonical_path.starts_with(&canonical_root) {
+        return Err("Invalid file path".to_string());
+    }
+
+    let mut file =
+        File::open(&canonical_path).map_err(|err| format!("Failed to open file: {err}"))?;
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer)
+        .map_err(|err| format!("Failed to read file: {err}"))?;
+
+    let content =
+        String::from_utf8(buffer).map_err(|_| "File is not valid UTF-8".to_string())?;
+    Ok(AgentMdResponse {
+        exists: true,
+        content,
+        truncated: false,
+    })
+}
+
+fn write_agent_md_inner(root: &PathBuf, content: &str) -> Result<(), String> {
+    let canonical_root = canonical_root(root)?;
+    let agent_path = canonical_root.join(AGENT_MD_FILENAME);
+    if !agent_path.starts_with(&canonical_root) {
+        return Err("Invalid file path".to_string());
+    }
+    let target_path = if agent_path.exists() {
+        let canonical_path = agent_path
+            .canonicalize()
+            .map_err(|err| format!("Failed to resolve AGENTS.md: {err}"))?;
+        if !canonical_path.starts_with(&canonical_root) {
+            return Err("Invalid file path".to_string());
+        }
+        canonical_path
+    } else {
+        agent_path
+    };
+    std::fs::write(&target_path, content)
+        .map_err(|err| format!("Failed to write AGENTS.md: {err}"))
 }
 
 async fn run_git_command(repo_path: &PathBuf, args: &[&str]) -> Result<String, String> {
@@ -1929,6 +2023,17 @@ async fn handle_rpc_request(
             let path = parse_string(&params, "path")?;
             let response = state.read_workspace_file(workspace_id, path).await?;
             serde_json::to_value(response).map_err(|err| err.to_string())
+        }
+        "read_agent_md" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let response = state.read_agent_md(workspace_id).await?;
+            serde_json::to_value(response).map_err(|err| err.to_string())
+        }
+        "write_agent_md" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let content = parse_string(&params, "content")?;
+            state.write_agent_md(workspace_id, content).await?;
+            serde_json::to_value(json!({ "ok": true })).map_err(|err| err.to_string())
         }
         "get_app_settings" => {
             let mut settings = state.app_settings.lock().await.clone();
