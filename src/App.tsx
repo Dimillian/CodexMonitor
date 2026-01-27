@@ -85,6 +85,7 @@ import { useWorkspaceActions } from "./features/app/hooks/useWorkspaceActions";
 import { useWorkspaceCycling } from "./features/app/hooks/useWorkspaceCycling";
 import { useThreadRows } from "./features/app/hooks/useThreadRows";
 import { useInterruptShortcut } from "./features/app/hooks/useInterruptShortcut";
+import { useArchiveShortcut } from "./features/app/hooks/useArchiveShortcut";
 import { useLiquidGlassEffect } from "./features/app/hooks/useLiquidGlassEffect";
 import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { useTerminalController } from "./features/terminal/hooks/useTerminalController";
@@ -1263,6 +1264,21 @@ function MainApp() {
     onDropPaths: handleDropWorkspacePaths,
   });
 
+  const handleArchiveActiveThread = useCallback(() => {
+    if (!activeWorkspaceId || !activeThreadId) {
+      return;
+    }
+    removeThread(activeWorkspaceId, activeThreadId);
+    clearDraftForThread(activeThreadId);
+    removeImagesForThread(activeThreadId);
+  }, [
+    activeThreadId,
+    activeWorkspaceId,
+    clearDraftForThread,
+    removeImagesForThread,
+    removeThread,
+  ]);
+
   useInterruptShortcut({
     isEnabled: canInterrupt,
     shortcut: appSettings.interruptShortcut,
@@ -1373,6 +1389,13 @@ function MainApp() {
     ? centerMode === "chat" || centerMode === "diff"
     : (isTablet ? tabletTab : activeTab) === "codex") && !showWorkspaceHome;
   const showGitDetail = Boolean(selectedDiffPath) && isPhone;
+  const isThreadOpen = Boolean(activeThreadId && showComposer);
+
+  useArchiveShortcut({
+    isEnabled: isThreadOpen,
+    shortcut: appSettings.archiveThreadShortcut,
+    onTrigger: handleArchiveActiveThread,
+  });
 
   const { handleCycleAgent, handleCycleWorkspace } = useWorkspaceCycling({
     workspaces,

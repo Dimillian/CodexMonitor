@@ -182,6 +182,7 @@ type ShortcutSettingKey =
   | "newAgentShortcut"
   | "newWorktreeAgentShortcut"
   | "newCloneAgentShortcut"
+  | "archiveThreadShortcut"
   | "toggleProjectsSidebarShortcut"
   | "toggleGitSidebarShortcut"
   | "toggleDebugPanelShortcut"
@@ -199,6 +200,7 @@ type ShortcutDraftKey =
   | "newAgent"
   | "newWorktreeAgent"
   | "newCloneAgent"
+  | "archiveThread"
   | "projectsSidebar"
   | "gitSidebar"
   | "debugPanel"
@@ -219,6 +221,7 @@ const shortcutDraftKeyBySetting: Record<ShortcutSettingKey, ShortcutDraftKey> = 
   newAgentShortcut: "newAgent",
   newWorktreeAgentShortcut: "newWorktreeAgent",
   newCloneAgentShortcut: "newCloneAgent",
+  archiveThreadShortcut: "archiveThread",
   toggleProjectsSidebarShortcut: "projectsSidebar",
   toggleGitSidebarShortcut: "gitSidebar",
   toggleDebugPanelShortcut: "debugPanel",
@@ -315,6 +318,7 @@ export function SettingsView({
     newAgent: appSettings.newAgentShortcut ?? "",
     newWorktreeAgent: appSettings.newWorktreeAgentShortcut ?? "",
     newCloneAgent: appSettings.newCloneAgentShortcut ?? "",
+    archiveThread: appSettings.archiveThreadShortcut ?? "",
     projectsSidebar: appSettings.toggleProjectsSidebarShortcut ?? "",
     gitSidebar: appSettings.toggleGitSidebarShortcut ?? "",
     debugPanel: appSettings.toggleDebugPanelShortcut ?? "",
@@ -417,6 +421,7 @@ export function SettingsView({
       newAgent: appSettings.newAgentShortcut ?? "",
       newWorktreeAgent: appSettings.newWorktreeAgentShortcut ?? "",
       newCloneAgent: appSettings.newCloneAgentShortcut ?? "",
+      archiveThread: appSettings.archiveThreadShortcut ?? "",
       projectsSidebar: appSettings.toggleProjectsSidebarShortcut ?? "",
       gitSidebar: appSettings.toggleGitSidebarShortcut ?? "",
       debugPanel: appSettings.toggleDebugPanelShortcut ?? "",
@@ -435,6 +440,7 @@ export function SettingsView({
     appSettings.newAgentShortcut,
     appSettings.newWorktreeAgentShortcut,
     appSettings.newCloneAgentShortcut,
+    appSettings.archiveThreadShortcut,
     appSettings.toggleProjectsSidebarShortcut,
     appSettings.toggleGitSidebarShortcut,
     appSettings.toggleDebugPanelShortcut,
@@ -1929,6 +1935,30 @@ export function SettingsView({
                   </div>
                   <div className="settings-help">
                     Default: {formatShortcut("cmd+alt+n")}
+                  </div>
+                </div>
+                <div className="settings-field">
+                  <div className="settings-field-label">Archive active thread</div>
+                  <div className="settings-field-row">
+                    <input
+                      className="settings-input settings-input--shortcut"
+                      value={formatShortcut(shortcutDrafts.archiveThread)}
+                      onKeyDown={(event) =>
+                        handleShortcutKeyDown(event, "archiveThreadShortcut")
+                      }
+                      placeholder="Type shortcut"
+                      readOnly
+                    />
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => void updateShortcut("archiveThreadShortcut", null)}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Default: {formatShortcut("cmd+ctrl+a")}
                   </div>
                 </div>
                 <div className="settings-divider" />

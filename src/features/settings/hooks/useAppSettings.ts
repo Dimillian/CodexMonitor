@@ -34,6 +34,7 @@ const defaultSettings: AppSettings = {
   newAgentShortcut: "cmd+n",
   newWorktreeAgentShortcut: "cmd+shift+n",
   newCloneAgentShortcut: "cmd+alt+n",
+  archiveThreadShortcut: "cmd+ctrl+a",
   toggleProjectsSidebarShortcut: "cmd+shift+p",
   toggleGitSidebarShortcut: "cmd+shift+g",
   toggleDebugPanelShortcut: "cmd+shift+d",
