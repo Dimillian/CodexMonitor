@@ -189,6 +189,7 @@ export type RequestUserInputQuestion = {
   id: string;
   header: string;
   question: string;
+  isOther?: boolean;
   options?: RequestUserInputOption[];
 };
 
