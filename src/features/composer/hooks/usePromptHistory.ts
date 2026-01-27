@@ -3,6 +3,43 @@ import type { KeyboardEvent, RefObject } from "react";
 
 const HISTORY_LIMIT = 200;
 const DEFAULT_HISTORY_KEY = "default";
+const STORAGE_PREFIX = "codexmonitor.promptHistory.";
+
+function getStorageKey(key: string) {
+  return `${STORAGE_PREFIX}${key}`;
+}
+
+function readStoredHistory(key: string): string[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+  const raw = window.localStorage.getItem(getStorageKey(key));
+  if (!raw) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed
+      .filter((item): item is string => typeof item === "string")
+      .slice(-HISTORY_LIMIT);
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredHistory(key: string, value: string[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  if (value.length === 0) {
+    window.localStorage.removeItem(getStorageKey(key));
+    return;
+  }
+  window.localStorage.setItem(getStorageKey(key), JSON.stringify(value));
+}
 
 type UsePromptHistoryOptions = {
   historyKey?: string | null;
@@ -35,13 +72,54 @@ export function usePromptHistory({
   const [historyByKey, setHistoryByKey] = useState<Record<string, string[]>>({});
   const [historyIndex, setHistoryIndex] = useState<number | null>(null);
   const draftBeforeHistoryRef = useRef("");
+  const loadedKeysRef = useRef<Set<string>>(new Set());
+  const skipNextWriteRef = useRef(false);
+  const historyByKeyRef = useRef(historyByKey);
+  const previousKeyRef = useRef(historyKey ?? DEFAULT_HISTORY_KEY);
   const activeKey = historyKey ?? DEFAULT_HISTORY_KEY;
   const history = useMemo(() => historyByKey[activeKey] ?? [], [activeKey, historyByKey]);
 
   useEffect(() => {
+    historyByKeyRef.current = historyByKey;
+  }, [historyByKey]);
+
+  useEffect(() => {
+    const previousKey = previousKeyRef.current;
+    previousKeyRef.current = activeKey;
+    const stored = readStoredHistory(activeKey);
+    const previousHistory = historyByKeyRef.current[previousKey] ?? [];
+    const shouldMigrateDefault =
+      previousKey === DEFAULT_HISTORY_KEY &&
+      activeKey !== DEFAULT_HISTORY_KEY &&
+      stored.length === 0 &&
+      previousHistory.length > 0;
+    const nextHistory = shouldMigrateDefault ? previousHistory : stored;
+
+    if (shouldMigrateDefault) {
+      writeStoredHistory(activeKey, nextHistory);
+      writeStoredHistory(previousKey, []);
+    }
+    setHistoryByKey((prev) => ({
+      ...prev,
+      [activeKey]: nextHistory,
+      ...(shouldMigrateDefault ? { [previousKey]: [] } : {}),
+    }));
+    loadedKeysRef.current.add(activeKey);
+    skipNextWriteRef.current = true;
     setHistoryIndex(null);
     draftBeforeHistoryRef.current = "";
   }, [activeKey]);
+
+  useEffect(() => {
+    if (!loadedKeysRef.current.has(activeKey)) {
+      return;
+    }
+    if (skipNextWriteRef.current) {
+      skipNextWriteRef.current = false;
+      return;
+    }
+    writeStoredHistory(activeKey, history);
+  }, [activeKey, history]);
 
   const resetHistoryNavigation = useCallback(() => {
     setHistoryIndex(null);
