@@ -30,7 +30,29 @@ use crate::state::AppState;
 use crate::storage::write_workspaces;
 use crate::types::{
     WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings, WorktreeInfo,
+    WorktreeSetupStatus,
 };
+
+const WORKTREE_SETUP_MARKERS_DIR: &str = "worktree-setup";
+const WORKTREE_SETUP_MARKER_EXT: &str = "ran";
+
+fn worktree_setup_marker_path(app: &AppHandle, workspace_id: &str) -> Result<PathBuf, String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|err| format!("Failed to resolve app data dir: {err}"))?;
+    Ok(app_data_dir
+        .join(WORKTREE_SETUP_MARKERS_DIR)
+        .join(format!("{workspace_id}.{WORKTREE_SETUP_MARKER_EXT}")))
+}
+
+fn normalize_setup_script(script: Option<String>) -> Option<String> {
+    match script {
+        Some(value) if value.trim().is_empty() => None,
+        Some(value) => Some(value),
+        None => None,
+    }
+}
 
 #[tauri::command]
 pub(crate) async fn read_workspace_file(
@@ -406,7 +428,12 @@ pub(crate) async fn add_worktree(
         worktree: Some(WorktreeInfo {
             branch: branch.to_string(),
         }),
-        settings: WorkspaceSettings::default(),
+        settings: WorkspaceSettings {
+            worktree_setup_script: normalize_setup_script(
+                parent_entry.settings.worktree_setup_script.clone(),
+            ),
+            ..WorkspaceSettings::default()
+        },
     };
 
     let (default_bin, codex_args) = {
@@ -442,6 +469,85 @@ pub(crate) async fn add_worktree(
         worktree: entry.worktree,
         settings: entry.settings,
     })
+}
+
+#[tauri::command]
+pub(crate) async fn worktree_setup_status(
+    workspace_id: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<WorktreeSetupStatus, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let response = remote_backend::call_remote(
+            &*state,
+            app,
+            "worktree_setup_status",
+            json!({ "workspaceId": workspace_id }),
+        )
+        .await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
+    let entry = {
+        let workspaces = state.workspaces.lock().await;
+        workspaces
+            .get(&workspace_id)
+            .cloned()
+            .ok_or_else(|| "workspace not found".to_string())?
+    };
+
+    let script = normalize_setup_script(entry.settings.worktree_setup_script.clone());
+    let marker_exists = if entry.kind.is_worktree() {
+        worktree_setup_marker_path(&app, &entry.id)
+            .map(|path| path.exists())
+            .unwrap_or(false)
+    } else {
+        false
+    };
+    let should_run = entry.kind.is_worktree() && script.is_some() && !marker_exists;
+
+    Ok(WorktreeSetupStatus { should_run, script })
+}
+
+#[tauri::command]
+pub(crate) async fn worktree_setup_mark_ran(
+    workspace_id: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        remote_backend::call_remote(
+            &*state,
+            app,
+            "worktree_setup_mark_ran",
+            json!({ "workspaceId": workspace_id }),
+        )
+        .await?;
+        return Ok(());
+    }
+
+    let entry = {
+        let workspaces = state.workspaces.lock().await;
+        workspaces
+            .get(&workspace_id)
+            .cloned()
+            .ok_or_else(|| "workspace not found".to_string())?
+    };
+    if !entry.kind.is_worktree() {
+        return Err("Not a worktree workspace.".to_string());
+    }
+    let marker_path = worktree_setup_marker_path(&app, &entry.id)?;
+    if let Some(parent) = marker_path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|err| format!("Failed to prepare worktree marker directory: {err}"))?;
+    }
+    let ran_at = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0);
+    std::fs::write(&marker_path, format!("ran_at={ran_at}\n"))
+        .map_err(|err| format!("Failed to write worktree setup marker: {err}"))?;
+    Ok(())
 }
 
 
@@ -1011,12 +1117,16 @@ pub(crate) async fn update_workspace_settings(
         return serde_json::from_value(response).map_err(|err| err.to_string());
     }
 
+    let mut settings = settings;
+    settings.worktree_setup_script = normalize_setup_script(settings.worktree_setup_script);
+
     let (
         previous_entry,
         entry_snapshot,
         parent_entry,
         previous_codex_home,
         previous_codex_args,
+        previous_worktree_setup_script,
         child_entries,
     ) = {
         let mut workspaces = state.workspaces.lock().await;
@@ -1026,6 +1136,7 @@ pub(crate) async fn update_workspace_settings(
             .ok_or_else(|| "workspace not found".to_string())?;
         let previous_codex_home = previous_entry.settings.codex_home.clone();
         let previous_codex_args = previous_entry.settings.codex_args.clone();
+        let previous_worktree_setup_script = previous_entry.settings.worktree_setup_script.clone();
         let entry_snapshot = apply_workspace_settings_update(&mut workspaces, &id, settings)?;
         let parent_entry = entry_snapshot
             .parent_id
@@ -1043,12 +1154,15 @@ pub(crate) async fn update_workspace_settings(
             parent_entry,
             previous_codex_home,
             previous_codex_args,
+            previous_worktree_setup_script,
             child_entries,
         )
     };
 
     let codex_home_changed = previous_codex_home != entry_snapshot.settings.codex_home;
     let codex_args_changed = previous_codex_args != entry_snapshot.settings.codex_args;
+    let worktree_setup_script_changed =
+        previous_worktree_setup_script != entry_snapshot.settings.worktree_setup_script;
     let connected = state.sessions.lock().await.contains_key(&id);
     if connected && (codex_home_changed || codex_args_changed) {
         let rollback_entry = previous_entry.clone();
@@ -1089,7 +1203,7 @@ pub(crate) async fn update_workspace_settings(
     if codex_home_changed || codex_args_changed {
         let app_settings = state.app_settings.lock().await.clone();
         let default_bin = app_settings.codex_bin.clone();
-        for child in child_entries {
+        for child in &child_entries {
             let connected = state.sessions.lock().await.contains_key(&child.id);
             if !connected {
                 continue;
@@ -1129,6 +1243,21 @@ pub(crate) async fn update_workspace_settings(
             {
                 let mut child = old_session.child.lock().await;
                 let _ = child.kill().await;
+            }
+        }
+    }
+    if worktree_setup_script_changed && !entry_snapshot.kind.is_worktree() {
+        let child_ids = child_entries
+            .iter()
+            .map(|child| child.id.clone())
+            .collect::<Vec<_>>();
+        if !child_ids.is_empty() {
+            let mut workspaces = state.workspaces.lock().await;
+            for child_id in child_ids {
+                if let Some(child) = workspaces.get_mut(&child_id) {
+                    child.settings.worktree_setup_script =
+                        entry_snapshot.settings.worktree_setup_script.clone();
+                }
             }
         }
     }

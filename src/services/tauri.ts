@@ -113,6 +113,21 @@ export async function addWorktree(
   return invoke<WorkspaceInfo>("add_worktree", { parentId, branch });
 }
 
+export type WorktreeSetupStatus = {
+  shouldRun: boolean;
+  script: string | null;
+};
+
+export async function getWorktreeSetupStatus(
+  workspaceId: string,
+): Promise<WorktreeSetupStatus> {
+  return invoke<WorktreeSetupStatus>("worktree_setup_status", { workspaceId });
+}
+
+export async function markWorktreeSetupRan(workspaceId: string): Promise<void> {
+  return invoke("worktree_setup_mark_ran", { workspaceId });
+}
+
 export async function updateWorkspaceSettings(
   id: string,
   settings: WorkspaceSettings,

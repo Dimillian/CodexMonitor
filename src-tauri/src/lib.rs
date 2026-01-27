@@ -86,6 +86,8 @@ pub fn run() {
             workspaces::add_workspace,
             workspaces::add_clone,
             workspaces::add_worktree,
+            workspaces::worktree_setup_status,
+            workspaces::worktree_setup_mark_ran,
             workspaces::remove_workspace,
             workspaces::remove_worktree,
             workspaces::rename_worktree,
