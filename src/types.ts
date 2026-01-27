@@ -6,6 +6,7 @@ export type WorkspaceSettings = {
   codexHome?: string | null;
   codexArgs?: string | null;
   launchScript?: string | null;
+  worktreeSetupScript?: string | null;
 };
 
 export type WorkspaceGroup = {
@@ -196,6 +197,7 @@ export type RequestUserInputQuestion = {
   id: string;
   header: string;
   question: string;
+  isOther?: boolean;
   options?: RequestUserInputOption[];
 };
 

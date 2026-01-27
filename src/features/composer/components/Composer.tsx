@@ -17,6 +17,7 @@ import {
   normalizePastedText,
 } from "../../../utils/composerText";
 import { useComposerAutocompleteState } from "../hooks/useComposerAutocompleteState";
+import { usePromptHistory } from "../hooks/usePromptHistory";
 import { ComposerInput } from "./ComposerInput";
 import { ComposerMetaBar } from "./ComposerMetaBar";
 import { ComposerQueue } from "./ComposerQueue";
@@ -51,6 +52,7 @@ type ComposerProps = {
   sendLabel?: string;
   draftText?: string;
   onDraftChange?: (text: string) => void;
+  historyKey?: string | null;
   attachedImages?: string[];
   onPickImages?: () => void;
   onAttachImages?: (paths: string[]) => void;
@@ -117,6 +119,7 @@ export function Composer({
   sendLabel = "Send",
   draftText = "",
   onDraftChange,
+  historyKey = null,
   attachedImages = [],
   onPickImages,
   onAttachImages,
@@ -170,30 +173,6 @@ export function Composer({
     [onDraftChange],
   );
 
-  const handleSend = useCallback(() => {
-    if (disabled) {
-      return;
-    }
-    const trimmed = text.trim();
-    if (!trimmed && attachedImages.length === 0) {
-      return;
-    }
-    onSend(trimmed, attachedImages);
-    setComposerText("");
-  }, [attachedImages, disabled, onSend, setComposerText, text]);
-
-  const handleQueue = useCallback(() => {
-    if (disabled) {
-      return;
-    }
-    const trimmed = text.trim();
-    if (!trimmed && attachedImages.length === 0) {
-      return;
-    }
-    onQueue(trimmed, attachedImages);
-    setComposerText("");
-  }, [attachedImages, disabled, onQueue, setComposerText, text]);
-
   const {
     isAutocompleteOpen,
     autocompleteMatches,
@@ -215,21 +194,95 @@ export function Composer({
     setSelectionStart,
   });
 
+  const {
+    handleHistoryKeyDown,
+    handleHistoryTextChange,
+    recordHistory,
+    resetHistoryNavigation,
+  } = usePromptHistory({
+    historyKey,
+    text,
+    hasAttachments: attachedImages.length > 0,
+    disabled,
+    isAutocompleteOpen,
+    textareaRef,
+    setText: setComposerText,
+    setSelectionStart,
+  });
+
+  const handleTextChangeWithHistory = useCallback(
+    (next: string, cursor: number | null) => {
+      handleHistoryTextChange(next);
+      handleTextChange(next, cursor);
+    },
+    [handleHistoryTextChange, handleTextChange],
+  );
+
+  const handleSend = useCallback(() => {
+    if (disabled) {
+      return;
+    }
+    const trimmed = text.trim();
+    if (!trimmed && attachedImages.length === 0) {
+      return;
+    }
+    if (trimmed) {
+      recordHistory(trimmed);
+    }
+    onSend(trimmed, attachedImages);
+    resetHistoryNavigation();
+    setComposerText("");
+  }, [
+    attachedImages,
+    disabled,
+    onSend,
+    recordHistory,
+    resetHistoryNavigation,
+    setComposerText,
+    text,
+  ]);
+
+  const handleQueue = useCallback(() => {
+    if (disabled) {
+      return;
+    }
+    const trimmed = text.trim();
+    if (!trimmed && attachedImages.length === 0) {
+      return;
+    }
+    if (trimmed) {
+      recordHistory(trimmed);
+    }
+    onQueue(trimmed, attachedImages);
+    resetHistoryNavigation();
+    setComposerText("");
+  }, [
+    attachedImages,
+    disabled,
+    onQueue,
+    recordHistory,
+    resetHistoryNavigation,
+    setComposerText,
+    text,
+  ]);
+
   useEffect(() => {
     if (!prefillDraft) {
       return;
     }
     setComposerText(prefillDraft.text);
+    resetHistoryNavigation();
     onPrefillHandled?.(prefillDraft.id);
-  }, [prefillDraft, onPrefillHandled, setComposerText]);
+  }, [onPrefillHandled, prefillDraft, resetHistoryNavigation, setComposerText]);
 
   useEffect(() => {
     if (!insertText) {
       return;
     }
     setComposerText(insertText.text);
+    resetHistoryNavigation();
     onInsertHandled?.(insertText.id);
-  }, [insertText, onInsertHandled, setComposerText]);
+  }, [insertText, onInsertHandled, resetHistoryNavigation, setComposerText]);
 
   useEffect(() => {
     if (!dictationTranscript) {
@@ -250,6 +303,7 @@ export function Composer({
       end,
     );
     setComposerText(nextText);
+    resetHistoryNavigation();
     requestAnimationFrame(() => {
       if (!textareaRef.current) {
         return;
@@ -263,6 +317,7 @@ export function Composer({
     dictationTranscript,
     handleSelectionChange,
     onDictationTranscriptHandled,
+    resetHistoryNavigation,
     selectionStart,
     setComposerText,
     text,
@@ -412,13 +467,17 @@ export function Composer({
         onAddAttachment={onPickImages}
         onAttachImages={onAttachImages}
         onRemoveAttachment={onRemoveImage}
-        onTextChange={handleTextChange}
+        onTextChange={handleTextChangeWithHistory}
         onSelectionChange={handleSelectionChange}
         onTextPaste={handleTextPaste}
         isExpanded={editorExpanded}
         onToggleExpand={onToggleEditorExpanded}
         onKeyDown={(event) => {
           if (isComposingEvent(event)) {
+            return;
+          }
+          handleHistoryKeyDown(event);
+          if (event.defaultPrevented) {
             return;
           }
           if (

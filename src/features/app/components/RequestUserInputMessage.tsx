@@ -76,7 +76,8 @@ export function RequestUserInputMessage({
       const answerList: string[] = [];
       const key = question.id || `question-${index}`;
       const selectedIndex = selections[key];
-      if (question.options?.length && selectedIndex !== null) {
+      const treatAsFreeform = Boolean(question.isOther);
+      if (!treatAsFreeform && question.options?.length && selectedIndex !== null) {
         const selected = question.options[selectedIndex];
         const selectedValue =
           selected?.label?.trim() || selected?.description?.trim() || "";
@@ -86,7 +87,7 @@ export function RequestUserInputMessage({
       }
       const note = (notes[key] ?? "").trim();
       if (note) {
-        if (question.options?.length) {
+        if (!treatAsFreeform && question.options?.length) {
           answerList.push(`user_note: ${note}`);
         } else {
           answerList.push(note);
@@ -130,7 +131,9 @@ export function RequestUserInputMessage({
               const questionId = question.id || `question-${index}`;
               const selectedIndex = selections[questionId];
               const options = question.options ?? [];
-              const notePlaceholder = options.length
+              const notePlaceholder = question.isOther
+                ? "Type your answer (optional)"
+                : options.length
                 ? "Add notes (optional)"
                 : "Type your answer (optional)";
               return (

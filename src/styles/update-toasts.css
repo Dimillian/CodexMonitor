@@ -63,7 +63,6 @@
   display: block;
   height: 100%;
   background: linear-gradient(90deg, #4fb8ff, #3be082);
-  transition: width 0.2s ease;
 }
 
 .update-toast-progress-meta {

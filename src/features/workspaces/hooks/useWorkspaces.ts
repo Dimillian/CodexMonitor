@@ -99,7 +99,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     } catch (err) {
       console.error("Failed to load workspaces", err);
       setHasLoaded(true);
-      throw err;
+      return undefined;
     }
   }, []);
 

@@ -5,6 +5,7 @@ type TabletLayoutProps = {
   tabletNavNode: ReactNode;
   approvalToastsNode: ReactNode;
   updateToastNode: ReactNode;
+  errorToastsNode: ReactNode;
   homeNode: ReactNode;
   showHome: boolean;
   showWorkspace: boolean;
@@ -23,6 +24,7 @@ export function TabletLayout({
   tabletNavNode,
   approvalToastsNode,
   updateToastNode,
+  errorToastsNode,
   homeNode,
   showHome,
   showWorkspace,
@@ -50,6 +52,7 @@ export function TabletLayout({
       <section className="tablet-main">
         {approvalToastsNode}
         {updateToastNode}
+        {errorToastsNode}
         {showHome && homeNode}
         {showWorkspace && (
           <>

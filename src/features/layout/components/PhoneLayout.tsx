@@ -4,6 +4,7 @@ import { MainTopbar } from "../../app/components/MainTopbar";
 type PhoneLayoutProps = {
   approvalToastsNode: ReactNode;
   updateToastNode: ReactNode;
+  errorToastsNode: ReactNode;
   tabBarNode: ReactNode;
   sidebarNode: ReactNode;
   activeTab: "projects" | "codex" | "git" | "log";
@@ -23,6 +24,7 @@ type PhoneLayoutProps = {
 export function PhoneLayout({
   approvalToastsNode,
   updateToastNode,
+  errorToastsNode,
   tabBarNode,
   sidebarNode,
   activeTab,
@@ -42,6 +44,7 @@ export function PhoneLayout({
     <div className="compact-shell">
       {approvalToastsNode}
       {updateToastNode}
+      {errorToastsNode}
       {activeTab === "projects" && <div className="compact-panel">{sidebarNode}</div>}
       {activeTab === "codex" && (
         <div className="compact-panel">

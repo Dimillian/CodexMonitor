@@ -18,6 +18,7 @@ import type {
 import { ComposerInput } from "../../composer/components/ComposerInput";
 import { useComposerImages } from "../../composer/hooks/useComposerImages";
 import { useComposerAutocompleteState } from "../../composer/hooks/useComposerAutocompleteState";
+import { usePromptHistory } from "../../composer/hooks/usePromptHistory";
 import type { DictationSessionState } from "../../../types";
 import type { WorkspaceHomeRun, WorkspaceRunMode } from "../hooks/useWorkspaceHome";
 import { formatRelativeTime } from "../../../utils/time";
@@ -27,6 +28,7 @@ import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import { computeDictationInsertion } from "../../../utils/dictation";
 import { getCaretPosition } from "../../../utils/caretPosition";
+import { isComposingEvent } from "../../../utils/keys";
 
 type ThreadStatus = {
   isProcessing: boolean;
@@ -158,6 +160,25 @@ export function WorkspaceHome({
     setText: onPromptChange,
     setSelectionStart,
   });
+  const {
+    handleHistoryKeyDown,
+    handleHistoryTextChange,
+    recordHistory,
+    resetHistoryNavigation,
+  } = usePromptHistory({
+    historyKey: workspace.id,
+    text: prompt,
+    hasAttachments: activeImages.length > 0,
+    disabled: isSubmitting,
+    isAutocompleteOpen,
+    textareaRef,
+    setText: onPromptChange,
+    setSelectionStart,
+  });
+  const handleTextChangeWithHistory = (next: string, cursor: number | null) => {
+    handleHistoryTextChange(next);
+    handleTextChange(next, cursor);
+  };
   const isDictationBusy = dictationState !== "idle";
 
   useEffect(() => {
@@ -232,6 +253,7 @@ export function WorkspaceHome({
       end,
     );
     onPromptChange(nextText);
+    resetHistoryNavigation();
     requestAnimationFrame(() => {
       if (!textareaRef.current) {
         return;
@@ -246,6 +268,7 @@ export function WorkspaceHome({
     onDictationTranscriptHandled,
     onPromptChange,
     prompt,
+    resetHistoryNavigation,
     selectionStart,
   ]);
 
@@ -256,13 +279,25 @@ export function WorkspaceHome({
     if (isDictationBusy) {
       return;
     }
+    const trimmed = prompt.trim();
     const didStart = await onStartRun(activeImages);
     if (didStart) {
+      if (trimmed) {
+        recordHistory(trimmed);
+      }
+      resetHistoryNavigation();
       clearActiveImages();
     }
   };
 
   const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (isComposingEvent(event)) {
+      return;
+    }
+    handleHistoryKeyDown(event);
+    if (event.defaultPrevented) {
+      return;
+    }
     handleInputKeyDown(event);
     if (event.defaultPrevented) {
       return;
@@ -346,7 +381,7 @@ export function WorkspaceHome({
             }}
             onAttachImages={attachImages}
             onRemoveAttachment={removeImage}
-            onTextChange={handleTextChange}
+            onTextChange={handleTextChangeWithHistory}
             onSelectionChange={handleSelectionChange}
             onKeyDown={handleComposerKeyDown}
             isExpanded={false}

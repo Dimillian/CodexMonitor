@@ -114,6 +114,7 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
               id: String(question.id ?? "").trim(),
               header: String(question.header ?? ""),
               question: String(question.question ?? ""),
+              isOther: Boolean(question.isOther ?? question.is_other),
               options: options.length ? options : undefined,
             };
           })

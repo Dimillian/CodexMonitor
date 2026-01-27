@@ -268,6 +268,15 @@ pub(crate) struct WorkspaceSettings {
     pub(crate) codex_args: Option<String>,
     #[serde(default, rename = "launchScript")]
     pub(crate) launch_script: Option<String>,
+    #[serde(default, rename = "worktreeSetupScript")]
+    pub(crate) worktree_setup_script: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct WorktreeSetupStatus {
+    #[serde(rename = "shouldRun")]
+    pub(crate) should_run: bool,
+    pub(crate) script: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

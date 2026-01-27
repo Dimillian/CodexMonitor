@@ -355,6 +355,7 @@
 .tool-inline-summary {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   font-size: 12px;
   color: var(--text-stronger);
@@ -446,6 +447,14 @@
   white-space: nowrap;
 }
 
+.tool-inline-value:not(.tool-inline-command) {
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .tool-inline-command {
   font-family: "SF Mono", "SF Pro Text", ui-monospace, SFMono-Regular, Menlo,
     Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -529,6 +538,7 @@
 .explore-inline-item {
   display: flex;
   align-items: baseline;
+  flex-wrap: wrap;
   gap: 6px;
   min-width: 0;
   font-size: 12px;
@@ -537,18 +547,24 @@
 .explore-inline-kind {
   color: var(--text-subtle);
   font-weight: 600;
+  flex: 0 0 auto;
 }
 
 .explore-inline-label {
   color: var(--text-stronger);
   min-width: 0;
+  flex: 0 1 auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .explore-inline-detail {
   color: var(--text-faint);
   font-size: 11px;
   min-width: 0;
+  flex: 1 1 auto;
   overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .tool-inline-clamp {

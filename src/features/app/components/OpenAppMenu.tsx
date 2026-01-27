@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import * as Sentry from "@sentry/react";
 import { openWorkspaceIn } from "../../../services/tauri";
+import { pushErrorToast } from "../../../services/toasts";
 import type { OpenAppTarget } from "../../../types";
 import {
   DEFAULT_OPEN_APP_ID,
@@ -77,6 +79,31 @@ export function OpenAppMenu({
     resolvedOpenTargets[0] ??
     fallbackTarget;
 
+  const reportOpenError = (error: unknown, target: OpenTarget) => {
+    const message = error instanceof Error ? error.message : String(error);
+    Sentry.captureException(error instanceof Error ? error : new Error(message), {
+      tags: {
+        feature: "open-app-menu",
+      },
+      extra: {
+        path,
+        targetId: target.id,
+        targetKind: target.target.kind,
+        targetAppName: target.target.appName ?? null,
+        targetCommand: target.target.command ?? null,
+      },
+    });
+    pushErrorToast({
+      title: "Couldn’t open workspace",
+      message,
+    });
+    console.warn("Failed to open workspace in target app", {
+      message,
+      path,
+      targetId: target.id,
+    });
+  };
+
   useEffect(() => {
     if (!openMenuOpen) {
       return;
@@ -95,28 +122,32 @@ export function OpenAppMenu({
   }, [openMenuOpen]);
 
   const openWithTarget = async (target: OpenTarget) => {
-    if (target.target.kind === "finder") {
-      await revealItemInDir(path);
-      return;
-    }
-    if (target.target.kind === "command") {
-      if (!target.target.command) {
+    try {
+      if (target.target.kind === "finder") {
+        await revealItemInDir(path);
+        return;
+      }
+      if (target.target.kind === "command") {
+        if (!target.target.command) {
+          return;
+        }
+        await openWorkspaceIn(path, {
+          command: target.target.command,
+          args: target.target.args,
+        });
+        return;
+      }
+      const appName = target.target.appName || target.label;
+      if (!appName) {
         return;
       }
       await openWorkspaceIn(path, {
-        command: target.target.command,
+        appName,
         args: target.target.args,
       });
-      return;
+    } catch (error) {
+      reportOpenError(error, target);
     }
-    const appName = target.target.appName || target.label;
-    if (!appName) {
-      return;
-    }
-    await openWorkspaceIn(path, {
-      appName,
-      args: target.target.args,
-    });
   };
 
   const handleOpen = async () => {
