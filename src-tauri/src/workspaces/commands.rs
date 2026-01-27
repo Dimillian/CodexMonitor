@@ -32,6 +32,7 @@ use crate::types::{
     WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings, WorktreeInfo,
     WorktreeSetupStatus,
 };
+use crate::utils::{git_env_path, resolve_git_binary};
 
 const WORKTREE_SETUP_MARKERS_DIR: &str = "worktree-setup";
 const WORKTREE_SETUP_MARKER_EXT: &str = "ran";
@@ -1046,9 +1047,11 @@ pub(crate) async fn apply_worktree_changes(
         return Err("No changes to apply.".to_string());
     }
 
-    let mut child = Command::new("git")
+    let git_bin = resolve_git_binary().map_err(|e| format!("Failed to run git: {e}"))?;
+    let mut child = Command::new(git_bin)
         .args(["apply", "--3way", "--whitespace=nowarn", "-"])
         .current_dir(&parent_root)
+        .env("PATH", git_env_path())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
