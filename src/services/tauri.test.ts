@@ -8,11 +8,13 @@ import {
   getOpenAppIcon,
   listWorkspaces,
   openWorkspaceIn,
+  readAgentMd,
   stageGitAll,
   respondToServerRequest,
   respondToUserInputRequest,
   sendUserMessage,
   startReview,
+  writeAgentMd,
 } from "./tauri";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -131,6 +133,29 @@ describe("tauri invoke wrappers", () => {
 
     expect(invokeMock).toHaveBeenCalledWith("get_open_app_icon", {
       appName: "Xcode",
+    });
+  });
+
+  it("reads agent.md for a workspace", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({ exists: true, content: "# Agent", truncated: false });
+
+    await readAgentMd("ws-agent");
+
+    expect(invokeMock).toHaveBeenCalledWith("read_agent_md", {
+      workspaceId: "ws-agent",
+    });
+  });
+
+  it("writes agent.md for a workspace", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await writeAgentMd("ws-agent", "# Agent");
+
+    expect(invokeMock).toHaveBeenCalledWith("write_agent_md", {
+      workspaceId: "ws-agent",
+      content: "# Agent",
     });
   });
 

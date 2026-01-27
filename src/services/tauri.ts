@@ -530,6 +530,20 @@ export async function readWorkspaceFile(
   });
 }
 
+export type AgentMdResponse = {
+  exists: boolean;
+  content: string;
+  truncated: boolean;
+};
+
+export async function readAgentMd(workspaceId: string): Promise<AgentMdResponse> {
+  return invoke<AgentMdResponse>("read_agent_md", { workspaceId });
+}
+
+export async function writeAgentMd(workspaceId: string, content: string): Promise<void> {
+  return invoke("write_agent_md", { workspaceId, content });
+}
+
 export async function listGitBranches(workspaceId: string) {
   return invoke<any>("list_git_branches", { workspaceId });
 }

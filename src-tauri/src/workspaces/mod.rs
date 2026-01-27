@@ -1,3 +1,4 @@
+mod agent_md;
 mod commands;
 mod files;
 mod git;
