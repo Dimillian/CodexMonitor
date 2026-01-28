@@ -4,7 +4,10 @@ import type { WorkspaceInfo } from "../../../types";
 type WorkspaceRefreshOptions = {
   workspaces: WorkspaceInfo[];
   refreshWorkspaces: () => Promise<WorkspaceInfo[] | void>;
-  listThreadsForWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
+  listThreadsForWorkspace: (
+    workspace: WorkspaceInfo,
+    options?: { preserveState?: boolean },
+  ) => Promise<void>;
 };
 
 export function useWorkspaceRefreshOnFocus({
@@ -26,7 +29,9 @@ export function useWorkspaceRefreshOnFocus({
         }
         const connected = latestWorkspaces.filter((entry) => entry.connected);
         await Promise.allSettled(
-          connected.map((workspace) => listThreadsForWorkspace(workspace)),
+          connected.map((workspace) =>
+            listThreadsForWorkspace(workspace, { preserveState: true }),
+          ),
         );
       })();
     };

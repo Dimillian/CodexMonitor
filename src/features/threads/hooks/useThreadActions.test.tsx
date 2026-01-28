@@ -313,6 +313,29 @@ describe("useThreadActions", () => {
     });
   });
 
+  it("preserves list state when requested", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [],
+        nextCursor: null,
+      },
+    });
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace, {
+        preserveState: true,
+      });
+    });
+
+    expect(dispatch).not.toHaveBeenCalledWith({
+      type: "setThreadListLoading",
+      workspaceId: "ws-1",
+      isLoading: true,
+    });
+  });
+
   it("loads older threads when a cursor is available", async () => {
     vi.mocked(listThreads).mockResolvedValue({
       result: {

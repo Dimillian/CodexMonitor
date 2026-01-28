@@ -266,18 +266,26 @@ export function useThreadActions({
   );
 
   const listThreadsForWorkspace = useCallback(
-    async (workspace: WorkspaceInfo) => {
+    async (
+      workspace: WorkspaceInfo,
+      options?: {
+        preserveState?: boolean;
+      },
+    ) => {
+      const preserveState = options?.preserveState ?? false;
       const workspacePath = normalizeRootPath(workspace.path);
-      dispatch({
-        type: "setThreadListLoading",
-        workspaceId: workspace.id,
-        isLoading: true,
-      });
-      dispatch({
-        type: "setThreadListCursor",
-        workspaceId: workspace.id,
-        cursor: null,
-      });
+      if (!preserveState) {
+        dispatch({
+          type: "setThreadListLoading",
+          workspaceId: workspace.id,
+          isLoading: true,
+        });
+        dispatch({
+          type: "setThreadListCursor",
+          workspaceId: workspace.id,
+          cursor: null,
+        });
+      }
       onDebug?.({
         id: `${Date.now()}-client-thread-list`,
         timestamp: Date.now(),
@@ -419,11 +427,13 @@ export function useThreadActions({
           payload: error instanceof Error ? error.message : String(error),
         });
       } finally {
-        dispatch({
-          type: "setThreadListLoading",
-          workspaceId: workspace.id,
-          isLoading: false,
-        });
+        if (!preserveState) {
+          dispatch({
+            type: "setThreadListLoading",
+            workspaceId: workspace.id,
+            isLoading: false,
+          });
+        }
       }
     },
     [dispatch, getCustomName, onDebug, threadActivityRef],

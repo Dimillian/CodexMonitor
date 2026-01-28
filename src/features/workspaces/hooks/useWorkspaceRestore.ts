@@ -5,7 +5,10 @@ type WorkspaceRestoreOptions = {
   workspaces: WorkspaceInfo[];
   hasLoaded: boolean;
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
-  listThreadsForWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
+  listThreadsForWorkspace: (
+    workspace: WorkspaceInfo,
+    options?: { preserveState?: boolean },
+  ) => Promise<void>;
 };
 
 export function useWorkspaceRestore({
