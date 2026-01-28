@@ -6,7 +6,7 @@
   border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
   -webkit-app-region: no-drag;
   min-height: 0;
   overflow: hidden;
@@ -86,12 +86,184 @@
 
 .sidebar-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 0 4px;
-  margin-bottom: 4px;
+  padding: 0;
+  margin-bottom: 0;
   -webkit-app-region: no-drag;
+}
+
+.sidebar-header-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sidebar-title-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sidebar-title-button {
+  min-width: 0;
+}
+
+.sidebar-title-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  line-height: 1;
+  border-radius: 0;
+  box-shadow: none;
+  transform: none;
+  transition: color 0.15s ease;
+}
+
+.sidebar-title-add svg {
+  width: 16px;
+  height: 16px;
+}
+
+.sidebar-title-add:hover,
+.sidebar-title-add:focus-visible {
+  color: var(--text-strong);
+  background: var(--surface-hover);
+  box-shadow: none;
+  transform: none;
+  border-radius: 8px;
+}
+
+.sidebar-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.sidebar-search-toggle {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.sidebar-search-toggle svg {
+  width: 14px;
+  height: 14px;
+}
+
+.sidebar-search-toggle:hover,
+.sidebar-search-toggle:focus-visible {
+  color: var(--text-strong);
+  background: var(--surface-hover);
+  transform: none;
+  box-shadow: none;
+}
+
+.sidebar-search-toggle.is-active {
+  color: var(--text-strong);
+  background: var(--surface-hover);
+  box-shadow: inset 0 0 0 1px var(--border-quiet);
+}
+
+.sidebar-search {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  padding: 6px 4px 10px;
+}
+
+.sidebar.search-open .sidebar-header {
+  margin-bottom: 6px;
+}
+
+.sidebar.search-open {
+  gap: 12px;
+}
+
+.sidebar.search-open .sidebar-search {
+  padding: 6px 4px 8px;
+}
+
+.sidebar-search:not(.is-open) {
+  padding: 0 4px;
+  height: 0;
+  overflow: hidden;
+}
+
+.sidebar-search-input {
+  width: 100%;
+  padding: 8px 28px 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-quiet);
+  color: var(--text-strong);
+  font-size: 13px;
+  outline: none;
+}
+
+.sidebar-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.sidebar-search-input:focus {
+  border-color: var(--border-accent);
+  box-shadow: 0 0 0 2px var(--border-accent-soft);
+}
+
+.sidebar-search-clear {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 0;
+  font-weight: 600;
+  transition: none;
+  box-shadow: none;
+}
+
+.sidebar-search-clear:hover {
+  background: transparent;
+  color: var(--text-strong);
+  transform: translateY(-50%);
+  box-shadow: none;
+}
+
+.sidebar-search-clear,
+.sidebar-search-clear:hover,
+.sidebar-search-clear:active {
+  transform: translateY(-50%) !important;
+  box-shadow: none !important;
+}
+
+.sidebar-search-clear:focus-visible {
+  outline: 1px solid var(--border-accent);
+  outline-offset: 2px;
 }
 
 .subtitle {
@@ -101,6 +273,11 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+.sidebar-header .subtitle {
+  margin-top: 0;
+  line-height: 1.1;
 }
 
 .subtitle-button {
@@ -361,6 +538,13 @@
   white-space: nowrap;
 }
 
+.workspace-name-match {
+  color: var(--text-strong);
+  background: var(--border-accent-soft);
+  border-radius: 4px;
+  padding: 0 2px;
+}
+
 
 .connect {
   font-size: 12px;
@@ -396,7 +580,6 @@
   background: var(--surface-card-strong);
 }
 
-.sidebar-header:hover .workspace-add,
 .workspace-row:hover .workspace-add,
 .worktree-row:hover .workspace-add {
   opacity: 1;

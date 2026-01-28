@@ -1,32 +1,54 @@
-import FolderKanban from "lucide-react/dist/esm/icons/folder-kanban";
+import FolderPlus from "lucide-react/dist/esm/icons/folder-plus";
+import Search from "lucide-react/dist/esm/icons/search";
 
 type SidebarHeaderProps = {
   onSelectHome: () => void;
   onAddWorkspace: () => void;
+  onToggleSearch: () => void;
+  isSearchOpen: boolean;
 };
 
-export function SidebarHeader({ onSelectHome, onAddWorkspace }: SidebarHeaderProps) {
+export function SidebarHeader({
+  onSelectHome,
+  onAddWorkspace,
+  onToggleSearch,
+  isSearchOpen,
+}: SidebarHeaderProps) {
   return (
     <div className="sidebar-header">
-      <div>
+      <div className="sidebar-header-title">
+        <div className="sidebar-title-group">
+          <button
+            className="subtitle subtitle-button sidebar-title-button"
+            onClick={onSelectHome}
+            data-tauri-drag-region="false"
+            aria-label="Open home"
+          >
+            Projects
+          </button>
+          <button
+            className="sidebar-title-add"
+            onClick={onAddWorkspace}
+            data-tauri-drag-region="false"
+            aria-label="Add workspace"
+            type="button"
+          >
+            <FolderPlus aria-hidden />
+          </button>
+        </div>
+      </div>
+      <div className="sidebar-header-actions">
         <button
-          className="subtitle subtitle-button"
-          onClick={onSelectHome}
+          className={`ghost sidebar-search-toggle${isSearchOpen ? " is-active" : ""}`}
+          onClick={onToggleSearch}
           data-tauri-drag-region="false"
-          aria-label="Open home"
+          aria-label="Toggle search"
+          aria-pressed={isSearchOpen}
+          type="button"
         >
-          <FolderKanban className="sidebar-nav-icon" />
-          Projects
+          <Search aria-hidden />
         </button>
       </div>
-      <button
-        className="ghost workspace-add"
-        onClick={onAddWorkspace}
-        data-tauri-drag-region="false"
-        aria-label="Add workspace"
-      >
-        +
-      </button>
     </div>
   );
 }

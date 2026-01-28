@@ -4,6 +4,7 @@ import type { WorkspaceInfo } from "../../../types";
 
 type WorkspaceCardProps = {
   workspace: WorkspaceInfo;
+  workspaceName?: React.ReactNode;
   isActive: boolean;
   isCollapsed: boolean;
   addMenuOpen: boolean;
@@ -23,6 +24,7 @@ type WorkspaceCardProps = {
 
 export function WorkspaceCard({
   workspace,
+  workspaceName,
   isActive,
   isCollapsed,
   addMenuOpen,
@@ -52,7 +54,7 @@ export function WorkspaceCard({
         <div>
           <div className="workspace-name-row">
             <div className="workspace-title">
-              <span className="workspace-name">{workspace.name}</span>
+              <span className="workspace-name">{workspaceName ?? workspace.name}</span>
               <button
                 className={`workspace-toggle ${isCollapsed ? "" : "expanded"}`}
                 onClick={(event) => {
