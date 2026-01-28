@@ -36,7 +36,7 @@ base64 = "0.22"
 fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs" }
 ignore = "0.4.25"
 portable-pty = "0.8"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "socks"] }
 libc = "0.2"
 chrono = { version = "0.4", features = ["clock"] }
 shell-words = "1.1"

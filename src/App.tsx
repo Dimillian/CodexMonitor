@@ -256,6 +256,8 @@ function MainApp() {
     dismissUpdate,
     handleTestNotificationSound,
   } = useUpdaterController({
+    enabled: !appSettingsLoading,
+    proxyUrl: appSettings.proxyUrl,
     notificationSoundsEnabled: appSettings.notificationSoundsEnabled,
     onDebug: addDebugEntry,
     successSoundUrl,

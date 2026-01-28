@@ -146,6 +146,16 @@
   color: var(--text-subtle);
 }
 
+.settings-help code {
+  font-family: "SFMono-Regular", "Menlo", "Monaco", monospace;
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-muted);
+  color: var(--text-strong);
+}
+
 .settings-download-progress {
   display: flex;
   flex-direction: column;
