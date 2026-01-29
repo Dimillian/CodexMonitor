@@ -518,7 +518,7 @@ export function buildConversationItem(
       id,
       kind: "message",
       role: "user",
-      text: text || "[message]",
+      text,
       images: images.length > 0 ? images : undefined,
     };
   }
@@ -695,7 +695,6 @@ function parseUserInputs(inputs: Array<Record<string, unknown>>) {
       return;
     }
     if (type === "image" || type === "localImage") {
-      textParts.push("[image]");
       const value = extractImageInputValue(input);
       if (value) {
         images.push(value);
@@ -720,7 +719,7 @@ export function buildConversationItemFromThreadItem(
       id,
       kind: "message",
       role: "user",
-      text: text || "[message]",
+      text,
       images: images.length > 0 ? images : undefined,
     };
   }

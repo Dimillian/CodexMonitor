@@ -172,8 +172,6 @@ function formatCount(value: number, singular: string, plural: string) {
   return `${value} ${value === 1 ? singular : plural}`;
 }
 
-const IMAGE_TOKEN_REGEX = /\[image(?: x\d+)?\]/gi;
-
 function normalizeMessageImageSrc(path: string) {
   if (!path) {
     return "";
@@ -559,6 +557,7 @@ const MessageRow = memo(function MessageRow({
   onOpenFileLinkMenu,
 }: MessageRowProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const hasText = item.text.trim().length > 0;
   const imageItems = useMemo(() => {
     if (!item.images || item.images.length === 0) {
       return [];
@@ -573,14 +572,6 @@ const MessageRow = memo(function MessageRow({
       })
       .filter(Boolean) as MessageImage[];
   }, [item.images]);
-  const messageText = useMemo(() => {
-    if (imageItems.length === 0) {
-      return item.text;
-    }
-    const cleaned = item.text.replace(IMAGE_TOKEN_REGEX, " ");
-    return cleaned.replace(/\s+/g, " ").trim();
-  }, [imageItems.length, item.text]);
-  const showMarkdown = Boolean(messageText);
 
   return (
     <div className={`message ${item.role}`}>
@@ -589,12 +580,12 @@ const MessageRow = memo(function MessageRow({
           <MessageImageGrid
             images={imageItems}
             onOpen={setLightboxIndex}
-            hasText={showMarkdown}
+            hasText={hasText}
           />
         )}
-        {showMarkdown && (
+        {hasText && (
           <Markdown
-            value={messageText}
+            value={item.text}
             className="markdown"
             codeBlockStyle="message"
             codeBlockCopyUseModifier={codeBlockCopyUseModifier}

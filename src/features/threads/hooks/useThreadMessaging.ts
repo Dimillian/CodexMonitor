@@ -121,8 +121,8 @@ export function useThreadMessaging({
       const wasProcessing =
         (threadStatusById[threadId]?.isProcessing ?? false) && steerEnabled;
       if (wasProcessing) {
-        const optimisticText = finalText || (images.length > 0 ? "[image]" : "");
-        if (optimisticText) {
+        const optimisticText = finalText;
+        if (optimisticText || images.length > 0) {
           dispatch({
             type: "upsertItem",
             workspaceId: workspace.id,
