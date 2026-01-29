@@ -35,10 +35,10 @@ fn apply_macos_window_appearance(window: &Window, theme: &str) -> Result<(), Str
     }
 
     let appearance_name = unsafe {
-        if theme == "dark" {
-            NSAppearanceNameDarkAqua
-        } else {
+        if theme == "light" {
             NSAppearanceNameAqua
+        } else {
+            NSAppearanceNameDarkAqua
         }
     };
     let appearance =
@@ -60,7 +60,7 @@ pub(crate) fn apply_window_appearance(window: &Window, theme: &str) -> Result<()
 
     let next_theme = match theme {
         "light" => Some(Theme::Light),
-        "dark" => Some(Theme::Dark),
+        "dark" | "dim" => Some(Theme::Dark),
         _ => None,
     };
     let _ = window.set_theme(next_theme);

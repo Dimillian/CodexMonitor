@@ -376,6 +376,7 @@
   font-size: var(--code-font-size, 11px);
   color: var(--text-quiet);
   font-family: var(--code-font-family);
+  font-weight: var(--code-font-weight, 400);
   max-width: 100%;
   min-width: 0;
   width: 100%;
@@ -385,7 +386,7 @@
   isolation: isolate;
   --diffs-font-family: var(--code-font-family);
   --diffs-font-size: var(--code-font-size, 11px);
-  --diffs-line-height: 1.4;
+  --diffs-line-height: var(--code-line-height, 1.28);
   --diffs-tab-size: 2;
 }
 

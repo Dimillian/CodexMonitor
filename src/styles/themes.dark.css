@@ -1,0 +1,82 @@
+:root {
+  font-family: "SF Pro Text", "SF Pro Display", -apple-system, "Helvetica Neue",
+    sans-serif;
+  color: var(--text-primary);
+  background-color: transparent;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  color-scheme: light dark;
+  --ui-font-family: "SF Pro Text", "SF Pro Display", -apple-system, "Helvetica Neue",
+    sans-serif;
+  --code-font-family: "SF Mono", "SFMono-Regular", Menlo, Monaco, monospace;
+  --code-font-size: 11px;
+  --code-font-weight: 400;
+  --code-line-height: 1.28;
+  --text-primary: #e6e7ea;
+  --text-strong: #ffffff;
+  --text-emphasis: rgba(255, 255, 255, 0.9);
+  --text-stronger: rgba(255, 255, 255, 0.85);
+  --text-quiet: rgba(255, 255, 255, 0.75);
+  --text-muted: rgba(255, 255, 255, 0.7);
+  --text-subtle: rgba(255, 255, 255, 0.6);
+  --text-faint: rgba(255, 255, 255, 0.5);
+  --text-fainter: rgba(255, 255, 255, 0.45);
+  --text-dim: rgba(255, 255, 255, 0.35);
+  --surface-sidebar: rgba(18, 18, 18, 0.5);
+  --surface-sidebar-opaque: rgb(18, 18, 18);
+  --surface-topbar: rgba(10, 14, 20, 0.45);
+  --surface-right-panel: rgba(9, 12, 20, 0.4);
+  --surface-composer: rgba(10, 14, 20, 0.45);
+  --surface-messages: rgba(8, 10, 16, 0.45);
+  --surface-card: rgba(255, 255, 255, 0.04);
+  --surface-card-strong: rgba(255, 255, 255, 0.12);
+  --surface-card-muted: rgba(255, 255, 255, 0.06);
+  --surface-item: rgba(255, 255, 255, 0.02);
+  --surface-control: rgba(255, 255, 255, 0.08);
+  --surface-control-hover: rgba(255, 255, 255, 0.14);
+  --surface-control-disabled: rgba(255, 255, 255, 0.05);
+  --surface-hover: rgba(255, 255, 255, 0.05);
+  --surface-active: rgba(100, 200, 255, 0.14);
+  --surface-approval: rgba(12, 16, 26, 0.6);
+  --surface-debug: rgba(10, 14, 20, 0.55);
+  --surface-command: rgba(10, 12, 18, 0.7);
+  --surface-diff-card: rgba(10, 14, 20, 0.32);
+  --surface-bubble: rgba(255, 255, 255, 0.12);
+  --surface-bubble-user: rgba(77, 153, 255, 0.45);
+  --surface-context-core: rgba(10, 14, 20, 0.9);
+  --surface-popover: rgba(10, 14, 20, 0.995);
+  --surface-review: rgba(255, 144, 200, 0.1);
+  --border-review: rgba(255, 144, 200, 0.35);
+  --surface-review-active: rgba(255, 144, 200, 0.18);
+  --text-review-active: rgba(255, 195, 226, 0.95);
+  --surface-review-done: rgba(120, 255, 200, 0.18);
+  --text-review-done: rgba(170, 255, 220, 0.95);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-muted: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --border-stronger: rgba(255, 255, 255, 0.18);
+  --border-quiet: rgba(255, 255, 255, 0.2);
+  --border-accent: rgba(100, 200, 255, 0.6);
+  --border-accent-soft: rgba(100, 200, 255, 0.3);
+  --text-accent: rgba(164, 195, 255, 0.7);
+  --message-link-color: rgba(196, 154, 255, 0.96);
+  --shadow-accent: rgba(92, 168, 255, 0.28);
+  --titlebar-inset-left: 72px;
+  --titlebar-height: 24px;
+  --titlebar-toggle-size: 28px;
+  --titlebar-toggle-offset: 4px;
+  --titlebar-toggle-title-offset: -6px;
+  --titlebar-toggle-side-gap: 12px;
+  --topbar-compact-padding: 16px;
+  --status-success: rgba(120, 235, 190, 0.95);
+  --status-warning: rgba(255, 175, 85, 0.95);
+  --status-error: rgba(255, 110, 110, 0.95);
+  --status-unknown: rgba(255, 255, 255, 0.3);
+  --select-caret: rgba(255, 255, 255, 0.6);
+  --tabbar-height: 56px;
+  --ui-scale: 1;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}

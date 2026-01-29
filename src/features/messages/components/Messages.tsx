@@ -1,4 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import Brain from "lucide-react/dist/esm/icons/brain";
 import Check from "lucide-react/dist/esm/icons/check";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
@@ -12,6 +14,7 @@ import Search from "lucide-react/dist/esm/icons/search";
 import Terminal from "lucide-react/dist/esm/icons/terminal";
 import Users from "lucide-react/dist/esm/icons/users";
 import Wrench from "lucide-react/dist/esm/icons/wrench";
+import X from "lucide-react/dist/esm/icons/x";
 import type {
   ConversationItem,
   OpenAppTarget,
@@ -102,6 +105,11 @@ type CommandOutputProps = {
   output: string;
 };
 
+type MessageImage = {
+  src: string;
+  label: string;
+};
+
 type ToolGroupItem = Extract<ConversationItem, { kind: "tool" | "reasoning" | "explore" }>;
 
 type ToolGroup = {
@@ -163,6 +171,113 @@ function toolNameFromTitle(title: string) {
 function formatCount(value: number, singular: string, plural: string) {
   return `${value} ${value === 1 ? singular : plural}`;
 }
+
+function normalizeMessageImageSrc(path: string) {
+  if (!path) {
+    return "";
+  }
+  if (path.startsWith("data:") || path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+  if (path.startsWith("file://")) {
+    return path;
+  }
+  try {
+    return convertFileSrc(path);
+  } catch {
+    return "";
+  }
+}
+
+const MessageImageGrid = memo(function MessageImageGrid({
+  images,
+  onOpen,
+  hasText,
+}: {
+  images: MessageImage[];
+  onOpen: (index: number) => void;
+  hasText: boolean;
+}) {
+  return (
+    <div
+      className={`message-image-grid${hasText ? " message-image-grid--with-text" : ""}`}
+      role="list"
+    >
+      {images.map((image, index) => (
+        <button
+          key={`${image.src}-${index}`}
+          type="button"
+          className="message-image-thumb"
+          onClick={() => onOpen(index)}
+          aria-label={`Open image ${index + 1}`}
+        >
+          <img src={image.src} alt={image.label} loading="lazy" />
+        </button>
+      ))}
+    </div>
+  );
+});
+
+const ImageLightbox = memo(function ImageLightbox({
+  images,
+  activeIndex,
+  onClose,
+}: {
+  images: MessageImage[];
+  activeIndex: number;
+  onClose: () => void;
+}) {
+  const activeImage = images[activeIndex];
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, []);
+
+  if (!activeImage) {
+    return null;
+  }
+
+  return createPortal(
+    <div
+      className="message-image-lightbox"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="message-image-lightbox-content"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="message-image-lightbox-close"
+          onClick={onClose}
+          aria-label="Close image preview"
+        >
+          <X size={16} aria-hidden />
+        </button>
+        <img src={activeImage.src} alt={activeImage.label} />
+      </div>
+    </div>,
+    document.body,
+  );
+});
 
 function isToolGroupItem(item: ConversationItem): item is ToolGroupItem {
   return item.kind === "tool" || item.kind === "reasoning" || item.kind === "explore";
@@ -441,17 +556,50 @@ const MessageRow = memo(function MessageRow({
   onOpenFileLink,
   onOpenFileLinkMenu,
 }: MessageRowProps) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const hasText = item.text.trim().length > 0;
+  const imageItems = useMemo(() => {
+    if (!item.images || item.images.length === 0) {
+      return [];
+    }
+    return item.images
+      .map((image, index) => {
+        const src = normalizeMessageImageSrc(image);
+        if (!src) {
+          return null;
+        }
+        return { src, label: `Image ${index + 1}` };
+      })
+      .filter(Boolean) as MessageImage[];
+  }, [item.images]);
+
   return (
     <div className={`message ${item.role}`}>
       <div className="bubble message-bubble">
-        <Markdown
-          value={item.text}
-          className="markdown"
-          codeBlockStyle="message"
-          codeBlockCopyUseModifier={codeBlockCopyUseModifier}
-          onOpenFileLink={onOpenFileLink}
-          onOpenFileLinkMenu={onOpenFileLinkMenu}
-        />
+        {imageItems.length > 0 && (
+          <MessageImageGrid
+            images={imageItems}
+            onOpen={setLightboxIndex}
+            hasText={hasText}
+          />
+        )}
+        {hasText && (
+          <Markdown
+            value={item.text}
+            className="markdown"
+            codeBlockStyle="message"
+            codeBlockCopyUseModifier={codeBlockCopyUseModifier}
+            onOpenFileLink={onOpenFileLink}
+            onOpenFileLinkMenu={onOpenFileLinkMenu}
+          />
+        )}
+        {lightboxIndex !== null && imageItems.length > 0 && (
+          <ImageLightbox
+            images={imageItems}
+            activeIndex={lightboxIndex}
+            onClose={() => setLightboxIndex(null)}
+          />
+        )}
         <button
           type="button"
           className={`ghost message-copy-button${isCopied ? " is-copied" : ""}`}

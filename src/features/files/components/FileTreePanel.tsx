@@ -247,6 +247,9 @@ export function FileTreePanel({
     start: number;
     end: number;
   } | null>(null);
+  const [isDragSelecting, setIsDragSelecting] = useState(false);
+  const dragAnchorLineRef = useRef<number | null>(null);
+  const dragMovedRef = useRef(false);
   const hasManualToggle = useRef(false);
   const showLoading = isLoading && files.length === 0;
   const deferredQuery = useDeferredValue(query);
@@ -303,6 +306,9 @@ export function FileTreePanel({
     setPreviewTruncated(false);
     setPreviewError(null);
     setPreviewLoading(false);
+    setIsDragSelecting(false);
+    dragAnchorLineRef.current = null;
+    dragMovedRef.current = false;
   }, [workspaceId]);
 
   const closePreview = useCallback(() => {
@@ -313,6 +319,9 @@ export function FileTreePanel({
     setPreviewTruncated(false);
     setPreviewError(null);
     setPreviewLoading(false);
+    setIsDragSelecting(false);
+    dragAnchorLineRef.current = null;
+    dragMovedRef.current = false;
   }, []);
 
   useEffect(() => {
@@ -399,6 +408,9 @@ export function FileTreePanel({
     setPreviewPath(path);
     setPreviewAnchor({ top, left, arrowTop, height: maxHeight });
     setPreviewSelection(null);
+    setIsDragSelecting(false);
+    dragAnchorLineRef.current = null;
+    dragMovedRef.current = false;
   }, []);
 
   useEffect(() => {
@@ -441,18 +453,87 @@ export function FileTreePanel({
     };
   }, [previewKind, previewPath, workspaceId]);
 
+  useEffect(() => {
+    if (!isDragSelecting) {
+      return;
+    }
+    const handleMouseUp = () => {
+      setIsDragSelecting(false);
+      dragAnchorLineRef.current = null;
+    };
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => window.removeEventListener("mouseup", handleMouseUp);
+  }, [isDragSelecting]);
+
+  const selectRangeFromAnchor = useCallback((anchor: number, index: number) => {
+    const start = Math.min(anchor, index);
+    const end = Math.max(anchor, index);
+    setPreviewSelection({ start, end });
+  }, []);
+
   const handleSelectLine = useCallback(
     (index: number, event: MouseEvent<HTMLButtonElement>) => {
+      if (dragMovedRef.current) {
+        dragMovedRef.current = false;
+        return;
+      }
       if (event.shiftKey && previewSelection) {
         const anchor = previewSelection.start;
-        const start = Math.min(anchor, index);
-        const end = Math.max(anchor, index);
-        setPreviewSelection({ start, end });
+        selectRangeFromAnchor(anchor, index);
         return;
       }
       setPreviewSelection({ start: index, end: index });
     },
-    [previewSelection],
+    [previewSelection, selectRangeFromAnchor],
+  );
+
+  const handleLineMouseDown = useCallback(
+    (index: number, event: MouseEvent<HTMLButtonElement>) => {
+      if (previewKind !== "text" || event.button !== 0) {
+        return;
+      }
+      event.preventDefault();
+      setIsDragSelecting(true);
+      const anchor =
+        event.shiftKey && previewSelection ? previewSelection.start : index;
+      dragAnchorLineRef.current = anchor;
+      dragMovedRef.current = false;
+      selectRangeFromAnchor(anchor, index);
+    },
+    [previewKind, previewSelection, selectRangeFromAnchor],
+  );
+
+  const handleLineMouseEnter = useCallback(
+    (index: number, _event: MouseEvent<HTMLButtonElement>) => {
+      if (!isDragSelecting) {
+        return;
+      }
+      const anchor = dragAnchorLineRef.current;
+      if (anchor === null) {
+        return;
+      }
+      if (anchor !== index) {
+        dragMovedRef.current = true;
+      }
+      selectRangeFromAnchor(anchor, index);
+    },
+    [isDragSelecting, selectRangeFromAnchor],
+  );
+
+  const handleLineMouseUp = useCallback(() => {
+    if (!isDragSelecting) {
+      return;
+    }
+    setIsDragSelecting(false);
+    dragAnchorLineRef.current = null;
+  }, [isDragSelecting]);
+
+  const selectionHints = useMemo(
+    () =>
+      previewKind === "text"
+        ? ["Shift + click or drag + click", "for multi-line selection"]
+        : [],
+    [previewKind],
   );
 
   const handleAddSelection = useCallback(() => {
@@ -631,9 +712,13 @@ export function FileTreePanel({
               onSelectOpenAppId={onSelectOpenAppId}
               selection={previewSelection}
               onSelectLine={handleSelectLine}
+              onLineMouseDown={handleLineMouseDown}
+              onLineMouseEnter={handleLineMouseEnter}
+              onLineMouseUp={handleLineMouseUp}
               onClearSelection={() => setPreviewSelection(null)}
               onAddSelection={handleAddSelection}
               onClose={closePreview}
+              selectionHints={selectionHints}
               style={{
                 position: "fixed",
                 top: previewAnchor.top,

@@ -1296,7 +1296,33 @@ export function SettingsView({
                     <option value="system">System</option>
                     <option value="light">Light</option>
                     <option value="dark">Dark</option>
+                    <option value="dim">Dim</option>
                   </select>
+                </div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">
+                      Show remaining Codex limits
+                    </div>
+                    <div className="settings-toggle-subtitle">
+                      Display what is left instead of what is used.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${
+                      appSettings.usageShowRemaining ? "on" : ""
+                    }`}
+                    onClick={() =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        usageShowRemaining: !appSettings.usageShowRemaining,
+                      })
+                    }
+                    aria-pressed={appSettings.usageShowRemaining}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
                 </div>
                 <div className="settings-toggle-row">
                   <div>

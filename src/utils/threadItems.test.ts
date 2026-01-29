@@ -464,13 +464,28 @@ describe("threadItems", () => {
       content: [
         { type: "text", text: "Please" },
         { type: "skill", name: "Review" },
-        { type: "image" },
+        { type: "image", url: "https://example.com/image.png" },
       ],
     });
     expect(item).not.toBeNull();
     if (item && item.kind === "message") {
       expect(item.role).toBe("user");
-      expect(item.text).toBe("Please $Review [image]");
+      expect(item.text).toBe("Please $Review");
+      expect(item.images).toEqual(["https://example.com/image.png"]);
+    }
+  });
+
+  it("keeps image-only user messages without placeholder text", () => {
+    const item = buildConversationItemFromThreadItem({
+      type: "userMessage",
+      id: "msg-2",
+      content: [{ type: "image", url: "https://example.com/only.png" }],
+    });
+    expect(item).not.toBeNull();
+    if (item && item.kind === "message") {
+      expect(item.role).toBe("user");
+      expect(item.text).toBe("");
+      expect(item.images).toEqual(["https://example.com/only.png"]);
     }
   });
 

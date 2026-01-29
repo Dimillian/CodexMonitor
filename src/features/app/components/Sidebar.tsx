@@ -52,6 +52,7 @@ type SidebarProps = {
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   accountRateLimits: RateLimitSnapshot | null;
+  usageShowRemaining: boolean;
   accountInfo: AccountSnapshot | null;
   onSwitchAccount: () => void;
   accountSwitching: boolean;
@@ -101,6 +102,7 @@ export function Sidebar({
   activeWorkspaceId,
   activeThreadId,
   accountRateLimits,
+  usageShowRemaining,
   accountInfo,
   onSwitchAccount,
   accountSwitching,
@@ -171,7 +173,7 @@ export function Sidebar({
     weeklyResetLabel,
     creditsLabel,
     showWeekly,
-  } = getUsageLabels(accountRateLimits);
+  } = getUsageLabels(accountRateLimits, usageShowRemaining);
   const normalizedQuery = debouncedQuery.trim().toLowerCase();
 
   const isWorkspaceMatch = useCallback(

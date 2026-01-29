@@ -513,12 +513,13 @@ export function buildConversationItem(
   }
   if (type === "userMessage") {
     const content = Array.isArray(item.content) ? item.content : [];
-    const text = userInputsToText(content);
+    const { text, images } = parseUserInputs(content);
     return {
       id,
       kind: "message",
       role: "user",
-      text: text || "[message]",
+      text,
+      images: images.length > 0 ? images : undefined,
     };
   }
   if (type === "reasoning") {
@@ -664,25 +665,43 @@ export function buildConversationItem(
   return null;
 }
 
-function userInputsToText(inputs: Array<Record<string, unknown>>) {
-  return inputs
-    .map((input) => {
-      const type = asString(input.type);
-      if (type === "text") {
-        return asString(input.text);
+function extractImageInputValue(input: Record<string, unknown>) {
+  const value =
+    asString(input.url ?? "") ||
+    asString(input.path ?? "") ||
+    asString(input.value ?? "") ||
+    asString(input.data ?? "") ||
+    asString(input.source ?? "");
+  return value.trim();
+}
+
+function parseUserInputs(inputs: Array<Record<string, unknown>>) {
+  const textParts: string[] = [];
+  const images: string[] = [];
+  inputs.forEach((input) => {
+    const type = asString(input.type);
+    if (type === "text") {
+      const text = asString(input.text);
+      if (text) {
+        textParts.push(text);
       }
-      if (type === "skill") {
-        const name = asString(input.name);
-        return name ? `$${name}` : "";
+      return;
+    }
+    if (type === "skill") {
+      const name = asString(input.name);
+      if (name) {
+        textParts.push(`$${name}`);
       }
-      if (type === "image" || type === "localImage") {
-        return "[image]";
+      return;
+    }
+    if (type === "image" || type === "localImage") {
+      const value = extractImageInputValue(input);
+      if (value) {
+        images.push(value);
       }
-      return "";
-    })
-    .filter(Boolean)
-    .join(" ")
-    .trim();
+    }
+  });
+  return { text: textParts.join(" ").trim(), images };
 }
 
 export function buildConversationItemFromThreadItem(
@@ -695,12 +714,13 @@ export function buildConversationItemFromThreadItem(
   }
   if (type === "userMessage") {
     const content = Array.isArray(item.content) ? item.content : [];
-    const text = userInputsToText(content);
+    const { text, images } = parseUserInputs(content);
     return {
       id,
       kind: "message",
       role: "user",
-      text: text || "[message]",
+      text,
+      images: images.length > 0 ? images : undefined,
     };
   }
   if (type === "agentMessage") {

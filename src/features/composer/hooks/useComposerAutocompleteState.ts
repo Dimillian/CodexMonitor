@@ -26,19 +26,6 @@ type UseComposerAutocompleteStateArgs = {
 const MAX_FILE_SUGGESTIONS = 500;
 const FILE_TRIGGER_PREFIX = new RegExp("^(?:\\s|[\"'`]|\\(|\\[|\\{)$");
 
-function textIncludesFile(text: string, path: string) {
-  if (!text || !path) {
-    return false;
-  }
-  const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(
-    "(^|\\s|[\"'`]|\\(|\\[|\\{|@)" +
-      escaped +
-      "(?=$|\\s|[\"'`]|\\)|\\]|\\}|\\.|,|:|;|!|\\?)",
-  );
-  return pattern.test(text);
-}
-
 function isFileTriggerActive(text: string, cursor: number | null) {
   if (!text || cursor === null) {
     return false;
@@ -103,12 +90,9 @@ export function useComposerAutocompleteState({
       isFileTriggerActive(text, selectionStart)
         ? (() => {
             const query = getFileTriggerQuery(text, selectionStart) ?? "";
-            const candidates = files.filter(
-              (path) => !textIncludesFile(text, path),
-            );
             const limited = query
-              ? candidates
-              : candidates.slice(0, MAX_FILE_SUGGESTIONS);
+              ? files
+              : files.slice(0, MAX_FILE_SUGGESTIONS);
             return limited.map((path) => ({
               id: path,
               label: path,

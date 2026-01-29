@@ -17,7 +17,7 @@ import {
 import { normalizeOpenAppTargets } from "../../app/utils/openApp";
 import { getDefaultInterruptShortcut } from "../../../utils/shortcuts";
 
-const allowedThemes = new Set(["system", "light", "dark"]);
+const allowedThemes = new Set(["system", "light", "dark", "dim"]);
 
 const defaultSettings: AppSettings = {
   codexBin: null,
@@ -47,6 +47,7 @@ const defaultSettings: AppSettings = {
   lastComposerReasoningEffort: null,
   uiScale: UI_SCALE_DEFAULT,
   theme: "system",
+  usageShowRemaining: false,
   uiFontFamily: DEFAULT_UI_FONT_FAMILY,
   codeFontFamily: DEFAULT_CODE_FONT_FAMILY,
   codeFontSize: CODE_FONT_SIZE_DEFAULT,

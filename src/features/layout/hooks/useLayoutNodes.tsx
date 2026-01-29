@@ -110,6 +110,7 @@ type LayoutNodesOptions = {
   activeThreadId: string | null;
   activeItems: ConversationItem[];
   activeRateLimits: RateLimitSnapshot | null;
+  usageShowRemaining: boolean;
   accountInfo: AccountSnapshot | null;
   onSwitchAccount: () => void;
   accountSwitching: boolean;
@@ -439,6 +440,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       activeWorkspaceId={options.activeWorkspaceId}
       activeThreadId={options.activeThreadId}
       accountRateLimits={options.activeRateLimits}
+      usageShowRemaining={options.usageShowRemaining}
       accountInfo={options.accountInfo}
       onSwitchAccount={options.onSwitchAccount}
       accountSwitching={options.accountSwitching}

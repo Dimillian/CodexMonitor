@@ -290,6 +290,25 @@
   color: var(--text-faint);
 }
 
+.file-preview-selection-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.file-preview-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--text-fainter);
+}
+
+.file-preview-hint {
+  white-space: nowrap;
+}
+
 .file-preview-actions {
   display: flex;
   align-items: center;
@@ -328,8 +347,9 @@
   padding: 6px 0;
   font-family: var(--code-font-family);
   font-size: var(--code-font-size, 11px);
+  font-weight: var(--code-font-weight, 400);
+  line-height: var(--code-line-height, 1.28);
   color: var(--text-quiet);
-  line-height: 1.2;
   white-space: pre;
 }
 
@@ -339,15 +359,35 @@
   gap: 10px;
   align-items: start;
   padding: 2px 10px;
+  min-width: 100%;
+  width: max-content;
   border: 1px solid transparent;
   border-radius: 0;
   background: transparent;
   text-align: left;
   cursor: pointer;
+  transition: none;
+  transform: none;
+  box-shadow: none;
+  outline: none;
+  font-family: var(--code-font-family);
+  font-size: var(--code-font-size, 11px);
+  font-weight: var(--code-font-weight, 400);
+  line-height: var(--code-line-height, 1.28);
 }
 
-.file-preview-line:hover {
+.file-preview-line:not(.is-selected):hover {
   background: color-mix(in srgb, var(--surface-active) 45%, transparent);
+  transform: none;
+  box-shadow: none;
+}
+
+.file-preview-line:hover,
+.file-preview-line:active,
+.file-preview-line:focus,
+.file-preview-line:focus-visible {
+  transform: none;
+  box-shadow: none;
 }
 
 .file-preview-line.is-selected {
@@ -357,22 +397,15 @@
 }
 
 .file-preview-line.is-selected.is-start {
-  box-shadow:
-    inset 3px 0 0 var(--border-accent),
-    inset 0 1px 0 var(--border-accent);
+  box-shadow: inset 3px 0 0 var(--border-accent);
 }
 
 .file-preview-line.is-selected.is-end {
-  box-shadow:
-    inset 3px 0 0 var(--border-accent),
-    inset 0 -1px 0 var(--border-accent);
+  box-shadow: inset 3px 0 0 var(--border-accent);
 }
 
 .file-preview-line.is-selected.is-start.is-end {
-  box-shadow:
-    inset 3px 0 0 var(--border-accent),
-    inset 0 1px 0 var(--border-accent),
-    inset 0 -1px 0 var(--border-accent);
+  box-shadow: inset 3px 0 0 var(--border-accent);
 }
 
 .file-preview-line-number {
@@ -385,8 +418,6 @@
   min-width: 0;
   overflow-wrap: anywhere;
   word-break: break-word;
-  font-family: var(--code-font-family);
-  font-size: var(--code-font-size, 11px);
 }
 
 .file-preview-line-text .token.comment,

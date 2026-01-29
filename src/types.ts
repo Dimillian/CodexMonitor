@@ -46,7 +46,13 @@ export type Message = {
 };
 
 export type ConversationItem =
-  | { id: string; kind: "message"; role: "user" | "assistant"; text: string }
+  | {
+      id: string;
+      kind: "message";
+      role: "user" | "assistant";
+      text: string;
+      images?: string[];
+    }
   | { id: string; kind: "reasoning"; summary: string; content: string }
   | { id: string; kind: "diff"; title: string; diff: string; status?: string }
   | { id: string; kind: "review"; state: "started" | "completed"; text: string }
@@ -82,7 +88,7 @@ export type ReviewTarget =
 
 export type AccessMode = "read-only" | "current" | "full-access";
 export type BackendMode = "local" | "remote";
-export type ThemePreference = "system" | "light" | "dark";
+export type ThemePreference = "system" | "light" | "dark" | "dim";
 
 
 export type ComposerEditorPreset = "default" | "helpful" | "smart";
@@ -135,6 +141,7 @@ export type AppSettings = {
   lastComposerReasoningEffort: string | null;
   uiScale: number;
   theme: ThemePreference;
+  usageShowRemaining: boolean;
   uiFontFamily: string;
   codeFontFamily: string;
   codeFontSize: number;
