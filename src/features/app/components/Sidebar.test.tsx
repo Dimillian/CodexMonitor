@@ -19,6 +19,7 @@ const baseProps = {
   activeWorkspaceId: null,
   activeThreadId: null,
   accountRateLimits: null,
+  usageShowRemaining: false,
   onOpenSettings: vi.fn(),
   onOpenDebug: vi.fn(),
   showDebugButton: false,
