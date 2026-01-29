@@ -484,7 +484,7 @@ export function Sidebar({
                       key={entry.id}
                       workspace={entry}
                       workspaceName={renderHighlightedName(entry.name)}
-                      isActive={entry.id === activeWorkspaceId}
+                      isActive={entry.id === activeWorkspaceId && !activeThreadId}
                       isCollapsed={isCollapsed}
                       addMenuOpen={addMenuOpen}
                       addMenuWidth={ADD_MENU_WIDTH}

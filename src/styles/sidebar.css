@@ -1,5 +1,6 @@
 .sidebar {
   --sidebar-padding: 20px;
+  --sidebar-content-padding: calc(var(--sidebar-padding) - 12px);
   padding: 36px var(--sidebar-padding) 56px;
   background: var(--surface-sidebar);
   backdrop-filter: none;
@@ -301,8 +302,10 @@
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-app-region: no-drag;
+  margin-left: calc(-1 * var(--sidebar-padding));
   margin-right: calc(-1 * var(--sidebar-padding));
-  padding-right: calc(var(--sidebar-padding) - 12px);
+  padding-left: var(--sidebar-content-padding);
+  padding-right: var(--sidebar-content-padding);
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   -webkit-mask-size: 100% 100%;
@@ -378,7 +381,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-right: 4px;
+  padding-right: 2px;
 }
 
 .workspace-group-header.is-toggleable {
@@ -395,14 +398,15 @@
   text-transform: uppercase;
   font-size: 10px;
   letter-spacing: 0.08em;
-  color: var(--text-faint);
-  padding-left: 4px;
+  color: var(--text-muted);
+  padding: 6px 6px 4px;
+  font-weight: 600;
 }
 
 .workspace-group-list {
   display: grid;
   grid-template-rows: 1fr;
-  margin-top: 8px;
+  margin-top: 0;
   opacity: 1;
   transform: translateY(0);
   transition:
@@ -412,10 +416,25 @@
     margin-top 0.2s ease;
 }
 
-.workspace-group-content {
+.workspace-group-list.has-header {
+  margin-top: 6px;
+}
+
+.workspace-group-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  padding: 6px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-card) 70%, transparent);
+  border: 1px solid var(--border-muted);
+  overflow: hidden;
+}
+
+.workspace-group-content {
+  --workspace-group-gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-group-gap);
   overflow: hidden;
   min-height: 0;
 }
@@ -465,7 +484,11 @@
 .workspace-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-card) 70%, transparent);
+  border: 1px solid var(--border-muted);
   overflow-x: hidden;
 }
 
@@ -473,8 +496,8 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
-  padding: 8px 4px;
-  border-radius: 0;
+  padding: 4px 4px 4px 6px;
+  border-radius: 6px;
   border: none;
   background: transparent;
   color: inherit;
@@ -487,37 +510,18 @@
   isolation: isolate;
 }
 
-.workspace-row::before {
-  content: "";
-  position: absolute;
-  inset: 0 6px 0 0;
-  border-radius: 10px;
-  background: transparent;
-  transition: background 0.2s ease;
-  z-index: -1;
-}
-
 .workspace-row.active {
-  background: transparent;
-  padding-left: 4px;
+  background: var(--surface-active);
+  color: var(--text-strong);
 }
 
 .workspace-row:hover {
-  background: transparent;
+  background: var(--surface-hover);
+  color: var(--text-strong);
 }
 
-.workspace-row:hover::before {
-  background: var(--surface-card);
-}
-
-.workspace-row.active::before {
-  background: linear-gradient(
-    90deg,
-    var(--border-accent) 0,
-    var(--border-accent) 3px,
-    var(--surface-card) 3px,
-    var(--surface-card) 100%
-  );
+.workspace-row.active:hover {
+  background: var(--surface-active);
 }
 
 .workspace-row.active .workspace-name {
@@ -525,13 +529,13 @@
 }
 
 .workspace-row.active .workspace-name-row {
-  padding-left: 6px;
+  padding-left: 0;
 }
 
 
 .workspace-name {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -666,7 +670,7 @@
 .thread-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   margin-left: 0;
 }
 
@@ -718,9 +722,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px 4px calc(6px + var(--thread-indent, 0px));
+  padding: 5px 2px 5px calc(10px + var(--thread-indent, 0px));
   border-radius: 6px;
-  color: var(--text-quiet);
+  color: var(--text-subtle);
   font-size: 12px;
   cursor: pointer;
   -webkit-app-region: no-drag;
@@ -731,6 +735,10 @@
 .thread-status {
   width: 6px;
   height: 6px;
+  min-width: 6px;
+  min-height: 6px;
+  aspect-ratio: 1 / 1;
+  flex: 0 0 6px;
   border-radius: 999px;
   display: inline-block;
   margin-left: 4px;
@@ -1004,6 +1012,8 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  margin-left: calc(-1 * var(--sidebar-padding) + var(--sidebar-content-padding));
+  margin-right: calc(-1 * var(--sidebar-padding) + var(--sidebar-content-padding));
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--border-subtle);
@@ -1074,7 +1084,7 @@
 
 .sidebar-corner-actions {
   position: absolute;
-  left: var(--sidebar-padding);
+  left: var(--sidebar-content-padding);
   bottom: 16px;
   display: inline-flex;
   align-items: center;
