@@ -628,16 +628,16 @@ export function Sidebar({
         weeklyResetLabel={weeklyResetLabel}
         creditsLabel={creditsLabel}
         showWeekly={showWeekly}
-        showAccountSwitcher={showAccountSwitcher}
-        accountLabel={accountButtonLabel}
-        accountActionLabel={accountActionLabel}
-        accountDisabled={accountSwitchDisabled}
-        onSwitchAccount={onSwitchAccount}
       />
       <SidebarCornerActions
         onOpenSettings={onOpenSettings}
         onOpenDebug={onOpenDebug}
         showDebugButton={showDebugButton}
+        showAccountSwitcher={showAccountSwitcher}
+        accountLabel={accountButtonLabel}
+        accountActionLabel={accountActionLabel}
+        accountDisabled={accountSwitchDisabled}
+        onSwitchAccount={onSwitchAccount}
       />
     </aside>
   );
