@@ -408,8 +408,10 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 
 #[cfg(test)]
 mod tests {
-    use super::extract_thread_id;
+    use super::{build_codex_command_with_bin, build_codex_path_env, extract_thread_id};
     use serde_json::json;
+    use std::env;
+    use std::ffi::OsString;
 
     #[test]
     fn extract_thread_id_reads_camel_case() {
@@ -427,5 +429,86 @@ mod tests {
     fn extract_thread_id_returns_none_when_missing() {
         let value = json!({ "params": {} });
         assert_eq!(extract_thread_id(&value), None);
+    }
+
+    #[test]
+    fn build_codex_path_env_includes_parent_path() {
+        let original_path = env::var_os("PATH");
+        env::set_var("PATH", "C:\\Temp\\bin");
+
+        let result = build_codex_path_env(Some("C:\\Tools\\codex\\codex.exe"))
+            .expect("expected PATH result");
+
+        assert!(result.contains("C:\\Temp\\bin"));
+        assert!(result.contains("C:\\Tools\\codex"));
+
+        match original_path {
+            Some(value) => env::set_var("PATH", value),
+            None => env::remove_var("PATH"),
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn build_codex_path_env_uses_windows_separator() {
+        let original_path = env::var_os("PATH");
+        env::set_var("PATH", "C:\\Temp\\bin;C:\\Tools");
+
+        let result = build_codex_path_env(None).expect("expected PATH result");
+        assert!(result.contains(';'));
+
+        match original_path {
+            Some(value) => env::set_var("PATH", value),
+            None => env::remove_var("PATH"),
+        }
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn build_codex_path_env_uses_unix_separator() {
+        let original_path = env::var_os("PATH");
+        env::set_var("PATH", "/tmp/bin:/usr/bin");
+
+        let result = build_codex_path_env(None).expect("expected PATH result");
+        assert!(result.contains(':'));
+
+        match original_path {
+            Some(value) => env::set_var("PATH", value),
+            None => env::remove_var("PATH"),
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn build_codex_command_uses_node_for_js() {
+        let command = build_codex_command_with_bin(Some(
+            "C:\\Tools\\codex\\codex.js".to_string(),
+        ));
+        let std_command = command.as_std();
+        assert_eq!(std_command.get_program(), &OsString::from("node"));
+        let args: Vec<OsString> = std_command.get_args().map(|arg| arg.to_os_string()).collect();
+        assert!(args.contains(&OsString::from("C:\\Tools\\codex\\codex.js")));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn build_codex_command_uses_cmd_for_wrappers() {
+        let command = build_codex_command_with_bin(Some("codex".to_string()));
+        let std_command = command.as_std();
+        assert_eq!(std_command.get_program(), &OsString::from("cmd"));
+        let args: Vec<OsString> = std_command.get_args().map(|arg| arg.to_os_string()).collect();
+        assert!(args.contains(&OsString::from("/C")));
+        assert!(args.contains(&OsString::from("codex")));
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn build_codex_command_uses_bin_directly() {
+        let command = build_codex_command_with_bin(Some("/usr/local/bin/codex".to_string()));
+        let std_command = command.as_std();
+        assert_eq!(
+            std_command.get_program(),
+            &OsString::from("/usr/local/bin/codex")
+        );
     }
 }
