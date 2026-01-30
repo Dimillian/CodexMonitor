@@ -76,6 +76,7 @@ export function useThreadEventHandlers({
   });
 
   const {
+    onThreadStarted,
     onTurnStarted,
     onTurnCompleted,
     onTurnPlanUpdated,
@@ -85,6 +86,7 @@ export function useThreadEventHandlers({
     onContextCompacted,
   } = useThreadTurnEvents({
     dispatch,
+    getCustomName,
     markProcessing,
     markReviewing,
     setActiveTurnId,
@@ -125,6 +127,7 @@ export function useThreadEventHandlers({
       onCommandOutputDelta,
       onTerminalInteraction,
       onFileChangeOutputDelta,
+      onThreadStarted,
       onTurnStarted,
       onTurnCompleted,
       onTurnPlanUpdated,
@@ -148,6 +151,7 @@ export function useThreadEventHandlers({
       onCommandOutputDelta,
       onTerminalInteraction,
       onFileChangeOutputDelta,
+      onThreadStarted,
       onTurnStarted,
       onTurnCompleted,
       onTurnPlanUpdated,

@@ -1,4 +1,4 @@
-# App-Server Events Reference (Codex `b4b47630098b6d1ae89f6b2873dd313859b38ec5`)
+# App-Server Events Reference (Codex `d550fbf41afc09d7d7b5ac813aea38de07b2a73f`)
 
 This document helps agents quickly answer:
 - Which app-server events CodexMonitor supports right now.
@@ -49,6 +49,7 @@ These are the events explicitly routed in `useAppServerEvents.ts` (plus
 - `turn/plan/updated`
 - `turn/diff/updated`
 - `thread/tokenUsage/updated`
+- `thread/started`
 - `account/rateLimits/updated`
 - `item/completed`
 - `item/started`
@@ -70,7 +71,6 @@ events are currently not routed:
 - `item/mcpToolCall/progress`
 - `mcpServer/oauthLogin/completed`
 - `rawResponseItem/completed`
-- `thread/started`
 - `windows/worldWritableWarning`
 
 ## Where To Look In ../codex

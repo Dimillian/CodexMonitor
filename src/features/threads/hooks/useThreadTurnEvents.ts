@@ -1,7 +1,9 @@
 import { useCallback } from "react";
 import type { Dispatch, MutableRefObject } from "react";
 import { interruptTurn as interruptTurnService } from "../../../services/tauri";
+import { getThreadTimestamp } from "../../../utils/threadItems";
 import {
+  asString,
   normalizePlanUpdate,
   normalizeRateLimits,
   normalizeTokenUsage,
@@ -10,6 +12,7 @@ import type { ThreadAction } from "./useThreadsReducer";
 
 type UseThreadTurnEventsOptions = {
   dispatch: Dispatch<ThreadAction>;
+  getCustomName: (workspaceId: string, threadId: string) => string | undefined;
   markProcessing: (threadId: string, isProcessing: boolean) => void;
   markReviewing: (threadId: string, isReviewing: boolean) => void;
   setActiveTurnId: (threadId: string, turnId: string | null) => void;
@@ -21,6 +24,7 @@ type UseThreadTurnEventsOptions = {
 
 export function useThreadTurnEvents({
   dispatch,
+  getCustomName,
   markProcessing,
   markReviewing,
   setActiveTurnId,
@@ -29,6 +33,36 @@ export function useThreadTurnEvents({
   safeMessageActivity,
   recordThreadActivity,
 }: UseThreadTurnEventsOptions) {
+  const onThreadStarted = useCallback(
+    (workspaceId: string, thread: Record<string, unknown>) => {
+      const threadId = asString(thread.id);
+      if (!threadId) {
+        return;
+      }
+      dispatch({ type: "ensureThread", workspaceId, threadId });
+      const timestamp = getThreadTimestamp(thread);
+      const activityTimestamp = timestamp > 0 ? timestamp : Date.now();
+      recordThreadActivity(workspaceId, threadId, activityTimestamp);
+      dispatch({
+        type: "setThreadTimestamp",
+        workspaceId,
+        threadId,
+        timestamp: activityTimestamp,
+      });
+
+      const customName = getCustomName(workspaceId, threadId);
+      if (!customName) {
+        const preview = asString(thread.preview).trim();
+        if (preview) {
+          const name = preview.length > 38 ? `${preview.slice(0, 38)}…` : preview;
+          dispatch({ type: "setThreadName", workspaceId, threadId, name });
+        }
+      }
+      safeMessageActivity();
+    },
+    [dispatch, getCustomName, recordThreadActivity, safeMessageActivity],
+  );
+
   const onTurnStarted = useCallback(
     (workspaceId: string, threadId: string, turnId: string) => {
       dispatch({
@@ -146,6 +180,7 @@ export function useThreadTurnEvents({
   );
 
   return {
+    onThreadStarted,
     onTurnStarted,
     onTurnCompleted,
     onTurnPlanUpdated,

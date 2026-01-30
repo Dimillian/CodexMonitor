@@ -22,6 +22,7 @@ type AgentCompleted = {
 
 type AppServerEventHandlers = {
   onWorkspaceConnected?: (workspaceId: string) => void;
+  onThreadStarted?: (workspaceId: string, thread: Record<string, unknown>) => void;
   onApprovalRequest?: (request: ApprovalRequest) => void;
   onRequestUserInput?: (request: RequestUserInputRequest) => void;
   onAgentMessageDelta?: (event: AgentDelta) => void;
@@ -159,6 +160,16 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         const turnId = String(turn?.id ?? params.turnId ?? params.turn_id ?? "");
         if (threadId) {
           handlers.onTurnStarted?.(workspace_id, threadId, turnId);
+        }
+        return;
+      }
+
+      if (method === "thread/started") {
+        const params = message.params as Record<string, unknown>;
+        const thread = (params.thread as Record<string, unknown> | undefined) ?? null;
+        const threadId = String(thread?.id ?? "");
+        if (thread && threadId) {
+          handlers.onThreadStarted?.(workspace_id, thread);
         }
         return;
       }

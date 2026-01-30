@@ -14,6 +14,8 @@ vi.mock("../../../services/tauri", () => ({
 }));
 
 vi.mock("../utils/threadNormalize", () => ({
+  asString: (value: unknown) =>
+    typeof value === "string" ? value : value ? String(value) : "",
   normalizePlanUpdate: vi.fn(),
   normalizeRateLimits: vi.fn(),
   normalizeTokenUsage: vi.fn(),
@@ -25,6 +27,7 @@ type SetupOverrides = {
 
 const makeOptions = (overrides: SetupOverrides = {}) => {
   const dispatch = vi.fn();
+  const getCustomName = vi.fn();
   const markProcessing = vi.fn();
   const markReviewing = vi.fn();
   const setActiveTurnId = vi.fn();
@@ -38,6 +41,7 @@ const makeOptions = (overrides: SetupOverrides = {}) => {
   const { result } = renderHook(() =>
     useThreadTurnEvents({
       dispatch,
+      getCustomName,
       markProcessing,
       markReviewing,
       setActiveTurnId,
@@ -51,6 +55,7 @@ const makeOptions = (overrides: SetupOverrides = {}) => {
   return {
     result,
     dispatch,
+    getCustomName,
     markProcessing,
     markReviewing,
     setActiveTurnId,
@@ -64,6 +69,69 @@ const makeOptions = (overrides: SetupOverrides = {}) => {
 describe("useThreadTurnEvents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("upserts thread summaries when a thread starts", () => {
+    const { result, dispatch, recordThreadActivity, safeMessageActivity } =
+      makeOptions();
+
+    act(() => {
+      result.current.onThreadStarted("ws-1", {
+        id: "thread-1",
+        preview: "A brand new thread",
+        updatedAt: 1_700_000_000_000,
+      });
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "ensureThread",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreadTimestamp",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      timestamp: 1_700_000_000_000,
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreadName",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      name: "A brand new thread",
+    });
+    expect(recordThreadActivity).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      1_700_000_000_000,
+    );
+    expect(safeMessageActivity).toHaveBeenCalled();
+  });
+
+  it("does not override custom thread names on thread started", () => {
+    const { result, dispatch, getCustomName } = makeOptions();
+    getCustomName.mockReturnValue("Custom name");
+
+    act(() => {
+      result.current.onThreadStarted("ws-1", {
+        id: "thread-2",
+        preview: "Preview text",
+        updatedAt: 1_700_000_000_100,
+      });
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "ensureThread",
+      workspaceId: "ws-1",
+      threadId: "thread-2",
+    });
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "setThreadName",
+        workspaceId: "ws-1",
+        threadId: "thread-2",
+      }),
+    );
   });
 
   it("marks processing and active turn on turn started", () => {
