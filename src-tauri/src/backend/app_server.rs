@@ -12,6 +12,17 @@ use tokio::process::{Child, ChildStdin, Command};
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::timeout;
 
+#[cfg(windows)]
+fn hide_windows_console(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn hide_windows_console(_command: &mut Command) {}
+
 use crate::backend::events::{AppServerEvent, EventSink};
 use crate::codex::args::apply_codex_args;
 use crate::types::WorkspaceEntry;
@@ -74,53 +85,68 @@ impl WorkspaceSession {
 }
 
 pub(crate) fn build_codex_path_env(codex_bin: Option<&str>) -> Option<String> {
-    let mut paths: Vec<String> = env::var("PATH")
-        .unwrap_or_default()
-        .split(':')
-        .filter(|value| !value.is_empty())
-        .map(|value| value.to_string())
-        .collect();
-    let mut extras = vec![
-        "/opt/homebrew/bin",
-        "/usr/local/bin",
-        "/usr/bin",
-        "/bin",
-        "/usr/sbin",
-        "/sbin",
-    ]
-    .into_iter()
-    .map(|value| value.to_string())
-    .collect::<Vec<String>>();
-    if let Ok(home) = env::var("HOME") {
-        extras.push(format!("{home}/.local/bin"));
-        extras.push(format!("{home}/.local/share/mise/shims"));
-        extras.push(format!("{home}/.cargo/bin"));
-        extras.push(format!("{home}/.bun/bin"));
-        let nvm_root = Path::new(&home).join(".nvm/versions/node");
-        if let Ok(entries) = std::fs::read_dir(nvm_root) {
-            for entry in entries.flatten() {
-                let bin_path = entry.path().join("bin");
-                if bin_path.is_dir() {
-                    extras.push(bin_path.to_string_lossy().to_string());
+    use std::ffi::OsString;
+
+    // Use OS-specific path parsing and joining
+    let mut paths: Vec<PathBuf> = env::var_os("PATH")
+        .map(|value| env::split_paths(&value).collect())
+        .unwrap_or_default();
+
+    let mut extras: Vec<PathBuf> = Vec::new();
+    
+    // Only add Unix-specific paths on non-Windows systems
+    if !cfg!(windows) {
+        extras.extend(vec![
+            PathBuf::from("/opt/homebrew/bin"),
+            PathBuf::from("/usr/local/bin"),
+            PathBuf::from("/usr/bin"),
+            PathBuf::from("/bin"),
+            PathBuf::from("/usr/sbin"),
+            PathBuf::from("/sbin"),
+        ]);
+    }
+
+    // Handle home directory paths (works on both Windows and Unix)
+    let home_var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+    if let Ok(home) = env::var(home_var) {
+        if !cfg!(windows) {
+            extras.push(PathBuf::from(format!("{home}/.local/bin")));
+            extras.push(PathBuf::from(format!("{home}/.local/share/mise/shims")));
+            extras.push(PathBuf::from(format!("{home}/.cargo/bin")));
+            extras.push(PathBuf::from(format!("{home}/.bun/bin")));
+            let nvm_root = Path::new(&home).join(".nvm/versions/node");
+            if let Ok(entries) = std::fs::read_dir(nvm_root) {
+                for entry in entries.flatten() {
+                    let bin_path = entry.path().join("bin");
+                    if bin_path.is_dir() {
+                        extras.push(bin_path);
+                    }
                 }
             }
+        } else {
+            // Windows-specific paths
+            extras.push(PathBuf::from(format!("{home}\\.cargo\\bin")));
         }
     }
+
     if let Some(bin_path) = codex_bin.filter(|value| !value.trim().is_empty()) {
         let parent = Path::new(bin_path).parent();
         if let Some(parent) = parent {
-            extras.push(parent.to_string_lossy().to_string());
+            extras.push(parent.to_path_buf());
         }
     }
+
     for extra in extras {
         if !paths.contains(&extra) {
             paths.push(extra);
         }
     }
+
     if paths.is_empty() {
         None
     } else {
-        Some(paths.join(":"))
+        let joined = env::join_paths(paths).unwrap_or_else(|_| OsString::new());
+        Some(joined.to_string_lossy().to_string())
     }
 }
 
@@ -129,7 +155,27 @@ pub(crate) fn build_codex_command_with_bin(codex_bin: Option<String>) -> Command
         .clone()
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| "codex".into());
-    let mut command = Command::new(bin);
+    
+    let mut command = if cfg!(windows) {
+        // On Windows, handle different codex installation types:
+        // 1. If it's a .js file, run it through node
+        // 2. Otherwise, use cmd.exe to execute (handles .cmd/.bat wrappers)
+        if bin.ends_with(".js") {
+            let mut cmd = Command::new("node");
+            cmd.arg(&bin);
+            cmd
+        } else {
+            let mut cmd = Command::new("cmd");
+            cmd.arg("/C");
+            cmd.arg(&bin);
+            cmd
+        }
+    } else {
+        Command::new(bin)
+    };
+
+    hide_windows_console(&mut command);
+    
     if let Some(path_env) = build_codex_path_env(codex_bin.as_deref()) {
         command.env("PATH", path_env);
     }
