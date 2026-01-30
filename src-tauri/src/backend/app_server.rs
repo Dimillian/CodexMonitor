@@ -155,27 +155,31 @@ pub(crate) fn build_codex_command_with_bin(codex_bin: Option<String>) -> Command
         .clone()
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| "codex".into());
-    
+
     let mut command = if cfg!(windows) {
         // On Windows, handle different codex installation types:
         // 1. If it's a .js file, run it through node
-        // 2. Otherwise, use cmd.exe to execute (handles .cmd/.bat wrappers)
-        if bin.ends_with(".js") {
+        // 2. If it's a .cmd/.bat script, run via cmd.exe (required on Windows)
+        // 3. Otherwise, execute the binary directly (avoids unnecessary cmd.exe and
+        //    reduces command-injection risk from user-provided codex_bin)
+        let bin_lower = bin.to_ascii_lowercase();
+        if bin_lower.ends_with(".js") {
             let mut cmd = Command::new("node");
             cmd.arg(&bin);
             cmd
-        } else {
+        } else if bin_lower.ends_with(".cmd") || bin_lower.ends_with(".bat") {
             let mut cmd = Command::new("cmd");
             cmd.arg("/C");
             cmd.arg(&bin);
             cmd
+        } else {
+            Command::new(&bin)
         }
     } else {
         Command::new(bin)
     };
 
     hide_windows_console(&mut command);
-    
     if let Some(path_env) = build_codex_path_env(codex_bin.as_deref()) {
         command.env("PATH", path_env);
     }
