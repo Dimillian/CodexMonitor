@@ -45,7 +45,9 @@ import { DEFAULT_OPEN_APP_ID, OPEN_APP_STORAGE_KEY } from "../../app/constants";
 import { GENERIC_APP_ICON, getKnownOpenAppIcon } from "../../app/utils/openAppIcons";
 import { useGlobalAgentsMd } from "../hooks/useGlobalAgentsMd";
 import { useGlobalGeminiConfigToml } from "../hooks/useGlobalGeminiConfigToml";
+import { useGeminiSettings } from "../hooks/useGeminiSettings";
 import { FileEditorCard } from "../../shared/components/FileEditorCard";
+import type { GeminiMcpServerConfig } from "../../../types";
 
 const DICTATION_MODELS = [
   { id: "tiny", label: "Tiny", size: "75 MB", note: "Fastest, least accurate." },
@@ -336,6 +338,21 @@ export function SettingsView({
     refresh: refreshGlobalConfig,
     save: saveGlobalConfig,
   } = useGlobalGeminiConfigToml();
+  const {
+    settings: geminiSettings,
+    settingsPath: geminiSettingsPath,
+    isLoading: geminiSettingsLoading,
+    error: geminiSettingsError,
+    updatePreviewFeatures,
+    updateVimMode,
+    updateAutoUpdate,
+    updateModelSettings,
+    updateMcpServer,
+  } = useGeminiSettings();
+  const [mcpServerDrafts, setMcpServerDrafts] = useState<Record<string, GeminiMcpServerConfig>>({});
+  const [newMcpServerName, setNewMcpServerName] = useState("");
+  const [modelMaxTurnsDraft, setModelMaxTurnsDraft] = useState<string>("");
+  const [modelCompressionDraft, setModelCompressionDraft] = useState<string>("");
   const [openConfigError, setOpenConfigError] = useState<string | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [shortcutDrafts, setShortcutDrafts] = useState({
@@ -475,6 +492,16 @@ export function SettingsView({
     setOpenAppDrafts(buildOpenAppDrafts(appSettings.openAppTargets));
     setOpenAppSelectedId(appSettings.selectedOpenAppId);
   }, [appSettings.openAppTargets, appSettings.selectedOpenAppId]);
+
+  useEffect(() => {
+    setModelMaxTurnsDraft(
+      geminiSettings.model?.maxSessionTurns?.toString() ?? "",
+    );
+    setModelCompressionDraft(
+      geminiSettings.model?.compressionThreshold?.toString() ?? "",
+    );
+    setMcpServerDrafts(geminiSettings.mcp?.servers ?? {});
+  }, [geminiSettings]);
 
   useEffect(() => {
     setShortcutDrafts({
@@ -2865,6 +2892,233 @@ export function SettingsView({
                     help: "settings-help",
                   }}
                 />
+
+                <div className="settings-field">
+                  <div className="settings-field-label">Gemini CLI Settings</div>
+                  <div className="settings-help">
+                    Configure Gemini CLI settings.json options.
+                    {geminiSettingsPath && (
+                      <>
+                        {" "}Stored at <code>{geminiSettingsPath}</code>.
+                      </>
+                    )}
+                  </div>
+                  {geminiSettingsError && (
+                    <div className="settings-help" style={{ color: "var(--color-error)" }}>
+                      {geminiSettingsError}
+                    </div>
+                  )}
+
+                  <div className="settings-toggle-row">
+                    <div>
+                      <div className="settings-toggle-title">Preview features</div>
+                      <div className="settings-toggle-subtitle">
+                        Enable experimental Gemini CLI features.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className={`settings-toggle ${geminiSettings.previewFeatures ? "on" : ""}`}
+                      onClick={() => void updatePreviewFeatures(!geminiSettings.previewFeatures)}
+                      disabled={geminiSettingsLoading}
+                      aria-pressed={geminiSettings.previewFeatures ?? false}
+                    >
+                      <span className="settings-toggle-knob" />
+                    </button>
+                  </div>
+
+                  <div className="settings-toggle-row">
+                    <div>
+                      <div className="settings-toggle-title">Vim mode</div>
+                      <div className="settings-toggle-subtitle">
+                        Enable Vim keybindings in Gemini CLI.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className={`settings-toggle ${geminiSettings.vimMode ? "on" : ""}`}
+                      onClick={() => void updateVimMode(!geminiSettings.vimMode)}
+                      disabled={geminiSettingsLoading}
+                      aria-pressed={geminiSettings.vimMode ?? false}
+                    >
+                      <span className="settings-toggle-knob" />
+                    </button>
+                  </div>
+
+                  <div className="settings-toggle-row">
+                    <div>
+                      <div className="settings-toggle-title">Auto-update</div>
+                      <div className="settings-toggle-subtitle">
+                        Automatically update Gemini CLI when new versions are available.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className={`settings-toggle ${geminiSettings.enableAutoUpdate ? "on" : ""}`}
+                      onClick={() => void updateAutoUpdate(!geminiSettings.enableAutoUpdate)}
+                      disabled={geminiSettingsLoading}
+                      aria-pressed={geminiSettings.enableAutoUpdate ?? false}
+                    >
+                      <span className="settings-toggle-knob" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="settings-field">
+                  <div className="settings-field-label">Model settings</div>
+                  <div className="settings-help">
+                    Configure model behavior and context management.
+                  </div>
+                  <div className="settings-field-row" style={{ marginTop: "8px" }}>
+                    <label htmlFor="model-max-turns" style={{ minWidth: "140px" }}>
+                      Max session turns
+                    </label>
+                    <input
+                      id="model-max-turns"
+                      className="settings-input settings-input--compact"
+                      type="number"
+                      min="1"
+                      placeholder="Default"
+                      value={modelMaxTurnsDraft}
+                      onChange={(e) => setModelMaxTurnsDraft(e.target.value)}
+                      onBlur={() => {
+                        const value = modelMaxTurnsDraft.trim();
+                        const num = value ? parseInt(value, 10) : null;
+                        if (num !== (geminiSettings.model?.maxSessionTurns ?? null)) {
+                          void updateModelSettings({
+                            ...geminiSettings.model,
+                            maxSessionTurns: num && num > 0 ? num : null,
+                          });
+                        }
+                      }}
+                      disabled={geminiSettingsLoading}
+                    />
+                  </div>
+                  <div className="settings-help">
+                    Maximum number of conversation turns before context compression.
+                  </div>
+                  <div className="settings-field-row" style={{ marginTop: "8px" }}>
+                    <label htmlFor="model-compression" style={{ minWidth: "140px" }}>
+                      Compression threshold
+                    </label>
+                    <input
+                      id="model-compression"
+                      className="settings-input settings-input--compact"
+                      type="number"
+                      min="1000"
+                      placeholder="Default"
+                      value={modelCompressionDraft}
+                      onChange={(e) => setModelCompressionDraft(e.target.value)}
+                      onBlur={() => {
+                        const value = modelCompressionDraft.trim();
+                        const num = value ? parseInt(value, 10) : null;
+                        if (num !== (geminiSettings.model?.compressionThreshold ?? null)) {
+                          void updateModelSettings({
+                            ...geminiSettings.model,
+                            compressionThreshold: num && num > 0 ? num : null,
+                          });
+                        }
+                      }}
+                      disabled={geminiSettingsLoading}
+                    />
+                  </div>
+                  <div className="settings-help">
+                    Token threshold for triggering context compression.
+                  </div>
+                </div>
+
+                <div className="settings-field">
+                  <div className="settings-field-label">MCP Servers</div>
+                  <div className="settings-help">
+                    Configure Model Context Protocol (MCP) servers for extended capabilities.
+                  </div>
+                  {Object.entries(mcpServerDrafts).map(([serverName, config]) => (
+                    <div key={serverName} className="settings-override-row" style={{ marginTop: "8px" }}>
+                      <div className="settings-override-info">
+                        <div className="settings-project-name">{serverName}</div>
+                        <div className="settings-project-path">
+                          {config.command} {config.args?.join(" ") ?? ""}
+                        </div>
+                      </div>
+                      <div className="settings-override-actions">
+                        <button
+                          type="button"
+                          className={`settings-toggle ${config.enabled !== false ? "on" : ""}`}
+                          onClick={() => {
+                            const updated = {
+                              ...config,
+                              enabled: config.enabled === false,
+                            };
+                            setMcpServerDrafts((prev) => ({
+                              ...prev,
+                              [serverName]: updated,
+                            }));
+                            void updateMcpServer(serverName, updated);
+                          }}
+                          disabled={geminiSettingsLoading}
+                          aria-pressed={config.enabled !== false}
+                          aria-label={`Toggle ${serverName}`}
+                        >
+                          <span className="settings-toggle-knob" />
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() => {
+                            setMcpServerDrafts((prev) => {
+                              const next = { ...prev };
+                              delete next[serverName];
+                              return next;
+                            });
+                            void updateMcpServer(serverName, null);
+                          }}
+                          disabled={geminiSettingsLoading}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {Object.keys(mcpServerDrafts).length === 0 && (
+                    <div className="settings-empty" style={{ marginTop: "8px" }}>
+                      No MCP servers configured.
+                    </div>
+                  )}
+                  <div className="settings-field-row" style={{ marginTop: "12px" }}>
+                    <input
+                      className="settings-input settings-input--compact"
+                      placeholder="Server name (e.g., filesystem)"
+                      value={newMcpServerName}
+                      onChange={(e) => setNewMcpServerName(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="ghost"
+                      disabled={!newMcpServerName.trim() || geminiSettingsLoading}
+                      onClick={() => {
+                        const name = newMcpServerName.trim();
+                        if (name && !mcpServerDrafts[name]) {
+                          const newConfig: GeminiMcpServerConfig = {
+                            command: "npx",
+                            args: ["-y", `@anthropic/mcp-${name}-server`],
+                            enabled: true,
+                          };
+                          setMcpServerDrafts((prev) => ({
+                            ...prev,
+                            [name]: newConfig,
+                          }));
+                          void updateMcpServer(name, newConfig);
+                          setNewMcpServerName("");
+                        }
+                      }}
+                    >
+                      Add server
+                    </button>
+                  </div>
+                  <div className="settings-help">
+                    Add MCP servers to extend Gemini CLI capabilities. Edit settings.json directly for advanced configuration.
+                  </div>
+                </div>
 
                 <div className="settings-field">
                   <div className="settings-field-label">Workspace overrides</div>
