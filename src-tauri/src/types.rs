@@ -268,8 +268,19 @@ pub(crate) struct WorkspaceSettings {
     pub(crate) codex_args: Option<String>,
     #[serde(default, rename = "launchScript")]
     pub(crate) launch_script: Option<String>,
+    #[serde(default, rename = "launchScripts")]
+    pub(crate) launch_scripts: Option<Vec<LaunchScriptEntry>>,
     #[serde(default, rename = "worktreeSetupScript")]
     pub(crate) worktree_setup_script: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct LaunchScriptEntry {
+    pub(crate) id: String,
+    pub(crate) script: String,
+    pub(crate) icon: String,
+    #[serde(default)]
+    pub(crate) label: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -19,6 +19,7 @@ import { TabletNav } from "../../app/components/TabletNav";
 import { TerminalDock } from "../../terminal/components/TerminalDock";
 import { TerminalPanel } from "../../terminal/components/TerminalPanel";
 import type { ReviewPromptState, ReviewPromptStep } from "../../threads/hooks/useReviewPrompt";
+import type { WorkspaceLaunchScriptsState } from "../../app/hooks/useWorkspaceLaunchScripts";
 import type {
   AccessMode,
   ApprovalRequest,
@@ -213,6 +214,7 @@ type LayoutNodesOptions = {
   onCloseLaunchScriptEditor: () => void;
   onLaunchScriptDraftChange: (value: string) => void;
   onSaveLaunchScript: () => void;
+  launchScriptsState?: WorkspaceLaunchScriptsState;
   mainHeaderActionsNode?: ReactNode;
   centerMode: "chat" | "diff";
   onExitDiff: () => void;
@@ -678,6 +680,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onCloseLaunchScriptEditor={options.onCloseLaunchScriptEditor}
       onLaunchScriptDraftChange={options.onLaunchScriptDraftChange}
       onSaveLaunchScript={options.onSaveLaunchScript}
+      launchScriptsState={options.launchScriptsState}
       extraActionsNode={options.mainHeaderActionsNode}
     />
   ) : null;

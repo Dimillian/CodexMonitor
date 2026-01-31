@@ -6,7 +6,15 @@ export type WorkspaceSettings = {
   codexHome?: string | null;
   codexArgs?: string | null;
   launchScript?: string | null;
+  launchScripts?: LaunchScriptEntry[] | null;
   worktreeSetupScript?: string | null;
+};
+
+export type LaunchScriptEntry = {
+  id: string;
+  script: string;
+  icon: string;
+  label?: string | null;
 };
 
 export type WorkspaceGroup = {

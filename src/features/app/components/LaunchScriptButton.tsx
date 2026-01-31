@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import Play from "lucide-react/dist/esm/icons/play";
+import { LaunchScriptIconPicker } from "./LaunchScriptIconPicker";
 
 type LaunchScriptButtonProps = {
   launchScript: string | null;
@@ -12,6 +13,18 @@ type LaunchScriptButtonProps = {
   onCloseEditor: () => void;
   onDraftChange: (value: string) => void;
   onSave: () => void;
+  showNew?: boolean;
+  newEditorOpen?: boolean;
+  newDraftScript?: string;
+  newDraftIcon?: string;
+  newDraftLabel?: string;
+  newError?: string | null;
+  onOpenNew?: () => void;
+  onCloseNew?: () => void;
+  onNewDraftChange?: (value: string) => void;
+  onNewDraftIconChange?: (value: string) => void;
+  onNewDraftLabelChange?: (value: string) => void;
+  onCreateNew?: () => void;
 };
 
 export function LaunchScriptButton({
@@ -25,6 +38,18 @@ export function LaunchScriptButton({
   onCloseEditor,
   onDraftChange,
   onSave,
+  showNew = false,
+  newEditorOpen = false,
+  newDraftScript = "",
+  newDraftIcon = "play",
+  newDraftLabel = "",
+  newError = null,
+  onOpenNew,
+  onCloseNew,
+  onNewDraftChange,
+  onNewDraftIconChange,
+  onNewDraftLabelChange,
+  onCreateNew,
 }: LaunchScriptButtonProps) {
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const hasLaunchScript = Boolean(launchScript?.trim());
@@ -39,6 +64,7 @@ export function LaunchScriptButton({
         return;
       }
       onCloseEditor();
+      onCloseNew?.();
     };
     window.addEventListener("mousedown", handleClick);
     return () => {
@@ -80,11 +106,24 @@ export function LaunchScriptButton({
             <button
               type="button"
               className="ghost"
-              onClick={onCloseEditor}
+              onClick={() => {
+                onCloseEditor();
+                onCloseNew?.();
+              }}
               data-tauri-drag-region="false"
             >
               Cancel
             </button>
+            {showNew && onOpenNew && (
+              <button
+                type="button"
+                className="ghost"
+                onClick={onOpenNew}
+                data-tauri-drag-region="false"
+              >
+                New
+              </button>
+            )}
             <button
               type="button"
               className="primary"
@@ -95,6 +134,51 @@ export function LaunchScriptButton({
               {isSaving ? "Saving..." : "Save"}
             </button>
           </div>
+          {showNew && newEditorOpen && onNewDraftChange && onNewDraftIconChange && onCreateNew && (
+            <div className="launch-script-new">
+              <div className="launch-script-title">New launch script</div>
+              <LaunchScriptIconPicker
+                value={newDraftIcon}
+                onChange={onNewDraftIconChange}
+              />
+              <input
+                className="launch-script-input"
+                type="text"
+                placeholder="Optional label"
+                value={newDraftLabel}
+                onChange={(event) => onNewDraftLabelChange?.(event.target.value)}
+                data-tauri-drag-region="false"
+              />
+              <textarea
+                className="launch-script-textarea"
+                placeholder="e.g. npm run dev"
+                value={newDraftScript}
+                onChange={(event) => onNewDraftChange(event.target.value)}
+                rows={5}
+                data-tauri-drag-region="false"
+              />
+              {newError && <div className="launch-script-error">{newError}</div>}
+              <div className="launch-script-actions">
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={onCloseNew}
+                  data-tauri-drag-region="false"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={onCreateNew}
+                  disabled={isSaving}
+                  data-tauri-drag-region="false"
+                >
+                  {isSaving ? "Saving..." : "Create"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
