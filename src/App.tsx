@@ -91,6 +91,7 @@ import { useLiquidGlassEffect } from "./features/app/hooks/useLiquidGlassEffect"
 import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { useTerminalController } from "./features/terminal/hooks/useTerminalController";
 import { useWorkspaceLaunchScript } from "./features/app/hooks/useWorkspaceLaunchScript";
+import { useWorkspaceLaunchScripts } from "./features/app/hooks/useWorkspaceLaunchScripts";
 import { useWorktreeSetupScript } from "./features/app/hooks/useWorktreeSetupScript";
 import { useGitCommitController } from "./features/app/hooks/useGitCommitController";
 import { WorkspaceHome } from "./features/workspaces/components/WorkspaceHome";
@@ -767,6 +768,23 @@ function MainApp() {
     updateWorkspaceSettings,
     openTerminal,
     ensureLaunchTerminal,
+    restartLaunchSession: restartTerminalSession,
+    terminalState,
+    activeTerminalId,
+  });
+
+  const launchScriptsState = useWorkspaceLaunchScripts({
+    activeWorkspace,
+    updateWorkspaceSettings,
+    openTerminal,
+    ensureLaunchTerminal: (workspaceId, entry, title) => {
+      const label = entry.label?.trim() || entry.icon;
+      return ensureTerminalWithTitle(
+        workspaceId,
+        `launch:${entry.id}`,
+        title || `Launch ${label}`,
+      );
+    },
     restartLaunchSession: restartTerminalSession,
     terminalState,
     activeTerminalId,
@@ -1717,6 +1735,7 @@ function MainApp() {
     onCloseLaunchScriptEditor: launchScriptState.onCloseEditor,
     onLaunchScriptDraftChange: launchScriptState.onDraftScriptChange,
     onSaveLaunchScript: launchScriptState.onSaveLaunchScript,
+    launchScriptsState,
     mainHeaderActionsNode: (
       <MainHeaderActions
         centerMode={centerMode}

@@ -220,6 +220,17 @@
   min-height: 96px;
 }
 
+.launch-script-input {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-control);
+  color: var(--text-strong);
+  padding: 6px 8px;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
 .launch-script-help {
   margin-top: 6px;
   font-size: 11px;
@@ -237,6 +248,50 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.launch-script-delete {
+  color: var(--text-danger);
+}
+
+.launch-script-delete:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.launch-script-icon-picker {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.launch-script-icon-option {
+  border-radius: 8px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-control);
+  color: var(--text-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+}
+
+.launch-script-icon-option.is-selected {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text-stronger);
+}
+
+.launch-script-new {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-muted);
+}
+
+.launch-script-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .main-header-action {
