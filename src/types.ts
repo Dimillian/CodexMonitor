@@ -487,3 +487,72 @@ export type DictationTranscript = {
   id: string;
   text: string;
 };
+
+// Gemini CLI settings.json types
+
+export type GeminiModelSettings = {
+  name?: string | null;
+  maxSessionTurns?: number | null;
+  compressionThreshold?: number | null;
+};
+
+export type GeminiOutputSettings = {
+  format?: string | null;
+};
+
+export type GeminiAccessibilitySettings = {
+  screenReader?: boolean | null;
+};
+
+export type GeminiUiSettings = {
+  theme?: string | null;
+  customThemes?: Record<string, unknown> | null;
+  hideWindowTitle?: boolean | null;
+  hideBanner?: boolean | null;
+  hideFooter?: boolean | null;
+  accessibility?: GeminiAccessibilitySettings | null;
+};
+
+export type GeminiCheckpointSettings = {
+  enabled?: boolean | null;
+};
+
+export type GeminiPrivacySettings = {
+  usageStatisticsEnabled?: boolean | null;
+};
+
+export type GeminiToolSettings = {
+  autoAcceptSafe?: boolean | null;
+};
+
+export type GeminiMcpServerConfig = {
+  command?: string | null;
+  args?: string[] | null;
+  env?: Record<string, string> | null;
+  cwd?: string | null;
+  enabled?: boolean | null;
+};
+
+export type GeminiMcpSettings = {
+  servers?: Record<string, GeminiMcpServerConfig> | null;
+};
+
+export type GeminiIdeSettings = {
+  enabled?: boolean | null;
+};
+
+export type GeminiSettings = {
+  previewFeatures?: boolean | null;
+  vimMode?: boolean | null;
+  enableAutoUpdate?: boolean | null;
+  model?: GeminiModelSettings | null;
+  output?: GeminiOutputSettings | null;
+  ui?: GeminiUiSettings | null;
+  checkpointing?: GeminiCheckpointSettings | null;
+  privacy?: GeminiPrivacySettings | null;
+  tools?: GeminiToolSettings | null;
+  mcp?: GeminiMcpSettings | null;
+  sandbox?: Record<string, unknown> | null;
+  ide?: GeminiIdeSettings | null;
+  hooks?: Record<string, unknown> | null;
+};

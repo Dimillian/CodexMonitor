@@ -3,6 +3,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import type {
   AppSettings,
   GeminiDoctorResult,
+  GeminiSettings,
+  GeminiMcpSettings,
   DictationModelStatus,
   DictationSessionState,
   LocalUsageSnapshot,
@@ -737,4 +739,22 @@ export async function generateCommitMessage(
   workspaceId: string,
 ): Promise<string> {
   return invoke("generate_commit_message", { workspaceId });
+}
+
+// Gemini CLI settings.json commands
+
+export async function getGeminiSettings(): Promise<GeminiSettings> {
+  return invoke<GeminiSettings>("get_gemini_settings");
+}
+
+export async function updateGeminiSettings(settings: GeminiSettings): Promise<void> {
+  return invoke("update_gemini_settings", { settings });
+}
+
+export async function getMcpConfig(): Promise<GeminiMcpSettings> {
+  return invoke<GeminiMcpSettings>("get_mcp_config");
+}
+
+export async function getGeminiSettingsPath(): Promise<string> {
+  return invoke<string>("get_gemini_settings_path");
 }
