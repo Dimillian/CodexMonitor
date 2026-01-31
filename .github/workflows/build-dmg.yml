@@ -1,0 +1,138 @@
+name: Build DMG
+
+on:
+  workflow_dispatch:
+    inputs:
+      sign:
+        description: 'Sign and notarize the DMG (requires secrets)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install CMake
+        run: brew install cmake
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Unsigned build (default)
+      - name: Build unsigned DMG
+        if: ${{ !inputs.sign }}
+        run: npm run tauri -- build --bundles dmg
+
+      # Signed build (when sign=true)
+      - name: Import signing certificate
+        if: ${{ inputs.sign }}
+        env:
+          APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN=build.keychain
+          CERT_PATH=cert.p12
+
+          echo "$APPLE_CERTIFICATE_P12" | base64 --decode > "$CERT_PATH" 2>/dev/null || \
+            echo "$APPLE_CERTIFICATE_P12" | base64 -D > "$CERT_PATH"
+
+          security create-keychain -p "" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "" "$KEYCHAIN"
+          security import "$CERT_PATH" -k "$KEYCHAIN" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -d user -s "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$KEYCHAIN"
+
+      - name: Configure notarytool credentials
+        if: ${{ inputs.sign }}
+        env:
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_API_PRIVATE_KEY_B64: ${{ secrets.APPLE_API_PRIVATE_KEY_B64 }}
+          NOTARY_PROFILE_NAME: ${{ vars.NOTARY_PROFILE_NAME }}
+        run: |
+          set -euo pipefail
+          mkdir -p private_keys
+          echo "$APPLE_API_PRIVATE_KEY_B64" | base64 --decode > private_keys/AuthKey.p8
+          xcrun notarytool store-credentials "$NOTARY_PROFILE_NAME" \
+            --key-id "$APPLE_API_KEY_ID" \
+            --issuer "$APPLE_API_ISSUER_ID" \
+            --key "private_keys/AuthKey.p8"
+
+      - name: Build signed app bundle
+        if: ${{ inputs.sign }}
+        env:
+          CODESIGN_IDENTITY: ${{ vars.CODESIGN_IDENTITY }}
+        run: npm run tauri -- build --bundles app
+
+      - name: Notarize and create signed DMG
+        if: ${{ inputs.sign }}
+        env:
+          NOTARY_PROFILE_NAME: ${{ vars.NOTARY_PROFILE_NAME }}
+        run: |
+          set -euo pipefail
+          VERSION=$(python3 -c "import json; print(json.load(open('src-tauri/tauri.conf.json'))['version'])")
+
+          # Create zip for notarization
+          ditto -c -k --keepParent \
+            src-tauri/target/release/bundle/macos/GeminiMonitor.app \
+            GeminiMonitor.zip
+
+          # Notarize
+          xcrun notarytool submit GeminiMonitor.zip \
+            --keychain-profile "$NOTARY_PROFILE_NAME" \
+            --wait
+
+          # Staple
+          xcrun stapler staple \
+            src-tauri/target/release/bundle/macos/GeminiMonitor.app
+
+          # Create DMG
+          mkdir -p dmg-root
+          ditto src-tauri/target/release/bundle/macos/GeminiMonitor.app dmg-root/GeminiMonitor.app
+          hdiutil create -volname "GeminiMonitor" \
+            -srcfolder dmg-root \
+            -ov -format UDZO \
+            "GeminiMonitor_${VERSION}_aarch64.dmg"
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(python3 -c "import json; print(json.load(open('src-tauri/tauri.conf.json'))['version'])")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Upload unsigned DMG
+        if: ${{ !inputs.sign }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: GeminiMonitor-${{ steps.version.outputs.version }}-unsigned-dmg
+          path: src-tauri/target/release/bundle/dmg/*.dmg
+
+      - name: Upload signed DMG
+        if: ${{ inputs.sign }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: GeminiMonitor-${{ steps.version.outputs.version }}-signed-dmg
+          path: GeminiMonitor_*.dmg

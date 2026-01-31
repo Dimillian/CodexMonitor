@@ -4,6 +4,26 @@
 
 CodexMonitor is a macOS Tauri app for orchestrating multiple Codex agents across local workspaces. It provides a sidebar to manage projects, a home screen for quick actions, and a conversation view backed by the Codex app-server protocol.
 
+## Installation
+
+### From Releases
+
+Download the latest release from the [GitHub Releases](https://github.com/Dimillian/GeminiMonitor/releases) page:
+
+- **macOS**: Download the `.dmg` file, open it, and drag to Applications
+- **Linux**: Download the `.AppImage` file, make it executable, and run it
+
+### From Source
+
+See [docs/INSTALLATION.md](docs/INSTALLATION.md) for detailed build instructions.
+
+Quick start:
+```bash
+npm install
+npm run tauri:dev    # Development
+npm run tauri:build  # Production (creates .app and .dmg)
+```
+
 ## Features
 
 ### Workspaces & Threads
@@ -81,6 +101,15 @@ npm run tauri build
 ```
 
 The macOS app bundle will be in `src-tauri/target/release/bundle/macos/`.
+
+### Automated Builds (GitHub Actions)
+
+The repository includes workflows for automated builds:
+
+- **Build DMG**: Builds unsigned or signed DMG files on demand
+- **Release**: Full release workflow with code signing and notarization
+
+See [docs/RELEASE.md](docs/RELEASE.md) for setting up code signing and notarization.
 
 ### Windows (opt-in)
 
