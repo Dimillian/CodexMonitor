@@ -79,6 +79,11 @@ pub(crate) fn read_config_model(gemini_home: Option<PathBuf>) -> Result<Option<S
     let Some(root) = root else {
         return Err("Unable to resolve GEMINI_HOME".to_string());
     };
+    // First try reading from settings.json (Gemini CLI native format)
+    if let Ok(Some(model)) = crate::gemini::settings::read_settings_model(Some(root.clone())) {
+        return Ok(Some(model));
+    }
+    // Fall back to config.toml for backwards compatibility
     read_config_model_from_root(&root)
 }
 

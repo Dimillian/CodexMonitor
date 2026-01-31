@@ -12,6 +12,7 @@ use tokio::time::timeout;
 pub(crate) mod args;
 pub(crate) mod config;
 pub(crate) mod home;
+pub(crate) mod settings;
 
 pub(crate) use crate::backend::app_server::WorkspaceSession;
 use crate::backend::events::AppServerEvent;
@@ -1013,4 +1014,43 @@ fn sanitize_run_worktree_name(value: &str) -> String {
         }
     }
     format!("feat/{}", cleaned.trim_start_matches('/'))
+}
+
+/// Get Gemini CLI settings from user's ~/.gemini/settings.json
+#[tauri::command]
+pub(crate) async fn get_gemini_settings() -> Result<Value, String> {
+    let settings = settings::read_user_settings()?;
+    match settings {
+        Some(s) => serde_json::to_value(s).map_err(|e| e.to_string()),
+        None => Ok(json!({})),
+    }
+}
+
+/// Update Gemini CLI settings in user's ~/.gemini/settings.json
+#[tauri::command]
+pub(crate) async fn update_gemini_settings(settings: settings::GeminiSettings) -> Result<(), String> {
+    settings::write_user_settings(&settings)
+}
+
+/// Get MCP server configuration from settings
+#[tauri::command]
+pub(crate) async fn get_mcp_config() -> Result<Value, String> {
+    let settings = settings::read_user_settings()?;
+    let mcp = settings.and_then(|s| s.mcp);
+    match mcp {
+        Some(m) => serde_json::to_value(m).map_err(|e| e.to_string()),
+        None => Ok(json!({})),
+    }
+}
+
+/// Get path to Gemini settings.json file
+#[tauri::command]
+pub(crate) async fn get_gemini_settings_path() -> Result<String, String> {
+    settings::settings_json_path()
+        .ok_or_else(|| "Unable to resolve GEMINI_HOME".to_string())
+        .and_then(|path| {
+            path.to_str()
+                .map(|s| s.to_string())
+                .ok_or_else(|| "Invalid path".to_string())
+        })
 }
