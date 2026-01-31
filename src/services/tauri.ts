@@ -738,3 +738,14 @@ export async function generateCommitMessage(
 ): Promise<string> {
   return invoke("generate_commit_message", { workspaceId });
 }
+
+export async function sendNotification(
+  title: string,
+  body: string,
+): Promise<void> {
+  const notification = await import("@tauri-apps/plugin-notification");
+  const permission = await notification.requestPermission();
+  if (permission === "granted") {
+    await notification.sendNotification({ title, body });
+  }
+}
