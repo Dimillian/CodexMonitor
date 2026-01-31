@@ -13,6 +13,7 @@ import type { ThreadAction } from "./useThreadsReducer";
 type UseThreadTurnEventsOptions = {
   dispatch: Dispatch<ThreadAction>;
   getCustomName: (workspaceId: string, threadId: string) => string | undefined;
+  isThreadHidden: (workspaceId: string, threadId: string) => boolean;
   markProcessing: (threadId: string, isProcessing: boolean) => void;
   markReviewing: (threadId: string, isReviewing: boolean) => void;
   setActiveTurnId: (threadId: string, turnId: string | null) => void;
@@ -25,6 +26,7 @@ type UseThreadTurnEventsOptions = {
 export function useThreadTurnEvents({
   dispatch,
   getCustomName,
+  isThreadHidden,
   markProcessing,
   markReviewing,
   setActiveTurnId,
@@ -37,6 +39,9 @@ export function useThreadTurnEvents({
     (workspaceId: string, thread: Record<string, unknown>) => {
       const threadId = asString(thread.id);
       if (!threadId) {
+        return;
+      }
+      if (isThreadHidden(workspaceId, threadId)) {
         return;
       }
       dispatch({ type: "ensureThread", workspaceId, threadId });
@@ -60,7 +65,7 @@ export function useThreadTurnEvents({
       }
       safeMessageActivity();
     },
-    [dispatch, getCustomName, recordThreadActivity, safeMessageActivity],
+    [dispatch, getCustomName, isThreadHidden, recordThreadActivity, safeMessageActivity],
   );
 
   const onTurnStarted = useCallback(

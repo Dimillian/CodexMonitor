@@ -10,6 +10,7 @@ pub(crate) fn read_with_policy(root: &PathBuf, policy: FilePolicy) -> Result<Tex
         policy.root_may_be_missing,
         policy.root_context,
         policy.filename,
+        policy.allow_external_symlink_target,
     )
 }
 
@@ -25,6 +26,7 @@ pub(crate) fn write_with_policy(
         policy.create_root,
         policy.root_context,
         policy.filename,
+        policy.allow_external_symlink_target,
     )
 }
 

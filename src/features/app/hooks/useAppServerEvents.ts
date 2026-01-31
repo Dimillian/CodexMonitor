@@ -23,6 +23,11 @@ type AgentCompleted = {
 type AppServerEventHandlers = {
   onWorkspaceConnected?: (workspaceId: string) => void;
   onThreadStarted?: (workspaceId: string, thread: Record<string, unknown>) => void;
+  onBackgroundThreadAction?: (
+    workspaceId: string,
+    threadId: string,
+    action: string,
+  ) => void;
   onApprovalRequest?: (request: ApprovalRequest) => void;
   onRequestUserInput?: (request: RequestUserInputRequest) => void;
   onAgentMessageDelta?: (event: AgentDelta) => void;
@@ -170,6 +175,16 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         const threadId = String(thread?.id ?? "");
         if (thread && threadId) {
           handlers.onThreadStarted?.(workspace_id, thread);
+        }
+        return;
+      }
+
+      if (method === "codex/backgroundThread") {
+        const params = message.params as Record<string, unknown>;
+        const threadId = String(params.threadId ?? params.thread_id ?? "");
+        const action = String(params.action ?? "hide");
+        if (threadId) {
+          handlers.onBackgroundThreadAction?.(workspace_id, threadId, action);
         }
         return;
       }

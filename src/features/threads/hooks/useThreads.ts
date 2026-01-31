@@ -121,10 +121,17 @@ export function useThreads({
     [onWorkspaceConnected, refreshAccountRateLimits, refreshAccountInfo],
   );
 
+  const isThreadHidden = useCallback(
+    (workspaceId: string, threadId: string) =>
+      Boolean(state.hiddenThreadIdsByWorkspace[workspaceId]?.[threadId]),
+    [state.hiddenThreadIdsByWorkspace],
+  );
+
   const handlers = useThreadEventHandlers({
     activeThreadId,
     dispatch,
     getCustomName,
+    isThreadHidden,
     markProcessing,
     markReviewing,
     setActiveTurnId,

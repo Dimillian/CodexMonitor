@@ -28,6 +28,7 @@ type SetupOverrides = {
 const makeOptions = (overrides: SetupOverrides = {}) => {
   const dispatch = vi.fn();
   const getCustomName = vi.fn();
+  const isThreadHidden = vi.fn(() => false);
   const markProcessing = vi.fn();
   const markReviewing = vi.fn();
   const setActiveTurnId = vi.fn();
@@ -42,6 +43,7 @@ const makeOptions = (overrides: SetupOverrides = {}) => {
     useThreadTurnEvents({
       dispatch,
       getCustomName,
+      isThreadHidden,
       markProcessing,
       markReviewing,
       setActiveTurnId,
@@ -56,6 +58,7 @@ const makeOptions = (overrides: SetupOverrides = {}) => {
     result,
     dispatch,
     getCustomName,
+    isThreadHidden,
     markProcessing,
     markReviewing,
     setActiveTurnId,
@@ -132,6 +135,24 @@ describe("useThreadTurnEvents", () => {
         threadId: "thread-2",
       }),
     );
+  });
+
+  it("ignores thread started events for hidden threads", () => {
+    const { result, dispatch, isThreadHidden, recordThreadActivity, safeMessageActivity } =
+      makeOptions();
+    isThreadHidden.mockReturnValue(true);
+
+    act(() => {
+      result.current.onThreadStarted("ws-1", {
+        id: "thread-hidden",
+        preview: "Hidden thread",
+        updatedAt: 1_700_000_000_200,
+      });
+    });
+
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(recordThreadActivity).not.toHaveBeenCalled();
+    expect(safeMessageActivity).not.toHaveBeenCalled();
   });
 
   it("marks processing and active turn on turn started", () => {

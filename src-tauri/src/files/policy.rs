@@ -20,6 +20,7 @@ pub(crate) struct FilePolicy {
     pub(crate) root_context: &'static str,
     pub(crate) root_may_be_missing: bool,
     pub(crate) create_root: bool,
+    pub(crate) allow_external_symlink_target: bool,
 }
 
 const AGENTS_FILENAME: &str = "AGENTS.md";
@@ -32,18 +33,21 @@ pub(crate) fn policy_for(scope: FileScope, kind: FileKind) -> Result<FilePolicy,
             root_context: "workspace root",
             root_may_be_missing: false,
             create_root: false,
+            allow_external_symlink_target: false,
         }),
         (FileScope::Global, FileKind::Agents) => Ok(FilePolicy {
             filename: AGENTS_FILENAME,
             root_context: "CODEX_HOME",
             root_may_be_missing: true,
             create_root: true,
+            allow_external_symlink_target: true,
         }),
         (FileScope::Global, FileKind::Config) => Ok(FilePolicy {
             filename: CONFIG_FILENAME,
             root_context: "CODEX_HOME",
             root_may_be_missing: true,
             create_root: true,
+            allow_external_symlink_target: false,
         }),
         (FileScope::Workspace, FileKind::Config) => {
             Err("config.toml is only supported for global scope".to_string())
@@ -62,6 +66,7 @@ mod tests {
         assert_eq!(policy.root_context, "workspace root");
         assert!(!policy.root_may_be_missing);
         assert!(!policy.create_root);
+        assert!(!policy.allow_external_symlink_target);
     }
 
     #[test]
@@ -71,6 +76,7 @@ mod tests {
         assert_eq!(policy.root_context, "CODEX_HOME");
         assert!(policy.root_may_be_missing);
         assert!(policy.create_root);
+        assert!(policy.allow_external_symlink_target);
     }
 
     #[test]
@@ -80,6 +86,7 @@ mod tests {
         assert_eq!(policy.root_context, "CODEX_HOME");
         assert!(policy.root_may_be_missing);
         assert!(policy.create_root);
+        assert!(!policy.allow_external_symlink_target);
     }
 
     #[test]

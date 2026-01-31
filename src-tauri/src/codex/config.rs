@@ -1,7 +1,10 @@
-use std::fs;
 use std::path::{Path, PathBuf};
 
 use toml::Value as TomlValue;
+
+use crate::files::io::read_text_file_within;
+use crate::files::ops::write_with_policy;
+use crate::files::policy::{policy_for, FileKind, FileScope};
 
 const FEATURES_TABLE: &str = "[features]";
 
@@ -38,46 +41,75 @@ pub(crate) fn write_unified_exec_enabled(enabled: bool) -> Result<(), String> {
 }
 
 fn read_feature_flag(key: &str) -> Result<Option<bool>, String> {
-    let path = config_toml_path().ok_or("Unable to resolve CODEX_HOME".to_string())?;
-    if !path.exists() {
+    let Some(root) = resolve_default_codex_home() else {
         return Ok(None);
-    }
-    let contents = fs::read_to_string(&path).map_err(|err| err.to_string())?;
-    Ok(find_feature_flag(&contents, key))
+    };
+    let contents = read_config_contents_from_root(&root)?;
+    Ok(contents.as_deref().and_then(|value| find_feature_flag(value, key)))
 }
 
 fn write_feature_flag(key: &str, enabled: bool) -> Result<(), String> {
-    let Some(path) = config_toml_path() else {
+    let Some(root) = resolve_default_codex_home() else {
         return Ok(());
     };
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|err| err.to_string())?;
-    }
-    let contents = fs::read_to_string(&path).unwrap_or_default();
+    let policy = config_policy()?;
+    let response = read_text_file_within(
+        &root,
+        policy.filename,
+        policy.root_may_be_missing,
+        policy.root_context,
+        policy.filename,
+        policy.allow_external_symlink_target,
+    )?;
+    let contents = if response.exists {
+        response.content
+    } else {
+        String::new()
+    };
     let updated = upsert_feature_flag(&contents, key, enabled);
-    fs::write(&path, updated).map_err(|err| err.to_string())
+    write_with_policy(&root, policy, &updated)
 }
 
 pub(crate) fn config_toml_path() -> Option<PathBuf> {
-    crate::codex::home::resolve_default_codex_home().map(|home| home.join("config.toml"))
+    resolve_default_codex_home().map(|home| home.join("config.toml"))
 }
 
 pub(crate) fn read_config_model(codex_home: Option<PathBuf>) -> Result<Option<String>, String> {
-    let path = codex_home
-        .or_else(crate::codex::home::resolve_default_codex_home)
-        .map(|home| home.join("config.toml"));
-    let Some(path) = path else {
+    let root = codex_home.or_else(resolve_default_codex_home);
+    let Some(root) = root else {
         return Err("Unable to resolve CODEX_HOME".to_string());
     };
-    read_config_model_from_path(&path)
+    read_config_model_from_root(&root)
 }
 
-fn read_config_model_from_path(path: &Path) -> Result<Option<String>, String> {
-    if !path.exists() {
-        return Ok(None);
+fn resolve_default_codex_home() -> Option<PathBuf> {
+    crate::codex::home::resolve_default_codex_home()
+}
+
+fn config_policy() -> Result<crate::files::policy::FilePolicy, String> {
+    policy_for(FileScope::Global, FileKind::Config)
+}
+
+fn read_config_contents_from_root(root: &Path) -> Result<Option<String>, String> {
+    let policy = config_policy()?;
+    let response = read_text_file_within(
+        root,
+        policy.filename,
+        policy.root_may_be_missing,
+        policy.root_context,
+        policy.filename,
+        policy.allow_external_symlink_target,
+    )?;
+    if response.exists {
+        Ok(Some(response.content))
+    } else {
+        Ok(None)
     }
-    let contents = fs::read_to_string(path).map_err(|err| err.to_string())?;
-    Ok(parse_model_from_toml(&contents))
+}
+
+fn read_config_model_from_root(root: &Path) -> Result<Option<String>, String> {
+    let contents = read_config_contents_from_root(root)?;
+    Ok(contents.as_deref().and_then(parse_model_from_toml))
 }
 
 fn parse_model_from_toml(contents: &str) -> Option<String> {

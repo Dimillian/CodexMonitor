@@ -17,11 +17,20 @@ use crate::codex::args::apply_codex_args;
 use crate::types::WorkspaceEntry;
 
 fn extract_thread_id(value: &Value) -> Option<String> {
-    value
-        .get("params")
-        .and_then(|p| p.get("threadId").or_else(|| p.get("thread_id")))
+    let params = value.get("params")?;
+
+    params
+        .get("threadId")
+        .or_else(|| params.get("thread_id"))
         .and_then(|t| t.as_str())
         .map(|s| s.to_string())
+        .or_else(|| {
+            params
+                .get("thread")
+                .and_then(|thread| thread.get("id"))
+                .and_then(|t| t.as_str())
+                .map(|s| s.to_string())
+        })
 }
 
 pub(crate) struct WorkspaceSession {

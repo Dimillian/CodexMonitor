@@ -48,6 +48,7 @@ describe("useAppServerEvents", () => {
       onAppServerEvent: vi.fn(),
       onWorkspaceConnected: vi.fn(),
       onThreadStarted: vi.fn(),
+      onBackgroundThreadAction: vi.fn(),
       onAgentMessageDelta: vi.fn(),
       onReasoningSummaryBoundary: vi.fn(),
       onContextCompacted: vi.fn(),
@@ -124,6 +125,21 @@ describe("useAppServerEvents", () => {
       id: "thread-2",
       preview: "New thread",
     });
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "codex/backgroundThread",
+          params: { threadId: "thread-2", action: "hide" },
+        },
+      });
+    });
+    expect(handlers.onBackgroundThreadAction).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-2",
+      "hide",
+    );
 
     act(() => {
       listener?.({

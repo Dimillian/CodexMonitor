@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 use tokio::process::Command;
 use tokio::sync::mpsc;
 use tokio::time::timeout;
@@ -14,6 +14,7 @@ pub(crate) mod config;
 pub(crate) mod home;
 
 pub(crate) use crate::backend::app_server::WorkspaceSession;
+use crate::backend::events::AppServerEvent;
 use crate::backend::app_server::{
     build_codex_command_with_bin, build_codex_path_env, check_codex_installation,
     spawn_workspace_session as spawn_workspace_session_inner,
@@ -587,6 +588,7 @@ pub(crate) async fn get_config_model(
 pub(crate) async fn generate_commit_message(
     workspace_id: String,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<String, String> {
     // Get the diff from git
     let diff = crate::git::get_workspace_diff(&workspace_id, &state).await?;
@@ -638,6 +640,21 @@ Changes:\n{diff}"
         .and_then(|t| t.as_str())
         .ok_or_else(|| format!("Failed to get threadId from thread/start response: {:?}", thread_result))?
         .to_string();
+
+    // Hide background helper threads from the sidebar, even if a thread/started event leaked.
+    let _ = app.emit(
+        "app-server-event",
+        AppServerEvent {
+            workspace_id: workspace_id.clone(),
+            message: json!({
+                "method": "codex/backgroundThread",
+                "params": {
+                    "threadId": thread_id,
+                    "action": "hide"
+                }
+            }),
+        },
+    );
 
     // Create channel for receiving events
     let (tx, mut rx) = mpsc::unbounded_channel::<Value>();
@@ -821,6 +838,21 @@ Task:\n{cleaned_prompt}"
         .and_then(|t| t.as_str())
         .ok_or_else(|| format!("Failed to get threadId from thread/start response: {:?}", thread_result))?
         .to_string();
+
+    // Hide background helper threads from the sidebar, even if a thread/started event leaked.
+    let _ = app.emit(
+        "app-server-event",
+        AppServerEvent {
+            workspace_id: workspace_id.clone(),
+            message: json!({
+                "method": "codex/backgroundThread",
+                "params": {
+                    "threadId": thread_id,
+                    "action": "hide"
+                }
+            }),
+        },
+    );
 
     let (tx, mut rx) = mpsc::unbounded_channel::<Value>();
     {
