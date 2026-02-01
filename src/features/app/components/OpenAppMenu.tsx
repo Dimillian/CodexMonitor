@@ -121,6 +121,20 @@ export function OpenAppMenu({
     };
   }, [openMenuOpen]);
 
+  const resolveAppName = (target: OpenTarget) =>
+    (target.target.appName ?? "").trim();
+  const resolveCommand = (target: OpenTarget) =>
+    (target.target.command ?? "").trim();
+  const canOpenTarget = (target: OpenTarget) => {
+    if (target.target.kind === "finder") {
+      return true;
+    }
+    if (target.target.kind === "command") {
+      return Boolean(resolveCommand(target));
+    }
+    return Boolean(resolveAppName(target));
+  };
+
   const openWithTarget = async (target: OpenTarget) => {
     try {
       if (target.target.kind === "finder") {
@@ -128,16 +142,17 @@ export function OpenAppMenu({
         return;
       }
       if (target.target.kind === "command") {
-        if (!target.target.command) {
+        const command = resolveCommand(target);
+        if (!command) {
           return;
         }
         await openWorkspaceIn(path, {
-          command: target.target.command,
+          command,
           args: target.target.args,
         });
         return;
       }
-      const appName = target.target.appName || target.label;
+      const appName = resolveAppName(target);
       if (!appName) {
         return;
       }
@@ -151,18 +166,28 @@ export function OpenAppMenu({
   };
 
   const handleOpen = async () => {
-    if (!selectedOpenTarget) {
+    if (!selectedOpenTarget || !canOpenTarget(selectedOpenTarget)) {
       return;
     }
     await openWithTarget(selectedOpenTarget);
   };
 
   const handleSelectOpenTarget = async (target: OpenTarget) => {
+    if (!canOpenTarget(target)) {
+      return;
+    }
     onSelectOpenAppId(target.id);
     window.localStorage.setItem(OPEN_APP_STORAGE_KEY, target.id);
     setOpenMenuOpen(false);
     await openWithTarget(target);
   };
+
+  const selectedCanOpen = canOpenTarget(selectedOpenTarget);
+  const openLabel = selectedCanOpen
+    ? `Open in ${selectedOpenTarget.label}`
+    : selectedOpenTarget.target.kind === "command"
+      ? "Set command in Settings"
+      : "Set app name in Settings";
 
   return (
     <div className="open-app-menu" ref={openMenuRef}>
@@ -171,9 +196,10 @@ export function OpenAppMenu({
           type="button"
           className="ghost main-header-action open-app-action"
           onClick={handleOpen}
+          disabled={!selectedCanOpen}
           data-tauri-drag-region="false"
           aria-label={`Open in ${selectedOpenTarget.label}`}
-          title={`Open in ${selectedOpenTarget.label}`}
+          title={openLabel}
         >
           <span className="open-app-label">
             <img
@@ -201,6 +227,7 @@ export function OpenAppMenu({
       {openMenuOpen && (
         <div className="open-app-dropdown" role="menu">
           {resolvedOpenTargets.map((target) => (
+            // Keep entries visible but disable ones missing required config.
             <button
               key={target.id}
               type="button"
@@ -208,6 +235,7 @@ export function OpenAppMenu({
                 target.id === resolvedOpenAppId ? " is-active" : ""
               }`}
               onClick={() => handleSelectOpenTarget(target)}
+              disabled={!canOpenTarget(target)}
               role="menuitem"
               data-tauri-drag-region="false"
             >
