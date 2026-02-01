@@ -22,8 +22,8 @@ use super::worktree::{
     unique_worktree_path_for_rename,
 };
 
-use crate::backend::app_server::WorkspaceSession;
-use crate::gemini::spawn_workspace_session;
+use crate::backend::app_server::{CliSpawnConfig, WorkspaceSession};
+use crate::gemini::{build_cli_spawn_config, spawn_workspace_session};
 use crate::gemini::args::resolve_workspace_gemini_args;
 use crate::gemini::home::resolve_workspace_gemini_home;
 use crate::git_utils::resolve_git_root;
@@ -39,11 +39,9 @@ use crate::utils::{git_env_path, resolve_git_binary};
 fn spawn_with_app(
     app: &AppHandle,
     entry: WorkspaceEntry,
-    default_bin: Option<String>,
-    gemini_args: Option<String>,
-    gemini_home: Option<PathBuf>,
+    config: CliSpawnConfig,
 ) -> impl std::future::Future<Output = Result<Arc<WorkspaceSession>, String>> {
-    spawn_workspace_session(entry, default_bin, gemini_args, app.clone(), gemini_home)
+    spawn_workspace_session(entry, config, app.clone())
 }
 
 #[tauri::command]
@@ -135,8 +133,8 @@ pub(crate) async fn add_workspace(
         &state.sessions,
         &state.app_settings,
         &state.storage_path,
-        |entry, default_bin, gemini_args, gemini_home| {
-            spawn_with_app(&app, entry, default_bin, gemini_args, gemini_home)
+        |entry, config| {
+            spawn_with_app(&app, entry, config)
         },
     )
     .await
@@ -220,20 +218,16 @@ pub(crate) async fn add_clone(
         },
     };
 
-    let (default_bin, gemini_args) = {
+    let config = {
         let settings = state.app_settings.lock().await;
-        (
-            settings.gemini_bin.clone(),
-            resolve_workspace_gemini_args(&entry, None, Some(&settings)),
-        )
+        let gemini_args = resolve_workspace_gemini_args(&entry, None, Some(&settings));
+        let gemini_home = resolve_workspace_gemini_home(&entry, None);
+        build_cli_spawn_config(&settings, gemini_args, gemini_home)
     };
-    let gemini_home = resolve_workspace_gemini_home(&entry, None);
     let session = match spawn_workspace_session(
         entry.clone(),
-        default_bin,
-        gemini_args,
+        config,
         app,
-        gemini_home,
     )
     .await
     {
@@ -324,8 +318,8 @@ pub(crate) async fn add_worktree(
                 run_git_command_owned(repo, args_owned)
             })
         },
-        |entry, default_bin, gemini_args, gemini_home| {
-            spawn_with_app(&app, entry, default_bin, gemini_args, gemini_home)
+        |entry, config| {
+            spawn_with_app(&app, entry, config)
         },
     )
     .await
@@ -493,8 +487,8 @@ pub(crate) async fn rename_worktree(
                 run_git_command_owned(repo, args_owned)
             })
         },
-        |entry, default_bin, gemini_args, gemini_home| {
-            spawn_with_app(&app, entry, default_bin, gemini_args, gemini_home)
+        |entry, config| {
+            spawn_with_app(&app, entry, config)
         },
     )
     .await
@@ -715,8 +709,8 @@ pub(crate) async fn update_workspace_settings(
         |workspaces, workspace_id, next_settings| {
             apply_workspace_settings_update(workspaces, workspace_id, next_settings)
         },
-        |entry, default_bin, gemini_args, gemini_home| {
-            spawn_with_app(&app, entry, default_bin, gemini_args, gemini_home)
+        |entry, config| {
+            spawn_with_app(&app, entry, config)
         },
     )
     .await
@@ -770,8 +764,8 @@ pub(crate) async fn connect_workspace(
         &state.workspaces,
         &state.sessions,
         &state.app_settings,
-        |entry, default_bin, gemini_args, gemini_home| {
-            spawn_with_app(&app, entry, default_bin, gemini_args, gemini_home)
+        |entry, config| {
+            spawn_with_app(&app, entry, config)
         },
     )
     .await

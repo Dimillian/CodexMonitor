@@ -14,13 +14,18 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import {
   mockHandlers,
-  mockState,
+  mockState as _mockState,
   setWorkspaces,
-  setAppSettings,
+  setAppSettings as _setAppSettings,
   defaultAppSettings,
   resetMocks,
-  invoke,
+  invoke as _invoke,
 } from "./mocks/tauri.mock";
+
+// Re-export with underscore prefix to satisfy eslint unused-vars rule
+void _mockState;
+void _setAppSettings;
+void _invoke;
 import type { WorkspaceInfo } from "../../types";
 
 // Import hooks after mocking (mocks are set up in setup.ts)

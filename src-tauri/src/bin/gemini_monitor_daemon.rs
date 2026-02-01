@@ -7,6 +7,8 @@ mod gemini_args;
 mod gemini_home;
 #[path = "../gemini/config.rs"]
 mod gemini_config;
+#[path = "../gemini/settings.rs"]
+mod gemini_settings;
 #[path = "../files/io.rs"]
 mod file_io;
 #[path = "../files/ops.rs"]
@@ -38,6 +40,37 @@ mod gemini {
     pub(crate) mod home {
         pub(crate) use crate::gemini_home::*;
     }
+    pub(crate) mod settings {
+        pub(crate) use crate::gemini_settings::*;
+    }
+
+    use std::path::PathBuf;
+    use crate::backend::app_server::{CliSpawnConfig, CursorCliSettings};
+    use crate::types::AppSettings;
+
+    /// Build CliSpawnConfig from AppSettings
+    pub(crate) fn build_cli_spawn_config(
+        settings: &AppSettings,
+        gemini_args: Option<String>,
+        gemini_home: Option<PathBuf>,
+    ) -> CliSpawnConfig {
+        CliSpawnConfig {
+            cli_type: settings.cli_type.clone(),
+            gemini_bin: settings.gemini_bin.clone(),
+            gemini_args,
+            gemini_home,
+            cursor_bin: settings.cursor_bin.clone(),
+            cursor_args: settings.cursor_args.clone(),
+            cursor_settings: CursorCliSettings {
+                vim_mode: settings.cursor_vim_mode,
+                default_mode: settings.cursor_default_mode.clone(),
+                output_format: settings.cursor_output_format.clone(),
+                attribute_commits: settings.cursor_attribute_commits,
+                attribute_prs: settings.cursor_attribute_prs,
+                use_http1: settings.cursor_use_http1,
+            },
+        }
+    }
 }
 
 mod files {
@@ -68,7 +101,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{broadcast, mpsc, oneshot, Mutex};
 
 use backend::app_server::{
-    spawn_workspace_session, WorkspaceSession,
+    spawn_workspace_session, CliSpawnConfig, WorkspaceSession,
 };
 use backend::events::{AppServerEvent, EventSink, TerminalOutput};
 use storage::{read_settings, read_workspaces};
@@ -84,15 +117,11 @@ fn spawn_with_client(
     event_sink: DaemonEventSink,
     client_version: String,
     entry: WorkspaceEntry,
-    default_bin: Option<String>,
-    gemini_args: Option<String>,
-    gemini_home: Option<PathBuf>,
+    config: CliSpawnConfig,
 ) -> impl std::future::Future<Output = Result<Arc<WorkspaceSession>, String>> {
     spawn_workspace_session(
         entry,
-        default_bin,
-        gemini_args,
-        gemini_home,
+        config,
         client_version,
         event_sink,
     )
@@ -183,14 +212,12 @@ impl DaemonState {
             &self.sessions,
             &self.app_settings,
             &self.storage_path,
-            move |entry, default_bin, gemini_args, gemini_home| {
+            move |entry, config| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
                     entry,
-                    default_bin,
-                    gemini_args,
-                    gemini_home,
+                    config,
                 )
             },
         )
@@ -227,14 +254,12 @@ impl DaemonState {
             |root, args| {
                 workspaces_core::run_git_command_unit(root, args, git_core::run_git_command_owned)
             },
-            move |entry, default_bin, gemini_args, gemini_home| {
+            move |entry, config| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
                     entry,
-                    default_bin,
-                    gemini_args,
-                    gemini_home,
+                    config,
                 )
             },
         )
@@ -319,14 +344,12 @@ impl DaemonState {
             |root, args| {
                 workspaces_core::run_git_command_unit(root, args, git_core::run_git_command_owned)
             },
-            move |entry, default_bin, gemini_args, gemini_home| {
+            move |entry, config| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
                     entry,
-                    default_bin,
-                    gemini_args,
-                    gemini_home,
+                    config,
                 )
             },
         )
@@ -392,14 +415,12 @@ impl DaemonState {
             |workspaces, workspace_id, next_settings| {
                 apply_workspace_settings_update(workspaces, workspace_id, next_settings)
             },
-            move |entry, default_bin, gemini_args, gemini_home| {
+            move |entry, config| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
                     entry,
-                    default_bin,
-                    gemini_args,
-                    gemini_home,
+                    config,
                 )
             },
         )
@@ -435,14 +456,12 @@ impl DaemonState {
             &self.workspaces,
             &self.sessions,
             &self.app_settings,
-            move |entry, default_bin, gemini_args, gemini_home| {
+            move |entry, config| {
                 spawn_with_client(
                     self.event_sink.clone(),
                     client_version.clone(),
                     entry,
-                    default_bin,
-                    gemini_args,
-                    gemini_home,
+                    config,
                 )
             },
         )

@@ -294,10 +294,28 @@ pub(crate) struct OpenAppTarget {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct AppSettings {
+    #[serde(default = "default_cli_type", rename = "cliType")]
+    pub(crate) cli_type: String,
     #[serde(default, rename = "geminiBin")]
     pub(crate) gemini_bin: Option<String>,
     #[serde(default, rename = "geminiArgs")]
     pub(crate) gemini_args: Option<String>,
+    #[serde(default, rename = "cursorBin")]
+    pub(crate) cursor_bin: Option<String>,
+    #[serde(default, rename = "cursorArgs")]
+    pub(crate) cursor_args: Option<String>,
+    #[serde(default, rename = "cursorVimMode")]
+    pub(crate) cursor_vim_mode: bool,
+    #[serde(default = "default_cursor_default_mode", rename = "cursorDefaultMode")]
+    pub(crate) cursor_default_mode: String,
+    #[serde(default = "default_cursor_output_format", rename = "cursorOutputFormat")]
+    pub(crate) cursor_output_format: String,
+    #[serde(default, rename = "cursorAttributeCommits")]
+    pub(crate) cursor_attribute_commits: bool,
+    #[serde(default, rename = "cursorAttributePRs")]
+    pub(crate) cursor_attribute_prs: bool,
+    #[serde(default, rename = "cursorUseHttp1")]
+    pub(crate) cursor_use_http1: bool,
     #[serde(default, rename = "backendMode")]
     pub(crate) backend_mode: BackendMode,
     #[serde(default = "default_remote_backend_host", rename = "remoteBackendHost")]
@@ -482,6 +500,18 @@ impl Default for BackendMode {
     fn default() -> Self {
         BackendMode::Local
     }
+}
+
+fn default_cli_type() -> String {
+    "gemini".to_string()
+}
+
+fn default_cursor_default_mode() -> String {
+    "agent".to_string()
+}
+
+fn default_cursor_output_format() -> String {
+    "stream-json".to_string()
 }
 
 fn default_access_mode() -> String {
@@ -726,8 +756,17 @@ fn default_selected_open_app_id() -> String {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
+            cli_type: default_cli_type(),
             gemini_bin: None,
             gemini_args: None,
+            cursor_bin: None,
+            cursor_args: None,
+            cursor_vim_mode: false,
+            cursor_default_mode: default_cursor_default_mode(),
+            cursor_output_format: default_cursor_output_format(),
+            cursor_attribute_commits: false,
+            cursor_attribute_prs: false,
+            cursor_use_http1: false,
             backend_mode: BackendMode::Local,
             remote_backend_host: default_remote_backend_host(),
             remote_backend_token: None,
@@ -792,7 +831,19 @@ mod tests {
     #[test]
     fn app_settings_defaults_from_empty_json() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
+        // CLI type defaults
+        assert_eq!(settings.cli_type, "gemini");
         assert!(settings.gemini_bin.is_none());
+        assert!(settings.gemini_args.is_none());
+        // Cursor CLI defaults
+        assert!(settings.cursor_bin.is_none());
+        assert!(settings.cursor_args.is_none());
+        assert!(!settings.cursor_vim_mode);
+        assert_eq!(settings.cursor_default_mode, "agent");
+        assert_eq!(settings.cursor_output_format, "stream-json");
+        assert!(!settings.cursor_attribute_commits);
+        assert!(!settings.cursor_attribute_prs);
+        assert!(!settings.cursor_use_http1);
         assert!(matches!(settings.backend_mode, BackendMode::Local));
         assert_eq!(settings.remote_backend_host, "127.0.0.1:4732");
         assert!(settings.remote_backend_token.is_none());

@@ -5,9 +5,8 @@ use std::sync::Arc;
 
 use tokio::sync::Mutex;
 
-use crate::backend::app_server::WorkspaceSession;
-use crate::gemini::args::resolve_workspace_gemini_args;
-use crate::gemini::home::resolve_workspace_gemini_home;
+use crate::backend::app_server::{CliSpawnConfig, WorkspaceSession};
+use crate::gemini::{args::resolve_workspace_gemini_args, build_cli_spawn_config, home::resolve_workspace_gemini_home};
 use crate::storage::write_workspaces;
 use crate::types::{
     AppSettings, WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings, WorktreeInfo,
@@ -152,7 +151,7 @@ pub(crate) async fn add_workspace_core<F, Fut>(
     spawn_session: F,
 ) -> Result<WorkspaceInfo, String>
 where
-    F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
+    F: Fn(WorkspaceEntry, CliSpawnConfig) -> Fut,
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     if !PathBuf::from(&path).is_dir() {
@@ -175,15 +174,13 @@ where
         settings: WorkspaceSettings::default(),
     };
 
-    let (default_bin, gemini_args) = {
+    let config = {
         let settings = app_settings.lock().await;
-        (
-            settings.gemini_bin.clone(),
-            resolve_workspace_gemini_args(&entry, None, Some(&settings)),
-        )
+        let gemini_args = resolve_workspace_gemini_args(&entry, None, Some(&settings));
+        let gemini_home = resolve_workspace_gemini_home(&entry, None);
+        build_cli_spawn_config(&settings, gemini_args, gemini_home)
     };
-    let gemini_home = resolve_workspace_gemini_home(&entry, None);
-    let session = spawn_session(entry.clone(), default_bin, gemini_args, gemini_home).await?;
+    let session = spawn_session(entry.clone(), config).await?;
 
     if let Err(error) = {
         let mut workspaces = workspaces.lock().await;
@@ -260,7 +257,7 @@ pub(crate) async fn add_worktree_core<
     spawn_session: FSpawn,
 ) -> Result<WorkspaceInfo, String>
 where
-    FSpawn: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> FutSpawn,
+    FSpawn: Fn(WorkspaceEntry, CliSpawnConfig) -> FutSpawn,
     FutSpawn: Future<Output = Result<Arc<WorkspaceSession>, String>>,
     FSanitize: Fn(&str) -> String,
     FUniquePath: Fn(&PathBuf, &str) -> Result<PathBuf, String>,
@@ -349,15 +346,13 @@ where
         },
     };
 
-    let (default_bin, gemini_args) = {
+    let config = {
         let settings = app_settings.lock().await;
-        (
-            settings.gemini_bin.clone(),
-            resolve_workspace_gemini_args(&entry, Some(&parent_entry), Some(&settings)),
-        )
+        let gemini_args = resolve_workspace_gemini_args(&entry, Some(&parent_entry), Some(&settings));
+        let gemini_home = resolve_workspace_gemini_home(&entry, Some(&parent_entry));
+        build_cli_spawn_config(&settings, gemini_args, gemini_home)
     };
-    let gemini_home = resolve_workspace_gemini_home(&entry, Some(&parent_entry));
-    let session = spawn_session(entry.clone(), default_bin, gemini_args, gemini_home).await?;
+    let session = spawn_session(entry.clone(), config).await?;
 
     {
         let mut workspaces = workspaces.lock().await;
@@ -389,19 +384,17 @@ pub(crate) async fn connect_workspace_core<F, Fut>(
     spawn_session: F,
 ) -> Result<(), String>
 where
-    F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
+    F: Fn(WorkspaceEntry, CliSpawnConfig) -> Fut,
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     let (entry, parent_entry) = resolve_entry_and_parent(workspaces, &workspace_id).await?;
-    let (default_bin, gemini_args) = {
+    let config = {
         let settings = app_settings.lock().await;
-        (
-            settings.gemini_bin.clone(),
-            resolve_workspace_gemini_args(&entry, parent_entry.as_ref(), Some(&settings)),
-        )
+        let gemini_args = resolve_workspace_gemini_args(&entry, parent_entry.as_ref(), Some(&settings));
+        let gemini_home = resolve_workspace_gemini_home(&entry, parent_entry.as_ref());
+        build_cli_spawn_config(&settings, gemini_args, gemini_home)
     };
-    let gemini_home = resolve_workspace_gemini_home(&entry, parent_entry.as_ref());
-    let session = spawn_session(entry.clone(), default_bin, gemini_args, gemini_home).await?;
+    let session = spawn_session(entry.clone(), config).await?;
     sessions.lock().await.insert(entry.id, session);
     Ok(())
 }
@@ -618,7 +611,7 @@ pub(crate) async fn rename_worktree_core<
     spawn_session: FSpawn,
 ) -> Result<WorkspaceInfo, String>
 where
-    FSpawn: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> FutSpawn,
+    FSpawn: Fn(WorkspaceEntry, CliSpawnConfig) -> FutSpawn,
     FutSpawn: Future<Output = Result<Arc<WorkspaceSession>, String>>,
     FResolveGitRoot: Fn(&WorkspaceEntry) -> Result<PathBuf, String>,
     FUniqueBranch: Fn(&PathBuf, &str) -> FutUniqueBranch,
@@ -718,15 +711,13 @@ where
     let was_connected = sessions.lock().await.contains_key(&entry_snapshot.id);
     if was_connected {
         kill_session_by_id(sessions, &entry_snapshot.id).await;
-        let (default_bin, gemini_args) = {
+        let config = {
             let settings = app_settings.lock().await;
-            (
-                settings.gemini_bin.clone(),
-                resolve_workspace_gemini_args(&entry_snapshot, Some(&parent), Some(&settings)),
-            )
+            let gemini_args = resolve_workspace_gemini_args(&entry_snapshot, Some(&parent), Some(&settings));
+            let gemini_home = resolve_workspace_gemini_home(&entry_snapshot, Some(&parent));
+            build_cli_spawn_config(&settings, gemini_args, gemini_home)
         };
-        let gemini_home = resolve_workspace_gemini_home(&entry_snapshot, Some(&parent));
-        match spawn_session(entry_snapshot.clone(), default_bin, gemini_args, gemini_home).await {
+        match spawn_session(entry_snapshot.clone(), config).await {
             Ok(session) => {
                 sessions
                     .lock()
@@ -885,7 +876,7 @@ pub(crate) async fn update_workspace_settings_core<
 where
     FApplySettings: Fn(&mut HashMap<String, WorkspaceEntry>, &str, WorkspaceSettings)
         -> Result<WorkspaceEntry, String>,
-    FSpawn: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> FutSpawn,
+    FSpawn: Fn(WorkspaceEntry, CliSpawnConfig) -> FutSpawn,
     FutSpawn: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     settings.worktree_setup_script = normalize_setup_script(settings.worktree_setup_script);
@@ -936,16 +927,14 @@ where
     let connected = sessions.lock().await.contains_key(&id);
     if connected && (gemini_home_changed || gemini_args_changed) {
         let rollback_entry = previous_entry.clone();
-        let (default_bin, gemini_args) = {
+        let config = {
             let settings = app_settings.lock().await;
-            (
-                settings.gemini_bin.clone(),
-                resolve_workspace_gemini_args(&entry_snapshot, parent_entry.as_ref(), Some(&settings)),
-            )
+            let gemini_args = resolve_workspace_gemini_args(&entry_snapshot, parent_entry.as_ref(), Some(&settings));
+            let gemini_home = resolve_workspace_gemini_home(&entry_snapshot, parent_entry.as_ref());
+            build_cli_spawn_config(&settings, gemini_args, gemini_home)
         };
-        let gemini_home = resolve_workspace_gemini_home(&entry_snapshot, parent_entry.as_ref());
         let new_session =
-            match spawn_session(entry_snapshot.clone(), default_bin, gemini_args, gemini_home).await
+            match spawn_session(entry_snapshot.clone(), config).await
             {
                 Ok(session) => session,
                 Err(error) => {
@@ -965,7 +954,6 @@ where
     }
     if gemini_home_changed || gemini_args_changed {
         let app_settings_snapshot = app_settings.lock().await.clone();
-        let default_bin = app_settings_snapshot.gemini_bin.clone();
         for child in &child_entries {
             let connected = sessions.lock().await.contains_key(&child.id);
             if !connected {
@@ -980,14 +968,8 @@ where
             if previous_child_home == next_child_home && previous_child_args == next_child_args {
                 continue;
             }
-            let new_session = match spawn_session(
-                child.clone(),
-                default_bin.clone(),
-                next_child_args,
-                next_child_home,
-            )
-            .await
-            {
+            let config = build_cli_spawn_config(&app_settings_snapshot, next_child_args, next_child_home);
+            let new_session = match spawn_session(child.clone(), config).await {
                 Ok(session) => session,
                 Err(error) => {
                     eprintln!(

@@ -3,6 +3,7 @@ use tauri::Manager;
 use tauri::{RunEvent, WindowEvent};
 
 mod backend;
+mod cursor;
 mod gemini;
 mod files;
 mod dictation;
@@ -77,6 +78,7 @@ pub fn run() {
             gemini::get_config_model,
             menu::menu_set_accelerators,
             gemini::gemini_doctor,
+            cursor::cursor_doctor,
             workspaces::list_workspaces,
             workspaces::is_workspace_path_dir,
             workspaces::add_workspace,

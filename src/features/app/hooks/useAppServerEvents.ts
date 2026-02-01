@@ -81,7 +81,7 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       const { workspace_id, message } = payload;
       const method = String(message.method ?? "");
 
-      if (method === "gemini/connected") {
+      if (method === "cli/connected") {
         handlers.onWorkspaceConnected?.(workspace_id);
         return;
       }

@@ -242,6 +242,7 @@ fn settings_policy() -> Result<crate::files::policy::FilePolicy, String> {
         filename: "settings.json",
         root_may_be_missing: true,
         root_context: "GEMINI_HOME",
+        create_root: true,
         allow_external_symlink_target: false,
     })
 }
@@ -271,7 +272,7 @@ fn write_settings_to_root(root: &Path, settings: &GeminiSettings) -> Result<(), 
     let policy = settings_policy()?;
     let content = serde_json::to_string_pretty(settings)
         .map_err(|e| format!("Failed to serialize settings: {}", e))?;
-    write_with_policy(root, policy, &content)
+    write_with_policy(&root.to_path_buf(), policy, &content)
 }
 
 /// Merge project settings on top of user settings

@@ -18,7 +18,7 @@ pub(crate) use crate::backend::app_server::WorkspaceSession;
 use crate::backend::events::AppServerEvent;
 use crate::backend::app_server::{
     build_gemini_command_with_bin, build_gemini_path_env, check_gemini_installation,
-    spawn_workspace_session as spawn_workspace_session_inner,
+    spawn_workspace_session as spawn_workspace_session_inner, CliSpawnConfig, CursorCliSettings,
 };
 use crate::event_sink::TauriEventSink;
 use crate::remote_backend;
@@ -29,22 +29,42 @@ use self::args::apply_gemini_args;
 
 pub(crate) async fn spawn_workspace_session(
     entry: WorkspaceEntry,
-    default_gemini_bin: Option<String>,
-    gemini_args: Option<String>,
+    config: CliSpawnConfig,
     app_handle: AppHandle,
-    gemini_home: Option<PathBuf>,
 ) -> Result<Arc<WorkspaceSession>, String> {
     let client_version = app_handle.package_info().version.to_string();
     let event_sink = TauriEventSink::new(app_handle);
     spawn_workspace_session_inner(
         entry,
-        default_gemini_bin,
-        gemini_args,
-        gemini_home,
+        config,
         client_version,
         event_sink,
     )
     .await
+}
+
+/// Build CliSpawnConfig from AppSettings
+pub(crate) fn build_cli_spawn_config(
+    settings: &crate::types::AppSettings,
+    gemini_args: Option<String>,
+    gemini_home: Option<PathBuf>,
+) -> CliSpawnConfig {
+    CliSpawnConfig {
+        cli_type: settings.cli_type.clone(),
+        gemini_bin: settings.gemini_bin.clone(),
+        gemini_args,
+        gemini_home,
+        cursor_bin: settings.cursor_bin.clone(),
+        cursor_args: settings.cursor_args.clone(),
+        cursor_settings: CursorCliSettings {
+            vim_mode: settings.cursor_vim_mode,
+            default_mode: settings.cursor_default_mode.clone(),
+            output_format: settings.cursor_output_format.clone(),
+            attribute_commits: settings.cursor_attribute_commits,
+            attribute_prs: settings.cursor_attribute_prs,
+            use_http1: settings.cursor_use_http1,
+        },
+    }
 }
 
 #[tauri::command]

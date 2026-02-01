@@ -62,7 +62,7 @@ describe("useAppServerEvents", () => {
     expect(listener).toBeTypeOf("function");
 
     act(() => {
-      listener?.({ workspace_id: "ws-1", message: { method: "gemini/connected" } });
+      listener?.({ workspace_id: "ws-1", message: { method: "cli/connected" } });
     });
     expect(handlers.onWorkspaceConnected).toHaveBeenCalledWith("ws-1");
 

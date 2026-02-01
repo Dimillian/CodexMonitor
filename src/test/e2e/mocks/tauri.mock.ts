@@ -126,7 +126,7 @@ export const mockHandlers = {
     totalAdditions: 0,
     totalDeletions: 0,
   })),
-  list_threads: vi.fn(async () => ({ result: { data: [], nextCursor: null } })),
+  list_threads: vi.fn(async () => ({ result: { data: [] as unknown[], nextCursor: null } })),
   start_thread: vi.fn(async ({ workspaceId }: { workspaceId: string }) => ({
     result: {
       thread: {
@@ -143,7 +143,7 @@ export const mockHandlers = {
         id: threadId,
         preview: "",
         updated_at: Date.now(),
-        turns: [],
+        turns: [] as unknown[],
       },
     },
   })),
@@ -159,11 +159,15 @@ export const mockHandlers = {
     },
   })),
   gemini_doctor: vi.fn(async () => ({
-    gemini_found: true,
-    gemini_path: "/usr/local/bin/gemini",
-    gemini_version: "1.0.0",
-    working_directory: "/tmp",
-    errors: [],
+    ok: true,
+    geminiBin: "/usr/local/bin/gemini" as string | null,
+    version: "1.0.0" as string | null,
+    appServerOk: true,
+    details: null as string | null,
+    path: "/usr/local/bin" as string | null,
+    nodeOk: true,
+    nodeVersion: "20.0.0" as string | null,
+    nodeDetails: null as string | null,
   })),
   local_usage_snapshot: vi.fn(async () => ({
     updatedAt: Date.now(),
