@@ -47,6 +47,7 @@ type FileTreePanelProps = {
   filePanelMode: PanelTabId;
   onFilePanelModeChange: (mode: PanelTabId) => void;
   onInsertText?: (text: string) => void;
+  canInsertText: boolean;
   openTargets: OpenAppTarget[];
   openAppIconById: Record<string, string>;
   selectedOpenAppId: string;
@@ -225,6 +226,7 @@ export function FileTreePanel({
   filePanelMode,
   onFilePanelModeChange,
   onInsertText,
+  canInsertText,
   openTargets,
   openAppIconById,
   selectedOpenAppId,
@@ -537,7 +539,13 @@ export function FileTreePanel({
   );
 
   const handleAddSelection = useCallback(() => {
-    if (previewKind !== "text" || !previewPath || !previewSelection || !onInsertText) {
+    if (
+      !canInsertText ||
+      previewKind !== "text" ||
+      !previewPath ||
+      !previewSelection ||
+      !onInsertText
+    ) {
       return;
     }
     const lines = previewContent.split("\n");
@@ -551,6 +559,7 @@ export function FileTreePanel({
     onInsertText(snippet);
     closePreview();
   }, [
+    canInsertText,
     previewContent,
     previewKind,
     previewPath,
@@ -559,12 +568,22 @@ export function FileTreePanel({
     closePreview,
   ]);
 
-  const showFileMenu = useCallback(
+  const showMenu = useCallback(
     async (event: MouseEvent<HTMLButtonElement>, relativePath: string) => {
       event.preventDefault();
       event.stopPropagation();
       const menu = await Menu.new({
         items: [
+          await MenuItem.new({
+            text: "Add to chat",
+            enabled: canInsertText,
+            action: async () => {
+              if (!canInsertText) {
+                return;
+              }
+              onInsertText?.(relativePath);
+            },
+          }),
           await MenuItem.new({
             text: "Reveal in Finder",
             action: async () => {
@@ -577,7 +596,7 @@ export function FileTreePanel({
       const position = new LogicalPosition(event.clientX, event.clientY);
       await menu.popup(position, window);
     },
-    [resolvePath],
+    [canInsertText, onInsertText, resolvePath],
   );
 
   const renderNode = (node: FileTreeNode, depth: number) => {
@@ -599,9 +618,7 @@ export function FileTreePanel({
               openPreview(node.path, event.currentTarget);
             }}
             onContextMenu={(event) => {
-              if (!isFolder) {
-                void showFileMenu(event, node.path);
-              }
+              void showMenu(event, node.path);
             }}
           >
             {isFolder ? (
@@ -622,8 +639,12 @@ export function FileTreePanel({
               className="ghost icon-button file-tree-action"
               onClick={(event) => {
                 event.stopPropagation();
+                if (!canInsertText) {
+                  return;
+                }
                 onInsertText?.(node.path);
               }}
+              disabled={!canInsertText}
               aria-label={`Mention ${node.name}`}
               title="Mention in chat"
             >
@@ -717,6 +738,7 @@ export function FileTreePanel({
               onLineMouseUp={handleLineMouseUp}
               onClearSelection={() => setPreviewSelection(null)}
               onAddSelection={handleAddSelection}
+              canInsertText={canInsertText}
               onClose={closePreview}
               selectionHints={selectionHints}
               style={{
