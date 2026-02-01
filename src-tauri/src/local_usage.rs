@@ -130,6 +130,12 @@ fn build_snapshot(
     let last7_tokens: i64 = last7.iter().map(|day| day.total_tokens).sum();
     let last7_input: i64 = last7.iter().map(|day| day.input_tokens).sum();
     let last7_cached: i64 = last7.iter().map(|day| day.cached_input_tokens).sum();
+    let last30_tokens: i64 = days
+        .iter()
+        .rev()
+        .take(30)
+        .map(|day| day.total_tokens)
+        .sum();
 
     let average_daily_tokens = if last7.is_empty() {
         0
@@ -171,7 +177,7 @@ fn build_snapshot(
         days,
         totals: LocalUsageTotals {
             last7_days_tokens: last7_tokens,
-            last30_days_tokens: total_tokens,
+            last30_days_tokens: last30_tokens,
             average_daily_tokens,
             cache_hit_rate_percent,
             peak_day,
@@ -801,6 +807,36 @@ mod tests {
         assert_eq!(day.input_tokens, 8);
         assert_eq!(day.output_tokens, 3);
         assert_eq!(snapshot.totals.last30_days_tokens, 11);
+    }
+
+    #[test]
+    fn build_snapshot_uses_last_30_days_tokens_only() {
+        let day_keys = make_day_keys(40);
+        let mut daily: HashMap<String, DailyTotals> = HashMap::new();
+        for (index, day_key) in day_keys.iter().enumerate() {
+            let input_tokens = (index as i64) + 1;
+            daily.insert(
+                day_key.clone(),
+                DailyTotals {
+                    input: input_tokens,
+                    cached: 0,
+                    output: 0,
+                    agent_ms: 0,
+                    agent_runs: 0,
+                },
+            );
+        }
+
+        let snapshot = build_snapshot(0, day_keys.clone(), daily, HashMap::new());
+        let expected_last30: i64 = day_keys
+            .iter()
+            .rev()
+            .take(30)
+            .enumerate()
+            .map(|(offset, _)| (40 - offset) as i64)
+            .sum();
+
+        assert_eq!(snapshot.totals.last30_days_tokens, expected_last30);
     }
 
     #[test]

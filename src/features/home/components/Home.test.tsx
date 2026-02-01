@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Home } from "./Home";
 
 const baseProps = {
@@ -18,7 +18,12 @@ const baseProps = {
   usageWorkspaceOptions: [],
   onUsageWorkspaceChange: vi.fn(),
   onSelectThread: vi.fn(),
+  onOpenUsageDetails: vi.fn(),
 };
+
+afterEach(() => {
+  cleanup();
+});
 
 describe("Home", () => {
   it("renders latest agent runs and lets you open a thread", () => {
@@ -98,5 +103,44 @@ describe("Home", () => {
     expect(screen.getAllByText("agent time").length).toBeGreaterThan(0);
     expect(screen.getByText("Runs")).toBeTruthy();
     expect(screen.getByText("Peak day")).toBeTruthy();
+  });
+
+  it("opens the usage details modal when clicking More", () => {
+    const onOpenUsageDetails = vi.fn();
+    render(
+      <Home
+        {...baseProps}
+        onOpenUsageDetails={onOpenUsageDetails}
+        localUsageSnapshot={{
+          updatedAt: Date.now(),
+          days: [
+            {
+              day: "2026-01-20",
+              inputTokens: 10,
+              cachedInputTokens: 0,
+              outputTokens: 5,
+              totalTokens: 15,
+              agentTimeMs: 120000,
+              agentRuns: 2,
+            },
+          ],
+          totals: {
+            last7DaysTokens: 15,
+            last30DaysTokens: 15,
+            averageDailyTokens: 15,
+            cacheHitRatePercent: 0,
+            peakDay: "2026-01-20",
+            peakDayTokens: 15,
+          },
+          topModels: [],
+        }}
+      />,
+    );
+
+    const [moreButton] = screen.getAllByRole("button", {
+      name: "More usage details",
+    });
+    fireEvent.click(moreButton);
+    expect(onOpenUsageDetails).toHaveBeenCalledTimes(1);
   });
 });

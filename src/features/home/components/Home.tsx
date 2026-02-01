@@ -34,6 +34,7 @@ type HomeProps = {
   usageWorkspaceOptions: UsageWorkspaceOption[];
   onUsageWorkspaceChange: (workspaceId: string | null) => void;
   onSelectThread: (workspaceId: string, threadId: string) => void;
+  onOpenUsageDetails: () => void;
 };
 
 export function Home({
@@ -51,6 +52,7 @@ export function Home({
   usageWorkspaceOptions,
   onUsageWorkspaceChange,
   onSelectThread,
+  onOpenUsageDetails,
 }: HomeProps) {
   const formatCompactNumber = (value: number | null | undefined) => {
     if (value === null || value === undefined) {
@@ -464,6 +466,14 @@ export function Home({
               )}
             </div>
             <div className="home-usage-chart-card">
+              <button
+                type="button"
+                className="home-usage-more"
+                onClick={onOpenUsageDetails}
+                aria-label="More usage details"
+              >
+                More
+              </button>
               <div className="home-usage-chart">
                 {last7Days.map((day) => {
                   const value =

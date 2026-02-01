@@ -1,0 +1,323 @@
+.usage-overlay {
+  z-index: 30;
+}
+
+.usage-window {
+  width: min(900px, 92vw);
+  height: min(620px, 84vh);
+}
+
+.usage-content {
+  padding: 20px 24px;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+}
+
+.usage-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100%;
+}
+
+.usage-panel-scroll {
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+
+.usage-range-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: center;
+}
+
+.usage-range-popover {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.usage-range-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 40px;
+}
+
+.usage-range-trigger.is-open {
+  border-color: rgba(99, 186, 255, 0.55);
+  box-shadow: 0 0 0 2px rgba(99, 186, 255, 0.18);
+}
+
+.usage-range-label {
+  white-space: nowrap;
+}
+
+.usage-range-chevron {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.usage-picker-popover {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  z-index: 5;
+  min-width: 320px;
+}
+
+.usage-picker {
+  padding: 18px 20px;
+  border-radius: 18px;
+  border: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--surface-card-strong) 75%, transparent);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(22px) saturate(1.1);
+  -webkit-backdrop-filter: blur(22px) saturate(1.1);
+}
+
+.usage-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.usage-picker-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.usage-picker-nav {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.usage-nav-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card-muted);
+  color: var(--text-strong);
+  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.usage-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.usage-weekdays span {
+  text-align: center;
+}
+
+.usage-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.usage-day {
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: var(--surface-card-muted);
+  color: var(--text-strong);
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.usage-day.is-in-range {
+  background: color-mix(in srgb, rgba(99, 186, 255, 0.2), var(--surface-card));
+}
+
+.usage-day.is-selected {
+  background: rgba(124, 165, 210, 0.9);
+  color: #0e1218;
+  border-color: rgba(99, 186, 255, 0.6);
+}
+
+.usage-day.is-blank {
+  pointer-events: none;
+  background: transparent;
+}
+
+.usage-day:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.usage-picker-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.usage-action {
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card-muted);
+  color: var(--text-strong);
+  font-size: 13px;
+}
+
+.usage-action.primary {
+  border-color: rgba(99, 186, 255, 0.55);
+  background: color-mix(in srgb, rgba(62, 156, 255, 0.25), var(--surface-card));
+}
+
+.usage-quick {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.usage-quick-button {
+  padding: 6px 12px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card-muted);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.usage-quick-button.is-active {
+  border-color: rgba(99, 186, 255, 0.6);
+  color: var(--text-strong);
+  background: color-mix(in srgb, rgba(62, 156, 255, 0.2), var(--surface-card));
+}
+
+.usage-range-error {
+  font-size: 12px;
+  color: #ff8f8f;
+}
+
+.usage-chart-card {
+  position: relative;
+  border-radius: 16px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+  padding: 12px 8px;
+  overflow: visible;
+}
+
+.usage-chart-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 6px 8px;
+  margin-left: -8px;
+  margin-right: -8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.usage-chart-track {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  height: 160px;
+  padding-top: 24px;
+}
+
+.usage-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  height: 100%;
+  position: relative;
+  width: 52px;
+  flex: 0 0 auto;
+  border-radius: 0;
+  background: transparent;
+  z-index: 1;
+  overflow: visible;
+}
+
+.usage-bar-fill {
+  width: 100%;
+  border-radius: 0;
+  background: linear-gradient(180deg, rgba(99, 186, 255, 0.95), rgba(78, 132, 255, 0.65));
+  box-shadow: 0 8px 16px rgba(30, 100, 200, 0.25);
+}
+
+.usage-bar-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.usage-bar::after {
+  content: attr(data-value);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, -8px);
+  background: var(--surface-popover);
+  color: var(--text-stronger);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+  z-index: 3;
+}
+
+.usage-bar:hover::after {
+  opacity: 1;
+}
+
+.usage-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 840px) {
+  .usage-window {
+    width: min(720px, 94vw);
+    height: min(560px, 90vh);
+  }
+
+  .settings-body {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: none;
+    border-bottom: 1px solid var(--border-muted);
+  }
+}

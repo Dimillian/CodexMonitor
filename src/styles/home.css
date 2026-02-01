@@ -266,6 +266,36 @@
     var(--surface-card);
   border: 1px solid var(--border-subtle);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+  position: relative;
+  isolation: isolate;
+}
+
+.home-usage-more {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card-strong);
+  color: var(--text-stronger);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 140ms ease, transform 140ms ease, background 140ms ease;
+  z-index: 3;
+  pointer-events: auto;
+}
+
+.home-usage-chart-card:hover .home-usage-more,
+.home-usage-more:focus-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.home-usage-more:hover {
+  background: var(--surface-card);
 }
 
 .home-usage-chart {
@@ -274,6 +304,8 @@
   align-items: end;
   gap: 8px;
   height: 120px;
+  position: relative;
+  z-index: 1;
 }
 
 .home-usage-bar {

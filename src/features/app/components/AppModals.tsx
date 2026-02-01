@@ -4,6 +4,7 @@ import type { SettingsViewProps } from "../../settings/components/SettingsView";
 import { useRenameThreadPrompt } from "../../threads/hooks/useRenameThreadPrompt";
 import { useClonePrompt } from "../../workspaces/hooks/useClonePrompt";
 import { useWorktreePrompt } from "../../workspaces/hooks/useWorktreePrompt";
+import { UsageDetailsModal } from "../../home/components/UsageDetailsModal";
 
 const RenameThreadPrompt = lazy(() =>
   import("../../threads/components/RenameThreadPrompt").then((module) => ({
@@ -49,6 +50,10 @@ type AppModalsProps = {
   onCloseSettings: () => void;
   SettingsViewComponent: ComponentType<SettingsViewProps>;
   settingsProps: Omit<SettingsViewProps, "initialSection" | "onClose">;
+  usageDetailsOpen: boolean;
+  usageDays: { day: string; totalTokens: number; agentTimeMs?: number | null }[];
+  usageMetric: "tokens" | "time";
+  onCloseUsageDetails: () => void;
 };
 
 export const AppModals = memo(function AppModals({
@@ -73,6 +78,10 @@ export const AppModals = memo(function AppModals({
   onCloseSettings,
   SettingsViewComponent,
   settingsProps,
+  usageDetailsOpen,
+  usageDays,
+  usageMetric,
+  onCloseUsageDetails,
 }: AppModalsProps) {
   return (
     <>
@@ -130,6 +139,14 @@ export const AppModals = memo(function AppModals({
             initialSection={settingsSection ?? undefined}
           />
         </Suspense>
+      )}
+      {usageDetailsOpen && (
+        <UsageDetailsModal
+          isOpen={usageDetailsOpen}
+          days={usageDays}
+          usageMetric={usageMetric}
+          onClose={onCloseUsageDetails}
+        />
       )}
     </>
   );

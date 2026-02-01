@@ -3,6 +3,7 @@ import "./styles/base.css";
 import "./styles/buttons.css";
 import "./styles/sidebar.css";
 import "./styles/home.css";
+import "./styles/usage-details-modal.css";
 import "./styles/workspace-home.css";
 import "./styles/main.css";
 import "./styles/messages.css";
@@ -78,6 +79,7 @@ import { useWorkspaceSelection } from "./features/workspaces/hooks/useWorkspaceS
 import { useLocalUsage } from "./features/home/hooks/useLocalUsage";
 import { useGitHubPanelController } from "./features/app/hooks/useGitHubPanelController";
 import { useSettingsModalState } from "./features/app/hooks/useSettingsModalState";
+import { useUsageDetailsModalState } from "./features/app/hooks/useUsageDetailsModalState";
 import { usePersistComposerSettings } from "./features/app/hooks/usePersistComposerSettings";
 import { useSyncSelectedDiffPath } from "./features/app/hooks/useSyncSelectedDiffPath";
 import { useMenuAcceleratorController } from "./features/app/hooks/useMenuAcceleratorController";
@@ -252,6 +254,11 @@ function MainApp() {
     openSettings,
     closeSettings,
   } = useSettingsModalState();
+  const {
+    usageDetailsOpen,
+    openUsageDetails,
+    closeUsageDetails,
+  } = useUsageDetailsModalState();
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const {
@@ -1687,6 +1694,7 @@ function MainApp() {
     usageWorkspaceId,
     usageWorkspaceOptions,
     onUsageWorkspaceChange: setUsageWorkspaceId,
+    onOpenUsageDetails: openUsageDetails,
     onSelectHomeThread: (workspaceId, threadId) => {
       exitDiffView();
       selectWorkspace(workspaceId);
@@ -2146,6 +2154,10 @@ function MainApp() {
           onCancelDictationDownload: dictationModel.cancel,
           onRemoveDictationModel: dictationModel.remove,
         }}
+        usageDetailsOpen={usageDetailsOpen}
+        usageDays={localUsageSnapshot?.days ?? []}
+        usageMetric={usageMetric}
+        onCloseUsageDetails={closeUsageDetails}
       />
     </div>
   );

@@ -15,6 +15,7 @@ const emptyState: LocalUsageState = {
 };
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const SNAPSHOT_DAYS = 90;
 
 export function useLocalUsage(enabled: boolean, workspacePath: string | null) {
   const [state, setState] = useState<LocalUsageState>(emptyState);
@@ -40,7 +41,7 @@ export function useLocalUsage(enabled: boolean, workspacePath: string | null) {
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
-    return localUsageSnapshot(30, workspaceRef.current ?? undefined)
+    return localUsageSnapshot(SNAPSHOT_DAYS, workspaceRef.current ?? undefined)
       .then((snapshot) => {
         if (requestIdRef.current !== requestId || !enabledRef.current) {
           return;

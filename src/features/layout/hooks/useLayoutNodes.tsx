@@ -191,6 +191,7 @@ type LayoutNodesOptions = {
   usageWorkspaceOptions: Array<{ id: string; label: string }>;
   onUsageWorkspaceChange: (workspaceId: string | null) => void;
   onSelectHomeThread: (workspaceId: string, threadId: string) => void;
+  onOpenUsageDetails: () => void;
   activeWorkspace: WorkspaceInfo | null;
   activeParentWorkspace: WorkspaceInfo | null;
   worktreeLabel: string | null;
@@ -643,6 +644,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       usageWorkspaceOptions={options.usageWorkspaceOptions}
       onUsageWorkspaceChange={options.onUsageWorkspaceChange}
       onSelectThread={options.onSelectHomeThread}
+      onOpenUsageDetails={options.onOpenUsageDetails}
     />
   );
 
