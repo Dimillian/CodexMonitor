@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { LaunchScriptEntry } from "../../../types";
+import type { LaunchScriptEntry, LaunchScriptIconId } from "../../../types";
 import { LaunchScriptIconPicker } from "./LaunchScriptIconPicker";
 import { getLaunchScriptIcon, getLaunchScriptIconLabel } from "../utils/launchScriptIcons";
 
@@ -7,7 +7,7 @@ type LaunchScriptEntryButtonProps = {
   entry: LaunchScriptEntry;
   editorOpen: boolean;
   draftScript: string;
-  draftIcon: string;
+  draftIcon: LaunchScriptIconId;
   draftLabel: string;
   isSaving: boolean;
   error: string | null;
@@ -15,7 +15,7 @@ type LaunchScriptEntryButtonProps = {
   onOpenEditor: () => void;
   onCloseEditor: () => void;
   onDraftChange: (value: string) => void;
-  onDraftIconChange: (value: string) => void;
+  onDraftIconChange: (value: LaunchScriptIconId) => void;
   onDraftLabelChange: (value: string) => void;
   onSave: () => void;
   onDelete: () => void;

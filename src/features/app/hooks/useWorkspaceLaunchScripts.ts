@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { LaunchScriptEntry, WorkspaceInfo, WorkspaceSettings } from "../../../types";
+import type {
+  LaunchScriptEntry,
+  LaunchScriptIconId,
+  WorkspaceInfo,
+  WorkspaceSettings,
+} from "../../../types";
 import type { TerminalSessionState } from "../../terminal/hooks/useTerminalSession";
 import { writeTerminalSession } from "../../../services/tauri";
 import { pushErrorToast } from "../../../services/toasts";
 import {
   DEFAULT_LAUNCH_SCRIPT_ICON,
+  coerceLaunchScriptIconId,
   getLaunchScriptIconLabel,
 } from "../utils/launchScriptIcons";
 
@@ -29,11 +35,11 @@ export type WorkspaceLaunchScriptsState = {
   launchScripts: LaunchScriptEntry[];
   editorOpenId: string | null;
   draftScript: string;
-  draftIcon: string;
+  draftIcon: LaunchScriptIconId;
   draftLabel: string;
   newEditorOpen: boolean;
   newDraftScript: string;
-  newDraftIcon: string;
+  newDraftIcon: LaunchScriptIconId;
   newDraftLabel: string;
   newError: string | null;
   isSaving: boolean;
@@ -43,14 +49,14 @@ export type WorkspaceLaunchScriptsState = {
   onOpenEditor: (id: string) => void;
   onCloseEditor: () => void;
   onDraftScriptChange: (value: string) => void;
-  onDraftIconChange: (value: string) => void;
+  onDraftIconChange: (value: LaunchScriptIconId) => void;
   onDraftLabelChange: (value: string) => void;
   onSaveScript: () => Promise<void>;
   onDeleteScript: () => Promise<void>;
   onOpenNew: () => void;
   onCloseNew: () => void;
   onNewDraftScriptChange: (value: string) => void;
-  onNewDraftIconChange: (value: string) => void;
+  onNewDraftIconChange: (value: LaunchScriptIconId) => void;
   onNewDraftLabelChange: (value: string) => void;
   onCreateNew: () => Promise<void>;
 };
@@ -74,11 +80,11 @@ export function useWorkspaceLaunchScripts({
 }: UseWorkspaceLaunchScriptsOptions): WorkspaceLaunchScriptsState {
   const [editorOpenId, setEditorOpenId] = useState<string | null>(null);
   const [draftScript, setDraftScript] = useState("");
-  const [draftIcon, setDraftIcon] = useState(DEFAULT_LAUNCH_SCRIPT_ICON);
+  const [draftIcon, setDraftIcon] = useState<LaunchScriptIconId>(DEFAULT_LAUNCH_SCRIPT_ICON);
   const [draftLabel, setDraftLabel] = useState("");
   const [newEditorOpen, setNewEditorOpen] = useState(false);
   const [newDraftScript, setNewDraftScript] = useState("");
-  const [newDraftIcon, setNewDraftIcon] = useState(DEFAULT_LAUNCH_SCRIPT_ICON);
+  const [newDraftIcon, setNewDraftIcon] = useState<LaunchScriptIconId>(DEFAULT_LAUNCH_SCRIPT_ICON);
   const [newDraftLabel, setNewDraftLabel] = useState("");
   const [newError, setNewError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -87,7 +93,11 @@ export function useWorkspaceLaunchScripts({
   const pendingRunRef = useRef<PendingLaunch | null>(null);
 
   const launchScripts = useMemo(
-    () => activeWorkspace?.settings.launchScripts ?? [],
+    () =>
+      (activeWorkspace?.settings.launchScripts ?? []).map((entry) => ({
+        ...entry,
+        icon: coerceLaunchScriptIconId(entry.icon),
+      })),
     [activeWorkspace?.settings.launchScripts],
   );
 
@@ -113,7 +123,7 @@ export function useWorkspaceLaunchScripts({
         return;
       }
       setDraftScript(entry.script);
-      setDraftIcon(entry.icon || DEFAULT_LAUNCH_SCRIPT_ICON);
+      setDraftIcon(coerceLaunchScriptIconId(entry.icon));
       setDraftLabel(entry.label ?? "");
       setEditorOpenId(id);
       setError(null);
@@ -131,7 +141,7 @@ export function useWorkspaceLaunchScripts({
     setDraftScript(value);
   }, []);
 
-  const onDraftIconChange = useCallback((value: string) => {
+  const onDraftIconChange = useCallback((value: LaunchScriptIconId) => {
     setDraftIcon(value);
   }, []);
 
@@ -156,7 +166,7 @@ export function useWorkspaceLaunchScripts({
     setNewDraftScript(value);
   }, []);
 
-  const onNewDraftIconChange = useCallback((value: string) => {
+  const onNewDraftIconChange = useCallback((value: LaunchScriptIconId) => {
     setNewDraftIcon(value);
   }, []);
 
@@ -304,7 +314,14 @@ export function useWorkspaceLaunchScripts({
         setErrorById((prev) => ({ ...prev, [id]: message }));
       });
     },
-    [activeWorkspace, ensureLaunchTerminal, launchScripts, openTerminal, restartLaunchSession],
+    [
+      activeWorkspace,
+      ensureLaunchTerminal,
+      launchScripts,
+      onOpenEditor,
+      openTerminal,
+      restartLaunchSession,
+    ],
   );
 
   useEffect(() => {

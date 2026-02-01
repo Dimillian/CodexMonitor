@@ -5,7 +5,7 @@ import {
 } from "../utils/launchScriptIcons";
 
 type LaunchScriptIconPickerProps = {
-  value: string;
+  value: LaunchScriptIconId;
   onChange: (value: LaunchScriptIconId) => void;
 };
 
