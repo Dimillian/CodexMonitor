@@ -144,6 +144,9 @@ const renderDisplaySection = (
     onDownloadDictationModel: vi.fn(),
     onCancelDictationDownload: vi.fn(),
     onRemoveDictationModel: vi.fn(),
+    skills: [],
+    onRefreshSkills: vi.fn(),
+    activeWorkspace: null,
   };
 
   render(<SettingsView {...props} />);
@@ -369,6 +372,9 @@ describe("SettingsView Gemini overrides", () => {
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
+        skills={[]}
+        onRefreshSkills={vi.fn()}
+        activeWorkspace={workspace}
         initialSection="gemini"
       />,
     );
@@ -416,6 +422,9 @@ describe("SettingsView Shortcuts", () => {
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
+        skills={[]}
+        onRefreshSkills={vi.fn()}
+        activeWorkspace={null}
       />,
     );
 
@@ -456,6 +465,9 @@ describe("SettingsView Shortcuts", () => {
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
+        skills={[]}
+        onRefreshSkills={vi.fn()}
+        activeWorkspace={null}
       />,
     );
 

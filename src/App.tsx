@@ -435,7 +435,10 @@ function MainApp() {
     reasoningSupported,
     onFocusComposer: () => composerInputRef.current?.focus(),
   });
-  const { skills } = useSkills({ activeWorkspace, onDebug: addDebugEntry });
+  const { skills, refreshSkills } = useSkills({
+    activeWorkspace,
+    onDebug: addDebugEntry,
+  });
   const {
     prompts,
     createPrompt,
@@ -2145,6 +2148,11 @@ function MainApp() {
           onDownloadDictationModel: dictationModel.download,
           onCancelDictationDownload: dictationModel.cancel,
           onRemoveDictationModel: dictationModel.remove,
+          skills,
+          onRefreshSkills: () => {
+            void refreshSkills();
+          },
+          activeWorkspace,
         }}
       />
     </div>
