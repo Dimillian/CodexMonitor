@@ -1,5 +1,4 @@
 use serde_json::{json, Value};
-use std::io::ErrorKind;
 use std::time::Duration;
 
 use tauri::State;
