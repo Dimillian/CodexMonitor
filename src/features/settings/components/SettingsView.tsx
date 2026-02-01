@@ -15,6 +15,7 @@ import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import X from "lucide-react/dist/esm/icons/x";
 import FlaskConical from "lucide-react/dist/esm/icons/flask-conical";
 import ExternalLink from "lucide-react/dist/esm/icons/external-link";
+import Puzzle from "lucide-react/dist/esm/icons/puzzle";
 import type {
   AppSettings,
   GeminiDoctorResult,
@@ -23,6 +24,7 @@ import type {
   OpenAppTarget,
   WorkspaceGroup,
   WorkspaceInfo,
+  SkillOption,
 } from "../../../types";
 import { formatDownloadSize } from "../../../utils/formatting";
 import {
@@ -57,6 +59,15 @@ const DICTATION_MODELS = [
   { id: "large-v3", label: "Large V3", size: "3.0 GB", note: "Best accuracy, heavy download." },
 ];
 
+const DEFAULT_SKILL_TEMPLATE = `---
+name: my-skill
+description: What this skill does
+---
+
+# My Skill
+
+Describe when to use this skill and what it should do.
+`;
 type ComposerPreset = AppSettings["composerEditorPreset"];
 
 type ComposerPresetSettings = Pick<
@@ -169,9 +180,13 @@ export type SettingsViewProps = {
   onCancelDictationDownload?: () => void;
   onRemoveDictationModel?: () => void;
   initialSection?: GeminiSection;
+  skills: SkillOption[];
+  onRefreshSkills: () => void;
+  activeWorkspace: WorkspaceInfo | null;
 };
 
 type SettingsSection =
+  | "skills"
   | "projects"
   | "display"
   | "composer"
@@ -280,6 +295,9 @@ export function SettingsView({
   onCancelDictationDownload,
   onRemoveDictationModel,
   initialSection,
+  skills,
+  onRefreshSkills,
+  activeWorkspace,
 }: SettingsViewProps) {
   const [activeSection, setActiveSection] = useState<GeminiSection>("projects");
   const [geminiPathDraft, setGeminiPathDraft] = useState(appSettings.geminiBin ?? "");
@@ -357,6 +375,8 @@ export function SettingsView({
   const [modelCompressionDraft, setModelCompressionDraft] = useState<string>("");
   const [openConfigError, setOpenConfigError] = useState<string | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [geminiConfigPath, setGeminiConfigPath] = useState<string | null>(null);
+  const [skillTemplateStatus, setSkillTemplateStatus] = useState<string | null>(null);
   const [shortcutDrafts, setShortcutDrafts] = useState({
     model: appSettings.composerModelShortcut ?? "",
     access: appSettings.composerAccessShortcut ?? "",
@@ -414,6 +434,23 @@ export function SettingsView({
   const globalConfigSaveLabel = globalConfigExists ? "Save" : "Create";
   const globalConfigSaveDisabled = globalConfigLoading || globalConfigSaving || !globalConfigDirty;
   const globalConfigRefreshDisabled = globalConfigLoading || globalConfigSaving;
+  const workspacePathPrefix = useMemo(() => {
+    if (!activeWorkspace?.path) {
+      return null;
+    }
+    return activeWorkspace.path.replace(/\/$/, "");
+  }, [activeWorkspace]);
+  const skillItems = useMemo(
+    () =>
+      skills.map((skill) => {
+        const scope =
+          workspacePathPrefix && skill.path.startsWith(workspacePathPrefix)
+            ? "workspace"
+            : "global";
+        return { ...skill, scope };
+      }),
+    [skills, workspacePathPrefix],
+  );
   const selectedDictationModel = useMemo(() => {
     return (
       DICTATION_MODELS.find(
@@ -430,6 +467,38 @@ export function SettingsView({
     () => projects.some((workspace) => workspace.settings.geminiHome != null),
     [projects],
   );
+  const geminiHomePath = useMemo(() => {
+    if (!geminiConfigPath) {
+      return null;
+    }
+    return geminiConfigPath.replace(/\/config\.toml$/, "");
+  }, [geminiConfigPath]);
+  const homeFromGemini = useMemo(() => {
+    if (!geminiHomePath) {
+      return null;
+    }
+    if (geminiHomePath.endsWith("/.gemini")) {
+      return geminiHomePath.slice(0, -"/.gemini".length);
+    }
+    if (geminiHomePath.endsWith("/.config/gemini")) {
+      return geminiHomePath.slice(0, -"/.config/gemini".length);
+    }
+    return null;
+  }, [geminiHomePath]);
+  const workspaceSkillsDir = useMemo(() => {
+    if (!activeWorkspace) {
+      return null;
+    }
+    const base = activeWorkspace.path.replace(/\/$/, "");
+    const folder = appSettings.cliType === "cursor" ? ".cursor" : ".gemini";
+    return `${base}/${folder}/skills`;
+  }, [activeWorkspace, appSettings.cliType]);
+  const globalSkillsDir = useMemo(() => {
+    if (appSettings.cliType === "cursor") {
+      return homeFromGemini ? `${homeFromGemini}/.cursor/skills` : null;
+    }
+    return geminiHomePath ? `${geminiHomePath}/skills` : null;
+  }, [appSettings.cliType, geminiHomePath, homeFromGemini]);
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -563,6 +632,40 @@ export function SettingsView({
         error instanceof Error ? error.message : "Unable to open config.",
       );
     }
+  }, []);
+
+  const handleCopySkillTemplate = useCallback(async () => {
+    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+      setSkillTemplateStatus("Clipboard unavailable");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(DEFAULT_SKILL_TEMPLATE);
+      setSkillTemplateStatus("Template copied");
+      window.setTimeout(() => setSkillTemplateStatus(null), 1600);
+    } catch (error) {
+      setSkillTemplateStatus(
+        error instanceof Error ? error.message : "Unable to copy template",
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    getGeminiConfigPath()
+      .then((configPath) => {
+        if (active) {
+          setGeminiConfigPath(configPath);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setGeminiConfigPath(null);
+        }
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -1111,6 +1214,14 @@ export function SettingsView({
             </button>
             <button
               type="button"
+              className={`settings-nav ${activeSection === "skills" ? "active" : ""}`}
+              onClick={() => setActiveSection("skills")}
+            >
+              <Puzzle aria-hidden />
+              Skills
+            </button>
+            <button
+              type="button"
               className={`settings-nav ${activeSection === "experimental" ? "active" : ""}`}
               onClick={() => setActiveSection("experimental")}
             >
@@ -1119,6 +1230,102 @@ export function SettingsView({
             </button>
           </aside>
           <div className="settings-content">
+            {activeSection === "skills" && (
+              <section className="settings-section">
+                <div className="settings-section-title">Skills</div>
+                <div className="settings-section-subtitle">
+                  Discover available skills from the active workspace and add new ones to the
+                  workspace or your global folder.
+                </div>
+                <div className="settings-skills-header">
+                  <div className="settings-help">
+                    {activeWorkspace
+                      ? `Active workspace: ${activeWorkspace.name}`
+                      : "Select a workspace to manage workspace skills."}
+                  </div>
+                  <div className="settings-skills-actions">
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={onRefreshSkills}
+                      disabled={!activeWorkspace?.connected}
+                    >
+                      Refresh list
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => workspaceSkillsDir && void revealItemInDir(workspaceSkillsDir)}
+                      disabled={!workspaceSkillsDir}
+                    >
+                      Open workspace folder
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => globalSkillsDir && void revealItemInDir(globalSkillsDir)}
+                      disabled={!globalSkillsDir}
+                    >
+                      Open global folder
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost settings-button-compact"
+                      onClick={() => void handleCopySkillTemplate()}
+                    >
+                      Copy SKILL.md template
+                    </button>
+                  </div>
+                </div>
+                {skillTemplateStatus && (
+                  <div className="settings-help">{skillTemplateStatus}</div>
+                )}
+                <div className="settings-help" style={{ marginTop: "8px" }}>
+                  Workspace skills live in{" "}
+                  <code>
+                    {appSettings.cliType === "cursor" ? ".cursor/skills" : ".gemini/skills"}
+                  </code>
+                  . Global skills live in{" "}
+                  <code>
+                    {appSettings.cliType === "cursor" ? "~/.cursor/skills" : "~/.gemini/skills"}
+                  </code>
+                  .
+                </div>
+                {skillItems.length === 0 ? (
+                  <div className="settings-empty" style={{ marginTop: "12px" }}>
+                    No skills found. Add a SKILL.md to the skills folder, then refresh.
+                  </div>
+                ) : (
+                  <div className="settings-skill-list">
+                    {skillItems.map((skill) => (
+                      <div key={skill.path} className="settings-skill-row">
+                        <div className="settings-skill-main">
+                          <div className="settings-skill-title">
+                            {skill.name}
+                            <span className={`settings-skill-scope ${skill.scope}`}>
+                              {skill.scope}
+                            </span>
+                          </div>
+                          {skill.description && (
+                            <div className="settings-help">{skill.description}</div>
+                          )}
+                          <div className="settings-skill-path">{skill.path}</div>
+                        </div>
+                        <div className="settings-skill-actions">
+                          <button
+                            type="button"
+                            className="ghost settings-button-compact"
+                            onClick={() => void revealItemInDir(skill.path)}
+                          >
+                            Reveal
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
             {activeSection === "projects" && (
               <section className="settings-section">
                 <div className="settings-section-title">Projects</div>

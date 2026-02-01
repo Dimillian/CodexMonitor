@@ -146,6 +146,84 @@
   color: var(--text-subtle);
 }
 
+.settings-skills-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.settings-skills-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settings-skill-list {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-skill-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-card);
+}
+
+.settings-skill-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.settings-skill-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-strong);
+}
+
+.settings-skill-scope {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border-muted);
+  color: var(--text-subtle);
+}
+
+.settings-skill-scope.workspace {
+  border-color: rgba(120, 235, 190, 0.4);
+}
+
+.settings-skill-scope.global {
+  border-color: rgba(160, 180, 255, 0.45);
+}
+
+.settings-skill-path {
+  font-size: 11px;
+  color: var(--text-subtle);
+  word-break: break-all;
+}
+
+.settings-skill-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .settings-help-inline {
   margin-right: 4px;
 }
