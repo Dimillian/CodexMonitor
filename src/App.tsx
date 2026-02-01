@@ -242,6 +242,7 @@ function MainApp() {
     isCompact,
     sidebarCollapsed,
     rightPanelCollapsed,
+    showRightPanelToggle: Boolean(activeWorkspace),
     onCollapseSidebar: collapseSidebar,
     onExpandSidebar: expandSidebar,
     onCollapseRightPanel: collapseRightPanel,

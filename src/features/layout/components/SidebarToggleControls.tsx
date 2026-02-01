@@ -7,6 +7,7 @@ export type SidebarToggleProps = {
   isCompact: boolean;
   sidebarCollapsed: boolean;
   rightPanelCollapsed: boolean;
+  showRightPanelToggle: boolean;
   onCollapseSidebar: () => void;
   onExpandSidebar: () => void;
   onCollapseRightPanel: () => void;
@@ -61,15 +62,19 @@ export function TitlebarExpandControls({
   isCompact,
   sidebarCollapsed,
   rightPanelCollapsed,
+  showRightPanelToggle,
   onExpandSidebar,
   onExpandRightPanel,
 }: SidebarToggleProps) {
-  if (isCompact || (!sidebarCollapsed && !rightPanelCollapsed)) {
+  const shouldShowLeftToggle = sidebarCollapsed;
+  const shouldShowRightToggle = rightPanelCollapsed && showRightPanelToggle;
+
+  if (isCompact || (!shouldShowLeftToggle && !shouldShowRightToggle)) {
     return null;
   }
   return (
     <div className="titlebar-controls">
-      {sidebarCollapsed && (
+      {shouldShowLeftToggle && (
         <div className="titlebar-toggle titlebar-toggle-left">
           <button
             type="button"
@@ -83,7 +88,7 @@ export function TitlebarExpandControls({
           </button>
         </div>
       )}
-      {rightPanelCollapsed && (
+      {shouldShowRightToggle && (
         <div className="titlebar-toggle titlebar-toggle-right">
           <button
             type="button"
