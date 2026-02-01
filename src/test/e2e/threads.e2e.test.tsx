@@ -14,19 +14,23 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import {
   mockHandlers,
-  setWorkspaces,
+  setWorkspaces as _setWorkspaces,
   resetMocks,
 } from "./mocks/tauri.mock";
+
+// Re-export with underscore prefix to satisfy eslint unused-vars rule
+void _setWorkspaces;
 import type { WorkspaceInfo } from "../../types";
 
 // Import hooks after mocking (mocks are set up in setup.ts)
 import { useThreads } from "../../features/threads/hooks/useThreads";
 
 // Mock useAppServerEvents to capture handlers
-let serverEventHandlers: Record<string, Function> | null = null;
+type EventHandler = (...args: unknown[]) => void;
+let serverEventHandlers: Record<string, EventHandler> | null = null;
 
 vi.mock("../../features/app/hooks/useAppServerEvents", () => ({
-  useAppServerEvents: (handlers: Record<string, Function>) => {
+  useAppServerEvents: (handlers: Record<string, EventHandler>) => {
     serverEventHandlers = handlers;
   },
 }));

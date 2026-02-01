@@ -26,11 +26,15 @@ import { useAppSettingsController } from "../../features/app/hooks/useAppSetting
 // Helper to create mock doctor result
 function createMockDoctorResult(overrides: Partial<GeminiDoctorResult> = {}): GeminiDoctorResult {
   return {
-    gemini_found: true,
-    gemini_path: "/usr/local/bin/gemini",
-    gemini_version: "1.0.0",
-    working_directory: "/tmp/test-workspace",
-    errors: [],
+    ok: true,
+    geminiBin: "/usr/local/bin/gemini",
+    version: "1.0.0",
+    appServerOk: true,
+    details: null,
+    path: "/usr/local/bin",
+    nodeOk: true,
+    nodeVersion: "20.0.0",
+    nodeDetails: null,
     ...overrides,
   };
 }
@@ -289,14 +293,14 @@ describe("Settings Management E2E", () => {
       await act(async () => {
         await result.current.queueSaveSettings({
           ...result.current.appSettings,
-          composerEditorPreset: "minimal",
+          composerEditorPreset: "smart",
         });
       });
 
       expect(mockHandlers.update_app_settings).toHaveBeenCalledWith(
         expect.objectContaining({
           settings: expect.objectContaining({
-            composerEditorPreset: "minimal",
+            composerEditorPreset: "smart",
           }),
         })
       );
@@ -383,10 +387,10 @@ describe("Settings Management E2E", () => {
   describe("Gemini Doctor", () => {
     it("runs doctor check successfully", async () => {
       const doctorResult = createMockDoctorResult({
-        gemini_found: true,
-        gemini_path: "/usr/local/bin/gemini",
-        gemini_version: "2.0.0",
-        errors: [],
+        ok: true,
+        geminiBin: "/usr/local/bin/gemini",
+        version: "2.0.0",
+        details: null,
       });
 
       mockHandlers.gemini_doctor.mockResolvedValue(doctorResult);
@@ -399,7 +403,7 @@ describe("Settings Management E2E", () => {
 
       let doctorResponse;
       await act(async () => {
-        doctorResponse = await result.current.doctor();
+        doctorResponse = await result.current.doctor("/usr/local/bin/gemini", null);
       });
 
       expect(doctorResponse).toEqual(doctorResult);
@@ -408,10 +412,10 @@ describe("Settings Management E2E", () => {
 
     it("handles doctor check with errors", async () => {
       const doctorResult = createMockDoctorResult({
-        gemini_found: false,
-        gemini_path: null,
-        gemini_version: null,
-        errors: ["Gemini CLI not found in PATH"],
+        ok: false,
+        geminiBin: null,
+        version: null,
+        details: "Gemini CLI not found in PATH",
       });
 
       mockHandlers.gemini_doctor.mockResolvedValue(doctorResult);
@@ -422,13 +426,13 @@ describe("Settings Management E2E", () => {
         expect(result.current.appSettingsLoading).toBe(false);
       });
 
-      let doctorResponse;
+      let doctorResponse: GeminiDoctorResult | undefined;
       await act(async () => {
-        doctorResponse = await result.current.doctor();
+        doctorResponse = await result.current.doctor(null, null);
       });
 
-      expect(doctorResponse?.gemini_found).toBe(false);
-      expect(doctorResponse?.errors).toContain("Gemini CLI not found in PATH");
+      expect(doctorResponse?.ok).toBe(false);
+      expect(doctorResponse?.details).toBe("Gemini CLI not found in PATH");
     });
   });
 
@@ -471,8 +475,8 @@ describe("Settings Management E2E", () => {
       });
 
       const openAppTargets = [
-        { id: "vscode", label: "VS Code", appName: null, command: "code", args: [] },
-        { id: "cursor", label: "Cursor", appName: null, command: "cursor", args: [] },
+        { id: "vscode", label: "VS Code", kind: "command" as const, appName: null, command: "code", args: [] },
+        { id: "cursor", label: "Cursor", kind: "command" as const, appName: null, command: "cursor", args: [] },
       ];
 
       await act(async () => {
@@ -505,7 +509,7 @@ describe("Settings Management E2E", () => {
         await result.current.queueSaveSettings({
           ...result.current.appSettings,
           dictationEnabled: true,
-          dictationLanguage: "en-US",
+          dictationPreferredLanguage: "en-US",
         });
       });
 
@@ -513,7 +517,7 @@ describe("Settings Management E2E", () => {
         expect.objectContaining({
           settings: expect.objectContaining({
             dictationEnabled: true,
-            dictationLanguage: "en-US",
+            dictationPreferredLanguage: "en-US",
           }),
         })
       );
