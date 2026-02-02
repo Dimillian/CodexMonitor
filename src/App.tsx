@@ -108,6 +108,7 @@ import { OPEN_APP_STORAGE_KEY } from "./features/app/constants";
 import { useOpenAppIcons } from "./features/app/hooks/useOpenAppIcons";
 import { useCodeCssVars } from "./features/app/hooks/useCodeCssVars";
 import { useAccountSwitching } from "./features/app/hooks/useAccountSwitching";
+import { useNewAgentDraft } from "./features/app/hooks/useNewAgentDraft";
 
 const AboutView = lazy(() =>
   import("./features/about/components/AboutView").then((module) => ({
@@ -687,6 +688,19 @@ function MainApp() {
     refreshAccountRateLimits,
     alertError,
   });
+  const {
+    newAgentDraftWorkspaceId,
+    startingDraftThreadWorkspaceId,
+    isDraftModeForActiveWorkspace: isNewAgentDraftMode,
+    startNewAgentDraft,
+    clearDraftState,
+    clearDraftStateIfDifferentWorkspace,
+    runWithDraftStart,
+  } = useNewAgentDraft({
+    activeWorkspace,
+    activeWorkspaceId,
+    activeThreadId,
+  });
   const activeThreadIdRef = useRef<string | null>(activeThreadId ?? null);
   const { getThreadRows } = useThreadRows(threadParentById);
   useEffect(() => {
@@ -989,7 +1003,7 @@ function MainApp() {
     activePlan && (activePlan.steps.length > 0 || activePlan.explanation)
   );
   const showHome = !activeWorkspace;
-  const showWorkspaceHome = Boolean(activeWorkspace && !activeThreadId);
+  const showWorkspaceHome = Boolean(activeWorkspace && !activeThreadId && !isNewAgentDraftMode);
   const [usageMetric, setUsageMetric] = useState<"tokens" | "time">("tokens");
   const [usageWorkspaceId, setUsageWorkspaceId] = useState<string | null>(null);
   const usageWorkspaceOptions = useMemo(
@@ -1027,9 +1041,11 @@ function MainApp() {
   const canInterrupt = activeThreadId
     ? threadStatusById[activeThreadId]?.isProcessing ?? false
     : false;
-  const isProcessing = activeThreadId
-    ? threadStatusById[activeThreadId]?.isProcessing ?? false
-    : false;
+  const isStartingDraftThread =
+    Boolean(activeWorkspaceId) && startingDraftThreadWorkspaceId === activeWorkspaceId;
+  const isProcessing =
+    (activeThreadId ? threadStatusById[activeThreadId]?.isProcessing ?? false : false) ||
+    isStartingDraftThread;
   const isReviewing = activeThreadId
     ? threadStatusById[activeThreadId]?.isReviewing ?? false
     : false;
@@ -1361,12 +1377,11 @@ function MainApp() {
     isCompact,
     addWorkspace,
     addWorkspaceFromPath,
-    connectWorkspace,
-    startThreadForWorkspace,
     setActiveThreadId,
     setActiveTab,
     exitDiffView,
     selectWorkspace,
+    onStartNewAgentDraft: startNewAgentDraft,
     openWorktreePrompt,
     openClonePrompt,
     composerInputRef,
@@ -1450,11 +1465,27 @@ function MainApp() {
     handleSend,
     queueMessage,
   });
+  const handleComposerSendWithDraftStart = useCallback(
+    (text: string, images: string[]) =>
+      runWithDraftStart(() => handleComposerSend(text, images)),
+    [handleComposerSend, runWithDraftStart],
+  );
+  const handleComposerQueueWithDraftStart = useCallback(
+    (text: string, images: string[]) => {
+      // Queueing without an active thread would no-op; bootstrap through send so user input is not lost.
+      const runner = activeThreadId
+        ? () => handleComposerQueue(text, images)
+        : () => handleComposerSend(text, images);
+      return runWithDraftStart(runner);
+    },
+    [activeThreadId, handleComposerQueue, handleComposerSend, runWithDraftStart],
+  );
 
   const handleSelectWorkspaceInstance = useCallback(
     (workspaceId: string, threadId: string) => {
       exitDiffView();
       resetPullRequestSelection();
+      clearDraftState();
       selectWorkspace(workspaceId);
       setActiveThreadId(threadId, workspaceId);
       if (isCompact) {
@@ -1462,11 +1493,31 @@ function MainApp() {
       }
     },
     [
+      clearDraftState,
       exitDiffView,
       isCompact,
       resetPullRequestSelection,
       selectWorkspace,
       setActiveTab,
+      setActiveThreadId,
+    ],
+  );
+
+  const handleOpenThreadLink = useCallback(
+    (threadId: string) => {
+      if (!activeWorkspaceId) {
+        return;
+      }
+      exitDiffView();
+      resetPullRequestSelection();
+      clearDraftState();
+      setActiveThreadId(threadId, activeWorkspaceId);
+    },
+    [
+      activeWorkspaceId,
+      clearDraftState,
+      exitDiffView,
+      resetPullRequestSelection,
       setActiveThreadId,
     ],
   );
@@ -1610,6 +1661,8 @@ function MainApp() {
     groupedWorkspaces,
     hasWorkspaceGroups: workspaceGroups.length > 0,
     deletingWorktreeIds,
+    newAgentDraftWorkspaceId,
+    startingDraftThreadWorkspaceId,
     threadsByWorkspace,
     threadParentById,
     threadStatusById,
@@ -1642,11 +1695,13 @@ function MainApp() {
     onAddWorkspace: handleAddWorkspace,
     onSelectHome: () => {
       resetPullRequestSelection();
+      clearDraftState();
       selectHome();
     },
     onSelectWorkspace: (workspaceId) => {
       exitDiffView();
       resetPullRequestSelection();
+      clearDraftStateIfDifferentWorkspace(workspaceId);
       selectWorkspace(workspaceId);
       setActiveThreadId(null, workspaceId);
     },
@@ -1671,17 +1726,11 @@ function MainApp() {
     onSelectThread: (workspaceId, threadId) => {
       exitDiffView();
       resetPullRequestSelection();
+      clearDraftState();
       selectWorkspace(workspaceId);
       setActiveThreadId(threadId, workspaceId);
     },
-    onOpenThreadLink: (threadId) => {
-      if (!activeWorkspaceId) {
-        return;
-      }
-      exitDiffView();
-      resetPullRequestSelection();
-      setActiveThreadId(threadId, activeWorkspaceId);
-    },
+    onOpenThreadLink: handleOpenThreadLink,
     onDeleteThread: (workspaceId, threadId) => {
       removeThread(workspaceId, threadId);
       clearDraftForThread(threadId);
@@ -1737,6 +1786,7 @@ function MainApp() {
     onUsageWorkspaceChange: setUsageWorkspaceId,
     onSelectHomeThread: (workspaceId, threadId) => {
       exitDiffView();
+      clearDraftState();
       selectWorkspace(workspaceId);
       setActiveThreadId(threadId, workspaceId);
       if (isCompact) {
@@ -1886,8 +1936,8 @@ function MainApp() {
     onRevealWorkspacePrompts: handleRevealWorkspacePrompts,
     onRevealGeneralPrompts: handleRevealGeneralPrompts,
     canRevealGeneralPrompts: Boolean(activeWorkspace),
-    onSend: handleComposerSend,
-    onQueue: handleComposerQueue,
+    onSend: handleComposerSendWithDraftStart,
+    onQueue: handleComposerQueueWithDraftStart,
     onStop: interruptTurn,
     canStop: canInterrupt,
     isReviewing,

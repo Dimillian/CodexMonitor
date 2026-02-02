@@ -48,7 +48,9 @@ export function useThreads({
   const loadedThreadsRef = useRef<Record<string, boolean>>({});
   const replaceOnResumeRef = useRef<Record<string, boolean>>({});
   const pendingInterruptsRef = useRef<Set<string>>(new Set());
+  const planByThreadRef = useRef(state.planByThread);
   const detachedReviewNoticeRef = useRef<Set<string>>(new Set());
+  planByThreadRef.current = state.planByThread;
   const { approvalAllowlistRef, handleApprovalDecision, handleApprovalRemember } =
     useThreadApprovals({ dispatch, onDebug });
   const { handleUserInputSubmit } = useThreadUserInput({ dispatch });
@@ -193,6 +195,7 @@ export function useThreads({
   const threadHandlers = useThreadEventHandlers({
     activeThreadId,
     dispatch,
+    planByThreadRef,
     getCustomName,
     isThreadHidden,
     markProcessing,

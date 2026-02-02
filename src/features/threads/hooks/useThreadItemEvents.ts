@@ -212,6 +212,13 @@ export function useThreadItemEvents({
     [dispatch],
   );
 
+  const onPlanDelta = useCallback(
+    (_workspaceId: string, threadId: string, itemId: string, delta: string) => {
+      dispatch({ type: "appendPlanDelta", threadId, itemId, delta });
+    },
+    [dispatch],
+  );
+
   const onCommandOutputDelta = useCallback(
     (_workspaceId: string, threadId: string, itemId: string, delta: string) => {
       handleToolOutputDelta(threadId, itemId, delta);
@@ -241,6 +248,7 @@ export function useThreadItemEvents({
     onReasoningSummaryDelta,
     onReasoningSummaryBoundary,
     onReasoningTextDelta,
+    onPlanDelta,
     onCommandOutputDelta,
     onTerminalInteraction,
     onFileChangeOutputDelta,

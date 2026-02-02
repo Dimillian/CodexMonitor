@@ -12,14 +12,14 @@ describe("threadReducer", () => {
     });
     const threads = next.threadsByWorkspace["ws-1"] ?? [];
     expect(threads).toHaveLength(1);
-    expect(threads[0].name).toBe("Agent 1");
+    expect(threads[0].name).toBe("New Agent");
     expect(next.activeThreadIdByWorkspace["ws-1"]).toBe("thread-1");
     expect(next.threadStatusById["thread-1"]?.isProcessing).toBe(false);
   });
 
   it("renames auto-generated thread on first user message", () => {
     const threads: ThreadSummary[] = [
-      { id: "thread-1", name: "Agent 1", updatedAt: 1 },
+      { id: "thread-1", name: "New Agent", updatedAt: 1 },
     ];
     const next = threadReducer(
       {
@@ -50,7 +50,7 @@ describe("threadReducer", () => {
 
   it("renames auto-generated thread from assistant output when no user message", () => {
     const threads: ThreadSummary[] = [
-      { id: "thread-1", name: "Agent 1", updatedAt: 1 },
+      { id: "thread-1", name: "New Agent", updatedAt: 1 },
     ];
     const next = threadReducer(
       {
@@ -261,6 +261,24 @@ describe("threadReducer", () => {
     const items = next.itemsByThread["thread-1"] ?? [];
     expect(items).toHaveLength(1);
     expect(items[0]?.id).toBe("review-mode");
+  });
+
+  it("creates and appends plan deltas when no plan tool item exists", () => {
+    const next = threadReducer(initialState, {
+      type: "appendPlanDelta",
+      threadId: "thread-1",
+      itemId: "plan-1",
+      delta: "- Step 1",
+    });
+    const items = next.itemsByThread["thread-1"] ?? [];
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      id: "plan-1",
+      kind: "tool",
+      toolType: "plan",
+      title: "Plan",
+      output: "- Step 1",
+    });
   });
 
   it("appends reasoning summary and content when missing", () => {

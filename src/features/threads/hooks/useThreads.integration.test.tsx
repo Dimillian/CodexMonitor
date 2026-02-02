@@ -338,6 +338,60 @@ describe("useThreads UX integration", () => {
     });
   });
 
+  it("clears completed plans when a turn finishes", () => {
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      handlers?.onTurnPlanUpdated?.("ws-1", "thread-1", "turn-1", {
+        explanation: "All done",
+        plan: [{ step: "Step 1", status: "completed" }],
+      });
+    });
+
+    expect(result.current.planByThread["thread-1"]).toEqual({
+      turnId: "turn-1",
+      explanation: "All done",
+      steps: [{ step: "Step 1", status: "completed" }],
+    });
+
+    act(() => {
+      handlers?.onTurnCompleted?.("ws-1", "thread-1", "turn-1");
+    });
+
+    expect(result.current.planByThread["thread-1"]).toBeNull();
+  });
+
+  it("keeps plans visible on turn completion when steps remain", () => {
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      handlers?.onTurnPlanUpdated?.("ws-1", "thread-1", "turn-1", {
+        explanation: "Still in progress",
+        plan: [{ step: "Step 1", status: "in_progress" }],
+      });
+    });
+
+    act(() => {
+      handlers?.onTurnCompleted?.("ws-1", "thread-1", "turn-1");
+    });
+
+    expect(result.current.planByThread["thread-1"]).toEqual({
+      turnId: "turn-1",
+      explanation: "Still in progress",
+      steps: [{ step: "Step 1", status: "inProgress" }],
+    });
+  });
+
   it("interrupts immediately even before a turn id is available", async () => {
     const interruptMock = vi.mocked(interruptTurn);
     interruptMock.mockResolvedValue({ result: {} });

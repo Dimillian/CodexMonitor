@@ -722,6 +722,7 @@
   border-radius: 6px;
   color: var(--text-quiet);
   font-size: 12px;
+  text-align: left;
   cursor: pointer;
   -webkit-app-region: no-drag;
   min-width: 0;

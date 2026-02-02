@@ -68,6 +68,7 @@ These are the events explicitly routed in `useAppServerEvents.ts` (plus
 - `item/reasoning/summaryTextDelta`
 - `item/reasoning/summaryPartAdded`
 - `item/reasoning/textDelta`
+- `item/plan/delta`
 - `item/commandExecution/outputDelta`
 - `item/commandExecution/terminalInteraction`
 - `item/fileChange/outputDelta`
@@ -78,7 +79,6 @@ Compared against Codex app-server protocol v2 notifications, the following
 events are currently not routed:
 
 - `rawResponseItem/completed`
-- `item/plan/delta`
 - `item/mcpToolCall/progress`
 - `mcpServer/oauthLogin/completed`
 - `deprecationNotice`

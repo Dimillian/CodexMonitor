@@ -40,6 +40,8 @@ type SidebarProps = {
   groupedWorkspaces: WorkspaceGroupSection[];
   hasWorkspaceGroups: boolean;
   deletingWorktreeIds: Set<string>;
+  newAgentDraftWorkspaceId?: string | null;
+  startingDraftThreadWorkspaceId?: string | null;
   threadsByWorkspace: Record<string, ThreadSummary[]>;
   threadParentById: Record<string, string>;
   threadStatusById: Record<
@@ -94,6 +96,8 @@ export function Sidebar({
   groupedWorkspaces,
   hasWorkspaceGroups,
   deletingWorktreeIds,
+  newAgentDraftWorkspaceId = null,
+  startingDraftThreadWorkspaceId = null,
   threadsByWorkspace,
   threadParentById,
   threadStatusById,
@@ -510,6 +514,15 @@ export function Sidebar({
                   const isPaging = threadListPagingByWorkspace[entry.id] ?? false;
                   const worktrees = worktreesByParent.get(entry.id) ?? [];
                   const addMenuOpen = addMenuAnchor?.workspaceId === entry.id;
+                  const isDraftNewAgent = newAgentDraftWorkspaceId === entry.id;
+                  const isDraftRowActive =
+                    isDraftNewAgent &&
+                    entry.id === activeWorkspaceId &&
+                    !activeThreadId;
+                  const draftStatusClass =
+                    startingDraftThreadWorkspaceId === entry.id
+                      ? "processing"
+                      : "ready";
 
                   return (
                     <WorkspaceCard
@@ -570,6 +583,25 @@ export function Sidebar({
                           </div>,
                           document.body,
                         )}
+                      {!isCollapsed && isDraftNewAgent && (
+                        <div
+                          className={`thread-row thread-row-draft${
+                            isDraftRowActive ? " active" : ""
+                          }`}
+                          onClick={() => onSelectWorkspace(entry.id)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              onSelectWorkspace(entry.id);
+                            }
+                          }}
+                        >
+                          <span className={`thread-status ${draftStatusClass}`} aria-hidden />
+                          <span className="thread-name">New Agent</span>
+                        </div>
+                      )}
                       {!isCollapsed && worktrees.length > 0 && (
                         <WorktreeSection
                           worktrees={worktrees}

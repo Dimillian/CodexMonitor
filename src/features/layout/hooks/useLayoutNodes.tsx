@@ -103,6 +103,8 @@ type LayoutNodesOptions = {
   }>;
   hasWorkspaceGroups: boolean;
   deletingWorktreeIds: Set<string>;
+  newAgentDraftWorkspaceId?: string | null;
+  startingDraftThreadWorkspaceId?: string | null;
   threadsByWorkspace: Record<string, ThreadSummary[]>;
   threadParentById: Record<string, string>;
   threadStatusById: Record<string, ThreadActivityStatus>;
@@ -465,6 +467,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       groupedWorkspaces={options.groupedWorkspaces}
       hasWorkspaceGroups={options.hasWorkspaceGroups}
       deletingWorktreeIds={options.deletingWorktreeIds}
+      newAgentDraftWorkspaceId={options.newAgentDraftWorkspaceId}
+      startingDraftThreadWorkspaceId={options.startingDraftThreadWorkspaceId}
       threadsByWorkspace={options.threadsByWorkspace}
       threadParentById={options.threadParentById}
       threadStatusById={options.threadStatusById}
@@ -524,11 +528,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       userInputRequests={options.userInputRequests}
       onUserInputSubmit={options.handleUserInputSubmit}
       onOpenThreadLink={options.onOpenThreadLink}
-      isThinking={
-        options.activeThreadId
-          ? options.threadStatusById[options.activeThreadId]?.isProcessing ?? false
-          : false
-      }
+      isThinking={options.isProcessing}
       processingStartedAt={activeThreadStatus?.processingStartedAt ?? null}
       lastDurationMs={activeThreadStatus?.lastDurationMs ?? null}
     />

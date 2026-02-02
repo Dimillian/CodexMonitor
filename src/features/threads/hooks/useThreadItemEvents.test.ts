@@ -227,4 +227,19 @@ describe("useThreadItemEvents", () => {
       itemId: "reasoning-1",
     });
   });
+
+  it("dispatches plan deltas", () => {
+    const { result, dispatch } = makeOptions();
+
+    act(() => {
+      result.current.onPlanDelta("ws-1", "thread-1", "plan-1", "- Step 1");
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "appendPlanDelta",
+      threadId: "thread-1",
+      itemId: "plan-1",
+      delta: "- Step 1",
+    });
+  });
 });

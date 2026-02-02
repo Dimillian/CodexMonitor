@@ -90,4 +90,49 @@ describe("Sidebar", () => {
     expect(reopened.value).toBe("");
     vi.useRealTimers();
   });
+
+  it("shows a top New Agent draft row and selects workspace when clicked", () => {
+    const onSelectWorkspace = vi.fn();
+    const props = {
+      ...baseProps,
+      workspaces: [
+        {
+          id: "ws-1",
+          name: "Workspace",
+          path: "/tmp/workspace",
+          connected: true,
+          settings: { sidebarCollapsed: false },
+        },
+      ],
+      groupedWorkspaces: [
+        {
+          id: null,
+          name: "Workspaces",
+          workspaces: [
+            {
+              id: "ws-1",
+              name: "Workspace",
+              path: "/tmp/workspace",
+              connected: true,
+              settings: { sidebarCollapsed: false },
+            },
+          ],
+        },
+      ],
+      newAgentDraftWorkspaceId: "ws-1",
+      activeWorkspaceId: "ws-1",
+      activeThreadId: null,
+      onSelectWorkspace,
+    };
+
+    render(<Sidebar {...props} />);
+
+    const draftRow = screen.getByRole("button", { name: /new agent/i });
+    expect(draftRow).toBeTruthy();
+    expect(draftRow.className).toContain("thread-row-draft");
+    expect(draftRow.className).toContain("active");
+
+    fireEvent.click(draftRow);
+    expect(onSelectWorkspace).toHaveBeenCalledWith("ws-1");
+  });
 });

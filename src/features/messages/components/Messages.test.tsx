@@ -1,14 +1,34 @@
 // @vitest-environment jsdom
+import { useCallback, useState } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationItem } from "../../../types";
 import { Messages } from "./Messages";
+
+const useFileLinkOpenerMock = vi.fn(
+  (_workspacePath: string | null, _openTargets: unknown[], _selectedOpenAppId: string) => ({
+    openFileLink: vi.fn(),
+    showFileLinkMenu: vi.fn(),
+  }),
+);
+
+vi.mock("../hooks/useFileLinkOpener", () => ({
+  useFileLinkOpener: (
+    workspacePath: string | null,
+    openTargets: unknown[],
+    selectedOpenAppId: string,
+  ) => useFileLinkOpenerMock(workspacePath, openTargets, selectedOpenAppId),
+}));
 
 describe("Messages", () => {
   beforeAll(() => {
     if (!HTMLElement.prototype.scrollIntoView) {
       HTMLElement.prototype.scrollIntoView = vi.fn();
     }
+  });
+
+  beforeEach(() => {
+    useFileLinkOpenerMock.mockClear();
   });
 
   it("renders image grid above message text and opens lightbox", () => {
@@ -127,6 +147,50 @@ describe("Messages", () => {
 
     fireEvent.click(screen.getByText("Open review thread"));
     expect(onOpenThreadLink).toHaveBeenCalledWith("thread-review-1");
+  });
+
+  it("does not re-render messages while typing when message props stay stable", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-stable-1",
+        kind: "message",
+        role: "assistant",
+        text: "Stable content",
+      },
+    ];
+    const openTargets: [] = [];
+    function Harness() {
+      const [draft, setDraft] = useState("");
+      const handleOpenThreadLink = useCallback(() => {}, []);
+
+      return (
+        <div>
+          <input
+            aria-label="Draft"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+          />
+          <Messages
+            items={items}
+            threadId="thread-stable"
+            workspaceId="ws-1"
+            isThinking={false}
+            openTargets={openTargets}
+            selectedOpenAppId=""
+            onOpenThreadLink={handleOpenThreadLink}
+          />
+        </div>
+      );
+    }
+
+    render(<Harness />);
+    expect(useFileLinkOpenerMock).toHaveBeenCalledTimes(1);
+    const input = screen.getByLabelText("Draft");
+    fireEvent.change(input, { target: { value: "a" } });
+    fireEvent.change(input, { target: { value: "ab" } });
+    fireEvent.change(input, { target: { value: "abc" } });
+
+    expect(useFileLinkOpenerMock).toHaveBeenCalledTimes(1);
   });
 
   it("uses reasoning title for the working indicator and hides title-only reasoning rows", () => {
