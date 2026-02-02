@@ -70,7 +70,7 @@ use tokio::sync::{broadcast, mpsc, Mutex};
 use backend::app_server::{
     spawn_workspace_session, WorkspaceSession,
 };
-use backend::events::{AppServerEvent, EventSink, TerminalOutput};
+use backend::events::{AppServerEvent, EventSink, TerminalExit, TerminalOutput};
 use storage::{read_settings, read_workspaces};
 use shared::{codex_core, files_core, git_core, settings_core, workspaces_core, worktree_core};
 use shared::codex_core::CodexLoginCancelState;
@@ -109,6 +109,8 @@ enum DaemonEvent {
     AppServer(AppServerEvent),
     #[allow(dead_code)]
     TerminalOutput(TerminalOutput),
+    #[allow(dead_code)]
+    TerminalExit(TerminalExit),
 }
 
 impl EventSink for DaemonEventSink {
@@ -118,6 +120,10 @@ impl EventSink for DaemonEventSink {
 
     fn emit_terminal_output(&self, event: TerminalOutput) {
         let _ = self.tx.send(DaemonEvent::TerminalOutput(event));
+    }
+
+    fn emit_terminal_exit(&self, event: TerminalExit) {
+        let _ = self.tx.send(DaemonEvent::TerminalExit(event));
     }
 }
 
@@ -847,6 +853,10 @@ fn build_event_notification(event: DaemonEvent) -> Option<String> {
         }),
         DaemonEvent::TerminalOutput(payload) => json!({
             "method": "terminal-output",
+            "params": payload,
+        }),
+        DaemonEvent::TerminalExit(payload) => json!({
+            "method": "terminal-exit",
             "params": payload,
         }),
     };
