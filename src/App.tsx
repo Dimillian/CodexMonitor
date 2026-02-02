@@ -665,6 +665,7 @@ function MainApp() {
     effort: resolvedEffort,
     collaborationMode: collaborationModePayload,
     accessMode,
+    reviewDeliveryMode: appSettings.reviewDeliveryMode,
     steerEnabled: appSettings.experimentalSteerEnabled,
     customPrompts: prompts,
     onMessageActivity: queueGitStatusRefresh
@@ -1670,6 +1671,14 @@ function MainApp() {
       resetPullRequestSelection();
       selectWorkspace(workspaceId);
       setActiveThreadId(threadId, workspaceId);
+    },
+    onOpenThreadLink: (threadId) => {
+      if (!activeWorkspaceId) {
+        return;
+      }
+      exitDiffView();
+      resetPullRequestSelection();
+      setActiveThreadId(threadId, activeWorkspaceId);
     },
     onDeleteThread: (workspaceId, threadId) => {
       removeThread(workspaceId, threadId);

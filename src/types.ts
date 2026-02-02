@@ -121,6 +121,7 @@ export type ReviewTarget =
 export type AccessMode = "read-only" | "current" | "full-access";
 export type BackendMode = "local" | "remote";
 export type ThemePreference = "system" | "light" | "dark" | "dim";
+export type PersonalityPreference = "default" | "friendly" | "pragmatic";
 
 
 export type ComposerEditorPreset = "default" | "helpful" | "smart";
@@ -152,6 +153,7 @@ export type AppSettings = {
   remoteBackendHost: string;
   remoteBackendToken: string | null;
   defaultAccessMode: AccessMode;
+  reviewDeliveryMode: "inline" | "detached";
   composerModelShortcut: string | null;
   composerAccessShortcut: string | null;
   composerReasoningShortcut: string | null;
@@ -184,6 +186,7 @@ export type AppSettings = {
   experimentalCollaborationModesEnabled: boolean;
   experimentalSteerEnabled: boolean;
   experimentalUnifiedExecEnabled: boolean;
+  experimentalPersonality: PersonalityPreference;
   dictationEnabled: boolean;
   dictationModelId: string;
   dictationPreferredLanguage: string | null;

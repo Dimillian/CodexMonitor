@@ -55,6 +55,24 @@ export function extractRpcErrorMessage(response: unknown) {
   return "Request failed.";
 }
 
+export function extractReviewThreadId(response: unknown): string | null {
+  if (!response || typeof response !== "object") {
+    return null;
+  }
+  const record = response as Record<string, unknown>;
+  const result =
+    record.result && typeof record.result === "object"
+      ? (record.result as Record<string, unknown>)
+      : null;
+  const threadId = asString(
+    result?.reviewThreadId ??
+      result?.review_thread_id ??
+      record.reviewThreadId ??
+      record.review_thread_id,
+  );
+  return threadId || null;
+}
+
 export function normalizeTokenUsage(raw: Record<string, unknown>): ThreadTokenUsage {
   const total = (raw.total as Record<string, unknown>) ?? {};
   const last = (raw.last as Record<string, unknown>) ?? {};

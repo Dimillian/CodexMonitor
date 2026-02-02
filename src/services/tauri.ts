@@ -474,11 +474,16 @@ export async function getAccountInfo(workspaceId: string) {
 }
 
 export async function runCodexLogin(workspaceId: string) {
-  return invoke<{ output: string }>("codex_login", { workspaceId });
+  return invoke<{ loginId: string; authUrl: string; raw?: unknown }>("codex_login", {
+    workspaceId,
+  });
 }
 
 export async function cancelCodexLogin(workspaceId: string) {
-  return invoke<{ canceled: boolean }>("codex_login_cancel", { workspaceId });
+  return invoke<{ canceled: boolean; status?: string; raw?: unknown }>(
+    "codex_login_cancel",
+    { workspaceId },
+  );
 }
 
 export async function getSkillsList(workspaceId: string) {

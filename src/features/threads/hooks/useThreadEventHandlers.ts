@@ -28,6 +28,7 @@ type ThreadEventHandlersOptions = {
     threadId: string,
     item: Record<string, unknown>,
   ) => void;
+  onReviewExited?: (workspaceId: string, threadId: string) => void;
   approvalAllowlistRef: MutableRefObject<Record<string, string[][]>>;
   pendingInterruptsRef: MutableRefObject<Set<string>>;
 };
@@ -46,6 +47,7 @@ export function useThreadEventHandlers({
   onDebug,
   onWorkspaceConnected,
   applyCollabThreadLinks,
+  onReviewExited,
   approvalAllowlistRef,
   pendingInterruptsRef,
 }: ThreadEventHandlersOptions) {
@@ -75,6 +77,7 @@ export function useThreadEventHandlers({
     safeMessageActivity,
     recordThreadActivity,
     applyCollabThreadLinks,
+    onReviewExited,
   });
 
   const {

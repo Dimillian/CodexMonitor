@@ -1,6 +1,8 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cancelCodexLogin, runCodexLogin } from "../../../services/tauri";
+import { subscribeAppServerEvents } from "../../../services/events";
 import type { AccountSnapshot } from "../../../types";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 type UseAccountSwitchingArgs = {
   activeWorkspaceId: string | null;
@@ -26,6 +28,13 @@ export function useAccountSwitching({
 }: UseAccountSwitchingArgs): UseAccountSwitchingResult {
   const [accountSwitching, setAccountSwitching] = useState(false);
   const accountSwitchCanceledRef = useRef(false);
+  const loginIdRef = useRef<string | null>(null);
+  const loginWorkspaceIdRef = useRef<string | null>(null);
+  const accountSwitchingRef = useRef(false);
+  const activeWorkspaceIdRef = useRef<string | null>(activeWorkspaceId);
+  const refreshAccountInfoRef = useRef(refreshAccountInfo);
+  const refreshAccountRateLimitsRef = useRef(refreshAccountRateLimits);
+  const alertErrorRef = useRef(alertError);
 
   const activeAccount = useMemo(() => {
     if (!activeWorkspaceId) {
@@ -45,50 +54,164 @@ export function useAccountSwitching({
     );
   }, []);
 
+  useEffect(() => {
+    accountSwitchingRef.current = accountSwitching;
+  }, [accountSwitching]);
+
+  useEffect(() => {
+    activeWorkspaceIdRef.current = activeWorkspaceId;
+  }, [activeWorkspaceId]);
+
+  useEffect(() => {
+    refreshAccountInfoRef.current = refreshAccountInfo;
+  }, [refreshAccountInfo]);
+
+  useEffect(() => {
+    refreshAccountRateLimitsRef.current = refreshAccountRateLimits;
+  }, [refreshAccountRateLimits]);
+
+  useEffect(() => {
+    alertErrorRef.current = alertError;
+  }, [alertError]);
+
+  useEffect(() => {
+    const currentWorkspaceId = activeWorkspaceId;
+    const inFlightWorkspaceId = loginWorkspaceIdRef.current;
+    if (
+      accountSwitchingRef.current &&
+      inFlightWorkspaceId &&
+      currentWorkspaceId &&
+      inFlightWorkspaceId !== currentWorkspaceId
+    ) {
+      // The user navigated away from the workspace that initiated the login.
+      // Keep tracking the in-flight login, but clear the switching indicator.
+      setAccountSwitching(false);
+    }
+  }, [activeWorkspaceId]);
+
+  useEffect(() => {
+    const unlisten = subscribeAppServerEvents((payload) => {
+      const matchWorkspaceId = loginWorkspaceIdRef.current ?? activeWorkspaceIdRef.current;
+      if (!matchWorkspaceId || payload.workspace_id !== matchWorkspaceId) {
+        return;
+      }
+
+      const method = String(payload.message.method ?? "");
+      const params = (payload.message.params ?? {}) as Record<string, unknown>;
+
+      if (method === "account/login/completed") {
+        const loginId = String(params.loginId ?? params.login_id ?? "");
+        if (loginIdRef.current && loginId && loginIdRef.current !== loginId) {
+          return;
+        }
+
+        loginIdRef.current = null;
+        loginWorkspaceIdRef.current = null;
+        const success = Boolean(params.success);
+        const errorMessage = String(params.error ?? "").trim();
+
+        if (success && !accountSwitchCanceledRef.current) {
+          void refreshAccountInfoRef.current(matchWorkspaceId);
+          void refreshAccountRateLimitsRef.current(matchWorkspaceId);
+        } else if (!accountSwitchCanceledRef.current && errorMessage) {
+          alertErrorRef.current(errorMessage);
+        }
+
+        setAccountSwitching(false);
+        accountSwitchCanceledRef.current = false;
+        return;
+      }
+
+      if (method === "account/updated") {
+        if (!accountSwitchingRef.current || accountSwitchCanceledRef.current) {
+          return;
+        }
+        void refreshAccountInfoRef.current(matchWorkspaceId);
+        void refreshAccountRateLimitsRef.current(matchWorkspaceId);
+        setAccountSwitching(false);
+        accountSwitchCanceledRef.current = false;
+      }
+    });
+
+    return () => {
+      unlisten();
+    };
+  }, []);
+
   const handleSwitchAccount = useCallback(async () => {
     if (!activeWorkspaceId || accountSwitching) {
       return;
     }
+    const workspaceId = activeWorkspaceId;
     accountSwitchCanceledRef.current = false;
     setAccountSwitching(true);
+    loginIdRef.current = null;
+    loginWorkspaceIdRef.current = workspaceId;
     try {
-      await runCodexLogin(activeWorkspaceId);
+      const { loginId, authUrl } = await runCodexLogin(workspaceId);
+
       if (accountSwitchCanceledRef.current) {
+        loginIdRef.current = loginId;
+        try {
+          await cancelCodexLogin(workspaceId);
+        } catch {
+          // Best effort: the user already canceled.
+        }
+        setAccountSwitching(false);
+        accountSwitchCanceledRef.current = false;
+        loginIdRef.current = null;
+        loginWorkspaceIdRef.current = null;
         return;
       }
-      await refreshAccountInfo(activeWorkspaceId);
-      await refreshAccountRateLimits(activeWorkspaceId);
+
+      loginIdRef.current = loginId;
+      await openUrl(authUrl);
     } catch (error) {
       if (accountSwitchCanceledRef.current || isCodexLoginCanceled(error)) {
+        setAccountSwitching(false);
+        accountSwitchCanceledRef.current = false;
+        loginIdRef.current = null;
+        loginWorkspaceIdRef.current = null;
         return;
       }
       alertError(error);
-    } finally {
+      if (loginIdRef.current) {
+        try {
+          await cancelCodexLogin(workspaceId);
+        } catch {
+          // Ignore cancel errors here; we already surfaced the primary failure.
+        }
+      }
       setAccountSwitching(false);
       accountSwitchCanceledRef.current = false;
+      loginIdRef.current = null;
+      loginWorkspaceIdRef.current = null;
+    } finally {
+      // Completion is now driven by app-server events.
     }
   }, [
     activeWorkspaceId,
     accountSwitching,
-    refreshAccountInfo,
-    refreshAccountRateLimits,
     alertError,
     isCodexLoginCanceled,
   ]);
 
   const handleCancelSwitchAccount = useCallback(async () => {
-    if (!activeWorkspaceId || !accountSwitching) {
+    const targetWorkspaceId = loginWorkspaceIdRef.current ?? activeWorkspaceId;
+    if (!targetWorkspaceId || (!accountSwitchingRef.current && !loginWorkspaceIdRef.current)) {
       return;
     }
     accountSwitchCanceledRef.current = true;
     try {
-      await cancelCodexLogin(activeWorkspaceId);
+      await cancelCodexLogin(targetWorkspaceId);
     } catch (error) {
       alertError(error);
     } finally {
       setAccountSwitching(false);
+      loginIdRef.current = null;
+      loginWorkspaceIdRef.current = null;
     }
-  }, [activeWorkspaceId, accountSwitching, alertError]);
+  }, [activeWorkspaceId, alertError]);
 
   return {
     activeAccount,

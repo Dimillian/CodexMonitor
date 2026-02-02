@@ -326,6 +326,8 @@ pub(crate) struct AppSettings {
     pub(crate) remote_backend_token: Option<String>,
     #[serde(default = "default_access_mode", rename = "defaultAccessMode")]
     pub(crate) default_access_mode: String,
+    #[serde(default = "default_review_delivery_mode", rename = "reviewDeliveryMode")]
+    pub(crate) review_delivery_mode: String,
     #[serde(
         default = "default_composer_model_shortcut",
         rename = "composerModelShortcut"
@@ -453,6 +455,11 @@ pub(crate) struct AppSettings {
         rename = "experimentalUnifiedExecEnabled"
     )]
     pub(crate) experimental_unified_exec_enabled: bool,
+    #[serde(
+        default = "default_experimental_personality",
+        rename = "experimentalPersonality"
+    )]
+    pub(crate) experimental_personality: String,
     #[serde(default = "default_dictation_enabled", rename = "dictationEnabled")]
     pub(crate) dictation_enabled: bool,
     #[serde(
@@ -511,6 +518,10 @@ impl Default for BackendMode {
 
 fn default_access_mode() -> String {
     "current".to_string()
+}
+
+fn default_review_delivery_mode() -> String {
+    "inline".to_string()
 }
 
 fn default_remote_backend_host() -> String {
@@ -643,6 +654,10 @@ fn default_experimental_unified_exec_enabled() -> bool {
     false
 }
 
+fn default_experimental_personality() -> String {
+    "default".to_string()
+}
+
 fn default_dictation_enabled() -> bool {
     false
 }
@@ -761,6 +776,7 @@ impl Default for AppSettings {
             remote_backend_host: default_remote_backend_host(),
             remote_backend_token: None,
             default_access_mode: "current".to_string(),
+            review_delivery_mode: default_review_delivery_mode(),
             composer_model_shortcut: default_composer_model_shortcut(),
             composer_access_shortcut: default_composer_access_shortcut(),
             composer_reasoning_shortcut: default_composer_reasoning_shortcut(),
@@ -793,6 +809,7 @@ impl Default for AppSettings {
             experimental_collaboration_modes_enabled: false,
             experimental_steer_enabled: false,
             experimental_unified_exec_enabled: false,
+            experimental_personality: default_experimental_personality(),
             dictation_enabled: false,
             dictation_model_id: default_dictation_model_id(),
             dictation_preferred_language: None,
@@ -827,6 +844,7 @@ mod tests {
         assert_eq!(settings.remote_backend_host, "127.0.0.1:4732");
         assert!(settings.remote_backend_token.is_none());
         assert_eq!(settings.default_access_mode, "current");
+        assert_eq!(settings.review_delivery_mode, "inline");
         assert_eq!(
             settings.composer_model_shortcut.as_deref(),
             Some("cmd+shift+m")
@@ -889,6 +907,7 @@ mod tests {
         assert!(settings.system_notifications_enabled);
         assert!(settings.preload_git_diffs);
         assert!(!settings.experimental_steer_enabled);
+        assert_eq!(settings.experimental_personality, "default");
         assert!(!settings.dictation_enabled);
         assert_eq!(settings.dictation_model_id, "base");
         assert!(settings.dictation_preferred_language.is_none());

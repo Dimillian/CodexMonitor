@@ -102,6 +102,33 @@ describe("Messages", () => {
     expect(markdown?.textContent ?? "").toContain("Literal [image] token");
   });
 
+  it("opens linked review thread when clicking thread link", () => {
+    const onOpenThreadLink = vi.fn();
+    const items: ConversationItem[] = [
+      {
+        id: "msg-thread-link",
+        kind: "message",
+        role: "assistant",
+        text: "Detached review completed. [Open review thread](/thread/thread-review-1)",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-parent"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+        onOpenThreadLink={onOpenThreadLink}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Open review thread"));
+    expect(onOpenThreadLink).toHaveBeenCalledWith("thread-review-1");
+  });
+
   it("uses reasoning title for the working indicator and hides title-only reasoning rows", () => {
     const items: ConversationItem[] = [
       {

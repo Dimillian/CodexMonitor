@@ -8,6 +8,7 @@ import {
   interruptTurn,
   listThreads,
   resumeThread,
+  startReview,
 } from "../../../services/tauri";
 import { useThreads } from "./useThreads";
 
@@ -364,6 +365,167 @@ describe("useThreads UX integration", () => {
       expect(interruptMock).toHaveBeenCalledWith("ws-1", "thread-1", "turn-1");
     });
     expect(interruptMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("links detached review thread to its parent", async () => {
+    vi.mocked(startReview).mockResolvedValue({
+      result: { reviewThreadId: "thread-review-1" },
+    });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+        reviewDeliveryMode: "detached",
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-parent");
+    });
+
+    await act(async () => {
+      await result.current.startReview("/review check this");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(startReview)).toHaveBeenCalledWith(
+        "ws-1",
+        "thread-parent",
+        expect.any(Object),
+        "detached",
+      );
+    });
+
+    expect(result.current.threadParentById["thread-review-1"]).toBe("thread-parent");
+  });
+
+  it("keeps detached collab review threads under the original parent", async () => {
+    vi.mocked(startReview).mockResolvedValue({
+      result: { reviewThreadId: "thread-review-1" },
+    });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+        reviewDeliveryMode: "detached",
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-parent");
+    });
+
+    await act(async () => {
+      await result.current.startReview("/review check this");
+    });
+
+    expect(result.current.threadParentById["thread-review-1"]).toBe("thread-parent");
+
+    act(() => {
+      handlers?.onItemCompleted?.("ws-1", "thread-parent", {
+        type: "collabToolCall",
+        id: "item-collab-1",
+        senderThreadId: "thread-review-1",
+        newThreadId: "thread-review-2",
+      });
+    });
+
+    expect(result.current.threadParentById["thread-review-2"]).toBe("thread-review-1");
+
+    const { result: threadRowsResult } = renderHook(() =>
+      useThreadRows(result.current.threadParentById),
+    );
+    const rows = threadRowsResult.current.getThreadRows(
+      [
+        { id: "thread-parent", name: "Parent", updatedAt: 3 },
+        { id: "thread-review-2", name: "Review Child", updatedAt: 2 },
+      ],
+      true,
+      "ws-1",
+      () => null,
+    );
+    expect(rows.unpinnedRows.map((row) => [row.thread.id, row.depth])).toEqual([
+      ["thread-parent", 0],
+      ["thread-review-2", 1],
+    ]);
+  });
+
+  it("stops parent review spinner and pings parent when detached child exits", async () => {
+    vi.mocked(startReview).mockResolvedValue({
+      result: { reviewThreadId: "thread-review-1" },
+    });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+        reviewDeliveryMode: "detached",
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-parent");
+    });
+
+    await act(async () => {
+      await result.current.startReview("/review check this");
+    });
+
+    expect(result.current.threadStatusById["thread-parent"]?.isReviewing).toBe(true);
+    expect(result.current.threadStatusById["thread-parent"]?.isProcessing).toBe(true);
+
+    act(() => {
+      handlers?.onItemCompleted?.("ws-1", "thread-review-1", {
+        type: "exitedReviewMode",
+        id: "review-exit-1",
+      });
+    });
+
+    expect(result.current.threadStatusById["thread-parent"]?.isReviewing).toBe(false);
+    expect(result.current.threadStatusById["thread-parent"]?.isProcessing).toBe(false);
+    expect(
+      result.current.activeItems.some(
+        (item) =>
+          item.kind === "message" &&
+          item.role === "assistant" &&
+          item.text.includes("[Open review thread](/thread/thread-review-1)"),
+      ),
+    ).toBe(true);
+  });
+
+  it("does not create a parent link for inline reviews", async () => {
+    vi.mocked(startReview).mockResolvedValue({
+      result: { reviewThreadId: "thread-parent" },
+    });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+        reviewDeliveryMode: "inline",
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-parent");
+    });
+
+    await act(async () => {
+      await result.current.startReview("/review check this");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(startReview)).toHaveBeenCalledWith(
+        "ws-1",
+        "thread-parent",
+        expect.any(Object),
+        "inline",
+      );
+    });
+
+    expect(result.current.threadParentById["thread-parent"]).toBeUndefined();
   });
 
   it("orders thread lists, applies custom names, and keeps pin ordering stable", async () => {

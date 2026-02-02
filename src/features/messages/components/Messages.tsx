@@ -43,6 +43,7 @@ type MessagesProps = {
     request: RequestUserInputRequest,
     response: RequestUserInputResponse,
   ) => void;
+  onOpenThreadLink?: (threadId: string) => void;
 };
 
 type ToolSummary = {
@@ -69,6 +70,7 @@ type MessageRowProps = {
   codeBlockCopyUseModifier?: boolean;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
+  onOpenThreadLink?: (threadId: string) => void;
 };
 
 type ReasoningRowProps = {
@@ -78,12 +80,14 @@ type ReasoningRowProps = {
   onToggle: (id: string) => void;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
+  onOpenThreadLink?: (threadId: string) => void;
 };
 
 type ReviewRowProps = {
   item: Extract<ConversationItem, { kind: "review" }>;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
+  onOpenThreadLink?: (threadId: string) => void;
 };
 
 type DiffRowProps = {
@@ -96,6 +100,7 @@ type ToolRowProps = {
   onToggle: (id: string) => void;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
+  onOpenThreadLink?: (threadId: string) => void;
   onRequestAutoScroll?: () => void;
 };
 
@@ -666,6 +671,7 @@ const MessageRow = memo(function MessageRow({
   codeBlockCopyUseModifier,
   onOpenFileLink,
   onOpenFileLinkMenu,
+  onOpenThreadLink,
 }: MessageRowProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const hasText = item.text.trim().length > 0;
@@ -702,6 +708,7 @@ const MessageRow = memo(function MessageRow({
             codeBlockCopyUseModifier={codeBlockCopyUseModifier}
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}
+            onOpenThreadLink={onOpenThreadLink}
           />
         )}
         {lightboxIndex !== null && imageItems.length > 0 && (
@@ -735,6 +742,7 @@ const ReasoningRow = memo(function ReasoningRow({
   onToggle,
   onOpenFileLink,
   onOpenFileLinkMenu,
+  onOpenThreadLink,
 }: ReasoningRowProps) {
   const { summaryTitle, bodyText, hasBody } = parsed;
   const reasoningTone: StatusTone = hasBody ? "completed" : "processing";
@@ -769,6 +777,7 @@ const ReasoningRow = memo(function ReasoningRow({
             }`}
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}
+            onOpenThreadLink={onOpenThreadLink}
           />
         )}
       </div>
@@ -780,6 +789,7 @@ const ReviewRow = memo(function ReviewRow({
   item,
   onOpenFileLink,
   onOpenFileLinkMenu,
+  onOpenThreadLink,
 }: ReviewRowProps) {
   const title = item.state === "started" ? "Review started" : "Review completed";
   return (
@@ -798,6 +808,7 @@ const ReviewRow = memo(function ReviewRow({
           className="item-text markdown"
           onOpenFileLink={onOpenFileLink}
           onOpenFileLinkMenu={onOpenFileLinkMenu}
+          onOpenThreadLink={onOpenThreadLink}
         />
       )}
     </div>
@@ -824,6 +835,7 @@ const ToolRow = memo(function ToolRow({
   onToggle,
   onOpenFileLink,
   onOpenFileLinkMenu,
+  onOpenThreadLink,
   onRequestAutoScroll,
 }: ToolRowProps) {
   const isFileChange = item.toolType === "fileChange";
@@ -966,6 +978,7 @@ const ToolRow = memo(function ToolRow({
             className="item-text markdown"
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}
+            onOpenThreadLink={onOpenThreadLink}
           />
         )}
         {showCommandOutput && <CommandOutput output={summary.output ?? ""} />}
@@ -976,6 +989,7 @@ const ToolRow = memo(function ToolRow({
             codeBlock
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}
+            onOpenThreadLink={onOpenThreadLink}
           />
         )}
       </div>
@@ -1091,6 +1105,7 @@ export const Messages = memo(function Messages({
   codeBlockCopyUseModifier = false,
   userInputRequests = [],
   onUserInputSubmit,
+  onOpenThreadLink,
 }: MessagesProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -1287,6 +1302,7 @@ export const Messages = memo(function Messages({
           codeBlockCopyUseModifier={codeBlockCopyUseModifier}
           onOpenFileLink={openFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
+          onOpenThreadLink={onOpenThreadLink}
         />
       );
     }
@@ -1302,6 +1318,7 @@ export const Messages = memo(function Messages({
           onToggle={toggleExpanded}
           onOpenFileLink={openFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
+          onOpenThreadLink={onOpenThreadLink}
         />
       );
     }
@@ -1312,6 +1329,7 @@ export const Messages = memo(function Messages({
           item={item}
           onOpenFileLink={openFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
+          onOpenThreadLink={onOpenThreadLink}
         />
       );
     }
@@ -1328,6 +1346,7 @@ export const Messages = memo(function Messages({
           onToggle={toggleExpanded}
           onOpenFileLink={openFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
+          onOpenThreadLink={onOpenThreadLink}
           onRequestAutoScroll={requestAutoScroll}
         />
       );

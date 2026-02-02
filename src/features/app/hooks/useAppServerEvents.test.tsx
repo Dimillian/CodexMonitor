@@ -56,6 +56,8 @@ describe("useAppServerEvents", () => {
       onRequestUserInput: vi.fn(),
       onItemCompleted: vi.fn(),
       onAgentMessageCompleted: vi.fn(),
+      onAccountUpdated: vi.fn(),
+      onAccountLoginCompleted: vi.fn(),
     };
     const { root } = await mount(handlers);
 
@@ -227,6 +229,32 @@ describe("useAppServerEvents", () => {
       threadId: "thread-1",
       itemId: "item-2",
       text: "Done",
+    });
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "account/updated",
+          params: { authMode: "chatgpt" },
+        },
+      });
+    });
+    expect(handlers.onAccountUpdated).toHaveBeenCalledWith("ws-1", "chatgpt");
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "account/login/completed",
+          params: { loginId: "login-1", success: true, error: null },
+        },
+      });
+    });
+    expect(handlers.onAccountLoginCompleted).toHaveBeenCalledWith("ws-1", {
+      loginId: "login-1",
+      success: true,
+      error: null,
     });
 
     await act(async () => {

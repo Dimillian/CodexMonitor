@@ -1,4 +1,4 @@
-import { useCallback, useReducer, useRef } from "react";
+import { useCallback, useMemo, useReducer, useRef } from "react";
 import * as Sentry from "@sentry/react";
 import type { CustomPromptOption, DebugEntry, WorkspaceInfo } from "../../../types";
 import { useAppServerEvents } from "../../app/hooks/useAppServerEvents";
@@ -24,6 +24,7 @@ type UseThreadsOptions = {
   effort?: string | null;
   collaborationMode?: Record<string, unknown> | null;
   accessMode?: "read-only" | "current" | "full-access";
+  reviewDeliveryMode?: "inline" | "detached";
   steerEnabled?: boolean;
   customPrompts?: CustomPromptOption[];
   onMessageActivity?: () => void;
@@ -37,6 +38,7 @@ export function useThreads({
   effort,
   collaborationMode,
   accessMode,
+  reviewDeliveryMode = "inline",
   steerEnabled = false,
   customPrompts = [],
   onMessageActivity,
@@ -121,13 +123,67 @@ export function useThreads({
     [onWorkspaceConnected, refreshAccountRateLimits, refreshAccountInfo],
   );
 
+  const handleAccountUpdated = useCallback(
+    (workspaceId: string) => {
+      void refreshAccountRateLimits(workspaceId);
+      void refreshAccountInfo(workspaceId);
+    },
+    [refreshAccountRateLimits, refreshAccountInfo],
+  );
+
   const isThreadHidden = useCallback(
     (workspaceId: string, threadId: string) =>
       Boolean(state.hiddenThreadIdsByWorkspace[workspaceId]?.[threadId]),
     [state.hiddenThreadIdsByWorkspace],
   );
 
-  const handlers = useThreadEventHandlers({
+  const handleReviewExited = useCallback(
+    (workspaceId: string, threadId: string) => {
+      const parentId = state.threadParentById[threadId];
+      if (!parentId || parentId === threadId) {
+        return;
+      }
+      const parentStatus = state.threadStatusById[parentId];
+      if (!parentStatus?.isReviewing) {
+        return;
+      }
+
+      markReviewing(parentId, false);
+      markProcessing(parentId, false);
+      setActiveTurnId(parentId, null);
+
+      const timestamp = Date.now();
+      recordThreadActivity(workspaceId, parentId, timestamp);
+      dispatch({
+        type: "setThreadTimestamp",
+        workspaceId,
+        threadId: parentId,
+        timestamp,
+      });
+      dispatch({
+        type: "addAssistantMessage",
+        threadId: parentId,
+        text: `Detached review completed. [Open review thread](/thread/${threadId})`,
+      });
+      if (parentId !== activeThreadId) {
+        dispatch({ type: "markUnread", threadId: parentId, hasUnread: true });
+      }
+      safeMessageActivity();
+    },
+    [
+      activeThreadId,
+      dispatch,
+      markProcessing,
+      markReviewing,
+      recordThreadActivity,
+      safeMessageActivity,
+      setActiveTurnId,
+      state.threadParentById,
+      state.threadStatusById,
+    ],
+  );
+
+  const threadHandlers = useThreadEventHandlers({
     activeThreadId,
     dispatch,
     getCustomName,
@@ -141,9 +197,26 @@ export function useThreads({
     onDebug,
     onWorkspaceConnected: handleWorkspaceConnected,
     applyCollabThreadLinks,
+    onReviewExited: handleReviewExited,
     approvalAllowlistRef,
     pendingInterruptsRef,
   });
+
+  const handleAccountLoginCompleted = useCallback(
+    (workspaceId: string) => {
+      handleAccountUpdated(workspaceId);
+    },
+    [handleAccountUpdated],
+  );
+
+  const handlers = useMemo(
+    () => ({
+      ...threadHandlers,
+      onAccountUpdated: handleAccountUpdated,
+      onAccountLoginCompleted: handleAccountLoginCompleted,
+    }),
+    [threadHandlers, handleAccountUpdated, handleAccountLoginCompleted],
+  );
 
   useAppServerEvents(handlers);
 
@@ -260,6 +333,7 @@ export function useThreads({
     model,
     effort,
     collaborationMode,
+    reviewDeliveryMode,
     steerEnabled,
     customPrompts,
     threadStatusById: state.threadStatusById,

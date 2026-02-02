@@ -18,6 +18,7 @@ import { normalizeOpenAppTargets } from "../../app/utils/openApp";
 import { getDefaultInterruptShortcut } from "../../../utils/shortcuts";
 
 const allowedThemes = new Set(["system", "light", "dark", "dim"]);
+const allowedPersonality = new Set(["default", "friendly", "pragmatic"]);
 
 const defaultSettings: AppSettings = {
   codexBin: null,
@@ -26,6 +27,7 @@ const defaultSettings: AppSettings = {
   remoteBackendHost: "127.0.0.1:4732",
   remoteBackendToken: null,
   defaultAccessMode: "current",
+  reviewDeliveryMode: "inline",
   composerModelShortcut: "cmd+shift+m",
   composerAccessShortcut: "cmd+shift+a",
   composerReasoningShortcut: "cmd+shift+r",
@@ -58,6 +60,7 @@ const defaultSettings: AppSettings = {
   experimentalCollaborationModesEnabled: false,
   experimentalSteerEnabled: false,
   experimentalUnifiedExecEnabled: false,
+  experimentalPersonality: "default",
   dictationEnabled: false,
   dictationModelId: "base",
   dictationPreferredLanguage: null,
@@ -112,6 +115,11 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
       DEFAULT_CODE_FONT_FAMILY,
     ),
     codeFontSize: clampCodeFontSize(settings.codeFontSize),
+    experimentalPersonality: allowedPersonality.has(settings.experimentalPersonality)
+      ? settings.experimentalPersonality
+      : "default",
+    reviewDeliveryMode:
+      settings.reviewDeliveryMode === "detached" ? "detached" : "inline",
     openAppTargets: normalizedTargets,
     selectedOpenAppId,
   };

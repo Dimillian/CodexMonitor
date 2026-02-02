@@ -24,6 +24,7 @@ const baseSettings: AppSettings = {
   remoteBackendHost: "127.0.0.1:4732",
   remoteBackendToken: null,
   defaultAccessMode: "current",
+  reviewDeliveryMode: "inline",
   composerModelShortcut: null,
   composerAccessShortcut: null,
   composerReasoningShortcut: null,
@@ -58,6 +59,7 @@ const baseSettings: AppSettings = {
   experimentalCollaborationModesEnabled: false,
   experimentalSteerEnabled: false,
   experimentalUnifiedExecEnabled: false,
+  experimentalPersonality: "default",
   dictationEnabled: false,
   dictationModelId: "base",
   dictationPreferredLanguage: null,
@@ -143,6 +145,50 @@ const renderDisplaySection = (
   fireEvent.click(screen.getByRole("button", { name: "Display & Sound" }));
 
   return { onUpdateAppSettings, onToggleTransparency };
+};
+
+const renderExperimentalSection = (
+  options: {
+    appSettings?: Partial<AppSettings>;
+    onUpdateAppSettings?: ComponentProps<typeof SettingsView>["onUpdateAppSettings"];
+  } = {},
+) => {
+  cleanup();
+  const onUpdateAppSettings =
+    options.onUpdateAppSettings ?? vi.fn().mockResolvedValue(undefined);
+  const props: ComponentProps<typeof SettingsView> = {
+    reduceTransparency: false,
+    onToggleTransparency: vi.fn(),
+    appSettings: { ...baseSettings, ...options.appSettings },
+    openAppIconById: {},
+    onUpdateAppSettings,
+    workspaceGroups: [],
+    groupedWorkspaces: [],
+    ungroupedLabel: "Ungrouped",
+    onClose: vi.fn(),
+    onMoveWorkspace: vi.fn(),
+    onDeleteWorkspace: vi.fn(),
+    onCreateWorkspaceGroup: vi.fn().mockResolvedValue(null),
+    onRenameWorkspaceGroup: vi.fn().mockResolvedValue(null),
+    onMoveWorkspaceGroup: vi.fn().mockResolvedValue(null),
+    onDeleteWorkspaceGroup: vi.fn().mockResolvedValue(null),
+    onAssignWorkspaceGroup: vi.fn().mockResolvedValue(null),
+    onRunDoctor: vi.fn().mockResolvedValue(createDoctorResult()),
+    onUpdateWorkspaceCodexBin: vi.fn().mockResolvedValue(undefined),
+    onUpdateWorkspaceSettings: vi.fn().mockResolvedValue(undefined),
+    scaleShortcutTitle: "Scale shortcut",
+    scaleShortcutText: "Use Command +/-",
+    onTestNotificationSound: vi.fn(),
+    onTestSystemNotification: vi.fn(),
+    dictationModelStatus: null,
+    onDownloadDictationModel: vi.fn(),
+    onCancelDictationDownload: vi.fn(),
+    onRemoveDictationModel: vi.fn(),
+    initialSection: "experimental",
+  };
+
+  render(<SettingsView {...props} />);
+  return { onUpdateAppSettings };
 };
 
 describe("SettingsView Display", () => {
@@ -375,6 +421,70 @@ describe("SettingsView Codex overrides", () => {
       expect(onUpdateWorkspaceSettings).toHaveBeenCalledWith("w1", {
         codexArgs: "--profile dev",
       });
+    });
+  });
+
+  it("updates review mode in codex section", async () => {
+    cleanup();
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={baseSettings}
+        openAppIconById={{}}
+        onUpdateAppSettings={onUpdateAppSettings}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="codex"
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Review mode"), {
+      target: { value: "detached" },
+    });
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ reviewDeliveryMode: "detached" }),
+      );
+    });
+  });
+});
+
+describe("SettingsView Experimental", () => {
+  it("updates personality selection", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    renderExperimentalSection({ onUpdateAppSettings });
+
+    fireEvent.change(screen.getByLabelText("Personality"), {
+      target: { value: "pragmatic" },
+    });
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ experimentalPersonality: "pragmatic" }),
+      );
     });
   });
 });

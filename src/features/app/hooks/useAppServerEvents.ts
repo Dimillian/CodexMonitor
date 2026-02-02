@@ -71,6 +71,11 @@ type AppServerEventHandlers = {
     workspaceId: string,
     rateLimits: Record<string, unknown>,
   ) => void;
+  onAccountUpdated?: (workspaceId: string, authMode: string | null) => void;
+  onAccountLoginCompleted?: (
+    workspaceId: string,
+    payload: { loginId: string | null; success: boolean; error: string | null },
+  ) => void;
 };
 
 export function useAppServerEvents(handlers: AppServerEventHandlers) {
@@ -271,6 +276,36 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         if (rateLimits) {
           handlers.onAccountRateLimitsUpdated?.(workspace_id, rateLimits);
         }
+        return;
+      }
+
+      if (method === "account/updated") {
+        const params = message.params as Record<string, unknown>;
+        const authModeRaw = params.authMode ?? params.auth_mode ?? null;
+        const authMode =
+          typeof authModeRaw === "string" && authModeRaw.trim().length > 0
+            ? authModeRaw
+            : null;
+        handlers.onAccountUpdated?.(workspace_id, authMode);
+        return;
+      }
+
+      if (method === "account/login/completed") {
+        const params = message.params as Record<string, unknown>;
+        const loginIdRaw = params.loginId ?? params.login_id ?? null;
+        const loginId =
+          typeof loginIdRaw === "string" && loginIdRaw.trim().length > 0
+            ? loginIdRaw
+            : null;
+        const success = Boolean(params.success);
+        const errorRaw = params.error ?? null;
+        const error =
+          typeof errorRaw === "string" && errorRaw.trim().length > 0 ? errorRaw : null;
+        handlers.onAccountLoginCompleted?.(workspace_id, {
+          loginId,
+          success,
+          error,
+        });
         return;
       }
 

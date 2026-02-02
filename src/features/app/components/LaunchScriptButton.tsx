@@ -139,7 +139,10 @@ export function LaunchScriptButton({
           {showNew && newEditorOpen && onNewDraftChange && onNewDraftIconChange && onCreateNew && (
             <div className="launch-script-new">
               <div className="launch-script-title">New launch script</div>
-              <LaunchScriptIconPicker value={newDraftIcon} onChange={onNewDraftIconChange} />
+              <LaunchScriptIconPicker
+                value={newDraftIcon}
+                onChange={onNewDraftIconChange}
+              />
               <input
                 className="launch-script-input"
                 type="text"

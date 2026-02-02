@@ -151,6 +151,7 @@ type LayoutNodesOptions = {
   onAddCloneAgent: (workspace: WorkspaceInfo) => Promise<void>;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
   onSelectThread: (workspaceId: string, threadId: string) => void;
+  onOpenThreadLink: (threadId: string) => void;
   onDeleteThread: (workspaceId: string, threadId: string) => void;
   onSyncThread: (workspaceId: string, threadId: string) => void;
   pinThread: (workspaceId: string, threadId: string) => boolean;
@@ -526,6 +527,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       codeBlockCopyUseModifier={options.codeBlockCopyUseModifier}
       userInputRequests={options.userInputRequests}
       onUserInputSubmit={options.handleUserInputSubmit}
+      onOpenThreadLink={options.onOpenThreadLink}
       isThinking={
         options.activeThreadId
           ? options.threadStatusById[options.activeThreadId]?.isProcessing ?? false

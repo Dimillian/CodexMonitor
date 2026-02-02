@@ -20,6 +20,7 @@ type UseThreadItemEventsOptions = {
     threadId: string,
     item: Record<string, unknown>,
   ) => void;
+  onReviewExited?: (workspaceId: string, threadId: string) => void;
 };
 
 export function useThreadItemEvents({
@@ -31,6 +32,7 @@ export function useThreadItemEvents({
   safeMessageActivity,
   recordThreadActivity,
   applyCollabThreadLinks,
+  onReviewExited,
 }: UseThreadItemEventsOptions) {
   const handleItemUpdate = useCallback(
     (
@@ -50,6 +52,7 @@ export function useThreadItemEvents({
       } else if (itemType === "exitedReviewMode") {
         markReviewing(threadId, false);
         markProcessing(threadId, false);
+        onReviewExited?.(workspaceId, threadId);
       }
       const converted = buildConversationItem(item);
       if (converted) {
@@ -69,6 +72,7 @@ export function useThreadItemEvents({
       getCustomName,
       markProcessing,
       markReviewing,
+      onReviewExited,
       safeMessageActivity,
     ],
   );

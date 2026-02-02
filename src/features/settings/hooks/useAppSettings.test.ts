@@ -31,15 +31,16 @@ describe("useAppSettings", () => {
 
   it("loads settings and normalizes theme + uiScale", async () => {
     getAppSettingsMock.mockResolvedValue(
-      {
+      ({
         uiScale: UI_SCALE_MAX + 1,
         theme: "nope" as unknown as AppSettings["theme"],
         backendMode: "remote",
         remoteBackendHost: "example:1234",
+        experimentalPersonality: "unknown",
         uiFontFamily: "",
         codeFontFamily: "  ",
         codeFontSize: 25,
-      } as AppSettings,
+      } as unknown) as AppSettings,
     );
 
     const { result } = renderHook(() => useAppSettings());
@@ -51,6 +52,7 @@ describe("useAppSettings", () => {
     expect(result.current.settings.uiFontFamily).toContain("SF Pro Text");
     expect(result.current.settings.codeFontFamily).toContain("SF Mono");
     expect(result.current.settings.codeFontSize).toBe(16);
+    expect(result.current.settings.experimentalPersonality).toBe("default");
     expect(result.current.settings.backendMode).toBe("remote");
     expect(result.current.settings.remoteBackendHost).toBe("example:1234");
   });

@@ -462,8 +462,7 @@ pub(crate) async fn codex_login(
     }
 
     codex_core::codex_login_core(
-        &state.workspaces,
-        &state.app_settings,
+        &state.sessions,
         &state.codex_login_cancels,
         workspace_id,
     )
@@ -486,7 +485,8 @@ pub(crate) async fn codex_login_cancel(
         .await;
     }
 
-    codex_core::codex_login_cancel_core(&state.codex_login_cancels, workspace_id).await
+    codex_core::codex_login_cancel_core(&state.sessions, &state.codex_login_cancels, workspace_id)
+        .await
 }
 
 #[tauri::command]
