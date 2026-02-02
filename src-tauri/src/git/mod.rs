@@ -5,8 +5,8 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use git2::{BranchType, DiffOptions, Repository, Sort, Status, StatusOptions};
 use serde_json::json;
 use tauri::State;
-use tokio::process::Command;
 
+use crate::shared::process_core::tokio_command;
 use crate::git_utils::{
     checkout_branch, commit_to_entry, diff_patch_to_string, diff_stats_for_path,
     image_mime_type, list_git_roots as scan_git_roots, parse_github_repo, resolve_git_root,
@@ -47,7 +47,7 @@ fn read_image_base64(path: &Path) -> Option<String> {
 
 async fn run_git_command(repo_root: &Path, args: &[&str]) -> Result<(), String> {
     let git_bin = resolve_git_binary().map_err(|e| format!("Failed to run git: {e}"))?;
-    let output = Command::new(git_bin)
+    let output = tokio_command(git_bin)
         .args(args)
         .current_dir(repo_root)
         .env("PATH", git_env_path())
@@ -1127,7 +1127,7 @@ pub(crate) async fn get_github_issues(
     let repo_root = resolve_git_root(&entry)?;
     let repo_name = github_repo_from_path(&repo_root)?;
 
-    let output = Command::new("gh")
+    let output = tokio_command("gh")
         .args([
             "issue",
             "list",
@@ -1162,7 +1162,7 @@ pub(crate) async fn get_github_issues(
 
     let search_query = format!("repo:{repo_name} is:issue is:open");
     let search_query = search_query.replace(' ', "+");
-    let total = match Command::new("gh")
+    let total = match tokio_command("gh")
         .args([
             "api",
             &format!("/search/issues?q={search_query}"),
@@ -1197,7 +1197,7 @@ pub(crate) async fn get_github_pull_requests(
     let repo_root = resolve_git_root(&entry)?;
     let repo_name = github_repo_from_path(&repo_root)?;
 
-    let output = Command::new("gh")
+    let output = tokio_command("gh")
         .args([
             "pr",
             "list",
@@ -1234,7 +1234,7 @@ pub(crate) async fn get_github_pull_requests(
 
     let search_query = format!("repo:{repo_name} is:pr is:open");
     let search_query = search_query.replace(' ', "+");
-    let total = match Command::new("gh")
+    let total = match tokio_command("gh")
         .args([
             "api",
             &format!("/search/issues?q={search_query}"),
@@ -1273,7 +1273,7 @@ pub(crate) async fn get_github_pull_request_diff(
     let repo_root = resolve_git_root(&entry)?;
     let repo_name = github_repo_from_path(&repo_root)?;
 
-    let output = Command::new("gh")
+    let output = tokio_command("gh")
         .args([
             "pr",
             "diff",
@@ -1325,7 +1325,7 @@ pub(crate) async fn get_github_pull_request_comments(
         format!("/repos/{repo_name}/issues/{pr_number}/comments?per_page=30");
     let jq_filter = r#"[.[] | {id, body, createdAt: .created_at, url: .html_url, author: (if .user then {login: .user.login} else null end)}]"#;
 
-    let output = Command::new("gh")
+    let output = tokio_command("gh")
         .args(["api", &comments_endpoint, "--jq", jq_filter])
         .current_dir(&repo_root)
         .output()

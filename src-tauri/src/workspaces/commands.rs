@@ -5,7 +5,6 @@ use std::sync::Arc;
 use serde_json::json;
 use tauri::{AppHandle, Manager, State};
 use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
 use uuid::Uuid;
 
 #[cfg(target_os = "macos")]
@@ -28,6 +27,7 @@ use crate::codex::args::resolve_workspace_codex_args;
 use crate::codex::home::resolve_workspace_codex_home;
 use crate::git_utils::resolve_git_root;
 use crate::remote_backend;
+use crate::shared::process_core::tokio_command;
 use crate::shared::workspaces_core;
 use crate::state::AppState;
 use crate::storage::write_workspaces;
@@ -633,7 +633,7 @@ pub(crate) async fn apply_worktree_changes(
     }
 
     let git_bin = resolve_git_binary().map_err(|e| format!("Failed to run git: {e}"))?;
-    let mut child = Command::new(git_bin)
+    let mut child = tokio_command(git_bin)
         .args(["apply", "--3way", "--whitespace=nowarn", "-"])
         .current_dir(&parent_root)
         .env("PATH", git_env_path())

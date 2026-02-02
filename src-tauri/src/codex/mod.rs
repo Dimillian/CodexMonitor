@@ -5,7 +5,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, State};
-use tokio::process::Command;
 use tokio::sync::mpsc;
 use tokio::time::timeout;
 
@@ -19,6 +18,7 @@ use crate::backend::app_server::{
     build_codex_command_with_bin, build_codex_path_env, check_codex_installation,
     spawn_workspace_session as spawn_workspace_session_inner,
 };
+use crate::shared::process_core::tokio_command;
 use crate::event_sink::TauriEventSink;
 use crate::remote_backend;
 use crate::shared::codex_core;
@@ -77,7 +77,7 @@ pub(crate) async fn codex_doctor(
         Err(_) => false,
     };
     let (node_ok, node_version, node_details) = {
-        let mut node_command = Command::new("node");
+        let mut node_command = tokio_command("node");
         if let Some(ref path_env) = path_env {
             node_command.env("PATH", path_env);
         }

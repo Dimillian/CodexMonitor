@@ -13,6 +13,7 @@ use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::timeout;
 
 use crate::backend::events::{AppServerEvent, EventSink};
+use crate::shared::process_core::tokio_command;
 use crate::codex::args::apply_codex_args;
 use crate::types::WorkspaceEntry;
 
@@ -138,7 +139,7 @@ pub(crate) fn build_codex_command_with_bin(codex_bin: Option<String>) -> Command
         .clone()
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| "codex".into());
-    let mut command = Command::new(bin);
+    let mut command = tokio_command(bin);
     if let Some(path_env) = build_codex_path_env(codex_bin.as_deref()) {
         command.env("PATH", path_env);
     }
