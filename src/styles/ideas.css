@@ -1,0 +1,17 @@
+.ideas-panel .idea-body {
+  font-size: 12px;
+  color: var(--text-subtle);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+}
+
+.ideas-panel .idea-delete {
+  color: var(--status-error);
+}
+
+.ideas-panel .idea-delete:hover {
+  color: var(--status-error);
+}

@@ -12,7 +12,10 @@ type PendingLaunch = {
 
 type UseWorkspaceLaunchScriptOptions = {
   activeWorkspace: WorkspaceInfo | null;
-  updateWorkspaceSettings: (id: string, settings: WorkspaceSettings) => Promise<WorkspaceInfo>;
+  updateWorkspaceSettings: (
+    id: string,
+    settings: Partial<WorkspaceSettings>,
+  ) => Promise<WorkspaceInfo>;
   openTerminal: () => void;
   ensureLaunchTerminal: (workspaceId: string) => string;
   restartLaunchSession: (workspaceId: string, terminalId: string) => Promise<void>;
@@ -82,7 +85,6 @@ export function useWorkspaceLaunchScript({
     const nextScript = trimmed.length > 0 ? draftScript : null;
     try {
       await updateWorkspaceSettings(activeWorkspace.id, {
-        ...activeWorkspace.settings,
         launchScript: nextScript,
       });
       setEditorOpen(false);

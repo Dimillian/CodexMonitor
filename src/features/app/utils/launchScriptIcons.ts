@@ -1,4 +1,6 @@
 import type { LucideIcon } from "lucide-react";
+import type { LaunchScriptIconId } from "../../../types";
+export type { LaunchScriptIconId } from "../../../types";
 import Play from "lucide-react/dist/esm/icons/play";
 import Hammer from "lucide-react/dist/esm/icons/hammer";
 import Bug from "lucide-react/dist/esm/icons/bug";
@@ -13,23 +15,6 @@ import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import Settings from "lucide-react/dist/esm/icons/settings";
 import Search from "lucide-react/dist/esm/icons/search";
-
-export type LaunchScriptIconId =
-  | "play"
-  | "build"
-  | "debug"
-  | "wrench"
-  | "terminal"
-  | "code"
-  | "server"
-  | "database"
-  | "package"
-  | "test"
-  | "lint"
-  | "dev"
-  | "git"
-  | "config"
-  | "logs";
 
 export const DEFAULT_LAUNCH_SCRIPT_ICON: LaunchScriptIconId = "play";
 
@@ -69,21 +54,31 @@ const ICON_LABELS: Record<LaunchScriptIconId, string> = {
   logs: "Logs",
 };
 
-export const LAUNCH_SCRIPT_ICON_OPTIONS = Object.keys(ICON_MAP).map((id) => ({
-  id: id as LaunchScriptIconId,
-  label: ICON_LABELS[id as LaunchScriptIconId],
-}));
+function isLaunchScriptIconId(value: string): value is LaunchScriptIconId {
+  return value in ICON_MAP;
+}
+
+export function coerceLaunchScriptIconId(value?: string | null): LaunchScriptIconId {
+  if (!value) {
+    return DEFAULT_LAUNCH_SCRIPT_ICON;
+  }
+  return isLaunchScriptIconId(value) ? value : DEFAULT_LAUNCH_SCRIPT_ICON;
+}
+
+export const LAUNCH_SCRIPT_ICON_OPTIONS = Object.keys(ICON_MAP).map((id) => {
+  const iconId = coerceLaunchScriptIconId(id);
+  return {
+    id: iconId,
+    label: ICON_LABELS[iconId],
+  };
+});
 
 export function getLaunchScriptIcon(id?: string | null): LucideIcon {
-  if (!id) {
-    return ICON_MAP[DEFAULT_LAUNCH_SCRIPT_ICON];
-  }
-  return ICON_MAP[id as LaunchScriptIconId] ?? ICON_MAP[DEFAULT_LAUNCH_SCRIPT_ICON];
+  const iconId = coerceLaunchScriptIconId(id);
+  return ICON_MAP[iconId];
 }
 
 export function getLaunchScriptIconLabel(id?: string | null): string {
-  if (!id) {
-    return ICON_LABELS[DEFAULT_LAUNCH_SCRIPT_ICON];
-  }
-  return ICON_LABELS[id as LaunchScriptIconId] ?? ICON_LABELS[DEFAULT_LAUNCH_SCRIPT_ICON];
+  const iconId = coerceLaunchScriptIconId(id);
+  return ICON_LABELS[iconId];
 }

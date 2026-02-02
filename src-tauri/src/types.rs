@@ -270,6 +270,8 @@ pub(crate) struct WorkspaceSettings {
     pub(crate) launch_script: Option<String>,
     #[serde(default, rename = "launchScripts")]
     pub(crate) launch_scripts: Option<Vec<LaunchScriptEntry>>,
+    #[serde(default, rename = "ideas")]
+    pub(crate) ideas: Option<Vec<IdeaEntry>>,
     #[serde(default, rename = "worktreeSetupScript")]
     pub(crate) worktree_setup_script: Option<String>,
 }
@@ -281,6 +283,13 @@ pub(crate) struct LaunchScriptEntry {
     pub(crate) icon: String,
     #[serde(default)]
     pub(crate) label: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct IdeaEntry {
+    pub(crate) id: String,
+    pub(crate) title: String,
+    pub(crate) body: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -419,6 +428,11 @@ pub(crate) struct AppSettings {
     pub(crate) notification_sounds_enabled: bool,
     #[serde(default = "default_preload_git_diffs", rename = "preloadGitDiffs")]
     pub(crate) preload_git_diffs: bool,
+    #[serde(
+        default = "default_system_notifications_enabled",
+        rename = "systemNotificationsEnabled"
+    )]
+    pub(crate) system_notifications_enabled: bool,
     #[serde(
         default = "default_experimental_collab_enabled",
         rename = "experimentalCollabEnabled"
@@ -605,6 +619,10 @@ fn default_notification_sounds_enabled() -> bool {
     true
 }
 
+fn default_system_notifications_enabled() -> bool {
+    true
+}
+
 fn default_preload_git_diffs() -> bool {
     true
 }
@@ -769,6 +787,7 @@ impl Default for AppSettings {
             code_font_family: default_code_font_family(),
             code_font_size: default_code_font_size(),
             notification_sounds_enabled: true,
+            system_notifications_enabled: true,
             preload_git_diffs: default_preload_git_diffs(),
             experimental_collab_enabled: false,
             experimental_collaboration_modes_enabled: false,
@@ -867,6 +886,7 @@ mod tests {
         assert!(settings.code_font_family.contains("SF Mono"));
         assert_eq!(settings.code_font_size, 11);
         assert!(settings.notification_sounds_enabled);
+        assert!(settings.system_notifications_enabled);
         assert!(settings.preload_git_diffs);
         assert!(!settings.experimental_steer_enabled);
         assert!(!settings.dictation_enabled);

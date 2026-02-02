@@ -494,6 +494,10 @@
   flex-wrap: wrap;
 }
 
+.settings-open-app-row.is-incomplete {
+  border-color: color-mix(in srgb, var(--status-error) 45%, var(--border-muted));
+}
+
 .settings-open-app-icon-wrap {
   flex: 0 0 auto;
   width: 24px;
@@ -533,6 +537,20 @@
   gap: 6px;
   margin-left: auto;
   flex: 0 0 auto;
+}
+
+.settings-open-app-status {
+  font-size: 11px;
+  color: var(--status-error);
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--status-error) 40%, transparent);
+  background: color-mix(in srgb, var(--status-error) 12%, transparent);
+}
+
+.settings-open-app-input[data-invalid] {
+  border-color: color-mix(in srgb, var(--status-error) 60%, var(--border-muted));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--status-error) 25%, transparent);
 }
 
 .settings-open-app-default {

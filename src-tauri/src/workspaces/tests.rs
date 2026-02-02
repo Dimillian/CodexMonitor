@@ -47,6 +47,7 @@ fn workspace_with_id_and_kind(
             codex_args: None,
             launch_script: None,
             launch_scripts: None,
+            ideas: None,
             worktree_setup_script: None,
         },
     }

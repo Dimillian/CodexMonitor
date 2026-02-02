@@ -11,6 +11,7 @@ mod git;
 mod git_utils;
 mod local_usage;
 mod menu;
+mod notifications;
 mod prompts;
 mod remote_backend;
 mod rules;
@@ -68,6 +69,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             settings::get_app_settings,
             settings::update_app_settings,
@@ -158,7 +160,9 @@ pub fn run() {
             dictation::dictation_request_permission,
             dictation::dictation_stop,
             dictation::dictation_cancel,
-            local_usage::local_usage_snapshot
+            local_usage::local_usage_snapshot,
+            notifications::is_macos_debug_build,
+            notifications::send_notification_fallback
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application");

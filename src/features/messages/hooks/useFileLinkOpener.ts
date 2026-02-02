@@ -27,6 +27,18 @@ const DEFAULT_OPEN_TARGET: OpenTarget = {
   args: [],
 };
 
+const resolveAppName = (target: OpenTarget) => (target.appName ?? "").trim();
+const resolveCommand = (target: OpenTarget) => (target.command ?? "").trim();
+const canOpenTarget = (target: OpenTarget) => {
+  if (target.kind === "finder") {
+    return true;
+  }
+  if (target.kind === "command") {
+    return Boolean(resolveCommand(target));
+  }
+  return Boolean(resolveAppName(target));
+};
+
 function resolveFilePath(path: string, workspacePath?: string | null) {
   const trimmed = path.trim();
   if (!workspacePath) {
@@ -94,23 +106,27 @@ export function useFileLinkOpener(
       const resolvedPath = resolveFilePath(stripLineSuffix(rawPath), workspacePath);
 
       try {
+        if (!canOpenTarget(target)) {
+          return;
+        }
         if (target.kind === "finder") {
           await revealItemInDir(resolvedPath);
           return;
         }
 
         if (target.kind === "command") {
-          if (!target.command) {
+          const command = resolveCommand(target);
+          if (!command) {
             return;
           }
           await openWorkspaceIn(resolvedPath, {
-            command: target.command,
+            command,
             args: target.args,
           });
           return;
         }
 
-        const appName = (target.appName || target.label || "").trim();
+        const appName = resolveAppName(target);
         if (!appName) {
           return;
         }
@@ -143,18 +159,23 @@ export function useFileLinkOpener(
           openTargets[0]),
       };
       const resolvedPath = resolveFilePath(stripLineSuffix(rawPath), workspacePath);
-      const appName = (target.appName || target.label || "").trim();
+      const appName = resolveAppName(target);
+      const command = resolveCommand(target);
+      const canOpen = canOpenTarget(target);
       const openLabel =
         target.kind === "finder"
           ? revealLabel()
           : target.kind === "command"
-            ? `Open in ${target.label}`
+            ? command
+              ? `Open in ${target.label}`
+              : "Set command in Settings"
             : appName
               ? `Open in ${appName}`
-              : "Open Link";
+              : "Set app name in Settings";
       const items = [
         await MenuItem.new({
           text: openLabel,
+          enabled: canOpen,
           action: async () => {
             await openFileLink(rawPath);
           },

@@ -7,14 +7,38 @@ export type WorkspaceSettings = {
   codexArgs?: string | null;
   launchScript?: string | null;
   launchScripts?: LaunchScriptEntry[] | null;
+  ideas?: IdeaEntry[] | null;
   worktreeSetupScript?: string | null;
 };
+
+export type LaunchScriptIconId =
+  | "play"
+  | "build"
+  | "debug"
+  | "wrench"
+  | "terminal"
+  | "code"
+  | "server"
+  | "database"
+  | "package"
+  | "test"
+  | "lint"
+  | "dev"
+  | "git"
+  | "config"
+  | "logs";
 
 export type LaunchScriptEntry = {
   id: string;
   script: string;
-  icon: string;
+  icon: LaunchScriptIconId;
   label?: string | null;
+};
+
+export type IdeaEntry = {
+  id: string;
+  title: string;
+  body: string;
 };
 
 export type WorkspaceGroup = {
@@ -154,6 +178,7 @@ export type AppSettings = {
   codeFontFamily: string;
   codeFontSize: number;
   notificationSoundsEnabled: boolean;
+  systemNotificationsEnabled: boolean;
   preloadGitDiffs: boolean;
   experimentalCollabEnabled: boolean;
   experimentalCollaborationModesEnabled: boolean;

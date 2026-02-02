@@ -2,21 +2,21 @@ import { useCallback } from "react";
 import type { RefObject } from "react";
 
 type UseComposerInsertArgs = {
-  activeThreadId: string | null;
+  isEnabled: boolean;
   draftText: string;
   onDraftChange: (next: string) => void;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
 };
 
 export function useComposerInsert({
-  activeThreadId,
+  isEnabled,
   draftText,
   onDraftChange,
   textareaRef,
 }: UseComposerInsertArgs) {
   return useCallback(
     (insertText: string) => {
-      if (!activeThreadId) {
+      if (!isEnabled) {
         return;
       }
       const textarea = textareaRef.current;
@@ -46,6 +46,6 @@ export function useComposerInsert({
         node.dispatchEvent(new Event("select", { bubbles: true }));
       });
     },
-    [activeThreadId, draftText, onDraftChange, textareaRef],
+    [isEnabled, draftText, onDraftChange, textareaRef],
   );
 }

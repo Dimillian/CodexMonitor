@@ -17,6 +17,7 @@ import "./styles/diff-viewer.css";
 import "./styles/file-tree.css";
 import "./styles/panel-tabs.css";
 import "./styles/prompts.css";
+import "./styles/ideas.css";
 import "./styles/debug.css";
 import "./styles/terminal.css";
 import "./styles/plan.css";
@@ -92,6 +93,7 @@ import { useCopyThread } from "./features/threads/hooks/useCopyThread";
 import { useTerminalController } from "./features/terminal/hooks/useTerminalController";
 import { useWorkspaceLaunchScript } from "./features/app/hooks/useWorkspaceLaunchScript";
 import { useWorkspaceLaunchScripts } from "./features/app/hooks/useWorkspaceLaunchScripts";
+import { useWorkspaceIdeas } from "./features/ideas/hooks/useWorkspaceIdeas";
 import { useWorktreeSetupScript } from "./features/app/hooks/useWorktreeSetupScript";
 import { useGitCommitController } from "./features/app/hooks/useGitCommitController";
 import { WorkspaceHome } from "./features/workspaces/components/WorkspaceHome";
@@ -254,14 +256,23 @@ function MainApp() {
     closeSettings,
   } = useSettingsModalState();
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const workspaceHomeTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const getWorkspaceName = useCallback(
+    (workspaceId: string) => workspacesById.get(workspaceId)?.name,
+    [workspacesById],
+  );
 
   const {
     updaterState,
     startUpdate,
     dismissUpdate,
     handleTestNotificationSound,
+    handleTestSystemNotification,
   } = useUpdaterController({
     notificationSoundsEnabled: appSettings.notificationSoundsEnabled,
+    systemNotificationsEnabled: appSettings.systemNotificationsEnabled,
+    getWorkspaceName,
     onDebug: addDebugEntry,
     successSoundUrl,
     errorSoundUrl,
@@ -790,6 +801,11 @@ function MainApp() {
     activeTerminalId,
   });
 
+  const ideasState = useWorkspaceIdeas({
+    activeWorkspace,
+    updateWorkspaceSettings,
+  });
+
   const worktreeSetupScriptState = useWorktreeSetupScript({
     ensureTerminalWithTitle,
     restartTerminalSession,
@@ -1054,13 +1070,6 @@ function MainApp() {
     startStatus,
   });
 
-  const handleInsertComposerText = useComposerInsert({
-    activeThreadId,
-    draftText: activeDraft,
-    onDraftChange: handleDraftChange,
-    textareaRef: composerInputRef,
-  });
-
   const {
     runs: workspaceRuns,
     draft: workspacePrompt,
@@ -1084,6 +1093,16 @@ function MainApp() {
     startThreadForWorkspace,
     sendUserMessageToThread,
     onWorktreeCreated: handleWorktreeCreated,
+  });
+
+  const canInsertComposerText = showWorkspaceHome
+    ? Boolean(activeWorkspace)
+    : Boolean(activeThreadId);
+  const handleInsertComposerText = useComposerInsert({
+    isEnabled: canInsertComposerText,
+    draftText: showWorkspaceHome ? workspacePrompt : activeDraft,
+    onDraftChange: showWorkspaceHome ? setWorkspacePrompt : handleDraftChange,
+    textareaRef: showWorkspaceHome ? workspaceHomeTextareaRef : composerInputRef,
   });
   const RECENT_THREAD_LIMIT = 8;
   const { recentThreadInstances, recentThreadsUpdatedAt } = useMemo(() => {
@@ -1847,6 +1866,11 @@ function MainApp() {
     pushError,
     syncError,
     commitsAhead: gitLogAhead,
+    ideas: ideasState.ideas,
+    onCreateIdea: ideasState.createIdea,
+    onUpdateIdea: ideasState.updateIdea,
+    onDeleteIdea: ideasState.deleteIdea,
+    onSendIdea: handleSendPrompt,
     onSendPrompt: handleSendPrompt,
     onSendPromptToNewAgent: handleSendPromptToNewAgent,
     onCreatePrompt: handleCreatePrompt,
@@ -1920,6 +1944,7 @@ function MainApp() {
     prompts,
     files,
     onInsertComposerText: handleInsertComposerText,
+    canInsertComposerText,
     textareaRef: composerInputRef,
     composerEditorSettings,
     composerEditorExpanded,
@@ -2010,6 +2035,7 @@ function MainApp() {
       onDismissDictationHint={clearDictationHint}
       dictationTranscript={dictationTranscript}
       onDictationTranscriptHandled={clearDictationTranscript}
+      textareaRef={workspaceHomeTextareaRef}
       agentMdContent={agentMdContent}
       agentMdExists={agentMdExists}
       agentMdTruncated={agentMdTruncated}
@@ -2160,6 +2186,7 @@ function MainApp() {
           scaleShortcutTitle,
           scaleShortcutText,
           onTestNotificationSound: handleTestNotificationSound,
+          onTestSystemNotification: handleTestSystemNotification,
           dictationModelStatus: dictationModel.status,
           onDownloadDictationModel: dictationModel.download,
           onCancelDictationDownload: dictationModel.cancel,

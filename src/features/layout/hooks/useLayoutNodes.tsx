@@ -12,6 +12,7 @@ import { GitDiffPanel } from "../../git/components/GitDiffPanel";
 import { GitDiffViewer } from "../../git/components/GitDiffViewer";
 import { FileTreePanel } from "../../files/components/FileTreePanel";
 import { PromptPanel } from "../../prompts/components/PromptPanel";
+import { IdeasPanel } from "../../ideas/components/IdeasPanel";
 import { DebugPanel } from "../../debug/components/DebugPanel";
 import { PlanPanel } from "../../plan/components/PlanPanel";
 import { TabBar } from "../../app/components/TabBar";
@@ -28,6 +29,7 @@ import type {
   ConversationItem,
   ComposerEditorSettings,
   CustomPromptOption,
+  IdeaEntry,
   AccountSnapshot,
   DebugEntry,
   DictationSessionState,
@@ -230,8 +232,8 @@ type LayoutNodesOptions = {
   worktreeApplyError: string | null;
   worktreeApplySuccess: boolean;
   onApplyWorktreeChanges?: () => void | Promise<void>;
-  filePanelMode: "git" | "files" | "prompts";
-  onFilePanelModeChange: (mode: "git" | "files" | "prompts") => void;
+  filePanelMode: "git" | "files" | "prompts" | "ideas";
+  onFilePanelModeChange: (mode: "git" | "files" | "prompts" | "ideas") => void;
   fileTreeLoading: boolean;
   gitStatus: {
     branchName: string;
@@ -330,6 +332,11 @@ type LayoutNodesOptions = {
   onRevealWorkspacePrompts: () => void | Promise<void>;
   onRevealGeneralPrompts: () => void | Promise<void>;
   canRevealGeneralPrompts: boolean;
+  ideas: IdeaEntry[];
+  onCreateIdea: (title: string, body: string) => void | Promise<void>;
+  onUpdateIdea: (id: string, title: string, body: string) => void | Promise<void>;
+  onDeleteIdea: (id: string) => void | Promise<void>;
+  onSendIdea: (text: string) => void | Promise<void>;
   onSend: (text: string, images: string[]) => void | Promise<void>;
   onQueue: (text: string, images: string[]) => void | Promise<void>;
   onStop: () => void;
@@ -392,6 +399,7 @@ type LayoutNodesOptions = {
   prompts: CustomPromptOption[];
   files: string[];
   onInsertComposerText: (text: string) => void;
+  canInsertComposerText: boolean;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   composerEditorSettings: ComposerEditorSettings;
   composerEditorExpanded: boolean;
@@ -722,6 +730,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         filePanelMode={options.filePanelMode}
         onFilePanelModeChange={options.onFilePanelModeChange}
         onInsertText={options.onInsertComposerText}
+        canInsertText={options.canInsertComposerText}
         openTargets={options.openAppTargets}
         openAppIconById={options.openAppIconById}
         selectedOpenAppId={options.selectedOpenAppId}
@@ -744,6 +753,18 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         onRevealWorkspacePrompts={options.onRevealWorkspacePrompts}
         onRevealGeneralPrompts={options.onRevealGeneralPrompts}
         canRevealGeneralPrompts={options.canRevealGeneralPrompts}
+      />
+    );
+  } else if (options.filePanelMode === "ideas") {
+    gitDiffPanelNode = (
+      <IdeasPanel
+        ideas={options.ideas}
+        filePanelMode={options.filePanelMode}
+        onFilePanelModeChange={options.onFilePanelModeChange}
+        onSendIdea={options.onSendIdea}
+        onCreateIdea={options.onCreateIdea}
+        onUpdateIdea={options.onUpdateIdea}
+        onDeleteIdea={options.onDeleteIdea}
       />
     );
   } else {

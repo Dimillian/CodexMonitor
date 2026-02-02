@@ -565,7 +565,7 @@ export function MainHeader({
                   draftIcon={launchScriptsState.draftIcon}
                   draftLabel={launchScriptsState.draftLabel}
                   isSaving={launchScriptsState.isSaving}
-                  error={launchScriptsState.errorById[entry.id] ?? null}
+                  error={launchScriptsState.errorById?.[entry.id] ?? null}
                   onRun={() => launchScriptsState.onRunScript(entry.id)}
                   onOpenEditor={() => launchScriptsState.onOpenEditor(entry.id)}
                   onCloseEditor={launchScriptsState.onCloseEditor}

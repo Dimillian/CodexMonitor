@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import Play from "lucide-react/dist/esm/icons/play";
+import type { LaunchScriptIconId } from "../../../types";
 import { LaunchScriptIconPicker } from "./LaunchScriptIconPicker";
+import { DEFAULT_LAUNCH_SCRIPT_ICON } from "../utils/launchScriptIcons";
 
 type LaunchScriptButtonProps = {
   launchScript: string | null;
@@ -16,13 +18,13 @@ type LaunchScriptButtonProps = {
   showNew?: boolean;
   newEditorOpen?: boolean;
   newDraftScript?: string;
-  newDraftIcon?: string;
+  newDraftIcon?: LaunchScriptIconId;
   newDraftLabel?: string;
   newError?: string | null;
   onOpenNew?: () => void;
   onCloseNew?: () => void;
   onNewDraftChange?: (value: string) => void;
-  onNewDraftIconChange?: (value: string) => void;
+  onNewDraftIconChange?: (value: LaunchScriptIconId) => void;
   onNewDraftLabelChange?: (value: string) => void;
   onCreateNew?: () => void;
 };
@@ -41,7 +43,7 @@ export function LaunchScriptButton({
   showNew = false,
   newEditorOpen = false,
   newDraftScript = "",
-  newDraftIcon = "play",
+  newDraftIcon = DEFAULT_LAUNCH_SCRIPT_ICON,
   newDraftLabel = "",
   newError = null,
   onOpenNew,
@@ -70,7 +72,7 @@ export function LaunchScriptButton({
     return () => {
       window.removeEventListener("mousedown", handleClick);
     };
-  }, [editorOpen, onCloseEditor]);
+  }, [editorOpen, onCloseEditor, onCloseNew]);
 
   return (
     <div className="launch-script-menu" ref={popoverRef}>
@@ -137,10 +139,7 @@ export function LaunchScriptButton({
           {showNew && newEditorOpen && onNewDraftChange && onNewDraftIconChange && onCreateNew && (
             <div className="launch-script-new">
               <div className="launch-script-title">New launch script</div>
-              <LaunchScriptIconPicker
-                value={newDraftIcon}
-                onChange={onNewDraftIconChange}
-              />
+              <LaunchScriptIconPicker value={newDraftIcon} onChange={onNewDraftIconChange} />
               <input
                 className="launch-script-input"
                 type="text"

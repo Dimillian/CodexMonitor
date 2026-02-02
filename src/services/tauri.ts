@@ -738,3 +738,50 @@ export async function generateCommitMessage(
 ): Promise<string> {
   return invoke("generate_commit_message", { workspaceId });
 }
+
+export async function sendNotification(
+  title: string,
+  body: string,
+): Promise<void> {
+  const macosDebugBuild = await invoke<boolean>("is_macos_debug_build").catch(
+    () => false,
+  );
+  const attemptFallback = async () => {
+    try {
+      await invoke("send_notification_fallback", { title, body });
+      return true;
+    } catch (error) {
+      console.warn("Notification fallback failed.", { error });
+      return false;
+    }
+  };
+
+  // In dev builds on macOS, the notification plugin can silently fail because
+  // the process is not a bundled app. Prefer the native AppleScript fallback.
+  if (macosDebugBuild) {
+    await attemptFallback();
+    return;
+  }
+
+  try {
+    const notification = await import("@tauri-apps/plugin-notification");
+    let permissionGranted = await notification.isPermissionGranted();
+    if (!permissionGranted) {
+      const permission = await notification.requestPermission();
+      permissionGranted = permission === "granted";
+      if (!permissionGranted) {
+        console.warn("Notification permission not granted.", { permission });
+        await attemptFallback();
+        return;
+      }
+    }
+    if (permissionGranted) {
+      await notification.sendNotification({ title, body });
+      return;
+    }
+  } catch (error) {
+    console.warn("Notification plugin failed.", { error });
+  }
+
+  await attemptFallback();
+}
