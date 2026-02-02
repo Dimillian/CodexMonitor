@@ -6,6 +6,7 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent,
+  type RefObject,
 } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type {
@@ -84,6 +85,7 @@ type WorkspaceHomeProps = {
   onDismissDictationHint: () => void;
   dictationTranscript: DictationTranscript | null;
   onDictationTranscriptHandled: (id: string) => void;
+  textareaRef?: RefObject<HTMLTextAreaElement | null>;
   agentMdContent: string;
   agentMdExists: boolean;
   agentMdTruncated: boolean;
@@ -159,6 +161,7 @@ export function WorkspaceHome({
   onDismissDictationHint,
   dictationTranscript,
   onDictationTranscriptHandled,
+  textareaRef: textareaRefProp,
   agentMdContent,
   agentMdExists,
   agentMdTruncated,
@@ -181,7 +184,8 @@ export function WorkspaceHome({
   const iconSrc = useMemo(() => convertFileSrc(iconPath), [iconPath]);
   const runModeRef = useRef<HTMLDivElement | null>(null);
   const modelsRef = useRef<HTMLDivElement | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const fallbackTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const textareaRef = textareaRefProp ?? fallbackTextareaRef;
   const {
     activeImages,
     attachImages,

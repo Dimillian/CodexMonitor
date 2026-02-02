@@ -52,6 +52,7 @@ const baseSettings: AppSettings = {
     "\"SF Mono\", \"SFMono-Regular\", Menlo, Monaco, monospace",
   codeFontSize: 11,
   notificationSoundsEnabled: true,
+  systemNotificationsEnabled: true,
   preloadGitDiffs: true,
   experimentalCollabEnabled: false,
   experimentalCollaborationModesEnabled: false,
@@ -131,6 +132,7 @@ const renderDisplaySection = (
     scaleShortcutTitle: "Scale shortcut",
     scaleShortcutText: "Use Command +/-",
     onTestNotificationSound: vi.fn(),
+    onTestSystemNotification: vi.fn(),
     dictationModelStatus: null,
     onDownloadDictationModel: vi.fn(),
     onCancelDictationDownload: vi.fn(),
@@ -356,6 +358,7 @@ describe("SettingsView Codex overrides", () => {
         scaleShortcutTitle="Scale shortcut"
         scaleShortcutText="Use Command +/-"
         onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
         dictationModelStatus={null}
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
@@ -403,6 +406,7 @@ describe("SettingsView Shortcuts", () => {
         scaleShortcutTitle="Scale shortcut"
         scaleShortcutText="Use Command +/-"
         onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
         dictationModelStatus={null}
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
@@ -443,6 +447,7 @@ describe("SettingsView Shortcuts", () => {
         scaleShortcutTitle="Scale shortcut"
         scaleShortcutText="Use Command +/-"
         onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
         dictationModelStatus={null}
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}

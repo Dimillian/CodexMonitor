@@ -392,6 +392,7 @@ type LayoutNodesOptions = {
   prompts: CustomPromptOption[];
   files: string[];
   onInsertComposerText: (text: string) => void;
+  canInsertComposerText: boolean;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   composerEditorSettings: ComposerEditorSettings;
   composerEditorExpanded: boolean;
@@ -722,6 +723,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         filePanelMode={options.filePanelMode}
         onFilePanelModeChange={options.onFilePanelModeChange}
         onInsertText={options.onInsertComposerText}
+        canInsertText={options.canInsertComposerText}
         openTargets={options.openAppTargets}
         openAppIconById={options.openAppIconById}
         selectedOpenAppId={options.selectedOpenAppId}

@@ -12,6 +12,7 @@
     "updater:default",
     "window-state:default",
     "liquid-glass:default",
+    "notification:default",
     "core:window:allow-set-effects",
     "core:window:allow-start-dragging"
   ]

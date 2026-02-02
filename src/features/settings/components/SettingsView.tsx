@@ -162,6 +162,7 @@ export type SettingsViewProps = {
   scaleShortcutTitle: string;
   scaleShortcutText: string;
   onTestNotificationSound: () => void;
+  onTestSystemNotification: () => void;
   dictationModelStatus?: DictationModelStatus | null;
   onDownloadDictationModel?: () => void;
   onCancelDictationDownload?: () => void;
@@ -273,6 +274,7 @@ export function SettingsView({
   scaleShortcutTitle,
   scaleShortcutText,
   onTestNotificationSound,
+  onTestSystemNotification,
   dictationModelStatus,
   onDownloadDictationModel,
   onCancelDictationDownload,
@@ -1528,6 +1530,27 @@ export function SettingsView({
                     <span className="settings-toggle-knob" />
                   </button>
                 </div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">System notifications</div>
+                    <div className="settings-toggle-subtitle">
+                      Show a macOS notification when a long-running agent finishes while the window is unfocused.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.systemNotificationsEnabled ? "on" : ""}`}
+                    onClick={() =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        systemNotificationsEnabled: !appSettings.systemNotificationsEnabled,
+                      })
+                    }
+                    aria-pressed={appSettings.systemNotificationsEnabled}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
                 <div className="settings-sound-actions">
                   <button
                     type="button"
@@ -1535,6 +1558,13 @@ export function SettingsView({
                     onClick={onTestNotificationSound}
                   >
                     Test sound
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost settings-button-compact"
+                    onClick={onTestSystemNotification}
+                  >
+                    Test notification
                   </button>
                 </div>
               </section>

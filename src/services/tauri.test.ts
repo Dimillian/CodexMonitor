@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
+import * as notification from "@tauri-apps/plugin-notification";
 import {
   addWorkspace,
   forkThread,
@@ -17,6 +18,7 @@ import {
   respondToServerRequest,
   respondToUserInputRequest,
   sendUserMessage,
+  sendNotification,
   startReview,
   writeGlobalAgentsMd,
   writeGlobalCodexConfigToml,
@@ -25,6 +27,12 @@ import {
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
+}));
+
+vi.mock("@tauri-apps/plugin-notification", () => ({
+  isPermissionGranted: vi.fn(),
+  requestPermission: vi.fn(),
+  sendNotification: vi.fn(),
 }));
 
 describe("tauri invoke wrappers", () => {
@@ -331,5 +339,58 @@ describe("tauri invoke wrappers", () => {
         answers,
       },
     });
+  });
+
+  it("sends a notification without re-requesting permission when already granted", async () => {
+    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
+    const requestPermissionMock = vi.mocked(notification.requestPermission);
+    const sendNotificationMock = vi.mocked(notification.sendNotification);
+    isPermissionGrantedMock.mockResolvedValueOnce(true);
+
+    await sendNotification("Hello", "World");
+
+    expect(isPermissionGrantedMock).toHaveBeenCalledTimes(1);
+    expect(requestPermissionMock).not.toHaveBeenCalled();
+    expect(sendNotificationMock).toHaveBeenCalledWith({
+      title: "Hello",
+      body: "World",
+    });
+  });
+
+  it("requests permission once when needed and sends on grant", async () => {
+    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
+    const requestPermissionMock = vi.mocked(notification.requestPermission);
+    const sendNotificationMock = vi.mocked(notification.sendNotification);
+    isPermissionGrantedMock.mockResolvedValueOnce(false);
+    requestPermissionMock.mockResolvedValueOnce("granted");
+
+    await sendNotification("Grant", "Please");
+
+    expect(isPermissionGrantedMock).toHaveBeenCalledTimes(1);
+    expect(requestPermissionMock).toHaveBeenCalledTimes(1);
+    expect(sendNotificationMock).toHaveBeenCalledWith({
+      title: "Grant",
+      body: "Please",
+    });
+  });
+
+  it("does not send and warns when permission is denied", async () => {
+    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
+    const requestPermissionMock = vi.mocked(notification.requestPermission);
+    const sendNotificationMock = vi.mocked(notification.sendNotification);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    isPermissionGrantedMock.mockResolvedValueOnce(false);
+    requestPermissionMock.mockResolvedValueOnce("denied");
+
+    await sendNotification("Denied", "Nope");
+
+    expect(isPermissionGrantedMock).toHaveBeenCalledTimes(1);
+    expect(requestPermissionMock).toHaveBeenCalledTimes(1);
+    expect(sendNotificationMock).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Notification permission not granted.",
+      { permission: "denied" },
+    );
+    warnSpy.mockRestore();
   });
 });
