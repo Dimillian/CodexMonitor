@@ -23,8 +23,8 @@ Source of truth for requirements: `SPEC.md`.
 
 ### 4) Dictation on Windows (required)
 
-- [ ] Enable Whisper dictation on Windows (`whisper-rs` + `cpal`) by removing the Windows stub.
-- [ ] Update Windows build checks (`doctor:win`) to require LLVM/Clang + CMake.
+- [x] Enable Whisper dictation on Windows (`whisper-rs` + `cpal`) by removing the Windows stub.
+- [x] Update Windows build checks (`doctor:win`) to require LLVM/Clang + CMake.
 
 ### 5) CI (required)
 

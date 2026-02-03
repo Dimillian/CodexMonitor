@@ -11,6 +11,7 @@ function hasCommand(command) {
 
 const missing = [];
 if (!hasCommand("cmake")) missing.push("cmake");
+if (process.platform === "win32" && !hasCommand("clang")) missing.push("llvm");
 
 if (missing.length === 0) {
   console.log("Doctor: OK");
@@ -29,8 +30,9 @@ switch (process.platform) {
     console.log("Arch: sudo pacman -S cmake");
     break;
   case "win32":
-    console.log("Install: choco install cmake");
+    console.log("Install: choco install cmake llvm");
     console.log("Or download from: https://cmake.org/download/");
+    console.log("If bindgen fails, set LIBCLANG_PATH to your LLVM bin directory.");
     break;
   default:
     console.log("Install CMake from: https://cmake.org/download/");
@@ -38,4 +40,3 @@ switch (process.platform) {
 }
 
 process.exit(strict ? 1 : 0);
-
