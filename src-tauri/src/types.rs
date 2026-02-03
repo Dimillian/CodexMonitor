@@ -711,50 +711,109 @@ fn default_workspace_groups() -> Vec<WorkspaceGroup> {
 }
 
 fn default_open_app_targets() -> Vec<OpenAppTarget> {
+    if cfg!(target_os = "macos") {
+        return vec![
+            OpenAppTarget {
+                id: "vscode".to_string(),
+                label: "VS Code".to_string(),
+                kind: "app".to_string(),
+                app_name: Some("Visual Studio Code".to_string()),
+                command: None,
+                args: Vec::new(),
+            },
+            OpenAppTarget {
+                id: "cursor".to_string(),
+                label: "Cursor".to_string(),
+                kind: "app".to_string(),
+                app_name: Some("Cursor".to_string()),
+                command: None,
+                args: Vec::new(),
+            },
+            OpenAppTarget {
+                id: "zed".to_string(),
+                label: "Zed".to_string(),
+                kind: "app".to_string(),
+                app_name: Some("Zed".to_string()),
+                command: None,
+                args: Vec::new(),
+            },
+            OpenAppTarget {
+                id: "ghostty".to_string(),
+                label: "Ghostty".to_string(),
+                kind: "app".to_string(),
+                app_name: Some("Ghostty".to_string()),
+                command: None,
+                args: Vec::new(),
+            },
+            OpenAppTarget {
+                id: "antigravity".to_string(),
+                label: "Antigravity".to_string(),
+                kind: "app".to_string(),
+                app_name: Some("Antigravity".to_string()),
+                command: None,
+                args: Vec::new(),
+            },
+            OpenAppTarget {
+                id: "finder".to_string(),
+                label: "Finder".to_string(),
+                kind: "finder".to_string(),
+                app_name: None,
+                command: None,
+                args: Vec::new(),
+            },
+        ];
+    }
+
+    let file_manager_label = if cfg!(windows) {
+        "Explorer"
+    } else {
+        "File Manager"
+    };
+
     vec![
         OpenAppTarget {
             id: "vscode".to_string(),
             label: "VS Code".to_string(),
-            kind: "app".to_string(),
-            app_name: Some("Visual Studio Code".to_string()),
-            command: None,
+            kind: "command".to_string(),
+            app_name: None,
+            command: Some("code".to_string()),
             args: Vec::new(),
         },
         OpenAppTarget {
             id: "cursor".to_string(),
             label: "Cursor".to_string(),
-            kind: "app".to_string(),
-            app_name: Some("Cursor".to_string()),
-            command: None,
+            kind: "command".to_string(),
+            app_name: None,
+            command: Some("cursor".to_string()),
             args: Vec::new(),
         },
         OpenAppTarget {
             id: "zed".to_string(),
             label: "Zed".to_string(),
-            kind: "app".to_string(),
-            app_name: Some("Zed".to_string()),
-            command: None,
+            kind: "command".to_string(),
+            app_name: None,
+            command: Some("zed".to_string()),
             args: Vec::new(),
         },
         OpenAppTarget {
             id: "ghostty".to_string(),
             label: "Ghostty".to_string(),
-            kind: "app".to_string(),
-            app_name: Some("Ghostty".to_string()),
-            command: None,
+            kind: "command".to_string(),
+            app_name: None,
+            command: Some("ghostty".to_string()),
             args: Vec::new(),
         },
         OpenAppTarget {
             id: "antigravity".to_string(),
             label: "Antigravity".to_string(),
-            kind: "app".to_string(),
-            app_name: Some("Antigravity".to_string()),
-            command: None,
+            kind: "command".to_string(),
+            app_name: None,
+            command: Some("antigravity".to_string()),
             args: Vec::new(),
         },
         OpenAppTarget {
             id: "finder".to_string(),
-            label: "Finder".to_string(),
+            label: file_manager_label.to_string(),
             kind: "finder".to_string(),
             app_name: None,
             command: None,
@@ -764,7 +823,11 @@ fn default_open_app_targets() -> Vec<OpenAppTarget> {
 }
 
 fn default_selected_open_app_id() -> String {
-    "vscode".to_string()
+    if cfg!(windows) {
+        "finder".to_string()
+    } else {
+        "vscode".to_string()
+    }
 }
 
 impl Default for AppSettings {

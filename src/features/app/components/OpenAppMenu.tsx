@@ -62,9 +62,14 @@ export function OpenAppMenu({
 
   const fallbackTarget: OpenTarget = {
     id: DEFAULT_OPEN_APP_ID,
-    label: DEFAULT_OPEN_APP_TARGETS[0]?.label ?? "Open",
+    label:
+      DEFAULT_OPEN_APP_TARGETS.find((target) => target.id === DEFAULT_OPEN_APP_ID)
+        ?.label ??
+      DEFAULT_OPEN_APP_TARGETS[0]?.label ??
+      "Open",
     icon: getKnownOpenAppIcon(DEFAULT_OPEN_APP_ID) ?? GENERIC_APP_ICON,
     target:
+      DEFAULT_OPEN_APP_TARGETS.find((target) => target.id === DEFAULT_OPEN_APP_ID) ??
       DEFAULT_OPEN_APP_TARGETS[0] ?? {
         id: DEFAULT_OPEN_APP_ID,
         label: "VS Code",

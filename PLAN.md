@@ -20,6 +20,7 @@ Source of truth for requirements: `SPEC.md`.
 - [x] Make “Reveal in Finder” platform-aware (Explorer on Windows).
 - [x] Fix path joining in the frontend so Windows absolute/relative paths behave.
 - [x] Make backend `open_workspace_in` work cross-platform (macOS/Windows/Linux).
+- [x] Make default “Open in” targets sensible on Windows (Explorer + command-based editors).
 
 ### 4) Dictation on Windows (required)
 

@@ -17,6 +17,14 @@ function platformKind(): PlatformKind {
   return "unknown";
 }
 
+export function isMacPlatform(): boolean {
+  return platformKind() === "mac";
+}
+
+export function isWindowsPlatform(): boolean {
+  return platformKind() === "windows";
+}
+
 export function fileManagerName(): string {
   const platform = platformKind();
   if (platform === "mac") {
