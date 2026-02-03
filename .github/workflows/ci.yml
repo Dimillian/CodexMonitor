@@ -108,8 +108,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Install LLVM (bindgen)
         run: choco install llvm -y --no-progress
-      - name: Set LIBCLANG_PATH
-        run: echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_ENV
+      - name: Configure LLVM (bindgen)
+        run: |
+          echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_ENV
+          echo "C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_PATH
       - name: Install dependencies
         run: npm ci
       - name: Doctor (Windows)
