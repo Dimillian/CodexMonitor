@@ -84,54 +84,68 @@ impl WorkspaceSession {
 }
 
 pub(crate) fn build_codex_path_env(codex_bin: Option<&str>) -> Option<String> {
-    let mut paths: Vec<String> = env::var("PATH")
-        .unwrap_or_default()
-        .split(':')
-        .filter(|value| !value.is_empty())
-        .map(|value| value.to_string())
-        .collect();
-    let mut extras = vec![
-        "/opt/homebrew/bin",
-        "/usr/local/bin",
-        "/usr/bin",
-        "/bin",
-        "/usr/sbin",
-        "/sbin",
-    ]
-    .into_iter()
-    .map(|value| value.to_string())
-    .collect::<Vec<String>>();
-    if let Ok(home) = env::var("HOME") {
-        extras.push(format!("{home}/.local/bin"));
-        extras.push(format!("{home}/.local/share/mise/shims"));
-        extras.push(format!("{home}/.cargo/bin"));
-        extras.push(format!("{home}/.bun/bin"));
-        let nvm_root = Path::new(&home).join(".nvm/versions/node");
-        if let Ok(entries) = std::fs::read_dir(nvm_root) {
-            for entry in entries.flatten() {
-                let bin_path = entry.path().join("bin");
-                if bin_path.is_dir() {
-                    extras.push(bin_path.to_string_lossy().to_string());
+    let mut paths: Vec<PathBuf> = env::var_os("PATH")
+        .map(|value| env::split_paths(&value).collect())
+        .unwrap_or_default();
+
+    let mut extras: Vec<PathBuf> = Vec::new();
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        extras.extend([
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            "/usr/bin",
+            "/bin",
+            "/usr/sbin",
+            "/sbin",
+        ].into_iter().map(PathBuf::from));
+
+        if let Ok(home) = env::var("HOME") {
+            let home_path = Path::new(&home);
+            extras.push(home_path.join(".local/bin"));
+            extras.push(home_path.join(".local/share/mise/shims"));
+            extras.push(home_path.join(".cargo/bin"));
+            extras.push(home_path.join(".bun/bin"));
+            let nvm_root = home_path.join(".nvm/versions/node");
+            if let Ok(entries) = std::fs::read_dir(nvm_root) {
+                for entry in entries.flatten() {
+                    let bin_path = entry.path().join("bin");
+                    if bin_path.is_dir() {
+                        extras.push(bin_path);
+                    }
                 }
             }
         }
     }
-    if let Some(bin_path) = codex_bin.filter(|value| !value.trim().is_empty()) {
-        let parent = Path::new(bin_path).parent();
-        if let Some(parent) = parent {
-            extras.push(parent.to_string_lossy().to_string());
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(home) = env::var("USERPROFILE").or_else(|_| env::var("HOME")) {
+            let home_path = Path::new(&home);
+            extras.push(home_path.join(".cargo").join("bin"));
         }
     }
+
+    if let Some(bin_path) = codex_bin.filter(|value| !value.trim().is_empty()) {
+        if let Some(parent) = Path::new(bin_path).parent() {
+            extras.push(parent.to_path_buf());
+        }
+    }
+
     for extra in extras {
-        if !paths.contains(&extra) {
+        if !paths.iter().any(|path| path == &extra) {
             paths.push(extra);
         }
     }
+
     if paths.is_empty() {
-        None
-    } else {
-        Some(paths.join(":"))
+        return None;
     }
+
+    env::join_paths(paths)
+        .ok()
+        .map(|joined| joined.to_string_lossy().to_string())
 }
 
 pub(crate) fn build_codex_command_with_bin(codex_bin: Option<String>) -> Command {
