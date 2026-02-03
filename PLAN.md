@@ -32,9 +32,9 @@ Source of truth for requirements: `SPEC.md`.
 
 ### 6) Release + updater (required)
 
-- [ ] Enable Windows updater artifacts in `src-tauri/tauri.windows.conf.json`.
-- [ ] Add a Windows release build job to `.github/workflows/release.yml`.
-- [ ] Extend `latest.json` generation to include Windows URL + signature.
+- [x] Enable Windows updater artifacts in `src-tauri/tauri.windows.conf.json`.
+- [x] Add a Windows release build job to `.github/workflows/release.yml`.
+- [x] Extend `latest.json` generation to include Windows URL + signature.
 
 ## Validation (run after each step)
 

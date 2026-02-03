@@ -17,6 +17,6 @@
     ]
   },
   "bundle": {
-    "createUpdaterArtifacts": false
+    "createUpdaterArtifacts": true
   }
 }
