@@ -25,7 +25,12 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import { formatDownloadSize } from "../../../utils/formatting";
-import { fileManagerName, openInFileManagerLabel } from "../../../utils/platformPaths";
+import {
+  fileManagerName,
+  isMacPlatform,
+  isWindowsPlatform,
+  openInFileManagerLabel,
+} from "../../../utils/platformPaths";
 import {
   buildShortcutValue,
   formatShortcut,
@@ -426,6 +431,12 @@ export function SettingsView({
   const globalConfigSaveLabel = globalConfigExists ? "Save" : "Create";
   const globalConfigSaveDisabled = globalConfigLoading || globalConfigSaving || !globalConfigDirty;
   const globalConfigRefreshDisabled = globalConfigLoading || globalConfigSaving;
+  const optionKeyLabel = isMacPlatform() ? "Option" : "Alt";
+  const metaKeyLabel = isMacPlatform()
+    ? "Command"
+    : isWindowsPlatform()
+      ? "Windows"
+      : "Meta";
   const selectedDictationModel = useMemo(() => {
     return (
       DICTATION_MODELS.find(
@@ -1731,7 +1742,7 @@ export function SettingsView({
                   <div>
                     <div className="settings-toggle-title">Copy blocks without fences</div>
                     <div className="settings-toggle-subtitle">
-                      When enabled, Copy is plain text. Hold Option to include ``` fences.
+                      When enabled, Copy is plain text. Hold {optionKeyLabel} to include ``` fences.
                     </div>
                   </div>
                   <button
@@ -1942,10 +1953,10 @@ export function SettingsView({
                     }
                   >
                     <option value="">Off</option>
-                    <option value="alt">Option / Alt</option>
+                    <option value="alt">{optionKeyLabel}</option>
                     <option value="shift">Shift</option>
                     <option value="control">Control</option>
-                    <option value="meta">Command / Meta</option>
+                    <option value="meta">{metaKeyLabel}</option>
                   </select>
                   <div className="settings-help">
                     Hold the key to start dictation, release to stop and process.

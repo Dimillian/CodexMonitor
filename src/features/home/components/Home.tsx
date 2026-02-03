@@ -1,3 +1,4 @@
+import FolderOpen from "lucide-react/dist/esm/icons/folder-open";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import type { LocalUsageSnapshot } from "../../../types";
 import { formatRelativeTime } from "../../../utils/time";
@@ -243,7 +244,7 @@ export function Home({
           data-tauri-drag-region="false"
         >
           <span className="home-icon" aria-hidden>
-            ⌘
+            <FolderOpen size={18} />
           </span>
           Open Project
         </button>

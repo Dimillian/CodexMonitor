@@ -286,6 +286,11 @@
   font-size: 12px;
 }
 
+.settings-select option {
+  background-color: var(--surface-popover);
+  color: var(--text-strong);
+}
+
 .settings-select--compact {
   padding: 6px 8px;
   font-size: 11px;
