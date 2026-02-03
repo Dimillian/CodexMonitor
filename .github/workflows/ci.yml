@@ -92,3 +92,27 @@ jobs:
         run: npm ci
       - name: Tauri debug build
         run: npm run tauri -- build --debug --no-bundle
+
+  build-windows:
+    runs-on: windows-latest
+    needs:
+      - lint
+      - typecheck
+      - test-js
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install LLVM (bindgen)
+        run: choco install llvm -y --no-progress
+      - name: Set LIBCLANG_PATH
+        run: echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_ENV
+      - name: Install dependencies
+        run: npm ci
+      - name: Doctor (Windows)
+        run: npm run doctor:win
+      - name: Tauri debug build (Windows)
+        run: npm run tauri -- build --debug --no-bundle --config src-tauri/tauri.windows.conf.json

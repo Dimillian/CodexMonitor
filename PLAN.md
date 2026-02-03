@@ -28,7 +28,7 @@ Source of truth for requirements: `SPEC.md`.
 
 ### 5) CI (required)
 
-- [ ] Add a Windows CI job that runs a Tauri debug build with `src-tauri/tauri.windows.conf.json`.
+- [x] Add a Windows CI job that runs a Tauri debug build with `src-tauri/tauri.windows.conf.json`.
 
 ### 6) Release + updater (required)
 
