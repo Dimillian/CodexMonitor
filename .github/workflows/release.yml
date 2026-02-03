@@ -100,7 +100,7 @@ jobs:
         run: |
           set -euo pipefail
           ditto -c -k --keepParent \
-            src-tauri/target/release/bundle/macos/CodexMonitor.app \
+            "src-tauri/target/release/bundle/macos/Codex Monitor.app" \
             CodexMonitor.zip
 
           xcrun notarytool submit CodexMonitor.zip \
@@ -108,7 +108,7 @@ jobs:
             --wait
 
           xcrun stapler staple \
-            src-tauri/target/release/bundle/macos/CodexMonitor.app
+            "src-tauri/target/release/bundle/macos/Codex Monitor.app"
 
       - name: Package artifacts
         run: |
@@ -123,31 +123,31 @@ jobs:
           )
 
           mkdir -p release-artifacts release-artifacts/dmg-root
-          rm -rf release-artifacts/dmg-root/CodexMonitor.app
-          ditto src-tauri/target/release/bundle/macos/CodexMonitor.app \
-            release-artifacts/dmg-root/CodexMonitor.app
+          rm -rf "release-artifacts/dmg-root/Codex Monitor.app"
+          ditto "src-tauri/target/release/bundle/macos/Codex Monitor.app" \
+            "release-artifacts/dmg-root/Codex Monitor.app"
 
           ditto -c -k --keepParent \
-            src-tauri/target/release/bundle/macos/CodexMonitor.app \
+            "src-tauri/target/release/bundle/macos/Codex Monitor.app" \
             release-artifacts/CodexMonitor.zip
 
-          hdiutil create -volname "CodexMonitor" \
+          hdiutil create -volname "Codex Monitor" \
             -srcfolder release-artifacts/dmg-root \
             -ov -format UDZO \
             release-artifacts/CodexMonitor_${VERSION}_aarch64.dmg
 
           COPYFILE_DISABLE=1 tar -czf \
-            src-tauri/target/release/bundle/macos/CodexMonitor.app.tar.gz \
-            -C src-tauri/target/release/bundle/macos CodexMonitor.app
+            "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz" \
+            -C src-tauri/target/release/bundle/macos "Codex Monitor.app"
 
           npm run tauri signer sign -- \
             -f "$HOME/.tauri/codexmonitor.key" \
             -p "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" \
-            src-tauri/target/release/bundle/macos/CodexMonitor.app.tar.gz
+            "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz"
 
-          cp src-tauri/target/release/bundle/macos/CodexMonitor.app.tar.gz \
+          cp "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz" \
             release-artifacts/CodexMonitor.app.tar.gz
-          cp src-tauri/target/release/bundle/macos/CodexMonitor.app.tar.gz.sig \
+          cp "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz.sig" \
             release-artifacts/CodexMonitor.app.tar.gz.sig
 
       - name: Upload macOS artifacts
