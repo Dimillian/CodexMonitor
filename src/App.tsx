@@ -49,7 +49,7 @@ import { useCollaborationModeSelection } from "./features/collaboration/hooks/us
 import { useSkills } from "./features/skills/hooks/useSkills";
 import { useApps } from "./features/apps/hooks/useApps";
 import { useCustomPrompts } from "./features/prompts/hooks/useCustomPrompts";
-import { useWorkspaceFiles } from "./features/workspaces/hooks/useWorkspaceFiles";
+import { useWorkspaceFileListing } from "./features/app/hooks/useWorkspaceFileListing";
 import { useGitBranches } from "./features/git/hooks/useGitBranches";
 import { useDebugLog } from "./features/debug/hooks/useDebugLog";
 import { useWorkspaceRefreshOnFocus } from "./features/workspaces/hooks/useWorkspaceRefreshOnFocus";
@@ -462,10 +462,6 @@ function MainApp() {
     getWorkspacePromptsDir,
     getGlobalPromptsDir,
   } = useCustomPrompts({ activeWorkspace, onDebug: addDebugEntry });
-  const { files, isLoading: isFilesLoading } = useWorkspaceFiles({
-    activeWorkspace,
-    onDebug: addDebugEntry,
-  });
   const { branches, checkoutBranch, createBranch } = useGitBranches({
     activeWorkspace,
     onDebug: addDebugEntry
@@ -1005,6 +1001,22 @@ function MainApp() {
   );
   const showHome = !activeWorkspace;
   const showWorkspaceHome = Boolean(activeWorkspace && !activeThreadId && !isNewAgentDraftMode);
+  const showComposer = (!isCompact
+    ? centerMode === "chat" || centerMode === "diff"
+    : (isTablet ? tabletTab : activeTab) === "codex") && !showWorkspaceHome;
+  const { files, isLoading: isFilesLoading, setFileAutocompleteActive } =
+    useWorkspaceFileListing({
+      activeWorkspace,
+      activeWorkspaceId,
+      filePanelMode,
+      isCompact,
+      isTablet,
+      activeTab,
+      tabletTab,
+      rightPanelCollapsed,
+      hasComposerSurface: showComposer || showWorkspaceHome,
+      onDebug: addDebugEntry,
+    });
   const [usageMetric, setUsageMetric] = useState<"tokens" | "time">("tokens");
   const [usageWorkspaceId, setUsageWorkspaceId] = useState<string | null>(null);
   const usageWorkspaceOptions = useMemo(
@@ -1173,9 +1185,11 @@ function MainApp() {
     commitMessageLoading,
     commitMessageError,
     commitLoading,
+    pullLoading,
     pushLoading,
     syncLoading,
     commitError,
+    pullError,
     pushError,
     syncError,
     onCommitMessageChange: handleCommitMessageChange,
@@ -1183,6 +1197,7 @@ function MainApp() {
     onCommit: handleCommit,
     onCommitAndPush: handleCommitAndPush,
     onCommitAndSync: handleCommitAndSync,
+    onPull: handlePull,
     onPush: handlePush,
     onSync: handleSync,
   } = useGitCommitController({
@@ -1572,9 +1587,6 @@ function MainApp() {
     );
   };
 
-  const showComposer = (!isCompact
-    ? centerMode === "chat" || centerMode === "diff"
-    : (isTablet ? tabletTab : activeTab) === "codex") && !showWorkspaceHome;
   const showGitDetail = Boolean(selectedDiffPath) && isPhone;
   const isThreadOpen = Boolean(activeThreadId && showComposer);
 
@@ -1920,12 +1932,15 @@ function MainApp() {
     onCommit: handleCommit,
     onCommitAndPush: handleCommitAndPush,
     onCommitAndSync: handleCommitAndSync,
+    onPull: handlePull,
     onPush: handlePush,
     onSync: handleSync,
     commitLoading,
+    pullLoading,
     pushLoading,
     syncLoading,
     commitError,
+    pullError,
     pushError,
     syncError,
     commitsAhead: gitLogAhead,
@@ -1942,6 +1957,7 @@ function MainApp() {
     onQueue: handleComposerQueueWithDraftStart,
     onStop: interruptTurn,
     canStop: canInterrupt,
+    onFileAutocompleteActiveChange: setFileAutocompleteActive,
     isReviewing,
     isProcessing,
     steerEnabled: appSettings.experimentalSteerEnabled,
@@ -2086,6 +2102,7 @@ function MainApp() {
       apps={apps}
       prompts={prompts}
       files={files}
+      onFileAutocompleteActiveChange={setFileAutocompleteActive}
       dictationEnabled={appSettings.dictationEnabled && dictationReady}
       dictationState={dictationState}
       dictationLevel={dictationLevel}

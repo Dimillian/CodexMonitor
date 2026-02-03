@@ -330,10 +330,29 @@
   gap: 6px;
 }
 
+.sidebar-error-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
 .sidebar-error .diff-error,
 .sidebar-error .commit-message-error {
-  flex: 1;
   min-width: 0;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.sidebar-error-action {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 8px;
 }
 
 .sidebar-error-dismiss {

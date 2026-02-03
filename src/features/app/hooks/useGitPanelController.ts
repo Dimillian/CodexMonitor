@@ -108,7 +108,8 @@ export function useGitPanelController({
   const shouldLoadDiffs =
     Boolean(activeWorkspace) &&
     (diffSource === "local" ? shouldLoadLocalDiffs : diffUiVisible);
-  const shouldLoadGitLog = gitPanelMode === "log" && Boolean(activeWorkspace);
+  const shouldLoadGitLog =
+    Boolean(activeWorkspace) && (gitPanelMode === "log" || diffUiVisible);
 
   const {
     diffs: gitDiffs,

@@ -182,6 +182,50 @@ async fn push_with_upstream(repo_root: &Path) -> Result<(), String> {
     run_git_command(repo_root, &["push"]).await
 }
 
+async fn pull_with_default_strategy(repo_root: &Path) -> Result<(), String> {
+    fn autostash_unsupported(lower: &str) -> bool {
+        lower.contains("unknown option") && lower.contains("autostash")
+    }
+
+    fn needs_reconcile_strategy(lower: &str) -> bool {
+        lower.contains("need to specify how to reconcile divergent branches")
+            || lower.contains("you have divergent branches")
+    }
+
+    // Respect user/repo git config first, while still allowing dirty worktrees.
+    match run_git_command(repo_root, &["pull", "--autostash"]).await {
+        Ok(()) => Ok(()),
+        Err(err) => {
+            let lower = err.to_lowercase();
+            if autostash_unsupported(&lower) {
+                match run_git_command(repo_root, &["pull"]).await {
+                    Ok(()) => Ok(()),
+                    Err(no_autostash_err) => {
+                        let no_autostash_lower = no_autostash_err.to_lowercase();
+                        if needs_reconcile_strategy(&no_autostash_lower) {
+                            return run_git_command(repo_root, &["pull", "--no-rebase"]).await;
+                        }
+                        Err(no_autostash_err)
+                    }
+                }
+            } else if needs_reconcile_strategy(&lower) {
+                match run_git_command(repo_root, &["pull", "--no-rebase", "--autostash"]).await {
+                    Ok(()) => Ok(()),
+                    Err(merge_err) => {
+                        let merge_lower = merge_err.to_lowercase();
+                        if autostash_unsupported(&merge_lower) {
+                            return run_git_command(repo_root, &["pull", "--no-rebase"]).await;
+                        }
+                        Err(merge_err)
+                    }
+                }
+            } else {
+                Err(err)
+            }
+        }
+    }
+}
+
 fn status_for_index(status: Status) -> Option<&'static str> {
     if status.contains(Status::INDEX_NEW) {
         Some("A")
@@ -689,7 +733,7 @@ pub(crate) async fn pull_git(
         .clone();
 
     let repo_root = resolve_git_root(&entry)?;
-    run_git_command(&repo_root, &["pull"]).await
+    pull_with_default_strategy(&repo_root).await
 }
 
 #[tauri::command]
@@ -705,7 +749,7 @@ pub(crate) async fn sync_git(
 
     let repo_root = resolve_git_root(&entry)?;
     // Pull first, then push (like VSCode sync)
-    run_git_command(&repo_root, &["pull"]).await?;
+    pull_with_default_strategy(&repo_root).await?;
     push_with_upstream(&repo_root).await
 }
 

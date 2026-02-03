@@ -108,6 +108,7 @@ type ComposerProps = {
   onReviewPromptConfirmCommit?: () => Promise<void>;
   onReviewPromptUpdateCustomInstructions?: (value: string) => void;
   onReviewPromptConfirmCustom?: () => Promise<void>;
+  onFileAutocompleteActiveChange?: (active: boolean) => void;
 };
 
 const DEFAULT_EDITOR_SETTINGS: ComposerEditorSettings = {
@@ -196,6 +197,7 @@ export function Composer({
   onReviewPromptConfirmCommit,
   onReviewPromptUpdateCustomInstructions,
   onReviewPromptConfirmCustom,
+  onFileAutocompleteActiveChange,
 }: ComposerProps) {
   const [text, setText] = useState(draftText);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
@@ -235,6 +237,7 @@ export function Composer({
     handleInputKeyDown,
     handleTextChange,
     handleSelectionChange,
+    fileTriggerActive,
   } = useComposerAutocompleteState({
     text,
     selectionStart,
@@ -248,6 +251,9 @@ export function Composer({
     setText: setComposerText,
     setSelectionStart,
   });
+  useEffect(() => {
+    onFileAutocompleteActiveChange?.(fileTriggerActive);
+  }, [fileTriggerActive, onFileAutocompleteActiveChange]);
   const reviewPromptOpen = Boolean(reviewPrompt);
   const suggestionsOpen = reviewPromptOpen || isAutocompleteOpen;
   const suggestions = reviewPromptOpen ? [] : autocompleteMatches;

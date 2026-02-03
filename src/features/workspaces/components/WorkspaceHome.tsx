@@ -89,6 +89,7 @@ type WorkspaceHomeProps = {
   dictationTranscript: DictationTranscript | null;
   onDictationTranscriptHandled: (id: string) => void;
   textareaRef?: RefObject<HTMLTextAreaElement | null>;
+  onFileAutocompleteActiveChange?: (active: boolean) => void;
   agentMdContent: string;
   agentMdExists: boolean;
   agentMdTruncated: boolean;
@@ -167,6 +168,7 @@ export function WorkspaceHome({
   dictationTranscript,
   onDictationTranscriptHandled,
   textareaRef: textareaRefProp,
+  onFileAutocompleteActiveChange,
   agentMdContent,
   agentMdExists,
   agentMdTruncated,
@@ -210,6 +212,7 @@ export function WorkspaceHome({
     handleInputKeyDown,
     handleTextChange,
     handleSelectionChange,
+    fileTriggerActive,
   } = useComposerAutocompleteState({
     text: prompt,
     selectionStart,
@@ -223,6 +226,9 @@ export function WorkspaceHome({
     setText: onPromptChange,
     setSelectionStart,
   });
+  useEffect(() => {
+    onFileAutocompleteActiveChange?.(fileTriggerActive);
+  }, [fileTriggerActive, onFileAutocompleteActiveChange]);
   const {
     handleHistoryKeyDown,
     handleHistoryTextChange,

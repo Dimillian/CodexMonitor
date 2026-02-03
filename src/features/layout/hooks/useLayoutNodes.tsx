@@ -305,12 +305,15 @@ type LayoutNodesOptions = {
   onCommit?: () => void | Promise<void>;
   onCommitAndPush?: () => void | Promise<void>;
   onCommitAndSync?: () => void | Promise<void>;
+  onPull?: () => void | Promise<void>;
   onPush?: () => void | Promise<void>;
   onSync?: () => void | Promise<void>;
   commitLoading?: boolean;
+  pullLoading?: boolean;
   pushLoading?: boolean;
   syncLoading?: boolean;
   commitError?: string | null;
+  pullError?: string | null;
   pushError?: string | null;
   syncError?: string | null;
   commitsAhead?: number;
@@ -339,6 +342,7 @@ type LayoutNodesOptions = {
   onQueue: (text: string, images: string[]) => void | Promise<void>;
   onStop: () => void;
   canStop: boolean;
+  onFileAutocompleteActiveChange?: (active: boolean) => void;
   isReviewing: boolean;
   isProcessing: boolean;
   steerEnabled: boolean;
@@ -547,6 +551,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onStop={options.onStop}
       canStop={options.canStop}
       disabled={options.isReviewing}
+      onFileAutocompleteActiveChange={options.onFileAutocompleteActiveChange}
       contextUsage={options.activeTokenUsage}
       queuedMessages={options.activeQueue}
       sendLabel={
@@ -836,12 +841,15 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
         onCommit={options.onCommit}
         onCommitAndPush={options.onCommitAndPush}
         onCommitAndSync={options.onCommitAndSync}
+        onPull={options.onPull}
         onPush={options.onPush}
         onSync={options.onSync}
         commitLoading={options.commitLoading}
+        pullLoading={options.pullLoading}
         pushLoading={options.pushLoading}
         syncLoading={options.syncLoading}
         commitError={options.commitError}
+        pullError={options.pullError}
         pushError={options.pushError}
         syncError={options.syncError}
         commitsAhead={options.commitsAhead}

@@ -100,14 +100,16 @@ export function useComposerAutocompleteState({
     [apps, skills],
   );
 
+  const fileTriggerActive = useMemo(
+    () => isFileTriggerActive(text, selectionStart),
+    [selectionStart, text],
+  );
   const fileItems = useMemo<AutocompleteItem[]>(
     () =>
-      isFileTriggerActive(text, selectionStart)
+      fileTriggerActive
         ? (() => {
             const query = getFileTriggerQuery(text, selectionStart) ?? "";
-            const limited = query
-              ? files
-              : files.slice(0, MAX_FILE_SUGGESTIONS);
+            const limited = query ? files : files.slice(0, MAX_FILE_SUGGESTIONS);
             return limited.map((path) => ({
               id: path,
               label: path,
@@ -115,7 +117,7 @@ export function useComposerAutocompleteState({
             }));
           })()
         : [],
-    [files, selectionStart, text],
+    [fileTriggerActive, files, selectionStart, text],
   );
 
   const promptItems = useMemo<AutocompleteItem[]>(
@@ -377,5 +379,6 @@ export function useComposerAutocompleteState({
     handleInputKeyDown,
     handleTextChange,
     handleSelectionChange,
+    fileTriggerActive,
   };
 }
