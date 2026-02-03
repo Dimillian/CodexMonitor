@@ -7,19 +7,19 @@ Source of truth for requirements: `SPEC.md`.
 
 ### 1) Spec + plan (docs)
 
-- [ ] Add `SPEC.md` (Windows scope, updater + dictation required).
-- [ ] Rewrite `PLAN.md` to reflect the approved execution plan.
+- [x] Add `SPEC.md` (Windows scope, updater + dictation required).
+- [x] Rewrite `PLAN.md` to reflect the approved execution plan.
 
 ### 2) Git safety + PR
 
-- [ ] Push `feature/windows-support` to `origin` and set upstream to avoid accidental `main` pushes.
-- [ ] Open a draft PR early so CI runs on every push.
+- [x] Push `feature/windows-support` to a fork remote and set upstream to avoid accidental `main` pushes.
+- [x] Open a draft PR early so CI runs on every push.
 
 ### 3) Windows UX + path correctness
 
-- [ ] Make “Reveal in Finder” platform-aware (Explorer on Windows).
-- [ ] Fix path joining in the frontend so Windows absolute/relative paths behave.
-- [ ] Make backend `open_workspace_in` work cross-platform (macOS/Windows/Linux).
+- [x] Make “Reveal in Finder” platform-aware (Explorer on Windows).
+- [x] Fix path joining in the frontend so Windows absolute/relative paths behave.
+- [x] Make backend `open_workspace_in` work cross-platform (macOS/Windows/Linux).
 
 ### 4) Dictation on Windows (required)
 

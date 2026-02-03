@@ -821,11 +821,28 @@ pub(crate) async fn open_workspace_in(
         cmd.status()
             .map_err(|error| format!("Failed to open app ({target_label}): {error}"))?
     } else if let Some(app) = app {
-        let mut cmd = std::process::Command::new("open");
-        cmd.arg("-a").arg(app).arg(path);
-        if !args.is_empty() {
-            cmd.arg("--args").args(args);
+        let trimmed = app.trim();
+        if trimmed.is_empty() {
+            return Err("Missing app or command".to_string());
         }
+
+        #[cfg(target_os = "macos")]
+        let mut cmd = {
+            let mut cmd = std::process::Command::new("open");
+            cmd.arg("-a").arg(trimmed).arg(&path);
+            if !args.is_empty() {
+                cmd.arg("--args").args(&args);
+            }
+            cmd
+        };
+
+        #[cfg(not(target_os = "macos"))]
+        let mut cmd = {
+            let mut cmd = std::process::Command::new(trimmed);
+            cmd.args(&args).arg(&path);
+            cmd
+        };
+
         cmd.status()
             .map_err(|error| format!("Failed to open app ({target_label}): {error}"))?
     } else {

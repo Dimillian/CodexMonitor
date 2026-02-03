@@ -25,6 +25,7 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import { formatDownloadSize } from "../../../utils/formatting";
+import { fileManagerName, openInFileManagerLabel } from "../../../utils/platformPaths";
 import {
   buildShortcutValue,
   formatShortcut,
@@ -2531,7 +2532,7 @@ export function SettingsView({
                             >
                               <option value="app">App</option>
                               <option value="command">Command</option>
-                              <option value="finder">Finder</option>
+                              <option value="finder">{fileManagerName()}</option>
                             </select>
                           </label>
                           {target.kind === "app" && (
@@ -3139,11 +3140,11 @@ export function SettingsView({
                   <div>
                     <div className="settings-toggle-title">Config file</div>
                     <div className="settings-toggle-subtitle">
-                      Open the Codex config in Finder.
+                      Open the Codex config in {fileManagerName()}.
                     </div>
                   </div>
                   <button type="button" className="ghost" onClick={handleOpenConfig}>
-                    Open in Finder
+                    {openInFileManagerLabel()}
                   </button>
                 </div>
                 {openConfigError && (

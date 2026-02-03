@@ -8,6 +8,11 @@ import * as Sentry from "@sentry/react";
 import { openWorkspaceIn } from "../../../services/tauri";
 import { pushErrorToast } from "../../../services/toasts";
 import type { OpenAppTarget } from "../../../types";
+import {
+  isAbsolutePath,
+  joinWorkspacePath,
+  revealInFileManagerLabel,
+} from "../../../utils/platformPaths";
 
 type OpenTarget = {
   id: string;
@@ -44,30 +49,15 @@ function resolveFilePath(path: string, workspacePath?: string | null) {
   if (!workspacePath) {
     return trimmed;
   }
-  if (trimmed.startsWith("/") || trimmed.startsWith("~/")) {
+  if (isAbsolutePath(trimmed)) {
     return trimmed;
   }
-  const base = workspacePath.replace(/\/+$/, "");
-  return `${base}/${trimmed}`;
+  return joinWorkspacePath(workspacePath, trimmed);
 }
 
 function stripLineSuffix(path: string) {
   const match = path.match(/^(.*?)(?::\d+(?::\d+)?)?$/);
   return match ? match[1] : path;
-}
-
-function revealLabel() {
-  const platform =
-    (navigator as Navigator & { userAgentData?: { platform?: string } })
-      .userAgentData?.platform ?? navigator.platform ?? "";
-  const normalized = platform.toLowerCase();
-  if (normalized.includes("mac")) {
-    return "Reveal in Finder";
-  }
-  if (normalized.includes("win")) {
-    return "Show in Explorer";
-  }
-  return "Reveal in File Manager";
 }
 
 export function useFileLinkOpener(
@@ -164,7 +154,7 @@ export function useFileLinkOpener(
       const canOpen = canOpenTarget(target);
       const openLabel =
         target.kind === "finder"
-          ? revealLabel()
+          ? revealInFileManagerLabel()
           : target.kind === "command"
             ? command
               ? `Open in ${target.label}`
@@ -184,7 +174,7 @@ export function useFileLinkOpener(
           ? []
           : [
               await MenuItem.new({
-                text: revealLabel(),
+                text: revealInFileManagerLabel(),
                 action: async () => {
                   try {
                     await revealItemInDir(resolvedPath);
