@@ -522,6 +522,12 @@
   height: 14px;
 }
 
+.composer-suggestion-icon-image {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
 .composer-suggestion-content {
   display: flex;
   flex-direction: column;

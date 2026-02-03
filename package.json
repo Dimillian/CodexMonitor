@@ -1,10 +1,14 @@
 {
   "name": "codex-monitor",
   "private": true,
-  "version": "0.7.35",
+  "version": "0.7.36",
   "type": "module",
   "scripts": {
+    "sync:material-icons": "node scripts/sync-material-icons.mjs",
+    "postinstall": "npm run sync:material-icons",
+    "predev": "npm run sync:material-icons",
     "dev": "vite",
+    "prebuild": "npm run sync:material-icons",
     "build": "tsc && vite build",
     "build:appimage": "NO_STRIP=1 tauri build --bundles appimage",
     "doctor": "sh scripts/doctor.sh",
@@ -16,9 +20,13 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "tauri": "tauri",
+    "pretauri:dev": "npm run sync:material-icons",
     "tauri:dev": "npm run doctor:strict && tauri dev",
+    "pretauri:build": "npm run sync:material-icons",
     "tauri:build": "npm run doctor:strict && tauri build",
+    "pretauri:dev:win": "npm run sync:material-icons",
     "tauri:dev:win": "npm run doctor:win && tauri dev --config src-tauri/tauri.windows.conf.json",
+    "pretauri:build:win": "npm run sync:material-icons",
     "tauri:build:win": "npm run doctor:win && tauri build --config src-tauri/tauri.windows.conf.json"
   },
   "dependencies": {
@@ -39,7 +47,8 @@
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
-    "tauri-plugin-liquid-glass-api": "^0.1.6"
+    "tauri-plugin-liquid-glass-api": "^0.1.6",
+    "vscode-material-icons": "^0.1.1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.9.6",

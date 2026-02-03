@@ -36,6 +36,38 @@ describe("useComposerAutocompleteState file mentions", () => {
       "src/App.tsx",
     );
   });
+
+  it("marks root-level file suggestions as Files group", () => {
+    const files = ["AGENTS.md", "src/main.tsx"];
+    const text = "@";
+    const selectionStart = text.length;
+    const textareaRef = createRef<HTMLTextAreaElement>();
+    textareaRef.current = {
+      focus: vi.fn(),
+      setSelectionRange: vi.fn(),
+    } as unknown as HTMLTextAreaElement;
+
+    const { result } = renderHook(() =>
+      useComposerAutocompleteState({
+        text,
+        selectionStart,
+        disabled: false,
+        appsEnabled: true,
+        skills: [],
+        apps: [],
+        prompts: [],
+        files,
+        textareaRef,
+        setText: vi.fn(),
+        setSelectionStart: vi.fn(),
+      }),
+    );
+
+    const rootItem = result.current.autocompleteMatches.find(
+      (item) => item.label === "AGENTS.md",
+    );
+    expect(rootItem?.group).toBe("Files");
+  });
 });
 
 describe("useComposerAutocompleteState slash commands", () => {

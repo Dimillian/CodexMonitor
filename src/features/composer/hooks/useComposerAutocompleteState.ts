@@ -114,6 +114,7 @@ export function useComposerAutocompleteState({
               id: path,
               label: path,
               insertText: path,
+              group: "Files" as const,
             }));
           })()
         : [],
