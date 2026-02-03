@@ -7,11 +7,18 @@ export type ShortcutDefinition = {
 };
 
 const MODIFIER_ORDER = ["cmd", "ctrl", "alt", "shift"] as const;
-const MODIFIER_LABELS: Record<string, string> = {
+const MODIFIER_LABELS_MAC: Record<string, string> = {
   cmd: "⌘",
   ctrl: "⌃",
   alt: "⌥",
   shift: "⇧",
+};
+
+const MODIFIER_LABELS_OTHER: Record<string, string> = {
+  cmd: "Ctrl",
+  ctrl: "Ctrl",
+  alt: "Alt",
+  shift: "Shift",
 };
 
 const KEY_LABELS: Record<string, string> = {
@@ -85,25 +92,32 @@ export function formatShortcut(value: string | null | undefined): string {
   if (!parsed) {
     return value;
   }
+  const useSymbols = isMacPlatform();
+  const modifierLabels = useSymbols ? MODIFIER_LABELS_MAC : MODIFIER_LABELS_OTHER;
   const modifiers = MODIFIER_ORDER.flatMap((modifier) => {
     if (modifier === "cmd" && parsed.meta) {
-      return MODIFIER_LABELS.cmd;
+      return modifierLabels.cmd;
     }
     if (modifier === "ctrl" && parsed.ctrl) {
-      return MODIFIER_LABELS.ctrl;
+      return modifierLabels.ctrl;
     }
     if (modifier === "alt" && parsed.alt) {
-      return MODIFIER_LABELS.alt;
+      return modifierLabels.alt;
     }
     if (modifier === "shift" && parsed.shift) {
-      return MODIFIER_LABELS.shift;
+      return modifierLabels.shift;
     }
     return [];
   });
+  const uniqueModifiers = useSymbols
+    ? modifiers
+    : modifiers.filter((modifier, index) => modifiers.indexOf(modifier) === index);
   const keyLabel =
     KEY_LABELS[parsed.key] ??
     (parsed.key.length === 1 ? parsed.key.toUpperCase() : parsed.key);
-  return [...modifiers, keyLabel].join("");
+  return useSymbols
+    ? [...uniqueModifiers, keyLabel].join("")
+    : [...uniqueModifiers, keyLabel].join("+");
 }
 
 export function buildShortcutValue(event: KeyboardEvent): string | null {
@@ -141,12 +155,22 @@ export function matchesShortcut(event: KeyboardEvent, value: string | null | und
   if (!key || key !== parsed.key) {
     return false;
   }
-  return (
-    parsed.meta === event.metaKey &&
-    parsed.ctrl === event.ctrlKey &&
-    parsed.alt === event.altKey &&
-    parsed.shift === event.shiftKey
-  );
+  const isMac = isMacPlatform();
+  const metaMatches = parsed.meta
+    ? isMac
+      ? event.metaKey
+      : event.ctrlKey || event.metaKey
+    : !event.metaKey;
+  if (!metaMatches) {
+    return false;
+  }
+
+  const ctrlMatches = parsed.ctrl
+    ? event.ctrlKey
+    : parsed.meta && !isMac
+      ? true
+      : !event.ctrlKey;
+  return ctrlMatches && parsed.alt === event.altKey && parsed.shift === event.shiftKey;
 }
 
 export function isMacPlatform(): boolean {
