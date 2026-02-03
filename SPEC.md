@@ -48,6 +48,8 @@ Implementation choice for this milestone:
 
 - “Reveal in Finder” strings must be platform-aware (“Explorer” on Windows).
 - Opening paths in an editor or file manager must behave correctly on Windows.
+- Shortcut hints and formatting must be platform-aware on Windows (Ctrl/Alt labels; no macOS-only glyphs).
+- Settings selects (for example Theme) must remain readable in Dark/Dim with Reduce Transparency off.
 
 ## Build & Tooling Requirements
 
@@ -82,6 +84,7 @@ Update `.github/workflows/release.yml` to include Windows:
 - `npm run tauri:build:win` succeeds on Windows.
 - Windows release workflow publishes installers and `latest.json` that enables in-app updates.
 - Dictation works on Windows end-to-end (model download → hold-to-talk → transcript).
+- Adding a workspace works when `codex --version` runs in Windows Terminal (Codex PATH handling is correct).
 - Repo checks pass:
   - `npm run lint`
   - `npm run test`

@@ -49,6 +49,9 @@ This plan is **live** and tracks what has landed and what remains for the Window
 
 - [ ] `npm run tauri:build:win` succeeds on Windows 10/11.
 - [ ] App launches and can open workspaces.
+- [ ] Adding a workspace succeeds when `codex --version` works in Windows Terminal.
 - [ ] “Reveal in Explorer” opens the right folder.
+- [ ] Shortcut hints use Ctrl/Alt labels and work on Windows.
+- [ ] Theme dropdown options are readable in Dark/Dim with Reduce Transparency off.
 - [ ] Auto-updater finds and applies the latest release.
 - [ ] Dictation works end-to-end (download → hold-to-talk → transcript).
