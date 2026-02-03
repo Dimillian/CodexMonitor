@@ -59,6 +59,7 @@ Required on Windows to build dictation (Whisper + bindgen):
 - LLVM/Clang (for `bindgen` / `libclang`)
 
 `npm run doctor:win` must fail fast with actionable instructions if missing.
+`npm run doctor:win` must correctly detect installed dependencies on Windows/macOS/Linux.
 
 ## CI / Release Requirements
 

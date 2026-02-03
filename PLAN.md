@@ -1,14 +1,14 @@
 # Windows Support Execution Plan
 
-This plan is **live** and should be updated as work lands.
 Source of truth for requirements: `SPEC.md`.
+This plan is **live** and tracks what has landed and what remains for the Windows milestone (auto-updater + dictation).
 
 ## Workstream
 
-### 1) Spec + plan (docs)
+### 1) Docs
 
 - [x] Add `SPEC.md` (Windows scope, updater + dictation required).
-- [x] Rewrite `PLAN.md` to reflect the approved execution plan.
+- [x] Keep `PLAN.md` current as work lands.
 
 ### 2) Git safety + PR
 
@@ -26,6 +26,7 @@ Source of truth for requirements: `SPEC.md`.
 
 - [x] Enable Whisper dictation on Windows (`whisper-rs` + `cpal`) by removing the Windows stub.
 - [x] Update Windows build checks (`doctor:win`) to require LLVM/Clang + CMake.
+- [x] Fix `doctor:win` dependency detection on Unix (no shell builtins).
 
 ### 5) CI (required)
 
@@ -43,44 +44,11 @@ Source of truth for requirements: `SPEC.md`.
 - `npm run test`
 - `npm run typecheck`
 - Rust checks are executed in CI for macOS + Windows jobs added by this plan.
-| `src-tauri/src/dictation/windows.rs` | New Windows Speech API module |
-| `src-tauri/Cargo.toml` | Add windows-rs dependency |
 
----
+## Manual checklist (Windows)
 
-## Testing Checklist
-
-- [ ] App builds on Windows CI
-- [ ] MSI installer works
-- [ ] NSIS installer works
-- [ ] App launches without errors
-- [ ] Git operations work
-- [ ] Terminal emulation works
-- [ ] Auto-updater detects Windows releases
-- [ ] Code signing eliminates SmartScreen (Tier 2)
-- [ ] Dictation works via Windows Speech API (Tier 3)
-
----
-
-## Risks and Mitigations
-
-| Risk | Mitigation |
-|------|------------|
-| Windows-specific bugs undiscovered | Add comprehensive CI testing |
-| SmartScreen blocks unsigned app | Tier 2 code signing |
-| Users expect dictation | Clear documentation |
-| CI runner costs | Windows runners are ~2x macOS cost on GitHub Actions |
-
----
-
-## Timeline Estimate
-
-| Milestone | Effort | Dependencies |
-|-----------|--------|--------------|
-| Tier 1: Builds shipping | 2-3 days | None |
-| Tier 2: Signed releases | +2-3 days | Code signing certificate |
-| Tier 3: Full parity | +5-7 days | Decision on dictation approach |
-
-**Total for full Windows support: ~2 weeks**
-
-**Recommended MVP: Tier 1 only (~2-3 days)**
+- [ ] `npm run tauri:build:win` succeeds on Windows 10/11.
+- [ ] App launches and can open workspaces.
+- [ ] “Reveal in Explorer” opens the right folder.
+- [ ] Auto-updater finds and applies the latest release.
+- [ ] Dictation works end-to-end (download → hold-to-talk → transcript).
