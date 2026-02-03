@@ -1150,6 +1150,10 @@
   margin-bottom: 8px;
 }
 
+.diff-list > .push-section:first-child {
+  padding-top: 1px;
+}
+
 .push-sync-buttons {
   display: flex;
   gap: 8px;
