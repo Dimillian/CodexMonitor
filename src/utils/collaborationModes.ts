@@ -16,6 +16,9 @@ export function formatCollaborationModeLabel(value: string) {
   if (lower === "plan") {
     return "Plan";
   }
+  if (lower === "default") {
+    return "Default";
+  }
   if (lower === "execute") {
     return "Execute";
   }

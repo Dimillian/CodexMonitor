@@ -32,15 +32,15 @@ const workspaceTwoConnected: WorkspaceInfo = {
 
 const makeModesResponse = () => ({
   result: {
-    data: [{ mode: "plan" }, { mode: "code" }],
+    data: [{ mode: "plan" }, { mode: "default" }],
   },
 });
 
 const makeModesResponseArrayResult = () => ({
-  result: [{ mode: "plan" }, { mode: "code" }],
+  result: [{ mode: "plan" }, { mode: "default" }],
 });
 
-const makeModesResponseTopLevelArray = () => [{ mode: "plan" }, { mode: "code" }];
+const makeModesResponseTopLevelArray = () => [{ mode: "plan" }, { mode: "default" }];
 
 describe("useCollaborationModes", () => {
   afterEach(() => {
@@ -58,7 +58,7 @@ describe("useCollaborationModes", () => {
       },
     );
 
-    await waitFor(() => expect(result.current.selectedCollaborationModeId).toBe("code"));
+    await waitFor(() => expect(result.current.selectedCollaborationModeId).toBe("default"));
 
     act(() => {
       result.current.setSelectedCollaborationModeId("plan");
@@ -88,7 +88,7 @@ describe("useCollaborationModes", () => {
       },
     );
 
-    await waitFor(() => expect(result.current.selectedCollaborationModeId).toBe("code"));
+    await waitFor(() => expect(result.current.selectedCollaborationModeId).toBe("default"));
 
     act(() => {
       result.current.setSelectedCollaborationModeId("plan");
@@ -117,7 +117,7 @@ describe("useCollaborationModes", () => {
     await waitFor(() =>
       expect(result.current.collaborationModes.map((mode) => mode.id)).toEqual([
         "plan",
-        "code",
+        "default",
       ]),
     );
 
@@ -126,7 +126,7 @@ describe("useCollaborationModes", () => {
     await waitFor(() =>
       expect(result.current.collaborationModes.map((mode) => mode.id)).toEqual([
         "plan",
-        "code",
+        "default",
       ]),
     );
   });

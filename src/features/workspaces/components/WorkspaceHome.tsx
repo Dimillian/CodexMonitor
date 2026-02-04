@@ -17,7 +17,6 @@ import type {
   SkillOption,
   WorkspaceInfo,
 } from "../../../types";
-import { formatCollaborationModeLabel } from "../../../utils/collaborationModes";
 import { ComposerInput } from "../../composer/components/ComposerInput";
 import { useComposerImages } from "../../composer/hooks/useComposerImages";
 import { useComposerAutocompleteState } from "../../composer/hooks/useComposerAutocompleteState";
@@ -733,7 +732,7 @@ export function WorkspaceHome({
               >
                 {collaborationModes.map((mode) => (
                   <option key={mode.id} value={mode.id}>
-                    {formatCollaborationModeLabel(mode.label || mode.id)}
+                    {mode.label || mode.id}
                   </option>
                 ))}
               </select>

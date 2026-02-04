@@ -5,7 +5,6 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import { getCollaborationModes } from "../../../services/tauri";
-import { formatCollaborationModeLabel } from "../../../utils/collaborationModes";
 
 type UseCollaborationModesOptions = {
   activeWorkspace: WorkspaceInfo | null;
@@ -92,12 +91,8 @@ export function useCollaborationModes({
           if (!item || typeof item !== "object") {
             return null;
           }
-          const mode = String(item.mode ?? item.name ?? "");
-          if (!mode) {
-            return null;
-          }
-          const normalizedMode = mode.trim().toLowerCase();
-          if (normalizedMode && normalizedMode !== "plan" && normalizedMode !== "code") {
+          const modeId = String(item.mode ?? item.name ?? "").trim();
+          if (!modeId) {
             return null;
           }
 
@@ -118,23 +113,23 @@ export function useCollaborationModes({
           const reasoningEffort = settings.reasoning_effort ?? null;
           const developerInstructions = settings.developer_instructions ?? null;
 
-          const labelSource = String(item.name ?? item.label ?? mode);
-
-          const normalizedValue: Record<string, unknown> = {
-            ...(item as Record<string, unknown>),
-            mode: normalizedMode,
-          };
+          const labelSource =
+            typeof item.label === "string" && item.label.trim()
+              ? item.label
+              : typeof item.name === "string" && item.name.trim()
+                ? item.name
+                : modeId;
 
           const option: CollaborationModeOption = {
-            id: normalizedMode,
-            label: formatCollaborationModeLabel(labelSource),
-            mode: normalizedMode,
+            id: modeId,
+            label: labelSource,
+            mode: modeId,
             model,
             reasoningEffort: reasoningEffort ? String(reasoningEffort) : null,
             developerInstructions: developerInstructions
               ? String(developerInstructions)
               : null,
-            value: normalizedValue,
+            value: item as Record<string, unknown>,
           };
           return option;
         })
@@ -142,7 +137,16 @@ export function useCollaborationModes({
       setModes(data);
       lastFetchedWorkspaceId.current = workspaceId;
       const preferredModeId =
-        data.find((mode) => mode.mode === "code" || mode.id === "code")?.id ??
+        data.find(
+          (mode) =>
+            mode.id.trim().toLowerCase() === "default" ||
+            mode.mode.trim().toLowerCase() === "default",
+        )?.id ??
+        data.find(
+          (mode) =>
+            mode.id.trim().toLowerCase() === "code" ||
+            mode.mode.trim().toLowerCase() === "code",
+        )?.id ??
         data[0]?.id ??
         null;
       setSelectedModeId((currentSelection) => {

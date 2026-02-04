@@ -1,6 +1,5 @@
 import type { CSSProperties } from "react";
 import type { AccessMode, ThreadTokenUsage } from "../../../types";
-import { formatCollaborationModeLabel } from "../../../utils/collaborationModes";
 
 type ComposerMetaBarProps = {
   disabled: boolean;
@@ -74,7 +73,7 @@ export function ComposerMetaBar({
             >
               {collaborationModes.map((mode) => (
                 <option key={mode.id} value={mode.id}>
-                  {formatCollaborationModeLabel(mode.label || mode.id)}
+                  {mode.label || mode.id}
                 </option>
               ))}
             </select>
