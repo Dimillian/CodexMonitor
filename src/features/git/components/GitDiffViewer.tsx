@@ -13,6 +13,8 @@ type GitDiffViewerItem = {
   path: string;
   status: string;
   diff: string;
+  oldLines?: string[];
+  newLines?: string[];
   isImage?: boolean;
   oldImageData?: string | null;
   newImageData?: string | null;
@@ -142,8 +144,10 @@ const DiffCard = memo(function DiffCard({
       ...parsed,
       name: normalizedName,
       prevName: normalizedPrevName,
+      oldLines: entry.oldLines,
+      newLines: entry.newLines,
     } satisfies FileDiffMetadata;
-  }, [entry.diff, entry.path]);
+  }, [entry.diff, entry.newLines, entry.oldLines, entry.path]);
 
   const placeholder = useMemo(() => {
     if (isLoading) {

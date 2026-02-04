@@ -264,6 +264,8 @@ export type GitFileStatus = {
 export type GitFileDiff = {
   path: string;
   diff: string;
+  oldLines?: string[];
+  newLines?: string[];
   isBinary?: boolean;
   isImage?: boolean;
   oldImageData?: string | null;
@@ -276,6 +278,8 @@ export type GitCommitDiff = {
   path: string;
   status: string;
   diff: string;
+  oldLines?: string[];
+  newLines?: string[];
   isBinary?: boolean;
   isImage?: boolean;
   oldImageData?: string | null;

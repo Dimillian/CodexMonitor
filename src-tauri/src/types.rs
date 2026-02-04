@@ -12,6 +12,10 @@ pub(crate) struct GitFileStatus {
 pub(crate) struct GitFileDiff {
     pub(crate) path: String,
     pub(crate) diff: String,
+    #[serde(default, rename = "oldLines")]
+    pub(crate) old_lines: Option<Vec<String>>,
+    #[serde(default, rename = "newLines")]
+    pub(crate) new_lines: Option<Vec<String>>,
     #[serde(default, rename = "isBinary")]
     pub(crate) is_binary: bool,
     #[serde(default, rename = "isImage")]
@@ -31,6 +35,10 @@ pub(crate) struct GitCommitDiff {
     pub(crate) path: String,
     pub(crate) status: String,
     pub(crate) diff: String,
+    #[serde(default, rename = "oldLines")]
+    pub(crate) old_lines: Option<Vec<String>>,
+    #[serde(default, rename = "newLines")]
+    pub(crate) new_lines: Option<Vec<String>>,
     #[serde(default, rename = "isBinary")]
     pub(crate) is_binary: bool,
     #[serde(default, rename = "isImage")]

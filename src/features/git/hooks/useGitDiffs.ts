@@ -111,6 +111,8 @@ export function useGitDiffs(
         path: file.path,
         status: file.status,
         diff: entry?.diff ?? "",
+        oldLines: entry?.oldLines,
+        newLines: entry?.newLines,
         isImage: entry?.isImage,
         oldImageData: entry?.oldImageData,
         newImageData: entry?.newImageData,
