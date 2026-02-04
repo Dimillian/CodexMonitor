@@ -127,7 +127,7 @@ describe("GitDiffPanel", () => {
     fireEvent.contextMenu(row as Element);
 
     await waitFor(() => expect(menuNew).toHaveBeenCalled());
-    const menuArgs = menuNew.mock.calls.at(-1)?.[0];
+    const menuArgs = menuNew.mock.calls[menuNew.mock.calls.length - 1]?.[0];
     const revealItem = menuArgs.items.find(
       (item: { text: string }) => item.text === "Show in Finder",
     );
