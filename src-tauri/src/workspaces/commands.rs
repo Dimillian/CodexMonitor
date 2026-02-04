@@ -1,4 +1,7 @@
 use std::path::PathBuf;
+
+#[cfg(target_os = "windows")]
+use std::path::Path;
 use std::process::Stdio;
 use std::sync::Arc;
 
@@ -816,7 +819,32 @@ pub(crate) async fn open_workspace_in(
         .unwrap_or_else(|| "target".to_string());
 
     let status = if let Some(command) = command {
-        let mut cmd = std::process::Command::new(command);
+        let trimmed = command.trim();
+        if trimmed.is_empty() {
+            return Err("Missing app or command".to_string());
+        }
+
+        #[cfg(target_os = "windows")]
+        let mut cmd = {
+            let ext = Path::new(trimmed)
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext.to_ascii_lowercase());
+            let should_use_cmd_wrapper =
+                matches!(ext.as_deref(), Some("cmd") | Some("bat")) || ext.is_none();
+            if should_use_cmd_wrapper {
+                let mut cmd = std::process::Command::new("cmd");
+                cmd.arg("/C");
+                cmd.arg(trimmed);
+                cmd
+            } else {
+                std::process::Command::new(trimmed)
+            }
+        };
+
+        #[cfg(not(target_os = "windows"))]
+        let mut cmd = std::process::Command::new(trimmed);
+
         cmd.args(args).arg(path);
         cmd.status()
             .map_err(|error| format!("Failed to open app ({target_label}): {error}"))?
