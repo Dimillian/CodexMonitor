@@ -7,7 +7,7 @@ type WorktreeCardProps = {
   isActive: boolean;
   isDeleting?: boolean;
   onSelectWorkspace: (id: string) => void;
-  onShowWorktreeMenu: (event: MouseEvent, workspaceId: string) => void;
+  onShowWorktreeMenu: (event: MouseEvent, worktree: WorkspaceInfo) => void;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
   onConnectWorkspace: (workspace: WorkspaceInfo) => void;
   children?: React.ReactNode;
@@ -42,7 +42,7 @@ export function WorktreeCard({
         }}
         onContextMenu={(event) => {
           if (!isDeleting) {
-            onShowWorktreeMenu(event, worktree.id);
+            onShowWorktreeMenu(event, worktree);
           }
         }}
         onKeyDown={(event) => {

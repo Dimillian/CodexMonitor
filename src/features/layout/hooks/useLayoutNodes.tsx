@@ -780,6 +780,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     gitDiffPanelNode = (
       <GitDiffPanel
         workspaceId={options.activeWorkspace?.id ?? null}
+        workspacePath={options.activeWorkspace?.path ?? null}
         mode={options.gitPanelMode}
         onModeChange={options.onGitPanelModeChange}
         filePanelMode={options.filePanelMode}
