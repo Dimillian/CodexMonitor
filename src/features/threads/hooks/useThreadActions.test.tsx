@@ -19,12 +19,6 @@ import {
 import { saveThreadActivity } from "../utils/threadStorage";
 import { useThreadActions } from "./useThreadActions";
 
-vi.mock("@sentry/react", () => ({
-  metrics: {
-    count: vi.fn(),
-  },
-}));
-
 vi.mock("../../../services/tauri", () => ({
   startThread: vi.fn(),
   forkThread: vi.fn(),

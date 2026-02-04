@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import * as Sentry from "@sentry/react";
 import { openWorkspaceIn } from "../../../services/tauri";
 import { pushErrorToast } from "../../../services/toasts";
 import type { OpenAppTarget } from "../../../types";
@@ -81,18 +80,6 @@ export function OpenAppMenu({
 
   const reportOpenError = (error: unknown, target: OpenTarget) => {
     const message = error instanceof Error ? error.message : String(error);
-    Sentry.captureException(error instanceof Error ? error : new Error(message), {
-      tags: {
-        feature: "open-app-menu",
-      },
-      extra: {
-        path,
-        targetId: target.id,
-        targetKind: target.target.kind,
-        targetAppName: target.target.appName ?? null,
-        targetCommand: target.target.command ?? null,
-      },
-    });
     pushErrorToast({
       title: "Couldn’t open workspace",
       message,
