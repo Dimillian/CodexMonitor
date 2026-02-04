@@ -247,6 +247,7 @@ pub(crate) async fn add_worktree_core<
 >(
     parent_id: String,
     branch: String,
+    name: Option<String>,
     data_dir: &PathBuf,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
@@ -275,6 +276,9 @@ where
     if branch.is_empty() {
         return Err("Branch name is required.".to_string());
     }
+    let name = name
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
 
     let parent_entry = {
         let workspaces = workspaces.lock().await;
@@ -335,7 +339,7 @@ where
 
     let entry = WorkspaceEntry {
         id: Uuid::new_v4().to_string(),
-        name: branch.clone(),
+        name: name.clone().unwrap_or_else(|| branch.clone()),
         path: worktree_path_string,
         codex_bin: parent_entry.codex_bin.clone(),
         kind: WorkspaceKind::Worktree,

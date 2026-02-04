@@ -25,6 +25,7 @@ export function WorktreeCard({
 }: WorktreeCardProps) {
   const worktreeCollapsed = worktree.settings.sidebarCollapsed;
   const worktreeBranch = worktree.worktree?.branch ?? "";
+  const worktreeLabel = worktree.name?.trim() || worktreeBranch;
   const contentCollapsedClass = worktreeCollapsed ? " collapsed" : "";
 
   return (
@@ -54,7 +55,7 @@ export function WorktreeCard({
           }
         }}
       >
-        <div className="worktree-label">{worktreeBranch || worktree.name}</div>
+        <div className="worktree-label">{worktreeLabel}</div>
         <div className="worktree-actions">
           {isDeleting ? (
             <div className="worktree-deleting" role="status" aria-live="polite">

@@ -40,6 +40,7 @@ type AppModalsProps = {
   onRenamePromptCancel: () => void;
   onRenamePromptConfirm: () => void;
   worktreePrompt: WorktreePromptState;
+  onWorktreePromptNameChange: (value: string) => void;
   onWorktreePromptChange: (value: string) => void;
   onWorktreeSetupScriptChange: (value: string) => void;
   onWorktreePromptCancel: () => void;
@@ -71,6 +72,7 @@ export const AppModals = memo(function AppModals({
   onRenamePromptCancel,
   onRenamePromptConfirm,
   worktreePrompt,
+  onWorktreePromptNameChange,
   onWorktreePromptChange,
   onWorktreeSetupScriptChange,
   onWorktreePromptCancel,
@@ -112,12 +114,14 @@ export const AppModals = memo(function AppModals({
         <Suspense fallback={null}>
           <WorktreePrompt
             workspaceName={worktreePrompt.workspace.name}
+            name={worktreePrompt.name}
             branch={worktreePrompt.branch}
             setupScript={worktreePrompt.setupScript}
             scriptError={worktreePrompt.scriptError}
             error={worktreePrompt.error}
             isBusy={worktreePrompt.isSubmitting}
             isSavingScript={worktreePrompt.isSavingScript}
+            onNameChange={onWorktreePromptNameChange}
             onChange={onWorktreePromptChange}
             onSetupScriptChange={onWorktreeSetupScriptChange}
             onCancel={onWorktreePromptCancel}

@@ -208,12 +208,14 @@ impl DaemonState {
         &self,
         parent_id: String,
         branch: String,
+        name: Option<String>,
         client_version: String,
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
         workspaces_core::add_worktree_core(
             parent_id,
             branch,
+            name,
             &self.data_dir,
             &self.workspaces,
             &self.sessions,
@@ -986,8 +988,9 @@ async fn handle_rpc_request(
         "add_worktree" => {
             let parent_id = parse_string(&params, "parentId")?;
             let branch = parse_string(&params, "branch")?;
+            let name = parse_optional_string(&params, "name");
             let workspace = state
-                .add_worktree(parent_id, branch, client_version)
+                .add_worktree(parent_id, branch, name, client_version)
                 .await?;
             serde_json::to_value(workspace).map_err(|err| err.to_string())
         }

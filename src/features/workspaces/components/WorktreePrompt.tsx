@@ -2,10 +2,12 @@ import { useEffect, useRef } from "react";
 
 type WorktreePromptProps = {
   workspaceName: string;
+  name: string;
   branch: string;
   setupScript: string;
   scriptError?: string | null;
   error?: string | null;
+  onNameChange: (value: string) => void;
   onChange: (value: string) => void;
   onSetupScriptChange: (value: string) => void;
   onCancel: () => void;
@@ -16,10 +18,12 @@ type WorktreePromptProps = {
 
 export function WorktreePrompt({
   workspaceName,
+  name,
   branch,
   setupScript,
   scriptError = null,
   error = null,
+  onNameChange,
   onChange,
   onSetupScriptChange,
   onCancel,
@@ -49,12 +53,34 @@ export function WorktreePrompt({
         <div className="worktree-modal-subtitle">
           Create a worktree under "{workspaceName}".
         </div>
+        <label className="worktree-modal-label" htmlFor="worktree-name">
+          Name
+        </label>
+        <input
+          id="worktree-name"
+          ref={inputRef}
+          className="worktree-modal-input"
+          value={name}
+          placeholder="(Optional)"
+          onChange={(event) => onNameChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              if (!isBusy) {
+                onCancel();
+              }
+            }
+            if (event.key === "Enter" && !isBusy) {
+              event.preventDefault();
+              onConfirm();
+            }
+          }}
+        />
         <label className="worktree-modal-label" htmlFor="worktree-branch">
           Branch name
         </label>
         <input
           id="worktree-branch"
-          ref={inputRef}
           className="worktree-modal-input"
           value={branch}
           onChange={(event) => onChange(event.target.value)}

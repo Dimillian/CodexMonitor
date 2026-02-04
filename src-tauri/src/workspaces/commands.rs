@@ -284,6 +284,7 @@ pub(crate) async fn add_clone(
 pub(crate) async fn add_worktree(
     parent_id: String,
     branch: String,
+    name: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<WorkspaceInfo, String> {
@@ -292,7 +293,7 @@ pub(crate) async fn add_worktree(
             &*state,
             app,
             "add_worktree",
-            json!({ "parentId": parent_id, "branch": branch }),
+            json!({ "parentId": parent_id, "branch": branch, "name": name }),
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
@@ -306,6 +307,7 @@ pub(crate) async fn add_worktree(
     workspaces_core::add_worktree_core(
         parent_id,
         branch,
+        name,
         &data_dir,
         &state.workspaces,
         &state.sessions,

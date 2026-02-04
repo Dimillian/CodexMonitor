@@ -896,6 +896,7 @@ function MainApp() {
     openPrompt: openWorktreePrompt,
     confirmPrompt: confirmWorktreePrompt,
     cancelPrompt: cancelWorktreePrompt,
+    updateName: updateWorktreeName,
     updateBranch: updateWorktreeBranch,
     updateSetupScript: updateWorktreeSetupScript,
   } = useWorktreePrompt({
@@ -1365,7 +1366,7 @@ function MainApp() {
     ? workspacesById.get(activeWorkspace?.parentId ?? "") ?? null
     : null;
   const worktreeLabel = isWorktreeWorkspace
-    ? activeWorkspace?.worktree?.branch ?? activeWorkspace?.name ?? null
+    ? (activeWorkspace?.name?.trim() || activeWorkspace?.worktree?.branch) ?? null
     : null;
   const activeRenamePrompt =
     renameWorktreePrompt?.workspaceId === activeWorkspace?.id
@@ -2278,6 +2279,7 @@ function MainApp() {
         onRenamePromptCancel={handleRenamePromptCancel}
         onRenamePromptConfirm={handleRenamePromptConfirm}
         worktreePrompt={worktreePrompt}
+        onWorktreePromptNameChange={updateWorktreeName}
         onWorktreePromptChange={updateWorktreeBranch}
         onWorktreeSetupScriptChange={updateWorktreeSetupScript}
         onWorktreePromptCancel={cancelWorktreePrompt}
