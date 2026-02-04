@@ -49,8 +49,8 @@ describe("useAppSettings", () => {
 
     expect(result.current.settings.uiScale).toBe(UI_SCALE_MAX);
     expect(result.current.settings.theme).toBe("system");
-    expect(result.current.settings.uiFontFamily).toContain("SF Pro Text");
-    expect(result.current.settings.codeFontFamily).toContain("SF Mono");
+    expect(result.current.settings.uiFontFamily).toContain("system-ui");
+    expect(result.current.settings.codeFontFamily).toContain("ui-monospace");
     expect(result.current.settings.codeFontSize).toBe(16);
     expect(result.current.settings.experimentalPersonality).toBe("default");
     expect(result.current.settings.backendMode).toBe("remote");
@@ -66,8 +66,8 @@ describe("useAppSettings", () => {
 
     expect(result.current.settings.uiScale).toBe(UI_SCALE_DEFAULT);
     expect(result.current.settings.theme).toBe("system");
-    expect(result.current.settings.uiFontFamily).toContain("SF Pro Text");
-    expect(result.current.settings.codeFontFamily).toContain("SF Mono");
+    expect(result.current.settings.uiFontFamily).toContain("system-ui");
+    expect(result.current.settings.codeFontFamily).toContain("ui-monospace");
     expect(result.current.settings.backendMode).toBe("local");
     expect(result.current.settings.dictationModelId).toBe("base");
     expect(result.current.settings.interruptShortcut).toBeTruthy();
@@ -110,8 +110,8 @@ describe("useAppSettings", () => {
       expect.objectContaining({
         theme: "system",
         uiScale: 0.1,
-        uiFontFamily: expect.stringContaining("SF Pro Text"),
-        codeFontFamily: expect.stringContaining("SF Mono"),
+        uiFontFamily: expect.stringContaining("system-ui"),
+        codeFontFamily: expect.stringContaining("ui-monospace"),
         codeFontSize: 9,
         notificationSoundsEnabled: false,
       }),

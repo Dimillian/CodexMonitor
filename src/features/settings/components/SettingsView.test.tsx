@@ -48,9 +48,9 @@ const baseSettings: AppSettings = {
   theme: "system",
   usageShowRemaining: false,
   uiFontFamily:
-    "\"SF Pro Text\", \"SF Pro Display\", -apple-system, \"Helvetica Neue\", sans-serif",
+    'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   codeFontFamily:
-    "\"SF Mono\", \"SFMono-Regular\", Menlo, Monaco, monospace",
+    'ui-monospace, "Cascadia Mono", "Segoe UI Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
   codeFontSize: 11,
   notificationSoundsEnabled: true,
   systemNotificationsEnabled: true,
@@ -316,12 +316,12 @@ describe("SettingsView Display", () => {
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({
-          uiFontFamily: expect.stringContaining("SF Pro Text"),
+          uiFontFamily: expect.stringContaining("system-ui"),
         }),
       );
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({
-          codeFontFamily: expect.stringContaining("SF Mono"),
+          codeFontFamily: expect.stringContaining("ui-monospace"),
         }),
       );
     });

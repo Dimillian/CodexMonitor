@@ -537,12 +537,11 @@ fn default_usage_show_remaining() -> bool {
 }
 
 fn default_ui_font_family() -> String {
-    "\"SF Pro Text\", \"SF Pro Display\", -apple-system, \"Helvetica Neue\", sans-serif"
-        .to_string()
+    "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif".to_string()
 }
 
 fn default_code_font_family() -> String {
-    "\"SF Mono\", \"SFMono-Regular\", Menlo, Monaco, monospace".to_string()
+    "ui-monospace, \"Cascadia Mono\", \"Segoe UI Mono\", Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace".to_string()
 }
 
 fn default_code_font_size() -> u8 {
@@ -964,8 +963,8 @@ mod tests {
         assert!((settings.ui_scale - 1.0).abs() < f64::EPSILON);
         assert_eq!(settings.theme, "system");
         assert!(!settings.usage_show_remaining);
-        assert!(settings.ui_font_family.contains("SF Pro Text"));
-        assert!(settings.code_font_family.contains("SF Mono"));
+        assert!(settings.ui_font_family.contains("system-ui"));
+        assert!(settings.code_font_family.contains("ui-monospace"));
         assert_eq!(settings.code_font_size, 11);
         assert!(settings.notification_sounds_enabled);
         assert!(settings.system_notifications_enabled);

@@ -60,7 +60,7 @@
 }
 
 .plan-step-status {
-  font-family: "SF Mono", Menlo, monospace;
+  font-family: var(--code-font-family);
   font-size: 11px;
   color: var(--text-faint);
   flex: 0 0 auto;
