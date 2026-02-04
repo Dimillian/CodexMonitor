@@ -1,11 +1,8 @@
 import { useCallback, useState } from "react";
-import type { BranchInfo, WorkspaceInfo } from "../../../types";
+import type { WorkspaceInfo } from "../../../types";
 
 type UseBranchSwitcherOptions = {
   activeWorkspace: WorkspaceInfo | null;
-  workspaces: WorkspaceInfo[];
-  branches: BranchInfo[];
-  currentBranch: string | null;
   checkoutBranch: (name: string) => Promise<void>;
   setActiveWorkspaceId: (id: string) => void;
 };
@@ -16,16 +13,17 @@ export type BranchSwitcherState = {
 
 export function useBranchSwitcher({
   activeWorkspace,
-  workspaces,
-  branches,
-  currentBranch,
   checkoutBranch,
   setActiveWorkspaceId,
 }: UseBranchSwitcherOptions) {
   const [branchSwitcher, setBranchSwitcher] = useState<BranchSwitcherState>(null);
 
   const openBranchSwitcher = useCallback(() => {
-    if (!activeWorkspace) {
+    if (
+      !activeWorkspace ||
+      !activeWorkspace.connected ||
+      activeWorkspace.kind === "worktree"
+    ) {
       return;
     }
     setBranchSwitcher({ isOpen: true });
@@ -49,9 +47,6 @@ export function useBranchSwitcher({
 
   return {
     branchSwitcher,
-    branches,
-    workspaces,
-    currentBranch,
     openBranchSwitcher,
     closeBranchSwitcher,
     handleBranchSelect,

@@ -493,15 +493,14 @@ function MainApp() {
     handleBranchSelect,
   } = useBranchSwitcher({
     activeWorkspace,
-    workspaces,
-    branches,
-    currentBranch,
     checkoutBranch: handleCheckoutBranch,
     setActiveWorkspaceId,
   });
+  const isBranchSwitcherEnabled =
+    Boolean(activeWorkspace?.connected) && activeWorkspace?.kind !== "worktree";
   useBranchSwitcherShortcut({
     shortcut: appSettings.branchSwitcherShortcut,
-    isEnabled: Boolean(activeWorkspace?.connected),
+    isEnabled: isBranchSwitcherEnabled,
     onTrigger: openBranchSwitcher,
   });
   const alertError = useCallback((error: unknown) => {
