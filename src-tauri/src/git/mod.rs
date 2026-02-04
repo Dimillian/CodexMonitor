@@ -8,8 +8,8 @@ use tauri::State;
 
 use crate::shared::process_core::tokio_command;
 use crate::git_utils::{
-    checkout_branch, commit_to_entry, diff_patch_to_string, diff_stats_for_path,
-    image_mime_type, list_git_roots as scan_git_roots, parse_github_repo, resolve_git_root,
+    checkout_branch, commit_to_entry, diff_patch_to_string, diff_stats_for_path, image_mime_type,
+    list_git_roots as scan_git_roots, parse_github_repo, resolve_git_root,
 };
 use crate::state::AppState;
 use crate::types::{
@@ -1497,6 +1497,7 @@ pub(crate) async fn create_git_branch(
 mod tests {
     use super::*;
     use std::fs;
+    use std::path::Path;
 
     fn create_temp_repo() -> (PathBuf, Repository) {
         let root = std::env::temp_dir().join(format!(
