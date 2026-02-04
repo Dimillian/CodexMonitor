@@ -2,7 +2,6 @@ import { useCallback, type MouseEvent } from "react";
 import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import type { WorkspaceInfo } from "../../../types";
 import { pushErrorToast } from "../../../services/toasts";
@@ -128,6 +127,9 @@ export function useSidebarMenus({
             return;
           }
           try {
+            const { revealItemInDir } = await import(
+              "@tauri-apps/plugin-opener"
+            );
             await revealItemInDir(worktree.path);
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
