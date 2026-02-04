@@ -21,9 +21,11 @@ import X from "lucide-react/dist/esm/icons/x";
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { formatRelativeTime } from "../../../utils/time";
 import { PanelTabs, type PanelTabId } from "../../layout/components/PanelTabs";
+import { pushErrorToast } from "../../../services/toasts";
 
 type GitDiffPanelProps = {
   workspaceId?: string | null;
+  workspacePath?: string | null;
   mode: "diff" | "log" | "issues" | "prs";
   onModeChange: (mode: "diff" | "log" | "issues" | "prs") => void;
   filePanelMode: PanelTabId;
@@ -142,6 +144,15 @@ function normalizeRootPath(value: string | null | undefined) {
     return "";
   }
   return value.replace(/\\/g, "/").replace(/\/+$/, "");
+}
+
+function joinRootAndPath(root: string, relativePath: string) {
+  const normalizedRoot = normalizeRootPath(root);
+  if (!normalizedRoot) {
+    return relativePath;
+  }
+  const normalizedPath = relativePath.replace(/^\/+/, "");
+  return `${normalizedRoot}/${normalizedPath}`;
 }
 
 function getStatusSymbol(status: string) {
@@ -617,6 +628,7 @@ function GitLogEntryRow({
 
 export function GitDiffPanel({
   workspaceId = null,
+  workspacePath = null,
   mode,
   onModeChange,
   filePanelMode,
@@ -968,6 +980,13 @@ export function GitDiffPanel({
       const fileCount = targetPaths.length;
       const plural = fileCount > 1 ? "s" : "";
       const countSuffix = fileCount > 1 ? ` (${fileCount})` : "";
+      const normalizedRoot = normalizeRootPath(gitRoot);
+      const inferredRoot =
+        !normalizedRoot && gitRootCandidates.length === 1
+          ? normalizeRootPath(gitRootCandidates[0])
+          : "";
+      const fallbackRoot = normalizeRootPath(workspacePath);
+      const resolvedRoot = normalizedRoot || inferredRoot || fallbackRoot;
 
       // Separate files by their section for stage/unstage operations
       const stagedPaths = targetPaths.filter((p) =>
@@ -1007,6 +1026,44 @@ export function GitDiffPanel({
         );
       }
 
+      if (targetPaths.length === 1) {
+        const rawPath = targetPaths[0];
+        const absolutePath = resolvedRoot
+          ? joinRootAndPath(resolvedRoot, rawPath)
+          : rawPath;
+        items.push(
+          await MenuItem.new({
+            text: "Show in Finder",
+            action: async () => {
+              try {
+                if (!resolvedRoot && !absolutePath.startsWith("/")) {
+                  pushErrorToast({
+                    title: "Couldn't show file in Finder",
+                    message: "Select a git root first.",
+                  });
+                  return;
+                }
+                const { revealItemInDir } = await import(
+                  "@tauri-apps/plugin-opener"
+                );
+                await revealItemInDir(absolutePath);
+              } catch (error) {
+                const message =
+                  error instanceof Error ? error.message : String(error);
+                pushErrorToast({
+                  title: "Couldn't show file in Finder",
+                  message,
+                });
+                console.warn("Failed to reveal file", {
+                  message,
+                  path: absolutePath,
+                });
+              }
+            },
+          }),
+        );
+      }
+
       // Revert action for all selected files
       if (onRevertFile) {
         items.push(
@@ -1035,6 +1092,9 @@ export function GitDiffPanel({
       onStageFile,
       onRevertFile,
       discardFiles,
+      gitRoot,
+      gitRootCandidates,
+      workspacePath,
     ],
   );
   const logCountLabel = logTotal
