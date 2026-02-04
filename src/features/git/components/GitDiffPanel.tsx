@@ -146,6 +146,21 @@ function normalizeRootPath(value: string | null | undefined) {
   return value.replace(/\\/g, "/").replace(/\/+$/, "");
 }
 
+function isAbsolutePath(value: string) {
+  return value.startsWith("/") || /^[A-Za-z]:\//.test(value);
+}
+
+function resolveRootPath(root: string | null | undefined, workspacePath: string | null | undefined) {
+  const normalized = normalizeRootPath(root);
+  if (!normalized) {
+    return "";
+  }
+  if (workspacePath && !isAbsolutePath(normalized)) {
+    return joinRootAndPath(workspacePath, normalized);
+  }
+  return normalized;
+}
+
 function joinRootAndPath(root: string, relativePath: string) {
   const normalizedRoot = normalizeRootPath(root);
   if (!normalizedRoot) {
@@ -980,10 +995,10 @@ export function GitDiffPanel({
       const fileCount = targetPaths.length;
       const plural = fileCount > 1 ? "s" : "";
       const countSuffix = fileCount > 1 ? ` (${fileCount})` : "";
-      const normalizedRoot = normalizeRootPath(gitRoot);
+      const normalizedRoot = resolveRootPath(gitRoot, workspacePath);
       const inferredRoot =
         !normalizedRoot && gitRootCandidates.length === 1
-          ? normalizeRootPath(gitRootCandidates[0])
+          ? resolveRootPath(gitRootCandidates[0], workspacePath)
           : "";
       const fallbackRoot = normalizeRootPath(workspacePath);
       const resolvedRoot = normalizedRoot || inferredRoot || fallbackRoot;

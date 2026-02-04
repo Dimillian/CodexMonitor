@@ -82,7 +82,7 @@ describe("GitDiffPanel", () => {
   });
 
   it("adds a show in finder option for file context menus", async () => {
-    render(
+    const { container } = render(
       <GitDiffPanel
         {...baseProps}
         workspacePath="/tmp/repo"
@@ -93,7 +93,7 @@ describe("GitDiffPanel", () => {
       />,
     );
 
-    const row = screen.getByText("sample").closest(".diff-row");
+    const row = container.querySelector(".diff-row");
     expect(row).not.toBeNull();
     fireEvent.contextMenu(row as Element);
 
@@ -106,5 +106,34 @@ describe("GitDiffPanel", () => {
     expect(revealItem).toBeDefined();
     await revealItem.action();
     expect(revealItemInDir).toHaveBeenCalledWith("/tmp/repo/src/sample.ts");
+  });
+
+  it("resolves relative git roots against the workspace path", async () => {
+    revealItemInDir.mockClear();
+    menuNew.mockClear();
+    const { container } = render(
+      <GitDiffPanel
+        {...baseProps}
+        workspacePath="/tmp/repo"
+        gitRoot="apps"
+        unstagedFiles={[
+          { path: "src/sample.ts", status: "M", additions: 1, deletions: 0 },
+        ]}
+      />,
+    );
+
+    const row = container.querySelector(".diff-row");
+    expect(row).not.toBeNull();
+    fireEvent.contextMenu(row as Element);
+
+    await waitFor(() => expect(menuNew).toHaveBeenCalled());
+    const menuArgs = menuNew.mock.calls.at(-1)?.[0];
+    const revealItem = menuArgs.items.find(
+      (item: { text: string }) => item.text === "Show in Finder",
+    );
+
+    expect(revealItem).toBeDefined();
+    await revealItem.action();
+    expect(revealItemInDir).toHaveBeenCalledWith("/tmp/repo/apps/src/sample.ts");
   });
 });
