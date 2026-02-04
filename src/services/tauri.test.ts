@@ -390,6 +390,22 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
+  it("passes extra metadata when provided", async () => {
+    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
+    const sendNotificationMock = vi.mocked(notification.sendNotification);
+    isPermissionGrantedMock.mockResolvedValueOnce(true);
+
+    await sendNotification("Hello", "World", {
+      extra: { kind: "thread", workspaceId: "ws-1", threadId: "t-1" },
+    });
+
+    expect(sendNotificationMock).toHaveBeenCalledWith({
+      title: "Hello",
+      body: "World",
+      extra: { kind: "thread", workspaceId: "ws-1", threadId: "t-1" },
+    });
+  });
+
   it("requests permission once when needed and sends on grant", async () => {
     const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
     const requestPermissionMock = vi.mocked(notification.requestPermission);

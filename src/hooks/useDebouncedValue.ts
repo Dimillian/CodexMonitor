@@ -8,10 +8,17 @@ export function useDebouncedValue<T>(value: T, delayMs = 150): T {
       setDebounced(value);
       return;
     }
-    const handle = window.setTimeout(() => {
+    let cancelled = false;
+    const handle = globalThis.setTimeout(() => {
+      if (cancelled) {
+        return;
+      }
       setDebounced(value);
     }, delayMs);
-    return () => window.clearTimeout(handle);
+    return () => {
+      cancelled = true;
+      globalThis.clearTimeout(handle);
+    };
   }, [delayMs, value]);
 
   return debounced;

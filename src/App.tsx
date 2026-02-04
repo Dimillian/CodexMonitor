@@ -268,6 +268,9 @@ function MainApp() {
   );
 
   const recordPendingThreadLinkRef = useRef<
+    (workspaceId: string, threadId: string) => void
+  >(() => {});
+
   const {
     updaterState,
     startUpdate,
@@ -278,6 +281,8 @@ function MainApp() {
     notificationSoundsEnabled: appSettings.notificationSoundsEnabled,
     systemNotificationsEnabled: appSettings.systemNotificationsEnabled,
     getWorkspaceName,
+    onThreadNotificationSent: (workspaceId, threadId) =>
+      recordPendingThreadLinkRef.current(workspaceId, threadId),
     onDebug: addDebugEntry,
     successSoundUrl,
     errorSoundUrl,
@@ -359,6 +364,7 @@ function MainApp() {
   } = useGitPanelController({
     activeWorkspace,
     gitDiffPreloadEnabled: appSettings.preloadGitDiffs,
+    gitDiffIgnoreWhitespaceChanges: appSettings.gitDiffIgnoreWhitespaceChanges,
     isCompact,
     isTablet,
     activeTab,
@@ -729,6 +735,24 @@ function MainApp() {
   }, [activeThreadId]);
 
   const { recordPendingThreadLink } = useSystemNotificationThreadLinks({
+    hasLoadedWorkspaces: hasLoaded,
+    workspacesById,
+    refreshWorkspaces,
+    connectWorkspace,
+    setActiveTab,
+    setCenterMode,
+    setSelectedDiffPath,
+    setActiveWorkspaceId,
+    setActiveThreadId,
+  });
+
+  useEffect(() => {
+    recordPendingThreadLinkRef.current = recordPendingThreadLink;
+    return () => {
+      recordPendingThreadLinkRef.current = () => {};
+    };
+  }, [recordPendingThreadLink]);
+
   useAutoExitEmptyDiff({
     centerMode,
     autoExitEnabled: diffSource === "local",
@@ -1882,6 +1906,8 @@ function MainApp() {
     gitPanelMode,
     onGitPanelModeChange: handleGitPanelModeChange,
     gitDiffViewStyle,
+    gitDiffIgnoreWhitespaceChanges:
+      appSettings.gitDiffIgnoreWhitespaceChanges && diffSource !== "pr",
     worktreeApplyLabel: "apply",
     worktreeApplyTitle: activeParentWorkspace?.name
       ? `Apply changes to ${activeParentWorkspace.name}`
