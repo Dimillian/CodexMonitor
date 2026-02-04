@@ -701,7 +701,9 @@ where
             Some(entry) => entry,
             None => return Err("workspace not found".to_string()),
         };
-        entry.name = final_branch.clone();
+        if entry.name.trim() == old_branch {
+            entry.name = final_branch.clone();
+        }
         entry.path = next_path_string.clone();
         match entry.worktree.as_mut() {
             Some(worktree) => {
