@@ -121,9 +121,23 @@ pub(crate) fn build_codex_path_env(codex_bin: Option<&str>) -> Option<String> {
 
     #[cfg(target_os = "windows")]
     {
+        if let Ok(appdata) = env::var("APPDATA") {
+            extras.push(Path::new(&appdata).join("npm"));
+        }
+        if let Ok(local_app_data) = env::var("LOCALAPPDATA") {
+            extras.push(
+                Path::new(&local_app_data)
+                    .join("Microsoft")
+                    .join("WindowsApps"),
+            );
+        }
         if let Ok(home) = env::var("USERPROFILE").or_else(|_| env::var("HOME")) {
             let home_path = Path::new(&home);
             extras.push(home_path.join(".cargo").join("bin"));
+            extras.push(home_path.join("scoop").join("shims"));
+        }
+        if let Ok(program_data) = env::var("PROGRAMDATA") {
+            extras.push(Path::new(&program_data).join("chocolatey").join("bin"));
         }
     }
 
@@ -153,8 +167,33 @@ pub(crate) fn build_codex_command_with_bin(codex_bin: Option<String>) -> Command
         .clone()
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| "codex".into());
-    let mut command = tokio_command(bin);
-    if let Some(path_env) = build_codex_path_env(codex_bin.as_deref()) {
+
+    let path_env = build_codex_path_env(codex_bin.as_deref());
+
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let bin_trimmed = bin.trim();
+        let ext = Path::new(bin_trimmed)
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.to_ascii_lowercase());
+
+        let should_use_cmd_wrapper =
+            matches!(ext.as_deref(), Some("cmd") | Some("bat")) || ext.is_none();
+        if should_use_cmd_wrapper {
+            let mut command = tokio_command("cmd");
+            command.arg("/C");
+            command.arg(bin_trimmed);
+            command
+        } else {
+            tokio_command(bin_trimmed)
+        }
+    };
+
+    #[cfg(not(target_os = "windows"))]
+    let mut command = tokio_command(bin.trim());
+
+    if let Some(path_env) = path_env {
         command.env("PATH", path_env);
     }
     command
