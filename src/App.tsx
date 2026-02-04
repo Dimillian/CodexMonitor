@@ -2291,6 +2291,7 @@ function MainApp() {
         branchSwitcher={branchSwitcher}
         branches={branches}
         workspaces={workspaces}
+        activeWorkspace={activeWorkspace}
         currentBranch={currentBranch}
         onBranchSwitcherSelect={handleBranchSelect}
         onBranchSwitcherCancel={closeBranchSwitcher}

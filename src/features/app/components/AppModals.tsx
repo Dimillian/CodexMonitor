@@ -54,6 +54,7 @@ type AppModalsProps = {
   branchSwitcher: BranchSwitcherState;
   branches: BranchInfo[];
   workspaces: WorkspaceInfo[];
+  activeWorkspace: WorkspaceInfo | null;
   currentBranch: string | null;
   onBranchSwitcherSelect: (branch: string, worktree: WorkspaceInfo | null) => void;
   onBranchSwitcherCancel: () => void;
@@ -84,6 +85,7 @@ export const AppModals = memo(function AppModals({
   branchSwitcher,
   branches,
   workspaces,
+  activeWorkspace,
   currentBranch,
   onBranchSwitcherSelect,
   onBranchSwitcherCancel,
@@ -146,6 +148,7 @@ export const AppModals = memo(function AppModals({
           <BranchSwitcherPrompt
             branches={branches}
             workspaces={workspaces}
+            activeWorkspace={activeWorkspace}
             currentBranch={currentBranch}
             onSelect={onBranchSwitcherSelect}
             onCancel={onBranchSwitcherCancel}

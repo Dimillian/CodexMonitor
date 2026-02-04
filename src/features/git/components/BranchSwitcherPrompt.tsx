@@ -1,33 +1,36 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BranchInfo, WorkspaceInfo } from "../../../types";
+import { BranchList } from "./BranchList";
+import { filterBranches } from "../utils/branchSearch";
 
 type BranchSwitcherPromptProps = {
   branches: BranchInfo[];
   workspaces: WorkspaceInfo[];
+  activeWorkspace: WorkspaceInfo | null;
   currentBranch: string | null;
   onSelect: (branch: string, worktreeWorkspace: WorkspaceInfo | null) => void;
   onCancel: () => void;
 };
 
-function fuzzyMatch(query: string, target: string): boolean {
-  const q = query.toLowerCase();
-  const t = target.toLowerCase();
-  let qi = 0;
-  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] === q[qi]) {
-      qi++;
-    }
-  }
-  return qi === q.length;
-}
-
 function getWorktreeByBranch(
   workspaces: WorkspaceInfo[],
+  activeWorkspace: WorkspaceInfo | null,
   branch: string,
 ): WorkspaceInfo | null {
+  const activeRepoWorkspaceId = activeWorkspace
+    ? activeWorkspace.kind === "worktree"
+      ? activeWorkspace.parentId ?? null
+      : activeWorkspace.id
+    : null;
+  if (!activeRepoWorkspaceId) {
+    return null;
+  }
   return (
     workspaces.find(
-      (ws) => ws.kind === "worktree" && ws.worktree?.branch === branch,
+      (ws) =>
+        ws.kind === "worktree" &&
+        ws.parentId === activeRepoWorkspaceId &&
+        ws.worktree?.branch === branch,
     ) ?? null
   );
 }
@@ -35,6 +38,7 @@ function getWorktreeByBranch(
 export function BranchSwitcherPrompt({
   branches,
   workspaces,
+  activeWorkspace,
   currentBranch,
   onSelect,
   onCancel,
@@ -49,10 +53,7 @@ export function BranchSwitcherPrompt({
   }, []);
 
   const filteredBranches = useMemo(() => {
-    if (!query.trim()) {
-      return branches;
-    }
-    return branches.filter((branch) => fuzzyMatch(query.trim(), branch.name));
+    return filterBranches(branches, query, { mode: "fuzzy" });
   }, [branches, query]);
 
   useEffect(() => {
@@ -67,7 +68,7 @@ export function BranchSwitcherPrompt({
   }, [selectedIndex]);
 
   const handleSelect = (branch: BranchInfo) => {
-    const worktree = getWorktreeByBranch(workspaces, branch.name);
+    const worktree = getWorktreeByBranch(workspaces, activeWorkspace, branch.name);
     onSelect(branch.name, worktree);
   };
 
@@ -111,41 +112,42 @@ export function BranchSwitcherPrompt({
           onKeyDown={handleKeyDown}
           placeholder="Search branches..."
         />
-        <div className="branch-switcher-modal-list" ref={listRef}>
-          {filteredBranches.length === 0 && (
-            <div className="branch-switcher-modal-empty">No branches found</div>
-          )}
-          {filteredBranches.map((branch, index) => {
-            const isSelected = index === selectedIndex;
+        <BranchList
+          branches={filteredBranches}
+          currentBranch={currentBranch}
+          selectedIndex={selectedIndex}
+          listClassName="branch-switcher-modal-list"
+          listRef={listRef}
+          itemClassName="branch-switcher-modal-item"
+          selectedItemClassName="selected"
+          itemLabelClassName="branch-switcher-modal-item-name"
+          emptyClassName="branch-switcher-modal-empty"
+          emptyText="No branches found"
+          onSelect={handleSelect}
+          onMouseEnter={setSelectedIndex}
+          renderMeta={(branch) => {
             const isCurrent = branch.name === currentBranch;
-            const worktree = getWorktreeByBranch(workspaces, branch.name);
-            return (
-              <button
-                key={branch.name}
-                type="button"
-                className={`branch-switcher-modal-item${isSelected ? " selected" : ""}`}
-                onClick={() => handleSelect(branch)}
-                onMouseEnter={() => setSelectedIndex(index)}
-              >
-                <span className="branch-switcher-modal-item-name">
-                  {branch.name}
-                </span>
-                <span className="branch-switcher-modal-item-meta">
-                  {isCurrent && (
-                    <span className="branch-switcher-modal-item-current">
-                      current
-                    </span>
-                  )}
-                  {worktree && (
-                    <span className="branch-switcher-modal-item-worktree">
-                      worktree
-                    </span>
-                  )}
-                </span>
-              </button>
+            const worktree = getWorktreeByBranch(
+              workspaces,
+              activeWorkspace,
+              branch.name,
             );
-          })}
-        </div>
+            return (
+              <span className="branch-switcher-modal-item-meta">
+                {isCurrent && (
+                  <span className="branch-switcher-modal-item-current">
+                    current
+                  </span>
+                )}
+                {worktree && (
+                  <span className="branch-switcher-modal-item-worktree">
+                    worktree
+                  </span>
+                )}
+              </span>
+            );
+          }}
+        />
       </div>
     </div>
   );
