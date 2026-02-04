@@ -64,6 +64,7 @@ describe("useSidebarMenus", () => {
         onReloadWorkspaceThreads,
         onDeleteWorkspace,
         onDeleteWorktree,
+        showWorktreeInFinder: true,
       }),
     );
 
@@ -97,5 +98,51 @@ describe("useSidebarMenus", () => {
     expect(revealItem).toBeDefined();
     await revealItem.action();
     expect(revealItemInDir).toHaveBeenCalledWith("/tmp/worktree-1");
+  });
+
+  it("omits show in finder when disabled", async () => {
+    const { result } = renderHook(() =>
+      useSidebarMenus({
+        onDeleteThread: vi.fn(),
+        onSyncThread: vi.fn(),
+        onPinThread: vi.fn(),
+        onUnpinThread: vi.fn(),
+        isThreadPinned: vi.fn(() => false),
+        onRenameThread: vi.fn(),
+        onReloadWorkspaceThreads: vi.fn(),
+        onDeleteWorkspace: vi.fn(),
+        onDeleteWorktree: vi.fn(),
+        showWorktreeInFinder: false,
+      }),
+    );
+
+    const worktree: WorkspaceInfo = {
+      id: "worktree-2",
+      name: "feature/nope",
+      path: "/tmp/worktree-2",
+      kind: "worktree",
+      connected: true,
+      settings: {
+        sidebarCollapsed: false,
+        worktreeSetupScript: "",
+      },
+      worktree: { branch: "feature/nope" },
+    };
+
+    const event = {
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+      clientX: 22,
+      clientY: 44,
+    } as unknown as ReactMouseEvent;
+
+    await result.current.showWorktreeMenu(event, worktree);
+
+    const menuArgs = menuNew.mock.calls[1]?.[0];
+    const revealItem = menuArgs.items.find(
+      (item: { text: string }) => item.text === "Show in Finder",
+    );
+
+    expect(revealItem).toBeUndefined();
   });
 });

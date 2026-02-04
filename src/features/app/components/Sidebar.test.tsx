@@ -21,6 +21,7 @@ const baseProps = {
   accountRateLimits: null,
   usageShowRemaining: false,
   accountInfo: null,
+  showWorktreeInFinder: false,
   onSwitchAccount: vi.fn(),
   onCancelSwitchAccount: vi.fn(),
   accountSwitching: false,

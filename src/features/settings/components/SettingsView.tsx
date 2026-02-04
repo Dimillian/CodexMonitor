@@ -3230,6 +3230,30 @@ export function SettingsView({
                 </div>
                 <div className="settings-toggle-row">
                   <div>
+                    <div className="settings-toggle-title">Show worktree in Finder</div>
+                    <div className="settings-toggle-subtitle">
+                      Adds a “Show in Finder” option to the worktree menu (macOS only).
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${
+                      appSettings.worktreeShowInFinderEnabled ? "on" : ""
+                    }`}
+                    onClick={() =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        worktreeShowInFinderEnabled:
+                          !appSettings.worktreeShowInFinderEnabled,
+                      })
+                    }
+                    aria-pressed={appSettings.worktreeShowInFinderEnabled}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+                <div className="settings-toggle-row">
+                  <div>
                     <div className="settings-toggle-title">Personality</div>
                     <div className="settings-toggle-subtitle">
                       Choose Codex communication style (writes top-level{" "}

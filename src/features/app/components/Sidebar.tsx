@@ -57,6 +57,7 @@ type SidebarProps = {
   accountRateLimits: RateLimitSnapshot | null;
   usageShowRemaining: boolean;
   accountInfo: AccountSnapshot | null;
+  showWorktreeInFinder: boolean;
   onSwitchAccount: () => void;
   onCancelSwitchAccount: () => void;
   accountSwitching: boolean;
@@ -110,6 +111,7 @@ export function Sidebar({
   accountRateLimits,
   usageShowRemaining,
   accountInfo,
+  showWorktreeInFinder,
   onSwitchAccount,
   onCancelSwitchAccount,
   accountSwitching,
@@ -171,6 +173,7 @@ export function Sidebar({
       onReloadWorkspaceThreads,
       onDeleteWorkspace,
       onDeleteWorktree,
+      showWorktreeInFinder,
     });
   const {
     sessionPercent,

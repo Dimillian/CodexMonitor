@@ -1742,6 +1742,7 @@ function MainApp() {
     activeRateLimits,
     usageShowRemaining: appSettings.usageShowRemaining,
     accountInfo: activeAccount,
+    showWorktreeInFinder: appSettings.worktreeShowInFinderEnabled,
     onSwitchAccount: handleSwitchAccount,
     onCancelSwitchAccount: handleCancelSwitchAccount,
     accountSwitching,
