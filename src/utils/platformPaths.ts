@@ -1,6 +1,9 @@
 type PlatformKind = "mac" | "windows" | "linux" | "unknown";
 
 function platformKind(): PlatformKind {
+  if (typeof navigator === "undefined") {
+    return "unknown";
+  }
   const platform =
     (navigator as Navigator & { userAgentData?: { platform?: string } })
       .userAgentData?.platform ?? navigator.platform ?? "";
