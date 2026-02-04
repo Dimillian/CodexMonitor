@@ -118,7 +118,6 @@ type LayoutNodesOptions = {
   activeRateLimits: RateLimitSnapshot | null;
   usageShowRemaining: boolean;
   accountInfo: AccountSnapshot | null;
-  showWorktreeInFinder: boolean;
   onSwitchAccount: () => void;
   onCancelSwitchAccount: () => void;
   accountSwitching: boolean;
@@ -490,7 +489,6 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       accountRateLimits={options.activeRateLimits}
       usageShowRemaining={options.usageShowRemaining}
       accountInfo={options.accountInfo}
-      showWorktreeInFinder={options.showWorktreeInFinder}
       onSwitchAccount={options.onSwitchAccount}
       onCancelSwitchAccount={options.onCancelSwitchAccount}
       accountSwitching={options.accountSwitching}

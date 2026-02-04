@@ -17,7 +17,6 @@ type SidebarMenuHandlers = {
   onReloadWorkspaceThreads: (workspaceId: string) => void;
   onDeleteWorkspace: (workspaceId: string) => void;
   onDeleteWorktree: (workspaceId: string) => void;
-  showWorktreeInFinder: boolean;
 };
 
 export function useSidebarMenus({
@@ -30,7 +29,6 @@ export function useSidebarMenus({
   onReloadWorkspaceThreads,
   onDeleteWorkspace,
   onDeleteWorktree,
-  showWorktreeInFinder,
 }: SidebarMenuHandlers) {
   const showThreadMenu = useCallback(
     async (
@@ -123,44 +121,38 @@ export function useSidebarMenus({
         text: "Reload threads",
         action: () => onReloadWorkspaceThreads(worktree.id),
       });
+      const revealItem = await MenuItem.new({
+        text: "Show in Finder",
+        action: async () => {
+          if (!worktree.path) {
+            return;
+          }
+          try {
+            await revealItemInDir(worktree.path);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            pushErrorToast({
+              title: "Couldn't show worktree in Finder",
+              message,
+            });
+            console.warn("Failed to reveal worktree", {
+              message,
+              workspaceId: worktree.id,
+              path: worktree.path,
+            });
+          }
+        },
+      });
       const deleteItem = await MenuItem.new({
         text: "Delete worktree",
         action: () => onDeleteWorktree(worktree.id),
       });
-      const items = [reloadItem];
-      if (showWorktreeInFinder) {
-        items.push(
-          await MenuItem.new({
-            text: "Show in Finder",
-            action: async () => {
-              if (!worktree.path) {
-                return;
-              }
-              try {
-                await revealItemInDir(worktree.path);
-              } catch (error) {
-                const message = error instanceof Error ? error.message : String(error);
-                pushErrorToast({
-                  title: "Couldn't show worktree in Finder",
-                  message,
-                });
-                console.warn("Failed to reveal worktree", {
-                  message,
-                  workspaceId: worktree.id,
-                  path: worktree.path,
-                });
-              }
-            },
-          }),
-        );
-      }
-      items.push(deleteItem);
-      const menu = await Menu.new({ items });
+      const menu = await Menu.new({ items: [reloadItem, revealItem, deleteItem] });
       const window = getCurrentWindow();
       const position = new LogicalPosition(event.clientX, event.clientY);
       await menu.popup(position, window);
     },
-    [onReloadWorkspaceThreads, onDeleteWorktree, showWorktreeInFinder],
+    [onReloadWorkspaceThreads, onDeleteWorktree],
   );
 
   return { showThreadMenu, showWorkspaceMenu, showWorktreeMenu };

@@ -56,7 +56,6 @@ const defaultSettings: AppSettings = {
   codeFontSize: CODE_FONT_SIZE_DEFAULT,
   notificationSoundsEnabled: true,
   systemNotificationsEnabled: true,
-  worktreeShowInFinderEnabled: false,
   preloadGitDiffs: true,
   gitDiffIgnoreWhitespaceChanges: false,
   experimentalCollabEnabled: false,

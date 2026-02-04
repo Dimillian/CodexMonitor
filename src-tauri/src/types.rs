@@ -432,11 +432,6 @@ pub(crate) struct AppSettings {
     )]
     pub(crate) system_notifications_enabled: bool,
     #[serde(
-        default = "default_worktree_show_in_finder_enabled",
-        rename = "worktreeShowInFinderEnabled"
-    )]
-    pub(crate) worktree_show_in_finder_enabled: bool,
-    #[serde(
         default = "default_experimental_collab_enabled",
         rename = "experimentalCollabEnabled"
     )]
@@ -543,10 +538,6 @@ fn default_theme() -> String {
 }
 
 fn default_usage_show_remaining() -> bool {
-    false
-}
-
-fn default_worktree_show_in_finder_enabled() -> bool {
     false
 }
 
@@ -822,7 +813,6 @@ impl Default for AppSettings {
             code_font_size: default_code_font_size(),
             notification_sounds_enabled: true,
             system_notifications_enabled: true,
-            worktree_show_in_finder_enabled: default_worktree_show_in_finder_enabled(),
             preload_git_diffs: default_preload_git_diffs(),
             git_diff_ignore_whitespace_changes: default_git_diff_ignore_whitespace_changes(),
             experimental_collab_enabled: false,
@@ -916,7 +906,6 @@ mod tests {
             settings.cycle_workspace_prev_shortcut.as_deref(),
             Some("cmd+shift+up")
         );
-        assert!(!settings.worktree_show_in_finder_enabled);
         assert!(settings.last_composer_model_id.is_none());
         assert!(settings.last_composer_reasoning_effort.is_none());
         assert!((settings.ui_scale - 1.0).abs() < f64::EPSILON);

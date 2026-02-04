@@ -175,7 +175,6 @@ export type AppSettings = {
   codeFontSize: number;
   notificationSoundsEnabled: boolean;
   systemNotificationsEnabled: boolean;
-  worktreeShowInFinderEnabled: boolean;
   preloadGitDiffs: boolean;
   gitDiffIgnoreWhitespaceChanges: boolean;
   experimentalCollabEnabled: boolean;

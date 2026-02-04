@@ -55,7 +55,6 @@ const baseSettings: AppSettings = {
   codeFontSize: 11,
   notificationSoundsEnabled: true,
   systemNotificationsEnabled: true,
-  worktreeShowInFinderEnabled: false,
   preloadGitDiffs: true,
   gitDiffIgnoreWhitespaceChanges: false,
   experimentalCollabEnabled: false,
