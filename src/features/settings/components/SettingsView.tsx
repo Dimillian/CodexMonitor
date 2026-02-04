@@ -1583,7 +1583,7 @@ export function SettingsView({
                   <div>
                     <div className="settings-toggle-title">System notifications</div>
                     <div className="settings-toggle-subtitle">
-                      Show a macOS notification when a long-running agent finishes while the window is unfocused.
+                      Show a system notification when a long-running agent finishes while the window is unfocused.
                     </div>
                   </div>
                   <button
@@ -2670,8 +2670,10 @@ export function SettingsView({
                     Add app
                   </button>
                   <div className="settings-help">
-                    Commands receive the selected path as the final argument. Apps use macOS open
-                    with optional args.
+                    Commands receive the selected path as the final argument.{" "}
+                    {isMacPlatform()
+                      ? "Apps open via `open -a` with optional args."
+                      : "Apps run as an executable with optional args."}
                   </div>
                 </div>
               </section>
