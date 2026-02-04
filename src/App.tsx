@@ -67,6 +67,7 @@ import {
 } from "./features/layout/components/SidebarToggleControls";
 import { useAppSettingsController } from "./features/app/hooks/useAppSettingsController";
 import { useUpdaterController } from "./features/app/hooks/useUpdaterController";
+import { useResponseRequiredNotificationsController } from "./features/app/hooks/useResponseRequiredNotificationsController";
 import { useErrorToasts } from "./features/notifications/hooks/useErrorToasts";
 import { useComposerShortcuts } from "./features/composer/hooks/useComposerShortcuts";
 import { useComposerMenuActions } from "./features/composer/hooks/useComposerMenuActions";
@@ -703,6 +704,15 @@ function MainApp() {
     customPrompts: prompts,
     onMessageActivity: queueGitStatusRefresh
   });
+
+  useResponseRequiredNotificationsController({
+    systemNotificationsEnabled: appSettings.systemNotificationsEnabled,
+    approvals,
+    userInputRequests,
+    getWorkspaceName,
+    onDebug: addDebugEntry,
+  });
+
   const {
     activeAccount,
     accountSwitching,
