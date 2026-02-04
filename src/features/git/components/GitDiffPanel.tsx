@@ -170,6 +170,12 @@ function joinRootAndPath(root: string, relativePath: string) {
   return `${normalizedRoot}/${normalizedPath}`;
 }
 
+function getFileName(value: string) {
+  const normalized = value.replace(/\\/g, "/");
+  const segments = normalized.split("/");
+  return segments[segments.length - 1] || normalized;
+}
+
 function getStatusSymbol(status: string) {
   switch (status) {
     case "A":
@@ -1046,6 +1052,7 @@ export function GitDiffPanel({
         const absolutePath = resolvedRoot
           ? joinRootAndPath(resolvedRoot, rawPath)
           : rawPath;
+        const fileName = getFileName(rawPath);
         items.push(
           await MenuItem.new({
             text: "Show in Finder",
@@ -1074,6 +1081,20 @@ export function GitDiffPanel({
                   path: absolutePath,
                 });
               }
+            },
+          }),
+        );
+        items.push(
+          await MenuItem.new({
+            text: "Copy file name",
+            action: async () => {
+              await navigator.clipboard.writeText(fileName);
+            },
+          }),
+          await MenuItem.new({
+            text: "Copy file path",
+            action: async () => {
+              await navigator.clipboard.writeText(absolutePath);
             },
           }),
         );
