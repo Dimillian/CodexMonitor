@@ -27,6 +27,7 @@ type GitDiffViewerProps = {
   isLoading: boolean;
   error: string | null;
   diffStyle?: "split" | "unified";
+  ignoreWhitespaceChanges?: boolean;
   pullRequest?: GitHubPullRequest | null;
   pullRequestComments?: GitHubPullRequestComment[];
   pullRequestCommentsLoading?: boolean;
@@ -102,12 +103,16 @@ type DiffCardProps = {
   entry: GitDiffViewerItem;
   isSelected: boolean;
   diffStyle: "split" | "unified";
+  isLoading: boolean;
+  ignoreWhitespaceChanges: boolean;
 };
 
 const DiffCard = memo(function DiffCard({
   entry,
   isSelected,
   diffStyle,
+  isLoading,
+  ignoreWhitespaceChanges,
 }: DiffCardProps) {
   const diffOptions = useMemo(
     () => ({
@@ -140,6 +145,16 @@ const DiffCard = memo(function DiffCard({
     } satisfies FileDiffMetadata;
   }, [entry.diff, entry.path]);
 
+  const placeholder = useMemo(() => {
+    if (isLoading) {
+      return "Loading diff...";
+    }
+    if (ignoreWhitespaceChanges && !entry.diff.trim()) {
+      return "No non-whitespace changes.";
+    }
+    return "Diff unavailable.";
+  }, [entry.diff, ignoreWhitespaceChanges, isLoading]);
+
   return (
       <div
         data-diff-path={entry.path}
@@ -160,7 +175,7 @@ const DiffCard = memo(function DiffCard({
           />
         </div>
       ) : (
-        <div className="diff-viewer-placeholder">Diff unavailable.</div>
+        <div className="diff-viewer-placeholder">{placeholder}</div>
       )}
     </div>
   );
@@ -362,6 +377,7 @@ export function GitDiffViewer({
   isLoading,
   error,
   diffStyle = "split",
+  ignoreWhitespaceChanges = false,
   pullRequest,
   pullRequestComments,
   pullRequestCommentsLoading = false,
@@ -646,6 +662,8 @@ export function GitDiffViewer({
                       entry={entry}
                       isSelected={entry.path === selectedPath}
                       diffStyle={diffStyle}
+                      isLoading={isLoading}
+                      ignoreWhitespaceChanges={ignoreWhitespaceChanges}
                     />
                   )}
                 </div>

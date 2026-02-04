@@ -37,6 +37,7 @@ function makeProps(overrides?: Partial<Parameters<typeof useGitPanelController>[
   return {
     activeWorkspace: workspace,
     gitDiffPreloadEnabled: false,
+    gitDiffIgnoreWhitespaceChanges: false,
     isCompact: false,
     isTablet: false,
     activeTab: "codex" as const,

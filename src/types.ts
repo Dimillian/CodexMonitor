@@ -176,6 +176,7 @@ export type AppSettings = {
   notificationSoundsEnabled: boolean;
   systemNotificationsEnabled: boolean;
   preloadGitDiffs: boolean;
+  gitDiffIgnoreWhitespaceChanges: boolean;
   experimentalCollabEnabled: boolean;
   collaborationModesEnabled: boolean;
   experimentalSteerEnabled: boolean;

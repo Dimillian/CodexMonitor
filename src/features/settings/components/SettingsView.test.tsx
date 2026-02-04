@@ -56,6 +56,7 @@ const baseSettings: AppSettings = {
   notificationSoundsEnabled: true,
   systemNotificationsEnabled: true,
   preloadGitDiffs: true,
+  gitDiffIgnoreWhitespaceChanges: false,
   experimentalCollabEnabled: false,
   collaborationModesEnabled: true,
   experimentalSteerEnabled: false,

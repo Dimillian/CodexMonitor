@@ -422,6 +422,11 @@ pub(crate) struct AppSettings {
     #[serde(default = "default_preload_git_diffs", rename = "preloadGitDiffs")]
     pub(crate) preload_git_diffs: bool,
     #[serde(
+        default = "default_git_diff_ignore_whitespace_changes",
+        rename = "gitDiffIgnoreWhitespaceChanges"
+    )]
+    pub(crate) git_diff_ignore_whitespace_changes: bool,
+    #[serde(
         default = "default_system_notifications_enabled",
         rename = "systemNotificationsEnabled"
     )]
@@ -634,6 +639,10 @@ fn default_preload_git_diffs() -> bool {
     true
 }
 
+fn default_git_diff_ignore_whitespace_changes() -> bool {
+    false
+}
+
 fn default_experimental_collab_enabled() -> bool {
     false
 }
@@ -805,6 +814,7 @@ impl Default for AppSettings {
             notification_sounds_enabled: true,
             system_notifications_enabled: true,
             preload_git_diffs: default_preload_git_diffs(),
+            git_diff_ignore_whitespace_changes: default_git_diff_ignore_whitespace_changes(),
             experimental_collab_enabled: false,
             collaboration_modes_enabled: true,
             experimental_steer_enabled: false,
@@ -907,6 +917,7 @@ mod tests {
         assert!(settings.notification_sounds_enabled);
         assert!(settings.system_notifications_enabled);
         assert!(settings.preload_git_diffs);
+        assert!(!settings.git_diff_ignore_whitespace_changes);
         assert!(settings.collaboration_modes_enabled);
         assert!(!settings.experimental_steer_enabled);
         assert!(!settings.experimental_apps_enabled);

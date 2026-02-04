@@ -112,6 +112,7 @@ import { useOpenAppIcons } from "./features/app/hooks/useOpenAppIcons";
 import { useCodeCssVars } from "./features/app/hooks/useCodeCssVars";
 import { useAccountSwitching } from "./features/app/hooks/useAccountSwitching";
 import { useNewAgentDraft } from "./features/app/hooks/useNewAgentDraft";
+import { useSystemNotificationThreadLinks } from "./features/app/hooks/useSystemNotificationThreadLinks";
 
 const AboutView = lazy(() =>
   import("./features/about/components/AboutView").then((module) => ({
@@ -266,6 +267,7 @@ function MainApp() {
     [workspacesById],
   );
 
+  const recordPendingThreadLinkRef = useRef<
   const {
     updaterState,
     startUpdate,
@@ -726,6 +728,7 @@ function MainApp() {
     activeThreadIdRef.current = activeThreadId ?? null;
   }, [activeThreadId]);
 
+  const { recordPendingThreadLink } = useSystemNotificationThreadLinks({
   useAutoExitEmptyDiff({
     centerMode,
     autoExitEnabled: diffSource === "local",

@@ -2721,6 +2721,27 @@ export function SettingsView({
                     <span className="settings-toggle-knob" />
                   </button>
                 </div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Ignore whitespace changes</div>
+                    <div className="settings-toggle-subtitle">
+                      Hides whitespace-only changes in local and commit diffs.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.gitDiffIgnoreWhitespaceChanges ? "on" : ""}`}
+                    onClick={() =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        gitDiffIgnoreWhitespaceChanges: !appSettings.gitDiffIgnoreWhitespaceChanges,
+                      })
+                    }
+                    aria-pressed={appSettings.gitDiffIgnoreWhitespaceChanges}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
               </section>
             )}
             {activeSection === "codex" && (

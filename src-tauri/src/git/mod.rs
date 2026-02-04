@@ -823,8 +823,13 @@ pub(crate) async fn get_git_diffs(
         .get(&workspace_id)
         .ok_or("workspace not found")?
         .clone();
+    drop(workspaces);
 
     let repo_root = resolve_git_root(&entry)?;
+    let ignore_whitespace_changes = {
+        let settings = state.app_settings.lock().await;
+        settings.git_diff_ignore_whitespace_changes
+    };
     tokio::task::spawn_blocking(move || {
         let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
         let head_tree = repo
@@ -837,6 +842,7 @@ pub(crate) async fn get_git_diffs(
             .include_untracked(true)
             .recurse_untracked_dirs(true)
             .show_untracked_content(true);
+        options.ignore_whitespace_change(ignore_whitespace_changes);
 
         let diff = match head_tree.as_ref() {
             Some(tree) => repo
@@ -1054,6 +1060,12 @@ pub(crate) async fn get_git_commit_diff(
         .get(&workspace_id)
         .ok_or("workspace not found")?
         .clone();
+    drop(workspaces);
+
+    let ignore_whitespace_changes = {
+        let settings = state.app_settings.lock().await;
+        settings.git_diff_ignore_whitespace_changes
+    };
 
     let repo_root = resolve_git_root(&entry)?;
     let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
@@ -1066,6 +1078,7 @@ pub(crate) async fn get_git_commit_diff(
         .and_then(|parent| parent.tree().ok());
 
     let mut options = DiffOptions::new();
+    options.ignore_whitespace_change(ignore_whitespace_changes);
     let diff = repo
         .diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), Some(&mut options))
         .map_err(|e| e.to_string())?;

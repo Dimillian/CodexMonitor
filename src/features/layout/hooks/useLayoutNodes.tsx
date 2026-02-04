@@ -229,6 +229,7 @@ type LayoutNodesOptions = {
   gitPanelMode: "diff" | "log" | "issues" | "prs";
   onGitPanelModeChange: (mode: "diff" | "log" | "issues" | "prs") => void;
   gitDiffViewStyle: "split" | "unified";
+  gitDiffIgnoreWhitespaceChanges: boolean;
   worktreeApplyLabel: string;
   worktreeApplyTitle: string | null;
   worktreeApplyLoading: boolean;
@@ -871,6 +872,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       isLoading={options.gitDiffLoading}
       error={options.gitDiffError}
       diffStyle={options.gitDiffViewStyle}
+      ignoreWhitespaceChanges={options.gitDiffIgnoreWhitespaceChanges}
       pullRequest={options.selectedPullRequest}
       pullRequestComments={options.selectedPullRequestComments}
       pullRequestCommentsLoading={options.selectedPullRequestCommentsLoading}
