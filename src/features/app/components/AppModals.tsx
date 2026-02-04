@@ -1,9 +1,11 @@
 import { lazy, memo, Suspense } from "react";
 import type { ComponentType } from "react";
+import type { BranchInfo, WorkspaceInfo } from "../../../types";
 import type { SettingsViewProps } from "../../settings/components/SettingsView";
 import { useRenameThreadPrompt } from "../../threads/hooks/useRenameThreadPrompt";
 import { useClonePrompt } from "../../workspaces/hooks/useClonePrompt";
 import { useWorktreePrompt } from "../../workspaces/hooks/useWorktreePrompt";
+import type { BranchSwitcherState } from "../../git/hooks/useBranchSwitcher";
 
 const RenameThreadPrompt = lazy(() =>
   import("../../threads/components/RenameThreadPrompt").then((module) => ({
@@ -18,6 +20,11 @@ const WorktreePrompt = lazy(() =>
 const ClonePrompt = lazy(() =>
   import("../../workspaces/components/ClonePrompt").then((module) => ({
     default: module.ClonePrompt,
+  })),
+);
+const BranchSwitcherPrompt = lazy(() =>
+  import("../../git/components/BranchSwitcherPrompt").then((module) => ({
+    default: module.BranchSwitcherPrompt,
   })),
 );
 
@@ -44,6 +51,12 @@ type AppModalsProps = {
   onClonePromptClearCopiesFolder: () => void;
   onClonePromptCancel: () => void;
   onClonePromptConfirm: () => void;
+  branchSwitcher: BranchSwitcherState;
+  branches: BranchInfo[];
+  workspaces: WorkspaceInfo[];
+  currentBranch: string | null;
+  onBranchSwitcherSelect: (branch: string, worktree: WorkspaceInfo | null) => void;
+  onBranchSwitcherCancel: () => void;
   settingsOpen: boolean;
   settingsSection: SettingsViewProps["initialSection"] | null;
   onCloseSettings: () => void;
@@ -68,6 +81,12 @@ export const AppModals = memo(function AppModals({
   onClonePromptClearCopiesFolder,
   onClonePromptCancel,
   onClonePromptConfirm,
+  branchSwitcher,
+  branches,
+  workspaces,
+  currentBranch,
+  onBranchSwitcherSelect,
+  onBranchSwitcherCancel,
   settingsOpen,
   settingsSection,
   onCloseSettings,
@@ -119,6 +138,17 @@ export const AppModals = memo(function AppModals({
             onClearCopiesFolder={onClonePromptClearCopiesFolder}
             onCancel={onClonePromptCancel}
             onConfirm={onClonePromptConfirm}
+          />
+        </Suspense>
+      )}
+      {branchSwitcher && (
+        <Suspense fallback={null}>
+          <BranchSwitcherPrompt
+            branches={branches}
+            workspaces={workspaces}
+            currentBranch={currentBranch}
+            onSelect={onBranchSwitcherSelect}
+            onCancel={onBranchSwitcherCancel}
           />
         </Suspense>
       )}

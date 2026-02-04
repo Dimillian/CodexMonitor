@@ -24,6 +24,7 @@ import "./styles/about.css";
 import "./styles/tabbar.css";
 import "./styles/worktree-modal.css";
 import "./styles/clone-modal.css";
+import "./styles/branch-switcher-modal.css";
 import "./styles/settings.css";
 import "./styles/compact-base.css";
 import "./styles/compact-phone.css";
@@ -51,6 +52,8 @@ import { useApps } from "./features/apps/hooks/useApps";
 import { useCustomPrompts } from "./features/prompts/hooks/useCustomPrompts";
 import { useWorkspaceFileListing } from "./features/app/hooks/useWorkspaceFileListing";
 import { useGitBranches } from "./features/git/hooks/useGitBranches";
+import { useBranchSwitcher } from "./features/git/hooks/useBranchSwitcher";
+import { useBranchSwitcherShortcut } from "./features/git/hooks/useBranchSwitcherShortcut";
 import { useDebugLog } from "./features/debug/hooks/useDebugLog";
 import { useWorkspaceRefreshOnFocus } from "./features/workspaces/hooks/useWorkspaceRefreshOnFocus";
 import { useWorkspaceRestore } from "./features/workspaces/hooks/useWorkspaceRestore";
@@ -474,6 +477,25 @@ function MainApp() {
     await createBranch(name);
     refreshGitStatus();
   };
+  const currentBranch = gitStatus.branchName ?? null;
+  const {
+    branchSwitcher,
+    openBranchSwitcher,
+    closeBranchSwitcher,
+    handleBranchSelect,
+  } = useBranchSwitcher({
+    activeWorkspace,
+    workspaces,
+    branches,
+    currentBranch,
+    checkoutBranch: handleCheckoutBranch,
+    setActiveWorkspaceId,
+  });
+  useBranchSwitcherShortcut({
+    shortcut: appSettings.branchSwitcherShortcut,
+    isEnabled: Boolean(activeWorkspace?.connected),
+    onTrigger: openBranchSwitcher,
+  });
   const alertError = useCallback((error: unknown) => {
     alert(error instanceof Error ? error.message : String(error));
   }, []);
@@ -2237,6 +2259,12 @@ function MainApp() {
         onClonePromptClearCopiesFolder={clearCloneCopiesFolder}
         onClonePromptCancel={cancelClonePrompt}
         onClonePromptConfirm={confirmClonePrompt}
+        branchSwitcher={branchSwitcher}
+        branches={branches}
+        workspaces={workspaces}
+        currentBranch={currentBranch}
+        onBranchSwitcherSelect={handleBranchSelect}
+        onBranchSwitcherCancel={closeBranchSwitcher}
         settingsOpen={settingsOpen}
         settingsSection={settingsSection ?? undefined}
         onCloseSettings={closeSettings}

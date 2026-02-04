@@ -36,6 +36,7 @@ const baseSettings: AppSettings = {
   archiveThreadShortcut: null,
   toggleProjectsSidebarShortcut: null,
   toggleGitSidebarShortcut: null,
+  branchSwitcherShortcut: null,
   toggleDebugPanelShortcut: null,
   toggleTerminalShortcut: null,
   cycleAgentNextShortcut: null,

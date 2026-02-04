@@ -1,27 +1,28 @@
 import { useEffect } from "react";
+import { matchesShortcut } from "../../../utils/shortcuts";
 
-type UseNewAgentShortcutOptions = {
+type UseBranchSwitcherShortcutOptions = {
+  shortcut: string | null;
   isEnabled: boolean;
   onTrigger: () => void;
 };
 
-export function useNewAgentShortcut({
+export function useBranchSwitcherShortcut({
+  shortcut,
   isEnabled,
   onTrigger,
-}: UseNewAgentShortcutOptions) {
+}: UseBranchSwitcherShortcutOptions) {
   useEffect(() => {
-    if (!isEnabled) {
+    if (!isEnabled || !shortcut) {
       return;
     }
     function handleKeyDown(event: KeyboardEvent) {
-      const isMac = navigator.platform.toUpperCase().includes("MAC");
-      const modifierKey = isMac ? event.metaKey : event.ctrlKey;
-      if (modifierKey && event.key === "n" && !event.shiftKey) {
+      if (matchesShortcut(event, shortcut)) {
         event.preventDefault();
         onTrigger();
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isEnabled, onTrigger]);
+  }, [isEnabled, onTrigger, shortcut]);
 }

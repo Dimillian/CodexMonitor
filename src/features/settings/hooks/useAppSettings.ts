@@ -39,6 +39,7 @@ const defaultSettings: AppSettings = {
   archiveThreadShortcut: "cmd+ctrl+a",
   toggleProjectsSidebarShortcut: "cmd+shift+p",
   toggleGitSidebarShortcut: "cmd+shift+g",
+  branchSwitcherShortcut: "cmd+b",
   toggleDebugPanelShortcut: "cmd+shift+d",
   toggleTerminalShortcut: "cmd+shift+t",
   cycleAgentNextShortcut: "cmd+ctrl+down",
