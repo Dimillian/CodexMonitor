@@ -1947,6 +1947,7 @@ function MainApp() {
     selectedDiffPath,
     diffScrollRequestId,
     onSelectDiff: handleSelectDiff,
+    diffSource,
     gitLogEntries,
     gitLogTotal,
     gitLogAhead,

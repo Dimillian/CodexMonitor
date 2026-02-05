@@ -294,6 +294,7 @@ type LayoutNodesOptions = {
   onUnstageGitFile: (path: string) => Promise<void>;
   onRevertGitFile: (path: string) => Promise<void>;
   onRevertAllGitChanges: () => Promise<void>;
+  diffSource: "local" | "pr" | "commit";
   gitDiffs: GitDiffViewerItem[];
   gitDiffLoading: boolean;
   gitDiffError: string | null;
@@ -878,6 +879,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       pullRequestComments={options.selectedPullRequestComments}
       pullRequestCommentsLoading={options.selectedPullRequestCommentsLoading}
       pullRequestCommentsError={options.selectedPullRequestCommentsError}
+      canRevert={options.diffSource === "local"}
+      onRevertFile={options.onRevertGitFile}
       onActivePathChange={options.onDiffActivePathChange}
     />
   );
