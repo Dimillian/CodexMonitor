@@ -118,22 +118,28 @@ fn validate_cmd_token(value: &str) -> Result<(), String> {
     if value.contains('\n') || value.contains('\r') {
         return Err("Windows cmd wrapper does not support newline characters.".to_string());
     }
-    if value.contains('"') {
-        return Err(
-            "Windows cmd wrapper does not support double quotes in arguments.".to_string(),
-        );
-    }
     Ok(())
 }
 
 #[cfg(target_os = "windows")]
 fn quote_cmd_token(value: &str) -> Result<String, String> {
     validate_cmd_token(value)?;
-    Ok(format!("\"{value}\""))
+    let mut escaped = String::with_capacity(value.len());
+    for ch in value.chars() {
+        match ch {
+            '^' => escaped.push_str("^^"),
+            '"' => escaped.push_str("^\""),
+            '%' => escaped.push_str("^%"),
+            '!' => escaped.push_str("^!"),
+            _ => escaped.push(ch),
+        }
+    }
+    Ok(format!("\"{escaped}\""))
 }
 
 /// Builds a single `cmd.exe /C "<command>"` payload that safely treats each argument as data
-/// (protects cmd metacharacters like `&`, `|`, `>`, `<`, `^`) by always quoting tokens.
+/// (protects cmd metacharacters like `&`, `|`, `>`, `<`) by always quoting tokens and escaping
+/// command-processor syntax in the token text (`^`, `"`, `%`, `!`).
 ///
 /// Returns a string that already includes the required outer quotes, suitable to be passed as
 /// *one* argument after `/C` (usually with `/S`).

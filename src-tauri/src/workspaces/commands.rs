@@ -847,7 +847,7 @@ pub(crate) async fn open_workspace_in(
                 .and_then(|ext| ext.to_str())
                 .map(|ext| ext.to_ascii_lowercase());
 
-            if matches!(ext.as_deref(), Some("cmd") | Some("bat")) || ext.is_none() {
+            if matches!(ext.as_deref(), Some("cmd") | Some("bat")) {
                 let mut cmd = tokio_command("cmd");
                 let mut command_args = args.clone();
                 command_args.push(path.clone());
