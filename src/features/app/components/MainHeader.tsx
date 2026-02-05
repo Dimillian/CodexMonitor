@@ -6,6 +6,9 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { BranchInfo, OpenAppTarget, WorkspaceInfo } from "../../../types";
 import type { ReactNode } from "react";
 import { revealInFileManagerLabel } from "../../../utils/platformPaths";
+import { BranchList } from "../../git/components/BranchList";
+import { filterBranches, findExactBranch } from "../../git/utils/branchSearch";
+import { validateBranchName } from "../../git/utils/branchValidation";
 import { OpenAppMenu } from "./OpenAppMenu";
 import { LaunchScriptButton } from "./LaunchScriptButton";
 import { LaunchScriptEntryButton } from "./LaunchScriptEntryButton";
@@ -110,55 +113,19 @@ export function MainHeader({
   const renameOnCancel = worktreeRename?.onCancel;
 
   const trimmedQuery = branchQuery.trim();
-  const lowercaseQuery = trimmedQuery.toLowerCase();
   const filteredBranches = useMemo(
-    () =>
-      trimmedQuery.length > 0
-        ? branches.filter((branch) =>
-            branch.name.toLowerCase().includes(lowercaseQuery),
-          )
-        : branches.slice(0, 12),
-    [branches, lowercaseQuery, trimmedQuery],
+    () => filterBranches(branches, branchQuery, { mode: "includes", whenEmptyLimit: 12 }),
+    [branches, branchQuery],
   );
   const exactMatch = useMemo(
-    () =>
-      trimmedQuery
-        ? branches.find((branch) => branch.name === trimmedQuery) ?? null
-        : null,
+    () => findExactBranch(branches, trimmedQuery),
     [branches, trimmedQuery],
   );
   const canCreate = trimmedQuery.length > 0 && !exactMatch;
-  const branchValidationMessage = useMemo(() => {
-    if (trimmedQuery.length === 0) {
-      return null;
-    }
-    if (trimmedQuery === "." || trimmedQuery === "..") {
-      return "Branch name cannot be '.' or '..'.";
-    }
-    if (/\s/.test(trimmedQuery)) {
-      return "Branch name cannot contain spaces.";
-    }
-    if (trimmedQuery.startsWith("/") || trimmedQuery.endsWith("/")) {
-      return "Branch name cannot start or end with '/'.";
-    }
-    if (trimmedQuery.endsWith(".lock")) {
-      return "Branch name cannot end with '.lock'.";
-    }
-    if (trimmedQuery.includes("..")) {
-      return "Branch name cannot contain '..'.";
-    }
-    if (trimmedQuery.includes("@{")) {
-      return "Branch name cannot contain '@{'.";
-    }
-    const invalidChars = ["~", "^", ":", "?", "*", "[", "\\"];
-    if (invalidChars.some((char) => trimmedQuery.includes(char))) {
-      return "Branch name contains invalid characters.";
-    }
-    if (trimmedQuery.endsWith(".")) {
-      return "Branch name cannot end with '.'.";
-    }
-    return null;
-  }, [trimmedQuery]);
+  const branchValidationMessage = useMemo(
+    () => validateBranchName(trimmedQuery),
+    [trimmedQuery],
+  );
   const resolvedWorktreePath = worktreePath ?? workspace.path;
   const relativeWorktreePath = useMemo(() => {
     if (!parentPath) {
@@ -486,39 +453,31 @@ export function MainHeader({
                       </div>
                     )}
                   </div>
-                  <div className="branch-list" role="none">
-                    {filteredBranches.map((branch) => (
-                      <button
-                        key={branch.name}
-                        type="button"
-                        className={`branch-item${
-                          branch.name === branchName ? " is-active" : ""
-                        }`}
-                        onClick={async () => {
-                          if (branch.name === branchName) {
-                            return;
-                          }
-                          try {
-                            await onCheckoutBranch(branch.name);
-                            setMenuOpen(false);
-                            setBranchQuery("");
-                            setError(null);
-                          } catch (err) {
-                            setError(
-                              err instanceof Error ? err.message : String(err),
-                            );
-                          }
-                        }}
-                        role="menuitem"
-                        data-tauri-drag-region="false"
-                      >
-                        {branch.name}
-                      </button>
-                    ))}
-                    {filteredBranches.length === 0 && (
-                      <div className="branch-empty">No branches found</div>
-                    )}
-                  </div>
+                  <BranchList
+                    branches={filteredBranches}
+                    currentBranch={branchName}
+                    listClassName="branch-list"
+                    listRole="none"
+                    itemClassName="branch-item"
+                    currentItemClassName="is-active"
+                    itemRole="menuitem"
+                    itemDataTauriDragRegion="false"
+                    emptyClassName="branch-empty"
+                    emptyText="No branches found"
+                    onSelect={async (branch) => {
+                      if (branch.name === branchName) {
+                        return;
+                      }
+                      try {
+                        await onCheckoutBranch(branch.name);
+                        setMenuOpen(false);
+                        setBranchQuery("");
+                        setError(null);
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : String(err));
+                      }
+                    }}
+                  />
                   {error && <div className="branch-error">{error}</div>}
                 </div>
               )}

@@ -36,7 +36,7 @@ describe("useAppSettings", () => {
         theme: "nope" as unknown as AppSettings["theme"],
         backendMode: "remote",
         remoteBackendHost: "example:1234",
-        experimentalPersonality: "unknown",
+        personality: "unknown",
         uiFontFamily: "",
         codeFontFamily: "  ",
         codeFontSize: 25,
@@ -52,7 +52,7 @@ describe("useAppSettings", () => {
     expect(result.current.settings.uiFontFamily).toContain("system-ui");
     expect(result.current.settings.codeFontFamily).toContain("ui-monospace");
     expect(result.current.settings.codeFontSize).toBe(16);
-    expect(result.current.settings.experimentalPersonality).toBe("default");
+    expect(result.current.settings.personality).toBe("friendly");
     expect(result.current.settings.backendMode).toBe("remote");
     expect(result.current.settings.remoteBackendHost).toBe("example:1234");
   });

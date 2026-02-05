@@ -335,27 +335,6 @@ describe("threadReducer", () => {
     }
   });
 
-  it("appends a deduped context compacted message", () => {
-    const withCompacted = threadReducer(initialState, {
-      type: "appendContextCompacted",
-      threadId: "thread-1",
-      turnId: "turn-1",
-    });
-    const withDuplicate = threadReducer(withCompacted, {
-      type: "appendContextCompacted",
-      threadId: "thread-1",
-      turnId: "turn-1",
-    });
-
-    const items = withDuplicate.itemsByThread["thread-1"] ?? [];
-    expect(items).toHaveLength(1);
-    expect(items[0]?.kind).toBe("message");
-    if (items[0]?.kind === "message") {
-      expect(items[0].text).toBe("Context compacted.");
-      expect(items[0].id).toBe("context-compacted-turn-1");
-    }
-  });
-
   it("ignores tool output deltas when the item is not a tool", () => {
     const message: ConversationItem = {
       id: "tool-1",

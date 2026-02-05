@@ -100,22 +100,25 @@ export function useComposerAutocompleteState({
     [apps, skills],
   );
 
+  const fileTriggerActive = useMemo(
+    () => isFileTriggerActive(text, selectionStart),
+    [selectionStart, text],
+  );
   const fileItems = useMemo<AutocompleteItem[]>(
     () =>
-      isFileTriggerActive(text, selectionStart)
+      fileTriggerActive
         ? (() => {
             const query = getFileTriggerQuery(text, selectionStart) ?? "";
-            const limited = query
-              ? files
-              : files.slice(0, MAX_FILE_SUGGESTIONS);
+            const limited = query ? files : files.slice(0, MAX_FILE_SUGGESTIONS);
             return limited.map((path) => ({
               id: path,
               label: path,
               insertText: path,
+              group: "Files" as const,
             }));
           })()
         : [],
-    [files, selectionStart, text],
+    [fileTriggerActive, files, selectionStart, text],
   );
 
   const promptItems = useMemo<AutocompleteItem[]>(
@@ -139,6 +142,13 @@ export function useComposerAutocompleteState({
 
   const slashCommandItems = useMemo<AutocompleteItem[]>(() => {
     const commands: AutocompleteItem[] = [
+      {
+        id: "compact",
+        label: "compact",
+        description: "compact the active thread context",
+        insertText: "compact",
+        group: "Slash",
+      },
       {
         id: "fork",
         label: "fork",
@@ -221,6 +231,9 @@ export function useComposerAutocompleteState({
     selectionStart,
     triggers,
   });
+  const autocompleteAnchorIndex = autocompleteRange
+    ? Math.max(0, autocompleteRange.start - 1)
+    : null;
 
   const applyAutocomplete = useCallback(
     (item: AutocompleteItem) => {
@@ -371,11 +384,13 @@ export function useComposerAutocompleteState({
   return {
     isAutocompleteOpen,
     autocompleteMatches,
+    autocompleteAnchorIndex,
     highlightIndex,
     setHighlightIndex,
     applyAutocomplete,
     handleInputKeyDown,
     handleTextChange,
     handleSelectionChange,
+    fileTriggerActive,
   };
 }

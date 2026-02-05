@@ -11,6 +11,7 @@ type AppLayoutProps = {
   activeTab: "projects" | "codex" | "git" | "log";
   tabletTab: "codex" | "git" | "log";
   centerMode: "chat" | "diff";
+  preloadGitDiffs: boolean;
   hasActivePlan: boolean;
   activeWorkspace: boolean;
   sidebarNode: ReactNode;
@@ -46,6 +47,7 @@ export const AppLayout = memo(function AppLayout({
   activeTab,
   tabletTab,
   centerMode,
+  preloadGitDiffs,
   hasActivePlan,
   activeWorkspace,
   sidebarNode,
@@ -130,6 +132,7 @@ export const AppLayout = memo(function AppLayout({
       showWorkspace={activeWorkspace && !showHome}
       topbarLeftNode={desktopTopbarLeftNode}
       centerMode={centerMode}
+      preloadGitDiffs={preloadGitDiffs}
       messagesNode={messagesNode}
       gitDiffViewerNode={gitDiffViewerNode}
       gitDiffPanelNode={gitDiffPanelNode}

@@ -1,9 +1,16 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from "@testing-library/react";
 import { act } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRef } from "react";
 import { Sidebar } from "./Sidebar";
+
+afterEach(() => {
+  if (vi.isFakeTimers()) {
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
+  }
+});
 
 const baseProps = {
   workspaces: [],
@@ -88,7 +95,6 @@ describe("Sidebar", () => {
     });
     const reopened = screen.getByLabelText("Search projects") as HTMLInputElement;
     expect(reopened.value).toBe("");
-    vi.useRealTimers();
   });
 
   it("shows a top New Agent draft row and selects workspace when clicked", () => {

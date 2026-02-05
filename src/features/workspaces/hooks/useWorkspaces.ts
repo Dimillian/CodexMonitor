@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import * as Sentry from "@sentry/react";
 import type {
   AppSettings,
   DebugEntry,
@@ -236,12 +235,6 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
         const workspace = await addWorkspaceService(selection, defaultCodexBin ?? null);
         setWorkspaces((prev) => [...prev, workspace]);
         setActiveWorkspaceId(workspace.id);
-        Sentry.metrics.count("workspace_added", 1, {
-          attributes: {
-            workspace_id: workspace.id,
-            workspace_kind: workspace.kind ?? "main",
-          },
-        });
         return workspace;
       } catch (error) {
         onDebug?.({
@@ -282,31 +275,41 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
   async function addWorktreeAgent(
     parent: WorkspaceInfo,
     branch: string,
-    options?: { activate?: boolean },
+    options?: {
+      activate?: boolean;
+      displayName?: string | null;
+      copyAgentsMd?: boolean;
+    },
   ) {
     const trimmed = branch.trim();
     if (!trimmed) {
       return null;
     }
+    const trimmedName = options?.displayName?.trim() || null;
+    const copyAgentsMd = options?.copyAgentsMd ?? true;
     onDebug?.({
       id: `${Date.now()}-client-add-worktree`,
       timestamp: Date.now(),
       source: "client",
       label: "worktree/add",
-      payload: { parentId: parent.id, branch: trimmed },
+      payload: {
+        parentId: parent.id,
+        branch: trimmed,
+        name: trimmedName,
+        copyAgentsMd,
+      },
     });
     try {
-      const workspace = await addWorktreeService(parent.id, trimmed);
+      const workspace = await addWorktreeService(
+        parent.id,
+        trimmed,
+        trimmedName,
+        copyAgentsMd,
+      );
       setWorkspaces((prev) => [...prev, workspace]);
       if (options?.activate !== false) {
         setActiveWorkspaceId(workspace.id);
       }
-      Sentry.metrics.count("worktree_agent_created", 1, {
-        attributes: {
-          workspace_id: workspace.id,
-          parent_id: parent.id,
-        },
-      });
       return workspace;
     } catch (error) {
       onDebug?.({
@@ -348,12 +351,6 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
       const workspace = await addCloneService(source.id, trimmedFolder, trimmedName);
       setWorkspaces((prev) => [...prev, workspace]);
       setActiveWorkspaceId(workspace.id);
-      Sentry.metrics.count("clone_agent_created", 1, {
-        attributes: {
-          workspace_id: workspace.id,
-          parent_id: source.id,
-        },
-      });
       return workspace;
     } catch (error) {
       onDebug?.({
@@ -694,14 +691,18 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
         prev && (prev === workspaceId || childIds.has(prev)) ? null : prev,
       );
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       onDebug?.({
         id: `${Date.now()}-client-remove-workspace-error`,
         timestamp: Date.now(),
         source: "error",
         label: "workspace/remove error",
-        payload: error instanceof Error ? error.message : String(error),
+        payload: errorMessage,
       });
-      throw error;
+      void message(errorMessage, {
+        title: "Delete workspace failed",
+        kind: "error",
+      });
     }
   }
 

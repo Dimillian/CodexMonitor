@@ -267,6 +267,27 @@ describe("useThreadTurnEvents", () => {
     });
   });
 
+  it("does not clear a completed plan for a different turn", () => {
+    const { result, dispatch } = makeOptions({
+      planByThread: {
+        "thread-1": {
+          turnId: "turn-2",
+          explanation: "Done",
+          steps: [{ step: "Finish task", status: "completed" }],
+        },
+      },
+    });
+
+    act(() => {
+      result.current.onTurnCompleted("ws-1", "thread-1", "turn-1");
+    });
+
+    expect(dispatch).not.toHaveBeenCalledWith({
+      type: "clearThreadPlan",
+      threadId: "thread-1",
+    });
+  });
+
   it("keeps the active plan when at least one step is not completed", () => {
     const { result, dispatch } = makeOptions({
       planByThread: {
@@ -448,27 +469,4 @@ describe("useThreadTurnEvents", () => {
     expect(markProcessing).not.toHaveBeenCalled();
   });
 
-  it("appends a context compacted message and records activity", () => {
-    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(2222);
-    const { result, dispatch, recordThreadActivity, safeMessageActivity } = makeOptions();
-
-    act(() => {
-      result.current.onContextCompacted("ws-1", "thread-1", "turn-9");
-    });
-
-    expect(dispatch).toHaveBeenCalledWith({
-      type: "ensureThread",
-      workspaceId: "ws-1",
-      threadId: "thread-1",
-    });
-    expect(dispatch).toHaveBeenCalledWith({
-      type: "appendContextCompacted",
-      threadId: "thread-1",
-      turnId: "turn-9",
-    });
-    expect(recordThreadActivity).toHaveBeenCalledWith("ws-1", "thread-1", 2222);
-    expect(safeMessageActivity).toHaveBeenCalled();
-
-    nowSpy.mockRestore();
-  });
 });

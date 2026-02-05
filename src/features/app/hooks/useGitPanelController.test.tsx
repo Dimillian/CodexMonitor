@@ -37,6 +37,7 @@ function makeProps(overrides?: Partial<Parameters<typeof useGitPanelController>[
   return {
     activeWorkspace: workspace,
     gitDiffPreloadEnabled: false,
+    gitDiffIgnoreWhitespaceChanges: false,
     isCompact: false,
     isTablet: false,
     activeTab: "codex" as const,
@@ -100,7 +101,7 @@ describe("useGitPanelController preload behavior", () => {
     const { result } = renderHook(() => useGitPanelController(makeProps()));
 
     const initialEnabled = getLastEnabledArg();
-    expect(initialEnabled).toBe(true);
+    expect(initialEnabled).toBe(false);
 
     act(() => {
       result.current.setGitPanelMode("issues");
@@ -110,7 +111,7 @@ describe("useGitPanelController preload behavior", () => {
     expect(lastEnabled).toBe(false);
   });
 
-  it("loads diffs when the panel becomes visible even if preload is disabled", () => {
+  it("does not load diffs when the panel becomes visible if preload is disabled", () => {
     const { result } = renderHook(() => useGitPanelController(makeProps()));
 
     act(() => {
@@ -125,6 +126,20 @@ describe("useGitPanelController preload behavior", () => {
     });
 
     const visibleEnabled = getLastEnabledArg();
-    expect(visibleEnabled).toBe(true);
+    expect(visibleEnabled).toBe(false);
+  });
+
+  it("loads diffs after selecting a file when preload is disabled", () => {
+    const { result } = renderHook(() => useGitPanelController(makeProps()));
+
+    const hiddenEnabled = getLastEnabledArg();
+    expect(hiddenEnabled).toBe(false);
+
+    act(() => {
+      result.current.handleSelectDiff("src/main.ts");
+    });
+
+    const selectedEnabled = getLastEnabledArg();
+    expect(selectedEnabled).toBe(true);
   });
 });

@@ -208,12 +208,16 @@ impl DaemonState {
         &self,
         parent_id: String,
         branch: String,
+        name: Option<String>,
+        copy_agents_md: bool,
         client_version: String,
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
         workspaces_core::add_worktree_core(
             parent_id,
             branch,
+            name,
+            copy_agents_md,
             &self.data_dir,
             &self.workspaces,
             &self.sessions,
@@ -537,6 +541,10 @@ impl DaemonState {
 
     async fn archive_thread(&self, workspace_id: String, thread_id: String) -> Result<Value, String> {
         codex_core::archive_thread_core(&self.sessions, workspace_id, thread_id).await
+    }
+
+    async fn compact_thread(&self, workspace_id: String, thread_id: String) -> Result<Value, String> {
+        codex_core::compact_thread_core(&self.sessions, workspace_id, thread_id).await
     }
 
     async fn set_thread_name(
@@ -908,6 +916,13 @@ fn parse_optional_u32(value: &Value, key: &str) -> Option<u32> {
     }
 }
 
+fn parse_optional_bool(value: &Value, key: &str) -> Option<bool> {
+    match value {
+        Value::Object(map) => map.get(key).and_then(|value| value.as_bool()),
+        _ => None,
+    }
+}
+
 fn parse_optional_string_array(value: &Value, key: &str) -> Option<Vec<String>> {
     match value {
         Value::Object(map) => map.get(key).and_then(|value| value.as_array()).map(|items| {
@@ -982,8 +997,10 @@ async fn handle_rpc_request(
         "add_worktree" => {
             let parent_id = parse_string(&params, "parentId")?;
             let branch = parse_string(&params, "branch")?;
+            let name = parse_optional_string(&params, "name");
+            let copy_agents_md = parse_optional_bool(&params, "copyAgentsMd").unwrap_or(true);
             let workspace = state
-                .add_worktree(parent_id, branch, client_version)
+                .add_worktree(parent_id, branch, name, copy_agents_md, client_version)
                 .await?;
             serde_json::to_value(workspace).map_err(|err| err.to_string())
         }
@@ -1128,6 +1145,11 @@ async fn handle_rpc_request(
             let workspace_id = parse_string(&params, "workspaceId")?;
             let thread_id = parse_string(&params, "threadId")?;
             state.archive_thread(workspace_id, thread_id).await
+        }
+        "compact_thread" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let thread_id = parse_string(&params, "threadId")?;
+            state.compact_thread(workspace_id, thread_id).await
         }
         "set_thread_name" => {
             let workspace_id = parse_string(&params, "workspaceId")?;

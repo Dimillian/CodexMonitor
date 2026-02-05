@@ -7,10 +7,12 @@ import { Messages } from "./Messages";
 
 const useFileLinkOpenerMock = vi.fn(
   (_workspacePath: string | null, _openTargets: unknown[], _selectedOpenAppId: string) => ({
-    openFileLink: vi.fn(),
-    showFileLinkMenu: vi.fn(),
+    openFileLink: openFileLinkMock,
+    showFileLinkMenu: showFileLinkMenuMock,
   }),
 );
+const openFileLinkMock = vi.fn();
+const showFileLinkMenuMock = vi.fn();
 
 vi.mock("../hooks/useFileLinkOpener", () => ({
   useFileLinkOpener: (
@@ -29,6 +31,8 @@ describe("Messages", () => {
 
   beforeEach(() => {
     useFileLinkOpenerMock.mockClear();
+    openFileLinkMock.mockReset();
+    showFileLinkMenuMock.mockReset();
   });
 
   it("renders image grid above message text and opens lightbox", () => {
@@ -147,6 +151,42 @@ describe("Messages", () => {
 
     fireEvent.click(screen.getByText("Open review thread"));
     expect(onOpenThreadLink).toHaveBeenCalledWith("thread-review-1");
+  });
+
+  it("renders file references as compact links and opens them", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-file-link",
+        kind: "message",
+        role: "assistant",
+        text: "Refactor candidate: `iosApp/src/views/DocumentsList/DocumentListView.swift:111`",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const fileLinkName = screen.getByText("DocumentListView.swift");
+    const fileLinkLine = screen.getByText("L111");
+    const fileLinkPath = screen.getByText("iosApp/src/views/DocumentsList");
+    const fileLink = container.querySelector(".message-file-link");
+    expect(fileLinkName).toBeTruthy();
+    expect(fileLinkLine).toBeTruthy();
+    expect(fileLinkPath).toBeTruthy();
+    expect(fileLink).toBeTruthy();
+
+    fireEvent.click(fileLink as Element);
+    expect(openFileLinkMock).toHaveBeenCalledWith(
+      "iosApp/src/views/DocumentsList/DocumentListView.swift:111",
+    );
   });
 
   it("does not re-render messages while typing when message props stay stable", () => {

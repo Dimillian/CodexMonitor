@@ -135,6 +135,33 @@ describe("useThreadItemEvents", () => {
     expect(onReviewExited).toHaveBeenCalledWith("ws-1", "thread-1");
   });
 
+  it("adds lifecycle status for context compaction items", () => {
+    const { result } = makeOptions();
+    const item: ItemPayload = { type: "contextCompaction", id: "compact-1" };
+
+    act(() => {
+      result.current.onItemStarted("ws-1", "thread-1", item);
+    });
+    expect(buildConversationItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "contextCompaction",
+        id: "compact-1",
+        status: "inProgress",
+      }),
+    );
+
+    act(() => {
+      result.current.onItemCompleted("ws-1", "thread-1", item);
+    });
+    expect(buildConversationItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "contextCompaction",
+        id: "compact-1",
+        status: "completed",
+      }),
+    );
+  });
+
   it("marks processing and appends agent deltas", () => {
     const { result, dispatch, markProcessing } = makeOptions();
 

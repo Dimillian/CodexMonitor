@@ -5,11 +5,30 @@ import { getWorkspaceFiles } from "../../../services/tauri";
 type UseWorkspaceFilesOptions = {
   activeWorkspace: WorkspaceInfo | null;
   onDebug?: (entry: DebugEntry) => void;
+  enabled?: boolean;
+  pollingEnabled?: boolean;
 };
+
+function areStringArraysEqual(a: string[], b: string[]) {
+  if (a === b) {
+    return true;
+  }
+  if (a.length !== b.length) {
+    return false;
+  }
+  for (let index = 0; index < a.length; index += 1) {
+    if (a[index] !== b[index]) {
+      return false;
+    }
+  }
+  return true;
+}
 
 export function useWorkspaceFiles({
   activeWorkspace,
   onDebug,
+  enabled = true,
+  pollingEnabled,
 }: UseWorkspaceFilesOptions) {
   const [files, setFiles] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -17,11 +36,15 @@ export function useWorkspaceFiles({
   const inFlight = useRef<string | null>(null);
 
   const REFRESH_INTERVAL_MS = 5000;
+  const LARGE_REFRESH_INTERVAL_MS = 20000;
+  const LARGE_FILE_COUNT = 20000;
   const workspaceId = activeWorkspace?.id ?? null;
   const isConnected = Boolean(activeWorkspace?.connected);
+  const isEnabled = enabled;
+  const isPollingEnabled = pollingEnabled ?? isEnabled;
 
   const refreshFiles = useCallback(async () => {
-    if (!workspaceId || !isConnected) {
+    if (!workspaceId || !isConnected || !isEnabled) {
       return;
     }
     if (inFlight.current === workspaceId) {
@@ -47,7 +70,8 @@ export function useWorkspaceFiles({
         payload: response,
       });
       if (requestWorkspaceId === workspaceId) {
-        setFiles(Array.isArray(response) ? response : []);
+        const nextFiles = Array.isArray(response) ? response : [];
+        setFiles((prev) => (areStringArraysEqual(prev, nextFiles) ? prev : nextFiles));
         lastFetchedWorkspaceId.current = requestWorkspaceId;
       }
     } catch (error) {
@@ -64,38 +88,43 @@ export function useWorkspaceFiles({
         setIsLoading(false);
       }
     }
-  }, [isConnected, onDebug, workspaceId]);
+  }, [isConnected, isEnabled, onDebug, workspaceId]);
 
   useEffect(() => {
     setFiles([]);
     lastFetchedWorkspaceId.current = null;
     inFlight.current = null;
-    setIsLoading(Boolean(workspaceId && isConnected));
   }, [isConnected, workspaceId]);
 
   useEffect(() => {
-    if (!workspaceId || !isConnected) {
+    setIsLoading(Boolean(workspaceId && isConnected && isEnabled));
+  }, [isConnected, isEnabled, workspaceId]);
+
+  useEffect(() => {
+    if (!workspaceId || !isConnected || !isEnabled) {
       return;
     }
     if (lastFetchedWorkspaceId.current === workspaceId && files.length > 0) {
       return;
     }
     refreshFiles();
-  }, [files.length, isConnected, refreshFiles, workspaceId]);
+  }, [files.length, isConnected, isEnabled, refreshFiles, workspaceId]);
 
   useEffect(() => {
-    if (!workspaceId || !isConnected) {
+    if (!workspaceId || !isConnected || !isPollingEnabled) {
       return;
     }
+    const refreshInterval =
+      files.length > LARGE_FILE_COUNT ? LARGE_REFRESH_INTERVAL_MS : REFRESH_INTERVAL_MS;
 
     const interval = window.setInterval(() => {
       refreshFiles().catch(() => {});
-    }, REFRESH_INTERVAL_MS);
+    }, refreshInterval);
 
     return () => {
       window.clearInterval(interval);
     };
-  }, [isConnected, refreshFiles, workspaceId]);
+  }, [files.length, isConnected, isPollingEnabled, refreshFiles, workspaceId]);
 
   const fileOptions = useMemo(() => files.filter(Boolean), [files]);
 

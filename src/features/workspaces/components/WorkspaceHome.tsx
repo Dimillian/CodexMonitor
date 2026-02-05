@@ -17,7 +17,6 @@ import type {
   SkillOption,
   WorkspaceInfo,
 } from "../../../types";
-import { formatCollaborationModeLabel } from "../../../utils/collaborationModes";
 import { ComposerInput } from "../../composer/components/ComposerInput";
 import { useComposerImages } from "../../composer/hooks/useComposerImages";
 import { useComposerAutocompleteState } from "../../composer/hooks/useComposerAutocompleteState";
@@ -89,6 +88,7 @@ type WorkspaceHomeProps = {
   dictationTranscript: DictationTranscript | null;
   onDictationTranscriptHandled: (id: string) => void;
   textareaRef?: RefObject<HTMLTextAreaElement | null>;
+  onFileAutocompleteActiveChange?: (active: boolean) => void;
   agentMdContent: string;
   agentMdExists: boolean;
   agentMdTruncated: boolean;
@@ -167,6 +167,7 @@ export function WorkspaceHome({
   dictationTranscript,
   onDictationTranscriptHandled,
   textareaRef: textareaRefProp,
+  onFileAutocompleteActiveChange,
   agentMdContent,
   agentMdExists,
   agentMdTruncated,
@@ -204,12 +205,14 @@ export function WorkspaceHome({
   const {
     isAutocompleteOpen,
     autocompleteMatches,
+    autocompleteAnchorIndex,
     highlightIndex,
     setHighlightIndex,
     applyAutocomplete,
     handleInputKeyDown,
     handleTextChange,
     handleSelectionChange,
+    fileTriggerActive,
   } = useComposerAutocompleteState({
     text: prompt,
     selectionStart,
@@ -223,6 +226,9 @@ export function WorkspaceHome({
     setText: onPromptChange,
     setSelectionStart,
   });
+  useEffect(() => {
+    onFileAutocompleteActiveChange?.(fileTriggerActive);
+  }, [fileTriggerActive, onFileAutocompleteActiveChange]);
   const {
     handleHistoryKeyDown,
     handleHistoryTextChange,
@@ -258,7 +264,11 @@ export function WorkspaceHome({
       return;
     }
     const cursor =
-      textarea.selectionStart ?? selectionStart ?? prompt.length ?? 0;
+      autocompleteAnchorIndex ??
+      textarea.selectionStart ??
+      selectionStart ??
+      prompt.length ??
+      0;
     const caret = getCaretPosition(textarea, cursor);
     if (!caret) {
       return;
@@ -277,7 +287,7 @@ export function WorkspaceHome({
       bottom: "auto",
       right: "auto",
     });
-  }, [isAutocompleteOpen, prompt, selectionStart, textareaRef]);
+  }, [autocompleteAnchorIndex, isAutocompleteOpen, prompt, selectionStart, textareaRef]);
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
@@ -722,7 +732,7 @@ export function WorkspaceHome({
               >
                 {collaborationModes.map((mode) => (
                   <option key={mode.id} value={mode.id}>
-                    {formatCollaborationModeLabel(mode.label || mode.id)}
+                    {mode.label || mode.id}
                   </option>
                 ))}
               </select>

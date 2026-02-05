@@ -16,7 +16,7 @@ export function useNewAgentShortcut({
     function handleKeyDown(event: KeyboardEvent) {
       const isMac = navigator.platform.toUpperCase().includes("MAC");
       const modifierKey = isMac ? event.metaKey : event.ctrlKey;
-      if (modifierKey && event.key === "n") {
+      if (modifierKey && event.key === "n" && !event.shiftKey) {
         event.preventDefault();
         onTrigger();
       }

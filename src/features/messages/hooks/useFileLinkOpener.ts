@@ -4,7 +4,6 @@ import { Menu, MenuItem, PredefinedMenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import * as Sentry from "@sentry/react";
 import { openWorkspaceIn } from "../../../services/tauri";
 import { pushErrorToast } from "../../../services/toasts";
 import type { OpenAppTarget } from "../../../types";
@@ -68,15 +67,6 @@ export function useFileLinkOpener(
   const reportOpenError = useCallback(
     (error: unknown, context: Record<string, string | null>) => {
       const message = error instanceof Error ? error.message : String(error);
-      Sentry.captureException(
-        error instanceof Error ? error : new Error(message),
-        {
-          tags: {
-            feature: "file-link-open",
-          },
-          extra: context,
-        },
-      );
       pushErrorToast({
         title: "Couldn’t open file",
         message,

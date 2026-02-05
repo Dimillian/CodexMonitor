@@ -28,6 +28,7 @@ const makeOptions = (
   startFork: vi.fn().mockResolvedValue(undefined),
   startReview: vi.fn().mockResolvedValue(undefined),
   startResume: vi.fn().mockResolvedValue(undefined),
+  startCompact: vi.fn().mockResolvedValue(undefined),
   startApps: vi.fn().mockResolvedValue(undefined),
   startMcp: vi.fn().mockResolvedValue(undefined),
   startStatus: vi.fn().mockResolvedValue(undefined),
@@ -353,6 +354,22 @@ describe("useQueuedSend", () => {
     });
 
     expect(startResume).toHaveBeenCalledWith("/resume now");
+    expect(options.sendUserMessage).not.toHaveBeenCalled();
+    expect(options.startReview).not.toHaveBeenCalled();
+  });
+
+  it("routes /compact to the compact handler", async () => {
+    const startCompact = vi.fn().mockResolvedValue(undefined);
+    const options = makeOptions({ startCompact });
+    const { result } = renderHook((props) => useQueuedSend(props), {
+      initialProps: options,
+    });
+
+    await act(async () => {
+      await result.current.handleSend("/compact now", ["img-1"]);
+    });
+
+    expect(startCompact).toHaveBeenCalledWith("/compact now");
     expect(options.sendUserMessage).not.toHaveBeenCalled();
     expect(options.startReview).not.toHaveBeenCalled();
   });

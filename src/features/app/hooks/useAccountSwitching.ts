@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cancelCodexLogin, runCodexLogin } from "../../../services/tauri";
 import { subscribeAppServerEvents } from "../../../services/events";
 import type { AccountSnapshot } from "../../../types";
+import { getAppServerParams, getAppServerRawMethod } from "../../../utils/appServerEvents";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 type UseAccountSwitchingArgs = {
@@ -96,8 +97,11 @@ export function useAccountSwitching({
         return;
       }
 
-      const method = String(payload.message.method ?? "");
-      const params = (payload.message.params ?? {}) as Record<string, unknown>;
+      const method = getAppServerRawMethod(payload);
+      if (!method) {
+        return;
+      }
+      const params = getAppServerParams(payload);
 
       if (method === "account/login/completed") {
         const loginId = String(params.loginId ?? params.login_id ?? "");

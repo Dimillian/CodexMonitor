@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import type { Options as NotificationOptions } from "@tauri-apps/plugin-notification";
 import type {
   AppSettings,
   CodexDoctorResult,
@@ -155,8 +156,10 @@ export async function addClone(
 export async function addWorktree(
   parentId: string,
   branch: string,
+  name: string | null,
+  copyAgentsMd = true,
 ): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("add_worktree", { parentId, branch });
+  return invoke<WorkspaceInfo>("add_worktree", { parentId, branch, name, copyAgentsMd });
 }
 
 export type WorktreeSetupStatus = {
@@ -245,6 +248,10 @@ export async function startThread(workspaceId: string) {
 
 export async function forkThread(workspaceId: string, threadId: string) {
   return invoke<any>("fork_thread", { workspaceId, threadId });
+}
+
+export async function compactThread(workspaceId: string, threadId: string) {
+  return invoke<any>("compact_thread", { workspaceId, threadId });
 }
 
 export async function sendUserMessage(
@@ -401,6 +408,10 @@ export async function pushGit(workspaceId: string): Promise<void> {
 
 export async function pullGit(workspaceId: string): Promise<void> {
   return invoke("pull_git", { workspaceId });
+}
+
+export async function fetchGit(workspaceId: string): Promise<void> {
+  return invoke("fetch_git", { workspaceId });
 }
 
 export async function syncGit(workspaceId: string): Promise<void> {
@@ -763,6 +774,14 @@ export async function generateCommitMessage(
 export async function sendNotification(
   title: string,
   body: string,
+  options?: {
+    id?: number;
+    group?: string;
+    actionTypeId?: string;
+    sound?: string;
+    autoCancel?: boolean;
+    extra?: Record<string, unknown>;
+  },
 ): Promise<void> {
   const macosDebugBuild = await invoke<boolean>("is_macos_debug_build").catch(
     () => false,
@@ -797,7 +816,26 @@ export async function sendNotification(
       }
     }
     if (permissionGranted) {
-      await notification.sendNotification({ title, body });
+      const payload: NotificationOptions = { title, body };
+      if (options?.id !== undefined) {
+        payload.id = options.id;
+      }
+      if (options?.group !== undefined) {
+        payload.group = options.group;
+      }
+      if (options?.actionTypeId !== undefined) {
+        payload.actionTypeId = options.actionTypeId;
+      }
+      if (options?.sound !== undefined) {
+        payload.sound = options.sound;
+      }
+      if (options?.autoCancel !== undefined) {
+        payload.autoCancel = options.autoCancel;
+      }
+      if (options?.extra !== undefined) {
+        payload.extra = options.extra;
+      }
+      await notification.sendNotification(payload);
       return;
     }
   } catch (error) {

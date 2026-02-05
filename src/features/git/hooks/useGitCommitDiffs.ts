@@ -18,11 +18,13 @@ export function useGitCommitDiffs(
   activeWorkspace: WorkspaceInfo | null,
   sha: string | null,
   enabled: boolean,
+  ignoreWhitespaceChanges: boolean,
 ) {
   const [state, setState] = useState<CommitDiffState>(emptyState);
   const requestIdRef = useRef(0);
   const workspaceIdRef = useRef<string | null>(activeWorkspace?.id ?? null);
   const shaRef = useRef<string | null>(sha ?? null);
+  const ignoreWhitespaceChangesRef = useRef(ignoreWhitespaceChanges);
 
   const refresh = useCallback(async () => {
     if (!activeWorkspace || !sha) {
@@ -38,7 +40,8 @@ export function useGitCommitDiffs(
       if (
         requestIdRef.current !== requestId ||
         workspaceIdRef.current !== workspaceId ||
-        shaRef.current !== sha
+        shaRef.current !== sha ||
+        ignoreWhitespaceChangesRef.current !== ignoreWhitespaceChanges
       ) {
         return;
       }
@@ -48,7 +51,8 @@ export function useGitCommitDiffs(
       if (
         requestIdRef.current !== requestId ||
         workspaceIdRef.current !== workspaceId ||
-        shaRef.current !== sha
+        shaRef.current !== sha ||
+        ignoreWhitespaceChangesRef.current !== ignoreWhitespaceChanges
       ) {
         return;
       }
@@ -58,7 +62,7 @@ export function useGitCommitDiffs(
         error: error instanceof Error ? error.message : String(error),
       });
     }
-  }, [activeWorkspace, sha]);
+  }, [activeWorkspace, ignoreWhitespaceChanges, sha]);
 
   useEffect(() => {
     const workspaceId = activeWorkspace?.id ?? null;
@@ -76,6 +80,14 @@ export function useGitCommitDiffs(
       setState(emptyState);
     }
   }, [sha]);
+
+  useEffect(() => {
+    if (ignoreWhitespaceChangesRef.current !== ignoreWhitespaceChanges) {
+      ignoreWhitespaceChangesRef.current = ignoreWhitespaceChanges;
+      requestIdRef.current += 1;
+      setState(emptyState);
+    }
+  }, [ignoreWhitespaceChanges]);
 
   useEffect(() => {
     if (!enabled) {

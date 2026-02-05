@@ -37,6 +37,19 @@ fn extract_thread_id(value: &Value) -> Option<String> {
         })
 }
 
+fn build_initialize_params(client_version: &str) -> Value {
+    json!({
+        "clientInfo": {
+            "name": "codex_monitor",
+            "title": "Codex Monitor",
+            "version": client_version
+        },
+        "capabilities": {
+            "experimentalApi": true
+        }
+    })
+}
+
 pub(crate) struct WorkspaceSession {
     pub(crate) entry: WorkspaceEntry,
     pub(crate) child: Mutex<Child>,
@@ -407,13 +420,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
         }
     });
 
-    let init_params = json!({
-        "clientInfo": {
-            "name": "codex_monitor",
-            "title": "CodexMonitor",
-            "version": client_version
-        }
-    });
+    let init_params = build_initialize_params(&client_version);
     let init_result = timeout(
         Duration::from_secs(15),
         session.send_request("initialize", init_params),
@@ -447,7 +454,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 
 #[cfg(test)]
 mod tests {
-    use super::extract_thread_id;
+    use super::{build_initialize_params, extract_thread_id};
     use serde_json::json;
 
     #[test]
@@ -466,5 +473,17 @@ mod tests {
     fn extract_thread_id_returns_none_when_missing() {
         let value = json!({ "params": {} });
         assert_eq!(extract_thread_id(&value), None);
+    }
+
+    #[test]
+    fn build_initialize_params_enables_experimental_api() {
+        let params = build_initialize_params("1.2.3");
+        assert_eq!(
+            params
+                .get("capabilities")
+                .and_then(|caps| caps.get("experimentalApi"))
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
     }
 }

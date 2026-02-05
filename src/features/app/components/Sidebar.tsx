@@ -22,6 +22,7 @@ import { useCollapsedGroups } from "../hooks/useCollapsedGroups";
 import { useSidebarMenus } from "../hooks/useSidebarMenus";
 import { useSidebarScrollFade } from "../hooks/useSidebarScrollFade";
 import { useThreadRows } from "../hooks/useThreadRows";
+import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { getUsageLabels } from "../utils/usageLabels";
 import { formatRelativeTimeShort } from "../../../utils/time";
 
@@ -147,7 +148,6 @@ export function Sidebar({
     new Set<string>(),
   );
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [addMenuAnchor, setAddMenuAnchor] = useState<{
     workspaceId: string;
@@ -180,6 +180,7 @@ export function Sidebar({
     creditsLabel,
     showWeekly,
   } = getUsageLabels(accountRateLimits, usageShowRemaining);
+  const debouncedQuery = useDebouncedValue(searchQuery, 150);
   const normalizedQuery = debouncedQuery.trim().toLowerCase();
 
   const isWorkspaceMatch = useCallback(
@@ -385,13 +386,6 @@ export function Sidebar({
     }
   }, [isSearchOpen, searchQuery]);
 
-  useEffect(() => {
-    const handle = window.setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 150);
-    return () => window.clearTimeout(handle);
-  }, [searchQuery]);
-
   return (
     <aside
       className={`sidebar${isSearchOpen ? " search-open" : ""}`}
@@ -506,11 +500,11 @@ export function Sidebar({
                   const nextCursor =
                     threadListCursorByWorkspace[entry.id] ?? null;
                   const showThreadList =
-                    !isCollapsed && (threads.length > 0 || Boolean(nextCursor));
+                    threads.length > 0 || Boolean(nextCursor);
                   const isLoadingThreads =
                     threadListLoadingByWorkspace[entry.id] ?? false;
                   const showThreadLoader =
-                    !isCollapsed && isLoadingThreads && threads.length === 0;
+                    isLoadingThreads && threads.length === 0;
                   const isPaging = threadListPagingByWorkspace[entry.id] ?? false;
                   const worktrees = worktreesByParent.get(entry.id) ?? [];
                   const addMenuOpen = addMenuAnchor?.workspaceId === entry.id;
@@ -583,7 +577,7 @@ export function Sidebar({
                           </div>,
                           document.body,
                         )}
-                      {!isCollapsed && isDraftNewAgent && (
+                      {isDraftNewAgent && (
                         <div
                           className={`thread-row thread-row-draft${
                             isDraftRowActive ? " active" : ""
@@ -602,7 +596,7 @@ export function Sidebar({
                           <span className="thread-name">New Agent</span>
                         </div>
                       )}
-                      {!isCollapsed && worktrees.length > 0 && (
+                      {worktrees.length > 0 && (
                         <WorktreeSection
                           worktrees={worktrees}
                           deletingWorktreeIds={deletingWorktreeIds}

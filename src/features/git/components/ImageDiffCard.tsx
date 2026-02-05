@@ -1,5 +1,6 @@
 import { memo, useMemo } from "react";
 import ImageOff from "lucide-react/dist/esm/icons/image-off";
+import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 
 type ImageDiffCardProps = {
   path: string;
@@ -9,6 +10,8 @@ type ImageDiffCardProps = {
   oldImageMime?: string | null;
   newImageMime?: string | null;
   isSelected: boolean;
+  showRevert?: boolean;
+  onRequestRevert?: (path: string) => void;
 };
 
 function getImageMimeType(path: string): string {
@@ -37,6 +40,8 @@ export const ImageDiffCard = memo(function ImageDiffCard({
   oldImageMime,
   newImageMime,
   isSelected,
+  showRevert = false,
+  onRequestRevert,
 }: ImageDiffCardProps) {
   const oldDataUri = useMemo(
     () => {
@@ -89,6 +94,21 @@ export const ImageDiffCard = memo(function ImageDiffCard({
           {status}
         </span>
         <span className="diff-viewer-path">{path}</span>
+        {showRevert && (
+          <button
+            type="button"
+            className="diff-viewer-header-action diff-viewer-header-action--discard"
+            title="Discard changes in this file"
+            aria-label="Discard changes in this file"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onRequestRevert?.(path);
+            }}
+          >
+            <RotateCcw size={14} aria-hidden />
+          </button>
+        )}
       </div>
       <div className="image-diff-content">
         {isModified && (

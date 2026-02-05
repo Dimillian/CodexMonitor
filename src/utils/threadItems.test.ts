@@ -7,6 +7,7 @@ import {
   mergeThreadItems,
   normalizeItem,
   prepareThreadItems,
+  upsertItem,
 } from "./threadItems";
 
 describe("threadItems", () => {
@@ -430,7 +431,7 @@ describe("threadItems", () => {
     }
   });
 
-  it("merges thread items preferring richer local tool output", () => {
+  it("merges thread items preferring non-empty remote tool output", () => {
     const remote: ConversationItem = {
       id: "tool-2",
       kind: "tool",
@@ -452,8 +453,116 @@ describe("threadItems", () => {
     expect(merged).toHaveLength(1);
     expect(merged[0].kind).toBe("tool");
     if (merged[0].kind === "tool") {
-      expect(merged[0].output).toBe("much longer output");
+      expect(merged[0].output).toBe("short");
       expect(merged[0].status).toBe("ok");
+    }
+  });
+
+  it("keeps local tool output when remote output is empty", () => {
+    const remote: ConversationItem = {
+      id: "tool-3",
+      kind: "tool",
+      toolType: "webSearch",
+      title: "Web search",
+      detail: "query",
+      status: "completed",
+      output: " ",
+    };
+    const local: ConversationItem = {
+      id: "tool-3",
+      kind: "tool",
+      toolType: "webSearch",
+      title: "Web search",
+      detail: "query",
+      output: "streamed output",
+    };
+    const merged = mergeThreadItems([remote], [local]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].kind).toBe("tool");
+    if (merged[0].kind === "tool") {
+      expect(merged[0].output).toBe("streamed output");
+      expect(merged[0].status).toBe("completed");
+    }
+  });
+
+  it("preserves streamed plan output when completion item has empty output", () => {
+    const existing: ConversationItem = {
+      id: "plan-1",
+      kind: "tool",
+      toolType: "plan",
+      title: "Plan",
+      detail: "Generating plan...",
+      status: "in_progress",
+      output: "## Plan\n- Step 1\n- Step 2",
+    };
+    const completed: ConversationItem = {
+      id: "plan-1",
+      kind: "tool",
+      toolType: "plan",
+      title: "Plan",
+      detail: "",
+      status: "completed",
+      output: "",
+    };
+
+    const next = upsertItem([existing], completed);
+    expect(next).toHaveLength(1);
+    expect(next[0].kind).toBe("tool");
+    if (next[0].kind === "tool") {
+      expect(next[0].output).toBe(existing.output);
+      expect(next[0].status).toBe("completed");
+    }
+  });
+
+  it("uses incoming tool output even when shorter than existing output", () => {
+    const existing: ConversationItem = {
+      id: "tool-4",
+      kind: "tool",
+      toolType: "webSearch",
+      title: "Web search",
+      detail: "query",
+      status: "in_progress",
+      output: "verbose streamed output that will be replaced",
+    };
+    const incoming: ConversationItem = {
+      id: "tool-4",
+      kind: "tool",
+      toolType: "webSearch",
+      title: "Web search",
+      detail: "query",
+      status: "completed",
+      output: "final",
+    };
+
+    const next = upsertItem([existing], incoming);
+    expect(next).toHaveLength(1);
+    expect(next[0].kind).toBe("tool");
+    if (next[0].kind === "tool") {
+      expect(next[0].output).toBe("final");
+      expect(next[0].status).toBe("completed");
+    }
+  });
+
+  it("preserves streamed reasoning content when completion item is empty", () => {
+    const existing: ConversationItem = {
+      id: "reasoning-1",
+      kind: "reasoning",
+      summary: "Thinking",
+      content: "More detail",
+    };
+    const completed: ConversationItem = {
+      id: "reasoning-1",
+      kind: "reasoning",
+      summary: "",
+      content: "",
+    };
+
+    const next = upsertItem([existing], completed);
+    expect(next).toHaveLength(1);
+    expect(next[0].kind).toBe("reasoning");
+    if (next[0].kind === "reasoning") {
+      expect(next[0].summary).toBe("Thinking");
+      expect(next[0].content).toBe("More detail");
     }
   });
 
@@ -507,6 +616,33 @@ describe("threadItems", () => {
       expect(item.detail).toContain("From thread-a");
       expect(item.detail).toContain("thread-b, thread-c");
       expect(item.output).toBe("Coordinate work\n\nagent-1: running");
+    }
+  });
+
+  it("builds context compaction items", () => {
+    const item = buildConversationItem({
+      type: "contextCompaction",
+      id: "compact-1",
+      status: "inProgress",
+    });
+    expect(item).not.toBeNull();
+    if (item && item.kind === "tool") {
+      expect(item.toolType).toBe("contextCompaction");
+      expect(item.title).toBe("Context compaction");
+      expect(item.status).toBe("inProgress");
+    }
+  });
+
+  it("builds context compaction items from thread history", () => {
+    const item = buildConversationItemFromThreadItem({
+      type: "contextCompaction",
+      id: "compact-2",
+    });
+    expect(item).not.toBeNull();
+    if (item && item.kind === "tool") {
+      expect(item.toolType).toBe("contextCompaction");
+      expect(item.title).toBe("Context compaction");
+      expect(item.status).toBe("completed");
     }
   });
 

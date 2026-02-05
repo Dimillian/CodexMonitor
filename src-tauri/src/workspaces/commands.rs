@@ -289,15 +289,23 @@ pub(crate) async fn add_clone(
 pub(crate) async fn add_worktree(
     parent_id: String,
     branch: String,
+    name: Option<String>,
+    copy_agents_md: Option<bool>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<WorkspaceInfo, String> {
+    let copy_agents_md = copy_agents_md.unwrap_or(true);
     if remote_backend::is_remote_mode(&*state).await {
         let response = remote_backend::call_remote(
             &*state,
             app,
             "add_worktree",
-            json!({ "parentId": parent_id, "branch": branch }),
+            json!({
+                "parentId": parent_id,
+                "branch": branch,
+                "name": name,
+                "copyAgentsMd": copy_agents_md
+            }),
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
@@ -311,6 +319,8 @@ pub(crate) async fn add_worktree(
     workspaces_core::add_worktree_core(
         parent_id,
         branch,
+        name,
+        copy_agents_md,
         &data_dir,
         &state.workspaces,
         &state.sessions,

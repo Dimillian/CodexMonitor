@@ -26,6 +26,7 @@ import { ComposerAttachments } from "./ComposerAttachments";
 import { DictationWaveform } from "../../dictation/components/DictationWaveform";
 import { ReviewInlinePrompt } from "./ReviewInlinePrompt";
 import type { ReviewPromptState, ReviewPromptStep } from "../../threads/hooks/useReviewPrompt";
+import { getFileTypeIconUrl } from "../../../utils/fileTypeIcons";
 
 type ComposerInputProps = {
   text: string;
@@ -84,8 +85,7 @@ type ComposerInputProps = {
   onReviewPromptConfirmCustom?: () => Promise<void>;
 };
 
-const isFileSuggestion = (item: AutocompleteItem) =>
-  item.label.includes("/") || item.label.includes("\\");
+const isFileSuggestion = (item: AutocompleteItem) => item.group === "Files";
 
 const suggestionIcon = (item: AutocompleteItem) => {
   if (isFileSuggestion(item)) {
@@ -459,17 +459,35 @@ export function ComposerInput({
                       {(() => {
                         const Icon = suggestionIcon(item);
                         const fileSuggestion = isFileSuggestion(item);
+                        const skillSuggestion = item.id.startsWith("skill:");
                         const title = fileSuggestion ? fileTitle(item.label) : item.label;
                         const description = fileSuggestion ? item.label : item.description;
+                        const fileTypeIconUrl = fileSuggestion
+                          ? getFileTypeIconUrl(item.label)
+                          : null;
                         return (
                           <span className="composer-suggestion-row">
                             <span className="composer-suggestion-icon" aria-hidden>
-                              <Icon size={14} />
+                              {fileTypeIconUrl ? (
+                                <img
+                                  className="composer-suggestion-icon-image"
+                                  src={fileTypeIconUrl}
+                                  alt=""
+                                  loading="lazy"
+                                  decoding="async"
+                                />
+                              ) : (
+                                <Icon size={14} />
+                              )}
                             </span>
                             <span className="composer-suggestion-content">
                               <span className="composer-suggestion-title">{title}</span>
                               {description && (
-                                <span className="composer-suggestion-description">
+                                <span
+                                  className={`composer-suggestion-description${
+                                    skillSuggestion ? " composer-suggestion-description--skill" : ""
+                                  }`}
+                                >
                                   {description}
                                 </span>
                               )}

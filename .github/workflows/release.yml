@@ -100,7 +100,7 @@ jobs:
         run: |
           set -euo pipefail
           ditto -c -k --keepParent \
-            src-tauri/target/release/bundle/macos/CodexMonitor.app \
+            "src-tauri/target/release/bundle/macos/Codex Monitor.app" \
             CodexMonitor.zip
 
           xcrun notarytool submit CodexMonitor.zip \
@@ -108,7 +108,7 @@ jobs:
             --wait
 
           xcrun stapler staple \
-            src-tauri/target/release/bundle/macos/CodexMonitor.app
+            "src-tauri/target/release/bundle/macos/Codex Monitor.app"
 
       - name: Package artifacts
         run: |
@@ -123,31 +123,31 @@ jobs:
           )
 
           mkdir -p release-artifacts release-artifacts/dmg-root
-          rm -rf release-artifacts/dmg-root/CodexMonitor.app
-          ditto src-tauri/target/release/bundle/macos/CodexMonitor.app \
-            release-artifacts/dmg-root/CodexMonitor.app
+          rm -rf "release-artifacts/dmg-root/Codex Monitor.app"
+          ditto "src-tauri/target/release/bundle/macos/Codex Monitor.app" \
+            "release-artifacts/dmg-root/Codex Monitor.app"
 
           ditto -c -k --keepParent \
-            src-tauri/target/release/bundle/macos/CodexMonitor.app \
+            "src-tauri/target/release/bundle/macos/Codex Monitor.app" \
             release-artifacts/CodexMonitor.zip
 
-          hdiutil create -volname "CodexMonitor" \
+          hdiutil create -volname "Codex Monitor" \
             -srcfolder release-artifacts/dmg-root \
             -ov -format UDZO \
             release-artifacts/CodexMonitor_${VERSION}_aarch64.dmg
 
           COPYFILE_DISABLE=1 tar -czf \
-            src-tauri/target/release/bundle/macos/CodexMonitor.app.tar.gz \
-            -C src-tauri/target/release/bundle/macos CodexMonitor.app
+            "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz" \
+            -C src-tauri/target/release/bundle/macos "Codex Monitor.app"
 
           npm run tauri signer sign -- \
             -f "$HOME/.tauri/codexmonitor.key" \
             -p "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" \
-            src-tauri/target/release/bundle/macos/CodexMonitor.app.tar.gz
+            "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz"
 
-          cp src-tauri/target/release/bundle/macos/CodexMonitor.app.tar.gz \
+          cp "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz" \
             release-artifacts/CodexMonitor.app.tar.gz
-          cp src-tauri/target/release/bundle/macos/CodexMonitor.app.tar.gz.sig \
+          cp "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz.sig" \
             release-artifacts/CodexMonitor.app.tar.gz.sig
 
       - name: Upload macOS artifacts
@@ -161,7 +161,7 @@ jobs:
             release-artifacts/CodexMonitor.app.tar.gz.sig
 
   build_linux:
-    name: appimage (${{ matrix.arch }})
+    name: linux bundles (${{ matrix.arch }})
     runs-on: ${{ matrix.platform }}
     environment: release
     env:
@@ -181,7 +181,7 @@ jobs:
       - name: install dependencies (linux only)
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 xdg-utils libasound2-dev
+          sudo apt-get install -y cmake libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 xdg-utils libasound2-dev rpm
 
       - name: setup node
         uses: actions/setup-node@v4
@@ -206,18 +206,34 @@ jobs:
           mkdir -p "$HOME/.tauri"
           echo "$TAURI_SIGNING_PRIVATE_KEY_B64" | base64 --decode > "$HOME/.tauri/codexmonitor.key"
 
-      - name: build AppImage
+      - name: build AppImage and RPM
         run: |
           set -euo pipefail
           export TAURI_SIGNING_PRIVATE_KEY
           TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/codexmonitor.key")"
-          npm run tauri -- build --bundles appimage
+          npm run tauri -- build --bundles appimage,rpm
 
-      - name: Upload AppImage
+      - name: Validate Linux bundle outputs
+        run: |
+          set -euo pipefail
+          mapfile -t appimages < <(find src-tauri/target/release/bundle/appimage -type f -name '*.AppImage*' | sort)
+          mapfile -t rpms < <(find src-tauri/target/release/bundle/rpm -type f -name '*.rpm' | sort)
+          if [ ${#appimages[@]} -eq 0 ]; then
+            echo "No AppImage output found"
+            exit 1
+          fi
+          if [ ${#rpms[@]} -eq 0 ]; then
+            echo "No RPM output found"
+            exit 1
+          fi
+
+      - name: Upload Linux bundles
         uses: actions/upload-artifact@v4
         with:
-          name: appimage-${{ matrix.arch }}
-          path: src-tauri/target/release/bundle/appimage/*.AppImage*
+          name: linux-bundles-${{ matrix.arch }}
+          path: |
+            src-tauri/target/release/bundle/appimage/*.AppImage*
+            src-tauri/target/release/bundle/rpm/*.rpm
 
   build_windows:
     runs-on: windows-latest
@@ -299,10 +315,10 @@ jobs:
           name: macos-artifacts
           path: release-artifacts
 
-      - name: Download Linux AppImages
+      - name: Download Linux bundles
         uses: actions/download-artifact@v4
         with:
-          pattern: appimage-*
+          pattern: linux-bundles-*
           path: release-artifacts
           merge-multiple: true
 
@@ -311,6 +327,21 @@ jobs:
         with:
           name: windows-artifacts
           path: release-artifacts
+      - name: Validate RPM artifacts
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y rpm
+          mapfile -t rpms < <(find release-artifacts -type f -name '*.rpm' | sort)
+          if [ ${#rpms[@]} -eq 0 ]; then
+            echo "No RPM artifacts found"
+            find release-artifacts -type f | sort
+            exit 1
+          fi
+          for rpm_file in "${rpms[@]}"; do
+            rpm -qip "$rpm_file"
+            rpm -qp --requires "$rpm_file"
+          done
 
       - name: Build latest.json
         run: |
@@ -458,6 +489,27 @@ jobs:
           PY
           )
 
+          shopt -s nullglob globstar
+          appimages=(release-artifacts/**/*.AppImage*)
+          mapfile -t rpms < <(find release-artifacts -type f -name '*.rpm' | sort)
+          mapfile -t windows_exes < <(find release-artifacts -type f -name '*.exe*' | sort)
+          mapfile -t windows_msis < <(find release-artifacts -type f -name '*.msi*' | sort)
+          if [ ${#rpms[@]} -eq 0 ]; then
+            echo "No RPM artifacts found for release upload"
+            find release-artifacts -type f | sort
+            exit 1
+          fi
+          if [ ${#windows_exes[@]} -eq 0 ]; then
+            echo "No Windows .exe artifacts found for release upload"
+            find release-artifacts -type f | sort
+            exit 1
+          fi
+          if [ ${#windows_msis[@]} -eq 0 ]; then
+            echo "No Windows .msi artifacts found for release upload"
+            find release-artifacts -type f | sort
+            exit 1
+          fi
+
           gh release create "v${VERSION}" \
             --title "v${VERSION}" \
             --notes-file release-artifacts/release-notes.md \
@@ -466,9 +518,10 @@ jobs:
             release-artifacts/CodexMonitor_*_aarch64.dmg \
             release-artifacts/CodexMonitor.app.tar.gz \
             release-artifacts/CodexMonitor.app.tar.gz.sig \
-            release-artifacts/*.AppImage* \
-            release-artifacts/nsis/*.exe* \
-            release-artifacts/msi/*.msi* \
+            "${appimages[@]}" \
+            "${rpms[@]}" \
+            "${windows_exes[@]}" \
+            "${windows_msis[@]}" \
             release-artifacts/latest.json
 
       - name: Bump version and open PR

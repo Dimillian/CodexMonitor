@@ -194,11 +194,6 @@ export type ThreadAction =
       threadId: string;
       itemId: string;
     }
-  | {
-      type: "appendContextCompacted";
-      threadId: string;
-      turnId: string;
-    }
   | { type: "appendReasoningContent"; threadId: string; itemId: string; delta: string }
   | { type: "appendPlanDelta"; threadId: string; itemId: string; delta: string }
   | { type: "appendToolOutput"; threadId: string; itemId: string; delta: string }
@@ -870,26 +865,6 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         itemsByThread: {
           ...state.itemsByThread,
           [action.threadId]: prepareThreadItems(next),
-        },
-      };
-    }
-    case "appendContextCompacted": {
-      const list = state.itemsByThread[action.threadId] ?? [];
-      const id = `context-compacted-${action.turnId}`;
-      if (list.some((entry) => entry.id === id)) {
-        return state;
-      }
-      const compactedMessage: ConversationItem = {
-        id,
-        kind: "message",
-        role: "assistant",
-        text: "Context compacted.",
-      };
-      return {
-        ...state,
-        itemsByThread: {
-          ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems([...list, compactedMessage]),
         },
       };
     }

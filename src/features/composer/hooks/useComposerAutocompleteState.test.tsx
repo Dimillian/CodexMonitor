@@ -36,6 +36,38 @@ describe("useComposerAutocompleteState file mentions", () => {
       "src/App.tsx",
     );
   });
+
+  it("marks root-level file suggestions as Files group", () => {
+    const files = ["AGENTS.md", "src/main.tsx"];
+    const text = "@";
+    const selectionStart = text.length;
+    const textareaRef = createRef<HTMLTextAreaElement>();
+    textareaRef.current = {
+      focus: vi.fn(),
+      setSelectionRange: vi.fn(),
+    } as unknown as HTMLTextAreaElement;
+
+    const { result } = renderHook(() =>
+      useComposerAutocompleteState({
+        text,
+        selectionStart,
+        disabled: false,
+        appsEnabled: true,
+        skills: [],
+        apps: [],
+        prompts: [],
+        files,
+        textareaRef,
+        setText: vi.fn(),
+        setSelectionStart: vi.fn(),
+      }),
+    );
+
+    const rootItem = result.current.autocompleteMatches.find(
+      (item) => item.label === "AGENTS.md",
+    );
+    expect(rootItem?.group).toBe("Files");
+  });
 });
 
 describe("useComposerAutocompleteState slash commands", () => {
@@ -66,10 +98,20 @@ describe("useComposerAutocompleteState slash commands", () => {
 
     const labels = result.current.autocompleteMatches.map((item) => item.label);
     expect(labels).toEqual(
-      expect.arrayContaining(["apps", "fork", "mcp", "new", "resume", "review", "status"]),
+      expect.arrayContaining([
+        "apps",
+        "compact",
+        "fork",
+        "mcp",
+        "new",
+        "resume",
+        "review",
+        "status",
+      ]),
     );
-    expect(labels.slice(0, 7)).toEqual([
+    expect(labels.slice(0, 8)).toEqual([
       "apps",
+      "compact",
       "fork",
       "mcp",
       "new",
@@ -106,7 +148,7 @@ describe("useComposerAutocompleteState slash commands", () => {
 
     const labels = result.current.autocompleteMatches.map((item) => item.label);
     expect(labels).not.toContain("apps");
-    expect(labels).toEqual(["fork", "mcp", "new", "resume", "review", "status"]);
+    expect(labels).toEqual(["compact", "fork", "mcp", "new", "resume", "review", "status"]);
   });
 });
 

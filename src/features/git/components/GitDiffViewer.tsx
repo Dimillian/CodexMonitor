@@ -1,8 +1,10 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ask } from "@tauri-apps/plugin-dialog";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { FileDiff, WorkerPoolContextProvider } from "@pierre/diffs/react";
 import type { FileDiffMetadata } from "@pierre/diffs";
 import { parsePatchFiles } from "@pierre/diffs";
+import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import { workerFactory } from "../../../utils/diffsWorker";
 import type { GitHubPullRequest, GitHubPullRequestComment } from "../../../types";
 import { formatRelativeTime } from "../../../utils/time";
@@ -13,6 +15,8 @@ type GitDiffViewerItem = {
   path: string;
   status: string;
   diff: string;
+  oldLines?: string[];
+  newLines?: string[];
   isImage?: boolean;
   oldImageData?: string | null;
   newImageData?: string | null;
@@ -27,10 +31,13 @@ type GitDiffViewerProps = {
   isLoading: boolean;
   error: string | null;
   diffStyle?: "split" | "unified";
+  ignoreWhitespaceChanges?: boolean;
   pullRequest?: GitHubPullRequest | null;
   pullRequestComments?: GitHubPullRequestComment[];
   pullRequestCommentsLoading?: boolean;
   pullRequestCommentsError?: string | null;
+  canRevert?: boolean;
+  onRevertFile?: (path: string) => Promise<void> | void;
   onActivePathChange?: (path: string) => void;
 };
 
@@ -102,12 +109,20 @@ type DiffCardProps = {
   entry: GitDiffViewerItem;
   isSelected: boolean;
   diffStyle: "split" | "unified";
+  isLoading: boolean;
+  ignoreWhitespaceChanges: boolean;
+  showRevert: boolean;
+  onRequestRevert?: (path: string) => void;
 };
 
 const DiffCard = memo(function DiffCard({
   entry,
   isSelected,
   diffStyle,
+  isLoading,
+  ignoreWhitespaceChanges,
+  showRevert,
+  onRequestRevert,
 }: DiffCardProps) {
   const diffOptions = useMemo(
     () => ({
@@ -137,8 +152,20 @@ const DiffCard = memo(function DiffCard({
       ...parsed,
       name: normalizedName,
       prevName: normalizedPrevName,
+      oldLines: entry.oldLines,
+      newLines: entry.newLines,
     } satisfies FileDiffMetadata;
-  }, [entry.diff, entry.path]);
+  }, [entry.diff, entry.newLines, entry.oldLines, entry.path]);
+
+  const placeholder = useMemo(() => {
+    if (isLoading) {
+      return "Loading diff...";
+    }
+    if (ignoreWhitespaceChanges && !entry.diff.trim()) {
+      return "No non-whitespace changes.";
+    }
+    return "Diff unavailable.";
+  }, [entry.diff, ignoreWhitespaceChanges, isLoading]);
 
   return (
       <div
@@ -150,6 +177,21 @@ const DiffCard = memo(function DiffCard({
           {entry.status}
         </span>
         <span className="diff-viewer-path">{entry.path}</span>
+        {showRevert && (
+          <button
+            type="button"
+            className="diff-viewer-header-action diff-viewer-header-action--discard"
+            title="Discard changes in this file"
+            aria-label="Discard changes in this file"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onRequestRevert?.(entry.path);
+            }}
+          >
+            <RotateCcw size={14} aria-hidden />
+          </button>
+        )}
       </div>
       {entry.diff.trim().length > 0 && fileDiff ? (
         <div className="diff-viewer-output diff-viewer-output-flat">
@@ -160,7 +202,7 @@ const DiffCard = memo(function DiffCard({
           />
         </div>
       ) : (
-        <div className="diff-viewer-placeholder">Diff unavailable.</div>
+        <div className="diff-viewer-placeholder">{placeholder}</div>
       )}
     </div>
   );
@@ -362,10 +404,13 @@ export function GitDiffViewer({
   isLoading,
   error,
   diffStyle = "split",
+  ignoreWhitespaceChanges = false,
   pullRequest,
   pullRequestComments,
   pullRequestCommentsLoading = false,
   pullRequestCommentsError = null,
+  canRevert = false,
+  onRevertFile,
   onActivePathChange,
 }: GitDiffViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -435,6 +480,24 @@ export function GitDiffViewer({
     }
     return diffs[0];
   }, [diffs, selectedPath, indexByPath]);
+
+  const showRevert = canRevert && Boolean(onRevertFile);
+  const handleRequestRevert = useCallback(
+    async (path: string) => {
+      if (!onRevertFile) {
+        return;
+      }
+      const confirmed = await ask(
+        `Discard changes in:\n\n${path}\n\nThis cannot be undone.`,
+        { title: "Discard changes", kind: "warning" },
+      );
+      if (!confirmed) {
+        return;
+      }
+      await onRevertFile(path);
+    },
+    [onRevertFile],
+  );
 
   useEffect(() => {
     if (!selectedPath || !scrollRequestId) {
@@ -599,6 +662,21 @@ export function GitDiffViewer({
                 {stickyEntry.status}
               </span>
               <span className="diff-viewer-path">{stickyEntry.path}</span>
+              {showRevert && (
+                <button
+                  type="button"
+                  className="diff-viewer-header-action diff-viewer-header-action--discard"
+                  title="Discard changes in this file"
+                  aria-label="Discard changes in this file"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    void handleRequestRevert(stickyEntry.path);
+                  }}
+                >
+                  <RotateCcw size={14} aria-hidden />
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -640,12 +718,18 @@ export function GitDiffViewer({
                       oldImageMime={entry.oldImageMime}
                       newImageMime={entry.newImageMime}
                       isSelected={entry.path === selectedPath}
+                      showRevert={showRevert}
+                      onRequestRevert={(path) => void handleRequestRevert(path)}
                     />
                   ) : (
                     <DiffCard
                       entry={entry}
                       isSelected={entry.path === selectedPath}
                       diffStyle={diffStyle}
+                      isLoading={isLoading}
+                      ignoreWhitespaceChanges={ignoreWhitespaceChanges}
+                      showRevert={showRevert}
+                      onRequestRevert={(path) => void handleRequestRevert(path)}
                     />
                   )}
                 </div>

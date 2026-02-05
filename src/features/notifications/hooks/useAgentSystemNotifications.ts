@@ -11,6 +11,7 @@ type SystemNotificationOptions = {
   isWindowFocused: boolean;
   minDurationMs?: number;
   getWorkspaceName?: (workspaceId: string) => string | undefined;
+  onThreadNotificationSent?: (workspaceId: string, threadId: string) => void;
   onDebug?: (entry: DebugEntry) => void;
 };
 
@@ -34,6 +35,7 @@ export function useAgentSystemNotifications({
   isWindowFocused,
   minDurationMs = DEFAULT_MIN_DURATION_MS,
   getWorkspaceName,
+  onThreadNotificationSent,
   onDebug,
 }: SystemNotificationOptions) {
   const turnStartById = useRef(new Map<string, number>());
@@ -42,9 +44,17 @@ export function useAgentSystemNotifications({
   const lastMessageByThread = useRef(new Map<string, string>());
 
   const notify = useCallback(
-    async (title: string, body: string, label: "success" | "error") => {
+    async (
+      title: string,
+      body: string,
+      label: "success" | "error",
+      extra?: Record<string, unknown>,
+    ) => {
       try {
-        await sendNotification(title, body);
+        await sendNotification(title, body, {
+          autoCancel: true,
+          extra,
+        });
         onDebug?.({
           id: `${Date.now()}-client-notification-${label}`,
           timestamp: Date.now(),
@@ -162,10 +172,15 @@ export function useAgentSystemNotifications({
         threadId,
         "Your agent has finished its task.",
       );
-      void notify(title, body, "success");
+      onThreadNotificationSent?.(workspaceId, threadId);
+      void notify(title, body, "success", {
+        kind: "thread",
+        workspaceId,
+        threadId,
+      });
       lastMessageByThread.current.delete(threadKey);
     },
-    [consumeDuration, getNotificationContent, notify, shouldNotify],
+    [consumeDuration, getNotificationContent, notify, onThreadNotificationSent, shouldNotify],
   );
 
   const handleTurnError = useCallback(
@@ -185,10 +200,15 @@ export function useAgentSystemNotifications({
       }
       const title = getWorkspaceName?.(workspaceId) ?? "Agent Error";
       const body = payload.message || "An error occurred.";
-      void notify(title, truncateText(body, MAX_BODY_LENGTH), "error");
+      onThreadNotificationSent?.(workspaceId, threadId);
+      void notify(title, truncateText(body, MAX_BODY_LENGTH), "error", {
+        kind: "thread",
+        workspaceId,
+        threadId,
+      });
       lastMessageByThread.current.delete(threadKey);
     },
-    [consumeDuration, getWorkspaceName, notify, shouldNotify],
+    [consumeDuration, getWorkspaceName, notify, onThreadNotificationSent, shouldNotify],
   );
 
   const handleItemStarted = useCallback(
@@ -221,10 +241,15 @@ export function useAgentSystemNotifications({
         event.threadId,
         "Your agent has finished its task.",
       );
-      void notify(title, body, "success");
+      onThreadNotificationSent?.(event.workspaceId, event.threadId);
+      void notify(title, body, "success", {
+        kind: "thread",
+        workspaceId: event.workspaceId,
+        threadId: event.threadId,
+      });
       lastMessageByThread.current.delete(threadKey);
     },
-    [consumeDuration, getNotificationContent, notify, shouldNotify],
+    [consumeDuration, getNotificationContent, notify, onThreadNotificationSent, shouldNotify],
   );
 
   const handlers = useMemo(

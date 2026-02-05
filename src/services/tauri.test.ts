@@ -3,6 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import * as notification from "@tauri-apps/plugin-notification";
 import {
   addWorkspace,
+  compactThread,
+  fetchGit,
   forkThread,
   getGitHubIssues,
   getGitLog,
@@ -131,6 +133,18 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
+  it("maps workspaceId and threadId for compact_thread", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await compactThread("ws-10", "thread-10");
+
+    expect(invokeMock).toHaveBeenCalledWith("compact_thread", {
+      workspaceId: "ws-10",
+      threadId: "thread-10",
+    });
+  });
+
   it("maps workspaceId/threadId/name for set_thread_name", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({});
@@ -165,6 +179,17 @@ describe("tauri invoke wrappers", () => {
 
     expect(invokeMock).toHaveBeenCalledWith("stage_git_all", {
       workspaceId: "ws-6",
+    });
+  });
+
+  it("invokes fetch_git", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await fetchGit("ws-7");
+
+    expect(invokeMock).toHaveBeenCalledWith("fetch_git", {
+      workspaceId: "ws-7",
     });
   });
 
@@ -375,6 +400,22 @@ describe("tauri invoke wrappers", () => {
     expect(sendNotificationMock).toHaveBeenCalledWith({
       title: "Hello",
       body: "World",
+    });
+  });
+
+  it("passes extra metadata when provided", async () => {
+    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
+    const sendNotificationMock = vi.mocked(notification.sendNotification);
+    isPermissionGrantedMock.mockResolvedValueOnce(true);
+
+    await sendNotification("Hello", "World", {
+      extra: { kind: "thread", workspaceId: "ws-1", threadId: "t-1" },
+    });
+
+    expect(sendNotificationMock).toHaveBeenCalledWith({
+      title: "Hello",
+      body: "World",
+      extra: { kind: "thread", workspaceId: "ws-1", threadId: "t-1" },
     });
   });
 

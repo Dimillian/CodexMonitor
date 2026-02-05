@@ -114,7 +114,7 @@ export type ReviewTarget =
 export type AccessMode = "read-only" | "current" | "full-access";
 export type BackendMode = "local" | "remote";
 export type ThemePreference = "system" | "light" | "dark" | "dim";
-export type PersonalityPreference = "default" | "friendly" | "pragmatic";
+export type PersonalityPreference = "friendly" | "pragmatic";
 
 
 export type ComposerEditorPreset = "default" | "helpful" | "smart";
@@ -158,6 +158,7 @@ export type AppSettings = {
   archiveThreadShortcut: string | null;
   toggleProjectsSidebarShortcut: string | null;
   toggleGitSidebarShortcut: string | null;
+  branchSwitcherShortcut: string | null;
   toggleDebugPanelShortcut: string | null;
   toggleTerminalShortcut: string | null;
   cycleAgentNextShortcut: string | null;
@@ -175,12 +176,13 @@ export type AppSettings = {
   notificationSoundsEnabled: boolean;
   systemNotificationsEnabled: boolean;
   preloadGitDiffs: boolean;
+  gitDiffIgnoreWhitespaceChanges: boolean;
   experimentalCollabEnabled: boolean;
-  experimentalCollaborationModesEnabled: boolean;
-  experimentalSteerEnabled: boolean;
-  experimentalUnifiedExecEnabled: boolean;
+  collaborationModesEnabled: boolean;
+  steerEnabled: boolean;
+  unifiedExecEnabled: boolean;
   experimentalAppsEnabled: boolean;
-  experimentalPersonality: PersonalityPreference;
+  personality: PersonalityPreference;
   dictationEnabled: boolean;
   dictationModelId: string;
   dictationPreferredLanguage: string | null;
@@ -262,6 +264,8 @@ export type GitFileStatus = {
 export type GitFileDiff = {
   path: string;
   diff: string;
+  oldLines?: string[];
+  newLines?: string[];
   isBinary?: boolean;
   isImage?: boolean;
   oldImageData?: string | null;
@@ -274,6 +278,8 @@ export type GitCommitDiff = {
   path: string;
   status: string;
   diff: string;
+  oldLines?: string[];
+  newLines?: string[];
   isBinary?: boolean;
   isImage?: boolean;
   oldImageData?: string | null;

@@ -7,7 +7,7 @@ export type AutocompleteItem = {
   insertText?: string;
   hint?: string;
   cursorOffset?: number;
-  group?: "Skills" | "Apps" | "Slash" | "Prompts";
+  group?: "Files" | "Skills" | "Apps" | "Slash" | "Prompts";
 };
 
 export type AutocompleteTrigger = {

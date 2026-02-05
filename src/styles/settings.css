@@ -18,8 +18,8 @@
 
 .settings-window {
   position: relative;
-  width: min(860px, 92vw);
-  height: min(560px, 84vh);
+  width: min(980px, 94vw);
+  height: min(680px, 88vh);
   border-radius: 18px;
   background: var(--surface-card-strong);
   border: 1px solid var(--border-stronger);

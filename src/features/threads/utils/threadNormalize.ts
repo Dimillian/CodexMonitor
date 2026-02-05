@@ -203,23 +203,42 @@ export function normalizePlanUpdate(
   explanation: unknown,
   plan: unknown,
 ): TurnPlan | null {
-  const steps = Array.isArray(plan)
-    ? plan
-        .map((entry) => {
-          const step = asString((entry as Record<string, unknown>)?.step ?? "");
-          if (!step) {
-            return null;
-          }
-          return {
-            step,
-            status: normalizePlanStepStatus(
-              (entry as Record<string, unknown>)?.status,
-            ),
-          } satisfies TurnPlanStep;
-        })
-        .filter((entry): entry is TurnPlanStep => Boolean(entry))
-    : [];
-  const note = asString(explanation).trim();
+  const planRecord =
+    plan && typeof plan === "object" && !Array.isArray(plan)
+      ? (plan as Record<string, unknown>)
+      : null;
+  const rawSteps = (() => {
+    if (Array.isArray(plan)) {
+      return plan;
+    }
+    if (planRecord) {
+      const candidate =
+        planRecord.steps ??
+        planRecord.plan ??
+        planRecord.items ??
+        planRecord.entries ??
+        null;
+      return Array.isArray(candidate) ? candidate : [];
+    }
+    return [];
+  })();
+  const steps = rawSteps
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+      const record = entry as Record<string, unknown>;
+      const step = asString(record.step ?? record.text ?? record.title ?? "");
+      if (!step) {
+        return null;
+      }
+      return {
+        step,
+        status: normalizePlanStepStatus(record.status),
+      } satisfies TurnPlanStep;
+    })
+    .filter((entry): entry is TurnPlanStep => Boolean(entry));
+  const note = asString(explanation ?? planRecord?.explanation ?? planRecord?.note).trim();
   if (!steps.length && !note) {
     return null;
   }

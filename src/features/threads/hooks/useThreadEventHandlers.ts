@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import type { Dispatch, MutableRefObject } from "react";
 import type { AppServerEvent, DebugEntry, TurnPlan } from "../../../types";
+import { getAppServerRawMethod } from "../../../utils/appServerEvents";
 import { useThreadApprovalEvents } from "./useThreadApprovalEvents";
 import { useThreadItemEvents } from "./useThreadItemEvents";
 import { useThreadTurnEvents } from "./useThreadTurnEvents";
@@ -92,7 +93,6 @@ export function useThreadEventHandlers({
     onThreadTokenUsageUpdated,
     onAccountRateLimitsUpdated,
     onTurnError,
-    onContextCompacted,
   } = useThreadTurnEvents({
     dispatch,
     planByThreadRef,
@@ -119,7 +119,7 @@ export function useThreadEventHandlers({
 
   const onAppServerEvent = useCallback(
     (event: AppServerEvent) => {
-      const method = String(event.message?.method ?? "");
+      const method = getAppServerRawMethod(event) ?? "";
       const inferredSource = method === "codex/stderr" ? "stderr" : "event";
       onDebug?.({
         id: `${Date.now()}-server-event`,
@@ -158,7 +158,6 @@ export function useThreadEventHandlers({
       onThreadTokenUsageUpdated,
       onAccountRateLimitsUpdated,
       onTurnError,
-      onContextCompacted,
     }),
     [
       onWorkspaceConnected,
@@ -185,7 +184,6 @@ export function useThreadEventHandlers({
       onThreadTokenUsageUpdated,
       onAccountRateLimitsUpdated,
       onTurnError,
-      onContextCompacted,
     ],
   );
 

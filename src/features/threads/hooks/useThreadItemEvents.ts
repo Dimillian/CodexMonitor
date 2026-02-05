@@ -56,7 +56,14 @@ export function useThreadItemEvents({
           onReviewExited?.(workspaceId, threadId);
         }
       }
-      const converted = buildConversationItem(item);
+      const itemForDisplay =
+        itemType === "contextCompaction"
+          ? ({
+              ...item,
+              status: shouldMarkProcessing ? "inProgress" : "completed",
+            } as Record<string, unknown>)
+          : item;
+      const converted = buildConversationItem(itemForDisplay);
       if (converted) {
         dispatch({
           type: "upsertItem",
