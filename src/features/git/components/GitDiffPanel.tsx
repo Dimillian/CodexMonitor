@@ -146,6 +146,29 @@ function normalizeRootPath(value: string | null | undefined) {
   return value.replace(/\\/g, "/").replace(/\/+$/, "");
 }
 
+function normalizeSegment(segment: string) {
+  return /^[A-Za-z]:$/.test(segment) ? segment.toLowerCase() : segment;
+}
+
+function getRelativePathWithin(base: string, target: string) {
+  const normalizedBase = normalizeRootPath(base);
+  const normalizedTarget = normalizeRootPath(target);
+  if (!normalizedBase || !normalizedTarget) {
+    return null;
+  }
+  const baseSegments = normalizedBase.split("/").filter(Boolean);
+  const targetSegments = normalizedTarget.split("/").filter(Boolean);
+  if (baseSegments.length > targetSegments.length) {
+    return null;
+  }
+  for (let index = 0; index < baseSegments.length; index += 1) {
+    if (normalizeSegment(baseSegments[index]) !== normalizeSegment(targetSegments[index])) {
+      return null;
+    }
+  }
+  return targetSegments.slice(baseSegments.length).join("/");
+}
+
 function isAbsolutePath(value: string) {
   return value.startsWith("/") || /^[A-Za-z]:\//.test(value);
 }
@@ -1052,13 +1075,12 @@ export function GitDiffPanel({
         const absolutePath = resolvedRoot
           ? joinRootAndPath(resolvedRoot, rawPath)
           : rawPath;
+        const relativeRoot =
+          workspacePath && resolvedRoot
+            ? getRelativePathWithin(workspacePath, resolvedRoot)
+            : null;
         const projectRelativePath =
-          workspacePath && resolvedRoot && resolvedRoot.startsWith(workspacePath)
-            ? joinRootAndPath(
-                resolvedRoot.slice(workspacePath.length).replace(/^\/+/, ""),
-                rawPath,
-              )
-            : rawPath;
+          relativeRoot !== null ? joinRootAndPath(relativeRoot, rawPath) : rawPath;
         const fileName = getFileName(rawPath);
         items.push(
           await MenuItem.new({
