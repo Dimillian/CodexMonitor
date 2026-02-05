@@ -7,6 +7,7 @@
     "core:default",
     "core:webview:allow-set-webview-zoom",
     "opener:default",
+    "opener:allow-open-path",
     "dialog:default",
     "process:default",
     "updater:default",
