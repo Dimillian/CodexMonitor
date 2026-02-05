@@ -24,7 +24,6 @@ use crate::remote_backend;
 use crate::shared::codex_core;
 use crate::state::AppState;
 use crate::types::WorkspaceEntry;
-use self::args::apply_codex_args;
 
 pub(crate) async fn spawn_workspace_session(
     entry: WorkspaceEntry,
@@ -66,10 +65,11 @@ pub(crate) async fn codex_doctor(
         .or(default_args);
     let path_env = build_codex_path_env(resolved.as_deref());
     let version = check_codex_installation(resolved.clone()).await?;
-    let mut command = build_codex_command_with_bin(resolved.clone());
-    apply_codex_args(&mut command, resolved_args.as_deref())?;
-    command.arg("app-server");
-    command.arg("--help");
+    let mut command = build_codex_command_with_bin(
+        resolved.clone(),
+        resolved_args.as_deref(),
+        vec!["app-server".to_string(), "--help".to_string()],
+    )?;
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
     let app_server_ok = match timeout(Duration::from_secs(5), command.output()).await {

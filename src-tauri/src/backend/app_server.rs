@@ -14,8 +14,11 @@ use tokio::time::timeout;
 
 use crate::backend::events::{AppServerEvent, EventSink};
 use crate::shared::process_core::{kill_child_process_tree, tokio_command};
-use crate::codex::args::apply_codex_args;
+use crate::codex::args::parse_codex_args;
 use crate::types::WorkspaceEntry;
+
+#[cfg(target_os = "windows")]
+use crate::shared::process_core::{build_cmd_c_command, resolve_windows_executable};
 
 fn extract_thread_id(value: &Value) -> Option<String> {
     let params = value.get("params")?;
@@ -162,13 +165,19 @@ pub(crate) fn build_codex_path_env(codex_bin: Option<&str>) -> Option<String> {
         .map(|joined| joined.to_string_lossy().to_string())
 }
 
-pub(crate) fn build_codex_command_with_bin(codex_bin: Option<String>) -> Command {
+pub(crate) fn build_codex_command_with_bin(
+    codex_bin: Option<String>,
+    codex_args: Option<&str>,
+    args: Vec<String>,
+) -> Result<Command, String> {
     let bin = codex_bin
         .clone()
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| "codex".into());
 
     let path_env = build_codex_path_env(codex_bin.as_deref());
+    let mut command_args = parse_codex_args(codex_args)?;
+    command_args.extend(args);
 
     #[cfg(target_os = "windows")]
     let mut command = {
@@ -184,95 +193,37 @@ pub(crate) fn build_codex_command_with_bin(codex_bin: Option<String>) -> Command
 
         if matches!(ext.as_deref(), Some("cmd") | Some("bat")) {
             let mut command = tokio_command("cmd");
+            let command_line = build_cmd_c_command(resolved_path, &command_args)?;
+            command.arg("/D");
+            command.arg("/S");
             command.arg("/C");
-            command.arg(resolved_path);
+            command.arg(command_line);
             command
         } else {
-            tokio_command(resolved_path)
+            let mut command = tokio_command(resolved_path);
+            command.args(command_args);
+            command
         }
     };
 
     #[cfg(not(target_os = "windows"))]
-    let mut command = tokio_command(bin.trim());
+    let mut command = {
+        let mut command = tokio_command(bin.trim());
+        command.args(command_args);
+        command
+    };
 
     if let Some(path_env) = path_env {
         command.env("PATH", path_env);
     }
-    command
-}
-
-#[cfg(target_os = "windows")]
-fn resolve_windows_executable(program: &str, path_env: Option<&str>) -> Option<PathBuf> {
-    let trimmed = program.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-
-    let program = trimmed
-        .strip_prefix('"')
-        .and_then(|value| value.strip_suffix('"'))
-        .unwrap_or(trimmed)
-        .trim();
-
-    if program.is_empty() {
-        return None;
-    }
-
-    let has_separators = program.contains('\\') || program.contains('/');
-    let has_drive = matches!(program.as_bytes().get(1), Some(b':'));
-    let looks_like_path = has_separators || has_drive;
-
-    let path_candidates = if Path::new(program).extension().is_some() {
-        vec![program.to_string()]
-    } else {
-        vec![
-            format!("{program}.exe"),
-            format!("{program}.cmd"),
-            format!("{program}.bat"),
-            format!("{program}.com"),
-        ]
-    };
-
-    if looks_like_path {
-        for candidate in path_candidates {
-            let path = PathBuf::from(candidate);
-            if path.is_file() {
-                return Some(path);
-            }
-        }
-        return None;
-    }
-
-    let paths: Vec<PathBuf> = if let Some(value) = path_env {
-        let trimmed = value.trim();
-        if trimmed.is_empty() {
-            Vec::new()
-        } else {
-            env::split_paths(trimmed).collect()
-        }
-    } else {
-        env::var_os("PATH")
-            .map(|value| env::split_paths(&value).collect())
-            .unwrap_or_default()
-    };
-
-    for root in paths {
-        for candidate in &path_candidates {
-            let path = root.join(candidate);
-            if path.is_file() {
-                return Some(path);
-            }
-        }
-    }
-
-    None
+    Ok(command)
 }
 
 pub(crate) async fn check_codex_installation(
     codex_bin: Option<String>,
 ) -> Result<Option<String>, String> {
-    let mut command = build_codex_command_with_bin(codex_bin);
-    command.arg("--version");
+    let mut command =
+        build_codex_command_with_bin(codex_bin, None, vec!["--version".to_string()])?;
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
 
@@ -331,10 +282,12 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
         .or(default_codex_bin);
     let _ = check_codex_installation(codex_bin.clone()).await?;
 
-    let mut command = build_codex_command_with_bin(codex_bin);
-    apply_codex_args(&mut command, codex_args.as_deref())?;
+    let mut command = build_codex_command_with_bin(
+        codex_bin,
+        codex_args.as_deref(),
+        vec!["app-server".to_string()],
+    )?;
     command.current_dir(&entry.path);
-    command.arg("app-server");
     if let Some(codex_home) = codex_home {
         command.env("CODEX_HOME", codex_home);
     }
