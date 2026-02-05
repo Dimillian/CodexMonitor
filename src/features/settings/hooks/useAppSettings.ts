@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppSettings } from "../../../types";
 import { getAppSettings, runCodexDoctor, updateAppSettings } from "../../../services/tauri";
 import { clampUiScale, UI_SCALE_DEFAULT } from "../../../utils/uiScale";
@@ -20,69 +20,70 @@ import { getDefaultInterruptShortcut, isMacPlatform } from "../../../utils/short
 const allowedThemes = new Set(["system", "light", "dark", "dim"]);
 const allowedPersonality = new Set(["friendly", "pragmatic"]);
 
-const isMac = isMacPlatform();
-
-const defaultSettings: AppSettings = {
-  codexBin: null,
-  codexArgs: null,
-  backendMode: "local",
-  remoteBackendHost: "127.0.0.1:4732",
-  remoteBackendToken: null,
-  defaultAccessMode: "current",
-  reviewDeliveryMode: "inline",
-  composerModelShortcut: isMac ? "cmd+shift+m" : "ctrl+shift+m",
-  composerAccessShortcut: isMac ? "cmd+shift+a" : "ctrl+shift+a",
-  composerReasoningShortcut: isMac ? "cmd+shift+r" : "ctrl+shift+r",
-  composerCollaborationShortcut: "shift+tab",
-  interruptShortcut: getDefaultInterruptShortcut(),
-  newAgentShortcut: isMac ? "cmd+n" : "ctrl+n",
-  newWorktreeAgentShortcut: isMac ? "cmd+shift+n" : "ctrl+shift+n",
-  newCloneAgentShortcut: isMac ? "cmd+alt+n" : "ctrl+alt+n",
-  archiveThreadShortcut: isMac ? "cmd+ctrl+a" : "ctrl+alt+a",
-  toggleProjectsSidebarShortcut: isMac ? "cmd+shift+p" : "ctrl+shift+p",
-  toggleGitSidebarShortcut: isMac ? "cmd+shift+g" : "ctrl+shift+g",
-  branchSwitcherShortcut: isMac ? "cmd+b" : "ctrl+b",
-  toggleDebugPanelShortcut: isMac ? "cmd+shift+d" : "ctrl+shift+d",
-  toggleTerminalShortcut: isMac ? "cmd+shift+t" : "ctrl+shift+t",
-  cycleAgentNextShortcut: isMac ? "cmd+ctrl+down" : "ctrl+alt+down",
-  cycleAgentPrevShortcut: isMac ? "cmd+ctrl+up" : "ctrl+alt+up",
-  cycleWorkspaceNextShortcut: isMac ? "cmd+shift+down" : "ctrl+alt+shift+down",
-  cycleWorkspacePrevShortcut: isMac ? "cmd+shift+up" : "ctrl+alt+shift+up",
-  lastComposerModelId: null,
-  lastComposerReasoningEffort: null,
-  uiScale: UI_SCALE_DEFAULT,
-  theme: "system",
-  usageShowRemaining: false,
-  uiFontFamily: DEFAULT_UI_FONT_FAMILY,
-  codeFontFamily: DEFAULT_CODE_FONT_FAMILY,
-  codeFontSize: CODE_FONT_SIZE_DEFAULT,
-  notificationSoundsEnabled: true,
-  systemNotificationsEnabled: true,
-  preloadGitDiffs: true,
-  gitDiffIgnoreWhitespaceChanges: false,
-  experimentalCollabEnabled: false,
-  collaborationModesEnabled: true,
-  steerEnabled: true,
-  unifiedExecEnabled: true,
-  experimentalAppsEnabled: false,
-  personality: "friendly",
-  dictationEnabled: false,
-  dictationModelId: "base",
-  dictationPreferredLanguage: null,
-  dictationHoldKey: "alt",
-  composerEditorPreset: "default",
-  composerFenceExpandOnSpace: false,
-  composerFenceExpandOnEnter: false,
-  composerFenceLanguageTags: false,
-  composerFenceWrapSelection: false,
-  composerFenceAutoWrapPasteMultiline: false,
-  composerFenceAutoWrapPasteCodeLike: false,
-  composerListContinuation: false,
-  composerCodeBlockCopyUseModifier: false,
-  workspaceGroups: [],
-  openAppTargets: DEFAULT_OPEN_APP_TARGETS,
-  selectedOpenAppId: DEFAULT_OPEN_APP_ID,
-};
+function buildDefaultSettings(): AppSettings {
+  const isMac = isMacPlatform();
+  return {
+    codexBin: null,
+    codexArgs: null,
+    backendMode: "local",
+    remoteBackendHost: "127.0.0.1:4732",
+    remoteBackendToken: null,
+    defaultAccessMode: "current",
+    reviewDeliveryMode: "inline",
+    composerModelShortcut: isMac ? "cmd+shift+m" : "ctrl+shift+m",
+    composerAccessShortcut: isMac ? "cmd+shift+a" : "ctrl+shift+a",
+    composerReasoningShortcut: isMac ? "cmd+shift+r" : "ctrl+shift+r",
+    composerCollaborationShortcut: "shift+tab",
+    interruptShortcut: getDefaultInterruptShortcut(),
+    newAgentShortcut: isMac ? "cmd+n" : "ctrl+n",
+    newWorktreeAgentShortcut: isMac ? "cmd+shift+n" : "ctrl+shift+n",
+    newCloneAgentShortcut: isMac ? "cmd+alt+n" : "ctrl+alt+n",
+    archiveThreadShortcut: isMac ? "cmd+ctrl+a" : "ctrl+alt+a",
+    toggleProjectsSidebarShortcut: isMac ? "cmd+shift+p" : "ctrl+shift+p",
+    toggleGitSidebarShortcut: isMac ? "cmd+shift+g" : "ctrl+shift+g",
+    branchSwitcherShortcut: isMac ? "cmd+b" : "ctrl+b",
+    toggleDebugPanelShortcut: isMac ? "cmd+shift+d" : "ctrl+shift+d",
+    toggleTerminalShortcut: isMac ? "cmd+shift+t" : "ctrl+shift+t",
+    cycleAgentNextShortcut: isMac ? "cmd+ctrl+down" : "ctrl+alt+down",
+    cycleAgentPrevShortcut: isMac ? "cmd+ctrl+up" : "ctrl+alt+up",
+    cycleWorkspaceNextShortcut: isMac ? "cmd+shift+down" : "ctrl+alt+shift+down",
+    cycleWorkspacePrevShortcut: isMac ? "cmd+shift+up" : "ctrl+alt+shift+up",
+    lastComposerModelId: null,
+    lastComposerReasoningEffort: null,
+    uiScale: UI_SCALE_DEFAULT,
+    theme: "system",
+    usageShowRemaining: false,
+    uiFontFamily: DEFAULT_UI_FONT_FAMILY,
+    codeFontFamily: DEFAULT_CODE_FONT_FAMILY,
+    codeFontSize: CODE_FONT_SIZE_DEFAULT,
+    notificationSoundsEnabled: true,
+    systemNotificationsEnabled: true,
+    preloadGitDiffs: true,
+    gitDiffIgnoreWhitespaceChanges: false,
+    experimentalCollabEnabled: false,
+    collaborationModesEnabled: true,
+    steerEnabled: true,
+    unifiedExecEnabled: true,
+    experimentalAppsEnabled: false,
+    personality: "friendly",
+    dictationEnabled: false,
+    dictationModelId: "base",
+    dictationPreferredLanguage: null,
+    dictationHoldKey: "alt",
+    composerEditorPreset: "default",
+    composerFenceExpandOnSpace: false,
+    composerFenceExpandOnEnter: false,
+    composerFenceLanguageTags: false,
+    composerFenceWrapSelection: false,
+    composerFenceAutoWrapPasteMultiline: false,
+    composerFenceAutoWrapPasteCodeLike: false,
+    composerListContinuation: false,
+    composerCodeBlockCopyUseModifier: false,
+    workspaceGroups: [],
+    openAppTargets: DEFAULT_OPEN_APP_TARGETS,
+    selectedOpenAppId: DEFAULT_OPEN_APP_ID,
+  };
+}
 
 function normalizeAppSettings(settings: AppSettings): AppSettings {
   const normalizedTargets =
@@ -131,6 +132,7 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
 }
 
 export function useAppSettings() {
+  const defaultSettings = useMemo(() => buildDefaultSettings(), []);
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -158,7 +160,7 @@ export function useAppSettings() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [defaultSettings]);
 
   const saveSettings = useCallback(async (next: AppSettings) => {
     const normalized = normalizeAppSettings(next);
@@ -170,7 +172,7 @@ export function useAppSettings() {
       }),
     );
     return saved;
-  }, []);
+  }, [defaultSettings]);
 
   const doctor = useCallback(
     async (codexBin: string | null, codexArgs: string | null) => {
