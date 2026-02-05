@@ -12,6 +12,12 @@
       "allow": [
         {
           "path": "$HOME/**"
+        },
+        {
+          "path": "$HOME/.codex/**"
+        },
+        {
+          "path": "$HOME/**/.codex/**"
         }
       ]
     },
