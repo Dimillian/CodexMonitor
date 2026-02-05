@@ -853,7 +853,7 @@ fn default_open_app_targets() -> Vec<OpenAppTarget> {
         ];
     }
 
-    let file_manager_label = if cfg!(windows) {
+    let file_manager_label = if cfg!(target_os = "windows") {
         "Explorer"
     } else {
         "File Manager"
@@ -912,7 +912,7 @@ fn default_open_app_targets() -> Vec<OpenAppTarget> {
 }
 
 fn default_selected_open_app_id() -> String {
-    if cfg!(windows) {
+    if cfg!(target_os = "windows") {
         "finder".to_string()
     } else {
         "vscode".to_string()
@@ -1106,7 +1106,11 @@ mod tests {
         assert!(!settings.composer_list_continuation);
         assert!(!settings.composer_code_block_copy_use_modifier);
         assert!(settings.workspace_groups.is_empty());
-        let expected_open_id = if cfg!(windows) { "finder" } else { "vscode" };
+        let expected_open_id = if cfg!(target_os = "windows") {
+            "finder"
+        } else {
+            "vscode"
+        };
         assert_eq!(settings.selected_open_app_id, expected_open_id);
         assert_eq!(settings.open_app_targets.len(), 6);
         assert_eq!(settings.open_app_targets[0].id, "vscode");
