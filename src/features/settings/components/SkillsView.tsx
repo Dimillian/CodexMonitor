@@ -15,18 +15,26 @@ type SkillPaths = {
   filePath: string;
 };
 
+const isAbsolutePath = (value: string) =>
+  value.startsWith("/") || /^[A-Za-z]:[\\/]/.test(value) || value.startsWith("\\\\");
+
 const expandHomePath = async (value: string) => {
-  if (!value.startsWith("~")) {
-    return value;
+  const trimmed = value.trim();
+  if (trimmed.startsWith("~")) {
+    const home = await homeDir();
+    if (trimmed === "~") {
+      return home;
+    }
+    const next = trimmed.startsWith("~/") || trimmed.startsWith("~\\")
+      ? trimmed.slice(2)
+      : trimmed.slice(1);
+    return join(home, next);
+  }
+  if (isAbsolutePath(trimmed)) {
+    return trimmed;
   }
   const home = await homeDir();
-  if (value === "~") {
-    return home;
-  }
-  const next = value.startsWith("~/") || value.startsWith("~\\")
-    ? value.slice(2)
-    : value.slice(1);
-  return join(home, next);
+  return join(home, trimmed);
 };
 
 const normalizeSkillPath = (value: string) => value.replace(/\\/g, "/");

@@ -11,6 +11,15 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
   revealItemInDir: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@tauri-apps/api/path", () => ({
+  homeDir: vi.fn().mockResolvedValue("/Users/demo"),
+  join: vi.fn((base: string, next: string) => {
+    const trimmedBase = base.replace(/\/+$/, "");
+    const trimmedNext = next.replace(/^\/+/, "");
+    return `${trimmedBase}/${trimmedNext}`;
+  }),
+}));
+
 vi.mock("../../../services/toasts", () => ({
   pushErrorToast: vi.fn(),
 }));
@@ -52,7 +61,7 @@ describe("SkillsView", () => {
     const skills: SkillOption[] = [
       {
         name: "skill-installer",
-        path: "/Users/demo/.codex/skills/.system",
+        path: ".codex/skills/.system",
         description: "Install curated skills",
       },
     ];
