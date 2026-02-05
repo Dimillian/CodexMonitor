@@ -1,9 +1,15 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { FocusEvent } from "react";
+import type { BranchInfo } from "../../../types";
+import { BranchList } from "../../git/components/BranchList";
+import { filterBranches } from "../../git/utils/branchSearch";
 
 type WorktreePromptProps = {
   workspaceName: string;
   name: string;
   branch: string;
+  branchWasEdited?: boolean;
+  branchSuggestions?: BranchInfo[];
   setupScript: string;
   scriptError?: string | null;
   error?: string | null;
@@ -20,6 +26,8 @@ export function WorktreePrompt({
   workspaceName,
   name,
   branch,
+  branchWasEdited = false,
+  branchSuggestions = [],
   setupScript,
   scriptError = null,
   error = null,
@@ -32,11 +40,62 @@ export function WorktreePrompt({
   isSavingScript = false,
 }: WorktreePromptProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const branchContainerRef = useRef<HTMLDivElement | null>(null);
+  const branchListRef = useRef<HTMLDivElement | null>(null);
+  const [branchMenuOpen, setBranchMenuOpen] = useState(false);
+  const [selectedBranchIndex, setSelectedBranchIndex] = useState(0);
+  const [didNavigateBranches, setDidNavigateBranches] = useState(false);
 
   useEffect(() => {
     inputRef.current?.focus();
     inputRef.current?.select();
   }, []);
+
+  const filteredBranches = useMemo(() => {
+    const query = !branchWasEdited && branchMenuOpen ? "" : branch;
+    return filterBranches(branchSuggestions, query, { mode: "fuzzy", whenEmptyLimit: 8 });
+  }, [branch, branchMenuOpen, branchSuggestions, branchWasEdited]);
+
+  useEffect(() => {
+    if (!branchMenuOpen) {
+      return;
+    }
+    setDidNavigateBranches(false);
+    setSelectedBranchIndex(0);
+  }, [branchMenuOpen, filteredBranches.length]);
+
+  useEffect(() => {
+    if (!branchMenuOpen) {
+      return;
+    }
+    const itemEl = branchListRef.current?.children[selectedBranchIndex] as
+      | HTMLElement
+      | undefined;
+    itemEl?.scrollIntoView({ block: "nearest" });
+  }, [branchMenuOpen, selectedBranchIndex]);
+
+  const handleBranchSelect = (branchInfo: BranchInfo) => {
+    onChange(branchInfo.name);
+    setBranchMenuOpen(false);
+    requestAnimationFrame(() => {
+      const input = branchContainerRef.current?.querySelector(
+        "input",
+      ) as HTMLInputElement | null;
+      input?.focus();
+    });
+  };
+
+  const handleBranchContainerBlur = (event: FocusEvent<HTMLDivElement>) => {
+    const nextFocus = event.relatedTarget;
+    if (!nextFocus) {
+      setBranchMenuOpen(false);
+      return;
+    }
+    if (event.currentTarget.contains(nextFocus)) {
+      return;
+    }
+    setBranchMenuOpen(false);
+  };
 
   return (
     <div className="worktree-modal" role="dialog" aria-modal="true">
@@ -79,24 +138,93 @@ export function WorktreePrompt({
         <label className="worktree-modal-label" htmlFor="worktree-branch">
           Branch name
         </label>
-        <input
-          id="worktree-branch"
-          className="worktree-modal-input"
-          value={branch}
-          onChange={(event) => onChange(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              event.preventDefault();
-              if (!isBusy) {
-                onCancel();
+        <div
+          className="worktree-modal-branch"
+          ref={branchContainerRef}
+          onFocusCapture={() => setBranchMenuOpen(true)}
+          onBlurCapture={handleBranchContainerBlur}
+        >
+          <input
+            id="worktree-branch"
+            className="worktree-modal-input"
+            value={branch}
+            onChange={(event) => {
+              setDidNavigateBranches(false);
+              onChange(event.target.value);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                if (!isBusy) {
+                  onCancel();
+                }
+                return;
               }
-            }
-            if (event.key === "Enter" && !isBusy) {
-              event.preventDefault();
-              onConfirm();
-            }
-          }}
-        />
+
+              if (!branchMenuOpen || filteredBranches.length === 0) {
+                if (event.key === "Enter" && !isBusy) {
+                  event.preventDefault();
+                  onConfirm();
+                }
+                if (event.key === "ArrowDown") {
+                  setBranchMenuOpen(true);
+                }
+                return;
+              }
+
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setDidNavigateBranches(true);
+                setSelectedBranchIndex((prev) =>
+                  prev < filteredBranches.length - 1 ? prev + 1 : prev,
+                );
+                return;
+              }
+              if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setDidNavigateBranches(true);
+                setSelectedBranchIndex((prev) => (prev > 0 ? prev - 1 : prev));
+                return;
+              }
+              if (event.key === "Enter") {
+                event.preventDefault();
+                if (didNavigateBranches) {
+                  const picked = filteredBranches[selectedBranchIndex];
+                  if (picked) {
+                    handleBranchSelect(picked);
+                    return;
+                  }
+                }
+                if (!isBusy) {
+                  onConfirm();
+                }
+              }
+            }}
+          />
+          {branchMenuOpen && (
+            <BranchList
+              branches={filteredBranches}
+              currentBranch={null}
+              selectedIndex={selectedBranchIndex}
+              listClassName="worktree-modal-branch-list"
+              listRef={branchListRef}
+              itemClassName="worktree-modal-branch-item"
+              itemLabelClassName="worktree-modal-branch-item-name"
+              selectedItemClassName="selected"
+              emptyClassName="worktree-modal-branch-empty"
+              emptyText={
+                branch.trim().length > 0
+                  ? "No matching branches"
+                  : "No branches found"
+              }
+              onMouseEnter={(index) => {
+                setDidNavigateBranches(true);
+                setSelectedBranchIndex(index);
+              }}
+              onSelect={handleBranchSelect}
+            />
+          )}
+        </div>
         <div className="worktree-modal-divider" />
         <div className="worktree-modal-section-title">Worktree setup script</div>
         <div className="worktree-modal-hint">

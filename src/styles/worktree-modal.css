@@ -63,6 +63,57 @@
   outline-offset: 1px;
 }
 
+.worktree-modal-branch {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.worktree-modal-branch-list {
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--surface-card-muted);
+  padding: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.worktree-modal-branch-empty {
+  padding: 12px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.worktree-modal-branch-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-strong);
+  font-size: 13px;
+  text-align: left;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.worktree-modal-branch-item:hover,
+.worktree-modal-branch-item.selected {
+  background: var(--surface-card-strong);
+}
+
+.worktree-modal-branch-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--code-font-family, Menlo, Monaco, "Courier New", monospace);
+}
+
 .worktree-modal-divider {
   height: 1px;
   background: var(--border-subtle);
