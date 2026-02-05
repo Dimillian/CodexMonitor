@@ -446,15 +446,25 @@ jobs:
 
           exe_candidates = sorted(artifacts_dir.rglob("*.exe"), key=lambda p: p.name.lower())
           windows_installer = None
+          preferred_installers = []
           for candidate in exe_candidates:
             lowered = candidate.name.lower()
-            if "setup" in lowered or "installer" in lowered:
-              windows_installer = candidate
-              break
-          if windows_installer is None and exe_candidates:
-            windows_installer = exe_candidates[0]
+            if "codexmonitor" in lowered and ("setup" in lowered or "installer" in lowered):
+              preferred_installers.append(candidate)
+          if preferred_installers:
+            windows_installer = preferred_installers[0]
+          else:
+            for candidate in exe_candidates:
+              lowered = candidate.name.lower()
+              if "setup" in lowered or "installer" in lowered:
+                windows_installer = candidate
+                break
+            if windows_installer is None and exe_candidates:
+              windows_installer = exe_candidates[0]
           if windows_installer is None:
             raise SystemExit("No Windows installer (.exe) found for latest.json")
+
+          print(f"Selected Windows installer for latest.json: {windows_installer.name}")
 
           win_sig_path = windows_installer.with_suffix(windows_installer.suffix + ".sig")
           if not win_sig_path.exists():
