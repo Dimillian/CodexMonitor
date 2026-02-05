@@ -31,6 +31,8 @@ use crate::codex::home::resolve_workspace_codex_home;
 use crate::git_utils::resolve_git_root;
 use crate::remote_backend;
 use crate::shared::process_core::{kill_child_process_tree, tokio_command};
+#[cfg(target_os = "windows")]
+use crate::shared::process_core::{build_cmd_c_command, resolve_windows_executable};
 use crate::shared::workspaces_core;
 use crate::state::AppState;
 use crate::storage::write_workspaces;
@@ -826,27 +828,41 @@ pub(crate) async fn open_workspace_in(
 
         #[cfg(target_os = "windows")]
         let mut cmd = {
-            let ext = Path::new(trimmed)
+            let resolved = resolve_windows_executable(trimmed, None);
+            let resolved_path = resolved
+                .as_deref()
+                .unwrap_or_else(|| Path::new(trimmed));
+            let ext = resolved_path
                 .extension()
                 .and_then(|ext| ext.to_str())
                 .map(|ext| ext.to_ascii_lowercase());
-            let should_use_cmd_wrapper =
-                matches!(ext.as_deref(), Some("cmd") | Some("bat")) || ext.is_none();
-            if should_use_cmd_wrapper {
-                let mut cmd = std::process::Command::new("cmd");
+
+            if matches!(ext.as_deref(), Some("cmd") | Some("bat")) || ext.is_none() {
+                let mut cmd = tokio_command("cmd");
+                let mut command_args = args.clone();
+                command_args.push(path.clone());
+                let command_line = build_cmd_c_command(resolved_path, &command_args)?;
+                cmd.arg("/D");
+                cmd.arg("/S");
                 cmd.arg("/C");
-                cmd.arg(trimmed);
+                cmd.arg(command_line);
                 cmd
             } else {
-                std::process::Command::new(trimmed)
+                let mut cmd = tokio_command(resolved_path);
+                cmd.args(&args).arg(&path);
+                cmd
             }
         };
 
         #[cfg(not(target_os = "windows"))]
-        let mut cmd = std::process::Command::new(trimmed);
+        let mut cmd = {
+            let mut cmd = tokio_command(trimmed);
+            cmd.args(&args).arg(&path);
+            cmd
+        };
 
-        cmd.args(args).arg(path);
         cmd.status()
+            .await
             .map_err(|error| format!("Failed to open app ({target_label}): {error}"))?
     } else if let Some(app) = app {
         let trimmed = app.trim();
@@ -856,7 +872,7 @@ pub(crate) async fn open_workspace_in(
 
         #[cfg(target_os = "macos")]
         let mut cmd = {
-            let mut cmd = std::process::Command::new("open");
+            let mut cmd = tokio_command("open");
             cmd.arg("-a").arg(trimmed).arg(&path);
             if !args.is_empty() {
                 cmd.arg("--args").args(&args);
@@ -866,12 +882,13 @@ pub(crate) async fn open_workspace_in(
 
         #[cfg(not(target_os = "macos"))]
         let mut cmd = {
-            let mut cmd = std::process::Command::new(trimmed);
+            let mut cmd = tokio_command(trimmed);
             cmd.args(&args).arg(&path);
             cmd
         };
 
         cmd.status()
+            .await
             .map_err(|error| format!("Failed to open app ({target_label}): {error}"))?
     } else {
         return Err("Missing app or command".to_string());
