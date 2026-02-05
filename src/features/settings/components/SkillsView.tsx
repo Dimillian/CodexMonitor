@@ -165,7 +165,14 @@ const openFirstAvailablePath = async (
     }
   }
   if (attempted.length > 0) {
-    throw new Error(attempted.join("\n"));
+    const cause =
+      lastError instanceof Error
+        ? lastError.message
+        : lastError
+          ? String(lastError)
+          : "";
+    const details = [cause, attempted.join("\n")].filter(Boolean).join("\n");
+    throw new Error(details);
   }
   throw lastError ?? new Error("No skill file candidates");
 };
