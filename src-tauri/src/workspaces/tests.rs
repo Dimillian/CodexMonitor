@@ -7,7 +7,7 @@ use super::settings::{apply_workspace_settings_update, sort_workspaces};
 use super::worktree::{
     build_clone_destination_path, sanitize_clone_dir_name, sanitize_worktree_name,
 };
-use crate::backend::app_server::WorkspaceSession;
+use crate::backend::session::WorkspaceSessionKind;
 use crate::shared::workspaces_core::rename_worktree_core;
 use crate::storage::{read_workspaces, write_workspaces};
 use crate::types::{
@@ -279,7 +279,7 @@ fn rename_worktree_preserves_custom_name() {
         (parent.id.clone(), parent.clone()),
         (worktree.id.clone(), worktree.clone()),
     ]));
-    let sessions: Mutex<HashMap<String, Arc<WorkspaceSession>>> = Mutex::new(HashMap::new());
+    let sessions: Mutex<HashMap<String, Arc<WorkspaceSessionKind>>> = Mutex::new(HashMap::new());
     let app_settings = Mutex::new(AppSettings::default());
     let storage_path = temp_dir.join("workspaces.json");
 
@@ -349,7 +349,7 @@ fn rename_worktree_updates_name_when_unmodified() {
         (parent.id.clone(), parent.clone()),
         (worktree.id.clone(), worktree.clone()),
     ]));
-    let sessions: Mutex<HashMap<String, Arc<WorkspaceSession>>> = Mutex::new(HashMap::new());
+    let sessions: Mutex<HashMap<String, Arc<WorkspaceSessionKind>>> = Mutex::new(HashMap::new());
     let app_settings = Mutex::new(AppSettings::default());
     let storage_path = temp_dir.join("workspaces.json");
 

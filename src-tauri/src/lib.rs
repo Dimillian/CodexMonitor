@@ -81,6 +81,7 @@ pub fn run() {
             codex::codex_doctor,
             workspaces::list_workspaces,
             workspaces::is_workspace_path_dir,
+            workspaces::register_workspace,
             workspaces::add_workspace,
             workspaces::add_clone,
             workspaces::add_worktree,
@@ -165,6 +166,7 @@ pub fn run() {
             dictation::dictation_stop,
             dictation::dictation_cancel,
             local_usage::local_usage_snapshot,
+            local_usage::copilot_usage_fetch,
             notifications::is_macos_debug_build,
             notifications::send_notification_fallback
         ])

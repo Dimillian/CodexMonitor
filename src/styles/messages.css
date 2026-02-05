@@ -924,57 +924,6 @@
   font-size: 0.97em;
 }
 
-.message .markdown .message-file-link {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  max-width: 100%;
-  padding: 2px 7px;
-  border-radius: 8px;
-  border: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--surface-command) 82%, transparent);
-  color: var(--message-link-color);
-  text-decoration: none;
-  vertical-align: baseline;
-  overflow: hidden;
-}
-
-.message .markdown .message-file-link:hover {
-  border-color: var(--border-strong);
-  color: var(--text-stronger);
-}
-
-.message .markdown .message-file-link-name {
-  font-family: var(--code-font-family);
-  font-weight: 520;
-  font-size: 0.88em;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.message .markdown .message-file-link-line {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 5px;
-  border-radius: 999px;
-  border: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--surface-control) 78%, transparent);
-  color: var(--text-muted);
-  font-size: 0.64em;
-  line-height: 1.35;
-  letter-spacing: 0.02em;
-}
-
-.message .markdown .message-file-link-path {
-  font-size: 0.62em;
-  line-height: 1.2;
-  color: var(--text-faint);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 32ch;
-}
-
 
 .message .markdown-codeblock {
   border: 1px solid var(--border-stronger);

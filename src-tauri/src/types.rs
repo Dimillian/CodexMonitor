@@ -317,6 +317,12 @@ pub(crate) struct AppSettings {
     pub(crate) codex_bin: Option<String>,
     #[serde(default, rename = "codexArgs")]
     pub(crate) codex_args: Option<String>,
+    #[serde(default = "default_backend_type", rename = "backendType")]
+    pub(crate) backend_type: String,
+    #[serde(default, rename = "copilotBin")]
+    pub(crate) copilot_bin: Option<String>,
+    #[serde(default, rename = "copilotArgs")]
+    pub(crate) copilot_args: Option<String>,
     #[serde(default, rename = "backendMode")]
     pub(crate) backend_mode: BackendMode,
     #[serde(default = "default_remote_backend_host", rename = "remoteBackendHost")]
@@ -525,6 +531,10 @@ impl Default for BackendMode {
     fn default() -> Self {
         BackendMode::Local
     }
+}
+
+fn default_backend_type() -> String {
+    "codex".to_string()
 }
 
 fn default_access_mode() -> String {
@@ -791,6 +801,9 @@ impl Default for AppSettings {
         Self {
             codex_bin: None,
             codex_args: None,
+            backend_type: default_backend_type(),
+            copilot_bin: None,
+            copilot_args: None,
             backend_mode: BackendMode::Local,
             remote_backend_host: default_remote_backend_host(),
             remote_backend_token: None,
@@ -861,6 +874,9 @@ mod tests {
     fn app_settings_defaults_from_empty_json() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
         assert!(settings.codex_bin.is_none());
+        assert_eq!(settings.backend_type, "codex");
+        assert!(settings.copilot_bin.is_none());
+        assert!(settings.copilot_args.is_none());
         assert!(matches!(settings.backend_mode, BackendMode::Local));
         assert_eq!(settings.remote_backend_host, "127.0.0.1:4732");
         assert!(settings.remote_backend_token.is_none());

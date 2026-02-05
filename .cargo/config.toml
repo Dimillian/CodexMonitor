@@ -1,0 +1,6 @@
+[env]
+# Disable x86-only SIMD flags in whisper.cpp builds (fixes arm64 macOS builds).
+WHISPER_NO_AVX = "ON"
+WHISPER_NO_AVX2 = "ON"
+WHISPER_NO_FMA = "ON"
+WHISPER_NO_F16C = "ON"

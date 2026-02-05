@@ -1,7 +1,7 @@
 {
   "name": "codex-monitor",
   "private": true,
-  "version": "0.7.40",
+  "version": "0.7.39",
   "type": "module",
   "scripts": {
     "sync:material-icons": "node scripts/sync-material-icons.mjs",
@@ -30,6 +30,7 @@
     "tauri:build:win": "npm run doctor:win && tauri build --config src-tauri/tauri.windows.conf.json"
   },
   "dependencies": {
+    "@github/copilot-sdk": "^0.1.21",
     "@pierre/diffs": "^1.0.6",
     "@tanstack/react-virtual": "^3.13.18",
     "@tauri-apps/api": "^2",

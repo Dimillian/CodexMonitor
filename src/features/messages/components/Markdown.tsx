@@ -44,13 +44,6 @@ type LinkBlockProps = {
   urls: string[];
 };
 
-type ParsedFileReference = {
-  fullPath: string;
-  fileName: string;
-  lineLabel: string | null;
-  parentPath: string | null;
-};
-
 function extractLanguageTag(className?: string) {
   if (!className) {
     return null;
@@ -199,53 +192,6 @@ function LinkBlock({ urls }: LinkBlockProps) {
   );
 }
 
-function parseFileReference(rawPath: string): ParsedFileReference {
-  const trimmed = rawPath.trim();
-  const lineMatch = trimmed.match(/^(.*?):(\d+(?::\d+)?)$/);
-  const pathWithoutLine = (lineMatch?.[1] ?? trimmed).trim();
-  const lineLabel = lineMatch?.[2] ?? null;
-  const normalizedPath = pathWithoutLine.replace(/\/+$/, "");
-  const segments = normalizedPath.split("/").filter(Boolean);
-  const fallbackFile = normalizedPath || trimmed;
-  const fileName = segments.length > 0 ? segments[segments.length - 1] : fallbackFile;
-  const parentPath =
-    segments.length > 1 ? segments.slice(0, -1).join("/") : null;
-
-  return {
-    fullPath: trimmed,
-    fileName,
-    lineLabel,
-    parentPath,
-  };
-}
-
-function FileReferenceLink({
-  href,
-  rawPath,
-  onClick,
-  onContextMenu,
-}: {
-  href: string;
-  rawPath: string;
-  onClick: (event: React.MouseEvent, path: string) => void;
-  onContextMenu: (event: React.MouseEvent, path: string) => void;
-}) {
-  const { fullPath, fileName, lineLabel, parentPath } = parseFileReference(rawPath);
-  return (
-    <a
-      href={href}
-      className="message-file-link"
-      title={fullPath}
-      onClick={(event) => onClick(event, rawPath)}
-      onContextMenu={(event) => onContextMenu(event, rawPath)}
-    >
-      <span className="message-file-link-name">{fileName}</span>
-      {lineLabel ? <span className="message-file-link-line">L{lineLabel}</span> : null}
-      {parentPath ? <span className="message-file-link-path">{parentPath}</span> : null}
-    </a>
-  );
-}
-
 function CodeBlock({ className, value, copyUseModifier }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
   const copyTimeoutRef = useRef<number | null>(null);
@@ -352,19 +298,6 @@ export function Markdown({
     event.stopPropagation();
     onOpenFileLinkMenu?.(event, path);
   };
-  const filePathWithOptionalLineMatch = /^(.+?)(:\d+(?::\d+)?)?$/;
-  const getLinkablePath = (rawValue: string) => {
-    const trimmed = rawValue.trim();
-    if (!trimmed) {
-      return null;
-    }
-    const match = trimmed.match(filePathWithOptionalLineMatch);
-    const pathOnly = match?.[1]?.trim() ?? trimmed;
-    if (!pathOnly || !isLinkableFilePath(pathOnly)) {
-      return null;
-    }
-    return trimmed;
-  };
   const components: Components = {
     a: ({ href, children }) => {
       const url = href ?? "";
@@ -390,12 +323,13 @@ export function Markdown({
       if (isFileLinkUrl(url)) {
         const path = decodeFileLink(url);
         return (
-          <FileReferenceLink
-            href={href ?? toFileLink(path)}
-            rawPath={path}
-            onClick={handleFileLinkClick}
-            onContextMenu={handleFileLinkContextMenu}
-          />
+          <a
+            href={href}
+            onClick={(event) => handleFileLinkClick(event, path)}
+            onContextMenu={(event) => handleFileLinkContextMenu(event, path)}
+          >
+            {children}
+          </a>
         );
       }
       const isExternal =
@@ -425,18 +359,18 @@ export function Markdown({
         return <code className={codeClassName}>{children}</code>;
       }
       const text = String(children ?? "").trim();
-      const linkablePath = getLinkablePath(text);
-      if (!linkablePath) {
+      if (!text || !isLinkableFilePath(text)) {
         return <code>{children}</code>;
       }
-      const href = toFileLink(linkablePath);
+      const href = toFileLink(text);
       return (
-        <FileReferenceLink
+        <a
           href={href}
-          rawPath={linkablePath}
-          onClick={handleFileLinkClick}
-          onContextMenu={handleFileLinkContextMenu}
-        />
+          onClick={(event) => handleFileLinkClick(event, text)}
+          onContextMenu={(event) => handleFileLinkContextMenu(event, text)}
+        >
+          <code>{children}</code>
+        </a>
       );
     },
   };

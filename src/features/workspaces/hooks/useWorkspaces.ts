@@ -9,18 +9,18 @@ import type {
 import { ask, message } from "@tauri-apps/plugin-dialog";
 import {
   addClone as addCloneService,
-  addWorkspace as addWorkspaceService,
   addWorktree as addWorktreeService,
-  connectWorkspace as connectWorkspaceService,
   isWorkspacePathDir as isWorkspacePathDirService,
   listWorkspaces,
   pickWorkspacePath,
+  registerWorkspace as registerWorkspaceService,
   removeWorkspace as removeWorkspaceService,
   removeWorktree as removeWorktreeService,
   renameWorktree as renameWorktreeService,
   renameWorktreeUpstream as renameWorktreeUpstreamService,
   updateWorkspaceCodexBin as updateWorkspaceCodexBinService,
   updateWorkspaceSettings as updateWorkspaceSettingsService,
+  connectWorkspace as connectWorkspaceService,
 } from "../../../services/tauri";
 
 const GROUP_ID_RANDOM_MODULUS = 1_000_000;
@@ -81,7 +81,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     () => new Set(),
   );
   const workspaceSettingsRef = useRef<Map<string, WorkspaceSettings>>(new Map());
-  const { onDebug, defaultCodexBin, appSettings, onUpdateAppSettings } = options;
+  const { onDebug, appSettings, onUpdateAppSettings } = options;
 
   const refreshWorkspaces = useCallback(async () => {
     try {
@@ -232,7 +232,8 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
         payload: { path: selection },
       });
       try {
-        const workspace = await addWorkspaceService(selection, defaultCodexBin ?? null);
+        // Register workspace without connecting - frontend will handle connection via Copilot SDK
+        const workspace = await registerWorkspaceService(selection);
         setWorkspaces((prev) => [...prev, workspace]);
         setActiveWorkspaceId(workspace.id);
         return workspace;
@@ -247,7 +248,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
         throw error;
       }
     },
-    [defaultCodexBin, onDebug],
+    [onDebug],
   );
 
   const addWorkspace = useCallback(async () => {
@@ -373,6 +374,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
       payload: { workspaceId: entry.id, path: entry.path },
     });
     try {
+      // Use Tauri backend to spawn Copilot CLI
       await connectWorkspaceService(entry.id);
     } catch (error) {
       onDebug?.({

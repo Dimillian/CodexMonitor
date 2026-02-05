@@ -1,18 +1,20 @@
-# CodexMonitor
+# CopilotMonitor
 
-![CodexMonitor](screenshot.png)
+> **Note**: This project is a fork of [Dimillian/CodexMonitor](https://github.com/Dimillian/CodexMonitor). It includes experimental GitHub Copilot integration alongside legacy Codex backend code — the backend may require additional adaptation.
 
-CodexMonitor is a macOS Tauri app for orchestrating multiple Codex agents across local workspaces. It provides a sidebar to manage projects, a home screen for quick actions, and a conversation view backed by the Codex app-server protocol.
+![CopilotMonitor](screenshot.png)
+
+CopilotMonitor is a macOS Tauri app for orchestrating multiple Copilot agents across local workspaces. It provides a sidebar to manage projects, a home screen for quick actions, and a conversation view backed by a Copilot-compatible backend.
 
 ## Features
 
 ### Workspaces & Threads
 
 - Add and persist workspaces, group/sort them, and jump into recent agent activity from the home dashboard.
-- Spawn one `codex app-server` per workspace, resume threads, and track unread/running state.
+- Spawn a backend process per workspace (Copilot-compatible or Codex), resume threads, and track unread/running state.
 - Worktree and clone agents for isolated work; worktrees live under the app data directory (legacy `.codex-worktrees` supported).
 - Thread management: pin/rename/archive/copy, per-thread drafts, and stop/interrupt in-flight turns.
-- Optional remote backend (daemon) mode for running Codex on another machine.
+- Optional remote backend (daemon) mode for running Copilot on another machine.
 
 ### Composer & Agent Controls
 
@@ -47,11 +49,11 @@ CodexMonitor is a macOS Tauri app for orchestrating multiple Codex agents across
 - Node.js + npm
 - Rust toolchain (stable)
 - CMake (required for native dependencies; Whisper/dictation uses it on non-Windows)
-- Codex installed on your system and available as `codex` in `PATH`
+- A Copilot-compatible backend or adapter (see `src/services/copilot-backend.ts`).
 - Git CLI (used for worktree operations)
 - GitHub CLI (`gh`) for the Issues panel (optional)
 
-If the `codex` binary is not in `PATH`, update the backend to pass a custom path per workspace.
+If your backend binary is not in `PATH`, update the backend to pass a custom path per workspace.
 If you hit native build errors, run:
 
 ```bash
@@ -116,24 +118,24 @@ src/
   styles/           split CSS by area
   types.ts          shared types
 src-tauri/
-  src/lib.rs        Tauri backend + codex app-server client
+  src/lib.rs        Tauri backend + app-server client (Codex or Copilot adapter)
   tauri.conf.json   window configuration
 ```
 
 ## Notes
 
 - Workspaces persist to `workspaces.json` under the app data directory.
-- App settings persist to `settings.json` under the app data directory (Codex path, default access mode, UI scale).
-- Feature settings are supported in the UI and synced to `$CODEX_HOME/config.toml` (or `~/.codex/config.toml`) on load/save. Stable: Collaboration modes (`features.collaboration_modes`), personality (`personality`), Steer mode (`features.steer`), and Background terminal (`features.unified_exec`). Experimental: Collab mode (`features.collab`) and Apps (`features.apps`).
+- App settings persist to `settings.json` under the app data directory (Copilot path, default access mode, UI scale).
+- Feature settings are supported in the UI and synced to Copilot configuration on load/save. Stable: Collaboration modes (`features.collaboration_modes`) and personality (`personality`). Experimental: Collab mode (`features.collab`), Apps (`features.apps`), Background terminal (`features.unified_exec`), and Steer mode (`features.steer`).
 - On launch and on window focus, the app reconnects and refreshes thread lists for each workspace.
 - Threads are restored by filtering `thread/list` results using the workspace `cwd`.
 - Selecting a thread always calls `thread/resume` to refresh messages from disk.
 - CLI sessions appear if their `cwd` matches the workspace path; they are not live-streamed unless resumed.
-- The app uses `codex app-server` over stdio; see `src-tauri/src/lib.rs`.
-- Codex sessions use the default Codex home (usually `~/.codex`); if a legacy `.codexmonitor/` exists in a workspace, it is used for that workspace.
+- The app communicates with a Copilot-compatible backend over stdio; see `src-tauri/src/lib.rs`.
+- Sessions use the default agent home directory; legacy `.codexmonitor/` or `~/.codex` paths may be used for compatibility.
 - Worktree agents live under the app data directory (`worktrees/<workspace-id>`); legacy `.codex-worktrees/` paths remain supported, and the app no longer edits repo `.gitignore` files.
 - UI state (panel sizes, reduced transparency toggle, recent thread activity) is stored in `localStorage`.
-- Custom prompts load from `$CODEX_HOME/prompts` (or `~/.codex/prompts`) with optional frontmatter description/argument hints.
+- Custom prompts load from the Copilot prompts directory with optional frontmatter description/argument hints.
 
 ## Tauri IPC Surface
 

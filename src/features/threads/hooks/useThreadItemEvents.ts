@@ -119,6 +119,7 @@ export function useThreadItemEvents({
       itemId: string;
       delta: string;
     }) => {
+      console.log("[onAgentMessageDelta] received:", { workspaceId, threadId, itemId, delta: delta.substring(0, 20) });
       dispatch({ type: "ensureThread", workspaceId, threadId });
       markProcessing(threadId, true);
       const hasCustomName = Boolean(getCustomName(workspaceId, threadId));

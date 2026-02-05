@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
 import type { DebugEntry } from "../../../types";
-import { getAccountRateLimits } from "../../../services/tauri";
+import { getAccountRateLimits, fetchCopilotUsage } from "../../../services/tauri";
 import { normalizeRateLimits } from "../utils/threadNormalize";
 import type { ThreadAction } from "./useThreadsReducer";
 
@@ -30,6 +30,37 @@ export function useThreadRateLimits({
         label: "account/rateLimits/read",
         payload: { workspaceId: targetId },
       });
+      
+      // Try Copilot API first (direct GitHub API call)
+      try {
+        const copilotUsage = await fetchCopilotUsage();
+        onDebug?.({
+          id: `${Date.now()}-server-copilot-usage`,
+          timestamp: Date.now(),
+          source: "server",
+          label: "copilot/usage response",
+          payload: copilotUsage,
+        });
+        
+        if (copilotUsage?.primary) {
+          dispatch({
+            type: "setRateLimits",
+            workspaceId: targetId,
+            rateLimits: normalizeRateLimits(copilotUsage as Record<string, unknown>),
+          });
+          return;
+        }
+      } catch (copilotError) {
+        onDebug?.({
+          id: `${Date.now()}-client-copilot-usage-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "copilot/usage error (falling back)",
+          payload: copilotError instanceof Error ? copilotError.message : String(copilotError),
+        });
+      }
+      
+      // Fall back to standard method
       try {
         const response = await getAccountRateLimits(targetId);
         onDebug?.({

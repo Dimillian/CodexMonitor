@@ -1109,6 +1109,7 @@ export const Messages = memo(function Messages({
   onUserInputSubmit,
   onOpenThreadLink,
 }: MessagesProps) {
+  console.log("[Messages] items:", items.length, "kinds:", items.map(i => i.kind), "threadId:", threadId, "isThinking:", isThinking);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const autoScrollRef = useRef(true);
@@ -1215,16 +1216,16 @@ export const Messages = memo(function Messages({
     return null;
   }, [items, reasoningMetaById]);
 
-  const visibleItems = useMemo(
-    () =>
-      items.filter((item) => {
-        if (item.kind !== "reasoning") {
-          return true;
-        }
-        return reasoningMetaById.get(item.id)?.hasBody ?? false;
-      }),
-    [items, reasoningMetaById],
-  );
+  const visibleItems = useMemo(() => {
+    const filtered = items.filter((item) => {
+      if (item.kind !== "reasoning") {
+        return true;
+      }
+      return reasoningMetaById.get(item.id)?.hasBody ?? false;
+    });
+    console.log("[Messages] visibleItems:", filtered.length, "kinds:", filtered.map(i => i.kind));
+    return filtered;
+  }, [items, reasoningMetaById]);
 
   useEffect(() => {
     for (let index = visibleItems.length - 1; index >= 0; index -= 1) {

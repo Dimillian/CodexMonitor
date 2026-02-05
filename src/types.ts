@@ -113,6 +113,7 @@ export type ReviewTarget =
 
 export type AccessMode = "read-only" | "current" | "full-access";
 export type BackendMode = "local" | "remote";
+export type BackendType = "codex" | "copilot";
 export type ThemePreference = "system" | "light" | "dark" | "dim";
 export type PersonalityPreference = "friendly" | "pragmatic";
 
@@ -143,6 +144,9 @@ export type AppSettings = {
   codexBin: string | null;
   codexArgs: string | null;
   backendMode: BackendMode;
+  backendType: BackendType;
+  copilotBin: string | null;
+  copilotArgs: string | null;
   remoteBackendHost: string;
   remoteBackendToken: string | null;
   defaultAccessMode: AccessMode;
@@ -179,8 +183,8 @@ export type AppSettings = {
   gitDiffIgnoreWhitespaceChanges: boolean;
   experimentalCollabEnabled: boolean;
   collaborationModesEnabled: boolean;
-  steerEnabled: boolean;
-  unifiedExecEnabled: boolean;
+  experimentalSteerEnabled: boolean;
+  experimentalUnifiedExecEnabled: boolean;
   experimentalAppsEnabled: boolean;
   personality: PersonalityPreference;
   dictationEnabled: boolean;
@@ -453,6 +457,7 @@ export type ModelOption = {
   supportedReasoningEfforts: { reasoningEffort: string; description: string }[];
   defaultReasoningEffort: string | null;
   isDefault: boolean;
+  copilotUsage?: string | null;
 };
 
 export type CollaborationModeOption = {

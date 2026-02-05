@@ -78,7 +78,18 @@ function createEventHub<T>(eventName: string) {
     };
   };
 
-  return { subscribe };
+  // Emit an event directly to all listeners (bypasses Tauri)
+  const emit = (payload: T) => {
+    for (const listener of listeners) {
+      try {
+        listener(payload);
+      } catch (error) {
+        console.error(`[events] ${eventName} direct emit listener failed`, error);
+      }
+    }
+  };
+
+  return { subscribe, emit };
 }
 
 const appServerHub = createEventHub<AppServerEvent>("app-server-event");
@@ -116,6 +127,14 @@ export function subscribeAppServerEvents(
   options?: SubscriptionOptions,
 ): Unsubscribe {
   return appServerHub.subscribe(onEvent, options);
+}
+
+/**
+ * Emit an AppServerEvent directly to listeners.
+ * Used by the Copilot backend to inject events into the event system.
+ */
+export function emitAppServerEvent(event: AppServerEvent): void {
+  appServerHub.emit(event);
 }
 
 export function subscribeDictationDownload(

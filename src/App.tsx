@@ -403,7 +403,8 @@ function MainApp() {
     reasoningSupported,
     reasoningOptions,
     selectedEffort,
-    setSelectedEffort
+    setSelectedEffort,
+    refreshModels,
   } = useModels({
     activeWorkspace,
     onDebug: addDebugEntry,
@@ -709,7 +710,7 @@ function MainApp() {
     collaborationMode: collaborationModePayload,
     accessMode,
     reviewDeliveryMode: appSettings.reviewDeliveryMode,
-    steerEnabled: appSettings.steerEnabled,
+    steerEnabled: appSettings.experimentalSteerEnabled,
     customPrompts: prompts,
     onMessageActivity: queueGitStatusRefresh
   });
@@ -1158,7 +1159,7 @@ function MainApp() {
     activeWorkspace,
     isProcessing,
     isReviewing,
-    steerEnabled: appSettings.steerEnabled,
+    steerEnabled: appSettings.experimentalSteerEnabled,
     appsEnabled: appSettings.experimentalAppsEnabled,
     connectWorkspace,
     startThreadForWorkspace,
@@ -2040,7 +2041,7 @@ function MainApp() {
     onFileAutocompleteActiveChange: setFileAutocompleteActive,
     isReviewing,
     isProcessing,
-    steerEnabled: appSettings.steerEnabled,
+    steerEnabled: appSettings.experimentalSteerEnabled,
     reviewPrompt,
     onReviewPromptClose: closeReviewPrompt,
     onReviewPromptShowPreset: showPresetStep,
@@ -2171,6 +2172,9 @@ function MainApp() {
       selectedEffort={selectedEffort}
       onSelectEffort={setSelectedEffort}
       reasoningSupported={reasoningSupported}
+      onRefreshModels={() => {
+        void refreshModels();
+      }}
       error={workspaceRunError}
       isSubmitting={workspaceRunSubmitting}
       activeWorkspaceId={activeWorkspaceId}

@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use tokio::sync::Mutex;
 
-use crate::backend::app_server::WorkspaceSession;
+use crate::backend::session::WorkspaceSessionKind;
 use crate::codex::args::resolve_workspace_codex_args;
 use crate::codex::home::resolve_workspace_codex_home;
 use crate::storage::write_workspaces;
@@ -74,9 +74,58 @@ pub(crate) fn is_workspace_path_dir_core(path: &str) -> bool {
     PathBuf::from(path).is_dir()
 }
 
+pub(crate) async fn register_workspace_core(
+    path: String,
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    storage_path: &PathBuf,
+) -> Result<WorkspaceInfo, String> {
+    if !PathBuf::from(&path).is_dir() {
+        return Err("Workspace path must be a folder.".to_string());
+    }
+
+    let name = PathBuf::from(&path)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("Workspace")
+        .to_string();
+    let entry = WorkspaceEntry {
+        id: Uuid::new_v4().to_string(),
+        name: name.clone(),
+        path: path.clone(),
+        codex_bin: None,
+        kind: WorkspaceKind::Main,
+        parent_id: None,
+        worktree: None,
+        settings: WorkspaceSettings::default(),
+    };
+
+    if let Err(error) = {
+        let mut workspaces = workspaces.lock().await;
+        workspaces.insert(entry.id.clone(), entry.clone());
+        let list: Vec<_> = workspaces.values().cloned().collect();
+        write_workspaces(storage_path, &list)
+    } {
+        let mut workspaces = workspaces.lock().await;
+        workspaces.remove(&entry.id);
+        return Err(error);
+    }
+
+    Ok(WorkspaceInfo {
+        id: entry.id,
+        name: entry.name,
+        path: entry.path,
+        codex_bin: entry.codex_bin,
+        connected: false,
+        kind: entry.kind,
+        parent_id: entry.parent_id,
+        worktree: entry.worktree,
+        settings: entry.settings,
+    })
+}
+
 pub(crate) async fn list_workspaces_core(
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
 ) -> Vec<WorkspaceInfo> {
     let workspaces = workspaces.lock().await;
     let sessions = sessions.lock().await;
@@ -184,14 +233,14 @@ pub(crate) async fn add_workspace_core<F, Fut>(
     path: String,
     codex_bin: Option<String>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     app_settings: &Mutex<AppSettings>,
     storage_path: &PathBuf,
     spawn_session: F,
 ) -> Result<WorkspaceInfo, String>
 where
     F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
-    Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
+    Fut: Future<Output = Result<Arc<WorkspaceSessionKind>, String>>,
 {
     if !PathBuf::from(&path).is_dir() {
         return Err("Workspace path must be a folder.".to_string());
@@ -233,8 +282,7 @@ where
             let mut workspaces = workspaces.lock().await;
             workspaces.remove(&entry.id);
         }
-        let mut child = session.child.lock().await;
-        let _ = child.kill().await;
+        session.kill().await;
         return Err(error);
     }
 
@@ -289,7 +337,7 @@ pub(crate) async fn add_worktree_core<
     copy_agents_md: bool,
     data_dir: &PathBuf,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     app_settings: &Mutex<AppSettings>,
     storage_path: &PathBuf,
     sanitize_worktree_name: FSanitize,
@@ -301,7 +349,7 @@ pub(crate) async fn add_worktree_core<
 ) -> Result<WorkspaceInfo, String>
 where
     FSpawn: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> FutSpawn,
-    FutSpawn: Future<Output = Result<Arc<WorkspaceSession>, String>>,
+    FutSpawn: Future<Output = Result<Arc<WorkspaceSessionKind>, String>>,
     FSanitize: Fn(&str) -> String,
     FUniquePath: Fn(&PathBuf, &str) -> Result<PathBuf, String>,
     FBranchExists: Fn(&PathBuf, &str) -> FutBranchExists,
@@ -438,13 +486,13 @@ where
 pub(crate) async fn connect_workspace_core<F, Fut>(
     workspace_id: String,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     app_settings: &Mutex<AppSettings>,
     spawn_session: F,
 ) -> Result<(), String>
 where
     F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
-    Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
+    Fut: Future<Output = Result<Arc<WorkspaceSessionKind>, String>>,
 {
     let (entry, parent_entry) = resolve_entry_and_parent(workspaces, &workspace_id).await?;
     let (default_bin, codex_args) = {
@@ -461,12 +509,11 @@ where
 }
 
 async fn kill_session_by_id(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     id: &str,
 ) {
     if let Some(session) = sessions.lock().await.remove(id) {
-        let mut child = session.child.lock().await;
-        let _ = child.kill().await;
+        session.kill().await;
     }
 }
 
@@ -478,7 +525,7 @@ pub(crate) async fn remove_workspace_core<
 >(
     id: String,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     storage_path: &PathBuf,
     run_git_command: FRunGit,
     is_missing_worktree_error: FIsMissing,
@@ -582,7 +629,7 @@ where
 pub(crate) async fn remove_worktree_core<FRunGit, FutRunGit, FIsMissing, FRemoveDirAll>(
     id: String,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     storage_path: &PathBuf,
     run_git_command: FRunGit,
     is_missing_worktree_error: FIsMissing,
@@ -661,7 +708,7 @@ pub(crate) async fn rename_worktree_core<
     branch: String,
     data_dir: &PathBuf,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     app_settings: &Mutex<AppSettings>,
     storage_path: &PathBuf,
     resolve_git_root: FResolveGitRoot,
@@ -673,7 +720,7 @@ pub(crate) async fn rename_worktree_core<
 ) -> Result<WorkspaceInfo, String>
 where
     FSpawn: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> FutSpawn,
-    FutSpawn: Future<Output = Result<Arc<WorkspaceSession>, String>>,
+    FutSpawn: Future<Output = Result<Arc<WorkspaceSessionKind>, String>>,
     FResolveGitRoot: Fn(&WorkspaceEntry) -> Result<PathBuf, String>,
     FUniqueBranch: Fn(&PathBuf, &str) -> FutUniqueBranch,
     FutUniqueBranch: Future<Output = Result<String, String>>,
@@ -932,7 +979,7 @@ pub(crate) async fn update_workspace_settings_core<
     id: String,
     mut settings: WorkspaceSettings,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     app_settings: &Mutex<AppSettings>,
     storage_path: &PathBuf,
     apply_settings_update: FApplySettings,
@@ -942,7 +989,7 @@ where
     FApplySettings: Fn(&mut HashMap<String, WorkspaceEntry>, &str, WorkspaceSettings)
         -> Result<WorkspaceEntry, String>,
     FSpawn: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> FutSpawn,
-    FutSpawn: Future<Output = Result<Arc<WorkspaceSession>, String>>,
+    FutSpawn: Future<Output = Result<Arc<WorkspaceSessionKind>, String>>,
 {
     settings.worktree_setup_script = normalize_setup_script(settings.worktree_setup_script);
 
@@ -1015,8 +1062,7 @@ where
             .await
             .insert(entry_snapshot.id.clone(), new_session)
         {
-            let mut child = old_session.child.lock().await;
-            let _ = child.kill().await;
+            old_session.kill().await;
         }
     }
     if codex_home_changed || codex_args_changed {
@@ -1058,8 +1104,7 @@ where
                 .await
                 .insert(child.id.clone(), new_session)
             {
-                let mut child = old_session.child.lock().await;
-                let _ = child.kill().await;
+                old_session.kill().await;
             }
         }
     }
@@ -1100,7 +1145,7 @@ pub(crate) async fn update_workspace_codex_bin_core(
     id: String,
     codex_bin: Option<String>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     storage_path: &PathBuf,
 ) -> Result<WorkspaceInfo, String> {
     let (entry_snapshot, list) = {

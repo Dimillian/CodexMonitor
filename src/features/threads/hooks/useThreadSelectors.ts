@@ -20,10 +20,11 @@ export function useThreadSelectors({
     return activeThreadIdByWorkspace[activeWorkspaceId] ?? null;
   }, [activeThreadIdByWorkspace, activeWorkspaceId]);
 
-  const activeItems = useMemo<ConversationItem[]>(
-    () => (activeThreadId ? itemsByThread[activeThreadId] ?? [] : []),
-    [activeThreadId, itemsByThread],
-  );
+  const activeItems = useMemo<ConversationItem[]>(() => {
+    const items = activeThreadId ? itemsByThread[activeThreadId] ?? [] : [];
+    console.log("[useThreadSelectors] activeWorkspaceId:", activeWorkspaceId, "activeThreadId:", activeThreadId, "items count:", items.length, "itemsByThread keys:", Object.keys(itemsByThread));
+    return items;
+  }, [activeThreadId, activeWorkspaceId, itemsByThread]);
 
   return { activeThreadId, activeItems };
 }

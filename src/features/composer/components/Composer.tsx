@@ -12,6 +12,7 @@ import type {
   ComposerEditorSettings,
   CustomPromptOption,
   DictationTranscript,
+  ModelOption,
   QueuedMessage,
   ThreadTokenUsage,
 } from "../../../types";
@@ -48,7 +49,7 @@ type ComposerProps = {
   collaborationModes: { id: string; label: string }[];
   selectedCollaborationModeId: string | null;
   onSelectCollaborationMode: (id: string | null) => void;
-  models: { id: string; displayName: string; model: string }[];
+  models: ModelOption[];
   selectedModelId: string | null;
   onSelectModel: (id: string) => void;
   reasoningOptions: string[];

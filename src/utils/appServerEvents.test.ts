@@ -36,6 +36,7 @@ describe("appServerEvents", () => {
     expect(isSupportedAppServerMethod("turn/started")).toBe(true);
     expect(isSupportedAppServerMethod("unknown/method")).toBe(false);
     expect(isApprovalRequestMethod("workspace/requestApproval")).toBe(true);
+    expect(isApprovalRequestMethod("codex/requestApproval/commandExecution")).toBe(true);
     expect(isApprovalRequestMethod("workspace/request")).toBe(false);
   });
 

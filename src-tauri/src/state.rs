@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use serde_json::Value;
 use tauri::{AppHandle, Manager};
 use tokio::sync::Mutex;
 
@@ -11,7 +12,7 @@ use crate::types::{AppSettings, WorkspaceEntry};
 
 pub(crate) struct AppState {
     pub(crate) workspaces: Mutex<HashMap<String, WorkspaceEntry>>,
-    pub(crate) sessions: Mutex<HashMap<String, Arc<crate::codex::WorkspaceSession>>>,
+    pub(crate) sessions: Mutex<HashMap<String, Arc<crate::backend::session::WorkspaceSessionKind>>>,
     pub(crate) terminal_sessions:
         Mutex<HashMap<String, Arc<crate::terminal::TerminalSession>>>,
     pub(crate) remote_backend: Mutex<Option<crate::remote_backend::RemoteBackend>>,
@@ -20,6 +21,8 @@ pub(crate) struct AppState {
     pub(crate) app_settings: Mutex<AppSettings>,
     pub(crate) dictation: Mutex<DictationState>,
     pub(crate) codex_login_cancels: Mutex<HashMap<String, CodexLoginCancelState>>,
+    pub(crate) model_list_cache: Mutex<HashMap<String, Value>>,
+    pub(crate) preflight_session_ids: Mutex<HashMap<String, String>>,
 }
 
 impl AppState {
@@ -42,6 +45,8 @@ impl AppState {
             app_settings: Mutex::new(app_settings),
             dictation: Mutex::new(DictationState::default()),
             codex_login_cancels: Mutex::new(HashMap::new()),
+            model_list_cache: Mutex::new(HashMap::new()),
+            preflight_session_ids: Mutex::new(HashMap::new()),
         }
     }
 }

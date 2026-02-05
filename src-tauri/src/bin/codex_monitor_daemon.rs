@@ -67,9 +67,8 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{broadcast, mpsc, Mutex};
 
-use backend::app_server::{
-    spawn_workspace_session, WorkspaceSession,
-};
+use backend::app_server::spawn_workspace_session;
+use backend::session::WorkspaceSessionKind;
 use backend::events::{AppServerEvent, EventSink, TerminalExit, TerminalOutput};
 use storage::{read_settings, read_workspaces};
 use shared::{codex_core, files_core, git_core, settings_core, workspaces_core, worktree_core};
@@ -88,15 +87,19 @@ fn spawn_with_client(
     default_bin: Option<String>,
     codex_args: Option<String>,
     codex_home: Option<PathBuf>,
-) -> impl std::future::Future<Output = Result<Arc<WorkspaceSession>, String>> {
-    spawn_workspace_session(
-        entry,
-        default_bin,
-        codex_args,
-        codex_home,
-        client_version,
-        event_sink,
-    )
+) -> impl std::future::Future<Output = Result<Arc<WorkspaceSessionKind>, String>> {
+    async move {
+        let session = spawn_workspace_session(
+            entry,
+            default_bin,
+            codex_args,
+            codex_home,
+            client_version,
+            event_sink,
+        )
+        .await?;
+        Ok(Arc::new(WorkspaceSessionKind::Codex(session)))
+    }
 }
 
 #[derive(Clone)]
@@ -136,7 +139,7 @@ struct DaemonConfig {
 struct DaemonState {
     data_dir: PathBuf,
     workspaces: Mutex<HashMap<String, WorkspaceEntry>>,
-    sessions: Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     storage_path: PathBuf,
     settings_path: PathBuf,
     app_settings: Mutex<AppSettings>,
@@ -202,6 +205,10 @@ impl DaemonState {
             },
         )
         .await
+    }
+
+    async fn register_workspace(&self, path: String) -> Result<WorkspaceInfo, String> {
+        workspaces_core::register_workspace_core(path, &self.workspaces, &self.storage_path).await
     }
 
     async fn add_worktree(
@@ -987,6 +994,11 @@ async fn handle_rpc_request(
             let path = parse_string(&params, "path")?;
             let is_dir = state.is_workspace_path_dir(path).await;
             serde_json::to_value(is_dir).map_err(|err| err.to_string())
+        }
+        "register_workspace" => {
+            let path = parse_string(&params, "path")?;
+            let workspace = state.register_workspace(path).await?;
+            serde_json::to_value(workspace).map_err(|err| err.to_string())
         }
         "add_workspace" => {
             let path = parse_string(&params, "path")?;

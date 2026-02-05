@@ -130,6 +130,14 @@ export async function getConfigModel(workspaceId: string): Promise<string | null
   return trimmed.length > 0 ? trimmed : null;
 }
 
+/**
+ * Register a workspace without connecting to the backend.
+ * Connection is handled separately by the Copilot SDK.
+ */
+export async function registerWorkspace(path: string): Promise<WorkspaceInfo> {
+  return invoke<WorkspaceInfo>("register_workspace", { path });
+}
+
 export async function addWorkspace(
   path: string,
   codex_bin: string | null,
@@ -843,4 +851,19 @@ export async function sendNotification(
   }
 
   await attemptFallback();
+}
+
+
+export type CopilotUsageSnapshot = {
+  primary: { usedPercent: number; windowDurationMins: number | null; resetsAt: number | null } | null;
+  secondary: { usedPercent: number; windowDurationMins: number | null; resetsAt: number | null } | null;
+  credits: null;
+  planType: string;
+  quotaResetDate: string | null;
+  premiumRemaining: number | null;
+  premiumEntitlement: number | null;
+};
+
+export async function fetchCopilotUsage(): Promise<CopilotUsageSnapshot> {
+  return invoke<CopilotUsageSnapshot>("copilot_usage_fetch");
 }

@@ -651,6 +651,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       };
     }
     case "appendAgentDelta": {
+      console.log("[reducer appendAgentDelta] threadId:", action.threadId, "delta:", action.delta.substring(0, 20));
       const list = [...(state.itemsByThread[action.threadId] ?? [])];
       const index = list.findIndex((msg) => msg.id === action.itemId);
       if (index >= 0 && list[index].kind === "message") {
@@ -668,6 +669,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         });
       }
       const updatedItems = prepareThreadItems(list);
+      console.log("[reducer appendAgentDelta] updatedItems count:", updatedItems.length);
       const nextThreadsByWorkspace = maybeRenameThreadFromAgent({
         workspaceId: action.workspaceId,
         threadId: action.threadId,
@@ -1004,11 +1006,15 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
     case "setThreads": {
       const hidden = state.hiddenThreadIdsByWorkspace[action.workspaceId] ?? {};
       const visibleThreads = action.threads.filter((thread) => !hidden[thread.id]);
+      // If backend returns empty list (e.g., ACP doesn't support listing),
+      // preserve existing local threads instead of clearing them
+      const existingThreads = state.threadsByWorkspace[action.workspaceId] ?? [];
+      const finalThreads = visibleThreads.length > 0 ? visibleThreads : existingThreads;
       return {
         ...state,
         threadsByWorkspace: {
           ...state.threadsByWorkspace,
-          [action.workspaceId]: visibleThreads,
+          [action.workspaceId]: finalThreads,
         },
       };
     }

@@ -65,6 +65,7 @@ type WorkspaceHomeProps = {
   selectedEffort: string | null;
   onSelectEffort: (effort: string) => void;
   reasoningSupported: boolean;
+  onRefreshModels?: () => void;
   error: string | null;
   isSubmitting: boolean;
   activeWorkspaceId: string | null;
@@ -108,8 +109,12 @@ const buildIconPath = (workspacePath: string) => {
   return `${workspacePath.replace(/[\\/]+$/, "")}${separator}icon.png`;
 };
 
-const resolveModelLabel = (model: ModelOption | null) =>
-  model?.displayName?.trim() || model?.model?.trim() || "Default model";
+const resolveModelLabel = (model: ModelOption | null) => {
+  const base =
+    model?.displayName?.trim() || model?.model?.trim() || "Default model";
+  const usage = model?.copilotUsage?.trim();
+  return usage ? `${base} · ${usage}` : base;
+};
 
 const CARET_ANCHOR_GAP = 8;
 
@@ -144,6 +149,7 @@ export function WorkspaceHome({
   selectedEffort,
   onSelectEffort,
   reasoningSupported,
+  onRefreshModels,
   error,
   isSubmitting,
   activeWorkspaceId,
@@ -613,7 +619,18 @@ export function WorkspaceHome({
               type="button"
               className="ghost open-app-action"
               onClick={() => {
-                setModelsOpen((prev) => !prev);
+                setModelsOpen((prev) => {
+                  const nextOpen = !prev;
+                  if (
+                    nextOpen &&
+                    models.length === 0 &&
+                    workspace.connected &&
+                    onRefreshModels
+                  ) {
+                    onRefreshModels();
+                  }
+                  return nextOpen;
+                });
                 setRunModeOpen(false);
               }}
               aria-label="Select models"
@@ -627,7 +644,18 @@ export function WorkspaceHome({
               type="button"
               className="ghost open-app-toggle"
               onClick={() => {
-                setModelsOpen((prev) => !prev);
+                setModelsOpen((prev) => {
+                  const nextOpen = !prev;
+                  if (
+                    nextOpen &&
+                    models.length === 0 &&
+                    workspace.connected &&
+                    onRefreshModels
+                  ) {
+                    onRefreshModels();
+                  }
+                  return nextOpen;
+                });
                 setRunModeOpen(false);
               }}
               aria-haspopup="menu"
@@ -645,7 +673,9 @@ export function WorkspaceHome({
             >
               {models.length === 0 && (
                 <div className="workspace-home-empty">
-                  Connect this workspace to load available models.
+                  {workspace.connected
+                    ? "No models available yet."
+                    : "Connect this workspace to load available models."}
                 </div>
               )}
               {models.map((model) => {

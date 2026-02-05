@@ -5,6 +5,7 @@ use std::sync::Arc;
 use serde_json::json;
 use tauri::{AppHandle, Manager, State};
 use tokio::io::AsyncWriteExt;
+use tokio::sync::Mutex;
 use uuid::Uuid;
 
 #[cfg(target_os = "macos")]
@@ -21,10 +22,11 @@ use super::worktree::{
     unique_worktree_path_for_rename,
 };
 
-use crate::backend::app_server::WorkspaceSession;
-use crate::codex::spawn_workspace_session;
+use crate::backend::acp_server;
+use crate::backend::session::WorkspaceSessionKind;
 use crate::codex::args::resolve_workspace_codex_args;
 use crate::codex::home::resolve_workspace_codex_home;
+use crate::event_sink::TauriEventSink;
 use crate::git_utils::resolve_git_root;
 use crate::remote_backend;
 use crate::shared::process_core::tokio_command;
@@ -36,14 +38,35 @@ use crate::types::{
 };
 use crate::utils::{git_env_path, resolve_git_binary};
 
-fn spawn_with_app(
-    app: &AppHandle,
+fn spawn_with_app<'a>(
+    app: &'a AppHandle,
+    app_settings: &'a Mutex<crate::types::AppSettings>,
     entry: WorkspaceEntry,
     default_bin: Option<String>,
     codex_args: Option<String>,
     codex_home: Option<PathBuf>,
-) -> impl std::future::Future<Output = Result<Arc<WorkspaceSession>, String>> {
-    spawn_workspace_session(entry, default_bin, codex_args, app.clone(), codex_home)
+) -> impl std::future::Future<Output = Result<Arc<WorkspaceSessionKind>, String>> + 'a {
+    let app = app.clone();
+    let app_settings = app_settings.clone();
+    async move {
+        let _ = (default_bin, codex_args, codex_home);
+        let settings = app_settings.lock().await;
+        let copilot_bin = settings.copilot_bin.clone();
+        let copilot_args = settings.copilot_args.clone();
+        drop(settings);
+
+        let client_version = app.package_info().version.to_string();
+        let event_sink = TauriEventSink::new(app.clone());
+        let session = acp_server::spawn_workspace_session(
+            entry,
+            copilot_bin,
+            copilot_args,
+            client_version,
+            event_sink,
+        )
+        .await?;
+        Ok(Arc::new(WorkspaceSessionKind::Acp(session)))
+    }
 }
 
 #[tauri::command]
@@ -109,6 +132,28 @@ pub(crate) async fn is_workspace_path_dir(
 
 
 #[tauri::command]
+pub(crate) async fn register_workspace(
+    path: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<WorkspaceInfo, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let path = remote_backend::normalize_path_for_remote(path);
+        let response = remote_backend::call_remote(
+            &*state,
+            app,
+            "register_workspace",
+            json!({ "path": path }),
+        )
+        .await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
+    workspaces_core::register_workspace_core(path, &state.workspaces, &state.storage_path).await
+}
+
+
+#[tauri::command]
 pub(crate) async fn add_workspace(
     path: String,
     codex_bin: Option<String>,
@@ -136,7 +181,7 @@ pub(crate) async fn add_workspace(
         &state.app_settings,
         &state.storage_path,
         |entry, default_bin, codex_args, codex_home| {
-            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+            spawn_with_app(&app, &state.app_settings, entry, default_bin, codex_args, codex_home)
         },
     )
     .await
@@ -228,15 +273,15 @@ pub(crate) async fn add_clone(
         )
     };
     let codex_home = resolve_workspace_codex_home(&entry, None);
-    let session = match spawn_workspace_session(
+    let session = match spawn_with_app(
+        &app,
+        &state.app_settings,
         entry.clone(),
         default_bin,
         codex_args,
-        app,
         codex_home,
     )
-    .await
-    {
+    .await {
         Ok(session) => session,
         Err(error) => {
             let _ = tokio::fs::remove_dir_all(&destination_path).await;
@@ -254,8 +299,7 @@ pub(crate) async fn add_clone(
             let mut workspaces = state.workspaces.lock().await;
             workspaces.remove(&entry.id);
         }
-        let mut child = session.child.lock().await;
-        let _ = child.kill().await;
+        session.kill().await;
         let _ = tokio::fs::remove_dir_all(&destination_path).await;
         return Err(error);
     }
@@ -335,7 +379,7 @@ pub(crate) async fn add_worktree(
             })
         },
         |entry, default_bin, codex_args, codex_home| {
-            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+            spawn_with_app(&app, &state.app_settings, entry, default_bin, codex_args, codex_home)
         },
     )
     .await
@@ -504,7 +548,7 @@ pub(crate) async fn rename_worktree(
             })
         },
         |entry, default_bin, codex_args, codex_home| {
-            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+            spawn_with_app(&app, &state.app_settings, entry, default_bin, codex_args, codex_home)
         },
     )
     .await
@@ -726,7 +770,7 @@ pub(crate) async fn update_workspace_settings(
             apply_workspace_settings_update(workspaces, workspace_id, next_settings)
         },
         |entry, default_bin, codex_args, codex_home| {
-            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+            spawn_with_app(&app, &state.app_settings, entry, default_bin, codex_args, codex_home)
         },
     )
     .await
@@ -781,7 +825,7 @@ pub(crate) async fn connect_workspace(
         &state.sessions,
         &state.app_settings,
         |entry, default_bin, codex_args, codex_home| {
-            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+            spawn_with_app(&app, &state.app_settings, entry, default_bin, codex_args, codex_home)
         },
     )
     .await

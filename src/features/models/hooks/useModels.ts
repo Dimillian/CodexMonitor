@@ -11,6 +11,63 @@ type UseModelsOptions = {
 
 const CONFIG_MODEL_DESCRIPTION = "Configured in CODEX_HOME/config.toml";
 
+const extractModelList = (response: any): any[] => {
+  const candidates = [
+    response?.result?.data,
+    response?.result?.models,
+    response?.result?.items,
+    response?.result,
+    response?.data,
+    response?.models,
+    response?.items,
+    response,
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate;
+    }
+    if (candidate && typeof candidate === "object") {
+      const nested = (candidate as any).data ?? (candidate as any).models ?? (candidate as any).items;
+      if (Array.isArray(nested)) {
+        return nested;
+      }
+    }
+  }
+  return [];
+};
+
+const normalizeReasoningEfforts = (
+  value: unknown,
+): { reasoningEffort: string; description: string }[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((effort) => {
+      if (typeof effort === "string") {
+        const trimmed = effort.trim();
+        return trimmed ? { reasoningEffort: trimmed, description: "" } : null;
+      }
+      if (effort && typeof effort === "object") {
+        const entry = effort as Record<string, unknown>;
+        const raw = String(entry.reasoningEffort ?? entry.reasoning_effort ?? "");
+        const trimmed = raw.trim();
+        if (!trimmed) {
+          return null;
+        }
+        return {
+          reasoningEffort: trimmed,
+          description: String(entry.description ?? ""),
+        };
+      }
+      return null;
+    })
+    .filter(
+      (effort): effort is { reasoningEffort: string; description: string } =>
+        effort !== null,
+    );
+};
+
 const normalizeEffort = (value: unknown): string | null => {
   if (typeof value !== "string") {
     return null;
@@ -194,26 +251,27 @@ export function useModels({
         payload: response,
       });
       setConfigModel(configModelFromConfig);
-      const rawData = response?.result?.data ?? response?.data ?? [];
+      const rawData = extractModelList(response);
       const dataFromServer: ModelOption[] = rawData.map((item: any) => ({
         id: String(item.id ?? item.model ?? ""),
         model: String(item.model ?? item.id ?? ""),
-        displayName: String(item.displayName ?? item.display_name ?? item.model ?? ""),
+        displayName: String(
+          item.displayName ?? item.display_name ?? item.name ?? item.model ?? "",
+        ),
         description: String(item.description ?? ""),
-        supportedReasoningEfforts: Array.isArray(item.supportedReasoningEfforts)
-          ? item.supportedReasoningEfforts
-          : Array.isArray(item.supported_reasoning_efforts)
-            ? item.supported_reasoning_efforts.map((effort: any) => ({
-                reasoningEffort: String(
-                  effort.reasoningEffort ?? effort.reasoning_effort ?? "",
-                ),
-                description: String(effort.description ?? ""),
-              }))
-            : [],
+        supportedReasoningEfforts: normalizeReasoningEfforts(
+          item.supportedReasoningEfforts ?? item.supported_reasoning_efforts ?? [],
+        ),
         defaultReasoningEffort: normalizeEffort(
           item.defaultReasoningEffort ?? item.default_reasoning_effort,
         ),
         isDefault: Boolean(item.isDefault ?? item.is_default ?? false),
+        copilotUsage:
+          item.copilotUsage ??
+          item.copilot_usage ??
+          item.pricing ??
+          item.price ??
+          null,
       }));
       const data = (() => {
         if (!configModelFromConfig) {
@@ -233,6 +291,7 @@ export function useModels({
           supportedReasoningEfforts: [],
           defaultReasoningEffort: null,
           isDefault: false,
+          copilotUsage: null,
         };
         return [configOption, ...dataFromServer];
       })();

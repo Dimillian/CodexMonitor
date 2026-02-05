@@ -3,8 +3,8 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { WorkspaceInfo } from "../../../types";
 import {
-  addWorkspace,
   listWorkspaces,
+  registerWorkspace,
   renameWorktree,
   renameWorktreeUpstream,
   updateWorkspaceSettings,
@@ -16,15 +16,18 @@ vi.mock("../../../services/tauri", () => ({
   renameWorktree: vi.fn(),
   renameWorktreeUpstream: vi.fn(),
   addClone: vi.fn(),
-  addWorkspace: vi.fn(),
   addWorktree: vi.fn(),
-  connectWorkspace: vi.fn(),
   isWorkspacePathDir: vi.fn(),
   pickWorkspacePath: vi.fn(),
+  registerWorkspace: vi.fn(),
   removeWorkspace: vi.fn(),
   removeWorktree: vi.fn(),
   updateWorkspaceCodexBin: vi.fn(),
   updateWorkspaceSettings: vi.fn(),
+}));
+
+vi.mock("../../../services/copilot-sdk", () => ({
+  connectWorkspace: vi.fn(),
 }));
 
 const worktree: WorkspaceInfo = {
@@ -220,13 +223,13 @@ describe("useWorkspaces.updateWorkspaceSettings", () => {
 describe("useWorkspaces.addWorkspaceFromPath", () => {
   it("adds a workspace and sets it active", async () => {
     const listWorkspacesMock = vi.mocked(listWorkspaces);
-    const addWorkspaceMock = vi.mocked(addWorkspace);
+    const registerWorkspaceMock = vi.mocked(registerWorkspace);
     listWorkspacesMock.mockResolvedValue([]);
-    addWorkspaceMock.mockResolvedValue({
+    registerWorkspaceMock.mockResolvedValue({
       id: "workspace-1",
       name: "repo",
       path: "/tmp/repo",
-      connected: true,
+      connected: false,
       kind: "main",
       parentId: null,
       worktree: null,
@@ -243,7 +246,7 @@ describe("useWorkspaces.addWorkspaceFromPath", () => {
       await result.current.addWorkspaceFromPath("/tmp/repo");
     });
 
-    expect(addWorkspaceMock).toHaveBeenCalledWith("/tmp/repo", null);
+    expect(registerWorkspaceMock).toHaveBeenCalledWith("/tmp/repo");
     expect(result.current.workspaces).toHaveLength(1);
     expect(result.current.activeWorkspaceId).toBe("workspace-1");
   });

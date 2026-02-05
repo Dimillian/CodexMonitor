@@ -100,7 +100,8 @@ export function WorkspaceCard({
           </div>
         </div>
         {!workspace.connected && (
-          <span
+          <button
+            type="button"
             className="connect"
             onClick={(event) => {
               event.stopPropagation();
@@ -108,7 +109,7 @@ export function WorkspaceCard({
             }}
           >
             connect
-          </span>
+          </button>
         )}
       </div>
       <div

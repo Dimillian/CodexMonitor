@@ -1,30 +1,23 @@
 use serde_json::{json, Map, Value};
-use std::io::ErrorKind;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use tauri::{AppHandle, Emitter, State};
-use tokio::sync::mpsc;
-use tokio::time::timeout;
+use tauri::{AppHandle, State};
+use tokio::sync::Mutex;
 
 pub(crate) mod args;
 pub(crate) mod config;
 pub(crate) mod home;
 
-pub(crate) use crate::backend::app_server::WorkspaceSession;
-use crate::backend::events::AppServerEvent;
-use crate::backend::app_server::{
-    build_codex_command_with_bin, build_codex_path_env, check_codex_installation,
-    spawn_workspace_session as spawn_workspace_session_inner,
-};
-use crate::shared::process_core::tokio_command;
+use crate::backend::acp_server::{self, AcpSession};
+use crate::backend::events::{AppServerEvent, EventSink};
+use crate::backend::session::WorkspaceSessionKind;
 use crate::event_sink::TauriEventSink;
 use crate::remote_backend;
-use crate::shared::codex_core;
 use crate::state::AppState;
 use crate::types::WorkspaceEntry;
-use self::args::apply_codex_args;
 
 pub(crate) async fn spawn_workspace_session(
     entry: WorkspaceEntry,
@@ -32,18 +25,48 @@ pub(crate) async fn spawn_workspace_session(
     codex_args: Option<String>,
     app_handle: AppHandle,
     codex_home: Option<PathBuf>,
-) -> Result<Arc<WorkspaceSession>, String> {
+) -> Result<Arc<WorkspaceSessionKind>, String> {
+    let _ = (default_codex_bin, codex_args, codex_home);
     let client_version = app_handle.package_info().version.to_string();
     let event_sink = TauriEventSink::new(app_handle);
-    spawn_workspace_session_inner(
+    let session = acp_server::spawn_workspace_session(
         entry,
-        default_codex_bin,
-        codex_args,
-        codex_home,
+        None,
+        None,
         client_version,
         event_sink,
     )
-    .await
+    .await?;
+    Ok(Arc::new(WorkspaceSessionKind::Acp(session)))
+}
+
+fn now_millis() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+async fn get_acp_session(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
+    workspace_id: &str,
+) -> Result<Arc<AcpSession>, String> {
+    let sessions = sessions.lock().await;
+    let session = sessions
+        .get(workspace_id)
+        .cloned()
+        .ok_or_else(|| "workspace not connected".to_string())?;
+    session
+        .as_acp()
+        .ok_or_else(|| "workspace is not using the Copilot ACP backend".to_string())
+}
+
+fn acp_only_error(feature: &str) -> String {
+    format!("{feature} is not supported with the Copilot ACP backend.")
+}
+
+async fn is_copilot_backend(_state: &AppState) -> bool {
+    true
 }
 
 #[tauri::command]
@@ -52,95 +75,10 @@ pub(crate) async fn codex_doctor(
     codex_args: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
-    let (default_bin, default_args) = {
-        let settings = state.app_settings.lock().await;
-        (settings.codex_bin.clone(), settings.codex_args.clone())
-    };
-    let resolved = codex_bin
-        .clone()
-        .filter(|value| !value.trim().is_empty())
-        .or(default_bin);
-    let resolved_args = codex_args
-        .clone()
-        .filter(|value| !value.trim().is_empty())
-        .or(default_args);
-    let path_env = build_codex_path_env(resolved.as_deref());
-    let version = check_codex_installation(resolved.clone()).await?;
-    let mut command = build_codex_command_with_bin(resolved.clone());
-    apply_codex_args(&mut command, resolved_args.as_deref())?;
-    command.arg("app-server");
-    command.arg("--help");
-    command.stdout(std::process::Stdio::piped());
-    command.stderr(std::process::Stdio::piped());
-    let app_server_ok = match timeout(Duration::from_secs(5), command.output()).await {
-        Ok(result) => result.map(|output| output.status.success()).unwrap_or(false),
-        Err(_) => false,
-    };
-    let (node_ok, node_version, node_details) = {
-        let mut node_command = tokio_command("node");
-        if let Some(ref path_env) = path_env {
-            node_command.env("PATH", path_env);
-        }
-        node_command.arg("--version");
-        node_command.stdout(std::process::Stdio::piped());
-        node_command.stderr(std::process::Stdio::piped());
-        match timeout(Duration::from_secs(5), node_command.output()).await {
-            Ok(result) => match result {
-                Ok(output) => {
-                    if output.status.success() {
-                        let version = String::from_utf8_lossy(&output.stdout)
-                            .trim()
-                            .to_string();
-                        (
-                            !version.is_empty(),
-                            if version.is_empty() { None } else { Some(version) },
-                            None,
-                        )
-                    } else {
-                        let stderr = String::from_utf8_lossy(&output.stderr);
-                        let stdout = String::from_utf8_lossy(&output.stdout);
-                        let detail = if stderr.trim().is_empty() {
-                            stdout.trim()
-                        } else {
-                            stderr.trim()
-                        };
-                        (
-                            false,
-                            None,
-                            Some(if detail.is_empty() {
-                                "Node failed to start.".to_string()
-                            } else {
-                                detail.to_string()
-                            }),
-                        )
-                    }
-                }
-                Err(err) => {
-                    if err.kind() == ErrorKind::NotFound {
-                        (false, None, Some("Node not found on PATH.".to_string()))
-                    } else {
-                        (false, None, Some(err.to_string()))
-                    }
-                }
-            },
-            Err(_) => (false, None, Some("Timed out while checking Node.".to_string())),
-        }
-    };
-    let details = if app_server_ok {
-        None
-    } else {
-        Some("Failed to run `codex app-server --help`.".to_string())
-    };
+    let _ = (codex_bin, codex_args, state);
     Ok(json!({
-        "ok": version.is_some() && app_server_ok,
-        "codexBin": resolved,
-        "version": version,
-        "appServerOk": app_server_ok,
-        "details": details,
-        "path": path_env,
-        "nodeOk": node_ok,
-        "nodeVersion": node_version,
-        "nodeDetails": node_details,
+        "status": "disabled",
+        "detail": "Codex backend support is disabled; using Copilot ACP only.",
     }))
 }
 
@@ -160,7 +98,61 @@ pub(crate) async fn start_thread(
         .await;
     }
 
-    codex_core::start_thread_core(&state.sessions, workspace_id).await
+    if is_copilot_backend(&state).await {
+        return start_thread_acp(
+            &state.sessions,
+            &state.preflight_session_ids,
+            workspace_id,
+            app,
+        )
+        .await;
+    }
+
+    Err(acp_only_error("start_thread"))
+}
+
+async fn start_thread_acp(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
+    preflight_session_ids: &Mutex<HashMap<String, String>>,
+    workspace_id: String,
+    app: AppHandle,
+) -> Result<Value, String> {
+    let session = get_acp_session(sessions, &workspace_id).await?;
+    let preflight_session_id = {
+        let mut preflight_session_ids = preflight_session_ids.lock().await;
+        preflight_session_ids.remove(&workspace_id)
+    };
+    let session_id = if let Some(session_id) = preflight_session_id {
+        session_id
+    } else {
+        let params = json!({ "cwd": session.entry.path, "mcpServers": [] });
+        let response = session.send_request("session/new", params).await?;
+        if response.get("error").is_some() {
+            return Err(format!("session/new failed: {response}"));
+        }
+        let payload = response.get("result").unwrap_or(&response);
+        payload
+            .get("sessionId")
+            .and_then(Value::as_str)
+            .map(|value| value.to_string())
+            .ok_or_else(|| "missing sessionId in session/new response".to_string())?
+    };
+
+    let thread_payload = json!({
+        "id": session_id,
+        "name": Value::Null,
+        "createdAt": now_millis(),
+    });
+    let event_sink = TauriEventSink::new(app);
+    event_sink.emit_app_server_event(AppServerEvent {
+        workspace_id,
+        message: json!({
+            "method": "thread/started",
+            "params": { "thread": thread_payload.clone() },
+        }),
+    });
+
+    Ok(json!({ "result": { "thread": thread_payload } }))
 }
 
 #[tauri::command]
@@ -180,7 +172,11 @@ pub(crate) async fn resume_thread(
         .await;
     }
 
-    codex_core::resume_thread_core(&state.sessions, workspace_id, thread_id).await
+    if is_copilot_backend(&state).await {
+        return Ok(json!({ "result": { "thread": { "id": thread_id, "turns": [] } } }));
+    }
+
+    Err(acp_only_error("resume_thread"))
 }
 
 #[tauri::command]
@@ -200,7 +196,7 @@ pub(crate) async fn fork_thread(
         .await;
     }
 
-    codex_core::fork_thread_core(&state.sessions, workspace_id, thread_id).await
+    Err(acp_only_error("fork_thread"))
 }
 
 #[tauri::command]
@@ -221,7 +217,11 @@ pub(crate) async fn list_threads(
         .await;
     }
 
-    codex_core::list_threads_core(&state.sessions, workspace_id, cursor, limit).await
+    if is_copilot_backend(&state).await {
+        return Ok(json!({ "result": { "data": [], "nextCursor": null } }));
+    }
+
+    Err(acp_only_error("list_threads"))
 }
 
 #[tauri::command]
@@ -242,7 +242,7 @@ pub(crate) async fn list_mcp_server_status(
         .await;
     }
 
-    codex_core::list_mcp_server_status_core(&state.sessions, workspace_id, cursor, limit).await
+    Err(acp_only_error("list_mcp_server_status"))
 }
 
 #[tauri::command]
@@ -262,7 +262,7 @@ pub(crate) async fn archive_thread(
         .await;
     }
 
-    codex_core::archive_thread_core(&state.sessions, workspace_id, thread_id).await
+    Err(acp_only_error("archive_thread"))
 }
 
 #[tauri::command]
@@ -282,7 +282,7 @@ pub(crate) async fn compact_thread(
         .await;
     }
 
-    codex_core::compact_thread_core(&state.sessions, workspace_id, thread_id).await
+    Err(acp_only_error("compact_thread"))
 }
 
 #[tauri::command]
@@ -303,7 +303,7 @@ pub(crate) async fn set_thread_name(
         .await;
     }
 
-    codex_core::set_thread_name_core(&state.sessions, workspace_id, thread_id, name).await
+    Err(acp_only_error("set_thread_name"))
 }
 
 #[tauri::command]
@@ -348,18 +348,174 @@ pub(crate) async fn send_user_message(
         .await;
     }
 
-    codex_core::send_user_message_core(
+    let _ = (model, effort, access_mode, collaboration_mode);
+    send_user_message_acp(
         &state.sessions,
+        app,
         workspace_id,
         thread_id,
         text,
-        model,
-        effort,
-        access_mode,
         images,
-        collaboration_mode,
     )
     .await
+}
+
+async fn send_user_message_acp(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
+    app: AppHandle,
+    workspace_id: String,
+    thread_id: String,
+    text: String,
+    _images: Option<Vec<String>>,
+) -> Result<Value, String> {
+    let session = get_acp_session(sessions, &workspace_id).await?;
+    let trimmed_text = text.trim();
+    if trimmed_text.is_empty() {
+        return Err("empty user message".to_string());
+    }
+
+    let prompt = vec![json!({ "type": "text", "text": trimmed_text })];
+    let event_sink = TauriEventSink::new(app);
+    let turn_id = session.begin_prompt(&thread_id, &event_sink).await?;
+    let response = session
+        .send_request(
+            "session/prompt",
+            json!({ "sessionId": thread_id, "prompt": prompt }),
+        )
+        .await;
+
+    let response = match response {
+        Ok(value) => value,
+        Err(error) => {
+            session.clear_prompt(&thread_id).await;
+            return Err(error);
+        }
+    };
+    if response.get("error").is_some() {
+        session.clear_prompt(&thread_id).await;
+        return Err(format!("session/prompt failed: {response}"));
+    }
+
+    session.finish_prompt(&thread_id, &event_sink).await;
+    let turn = json!({ "id": turn_id, "threadId": thread_id });
+    let response = match response {
+        Value::Object(mut map) => {
+            if let Some(result_value) = map.get_mut("result") {
+                if let Value::Object(result_map) = result_value {
+                    result_map.insert("turn".to_string(), turn.clone());
+                } else {
+                    map.insert("turn".to_string(), turn);
+                }
+            } else {
+                map.insert("turn".to_string(), turn);
+            }
+            Value::Object(map)
+        }
+        _ => json!({ "turn": turn }),
+    };
+    Ok(response)
+}
+
+async fn model_list_acp(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
+    model_list_cache: &Mutex<HashMap<String, Value>>,
+    preflight_session_ids: &Mutex<HashMap<String, String>>,
+    workspace_id: String,
+) -> Result<Value, String> {
+    if let Some(cached) = model_list_cache.lock().await.get(&workspace_id).cloned() {
+        return Ok(cached);
+    }
+    let session = get_acp_session(sessions, &workspace_id).await?;
+    let response = session
+        .send_request("session/new", json!({ "cwd": session.entry.path, "mcpServers": [] }))
+        .await?;
+    if response.get("error").is_some() {
+        return Err(format!("session/new failed: {response}"));
+    }
+    let payload = response.get("result").unwrap_or(&response);
+    let session_id = payload
+        .get("sessionId")
+        .and_then(Value::as_str)
+        .map(|value| value.to_string());
+    let models_payload = payload
+        .get("models")
+        .and_then(|models| models.get("availableModels"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let current_model_id = payload
+        .get("models")
+        .and_then(|models| models.get("currentModelId"))
+        .and_then(Value::as_str);
+    let data = models_payload
+        .into_iter()
+        .filter_map(|model| {
+            let model_id = model
+                .get("modelId")
+                .or_else(|| model.get("id"))
+                .and_then(Value::as_str)?;
+            let display_name = model
+                .get("name")
+                .or_else(|| model.get("displayName"))
+                .and_then(Value::as_str)
+                .unwrap_or(model_id);
+            let description = model
+                .get("description")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            let copilot_usage = model
+                .get("_meta")
+                .and_then(|meta| meta.get("copilotUsage"))
+                .and_then(Value::as_str);
+            let is_default = current_model_id == Some(model_id);
+            Some(json!({
+                "id": model_id,
+                "model": model_id,
+                "displayName": display_name,
+                "description": description,
+                "isDefault": is_default,
+                "copilotUsage": copilot_usage,
+            }))
+        })
+        .collect::<Vec<_>>();
+    let mut result = Map::new();
+    result.insert("data".to_string(), Value::Array(data));
+    if let Some(current_model_id) = current_model_id {
+        result.insert("currentModelId".to_string(), json!(current_model_id));
+    }
+    let response = json!({ "result": Value::Object(result) });
+    if let Some(session_id) = session_id {
+        preflight_session_ids
+            .lock()
+            .await
+            .insert(workspace_id.clone(), session_id);
+    }
+    model_list_cache
+        .lock()
+        .await
+        .insert(workspace_id, response.clone());
+    Ok(response)
+}
+
+async fn account_read_acp(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
+    workspace_id: String,
+) -> Result<Value, String> {
+    let session = get_acp_session(sessions, &workspace_id).await?;
+    let response = session.send_request("account/read", Value::Null).await?;
+    if let Some(error) = response.get("error") {
+        let code = error.get("code").and_then(Value::as_i64);
+        let method = error
+            .get("data")
+            .and_then(|value| value.get("method"))
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        if code == Some(-32601) && method == "account/read" {
+            return Ok(json!({ "result": { "authenticated": true, "user": "Copilot" } }));
+        }
+        return Err(format!("account/read failed: {response}"));
+    }
+    Ok(response)
 }
 
 #[tauri::command]
@@ -378,7 +534,7 @@ pub(crate) async fn collaboration_mode_list(
         .await;
     }
 
-    codex_core::collaboration_mode_list_core(&state.sessions, workspace_id).await
+    Err(acp_only_error("collaboration_mode_list"))
 }
 
 #[tauri::command]
@@ -399,7 +555,7 @@ pub(crate) async fn turn_interrupt(
         .await;
     }
 
-    codex_core::turn_interrupt_core(&state.sessions, workspace_id, thread_id, turn_id).await
+    Err(acp_only_error("turn_interrupt"))
 }
 
 #[tauri::command]
@@ -426,7 +582,8 @@ pub(crate) async fn start_review(
         .await;
     }
 
-    codex_core::start_review_core(&state.sessions, workspace_id, thread_id, target, delivery).await
+    let _ = (target, delivery);
+    Err(acp_only_error("start_review"))
 }
 
 #[tauri::command]
@@ -445,7 +602,17 @@ pub(crate) async fn model_list(
         .await;
     }
 
-    codex_core::model_list_core(&state.sessions, workspace_id).await
+    if is_copilot_backend(&state).await {
+        return model_list_acp(
+            &state.sessions,
+            &state.model_list_cache,
+            &state.preflight_session_ids,
+            workspace_id,
+        )
+        .await;
+    }
+
+    Err(acp_only_error("model_list"))
 }
 
 #[tauri::command]
@@ -464,7 +631,7 @@ pub(crate) async fn account_rate_limits(
         .await;
     }
 
-    codex_core::account_rate_limits_core(&state.sessions, workspace_id).await
+    Err(acp_only_error("account_rate_limits"))
 }
 
 #[tauri::command]
@@ -483,7 +650,11 @@ pub(crate) async fn account_read(
         .await;
     }
 
-    codex_core::account_read_core(&state.sessions, &state.workspaces, workspace_id).await
+    if is_copilot_backend(&state).await {
+        return account_read_acp(&state.sessions, workspace_id).await;
+    }
+
+    Err(acp_only_error("account_read"))
 }
 
 #[tauri::command]
@@ -502,12 +673,7 @@ pub(crate) async fn codex_login(
         .await;
     }
 
-    codex_core::codex_login_core(
-        &state.sessions,
-        &state.codex_login_cancels,
-        workspace_id,
-    )
-    .await
+    Err(acp_only_error("codex_login"))
 }
 
 #[tauri::command]
@@ -526,8 +692,7 @@ pub(crate) async fn codex_login_cancel(
         .await;
     }
 
-    codex_core::codex_login_cancel_core(&state.sessions, &state.codex_login_cancels, workspace_id)
-        .await
+    Err(acp_only_error("codex_login_cancel"))
 }
 
 #[tauri::command]
@@ -546,7 +711,7 @@ pub(crate) async fn skills_list(
         .await;
     }
 
-    codex_core::skills_list_core(&state.sessions, workspace_id).await
+    Err(acp_only_error("skills_list"))
 }
 
 #[tauri::command]
@@ -567,7 +732,8 @@ pub(crate) async fn apps_list(
         .await;
     }
 
-    codex_core::apps_list_core(&state.sessions, workspace_id, cursor, limit).await
+    let _ = (cursor, limit);
+    Err(acp_only_error("apps_list"))
 }
 
 #[tauri::command]
@@ -589,8 +755,8 @@ pub(crate) async fn respond_to_server_request(
         return Ok(());
     }
 
-    codex_core::respond_to_server_request_core(&state.sessions, workspace_id, request_id, result)
-        .await
+    let _ = (workspace_id, request_id, result);
+    Err(acp_only_error("respond_to_server_request"))
 }
 
 fn build_commit_message_prompt(diff: &str) -> String {
@@ -627,7 +793,8 @@ pub(crate) async fn remember_approval_rule(
     command: Vec<String>,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
-    codex_core::remember_approval_rule_core(&state.workspaces, workspace_id, command).await
+    let _ = (workspace_id, command, state);
+    Err(acp_only_error("remember_approval_rule"))
 }
 
 #[tauri::command]
@@ -646,7 +813,7 @@ pub(crate) async fn get_config_model(
         .await;
     }
 
-    codex_core::get_config_model_core(&state.workspaces, workspace_id).await
+    Err(acp_only_error("get_config_model"))
 }
 
 /// Generates a commit message in the background without showing in the main chat
@@ -656,175 +823,11 @@ pub(crate) async fn generate_commit_message(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<String, String> {
-    // Get the diff from git
-    let diff = crate::git::get_workspace_diff(&workspace_id, &state).await?;
-
-    if diff.trim().is_empty() {
-        return Err("No changes to generate commit message for".to_string());
-    }
-
-    let prompt = build_commit_message_prompt(&diff);
-
-    // Get the session
-    let session = {
-        let sessions = state.sessions.lock().await;
-        sessions
-            .get(&workspace_id)
-            .ok_or("workspace not connected")?
-            .clone()
-    };
-
-    // Create a background thread
-    let thread_params = json!({
-        "cwd": session.entry.path,
-        "approvalPolicy": "never"  // Never ask for approval in background
-    });
-    let thread_result = session.send_request("thread/start", thread_params).await?;
-
-    // Handle error response
-    if let Some(error) = thread_result.get("error") {
-        let error_msg = error
-            .get("message")
-            .and_then(|m| m.as_str())
-            .unwrap_or("Unknown error starting thread");
-        return Err(error_msg.to_string());
-    }
-
-    // Extract threadId - try multiple paths since response format may vary
-    let thread_id = thread_result
-        .get("result")
-        .and_then(|r| r.get("threadId"))
-        .or_else(|| thread_result.get("result").and_then(|r| r.get("thread")).and_then(|t| t.get("id")))
-        .or_else(|| thread_result.get("threadId"))
-        .or_else(|| thread_result.get("thread").and_then(|t| t.get("id")))
-        .and_then(|t| t.as_str())
-        .ok_or_else(|| format!("Failed to get threadId from thread/start response: {:?}", thread_result))?
-        .to_string();
-
-    // Hide background helper threads from the sidebar, even if a thread/started event leaked.
-    let _ = app.emit(
-        "app-server-event",
-        AppServerEvent {
-            workspace_id: workspace_id.clone(),
-            message: json!({
-                "method": "codex/backgroundThread",
-                "params": {
-                    "threadId": thread_id,
-                    "action": "hide"
-                }
-            }),
-        },
-    );
-
-    // Create channel for receiving events
-    let (tx, mut rx) = mpsc::unbounded_channel::<Value>();
-
-    // Register callback for this thread
-    {
-        let mut callbacks = session.background_thread_callbacks.lock().await;
-        callbacks.insert(thread_id.clone(), tx);
-    }
-
-    // Start a turn with the commit message prompt
-    let turn_params = json!({
-        "threadId": thread_id,
-        "input": [{ "type": "text", "text": prompt }],
-        "cwd": session.entry.path,
-        "approvalPolicy": "never",
-        "sandboxPolicy": { "type": "readOnly" },
-    });
-    let turn_result = session.send_request("turn/start", turn_params).await;
-    let turn_result = match turn_result {
-        Ok(result) => result,
-        Err(error) => {
-            // Clean up if turn fails to start
-            {
-                let mut callbacks = session.background_thread_callbacks.lock().await;
-                callbacks.remove(&thread_id);
-            }
-            let archive_params = json!({ "threadId": thread_id.as_str() });
-            let _ = session.send_request("thread/archive", archive_params).await;
-            return Err(error);
-        }
-    };
-
-    if let Some(error) = turn_result.get("error") {
-        let error_msg = error
-            .get("message")
-            .and_then(|m| m.as_str())
-            .unwrap_or("Unknown error starting turn");
-        {
-            let mut callbacks = session.background_thread_callbacks.lock().await;
-            callbacks.remove(&thread_id);
-        }
-        let archive_params = json!({ "threadId": thread_id.as_str() });
-        let _ = session.send_request("thread/archive", archive_params).await;
-        return Err(error_msg.to_string());
-    }
-
-    // Collect assistant text from events
-    let mut commit_message = String::new();
-    let timeout_duration = Duration::from_secs(60);
-    let collect_result = timeout(timeout_duration, async {
-        while let Some(event) = rx.recv().await {
-            let method = event.get("method").and_then(|m| m.as_str()).unwrap_or("");
-
-            match method {
-                "item/agentMessage/delta" => {
-                    // Extract text delta from agent messages
-                    if let Some(params) = event.get("params") {
-                        if let Some(delta) = params.get("delta").and_then(|d| d.as_str()) {
-                            commit_message.push_str(delta);
-                        }
-                    }
-                }
-                "turn/completed" => {
-                    // Turn completed, we can stop listening
-                    break;
-                }
-                "turn/error" => {
-                    // Error occurred
-                    let error_msg = event
-                        .get("params")
-                        .and_then(|p| p.get("error"))
-                        .and_then(|e| e.as_str())
-                        .unwrap_or("Unknown error during commit message generation");
-                    return Err(error_msg.to_string());
-                }
-                _ => {
-                    // Ignore other events (turn/started, item/started, item/completed, reasoning events, etc.)
-                }
-            }
-        }
-        Ok(())
-    })
-    .await;
-
-    // Unregister callback
-    {
-        let mut callbacks = session.background_thread_callbacks.lock().await;
-        callbacks.remove(&thread_id);
-    }
-
-    // Archive the thread to clean up
-    let archive_params = json!({ "threadId": thread_id });
-    let _ = session.send_request("thread/archive", archive_params).await;
-
-    // Handle timeout or collection error
-    match collect_result {
-        Ok(Ok(())) => {}
-        Ok(Err(e)) => return Err(e),
-        Err(_) => return Err("Timeout waiting for commit message generation".to_string()),
-    }
-
-    let trimmed = commit_message.trim().to_string();
-    if trimmed.is_empty() {
-        return Err("No commit message was generated".to_string());
-    }
-
-    Ok(trimmed)
+    let _ = (workspace_id, state, app);
+    Err(acp_only_error("generate_commit_message"))
 }
 
+/// Generates run metadata in the background without showing in the main chat
 #[tauri::command]
 pub(crate) async fn generate_run_metadata(
     workspace_id: String,
@@ -842,235 +845,6 @@ pub(crate) async fn generate_run_metadata(
         .await;
     }
 
-    let cleaned_prompt = prompt.trim();
-    if cleaned_prompt.is_empty() {
-        return Err("Prompt is required.".to_string());
-    }
-
-    let session = {
-        let sessions = state.sessions.lock().await;
-        sessions
-            .get(&workspace_id)
-            .ok_or("workspace not connected")?
-            .clone()
-    };
-
-    let title_prompt = format!(
-        "You create concise run metadata for a coding task.\n\
-Return ONLY a JSON object with keys:\n\
-- title: short, clear, 3-7 words, Title Case\n\
-- worktreeName: lower-case, kebab-case slug prefixed with one of: \
-feat/, fix/, chore/, test/, docs/, refactor/, perf/, build/, ci/, style/.\n\
-\n\
-Choose fix/ when the task is a bug fix, error, regression, crash, or cleanup. \
-Use the closest match for chores/tests/docs/refactors/perf/build/ci/style. \
-Otherwise use feat/.\n\
-\n\
-Examples:\n\
-{{\"title\":\"Fix Login Redirect Loop\",\"worktreeName\":\"fix/login-redirect-loop\"}}\n\
-{{\"title\":\"Add Workspace Home View\",\"worktreeName\":\"feat/workspace-home\"}}\n\
-{{\"title\":\"Update Lint Config\",\"worktreeName\":\"chore/update-lint-config\"}}\n\
-{{\"title\":\"Add Coverage Tests\",\"worktreeName\":\"test/add-coverage-tests\"}}\n\
-\n\
-Task:\n{cleaned_prompt}"
-    );
-
-    let thread_params = json!({
-        "cwd": session.entry.path,
-        "approvalPolicy": "never"
-    });
-    let thread_result = session.send_request("thread/start", thread_params).await?;
-
-    if let Some(error) = thread_result.get("error") {
-        let error_msg = error
-            .get("message")
-            .and_then(|m| m.as_str())
-            .unwrap_or("Unknown error starting thread");
-        return Err(error_msg.to_string());
-    }
-
-    let thread_id = thread_result
-        .get("result")
-        .and_then(|r| r.get("threadId"))
-        .or_else(|| thread_result.get("result").and_then(|r| r.get("thread")).and_then(|t| t.get("id")))
-        .or_else(|| thread_result.get("threadId"))
-        .or_else(|| thread_result.get("thread").and_then(|t| t.get("id")))
-        .and_then(|t| t.as_str())
-        .ok_or_else(|| format!("Failed to get threadId from thread/start response: {:?}", thread_result))?
-        .to_string();
-
-    // Hide background helper threads from the sidebar, even if a thread/started event leaked.
-    let _ = app.emit(
-        "app-server-event",
-        AppServerEvent {
-            workspace_id: workspace_id.clone(),
-            message: json!({
-                "method": "codex/backgroundThread",
-                "params": {
-                    "threadId": thread_id,
-                    "action": "hide"
-                }
-            }),
-        },
-    );
-
-    let (tx, mut rx) = mpsc::unbounded_channel::<Value>();
-    {
-        let mut callbacks = session.background_thread_callbacks.lock().await;
-        callbacks.insert(thread_id.clone(), tx);
-    }
-
-    let turn_params = json!({
-        "threadId": thread_id,
-        "input": [{ "type": "text", "text": title_prompt }],
-        "cwd": session.entry.path,
-        "approvalPolicy": "never",
-        "sandboxPolicy": { "type": "readOnly" },
-    });
-    let turn_result = session.send_request("turn/start", turn_params).await;
-    let turn_result = match turn_result {
-        Ok(result) => result,
-        Err(error) => {
-            {
-                let mut callbacks = session.background_thread_callbacks.lock().await;
-                callbacks.remove(&thread_id);
-            }
-            let archive_params = json!({ "threadId": thread_id.as_str() });
-            let _ = session.send_request("thread/archive", archive_params).await;
-            return Err(error);
-        }
-    };
-
-    if let Some(error) = turn_result.get("error") {
-        let error_msg = error
-            .get("message")
-            .and_then(|m| m.as_str())
-            .unwrap_or("Unknown error starting turn");
-        {
-            let mut callbacks = session.background_thread_callbacks.lock().await;
-            callbacks.remove(&thread_id);
-        }
-        let archive_params = json!({ "threadId": thread_id.as_str() });
-        let _ = session.send_request("thread/archive", archive_params).await;
-        return Err(error_msg.to_string());
-    }
-
-    let mut response_text = String::new();
-    let timeout_duration = Duration::from_secs(60);
-    let collect_result = timeout(timeout_duration, async {
-        while let Some(event) = rx.recv().await {
-            let method = event.get("method").and_then(|m| m.as_str()).unwrap_or("");
-            match method {
-                "item/agentMessage/delta" => {
-                    if let Some(params) = event.get("params") {
-                        if let Some(delta) = params.get("delta").and_then(|d| d.as_str()) {
-                            response_text.push_str(delta);
-                        }
-                    }
-                }
-                "turn/completed" => break,
-                "turn/error" => {
-                    let error_msg = event
-                        .get("params")
-                        .and_then(|p| p.get("error"))
-                        .and_then(|e| e.as_str())
-                        .unwrap_or("Unknown error during metadata generation");
-                    return Err(error_msg.to_string());
-                }
-                _ => {}
-            }
-        }
-        Ok(())
-    })
-    .await;
-
-    {
-        let mut callbacks = session.background_thread_callbacks.lock().await;
-        callbacks.remove(&thread_id);
-    }
-
-    let archive_params = json!({ "threadId": thread_id });
-    let _ = session.send_request("thread/archive", archive_params).await;
-
-    match collect_result {
-        Ok(Ok(())) => {}
-        Ok(Err(e)) => return Err(e),
-        Err(_) => return Err("Timeout waiting for metadata generation".to_string()),
-    }
-
-    let trimmed = response_text.trim();
-    if trimmed.is_empty() {
-        return Err("No metadata was generated".to_string());
-    }
-
-    let json_value = extract_json_value(trimmed)
-        .ok_or_else(|| "Failed to parse metadata JSON".to_string())?;
-    let title = json_value
-        .get("title")
-        .and_then(|v| v.as_str())
-        .map(|v| v.trim().to_string())
-        .filter(|v| !v.is_empty())
-        .ok_or_else(|| "Missing title in metadata".to_string())?;
-    let worktree_name = json_value
-        .get("worktreeName")
-        .or_else(|| json_value.get("worktree_name"))
-        .and_then(|v| v.as_str())
-        .map(|v| sanitize_run_worktree_name(v))
-        .filter(|v| !v.is_empty())
-        .ok_or_else(|| "Missing worktree name in metadata".to_string())?;
-
-    Ok(json!({
-        "title": title,
-        "worktreeName": worktree_name
-    }))
-}
-
-fn extract_json_value(raw: &str) -> Option<Value> {
-    let start = raw.find('{')?;
-    let end = raw.rfind('}')?;
-    if end <= start {
-        return None;
-    }
-    serde_json::from_str::<Value>(&raw[start..=end]).ok()
-}
-
-fn sanitize_run_worktree_name(value: &str) -> String {
-    let trimmed = value.trim().to_lowercase();
-    let mut cleaned = String::new();
-    let mut last_dash = false;
-    for ch in trimmed.chars() {
-        let next = if ch.is_ascii_alphanumeric() || ch == '/' {
-            last_dash = false;
-            Some(ch)
-        } else if ch == '-' || ch.is_whitespace() || ch == '_' {
-            if last_dash {
-                None
-            } else {
-                last_dash = true;
-                Some('-')
-            }
-        } else {
-            None
-        };
-        if let Some(ch) = next {
-            cleaned.push(ch);
-        }
-    }
-    while cleaned.ends_with('-') || cleaned.ends_with('/') {
-        cleaned.pop();
-    }
-    let allowed_prefixes = [
-        "feat/", "fix/", "chore/", "test/", "docs/", "refactor/", "perf/",
-        "build/", "ci/", "style/",
-    ];
-    if allowed_prefixes.iter().any(|prefix| cleaned.starts_with(prefix)) {
-        return cleaned;
-    }
-    for prefix in allowed_prefixes.iter() {
-        let dash_prefix = prefix.replace('/', "-");
-        if cleaned.starts_with(&dash_prefix) {
-            return cleaned.replacen(&dash_prefix, prefix, 1);
-        }
-    }
-    format!("feat/{}", cleaned.trim_start_matches('/'))
+    let _ = (workspace_id, prompt);
+    Err(acp_only_error("generate_run_metadata"))
 }

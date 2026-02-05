@@ -11,6 +11,7 @@ use tokio::time::timeout;
 use tokio::time::Instant;
 
 use crate::backend::app_server::WorkspaceSession;
+use crate::backend::session::WorkspaceSessionKind;
 use crate::codex::config as codex_config;
 use crate::codex::home::{resolve_default_codex_home, resolve_workspace_codex_home};
 use crate::rules;
@@ -25,14 +26,17 @@ pub(crate) enum CodexLoginCancelState {
 }
 
 async fn get_session_clone(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspace_id: &str,
 ) -> Result<Arc<WorkspaceSession>, String> {
     let sessions = sessions.lock().await;
-    sessions
+    let session = sessions
         .get(workspace_id)
         .cloned()
-        .ok_or_else(|| "workspace not connected".to_string())
+        .ok_or_else(|| "workspace not connected".to_string())?;
+    session
+        .as_codex()
+        .ok_or_else(|| "workspace is not using the Codex backend".to_string())
 }
 
 async fn resolve_workspace_and_parent(
@@ -63,7 +67,7 @@ async fn resolve_codex_home_for_workspace_core(
 }
 
 pub(crate) async fn start_thread_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspace_id: String,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
@@ -75,7 +79,7 @@ pub(crate) async fn start_thread_core(
 }
 
 pub(crate) async fn resume_thread_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspace_id: String,
     thread_id: String,
 ) -> Result<Value, String> {
@@ -85,7 +89,7 @@ pub(crate) async fn resume_thread_core(
 }
 
 pub(crate) async fn fork_thread_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspace_id: String,
     thread_id: String,
 ) -> Result<Value, String> {
@@ -95,7 +99,7 @@ pub(crate) async fn fork_thread_core(
 }
 
 pub(crate) async fn list_threads_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspace_id: String,
     cursor: Option<String>,
     limit: Option<u32>,
@@ -106,7 +110,7 @@ pub(crate) async fn list_threads_core(
 }
 
 pub(crate) async fn list_mcp_server_status_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspace_id: String,
     cursor: Option<String>,
     limit: Option<u32>,
@@ -117,7 +121,7 @@ pub(crate) async fn list_mcp_server_status_core(
 }
 
 pub(crate) async fn archive_thread_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspace_id: String,
     thread_id: String,
 ) -> Result<Value, String> {
@@ -127,7 +131,7 @@ pub(crate) async fn archive_thread_core(
 }
 
 pub(crate) async fn compact_thread_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspace_id: String,
     thread_id: String,
 ) -> Result<Value, String> {
@@ -137,7 +141,7 @@ pub(crate) async fn compact_thread_core(
 }
 
 pub(crate) async fn set_thread_name_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspace_id: String,
     thread_id: String,
     name: String,
@@ -148,7 +152,7 @@ pub(crate) async fn set_thread_name_core(
 }
 
 pub(crate) async fn send_user_message_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspace_id: String,
     thread_id: String,
     text: String,
@@ -220,7 +224,7 @@ pub(crate) async fn send_user_message_core(
 }
 
 pub(crate) async fn collaboration_mode_list_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspace_id: String,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
@@ -230,7 +234,7 @@ pub(crate) async fn collaboration_mode_list_core(
 }
 
 pub(crate) async fn turn_interrupt_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspace_id: String,
     thread_id: String,
     turn_id: String,
@@ -241,7 +245,7 @@ pub(crate) async fn turn_interrupt_core(
 }
 
 pub(crate) async fn start_review_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspace_id: String,
     thread_id: String,
     target: Value,
@@ -260,15 +264,27 @@ pub(crate) async fn start_review_core(
 }
 
 pub(crate) async fn model_list_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspace_id: String,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    session.send_request("model/list", json!({})).await
+    let response = session.send_request("models.list", json!({})).await?;
+    if let Some(error) = response.get("error") {
+        let code = error.get("code").and_then(Value::as_i64);
+        let message = error
+            .get("message")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_lowercase();
+        if code == Some(-32601) || message.contains("method not found") {
+            return session.send_request("model/list", json!({})).await;
+        }
+    }
+    Ok(response)
 }
 
 pub(crate) async fn account_rate_limits_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspace_id: String,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
@@ -278,18 +294,13 @@ pub(crate) async fn account_rate_limits_core(
 }
 
 pub(crate) async fn account_read_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
 ) -> Result<Value, String> {
-    let session = {
-        let sessions = sessions.lock().await;
-        sessions.get(&workspace_id).cloned()
-    };
-    let response = if let Some(session) = session {
-        session.send_request("account/read", Value::Null).await.ok()
-    } else {
-        None
+    let response = match get_session_clone(sessions, &workspace_id).await {
+        Ok(session) => session.send_request("account/read", Value::Null).await.ok(),
+        Err(_) => None,
     };
 
     let (entry, parent_entry) = resolve_workspace_and_parent(workspaces, &workspace_id).await?;
@@ -301,7 +312,7 @@ pub(crate) async fn account_read_core(
 }
 
 pub(crate) async fn codex_login_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     codex_login_cancels: &Mutex<HashMap<String, CodexLoginCancelState>>,
     workspace_id: String,
 ) -> Result<Value, String> {
@@ -385,7 +396,7 @@ pub(crate) async fn codex_login_core(
 }
 
 pub(crate) async fn codex_login_cancel_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     codex_login_cancels: &Mutex<HashMap<String, CodexLoginCancelState>>,
     workspace_id: String,
 ) -> Result<Value, String> {
@@ -434,7 +445,7 @@ pub(crate) async fn codex_login_cancel_core(
 }
 
 pub(crate) async fn skills_list_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspace_id: String,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
@@ -443,7 +454,7 @@ pub(crate) async fn skills_list_core(
 }
 
 pub(crate) async fn apps_list_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspace_id: String,
     cursor: Option<String>,
     limit: Option<u32>,
@@ -454,7 +465,7 @@ pub(crate) async fn apps_list_core(
 }
 
 pub(crate) async fn respond_to_server_request_core(
-    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSessionKind>>>,
     workspace_id: String,
     request_id: Value,
     result: Value,

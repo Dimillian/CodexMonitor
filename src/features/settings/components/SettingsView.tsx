@@ -7,7 +7,6 @@ import LayoutGrid from "lucide-react/dist/esm/icons/layout-grid";
 import SlidersHorizontal from "lucide-react/dist/esm/icons/sliders-horizontal";
 import Mic from "lucide-react/dist/esm/icons/mic";
 import Keyboard from "lucide-react/dist/esm/icons/keyboard";
-import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import TerminalSquare from "lucide-react/dist/esm/icons/terminal-square";
 import FileText from "lucide-react/dist/esm/icons/file-text";
@@ -309,7 +308,7 @@ export function SettingsView({
   appSettings,
   openAppIconById,
   onUpdateAppSettings,
-  onRunDoctor,
+  onRunDoctor: _onRunDoctor,
   onUpdateWorkspaceCodexBin,
   onUpdateWorkspaceSettings,
   scaleShortcutTitle,
@@ -335,8 +334,8 @@ export function SettingsView({
   >(null);
   const [environmentError, setEnvironmentError] = useState<string | null>(null);
   const [environmentSaving, setEnvironmentSaving] = useState(false);
-  const [codexPathDraft, setCodexPathDraft] = useState(appSettings.codexBin ?? "");
-  const [codexArgsDraft, setCodexArgsDraft] = useState(appSettings.codexArgs ?? "");
+  const [copilotPathDraft, setCopilotPathDraft] = useState(appSettings.copilotBin ?? "");
+  const [copilotArgsDraft, setCopilotArgsDraft] = useState(appSettings.copilotArgs ?? "");
   const [remoteHostDraft, setRemoteHostDraft] = useState(appSettings.remoteBackendHost);
   const [remoteTokenDraft, setRemoteTokenDraft] = useState(appSettings.remoteBackendToken ?? "");
   const [scaleDraft, setScaleDraft] = useState(
@@ -363,10 +362,6 @@ export function SettingsView({
   const [openAppSelectedId, setOpenAppSelectedId] = useState(
     appSettings.selectedOpenAppId,
   );
-  const [doctorState, setDoctorState] = useState<{
-    status: "idle" | "running" | "done";
-    result: CodexDoctorResult | null;
-  }>({ status: "idle", result: null });
   const {
     content: globalAgentsContent,
     exists: globalAgentsExists,
@@ -519,12 +514,12 @@ export function SettingsView({
   }, [onClose]);
 
   useEffect(() => {
-    setCodexPathDraft(appSettings.codexBin ?? "");
-  }, [appSettings.codexBin]);
+    setCopilotPathDraft(appSettings.copilotBin ?? "");
+  }, [appSettings.copilotBin]);
 
   useEffect(() => {
-    setCodexArgsDraft(appSettings.codexArgs ?? "");
-  }, [appSettings.codexArgs]);
+    setCopilotArgsDraft(appSettings.copilotArgs ?? "");
+  }, [appSettings.copilotArgs]);
 
   useEffect(() => {
     setRemoteHostDraft(appSettings.remoteBackendHost);
@@ -691,11 +686,11 @@ export function SettingsView({
     environmentWorkspace,
   ]);
 
-  const nextCodexBin = codexPathDraft.trim() ? codexPathDraft.trim() : null;
-  const nextCodexArgs = codexArgsDraft.trim() ? codexArgsDraft.trim() : null;
-  const codexDirty =
-    nextCodexBin !== (appSettings.codexBin ?? null) ||
-    nextCodexArgs !== (appSettings.codexArgs ?? null);
+  const nextCopilotBin = copilotPathDraft.trim() ? copilotPathDraft.trim() : null;
+  const nextCopilotArgs = copilotArgsDraft.trim() ? copilotArgsDraft.trim() : null;
+  const copilotDirty =
+    nextCopilotBin !== (appSettings.copilotBin ?? null) ||
+    nextCopilotArgs !== (appSettings.copilotArgs ?? null);
 
   const trimmedScale = scaleDraft.trim();
   const parsedPercent = trimmedScale
@@ -703,13 +698,13 @@ export function SettingsView({
     : Number.NaN;
   const parsedScale = Number.isFinite(parsedPercent) ? parsedPercent / 100 : null;
 
-  const handleSaveCodexSettings = async () => {
+  const handleSaveCopilotSettings = async () => {
     setIsSavingSettings(true);
     try {
       await onUpdateAppSettings({
         ...appSettings,
-        codexBin: nextCodexBin,
-        codexArgs: nextCodexArgs,
+        copilotBin: nextCopilotBin,
+        copilotArgs: nextCopilotArgs,
       });
     } finally {
       setIsSavingSettings(false);
@@ -942,37 +937,6 @@ export function SettingsView({
       composerEditorPreset: preset,
       ...config,
     });
-  };
-
-  const handleBrowseCodex = async () => {
-    const selection = await open({ multiple: false, directory: false });
-    if (!selection || Array.isArray(selection)) {
-      return;
-    }
-    setCodexPathDraft(selection);
-  };
-
-  const handleRunDoctor = async () => {
-    setDoctorState({ status: "running", result: null });
-    try {
-      const result = await onRunDoctor(nextCodexBin, nextCodexArgs);
-      setDoctorState({ status: "done", result });
-    } catch (error) {
-      setDoctorState({
-        status: "done",
-        result: {
-          ok: false,
-          codexBin: nextCodexBin,
-          version: null,
-          appServerOk: false,
-          details: error instanceof Error ? error.message : String(error),
-          path: null,
-          nodeOk: false,
-          nodeVersion: null,
-          nodeDetails: null,
-        },
-      });
-    }
   };
 
   const updateShortcut = async (key: ShortcutSettingKey, value: string | null) => {
@@ -2964,116 +2928,70 @@ export function SettingsView({
             )}
             {activeSection === "codex" && (
               <section className="settings-section">
-                <div className="settings-section-title">Codex</div>
+                <div className="settings-section-title">Copilot</div>
                 <div className="settings-section-subtitle">
-                  Configure the Codex CLI used by CodexMonitor and validate the install.
+                  Configure the GitHub Copilot CLI used by this app.
                 </div>
                 <div className="settings-field">
-                  <label className="settings-field-label" htmlFor="codex-path">
-                    Default Codex path
+                  <label className="settings-field-label" htmlFor="copilot-path">
+                    Copilot CLI path
                   </label>
                   <div className="settings-field-row">
                     <input
-                      id="codex-path"
+                      id="copilot-path"
                       className="settings-input"
-                      value={codexPathDraft}
-                      placeholder="codex"
-                      onChange={(event) => setCodexPathDraft(event.target.value)}
+                      value={copilotPathDraft}
+                      placeholder="copilot"
+                      onChange={(event) => setCopilotPathDraft(event.target.value)}
                     />
-                    <button type="button" className="ghost" onClick={handleBrowseCodex}>
-                      Browse
-                    </button>
                     <button
                       type="button"
                       className="ghost"
-                      onClick={() => setCodexPathDraft("")}
+                      onClick={() => setCopilotPathDraft("")}
                     >
                       Use PATH
                     </button>
                   </div>
                   <div className="settings-help">
-                    Leave empty to use the system PATH resolution.
+                    Leave empty to use the system PATH resolution. Requires the GitHub Copilot CLI
+                    to be installed.
                   </div>
-                  <label className="settings-field-label" htmlFor="codex-args">
-                    Default Codex args
+                  <label className="settings-field-label" htmlFor="copilot-args">
+                    Copilot CLI args
                   </label>
                   <div className="settings-field-row">
                     <input
-                      id="codex-args"
+                      id="copilot-args"
                       className="settings-input"
-                      value={codexArgsDraft}
-                      placeholder="--profile personal"
-                      onChange={(event) => setCodexArgsDraft(event.target.value)}
+                      value={copilotArgsDraft}
+                      placeholder=""
+                      onChange={(event) => setCopilotArgsDraft(event.target.value)}
                     />
                     <button
                       type="button"
                       className="ghost"
-                      onClick={() => setCodexArgsDraft("")}
+                      onClick={() => setCopilotArgsDraft("")}
                     >
                       Clear
                     </button>
                   </div>
                   <div className="settings-help">
-                    Extra flags passed before <code>app-server</code>. Use quotes for values with
-                    spaces.
+                    Extra flags passed to the Copilot CLI. Use quotes for values with spaces.
                   </div>
+                </div>
+
                 <div className="settings-field-actions">
-                  {codexDirty && (
+                  {copilotDirty && (
                     <button
                       type="button"
                       className="primary"
-                      onClick={handleSaveCodexSettings}
+                      onClick={handleSaveCopilotSettings}
                       disabled={isSavingSettings}
                     >
                       {isSavingSettings ? "Saving..." : "Save"}
                     </button>
                   )}
-                  <button
-                    type="button"
-                    className="ghost settings-button-compact"
-                    onClick={handleRunDoctor}
-                    disabled={doctorState.status === "running"}
-                  >
-                    <Stethoscope aria-hidden />
-                    {doctorState.status === "running" ? "Running..." : "Run doctor"}
-                  </button>
                 </div>
-
-                {doctorState.result && (
-                  <div
-                    className={`settings-doctor ${doctorState.result.ok ? "ok" : "error"}`}
-                  >
-                    <div className="settings-doctor-title">
-                      {doctorState.result.ok ? "Codex looks good" : "Codex issue detected"}
-                    </div>
-                    <div className="settings-doctor-body">
-                      <div>
-                        Version: {doctorState.result.version ?? "unknown"}
-                      </div>
-                      <div>
-                        App-server: {doctorState.result.appServerOk ? "ok" : "failed"}
-                      </div>
-                      <div>
-                        Node:{" "}
-                        {doctorState.result.nodeOk
-                          ? `ok (${doctorState.result.nodeVersion ?? "unknown"})`
-                          : "missing"}
-                      </div>
-                      {doctorState.result.details && (
-                        <div>{doctorState.result.details}</div>
-                      )}
-                      {doctorState.result.nodeDetails && (
-                        <div>{doctorState.result.nodeDetails}</div>
-                      )}
-                      {doctorState.result.path && (
-                        <div className="settings-doctor-path">
-                          PATH: {doctorState.result.path}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
 
                 <div className="settings-field">
                   <label className="settings-field-label" htmlFor="default-access">
@@ -3470,48 +3388,6 @@ export function SettingsView({
                     <option value="pragmatic">Pragmatic</option>
                   </select>
                 </div>
-                <div className="settings-toggle-row">
-                  <div>
-                    <div className="settings-toggle-title">Steer mode</div>
-                    <div className="settings-toggle-subtitle">
-                      Send messages immediately. Use Tab to queue while a run is active.
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className={`settings-toggle ${appSettings.steerEnabled ? "on" : ""}`}
-                    onClick={() =>
-                      void onUpdateAppSettings({
-                        ...appSettings,
-                        steerEnabled: !appSettings.steerEnabled,
-                      })
-                    }
-                    aria-pressed={appSettings.steerEnabled}
-                  >
-                    <span className="settings-toggle-knob" />
-                  </button>
-                </div>
-                <div className="settings-toggle-row">
-                  <div>
-                    <div className="settings-toggle-title">Background terminal</div>
-                    <div className="settings-toggle-subtitle">
-                      Run long-running terminal commands in the background.
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className={`settings-toggle ${appSettings.unifiedExecEnabled ? "on" : ""}`}
-                    onClick={() =>
-                      void onUpdateAppSettings({
-                        ...appSettings,
-                        unifiedExecEnabled: !appSettings.unifiedExecEnabled,
-                      })
-                    }
-                    aria-pressed={appSettings.unifiedExecEnabled}
-                  >
-                    <span className="settings-toggle-knob" />
-                  </button>
-                </div>
                 <div className="settings-subsection-title">Experimental Features</div>
                 <div className="settings-subsection-subtitle">
                   Preview features that may change or be removed.
@@ -3554,6 +3430,48 @@ export function SettingsView({
                       })
                     }
                     aria-pressed={appSettings.experimentalAppsEnabled}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Background terminal</div>
+                    <div className="settings-toggle-subtitle">
+                      Run long-running terminal commands in the background.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.experimentalUnifiedExecEnabled ? "on" : ""}`}
+                    onClick={() =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        experimentalUnifiedExecEnabled: !appSettings.experimentalUnifiedExecEnabled,
+                      })
+                    }
+                    aria-pressed={appSettings.experimentalUnifiedExecEnabled}
+                  >
+                    <span className="settings-toggle-knob" />
+                  </button>
+                </div>
+                <div className="settings-toggle-row">
+                  <div>
+                    <div className="settings-toggle-title">Steer mode</div>
+                    <div className="settings-toggle-subtitle">
+                      Send messages immediately. Use Tab to queue while a run is active.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-toggle ${appSettings.experimentalSteerEnabled ? "on" : ""}`}
+                    onClick={() =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        experimentalSteerEnabled: !appSettings.experimentalSteerEnabled,
+                      })
+                    }
+                    aria-pressed={appSettings.experimentalSteerEnabled}
                   >
                     <span className="settings-toggle-knob" />
                   </button>

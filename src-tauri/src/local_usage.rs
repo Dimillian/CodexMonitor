@@ -1,6 +1,8 @@
-use chrono::{DateTime, Duration, Local, TimeZone, Utc};
-use serde_json::Value;
+use chrono::{DateTime, Duration, Local, NaiveDate, TimeZone, Utc};
+use reqwest::StatusCode;
+use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
+use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
@@ -8,6 +10,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::State;
 
 use crate::codex::home::{resolve_default_codex_home, resolve_workspace_codex_home};
+use crate::shared::process_core::tokio_command;
 use crate::state::AppState;
 use crate::types::{
     LocalUsageDay, LocalUsageModel, LocalUsageSnapshot, LocalUsageTotals, WorkspaceEntry,
@@ -56,6 +59,191 @@ pub(crate) async fn local_usage_snapshot(
     .await
     .map_err(|err| err.to_string())??;
     Ok(snapshot)
+}
+
+#[tauri::command]
+pub(crate) async fn copilot_usage_fetch() -> Result<Value, String> {
+    let token = fetch_github_token().await?;
+    let response = reqwest::Client::new()
+        .get("https://api.github.com/copilot_internal/user")
+        .header("Authorization", format!("token {token}"))
+        .header("Accept", "application/json")
+        .header("Editor-Version", "vscode/1.96.2")
+        .header("Editor-Plugin-Version", "copilot-chat/0.26.7")
+        .header("User-Agent", "GitHubCopilotChat/0.26.7")
+        .header("X-Github-Api-Version", "2025-04-01")
+        .send()
+        .await
+        .map_err(|err| format!("Copilot usage request failed: {err}"))?;
+    let status = response.status();
+    let body = response
+        .text()
+        .await
+        .map_err(|err| format!("Copilot usage response failed: {err}"))?;
+    if matches!(status, StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN) {
+        return Err("GitHub authentication required to fetch Copilot usage.".to_string());
+    }
+    if !status.is_success() {
+        return Err(format!(
+            "Copilot usage request failed with status {}.",
+            status.as_u16()
+        ));
+    }
+    let payload: Value =
+        serde_json::from_str(&body).map_err(|err| format!("Invalid usage JSON: {err}"))?;
+    Ok(build_copilot_usage_snapshot(&payload))
+}
+
+async fn fetch_github_token() -> Result<String, String> {
+    if let Ok(token) = env::var("GITHUB_TOKEN").or_else(|_| env::var("GH_TOKEN")) {
+        let trimmed = token.trim();
+        if !trimmed.is_empty() {
+            return Ok(trimmed.to_string());
+        }
+    }
+    let output = tokio_command("gh")
+        .args(["auth", "token"])
+        .output()
+        .await
+        .map_err(|err| format!("Failed to run gh auth token: {err}"))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let detail = if stderr.trim().is_empty() {
+            stdout.trim()
+        } else {
+            stderr.trim()
+        };
+        return Err(if detail.is_empty() {
+            "GitHub CLI auth token unavailable.".to_string()
+        } else {
+            detail.to_string()
+        });
+    }
+    let token = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if token.is_empty() {
+        return Err("GitHub CLI returned an empty token.".to_string());
+    }
+    Ok(token)
+}
+
+fn build_copilot_usage_snapshot(payload: &Value) -> Value {
+    let plan_type = read_string_value(payload, &["copilot_plan", "copilotPlan"])
+        .unwrap_or_else(|| "unknown".to_string());
+    let reset_date = read_string_value(
+        payload,
+        &[
+            "quota_reset_date_utc",
+            "quotaResetDateUtc",
+            "quota_reset_date",
+            "quotaResetDate",
+        ],
+    );
+    let reset_timestamp = reset_date.as_deref().and_then(parse_reset_timestamp);
+    let quota_snapshots = payload
+        .get("quota_snapshots")
+        .or_else(|| payload.get("quotaSnapshots"));
+    let premium_snapshot = quota_snapshots.and_then(|snapshots| {
+        snapshots
+            .get("premium_interactions")
+            .or_else(|| snapshots.get("premiumInteractions"))
+    });
+    let chat_snapshot = quota_snapshots.and_then(|snapshots| snapshots.get("chat"));
+    let primary = make_rate_window(premium_snapshot, reset_timestamp);
+    let secondary = make_rate_window(chat_snapshot, reset_timestamp);
+    let premium_remaining = premium_snapshot
+        .and_then(|snapshot| read_i64_value(snapshot, &["quota_remaining", "quotaRemaining", "remaining"]));
+    let premium_entitlement = premium_snapshot.and_then(|snapshot| {
+        read_i64_value(
+            snapshot,
+            &["entitlement", "entitlementRequests", "entitlement_requests"],
+        )
+    });
+    json!({
+        "primary": primary,
+        "secondary": secondary,
+        "credits": null,
+        "planType": plan_type,
+        "quotaResetDate": reset_date,
+        "premiumRemaining": premium_remaining,
+        "premiumEntitlement": premium_entitlement,
+    })
+}
+
+fn make_rate_window(snapshot: Option<&Value>, reset_timestamp: Option<i64>) -> Option<Value> {
+    let snapshot = snapshot?;
+    let used_percent = read_f64_value(
+        snapshot,
+        &[
+            "percent_remaining",
+            "percentRemaining",
+            "remainingPercentage",
+            "remaining_percentage",
+        ],
+    )
+    .map(|remaining| (100.0 - remaining).clamp(0.0, 100.0))
+    .or_else(|| {
+        let entitlement = read_f64_value(
+            snapshot,
+            &["entitlement", "entitlementRequests", "entitlement_requests"],
+        )?;
+        if entitlement <= 0.0 {
+            return None;
+        }
+        if let Some(remaining) = read_f64_value(
+            snapshot,
+            &["quota_remaining", "quotaRemaining", "remaining"],
+        ) {
+            return Some((100.0 - (remaining / entitlement * 100.0)).clamp(0.0, 100.0));
+        }
+        let used = read_f64_value(snapshot, &["used_requests", "usedRequests"])?;
+        Some(((used / entitlement) * 100.0).clamp(0.0, 100.0))
+    })?;
+    Some(json!({
+        "usedPercent": used_percent,
+        "windowDurationMins": null,
+        "resetsAt": reset_timestamp,
+    }))
+}
+
+fn read_string_value(value: &Value, keys: &[&str]) -> Option<String> {
+    let map = value.as_object()?;
+    keys.iter()
+        .find_map(|key| map.get(*key))
+        .and_then(|value| value.as_str())
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn read_f64_value(value: &Value, keys: &[&str]) -> Option<f64> {
+    let map = value.as_object()?;
+    keys.iter().find_map(|key| map.get(*key)).and_then(|value| {
+        value
+            .as_f64()
+            .or_else(|| value.as_i64().map(|value| value as f64))
+            .or_else(|| value.as_u64().map(|value| value as f64))
+            .or_else(|| value.as_str().and_then(|value| value.parse::<f64>().ok()))
+    })
+}
+
+fn read_i64_value(value: &Value, keys: &[&str]) -> Option<i64> {
+    let map = value.as_object()?;
+    keys.iter().find_map(|key| map.get(*key)).and_then(|value| {
+        value
+            .as_i64()
+            .or_else(|| value.as_u64().map(|value| value as i64))
+            .or_else(|| value.as_f64().map(|value| value as i64))
+            .or_else(|| value.as_str().and_then(|value| value.parse::<i64>().ok()))
+    })
+}
+
+fn parse_reset_timestamp(value: &str) -> Option<i64> {
+    if let Ok(timestamp) = DateTime::parse_from_rfc3339(value) {
+        return Some(timestamp.timestamp_millis());
+    }
+    let date = NaiveDate::parse_from_str(value, "%Y-%m-%d").ok()?;
+    let datetime = date.and_hms_opt(0, 0, 0)?;
+    Some(Utc.from_utc_datetime(&datetime).timestamp_millis())
 }
 
 fn scan_local_usage(
@@ -626,6 +814,54 @@ mod tests {
             writeln!(file, "{line}").expect("write jsonl line");
         }
         path
+    }
+
+    #[test]
+    fn build_copilot_usage_snapshot_reads_quota_snapshots() {
+        let payload = json!({
+            "copilot_plan": "business",
+            "quota_reset_date_utc": "2026-03-01T00:00:00.000Z",
+            "quota_snapshots": {
+                "premium_interactions": {
+                    "percent_remaining": 25,
+                    "quota_remaining": 5,
+                    "entitlement": 20
+                },
+                "chat": {
+                    "percent_remaining": 50
+                }
+            }
+        });
+        let snapshot = build_copilot_usage_snapshot(&payload);
+        let primary = snapshot
+            .get("primary")
+            .and_then(Value::as_object)
+            .expect("primary window");
+        let secondary = snapshot
+            .get("secondary")
+            .and_then(Value::as_object)
+            .expect("secondary window");
+
+        assert_eq!(
+            primary.get("usedPercent").and_then(Value::as_f64),
+            Some(75.0)
+        );
+        assert_eq!(
+            secondary.get("usedPercent").and_then(Value::as_f64),
+            Some(50.0)
+        );
+        assert_eq!(
+            snapshot.get("premiumRemaining").and_then(Value::as_i64),
+            Some(5)
+        );
+        assert_eq!(
+            snapshot.get("premiumEntitlement").and_then(Value::as_i64),
+            Some(20)
+        );
+        assert_eq!(
+            snapshot.get("planType").and_then(Value::as_str),
+            Some("business")
+        );
     }
 
     #[test]

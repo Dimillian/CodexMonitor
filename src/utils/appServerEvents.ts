@@ -93,7 +93,7 @@ export function getAppServerRequestId(event: AppServerEvent): string | number | 
 }
 
 export function isApprovalRequestMethod(method: string): boolean {
-  return method.endsWith("requestApproval");
+  return method.includes("requestApproval");
 }
 
 export function isSkillsUpdateAvailableEvent(event: AppServerEvent): boolean {

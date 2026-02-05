@@ -581,6 +581,16 @@
   border-radius: 999px;
   border: 1px solid var(--border-quiet);
   -webkit-app-region: no-drag;
+  cursor: pointer;
+  pointer-events: auto;
+  background: transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.connect:hover {
+  background: var(--surface-card-muted);
+  border-color: var(--border-stronger);
+  color: var(--text-primary);
 }
 
 .workspace-add {

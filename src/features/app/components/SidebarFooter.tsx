@@ -21,7 +21,7 @@ export function SidebarFooter({
         <div className="usage-block">
           <div className="usage-label">
             <span className="usage-title">
-              <span>Session</span>
+              <span>Copilot</span>
               {sessionResetLabel && (
                 <span className="usage-reset">· {sessionResetLabel}</span>
               )}

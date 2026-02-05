@@ -13,9 +13,18 @@ type UseThreadAccountInfoOptions = {
 function normalizeAccountSnapshot(
   response: Record<string, unknown> | null,
 ): AccountSnapshot {
+  const resultValue =
+    response?.result && typeof response.result === "object" ? response.result : null;
+  const dataValue =
+    resultValue && typeof (resultValue as Record<string, unknown>).data === "object"
+      ? ((resultValue as Record<string, unknown>).data as Record<string, unknown>)
+      : null;
   const accountValue =
-    (response?.result as Record<string, unknown> | undefined)?.account ??
-    response?.account;
+    (resultValue as Record<string, unknown> | null)?.account ??
+    dataValue?.account ??
+    response?.account ??
+    (response?.data as Record<string, unknown> | undefined)?.account ??
+    (resultValue as Record<string, unknown> | null);
   const account =
     accountValue && typeof accountValue === "object"
       ? (accountValue as Record<string, unknown>)
@@ -28,10 +37,31 @@ function normalizeAccountSnapshot(
   const requiresOpenaiAuth =
     typeof requiresOpenaiAuthRaw === "boolean" ? requiresOpenaiAuthRaw : null;
 
+  const authenticatedRaw =
+    (resultValue as Record<string, unknown> | null)?.authenticated ??
+    (resultValue as Record<string, unknown> | null)?.isAuthenticated ??
+    dataValue?.authenticated ??
+    dataValue?.isAuthenticated ??
+    response?.authenticated ??
+    response?.isAuthenticated;
+  const authenticated =
+    typeof authenticatedRaw === "boolean" ? authenticatedRaw : null;
+  const loginRaw =
+    (resultValue as Record<string, unknown> | null)?.login ??
+    (resultValue as Record<string, unknown> | null)?.user ??
+    dataValue?.login ??
+    dataValue?.user ??
+    (account as Record<string, unknown> | null)?.login ??
+    (account as Record<string, unknown> | null)?.user ??
+    response?.login ??
+    response?.user;
+  const login =
+    typeof loginRaw === "string" ? loginRaw.trim() : "";
+
   if (!account) {
     return {
       type: "unknown",
-      email: null,
+      email: authenticated ? login || "Copilot" : null,
       planType: null,
       requiresOpenaiAuth,
     };
@@ -40,13 +70,22 @@ function normalizeAccountSnapshot(
   const typeRaw =
     typeof account.type === "string" ? account.type.toLowerCase() : "unknown";
   const type = typeRaw === "chatgpt" || typeRaw === "apikey" ? typeRaw : "unknown";
-  const emailRaw = typeof account.email === "string" ? account.email.trim() : "";
+  const emailRaw =
+    typeof account.email === "string"
+      ? account.email.trim()
+      : typeof account.login === "string"
+        ? account.login.trim()
+        : typeof account.user === "string"
+          ? account.user.trim()
+          : "";
+  const fallbackEmail = login || "";
+  const email = emailRaw || fallbackEmail;
   const planRaw =
     typeof account.planType === "string" ? account.planType.trim() : "";
 
   return {
     type,
-    email: emailRaw ? emailRaw : null,
+    email: email ? email : null,
     planType: planRaw ? planRaw : null,
     requiresOpenaiAuth,
   };
