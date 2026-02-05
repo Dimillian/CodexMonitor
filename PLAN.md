@@ -21,6 +21,7 @@ This plan is **live** and tracks what has landed and what remains for the Window
 - [x] Fix path joining in the frontend so Windows absolute/relative paths behave.
 - [x] Make backend `open_workspace_in` work cross-platform (macOS/Windows/Linux).
 - [x] Make default “Open in” targets sensible on Windows (Explorer + command-based editors).
+- [x] Make default shortcuts Windows-friendly (Ctrl/Alt; avoid Cmd+Ctrl collapse).
 
 ### 4) Dictation on Windows (required)
 
