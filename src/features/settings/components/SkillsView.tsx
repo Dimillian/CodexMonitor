@@ -15,26 +15,95 @@ type SkillPaths = {
   filePath: string;
 };
 
-const isAbsolutePath = (value: string) =>
-  value.startsWith("/") || /^[A-Za-z]:[\\/]/.test(value) || value.startsWith("\\\\");
+type SkillPathContext = {
+  codexHome?: string | null;
+  workspacePath?: string | null;
+};
 
-const expandHomePath = async (value: string) => {
-  const trimmed = value.trim();
-  if (trimmed.startsWith("~")) {
-    const home = await homeDir();
-    if (trimmed === "~") {
-      return home;
-    }
-    const next = trimmed.startsWith("~/") || trimmed.startsWith("~\\")
-      ? trimmed.slice(2)
-      : trimmed.slice(1);
-    return join(home, next);
+const isAbsolutePath = (value: string) =>
+  value.startsWith("/") ||
+  /^[A-Za-z]:[\\/]/.test(value) ||
+  value.startsWith("\\\\");
+
+const expandTilde = async (value: string) => {
+  const home = await homeDir();
+  if (value === "~") {
+    return home;
   }
-  if (isAbsolutePath(trimmed)) {
-    return trimmed;
+  const next = value.startsWith("~/") || value.startsWith("~\\")
+    ? value.slice(2)
+    : value.slice(1);
+  return join(home, next);
+};
+
+const resolveCodexHome = async (context?: SkillPathContext) => {
+  const raw = context?.codexHome?.trim();
+  if (!raw) {
+    return null;
+  }
+  if (raw.startsWith("~")) {
+    return expandTilde(raw);
+  }
+  if (isAbsolutePath(raw)) {
+    return raw;
+  }
+  if (context?.workspacePath) {
+    return join(context.workspacePath, raw);
   }
   const home = await homeDir();
-  return join(home, trimmed);
+  return join(home, raw);
+};
+
+const expandCodexHomePath = (value: string, codexHome: string | null) => {
+  if (!codexHome) {
+    return null;
+  }
+  const normalized = value.replace(/^[.\\/]+/, "");
+  return join(codexHome, normalized);
+};
+
+const expandSkillPathCandidates = async (
+  value: string,
+  context?: SkillPathContext,
+) => {
+  const trimmed = value.trim();
+  const candidates = new Set<string>();
+  const add = (candidate: string | null | undefined) => {
+    if (candidate) {
+      candidates.add(candidate);
+    }
+  };
+
+  const codexHome = await resolveCodexHome(context);
+  if (trimmed.startsWith("$CODEX_HOME/") || trimmed.startsWith("$CODEX_HOME\\")) {
+    add(expandCodexHomePath(trimmed.replace("$CODEX_HOME", ""), codexHome));
+  } else if (
+    trimmed.startsWith("${CODEX_HOME}/") ||
+    trimmed.startsWith("${CODEX_HOME}\\")
+  ) {
+    add(expandCodexHomePath(trimmed.replace("${CODEX_HOME}", ""), codexHome));
+  }
+
+  if (trimmed.startsWith("~")) {
+    add(await expandTilde(trimmed));
+  } else if (isAbsolutePath(trimmed)) {
+    add(trimmed);
+  } else {
+    if (codexHome) {
+      add(join(codexHome, trimmed));
+    }
+    if (context?.workspacePath) {
+      add(join(context.workspacePath, trimmed));
+    }
+    const home = await homeDir();
+    if (trimmed.startsWith(".codex/") || trimmed.startsWith(".codex\\")) {
+      add(join(home, trimmed));
+    }
+    const cleaned = trimmed.replace(/^[.\\/]+/, "");
+    add(join(home, cleaned));
+    add(join(home, ".codex", cleaned));
+  }
+  return [...candidates];
 };
 
 const normalizeSkillPath = (value: string) => value.replace(/\\/g, "/");
@@ -73,16 +142,30 @@ const buildSkillFileCandidates = (skill: SkillOption) => {
   return candidates;
 };
 
-const openFirstAvailablePath = async (paths: string[]) => {
+const openFirstAvailablePath = async (
+  paths: string[],
+  context?: SkillPathContext,
+) => {
+  const attempted: string[] = [];
   let lastError: unknown = null;
   for (const path of paths) {
     try {
-      const expanded = await expandHomePath(path);
-      await openPath(expanded);
-      return;
+      const expandedCandidates = await expandSkillPathCandidates(path, context);
+      for (const expanded of expandedCandidates) {
+        try {
+          attempted.push(expanded);
+          await openPath(expanded);
+          return;
+        } catch (error) {
+          lastError = error;
+        }
+      }
     } catch (error) {
       lastError = error;
     }
+  }
+  if (attempted.length > 0) {
+    throw new Error(attempted.join("\n"));
   }
   throw lastError ?? new Error("No skill file candidates");
 };
@@ -112,22 +195,42 @@ export function SkillsView({
 
   const handleOpenSkill = (skill: SkillOption) => {
     const { folderPath } = resolveSkillPaths(skill.path);
-    void expandHomePath(folderPath)
-      .then((expanded) => revealItemInDir(expanded))
+    void expandSkillPathCandidates(folderPath, {
+      codexHome: skill.codexHome,
+      workspacePath: skill.workspacePath,
+    })
+      .then(async (expandedCandidates) => {
+        for (const expanded of expandedCandidates) {
+          try {
+            await revealItemInDir(expanded);
+            return;
+          } catch {
+            // Try next candidate.
+          }
+        }
+        throw new Error("No folder candidates");
+      })
       .catch(() => {
-      pushErrorToast({
-        title: "Could not open skill",
-        message: "Failed to reveal the skill folder.",
+        pushErrorToast({
+          title: "Could not open skill",
+          message: "Failed to reveal the skill folder.",
+        });
       });
-    });
   };
 
   const handleEditSkill = (skill: SkillOption) => {
     const candidates = buildSkillFileCandidates(skill);
-    void openFirstAvailablePath(candidates).catch(() => {
+    void openFirstAvailablePath(candidates, {
+      codexHome: skill.codexHome,
+      workspacePath: skill.workspacePath,
+    }).catch((error) => {
+      const details =
+        error instanceof Error && error.message
+          ? `\nPath: ${skill.path}\nTried:\n${error.message}`
+          : "";
       pushErrorToast({
         title: "Could not edit skill",
-        message: "Failed to open the skill file.",
+        message: `Failed to open the skill file.${details}`,
       });
     });
   };

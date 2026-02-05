@@ -50,6 +50,8 @@ export function useSkills({ activeWorkspace, onDebug }: UseSkillsOptions) {
         name: String(item.name ?? ""),
         path: String(item.path ?? ""),
         description: item.description ? String(item.description) : undefined,
+        codexHome: activeWorkspace?.settings.codexHome ?? null,
+        workspacePath: activeWorkspace?.path ?? null,
       }));
       setSkills(data);
       lastFetchedWorkspaceId.current = workspaceId;
