@@ -1,3 +1,5 @@
+import { isMacPlatform as isMacPlatformFromPaths } from "./platformPaths";
+
 export type ShortcutDefinition = {
   key: string;
   meta: boolean;
@@ -174,10 +176,7 @@ export function matchesShortcut(event: KeyboardEvent, value: string | null | und
 }
 
 export function isMacPlatform(): boolean {
-  if (typeof navigator === "undefined") {
-    return false;
-  }
-  return /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+  return isMacPlatformFromPaths();
 }
 
 export function getDefaultInterruptShortcut(): string {

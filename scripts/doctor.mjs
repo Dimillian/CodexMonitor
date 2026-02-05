@@ -3,7 +3,7 @@ import path from "node:path";
 
 const strict = process.argv.includes("--strict");
 
-function canExecute(filePath) {
+function isExecutableFile(filePath) {
   try {
     const stat = fs.statSync(filePath);
     if (!stat.isFile()) return false;
@@ -22,7 +22,7 @@ function hasCommand(command) {
   const dirs = pathValue.split(path.delimiter).filter(Boolean);
 
   if (process.platform !== "win32") {
-    return dirs.some((dir) => canExecute(path.join(dir, command)));
+    return dirs.some((dir) => isExecutableFile(path.join(dir, command)));
   }
 
   const pathExtValue = process.env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM";
@@ -30,9 +30,12 @@ function hasCommand(command) {
   const hasExtension = path.extname(command) !== "";
 
   for (const dir of dirs) {
-    if (hasExtension && canExecute(path.join(dir, command))) return true;
+    if (hasExtension) {
+      if (isExecutableFile(path.join(dir, command))) return true;
+      continue;
+    }
     for (const ext of exts) {
-      if (canExecute(path.join(dir, `${command}${ext}`))) return true;
+      if (isExecutableFile(path.join(dir, `${command}${ext}`))) return true;
     }
   }
 
