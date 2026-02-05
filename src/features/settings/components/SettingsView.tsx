@@ -15,6 +15,7 @@ import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import X from "lucide-react/dist/esm/icons/x";
 import FlaskConical from "lucide-react/dist/esm/icons/flask-conical";
 import ExternalLink from "lucide-react/dist/esm/icons/external-link";
+import Layers from "lucide-react/dist/esm/icons/layers";
 import type {
   AppSettings,
   CodexDoctorResult,
@@ -32,6 +33,7 @@ import {
 } from "../../../utils/shortcuts";
 import { clampUiScale } from "../../../utils/uiScale";
 import { getCodexConfigPath } from "../../../services/tauri";
+import { pushErrorToast } from "../../../services/toasts";
 import {
   DEFAULT_CODE_FONT_FAMILY,
   DEFAULT_UI_FONT_FAMILY,
@@ -113,6 +115,13 @@ const normalizeOverrideValue = (value: string): string | null => {
   return trimmed ? trimmed : null;
 };
 
+const normalizeWorktreeSetupScript = (
+  value: string | null | undefined,
+): string | null => {
+  const next = value ?? "";
+  return next.trim().length > 0 ? next : null;
+};
+
 const buildWorkspaceOverrideDrafts = (
   projects: WorkspaceInfo[],
   prev: Record<string, string>,
@@ -172,6 +181,7 @@ export type SettingsViewProps = {
 
 type SettingsSection =
   | "projects"
+  | "environments"
   | "display"
   | "composer"
   | "dictation"
@@ -313,6 +323,18 @@ export function SettingsView({
   initialSection,
 }: SettingsViewProps) {
   const [activeSection, setActiveSection] = useState<CodexSection>("projects");
+  const [environmentWorkspaceId, setEnvironmentWorkspaceId] = useState<string | null>(
+    null,
+  );
+  const [environmentDraftScript, setEnvironmentDraftScript] = useState("");
+  const [environmentSavedScript, setEnvironmentSavedScript] = useState<string | null>(
+    null,
+  );
+  const [environmentLoadedWorkspaceId, setEnvironmentLoadedWorkspaceId] = useState<
+    string | null
+  >(null);
+  const [environmentError, setEnvironmentError] = useState<string | null>(null);
+  const [environmentSaving, setEnvironmentSaving] = useState(false);
   const [codexPathDraft, setCodexPathDraft] = useState(appSettings.codexBin ?? "");
   const [codexArgsDraft, setCodexArgsDraft] = useState(appSettings.codexArgs ?? "");
   const [remoteHostDraft, setRemoteHostDraft] = useState(appSettings.remoteBackendHost);
@@ -441,6 +463,29 @@ export function SettingsView({
     () => groupedWorkspaces.flatMap((group) => group.workspaces),
     [groupedWorkspaces],
   );
+  const mainWorkspaces = useMemo(
+    () => projects.filter((workspace) => (workspace.kind ?? "main") !== "worktree"),
+    [projects],
+  );
+  const environmentWorkspace = useMemo(() => {
+    if (mainWorkspaces.length === 0) {
+      return null;
+    }
+    if (environmentWorkspaceId) {
+      const found = mainWorkspaces.find((workspace) => workspace.id === environmentWorkspaceId);
+      if (found) {
+        return found;
+      }
+    }
+    return mainWorkspaces[0] ?? null;
+  }, [environmentWorkspaceId, mainWorkspaces]);
+  const environmentSavedScriptFromWorkspace = useMemo(() => {
+    return normalizeWorktreeSetupScript(environmentWorkspace?.settings.worktreeSetupScript);
+  }, [environmentWorkspace?.settings.worktreeSetupScript]);
+  const environmentDraftNormalized = useMemo(() => {
+    return normalizeWorktreeSetupScript(environmentDraftScript);
+  }, [environmentDraftScript]);
+  const environmentDirty = environmentDraftNormalized !== environmentSavedScript;
   const hasCodexHomeOverrides = useMemo(
     () => projects.some((workspace) => workspace.settings.codexHome != null),
     [projects],
@@ -603,6 +648,48 @@ export function SettingsView({
       setActiveSection(initialSection);
     }
   }, [initialSection]);
+
+  useEffect(() => {
+    if (!environmentWorkspace) {
+      setEnvironmentWorkspaceId(null);
+      setEnvironmentLoadedWorkspaceId(null);
+      setEnvironmentSavedScript(null);
+      setEnvironmentDraftScript("");
+      setEnvironmentError(null);
+      setEnvironmentSaving(false);
+      return;
+    }
+
+    if (environmentWorkspaceId !== environmentWorkspace.id) {
+      setEnvironmentWorkspaceId(environmentWorkspace.id);
+    }
+  }, [environmentWorkspace, environmentWorkspaceId]);
+
+  useEffect(() => {
+    if (!environmentWorkspace) {
+      return;
+    }
+
+    if (environmentLoadedWorkspaceId !== environmentWorkspace.id) {
+      setEnvironmentLoadedWorkspaceId(environmentWorkspace.id);
+      setEnvironmentSavedScript(environmentSavedScriptFromWorkspace);
+      setEnvironmentDraftScript(environmentSavedScriptFromWorkspace ?? "");
+      setEnvironmentError(null);
+      return;
+    }
+
+    if (!environmentDirty && environmentSavedScript !== environmentSavedScriptFromWorkspace) {
+      setEnvironmentSavedScript(environmentSavedScriptFromWorkspace);
+      setEnvironmentDraftScript(environmentSavedScriptFromWorkspace ?? "");
+      setEnvironmentError(null);
+    }
+  }, [
+    environmentDirty,
+    environmentLoadedWorkspaceId,
+    environmentSavedScript,
+    environmentSavedScriptFromWorkspace,
+    environmentWorkspace,
+  ]);
 
   const nextCodexBin = codexPathDraft.trim() ? codexPathDraft.trim() : null;
   const nextCodexArgs = codexArgsDraft.trim() ? codexArgsDraft.trim() : null;
@@ -922,6 +1009,26 @@ export function SettingsView({
     void updateShortcut(key, value);
   };
 
+  const handleSaveEnvironmentSetup = async () => {
+    if (!environmentWorkspace || environmentSaving) {
+      return;
+    }
+    const nextScript = environmentDraftNormalized;
+    setEnvironmentSaving(true);
+    setEnvironmentError(null);
+    try {
+      await onUpdateWorkspaceSettings(environmentWorkspace.id, {
+        worktreeSetupScript: nextScript,
+      });
+      setEnvironmentSavedScript(nextScript);
+      setEnvironmentDraftScript(nextScript ?? "");
+    } catch (error) {
+      setEnvironmentError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setEnvironmentSaving(false);
+    }
+  };
+
   const trimmedGroupName = newGroupName.trim();
   const canCreateGroup = Boolean(trimmedGroupName);
 
@@ -1042,6 +1149,14 @@ export function SettingsView({
             >
               <LayoutGrid aria-hidden />
               Projects
+            </button>
+            <button
+              type="button"
+              className={`settings-nav ${activeSection === "environments" ? "active" : ""}`}
+              onClick={() => setActiveSection("environments")}
+            >
+              <Layers aria-hidden />
+              Environments
             </button>
             <button
               type="button"
@@ -1321,6 +1436,109 @@ export function SettingsView({
                     <div className="settings-empty">No projects yet.</div>
                   )}
                 </div>
+              </section>
+            )}
+            {activeSection === "environments" && (
+              <section className="settings-section">
+                <div className="settings-section-title">Environments</div>
+                <div className="settings-section-subtitle">
+                  Configure per-project setup scripts that run after worktree creation.
+                </div>
+                {mainWorkspaces.length === 0 ? (
+                  <div className="settings-empty">No projects yet.</div>
+                ) : (
+                  <>
+                    <div className="settings-field">
+                      <label
+                        className="settings-field-label"
+                        htmlFor="settings-environment-project"
+                      >
+                        Project
+                      </label>
+                      <select
+                        id="settings-environment-project"
+                        className="settings-select"
+                        value={environmentWorkspace?.id ?? ""}
+                        onChange={(event) => setEnvironmentWorkspaceId(event.target.value)}
+                        disabled={environmentSaving}
+                      >
+                        {mainWorkspaces.map((workspace) => (
+                          <option key={workspace.id} value={workspace.id}>
+                            {workspace.name}
+                          </option>
+                        ))}
+                      </select>
+                      {environmentWorkspace ? (
+                        <div className="settings-help">{environmentWorkspace.path}</div>
+                      ) : null}
+                    </div>
+
+                    <div className="settings-field">
+                      <div className="settings-field-label">Setup script</div>
+                      <div className="settings-help">
+                        Runs once in a dedicated terminal after each new worktree is created.
+                      </div>
+                      {environmentError ? (
+                        <div className="settings-agents-error">{environmentError}</div>
+                      ) : null}
+                      <textarea
+                        className="settings-agents-textarea"
+                        value={environmentDraftScript}
+                        onChange={(event) => setEnvironmentDraftScript(event.target.value)}
+                        placeholder="pnpm install"
+                        spellCheck={false}
+                        disabled={environmentSaving}
+                      />
+                      <div className="settings-field-actions">
+                        <button
+                          type="button"
+                          className="ghost settings-button-compact"
+                          onClick={() => {
+                            const clipboard =
+                              typeof navigator === "undefined" ? null : navigator.clipboard;
+                            if (!clipboard?.writeText) {
+                              pushErrorToast({
+                                title: "Copy failed",
+                                message:
+                                  "Clipboard access is unavailable in this environment. Copy the script manually instead.",
+                              });
+                              return;
+                            }
+
+                            void clipboard.writeText(environmentDraftScript).catch(() => {
+                              pushErrorToast({
+                                title: "Copy failed",
+                                message:
+                                  "Could not write to the clipboard. Copy the script manually instead.",
+                              });
+                            });
+                          }}
+                          disabled={environmentSaving || environmentDraftScript.length === 0}
+                        >
+                          Copy
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost settings-button-compact"
+                          onClick={() => setEnvironmentDraftScript(environmentSavedScript ?? "")}
+                          disabled={environmentSaving || !environmentDirty}
+                        >
+                          Reset
+                        </button>
+                        <button
+                          type="button"
+                          className="primary settings-button-compact"
+                          onClick={() => {
+                            void handleSaveEnvironmentSetup();
+                          }}
+                          disabled={environmentSaving || !environmentDirty}
+                        >
+                          {environmentSaving ? "Saving..." : "Save"}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </section>
             )}
             {activeSection === "display" && (

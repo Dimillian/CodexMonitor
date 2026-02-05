@@ -226,9 +226,9 @@ export function WorktreePrompt({
           )}
         </div>
         <div className="worktree-modal-divider" />
-        <div className="worktree-modal-section-title">Worktree setup script</div>
+        <div className="worktree-modal-section-title">Environment setup script</div>
         <div className="worktree-modal-hint">
-          Runs once in a dedicated terminal after each new worktree is created.
+          Stored on the project (Settings → Environments) and runs once in a dedicated terminal after each new worktree is created.
         </div>
         <textarea
           id="worktree-setup-script"
