@@ -8,6 +8,7 @@ use tokio::sync::Mutex;
 use crate::backend::app_server::WorkspaceSession;
 use crate::codex::args::resolve_workspace_codex_args;
 use crate::codex::home::resolve_workspace_codex_home;
+use crate::shared::process_core::kill_child_process_tree;
 use crate::storage::write_workspaces;
 use crate::types::{
     AppSettings, WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings, WorktreeInfo,
@@ -196,7 +197,7 @@ where
             workspaces.remove(&entry.id);
         }
         let mut child = session.child.lock().await;
-        let _ = child.kill().await;
+        kill_child_process_tree(&mut child).await;
         return Err(error);
     }
 
@@ -412,7 +413,7 @@ async fn kill_session_by_id(
 ) {
     if let Some(session) = sessions.lock().await.remove(id) {
         let mut child = session.child.lock().await;
-        let _ = child.kill().await;
+        kill_child_process_tree(&mut child).await;
     }
 }
 
@@ -960,7 +961,7 @@ where
             .insert(entry_snapshot.id.clone(), new_session)
         {
             let mut child = old_session.child.lock().await;
-            let _ = child.kill().await;
+            kill_child_process_tree(&mut child).await;
         }
     }
     if codex_home_changed || codex_args_changed {
@@ -1003,7 +1004,7 @@ where
                 .insert(child.id.clone(), new_session)
             {
                 let mut child = old_session.child.lock().await;
-                let _ = child.kill().await;
+                kill_child_process_tree(&mut child).await;
             }
         }
     }

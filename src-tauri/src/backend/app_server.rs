@@ -13,7 +13,7 @@ use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::timeout;
 
 use crate::backend::events::{AppServerEvent, EventSink};
-use crate::shared::process_core::tokio_command;
+use crate::shared::process_core::{kill_child_process_tree, tokio_command};
 use crate::codex::args::apply_codex_args;
 use crate::types::WorkspaceEntry;
 
@@ -173,20 +173,22 @@ pub(crate) fn build_codex_command_with_bin(codex_bin: Option<String>) -> Command
     #[cfg(target_os = "windows")]
     let mut command = {
         let bin_trimmed = bin.trim();
-        let ext = Path::new(bin_trimmed)
+        let resolved = resolve_windows_executable(bin_trimmed, path_env.as_deref());
+        let resolved_path = resolved
+            .as_deref()
+            .unwrap_or_else(|| Path::new(bin_trimmed));
+        let ext = resolved_path
             .extension()
             .and_then(|ext| ext.to_str())
             .map(|ext| ext.to_ascii_lowercase());
 
-        let should_use_cmd_wrapper =
-            matches!(ext.as_deref(), Some("cmd") | Some("bat")) || ext.is_none();
-        if should_use_cmd_wrapper {
+        if matches!(ext.as_deref(), Some("cmd") | Some("bat")) {
             let mut command = tokio_command("cmd");
             command.arg("/C");
-            command.arg(bin_trimmed);
+            command.arg(resolved_path);
             command
         } else {
-            tokio_command(bin_trimmed)
+            tokio_command(resolved_path)
         }
     };
 
@@ -197,6 +199,73 @@ pub(crate) fn build_codex_command_with_bin(codex_bin: Option<String>) -> Command
         command.env("PATH", path_env);
     }
     command
+}
+
+#[cfg(target_os = "windows")]
+fn resolve_windows_executable(program: &str, path_env: Option<&str>) -> Option<PathBuf> {
+    let trimmed = program.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let program = trimmed
+        .strip_prefix('"')
+        .and_then(|value| value.strip_suffix('"'))
+        .unwrap_or(trimmed)
+        .trim();
+
+    if program.is_empty() {
+        return None;
+    }
+
+    let has_separators = program.contains('\\') || program.contains('/');
+    let has_drive = matches!(program.as_bytes().get(1), Some(b':'));
+    let looks_like_path = has_separators || has_drive;
+
+    let path_candidates = if Path::new(program).extension().is_some() {
+        vec![program.to_string()]
+    } else {
+        vec![
+            format!("{program}.exe"),
+            format!("{program}.cmd"),
+            format!("{program}.bat"),
+            format!("{program}.com"),
+        ]
+    };
+
+    if looks_like_path {
+        for candidate in path_candidates {
+            let path = PathBuf::from(candidate);
+            if path.is_file() {
+                return Some(path);
+            }
+        }
+        return None;
+    }
+
+    let paths: Vec<PathBuf> = if let Some(value) = path_env {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            Vec::new()
+        } else {
+            env::split_paths(trimmed).collect()
+        }
+    } else {
+        env::var_os("PATH")
+            .map(|value| env::split_paths(&value).collect())
+            .unwrap_or_default()
+    };
+
+    for root in paths {
+        for candidate in &path_candidates {
+            let path = root.join(candidate);
+            if path.is_file() {
+                return Some(path);
+            }
+        }
+    }
+
+    None
 }
 
 pub(crate) async fn check_codex_installation(
@@ -401,7 +470,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
         Ok(response) => response,
         Err(_) => {
             let mut child = session.child.lock().await;
-            let _ = child.kill().await;
+            kill_child_process_tree(&mut child).await;
             return Err(
                 "Codex app-server did not respond to initialize. Check that `codex app-server` works in Terminal."
                     .to_string(),

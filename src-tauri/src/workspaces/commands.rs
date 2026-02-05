@@ -30,7 +30,7 @@ use crate::codex::args::resolve_workspace_codex_args;
 use crate::codex::home::resolve_workspace_codex_home;
 use crate::git_utils::resolve_git_root;
 use crate::remote_backend;
-use crate::shared::process_core::tokio_command;
+use crate::shared::process_core::{kill_child_process_tree, tokio_command};
 use crate::shared::workspaces_core;
 use crate::state::AppState;
 use crate::storage::write_workspaces;
@@ -258,7 +258,7 @@ pub(crate) async fn add_clone(
             workspaces.remove(&entry.id);
         }
         let mut child = session.child.lock().await;
-        let _ = child.kill().await;
+        kill_child_process_tree(&mut child).await;
         let _ = tokio::fs::remove_dir_all(&destination_path).await;
         return Err(error);
     }
