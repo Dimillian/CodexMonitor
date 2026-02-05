@@ -148,7 +148,7 @@ describe("GitDiffPanel", () => {
     await copyPathItem.action();
 
     expect(clipboardWriteText).toHaveBeenCalledWith("sample.ts");
-    expect(clipboardWriteText).toHaveBeenCalledWith("/tmp/repo/src/sample.ts");
+    expect(clipboardWriteText).toHaveBeenCalledWith("src/sample.ts");
   });
 
   it("resolves relative git roots against the workspace path", async () => {
@@ -178,5 +178,34 @@ describe("GitDiffPanel", () => {
     expect(revealItem).toBeDefined();
     await revealItem.action();
     expect(revealItemInDir).toHaveBeenCalledWith("/tmp/repo/apps/src/sample.ts");
+  });
+
+  it("copies file path relative to the workspace root", async () => {
+    clipboardWriteText.mockClear();
+    const { container } = render(
+      <GitDiffPanel
+        {...baseProps}
+        workspacePath="/tmp/repo"
+        gitRoot="apps"
+        unstagedFiles={[
+          { path: "src/sample.ts", status: "M", additions: 1, deletions: 0 },
+        ]}
+      />,
+    );
+
+    const row = container.querySelector(".diff-row");
+    expect(row).not.toBeNull();
+    fireEvent.contextMenu(row as Element);
+
+    await waitFor(() => expect(menuNew).toHaveBeenCalled());
+    const menuArgs = menuNew.mock.calls[menuNew.mock.calls.length - 1]?.[0];
+    const copyPathItem = menuArgs.items.find(
+      (item: { text: string }) => item.text === "Copy file path",
+    );
+
+    expect(copyPathItem).toBeDefined();
+    await copyPathItem.action();
+
+    expect(clipboardWriteText).toHaveBeenCalledWith("apps/src/sample.ts");
   });
 });

@@ -1052,6 +1052,13 @@ export function GitDiffPanel({
         const absolutePath = resolvedRoot
           ? joinRootAndPath(resolvedRoot, rawPath)
           : rawPath;
+        const projectRelativePath =
+          workspacePath && resolvedRoot && resolvedRoot.startsWith(workspacePath)
+            ? joinRootAndPath(
+                resolvedRoot.slice(workspacePath.length).replace(/^\/+/, ""),
+                rawPath,
+              )
+            : rawPath;
         const fileName = getFileName(rawPath);
         items.push(
           await MenuItem.new({
@@ -1094,7 +1101,7 @@ export function GitDiffPanel({
           await MenuItem.new({
             text: "Copy file path",
             action: async () => {
-              await navigator.clipboard.writeText(absolutePath);
+              await navigator.clipboard.writeText(projectRelativePath);
             },
           }),
         );
