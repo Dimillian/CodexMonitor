@@ -17,6 +17,40 @@ use uuid::Uuid;
 
 pub(crate) const WORKTREE_SETUP_MARKERS_DIR: &str = "worktree-setup";
 pub(crate) const WORKTREE_SETUP_MARKER_EXT: &str = "ran";
+const AGENTS_MD_FILE_NAME: &str = "AGENTS.md";
+
+fn copy_agents_md_from_parent_to_worktree(
+    parent_repo_root: &PathBuf,
+    worktree_root: &PathBuf,
+) -> Result<(), String> {
+    let source_path = parent_repo_root.join(AGENTS_MD_FILE_NAME);
+    if !source_path.is_file() {
+        return Ok(());
+    }
+
+    let destination_path = worktree_root.join(AGENTS_MD_FILE_NAME);
+    let temp_path = worktree_root.join(format!("{AGENTS_MD_FILE_NAME}.tmp"));
+
+    std::fs::copy(&source_path, &temp_path).map_err(|err| {
+        format!(
+            "Failed to copy {} from {} to {}: {err}",
+            AGENTS_MD_FILE_NAME,
+            source_path.display(),
+            temp_path.display()
+        )
+    })?;
+
+    std::fs::rename(&temp_path, &destination_path).map_err(|err| {
+        let _ = std::fs::remove_file(&temp_path);
+        format!(
+            "Failed to finalize {} copy to {}: {err}",
+            AGENTS_MD_FILE_NAME,
+            destination_path.display()
+        )
+    })?;
+
+    Ok(())
+}
 
 pub(crate) fn normalize_setup_script(script: Option<String>) -> Option<String> {
     match script {
@@ -336,6 +370,8 @@ where
         )
         .await?;
     }
+
+    copy_agents_md_from_parent_to_worktree(&repo_path, &worktree_path)?;
 
     let entry = WorkspaceEntry {
         id: Uuid::new_v4().to_string(),
