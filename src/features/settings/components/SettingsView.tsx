@@ -2136,7 +2136,8 @@ export function SettingsView({
                     </button>
                   </div>
                   <div className="settings-help">
-                    Default: {formatShortcut("cmd+ctrl+a")}
+                    Default:{" "}
+                    {formatShortcut(isMacPlatform() ? "cmd+ctrl+a" : "ctrl+alt+a")}
                   </div>
                 </div>
                 <div className="settings-divider" />
@@ -2391,7 +2392,10 @@ export function SettingsView({
                     </button>
                   </div>
                   <div className="settings-help">
-                    Default: {formatShortcut("cmd+ctrl+down")}
+                    Default:{" "}
+                    {formatShortcut(
+                      isMacPlatform() ? "cmd+ctrl+down" : "ctrl+alt+down",
+                    )}
                   </div>
                 </div>
                 <div className="settings-field">
@@ -2415,7 +2419,10 @@ export function SettingsView({
                     </button>
                   </div>
                   <div className="settings-help">
-                    Default: {formatShortcut("cmd+ctrl+up")}
+                    Default:{" "}
+                    {formatShortcut(
+                      isMacPlatform() ? "cmd+ctrl+up" : "ctrl+alt+up",
+                    )}
                   </div>
                 </div>
                 <div className="settings-field">
@@ -2439,7 +2446,12 @@ export function SettingsView({
                     </button>
                   </div>
                   <div className="settings-help">
-                    Default: {formatShortcut("cmd+shift+down")}
+                    Default:{" "}
+                    {formatShortcut(
+                      isMacPlatform()
+                        ? "cmd+shift+down"
+                        : "ctrl+alt+shift+down",
+                    )}
                   </div>
                 </div>
                 <div className="settings-field">
@@ -2463,7 +2475,10 @@ export function SettingsView({
                     </button>
                   </div>
                   <div className="settings-help">
-                    Default: {formatShortcut("cmd+shift+up")}
+                    Default:{" "}
+                    {formatShortcut(
+                      isMacPlatform() ? "cmd+shift+up" : "ctrl+alt+shift+up",
+                    )}
                   </div>
                 </div>
               </section>

@@ -15,10 +15,12 @@ import {
   OPEN_APP_STORAGE_KEY,
 } from "../../app/constants";
 import { normalizeOpenAppTargets } from "../../app/utils/openApp";
-import { getDefaultInterruptShortcut } from "../../../utils/shortcuts";
+import { getDefaultInterruptShortcut, isMacPlatform } from "../../../utils/shortcuts";
 
 const allowedThemes = new Set(["system", "light", "dark", "dim"]);
 const allowedPersonality = new Set(["default", "friendly", "pragmatic"]);
+
+const isMac = isMacPlatform();
 
 const defaultSettings: AppSettings = {
   codexBin: null,
@@ -28,23 +30,23 @@ const defaultSettings: AppSettings = {
   remoteBackendToken: null,
   defaultAccessMode: "current",
   reviewDeliveryMode: "inline",
-  composerModelShortcut: "cmd+shift+m",
-  composerAccessShortcut: "cmd+shift+a",
-  composerReasoningShortcut: "cmd+shift+r",
+  composerModelShortcut: isMac ? "cmd+shift+m" : "ctrl+shift+m",
+  composerAccessShortcut: isMac ? "cmd+shift+a" : "ctrl+shift+a",
+  composerReasoningShortcut: isMac ? "cmd+shift+r" : "ctrl+shift+r",
   composerCollaborationShortcut: "shift+tab",
   interruptShortcut: getDefaultInterruptShortcut(),
-  newAgentShortcut: "cmd+n",
-  newWorktreeAgentShortcut: "cmd+shift+n",
-  newCloneAgentShortcut: "cmd+alt+n",
-  archiveThreadShortcut: "cmd+ctrl+a",
-  toggleProjectsSidebarShortcut: "cmd+shift+p",
-  toggleGitSidebarShortcut: "cmd+shift+g",
-  toggleDebugPanelShortcut: "cmd+shift+d",
-  toggleTerminalShortcut: "cmd+shift+t",
-  cycleAgentNextShortcut: "cmd+ctrl+down",
-  cycleAgentPrevShortcut: "cmd+ctrl+up",
-  cycleWorkspaceNextShortcut: "cmd+shift+down",
-  cycleWorkspacePrevShortcut: "cmd+shift+up",
+  newAgentShortcut: isMac ? "cmd+n" : "ctrl+n",
+  newWorktreeAgentShortcut: isMac ? "cmd+shift+n" : "ctrl+shift+n",
+  newCloneAgentShortcut: isMac ? "cmd+alt+n" : "ctrl+alt+n",
+  archiveThreadShortcut: isMac ? "cmd+ctrl+a" : "ctrl+alt+a",
+  toggleProjectsSidebarShortcut: isMac ? "cmd+shift+p" : "ctrl+shift+p",
+  toggleGitSidebarShortcut: isMac ? "cmd+shift+g" : "ctrl+shift+g",
+  toggleDebugPanelShortcut: isMac ? "cmd+shift+d" : "ctrl+shift+d",
+  toggleTerminalShortcut: isMac ? "cmd+shift+t" : "ctrl+shift+t",
+  cycleAgentNextShortcut: isMac ? "cmd+ctrl+down" : "ctrl+alt+down",
+  cycleAgentPrevShortcut: isMac ? "cmd+ctrl+up" : "ctrl+alt+up",
+  cycleWorkspaceNextShortcut: isMac ? "cmd+shift+down" : "ctrl+alt+shift+down",
+  cycleWorkspacePrevShortcut: isMac ? "cmd+shift+up" : "ctrl+alt+shift+up",
   lastComposerModelId: null,
   lastComposerReasoningEffort: null,
   uiScale: UI_SCALE_DEFAULT,
