@@ -142,6 +142,9 @@ const renderDisplaySection = (
     onDownloadDictationModel: vi.fn(),
     onCancelDictationDownload: vi.fn(),
     onRemoveDictationModel: vi.fn(),
+    skills: [],
+    onUseSkill: vi.fn(),
+    onRefreshSkills: vi.fn(),
   };
 
   render(<SettingsView {...props} />);
@@ -188,6 +191,9 @@ const renderFeaturesSection = (
     onCancelDictationDownload: vi.fn(),
     onRemoveDictationModel: vi.fn(),
     initialSection: "features",
+    skills: [],
+    onUseSkill: vi.fn(),
+    onRefreshSkills: vi.fn(),
   };
 
   render(<SettingsView {...props} />);
@@ -278,6 +284,9 @@ const renderEnvironmentsSection = (
     onCancelDictationDownload: vi.fn(),
     onRemoveDictationModel: vi.fn(),
     initialSection: "environments",
+    skills: [],
+    onUseSkill: vi.fn(),
+    onRefreshSkills: vi.fn(),
   };
 
   render(<SettingsView {...props} />);
@@ -566,6 +575,9 @@ describe("SettingsView Codex overrides", () => {
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
         initialSection="codex"
+        skills={[]}
+        onUseSkill={vi.fn()}
+        onRefreshSkills={vi.fn()}
       />,
     );
 
@@ -613,6 +625,9 @@ describe("SettingsView Codex overrides", () => {
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
         initialSection="codex"
+        skills={[]}
+        onUseSkill={vi.fn()}
+        onRefreshSkills={vi.fn()}
       />,
     );
 
@@ -677,6 +692,9 @@ describe("SettingsView Shortcuts", () => {
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
+        skills={[]}
+        onUseSkill={vi.fn()}
+        onRefreshSkills={vi.fn()}
       />,
     );
 
@@ -718,6 +736,9 @@ describe("SettingsView Shortcuts", () => {
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
+        skills={[]}
+        onUseSkill={vi.fn()}
+        onRefreshSkills={vi.fn()}
       />,
     );
 

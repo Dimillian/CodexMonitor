@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AutocompleteItem } from "./useComposerAutocomplete";
 import { useComposerAutocomplete } from "./useComposerAutocomplete";
 import type { AppOption, CustomPromptOption } from "../../../types";
@@ -27,6 +27,7 @@ type UseComposerAutocompleteStateArgs = {
 
 const MAX_FILE_SUGGESTIONS = 500;
 const FILE_TRIGGER_PREFIX = new RegExp("^(?:\\s|[\"'`]|\\(|\\[|\\{)$");
+const SKILL_COMMAND = "/skill";
 
 function isFileTriggerActive(text: string, cursor: number | null) {
   if (!text || cursor === null) {
@@ -65,6 +66,67 @@ function getFileTriggerQuery(text: string, cursor: number | null) {
   return afterAt;
 }
 
+type SkillCommandContext = {
+  query: string;
+  range: { start: number; end: number };
+};
+
+function resolveSkillCommandContext(
+  text: string,
+  cursor: number | null,
+): SkillCommandContext | null {
+  if (!text || cursor === null) {
+    return null;
+  }
+  const beforeCursor = text.slice(0, cursor);
+  const index = beforeCursor.lastIndexOf(SKILL_COMMAND);
+  if (index < 0) {
+    return null;
+  }
+  const prevChar = index > 0 ? beforeCursor[index - 1] : "";
+  if (prevChar && !/\s/.test(prevChar)) {
+    return null;
+  }
+  const afterCommand = beforeCursor.slice(index + SKILL_COMMAND.length);
+  if (!afterCommand.startsWith(" ")) {
+    return null;
+  }
+  const start = index + SKILL_COMMAND.length + 1;
+  const query = beforeCursor.slice(start);
+  if (/\s/.test(query)) {
+    return null;
+  }
+  return { query, range: { start, end: cursor } };
+}
+
+function rankSkillItems(items: AutocompleteItem[], query: string) {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) {
+    return items.slice();
+  }
+  const scored = items
+    .map((item) => {
+      const label = item.label.toLowerCase();
+      const description = item.description?.toLowerCase() ?? "";
+      const score = label === normalized
+        ? 3
+        : label.startsWith(normalized)
+          ? 2
+          : label.includes(normalized) || description.includes(normalized)
+            ? 1
+            : 0;
+      return { item, score };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => {
+      if (a.score !== b.score) {
+        return b.score - a.score;
+      }
+      return a.item.label.localeCompare(b.item.label);
+    });
+  return scored.map((entry) => entry.item);
+}
+
 export function useComposerAutocompleteState({
   text,
   selectionStart,
@@ -98,6 +160,18 @@ export function useComposerAutocompleteState({
       })),
     ],
     [apps, skills],
+  );
+
+  const skillCommandItems = useMemo<AutocompleteItem[]>(
+    () =>
+      skills.map((skill) => ({
+        id: `skill:${skill.name}`,
+        label: skill.name,
+        description: skill.description,
+        insertText: skill.name,
+        group: "Skills" as const,
+      })),
+    [skills],
   );
 
   const fileTriggerActive = useMemo(
@@ -185,6 +259,13 @@ export function useComposerAutocompleteState({
         group: "Slash",
       },
       {
+        id: "skill",
+        label: "skill",
+        description: "insert a skill command",
+        insertText: "skill",
+        group: "Slash",
+      },
+      {
         id: "status",
         label: "status",
         description: "show session status",
@@ -209,6 +290,25 @@ export function useComposerAutocompleteState({
     [promptItems, slashCommandItems],
   );
 
+  const skillCommandContext = useMemo(
+    () => resolveSkillCommandContext(text, selectionStart),
+    [selectionStart, text],
+  );
+  const skillCommandMatches = useMemo(
+    () =>
+      skillCommandContext
+        ? rankSkillItems(skillCommandItems, skillCommandContext.query)
+        : [],
+    [skillCommandContext, skillCommandItems],
+  );
+  const [skillCommandHighlightIndex, setSkillCommandHighlightIndex] =
+    useState(0);
+  const [skillCommandDismissed, setSkillCommandDismissed] = useState(false);
+  useEffect(() => {
+    setSkillCommandHighlightIndex(0);
+    setSkillCommandDismissed(false);
+  }, [skillCommandContext?.query, skillCommandContext?.range.start]);
+
   const triggers = useMemo(
     () => [
       { trigger: "/", items: slashItems },
@@ -219,21 +319,73 @@ export function useComposerAutocompleteState({
   );
 
   const {
-    active: isAutocompleteOpen,
-    matches: autocompleteMatches,
-    highlightIndex,
-    setHighlightIndex,
-    moveHighlight,
-    range: autocompleteRange,
-    close: closeAutocomplete,
+    active: isBaseAutocompleteOpen,
+    matches: baseAutocompleteMatches,
+    highlightIndex: baseHighlightIndex,
+    setHighlightIndex: setBaseHighlightIndex,
+    moveHighlight: moveBaseHighlight,
+    range: baseAutocompleteRange,
+    close: closeBaseAutocomplete,
   } = useComposerAutocomplete({
     text,
     selectionStart,
     triggers,
   });
-  const autocompleteAnchorIndex = autocompleteRange
-    ? Math.max(0, autocompleteRange.start - 1)
-    : null;
+  const isSkillCommandActive =
+    Boolean(skillCommandContext) &&
+    skillCommandMatches.length > 0 &&
+    !skillCommandDismissed;
+  const autocompleteMatches = isSkillCommandActive
+    ? skillCommandMatches
+    : baseAutocompleteMatches;
+  const autocompleteRange = isSkillCommandActive
+    ? skillCommandContext?.range ?? null
+    : baseAutocompleteRange;
+  const isAutocompleteOpen = isSkillCommandActive || isBaseAutocompleteOpen;
+  const highlightIndex = isSkillCommandActive
+    ? skillCommandHighlightIndex
+    : baseHighlightIndex;
+  const setHighlightIndex = useCallback(
+    (index: number) => {
+      if (isSkillCommandActive) {
+        setSkillCommandHighlightIndex(index);
+        return;
+      }
+      setBaseHighlightIndex(index);
+    },
+    [isSkillCommandActive, setBaseHighlightIndex],
+  );
+  const autocompleteAnchorIndex = isSkillCommandActive
+    ? skillCommandContext?.range.start ?? null
+    : autocompleteRange
+      ? Math.max(0, autocompleteRange.start - 1)
+      : null;
+
+  const closeAutocomplete = useCallback(() => {
+    if (isSkillCommandActive) {
+      setSkillCommandDismissed(true);
+      return;
+    }
+    closeBaseAutocomplete();
+  }, [closeBaseAutocomplete, isSkillCommandActive]);
+
+  const moveHighlight = useCallback(
+    (delta: number) => {
+      if (autocompleteMatches.length === 0) {
+        return;
+      }
+      if (isSkillCommandActive) {
+        setSkillCommandHighlightIndex((prev) => {
+          const next =
+            (prev + delta + autocompleteMatches.length) % autocompleteMatches.length;
+          return next;
+        });
+        return;
+      }
+      moveBaseHighlight(delta);
+    },
+    [autocompleteMatches.length, isSkillCommandActive, moveBaseHighlight],
+  );
 
   const applyAutocomplete = useCallback(
     (item: AutocompleteItem) => {

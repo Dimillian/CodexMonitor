@@ -1,0 +1,118 @@
+.skills-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skills-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.skills-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--text-accent);
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.skills-link svg {
+  width: 12px;
+  height: 12px;
+}
+
+.skills-subsection-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-strong);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 8px;
+}
+
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.skills-card {
+  border-radius: 14px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-card);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 110px;
+}
+
+.skills-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.skills-card-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--surface-control);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-strong);
+  flex-shrink: 0;
+}
+
+.skills-card-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.skills-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.skills-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.skills-card-description {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  max-height: 2.8em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.skills-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.skills-card-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.skills-card-actions svg {
+  width: 14px;
+  height: 14px;
+}
