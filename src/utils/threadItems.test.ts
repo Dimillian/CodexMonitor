@@ -7,6 +7,7 @@ import {
   mergeThreadItems,
   normalizeItem,
   prepareThreadItems,
+  upsertItem,
 } from "./threadItems";
 
 describe("threadItems", () => {
@@ -454,6 +455,58 @@ describe("threadItems", () => {
     if (merged[0].kind === "tool") {
       expect(merged[0].output).toBe("much longer output");
       expect(merged[0].status).toBe("ok");
+    }
+  });
+
+  it("preserves streamed plan output when completion item has empty output", () => {
+    const existing: ConversationItem = {
+      id: "plan-1",
+      kind: "tool",
+      toolType: "plan",
+      title: "Plan",
+      detail: "Generating plan...",
+      status: "in_progress",
+      output: "## Plan\n- Step 1\n- Step 2",
+    };
+    const completed: ConversationItem = {
+      id: "plan-1",
+      kind: "tool",
+      toolType: "plan",
+      title: "Plan",
+      detail: "",
+      status: "completed",
+      output: "",
+    };
+
+    const next = upsertItem([existing], completed);
+    expect(next).toHaveLength(1);
+    expect(next[0].kind).toBe("tool");
+    if (next[0].kind === "tool") {
+      expect(next[0].output).toBe(existing.output);
+      expect(next[0].status).toBe("completed");
+    }
+  });
+
+  it("preserves streamed reasoning content when completion item is empty", () => {
+    const existing: ConversationItem = {
+      id: "reasoning-1",
+      kind: "reasoning",
+      summary: "Thinking",
+      content: "More detail",
+    };
+    const completed: ConversationItem = {
+      id: "reasoning-1",
+      kind: "reasoning",
+      summary: "",
+      content: "",
+    };
+
+    const next = upsertItem([existing], completed);
+    expect(next).toHaveLength(1);
+    expect(next[0].kind).toBe("reasoning");
+    if (next[0].kind === "reasoning") {
+      expect(next[0].summary).toBe("Thinking");
+      expect(next[0].content).toBe("More detail");
     }
   });
 

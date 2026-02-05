@@ -1113,6 +1113,7 @@ export const Messages = memo(function Messages({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const autoScrollRef = useRef(true);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const manuallyToggledExpandedRef = useRef<Set<string>>(new Set());
   const [collapsedToolGroups, setCollapsedToolGroups] = useState<Set<string>>(
     new Set(),
   );
@@ -1163,6 +1164,7 @@ export const Messages = memo(function Messages({
     autoScrollRef.current = true;
   }, [threadId]);
   const toggleExpanded = useCallback((id: string) => {
+    manuallyToggledExpandedRef.current.add(id);
     setExpandedItems((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -1223,6 +1225,30 @@ export const Messages = memo(function Messages({
       }),
     [items, reasoningMetaById],
   );
+
+  useEffect(() => {
+    for (let index = visibleItems.length - 1; index >= 0; index -= 1) {
+      const item = visibleItems[index];
+      if (
+        item.kind === "tool" &&
+        item.toolType === "plan" &&
+        (item.output ?? "").trim().length > 0
+      ) {
+        if (manuallyToggledExpandedRef.current.has(item.id)) {
+          return;
+        }
+        setExpandedItems((prev) => {
+          if (prev.has(item.id)) {
+            return prev;
+          }
+          const next = new Set(prev);
+          next.add(item.id);
+          return next;
+        });
+        return;
+      }
+    }
+  }, [visibleItems]);
 
   useEffect(() => {
     return () => {

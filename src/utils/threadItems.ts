@@ -462,8 +462,90 @@ export function upsertItem(list: ConversationItem[], item: ConversationItem) {
   if (index === -1) {
     return [...list, item];
   }
+  const existing = list[index];
   const next = [...list];
-  next[index] = { ...next[index], ...item };
+
+  if (existing.kind !== item.kind) {
+    next[index] = item;
+    return next;
+  }
+
+  if (existing.kind === "message" && item.kind === "message") {
+    const existingText = existing.text ?? "";
+    const incomingText = item.text ?? "";
+    next[index] = {
+      ...existing,
+      ...item,
+      text: incomingText.length >= existingText.length ? incomingText : existingText,
+      images: item.images?.length ? item.images : existing.images,
+    };
+    return next;
+  }
+
+  if (existing.kind === "reasoning" && item.kind === "reasoning") {
+    const existingSummary = existing.summary ?? "";
+    const incomingSummary = item.summary ?? "";
+    const existingContent = existing.content ?? "";
+    const incomingContent = item.content ?? "";
+    next[index] = {
+      ...existing,
+      ...item,
+      summary:
+        incomingSummary.length >= existingSummary.length
+          ? incomingSummary
+          : existingSummary,
+      content:
+        incomingContent.length >= existingContent.length
+          ? incomingContent
+          : existingContent,
+    };
+    return next;
+  }
+
+  if (existing.kind === "tool" && item.kind === "tool") {
+    const existingOutput = existing.output ?? "";
+    const incomingOutput = item.output ?? "";
+    const hasIncomingChanges = (item.changes?.length ?? 0) > 0;
+    next[index] = {
+      ...existing,
+      ...item,
+      title: item.title?.trim() ? item.title : existing.title,
+      detail: item.detail?.trim() ? item.detail : existing.detail,
+      status: item.status?.trim() ? item.status : existing.status,
+      output:
+        incomingOutput.length >= existingOutput.length ? incomingOutput : existingOutput,
+      changes: hasIncomingChanges ? item.changes : existing.changes,
+      durationMs:
+        typeof item.durationMs === "number" ? item.durationMs : existing.durationMs,
+    };
+    return next;
+  }
+
+  if (existing.kind === "diff" && item.kind === "diff") {
+    const existingDiff = existing.diff ?? "";
+    const incomingDiff = item.diff ?? "";
+    next[index] = {
+      ...existing,
+      ...item,
+      title: item.title?.trim() ? item.title : existing.title,
+      status: item.status?.trim() ? item.status : existing.status,
+      diff: incomingDiff.length >= existingDiff.length ? incomingDiff : existingDiff,
+    };
+    return next;
+  }
+
+  if (existing.kind === "review" && item.kind === "review") {
+    const existingText = existing.text ?? "";
+    const incomingText = item.text ?? "";
+    next[index] = {
+      ...existing,
+      ...item,
+      text: incomingText.length >= existingText.length ? incomingText : existingText,
+    };
+    return next;
+  }
+
+  next[index] = { ...existing, ...item };
   return next;
 }
 
