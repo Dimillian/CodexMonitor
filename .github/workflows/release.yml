@@ -467,8 +467,8 @@ jobs:
             release-artifacts/CodexMonitor.app.tar.gz \
             release-artifacts/CodexMonitor.app.tar.gz.sig \
             release-artifacts/*.AppImage* \
-            release-artifacts/*.exe* \
-            release-artifacts/*.msi* \
+            release-artifacts/nsis/*.exe* \
+            release-artifacts/msi/*.msi* \
             release-artifacts/latest.json
 
       - name: Bump version and open PR
