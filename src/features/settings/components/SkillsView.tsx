@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { SkillOption } from "../../../types";
+import { homeDir, join } from "@tauri-apps/api/path";
 import { openPath, openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import Wrench from "lucide-react/dist/esm/icons/wrench";
 import FolderOpen from "lucide-react/dist/esm/icons/folder-open";
@@ -12,6 +13,20 @@ const SKILLS_DOCS_URL = "https://github.com/openai/skills";
 type SkillPaths = {
   folderPath: string;
   filePath: string;
+};
+
+const expandHomePath = async (value: string) => {
+  if (!value.startsWith("~")) {
+    return value;
+  }
+  const home = await homeDir();
+  if (value === "~") {
+    return home;
+  }
+  const next = value.startsWith("~/") || value.startsWith("~\\")
+    ? value.slice(2)
+    : value.slice(1);
+  return join(home, next);
 };
 
 const normalizeSkillPath = (value: string) => value.replace(/\\/g, "/");
@@ -55,7 +70,9 @@ export function SkillsView({
 
   const handleOpenSkill = (skill: SkillOption) => {
     const { folderPath } = resolveSkillPaths(skill.path);
-    void revealItemInDir(folderPath).catch(() => {
+    void expandHomePath(folderPath)
+      .then((expanded) => revealItemInDir(expanded))
+      .catch(() => {
       pushErrorToast({
         title: "Could not open skill",
         message: "Failed to reveal the skill folder.",
@@ -65,12 +82,14 @@ export function SkillsView({
 
   const handleEditSkill = (skill: SkillOption) => {
     const { filePath } = resolveSkillPaths(skill.path);
-    void openPath(filePath).catch(() => {
-      pushErrorToast({
-        title: "Could not edit skill",
-        message: "Failed to open the skill file.",
+    void expandHomePath(filePath)
+      .then((expanded) => openPath(expanded))
+      .catch(() => {
+        pushErrorToast({
+          title: "Could not edit skill",
+          message: "Failed to open the skill file.",
+        });
       });
-    });
   };
 
   return (
