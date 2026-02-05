@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import type { AppSettings } from "../../../types";
 import { clampUiScale, UI_SCALE_STEP } from "../../../utils/uiScale";
+import { isMacPlatform } from "../../../utils/shortcuts";
 
 type UseUiScaleShortcutsOptions = {
   settings: AppSettings;
@@ -34,10 +35,7 @@ export function useUiScaleShortcuts({
   }, [uiScale]);
 
   const scaleShortcutLabel = useMemo(() => {
-    if (typeof navigator === "undefined") {
-      return "Ctrl";
-    }
-    return /Mac|iPhone|iPad|iPod/.test(navigator.platform) ? "Cmd" : "Ctrl";
+    return isMacPlatform() ? "Cmd" : "Ctrl";
   }, []);
 
   const scaleShortcutTitle = `${scaleShortcutLabel}+ and ${scaleShortcutLabel}-, ${scaleShortcutLabel}+0 to reset.`;

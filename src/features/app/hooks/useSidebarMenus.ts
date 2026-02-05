@@ -5,6 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import type { WorkspaceInfo } from "../../../types";
 import { pushErrorToast } from "../../../services/toasts";
+import { fileManagerName } from "../../../utils/platformPaths";
 
 type SidebarMenuHandlers = {
   onDeleteThread: (workspaceId: string, threadId: string) => void;
@@ -116,12 +117,13 @@ export function useSidebarMenus({
     async (event: MouseEvent, worktree: WorkspaceInfo) => {
       event.preventDefault();
       event.stopPropagation();
+      const fileManagerLabel = fileManagerName();
       const reloadItem = await MenuItem.new({
         text: "Reload threads",
         action: () => onReloadWorkspaceThreads(worktree.id),
       });
       const revealItem = await MenuItem.new({
-        text: "Show in Finder",
+        text: `Show in ${fileManagerLabel}`,
         action: async () => {
           if (!worktree.path) {
             return;
@@ -134,7 +136,7 @@ export function useSidebarMenus({
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             pushErrorToast({
-              title: "Couldn't show worktree in Finder",
+              title: `Couldn't show worktree in ${fileManagerLabel}`,
               message,
             });
             console.warn("Failed to reveal worktree", {

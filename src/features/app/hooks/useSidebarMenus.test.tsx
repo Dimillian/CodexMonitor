@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { WorkspaceInfo } from "../../../types";
 import { useSidebarMenus } from "./useSidebarMenus";
+import { fileManagerName } from "../../../utils/platformPaths";
 
 const menuNew = vi.hoisted(() =>
   vi.fn(async ({ items }) => ({ popup: vi.fn(), items })),
@@ -42,7 +43,7 @@ vi.mock("../../../services/toasts", () => ({
 }));
 
 describe("useSidebarMenus", () => {
-  it("adds a show in finder option for worktrees", async () => {
+  it("adds a show in file manager option for worktrees", async () => {
     const onDeleteThread = vi.fn();
     const onSyncThread = vi.fn();
     const onPinThread = vi.fn();
@@ -91,7 +92,7 @@ describe("useSidebarMenus", () => {
 
     const menuArgs = menuNew.mock.calls[0]?.[0];
     const revealItem = menuArgs.items.find(
-      (item: { text: string }) => item.text === "Show in Finder",
+      (item: { text: string }) => item.text === `Show in ${fileManagerName()}`,
     );
 
     expect(revealItem).toBeDefined();

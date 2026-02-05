@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { GitLogEntry } from "../../../types";
 import { GitDiffPanel } from "./GitDiffPanel";
+import { fileManagerName } from "../../../utils/platformPaths";
 
 const menuNew = vi.hoisted(() =>
   vi.fn(async ({ items }) => ({ popup: vi.fn(), items })),
@@ -81,7 +82,7 @@ describe("GitDiffPanel", () => {
     expect(onCommit).toHaveBeenCalledTimes(1);
   });
 
-  it("adds a show in finder option for file context menus", async () => {
+  it("adds a show in file manager option for file context menus", async () => {
     const { container } = render(
       <GitDiffPanel
         {...baseProps}
@@ -100,7 +101,7 @@ describe("GitDiffPanel", () => {
     await waitFor(() => expect(menuNew).toHaveBeenCalled());
     const menuArgs = menuNew.mock.calls[0]?.[0];
     const revealItem = menuArgs.items.find(
-      (item: { text: string }) => item.text === "Show in Finder",
+      (item: { text: string }) => item.text === `Show in ${fileManagerName()}`,
     );
 
     expect(revealItem).toBeDefined();
@@ -129,7 +130,7 @@ describe("GitDiffPanel", () => {
     await waitFor(() => expect(menuNew).toHaveBeenCalled());
     const menuArgs = menuNew.mock.calls[menuNew.mock.calls.length - 1]?.[0];
     const revealItem = menuArgs.items.find(
-      (item: { text: string }) => item.text === "Show in Finder",
+      (item: { text: string }) => item.text === `Show in ${fileManagerName()}`,
     );
 
     expect(revealItem).toBeDefined();
