@@ -546,7 +546,7 @@ pub(crate) async fn skills_list(
         .await;
     }
 
-    codex_core::skills_list_core(&state.sessions, workspace_id).await
+    codex_core::skills_list_core(&state.sessions, &state.workspaces, workspace_id).await
 }
 
 #[tauri::command]

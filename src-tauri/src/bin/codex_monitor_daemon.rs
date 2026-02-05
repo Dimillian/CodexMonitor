@@ -627,7 +627,7 @@ impl DaemonState {
     }
 
     async fn skills_list(&self, workspace_id: String) -> Result<Value, String> {
-        codex_core::skills_list_core(&self.sessions, workspace_id).await
+        codex_core::skills_list_core(&self.sessions, &self.workspaces, workspace_id).await
     }
 
     async fn apps_list(

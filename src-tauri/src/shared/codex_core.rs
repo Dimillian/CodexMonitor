@@ -62,6 +62,15 @@ async fn resolve_codex_home_for_workspace_core(
         .ok_or_else(|| "Unable to resolve CODEX_HOME".to_string())
 }
 
+fn resolve_skills_cwd(entry: &WorkspaceEntry, parent_entry: Option<&WorkspaceEntry>) -> String {
+    if entry.kind.is_worktree() {
+        if let Some(parent) = parent_entry {
+            return parent.path.clone();
+        }
+    }
+    entry.path.clone()
+}
+
 pub(crate) async fn start_thread_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspace_id: String,
@@ -435,10 +444,13 @@ pub(crate) async fn codex_login_cancel_core(
 
 pub(crate) async fn skills_list_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let params = json!({ "cwd": session.entry.path });
+    let (entry, parent_entry) = resolve_workspace_and_parent(workspaces, &workspace_id).await?;
+    let cwd = resolve_skills_cwd(&entry, parent_entry.as_ref());
+    let params = json!({ "cwd": cwd });
     session.send_request("skills/list", params).await
 }
 
@@ -494,4 +506,44 @@ pub(crate) async fn get_config_model_core(
     let codex_home = resolve_codex_home_for_workspace_core(workspaces, &workspace_id).await?;
     let model = codex_config::read_config_model(Some(codex_home))?;
     Ok(json!({ "model": model }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_skills_cwd;
+    use crate::types::{WorkspaceEntry, WorkspaceKind, WorkspaceSettings, WorktreeInfo};
+
+    fn workspace_entry(kind: WorkspaceKind, path: &str, parent_id: Option<&str>) -> WorkspaceEntry {
+        WorkspaceEntry {
+            id: "id".to_string(),
+            name: "name".to_string(),
+            path: path.to_string(),
+            codex_bin: None,
+            kind,
+            parent_id: parent_id.map(|value| value.to_string()),
+            worktree: if kind.is_worktree() {
+                Some(WorktreeInfo {
+                    branch: "branch".to_string(),
+                })
+            } else {
+                None
+            },
+            settings: WorkspaceSettings::default(),
+        }
+    }
+
+    #[test]
+    fn uses_entry_path_for_main_workspace_skills() {
+        let entry = workspace_entry(WorkspaceKind::Main, "/repo", None);
+        let cwd = resolve_skills_cwd(&entry, None);
+        assert_eq!(cwd, "/repo");
+    }
+
+    #[test]
+    fn uses_parent_path_for_worktree_skills() {
+        let parent = workspace_entry(WorkspaceKind::Main, "/repo", None);
+        let entry = workspace_entry(WorkspaceKind::Worktree, "/repo/wt", Some("parent"));
+        let cwd = resolve_skills_cwd(&entry, Some(&parent));
+        assert_eq!(cwd, "/repo");
+    }
 }

@@ -45,6 +45,40 @@ const resolveSkillPaths = (value: string): SkillPaths => {
   return { folderPath: trimmed, filePath: `${trimmed}${separator}SKILL.md` };
 };
 
+const buildSkillFileCandidates = (skill: SkillOption) => {
+  const { filePath } = resolveSkillPaths(skill.path);
+  const candidates = [filePath];
+  const skillName = skill.name?.trim();
+  if (!skillName) {
+    return candidates;
+  }
+  const normalizedPath = normalizeSkillPath(skill.path).replace(/[\\/]+$/, "");
+  const normalizedLower = normalizedPath.toLowerCase();
+  const normalizedName = normalizeSkillPath(skillName).toLowerCase();
+  const endsWithName = normalizedLower.endsWith(`/${normalizedName}`);
+  const endsWithMd =
+    normalizedLower.endsWith("/skill.md") || normalizedLower.endsWith(".md");
+  if (!endsWithName && !endsWithMd) {
+    const separator = skill.path.includes("\\") ? "\\" : "/";
+    candidates.push(`${skill.path}${separator}${skillName}${separator}SKILL.md`);
+  }
+  return candidates;
+};
+
+const openFirstAvailablePath = async (paths: string[]) => {
+  let lastError: unknown = null;
+  for (const path of paths) {
+    try {
+      const expanded = await expandHomePath(path);
+      await openPath(expanded);
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError ?? new Error("No skill file candidates");
+};
+
 type SkillsViewProps = {
   skills: SkillOption[];
   onUseSkill: (name: string) => void;
@@ -81,15 +115,13 @@ export function SkillsView({
   };
 
   const handleEditSkill = (skill: SkillOption) => {
-    const { filePath } = resolveSkillPaths(skill.path);
-    void expandHomePath(filePath)
-      .then((expanded) => openPath(expanded))
-      .catch(() => {
-        pushErrorToast({
-          title: "Could not edit skill",
-          message: "Failed to open the skill file.",
-        });
+    const candidates = buildSkillFileCandidates(skill);
+    void openFirstAvailablePath(candidates).catch(() => {
+      pushErrorToast({
+        title: "Could not edit skill",
+        message: "Failed to open the skill file.",
       });
+    });
   };
 
   return (
