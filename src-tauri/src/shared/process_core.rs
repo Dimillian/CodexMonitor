@@ -3,6 +3,7 @@ use std::env;
 use std::ffi::OsStr;
 #[cfg(target_os = "windows")]
 use std::path::{Path, PathBuf};
+#[cfg(windows)]
 use std::process::Stdio;
 
 use tokio::process::{Child, Command};

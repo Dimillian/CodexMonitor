@@ -1,5 +1,3 @@
-use tokio::process::Command;
-
 use crate::types::{AppSettings, WorkspaceEntry};
 
 pub(crate) fn parse_codex_args(value: Option<&str>) -> Result<Vec<String>, String> {
@@ -10,14 +8,6 @@ pub(crate) fn parse_codex_args(value: Option<&str>) -> Result<Vec<String>, Strin
     shell_words::split(raw)
         .map_err(|err| format!("Invalid Codex args: {err}"))
         .map(|args| args.into_iter().filter(|arg| !arg.is_empty()).collect())
-}
-
-pub(crate) fn apply_codex_args(command: &mut Command, value: Option<&str>) -> Result<(), String> {
-    let args = parse_codex_args(value)?;
-    if !args.is_empty() {
-        command.args(args);
-    }
-    Ok(())
 }
 
 pub(crate) fn resolve_workspace_codex_args(
