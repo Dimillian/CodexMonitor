@@ -23,8 +23,21 @@ const allowedPersonality = new Set(["friendly", "pragmatic"]);
 function buildDefaultSettings(): AppSettings {
   const isMac = isMacPlatform();
   return {
+    cliType: "codex",
     codexBin: null,
     codexArgs: null,
+    geminiBin: null,
+    geminiArgs: null,
+    cursorBin: null,
+    cursorArgs: null,
+    claudeBin: null,
+    claudeArgs: null,
+    cursorVimMode: false,
+    cursorDefaultMode: "agent",
+    cursorOutputFormat: "text",
+    cursorAttributeCommits: true,
+    cursorAttributePRs: true,
+    cursorUseHttp1: false,
     backendMode: "local",
     remoteBackendHost: "127.0.0.1:4732",
     remoteBackendToken: null,
@@ -106,10 +119,30 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     : hasStoredSelection
       ? storedOpenAppId
       : normalizedTargets[0]?.id ?? DEFAULT_OPEN_APP_ID;
+  const allowedCliTypes = new Set(["codex", "gemini", "cursor", "claude"]);
+  const allowedCursorModes = new Set(["agent", "plan", "ask", "debug"]);
+  const allowedCursorFormats = new Set(["text", "json", "stream-json"]);
   return {
     ...settings,
+    cliType: allowedCliTypes.has(settings.cliType) ? settings.cliType : "codex",
     codexBin: settings.codexBin?.trim() ? settings.codexBin.trim() : null,
     codexArgs: settings.codexArgs?.trim() ? settings.codexArgs.trim() : null,
+    geminiBin: settings.geminiBin?.trim() ? settings.geminiBin.trim() : null,
+    geminiArgs: settings.geminiArgs?.trim() ? settings.geminiArgs.trim() : null,
+    cursorBin: settings.cursorBin?.trim() ? settings.cursorBin.trim() : null,
+    cursorArgs: settings.cursorArgs?.trim() ? settings.cursorArgs.trim() : null,
+    claudeBin: settings.claudeBin?.trim() ? settings.claudeBin.trim() : null,
+    claudeArgs: settings.claudeArgs?.trim() ? settings.claudeArgs.trim() : null,
+    cursorVimMode: Boolean(settings.cursorVimMode),
+    cursorDefaultMode: allowedCursorModes.has(settings.cursorDefaultMode)
+      ? settings.cursorDefaultMode
+      : "agent",
+    cursorOutputFormat: allowedCursorFormats.has(settings.cursorOutputFormat)
+      ? settings.cursorOutputFormat
+      : "text",
+    cursorAttributeCommits: settings.cursorAttributeCommits !== false,
+    cursorAttributePRs: settings.cursorAttributePRs !== false,
+    cursorUseHttp1: Boolean(settings.cursorUseHttp1),
     uiScale: clampUiScale(settings.uiScale),
     theme: allowedThemes.has(settings.theme) ? settings.theme : "system",
     uiFontFamily: normalizeFontFamily(

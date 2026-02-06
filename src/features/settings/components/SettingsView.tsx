@@ -1224,7 +1224,7 @@ export function SettingsView({
               onClick={() => setActiveSection("codex")}
             >
               <TerminalSquare aria-hidden />
-              Codex
+              CLI Backend
             </button>
             <button
               type="button"
@@ -2993,9 +2993,33 @@ export function SettingsView({
             )}
             {activeSection === "codex" && (
               <section className="settings-section">
-                <div className="settings-section-title">Codex</div>
+                <div className="settings-section-title">CLI Backend</div>
                 <div className="settings-section-subtitle">
-                  Configure the Codex CLI used by CodexMonitor and validate the install.
+                  Choose which CLI backend to use and configure its settings.
+                </div>
+                <div className="settings-field">
+                  <label className="settings-field-label" htmlFor="cli-type">
+                    Active CLI
+                  </label>
+                  <select
+                    id="cli-type"
+                    className="settings-select"
+                    value={appSettings.cliType}
+                    onChange={(event) =>
+                      void onUpdateAppSettings({
+                        ...appSettings,
+                        cliType: event.target.value as AppSettings["cliType"],
+                      })
+                    }
+                  >
+                    <option value="codex">Codex CLI</option>
+                    <option value="gemini">Gemini CLI</option>
+                    <option value="cursor">Cursor CLI</option>
+                    <option value="claude">Claude Code</option>
+                  </select>
+                  <div className="settings-help">
+                    Select which AI CLI backend to use. Each backend supports the same app-server protocol.
+                  </div>
                 </div>
                 <div className="settings-field">
                   <label className="settings-field-label" htmlFor="codex-path">

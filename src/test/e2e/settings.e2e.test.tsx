@@ -18,16 +18,16 @@ import {
   defaultAppSettings,
   resetMocks,
 } from "./mocks/tauri.mock";
-import type { AppSettings, GeminiDoctorResult } from "../../types";
+import type { AppSettings, CodexDoctorResult } from "../../types";
 
 // Import hooks after mocking (mocks are set up in setup.ts)
 import { useAppSettingsController } from "../../features/app/hooks/useAppSettingsController";
 
 // Helper to create mock doctor result
-function createMockDoctorResult(overrides: Partial<GeminiDoctorResult> = {}): GeminiDoctorResult {
+function createMockDoctorResult(overrides: Partial<CodexDoctorResult> = {}): CodexDoctorResult {
   return {
     ok: true,
-    geminiBin: "/usr/local/bin/gemini",
+    codexBin: "/usr/local/bin/gemini",
     version: "1.0.0",
     appServerOk: true,
     details: null,
@@ -54,7 +54,7 @@ describe("Settings Management E2E", () => {
     it("loads app settings on initialization", async () => {
       const customSettings: AppSettings = {
         ...defaultAppSettings,
-        geminiBin: "/usr/local/bin/gemini",
+        codexBin: "/usr/local/bin/gemini",
         defaultAccessMode: "full-access",
         notificationSoundsEnabled: false,
       };
@@ -97,14 +97,14 @@ describe("Settings Management E2E", () => {
       await act(async () => {
         await result.current.queueSaveSettings({
           ...result.current.appSettings,
-          geminiBin: "/custom/path/gemini",
+          codexBin: "/custom/path/gemini",
         });
       });
 
       expect(mockHandlers.update_app_settings).toHaveBeenCalledWith(
         expect.objectContaining({
           settings: expect.objectContaining({
-            geminiBin: "/custom/path/gemini",
+            codexBin: "/custom/path/gemini",
           }),
         })
       );
@@ -165,19 +165,19 @@ describe("Settings Management E2E", () => {
         expect(result.current.appSettingsLoading).toBe(false);
       });
 
-      expect(result.current.appSettings.experimentalCollaborationModesEnabled).toBe(false);
+      expect(result.current.appSettings.experimentalCollabEnabled).toBe(false);
 
       await act(async () => {
         await result.current.queueSaveSettings({
           ...result.current.appSettings,
-          experimentalCollaborationModesEnabled: true,
+          experimentalCollabEnabled: true,
         });
       });
 
       expect(mockHandlers.update_app_settings).toHaveBeenCalledWith(
         expect.objectContaining({
           settings: expect.objectContaining({
-            experimentalCollaborationModesEnabled: true,
+            experimentalCollabEnabled: true,
           }),
         })
       );
@@ -193,14 +193,14 @@ describe("Settings Management E2E", () => {
       await act(async () => {
         await result.current.queueSaveSettings({
           ...result.current.appSettings,
-          experimentalSteerEnabled: true,
+          steerEnabled: true,
         });
       });
 
       expect(mockHandlers.update_app_settings).toHaveBeenCalledWith(
         expect.objectContaining({
           settings: expect.objectContaining({
-            experimentalSteerEnabled: true,
+            steerEnabled: true,
           }),
         })
       );
@@ -388,7 +388,7 @@ describe("Settings Management E2E", () => {
     it("runs doctor check successfully", async () => {
       const doctorResult = createMockDoctorResult({
         ok: true,
-        geminiBin: "/usr/local/bin/gemini",
+        codexBin: "/usr/local/bin/gemini",
         version: "2.0.0",
         details: null,
       });
@@ -413,7 +413,7 @@ describe("Settings Management E2E", () => {
     it("handles doctor check with errors", async () => {
       const doctorResult = createMockDoctorResult({
         ok: false,
-        geminiBin: null,
+        codexBin: null,
         version: null,
         details: "Gemini CLI not found in PATH",
       });
@@ -426,7 +426,7 @@ describe("Settings Management E2E", () => {
         expect(result.current.appSettingsLoading).toBe(false);
       });
 
-      let doctorResponse: GeminiDoctorResult | undefined;
+      let doctorResponse: CodexDoctorResult | undefined;
       await act(async () => {
         doctorResponse = await result.current.doctor(null, null);
       });

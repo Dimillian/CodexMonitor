@@ -117,6 +117,9 @@ export type AccessMode = "read-only" | "current" | "full-access";
 export type BackendMode = "local" | "remote";
 export type ThemePreference = "system" | "light" | "dark" | "dim";
 export type PersonalityPreference = "friendly" | "pragmatic";
+export type CliType = "codex" | "gemini" | "cursor" | "claude";
+export type CursorOperatingMode = "agent" | "plan" | "ask" | "debug";
+export type CursorOutputFormat = "text" | "json" | "stream-json";
 
 
 export type ComposerEditorPreset = "default" | "helpful" | "smart";
@@ -142,8 +145,21 @@ export type OpenAppTarget = {
 };
 
 export type AppSettings = {
+  cliType: CliType;
   codexBin: string | null;
   codexArgs: string | null;
+  geminiBin: string | null;
+  geminiArgs: string | null;
+  cursorBin: string | null;
+  cursorArgs: string | null;
+  claudeBin: string | null;
+  claudeArgs: string | null;
+  cursorVimMode: boolean;
+  cursorDefaultMode: CursorOperatingMode;
+  cursorOutputFormat: CursorOutputFormat;
+  cursorAttributeCommits: boolean;
+  cursorAttributePRs: boolean;
+  cursorUseHttp1: boolean;
   backendMode: BackendMode;
   remoteBackendHost: string;
   remoteBackendToken: string | null;
