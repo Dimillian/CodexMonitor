@@ -8,6 +8,19 @@ export type ShortcutDefinition = {
   shift: boolean;
 };
 
+function normalizeShortcutDefinitionForPlatform(
+  value: ShortcutDefinition,
+  isMac: boolean,
+): ShortcutDefinition {
+  if (isMac) {
+    return value;
+  }
+  if (value.meta && value.ctrl) {
+    return { ...value, meta: false, alt: true };
+  }
+  return value;
+}
+
 const MODIFIER_ORDER = ["cmd", "ctrl", "alt", "shift"] as const;
 const MODIFIER_LABELS_MAC: Record<string, string> = {
   cmd: "⌘",
@@ -95,18 +108,19 @@ export function formatShortcut(value: string | null | undefined): string {
     return value;
   }
   const useSymbols = isMacPlatform();
+  const normalized = normalizeShortcutDefinitionForPlatform(parsed, useSymbols);
   const modifierLabels = useSymbols ? MODIFIER_LABELS_MAC : MODIFIER_LABELS_OTHER;
   const modifiers = MODIFIER_ORDER.flatMap((modifier) => {
-    if (modifier === "cmd" && parsed.meta) {
+    if (modifier === "cmd" && normalized.meta) {
       return modifierLabels.cmd;
     }
-    if (modifier === "ctrl" && parsed.ctrl) {
+    if (modifier === "ctrl" && normalized.ctrl) {
       return modifierLabels.ctrl;
     }
-    if (modifier === "alt" && parsed.alt) {
+    if (modifier === "alt" && normalized.alt) {
       return modifierLabels.alt;
     }
-    if (modifier === "shift" && parsed.shift) {
+    if (modifier === "shift" && normalized.shift) {
       return modifierLabels.shift;
     }
     return [];
@@ -153,12 +167,13 @@ export function matchesShortcut(event: KeyboardEvent, value: string | null | und
   if (!parsed) {
     return false;
   }
+  const isMac = isMacPlatform();
+  const normalized = normalizeShortcutDefinitionForPlatform(parsed, isMac);
   const key = normalizeKey(event.key);
-  if (!key || key !== parsed.key) {
+  if (!key || key !== normalized.key) {
     return false;
   }
-  const isMac = isMacPlatform();
-  const metaMatches = parsed.meta
+  const metaMatches = normalized.meta
     ? isMac
       ? event.metaKey
       : event.ctrlKey || event.metaKey
@@ -167,12 +182,16 @@ export function matchesShortcut(event: KeyboardEvent, value: string | null | und
     return false;
   }
 
-  const ctrlMatches = parsed.ctrl
+  const ctrlMatches = normalized.ctrl
     ? event.ctrlKey
-    : parsed.meta && !isMac
+    : normalized.meta && !isMac
       ? true
       : !event.ctrlKey;
-  return ctrlMatches && parsed.alt === event.altKey && parsed.shift === event.shiftKey;
+  return (
+    ctrlMatches &&
+    normalized.alt === event.altKey &&
+    normalized.shift === event.shiftKey
+  );
 }
 
 export function isMacPlatform(): boolean {
@@ -188,24 +207,26 @@ export function toMenuAccelerator(value: string | null | undefined): string | nu
   if (!parsed) {
     return null;
   }
+  const isMac = isMacPlatform();
+  const normalized = normalizeShortcutDefinitionForPlatform(parsed, isMac);
   const parts: string[] = [];
-  if (parsed.meta && parsed.ctrl) {
+  if (normalized.meta && normalized.ctrl) {
     parts.push("Cmd");
     parts.push("Ctrl");
-  } else if (parsed.meta) {
+  } else if (normalized.meta) {
     parts.push("CmdOrCtrl");
-  } else if (parsed.ctrl) {
+  } else if (normalized.ctrl) {
     parts.push("Ctrl");
   }
-  if (parsed.alt) {
+  if (normalized.alt) {
     parts.push("Alt");
   }
-  if (parsed.shift) {
+  if (normalized.shift) {
     parts.push("Shift");
   }
   const key =
-    ACCELERATOR_KEYS[parsed.key] ??
-    (parsed.key.length === 1 ? parsed.key.toUpperCase() : parsed.key);
+    ACCELERATOR_KEYS[normalized.key] ??
+    (normalized.key.length === 1 ? normalized.key.toUpperCase() : normalized.key);
   if (!key) {
     return null;
   }
