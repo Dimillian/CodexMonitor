@@ -9,6 +9,7 @@ const menuNew = vi.hoisted(() =>
   vi.fn(async ({ items }) => ({ popup: vi.fn(), items })),
 );
 const menuItemNew = vi.hoisted(() => vi.fn(async (options) => options));
+const clipboardWriteText = vi.hoisted(() => vi.fn());
 
 vi.mock("@tauri-apps/api/menu", () => ({
   Menu: { new: menuNew },
@@ -44,6 +45,11 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 vi.mock("../../../services/toasts", () => ({
   pushErrorToast: vi.fn(),
 }));
+
+Object.defineProperty(navigator, "clipboard", {
+  value: { writeText: (...args: unknown[]) => clipboardWriteText(...args) },
+  configurable: true,
+});
 
 const logEntries: GitLogEntry[] = [];
 
@@ -83,6 +89,7 @@ describe("GitDiffPanel", () => {
   });
 
   it("adds a show in file manager option for file context menus", async () => {
+    clipboardWriteText.mockClear();
     const { container } = render(
       <GitDiffPanel
         {...baseProps}
@@ -107,6 +114,42 @@ describe("GitDiffPanel", () => {
     expect(revealItem).toBeDefined();
     await revealItem.action();
     expect(revealItemInDir).toHaveBeenCalledWith("/tmp/repo/src/sample.ts");
+  });
+
+  it("copies file name and path from the context menu", async () => {
+    clipboardWriteText.mockClear();
+    const { container } = render(
+      <GitDiffPanel
+        {...baseProps}
+        workspacePath="/tmp/repo"
+        gitRoot="/tmp/repo"
+        unstagedFiles={[
+          { path: "src/sample.ts", status: "M", additions: 1, deletions: 0 },
+        ]}
+      />,
+    );
+
+    const row = container.querySelector(".diff-row");
+    expect(row).not.toBeNull();
+    fireEvent.contextMenu(row as Element);
+
+    await waitFor(() => expect(menuNew).toHaveBeenCalled());
+    const menuArgs = menuNew.mock.calls[menuNew.mock.calls.length - 1]?.[0];
+    const copyNameItem = menuArgs.items.find(
+      (item: { text: string }) => item.text === "Copy file name",
+    );
+    const copyPathItem = menuArgs.items.find(
+      (item: { text: string }) => item.text === "Copy file path",
+    );
+
+    expect(copyNameItem).toBeDefined();
+    expect(copyPathItem).toBeDefined();
+
+    await copyNameItem.action();
+    await copyPathItem.action();
+
+    expect(clipboardWriteText).toHaveBeenCalledWith("sample.ts");
+    expect(clipboardWriteText).toHaveBeenCalledWith("src/sample.ts");
   });
 
   it("resolves relative git roots against the workspace path", async () => {
@@ -136,5 +179,63 @@ describe("GitDiffPanel", () => {
     expect(revealItem).toBeDefined();
     await revealItem.action();
     expect(revealItemInDir).toHaveBeenCalledWith("/tmp/repo/apps/src/sample.ts");
+  });
+
+  it("copies file path relative to the workspace root", async () => {
+    clipboardWriteText.mockClear();
+    const { container } = render(
+      <GitDiffPanel
+        {...baseProps}
+        workspacePath="/tmp/repo"
+        gitRoot="apps"
+        unstagedFiles={[
+          { path: "src/sample.ts", status: "M", additions: 1, deletions: 0 },
+        ]}
+      />,
+    );
+
+    const row = container.querySelector(".diff-row");
+    expect(row).not.toBeNull();
+    fireEvent.contextMenu(row as Element);
+
+    await waitFor(() => expect(menuNew).toHaveBeenCalled());
+    const menuArgs = menuNew.mock.calls[menuNew.mock.calls.length - 1]?.[0];
+    const copyPathItem = menuArgs.items.find(
+      (item: { text: string }) => item.text === "Copy file path",
+    );
+
+    expect(copyPathItem).toBeDefined();
+    await copyPathItem.action();
+
+    expect(clipboardWriteText).toHaveBeenCalledWith("apps/src/sample.ts");
+  });
+
+  it("does not trim paths when the git root only shares a prefix", async () => {
+    clipboardWriteText.mockClear();
+    const { container } = render(
+      <GitDiffPanel
+        {...baseProps}
+        workspacePath="/tmp/repo"
+        gitRoot="/tmp/repo-tools"
+        unstagedFiles={[
+          { path: "src/sample.ts", status: "M", additions: 1, deletions: 0 },
+        ]}
+      />,
+    );
+
+    const row = container.querySelector(".diff-row");
+    expect(row).not.toBeNull();
+    fireEvent.contextMenu(row as Element);
+
+    await waitFor(() => expect(menuNew).toHaveBeenCalled());
+    const menuArgs = menuNew.mock.calls[menuNew.mock.calls.length - 1]?.[0];
+    const copyPathItem = menuArgs.items.find(
+      (item: { text: string }) => item.text === "Copy file path",
+    );
+
+    expect(copyPathItem).toBeDefined();
+    await copyPathItem.action();
+
+    expect(clipboardWriteText).toHaveBeenCalledWith("src/sample.ts");
   });
 });

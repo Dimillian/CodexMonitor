@@ -150,6 +150,28 @@ function normalizeRootPath(value: string | null | undefined) {
   return value.replace(/\\/g, "/").replace(/\/+$/, "");
 }
 
+function normalizeSegment(segment: string) {
+  return /^[A-Za-z]:$/.test(segment) ? segment.toLowerCase() : segment;
+}
+
+function getRelativePathWithin(base: string, target: string) {
+  const normalizedBase = normalizeRootPath(base);
+  const normalizedTarget = normalizeRootPath(target);
+  if (!normalizedBase || !normalizedTarget) {
+    return null;
+  }
+  const baseSegments = normalizedBase.split("/").filter(Boolean);
+  const targetSegments = normalizedTarget.split("/").filter(Boolean);
+  if (baseSegments.length > targetSegments.length) {
+    return null;
+  }
+  for (let index = 0; index < baseSegments.length; index += 1) {
+    if (normalizeSegment(baseSegments[index]) !== normalizeSegment(targetSegments[index])) {
+      return null;
+    }
+  }
+  return targetSegments.slice(baseSegments.length).join("/");
+}
 function resolveRootPath(root: string | null | undefined, workspacePath: string | null | undefined) {
   const normalized = normalizeRootPath(root);
   if (!normalized) {
@@ -168,6 +190,12 @@ function joinRootAndPath(root: string, relativePath: string) {
   }
   const normalizedPath = relativePath.replace(/^\/+/, "");
   return `${normalizedRoot}/${normalizedPath}`;
+}
+
+function getFileName(value: string) {
+  const normalized = value.replace(/\\/g, "/");
+  const segments = normalized.split("/");
+  return segments[segments.length - 1] || normalized;
 }
 
 function getStatusSymbol(status: string) {
@@ -1047,6 +1075,13 @@ export function GitDiffPanel({
         const absolutePath = resolvedRoot
           ? joinRootAndPath(resolvedRoot, rawPath)
           : rawPath;
+        const relativeRoot =
+          workspacePath && resolvedRoot
+            ? getRelativePathWithin(workspacePath, resolvedRoot)
+            : null;
+        const projectRelativePath =
+          relativeRoot !== null ? joinRootAndPath(relativeRoot, rawPath) : rawPath;
+        const fileName = getFileName(rawPath);
         items.push(
           await MenuItem.new({
             text: `Show in ${fileManagerLabel}`,
@@ -1075,6 +1110,20 @@ export function GitDiffPanel({
                   path: absolutePath,
                 });
               }
+            },
+          }),
+        );
+        items.push(
+          await MenuItem.new({
+            text: "Copy file name",
+            action: async () => {
+              await navigator.clipboard.writeText(fileName);
+            },
+          }),
+          await MenuItem.new({
+            text: "Copy file path",
+            action: async () => {
+              await navigator.clipboard.writeText(projectRelativePath);
             },
           }),
         );
