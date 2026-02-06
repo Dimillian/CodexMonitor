@@ -129,7 +129,7 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       }
       const params = getAppServerParams(payload);
 
-      if (method === "cli/connected") {
+      if (method === "codex/connected") {
         handlers.onWorkspaceConnected?.(workspace_id);
         return;
       }

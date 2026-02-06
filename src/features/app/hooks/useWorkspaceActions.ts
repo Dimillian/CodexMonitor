@@ -9,7 +9,7 @@ type Params = {
   addWorkspace: () => Promise<WorkspaceInfo | null>;
   addWorkspaceFromPath: (path: string) => Promise<WorkspaceInfo | null>;
   setActiveThreadId: (threadId: string | null, workspaceId: string) => void;
-  setActiveTab: (tab: "projects" | "gemini" | "git" | "log") => void;
+  setActiveTab: (tab: "projects" | "codex" | "git" | "log") => void;
   exitDiffView: () => void;
   selectWorkspace: (workspaceId: string) => void;
   onStartNewAgentDraft: (workspaceId: string) => void;
@@ -38,7 +38,7 @@ export function useWorkspaceActions({
     (workspace: WorkspaceInfo) => {
       setActiveThreadId(null, workspace.id);
       if (isCompact) {
-        setActiveTab("gemini");
+        setActiveTab("codex");
       }
     },
     [isCompact, setActiveTab, setActiveThreadId],
@@ -92,7 +92,7 @@ export function useWorkspaceActions({
       setActiveThreadId(null, workspace.id);
       onStartNewAgentDraft(workspace.id);
       if (isCompact) {
-        setActiveTab("gemini");
+        setActiveTab("codex");
       }
       setTimeout(() => composerInputRef.current?.focus(), 0);
     },

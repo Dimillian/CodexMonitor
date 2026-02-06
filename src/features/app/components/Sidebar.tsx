@@ -27,7 +27,7 @@ import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { getUsageLabels } from "../utils/usageLabels";
 import { formatRelativeTimeShort } from "../../../utils/time";
 
-const COLLAPSED_GROUPS_STORAGE_KEY = "geminimonitor.collapsedGroups";
+const COLLAPSED_GROUPS_STORAGE_KEY = "codexmonitor.collapsedGroups";
 const UNGROUPED_COLLAPSE_ID = "__ungrouped__";
 const ADD_MENU_WIDTH = 200;
 
@@ -235,7 +235,7 @@ export function Sidebar({
     ? accountEmail
     : accountInfo?.type === "apikey"
       ? "API key"
-      : "Sign in to Gemini";
+      : "Sign in to Codex";
   const accountActionLabel = accountEmail ? "Switch account" : "Sign in";
   const showAccountSwitcher = Boolean(activeWorkspaceId);
   const accountSwitchDisabled = accountSwitching || !activeWorkspaceId;

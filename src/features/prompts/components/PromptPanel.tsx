@@ -575,11 +575,11 @@ export function PromptPanel({
                       className="prompt-empty-link"
                       onClick={() => void onRevealGeneralPrompts()}
                     >
-                      GEMINI_HOME/prompts
+                      CODEX_HOME/prompts
                     </button>
                   ) : (
                     <span className="prompt-empty-link is-disabled">
-                      GEMINI_HOME/prompts
+                      CODEX_HOME/prompts
                     </span>
                   )}
                   .

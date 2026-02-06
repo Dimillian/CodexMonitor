@@ -277,10 +277,11 @@ describe("Navigation E2E", () => {
         useGitPanelController({
           activeWorkspace: mockWorkspace,
           gitDiffPreloadEnabled: true,
+          gitDiffIgnoreWhitespaceChanges: false,
           isCompact: false,
           isTablet: false,
-          activeTab: "gemini",
-          tabletTab: "gemini",
+          activeTab: "codex",
+          tabletTab: "codex",
           setActiveTab,
           prDiffs: [],
           prDiffsLoading: false,
@@ -301,10 +302,11 @@ describe("Navigation E2E", () => {
         useGitPanelController({
           activeWorkspace: mockWorkspace,
           gitDiffPreloadEnabled: true,
+          gitDiffIgnoreWhitespaceChanges: false,
           isCompact: false,
           isTablet: false,
-          activeTab: "gemini",
-          tabletTab: "gemini",
+          activeTab: "codex",
+          tabletTab: "codex",
           setActiveTab,
           prDiffs: [],
           prDiffsLoading: false,
@@ -338,10 +340,11 @@ describe("Navigation E2E", () => {
         useGitPanelController({
           activeWorkspace: mockWorkspace,
           gitDiffPreloadEnabled: true,
+          gitDiffIgnoreWhitespaceChanges: false,
           isCompact: false,
           isTablet: false,
-          activeTab: "gemini",
-          tabletTab: "gemini",
+          activeTab: "codex",
+          tabletTab: "codex",
           setActiveTab,
           prDiffs: [],
           prDiffsLoading: false,
@@ -364,10 +367,11 @@ describe("Navigation E2E", () => {
         useGitPanelController({
           activeWorkspace: mockWorkspace,
           gitDiffPreloadEnabled: true,
+          gitDiffIgnoreWhitespaceChanges: false,
           isCompact: false,
           isTablet: false,
-          activeTab: "gemini",
-          tabletTab: "gemini",
+          activeTab: "codex",
+          tabletTab: "codex",
           setActiveTab,
           prDiffs: [],
           prDiffsLoading: false,
@@ -392,10 +396,11 @@ describe("Navigation E2E", () => {
         useGitPanelController({
           activeWorkspace: mockWorkspace,
           gitDiffPreloadEnabled: true,
+          gitDiffIgnoreWhitespaceChanges: false,
           isCompact: false,
           isTablet: false,
-          activeTab: "gemini",
-          tabletTab: "gemini",
+          activeTab: "codex",
+          tabletTab: "codex",
           setActiveTab,
           prDiffs: [],
           prDiffsLoading: false,
@@ -429,10 +434,11 @@ describe("Navigation E2E", () => {
         useGitPanelController({
           activeWorkspace: mockWorkspace,
           gitDiffPreloadEnabled: true,
+          gitDiffIgnoreWhitespaceChanges: false,
           isCompact: false,
           isTablet: false,
-          activeTab: "gemini",
-          tabletTab: "gemini",
+          activeTab: "codex",
+          tabletTab: "codex",
           setActiveTab,
           prDiffs: [],
           prDiffsLoading: false,
@@ -534,7 +540,7 @@ describe("Navigation E2E", () => {
       expect(setActiveWorkspaceId).toHaveBeenCalledWith(null);
     });
 
-    it("switches to gemini tab in compact mode", () => {
+    it("switches to codex tab in compact mode", () => {
       const workspaces = [mockWorkspace];
       const setActiveTab = vi.fn();
       const setActiveWorkspaceId = vi.fn();
@@ -559,7 +565,7 @@ describe("Navigation E2E", () => {
         result.current.selectWorkspace("ws-1");
       });
 
-      expect(setActiveTab).toHaveBeenCalledWith("gemini");
+      expect(setActiveTab).toHaveBeenCalledWith("codex");
     });
   });
 

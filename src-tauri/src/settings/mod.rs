@@ -2,7 +2,7 @@ use tauri::{State, Window};
 
 use crate::state::AppState;
 use crate::shared::settings_core::{
-    get_app_settings_core, get_gemini_config_path_core, update_app_settings_core,
+    get_app_settings_core, get_codex_config_path_core, update_app_settings_core,
 };
 use crate::types::AppSettings;
 use crate::window;
@@ -30,6 +30,6 @@ pub(crate) async fn update_app_settings(
 }
 
 #[tauri::command]
-pub(crate) async fn get_gemini_config_path() -> Result<String, String> {
-    get_gemini_config_path_core()
+pub(crate) async fn get_codex_config_path() -> Result<String, String> {
+    get_codex_config_path_core()
 }

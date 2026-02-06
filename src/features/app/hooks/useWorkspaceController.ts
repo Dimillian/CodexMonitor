@@ -15,7 +15,7 @@ export function useWorkspaceController({
 }: WorkspaceControllerOptions) {
   return useWorkspaces({
     onDebug: addDebugEntry,
-    defaultGeminiBin: appSettings.geminiBin,
+    defaultCodexBin: appSettings.codexBin,
     appSettings,
     onUpdateAppSettings: queueSaveSettings,
   });

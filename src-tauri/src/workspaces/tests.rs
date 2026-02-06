@@ -42,7 +42,7 @@ fn workspace_with_id_and_kind(
         name: name.to_string(),
         path: "/tmp".to_string(),
         connected: false,
-        gemini_bin: None,
+        codex_bin: None,
         kind,
         parent_id,
         worktree,
@@ -51,8 +51,8 @@ fn workspace_with_id_and_kind(
             sort_order,
             group_id: None,
             git_root: None,
-            gemini_home: None,
-            gemini_args: None,
+            codex_home: None,
+            codex_args: None,
             launch_script: None,
             launch_scripts: None,
             worktree_setup_script: None,
@@ -93,7 +93,7 @@ fn sanitize_clone_dir_name_allows_safe_chars() {
 
 #[test]
 fn build_clone_destination_path_sanitizes_and_uniquifies() {
-    let temp_dir = std::env::temp_dir().join(format!("gemini-monitor-test-{}", Uuid::new_v4()));
+    let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
     let copies_folder = temp_dir.join("copies");
     std::fs::create_dir_all(&copies_folder).expect("create copies folder");
 
@@ -197,7 +197,7 @@ fn update_workspace_settings_persists_sort_and_group() {
         id: id.clone(),
         name: "Workspace".to_string(),
         path: "/tmp".to_string(),
-        gemini_bin: None,
+        codex_bin: None,
         kind: WorkspaceKind::Main,
         parent_id: None,
         worktree: None,
@@ -225,7 +225,7 @@ fn update_workspace_settings_persists_sort_and_group() {
         Some("pnpm install"),
     );
 
-    let temp_dir = std::env::temp_dir().join(format!("gemini-monitor-test-{}", Uuid::new_v4()));
+    let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
     std::fs::create_dir_all(&temp_dir).expect("create temp dir");
     let path = PathBuf::from(temp_dir.join("workspaces.json"));
     let list: Vec<_> = workspaces.values().cloned().collect();

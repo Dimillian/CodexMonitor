@@ -198,7 +198,7 @@ pub(crate) struct WorkspaceEntry {
     pub(crate) id: String,
     pub(crate) name: String,
     pub(crate) path: String,
-    pub(crate) gemini_bin: Option<String>,
+    pub(crate) codex_bin: Option<String>,
     #[serde(default)]
     pub(crate) kind: WorkspaceKind,
     #[serde(default, rename = "parentId")]
@@ -215,7 +215,7 @@ pub(crate) struct WorkspaceInfo {
     pub(crate) name: String,
     pub(crate) path: String,
     pub(crate) connected: bool,
-    pub(crate) gemini_bin: Option<String>,
+    pub(crate) codex_bin: Option<String>,
     #[serde(default)]
     pub(crate) kind: WorkspaceKind,
     #[serde(default, rename = "parentId")]
@@ -270,10 +270,10 @@ pub(crate) struct WorkspaceSettings {
     pub(crate) group_id: Option<String>,
     #[serde(default, rename = "gitRoot")]
     pub(crate) git_root: Option<String>,
-    #[serde(default, rename = "geminiHome")]
-    pub(crate) gemini_home: Option<String>,
-    #[serde(default, rename = "geminiArgs")]
-    pub(crate) gemini_args: Option<String>,
+    #[serde(default, rename = "codexHome")]
+    pub(crate) codex_home: Option<String>,
+    #[serde(default, rename = "codexArgs")]
+    pub(crate) codex_args: Option<String>,
     #[serde(default, rename = "launchScript")]
     pub(crate) launch_script: Option<String>,
     #[serde(default, rename = "launchScripts")]
@@ -313,36 +313,10 @@ pub(crate) struct OpenAppTarget {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct AppSettings {
-    #[serde(default = "default_cli_type", rename = "cliType")]
-    pub(crate) cli_type: String,
-    #[serde(default, rename = "geminiBin")]
-    pub(crate) gemini_bin: Option<String>,
-    #[serde(default, rename = "geminiArgs")]
-    pub(crate) gemini_args: Option<String>,
-    #[serde(default, rename = "cursorBin")]
-    pub(crate) cursor_bin: Option<String>,
-    #[serde(default, rename = "cursorArgs")]
-    pub(crate) cursor_args: Option<String>,
-    #[serde(default, rename = "claudeBin")]
-    pub(crate) claude_bin: Option<String>,
-    #[serde(default, rename = "claudeArgs")]
-    pub(crate) claude_args: Option<String>,
-    #[serde(default, rename = "cursorVimMode")]
-    pub(crate) cursor_vim_mode: bool,
-    #[serde(
-        default = "default_cursor_default_mode",
-        rename = "cursorDefaultMode",
-        deserialize_with = "deserialize_cursor_mode"
-    )]
-    pub(crate) cursor_default_mode: CursorOperatingMode,
-    #[serde(default = "default_cursor_output_format", rename = "cursorOutputFormat")]
-    pub(crate) cursor_output_format: String,
-    #[serde(default, rename = "cursorAttributeCommits")]
-    pub(crate) cursor_attribute_commits: bool,
-    #[serde(default, rename = "cursorAttributePRs")]
-    pub(crate) cursor_attribute_prs: bool,
-    #[serde(default, rename = "cursorUseHttp1")]
-    pub(crate) cursor_use_http1: bool,
+    #[serde(default, rename = "codexBin")]
+    pub(crate) codex_bin: Option<String>,
+    #[serde(default, rename = "codexArgs")]
+    pub(crate) codex_args: Option<String>,
     #[serde(default, rename = "backendMode")]
     pub(crate) backend_mode: BackendMode,
     #[serde(default = "default_remote_backend_host", rename = "remoteBackendHost")]
@@ -551,62 +525,6 @@ impl Default for BackendMode {
     fn default() -> Self {
         BackendMode::Local
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub(crate) enum CursorOperatingMode {
-    Agent,
-    Plan,
-    Ask,
-    Debug,
-}
-
-impl Default for CursorOperatingMode {
-    fn default() -> Self {
-        CursorOperatingMode::Agent
-    }
-}
-
-impl std::fmt::Display for CursorOperatingMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CursorOperatingMode::Agent => write!(f, "agent"),
-            CursorOperatingMode::Plan => write!(f, "plan"),
-            CursorOperatingMode::Ask => write!(f, "ask"),
-            CursorOperatingMode::Debug => write!(f, "debug"),
-        }
-    }
-}
-
-/// Custom deserializer that falls back to default on invalid values.
-/// This prevents data loss when a user has an invalid mode in their settings.
-fn deserialize_cursor_mode<'de, D>(deserializer: D) -> Result<CursorOperatingMode, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::Deserialize;
-    // Deserialize as a string first, then parse to enum
-    let s = String::deserialize(deserializer).unwrap_or_else(|_| "agent".to_string());
-    match s.as_str() {
-        "agent" => Ok(CursorOperatingMode::Agent),
-        "plan" => Ok(CursorOperatingMode::Plan),
-        "ask" => Ok(CursorOperatingMode::Ask),
-        "debug" => Ok(CursorOperatingMode::Debug),
-        _ => Ok(CursorOperatingMode::Agent), // Fall back to default for unknown values
-    }
-}
-
-fn default_cli_type() -> String {
-    "gemini".to_string()
-}
-
-fn default_cursor_default_mode() -> CursorOperatingMode {
-    CursorOperatingMode::Agent
-}
-
-fn default_cursor_output_format() -> String {
-    "stream-json".to_string()
 }
 
 fn default_access_mode() -> String {
@@ -1004,19 +922,8 @@ fn default_selected_open_app_id() -> String {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            cli_type: default_cli_type(),
-            gemini_bin: None,
-            gemini_args: None,
-            cursor_bin: None,
-            cursor_args: None,
-            claude_bin: None,
-            claude_args: None,
-            cursor_vim_mode: false,
-            cursor_default_mode: default_cursor_default_mode(),
-            cursor_output_format: default_cursor_output_format(),
-            cursor_attribute_commits: false,
-            cursor_attribute_prs: false,
-            cursor_use_http1: false,
+            codex_bin: None,
+            codex_args: None,
             backend_mode: BackendMode::Local,
             remote_backend_host: default_remote_backend_host(),
             remote_backend_token: None,
@@ -1080,29 +987,13 @@ impl Default for AppSettings {
 #[cfg(test)]
 mod tests {
     use super::{
-        AppSettings, BackendMode, CursorOperatingMode, WorkspaceEntry, WorkspaceGroup,
-        WorkspaceKind, WorkspaceSettings,
+        AppSettings, BackendMode, WorkspaceEntry, WorkspaceGroup, WorkspaceKind, WorkspaceSettings,
     };
 
     #[test]
     fn app_settings_defaults_from_empty_json() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
-        // CLI type defaults
-        assert_eq!(settings.cli_type, "gemini");
-        assert!(settings.gemini_bin.is_none());
-        assert!(settings.gemini_args.is_none());
-        // Claude CLI defaults
-        assert!(settings.claude_bin.is_none());
-        assert!(settings.claude_args.is_none());
-        // Cursor CLI defaults
-        assert!(settings.cursor_bin.is_none());
-        assert!(settings.cursor_args.is_none());
-        assert!(!settings.cursor_vim_mode);
-        assert_eq!(settings.cursor_default_mode, CursorOperatingMode::Agent);
-        assert_eq!(settings.cursor_output_format, "stream-json");
-        assert!(!settings.cursor_attribute_commits);
-        assert!(!settings.cursor_attribute_prs);
-        assert!(!settings.cursor_use_http1);
+        assert!(settings.codex_bin.is_none());
         assert!(matches!(settings.backend_mode, BackendMode::Local));
         assert_eq!(settings.remote_backend_host, "127.0.0.1:4732");
         assert!(settings.remote_backend_token.is_none());
@@ -1255,7 +1146,7 @@ mod tests {
     #[test]
     fn workspace_entry_defaults_from_minimal_json() {
         let entry: WorkspaceEntry = serde_json::from_str(
-            r#"{"id":"1","name":"Test","path":"/tmp","geminiBin":null}"#,
+            r#"{"id":"1","name":"Test","path":"/tmp","codexBin":null}"#,
         )
         .expect("workspace deserialize");
         assert!(matches!(entry.kind, WorkspaceKind::Main));
@@ -1272,79 +1163,5 @@ mod tests {
         assert!(settings.sort_order.is_none());
         assert!(settings.group_id.is_none());
         assert!(settings.git_root.is_none());
-    }
-
-    #[test]
-    fn cursor_operating_mode_serialization() {
-        // Test all modes serialize to lowercase strings
-        assert_eq!(
-            serde_json::to_string(&CursorOperatingMode::Agent).unwrap(),
-            r#""agent""#
-        );
-        assert_eq!(
-            serde_json::to_string(&CursorOperatingMode::Plan).unwrap(),
-            r#""plan""#
-        );
-        assert_eq!(
-            serde_json::to_string(&CursorOperatingMode::Ask).unwrap(),
-            r#""ask""#
-        );
-        assert_eq!(
-            serde_json::to_string(&CursorOperatingMode::Debug).unwrap(),
-            r#""debug""#
-        );
-    }
-
-    #[test]
-    fn cursor_operating_mode_deserialization() {
-        // Test all modes deserialize from lowercase strings
-        assert_eq!(
-            serde_json::from_str::<CursorOperatingMode>(r#""agent""#).unwrap(),
-            CursorOperatingMode::Agent
-        );
-        assert_eq!(
-            serde_json::from_str::<CursorOperatingMode>(r#""plan""#).unwrap(),
-            CursorOperatingMode::Plan
-        );
-        assert_eq!(
-            serde_json::from_str::<CursorOperatingMode>(r#""ask""#).unwrap(),
-            CursorOperatingMode::Ask
-        );
-        assert_eq!(
-            serde_json::from_str::<CursorOperatingMode>(r#""debug""#).unwrap(),
-            CursorOperatingMode::Debug
-        );
-    }
-
-    #[test]
-    fn cursor_operating_mode_display() {
-        // Test Display trait for CLI argument generation
-        assert_eq!(CursorOperatingMode::Agent.to_string(), "agent");
-        assert_eq!(CursorOperatingMode::Plan.to_string(), "plan");
-        assert_eq!(CursorOperatingMode::Ask.to_string(), "ask");
-        assert_eq!(CursorOperatingMode::Debug.to_string(), "debug");
-    }
-
-    #[test]
-    fn app_settings_cursor_mode_round_trip() {
-        // Test round-trip serialization with debug mode
-        let mut settings = AppSettings::default();
-        settings.cursor_default_mode = CursorOperatingMode::Debug;
-
-        let json = serde_json::to_string(&settings).expect("serialize settings");
-        let decoded: AppSettings = serde_json::from_str(&json).expect("deserialize settings");
-        assert_eq!(decoded.cursor_default_mode, CursorOperatingMode::Debug);
-    }
-
-    #[test]
-    fn app_settings_invalid_cursor_mode_falls_back_to_default() {
-        // Test that invalid cursor mode values don't cause data loss
-        // This simulates a user having an old/invalid value in their settings.json
-        let json = r#"{"cursorDefaultMode": "invalid_mode", "theme": "dark"}"#;
-        let settings: AppSettings = serde_json::from_str(json).expect("should not fail");
-        // Invalid mode should fall back to Agent (default)
-        assert_eq!(settings.cursor_default_mode, CursorOperatingMode::Agent);
-        // Other settings should be preserved
-        assert_eq!(settings.theme, "dark");
     }
 }

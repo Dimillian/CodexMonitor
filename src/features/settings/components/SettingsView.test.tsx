@@ -18,19 +18,8 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 }));
 
 const baseSettings: AppSettings = {
-  cliType: "gemini",
-  geminiBin: null,
-  geminiArgs: null,
-  cursorBin: null,
-  cursorArgs: null,
-  claudeBin: null,
-  claudeArgs: null,
-  cursorVimMode: false,
-  cursorDefaultMode: "agent",
-  cursorOutputFormat: "text",
-  cursorAttributeCommits: true,
-  cursorAttributePRs: true,
-  cursorUseHttp1: false,
+  codexBin: null,
+  codexArgs: null,
   backendMode: "local",
   remoteBackendHost: "127.0.0.1:4732",
   remoteBackendToken: null,
@@ -103,7 +92,7 @@ const baseSettings: AppSettings = {
 
 const createDoctorResult = () => ({
   ok: true,
-  geminiBin: null,
+  codexBin: null,
   version: null,
   appServerOk: true,
   details: null,
@@ -143,7 +132,7 @@ const renderDisplaySection = (
     onDeleteWorkspaceGroup: vi.fn().mockResolvedValue(null),
     onAssignWorkspaceGroup: vi.fn().mockResolvedValue(null),
     onRunDoctor: vi.fn().mockResolvedValue(createDoctorResult()),
-    onUpdateWorkspaceGeminiBin: vi.fn().mockResolvedValue(undefined),
+    onUpdateWorkspaceCodexBin: vi.fn().mockResolvedValue(undefined),
     onUpdateWorkspaceSettings: vi.fn().mockResolvedValue(undefined),
     scaleShortcutTitle: "Scale shortcut",
     scaleShortcutText: "Use Command +/-",
@@ -153,9 +142,6 @@ const renderDisplaySection = (
     onDownloadDictationModel: vi.fn(),
     onCancelDictationDownload: vi.fn(),
     onRemoveDictationModel: vi.fn(),
-    skills: [],
-    onRefreshSkills: vi.fn(),
-    activeWorkspace: null,
   };
 
   render(<SettingsView {...props} />);
@@ -318,7 +304,7 @@ describe("SettingsView Display", () => {
     renderDisplaySection({ onUpdateAppSettings });
 
     const row = screen
-      .getByText("Show remaining Gemini limits")
+      .getByText("Show remaining Codex limits")
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected remaining limits row");
@@ -541,11 +527,11 @@ describe("SettingsView Codex overrides", () => {
       name: "Workspace",
       path: "/tmp/workspace",
       connected: false,
-      gemini_bin: null,
+      codex_bin: null,
       kind: "main",
       parentId: null,
       worktree: null,
-      settings: { sidebarCollapsed: false, geminiArgs: null },
+      settings: { sidebarCollapsed: false, codexArgs: null },
     };
 
     render(
@@ -569,7 +555,7 @@ describe("SettingsView Codex overrides", () => {
         openAppIconById={{}}
         onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
         onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
-        onUpdateWorkspaceGeminiBin={vi.fn().mockResolvedValue(undefined)}
+        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={onUpdateWorkspaceSettings}
         scaleShortcutTitle="Scale shortcut"
         scaleShortcutText="Use Command +/-"
@@ -579,20 +565,17 @@ describe("SettingsView Codex overrides", () => {
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
-        skills={[]}
-        onRefreshSkills={vi.fn()}
-        activeWorkspace={workspace}
-        initialSection="gemini"
+        initialSection="codex"
       />,
     );
 
-    const input = screen.getByLabelText("Gemini args override for Workspace");
+    const input = screen.getByLabelText("Codex args override for Workspace");
     fireEvent.change(input, { target: { value: "--profile dev" } });
     fireEvent.blur(input);
 
     await waitFor(() => {
       expect(onUpdateWorkspaceSettings).toHaveBeenCalledWith("w1", {
-        geminiArgs: "--profile dev",
+        codexArgs: "--profile dev",
       });
     });
   });
@@ -726,7 +709,7 @@ describe("SettingsView Shortcuts", () => {
         openAppIconById={{}}
         onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
         onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
-        onUpdateWorkspaceGeminiBin={vi.fn().mockResolvedValue(undefined)}
+        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
         scaleShortcutTitle="Scale shortcut"
         scaleShortcutText="Use Command +/-"
@@ -736,9 +719,6 @@ describe("SettingsView Shortcuts", () => {
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
-        skills={[]}
-        onRefreshSkills={vi.fn()}
-        activeWorkspace={null}
       />,
     );
 
@@ -770,7 +750,7 @@ describe("SettingsView Shortcuts", () => {
         openAppIconById={{}}
         onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
         onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
-        onUpdateWorkspaceGeminiBin={vi.fn().mockResolvedValue(undefined)}
+        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
         scaleShortcutTitle="Scale shortcut"
         scaleShortcutText="Use Command +/-"
@@ -780,9 +760,6 @@ describe("SettingsView Shortcuts", () => {
         onDownloadDictationModel={vi.fn()}
         onCancelDictationDownload={vi.fn()}
         onRemoveDictationModel={vi.fn()}
-        skills={[]}
-        onRefreshSkills={vi.fn()}
-        activeWorkspace={null}
       />,
     );
 

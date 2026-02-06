@@ -44,13 +44,13 @@ export function useAccountSwitching({
     return accountByWorkspace[activeWorkspaceId] ?? null;
   }, [activeWorkspaceId, accountByWorkspace]);
 
-  const isGeminiLoginCanceled = useCallback((error: unknown) => {
+  const isCodexLoginCanceled = useCallback((error: unknown) => {
     const message =
       typeof error === "string" ? error : error instanceof Error ? error.message : "";
     const normalized = message.toLowerCase();
     return (
-      normalized.includes("gemini login canceled") ||
-      normalized.includes("gemini login cancelled") ||
+      normalized.includes("codex login canceled") ||
+      normalized.includes("codex login cancelled") ||
       normalized.includes("request canceled")
     );
   }, []);
@@ -197,7 +197,7 @@ export function useAccountSwitching({
     activeWorkspaceId,
     accountSwitching,
     alertError,
-    isGeminiLoginCanceled,
+    isCodexLoginCanceled,
   ]);
 
   const handleCancelSwitchAccount = useCallback(async () => {

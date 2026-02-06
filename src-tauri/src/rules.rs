@@ -7,8 +7,8 @@ use std::time::{Duration, Instant, SystemTime};
 const RULES_DIR: &str = "rules";
 const DEFAULT_RULES_FILE: &str = "default.rules";
 
-pub(crate) fn default_rules_path(gemini_home: &Path) -> PathBuf {
-    gemini_home.join(RULES_DIR).join(DEFAULT_RULES_FILE)
+pub(crate) fn default_rules_path(codex_home: &Path) -> PathBuf {
+    codex_home.join(RULES_DIR).join(DEFAULT_RULES_FILE)
 }
 
 pub(crate) fn append_prefix_rule(path: &Path, pattern: &[String]) -> Result<(), String> {

@@ -60,7 +60,7 @@ export function ApprovalToasts({
       .trim();
 
   const methodLabel = (method: string) => {
-    const trimmed = method.replace(/^gemini\/requestApproval\/?/, "");
+    const trimmed = method.replace(/^codex\/requestApproval\/?/, "");
     return trimmed || method;
   };
 

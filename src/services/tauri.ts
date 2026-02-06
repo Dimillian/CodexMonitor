@@ -3,10 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import type { Options as NotificationOptions } from "@tauri-apps/plugin-notification";
 import type {
   AppSettings,
-  ClaudeDoctorResult,
-  GeminiDoctorResult,
-  GeminiSettings,
-  GeminiMcpSettings,
+  CodexDoctorResult,
   DictationModelStatus,
   DictationSessionState,
   LocalUsageSnapshot,
@@ -71,8 +68,8 @@ export async function listWorkspaces(): Promise<WorkspaceInfo[]> {
   }
 }
 
-export async function getGeminiConfigPath(): Promise<string> {
-  return invoke<string>("get_gemini_config_path");
+export async function getCodexConfigPath(): Promise<string> {
+  return invoke<string>("get_codex_config_path");
 }
 
 export type TextFileResponse = {
@@ -82,7 +79,7 @@ export type TextFileResponse = {
 };
 
 export type GlobalAgentsResponse = TextFileResponse;
-export type GlobalGeminiConfigResponse = TextFileResponse;
+export type GlobalCodexConfigResponse = TextFileResponse;
 export type AgentMdResponse = TextFileResponse;
 
 type FileScope = "workspace" | "global";
@@ -113,11 +110,11 @@ export async function writeGlobalAgentsMd(content: string): Promise<void> {
   return fileWrite("global", "agents", content);
 }
 
-export async function readGlobalGeminiConfigToml(): Promise<GlobalGeminiConfigResponse> {
+export async function readGlobalCodexConfigToml(): Promise<GlobalCodexConfigResponse> {
   return fileRead("global", "config");
 }
 
-export async function writeGlobalGeminiConfigToml(content: string): Promise<void> {
+export async function writeGlobalCodexConfigToml(content: string): Promise<void> {
   return fileWrite("global", "config", content);
 }
 
@@ -135,9 +132,9 @@ export async function getConfigModel(workspaceId: string): Promise<string | null
 
 export async function addWorkspace(
   path: string,
-  gemini_bin: string | null,
+  codex_bin: string | null,
 ): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("add_workspace", { path, gemini_bin });
+  return invoke<WorkspaceInfo>("add_workspace", { path, codex_bin });
 }
 
 export async function isWorkspacePathDir(path: string): Promise<boolean> {
@@ -187,11 +184,11 @@ export async function updateWorkspaceSettings(
   return invoke<WorkspaceInfo>("update_workspace_settings", { id, settings });
 }
 
-export async function updateWorkspaceGeminiBin(
+export async function updateWorkspaceCodexBin(
   id: string,
-  gemini_bin: string | null,
+  codex_bin: string | null,
 ): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("update_workspace_gemini_bin", { id, gemini_bin });
+  return invoke<WorkspaceInfo>("update_workspace_codex_bin", { id, codex_bin });
 }
 
 export async function removeWorkspace(id: string): Promise<void> {
@@ -598,18 +595,11 @@ export async function setMenuAccelerators(
   return invoke("menu_set_accelerators", { updates });
 }
 
-export async function runGeminiDoctor(
-  geminiBin: string | null,
-  geminiArgs: string | null,
-): Promise<GeminiDoctorResult> {
-  return invoke<GeminiDoctorResult>("gemini_doctor", { geminiBin, geminiArgs });
-}
-
-export async function runClaudeDoctor(
-  claudeBin: string | null,
-  claudeArgs: string | null,
-): Promise<ClaudeDoctorResult> {
-  return invoke<ClaudeDoctorResult>("claude_doctor", { claudeBin, claudeArgs });
+export async function runCodexDoctor(
+  codexBin: string | null,
+  codexArgs: string | null,
+): Promise<CodexDoctorResult> {
+  return invoke<CodexDoctorResult>("codex_doctor", { codexBin, codexArgs });
 }
 
 export async function getWorkspaceFiles(workspaceId: string) {

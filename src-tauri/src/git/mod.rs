@@ -1597,7 +1597,7 @@ mod tests {
 
     fn create_temp_repo() -> (PathBuf, Repository) {
         let root = std::env::temp_dir().join(format!(
-            "gemini-monitor-test-{}",
+            "codex-monitor-test-{}",
             uuid::Uuid::new_v4()
         ));
         fs::create_dir_all(&root).expect("create temp repo root");

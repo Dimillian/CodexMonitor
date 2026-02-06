@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppSettings } from "../../../types";
-import { getAppSettings, runGeminiDoctor, updateAppSettings } from "../../../services/tauri";
+import { getAppSettings, runCodexDoctor, updateAppSettings } from "../../../services/tauri";
 import { clampUiScale, UI_SCALE_DEFAULT } from "../../../utils/uiScale";
 import {
   DEFAULT_CODE_FONT_FAMILY,
@@ -106,27 +106,10 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     : hasStoredSelection
       ? storedOpenAppId
       : normalizedTargets[0]?.id ?? DEFAULT_OPEN_APP_ID;
-  const allowedCursorModes = new Set(["agent", "plan", "ask", "debug"]);
-  const allowedCursorFormats = new Set(["text", "json", "stream-json"]);
   return {
     ...settings,
-    cliType: (["gemini", "cursor", "claude"] as const).includes(settings.cliType as "gemini" | "cursor" | "claude") ? settings.cliType : "gemini",
-    geminiBin: settings.geminiBin?.trim() ? settings.geminiBin.trim() : null,
-    geminiArgs: settings.geminiArgs?.trim() ? settings.geminiArgs.trim() : null,
-    cursorBin: settings.cursorBin?.trim() ? settings.cursorBin.trim() : null,
-    cursorArgs: settings.cursorArgs?.trim() ? settings.cursorArgs.trim() : null,
-    claudeBin: settings.claudeBin?.trim() ? settings.claudeBin.trim() : null,
-    claudeArgs: settings.claudeArgs?.trim() ? settings.claudeArgs.trim() : null,
-    cursorVimMode: Boolean(settings.cursorVimMode),
-    cursorDefaultMode: allowedCursorModes.has(settings.cursorDefaultMode)
-      ? settings.cursorDefaultMode
-      : "agent",
-    cursorOutputFormat: allowedCursorFormats.has(settings.cursorOutputFormat)
-      ? settings.cursorOutputFormat
-      : "text",
-    cursorAttributeCommits: settings.cursorAttributeCommits !== false,
-    cursorAttributePRs: settings.cursorAttributePRs !== false,
-    cursorUseHttp1: Boolean(settings.cursorUseHttp1),
+    codexBin: settings.codexBin?.trim() ? settings.codexBin.trim() : null,
+    codexArgs: settings.codexArgs?.trim() ? settings.codexArgs.trim() : null,
     uiScale: clampUiScale(settings.uiScale),
     theme: allowedThemes.has(settings.theme) ? settings.theme : "system",
     uiFontFamily: normalizeFontFamily(
@@ -192,8 +175,8 @@ export function useAppSettings() {
   }, [defaultSettings]);
 
   const doctor = useCallback(
-    async (geminiBin: string | null, geminiArgs: string | null) => {
-      return runGeminiDoctor(geminiBin, geminiArgs);
+    async (codexBin: string | null, codexArgs: string | null) => {
+      return runCodexDoctor(codexBin, codexArgs);
     },
     [],
   );

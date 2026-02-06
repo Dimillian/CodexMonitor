@@ -143,14 +143,14 @@ mod tests {
     use uuid::Uuid;
 
     fn temp_dir() -> PathBuf {
-        std::env::temp_dir().join(format!("gemini-monitor-file-io-{}", Uuid::new_v4()))
+        std::env::temp_dir().join(format!("codex-monitor-file-io-{}", Uuid::new_v4()))
     }
 
     #[test]
     fn read_returns_missing_when_root_absent() {
         let root = temp_dir();
         let response =
-            read_text_file_within(&root, "AGENTS.md", true, "GEMINI_HOME", "AGENTS.md", false)
+            read_text_file_within(&root, "AGENTS.md", true, "CODEX_HOME", "AGENTS.md", false)
                 .expect("read should succeed");
         assert!(!response.exists);
         assert!(response.content.is_empty());
@@ -159,13 +159,13 @@ mod tests {
     #[test]
     fn write_creates_root_and_round_trips() {
         let root = temp_dir();
-        write_text_file_within(&root, "AGENTS.md", "hello", true, "GEMINI_HOME", "AGENTS.md", false)
+        write_text_file_within(&root, "AGENTS.md", "hello", true, "CODEX_HOME", "AGENTS.md", false)
             .expect("write should succeed");
         let response = read_text_file_within(
             &root,
             "AGENTS.md",
             false,
-            "GEMINI_HOME",
+            "CODEX_HOME",
             "AGENTS.md",
             false,
         )
@@ -242,7 +242,7 @@ mod tests {
         symlink(&outside_file, &link_path).expect("create symlink");
 
         let response =
-            read_text_file_within(&root, "AGENTS.md", false, "GEMINI_HOME", "AGENTS.md", true)
+            read_text_file_within(&root, "AGENTS.md", false, "CODEX_HOME", "AGENTS.md", true)
                 .expect("read should succeed");
         assert!(response.exists);
         assert_eq!(response.content, "outside");
@@ -269,7 +269,7 @@ mod tests {
             "AGENTS.md",
             "updated",
             false,
-            "GEMINI_HOME",
+            "CODEX_HOME",
             "AGENTS.md",
             true,
         )
@@ -299,7 +299,7 @@ mod tests {
             &root,
             "config.toml",
             false,
-            "GEMINI_HOME",
+            "CODEX_HOME",
             "config.toml",
             false,
         )

@@ -44,8 +44,8 @@ vi.mock("../utils/threadStorage", () => ({
 describe("useThreadActions", () => {
   const workspace: WorkspaceInfo = {
     id: "ws-1",
-    name: "GeminiMonitor",
-    path: "/tmp/gemini",
+    name: "CodexMonitor",
+    path: "/tmp/codex",
     connected: true,
     settings: { sidebarCollapsed: false },
   };
@@ -337,7 +337,7 @@ describe("useThreadActions", () => {
         data: [
           {
             id: "thread-1",
-            cwd: "/tmp/gemini",
+            cwd: "/tmp/codex",
             preview: "Remote preview",
             updated_at: 5000,
           },
@@ -443,7 +443,7 @@ describe("useThreadActions", () => {
         data: [
           {
             id: "thread-2",
-            cwd: "/tmp/gemini",
+            cwd: "/tmp/codex",
             preview: "Older preview",
             updated_at: 4000,
           },

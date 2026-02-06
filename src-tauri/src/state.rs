@@ -11,7 +11,7 @@ use crate::types::{AppSettings, WorkspaceEntry};
 
 pub(crate) struct AppState {
     pub(crate) workspaces: Mutex<HashMap<String, WorkspaceEntry>>,
-    pub(crate) sessions: Mutex<HashMap<String, Arc<crate::gemini::WorkspaceSession>>>,
+    pub(crate) sessions: Mutex<HashMap<String, Arc<crate::codex::WorkspaceSession>>>,
     pub(crate) terminal_sessions:
         Mutex<HashMap<String, Arc<crate::terminal::TerminalSession>>>,
     pub(crate) remote_backend: Mutex<Option<crate::remote_backend::RemoteBackend>>,
@@ -41,7 +41,7 @@ impl AppState {
             settings_path,
             app_settings: Mutex::new(app_settings),
             dictation: Mutex::new(DictationState::default()),
-            gemini_login_cancels: Mutex::new(HashMap::new()),
+            codex_login_cancels: Mutex::new(HashMap::new()),
         }
     }
 }

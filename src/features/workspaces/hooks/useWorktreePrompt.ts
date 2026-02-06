@@ -75,7 +75,7 @@ export function useWorktreePrompt({
   const [worktreePrompt, setWorktreePrompt] = useState<WorktreePromptState>(null);
 
   const openPrompt = useCallback((workspace: WorkspaceInfo) => {
-    const defaultBranch = `gemini/${new Date().toISOString().slice(0, 10)}-${Math.random()
+    const defaultBranch = `codex/${new Date().toISOString().slice(0, 10)}-${Math.random()
       .toString(36)
       .slice(2, 6)}`;
     const savedSetupScript = normalizeSetupScript(workspace.settings.worktreeSetupScript);

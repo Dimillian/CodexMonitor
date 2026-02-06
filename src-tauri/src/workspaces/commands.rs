@@ -24,10 +24,10 @@ use super::worktree::{
     unique_worktree_path_for_rename,
 };
 
-use crate::backend::app_server::{CliSpawnConfig, WorkspaceSession};
-use crate::gemini::{build_cli_spawn_config, spawn_workspace_session};
-use crate::gemini::args::resolve_workspace_gemini_args;
-use crate::gemini::home::resolve_workspace_gemini_home;
+use crate::backend::app_server::WorkspaceSession;
+use crate::codex::spawn_workspace_session;
+use crate::codex::args::resolve_workspace_codex_args;
+use crate::codex::home::resolve_workspace_codex_home;
 use crate::git_utils::resolve_git_root;
 use crate::remote_backend;
 use crate::shared::process_core::{kill_child_process_tree, tokio_command};
@@ -44,9 +44,11 @@ use crate::utils::{git_env_path, resolve_git_binary};
 fn spawn_with_app(
     app: &AppHandle,
     entry: WorkspaceEntry,
-    config: CliSpawnConfig,
+    default_bin: Option<String>,
+    codex_args: Option<String>,
+    codex_home: Option<PathBuf>,
 ) -> impl std::future::Future<Output = Result<Arc<WorkspaceSession>, String>> {
-    spawn_workspace_session(entry, config, app.clone())
+    spawn_workspace_session(entry, default_bin, codex_args, app.clone(), codex_home)
 }
 
 #[tauri::command]
@@ -114,18 +116,18 @@ pub(crate) async fn is_workspace_path_dir(
 #[tauri::command]
 pub(crate) async fn add_workspace(
     path: String,
-    gemini_bin: Option<String>,
+    codex_bin: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<WorkspaceInfo, String> {
     if remote_backend::is_remote_mode(&*state).await {
         let path = remote_backend::normalize_path_for_remote(path);
-        let gemini_bin = gemini_bin.map(remote_backend::normalize_path_for_remote);
+        let codex_bin = codex_bin.map(remote_backend::normalize_path_for_remote);
         let response = remote_backend::call_remote(
             &*state,
             app,
             "add_workspace",
-            json!({ "path": path, "gemini_bin": gemini_bin }),
+            json!({ "path": path, "codex_bin": codex_bin }),
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
@@ -133,13 +135,13 @@ pub(crate) async fn add_workspace(
 
     workspaces_core::add_workspace_core(
         path,
-        gemini_bin,
+        codex_bin,
         &state.workspaces,
         &state.sessions,
         &state.app_settings,
         &state.storage_path,
-        |entry, config| {
-            spawn_with_app(&app, entry, config)
+        |entry, default_bin, codex_args, codex_home| {
+            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
         },
     )
     .await
@@ -213,7 +215,7 @@ pub(crate) async fn add_clone(
         id: Uuid::new_v4().to_string(),
         name: copy_name.clone(),
         path: destination_path_string,
-        gemini_bin: source_entry.gemini_bin.clone(),
+        codex_bin: source_entry.codex_bin.clone(),
         kind: WorkspaceKind::Main,
         parent_id: None,
         worktree: None,
@@ -223,16 +225,20 @@ pub(crate) async fn add_clone(
         },
     };
 
-    let config = {
+    let (default_bin, codex_args) = {
         let settings = state.app_settings.lock().await;
-        let gemini_args = resolve_workspace_gemini_args(&entry, None, Some(&settings));
-        let gemini_home = resolve_workspace_gemini_home(&entry, None);
-        build_cli_spawn_config(&settings, gemini_args, gemini_home)
+        (
+            settings.codex_bin.clone(),
+            resolve_workspace_codex_args(&entry, None, Some(&settings)),
+        )
     };
+    let codex_home = resolve_workspace_codex_home(&entry, None);
     let session = match spawn_workspace_session(
         entry.clone(),
-        config,
+        default_bin,
+        codex_args,
         app,
+        codex_home,
     )
     .await
     {
@@ -269,7 +275,7 @@ pub(crate) async fn add_clone(
         id: entry.id,
         name: entry.name,
         path: entry.path,
-        gemini_bin: entry.gemini_bin,
+        codex_bin: entry.codex_bin,
         connected: true,
         kind: entry.kind,
         parent_id: entry.parent_id,
@@ -333,8 +339,8 @@ pub(crate) async fn add_worktree(
                 run_git_command_owned(repo, args_owned)
             })
         },
-        |entry, config| {
-            spawn_with_app(&app, entry, config)
+        |entry, default_bin, codex_args, codex_home| {
+            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
         },
     )
     .await
@@ -502,8 +508,8 @@ pub(crate) async fn rename_worktree(
                 run_git_command_owned(repo, args_owned)
             })
         },
-        |entry, config| {
-            spawn_with_app(&app, entry, config)
+        |entry, default_bin, codex_args, codex_home| {
+            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
         },
     )
     .await
@@ -724,8 +730,8 @@ pub(crate) async fn update_workspace_settings(
         |workspaces, workspace_id, next_settings| {
             apply_workspace_settings_update(workspaces, workspace_id, next_settings)
         },
-        |entry, config| {
-            spawn_with_app(&app, entry, config)
+        |entry, default_bin, codex_args, codex_home| {
+            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
         },
     )
     .await
@@ -733,27 +739,27 @@ pub(crate) async fn update_workspace_settings(
 
 
 #[tauri::command]
-pub(crate) async fn update_workspace_gemini_bin(
+pub(crate) async fn update_workspace_codex_bin(
     id: String,
-    gemini_bin: Option<String>,
+    codex_bin: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<WorkspaceInfo, String> {
     if remote_backend::is_remote_mode(&*state).await {
-        let gemini_bin = gemini_bin.map(remote_backend::normalize_path_for_remote);
+        let codex_bin = codex_bin.map(remote_backend::normalize_path_for_remote);
         let response = remote_backend::call_remote(
             &*state,
             app,
-            "update_workspace_gemini_bin",
-            json!({ "id": id, "gemini_bin": gemini_bin }),
+            "update_workspace_codex_bin",
+            json!({ "id": id, "codex_bin": codex_bin }),
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
     }
 
-    workspaces_core::update_workspace_gemini_bin_core(
+    workspaces_core::update_workspace_codex_bin_core(
         id,
-        gemini_bin,
+        codex_bin,
         &state.workspaces,
         &state.sessions,
         &state.storage_path,
@@ -779,8 +785,8 @@ pub(crate) async fn connect_workspace(
         &state.workspaces,
         &state.sessions,
         &state.app_settings,
-        |entry, config| {
-            spawn_with_app(&app, entry, config)
+        |entry, default_bin, codex_args, codex_home| {
+            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
         },
     )
     .await

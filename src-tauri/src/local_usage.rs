@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::State;
 
-use crate::gemini::home::{resolve_default_gemini_home, resolve_workspace_gemini_home};
+use crate::codex::home::{resolve_default_codex_home, resolve_workspace_codex_home};
 use crate::state::AppState;
 use crate::types::{
     LocalUsageDay, LocalUsageModel, LocalUsageSnapshot, LocalUsageTotals, WorkspaceEntry,
@@ -512,9 +512,9 @@ fn make_day_keys(days: u32) -> Vec<String> {
         .collect()
 }
 
-fn resolve_gemini_sessions_root(gemini_home_override: Option<PathBuf>) -> Option<PathBuf> {
-    gemini_home_override
-        .or_else(resolve_default_gemini_home)
+fn resolve_codex_sessions_root(codex_home_override: Option<PathBuf>) -> Option<PathBuf> {
+    codex_home_override
+        .or_else(resolve_default_codex_home)
         .map(|home| home.join("sessions"))
 }
 
@@ -523,15 +523,15 @@ fn resolve_sessions_roots(
     workspace_path: Option<&Path>,
 ) -> Vec<PathBuf> {
     if let Some(workspace_path) = workspace_path {
-        let gemini_home_override =
-            resolve_workspace_gemini_home_for_path(workspaces, Some(workspace_path));
-        return resolve_gemini_sessions_root(gemini_home_override).into_iter().collect();
+        let codex_home_override =
+            resolve_workspace_codex_home_for_path(workspaces, Some(workspace_path));
+        return resolve_codex_sessions_root(codex_home_override).into_iter().collect();
     }
 
     let mut roots = Vec::new();
     let mut seen = HashSet::new();
 
-    if let Some(root) = resolve_gemini_sessions_root(None) {
+    if let Some(root) = resolve_codex_sessions_root(None) {
         if seen.insert(root.clone()) {
             roots.push(root);
         }
@@ -542,10 +542,10 @@ fn resolve_sessions_roots(
             .parent_id
             .as_ref()
             .and_then(|parent_id| workspaces.get(parent_id));
-        let Some(gemini_home) = resolve_workspace_gemini_home(entry, parent_entry) else {
+        let Some(codex_home) = resolve_workspace_codex_home(entry, parent_entry) else {
             continue;
         };
-        if let Some(root) = resolve_gemini_sessions_root(Some(gemini_home)) {
+        if let Some(root) = resolve_codex_sessions_root(Some(codex_home)) {
             if seen.insert(root.clone()) {
                 roots.push(root);
             }
@@ -555,7 +555,7 @@ fn resolve_sessions_roots(
     roots
 }
 
-fn resolve_workspace_gemini_home_for_path(
+fn resolve_workspace_codex_home_for_path(
     workspaces: &HashMap<String, crate::types::WorkspaceEntry>,
     workspace_path: Option<&Path>,
 ) -> Option<PathBuf> {
@@ -573,7 +573,7 @@ fn resolve_workspace_gemini_home_for_path(
         .as_ref()
         .and_then(|parent_id| workspaces.get(parent_id));
 
-    resolve_workspace_gemini_home(entry, parent_entry)
+    resolve_workspace_codex_home(entry, parent_entry)
 }
 
 fn day_dir_for_key(root: &Path, day_key: &str) -> PathBuf {
@@ -597,7 +597,7 @@ mod tests {
     fn write_temp_jsonl(lines: &[&str]) -> PathBuf {
         let mut path = std::env::temp_dir();
         path.push(format!(
-            "geminimonitor-local-usage-test-{}.jsonl",
+            "codexmonitor-local-usage-test-{}.jsonl",
             Uuid::new_v4()
         ));
         let mut file = File::create(&path).expect("create temp jsonl");
@@ -610,7 +610,7 @@ mod tests {
     fn make_temp_sessions_root() -> PathBuf {
         let mut root = std::env::temp_dir();
         root.push(format!(
-            "geminimonitor-local-usage-root-{}",
+            "codexmonitor-local-usage-root-{}",
             Uuid::new_v4()
         ));
         fs::create_dir_all(&root).expect("create temp root");
@@ -807,9 +807,9 @@ mod tests {
     fn resolve_sessions_roots_includes_workspace_overrides() {
         let mut workspaces = HashMap::new();
         let mut settings_a = WorkspaceSettings::default();
-        settings_a.gemini_home = Some(
+        settings_a.codex_home = Some(
             std::env::temp_dir()
-                .join(format!("gemini-home-a-{}", Uuid::new_v4()))
+                .join(format!("codex-home-a-{}", Uuid::new_v4()))
                 .to_string_lossy()
                 .to_string(),
         );
@@ -817,16 +817,16 @@ mod tests {
             id: "a".to_string(),
             name: "A".to_string(),
             path: "/tmp/project-a".to_string(),
-            gemini_bin: None,
+            codex_bin: None,
             kind: WorkspaceKind::Main,
             parent_id: None,
             worktree: None,
             settings: settings_a,
         };
         let mut settings_b = WorkspaceSettings::default();
-        settings_b.gemini_home = Some(
+        settings_b.codex_home = Some(
             std::env::temp_dir()
-                .join(format!("gemini-home-b-{}", Uuid::new_v4()))
+                .join(format!("codex-home-b-{}", Uuid::new_v4()))
                 .to_string_lossy()
                 .to_string(),
         );
@@ -834,7 +834,7 @@ mod tests {
             id: "b".to_string(),
             name: "B".to_string(),
             path: "/tmp/project-b".to_string(),
-            gemini_bin: None,
+            codex_bin: None,
             kind: WorkspaceKind::Main,
             parent_id: None,
             worktree: None,
@@ -844,8 +844,8 @@ mod tests {
         workspaces.insert(entry_b.id.clone(), entry_b.clone());
 
         let roots = resolve_sessions_roots(&workspaces, None);
-        let expected_a = PathBuf::from(entry_a.settings.gemini_home.unwrap()).join("sessions");
-        let expected_b = PathBuf::from(entry_b.settings.gemini_home.unwrap()).join("sessions");
+        let expected_a = PathBuf::from(entry_a.settings.codex_home.unwrap()).join("sessions");
+        let expected_b = PathBuf::from(entry_b.settings.codex_home.unwrap()).join("sessions");
 
         assert!(roots.iter().any(|root| root == &expected_a));
         assert!(roots.iter().any(|root| root == &expected_b));

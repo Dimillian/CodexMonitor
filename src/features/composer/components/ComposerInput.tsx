@@ -338,7 +338,7 @@ export function ComposerInput({
             placeholder={
               disabled
                 ? "Review in progress. Chat will re-enable when it completes."
-                : "Ask Gemini to do something..."
+                : "Ask Codex to do something..."
             }
             value={text}
             onChange={handleTextareaChange}

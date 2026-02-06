@@ -188,9 +188,9 @@ function MainApp() {
     () => getStoredThreadListSortKey(),
   );
   const [activeTab, setActiveTab] = useState<
-    "projects" | "gemini" | "git" | "log"
-  >("gemini");
-  const tabletTab = activeTab === "projects" ? "gemini" : activeTab;
+    "projects" | "codex" | "git" | "log"
+  >("codex");
+  const tabletTab = activeTab === "projects" ? "codex" : activeTab;
   const {
     workspaces,
     workspaceGroups,
@@ -207,7 +207,7 @@ function MainApp() {
     connectWorkspace,
     markWorkspaceConnected,
     updateWorkspaceSettings,
-    updateWorkspaceGeminiBin,
+    updateWorkspaceCodexBin,
     createWorkspaceGroup,
     renameWorkspaceGroup,
     moveWorkspaceGroup,
@@ -960,7 +960,7 @@ function MainApp() {
     connectWorkspace,
     onSelectWorkspace: selectWorkspace,
     onWorktreeCreated: handleWorktreeCreated,
-    onCompactActivate: isCompact ? () => setActiveTab("gemini") : undefined,
+    onCompactActivate: isCompact ? () => setActiveTab("codex") : undefined,
     onError: (message) => {
       addDebugEntry({
         id: `${Date.now()}-client-add-worktree-error`,
@@ -1035,7 +1035,7 @@ function MainApp() {
     onSelectWorkspace: selectWorkspace,
     resolveProjectContext: resolveCloneProjectContext,
     persistProjectCopiesFolder,
-    onCompactActivate: isCompact ? () => setActiveTab("gemini") : undefined,
+    onCompactActivate: isCompact ? () => setActiveTab("codex") : undefined,
     onError: (message) => {
       addDebugEntry({
         id: `${Date.now()}-client-add-clone-error`,
@@ -1474,7 +1474,7 @@ function MainApp() {
       return;
     }
     if (activeTab === "projects") {
-      setActiveTab("gemini");
+      setActiveTab("codex");
     }
   }, [activeTab, isTablet]);
 
@@ -1614,7 +1614,7 @@ function MainApp() {
       selectWorkspace(workspaceId);
       setActiveThreadId(threadId, workspaceId);
       if (isCompact) {
-        setActiveTab("gemini");
+        setActiveTab("codex");
       }
     },
     [
@@ -1775,7 +1775,7 @@ function MainApp() {
     debugPanelNode,
     debugPanelFullNode,
     terminalDockNode,
-    compactEmptyGeminiNode,
+    compactEmptyCodexNode,
     compactEmptyGitNode,
     compactGitBackNode,
   } = useLayoutNodes({
@@ -1833,7 +1833,7 @@ function MainApp() {
     onConnectWorkspace: async (workspace) => {
       await connectWorkspace(workspace);
       if (isCompact) {
-        setActiveTab("gemini");
+        setActiveTab("codex");
       }
     },
     onAddAgent: handleAddAgent,
@@ -1915,7 +1915,7 @@ function MainApp() {
       selectWorkspace(workspaceId);
       setActiveThreadId(threadId, workspaceId);
       if (isCompact) {
-        setActiveTab("gemini");
+        setActiveTab("codex");
       }
     },
     activeWorkspace,
@@ -2325,7 +2325,7 @@ function MainApp() {
         debugPanelNode={debugPanelNode}
         debugPanelFullNode={debugPanelFullNode}
         terminalDockNode={terminalDockNode}
-        compactEmptyGeminiNode={compactEmptyGeminiNode}
+        compactEmptyCodexNode={compactEmptyCodexNode}
         compactEmptyGitNode={compactEmptyGitNode}
         compactGitBackNode={compactGitBackNode}
         onSidebarResizeStart={onSidebarResizeStart}
@@ -2383,8 +2383,8 @@ function MainApp() {
             await queueSaveSettings(next);
           },
           onRunDoctor: doctor,
-          onUpdateWorkspaceGeminiBin: async (id, geminiBin) => {
-            await updateWorkspaceGeminiBin(id, geminiBin);
+          onUpdateWorkspaceCodexBin: async (id, codexBin) => {
+            await updateWorkspaceCodexBin(id, codexBin);
           },
           onUpdateWorkspaceSettings: async (id, settings) => {
             await updateWorkspaceSettings(id, settings);
@@ -2397,11 +2397,6 @@ function MainApp() {
           onDownloadDictationModel: dictationModel.download,
           onCancelDictationDownload: dictationModel.cancel,
           onRemoveDictationModel: dictationModel.remove,
-          skills,
-          onRefreshSkills: () => {
-            void refreshSkills();
-          },
-          activeWorkspace,
         }}
       />
     </div>

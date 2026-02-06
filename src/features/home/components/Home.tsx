@@ -177,7 +177,7 @@ export function Home({
   return (
     <div className="home">
       <div className="home-hero">
-        <div className="home-title">Gemini Monitor</div>
+        <div className="home-title">Codex Monitor</div>
         <div className="home-subtitle">
           Orchestrate agents across your local projects.
         </div>
@@ -356,7 +356,7 @@ export function Home({
           <div className="home-usage-empty">
             <div className="home-usage-empty-title">No usage data yet</div>
             <div className="home-usage-empty-subtitle">
-              Run a Gemini session to start tracking local usage.
+              Run a Codex session to start tracking local usage.
             </div>
             {localUsageError && (
               <div className="home-usage-error">{localUsageError}</div>

@@ -11,16 +11,16 @@ vi.mock("../../../services/tauri", () => ({
 
 const workspace: WorkspaceInfo = {
   id: "workspace-1",
-  name: "GeminiMonitor",
-  path: "/tmp/gemini",
+  name: "CodexMonitor",
+  path: "/tmp/codex",
   connected: true,
   settings: { sidebarCollapsed: false },
 };
 
 const secondaryWorkspace: WorkspaceInfo = {
   id: "workspace-2",
-  name: "GeminiMonitor Secondary",
-  path: "/tmp/gemini-secondary",
+  name: "CodexMonitor Secondary",
+  path: "/tmp/codex-secondary",
   connected: true,
   settings: { sidebarCollapsed: false },
 };

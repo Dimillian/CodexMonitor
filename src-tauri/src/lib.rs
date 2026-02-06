@@ -3,9 +3,7 @@ use tauri::Manager;
 use tauri::{RunEvent, WindowEvent};
 
 mod backend;
-mod claude;
-mod cursor;
-mod gemini;
+mod codex;
 mod files;
 mod dictation;
 mod event_sink;
@@ -75,14 +73,12 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             settings::get_app_settings,
             settings::update_app_settings,
-            settings::get_gemini_config_path,
+            settings::get_codex_config_path,
             files::file_read,
             files::file_write,
-            gemini::get_config_model,
+            codex::get_config_model,
             menu::menu_set_accelerators,
-            gemini::gemini_doctor,
-            cursor::cursor_doctor,
-            claude::claude_doctor,
+            codex::codex_doctor,
             workspaces::list_workspaces,
             workspaces::is_workspace_path_dir,
             workspaces::add_workspace,

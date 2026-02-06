@@ -1,6 +1,6 @@
-export const STORAGE_KEY_THREAD_ACTIVITY = "geminimonitor.threadLastUserActivity";
-export const STORAGE_KEY_PINNED_THREADS = "geminimonitor.pinnedThreads";
-export const STORAGE_KEY_CUSTOM_NAMES = "geminimonitor.threadCustomNames";
+export const STORAGE_KEY_THREAD_ACTIVITY = "codexmonitor.threadLastUserActivity";
+export const STORAGE_KEY_PINNED_THREADS = "codexmonitor.pinnedThreads";
+export const STORAGE_KEY_CUSTOM_NAMES = "codexmonitor.threadCustomNames";
 export const MAX_PINS_SOFT_LIMIT = 5;
 
 export type ThreadActivityMap = Record<string, Record<string, number>>;

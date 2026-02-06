@@ -12,7 +12,7 @@ import {
   getOpenAppIcon,
   listMcpServerStatus,
   readGlobalAgentsMd,
-  readGlobalGeminiConfigToml,
+  readGlobalCodexConfigToml,
   listWorkspaces,
   openWorkspaceIn,
   readAgentMd,
@@ -24,7 +24,7 @@ import {
   startReview,
   setThreadName,
   writeGlobalAgentsMd,
-  writeGlobalGeminiConfigToml,
+  writeGlobalCodexConfigToml,
   writeAgentMd,
 } from "./tauri";
 
@@ -50,7 +50,7 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
-  it("uses gemini_bin for addWorkspace", async () => {
+  it("uses codex_bin for addWorkspace", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({ id: "ws-1" });
 
@@ -58,7 +58,7 @@ describe("tauri invoke wrappers", () => {
 
     expect(invokeMock).toHaveBeenCalledWith("add_workspace", {
       path: "/tmp/project",
-      gemini_bin: null,
+      codex_bin: null,
     });
   });
 
@@ -279,7 +279,7 @@ describe("tauri invoke wrappers", () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({ exists: true, content: "model = \"gpt-5\"", truncated: false });
 
-    await readGlobalGeminiConfigToml();
+    await readGlobalCodexConfigToml();
 
     expect(invokeMock).toHaveBeenCalledWith("file_read", {
       scope: "global",
@@ -292,7 +292,7 @@ describe("tauri invoke wrappers", () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({});
 
-    await writeGlobalGeminiConfigToml("model = \"gpt-5\"");
+    await writeGlobalCodexConfigToml("model = \"gpt-5\"");
 
     expect(invokeMock).toHaveBeenCalledWith("file_write", {
       scope: "global",
