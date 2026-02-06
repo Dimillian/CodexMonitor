@@ -412,6 +412,9 @@ export function MainHeader({
                         }}
                         placeholder="Search or create branch"
                         className="branch-input"
+                        autoCorrect="off"
+                        autoCapitalize="none"
+                        spellCheck={false}
                         autoFocus
                         data-tauri-drag-region="false"
                         aria-label="Search branches"
