@@ -1,29 +1,66 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
       "Bash(npm run lint)",
       "Bash(npm run lint *)",
       "Bash(npm run test)",
       "Bash(npm run test *)",
+      "Bash(npm run test:watch *)",
       "Bash(npm run typecheck)",
       "Bash(npm run build)",
+      "Bash(npm run dev)",
+      "Bash(npm install *)",
       "Bash(npx vitest run *)",
+      "Bash(npx vitest *)",
+      "Bash(npx eslint *)",
+      "Bash(npx tsc *)",
       "Bash(cargo check *)",
       "Bash(cargo test *)",
       "Bash(cargo clippy *)",
+      "Bash(cargo build *)",
       "Bash(git status *)",
       "Bash(git diff *)",
       "Bash(git log *)",
+      "Bash(git show *)",
       "Bash(git branch *)",
       "Bash(git fetch *)",
+      "Bash(git pull *)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Bash(git switch *)",
+      "Bash(git merge *)",
+      "Bash(git rebase *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git remote *)",
+      "Bash(git tag *)",
+      "Bash(gh pr *)",
+      "Bash(gh issue *)",
+      "Bash(gh api *)",
+      "Bash(node *)",
+      "Bash(npx *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(wc *)",
+      "Bash(which *)",
+      "Bash(* --version)",
+      "Bash(* --help)"
     ],
     "deny": [
+      "Bash(git push --force *)",
+      "Bash(git reset --hard *)",
+      "Bash(rm -rf *)",
       "Read(.env)",
       "Read(.env.*)",
-      "Read(**/secrets/**)"
+      "Read(**/secrets/**)",
+      "Edit(.env)",
+      "Edit(.env.*)",
+      "Edit(**/secrets/**)"
+    ],
+    "additionalDirectories": [
+      "../"
     ]
   },
   "hooks": {
