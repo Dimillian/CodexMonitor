@@ -179,8 +179,8 @@ export type AppSettings = {
   gitDiffIgnoreWhitespaceChanges: boolean;
   experimentalCollabEnabled: boolean;
   collaborationModesEnabled: boolean;
-  experimentalSteerEnabled: boolean;
-  experimentalUnifiedExecEnabled: boolean;
+  steerEnabled: boolean;
+  unifiedExecEnabled: boolean;
   experimentalAppsEnabled: boolean;
   personality: PersonalityPreference;
   dictationEnabled: boolean;

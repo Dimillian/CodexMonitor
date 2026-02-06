@@ -450,15 +450,17 @@ pub(crate) struct AppSettings {
     )]
     pub(crate) collaboration_modes_enabled: bool,
     #[serde(
-        default = "default_experimental_steer_enabled",
-        rename = "experimentalSteerEnabled"
+        default = "default_steer_enabled",
+        rename = "steerEnabled",
+        alias = "experimentalSteerEnabled"
     )]
-    pub(crate) experimental_steer_enabled: bool,
+    pub(crate) steer_enabled: bool,
     #[serde(
-        default = "default_experimental_unified_exec_enabled",
-        rename = "experimentalUnifiedExecEnabled"
+        default = "default_unified_exec_enabled",
+        rename = "unifiedExecEnabled",
+        alias = "experimentalUnifiedExecEnabled"
     )]
-    pub(crate) experimental_unified_exec_enabled: bool,
+    pub(crate) unified_exec_enabled: bool,
     #[serde(
         default = "default_experimental_apps_enabled",
         rename = "experimentalAppsEnabled"
@@ -659,12 +661,12 @@ fn default_collaboration_modes_enabled() -> bool {
     true
 }
 
-fn default_experimental_steer_enabled() -> bool {
-    false
+fn default_steer_enabled() -> bool {
+    true
 }
 
-fn default_experimental_unified_exec_enabled() -> bool {
-    false
+fn default_unified_exec_enabled() -> bool {
+    true
 }
 
 fn default_experimental_apps_enabled() -> bool {
@@ -825,8 +827,8 @@ impl Default for AppSettings {
             git_diff_ignore_whitespace_changes: default_git_diff_ignore_whitespace_changes(),
             experimental_collab_enabled: false,
             collaboration_modes_enabled: true,
-            experimental_steer_enabled: false,
-            experimental_unified_exec_enabled: false,
+            steer_enabled: true,
+            unified_exec_enabled: true,
             experimental_apps_enabled: false,
             personality: default_personality(),
             dictation_enabled: false,
@@ -927,7 +929,8 @@ mod tests {
         assert!(settings.preload_git_diffs);
         assert!(!settings.git_diff_ignore_whitespace_changes);
         assert!(settings.collaboration_modes_enabled);
-        assert!(!settings.experimental_steer_enabled);
+        assert!(settings.steer_enabled);
+        assert!(settings.unified_exec_enabled);
         assert!(!settings.experimental_apps_enabled);
         assert_eq!(settings.personality, "friendly");
         assert!(!settings.dictation_enabled);
