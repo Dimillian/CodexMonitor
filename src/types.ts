@@ -89,7 +89,7 @@ export type ReviewTarget =
 export type AccessMode = "read-only" | "current" | "full-access";
 export type BackendMode = "local" | "remote";
 export type ThemePreference = "system" | "light" | "dark" | "dim";
-export type CliType = "gemini" | "cursor";
+export type CliType = "gemini" | "cursor" | "claude";
 export type CursorOperatingMode = "agent" | "plan" | "ask" | "debug";
 export type CursorOutputFormat = "text" | "json" | "stream-json";
 
@@ -122,6 +122,8 @@ export type AppSettings = {
   geminiArgs: string | null;
   cursorBin: string | null;
   cursorArgs: string | null;
+  claudeBin: string | null;
+  claudeArgs: string | null;
   // Cursor CLI specific settings
   cursorVimMode: boolean;
   cursorDefaultMode: CursorOperatingMode;
@@ -192,6 +194,15 @@ export type GeminiDoctorResult = {
   nodeOk: boolean;
   nodeVersion: string | null;
   nodeDetails: string | null;
+};
+
+export type ClaudeDoctorResult = {
+  ok: boolean;
+  claudeBin: string | null;
+  version: string | null;
+  sandboxOk: boolean;
+  details: string | null;
+  path: string | null;
 };
 
 export type ApprovalRequest = {

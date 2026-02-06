@@ -304,6 +304,10 @@ pub(crate) struct AppSettings {
     pub(crate) cursor_bin: Option<String>,
     #[serde(default, rename = "cursorArgs")]
     pub(crate) cursor_args: Option<String>,
+    #[serde(default, rename = "claudeBin")]
+    pub(crate) claude_bin: Option<String>,
+    #[serde(default, rename = "claudeArgs")]
+    pub(crate) claude_args: Option<String>,
     #[serde(default, rename = "cursorVimMode")]
     pub(crate) cursor_vim_mode: bool,
     #[serde(
@@ -809,6 +813,8 @@ impl Default for AppSettings {
             gemini_args: None,
             cursor_bin: None,
             cursor_args: None,
+            claude_bin: None,
+            claude_args: None,
             cursor_vim_mode: false,
             cursor_default_mode: default_cursor_default_mode(),
             cursor_output_format: default_cursor_output_format(),
@@ -884,6 +890,9 @@ mod tests {
         assert_eq!(settings.cli_type, "gemini");
         assert!(settings.gemini_bin.is_none());
         assert!(settings.gemini_args.is_none());
+        // Claude CLI defaults
+        assert!(settings.claude_bin.is_none());
+        assert!(settings.claude_args.is_none());
         // Cursor CLI defaults
         assert!(settings.cursor_bin.is_none());
         assert!(settings.cursor_args.is_none());

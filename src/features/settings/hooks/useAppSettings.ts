@@ -25,6 +25,8 @@ const defaultSettings: AppSettings = {
   geminiArgs: null,
   cursorBin: null,
   cursorArgs: null,
+  claudeBin: null,
+  claudeArgs: null,
   // Cursor CLI defaults
   cursorVimMode: false,
   cursorDefaultMode: "agent",
@@ -110,11 +112,13 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
   const allowedCursorFormats = new Set(["text", "json", "stream-json"]);
   return {
     ...settings,
-    cliType: settings.cliType === "cursor" ? "cursor" : "gemini",
+    cliType: (["gemini", "cursor", "claude"] as const).includes(settings.cliType as "gemini" | "cursor" | "claude") ? settings.cliType : "gemini",
     geminiBin: settings.geminiBin?.trim() ? settings.geminiBin.trim() : null,
     geminiArgs: settings.geminiArgs?.trim() ? settings.geminiArgs.trim() : null,
     cursorBin: settings.cursorBin?.trim() ? settings.cursorBin.trim() : null,
     cursorArgs: settings.cursorArgs?.trim() ? settings.cursorArgs.trim() : null,
+    claudeBin: settings.claudeBin?.trim() ? settings.claudeBin.trim() : null,
+    claudeArgs: settings.claudeArgs?.trim() ? settings.claudeArgs.trim() : null,
     cursorVimMode: Boolean(settings.cursorVimMode),
     cursorDefaultMode: allowedCursorModes.has(settings.cursorDefaultMode)
       ? settings.cursorDefaultMode

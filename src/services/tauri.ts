@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import type {
   AppSettings,
+  ClaudeDoctorResult,
   GeminiDoctorResult,
   GeminiSettings,
   GeminiMcpSettings,
@@ -578,6 +579,13 @@ export async function runGeminiDoctor(
   geminiArgs: string | null,
 ): Promise<GeminiDoctorResult> {
   return invoke<GeminiDoctorResult>("gemini_doctor", { geminiBin, geminiArgs });
+}
+
+export async function runClaudeDoctor(
+  claudeBin: string | null,
+  claudeArgs: string | null,
+): Promise<ClaudeDoctorResult> {
+  return invoke<ClaudeDoctorResult>("claude_doctor", { claudeBin, claudeArgs });
 }
 
 export async function getWorkspaceFiles(workspaceId: string) {

@@ -304,6 +304,8 @@ export function SettingsView({
   const [geminiArgsDraft, setGeminiArgsDraft] = useState(appSettings.geminiArgs ?? "");
   const [cursorPathDraft, setCursorPathDraft] = useState(appSettings.cursorBin ?? "");
   const [cursorArgsDraft, setCursorArgsDraft] = useState(appSettings.cursorArgs ?? "");
+  const [claudePathDraft, setClaudePathDraft] = useState(appSettings.claudeBin ?? "");
+  const [claudeArgsDraft, setClaudeArgsDraft] = useState(appSettings.claudeArgs ?? "");
   const [remoteHostDraft, setRemoteHostDraft] = useState(appSettings.remoteBackendHost);
   const [remoteTokenDraft, setRemoteTokenDraft] = useState(appSettings.remoteBackendToken ?? "");
   const [scaleDraft, setScaleDraft] = useState(
@@ -493,12 +495,15 @@ export function SettingsView({
       return null;
     }
     const base = activeWorkspace.path.replace(/\/$/, "");
-    const folder = appSettings.cliType === "cursor" ? ".cursor" : ".gemini";
+    const folder = appSettings.cliType === "cursor" ? ".cursor" : appSettings.cliType === "claude" ? ".claude" : ".gemini";
     return `${base}/${folder}/skills`;
   }, [activeWorkspace, appSettings.cliType]);
   const globalSkillsDir = useMemo(() => {
     if (appSettings.cliType === "cursor") {
       return homeFromGemini ? `${homeFromGemini}/.cursor/skills` : null;
+    }
+    if (appSettings.cliType === "claude") {
+      return homeFromGemini ? `${homeFromGemini}/.claude/skills` : null;
     }
     return geminiHomePath ? `${geminiHomePath}/skills` : null;
   }, [appSettings.cliType, geminiHomePath, homeFromGemini]);
@@ -723,7 +728,13 @@ export function SettingsView({
     nextCursorBin !== (appSettings.cursorBin ?? null) ||
     nextCursorArgs !== (appSettings.cursorArgs ?? null);
 
-  const cliSettingsDirty = geminiDirty || cursorDirty;
+  const nextClaudeBin = claudePathDraft.trim() ? claudePathDraft.trim() : null;
+  const nextClaudeArgs = claudeArgsDraft.trim() ? claudeArgsDraft.trim() : null;
+  const claudeDirty =
+    nextClaudeBin !== (appSettings.claudeBin ?? null) ||
+    nextClaudeArgs !== (appSettings.claudeArgs ?? null);
+
+  const cliSettingsDirty = geminiDirty || cursorDirty || claudeDirty;
 
   const trimmedScale = scaleDraft.trim();
   const parsedPercent = trimmedScale
@@ -740,6 +751,8 @@ export function SettingsView({
         geminiArgs: nextGeminiArgs,
         cursorBin: nextCursorBin,
         cursorArgs: nextCursorArgs,
+        claudeBin: nextClaudeBin,
+        claudeArgs: nextClaudeArgs,
       });
     } finally {
       setIsSavingSettings(false);
@@ -979,6 +992,14 @@ export function SettingsView({
       return;
     }
     setCursorPathDraft(selection);
+  };
+
+  const handleBrowseClaude = async () => {
+    const selection = await open({ multiple: false, directory: false });
+    if (!selection || Array.isArray(selection)) {
+      return;
+    }
+    setClaudePathDraft(selection);
   };
 
   const handleRunDoctor = async () => {
@@ -1286,11 +1307,11 @@ export function SettingsView({
                 <div className="settings-help" style={{ marginTop: "8px" }}>
                   Workspace skills live in{" "}
                   <code>
-                    {appSettings.cliType === "cursor" ? ".cursor/skills" : ".gemini/skills"}
+                    {appSettings.cliType === "cursor" ? ".cursor/skills" : appSettings.cliType === "claude" ? ".claude/skills" : ".gemini/skills"}
                   </code>
                   . Global skills live in{" "}
                   <code>
-                    {appSettings.cliType === "cursor" ? "~/.cursor/skills" : "~/.gemini/skills"}
+                    {appSettings.cliType === "cursor" ? "~/.cursor/skills" : appSettings.cliType === "claude" ? "~/.claude/skills" : "~/.gemini/skills"}
                   </code>
                   .
                 </div>
@@ -2883,6 +2904,7 @@ export function SettingsView({
                   >
                     <option value="gemini">Gemini CLI</option>
                     <option value="cursor">Cursor CLI</option>
+                    <option value="claude">Claude Code CLI</option>
                   </select>
                   <div className="settings-help">
                     Select which CLI to use for AI assistance.
@@ -2990,6 +3012,58 @@ export function SettingsView({
                     </div>
                     <div className="settings-help">
                       Extra flags passed to the Cursor CLI. Use quotes for values with spaces.
+                    </div>
+                  </div>
+                )}
+
+                {appSettings.cliType === "claude" && (
+                  <div className="settings-field">
+                    <label className="settings-field-label" htmlFor="claude-path">
+                      Claude path
+                    </label>
+                    <div className="settings-field-row">
+                      <input
+                        id="claude-path"
+                        className="settings-input"
+                        value={claudePathDraft}
+                        placeholder="claude"
+                        onChange={(event) => setClaudePathDraft(event.target.value)}
+                      />
+                      <button type="button" className="ghost" onClick={handleBrowseClaude}>
+                        Browse
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost"
+                        onClick={() => setClaudePathDraft("")}
+                      >
+                        Use PATH
+                      </button>
+                    </div>
+                    <div className="settings-help">
+                      Leave empty to use the system PATH resolution.
+                    </div>
+                    <label className="settings-field-label" htmlFor="claude-args">
+                      Claude args
+                    </label>
+                    <div className="settings-field-row">
+                      <input
+                        id="claude-args"
+                        className="settings-input"
+                        value={claudeArgsDraft}
+                        placeholder=""
+                        onChange={(event) => setClaudeArgsDraft(event.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="ghost"
+                        onClick={() => setClaudeArgsDraft("")}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    <div className="settings-help">
+                      Extra flags passed to the Claude Code CLI. Use quotes for values with spaces.
                     </div>
                   </div>
                 )}

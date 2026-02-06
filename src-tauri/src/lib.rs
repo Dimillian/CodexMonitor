@@ -3,6 +3,7 @@ use tauri::Manager;
 use tauri::{RunEvent, WindowEvent};
 
 mod backend;
+mod claude;
 mod cursor;
 mod gemini;
 mod files;
@@ -79,6 +80,7 @@ pub fn run() {
             menu::menu_set_accelerators,
             gemini::gemini_doctor,
             cursor::cursor_doctor,
+            claude::claude_doctor,
             workspaces::list_workspaces,
             workspaces::is_workspace_path_dir,
             workspaces::add_workspace,

@@ -69,6 +69,8 @@ mod gemini {
                 attribute_prs: settings.cursor_attribute_prs,
                 use_http1: settings.cursor_use_http1,
             },
+            claude_bin: settings.claude_bin.clone(),
+            claude_args: settings.claude_args.clone(),
         }
     }
 }

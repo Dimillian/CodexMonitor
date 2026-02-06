@@ -23,6 +23,8 @@ const baseSettings: AppSettings = {
   geminiArgs: null,
   cursorBin: null,
   cursorArgs: null,
+  claudeBin: null,
+  claudeArgs: null,
   cursorVimMode: false,
   cursorDefaultMode: "agent",
   cursorOutputFormat: "text",
