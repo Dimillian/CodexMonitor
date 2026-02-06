@@ -76,6 +76,7 @@ import { useDictationController } from "./features/app/hooks/useDictationControl
 import { useComposerController } from "./features/app/hooks/useComposerController";
 import { useComposerInsert } from "./features/app/hooks/useComposerInsert";
 import { useRenameThreadPrompt } from "./features/threads/hooks/useRenameThreadPrompt";
+import { useAddWorkspacePrompt } from "./features/workspaces/hooks/useAddWorkspacePrompt";
 import { useWorktreePrompt } from "./features/workspaces/hooks/useWorktreePrompt";
 import { useClonePrompt } from "./features/workspaces/hooks/useClonePrompt";
 import { useWorkspaceController } from "./features/app/hooks/useWorkspaceController";
@@ -1047,6 +1048,36 @@ function MainApp() {
     },
   });
 
+  const handleWorkspaceAdded = useCallback(
+    (workspace: WorkspaceInfo) => {
+      setActiveThreadId(null, workspace.id);
+      if (isCompact) {
+        setActiveTab("codex");
+      }
+    },
+    [isCompact, setActiveTab, setActiveThreadId],
+  );
+
+  const {
+    addWorkspacePrompt,
+    openPrompt: openAddWorkspacePrompt,
+    confirmPrompt: confirmAddWorkspacePrompt,
+    cancelPrompt: cancelAddWorkspacePrompt,
+    updatePath: updateAddWorkspacePath,
+  } = useAddWorkspacePrompt({
+    addWorkspaceFromPath,
+    onWorkspaceAdded: handleWorkspaceAdded,
+    onError: (message) => {
+      addDebugEntry({
+        id: `${Date.now()}-client-add-workspace-error`,
+        timestamp: Date.now(),
+        source: "error",
+        label: "workspace/add error",
+        payload: message,
+      });
+    },
+  });
+
   const latestAgentRuns = useMemo(() => {
     const entries: Array<{
       threadId: string;
@@ -1513,6 +1544,14 @@ function MainApp() {
     onDebug: addDebugEntry,
   });
 
+  const handleAddWorkspaceAction = useCallback(() => {
+    if (appSettings.backendMode === "remote") {
+      openAddWorkspacePrompt();
+      return;
+    }
+    void handleAddWorkspace();
+  }, [appSettings.backendMode, handleAddWorkspace, openAddWorkspacePrompt]);
+
   const handleDropWorkspacePaths = useCallback(
     async (paths: string[]) => {
       const uniquePaths = Array.from(
@@ -1722,9 +1761,7 @@ function MainApp() {
   useAppMenuEvents({
     activeWorkspaceRef,
     baseWorkspaceRef,
-    onAddWorkspace: () => {
-      void handleAddWorkspace();
-    },
+    onAddWorkspace: handleAddWorkspaceAction,
     onAddAgent: (workspace) => {
       void handleAddAgent(workspace);
     },
@@ -1817,7 +1854,7 @@ function MainApp() {
     onOpenDictationSettings: () => openSettings("dictation"),
     onOpenDebug: handleDebugClick,
     showDebugButton,
-    onAddWorkspace: handleAddWorkspace,
+    onAddWorkspace: handleAddWorkspaceAction,
     onSelectHome: () => {
       resetPullRequestSelection();
       clearDraftState();
@@ -2337,6 +2374,10 @@ function MainApp() {
         onRenamePromptChange={handleRenamePromptChange}
         onRenamePromptCancel={handleRenamePromptCancel}
         onRenamePromptConfirm={handleRenamePromptConfirm}
+        addWorkspacePrompt={addWorkspacePrompt}
+        onAddWorkspacePromptChange={updateAddWorkspacePath}
+        onAddWorkspacePromptCancel={cancelAddWorkspacePrompt}
+        onAddWorkspacePromptConfirm={confirmAddWorkspacePrompt}
         worktreePrompt={worktreePrompt}
         onWorktreePromptNameChange={updateWorktreeName}
         onWorktreePromptChange={updateWorktreeBranch}
