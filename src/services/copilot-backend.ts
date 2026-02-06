@@ -1,7 +1,7 @@
 /**
  * Copilot Backend Adapter
  *
- * Maps Copilot SDK events to CodexMonitor's AppServerEvent format,
+ * Maps Copilot SDK events to CopilotMonitor's AppServerEvent format,
  * providing a drop-in replacement for the Codex app-server backend.
  */
 
@@ -51,7 +51,7 @@ function mapEventToMethod(event: SessionEvent): string | null {
 }
 
 /**
- * Transform a Copilot SDK event into a CodexMonitor AppServerEvent.
+ * Transform a Copilot SDK event into a CopilotMonitor AppServerEvent.
  */
 function transformEvent(
   workspaceId: string,

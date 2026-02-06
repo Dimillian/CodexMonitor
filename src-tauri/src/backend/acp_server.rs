@@ -155,7 +155,7 @@ fn build_initialize_params(client_version: &str) -> Value {
         },
         "clientInfo": {
             "name": "codex_monitor",
-            "title": "Codex Monitor",
+            "title": "Copilot Monitor",
             "version": client_version,
         },
     })

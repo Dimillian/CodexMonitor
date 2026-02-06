@@ -1,5 +1,5 @@
 {
-  description = "CodexMonitor Tauri app for orchestrating Codex agents";
+  description = "CopilotMonitor Tauri app for orchestrating Codex agents";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";

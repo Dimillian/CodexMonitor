@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
-const GITHUB_URL = "https://github.com/Dimillian/CodexMonitor";
+const GITHUB_URL = "https://github.com/Dimillian/CopilotMonitor";
 const TWITTER_URL = "https://x.com/dimillian";
 
 export function AboutView() {
@@ -44,9 +44,9 @@ export function AboutView() {
           <img
             className="about-icon"
             src="/app-icon.png"
-            alt="Codex Monitor icon"
+            alt="Copilot Monitor icon"
           />
-          <div className="about-title">Codex Monitor</div>
+          <div className="about-title">Copilot Monitor</div>
         </div>
         <div className="about-version">
           {version ? `Version ${version}` : "Version —"}

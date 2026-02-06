@@ -23,7 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 /release-artifacts
-CodexMonitor.zip
+CopilotMonitor.zip
 .codex-worktrees/
 .codexmonitor/
 public/assets/material-icons/

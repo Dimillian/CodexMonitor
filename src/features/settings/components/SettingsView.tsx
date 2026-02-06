@@ -3100,7 +3100,7 @@ export function SettingsView({
                       />
                     </div>
                     <div className="settings-help">
-                      Start the daemon separately and point CodexMonitor to it (host:port + token).
+                      Start the daemon separately and point CopilotMonitor to it (host:port + token).
                     </div>
                   </div>
                 )}

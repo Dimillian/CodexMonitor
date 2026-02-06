@@ -189,7 +189,7 @@ def main() -> None:
             {
                 "protocolVersion": 1,
                 "clientCapabilities": {"fs": {"readTextFile": True, "writeTextFile": True}, "terminal": True},
-                "clientInfo": {"name": "codex-monitor-acp-smoke", "title": "CodexMonitor ACP Smoke", "version": "0.0.0"},
+                "clientInfo": {"name": "codex-monitor-acp-smoke", "title": "CopilotMonitor ACP Smoke", "version": "0.0.0"},
             },
         ),
     )

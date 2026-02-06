@@ -1,6 +1,6 @@
 # Remote Backend POC (daemon)
 
-This fork includes a **proof-of-concept** daemon that runs CodexMonitor's backend logic in a separate process (intended for WSL2/Linux), exposing a simple **line-delimited JSON-RPC** protocol over TCP.
+This fork includes a **proof-of-concept** daemon that runs CopilotMonitor's backend logic in a separate process (intended for WSL2/Linux), exposing a simple **line-delimited JSON-RPC** protocol over TCP.
 
 This is **not** wired into the desktop app yet (no UI toggle / remote proxy), but it is useful to validate the architecture and iterate on the protocol.
 

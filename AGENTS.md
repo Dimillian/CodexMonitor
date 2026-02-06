@@ -1,9 +1,9 @@
-# CodexMonitor Agent Guide
+# CopilotMonitor Agent Guide
 
 All docs must canonical, no past commentary, only live state.
 
 ## Project Summary
-CodexMonitor is a Tauri app that orchestrates Codex agents across local workspaces.
+CopilotMonitor is a Tauri app that orchestrates Codex agents across local workspaces.
 
 - Frontend: React + Vite
 - Backend (app): Tauri Rust process

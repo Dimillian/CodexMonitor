@@ -1,18 +1,18 @@
 # App-Server Events Reference (Codex `41b4962b0a7f5d73bb23d329ad9bb742545f6a2c`)
 
 This document helps agents quickly answer:
-- Which app-server events CodexMonitor supports right now.
-- Which app-server requests CodexMonitor sends right now.
-- Where to look in CodexMonitor to add support.
+- Which app-server events CopilotMonitor supports right now.
+- Which app-server requests CopilotMonitor sends right now.
+- Where to look in CopilotMonitor to add support.
 - Where to look in `../Codex` to compare event lists and find emitters.
 
 When updating this document:
 1. Update the Codex hash in the title using `git -C ../Codex rev-parse HEAD`.
-2. Compare Codex events vs CodexMonitor routing.
-3. Compare Codex request methods vs CodexMonitor outgoing request methods.
+2. Compare Codex events vs CopilotMonitor routing.
+3. Compare Codex request methods vs CopilotMonitor outgoing request methods.
 4. Update supported and missing lists below.
 
-## Where To Look In CodexMonitor
+## Where To Look In CopilotMonitor
 
 Primary app-server event source of truth (methods + typed parsing helpers):
 - `src/utils/appServerEvents.ts`
@@ -86,7 +86,7 @@ Codex currently exposes two compaction signals:
 - Preferred: `item/started` + `item/completed` with `item.type = "contextCompaction"` (`ThreadItem::ContextCompaction`).
 - Deprecated: `thread/compacted` (`ContextCompactedNotification`).
 
-CodexMonitor status:
+CopilotMonitor status:
 
 - It routes `item/started` and `item/completed`, so the preferred signal reaches the frontend event layer.
 - It renders/stores `contextCompaction` items via the normal item lifecycle.
@@ -104,9 +104,9 @@ events are currently not routed:
 - `configWarning`
 - `windows/worldWritableWarning`
 
-## Supported Requests (CodexMonitor -> App-Server, v2)
+## Supported Requests (CopilotMonitor -> App-Server, v2)
 
-These are v2 request methods CodexMonitor currently sends to Codex app-server:
+These are v2 request methods CopilotMonitor currently sends to Codex app-server:
 
 - `thread/start`
 - `thread/resume`
@@ -130,7 +130,7 @@ These are v2 request methods CodexMonitor currently sends to Codex app-server:
 
 ## Missing Requests (Codex v2 Request Methods)
 
-Compared against Codex v2 request methods, CodexMonitor currently does not send:
+Compared against Codex v2 request methods, CopilotMonitor currently does not send:
 
 - `thread/unarchive`
 - `thread/rollback`
@@ -176,7 +176,7 @@ Use this workflow to update the lists above:
    - `git -C ../Codex rev-parse HEAD`
 2. List Codex v2 notification methods:
    - `rg -n \"=> \\\".*\\\" \\(v2::.*Notification\\)\" ../Codex/codex-rs/app-server-protocol/src/protocol/common.rs`
-3. List CodexMonitor routed methods:
+3. List CopilotMonitor routed methods:
    - `rg -n \"SUPPORTED_APP_SERVER_METHODS\" src/utils/appServerEvents.ts`
 4. Update the Supported and Missing sections.
 
@@ -188,7 +188,7 @@ Use this workflow to update request support lists:
    - `git -C ../Codex rev-parse HEAD`
 2. List Codex request methods:
    - `rg -n \"=> \\\".*\\\" \\{\" ../Codex/codex-rs/app-server-protocol/src/protocol/common.rs`
-3. List CodexMonitor outgoing requests:
+3. List CopilotMonitor outgoing requests:
    - `rg -n \"send_request\\(\\\"\" src-tauri/src -g\"*.rs\"`
 4. Update the Supported Requests and Missing Requests sections.
 
@@ -211,7 +211,7 @@ Use this when the method list is unchanged but behavior looks off.
    - `rg -n \"enum ThreadItem|CommandExecution|FileChange|McpToolCall|EnteredReviewMode|ExitedReviewMode|ContextCompaction\" ../Codex/codex-rs/app-server-protocol/src/protocol/v2.rs`
 6. Check for camelCase vs snake_case mismatches:
    - The protocol uses `#[serde(rename_all = \"camelCase\")]`, but fields are often declared in snake_case.
-   - CodexMonitor generally defends against this by checking both forms (for example in `threadNormalize.ts` and `useAppServerEvents.ts`), while centralizing method/type parsing in `appServerEvents.ts`.
+   - CopilotMonitor generally defends against this by checking both forms (for example in `threadNormalize.ts` and `useAppServerEvents.ts`), while centralizing method/type parsing in `appServerEvents.ts`.
 7. If a schema change is found, fix it at the edges first:
    - Prefer updating `src/utils/appServerEvents.ts`, `useAppServerEvents.ts`, and `threadNormalize.ts` rather than spreading conditionals into components.
 

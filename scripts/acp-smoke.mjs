@@ -137,7 +137,7 @@ async function main() {
         },
         clientInfo: {
           name: "codex-monitor-acp-smoke",
-          title: "CodexMonitor ACP Smoke",
+          title: "CopilotMonitor ACP Smoke",
           version: "0.0.0",
         },
       },

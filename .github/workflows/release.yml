@@ -100,15 +100,15 @@ jobs:
         run: |
           set -euo pipefail
           ditto -c -k --keepParent \
-            "src-tauri/target/release/bundle/macos/Codex Monitor.app" \
-            CodexMonitor.zip
+            "src-tauri/target/release/bundle/macos/Copilot Monitor.app" \
+            CopilotMonitor.zip
 
-          xcrun notarytool submit CodexMonitor.zip \
+          xcrun notarytool submit CopilotMonitor.zip \
             --keychain-profile "$NOTARY_PROFILE_NAME" \
             --wait
 
           xcrun stapler staple \
-            "src-tauri/target/release/bundle/macos/Codex Monitor.app"
+            "src-tauri/target/release/bundle/macos/Copilot Monitor.app"
 
       - name: Package artifacts
         run: |
@@ -123,42 +123,42 @@ jobs:
           )
 
           mkdir -p release-artifacts release-artifacts/dmg-root
-          rm -rf "release-artifacts/dmg-root/Codex Monitor.app"
-          ditto "src-tauri/target/release/bundle/macos/Codex Monitor.app" \
-            "release-artifacts/dmg-root/Codex Monitor.app"
+          rm -rf "release-artifacts/dmg-root/Copilot Monitor.app"
+          ditto "src-tauri/target/release/bundle/macos/Copilot Monitor.app" \
+            "release-artifacts/dmg-root/Copilot Monitor.app"
 
           ditto -c -k --keepParent \
-            "src-tauri/target/release/bundle/macos/Codex Monitor.app" \
-            release-artifacts/CodexMonitor.zip
+            "src-tauri/target/release/bundle/macos/Copilot Monitor.app" \
+            release-artifacts/CopilotMonitor.zip
 
-          hdiutil create -volname "Codex Monitor" \
+          hdiutil create -volname "Copilot Monitor" \
             -srcfolder release-artifacts/dmg-root \
             -ov -format UDZO \
-            release-artifacts/CodexMonitor_${VERSION}_aarch64.dmg
+            release-artifacts/CopilotMonitor_${VERSION}_aarch64.dmg
 
           COPYFILE_DISABLE=1 tar -czf \
-            "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz" \
-            -C src-tauri/target/release/bundle/macos "Codex Monitor.app"
+            "src-tauri/target/release/bundle/macos/Copilot Monitor.app.tar.gz" \
+            -C src-tauri/target/release/bundle/macos "Copilot Monitor.app"
 
           npm run tauri signer sign -- \
             -f "$HOME/.tauri/codexmonitor.key" \
             -p "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" \
-            "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz"
+            "src-tauri/target/release/bundle/macos/Copilot Monitor.app.tar.gz"
 
-          cp "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz" \
-            release-artifacts/CodexMonitor.app.tar.gz
-          cp "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz.sig" \
-            release-artifacts/CodexMonitor.app.tar.gz.sig
+          cp "src-tauri/target/release/bundle/macos/Copilot Monitor.app.tar.gz" \
+            release-artifacts/CopilotMonitor.app.tar.gz
+          cp "src-tauri/target/release/bundle/macos/Copilot Monitor.app.tar.gz.sig" \
+            release-artifacts/CopilotMonitor.app.tar.gz.sig
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
           name: macos-artifacts
           path: |
-            release-artifacts/CodexMonitor.zip
-            release-artifacts/CodexMonitor_*_aarch64.dmg
-            release-artifacts/CodexMonitor.app.tar.gz
-            release-artifacts/CodexMonitor.app.tar.gz.sig
+            release-artifacts/CopilotMonitor.zip
+            release-artifacts/CopilotMonitor_*_aarch64.dmg
+            release-artifacts/CopilotMonitor.app.tar.gz
+            release-artifacts/CopilotMonitor.app.tar.gz.sig
 
   build_linux:
     name: linux bundles (${{ matrix.arch }})
@@ -288,7 +288,7 @@ jobs:
           PY
           )
 
-          SIGNATURE=$(cat release-artifacts/CodexMonitor.app.tar.gz.sig)
+          SIGNATURE=$(cat release-artifacts/CopilotMonitor.app.tar.gz.sig)
           LAST_TAG=$(git tag --sort=-version:refname \
             | grep -v "^v${VERSION}$" \
             | head -n 1 || true)
@@ -346,7 +346,7 @@ jobs:
 
           platforms = {
             "darwin-aarch64": {
-              "url": "https://github.com/Dimillian/CodexMonitor/releases/download/v${VERSION}/CodexMonitor.app.tar.gz",
+              "url": "https://github.com/Dimillian/CopilotMonitor/releases/download/v${VERSION}/CopilotMonitor.app.tar.gz",
               "signature": "${SIGNATURE}",
             }
           }
@@ -373,7 +373,7 @@ jobs:
             if not sig_path.exists():
               raise SystemExit(f"Missing signature for {appimage.name}")
             platforms[f"linux-{arch}"] = {
-              "url": f"https://github.com/Dimillian/CodexMonitor/releases/download/v${VERSION}/{appimage.name}",
+              "url": f"https://github.com/Dimillian/CopilotMonitor/releases/download/v${VERSION}/{appimage.name}",
               "signature": sig_path.read_text().strip(),
             }
 
@@ -414,10 +414,10 @@ jobs:
             --title "v${VERSION}" \
             --notes-file release-artifacts/release-notes.md \
             --target "$GITHUB_SHA" \
-            release-artifacts/CodexMonitor.zip \
-            release-artifacts/CodexMonitor_*_aarch64.dmg \
-            release-artifacts/CodexMonitor.app.tar.gz \
-            release-artifacts/CodexMonitor.app.tar.gz.sig \
+            release-artifacts/CopilotMonitor.zip \
+            release-artifacts/CopilotMonitor_*_aarch64.dmg \
+            release-artifacts/CopilotMonitor.app.tar.gz \
+            release-artifacts/CopilotMonitor.app.tar.gz.sig \
             "${appimages[@]}" \
             "${rpms[@]}" \
             release-artifacts/latest.json
