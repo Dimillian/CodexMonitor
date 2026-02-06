@@ -5,11 +5,11 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use git2::{BranchType, DiffOptions, Repository, Sort, Status, StatusOptions};
 use serde_json::json;
 use tauri::State;
-use tokio::process::Command;
 
+use crate::shared::process_core::tokio_command;
 use crate::git_utils::{
-    checkout_branch, commit_to_entry, diff_patch_to_string, diff_stats_for_path,
-    image_mime_type, list_git_roots as scan_git_roots, parse_github_repo, resolve_git_root,
+    checkout_branch, commit_to_entry, diff_patch_to_string, diff_stats_for_path, image_mime_type,
+    list_git_roots as scan_git_roots, parse_github_repo, resolve_git_root,
 };
 use crate::state::AppState;
 use crate::types::{
@@ -21,6 +21,7 @@ use crate::utils::{git_env_path, normalize_git_path, resolve_git_binary};
 
 const INDEX_SKIP_WORKTREE_FLAG: u16 = 0x4000;
 const MAX_IMAGE_BYTES: usize = 10 * 1024 * 1024;
+const MAX_TEXT_DIFF_BYTES: usize = 2 * 1024 * 1024;
 
 fn encode_image_base64(data: &[u8]) -> Option<String> {
     if data.len() > MAX_IMAGE_BYTES {
@@ -45,9 +46,44 @@ fn read_image_base64(path: &Path) -> Option<String> {
     encode_image_base64(&data)
 }
 
+fn bytes_look_binary(bytes: &[u8]) -> bool {
+    bytes.iter().take(8192).any(|byte| *byte == 0)
+}
+
+fn split_lines_preserving_newlines(content: &str) -> Vec<String> {
+    if content.is_empty() {
+        return Vec::new();
+    }
+    content
+        .split_inclusive('\n')
+        .map(ToString::to_string)
+        .collect()
+}
+
+fn blob_to_lines(blob: git2::Blob<'_>) -> Option<Vec<String>> {
+    if blob.size() > MAX_TEXT_DIFF_BYTES || blob.is_binary() {
+        return None;
+    }
+    let content = String::from_utf8_lossy(blob.content());
+    Some(split_lines_preserving_newlines(content.as_ref()))
+}
+
+fn read_text_lines(path: &Path) -> Option<Vec<String>> {
+    let metadata = fs::metadata(path).ok()?;
+    if metadata.len() > MAX_TEXT_DIFF_BYTES as u64 {
+        return None;
+    }
+    let data = fs::read(path).ok()?;
+    if bytes_look_binary(&data) {
+        return None;
+    }
+    let content = String::from_utf8_lossy(&data);
+    Some(split_lines_preserving_newlines(content.as_ref()))
+}
+
 async fn run_git_command(repo_root: &Path, args: &[&str]) -> Result<(), String> {
     let git_bin = resolve_git_binary().map_err(|e| format!("Failed to run git: {e}"))?;
-    let output = Command::new(git_bin)
+    let output = tokio_command(git_bin)
         .args(args)
         .current_dir(repo_root)
         .env("PATH", git_env_path())
@@ -172,6 +208,10 @@ fn upstream_remote_and_branch(repo_root: &Path) -> Result<Option<(String, String
 async fn push_with_upstream(repo_root: &Path) -> Result<(), String> {
     let upstream = upstream_remote_and_branch(repo_root)?;
     if let Some((remote, branch)) = upstream {
+        // Refresh remote-tracking refs before push so ahead/behind state is current
+        // and we can surface pull/sync requirements before attempting the push.
+        // This is best-effort because some setups intentionally allow push but not fetch.
+        let _ = run_git_command(repo_root, &["fetch", "--prune", remote.as_str()]).await;
         let refspec = format!("HEAD:{branch}");
         return run_git_command(
             repo_root,
@@ -180,6 +220,58 @@ async fn push_with_upstream(repo_root: &Path) -> Result<(), String> {
         .await;
     }
     run_git_command(repo_root, &["push"]).await
+}
+
+async fn fetch_with_default_remote(repo_root: &Path) -> Result<(), String> {
+    let upstream = upstream_remote_and_branch(repo_root)?;
+    if let Some((remote, _)) = upstream {
+        return run_git_command(repo_root, &["fetch", "--prune", remote.as_str()]).await;
+    }
+    run_git_command(repo_root, &["fetch", "--prune"]).await
+}
+
+async fn pull_with_default_strategy(repo_root: &Path) -> Result<(), String> {
+    fn autostash_unsupported(lower: &str) -> bool {
+        lower.contains("unknown option") && lower.contains("autostash")
+    }
+
+    fn needs_reconcile_strategy(lower: &str) -> bool {
+        lower.contains("need to specify how to reconcile divergent branches")
+            || lower.contains("you have divergent branches")
+    }
+
+    // Respect user/repo git config first, while still allowing dirty worktrees.
+    match run_git_command(repo_root, &["pull", "--autostash"]).await {
+        Ok(()) => Ok(()),
+        Err(err) => {
+            let lower = err.to_lowercase();
+            if autostash_unsupported(&lower) {
+                match run_git_command(repo_root, &["pull"]).await {
+                    Ok(()) => Ok(()),
+                    Err(no_autostash_err) => {
+                        let no_autostash_lower = no_autostash_err.to_lowercase();
+                        if needs_reconcile_strategy(&no_autostash_lower) {
+                            return run_git_command(repo_root, &["pull", "--no-rebase"]).await;
+                        }
+                        Err(no_autostash_err)
+                    }
+                }
+            } else if needs_reconcile_strategy(&lower) {
+                match run_git_command(repo_root, &["pull", "--no-rebase", "--autostash"]).await {
+                    Ok(()) => Ok(()),
+                    Err(merge_err) => {
+                        let merge_lower = merge_err.to_lowercase();
+                        if autostash_unsupported(&merge_lower) {
+                            return run_git_command(repo_root, &["pull", "--no-rebase"]).await;
+                        }
+                        Err(merge_err)
+                    }
+                }
+            } else {
+                Err(err)
+            }
+        }
+    }
 }
 
 fn status_for_index(status: Status) -> Option<&'static str> {
@@ -689,7 +781,22 @@ pub(crate) async fn pull_git(
         .clone();
 
     let repo_root = resolve_git_root(&entry)?;
-    run_git_command(&repo_root, &["pull"]).await
+    pull_with_default_strategy(&repo_root).await
+}
+
+#[tauri::command]
+pub(crate) async fn fetch_git(
+    workspace_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let workspaces = state.workspaces.lock().await;
+    let entry = workspaces
+        .get(&workspace_id)
+        .ok_or("workspace not found")?
+        .clone();
+
+    let repo_root = resolve_git_root(&entry)?;
+    fetch_with_default_remote(&repo_root).await
 }
 
 #[tauri::command]
@@ -705,7 +812,7 @@ pub(crate) async fn sync_git(
 
     let repo_root = resolve_git_root(&entry)?;
     // Pull first, then push (like VSCode sync)
-    run_git_command(&repo_root, &["pull"]).await?;
+    pull_with_default_strategy(&repo_root).await?;
     push_with_upstream(&repo_root).await
 }
 
@@ -752,8 +859,13 @@ pub(crate) async fn get_git_diffs(
         .get(&workspace_id)
         .ok_or("workspace not found")?
         .clone();
+    drop(workspaces);
 
     let repo_root = resolve_git_root(&entry)?;
+    let ignore_whitespace_changes = {
+        let settings = state.app_settings.lock().await;
+        settings.git_diff_ignore_whitespace_changes
+    };
     tokio::task::spawn_blocking(move || {
         let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
         let head_tree = repo
@@ -766,6 +878,7 @@ pub(crate) async fn get_git_diffs(
             .include_untracked(true)
             .recurse_untracked_dirs(true)
             .show_untracked_content(true);
+        options.ignore_whitespace_change(ignore_whitespace_changes);
 
         let diff = match head_tree.as_ref() {
             Some(tree) => repo
@@ -791,11 +904,32 @@ pub(crate) async fn get_git_diffs(
             let old_image_mime = old_path_str.as_deref().and_then(image_mime_type);
             let new_image_mime = new_path_str.as_deref().and_then(image_mime_type);
             let is_image = old_image_mime.is_some() || new_image_mime.is_some();
+            let is_deleted = delta.status() == git2::Delta::Deleted;
+            let is_added = delta.status() == git2::Delta::Added;
+
+            let old_lines = if !is_added {
+                head_tree
+                    .as_ref()
+                    .and_then(|tree| old_path.and_then(|path| tree.get_path(path).ok()))
+                    .and_then(|entry| repo.find_blob(entry.id()).ok())
+                    .and_then(blob_to_lines)
+            } else {
+                None
+            };
+
+            let new_lines = if !is_deleted {
+                match new_path {
+                    Some(path) => {
+                        let full_path = repo_root.join(path);
+                        read_text_lines(&full_path)
+                    }
+                    None => None,
+                }
+            } else {
+                None
+            };
 
             if is_image {
-                let is_deleted = delta.status() == git2::Delta::Deleted;
-                let is_added = delta.status() == git2::Delta::Added;
-
                 let old_image_data = if !is_added && old_image_mime.is_some() {
                     head_tree
                         .as_ref()
@@ -821,6 +955,8 @@ pub(crate) async fn get_git_diffs(
                 results.push(GitFileDiff {
                     path: normalized_path,
                     diff: String::new(),
+                    old_lines: None,
+                    new_lines: None,
                     is_binary: true,
                     is_image: true,
                     old_image_data,
@@ -848,6 +984,8 @@ pub(crate) async fn get_git_diffs(
             results.push(GitFileDiff {
                 path: normalized_path,
                 diff: content,
+                old_lines,
+                new_lines,
                 is_binary: false,
                 is_image: false,
                 old_image_data: None,
@@ -983,6 +1121,12 @@ pub(crate) async fn get_git_commit_diff(
         .get(&workspace_id)
         .ok_or("workspace not found")?
         .clone();
+    drop(workspaces);
+
+    let ignore_whitespace_changes = {
+        let settings = state.app_settings.lock().await;
+        settings.git_diff_ignore_whitespace_changes
+    };
 
     let repo_root = resolve_git_root(&entry)?;
     let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
@@ -995,6 +1139,7 @@ pub(crate) async fn get_git_commit_diff(
         .and_then(|parent| parent.tree().ok());
 
     let mut options = DiffOptions::new();
+    options.ignore_whitespace_change(ignore_whitespace_changes);
     let diff = repo
         .diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), Some(&mut options))
         .map_err(|e| e.to_string())?;
@@ -1014,11 +1159,29 @@ pub(crate) async fn get_git_commit_diff(
         let old_image_mime = old_path_str.as_deref().and_then(image_mime_type);
         let new_image_mime = new_path_str.as_deref().and_then(image_mime_type);
         let is_image = old_image_mime.is_some() || new_image_mime.is_some();
+        let is_deleted = delta.status() == git2::Delta::Deleted;
+        let is_added = delta.status() == git2::Delta::Added;
+
+        let old_lines = if !is_added {
+            parent_tree
+                .as_ref()
+                .and_then(|tree| old_path.and_then(|path| tree.get_path(path).ok()))
+                .and_then(|entry| repo.find_blob(entry.id()).ok())
+                .and_then(blob_to_lines)
+        } else {
+            None
+        };
+
+        let new_lines = if !is_deleted {
+            new_path
+                .and_then(|path| commit_tree.get_path(path).ok())
+                .and_then(|entry| repo.find_blob(entry.id()).ok())
+                .and_then(blob_to_lines)
+        } else {
+            None
+        };
 
         if is_image {
-            let is_deleted = delta.status() == git2::Delta::Deleted;
-            let is_added = delta.status() == git2::Delta::Added;
-
             let old_image_data = if !is_added && old_image_mime.is_some() {
                 parent_tree
                     .as_ref()
@@ -1042,6 +1205,8 @@ pub(crate) async fn get_git_commit_diff(
                 path: normalized_path,
                 status: status_for_delta(delta.status()).to_string(),
                 diff: String::new(),
+                old_lines: None,
+                new_lines: None,
                 is_binary: true,
                 is_image: true,
                 old_image_data,
@@ -1070,6 +1235,8 @@ pub(crate) async fn get_git_commit_diff(
             path: normalized_path,
             status: status_for_delta(delta.status()).to_string(),
             diff: content,
+            old_lines,
+            new_lines,
             is_binary: false,
             is_image: false,
             old_image_data: None,
@@ -1127,7 +1294,7 @@ pub(crate) async fn get_github_issues(
     let repo_root = resolve_git_root(&entry)?;
     let repo_name = github_repo_from_path(&repo_root)?;
 
-    let output = Command::new("gh")
+    let output = tokio_command("gh")
         .args([
             "issue",
             "list",
@@ -1162,7 +1329,7 @@ pub(crate) async fn get_github_issues(
 
     let search_query = format!("repo:{repo_name} is:issue is:open");
     let search_query = search_query.replace(' ', "+");
-    let total = match Command::new("gh")
+    let total = match tokio_command("gh")
         .args([
             "api",
             &format!("/search/issues?q={search_query}"),
@@ -1197,7 +1364,7 @@ pub(crate) async fn get_github_pull_requests(
     let repo_root = resolve_git_root(&entry)?;
     let repo_name = github_repo_from_path(&repo_root)?;
 
-    let output = Command::new("gh")
+    let output = tokio_command("gh")
         .args([
             "pr",
             "list",
@@ -1234,7 +1401,7 @@ pub(crate) async fn get_github_pull_requests(
 
     let search_query = format!("repo:{repo_name} is:pr is:open");
     let search_query = search_query.replace(' ', "+");
-    let total = match Command::new("gh")
+    let total = match tokio_command("gh")
         .args([
             "api",
             &format!("/search/issues?q={search_query}"),
@@ -1273,7 +1440,7 @@ pub(crate) async fn get_github_pull_request_diff(
     let repo_root = resolve_git_root(&entry)?;
     let repo_name = github_repo_from_path(&repo_root)?;
 
-    let output = Command::new("gh")
+    let output = tokio_command("gh")
         .args([
             "pr",
             "diff",
@@ -1325,7 +1492,7 @@ pub(crate) async fn get_github_pull_request_comments(
         format!("/repos/{repo_name}/issues/{pr_number}/comments?per_page=30");
     let jq_filter = r#"[.[] | {id, body, createdAt: .created_at, url: .html_url, author: (if .user then {login: .user.login} else null end)}]"#;
 
-    let output = Command::new("gh")
+    let output = tokio_command("gh")
         .args(["api", &comments_endpoint, "--jq", jq_filter])
         .current_dir(&repo_root)
         .output()
@@ -1426,10 +1593,11 @@ pub(crate) async fn create_git_branch(
 mod tests {
     use super::*;
     use std::fs;
+    use std::path::Path;
 
     fn create_temp_repo() -> (PathBuf, Repository) {
         let root = std::env::temp_dir().join(format!(
-            "gemini-monitor-test-{}",
+            "codex-monitor-test-{}",
             uuid::Uuid::new_v4()
         ));
         fs::create_dir_all(&root).expect("create temp repo root");

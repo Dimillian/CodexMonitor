@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "GeminiMonitor",
-  "version": "0.7.33",
-  "identifier": "com.gemini.geminimonitor",
+  "productName": "Codex Monitor",
+  "version": "0.7.42",
+  "identifier": "com.dimillian.codexmonitor",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "macOSPrivateApi": true,
     "windows": [
       {
-        "title": "GeminiMonitor",
+        "title": "Codex Monitor",
         "width": 1200,
         "height": 700,
         "minWidth": 360,

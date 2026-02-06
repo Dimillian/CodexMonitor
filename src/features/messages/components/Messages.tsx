@@ -32,6 +32,7 @@ type MessagesProps = {
   threadId: string | null;
   workspaceId?: string | null;
   isThinking: boolean;
+  isLoadingMessages?: boolean;
   processingStartedAt?: number | null;
   lastDurationMs?: number | null;
   workspacePath?: string | null;
@@ -43,6 +44,7 @@ type MessagesProps = {
     request: RequestUserInputRequest,
     response: RequestUserInputResponse,
   ) => void;
+  onOpenThreadLink?: (threadId: string) => void;
 };
 
 type ToolSummary = {
@@ -67,8 +69,10 @@ type MessageRowProps = {
   isCopied: boolean;
   onCopy: (item: Extract<ConversationItem, { kind: "message" }>) => void;
   codeBlockCopyUseModifier?: boolean;
+  workspacePath?: string | null;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
+  onOpenThreadLink?: (threadId: string) => void;
 };
 
 type ReasoningRowProps = {
@@ -76,14 +80,18 @@ type ReasoningRowProps = {
   parsed: ReturnType<typeof parseReasoning>;
   isExpanded: boolean;
   onToggle: (id: string) => void;
+  workspacePath?: string | null;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
+  onOpenThreadLink?: (threadId: string) => void;
 };
 
 type ReviewRowProps = {
   item: Extract<ConversationItem, { kind: "review" }>;
+  workspacePath?: string | null;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
+  onOpenThreadLink?: (threadId: string) => void;
 };
 
 type DiffRowProps = {
@@ -94,8 +102,10 @@ type ToolRowProps = {
   item: Extract<ConversationItem, { kind: "tool" }>;
   isExpanded: boolean;
   onToggle: (id: string) => void;
+  workspacePath?: string | null;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
+  onOpenThreadLink?: (threadId: string) => void;
   onRequestAutoScroll?: () => void;
 };
 
@@ -664,8 +674,10 @@ const MessageRow = memo(function MessageRow({
   isCopied,
   onCopy,
   codeBlockCopyUseModifier,
+  workspacePath,
   onOpenFileLink,
   onOpenFileLinkMenu,
+  onOpenThreadLink,
 }: MessageRowProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const hasText = item.text.trim().length > 0;
@@ -700,8 +712,10 @@ const MessageRow = memo(function MessageRow({
             className="markdown"
             codeBlockStyle="message"
             codeBlockCopyUseModifier={codeBlockCopyUseModifier}
+            workspacePath={workspacePath}
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}
+            onOpenThreadLink={onOpenThreadLink}
           />
         )}
         {lightboxIndex !== null && imageItems.length > 0 && (
@@ -733,8 +747,10 @@ const ReasoningRow = memo(function ReasoningRow({
   parsed,
   isExpanded,
   onToggle,
+  workspacePath,
   onOpenFileLink,
   onOpenFileLinkMenu,
+  onOpenThreadLink,
 }: ReasoningRowProps) {
   const { summaryTitle, bodyText, hasBody } = parsed;
   const reasoningTone: StatusTone = hasBody ? "completed" : "processing";
@@ -767,8 +783,10 @@ const ReasoningRow = memo(function ReasoningRow({
             className={`reasoning-inline-detail markdown ${
               isExpanded ? "" : "tool-inline-clamp"
             }`}
+            workspacePath={workspacePath}
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}
+            onOpenThreadLink={onOpenThreadLink}
           />
         )}
       </div>
@@ -778,8 +796,10 @@ const ReasoningRow = memo(function ReasoningRow({
 
 const ReviewRow = memo(function ReviewRow({
   item,
+  workspacePath,
   onOpenFileLink,
   onOpenFileLinkMenu,
+  onOpenThreadLink,
 }: ReviewRowProps) {
   const title = item.state === "started" ? "Review started" : "Review completed";
   return (
@@ -796,8 +816,10 @@ const ReviewRow = memo(function ReviewRow({
         <Markdown
           value={item.text}
           className="item-text markdown"
+          workspacePath={workspacePath}
           onOpenFileLink={onOpenFileLink}
           onOpenFileLinkMenu={onOpenFileLinkMenu}
+          onOpenThreadLink={onOpenThreadLink}
         />
       )}
     </div>
@@ -822,8 +844,10 @@ const ToolRow = memo(function ToolRow({
   item,
   isExpanded,
   onToggle,
+  workspacePath,
   onOpenFileLink,
   onOpenFileLinkMenu,
+  onOpenThreadLink,
   onRequestAutoScroll,
 }: ToolRowProps) {
   const isFileChange = item.toolType === "fileChange";
@@ -964,8 +988,10 @@ const ToolRow = memo(function ToolRow({
           <Markdown
             value={item.detail}
             className="item-text markdown"
+            workspacePath={workspacePath}
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}
+            onOpenThreadLink={onOpenThreadLink}
           />
         )}
         {showCommandOutput && <CommandOutput output={summary.output ?? ""} />}
@@ -974,8 +1000,10 @@ const ToolRow = memo(function ToolRow({
             value={summary.output}
             className="tool-inline-output markdown"
             codeBlock
+            workspacePath={workspacePath}
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}
+            onOpenThreadLink={onOpenThreadLink}
           />
         )}
       </div>
@@ -1083,6 +1111,7 @@ export const Messages = memo(function Messages({
   threadId,
   workspaceId = null,
   isThinking,
+  isLoadingMessages = false,
   processingStartedAt = null,
   lastDurationMs = null,
   workspacePath = null,
@@ -1091,11 +1120,13 @@ export const Messages = memo(function Messages({
   codeBlockCopyUseModifier = false,
   userInputRequests = [],
   onUserInputSubmit,
+  onOpenThreadLink,
 }: MessagesProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const autoScrollRef = useRef(true);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const manuallyToggledExpandedRef = useRef<Set<string>>(new Set());
   const [collapsedToolGroups, setCollapsedToolGroups] = useState<Set<string>>(
     new Set(),
   );
@@ -1146,6 +1177,7 @@ export const Messages = memo(function Messages({
     autoScrollRef.current = true;
   }, [threadId]);
   const toggleExpanded = useCallback((id: string) => {
+    manuallyToggledExpandedRef.current.add(id);
     setExpandedItems((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -1208,6 +1240,30 @@ export const Messages = memo(function Messages({
   );
 
   useEffect(() => {
+    for (let index = visibleItems.length - 1; index >= 0; index -= 1) {
+      const item = visibleItems[index];
+      if (
+        item.kind === "tool" &&
+        item.toolType === "plan" &&
+        (item.output ?? "").trim().length > 0
+      ) {
+        if (manuallyToggledExpandedRef.current.has(item.id)) {
+          return;
+        }
+        setExpandedItems((prev) => {
+          if (prev.has(item.id)) {
+            return prev;
+          }
+          const next = new Set(prev);
+          next.add(item.id);
+          return next;
+        });
+        return;
+      }
+    }
+  }, [visibleItems]);
+
+  useEffect(() => {
     return () => {
       if (copyTimeoutRef.current) {
         window.clearTimeout(copyTimeoutRef.current);
@@ -1262,7 +1318,7 @@ export const Messages = memo(function Messages({
     };
   }, [scrollKey, isThinking, isNearBottom]);
 
-  const groupedItems = buildToolGroups(visibleItems);
+  const groupedItems = useMemo(() => buildToolGroups(visibleItems), [visibleItems]);
 
   const hasActiveUserInputRequest = activeUserInputRequestId !== null;
   const userInputNode =
@@ -1285,8 +1341,10 @@ export const Messages = memo(function Messages({
           isCopied={isCopied}
           onCopy={handleCopyMessage}
           codeBlockCopyUseModifier={codeBlockCopyUseModifier}
+          workspacePath={workspacePath}
           onOpenFileLink={openFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
+          onOpenThreadLink={onOpenThreadLink}
         />
       );
     }
@@ -1300,8 +1358,10 @@ export const Messages = memo(function Messages({
           parsed={parsed}
           isExpanded={isExpanded}
           onToggle={toggleExpanded}
+          workspacePath={workspacePath}
           onOpenFileLink={openFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
+          onOpenThreadLink={onOpenThreadLink}
         />
       );
     }
@@ -1310,8 +1370,10 @@ export const Messages = memo(function Messages({
         <ReviewRow
           key={item.id}
           item={item}
+          workspacePath={workspacePath}
           onOpenFileLink={openFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
+          onOpenThreadLink={onOpenThreadLink}
         />
       );
     }
@@ -1326,8 +1388,10 @@ export const Messages = memo(function Messages({
           item={item}
           isExpanded={isExpanded}
           onToggle={toggleExpanded}
+          workspacePath={workspacePath}
           onOpenFileLink={openFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
+          onOpenThreadLink={onOpenThreadLink}
           onRequestAutoScroll={requestAutoScroll}
         />
       );
@@ -1395,9 +1459,17 @@ export const Messages = memo(function Messages({
         hasItems={items.length > 0}
         reasoningLabel={latestReasoningLabel}
       />
-      {!items.length && !userInputNode && (
+      {!items.length && !userInputNode && !isThinking && !isLoadingMessages && (
         <div className="empty messages-empty">
-          Start a thread and send a prompt to the agent.
+          {threadId ? "Send a prompt to the agent." : "Send a prompt to start a new agent."}
+        </div>
+      )}
+      {!items.length && !userInputNode && !isThinking && isLoadingMessages && (
+        <div className="empty messages-empty">
+          <div className="messages-loading-indicator" role="status" aria-live="polite">
+            <span className="working-spinner" aria-hidden />
+            <span className="messages-loading-label">Loading…</span>
+          </div>
         </div>
       )}
       <div ref={bottomRef} />

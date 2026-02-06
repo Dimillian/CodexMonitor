@@ -41,7 +41,7 @@ mod tests {
     use super::{read_with_policy, write_with_policy};
 
     fn temp_dir(prefix: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("gemini-monitor-{prefix}-{}", Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("codex-monitor-{prefix}-{}", Uuid::new_v4()));
         if dir.exists() {
             let _ = fs::remove_dir_all(&dir);
         }

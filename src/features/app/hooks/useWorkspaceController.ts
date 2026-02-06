@@ -8,6 +8,19 @@ type WorkspaceControllerOptions = {
   queueSaveSettings: (next: AppSettings) => Promise<AppSettings>;
 };
 
+function getActiveCliBin(settings: AppSettings): string | null {
+  switch (settings.cliType) {
+    case "gemini":
+      return settings.geminiBin;
+    case "cursor":
+      return settings.cursorBin;
+    case "claude":
+      return settings.claudeBin;
+    default:
+      return settings.codexBin;
+  }
+}
+
 export function useWorkspaceController({
   appSettings,
   addDebugEntry,
@@ -15,7 +28,7 @@ export function useWorkspaceController({
 }: WorkspaceControllerOptions) {
   return useWorkspaces({
     onDebug: addDebugEntry,
-    defaultGeminiBin: appSettings.geminiBin,
+    defaultCodexBin: getActiveCliBin(appSettings),
     appSettings,
     onUpdateAppSettings: queueSaveSettings,
   });

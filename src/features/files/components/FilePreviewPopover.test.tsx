@@ -82,4 +82,30 @@ describe("FilePreviewPopover", () => {
     expect(onLineMouseUp).toHaveBeenCalledWith(1, expect.any(Object));
     expect(onSelectLine).toHaveBeenCalledWith(1, expect.any(Object));
   });
+
+  it("disables add-to-chat when insertion is not allowed", () => {
+    render(
+      <FilePreviewPopover
+        path="src/example.ts"
+        absolutePath="/workspace/src/example.ts"
+        content={"one\ntwo"}
+        truncated={false}
+        previewKind="text"
+        imageSrc={null}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={vi.fn()}
+        selection={{ start: 0, end: 0 }}
+        onSelectLine={vi.fn()}
+        onClearSelection={vi.fn()}
+        onAddSelection={vi.fn()}
+        onClose={vi.fn()}
+        canInsertText={false}
+      />,
+    );
+
+    const addButton = screen.getByRole("button", { name: "Add to chat" });
+    expect(addButton.hasAttribute("disabled")).toBe(true);
+  });
 });

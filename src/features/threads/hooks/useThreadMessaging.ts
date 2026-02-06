@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 import type { Dispatch, MutableRefObject } from "react";
-import * as Sentry from "@sentry/react";
 import type {
   AccessMode,
   RateLimitSnapshot,
@@ -10,14 +9,17 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import {
+  compactThread as compactThreadService,
   sendUserMessage as sendUserMessageService,
   startReview as startReviewService,
   interruptTurn as interruptTurnService,
+  getAppsList as getAppsListService,
   listMcpServerStatus as listMcpServerStatusService,
 } from "../../../services/tauri";
 import { expandCustomPromptText } from "../../../utils/customPrompts";
 import {
   asString,
+  extractReviewThreadId,
   extractRpcErrorMessage,
   parseReviewTarget,
 } from "../utils/threadNormalize";
@@ -40,6 +42,7 @@ type UseThreadMessagingOptions = {
   model?: string | null;
   effort?: string | null;
   collaborationMode?: Record<string, unknown> | null;
+  reviewDeliveryMode?: "inline" | "detached";
   steerEnabled: boolean;
   customPrompts: CustomPromptOption[];
   threadStatusById: ThreadState["threadStatusById"];
@@ -73,6 +76,7 @@ export function useThreadMessaging({
   model,
   effort,
   collaborationMode,
+  reviewDeliveryMode = "inline",
   steerEnabled,
   customPrompts,
   threadStatusById,
@@ -155,17 +159,6 @@ export function useThreadMessaging({
           });
         }
       }
-      Sentry.metrics.count("prompt_sent", 1, {
-        attributes: {
-          workspace_id: workspace.id,
-          thread_id: threadId,
-          has_images: images.length > 0 ? "true" : "false",
-          text_length: String(finalText.length),
-          model: resolvedModel ?? "unknown",
-          effort: resolvedEffort ?? "unknown",
-          collaboration_mode: sanitizedCollaborationMode ?? "unknown",
-        },
-      });
       const timestamp = Date.now();
       recordThreadActivity(workspace.id, threadId, timestamp);
       dispatch({
@@ -421,7 +414,7 @@ export function useThreadMessaging({
           workspaceId,
           threadId,
           target,
-          "inline",
+          reviewDeliveryMode,
         );
         onDebug?.({
           id: `${Date.now()}-server-review-start`,
@@ -438,6 +431,10 @@ export function useThreadMessaging({
           pushThreadErrorMessage(threadId, `Review failed to start: ${rpcError}`);
           safeMessageActivity();
           return false;
+        }
+        const reviewThreadId = extractReviewThreadId(response);
+        if (reviewThreadId && reviewThreadId !== threadId) {
+          updateThreadParent(threadId, [reviewThreadId]);
         }
         return true;
       } catch (error) {
@@ -468,6 +465,8 @@ export function useThreadMessaging({
       pushThreadErrorMessage,
       safeMessageActivity,
       setActiveTurnId,
+      reviewDeliveryMode,
+      updateThreadParent,
     ],
   );
 
@@ -718,6 +717,91 @@ export function useThreadMessaging({
     ],
   );
 
+  const startApps = useCallback(
+    async (_text: string) => {
+      if (!activeWorkspace) {
+        return;
+      }
+      const threadId = await ensureThreadForActiveWorkspace();
+      if (!threadId) {
+        return;
+      }
+
+      try {
+        const response = (await getAppsListService(
+          activeWorkspace.id,
+          null,
+          100,
+        )) as Record<string, unknown> | null;
+        const result = (response?.result ?? response) as
+          | Record<string, unknown>
+          | null;
+        const data = Array.isArray(result?.data)
+          ? (result?.data as Array<Record<string, unknown>>)
+          : [];
+
+        const lines: string[] = ["Apps:"];
+        if (data.length === 0) {
+          lines.push("- No apps available.");
+        } else {
+          const apps = [...data].sort((a, b) =>
+            String(a.name ?? "").localeCompare(String(b.name ?? "")),
+          );
+          for (const app of apps) {
+            const name = String(app.name ?? app.id ?? "unknown");
+            const appId = String(app.id ?? "");
+            const isAccessible = Boolean(
+              app.isAccessible ?? app.is_accessible ?? false,
+            );
+            const status = isAccessible ? "connected" : "can be installed";
+            const description =
+              typeof app.description === "string" && app.description.trim().length > 0
+                ? app.description.trim()
+                : "";
+            lines.push(
+              `- ${name}${appId ? ` (${appId})` : ""} — ${status}${description ? `: ${description}` : ""}`,
+            );
+
+            const installUrl =
+              typeof app.installUrl === "string"
+                ? app.installUrl
+                : typeof app.install_url === "string"
+                  ? app.install_url
+                  : "";
+            if (!isAccessible && installUrl) {
+              lines.push(`  install: ${installUrl}`);
+            }
+          }
+        }
+
+        const timestamp = Date.now();
+        recordThreadActivity(activeWorkspace.id, threadId, timestamp);
+        dispatch({
+          type: "addAssistantMessage",
+          threadId,
+          text: lines.join("\n"),
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to load apps.";
+        dispatch({
+          type: "addAssistantMessage",
+          threadId,
+          text: `Apps:\n- ${message}`,
+        });
+      } finally {
+        safeMessageActivity();
+      }
+    },
+    [
+      activeWorkspace,
+      dispatch,
+      ensureThreadForActiveWorkspace,
+      recordThreadActivity,
+      safeMessageActivity,
+    ],
+  );
+
   const startFork = useCallback(
     async (text: string) => {
       if (!activeWorkspace || !activeThreadId) {
@@ -768,6 +852,37 @@ export function useThreadMessaging({
     ],
   );
 
+  const startCompact = useCallback(
+    async (_text: string) => {
+      if (!activeWorkspace) {
+        return;
+      }
+      const threadId = activeThreadId ?? (await ensureThreadForActiveWorkspace());
+      if (!threadId) {
+        return;
+      }
+      try {
+        await compactThreadService(activeWorkspace.id, threadId);
+      } catch (error) {
+        pushThreadErrorMessage(
+          threadId,
+          error instanceof Error
+            ? error.message
+            : "Failed to start context compaction.",
+        );
+      } finally {
+        safeMessageActivity();
+      }
+    },
+    [
+      activeThreadId,
+      activeWorkspace,
+      ensureThreadForActiveWorkspace,
+      pushThreadErrorMessage,
+      safeMessageActivity,
+    ],
+  );
+
   return {
     interruptTurn,
     sendUserMessage,
@@ -775,6 +890,8 @@ export function useThreadMessaging({
     startFork,
     startReview,
     startResume,
+    startCompact,
+    startApps,
     startMcp,
     startStatus,
     reviewPrompt,

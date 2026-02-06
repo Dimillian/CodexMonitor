@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
+import * as notification from "@tauri-apps/plugin-notification";
 import {
   addWorkspace,
+  compactThread,
+  fetchGit,
   forkThread,
   getGitHubIssues,
   getGitLog,
@@ -9,7 +12,7 @@ import {
   getOpenAppIcon,
   listMcpServerStatus,
   readGlobalAgentsMd,
-  readGlobalGeminiConfigToml,
+  readGlobalCodexConfigToml,
   listWorkspaces,
   openWorkspaceIn,
   readAgentMd,
@@ -17,9 +20,11 @@ import {
   respondToServerRequest,
   respondToUserInputRequest,
   sendUserMessage,
+  sendNotification,
   startReview,
+  setThreadName,
   writeGlobalAgentsMd,
-  writeGlobalGeminiConfigToml,
+  writeGlobalCodexConfigToml,
   writeAgentMd,
 } from "./tauri";
 
@@ -27,12 +32,25 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
+vi.mock("@tauri-apps/plugin-notification", () => ({
+  isPermissionGranted: vi.fn(),
+  requestPermission: vi.fn(),
+  sendNotification: vi.fn(),
+}));
+
 describe("tauri invoke wrappers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "is_macos_debug_build") {
+        return false;
+      }
+      return undefined;
+    });
   });
 
-  it("uses gemini_bin for addWorkspace", async () => {
+  it("uses codex_bin for addWorkspace", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({ id: "ws-1" });
 
@@ -40,7 +58,7 @@ describe("tauri invoke wrappers", () => {
 
     expect(invokeMock).toHaveBeenCalledWith("add_workspace", {
       path: "/tmp/project",
-      gemini_bin: null,
+      codex_bin: null,
     });
   });
 
@@ -115,6 +133,31 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
+  it("maps workspaceId and threadId for compact_thread", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await compactThread("ws-10", "thread-10");
+
+    expect(invokeMock).toHaveBeenCalledWith("compact_thread", {
+      workspaceId: "ws-10",
+      threadId: "thread-10",
+    });
+  });
+
+  it("maps workspaceId/threadId/name for set_thread_name", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await setThreadName("ws-9", "thread-9", "New Name");
+
+    expect(invokeMock).toHaveBeenCalledWith("set_thread_name", {
+      workspaceId: "ws-9",
+      threadId: "thread-9",
+      name: "New Name",
+    });
+  });
+
   it("maps workspaceId/cursor/limit for list_mcp_server_status", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({});
@@ -136,6 +179,17 @@ describe("tauri invoke wrappers", () => {
 
     expect(invokeMock).toHaveBeenCalledWith("stage_git_all", {
       workspaceId: "ws-6",
+    });
+  });
+
+  it("invokes fetch_git", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await fetchGit("ws-7");
+
+    expect(invokeMock).toHaveBeenCalledWith("fetch_git", {
+      workspaceId: "ws-7",
     });
   });
 
@@ -225,7 +279,7 @@ describe("tauri invoke wrappers", () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({ exists: true, content: "model = \"gpt-5\"", truncated: false });
 
-    await readGlobalGeminiConfigToml();
+    await readGlobalCodexConfigToml();
 
     expect(invokeMock).toHaveBeenCalledWith("file_read", {
       scope: "global",
@@ -238,7 +292,7 @@ describe("tauri invoke wrappers", () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({});
 
-    await writeGlobalGeminiConfigToml("model = \"gpt-5\"");
+    await writeGlobalCodexConfigToml("model = \"gpt-5\"");
 
     expect(invokeMock).toHaveBeenCalledWith("file_write", {
       scope: "global",
@@ -331,5 +385,118 @@ describe("tauri invoke wrappers", () => {
         answers,
       },
     });
+  });
+
+  it("sends a notification without re-requesting permission when already granted", async () => {
+    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
+    const requestPermissionMock = vi.mocked(notification.requestPermission);
+    const sendNotificationMock = vi.mocked(notification.sendNotification);
+    isPermissionGrantedMock.mockResolvedValueOnce(true);
+
+    await sendNotification("Hello", "World");
+
+    expect(isPermissionGrantedMock).toHaveBeenCalledTimes(1);
+    expect(requestPermissionMock).not.toHaveBeenCalled();
+    expect(sendNotificationMock).toHaveBeenCalledWith({
+      title: "Hello",
+      body: "World",
+    });
+  });
+
+  it("passes extra metadata when provided", async () => {
+    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
+    const sendNotificationMock = vi.mocked(notification.sendNotification);
+    isPermissionGrantedMock.mockResolvedValueOnce(true);
+
+    await sendNotification("Hello", "World", {
+      extra: { kind: "thread", workspaceId: "ws-1", threadId: "t-1" },
+    });
+
+    expect(sendNotificationMock).toHaveBeenCalledWith({
+      title: "Hello",
+      body: "World",
+      extra: { kind: "thread", workspaceId: "ws-1", threadId: "t-1" },
+    });
+  });
+
+  it("requests permission once when needed and sends on grant", async () => {
+    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
+    const requestPermissionMock = vi.mocked(notification.requestPermission);
+    const sendNotificationMock = vi.mocked(notification.sendNotification);
+    isPermissionGrantedMock.mockResolvedValueOnce(false);
+    requestPermissionMock.mockResolvedValueOnce("granted");
+
+    await sendNotification("Grant", "Please");
+
+    expect(isPermissionGrantedMock).toHaveBeenCalledTimes(1);
+    expect(requestPermissionMock).toHaveBeenCalledTimes(1);
+    expect(sendNotificationMock).toHaveBeenCalledWith({
+      title: "Grant",
+      body: "Please",
+    });
+  });
+
+  it("does not send and warns when permission is denied", async () => {
+    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
+    const requestPermissionMock = vi.mocked(notification.requestPermission);
+    const sendNotificationMock = vi.mocked(notification.sendNotification);
+    const invokeMock = vi.mocked(invoke);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    isPermissionGrantedMock.mockResolvedValueOnce(false);
+    requestPermissionMock.mockResolvedValueOnce("denied");
+
+    await sendNotification("Denied", "Nope");
+
+    expect(isPermissionGrantedMock).toHaveBeenCalledTimes(1);
+    expect(requestPermissionMock).toHaveBeenCalledTimes(1);
+    expect(sendNotificationMock).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Notification permission not granted.",
+      { permission: "denied" },
+    );
+    expect(invokeMock).toHaveBeenCalledWith("send_notification_fallback", {
+      title: "Denied",
+      body: "Nope",
+    });
+    warnSpy.mockRestore();
+  });
+
+  it("falls back when the notification plugin throws", async () => {
+    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
+    const invokeMock = vi.mocked(invoke);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    isPermissionGrantedMock.mockRejectedValueOnce(new Error("boom"));
+
+    await sendNotification("Plugin", "Failed");
+
+    expect(invokeMock).toHaveBeenCalledWith("send_notification_fallback", {
+      title: "Plugin",
+      body: "Failed",
+    });
+    warnSpy.mockRestore();
+  });
+
+  it("prefers the fallback on macOS debug builds", async () => {
+    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
+    const invokeMock = vi.mocked(invoke);
+
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "is_macos_debug_build") {
+        return true;
+      }
+      if (command === "send_notification_fallback") {
+        return undefined;
+      }
+      return undefined;
+    });
+
+    await sendNotification("Dev", "Fallback");
+
+    expect(invokeMock).toHaveBeenCalledWith("is_macos_debug_build");
+    expect(invokeMock).toHaveBeenCalledWith("send_notification_fallback", {
+      title: "Dev",
+      body: "Fallback",
+    });
+    expect(isPermissionGrantedMock).not.toHaveBeenCalled();
   });
 });

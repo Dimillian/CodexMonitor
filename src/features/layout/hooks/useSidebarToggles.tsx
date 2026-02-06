@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
-const SIDEBAR_COLLAPSED_KEY = "geminimonitor.sidebarCollapsed";
-const RIGHT_PANEL_COLLAPSED_KEY = "geminimonitor.rightPanelCollapsed";
+const SIDEBAR_COLLAPSED_KEY = "codexmonitor.sidebarCollapsed";
+const RIGHT_PANEL_COLLAPSED_KEY = "codexmonitor.rightPanelCollapsed";
 
 type UseSidebarTogglesOptions = {
   isCompact: boolean;

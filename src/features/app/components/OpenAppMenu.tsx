@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import * as Sentry from "@sentry/react";
 import { openWorkspaceIn } from "../../../services/tauri";
 import { pushErrorToast } from "../../../services/toasts";
 import type { OpenAppTarget } from "../../../types";
@@ -62,9 +61,14 @@ export function OpenAppMenu({
 
   const fallbackTarget: OpenTarget = {
     id: DEFAULT_OPEN_APP_ID,
-    label: DEFAULT_OPEN_APP_TARGETS[0]?.label ?? "Open",
+    label:
+      DEFAULT_OPEN_APP_TARGETS.find((target) => target.id === DEFAULT_OPEN_APP_ID)
+        ?.label ??
+      DEFAULT_OPEN_APP_TARGETS[0]?.label ??
+      "Open",
     icon: getKnownOpenAppIcon(DEFAULT_OPEN_APP_ID) ?? GENERIC_APP_ICON,
     target:
+      DEFAULT_OPEN_APP_TARGETS.find((target) => target.id === DEFAULT_OPEN_APP_ID) ??
       DEFAULT_OPEN_APP_TARGETS[0] ?? {
         id: DEFAULT_OPEN_APP_ID,
         label: "VS Code",
@@ -81,18 +85,6 @@ export function OpenAppMenu({
 
   const reportOpenError = (error: unknown, target: OpenTarget) => {
     const message = error instanceof Error ? error.message : String(error);
-    Sentry.captureException(error instanceof Error ? error : new Error(message), {
-      tags: {
-        feature: "open-app-menu",
-      },
-      extra: {
-        path,
-        targetId: target.id,
-        targetKind: target.target.kind,
-        targetAppName: target.target.appName ?? null,
-        targetCommand: target.target.command ?? null,
-      },
-    });
     pushErrorToast({
       title: "Couldn’t open workspace",
       message,
@@ -121,6 +113,20 @@ export function OpenAppMenu({
     };
   }, [openMenuOpen]);
 
+  const resolveAppName = (target: OpenTarget) =>
+    (target.target.appName ?? "").trim();
+  const resolveCommand = (target: OpenTarget) =>
+    (target.target.command ?? "").trim();
+  const canOpenTarget = (target: OpenTarget) => {
+    if (target.target.kind === "finder") {
+      return true;
+    }
+    if (target.target.kind === "command") {
+      return Boolean(resolveCommand(target));
+    }
+    return Boolean(resolveAppName(target));
+  };
+
   const openWithTarget = async (target: OpenTarget) => {
     try {
       if (target.target.kind === "finder") {
@@ -128,16 +134,17 @@ export function OpenAppMenu({
         return;
       }
       if (target.target.kind === "command") {
-        if (!target.target.command) {
+        const command = resolveCommand(target);
+        if (!command) {
           return;
         }
         await openWorkspaceIn(path, {
-          command: target.target.command,
+          command,
           args: target.target.args,
         });
         return;
       }
-      const appName = target.target.appName || target.label;
+      const appName = resolveAppName(target);
       if (!appName) {
         return;
       }
@@ -151,18 +158,28 @@ export function OpenAppMenu({
   };
 
   const handleOpen = async () => {
-    if (!selectedOpenTarget) {
+    if (!selectedOpenTarget || !canOpenTarget(selectedOpenTarget)) {
       return;
     }
     await openWithTarget(selectedOpenTarget);
   };
 
   const handleSelectOpenTarget = async (target: OpenTarget) => {
+    if (!canOpenTarget(target)) {
+      return;
+    }
     onSelectOpenAppId(target.id);
     window.localStorage.setItem(OPEN_APP_STORAGE_KEY, target.id);
     setOpenMenuOpen(false);
     await openWithTarget(target);
   };
+
+  const selectedCanOpen = canOpenTarget(selectedOpenTarget);
+  const openLabel = selectedCanOpen
+    ? `Open in ${selectedOpenTarget.label}`
+    : selectedOpenTarget.target.kind === "command"
+      ? "Set command in Settings"
+      : "Set app name in Settings";
 
   return (
     <div className="open-app-menu" ref={openMenuRef}>
@@ -171,9 +188,10 @@ export function OpenAppMenu({
           type="button"
           className="ghost main-header-action open-app-action"
           onClick={handleOpen}
+          disabled={!selectedCanOpen}
           data-tauri-drag-region="false"
           aria-label={`Open in ${selectedOpenTarget.label}`}
-          title={`Open in ${selectedOpenTarget.label}`}
+          title={openLabel}
         >
           <span className="open-app-label">
             <img
@@ -201,6 +219,7 @@ export function OpenAppMenu({
       {openMenuOpen && (
         <div className="open-app-dropdown" role="menu">
           {resolvedOpenTargets.map((target) => (
+            // Keep entries visible but disable ones missing required config.
             <button
               key={target.id}
               type="button"
@@ -208,6 +227,7 @@ export function OpenAppMenu({
                 target.id === resolvedOpenAppId ? " is-active" : ""
               }`}
               onClick={() => handleSelectOpenTarget(target)}
+              disabled={!canOpenTarget(target)}
               role="menuitem"
               data-tauri-drag-region="false"
             >

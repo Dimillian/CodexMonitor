@@ -23,6 +23,10 @@ export function useTerminalController({
   const cleanupTerminalRef = useRef<((workspaceId: string, terminalId: string) => void) | null>(
     null,
   );
+  const shouldIgnoreTerminalCloseError = useCallback((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    return message.includes("Terminal session not found");
+  }, []);
 
   const handleTerminalClose = useCallback(
     async (workspaceId: string, terminalId: string) => {
@@ -30,10 +34,13 @@ export function useTerminalController({
       try {
         await closeTerminalSession(workspaceId, terminalId);
       } catch (error) {
+        if (shouldIgnoreTerminalCloseError(error)) {
+          return;
+        }
         onDebug(buildErrorDebugEntry("terminal close error", error));
       }
     },
-    [onDebug],
+    [onDebug, shouldIgnoreTerminalCloseError],
   );
 
   const {
@@ -60,6 +67,16 @@ export function useTerminalController({
     activeTerminalId,
     isVisible: terminalOpen,
     onDebug,
+    onSessionExit: (workspaceId, terminalId) => {
+      const shouldClosePanel =
+        workspaceId === activeWorkspaceId &&
+        terminalTabs.length === 1 &&
+        terminalTabs[0]?.id === terminalId;
+      closeTerminal(workspaceId, terminalId);
+      if (shouldClosePanel) {
+        onCloseTerminalPanel?.();
+      }
+    },
   });
 
   useEffect(() => {
@@ -104,14 +121,13 @@ export function useTerminalController({
       try {
         await closeTerminalSession(workspaceId, terminalId);
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (!message.includes("Terminal session not found")) {
+        if (!shouldIgnoreTerminalCloseError(error)) {
           onDebug(buildErrorDebugEntry("terminal close error", error));
           throw error;
         }
       }
     },
-    [onDebug],
+    [onDebug, shouldIgnoreTerminalCloseError],
   );
 
   return {

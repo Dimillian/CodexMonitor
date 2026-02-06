@@ -1,9 +1,12 @@
 import { lazy, memo, Suspense } from "react";
 import type { ComponentType } from "react";
+import type { BranchInfo, WorkspaceInfo } from "../../../types";
 import type { SettingsViewProps } from "../../settings/components/SettingsView";
 import { useRenameThreadPrompt } from "../../threads/hooks/useRenameThreadPrompt";
 import { useClonePrompt } from "../../workspaces/hooks/useClonePrompt";
 import { useWorktreePrompt } from "../../workspaces/hooks/useWorktreePrompt";
+import type { BranchSwitcherState } from "../../git/hooks/useBranchSwitcher";
+import { useGitBranches } from "../../git/hooks/useGitBranches";
 
 const RenameThreadPrompt = lazy(() =>
   import("../../threads/components/RenameThreadPrompt").then((module) => ({
@@ -20,6 +23,11 @@ const ClonePrompt = lazy(() =>
     default: module.ClonePrompt,
   })),
 );
+const BranchSwitcherPrompt = lazy(() =>
+  import("../../git/components/BranchSwitcherPrompt").then((module) => ({
+    default: module.BranchSwitcherPrompt,
+  })),
+);
 
 type RenamePromptState = ReturnType<typeof useRenameThreadPrompt>["renamePrompt"];
 
@@ -33,7 +41,9 @@ type AppModalsProps = {
   onRenamePromptCancel: () => void;
   onRenamePromptConfirm: () => void;
   worktreePrompt: WorktreePromptState;
+  onWorktreePromptNameChange: (value: string) => void;
   onWorktreePromptChange: (value: string) => void;
+  onWorktreePromptCopyAgentsMdChange: (value: boolean) => void;
   onWorktreeSetupScriptChange: (value: string) => void;
   onWorktreePromptCancel: () => void;
   onWorktreePromptConfirm: () => void;
@@ -44,6 +54,13 @@ type AppModalsProps = {
   onClonePromptClearCopiesFolder: () => void;
   onClonePromptCancel: () => void;
   onClonePromptConfirm: () => void;
+  branchSwitcher: BranchSwitcherState;
+  branches: BranchInfo[];
+  workspaces: WorkspaceInfo[];
+  activeWorkspace: WorkspaceInfo | null;
+  currentBranch: string | null;
+  onBranchSwitcherSelect: (branch: string, worktree: WorkspaceInfo | null) => void;
+  onBranchSwitcherCancel: () => void;
   settingsOpen: boolean;
   settingsSection: SettingsViewProps["initialSection"] | null;
   onCloseSettings: () => void;
@@ -57,7 +74,9 @@ export const AppModals = memo(function AppModals({
   onRenamePromptCancel,
   onRenamePromptConfirm,
   worktreePrompt,
+  onWorktreePromptNameChange,
   onWorktreePromptChange,
+  onWorktreePromptCopyAgentsMdChange,
   onWorktreeSetupScriptChange,
   onWorktreePromptCancel,
   onWorktreePromptConfirm,
@@ -68,12 +87,23 @@ export const AppModals = memo(function AppModals({
   onClonePromptClearCopiesFolder,
   onClonePromptCancel,
   onClonePromptConfirm,
+  branchSwitcher,
+  branches,
+  workspaces,
+  activeWorkspace,
+  currentBranch,
+  onBranchSwitcherSelect,
+  onBranchSwitcherCancel,
   settingsOpen,
   settingsSection,
   onCloseSettings,
   SettingsViewComponent,
   settingsProps,
 }: AppModalsProps) {
+  const { branches: worktreeBranches } = useGitBranches({
+    activeWorkspace: worktreePrompt?.workspace ?? null,
+  });
+
   return (
     <>
       {renamePrompt && (
@@ -91,13 +121,19 @@ export const AppModals = memo(function AppModals({
         <Suspense fallback={null}>
           <WorktreePrompt
             workspaceName={worktreePrompt.workspace.name}
+            name={worktreePrompt.name}
             branch={worktreePrompt.branch}
+            branchWasEdited={worktreePrompt.branchWasEdited}
+            branchSuggestions={worktreeBranches}
+            copyAgentsMd={worktreePrompt.copyAgentsMd}
             setupScript={worktreePrompt.setupScript}
             scriptError={worktreePrompt.scriptError}
             error={worktreePrompt.error}
             isBusy={worktreePrompt.isSubmitting}
             isSavingScript={worktreePrompt.isSavingScript}
+            onNameChange={onWorktreePromptNameChange}
             onChange={onWorktreePromptChange}
+            onCopyAgentsMdChange={onWorktreePromptCopyAgentsMdChange}
             onSetupScriptChange={onWorktreeSetupScriptChange}
             onCancel={onWorktreePromptCancel}
             onConfirm={onWorktreePromptConfirm}
@@ -119,6 +155,18 @@ export const AppModals = memo(function AppModals({
             onClearCopiesFolder={onClonePromptClearCopiesFolder}
             onCancel={onClonePromptCancel}
             onConfirm={onClonePromptConfirm}
+          />
+        </Suspense>
+      )}
+      {branchSwitcher && (
+        <Suspense fallback={null}>
+          <BranchSwitcherPrompt
+            branches={branches}
+            workspaces={workspaces}
+            activeWorkspace={activeWorkspace}
+            currentBranch={currentBranch}
+            onSelect={onBranchSwitcherSelect}
+            onCancel={onBranchSwitcherCancel}
           />
         </Suspense>
       )}

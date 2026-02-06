@@ -5,8 +5,10 @@ use std::sync::Arc;
 
 use tokio::sync::Mutex;
 
-use crate::backend::app_server::{CliSpawnConfig, WorkspaceSession};
-use crate::gemini::{args::resolve_workspace_gemini_args, build_cli_spawn_config, home::resolve_workspace_gemini_home};
+use crate::backend::app_server::WorkspaceSession;
+use crate::codex::args::resolve_workspace_codex_args;
+use crate::codex::home::resolve_workspace_codex_home;
+use crate::shared::process_core::kill_child_process_tree;
 use crate::storage::write_workspaces;
 use crate::types::{
     AppSettings, WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings, WorktreeInfo,
@@ -16,6 +18,44 @@ use uuid::Uuid;
 
 pub(crate) const WORKTREE_SETUP_MARKERS_DIR: &str = "worktree-setup";
 pub(crate) const WORKTREE_SETUP_MARKER_EXT: &str = "ran";
+const AGENTS_MD_FILE_NAME: &str = "AGENTS.md";
+
+fn copy_agents_md_from_parent_to_worktree(
+    parent_repo_root: &PathBuf,
+    worktree_root: &PathBuf,
+) -> Result<(), String> {
+    let source_path = parent_repo_root.join(AGENTS_MD_FILE_NAME);
+    if !source_path.is_file() {
+        return Ok(());
+    }
+
+    let destination_path = worktree_root.join(AGENTS_MD_FILE_NAME);
+    if destination_path.is_file() {
+        return Ok(());
+    }
+
+    let temp_path = worktree_root.join(format!("{AGENTS_MD_FILE_NAME}.tmp"));
+
+    std::fs::copy(&source_path, &temp_path).map_err(|err| {
+        format!(
+            "Failed to copy {} from {} to {}: {err}",
+            AGENTS_MD_FILE_NAME,
+            source_path.display(),
+            temp_path.display()
+        )
+    })?;
+
+    std::fs::rename(&temp_path, &destination_path).map_err(|err| {
+        let _ = std::fs::remove_file(&temp_path);
+        format!(
+            "Failed to finalize {} copy to {}: {err}",
+            AGENTS_MD_FILE_NAME,
+            destination_path.display()
+        )
+    })?;
+
+    Ok(())
+}
 
 pub(crate) fn normalize_setup_script(script: Option<String>) -> Option<String> {
     match script {
@@ -47,7 +87,7 @@ pub(crate) async fn list_workspaces_core(
             id: entry.id.clone(),
             name: entry.name.clone(),
             path: entry.path.clone(),
-            gemini_bin: entry.gemini_bin.clone(),
+            codex_bin: entry.codex_bin.clone(),
             connected: sessions.contains_key(&entry.id),
             kind: entry.kind.clone(),
             parent_id: entry.parent_id.clone(),
@@ -143,7 +183,7 @@ pub(crate) async fn worktree_setup_mark_ran_core(
 
 pub(crate) async fn add_workspace_core<F, Fut>(
     path: String,
-    gemini_bin: Option<String>,
+    codex_bin: Option<String>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     app_settings: &Mutex<AppSettings>,
@@ -151,7 +191,7 @@ pub(crate) async fn add_workspace_core<F, Fut>(
     spawn_session: F,
 ) -> Result<WorkspaceInfo, String>
 where
-    F: Fn(WorkspaceEntry, CliSpawnConfig) -> Fut,
+    F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     if !PathBuf::from(&path).is_dir() {
@@ -167,20 +207,22 @@ where
         id: Uuid::new_v4().to_string(),
         name: name.clone(),
         path: path.clone(),
-        gemini_bin,
+        codex_bin,
         kind: WorkspaceKind::Main,
         parent_id: None,
         worktree: None,
         settings: WorkspaceSettings::default(),
     };
 
-    let config = {
+    let (default_bin, codex_args) = {
         let settings = app_settings.lock().await;
-        let gemini_args = resolve_workspace_gemini_args(&entry, None, Some(&settings));
-        let gemini_home = resolve_workspace_gemini_home(&entry, None);
-        build_cli_spawn_config(&settings, gemini_args, gemini_home)
+        (
+            settings.codex_bin.clone(),
+            resolve_workspace_codex_args(&entry, None, Some(&settings)),
+        )
     };
-    let session = spawn_session(entry.clone(), config).await?;
+    let codex_home = resolve_workspace_codex_home(&entry, None);
+    let session = spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?;
 
     if let Err(error) = {
         let mut workspaces = workspaces.lock().await;
@@ -193,7 +235,7 @@ where
             workspaces.remove(&entry.id);
         }
         let mut child = session.child.lock().await;
-        let _ = child.kill().await;
+        kill_child_process_tree(&mut child).await;
         return Err(error);
     }
 
@@ -203,7 +245,7 @@ where
         id: entry.id,
         name: entry.name,
         path: entry.path,
-        gemini_bin: entry.gemini_bin,
+        codex_bin: entry.codex_bin,
         connected: true,
         kind: entry.kind,
         parent_id: entry.parent_id,
@@ -244,6 +286,8 @@ pub(crate) async fn add_worktree_core<
 >(
     parent_id: String,
     branch: String,
+    name: Option<String>,
+    copy_agents_md: bool,
     data_dir: &PathBuf,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
@@ -257,7 +301,7 @@ pub(crate) async fn add_worktree_core<
     spawn_session: FSpawn,
 ) -> Result<WorkspaceInfo, String>
 where
-    FSpawn: Fn(WorkspaceEntry, CliSpawnConfig) -> FutSpawn,
+    FSpawn: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> FutSpawn,
     FutSpawn: Future<Output = Result<Arc<WorkspaceSession>, String>>,
     FSanitize: Fn(&str) -> String,
     FUniquePath: Fn(&PathBuf, &str) -> Result<PathBuf, String>,
@@ -272,6 +316,9 @@ where
     if branch.is_empty() {
         return Err("Branch name is required.".to_string());
     }
+    let name = name
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
 
     let parent_entry = {
         let workspaces = workspaces.lock().await;
@@ -330,11 +377,22 @@ where
         .await?;
     }
 
+    if copy_agents_md {
+        if let Err(error) = copy_agents_md_from_parent_to_worktree(&repo_path, &worktree_path) {
+            eprintln!(
+                "add_worktree: optional {} copy failed for {}: {}",
+                AGENTS_MD_FILE_NAME,
+                worktree_path.display(),
+                error
+            );
+        }
+    }
+
     let entry = WorkspaceEntry {
         id: Uuid::new_v4().to_string(),
-        name: branch.clone(),
+        name: name.clone().unwrap_or_else(|| branch.clone()),
         path: worktree_path_string,
-        gemini_bin: parent_entry.gemini_bin.clone(),
+        codex_bin: parent_entry.codex_bin.clone(),
         kind: WorkspaceKind::Worktree,
         parent_id: Some(parent_entry.id.clone()),
         worktree: Some(WorktreeInfo { branch }),
@@ -346,13 +404,15 @@ where
         },
     };
 
-    let config = {
+    let (default_bin, codex_args) = {
         let settings = app_settings.lock().await;
-        let gemini_args = resolve_workspace_gemini_args(&entry, Some(&parent_entry), Some(&settings));
-        let gemini_home = resolve_workspace_gemini_home(&entry, Some(&parent_entry));
-        build_cli_spawn_config(&settings, gemini_args, gemini_home)
+        (
+            settings.codex_bin.clone(),
+            resolve_workspace_codex_args(&entry, Some(&parent_entry), Some(&settings)),
+        )
     };
-    let session = spawn_session(entry.clone(), config).await?;
+    let codex_home = resolve_workspace_codex_home(&entry, Some(&parent_entry));
+    let session = spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?;
 
     {
         let mut workspaces = workspaces.lock().await;
@@ -367,7 +427,7 @@ where
         id: entry.id,
         name: entry.name,
         path: entry.path,
-        gemini_bin: entry.gemini_bin,
+        codex_bin: entry.codex_bin,
         connected: true,
         kind: entry.kind,
         parent_id: entry.parent_id,
@@ -384,17 +444,19 @@ pub(crate) async fn connect_workspace_core<F, Fut>(
     spawn_session: F,
 ) -> Result<(), String>
 where
-    F: Fn(WorkspaceEntry, CliSpawnConfig) -> Fut,
+    F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     let (entry, parent_entry) = resolve_entry_and_parent(workspaces, &workspace_id).await?;
-    let config = {
+    let (default_bin, codex_args) = {
         let settings = app_settings.lock().await;
-        let gemini_args = resolve_workspace_gemini_args(&entry, parent_entry.as_ref(), Some(&settings));
-        let gemini_home = resolve_workspace_gemini_home(&entry, parent_entry.as_ref());
-        build_cli_spawn_config(&settings, gemini_args, gemini_home)
+        (
+            settings.codex_bin.clone(),
+            resolve_workspace_codex_args(&entry, parent_entry.as_ref(), Some(&settings)),
+        )
     };
-    let session = spawn_session(entry.clone(), config).await?;
+    let codex_home = resolve_workspace_codex_home(&entry, parent_entry.as_ref());
+    let session = spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?;
     sessions.lock().await.insert(entry.id, session);
     Ok(())
 }
@@ -405,7 +467,7 @@ async fn kill_session_by_id(
 ) {
     if let Some(session) = sessions.lock().await.remove(id) {
         let mut child = session.child.lock().await;
-        let _ = child.kill().await;
+        kill_child_process_tree(&mut child).await;
     }
 }
 
@@ -453,6 +515,8 @@ where
     let mut failures: Vec<(String, String)> = Vec::new();
 
     for child in &child_worktrees {
+        kill_session_by_id(sessions, &child.id).await;
+
         let child_path = PathBuf::from(&child.path);
         if child_path.exists() {
             if let Err(error) = run_git_command(
@@ -480,8 +544,6 @@ where
                 }
             }
         }
-
-        kill_session_by_id(sessions, &child.id).await;
         removed_child_ids.push(child.id.clone());
     }
 
@@ -555,6 +617,8 @@ where
 
     let parent_path = PathBuf::from(&parent.path);
     let entry_path = PathBuf::from(&entry.path);
+    kill_session_by_id(sessions, &entry.id).await;
+
     if entry_path.exists() {
         if let Err(error) = run_git_command(
             &parent_path,
@@ -572,8 +636,6 @@ where
         }
     }
     let _ = run_git_command(&parent_path, &["worktree", "prune", "--expire", "now"]).await;
-
-    kill_session_by_id(sessions, &entry.id).await;
 
     {
         let mut workspaces = workspaces.lock().await;
@@ -611,7 +673,7 @@ pub(crate) async fn rename_worktree_core<
     spawn_session: FSpawn,
 ) -> Result<WorkspaceInfo, String>
 where
-    FSpawn: Fn(WorkspaceEntry, CliSpawnConfig) -> FutSpawn,
+    FSpawn: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> FutSpawn,
     FutSpawn: Future<Output = Result<Arc<WorkspaceSession>, String>>,
     FResolveGitRoot: Fn(&WorkspaceEntry) -> Result<PathBuf, String>,
     FUniqueBranch: Fn(&PathBuf, &str) -> FutUniqueBranch,
@@ -690,7 +752,9 @@ where
             Some(entry) => entry,
             None => return Err("workspace not found".to_string()),
         };
-        entry.name = final_branch.clone();
+        if entry.name.trim() == old_branch {
+            entry.name = final_branch.clone();
+        }
         entry.path = next_path_string.clone();
         match entry.worktree.as_mut() {
             Some(worktree) => {
@@ -711,13 +775,15 @@ where
     let was_connected = sessions.lock().await.contains_key(&entry_snapshot.id);
     if was_connected {
         kill_session_by_id(sessions, &entry_snapshot.id).await;
-        let config = {
+        let (default_bin, codex_args) = {
             let settings = app_settings.lock().await;
-            let gemini_args = resolve_workspace_gemini_args(&entry_snapshot, Some(&parent), Some(&settings));
-            let gemini_home = resolve_workspace_gemini_home(&entry_snapshot, Some(&parent));
-            build_cli_spawn_config(&settings, gemini_args, gemini_home)
+            (
+                settings.codex_bin.clone(),
+                resolve_workspace_codex_args(&entry_snapshot, Some(&parent), Some(&settings)),
+            )
         };
-        match spawn_session(entry_snapshot.clone(), config).await {
+        let codex_home = resolve_workspace_codex_home(&entry_snapshot, Some(&parent));
+        match spawn_session(entry_snapshot.clone(), default_bin, codex_args, codex_home).await {
             Ok(session) => {
                 sessions
                     .lock()
@@ -738,7 +804,7 @@ where
         id: entry_snapshot.id,
         name: entry_snapshot.name,
         path: entry_snapshot.path,
-        gemini_bin: entry_snapshot.gemini_bin,
+        codex_bin: entry_snapshot.codex_bin,
         connected,
         kind: entry_snapshot.kind,
         parent_id: entry_snapshot.parent_id,
@@ -876,7 +942,7 @@ pub(crate) async fn update_workspace_settings_core<
 where
     FApplySettings: Fn(&mut HashMap<String, WorkspaceEntry>, &str, WorkspaceSettings)
         -> Result<WorkspaceEntry, String>,
-    FSpawn: Fn(WorkspaceEntry, CliSpawnConfig) -> FutSpawn,
+    FSpawn: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> FutSpawn,
     FutSpawn: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     settings.worktree_setup_script = normalize_setup_script(settings.worktree_setup_script);
@@ -885,8 +951,8 @@ where
         previous_entry,
         entry_snapshot,
         parent_entry,
-        previous_gemini_home,
-        previous_gemini_args,
+        previous_codex_home,
+        previous_codex_args,
         previous_worktree_setup_script,
         child_entries,
     ) = {
@@ -895,8 +961,8 @@ where
             .get(&id)
             .cloned()
             .ok_or_else(|| "workspace not found".to_string())?;
-        let previous_gemini_home = previous_entry.settings.gemini_home.clone();
-        let previous_gemini_args = previous_entry.settings.gemini_args.clone();
+        let previous_codex_home = previous_entry.settings.codex_home.clone();
+        let previous_codex_args = previous_entry.settings.codex_args.clone();
         let previous_worktree_setup_script = previous_entry.settings.worktree_setup_script.clone();
         let entry_snapshot = apply_settings_update(&mut workspaces, &id, settings)?;
         let parent_entry = entry_snapshot
@@ -913,28 +979,30 @@ where
             previous_entry,
             entry_snapshot,
             parent_entry,
-            previous_gemini_home,
-            previous_gemini_args,
+            previous_codex_home,
+            previous_codex_args,
             previous_worktree_setup_script,
             child_entries,
         )
     };
 
-    let gemini_home_changed = previous_gemini_home != entry_snapshot.settings.gemini_home;
-    let gemini_args_changed = previous_gemini_args != entry_snapshot.settings.gemini_args;
+    let codex_home_changed = previous_codex_home != entry_snapshot.settings.codex_home;
+    let codex_args_changed = previous_codex_args != entry_snapshot.settings.codex_args;
     let worktree_setup_script_changed =
         previous_worktree_setup_script != entry_snapshot.settings.worktree_setup_script;
     let connected = sessions.lock().await.contains_key(&id);
-    if connected && (gemini_home_changed || gemini_args_changed) {
+    if connected && (codex_home_changed || codex_args_changed) {
         let rollback_entry = previous_entry.clone();
-        let config = {
+        let (default_bin, codex_args) = {
             let settings = app_settings.lock().await;
-            let gemini_args = resolve_workspace_gemini_args(&entry_snapshot, parent_entry.as_ref(), Some(&settings));
-            let gemini_home = resolve_workspace_gemini_home(&entry_snapshot, parent_entry.as_ref());
-            build_cli_spawn_config(&settings, gemini_args, gemini_home)
+            (
+                settings.codex_bin.clone(),
+                resolve_workspace_codex_args(&entry_snapshot, parent_entry.as_ref(), Some(&settings)),
+            )
         };
+        let codex_home = resolve_workspace_codex_home(&entry_snapshot, parent_entry.as_ref());
         let new_session =
-            match spawn_session(entry_snapshot.clone(), config).await
+            match spawn_session(entry_snapshot.clone(), default_bin, codex_args, codex_home).await
             {
                 Ok(session) => session,
                 Err(error) => {
@@ -949,27 +1017,34 @@ where
             .insert(entry_snapshot.id.clone(), new_session)
         {
             let mut child = old_session.child.lock().await;
-            let _ = child.kill().await;
+            kill_child_process_tree(&mut child).await;
         }
     }
-    if gemini_home_changed || gemini_args_changed {
+    if codex_home_changed || codex_args_changed {
         let app_settings_snapshot = app_settings.lock().await.clone();
+        let default_bin = app_settings_snapshot.codex_bin.clone();
         for child in &child_entries {
             let connected = sessions.lock().await.contains_key(&child.id);
             if !connected {
                 continue;
             }
-            let previous_child_home = resolve_workspace_gemini_home(child, Some(&previous_entry));
-            let next_child_home = resolve_workspace_gemini_home(child, Some(&entry_snapshot));
+            let previous_child_home = resolve_workspace_codex_home(child, Some(&previous_entry));
+            let next_child_home = resolve_workspace_codex_home(child, Some(&entry_snapshot));
             let previous_child_args =
-                resolve_workspace_gemini_args(child, Some(&previous_entry), Some(&app_settings_snapshot));
+                resolve_workspace_codex_args(child, Some(&previous_entry), Some(&app_settings_snapshot));
             let next_child_args =
-                resolve_workspace_gemini_args(child, Some(&entry_snapshot), Some(&app_settings_snapshot));
+                resolve_workspace_codex_args(child, Some(&entry_snapshot), Some(&app_settings_snapshot));
             if previous_child_home == next_child_home && previous_child_args == next_child_args {
                 continue;
             }
-            let config = build_cli_spawn_config(&app_settings_snapshot, next_child_args, next_child_home);
-            let new_session = match spawn_session(child.clone(), config).await {
+            let new_session = match spawn_session(
+                child.clone(),
+                default_bin.clone(),
+                next_child_args,
+                next_child_home,
+            )
+            .await
+            {
                 Ok(session) => session,
                 Err(error) => {
                     eprintln!(
@@ -985,7 +1060,7 @@ where
                 .insert(child.id.clone(), new_session)
             {
                 let mut child = old_session.child.lock().await;
-                let _ = child.kill().await;
+                kill_child_process_tree(&mut child).await;
             }
         }
     }
@@ -1013,7 +1088,7 @@ where
         id: entry_snapshot.id,
         name: entry_snapshot.name,
         path: entry_snapshot.path,
-        gemini_bin: entry_snapshot.gemini_bin,
+        codex_bin: entry_snapshot.codex_bin,
         connected,
         kind: entry_snapshot.kind,
         parent_id: entry_snapshot.parent_id,
@@ -1022,9 +1097,9 @@ where
     })
 }
 
-pub(crate) async fn update_workspace_gemini_bin_core(
+pub(crate) async fn update_workspace_codex_bin_core(
     id: String,
-    gemini_bin: Option<String>,
+    codex_bin: Option<String>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     storage_path: &PathBuf,
@@ -1033,7 +1108,7 @@ pub(crate) async fn update_workspace_gemini_bin_core(
         let mut workspaces = workspaces.lock().await;
         let entry_snapshot = match workspaces.get_mut(&id) {
             Some(entry) => {
-                entry.gemini_bin = gemini_bin.clone();
+                entry.codex_bin = codex_bin.clone();
                 entry.clone()
             }
             None => return Err("workspace not found".to_string()),
@@ -1048,7 +1123,7 @@ pub(crate) async fn update_workspace_gemini_bin_core(
         id: entry_snapshot.id,
         name: entry_snapshot.name,
         path: entry_snapshot.path,
-        gemini_bin: entry_snapshot.gemini_bin,
+        codex_bin: entry_snapshot.codex_bin,
         connected,
         kind: entry_snapshot.kind,
         parent_id: entry_snapshot.parent_id,
@@ -1093,4 +1168,57 @@ fn sort_workspaces(workspaces: &mut [WorkspaceInfo]) {
             .cmp(&b.name)
             .then_with(|| a.id.cmp(&b.id))
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::copy_agents_md_from_parent_to_worktree;
+    use super::AGENTS_MD_FILE_NAME;
+    use uuid::Uuid;
+
+    fn make_temp_dir() -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("codex-monitor-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).expect("failed to create temp dir");
+        dir
+    }
+
+    #[test]
+    fn copies_agents_md_when_missing_in_worktree() {
+        let parent = make_temp_dir();
+        let worktree = make_temp_dir();
+        let parent_agents = parent.join(AGENTS_MD_FILE_NAME);
+        let worktree_agents = worktree.join(AGENTS_MD_FILE_NAME);
+
+        std::fs::write(&parent_agents, "parent").expect("failed to write parent AGENTS.md");
+
+        copy_agents_md_from_parent_to_worktree(&parent, &worktree).expect("copy should succeed");
+
+        let copied = std::fs::read_to_string(&worktree_agents)
+            .expect("worktree AGENTS.md should exist after copy");
+        assert_eq!(copied, "parent");
+
+        let _ = std::fs::remove_dir_all(parent);
+        let _ = std::fs::remove_dir_all(worktree);
+    }
+
+    #[test]
+    fn does_not_overwrite_existing_worktree_agents_md() {
+        let parent = make_temp_dir();
+        let worktree = make_temp_dir();
+        let parent_agents = parent.join(AGENTS_MD_FILE_NAME);
+        let worktree_agents = worktree.join(AGENTS_MD_FILE_NAME);
+
+        std::fs::write(&parent_agents, "parent").expect("failed to write parent AGENTS.md");
+        std::fs::write(&worktree_agents, "branch-specific")
+            .expect("failed to write worktree AGENTS.md");
+
+        copy_agents_md_from_parent_to_worktree(&parent, &worktree).expect("copy should succeed");
+
+        let retained = std::fs::read_to_string(&worktree_agents)
+            .expect("worktree AGENTS.md should still exist");
+        assert_eq!(retained, "branch-specific");
+
+        let _ = std::fs::remove_dir_all(parent);
+        let _ = std::fs::remove_dir_all(worktree);
+    }
 }

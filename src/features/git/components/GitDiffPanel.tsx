@@ -7,19 +7,29 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import ArrowLeftRight from "lucide-react/dist/esm/icons/arrow-left-right";
 import Check from "lucide-react/dist/esm/icons/check";
+import Download from "lucide-react/dist/esm/icons/download";
 import FileText from "lucide-react/dist/esm/icons/file-text";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import Minus from "lucide-react/dist/esm/icons/minus";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
+import RotateCw from "lucide-react/dist/esm/icons/rotate-cw";
 import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
 import Search from "lucide-react/dist/esm/icons/search";
 import Upload from "lucide-react/dist/esm/icons/upload";
+import X from "lucide-react/dist/esm/icons/x";
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { formatRelativeTime } from "../../../utils/time";
 import { PanelTabs, type PanelTabId } from "../../layout/components/PanelTabs";
+import { pushErrorToast } from "../../../services/toasts";
+import {
+  fileManagerName,
+  isAbsolutePath as isAbsolutePathForPlatform,
+} from "../../../utils/platformPaths";
 
 type GitDiffPanelProps = {
+  workspaceId?: string | null;
+  workspacePath?: string | null;
   mode: "diff" | "log" | "issues" | "prs";
   onModeChange: (mode: "diff" | "log" | "issues" | "prs") => void;
   filePanelMode: PanelTabId;
@@ -96,12 +106,18 @@ type GitDiffPanelProps = {
   onCommit?: () => void | Promise<void>;
   onCommitAndPush?: () => void | Promise<void>;
   onCommitAndSync?: () => void | Promise<void>;
+  onPull?: () => void | Promise<void>;
+  onFetch?: () => void | Promise<void>;
   onPush?: () => void | Promise<void>;
   onSync?: () => void | Promise<void>;
   commitLoading?: boolean;
+  pullLoading?: boolean;
+  fetchLoading?: boolean;
   pushLoading?: boolean;
   syncLoading?: boolean;
   commitError?: string | null;
+  pullError?: string | null;
+  fetchError?: string | null;
   pushError?: string | null;
   syncError?: string | null;
   // For showing push button when there are commits to push
@@ -132,6 +148,54 @@ function normalizeRootPath(value: string | null | undefined) {
     return "";
   }
   return value.replace(/\\/g, "/").replace(/\/+$/, "");
+}
+
+function normalizeSegment(segment: string) {
+  return /^[A-Za-z]:$/.test(segment) ? segment.toLowerCase() : segment;
+}
+
+function getRelativePathWithin(base: string, target: string) {
+  const normalizedBase = normalizeRootPath(base);
+  const normalizedTarget = normalizeRootPath(target);
+  if (!normalizedBase || !normalizedTarget) {
+    return null;
+  }
+  const baseSegments = normalizedBase.split("/").filter(Boolean);
+  const targetSegments = normalizedTarget.split("/").filter(Boolean);
+  if (baseSegments.length > targetSegments.length) {
+    return null;
+  }
+  for (let index = 0; index < baseSegments.length; index += 1) {
+    if (normalizeSegment(baseSegments[index]) !== normalizeSegment(targetSegments[index])) {
+      return null;
+    }
+  }
+  return targetSegments.slice(baseSegments.length).join("/");
+}
+function resolveRootPath(root: string | null | undefined, workspacePath: string | null | undefined) {
+  const normalized = normalizeRootPath(root);
+  if (!normalized) {
+    return "";
+  }
+  if (workspacePath && !isAbsolutePathForPlatform(normalized)) {
+    return joinRootAndPath(workspacePath, normalized);
+  }
+  return normalized;
+}
+
+function joinRootAndPath(root: string, relativePath: string) {
+  const normalizedRoot = normalizeRootPath(root);
+  if (!normalizedRoot) {
+    return relativePath;
+  }
+  const normalizedPath = relativePath.replace(/^\/+/, "");
+  return `${normalizedRoot}/${normalizedPath}`;
+}
+
+function getFileName(value: string) {
+  const normalized = value.replace(/\\/g, "/");
+  const segments = normalized.split("/");
+  return segments[segments.length - 1] || normalized;
 }
 
 function getStatusSymbol(status: string) {
@@ -255,6 +319,57 @@ type DiffFile = {
   additions: number;
   deletions: number;
 };
+
+type SidebarErrorProps = {
+  variant?: "diff" | "commit";
+  message: string;
+  action?: {
+    label: string;
+    onAction: () => void | Promise<void>;
+    disabled?: boolean;
+    loading?: boolean;
+  } | null;
+  onDismiss: () => void;
+};
+
+function SidebarError({
+  variant = "diff",
+  message,
+  action,
+  onDismiss,
+}: SidebarErrorProps) {
+  return (
+    <div className={`sidebar-error sidebar-error-${variant}`}>
+      <div className="sidebar-error-body">
+        <div className={variant === "commit" ? "commit-message-error" : "diff-error"}>
+          {message}
+        </div>
+        {action && (
+          <button
+            type="button"
+            className="ghost sidebar-error-action"
+            onClick={() => void action.onAction()}
+            disabled={action.disabled || action.loading}
+          >
+            {action.loading && (
+              <span className="commit-button-spinner" aria-hidden />
+            )}
+            <span>{action.label}</span>
+          </button>
+        )}
+      </div>
+      <button
+        type="button"
+        className="ghost icon-button sidebar-error-dismiss"
+        onClick={onDismiss}
+        aria-label="Dismiss error"
+        title="Dismiss error"
+      >
+        <X size={12} aria-hidden />
+      </button>
+    </div>
+  );
+}
 
 type DiffFileRowProps = {
   file: DiffFile;
@@ -555,6 +670,8 @@ function GitLogEntryRow({
 }
 
 export function GitDiffPanel({
+  workspaceId = null,
+  workspacePath = null,
   mode,
   onModeChange,
   filePanelMode,
@@ -619,16 +736,26 @@ export function GitDiffPanel({
   onCommit,
   onCommitAndPush: _onCommitAndPush,
   onCommitAndSync: _onCommitAndSync,
+  onPull,
+  onFetch,
   onPush,
   onSync: _onSync,
   commitLoading = false,
+  pullLoading = false,
+  fetchLoading = false,
   pushLoading = false,
   syncLoading: _syncLoading = false,
   commitError = null,
+  pullError = null,
+  fetchError = null,
   pushError = null,
   syncError = null,
   commitsAhead = 0,
 }: GitDiffPanelProps) {
+  const [dismissedErrorSignatures, setDismissedErrorSignatures] = useState<Set<string>>(
+    new Set(),
+  );
+
   // Multi-select state for file list
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [lastClickedFile, setLastClickedFile] = useState<string | null>(null);
@@ -728,6 +855,42 @@ export function GitDiffPanel({
         return FileText;
     }
   }, [mode]);
+
+  const pushNeedsSync = useMemo(() => {
+    if (!pushError) {
+      return false;
+    }
+    const lower = pushError.toLowerCase();
+    return (
+      lower.includes("non-fast-forward") ||
+      lower.includes("fetch first") ||
+      lower.includes("tip of your current branch is behind") ||
+      lower.includes("updates were rejected")
+    );
+  }, [pushError]);
+  const pushErrorMessage = useMemo(() => {
+    if (!pushError) {
+      return null;
+    }
+    if (!pushNeedsSync) {
+      return pushError;
+    }
+    return `Remote has new commits. Sync (pull then push) before retrying.\n\n${pushError}`;
+  }, [pushError, pushNeedsSync]);
+  const handleSyncFromError = useCallback(() => {
+    void _onSync?.();
+  }, [_onSync]);
+  const pushErrorAction = useMemo(() => {
+    if (!pushNeedsSync || !_onSync) {
+      return null;
+    }
+    return {
+      label: _syncLoading ? "Syncing..." : "Sync (pull then push)",
+      onAction: handleSyncFromError,
+      disabled: _syncLoading,
+      loading: _syncLoading,
+    };
+  }, [pushNeedsSync, _onSync, _syncLoading, handleSyncFromError]);
   const githubBaseUrl = useMemo(() => {
     if (!gitRemoteUrl) {
       return null;
@@ -860,6 +1023,13 @@ export function GitDiffPanel({
       const fileCount = targetPaths.length;
       const plural = fileCount > 1 ? "s" : "";
       const countSuffix = fileCount > 1 ? ` (${fileCount})` : "";
+      const normalizedRoot = resolveRootPath(gitRoot, workspacePath);
+      const inferredRoot =
+        !normalizedRoot && gitRootCandidates.length === 1
+          ? resolveRootPath(gitRootCandidates[0], workspacePath)
+          : "";
+      const fallbackRoot = normalizeRootPath(workspacePath);
+      const resolvedRoot = normalizedRoot || inferredRoot || fallbackRoot;
 
       // Separate files by their section for stage/unstage operations
       const stagedPaths = targetPaths.filter((p) =>
@@ -899,6 +1069,66 @@ export function GitDiffPanel({
         );
       }
 
+      if (targetPaths.length === 1) {
+        const fileManagerLabel = fileManagerName();
+        const rawPath = targetPaths[0];
+        const absolutePath = resolvedRoot
+          ? joinRootAndPath(resolvedRoot, rawPath)
+          : rawPath;
+        const relativeRoot =
+          workspacePath && resolvedRoot
+            ? getRelativePathWithin(workspacePath, resolvedRoot)
+            : null;
+        const projectRelativePath =
+          relativeRoot !== null ? joinRootAndPath(relativeRoot, rawPath) : rawPath;
+        const fileName = getFileName(rawPath);
+        items.push(
+          await MenuItem.new({
+            text: `Show in ${fileManagerLabel}`,
+            action: async () => {
+              try {
+                if (!resolvedRoot && !isAbsolutePathForPlatform(absolutePath)) {
+                  pushErrorToast({
+                    title: `Couldn't show file in ${fileManagerLabel}`,
+                    message: "Select a git root first.",
+                  });
+                  return;
+                }
+                const { revealItemInDir } = await import(
+                  "@tauri-apps/plugin-opener"
+                );
+                await revealItemInDir(absolutePath);
+              } catch (error) {
+                const message =
+                  error instanceof Error ? error.message : String(error);
+                pushErrorToast({
+                  title: `Couldn't show file in ${fileManagerLabel}`,
+                  message,
+                });
+                console.warn("Failed to reveal file", {
+                  message,
+                  path: absolutePath,
+                });
+              }
+            },
+          }),
+        );
+        items.push(
+          await MenuItem.new({
+            text: "Copy file name",
+            action: async () => {
+              await navigator.clipboard.writeText(fileName);
+            },
+          }),
+          await MenuItem.new({
+            text: "Copy file path",
+            action: async () => {
+              await navigator.clipboard.writeText(projectRelativePath);
+            },
+          }),
+        );
+      }
+
       // Revert action for all selected files
       if (onRevertFile) {
         items.push(
@@ -927,6 +1157,9 @@ export function GitDiffPanel({
       onStageFile,
       onRevertFile,
       discardFiles,
+      gitRoot,
+      gitRootCandidates,
+      workspacePath,
     ],
   );
   const logCountLabel = logTotal
@@ -957,12 +1190,86 @@ export function GitDiffPanel({
     Boolean(gitRootScanError) ||
     gitRootCandidates.length > 0;
   const normalizedGitRoot = normalizeRootPath(gitRoot);
+  const errorScope = `${workspaceId ?? "no-workspace"}:${normalizedGitRoot || "no-git-root"}:${mode}`;
   const hasAnyChanges = stagedFiles.length > 0 || unstagedFiles.length > 0;
   const showApplyWorktree =
     mode === "diff" && Boolean(onApplyWorktreeChanges) && hasAnyChanges;
   const canGenerateCommitMessage = hasAnyChanges;
   const showGenerateCommitMessage =
     mode === "diff" && Boolean(onGenerateCommitMessage) && hasAnyChanges;
+  const commitsBehind = logBehind;
+  const sidebarErrorCandidates = useMemo(() => {
+    const options: Array<{
+      key: string;
+      message: string | null | undefined;
+      action?: SidebarErrorProps["action"];
+    }> =
+      mode === "diff"
+        ? [
+            { key: "push", message: pushErrorMessage, action: pushErrorAction },
+            { key: "pull", message: pullError },
+            { key: "fetch", message: fetchError },
+            { key: "commit", message: commitError },
+            { key: "sync", message: syncError },
+            { key: "commitMessage", message: commitMessageError },
+            { key: "git", message: error },
+            { key: "worktreeApply", message: worktreeApplyError },
+            { key: "gitRootScan", message: gitRootScanError },
+          ]
+        : mode === "log"
+          ? [{ key: "log", message: logError }]
+          : mode === "issues"
+            ? [{ key: "issues", message: issuesError }]
+            : [{ key: "pullRequests", message: pullRequestsError }];
+    return options
+      .filter((entry) => Boolean(entry.message))
+      .map((entry) => ({
+        ...entry,
+        signature: `${errorScope}:${entry.key}:${entry.message}`,
+        message: entry.message as string,
+      }));
+  }, [
+    commitError,
+    commitMessageError,
+    error,
+    fetchError,
+    gitRootScanError,
+    issuesError,
+    logError,
+    pullRequestsError,
+    pullError,
+    pushErrorMessage,
+    pushErrorAction,
+    syncError,
+    worktreeApplyError,
+    errorScope,
+    mode,
+  ]);
+  const sidebarError = useMemo(
+    () =>
+      sidebarErrorCandidates.find(
+        (entry) => !dismissedErrorSignatures.has(entry.signature),
+      ) ?? null,
+    [dismissedErrorSignatures, sidebarErrorCandidates],
+  );
+  useEffect(() => {
+    const activeSignatures = new Set(
+      sidebarErrorCandidates.map((entry) => entry.signature),
+    );
+    setDismissedErrorSignatures((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      prev.forEach((signature) => {
+        if (activeSignatures.has(signature)) {
+          next.add(signature);
+        } else {
+          changed = true;
+        }
+      });
+      return changed || next.size !== prev.size ? next : prev;
+    });
+  }, [sidebarErrorCandidates]);
+  const showSidebarError = Boolean(sidebarError);
   const worktreeApplyIcon = worktreeApplySuccess ? (
     <Check size={12} aria-hidden />
   ) : (
@@ -1010,7 +1317,6 @@ export function GitDiffPanel({
       {mode === "diff" ? (
         <>
           <div className="diff-status">{diffStatusLabel}</div>
-          {worktreeApplyError && <div className="diff-error">{worktreeApplyError}</div>}
         </>
       ) : mode === "log" ? (
         <>
@@ -1049,7 +1355,23 @@ export function GitDiffPanel({
         </>
       )}
       {mode === "diff" || mode === "log" ? (
-        <div className="diff-branch">{branchName || "unknown"}</div>
+        <div className="diff-branch-row">
+          <div className="diff-branch">{branchName || "unknown"}</div>
+          <button
+            type="button"
+            className="diff-branch-refresh"
+            onClick={() => void onFetch?.()}
+            disabled={!onFetch || fetchLoading}
+            title={fetchLoading ? "Fetching remote..." : "Fetch remote"}
+            aria-label={fetchLoading ? "Fetching remote" : "Fetch remote"}
+          >
+            {fetchLoading ? (
+              <span className="git-panel-spinner" aria-hidden />
+            ) : (
+              <RotateCw size={12} aria-hidden />
+            )}
+          </button>
+        </div>
       ) : null}
       {mode !== "issues" && hasGitRoot && (
         <div className="git-root-current">
@@ -1072,7 +1394,6 @@ export function GitDiffPanel({
       )}
       {mode === "diff" ? (
         <div className="diff-list" onClick={handleDiffListClick}>
-          {error && <div className="diff-error">{error}</div>}
           {showGitRootPanel && (
             <div className="git-root-panel">
               <div className="git-root-title">Choose a repo for this workspace.</div>
@@ -1131,7 +1452,6 @@ export function GitDiffPanel({
               {gitRootScanLoading && (
                 <div className="diff-empty">Scanning for repositories...</div>
               )}
-              {gitRootScanError && <div className="diff-error">{gitRootScanError}</div>}
               {!gitRootScanLoading &&
                 !gitRootScanError &&
                 gitRootScanHasScanned &&
@@ -1233,18 +1553,6 @@ export function GitDiffPanel({
                   )}
                 </button>
               </div>
-              {commitMessageError && (
-                <div className="commit-message-error">{commitMessageError}</div>
-              )}
-              {commitError && (
-                <div className="commit-message-error">{commitError}</div>
-              )}
-              {pushError && (
-                <div className="commit-message-error">{pushError}</div>
-              )}
-              {syncError && (
-                <div className="commit-message-error">{syncError}</div>
-              )}
               <CommitButton
                 commitMessage={commitMessage}
                 hasStagedFiles={stagedFiles.length > 0}
@@ -1254,30 +1562,71 @@ export function GitDiffPanel({
               />
             </div>
           )}
-          {/* Show Push button when there are commits to push */}
-          {commitsAhead > 0 && !stagedFiles.length && (
+          {(commitsAhead > 0 || commitsBehind > 0) && !stagedFiles.length && (
             <div className="push-section">
-              {pushError && (
-                <div className="commit-message-error">{pushError}</div>
-              )}
-              <button
-                type="button"
-                className="push-button"
-                onClick={() => void onPush?.()}
-                disabled={pushLoading}
-                title={`Push ${commitsAhead} commit${commitsAhead > 1 ? "s" : ""}`}
-              >
-                {pushLoading ? (
-                  <span className="commit-button-spinner" aria-hidden />
-                ) : (
-                  <Upload size={14} aria-hidden />
+              <div className="push-sync-buttons">
+                {commitsBehind > 0 && (
+                  <button
+                    type="button"
+                    className="push-button-secondary"
+                    onClick={() => void onPull?.()}
+                    disabled={!onPull || pullLoading || _syncLoading}
+                    title={`Pull ${commitsBehind} commit${commitsBehind > 1 ? "s" : ""}`}
+                  >
+                    {pullLoading ? (
+                      <span className="commit-button-spinner" aria-hidden />
+                    ) : (
+                      <Download size={14} aria-hidden />
+                    )}
+                    <span>{pullLoading ? "Pulling..." : "Pull"}</span>
+                    <span className="push-count">{commitsBehind}</span>
+                  </button>
                 )}
-                <span>Push</span>
-                <span className="push-count">{commitsAhead}</span>
-              </button>
+                {commitsAhead > 0 && (
+                  <button
+                    type="button"
+                    className="push-button"
+                    onClick={() => void onPush?.()}
+                    disabled={!onPush || pushLoading || commitsBehind > 0}
+                    title={
+                      commitsBehind > 0
+                        ? "Remote is ahead. Pull first, or use Sync."
+                        : `Push ${commitsAhead} commit${commitsAhead > 1 ? "s" : ""}`
+                    }
+                  >
+                    {pushLoading ? (
+                      <span className="commit-button-spinner" aria-hidden />
+                    ) : (
+                      <Upload size={14} aria-hidden />
+                    )}
+                    <span>Push</span>
+                    <span className="push-count">{commitsAhead}</span>
+                  </button>
+                )}
+              </div>
+              {commitsAhead > 0 && commitsBehind > 0 && (
+                <button
+                  type="button"
+                  className="push-button-secondary"
+                  onClick={() => void _onSync?.()}
+                  disabled={!_onSync || _syncLoading || pullLoading}
+                  title="Pull latest changes and push your local commits"
+                >
+                  {_syncLoading ? (
+                    <span className="commit-button-spinner" aria-hidden />
+                  ) : (
+                    <RotateCcw size={14} aria-hidden />
+                  )}
+                  <span>{_syncLoading ? "Syncing..." : "Sync (pull then push)"}</span>
+                </button>
+              )}
             </div>
           )}
-          {!error && !stagedFiles.length && !unstagedFiles.length && commitsAhead === 0 && (
+          {!error &&
+            !stagedFiles.length &&
+            !unstagedFiles.length &&
+            commitsAhead === 0 &&
+            commitsBehind === 0 && (
             <div className="diff-empty">No changes detected.</div>
           )}
           {(stagedFiles.length > 0 || unstagedFiles.length > 0) && (
@@ -1318,7 +1667,6 @@ export function GitDiffPanel({
         </div>
       ) : mode === "log" ? (
         <div className="git-log-list">
-          {logError && <div className="diff-error">{logError}</div>}
           {!logError && logLoading && (
             <div className="diff-viewer-loading">Loading commits...</div>
           )}
@@ -1391,7 +1739,6 @@ export function GitDiffPanel({
         </div>
       ) : mode === "issues" ? (
         <div className="git-issues-list">
-          {issuesError && <div className="diff-error">{issuesError}</div>}
           {!issuesError && !issuesLoading && !issues.length && (
             <div className="diff-empty">No open issues.</div>
           )}
@@ -1420,9 +1767,6 @@ export function GitDiffPanel({
         </div>
       ) : (
         <div className="git-pr-list">
-          {pullRequestsError && (
-            <div className="diff-error">{pullRequestsError}</div>
-          )}
           {!pullRequestsError &&
             !pullRequestsLoading &&
             !pullRequests.length && (
@@ -1468,6 +1812,22 @@ export function GitDiffPanel({
             );
           })}
         </div>
+      )}
+      {showSidebarError && sidebarError && (
+        <SidebarError
+          message={sidebarError.message}
+          action={sidebarError.action ?? null}
+          onDismiss={() =>
+            setDismissedErrorSignatures((prev) => {
+              if (prev.has(sidebarError.signature)) {
+                return prev;
+              }
+              const next = new Set(prev);
+              next.add(sidebarError.signature);
+              return next;
+            })
+          }
+        />
       )}
     </aside>
   );

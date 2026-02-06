@@ -18,8 +18,8 @@
 
 .settings-window {
   position: relative;
-  width: min(860px, 92vw);
-  height: min(560px, 84vh);
+  width: min(980px, 94vw);
+  height: min(680px, 88vh);
   border-radius: 18px;
   background: var(--surface-card-strong);
   border: 1px solid var(--border-stronger);
@@ -146,84 +146,6 @@
   color: var(--text-subtle);
 }
 
-.settings-skills-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-
-.settings-skills-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.settings-skill-list {
-  margin-top: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.settings-skill-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--border-muted);
-  background: var(--surface-card);
-}
-
-.settings-skill-main {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.settings-skill-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--text-strong);
-}
-
-.settings-skill-scope {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 2px 6px;
-  border-radius: 999px;
-  border: 1px solid var(--border-muted);
-  color: var(--text-subtle);
-}
-
-.settings-skill-scope.workspace {
-  border-color: rgba(120, 235, 190, 0.4);
-}
-
-.settings-skill-scope.global {
-  border-color: rgba(160, 180, 255, 0.45);
-}
-
-.settings-skill-path {
-  font-size: 11px;
-  color: var(--text-subtle);
-  word-break: break-all;
-}
-
-.settings-skill-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 .settings-help-inline {
   margin-right: 4px;
 }
@@ -337,7 +259,7 @@
 }
 
 .settings-input--shortcut {
-  font-family: "SF Mono", "Fira Mono", "Menlo", monospace;
+  font-family: var(--code-font-family);
   letter-spacing: 0.02em;
 }
 
@@ -362,6 +284,11 @@
   background: var(--surface-control);
   color: var(--text-strong);
   font-size: 12px;
+}
+
+.settings-select option {
+  background-color: var(--surface-popover);
+  color: var(--text-strong);
 }
 
 .settings-select--compact {
@@ -572,6 +499,10 @@
   flex-wrap: wrap;
 }
 
+.settings-open-app-row.is-incomplete {
+  border-color: color-mix(in srgb, var(--status-error) 45%, var(--border-muted));
+}
+
 .settings-open-app-icon-wrap {
   flex: 0 0 auto;
   width: 24px;
@@ -611,6 +542,20 @@
   gap: 6px;
   margin-left: auto;
   flex: 0 0 auto;
+}
+
+.settings-open-app-status {
+  font-size: 11px;
+  color: var(--status-error);
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--status-error) 40%, transparent);
+  background: color-mix(in srgb, var(--status-error) 12%, transparent);
+}
+
+.settings-open-app-input[data-invalid] {
+  border-color: color-mix(in srgb, var(--status-error) 60%, var(--border-muted));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--status-error) 25%, transparent);
 }
 
 .settings-open-app-default {

@@ -16,7 +16,16 @@ pub(crate) struct TerminalOutput {
     pub(crate) data: String,
 }
 
+#[derive(Debug, Serialize, Clone)]
+pub(crate) struct TerminalExit {
+    #[serde(rename = "workspaceId")]
+    pub(crate) workspace_id: String,
+    #[serde(rename = "terminalId")]
+    pub(crate) terminal_id: String,
+}
+
 pub(crate) trait EventSink: Clone + Send + Sync + 'static {
     fn emit_app_server_event(&self, event: AppServerEvent);
     fn emit_terminal_output(&self, event: TerminalOutput);
+    fn emit_terminal_exit(&self, event: TerminalExit);
 }

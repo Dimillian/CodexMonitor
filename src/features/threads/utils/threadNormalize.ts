@@ -55,6 +55,24 @@ export function extractRpcErrorMessage(response: unknown) {
   return "Request failed.";
 }
 
+export function extractReviewThreadId(response: unknown): string | null {
+  if (!response || typeof response !== "object") {
+    return null;
+  }
+  const record = response as Record<string, unknown>;
+  const result =
+    record.result && typeof record.result === "object"
+      ? (record.result as Record<string, unknown>)
+      : null;
+  const threadId = asString(
+    result?.reviewThreadId ??
+      result?.review_thread_id ??
+      record.reviewThreadId ??
+      record.review_thread_id,
+  );
+  return threadId || null;
+}
+
 export function normalizeTokenUsage(raw: Record<string, unknown>): ThreadTokenUsage {
   const total = (raw.total as Record<string, unknown>) ?? {};
   const last = (raw.last as Record<string, unknown>) ?? {};
@@ -185,23 +203,42 @@ export function normalizePlanUpdate(
   explanation: unknown,
   plan: unknown,
 ): TurnPlan | null {
-  const steps = Array.isArray(plan)
-    ? plan
-        .map((entry) => {
-          const step = asString((entry as Record<string, unknown>)?.step ?? "");
-          if (!step) {
-            return null;
-          }
-          return {
-            step,
-            status: normalizePlanStepStatus(
-              (entry as Record<string, unknown>)?.status,
-            ),
-          } satisfies TurnPlanStep;
-        })
-        .filter((entry): entry is TurnPlanStep => Boolean(entry))
-    : [];
-  const note = asString(explanation).trim();
+  const planRecord =
+    plan && typeof plan === "object" && !Array.isArray(plan)
+      ? (plan as Record<string, unknown>)
+      : null;
+  const rawSteps = (() => {
+    if (Array.isArray(plan)) {
+      return plan;
+    }
+    if (planRecord) {
+      const candidate =
+        planRecord.steps ??
+        planRecord.plan ??
+        planRecord.items ??
+        planRecord.entries ??
+        null;
+      return Array.isArray(candidate) ? candidate : [];
+    }
+    return [];
+  })();
+  const steps = rawSteps
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+      const record = entry as Record<string, unknown>;
+      const step = asString(record.step ?? record.text ?? record.title ?? "");
+      if (!step) {
+        return null;
+      }
+      return {
+        step,
+        status: normalizePlanStepStatus(record.status),
+      } satisfies TurnPlanStep;
+    })
+    .filter((entry): entry is TurnPlanStep => Boolean(entry));
+  const note = asString(explanation ?? planRecord?.explanation ?? planRecord?.note).trim();
   if (!steps.length && !note) {
     return null;
   }

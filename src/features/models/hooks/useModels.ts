@@ -9,7 +9,7 @@ type UseModelsOptions = {
   preferredEffort?: string | null;
 };
 
-const CONFIG_MODEL_DESCRIPTION = "Configured in GEMINI_HOME/config.toml";
+const CONFIG_MODEL_DESCRIPTION = "Configured in CODEX_HOME/config.toml";
 
 const normalizeEffort = (value: unknown): string | null => {
   if (typeof value !== "string") {

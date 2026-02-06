@@ -11,6 +11,7 @@ import {
 } from "../../../services/tauri";
 import {
   buildItemsFromThread,
+  getThreadCreatedTimestamp,
   getThreadTimestamp,
   isReviewingFromThread,
   mergeThreadItems,
@@ -18,12 +19,6 @@ import {
 } from "../../../utils/threadItems";
 import { saveThreadActivity } from "../utils/threadStorage";
 import { useThreadActions } from "./useThreadActions";
-
-vi.mock("@sentry/react", () => ({
-  metrics: {
-    count: vi.fn(),
-  },
-}));
 
 vi.mock("../../../services/tauri", () => ({
   startThread: vi.fn(),
@@ -35,6 +30,7 @@ vi.mock("../../../services/tauri", () => ({
 
 vi.mock("../../../utils/threadItems", () => ({
   buildItemsFromThread: vi.fn(),
+  getThreadCreatedTimestamp: vi.fn(),
   getThreadTimestamp: vi.fn(),
   isReviewingFromThread: vi.fn(),
   mergeThreadItems: vi.fn(),
@@ -48,14 +44,15 @@ vi.mock("../utils/threadStorage", () => ({
 describe("useThreadActions", () => {
   const workspace: WorkspaceInfo = {
     id: "ws-1",
-    name: "GeminiMonitor",
-    path: "/tmp/gemini",
+    name: "CodexMonitor",
+    path: "/tmp/codex",
     connected: true,
     settings: { sidebarCollapsed: false },
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getThreadCreatedTimestamp).mockReturnValue(0);
   });
 
   function renderActions(
@@ -76,6 +73,7 @@ describe("useThreadActions", () => {
       activeThreadIdByWorkspace: {},
       threadListCursorByWorkspace: {},
       threadStatusById: {},
+      threadSortKey: "updated_at",
       getCustomName: () => undefined,
       threadActivityRef,
       loadedThreadsRef,
@@ -277,13 +275,69 @@ describe("useThreadActions", () => {
     });
   });
 
+  it("keeps resume loading true until overlapping resumes finish", async () => {
+    let resolveFirst: ((value: unknown) => void) | null = null;
+    let resolveSecond: ((value: unknown) => void) | null = null;
+    const firstPromise = new Promise((resolve) => {
+      resolveFirst = resolve;
+    });
+    const secondPromise = new Promise((resolve) => {
+      resolveSecond = resolve;
+    });
+    vi.mocked(resumeThread)
+      .mockReturnValueOnce(firstPromise as Promise<any>)
+      .mockReturnValueOnce(secondPromise as Promise<any>);
+    vi.mocked(buildItemsFromThread).mockReturnValue([]);
+    vi.mocked(isReviewingFromThread).mockReturnValue(false);
+    vi.mocked(getThreadTimestamp).mockReturnValue(0);
+
+    const { result, dispatch } = renderActions();
+
+    let callOne: Promise<string | null> | null = null;
+    let callTwo: Promise<string | null> | null = null;
+    await act(async () => {
+      callOne = result.current.resumeThreadForWorkspace("ws-1", "thread-3", true);
+      callTwo = result.current.resumeThreadForWorkspace("ws-1", "thread-3", true);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreadResumeLoading",
+      threadId: "thread-3",
+      isLoading: true,
+    });
+
+    await act(async () => {
+      resolveFirst?.({ result: { thread: { id: "thread-3" } } });
+      await firstPromise;
+    });
+
+    expect(dispatch).not.toHaveBeenCalledWith({
+      type: "setThreadResumeLoading",
+      threadId: "thread-3",
+      isLoading: false,
+    });
+
+    await act(async () => {
+      resolveSecond?.({ result: { thread: { id: "thread-3" } } });
+      await Promise.all([callOne, callTwo]);
+    });
+
+    const loadingFalseCalls = dispatch.mock.calls.filter(
+      ([action]) =>
+        action?.type === "setThreadResumeLoading" &&
+        action?.threadId === "thread-3" &&
+        action?.isLoading === false,
+    );
+    expect(loadingFalseCalls).toHaveLength(1);
+  });
+
   it("lists threads for a workspace and persists activity", async () => {
     vi.mocked(listThreads).mockResolvedValue({
       result: {
         data: [
           {
             id: "thread-1",
-            cwd: "/tmp/gemini",
+            cwd: "/tmp/codex",
             preview: "Remote preview",
             updated_at: 5000,
           },
@@ -321,6 +375,7 @@ describe("useThreadActions", () => {
     expect(dispatch).toHaveBeenCalledWith({
       type: "setThreads",
       workspaceId: "ws-1",
+      sortKey: "updated_at",
       threads: [
         {
           id: "thread-1",
@@ -365,13 +420,30 @@ describe("useThreadActions", () => {
     });
   });
 
+  it("requests created_at sorting when provided", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [],
+        nextCursor: null,
+      },
+    });
+
+    const { result } = renderActions({ threadSortKey: "created_at" });
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    expect(listThreads).toHaveBeenCalledWith("ws-1", null, 20, "created_at");
+  });
+
   it("loads older threads when a cursor is available", async () => {
     vi.mocked(listThreads).mockResolvedValue({
       result: {
         data: [
           {
             id: "thread-2",
-            cwd: "/tmp/gemini",
+            cwd: "/tmp/codex",
             preview: "Older preview",
             updated_at: 4000,
           },
@@ -403,6 +475,7 @@ describe("useThreadActions", () => {
     expect(dispatch).toHaveBeenCalledWith({
       type: "setThreads",
       workspaceId: "ws-1",
+      sortKey: "updated_at",
       threads: [
         { id: "thread-1", name: "Agent 1", updatedAt: 6000 },
         { id: "thread-2", name: "Older preview", updatedAt: 4000 },

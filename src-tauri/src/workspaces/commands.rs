@@ -1,11 +1,13 @@
 use std::path::PathBuf;
+
+#[cfg(target_os = "windows")]
+use std::path::Path;
 use std::process::Stdio;
 use std::sync::Arc;
 
 use serde_json::json;
 use tauri::{AppHandle, Manager, State};
 use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
 use uuid::Uuid;
 
 #[cfg(target_os = "macos")]
@@ -22,12 +24,15 @@ use super::worktree::{
     unique_worktree_path_for_rename,
 };
 
-use crate::backend::app_server::{CliSpawnConfig, WorkspaceSession};
-use crate::gemini::{build_cli_spawn_config, spawn_workspace_session};
-use crate::gemini::args::resolve_workspace_gemini_args;
-use crate::gemini::home::resolve_workspace_gemini_home;
+use crate::backend::app_server::WorkspaceSession;
+use crate::codex::spawn_workspace_session;
+use crate::codex::args::resolve_workspace_codex_args;
+use crate::codex::home::resolve_workspace_codex_home;
 use crate::git_utils::resolve_git_root;
 use crate::remote_backend;
+use crate::shared::process_core::{kill_child_process_tree, tokio_command};
+#[cfg(target_os = "windows")]
+use crate::shared::process_core::{build_cmd_c_command, resolve_windows_executable};
 use crate::shared::workspaces_core;
 use crate::state::AppState;
 use crate::storage::write_workspaces;
@@ -39,9 +44,11 @@ use crate::utils::{git_env_path, resolve_git_binary};
 fn spawn_with_app(
     app: &AppHandle,
     entry: WorkspaceEntry,
-    config: CliSpawnConfig,
+    default_bin: Option<String>,
+    codex_args: Option<String>,
+    codex_home: Option<PathBuf>,
 ) -> impl std::future::Future<Output = Result<Arc<WorkspaceSession>, String>> {
-    spawn_workspace_session(entry, config, app.clone())
+    spawn_workspace_session(entry, default_bin, codex_args, app.clone(), codex_home)
 }
 
 #[tauri::command]
@@ -109,18 +116,18 @@ pub(crate) async fn is_workspace_path_dir(
 #[tauri::command]
 pub(crate) async fn add_workspace(
     path: String,
-    gemini_bin: Option<String>,
+    codex_bin: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<WorkspaceInfo, String> {
     if remote_backend::is_remote_mode(&*state).await {
         let path = remote_backend::normalize_path_for_remote(path);
-        let gemini_bin = gemini_bin.map(remote_backend::normalize_path_for_remote);
+        let codex_bin = codex_bin.map(remote_backend::normalize_path_for_remote);
         let response = remote_backend::call_remote(
             &*state,
             app,
             "add_workspace",
-            json!({ "path": path, "gemini_bin": gemini_bin }),
+            json!({ "path": path, "codex_bin": codex_bin }),
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
@@ -128,13 +135,13 @@ pub(crate) async fn add_workspace(
 
     workspaces_core::add_workspace_core(
         path,
-        gemini_bin,
+        codex_bin,
         &state.workspaces,
         &state.sessions,
         &state.app_settings,
         &state.storage_path,
-        |entry, config| {
-            spawn_with_app(&app, entry, config)
+        |entry, default_bin, codex_args, codex_home| {
+            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
         },
     )
     .await
@@ -208,7 +215,7 @@ pub(crate) async fn add_clone(
         id: Uuid::new_v4().to_string(),
         name: copy_name.clone(),
         path: destination_path_string,
-        gemini_bin: source_entry.gemini_bin.clone(),
+        codex_bin: source_entry.codex_bin.clone(),
         kind: WorkspaceKind::Main,
         parent_id: None,
         worktree: None,
@@ -218,16 +225,20 @@ pub(crate) async fn add_clone(
         },
     };
 
-    let config = {
+    let (default_bin, codex_args) = {
         let settings = state.app_settings.lock().await;
-        let gemini_args = resolve_workspace_gemini_args(&entry, None, Some(&settings));
-        let gemini_home = resolve_workspace_gemini_home(&entry, None);
-        build_cli_spawn_config(&settings, gemini_args, gemini_home)
+        (
+            settings.codex_bin.clone(),
+            resolve_workspace_codex_args(&entry, None, Some(&settings)),
+        )
     };
+    let codex_home = resolve_workspace_codex_home(&entry, None);
     let session = match spawn_workspace_session(
         entry.clone(),
-        config,
+        default_bin,
+        codex_args,
         app,
+        codex_home,
     )
     .await
     {
@@ -249,7 +260,7 @@ pub(crate) async fn add_clone(
             workspaces.remove(&entry.id);
         }
         let mut child = session.child.lock().await;
-        let _ = child.kill().await;
+        kill_child_process_tree(&mut child).await;
         let _ = tokio::fs::remove_dir_all(&destination_path).await;
         return Err(error);
     }
@@ -264,7 +275,7 @@ pub(crate) async fn add_clone(
         id: entry.id,
         name: entry.name,
         path: entry.path,
-        gemini_bin: entry.gemini_bin,
+        codex_bin: entry.codex_bin,
         connected: true,
         kind: entry.kind,
         parent_id: entry.parent_id,
@@ -278,15 +289,23 @@ pub(crate) async fn add_clone(
 pub(crate) async fn add_worktree(
     parent_id: String,
     branch: String,
+    name: Option<String>,
+    copy_agents_md: Option<bool>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<WorkspaceInfo, String> {
+    let copy_agents_md = copy_agents_md.unwrap_or(true);
     if remote_backend::is_remote_mode(&*state).await {
         let response = remote_backend::call_remote(
             &*state,
             app,
             "add_worktree",
-            json!({ "parentId": parent_id, "branch": branch }),
+            json!({
+                "parentId": parent_id,
+                "branch": branch,
+                "name": name,
+                "copyAgentsMd": copy_agents_md
+            }),
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
@@ -300,6 +319,8 @@ pub(crate) async fn add_worktree(
     workspaces_core::add_worktree_core(
         parent_id,
         branch,
+        name,
+        copy_agents_md,
         &data_dir,
         &state.workspaces,
         &state.sessions,
@@ -318,8 +339,8 @@ pub(crate) async fn add_worktree(
                 run_git_command_owned(repo, args_owned)
             })
         },
-        |entry, config| {
-            spawn_with_app(&app, entry, config)
+        |entry, default_bin, codex_args, codex_home| {
+            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
         },
     )
     .await
@@ -487,8 +508,8 @@ pub(crate) async fn rename_worktree(
                 run_git_command_owned(repo, args_owned)
             })
         },
-        |entry, config| {
-            spawn_with_app(&app, entry, config)
+        |entry, default_bin, codex_args, codex_home| {
+            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
         },
     )
     .await
@@ -627,7 +648,7 @@ pub(crate) async fn apply_worktree_changes(
     }
 
     let git_bin = resolve_git_binary().map_err(|e| format!("Failed to run git: {e}"))?;
-    let mut child = Command::new(git_bin)
+    let mut child = tokio_command(git_bin)
         .args(["apply", "--3way", "--whitespace=nowarn", "-"])
         .current_dir(&parent_root)
         .env("PATH", git_env_path())
@@ -709,8 +730,8 @@ pub(crate) async fn update_workspace_settings(
         |workspaces, workspace_id, next_settings| {
             apply_workspace_settings_update(workspaces, workspace_id, next_settings)
         },
-        |entry, config| {
-            spawn_with_app(&app, entry, config)
+        |entry, default_bin, codex_args, codex_home| {
+            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
         },
     )
     .await
@@ -718,27 +739,27 @@ pub(crate) async fn update_workspace_settings(
 
 
 #[tauri::command]
-pub(crate) async fn update_workspace_gemini_bin(
+pub(crate) async fn update_workspace_codex_bin(
     id: String,
-    gemini_bin: Option<String>,
+    codex_bin: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<WorkspaceInfo, String> {
     if remote_backend::is_remote_mode(&*state).await {
-        let gemini_bin = gemini_bin.map(remote_backend::normalize_path_for_remote);
+        let codex_bin = codex_bin.map(remote_backend::normalize_path_for_remote);
         let response = remote_backend::call_remote(
             &*state,
             app,
-            "update_workspace_gemini_bin",
-            json!({ "id": id, "gemini_bin": gemini_bin }),
+            "update_workspace_codex_bin",
+            json!({ "id": id, "codex_bin": codex_bin }),
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
     }
 
-    workspaces_core::update_workspace_gemini_bin_core(
+    workspaces_core::update_workspace_codex_bin_core(
         id,
-        gemini_bin,
+        codex_bin,
         &state.workspaces,
         &state.sessions,
         &state.storage_path,
@@ -764,8 +785,8 @@ pub(crate) async fn connect_workspace(
         &state.workspaces,
         &state.sessions,
         &state.app_settings,
-        |entry, config| {
-            spawn_with_app(&app, entry, config)
+        |entry, default_bin, codex_args, codex_home| {
+            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
         },
     )
     .await
@@ -810,17 +831,74 @@ pub(crate) async fn open_workspace_in(
         .unwrap_or_else(|| "target".to_string());
 
     let status = if let Some(command) = command {
-        let mut cmd = std::process::Command::new(command);
-        cmd.args(args).arg(path);
+        let trimmed = command.trim();
+        if trimmed.is_empty() {
+            return Err("Missing app or command".to_string());
+        }
+
+        #[cfg(target_os = "windows")]
+        let mut cmd = {
+            let resolved = resolve_windows_executable(trimmed, None);
+            let resolved_path = resolved
+                .as_deref()
+                .unwrap_or_else(|| Path::new(trimmed));
+            let ext = resolved_path
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext.to_ascii_lowercase());
+
+            if matches!(ext.as_deref(), Some("cmd") | Some("bat")) {
+                let mut cmd = tokio_command("cmd");
+                let mut command_args = args.clone();
+                command_args.push(path.clone());
+                let command_line = build_cmd_c_command(resolved_path, &command_args)?;
+                cmd.arg("/D");
+                cmd.arg("/S");
+                cmd.arg("/C");
+                cmd.arg(command_line);
+                cmd
+            } else {
+                let mut cmd = tokio_command(resolved_path);
+                cmd.args(&args).arg(&path);
+                cmd
+            }
+        };
+
+        #[cfg(not(target_os = "windows"))]
+        let mut cmd = {
+            let mut cmd = tokio_command(trimmed);
+            cmd.args(&args).arg(&path);
+            cmd
+        };
+
         cmd.status()
+            .await
             .map_err(|error| format!("Failed to open app ({target_label}): {error}"))?
     } else if let Some(app) = app {
-        let mut cmd = std::process::Command::new("open");
-        cmd.arg("-a").arg(app).arg(path);
-        if !args.is_empty() {
-            cmd.arg("--args").args(args);
+        let trimmed = app.trim();
+        if trimmed.is_empty() {
+            return Err("Missing app or command".to_string());
         }
+
+        #[cfg(target_os = "macos")]
+        let mut cmd = {
+            let mut cmd = tokio_command("open");
+            cmd.arg("-a").arg(trimmed).arg(&path);
+            if !args.is_empty() {
+                cmd.arg("--args").args(&args);
+            }
+            cmd
+        };
+
+        #[cfg(not(target_os = "macos"))]
+        let mut cmd = {
+            let mut cmd = tokio_command(trimmed);
+            cmd.args(&args).arg(&path);
+            cmd
+        };
+
         cmd.status()
+            .await
             .map_err(|error| format!("Failed to open app ({target_label}): {error}"))?
     } else {
         return Err("Missing app or command".to_string());

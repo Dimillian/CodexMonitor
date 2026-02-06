@@ -363,6 +363,41 @@
 .diff-viewer-path {
   color: var(--text-emphasis);
   word-break: break-word;
+  flex: 1;
+  min-width: 0;
+}
+
+.diff-viewer-header-action {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-faint);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.diff-viewer-header-action:hover {
+  background: var(--surface-control-hover);
+  border-color: var(--border-subtle);
+  color: var(--text-emphasis);
+}
+
+.diff-viewer-header-action:focus-visible {
+  outline: 2px solid var(--border-accent-soft);
+  outline-offset: 2px;
+}
+
+.diff-viewer-header-action--discard:hover {
+  background: rgba(255, 107, 107, 0.14);
+  border-color: rgba(255, 107, 107, 0.35);
+  color: #ff6b6b;
 }
 
 .diff-viewer-output pre {

@@ -12,14 +12,14 @@ describe("threadReducer", () => {
     });
     const threads = next.threadsByWorkspace["ws-1"] ?? [];
     expect(threads).toHaveLength(1);
-    expect(threads[0].name).toBe("Agent 1");
+    expect(threads[0].name).toBe("New Agent");
     expect(next.activeThreadIdByWorkspace["ws-1"]).toBe("thread-1");
     expect(next.threadStatusById["thread-1"]?.isProcessing).toBe(false);
   });
 
   it("renames auto-generated thread on first user message", () => {
     const threads: ThreadSummary[] = [
-      { id: "thread-1", name: "Agent 1", updatedAt: 1 },
+      { id: "thread-1", name: "New Agent", updatedAt: 1 },
     ];
     const next = threadReducer(
       {
@@ -50,7 +50,7 @@ describe("threadReducer", () => {
 
   it("renames auto-generated thread from assistant output when no user message", () => {
     const threads: ThreadSummary[] = [
-      { id: "thread-1", name: "Agent 1", updatedAt: 1 },
+      { id: "thread-1", name: "New Agent", updatedAt: 1 },
     ];
     const next = threadReducer(
       {
@@ -87,6 +87,54 @@ describe("threadReducer", () => {
       },
     );
     expect(next.threadsByWorkspace["ws-1"]?.[0]?.updatedAt).toBe(1500);
+  });
+
+  it("moves active thread to top on timestamp updates when sorted by updated_at", () => {
+    const threads: ThreadSummary[] = [
+      { id: "thread-1", name: "Agent 1", updatedAt: 1000 },
+      { id: "thread-2", name: "Agent 2", updatedAt: 900 },
+    ];
+    const next = threadReducer(
+      {
+        ...initialState,
+        threadsByWorkspace: { "ws-1": threads },
+        threadSortKeyByWorkspace: { "ws-1": "updated_at" },
+      },
+      {
+        type: "setThreadTimestamp",
+        workspaceId: "ws-1",
+        threadId: "thread-2",
+        timestamp: 1500,
+      },
+    );
+    expect(next.threadsByWorkspace["ws-1"]?.map((thread) => thread.id)).toEqual([
+      "thread-2",
+      "thread-1",
+    ]);
+  });
+
+  it("keeps ordering stable on timestamp updates when sorted by created_at", () => {
+    const threads: ThreadSummary[] = [
+      { id: "thread-1", name: "Agent 1", updatedAt: 1000 },
+      { id: "thread-2", name: "Agent 2", updatedAt: 900 },
+    ];
+    const next = threadReducer(
+      {
+        ...initialState,
+        threadsByWorkspace: { "ws-1": threads },
+        threadSortKeyByWorkspace: { "ws-1": "created_at" },
+      },
+      {
+        type: "setThreadTimestamp",
+        workspaceId: "ws-1",
+        threadId: "thread-2",
+        timestamp: 1500,
+      },
+    );
+    expect(next.threadsByWorkspace["ws-1"]?.map((thread) => thread.id)).toEqual([
+      "thread-1",
+      "thread-2",
+    ]);
   });
 
   it("tracks processing durations", () => {
@@ -263,6 +311,24 @@ describe("threadReducer", () => {
     expect(items[0]?.id).toBe("review-mode");
   });
 
+  it("creates and appends plan deltas when no plan tool item exists", () => {
+    const next = threadReducer(initialState, {
+      type: "appendPlanDelta",
+      threadId: "thread-1",
+      itemId: "plan-1",
+      delta: "- Step 1",
+    });
+    const items = next.itemsByThread["thread-1"] ?? [];
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      id: "plan-1",
+      kind: "tool",
+      toolType: "plan",
+      title: "Plan",
+      output: "- Step 1",
+    });
+  });
+
   it("appends reasoning summary and content when missing", () => {
     const withSummary = threadReducer(initialState, {
       type: "appendReasoningSummary",
@@ -314,27 +380,6 @@ describe("threadReducer", () => {
     expect(item?.kind).toBe("reasoning");
     if (item?.kind === "reasoning") {
       expect(item.summary).toBe("Exploring files\n\nSearching for routes");
-    }
-  });
-
-  it("appends a deduped context compacted message", () => {
-    const withCompacted = threadReducer(initialState, {
-      type: "appendContextCompacted",
-      threadId: "thread-1",
-      turnId: "turn-1",
-    });
-    const withDuplicate = threadReducer(withCompacted, {
-      type: "appendContextCompacted",
-      threadId: "thread-1",
-      turnId: "turn-1",
-    });
-
-    const items = withDuplicate.itemsByThread["thread-1"] ?? [];
-    expect(items).toHaveLength(1);
-    expect(items[0]?.kind).toBe("message");
-    if (items[0]?.kind === "message") {
-      expect(items[0].text).toBe("Context compacted.");
-      expect(items[0].id).toBe("context-compacted-turn-1");
     }
   });
 
@@ -424,6 +469,7 @@ describe("threadReducer", () => {
     const synced = threadReducer(hidden, {
       type: "setThreads",
       workspaceId: "ws-1",
+      sortKey: "updated_at",
       threads: [
         { id: "thread-bg", name: "Agent 1", updatedAt: Date.now() },
         { id: "thread-visible", name: "Agent 2", updatedAt: Date.now() },

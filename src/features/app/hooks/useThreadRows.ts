@@ -25,10 +25,22 @@ export function useThreadRows(threadParentById: Record<string, string>) {
       const threadIds = new Set(threads.map((thread) => thread.id));
       const childrenByParent = new Map<string, ThreadSummary[]>();
       const roots: ThreadSummary[] = [];
+      const resolveVisibleParentId = (threadId: string) => {
+        let current = threadParentById[threadId];
+        const visited = new Set<string>([threadId]);
+        while (current && !visited.has(current)) {
+          if (threadIds.has(current)) {
+            return current;
+          }
+          visited.add(current);
+          current = threadParentById[current];
+        }
+        return null;
+      };
 
       threads.forEach((thread) => {
-        const parentId = threadParentById[thread.id];
-        if (parentId && parentId !== thread.id && threadIds.has(parentId)) {
+        const parentId = resolveVisibleParentId(thread.id);
+        if (parentId) {
           const list = childrenByParent.get(parentId) ?? [];
           list.push(thread);
           childrenByParent.set(parentId, list);

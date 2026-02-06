@@ -20,6 +20,7 @@ type UseThreadItemEventsOptions = {
     threadId: string,
     item: Record<string, unknown>,
   ) => void;
+  onReviewExited?: (workspaceId: string, threadId: string) => void;
 };
 
 export function useThreadItemEvents({
@@ -31,6 +32,7 @@ export function useThreadItemEvents({
   safeMessageActivity,
   recordThreadActivity,
   applyCollabThreadLinks,
+  onReviewExited,
 }: UseThreadItemEventsOptions) {
   const handleItemUpdate = useCallback(
     (
@@ -50,8 +52,18 @@ export function useThreadItemEvents({
       } else if (itemType === "exitedReviewMode") {
         markReviewing(threadId, false);
         markProcessing(threadId, false);
+        if (!shouldMarkProcessing) {
+          onReviewExited?.(workspaceId, threadId);
+        }
       }
-      const converted = buildConversationItem(item);
+      const itemForDisplay =
+        itemType === "contextCompaction"
+          ? ({
+              ...item,
+              status: shouldMarkProcessing ? "inProgress" : "completed",
+            } as Record<string, unknown>)
+          : item;
+      const converted = buildConversationItem(itemForDisplay);
       if (converted) {
         dispatch({
           type: "upsertItem",
@@ -69,6 +81,7 @@ export function useThreadItemEvents({
       getCustomName,
       markProcessing,
       markReviewing,
+      onReviewExited,
       safeMessageActivity,
     ],
   );
@@ -206,6 +219,13 @@ export function useThreadItemEvents({
     [dispatch],
   );
 
+  const onPlanDelta = useCallback(
+    (_workspaceId: string, threadId: string, itemId: string, delta: string) => {
+      dispatch({ type: "appendPlanDelta", threadId, itemId, delta });
+    },
+    [dispatch],
+  );
+
   const onCommandOutputDelta = useCallback(
     (_workspaceId: string, threadId: string, itemId: string, delta: string) => {
       handleToolOutputDelta(threadId, itemId, delta);
@@ -235,6 +255,7 @@ export function useThreadItemEvents({
     onReasoningSummaryDelta,
     onReasoningSummaryBoundary,
     onReasoningTextDelta,
+    onPlanDelta,
     onCommandOutputDelta,
     onTerminalInteraction,
     onFileChangeOutputDelta,

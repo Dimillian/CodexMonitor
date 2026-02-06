@@ -100,14 +100,15 @@ use std::sync::Arc;
 use ignore::WalkBuilder;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{broadcast, mpsc, oneshot, Mutex};
+use tokio::sync::{broadcast, mpsc, Mutex};
 
 use backend::app_server::{
     spawn_workspace_session, CliSpawnConfig, WorkspaceSession,
 };
-use backend::events::{AppServerEvent, EventSink, TerminalOutput};
+use backend::events::{AppServerEvent, EventSink, TerminalExit, TerminalOutput};
 use storage::{read_settings, read_workspaces};
-use shared::{gemini_core, files_core, git_core, settings_core, workspaces_core, worktree_core};
+use shared::{codex_core, files_core, git_core, settings_core, workspaces_core, worktree_core};
+use shared::codex_core::CodexLoginCancelState;
 use workspace_settings::apply_workspace_settings_update;
 use types::{
     AppSettings, WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorktreeSetupStatus,
@@ -139,6 +140,8 @@ enum DaemonEvent {
     AppServer(AppServerEvent),
     #[allow(dead_code)]
     TerminalOutput(TerminalOutput),
+    #[allow(dead_code)]
+    TerminalExit(TerminalExit),
 }
 
 impl EventSink for DaemonEventSink {
@@ -148,6 +151,10 @@ impl EventSink for DaemonEventSink {
 
     fn emit_terminal_output(&self, event: TerminalOutput) {
         let _ = self.tx.send(DaemonEvent::TerminalOutput(event));
+    }
+
+    fn emit_terminal_exit(&self, event: TerminalExit) {
+        let _ = self.tx.send(DaemonEvent::TerminalExit(event));
     }
 }
 
@@ -165,7 +172,7 @@ struct DaemonState {
     settings_path: PathBuf,
     app_settings: Mutex<AppSettings>,
     event_sink: DaemonEventSink,
-    gemini_login_cancels: Mutex<HashMap<String, oneshot::Sender<()>>>,
+    codex_login_cancels: Mutex<HashMap<String, CodexLoginCancelState>>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -230,12 +237,16 @@ impl DaemonState {
         &self,
         parent_id: String,
         branch: String,
+        name: Option<String>,
+        copy_agents_md: bool,
         client_version: String,
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
         workspaces_core::add_worktree_core(
             parent_id,
             branch,
+            name,
+            copy_agents_md,
             &self.data_dir,
             &self.workspaces,
             &self.sessions,
@@ -536,8 +547,9 @@ impl DaemonState {
         workspace_id: String,
         cursor: Option<String>,
         limit: Option<u32>,
+        sort_key: Option<String>,
     ) -> Result<Value, String> {
-        gemini_core::list_threads_core(&self.sessions, workspace_id, cursor, limit).await
+        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key).await
     }
 
     async fn list_mcp_server_status(
@@ -551,6 +563,19 @@ impl DaemonState {
 
     async fn archive_thread(&self, workspace_id: String, thread_id: String) -> Result<Value, String> {
         gemini_core::archive_thread_core(&self.sessions, workspace_id, thread_id).await
+    }
+
+    async fn compact_thread(&self, workspace_id: String, thread_id: String) -> Result<Value, String> {
+        codex_core::compact_thread_core(&self.sessions, workspace_id, thread_id).await
+    }
+
+    async fn set_thread_name(
+        &self,
+        workspace_id: String,
+        thread_id: String,
+        name: String,
+    ) -> Result<Value, String> {
+        codex_core::set_thread_name_core(&self.sessions, workspace_id, thread_id, name).await
     }
 
     async fn send_user_message(
@@ -614,22 +639,26 @@ impl DaemonState {
         gemini_core::account_read_core(&self.sessions, &self.workspaces, workspace_id).await
     }
 
-    async fn gemini_login(&self, workspace_id: String) -> Result<Value, String> {
-        gemini_core::gemini_login_core(
-            &self.workspaces,
-            &self.app_settings,
-            &self.gemini_login_cancels,
-            workspace_id,
-        )
-        .await
+    async fn codex_login(&self, workspace_id: String) -> Result<Value, String> {
+        codex_core::codex_login_core(&self.sessions, &self.codex_login_cancels, workspace_id).await
     }
 
-    async fn gemini_login_cancel(&self, workspace_id: String) -> Result<Value, String> {
-        gemini_core::gemini_login_cancel_core(&self.gemini_login_cancels, workspace_id).await
+    async fn codex_login_cancel(&self, workspace_id: String) -> Result<Value, String> {
+        codex_core::codex_login_cancel_core(&self.sessions, &self.codex_login_cancels, workspace_id)
+            .await
     }
 
     async fn skills_list(&self, workspace_id: String) -> Result<Value, String> {
         gemini_core::skills_list_core(&self.sessions, workspace_id).await
+    }
+
+    async fn apps_list(
+        &self,
+        workspace_id: String,
+        cursor: Option<String>,
+        limit: Option<u32>,
+    ) -> Result<Value, String> {
+        codex_core::apps_list_core(&self.sessions, workspace_id, cursor, limit).await
     }
 
     async fn respond_to_server_request(
@@ -856,6 +885,10 @@ fn build_event_notification(event: DaemonEvent) -> Option<String> {
             "method": "terminal-output",
             "params": payload,
         }),
+        DaemonEvent::TerminalExit(payload) => json!({
+            "method": "terminal-exit",
+            "params": payload,
+        }),
     };
     serde_json::to_string(&payload).ok()
 }
@@ -901,6 +934,13 @@ fn parse_optional_u32(value: &Value, key: &str) -> Option<u32> {
                 Some(v as u32)
             }
         }),
+        _ => None,
+    }
+}
+
+fn parse_optional_bool(value: &Value, key: &str) -> Option<bool> {
+    match value {
+        Value::Object(map) => map.get(key).and_then(|value| value.as_bool()),
         _ => None,
     }
 }
@@ -979,8 +1019,10 @@ async fn handle_rpc_request(
         "add_worktree" => {
             let parent_id = parse_string(&params, "parentId")?;
             let branch = parse_string(&params, "branch")?;
+            let name = parse_optional_string(&params, "name");
+            let copy_agents_md = parse_optional_bool(&params, "copyAgentsMd").unwrap_or(true);
             let workspace = state
-                .add_worktree(parent_id, branch, client_version)
+                .add_worktree(parent_id, branch, name, copy_agents_md, client_version)
                 .await?;
             serde_json::to_value(workspace).map_err(|err| err.to_string())
         }
@@ -1113,7 +1155,8 @@ async fn handle_rpc_request(
             let workspace_id = parse_string(&params, "workspaceId")?;
             let cursor = parse_optional_string(&params, "cursor");
             let limit = parse_optional_u32(&params, "limit");
-            state.list_threads(workspace_id, cursor, limit).await
+            let sort_key = parse_optional_string(&params, "sortKey");
+            state.list_threads(workspace_id, cursor, limit, sort_key).await
         }
         "list_mcp_server_status" => {
             let workspace_id = parse_string(&params, "workspaceId")?;
@@ -1125,6 +1168,17 @@ async fn handle_rpc_request(
             let workspace_id = parse_string(&params, "workspaceId")?;
             let thread_id = parse_string(&params, "threadId")?;
             state.archive_thread(workspace_id, thread_id).await
+        }
+        "compact_thread" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let thread_id = parse_string(&params, "threadId")?;
+            state.compact_thread(workspace_id, thread_id).await
+        }
+        "set_thread_name" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let thread_id = parse_string(&params, "threadId")?;
+            let name = parse_string(&params, "name")?;
+            state.set_thread_name(workspace_id, thread_id, name).await
         }
         "send_user_message" => {
             let workspace_id = parse_string(&params, "workspaceId")?;
@@ -1192,6 +1246,12 @@ async fn handle_rpc_request(
         "skills_list" => {
             let workspace_id = parse_string(&params, "workspaceId")?;
             state.skills_list(workspace_id).await
+        }
+        "apps_list" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let cursor = parse_optional_string(&params, "cursor");
+            let limit = parse_optional_u32(&params, "limit");
+            state.apps_list(workspace_id, cursor, limit).await
         }
         "respond_to_server_request" => {
             let workspace_id = parse_string(&params, "workspaceId")?;

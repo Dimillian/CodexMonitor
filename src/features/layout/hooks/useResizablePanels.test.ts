@@ -50,9 +50,9 @@ describe("useResizablePanels", () => {
   });
 
   it("reads stored sizes and clamps to bounds", () => {
-    window.localStorage.setItem("geminimonitor.sidebarWidth", "999");
-    window.localStorage.setItem("geminimonitor.rightPanelWidth", "100");
-    window.localStorage.setItem("geminimonitor.planPanelHeight", "not-a-number");
+    window.localStorage.setItem("codexmonitor.sidebarWidth", "999");
+    window.localStorage.setItem("codexmonitor.rightPanelWidth", "100");
+    window.localStorage.setItem("codexmonitor.planPanelHeight", "not-a-number");
 
     const hook = renderResizablePanels();
 
@@ -80,7 +80,7 @@ describe("useResizablePanels", () => {
     });
 
     expect(hook.result.sidebarWidth).toBe(420);
-    expect(window.localStorage.getItem("geminimonitor.sidebarWidth")).toBe(
+    expect(window.localStorage.getItem("codexmonitor.sidebarWidth")).toBe(
       "420",
     );
 

@@ -27,8 +27,8 @@ vi.mock("../../git/hooks/useGitCommitDiffs", () => ({
 
 const workspace: WorkspaceInfo = {
   id: "workspace-1",
-  name: "GeminiMonitor",
-  path: "/tmp/gemini-monitor",
+  name: "CodexMonitor",
+  path: "/tmp/codex-monitor",
   connected: true,
   settings: { sidebarCollapsed: false },
 };
@@ -37,10 +37,11 @@ function makeProps(overrides?: Partial<Parameters<typeof useGitPanelController>[
   return {
     activeWorkspace: workspace,
     gitDiffPreloadEnabled: false,
+    gitDiffIgnoreWhitespaceChanges: false,
     isCompact: false,
     isTablet: false,
-    activeTab: "gemini" as const,
-    tabletTab: "gemini" as const,
+    activeTab: "codex" as const,
+    tabletTab: "codex" as const,
     setActiveTab: vi.fn(),
     prDiffs: [],
     prDiffsLoading: false,
@@ -100,7 +101,7 @@ describe("useGitPanelController preload behavior", () => {
     const { result } = renderHook(() => useGitPanelController(makeProps()));
 
     const initialEnabled = getLastEnabledArg();
-    expect(initialEnabled).toBe(true);
+    expect(initialEnabled).toBe(false);
 
     act(() => {
       result.current.setGitPanelMode("issues");
@@ -110,7 +111,7 @@ describe("useGitPanelController preload behavior", () => {
     expect(lastEnabled).toBe(false);
   });
 
-  it("loads diffs when the panel becomes visible even if preload is disabled", () => {
+  it("does not load diffs when the panel becomes visible if preload is disabled", () => {
     const { result } = renderHook(() => useGitPanelController(makeProps()));
 
     act(() => {
@@ -125,6 +126,20 @@ describe("useGitPanelController preload behavior", () => {
     });
 
     const visibleEnabled = getLastEnabledArg();
-    expect(visibleEnabled).toBe(true);
+    expect(visibleEnabled).toBe(false);
+  });
+
+  it("loads diffs after selecting a file when preload is disabled", () => {
+    const { result } = renderHook(() => useGitPanelController(makeProps()));
+
+    const hiddenEnabled = getLastEnabledArg();
+    expect(hiddenEnabled).toBe(false);
+
+    act(() => {
+      result.current.handleSelectDiff("src/main.ts");
+    });
+
+    const selectedEnabled = getLastEnabledArg();
+    expect(selectedEnabled).toBe(true);
   });
 });

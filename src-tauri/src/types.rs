@@ -12,6 +12,10 @@ pub(crate) struct GitFileStatus {
 pub(crate) struct GitFileDiff {
     pub(crate) path: String,
     pub(crate) diff: String,
+    #[serde(default, rename = "oldLines")]
+    pub(crate) old_lines: Option<Vec<String>>,
+    #[serde(default, rename = "newLines")]
+    pub(crate) new_lines: Option<Vec<String>>,
     #[serde(default, rename = "isBinary")]
     pub(crate) is_binary: bool,
     #[serde(default, rename = "isImage")]
@@ -31,6 +35,10 @@ pub(crate) struct GitCommitDiff {
     pub(crate) path: String,
     pub(crate) status: String,
     pub(crate) diff: String,
+    #[serde(default, rename = "oldLines")]
+    pub(crate) old_lines: Option<Vec<String>>,
+    #[serde(default, rename = "newLines")]
+    pub(crate) new_lines: Option<Vec<String>>,
     #[serde(default, rename = "isBinary")]
     pub(crate) is_binary: bool,
     #[serde(default, rename = "isImage")]
@@ -190,7 +198,7 @@ pub(crate) struct WorkspaceEntry {
     pub(crate) id: String,
     pub(crate) name: String,
     pub(crate) path: String,
-    pub(crate) gemini_bin: Option<String>,
+    pub(crate) codex_bin: Option<String>,
     #[serde(default)]
     pub(crate) kind: WorkspaceKind,
     #[serde(default, rename = "parentId")]
@@ -207,7 +215,7 @@ pub(crate) struct WorkspaceInfo {
     pub(crate) name: String,
     pub(crate) path: String,
     pub(crate) connected: bool,
-    pub(crate) gemini_bin: Option<String>,
+    pub(crate) codex_bin: Option<String>,
     #[serde(default)]
     pub(crate) kind: WorkspaceKind,
     #[serde(default, rename = "parentId")]
@@ -262,14 +270,25 @@ pub(crate) struct WorkspaceSettings {
     pub(crate) group_id: Option<String>,
     #[serde(default, rename = "gitRoot")]
     pub(crate) git_root: Option<String>,
-    #[serde(default, rename = "geminiHome")]
-    pub(crate) gemini_home: Option<String>,
-    #[serde(default, rename = "geminiArgs")]
-    pub(crate) gemini_args: Option<String>,
+    #[serde(default, rename = "codexHome")]
+    pub(crate) codex_home: Option<String>,
+    #[serde(default, rename = "codexArgs")]
+    pub(crate) codex_args: Option<String>,
     #[serde(default, rename = "launchScript")]
     pub(crate) launch_script: Option<String>,
+    #[serde(default, rename = "launchScripts")]
+    pub(crate) launch_scripts: Option<Vec<LaunchScriptEntry>>,
     #[serde(default, rename = "worktreeSetupScript")]
     pub(crate) worktree_setup_script: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct LaunchScriptEntry {
+    pub(crate) id: String,
+    pub(crate) script: String,
+    pub(crate) icon: String,
+    #[serde(default)]
+    pub(crate) label: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -294,36 +313,10 @@ pub(crate) struct OpenAppTarget {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct AppSettings {
-    #[serde(default = "default_cli_type", rename = "cliType")]
-    pub(crate) cli_type: String,
-    #[serde(default, rename = "geminiBin")]
-    pub(crate) gemini_bin: Option<String>,
-    #[serde(default, rename = "geminiArgs")]
-    pub(crate) gemini_args: Option<String>,
-    #[serde(default, rename = "cursorBin")]
-    pub(crate) cursor_bin: Option<String>,
-    #[serde(default, rename = "cursorArgs")]
-    pub(crate) cursor_args: Option<String>,
-    #[serde(default, rename = "claudeBin")]
-    pub(crate) claude_bin: Option<String>,
-    #[serde(default, rename = "claudeArgs")]
-    pub(crate) claude_args: Option<String>,
-    #[serde(default, rename = "cursorVimMode")]
-    pub(crate) cursor_vim_mode: bool,
-    #[serde(
-        default = "default_cursor_default_mode",
-        rename = "cursorDefaultMode",
-        deserialize_with = "deserialize_cursor_mode"
-    )]
-    pub(crate) cursor_default_mode: CursorOperatingMode,
-    #[serde(default = "default_cursor_output_format", rename = "cursorOutputFormat")]
-    pub(crate) cursor_output_format: String,
-    #[serde(default, rename = "cursorAttributeCommits")]
-    pub(crate) cursor_attribute_commits: bool,
-    #[serde(default, rename = "cursorAttributePRs")]
-    pub(crate) cursor_attribute_prs: bool,
-    #[serde(default, rename = "cursorUseHttp1")]
-    pub(crate) cursor_use_http1: bool,
+    #[serde(default, rename = "codexBin")]
+    pub(crate) codex_bin: Option<String>,
+    #[serde(default, rename = "codexArgs")]
+    pub(crate) codex_args: Option<String>,
     #[serde(default, rename = "backendMode")]
     pub(crate) backend_mode: BackendMode,
     #[serde(default = "default_remote_backend_host", rename = "remoteBackendHost")]
@@ -332,6 +325,8 @@ pub(crate) struct AppSettings {
     pub(crate) remote_backend_token: Option<String>,
     #[serde(default = "default_access_mode", rename = "defaultAccessMode")]
     pub(crate) default_access_mode: String,
+    #[serde(default = "default_review_delivery_mode", rename = "reviewDeliveryMode")]
+    pub(crate) review_delivery_mode: String,
     #[serde(
         default = "default_composer_model_shortcut",
         rename = "composerModelShortcut"
@@ -435,25 +430,47 @@ pub(crate) struct AppSettings {
     #[serde(default = "default_preload_git_diffs", rename = "preloadGitDiffs")]
     pub(crate) preload_git_diffs: bool,
     #[serde(
+        default = "default_git_diff_ignore_whitespace_changes",
+        rename = "gitDiffIgnoreWhitespaceChanges"
+    )]
+    pub(crate) git_diff_ignore_whitespace_changes: bool,
+    #[serde(
+        default = "default_system_notifications_enabled",
+        rename = "systemNotificationsEnabled"
+    )]
+    pub(crate) system_notifications_enabled: bool,
+    #[serde(
         default = "default_experimental_collab_enabled",
         rename = "experimentalCollabEnabled"
     )]
     pub(crate) experimental_collab_enabled: bool,
     #[serde(
-        default = "default_experimental_collaboration_modes_enabled",
-        rename = "experimentalCollaborationModesEnabled"
+        default = "default_collaboration_modes_enabled",
+        rename = "collaborationModesEnabled"
     )]
-    pub(crate) experimental_collaboration_modes_enabled: bool,
+    pub(crate) collaboration_modes_enabled: bool,
     #[serde(
-        default = "default_experimental_steer_enabled",
-        rename = "experimentalSteerEnabled"
+        default = "default_steer_enabled",
+        rename = "steerEnabled",
+        alias = "experimentalSteerEnabled"
     )]
-    pub(crate) experimental_steer_enabled: bool,
+    pub(crate) steer_enabled: bool,
     #[serde(
-        default = "default_experimental_unified_exec_enabled",
-        rename = "experimentalUnifiedExecEnabled"
+        default = "default_unified_exec_enabled",
+        rename = "unifiedExecEnabled",
+        alias = "experimentalUnifiedExecEnabled"
     )]
-    pub(crate) experimental_unified_exec_enabled: bool,
+    pub(crate) unified_exec_enabled: bool,
+    #[serde(
+        default = "default_experimental_apps_enabled",
+        rename = "experimentalAppsEnabled"
+    )]
+    pub(crate) experimental_apps_enabled: bool,
+    #[serde(
+        default = "default_personality",
+        rename = "personality"
+    )]
+    pub(crate) personality: String,
     #[serde(default = "default_dictation_enabled", rename = "dictationEnabled")]
     pub(crate) dictation_enabled: bool,
     #[serde(
@@ -510,64 +527,12 @@ impl Default for BackendMode {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub(crate) enum CursorOperatingMode {
-    Agent,
-    Plan,
-    Ask,
-    Debug,
-}
-
-impl Default for CursorOperatingMode {
-    fn default() -> Self {
-        CursorOperatingMode::Agent
-    }
-}
-
-impl std::fmt::Display for CursorOperatingMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CursorOperatingMode::Agent => write!(f, "agent"),
-            CursorOperatingMode::Plan => write!(f, "plan"),
-            CursorOperatingMode::Ask => write!(f, "ask"),
-            CursorOperatingMode::Debug => write!(f, "debug"),
-        }
-    }
-}
-
-/// Custom deserializer that falls back to default on invalid values.
-/// This prevents data loss when a user has an invalid mode in their settings.
-fn deserialize_cursor_mode<'de, D>(deserializer: D) -> Result<CursorOperatingMode, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::Deserialize;
-    // Deserialize as a string first, then parse to enum
-    let s = String::deserialize(deserializer).unwrap_or_else(|_| "agent".to_string());
-    match s.as_str() {
-        "agent" => Ok(CursorOperatingMode::Agent),
-        "plan" => Ok(CursorOperatingMode::Plan),
-        "ask" => Ok(CursorOperatingMode::Ask),
-        "debug" => Ok(CursorOperatingMode::Debug),
-        _ => Ok(CursorOperatingMode::Agent), // Fall back to default for unknown values
-    }
-}
-
-fn default_cli_type() -> String {
-    "gemini".to_string()
-}
-
-fn default_cursor_default_mode() -> CursorOperatingMode {
-    CursorOperatingMode::Agent
-}
-
-fn default_cursor_output_format() -> String {
-    "stream-json".to_string()
-}
-
 fn default_access_mode() -> String {
     "current".to_string()
+}
+
+fn default_review_delivery_mode() -> String {
+    "inline".to_string()
 }
 
 fn default_remote_backend_host() -> String {
@@ -587,12 +552,11 @@ fn default_usage_show_remaining() -> bool {
 }
 
 fn default_ui_font_family() -> String {
-    "\"SF Pro Text\", \"SF Pro Display\", -apple-system, \"Helvetica Neue\", sans-serif"
-        .to_string()
+    "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif".to_string()
 }
 
 fn default_code_font_family() -> String {
-    "\"SF Mono\", \"SFMono-Regular\", Menlo, Monaco, monospace".to_string()
+    "ui-monospace, \"Cascadia Mono\", \"Segoe UI Mono\", Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace".to_string()
 }
 
 fn default_code_font_size() -> u8 {
@@ -600,15 +564,30 @@ fn default_code_font_size() -> u8 {
 }
 
 fn default_composer_model_shortcut() -> Option<String> {
-    Some("cmd+shift+m".to_string())
+    let value = if cfg!(target_os = "macos") {
+        "cmd+shift+m"
+    } else {
+        "ctrl+shift+m"
+    };
+    Some(value.to_string())
 }
 
 fn default_composer_access_shortcut() -> Option<String> {
-    Some("cmd+shift+a".to_string())
+    let value = if cfg!(target_os = "macos") {
+        "cmd+shift+a"
+    } else {
+        "ctrl+shift+a"
+    };
+    Some(value.to_string())
 }
 
 fn default_composer_reasoning_shortcut() -> Option<String> {
-    Some("cmd+shift+r".to_string())
+    let value = if cfg!(target_os = "macos") {
+        "cmd+shift+r"
+    } else {
+        "ctrl+shift+r"
+    };
+    Some(value.to_string())
 }
 
 fn default_interrupt_shortcut() -> Option<String> {
@@ -625,54 +604,114 @@ fn default_composer_collaboration_shortcut() -> Option<String> {
 }
 
 fn default_new_agent_shortcut() -> Option<String> {
-    Some("cmd+n".to_string())
+    let value = if cfg!(target_os = "macos") { "cmd+n" } else { "ctrl+n" };
+    Some(value.to_string())
 }
 
 fn default_new_worktree_agent_shortcut() -> Option<String> {
-    Some("cmd+shift+n".to_string())
+    let value = if cfg!(target_os = "macos") {
+        "cmd+shift+n"
+    } else {
+        "ctrl+shift+n"
+    };
+    Some(value.to_string())
 }
 
 fn default_new_clone_agent_shortcut() -> Option<String> {
-    Some("cmd+alt+n".to_string())
+    let value = if cfg!(target_os = "macos") {
+        "cmd+alt+n"
+    } else {
+        "ctrl+alt+n"
+    };
+    Some(value.to_string())
 }
 
 fn default_archive_thread_shortcut() -> Option<String> {
-    Some("cmd+ctrl+a".to_string())
+    let value = if cfg!(target_os = "macos") {
+        "cmd+ctrl+a"
+    } else {
+        "ctrl+alt+a"
+    };
+    Some(value.to_string())
 }
 
 fn default_toggle_projects_sidebar_shortcut() -> Option<String> {
-    Some("cmd+shift+p".to_string())
+    let value = if cfg!(target_os = "macos") {
+        "cmd+shift+p"
+    } else {
+        "ctrl+shift+p"
+    };
+    Some(value.to_string())
 }
 
 fn default_toggle_git_sidebar_shortcut() -> Option<String> {
-    Some("cmd+shift+g".to_string())
+    let value = if cfg!(target_os = "macos") {
+        "cmd+shift+g"
+    } else {
+        "ctrl+shift+g"
+    };
+    Some(value.to_string())
 }
 
 fn default_toggle_debug_panel_shortcut() -> Option<String> {
-    Some("cmd+shift+d".to_string())
+    let value = if cfg!(target_os = "macos") {
+        "cmd+shift+d"
+    } else {
+        "ctrl+shift+d"
+    };
+    Some(value.to_string())
 }
 
 fn default_toggle_terminal_shortcut() -> Option<String> {
-    Some("cmd+shift+t".to_string())
+    let value = if cfg!(target_os = "macos") {
+        "cmd+shift+t"
+    } else {
+        "ctrl+shift+t"
+    };
+    Some(value.to_string())
 }
 
 fn default_cycle_agent_next_shortcut() -> Option<String> {
-    Some("cmd+ctrl+down".to_string())
+    let value = if cfg!(target_os = "macos") {
+        "cmd+ctrl+down"
+    } else {
+        "ctrl+alt+down"
+    };
+    Some(value.to_string())
 }
 
 fn default_cycle_agent_prev_shortcut() -> Option<String> {
-    Some("cmd+ctrl+up".to_string())
+    let value = if cfg!(target_os = "macos") {
+        "cmd+ctrl+up"
+    } else {
+        "ctrl+alt+up"
+    };
+    Some(value.to_string())
 }
 
 fn default_cycle_workspace_next_shortcut() -> Option<String> {
-    Some("cmd+shift+down".to_string())
+    let value = if cfg!(target_os = "macos") {
+        "cmd+shift+down"
+    } else {
+        "ctrl+alt+shift+down"
+    };
+    Some(value.to_string())
 }
 
 fn default_cycle_workspace_prev_shortcut() -> Option<String> {
-    Some("cmd+shift+up".to_string())
+    let value = if cfg!(target_os = "macos") {
+        "cmd+shift+up"
+    } else {
+        "ctrl+alt+shift+up"
+    };
+    Some(value.to_string())
 }
 
 fn default_notification_sounds_enabled() -> bool {
+    true
+}
+
+fn default_system_notifications_enabled() -> bool {
     true
 }
 
@@ -680,20 +719,32 @@ fn default_preload_git_diffs() -> bool {
     true
 }
 
+fn default_git_diff_ignore_whitespace_changes() -> bool {
+    false
+}
+
 fn default_experimental_collab_enabled() -> bool {
     false
 }
 
-fn default_experimental_collaboration_modes_enabled() -> bool {
+fn default_collaboration_modes_enabled() -> bool {
+    true
+}
+
+fn default_steer_enabled() -> bool {
+    true
+}
+
+fn default_unified_exec_enabled() -> bool {
+    true
+}
+
+fn default_experimental_apps_enabled() -> bool {
     false
 }
 
-fn default_experimental_steer_enabled() -> bool {
-    false
-}
-
-fn default_experimental_unified_exec_enabled() -> bool {
-    false
+fn default_personality() -> String {
+    "friendly".to_string()
 }
 
 fn default_dictation_enabled() -> bool {
@@ -749,50 +800,109 @@ fn default_workspace_groups() -> Vec<WorkspaceGroup> {
 }
 
 fn default_open_app_targets() -> Vec<OpenAppTarget> {
+    if cfg!(target_os = "macos") {
+        return vec![
+            OpenAppTarget {
+                id: "vscode".to_string(),
+                label: "VS Code".to_string(),
+                kind: "app".to_string(),
+                app_name: Some("Visual Studio Code".to_string()),
+                command: None,
+                args: Vec::new(),
+            },
+            OpenAppTarget {
+                id: "cursor".to_string(),
+                label: "Cursor".to_string(),
+                kind: "app".to_string(),
+                app_name: Some("Cursor".to_string()),
+                command: None,
+                args: Vec::new(),
+            },
+            OpenAppTarget {
+                id: "zed".to_string(),
+                label: "Zed".to_string(),
+                kind: "app".to_string(),
+                app_name: Some("Zed".to_string()),
+                command: None,
+                args: Vec::new(),
+            },
+            OpenAppTarget {
+                id: "ghostty".to_string(),
+                label: "Ghostty".to_string(),
+                kind: "app".to_string(),
+                app_name: Some("Ghostty".to_string()),
+                command: None,
+                args: Vec::new(),
+            },
+            OpenAppTarget {
+                id: "antigravity".to_string(),
+                label: "Antigravity".to_string(),
+                kind: "app".to_string(),
+                app_name: Some("Antigravity".to_string()),
+                command: None,
+                args: Vec::new(),
+            },
+            OpenAppTarget {
+                id: "finder".to_string(),
+                label: "Finder".to_string(),
+                kind: "finder".to_string(),
+                app_name: None,
+                command: None,
+                args: Vec::new(),
+            },
+        ];
+    }
+
+    let file_manager_label = if cfg!(target_os = "windows") {
+        "Explorer"
+    } else {
+        "File Manager"
+    };
+
     vec![
         OpenAppTarget {
             id: "vscode".to_string(),
             label: "VS Code".to_string(),
-            kind: "app".to_string(),
-            app_name: Some("Visual Studio Code".to_string()),
-            command: None,
+            kind: "command".to_string(),
+            app_name: None,
+            command: Some("code".to_string()),
             args: Vec::new(),
         },
         OpenAppTarget {
             id: "cursor".to_string(),
             label: "Cursor".to_string(),
-            kind: "app".to_string(),
-            app_name: Some("Cursor".to_string()),
-            command: None,
+            kind: "command".to_string(),
+            app_name: None,
+            command: Some("cursor".to_string()),
             args: Vec::new(),
         },
         OpenAppTarget {
             id: "zed".to_string(),
             label: "Zed".to_string(),
-            kind: "app".to_string(),
-            app_name: Some("Zed".to_string()),
-            command: None,
+            kind: "command".to_string(),
+            app_name: None,
+            command: Some("zed".to_string()),
             args: Vec::new(),
         },
         OpenAppTarget {
             id: "ghostty".to_string(),
             label: "Ghostty".to_string(),
-            kind: "app".to_string(),
-            app_name: Some("Ghostty".to_string()),
-            command: None,
+            kind: "command".to_string(),
+            app_name: None,
+            command: Some("ghostty".to_string()),
             args: Vec::new(),
         },
         OpenAppTarget {
             id: "antigravity".to_string(),
             label: "Antigravity".to_string(),
-            kind: "app".to_string(),
-            app_name: Some("Antigravity".to_string()),
-            command: None,
+            kind: "command".to_string(),
+            app_name: None,
+            command: Some("antigravity".to_string()),
             args: Vec::new(),
         },
         OpenAppTarget {
             id: "finder".to_string(),
-            label: "Finder".to_string(),
+            label: file_manager_label.to_string(),
             kind: "finder".to_string(),
             app_name: None,
             command: None,
@@ -802,29 +912,23 @@ fn default_open_app_targets() -> Vec<OpenAppTarget> {
 }
 
 fn default_selected_open_app_id() -> String {
-    "vscode".to_string()
+    if cfg!(target_os = "windows") {
+        "finder".to_string()
+    } else {
+        "vscode".to_string()
+    }
 }
 
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            cli_type: default_cli_type(),
-            gemini_bin: None,
-            gemini_args: None,
-            cursor_bin: None,
-            cursor_args: None,
-            claude_bin: None,
-            claude_args: None,
-            cursor_vim_mode: false,
-            cursor_default_mode: default_cursor_default_mode(),
-            cursor_output_format: default_cursor_output_format(),
-            cursor_attribute_commits: false,
-            cursor_attribute_prs: false,
-            cursor_use_http1: false,
+            codex_bin: None,
+            codex_args: None,
             backend_mode: BackendMode::Local,
             remote_backend_host: default_remote_backend_host(),
             remote_backend_token: None,
             default_access_mode: "current".to_string(),
+            review_delivery_mode: default_review_delivery_mode(),
             composer_model_shortcut: default_composer_model_shortcut(),
             composer_access_shortcut: default_composer_access_shortcut(),
             composer_reasoning_shortcut: default_composer_reasoning_shortcut(),
@@ -851,11 +955,15 @@ impl Default for AppSettings {
             code_font_family: default_code_font_family(),
             code_font_size: default_code_font_size(),
             notification_sounds_enabled: true,
+            system_notifications_enabled: true,
             preload_git_diffs: default_preload_git_diffs(),
+            git_diff_ignore_whitespace_changes: default_git_diff_ignore_whitespace_changes(),
             experimental_collab_enabled: false,
-            experimental_collaboration_modes_enabled: false,
-            experimental_steer_enabled: false,
-            experimental_unified_exec_enabled: false,
+            collaboration_modes_enabled: true,
+            steer_enabled: true,
+            unified_exec_enabled: true,
+            experimental_apps_enabled: false,
+            personality: default_personality(),
             dictation_enabled: false,
             dictation_model_id: default_dictation_model_id(),
             dictation_preferred_language: None,
@@ -879,44 +987,35 @@ impl Default for AppSettings {
 #[cfg(test)]
 mod tests {
     use super::{
-        AppSettings, BackendMode, CursorOperatingMode, WorkspaceEntry, WorkspaceGroup,
-        WorkspaceKind, WorkspaceSettings,
+        AppSettings, BackendMode, WorkspaceEntry, WorkspaceGroup, WorkspaceKind, WorkspaceSettings,
     };
 
     #[test]
     fn app_settings_defaults_from_empty_json() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
-        // CLI type defaults
-        assert_eq!(settings.cli_type, "gemini");
-        assert!(settings.gemini_bin.is_none());
-        assert!(settings.gemini_args.is_none());
-        // Claude CLI defaults
-        assert!(settings.claude_bin.is_none());
-        assert!(settings.claude_args.is_none());
-        // Cursor CLI defaults
-        assert!(settings.cursor_bin.is_none());
-        assert!(settings.cursor_args.is_none());
-        assert!(!settings.cursor_vim_mode);
-        assert_eq!(settings.cursor_default_mode, CursorOperatingMode::Agent);
-        assert_eq!(settings.cursor_output_format, "stream-json");
-        assert!(!settings.cursor_attribute_commits);
-        assert!(!settings.cursor_attribute_prs);
-        assert!(!settings.cursor_use_http1);
+        assert!(settings.codex_bin.is_none());
         assert!(matches!(settings.backend_mode, BackendMode::Local));
         assert_eq!(settings.remote_backend_host, "127.0.0.1:4732");
         assert!(settings.remote_backend_token.is_none());
         assert_eq!(settings.default_access_mode, "current");
+        assert_eq!(settings.review_delivery_mode, "inline");
+        let expected_primary = if cfg!(target_os = "macos") { "cmd" } else { "ctrl" };
+        let expected_model = format!("{expected_primary}+shift+m");
+        let expected_access = format!("{expected_primary}+shift+a");
+        let expected_reasoning = format!("{expected_primary}+shift+r");
+        let expected_toggle_debug = format!("{expected_primary}+shift+d");
+        let expected_toggle_terminal = format!("{expected_primary}+shift+t");
         assert_eq!(
             settings.composer_model_shortcut.as_deref(),
-            Some("cmd+shift+m")
+            Some(expected_model.as_str())
         );
         assert_eq!(
             settings.composer_access_shortcut.as_deref(),
-            Some("cmd+shift+a")
+            Some(expected_access.as_str())
         );
         assert_eq!(
             settings.composer_reasoning_shortcut.as_deref(),
-            Some("cmd+shift+r")
+            Some(expected_reasoning.as_str())
         );
         assert_eq!(
             settings.composer_collaboration_shortcut.as_deref(),
@@ -930,43 +1029,69 @@ mod tests {
         assert_eq!(settings.interrupt_shortcut.as_deref(), Some(expected_interrupt));
         assert_eq!(
             settings.archive_thread_shortcut.as_deref(),
-            Some("cmd+ctrl+a")
+            Some(if cfg!(target_os = "macos") {
+                "cmd+ctrl+a"
+            } else {
+                "ctrl+alt+a"
+            })
         );
         assert_eq!(
             settings.toggle_debug_panel_shortcut.as_deref(),
-            Some("cmd+shift+d")
+            Some(expected_toggle_debug.as_str())
         );
         assert_eq!(
             settings.toggle_terminal_shortcut.as_deref(),
-            Some("cmd+shift+t")
+            Some(expected_toggle_terminal.as_str())
         );
         assert_eq!(
             settings.cycle_agent_next_shortcut.as_deref(),
-            Some("cmd+ctrl+down")
+            Some(if cfg!(target_os = "macos") {
+                "cmd+ctrl+down"
+            } else {
+                "ctrl+alt+down"
+            })
         );
         assert_eq!(
             settings.cycle_agent_prev_shortcut.as_deref(),
-            Some("cmd+ctrl+up")
+            Some(if cfg!(target_os = "macos") {
+                "cmd+ctrl+up"
+            } else {
+                "ctrl+alt+up"
+            })
         );
         assert_eq!(
             settings.cycle_workspace_next_shortcut.as_deref(),
-            Some("cmd+shift+down")
+            Some(if cfg!(target_os = "macos") {
+                "cmd+shift+down"
+            } else {
+                "ctrl+alt+shift+down"
+            })
         );
         assert_eq!(
             settings.cycle_workspace_prev_shortcut.as_deref(),
-            Some("cmd+shift+up")
+            Some(if cfg!(target_os = "macos") {
+                "cmd+shift+up"
+            } else {
+                "ctrl+alt+shift+up"
+            })
         );
         assert!(settings.last_composer_model_id.is_none());
         assert!(settings.last_composer_reasoning_effort.is_none());
         assert!((settings.ui_scale - 1.0).abs() < f64::EPSILON);
         assert_eq!(settings.theme, "system");
         assert!(!settings.usage_show_remaining);
-        assert!(settings.ui_font_family.contains("SF Pro Text"));
-        assert!(settings.code_font_family.contains("SF Mono"));
+        assert!(settings.ui_font_family.contains("system-ui"));
+        assert!(settings.code_font_family.contains("ui-monospace"));
         assert_eq!(settings.code_font_size, 11);
         assert!(settings.notification_sounds_enabled);
+        assert!(settings.system_notifications_enabled);
         assert!(settings.preload_git_diffs);
-        assert!(!settings.experimental_steer_enabled);
+        assert!(!settings.git_diff_ignore_whitespace_changes);
+        assert!(settings.collaboration_modes_enabled);
+        assert!(settings.steer_enabled);
+        assert!(settings.unified_exec_enabled);
+        assert!(!settings.experimental_apps_enabled);
+        assert_eq!(settings.personality, "friendly");
         assert!(!settings.dictation_enabled);
         assert_eq!(settings.dictation_model_id, "base");
         assert!(settings.dictation_preferred_language.is_none());
@@ -981,7 +1106,12 @@ mod tests {
         assert!(!settings.composer_list_continuation);
         assert!(!settings.composer_code_block_copy_use_modifier);
         assert!(settings.workspace_groups.is_empty());
-        assert_eq!(settings.selected_open_app_id, "vscode");
+        let expected_open_id = if cfg!(target_os = "windows") {
+            "finder"
+        } else {
+            "vscode"
+        };
+        assert_eq!(settings.selected_open_app_id, expected_open_id);
         assert_eq!(settings.open_app_targets.len(), 6);
         assert_eq!(settings.open_app_targets[0].id, "vscode");
     }
@@ -1016,7 +1146,7 @@ mod tests {
     #[test]
     fn workspace_entry_defaults_from_minimal_json() {
         let entry: WorkspaceEntry = serde_json::from_str(
-            r#"{"id":"1","name":"Test","path":"/tmp","geminiBin":null}"#,
+            r#"{"id":"1","name":"Test","path":"/tmp","codexBin":null}"#,
         )
         .expect("workspace deserialize");
         assert!(matches!(entry.kind, WorkspaceKind::Main));
@@ -1033,79 +1163,5 @@ mod tests {
         assert!(settings.sort_order.is_none());
         assert!(settings.group_id.is_none());
         assert!(settings.git_root.is_none());
-    }
-
-    #[test]
-    fn cursor_operating_mode_serialization() {
-        // Test all modes serialize to lowercase strings
-        assert_eq!(
-            serde_json::to_string(&CursorOperatingMode::Agent).unwrap(),
-            r#""agent""#
-        );
-        assert_eq!(
-            serde_json::to_string(&CursorOperatingMode::Plan).unwrap(),
-            r#""plan""#
-        );
-        assert_eq!(
-            serde_json::to_string(&CursorOperatingMode::Ask).unwrap(),
-            r#""ask""#
-        );
-        assert_eq!(
-            serde_json::to_string(&CursorOperatingMode::Debug).unwrap(),
-            r#""debug""#
-        );
-    }
-
-    #[test]
-    fn cursor_operating_mode_deserialization() {
-        // Test all modes deserialize from lowercase strings
-        assert_eq!(
-            serde_json::from_str::<CursorOperatingMode>(r#""agent""#).unwrap(),
-            CursorOperatingMode::Agent
-        );
-        assert_eq!(
-            serde_json::from_str::<CursorOperatingMode>(r#""plan""#).unwrap(),
-            CursorOperatingMode::Plan
-        );
-        assert_eq!(
-            serde_json::from_str::<CursorOperatingMode>(r#""ask""#).unwrap(),
-            CursorOperatingMode::Ask
-        );
-        assert_eq!(
-            serde_json::from_str::<CursorOperatingMode>(r#""debug""#).unwrap(),
-            CursorOperatingMode::Debug
-        );
-    }
-
-    #[test]
-    fn cursor_operating_mode_display() {
-        // Test Display trait for CLI argument generation
-        assert_eq!(CursorOperatingMode::Agent.to_string(), "agent");
-        assert_eq!(CursorOperatingMode::Plan.to_string(), "plan");
-        assert_eq!(CursorOperatingMode::Ask.to_string(), "ask");
-        assert_eq!(CursorOperatingMode::Debug.to_string(), "debug");
-    }
-
-    #[test]
-    fn app_settings_cursor_mode_round_trip() {
-        // Test round-trip serialization with debug mode
-        let mut settings = AppSettings::default();
-        settings.cursor_default_mode = CursorOperatingMode::Debug;
-
-        let json = serde_json::to_string(&settings).expect("serialize settings");
-        let decoded: AppSettings = serde_json::from_str(&json).expect("deserialize settings");
-        assert_eq!(decoded.cursor_default_mode, CursorOperatingMode::Debug);
-    }
-
-    #[test]
-    fn app_settings_invalid_cursor_mode_falls_back_to_default() {
-        // Test that invalid cursor mode values don't cause data loss
-        // This simulates a user having an old/invalid value in their settings.json
-        let json = r#"{"cursorDefaultMode": "invalid_mode", "theme": "dark"}"#;
-        let settings: AppSettings = serde_json::from_str(json).expect("should not fail");
-        // Invalid mode should fall back to Agent (default)
-        assert_eq!(settings.cursor_default_mode, CursorOperatingMode::Agent);
-        // Other settings should be preserved
-        assert_eq!(settings.theme, "dark");
     }
 }

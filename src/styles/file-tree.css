@@ -56,6 +56,25 @@
   color: var(--text-faint);
 }
 
+.file-tree-search-filter {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  padding: 0;
+  color: var(--text-faint);
+}
+
+.file-tree-search-filter:hover {
+  color: var(--text-emphasis);
+}
+
+.file-tree-search-filter.is-active {
+  background: var(--surface-active);
+  color: var(--text-emphasis);
+  border-color: var(--border-accent-soft);
+}
+
 .file-tree-list {
   display: flex;
   flex-direction: column;
@@ -64,6 +83,11 @@
   flex: 1;
   padding-right: 2px;
   min-height: 0;
+}
+
+.file-tree-virtual {
+  position: relative;
+  width: 100%;
 }
 
 .file-tree-empty {
@@ -110,6 +134,7 @@
   position: relative;
   display: flex;
   align-items: center;
+  min-height: var(--file-tree-row-height, 28px);
 }
 
 .file-tree-row.is-file {
@@ -151,6 +176,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.file-tree-icon-image {
+  width: 12px;
+  height: 12px;
+  display: block;
 }
 
 .file-tree-name {

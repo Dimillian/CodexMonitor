@@ -1,14 +1,38 @@
 // @vitest-environment jsdom
+import { useCallback, useState } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationItem } from "../../../types";
 import { Messages } from "./Messages";
+
+const useFileLinkOpenerMock = vi.fn(
+  (_workspacePath: string | null, _openTargets: unknown[], _selectedOpenAppId: string) => ({
+    openFileLink: openFileLinkMock,
+    showFileLinkMenu: showFileLinkMenuMock,
+  }),
+);
+const openFileLinkMock = vi.fn();
+const showFileLinkMenuMock = vi.fn();
+
+vi.mock("../hooks/useFileLinkOpener", () => ({
+  useFileLinkOpener: (
+    workspacePath: string | null,
+    openTargets: unknown[],
+    selectedOpenAppId: string,
+  ) => useFileLinkOpenerMock(workspacePath, openTargets, selectedOpenAppId),
+}));
 
 describe("Messages", () => {
   beforeAll(() => {
     if (!HTMLElement.prototype.scrollIntoView) {
       HTMLElement.prototype.scrollIntoView = vi.fn();
     }
+  });
+
+  beforeEach(() => {
+    useFileLinkOpenerMock.mockClear();
+    openFileLinkMock.mockReset();
+    showFileLinkMenuMock.mockReset();
   });
 
   it("renders image grid above message text and opens lightbox", () => {
@@ -100,6 +124,182 @@ describe("Messages", () => {
 
     const markdown = container.querySelector(".markdown");
     expect(markdown?.textContent ?? "").toContain("Literal [image] token");
+  });
+
+  it("opens linked review thread when clicking thread link", () => {
+    const onOpenThreadLink = vi.fn();
+    const items: ConversationItem[] = [
+      {
+        id: "msg-thread-link",
+        kind: "message",
+        role: "assistant",
+        text: "Detached review completed. [Open review thread](/thread/thread-review-1)",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-parent"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+        onOpenThreadLink={onOpenThreadLink}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Open review thread"));
+    expect(onOpenThreadLink).toHaveBeenCalledWith("thread-review-1");
+  });
+
+  it("renders file references as compact links and opens them", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-file-link",
+        kind: "message",
+        role: "assistant",
+        text: "Refactor candidate: `iosApp/src/views/DocumentsList/DocumentListView.swift:111`",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const fileLinkName = screen.getByText("DocumentListView.swift");
+    const fileLinkLine = screen.getByText("L111");
+    const fileLinkPath = screen.getByText("iosApp/src/views/DocumentsList");
+    const fileLink = container.querySelector(".message-file-link");
+    expect(fileLinkName).toBeTruthy();
+    expect(fileLinkLine).toBeTruthy();
+    expect(fileLinkPath).toBeTruthy();
+    expect(fileLink).toBeTruthy();
+
+    fireEvent.click(fileLink as Element);
+    expect(openFileLinkMock).toHaveBeenCalledWith(
+      "iosApp/src/views/DocumentsList/DocumentListView.swift:111",
+    );
+  });
+
+  it("renders absolute file references as workspace-relative paths", () => {
+    const workspacePath = "/Users/dimillian/Documents/Dev/CodexMonitor";
+    const absolutePath =
+      "/Users/dimillian/Documents/Dev/CodexMonitor/src/features/messages/components/Markdown.tsx:244";
+    const items: ConversationItem[] = [
+      {
+        id: "msg-file-link-absolute-inside",
+        kind: "message",
+        role: "assistant",
+        text: `Reference: \`${absolutePath}\``,
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        workspacePath={workspacePath}
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(screen.getByText("Markdown.tsx")).toBeTruthy();
+    expect(screen.getByText("L244")).toBeTruthy();
+    expect(screen.getByText("src/features/messages/components")).toBeTruthy();
+
+    const fileLink = container.querySelector(".message-file-link");
+    expect(fileLink).toBeTruthy();
+    fireEvent.click(fileLink as Element);
+    expect(openFileLinkMock).toHaveBeenCalledWith(absolutePath);
+  });
+
+  it("renders absolute file references outside workspace using dotdot-relative paths", () => {
+    const workspacePath = "/Users/dimillian/Documents/Dev/CodexMonitor";
+    const absolutePath = "/Users/dimillian/Documents/Other/IceCubesApp/file.rs:123";
+    const items: ConversationItem[] = [
+      {
+        id: "msg-file-link-absolute-outside",
+        kind: "message",
+        role: "assistant",
+        text: `Reference: \`${absolutePath}\``,
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        workspacePath={workspacePath}
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(screen.getByText("file.rs")).toBeTruthy();
+    expect(screen.getByText("L123")).toBeTruthy();
+    expect(screen.getByText("../../Other/IceCubesApp")).toBeTruthy();
+
+    const fileLink = container.querySelector(".message-file-link");
+    expect(fileLink).toBeTruthy();
+    fireEvent.click(fileLink as Element);
+    expect(openFileLinkMock).toHaveBeenCalledWith(absolutePath);
+  });
+
+  it("does not re-render messages while typing when message props stay stable", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-stable-1",
+        kind: "message",
+        role: "assistant",
+        text: "Stable content",
+      },
+    ];
+    const openTargets: [] = [];
+    function Harness() {
+      const [draft, setDraft] = useState("");
+      const handleOpenThreadLink = useCallback(() => {}, []);
+
+      return (
+        <div>
+          <input
+            aria-label="Draft"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+          />
+          <Messages
+            items={items}
+            threadId="thread-stable"
+            workspaceId="ws-1"
+            isThinking={false}
+            openTargets={openTargets}
+            selectedOpenAppId=""
+            onOpenThreadLink={handleOpenThreadLink}
+          />
+        </div>
+      );
+    }
+
+    render(<Harness />);
+    expect(useFileLinkOpenerMock).toHaveBeenCalledTimes(1);
+    const input = screen.getByLabelText("Draft");
+    fireEvent.change(input, { target: { value: "a" } });
+    fireEvent.change(input, { target: { value: "ab" } });
+    fireEvent.change(input, { target: { value: "abc" } });
+
+    expect(useFileLinkOpenerMock).toHaveBeenCalledTimes(1);
   });
 
   it("uses reasoning title for the working indicator and hides title-only reasoning rows", () => {

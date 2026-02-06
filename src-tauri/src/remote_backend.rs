@@ -251,6 +251,9 @@ async fn read_loop(
             "terminal-output" => {
                 let _ = app.emit("terminal-output", params);
             }
+            "terminal-exit" => {
+                let _ = app.emit("terminal-exit", params);
+            }
             _ => {}
         }
     }

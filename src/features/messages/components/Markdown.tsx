@@ -16,8 +16,10 @@ type MarkdownProps = {
   codeBlock?: boolean;
   codeBlockStyle?: "default" | "message";
   codeBlockCopyUseModifier?: boolean;
+  workspacePath?: string | null;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
+  onOpenThreadLink?: (threadId: string) => void;
 };
 
 type CodeBlockProps = {
@@ -42,6 +44,103 @@ type PreProps = {
 type LinkBlockProps = {
   urls: string[];
 };
+
+type ParsedFileReference = {
+  fullPath: string;
+  fileName: string;
+  lineLabel: string | null;
+  parentPath: string | null;
+};
+
+function normalizePathSeparators(path: string) {
+  return path.replace(/\\/g, "/");
+}
+
+function trimTrailingPathSeparators(path: string) {
+  return path.replace(/\/+$/, "");
+}
+
+function isWindowsAbsolutePath(path: string) {
+  return /^[A-Za-z]:\//.test(path);
+}
+
+function isAbsolutePath(path: string) {
+  return path.startsWith("/") || isWindowsAbsolutePath(path);
+}
+
+function extractPathRoot(path: string) {
+  if (isWindowsAbsolutePath(path)) {
+    return path.slice(0, 2).toLowerCase();
+  }
+  if (path.startsWith("/")) {
+    return "/";
+  }
+  return "";
+}
+
+function splitAbsolutePath(path: string) {
+  const root = extractPathRoot(path);
+  if (!root) {
+    return null;
+  }
+  const withoutRoot =
+    root === "/" ? path.slice(1) : path.slice(2).replace(/^\/+/, "");
+  return {
+    root,
+    segments: withoutRoot.split("/").filter(Boolean),
+  };
+}
+
+function toRelativePath(fromPath: string, toPath: string) {
+  const fromAbsolute = splitAbsolutePath(fromPath);
+  const toAbsolute = splitAbsolutePath(toPath);
+  if (!fromAbsolute || !toAbsolute) {
+    return null;
+  }
+  if (fromAbsolute.root !== toAbsolute.root) {
+    return null;
+  }
+  const caseInsensitive = fromAbsolute.root !== "/";
+  let commonLength = 0;
+  while (
+    commonLength < fromAbsolute.segments.length &&
+    commonLength < toAbsolute.segments.length &&
+    (caseInsensitive
+      ? fromAbsolute.segments[commonLength].toLowerCase() ===
+        toAbsolute.segments[commonLength].toLowerCase()
+      : fromAbsolute.segments[commonLength] === toAbsolute.segments[commonLength])
+  ) {
+    commonLength += 1;
+  }
+  const backtrack = new Array(fromAbsolute.segments.length - commonLength).fill("..");
+  const forward = toAbsolute.segments.slice(commonLength);
+  return [...backtrack, ...forward].join("/");
+}
+
+function relativeDisplayPath(path: string, workspacePath?: string | null) {
+  const normalizedPath = trimTrailingPathSeparators(normalizePathSeparators(path.trim()));
+  if (!workspacePath) {
+    return normalizedPath;
+  }
+  const normalizedWorkspace = trimTrailingPathSeparators(
+    normalizePathSeparators(workspacePath.trim()),
+  );
+  if (!normalizedWorkspace) {
+    return normalizedPath;
+  }
+  if (!isAbsolutePath(normalizedPath) || !isAbsolutePath(normalizedWorkspace)) {
+    return normalizedPath;
+  }
+  const relative = toRelativePath(normalizedWorkspace, normalizedPath);
+  if (relative === null) {
+    return normalizedPath;
+  }
+  if (relative.length === 0) {
+    const segments = normalizedPath.split("/").filter(Boolean);
+    return segments.length > 0 ? segments[segments.length - 1] : normalizedPath;
+  }
+  return relative;
+}
 
 function extractLanguageTag(className?: string) {
   if (!className) {
@@ -191,6 +290,64 @@ function LinkBlock({ urls }: LinkBlockProps) {
   );
 }
 
+function parseFileReference(
+  rawPath: string,
+  workspacePath?: string | null,
+): ParsedFileReference {
+  const trimmed = rawPath.trim();
+  const lineMatch = trimmed.match(/^(.*?):(\d+(?::\d+)?)$/);
+  const pathWithoutLine = (lineMatch?.[1] ?? trimmed).trim();
+  const lineLabel = lineMatch?.[2] ?? null;
+  const displayPath = relativeDisplayPath(pathWithoutLine, workspacePath);
+  const normalizedPath = trimTrailingPathSeparators(displayPath) || displayPath;
+  const lastSlashIndex = normalizedPath.lastIndexOf("/");
+  const fallbackFile = normalizedPath || trimmed;
+  const fileName =
+    lastSlashIndex >= 0 ? normalizedPath.slice(lastSlashIndex + 1) : fallbackFile;
+  const rawParentPath =
+    lastSlashIndex >= 0 ? normalizedPath.slice(0, lastSlashIndex) : "";
+  const parentPath = rawParentPath || (normalizedPath.startsWith("/") ? "/" : null);
+
+  return {
+    fullPath: trimmed,
+    fileName,
+    lineLabel,
+    parentPath,
+  };
+}
+
+function FileReferenceLink({
+  href,
+  rawPath,
+  workspacePath,
+  onClick,
+  onContextMenu,
+}: {
+  href: string;
+  rawPath: string;
+  workspacePath?: string | null;
+  onClick: (event: React.MouseEvent, path: string) => void;
+  onContextMenu: (event: React.MouseEvent, path: string) => void;
+}) {
+  const { fullPath, fileName, lineLabel, parentPath } = parseFileReference(
+    rawPath,
+    workspacePath,
+  );
+  return (
+    <a
+      href={href}
+      className="message-file-link"
+      title={fullPath}
+      onClick={(event) => onClick(event, rawPath)}
+      onContextMenu={(event) => onContextMenu(event, rawPath)}
+    >
+      <span className="message-file-link-name">{fileName}</span>
+      {lineLabel ? <span className="message-file-link-line">L{lineLabel}</span> : null}
+      {parentPath ? <span className="message-file-link-path">{parentPath}</span> : null}
+    </a>
+  );
+}
+
 function CodeBlock({ className, value, copyUseModifier }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
   const copyTimeoutRef = useRef<number | null>(null);
@@ -276,8 +433,10 @@ export function Markdown({
   codeBlock,
   codeBlockStyle = "default",
   codeBlockCopyUseModifier = false,
+  workspacePath = null,
   onOpenFileLink,
   onOpenFileLinkMenu,
+  onOpenThreadLink,
 }: MarkdownProps) {
   const normalizedValue = codeBlock ? value : normalizeListIndentation(value);
   const content = codeBlock
@@ -296,19 +455,51 @@ export function Markdown({
     event.stopPropagation();
     onOpenFileLinkMenu?.(event, path);
   };
+  const filePathWithOptionalLineMatch = /^(.+?)(:\d+(?::\d+)?)?$/;
+  const getLinkablePath = (rawValue: string) => {
+    const trimmed = rawValue.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const match = trimmed.match(filePathWithOptionalLineMatch);
+    const pathOnly = match?.[1]?.trim() ?? trimmed;
+    if (!pathOnly || !isLinkableFilePath(pathOnly)) {
+      return null;
+    }
+    return trimmed;
+  };
   const components: Components = {
     a: ({ href, children }) => {
       const url = href ?? "";
-      if (isFileLinkUrl(url)) {
-        const path = decodeFileLink(url);
+      const threadId = url.startsWith("thread://")
+        ? url.slice("thread://".length).trim()
+        : url.startsWith("/thread/")
+          ? url.slice("/thread/".length).trim()
+          : "";
+      if (threadId) {
         return (
           <a
             href={href}
-            onClick={(event) => handleFileLinkClick(event, path)}
-            onContextMenu={(event) => handleFileLinkContextMenu(event, path)}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onOpenThreadLink?.(threadId);
+            }}
           >
             {children}
           </a>
+        );
+      }
+      if (isFileLinkUrl(url)) {
+        const path = decodeFileLink(url);
+        return (
+          <FileReferenceLink
+            href={href ?? toFileLink(path)}
+            rawPath={path}
+            workspacePath={workspacePath}
+            onClick={handleFileLinkClick}
+            onContextMenu={handleFileLinkContextMenu}
+          />
         );
       }
       const isExternal =
@@ -338,18 +529,19 @@ export function Markdown({
         return <code className={codeClassName}>{children}</code>;
       }
       const text = String(children ?? "").trim();
-      if (!text || !isLinkableFilePath(text)) {
+      const linkablePath = getLinkablePath(text);
+      if (!linkablePath) {
         return <code>{children}</code>;
       }
-      const href = toFileLink(text);
+      const href = toFileLink(linkablePath);
       return (
-        <a
+        <FileReferenceLink
           href={href}
-          onClick={(event) => handleFileLinkClick(event, text)}
-          onContextMenu={(event) => handleFileLinkContextMenu(event, text)}
-        >
-          <code>{children}</code>
-        </a>
+          rawPath={linkablePath}
+          workspacePath={workspacePath}
+          onClick={handleFileLinkClick}
+          onContextMenu={handleFileLinkContextMenu}
+        />
       );
     },
   };

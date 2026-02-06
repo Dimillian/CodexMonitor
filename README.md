@@ -2,27 +2,7 @@
 
 ![GeminiMonitor](screenshot.png)
 
-GeminiMonitor is a desktop app for chatting with Google's Gemini AI across your local project workspaces. It provides a sidebar to manage projects, a home screen for quick actions, and a conversation view powered by the Gemini CLI.
-
-## Installation
-
-### From Releases
-
-Download the latest release from the [GitHub Releases](https://github.com/Dimillian/GeminiMonitor/releases) page:
-
-- **macOS**: Download the `.dmg` file, open it, and drag to Applications
-- **Linux**: Download the `.AppImage` file, make it executable, and run it
-
-### From Source
-
-See [docs/INSTALLATION.md](docs/INSTALLATION.md) for detailed build instructions.
-
-Quick start:
-```bash
-npm install
-npm run tauri:dev    # Development
-npm run tauri:build  # Production (creates .app and .dmg)
-```
+CodexMonitor is a Tauri app for orchestrating multiple Codex agents across local workspaces. It provides a sidebar to manage projects, a home screen for quick actions, and a conversation view backed by the Codex app-server protocol.
 
 ## Features
 
@@ -49,7 +29,7 @@ npm run tauri:build  # Production (creates .app and .dmg)
 
 ### Files & Prompts
 
-- File tree with search, file-type icons, and Reveal in Finder.
+- File tree with search, file-type icons, and Reveal in Finder/Explorer.
 - Prompt library for global/workspace prompts: create/edit/delete/move and run in current or new threads.
 
 ### UI & Experience
@@ -58,7 +38,7 @@ npm run tauri:build  # Production (creates .app and .dmg)
 - Responsive layouts (desktop/tablet/phone) with tabbed navigation.
 - Sidebar usage and credits meter for account rate limits plus a home usage snapshot.
 - Terminal dock with multiple tabs for background commands (experimental).
-- In-app updates with toast-driven download/install, debug panel copy/clear, sound notifications, and macOS overlay title bar with vibrancy + reduced transparency toggle.
+- In-app updates with toast-driven download/install, debug panel copy/clear, sound notifications, plus platform-specific window effects (macOS overlay title bar + vibrancy) and a reduced transparency toggle.
 
 ## Requirements
 
@@ -84,8 +64,10 @@ The app will detect the Gemini CLI automatically. If not found, you can configur
 
 - Node.js + npm
 - Rust toolchain (stable)
-- CMake (required for native dependencies; Whisper/dictation uses it on non-Windows)
-- Git CLI
+- CMake (required for native dependencies; dictation/Whisper uses it)
+- LLVM/Clang (required on Windows to build dictation dependencies via bindgen)
+- Codex installed on your system and available as `codex` in `PATH`
+- Git CLI (used for worktree operations)
 - GitHub CLI (`gh`) for the Issues panel (optional)
 
 If you hit native build errors, run:
@@ -110,13 +92,13 @@ npm run tauri dev
 
 ## Release Build
 
-Build the production Tauri bundle (app + dmg):
+Build the production Tauri bundle:
 
 ```bash
 npm run tauri build
 ```
 
-The macOS app bundle will be in `src-tauri/target/release/bundle/macos/`.
+Artifacts will be in `src-tauri/target/release/bundle/` (platform-specific subfolders).
 
 ### Automated Builds (GitHub Actions)
 
@@ -139,8 +121,8 @@ Artifacts will be in:
 
 - `src-tauri/target/release/bundle/nsis/` (installer exe)
 - `src-tauri/target/release/bundle/msi/` (msi)
-
-Note: dictation is currently disabled on Windows builds (to avoid requiring LLVM/libclang for `whisper-rs`/bindgen).
+ 
+Note: building from source on Windows requires LLVM/Clang (for `bindgen` / `libclang`) in addition to CMake.
 
 ## Type Checking
 
@@ -168,7 +150,8 @@ src-tauri/
 ## Notes
 
 - Workspaces persist to `workspaces.json` under the app data directory.
-- App settings persist to `settings.json` under the app data directory (Gemini path, default access mode, UI scale).
+- App settings persist to `settings.json` under the app data directory (Codex path, default access mode, UI scale).
+- Feature settings are supported in the UI and synced to `$CODEX_HOME/config.toml` (or `~/.codex/config.toml`) on load/save. Stable: Collaboration modes (`features.collaboration_modes`), personality (`personality`), Steer mode (`features.steer`), and Background terminal (`features.unified_exec`). Experimental: Collab mode (`features.collab`) and Apps (`features.apps`).
 - On launch and on window focus, the app reconnects and refreshes thread lists for each workspace.
 - The app spawns the Gemini CLI for each conversation turn; see `src-tauri/src/backend/gemini_session.rs`.
 - UI state (panel sizes, reduced transparency toggle, recent thread activity) is stored in `localStorage`.

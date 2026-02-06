@@ -29,6 +29,7 @@ function ComposerHarness({ initialText = "", editorSettings }: HarnessProps) {
       onStop={() => {}}
       canStop={false}
       isProcessing={false}
+      appsEnabled={true}
       steerEnabled={false}
       collaborationModes={[]}
       selectedCollaborationModeId={null}
@@ -43,6 +44,7 @@ function ComposerHarness({ initialText = "", editorSettings }: HarnessProps) {
       accessMode="current"
       onSelectAccessMode={() => {}}
       skills={[]}
+      apps={[]}
       prompts={[]}
       files={[]}
       draftText={draftText}

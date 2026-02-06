@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AppSettings, GeminiDoctorResult } from "../../../types";
+import type { AppSettings, CodexDoctorResult } from "../../../types";
 import { useAppSettings } from "./useAppSettings";
 import {
   getAppSettings,
-  runGeminiDoctor,
+  runCodexDoctor,
   updateAppSettings,
 } from "../../../services/tauri";
 import { UI_SCALE_DEFAULT, UI_SCALE_MAX } from "../../../utils/uiScale";
@@ -13,12 +13,12 @@ import { UI_SCALE_DEFAULT, UI_SCALE_MAX } from "../../../utils/uiScale";
 vi.mock("../../../services/tauri", () => ({
   getAppSettings: vi.fn(),
   updateAppSettings: vi.fn(),
-  runGeminiDoctor: vi.fn(),
+  runCodexDoctor: vi.fn(),
 }));
 
 const getAppSettingsMock = vi.mocked(getAppSettings);
 const updateAppSettingsMock = vi.mocked(updateAppSettings);
-const runGeminiDoctorMock = vi.mocked(runGeminiDoctor);
+const runCodexDoctorMock = vi.mocked(runCodexDoctor);
 
 describe("useAppSettings", () => {
   beforeEach(() => {
@@ -31,15 +31,16 @@ describe("useAppSettings", () => {
 
   it("loads settings and normalizes theme + uiScale", async () => {
     getAppSettingsMock.mockResolvedValue(
-      {
+      ({
         uiScale: UI_SCALE_MAX + 1,
         theme: "nope" as unknown as AppSettings["theme"],
         backendMode: "remote",
         remoteBackendHost: "example:1234",
+        personality: "unknown",
         uiFontFamily: "",
         codeFontFamily: "  ",
         codeFontSize: 25,
-      } as AppSettings,
+      } as unknown) as AppSettings,
     );
 
     const { result } = renderHook(() => useAppSettings());
@@ -48,9 +49,10 @@ describe("useAppSettings", () => {
 
     expect(result.current.settings.uiScale).toBe(UI_SCALE_MAX);
     expect(result.current.settings.theme).toBe("system");
-    expect(result.current.settings.uiFontFamily).toContain("SF Pro Text");
-    expect(result.current.settings.codeFontFamily).toContain("SF Mono");
+    expect(result.current.settings.uiFontFamily).toContain("system-ui");
+    expect(result.current.settings.codeFontFamily).toContain("ui-monospace");
     expect(result.current.settings.codeFontSize).toBe(16);
+    expect(result.current.settings.personality).toBe("friendly");
     expect(result.current.settings.backendMode).toBe("remote");
     expect(result.current.settings.remoteBackendHost).toBe("example:1234");
   });
@@ -64,8 +66,8 @@ describe("useAppSettings", () => {
 
     expect(result.current.settings.uiScale).toBe(UI_SCALE_DEFAULT);
     expect(result.current.settings.theme).toBe("system");
-    expect(result.current.settings.uiFontFamily).toContain("SF Pro Text");
-    expect(result.current.settings.codeFontFamily).toContain("SF Mono");
+    expect(result.current.settings.uiFontFamily).toContain("system-ui");
+    expect(result.current.settings.codeFontFamily).toContain("ui-monospace");
     expect(result.current.settings.backendMode).toBe("local");
     expect(result.current.settings.dictationModelId).toBe("base");
     expect(result.current.settings.interruptShortcut).toBeTruthy();
@@ -79,7 +81,7 @@ describe("useAppSettings", () => {
 
     const next: AppSettings = {
       ...result.current.settings,
-      geminiArgs: "--profile dev",
+      codexArgs: "--profile dev",
       theme: "nope" as unknown as AppSettings["theme"],
       uiScale: 0.04,
       uiFontFamily: "",
@@ -89,7 +91,7 @@ describe("useAppSettings", () => {
     };
     const saved: AppSettings = {
       ...result.current.settings,
-      geminiArgs: "--profile dev",
+      codexArgs: "--profile dev",
       theme: "dark",
       uiScale: 2.4,
       uiFontFamily: "Avenir, sans-serif",
@@ -108,8 +110,8 @@ describe("useAppSettings", () => {
       expect.objectContaining({
         theme: "system",
         uiScale: 0.1,
-        uiFontFamily: expect.stringContaining("SF Pro Text"),
-        codeFontFamily: expect.stringContaining("SF Mono"),
+        uiFontFamily: expect.stringContaining("system-ui"),
+        codeFontFamily: expect.stringContaining("ui-monospace"),
         codeFontSize: 9,
         notificationSoundsEnabled: false,
       }),
@@ -121,25 +123,25 @@ describe("useAppSettings", () => {
 
   it("surfaces doctor errors", async () => {
     getAppSettingsMock.mockResolvedValue({} as AppSettings);
-    runGeminiDoctorMock.mockRejectedValue(new Error("doctor fail"));
+    runCodexDoctorMock.mockRejectedValue(new Error("doctor fail"));
     const { result } = renderHook(() => useAppSettings());
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    await expect(result.current.doctor("/bin/gemini", "--profile test")).rejects.toThrow(
+    await expect(result.current.doctor("/bin/codex", "--profile test")).rejects.toThrow(
       "doctor fail",
     );
-    expect(runGeminiDoctorMock).toHaveBeenCalledWith(
-      "/bin/gemini",
+    expect(runCodexDoctorMock).toHaveBeenCalledWith(
+      "/bin/codex",
       "--profile test",
     );
   });
 
   it("returns doctor results", async () => {
     getAppSettingsMock.mockResolvedValue({} as AppSettings);
-    const response: GeminiDoctorResult = {
+    const response: CodexDoctorResult = {
       ok: true,
-      geminiBin: "/bin/gemini",
+      codexBin: "/bin/codex",
       version: "1.0.0",
       appServerOk: true,
       details: null,
@@ -148,41 +150,13 @@ describe("useAppSettings", () => {
       nodeVersion: "20.0.0",
       nodeDetails: null,
     };
-    runGeminiDoctorMock.mockResolvedValue(response);
+    runCodexDoctorMock.mockResolvedValue(response);
     const { result } = renderHook(() => useAppSettings());
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    await expect(result.current.doctor("/bin/gemini", null)).resolves.toEqual(
+    await expect(result.current.doctor("/bin/codex", null)).resolves.toEqual(
       response,
     );
-  });
-
-  it("normalizes cursor default mode to agent for invalid values", async () => {
-    getAppSettingsMock.mockResolvedValue({
-      cursorDefaultMode: "invalid" as unknown as AppSettings["cursorDefaultMode"],
-    } as AppSettings);
-
-    const { result } = renderHook(() => useAppSettings());
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    expect(result.current.settings.cursorDefaultMode).toBe("agent");
-  });
-
-  it("preserves valid cursor operating modes including debug", async () => {
-    for (const mode of ["agent", "plan", "ask", "debug"] as const) {
-      cleanup();
-      vi.clearAllMocks();
-      getAppSettingsMock.mockResolvedValue({
-        cursorDefaultMode: mode,
-      } as AppSettings);
-
-      const { result } = renderHook(() => useAppSettings());
-
-      await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-      expect(result.current.settings.cursorDefaultMode).toBe(mode);
-    }
   });
 });

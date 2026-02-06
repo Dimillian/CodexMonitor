@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { usePromptHistory } from "./usePromptHistory";
 
-const STORAGE_PREFIX = "geminimonitor.promptHistory.";
+const STORAGE_PREFIX = "codexmonitor.promptHistory.";
 
 function getStorageKey(key: string) {
   return `${STORAGE_PREFIX}${key}`;

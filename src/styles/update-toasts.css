@@ -71,7 +71,7 @@
 }
 
 .update-toast-error {
-  font-family: "SF Mono", Menlo, monospace;
+  font-family: var(--code-font-family);
   font-size: 11px;
   color: var(--text-muted);
   white-space: pre-wrap;

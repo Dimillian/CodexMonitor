@@ -1,5 +1,3 @@
-use tokio::process::Command;
-
 use crate::types::{AppSettings, WorkspaceEntry};
 
 pub(crate) fn parse_gemini_args(value: Option<&str>) -> Result<Vec<String>, String> {
@@ -12,15 +10,7 @@ pub(crate) fn parse_gemini_args(value: Option<&str>) -> Result<Vec<String>, Stri
         .map(|args| args.into_iter().filter(|arg| !arg.is_empty()).collect())
 }
 
-pub(crate) fn apply_gemini_args(command: &mut Command, value: Option<&str>) -> Result<(), String> {
-    let args = parse_gemini_args(value)?;
-    if !args.is_empty() {
-        command.args(args);
-    }
-    Ok(())
-}
-
-pub(crate) fn resolve_workspace_gemini_args(
+pub(crate) fn resolve_workspace_codex_args(
     entry: &WorkspaceEntry,
     parent_entry: Option<&WorkspaceEntry>,
     app_settings: Option<&AppSettings>,

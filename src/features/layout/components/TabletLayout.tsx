@@ -10,7 +10,7 @@ type TabletLayoutProps = {
   showHome: boolean;
   showWorkspace: boolean;
   sidebarNode: ReactNode;
-  tabletTab: "projects" | "gemini" | "git" | "log";
+  tabletTab: "projects" | "codex" | "git" | "log";
   onSidebarResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
   topbarLeftNode: ReactNode;
   messagesNode: ReactNode;
@@ -57,7 +57,7 @@ export function TabletLayout({
         {showWorkspace && (
           <>
             <MainTopbar leftNode={topbarLeftNode} className="tablet-topbar" />
-            {tabletTab === "gemini" && (
+            {tabletTab === "codex" && (
               <>
                 <div className="content tablet-content">{messagesNode}</div>
                 {composerNode}

@@ -3,6 +3,8 @@ import type { WorkspaceInfo } from "../../../types";
 import {
   commitGit,
   generateCommitMessage,
+  fetchGit,
+  pullGit,
   pushGit,
   stageGitAll,
   syncGit,
@@ -26,9 +28,13 @@ type GitCommitController = {
   commitMessageLoading: boolean;
   commitMessageError: string | null;
   commitLoading: boolean;
+  pullLoading: boolean;
+  fetchLoading: boolean;
   pushLoading: boolean;
   syncLoading: boolean;
   commitError: string | null;
+  pullError: string | null;
+  fetchError: string | null;
   pushError: string | null;
   syncError: string | null;
   hasWorktreeChanges: boolean;
@@ -37,6 +43,8 @@ type GitCommitController = {
   onCommit: () => Promise<void>;
   onCommitAndPush: () => Promise<void>;
   onCommitAndSync: () => Promise<void>;
+  onPull: () => Promise<void>;
+  onFetch: () => Promise<void>;
   onPush: () => Promise<void>;
   onSync: () => Promise<void>;
 };
@@ -55,9 +63,13 @@ export function useGitCommitController({
     null,
   );
   const [commitLoading, setCommitLoading] = useState(false);
+  const [pullLoading, setPullLoading] = useState(false);
+  const [fetchLoading, setFetchLoading] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
   const [commitError, setCommitError] = useState<string | null>(null);
+  const [pullError, setPullError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [pushError, setPushError] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
@@ -237,6 +249,24 @@ export function useGitCommitController({
     refreshGitStatus,
   ]);
 
+  const handlePull = useCallback(async () => {
+    if (!activeWorkspace || pullLoading) {
+      return;
+    }
+    setPullLoading(true);
+    setPullError(null);
+    try {
+      await pullGit(activeWorkspace.id);
+      setPushError(null);
+      refreshGitStatus();
+      refreshGitLog?.();
+    } catch (error) {
+      setPullError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setPullLoading(false);
+    }
+  }, [activeWorkspace, pullLoading, refreshGitLog, refreshGitStatus]);
+
   const handlePush = useCallback(async () => {
     if (!activeWorkspace || pushLoading) {
       return;
@@ -245,6 +275,7 @@ export function useGitCommitController({
     setPushError(null);
     try {
       await pushGit(activeWorkspace.id);
+      setPullError(null);
       refreshGitStatus();
       refreshGitLog?.();
     } catch (error) {
@@ -254,6 +285,23 @@ export function useGitCommitController({
     }
   }, [activeWorkspace, pushLoading, refreshGitLog, refreshGitStatus]);
 
+  const handleFetch = useCallback(async () => {
+    if (!activeWorkspace || fetchLoading) {
+      return;
+    }
+    setFetchLoading(true);
+    setFetchError(null);
+    try {
+      await fetchGit(activeWorkspace.id);
+      refreshGitStatus();
+      refreshGitLog?.();
+    } catch (error) {
+      setFetchError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setFetchLoading(false);
+    }
+  }, [activeWorkspace, fetchLoading, refreshGitLog, refreshGitStatus]);
+
   const handleSync = useCallback(async () => {
     if (!activeWorkspace || syncLoading) {
       return;
@@ -262,6 +310,9 @@ export function useGitCommitController({
     setSyncError(null);
     try {
       await syncGit(activeWorkspace.id);
+      setPullError(null);
+      setPushError(null);
+      setSyncError(null);
       refreshGitStatus();
       refreshGitLog?.();
     } catch (error) {
@@ -276,9 +327,13 @@ export function useGitCommitController({
     commitMessageLoading,
     commitMessageError,
     commitLoading,
+    pullLoading,
+    fetchLoading,
     pushLoading,
     syncLoading,
     commitError,
+    pullError,
+    fetchError,
     pushError,
     syncError,
     hasWorktreeChanges,
@@ -287,6 +342,8 @@ export function useGitCommitController({
     onCommit: handleCommit,
     onCommitAndPush: handleCommitAndPush,
     onCommitAndSync: handleCommitAndSync,
+    onPull: handlePull,
+    onFetch: handleFetch,
     onPush: handlePush,
     onSync: handleSync,
   };

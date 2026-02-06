@@ -155,7 +155,7 @@ fn temp_png_path(app_name: &str) -> PathBuf {
         .chars()
         .filter(|ch| ch.is_ascii_alphanumeric())
         .collect::<String>();
-    std::env::temp_dir().join(format!("gemini-monitor-icon-{safe_name}-{ts}.png"))
+    std::env::temp_dir().join(format!("codex-monitor-icon-{safe_name}-{ts}.png"))
 }
 
 #[cfg(target_os = "macos")]

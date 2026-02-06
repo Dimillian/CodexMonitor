@@ -462,15 +462,94 @@ export function upsertItem(list: ConversationItem[], item: ConversationItem) {
   if (index === -1) {
     return [...list, item];
   }
+  const existing = list[index];
   const next = [...list];
-  next[index] = { ...next[index], ...item };
+
+  if (existing.kind !== item.kind) {
+    next[index] = item;
+    return next;
+  }
+
+  if (existing.kind === "message" && item.kind === "message") {
+    const existingText = existing.text ?? "";
+    const incomingText = item.text ?? "";
+    next[index] = {
+      ...existing,
+      ...item,
+      text: incomingText.length >= existingText.length ? incomingText : existingText,
+      images: item.images?.length ? item.images : existing.images,
+    };
+    return next;
+  }
+
+  if (existing.kind === "reasoning" && item.kind === "reasoning") {
+    const existingSummary = existing.summary ?? "";
+    const incomingSummary = item.summary ?? "";
+    const existingContent = existing.content ?? "";
+    const incomingContent = item.content ?? "";
+    next[index] = {
+      ...existing,
+      ...item,
+      summary:
+        incomingSummary.length >= existingSummary.length
+          ? incomingSummary
+          : existingSummary,
+      content:
+        incomingContent.length >= existingContent.length
+          ? incomingContent
+          : existingContent,
+    };
+    return next;
+  }
+
+  if (existing.kind === "tool" && item.kind === "tool") {
+    const existingOutput = existing.output ?? "";
+    const incomingOutput = item.output ?? "";
+    const hasIncomingOutput = incomingOutput.trim().length > 0;
+    const hasIncomingChanges = (item.changes?.length ?? 0) > 0;
+    next[index] = {
+      ...existing,
+      ...item,
+      title: item.title?.trim() ? item.title : existing.title,
+      detail: item.detail?.trim() ? item.detail : existing.detail,
+      status: item.status?.trim() ? item.status : existing.status,
+      output: hasIncomingOutput ? incomingOutput : existingOutput,
+      changes: hasIncomingChanges ? item.changes : existing.changes,
+      durationMs:
+        typeof item.durationMs === "number" ? item.durationMs : existing.durationMs,
+    };
+    return next;
+  }
+
+  if (existing.kind === "diff" && item.kind === "diff") {
+    const existingDiff = existing.diff ?? "";
+    const incomingDiff = item.diff ?? "";
+    next[index] = {
+      ...existing,
+      ...item,
+      title: item.title?.trim() ? item.title : existing.title,
+      status: item.status?.trim() ? item.status : existing.status,
+      diff: incomingDiff.length >= existingDiff.length ? incomingDiff : existingDiff,
+    };
+    return next;
+  }
+
+  if (existing.kind === "review" && item.kind === "review") {
+    const existingText = existing.text ?? "";
+    const incomingText = item.text ?? "";
+    next[index] = {
+      ...existing,
+      ...item,
+      text: incomingText.length >= existingText.length ? incomingText : existingText,
+    };
+    return next;
+  }
+
+  next[index] = { ...existing, ...item };
   return next;
 }
 
-export function getThreadTimestamp(thread: Record<string, unknown>) {
-  const raw =
-    (thread.updatedAt ?? thread.updated_at ?? thread.createdAt ?? thread.created_at) ??
-    0;
+function normalizeThreadTimestamp(raw: unknown) {
   let numeric: number;
   if (typeof raw === "string") {
     const asNumber = Number(raw);
@@ -490,6 +569,18 @@ export function getThreadTimestamp(thread: Record<string, unknown>) {
     return 0;
   }
   return numeric < 1_000_000_000_000 ? numeric * 1000 : numeric;
+}
+
+export function getThreadTimestamp(thread: Record<string, unknown>) {
+  const raw =
+    (thread.updatedAt ?? thread.updated_at ?? thread.createdAt ?? thread.created_at) ??
+    0;
+  return normalizeThreadTimestamp(raw);
+}
+
+export function getThreadCreatedTimestamp(thread: Record<string, unknown>) {
+  const raw = (thread.createdAt ?? thread.created_at) ?? 0;
+  return normalizeThreadTimestamp(raw);
 }
 
 export function previewThreadName(text: string, fallback: string) {
@@ -528,6 +619,17 @@ export function buildConversationItem(
       ? item.content.map((entry) => asString(entry)).join("\n")
       : asString(item.content ?? "");
     return { id, kind: "reasoning", summary, content };
+  }
+  if (type === "plan") {
+    return {
+      id,
+      kind: "tool",
+      toolType: "plan",
+      title: "Plan",
+      detail: asString(item.status ?? ""),
+      status: asString(item.status ?? ""),
+      output: asString(item.text ?? ""),
+    };
   }
   if (type === "commandExecution") {
     const command = Array.isArray(item.command)
@@ -651,6 +753,18 @@ export function buildConversationItem(
       title: "Image view",
       detail: asString(item.path ?? ""),
       status: "",
+      output: "",
+    };
+  }
+  if (type === "contextCompaction") {
+    const status = asString(item.status ?? "").trim();
+    return {
+      id,
+      kind: "tool",
+      toolType: type,
+      title: "Context compaction",
+      detail: "Compacting conversation context to fit token limits.",
+      status: status || "completed",
       output: "",
     };
   }
@@ -794,13 +908,13 @@ function chooseRicherItem(remote: ConversationItem, local: ConversationItem) {
     return localLength > remoteLength ? local : remote;
   }
   if (remote.kind === "tool" && local.kind === "tool") {
-    const remoteLength = (remote.output ?? "").length;
-    const localLength = (local.output ?? "").length;
-    const base = localLength > remoteLength ? local : remote;
+    const remoteOutput = remote.output ?? "";
+    const localOutput = local.output ?? "";
+    const hasRemoteOutput = remoteOutput.trim().length > 0;
     return {
-      ...base,
+      ...remote,
       status: remote.status ?? local.status,
-      output: localLength > remoteLength ? local.output : remote.output,
+      output: hasRemoteOutput ? remoteOutput : localOutput,
       changes: remote.changes ?? local.changes,
     };
   }

@@ -3,9 +3,7 @@ use tauri::Manager;
 use tauri::{RunEvent, WindowEvent};
 
 mod backend;
-mod claude;
-mod cursor;
-mod gemini;
+mod codex;
 mod files;
 mod dictation;
 mod event_sink;
@@ -13,6 +11,7 @@ mod git;
 mod git_utils;
 mod local_usage;
 mod menu;
+mod notifications;
 mod prompts;
 mod remote_backend;
 mod rules;
@@ -70,17 +69,16 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             settings::get_app_settings,
             settings::update_app_settings,
-            settings::get_gemini_config_path,
+            settings::get_codex_config_path,
             files::file_read,
             files::file_write,
-            gemini::get_config_model,
+            codex::get_config_model,
             menu::menu_set_accelerators,
-            gemini::gemini_doctor,
-            cursor::cursor_doctor,
-            claude::claude_doctor,
+            codex::codex_doctor,
             workspaces::list_workspaces,
             workspaces::is_workspace_path_dir,
             workspaces::add_workspace,
@@ -94,22 +92,24 @@ pub fn run() {
             workspaces::rename_worktree_upstream,
             workspaces::apply_worktree_changes,
             workspaces::update_workspace_settings,
-            workspaces::update_workspace_gemini_bin,
-            gemini::start_thread,
-            gemini::send_user_message,
-            gemini::turn_interrupt,
-            gemini::start_review,
-            gemini::respond_to_server_request,
-            gemini::remember_approval_rule,
-            gemini::get_commit_message_prompt,
-            gemini::generate_commit_message,
-            gemini::generate_run_metadata,
-            gemini::resume_thread,
-            gemini::fork_thread,
-            gemini::list_threads,
-            gemini::list_mcp_server_status,
-            gemini::archive_thread,
-            gemini::collaboration_mode_list,
+            workspaces::update_workspace_codex_bin,
+            codex::start_thread,
+            codex::send_user_message,
+            codex::turn_interrupt,
+            codex::start_review,
+            codex::respond_to_server_request,
+            codex::remember_approval_rule,
+            codex::get_commit_message_prompt,
+            codex::generate_commit_message,
+            codex::generate_run_metadata,
+            codex::resume_thread,
+            codex::fork_thread,
+            codex::list_threads,
+            codex::list_mcp_server_status,
+            codex::archive_thread,
+            codex::compact_thread,
+            codex::set_thread_name,
+            codex::collaboration_mode_list,
             workspaces::connect_workspace,
             git::get_git_status,
             git::list_git_roots,
@@ -125,6 +125,7 @@ pub fn run() {
             git::commit_git,
             git::push_git,
             git::pull_git,
+            git::fetch_git,
             git::sync_git,
             git::get_github_issues,
             git::get_github_pull_requests,
@@ -137,16 +138,13 @@ pub fn run() {
             git::list_git_branches,
             git::checkout_git_branch,
             git::create_git_branch,
-            gemini::model_list,
-            gemini::account_rate_limits,
-            gemini::account_read,
-            gemini::gemini_login,
-            gemini::gemini_login_cancel,
-            gemini::skills_list,
-            gemini::get_gemini_settings,
-            gemini::update_gemini_settings,
-            gemini::get_mcp_config,
-            gemini::get_gemini_settings_path,
+            codex::model_list,
+            codex::account_rate_limits,
+            codex::account_read,
+            codex::codex_login,
+            codex::codex_login_cancel,
+            codex::skills_list,
+            codex::apps_list,
             prompts::prompts_list,
             prompts::prompts_create,
             prompts::prompts_update,
@@ -166,7 +164,9 @@ pub fn run() {
             dictation::dictation_request_permission,
             dictation::dictation_stop,
             dictation::dictation_cancel,
-            local_usage::local_usage_snapshot
+            local_usage::local_usage_snapshot,
+            notifications::is_macos_debug_build,
+            notifications::send_notification_fallback
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -486,6 +486,15 @@
   min-width: 0;
 }
 
+.composer-suggestion-section {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 6px 8px 2px;
+}
+
 .composer-suggestion:hover,
 .composer-suggestion.is-active {
   background: var(--surface-item);
@@ -513,6 +522,12 @@
   height: 14px;
 }
 
+.composer-suggestion-icon-image {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
 .composer-suggestion-content {
   display: flex;
   flex-direction: column;
@@ -525,18 +540,26 @@
   font-size: 12px;
   font-weight: 600;
   width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .composer-suggestion-description {
   font-size: 10px;
   color: var(--text-muted);
   width: 100%;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.composer-suggestion-description--skill {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .composer-bar {
@@ -622,6 +645,58 @@
   width: max-content;
 }
 
+.composer-plan-toggle-wrap {
+  padding: 2px 8px;
+}
+
+.composer-plan-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.composer-plan-toggle-input {
+  margin: 0;
+  width: 12px;
+  height: 12px;
+  accent-color: var(--message-link-color);
+  cursor: pointer;
+}
+
+.composer-plan-toggle-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+}
+
+.composer-plan-toggle-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.composer-plan-toggle-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.composer-plan-toggle:has(.composer-plan-toggle-input:checked) .composer-plan-toggle-icon,
+.composer-plan-toggle:has(.composer-plan-toggle-input:checked) .composer-plan-toggle-label {
+  color: var(--text-strong);
+}
+
+.composer-plan-toggle-input:disabled {
+  cursor: not-allowed;
+}
+
+.composer-plan-toggle:has(.composer-plan-toggle-input:disabled) .composer-plan-toggle-icon,
+.composer-plan-toggle:has(.composer-plan-toggle-input:disabled) .composer-plan-toggle-label {
+  opacity: 0.6;
+}
+
 .composer-icon {
   display: inline-flex;
   width: 14px;
@@ -632,6 +707,21 @@
 .composer-icon svg {
   width: 14px;
   height: 14px;
+}
+
+.composer-icon--model {
+  width: 16px;
+  height: 16px;
+}
+
+.composer-icon--model svg {
+  width: 16px;
+  height: 16px;
+}
+
+.composer-icon--model,
+.composer-icon--effort {
+  transform: translateY(1px);
 }
 
 .composer-select {
@@ -661,8 +751,8 @@
 }
 
 .composer-select--collab {
-  width: 110px;
-  max-width: 110px;
+  width: 78px;
+  max-width: 78px;
 }
 
 .composer-select--effort {

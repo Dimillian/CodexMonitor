@@ -5,7 +5,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, State};
-use tokio::process::Command;
 use tokio::sync::mpsc;
 use tokio::time::timeout;
 
@@ -20,12 +19,12 @@ use crate::backend::app_server::{
     build_gemini_command_with_bin, build_gemini_path_env, check_gemini_installation,
     spawn_workspace_session as spawn_workspace_session_inner, CliSpawnConfig, CursorCliSettings,
 };
+use crate::shared::process_core::tokio_command;
 use crate::event_sink::TauriEventSink;
 use crate::remote_backend;
 use crate::shared::gemini_core;
 use crate::state::AppState;
 use crate::types::WorkspaceEntry;
-use self::args::apply_gemini_args;
 
 pub(crate) async fn spawn_workspace_session(
     entry: WorkspaceEntry,
@@ -87,12 +86,13 @@ pub(crate) async fn gemini_doctor(
         .clone()
         .filter(|value| !value.trim().is_empty())
         .or(default_args);
-    let path_env = build_gemini_path_env(resolved.as_deref());
-    let version = check_gemini_installation(resolved.clone()).await?;
-    let mut command = build_gemini_command_with_bin(resolved.clone());
-    apply_gemini_args(&mut command, resolved_args.as_deref())?;
-    command.arg("sandbox");
-    command.arg("--help");
+    let path_env = build_codex_path_env(resolved.as_deref());
+    let version = check_codex_installation(resolved.clone()).await?;
+    let mut command = build_codex_command_with_bin(
+        resolved.clone(),
+        resolved_args.as_deref(),
+        vec!["app-server".to_string(), "--help".to_string()],
+    )?;
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
     let sandbox_ok = match timeout(Duration::from_secs(5), command.output()).await {
@@ -100,7 +100,7 @@ pub(crate) async fn gemini_doctor(
         Err(_) => false,
     };
     let (node_ok, node_version, node_details) = {
-        let mut node_command = Command::new("node");
+        let mut node_command = tokio_command("node");
         if let Some(ref path_env) = path_env {
             node_command.env("PATH", path_env);
         }
@@ -231,6 +231,7 @@ pub(crate) async fn list_threads(
     workspace_id: String,
     cursor: Option<String>,
     limit: Option<u32>,
+    sort_key: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Value, String> {
@@ -239,12 +240,17 @@ pub(crate) async fn list_threads(
             &*state,
             app,
             "list_threads",
-            json!({ "workspaceId": workspace_id, "cursor": cursor, "limit": limit }),
+            json!({
+                "workspaceId": workspace_id,
+                "cursor": cursor,
+                "limit": limit,
+                "sortKey": sort_key
+            }),
         )
         .await;
     }
 
-    gemini_core::list_threads_core(&state.sessions, workspace_id, cursor, limit).await
+    codex_core::list_threads_core(&state.sessions, workspace_id, cursor, limit, sort_key).await
 }
 
 #[tauri::command]
@@ -286,6 +292,47 @@ pub(crate) async fn archive_thread(
     }
 
     gemini_core::archive_thread_core(&state.sessions, workspace_id, thread_id).await
+}
+
+#[tauri::command]
+pub(crate) async fn compact_thread(
+    workspace_id: String,
+    thread_id: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "compact_thread",
+            json!({ "workspaceId": workspace_id, "threadId": thread_id }),
+        )
+        .await;
+    }
+
+    codex_core::compact_thread_core(&state.sessions, workspace_id, thread_id).await
+}
+
+#[tauri::command]
+pub(crate) async fn set_thread_name(
+    workspace_id: String,
+    thread_id: String,
+    name: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "set_thread_name",
+            json!({ "workspaceId": workspace_id, "threadId": thread_id, "name": name }),
+        )
+        .await;
+    }
+
+    codex_core::set_thread_name_core(&state.sessions, workspace_id, thread_id, name).await
 }
 
 #[tauri::command]
@@ -484,10 +531,9 @@ pub(crate) async fn gemini_login(
         .await;
     }
 
-    gemini_core::gemini_login_core(
-        &state.workspaces,
-        &state.app_settings,
-        &state.gemini_login_cancels,
+    codex_core::codex_login_core(
+        &state.sessions,
+        &state.codex_login_cancels,
         workspace_id,
     )
     .await
@@ -509,7 +555,8 @@ pub(crate) async fn gemini_login_cancel(
         .await;
     }
 
-    gemini_core::gemini_login_cancel_core(&state.gemini_login_cancels, workspace_id).await
+    codex_core::codex_login_cancel_core(&state.sessions, &state.codex_login_cancels, workspace_id)
+        .await
 }
 
 #[tauri::command]
@@ -529,6 +576,27 @@ pub(crate) async fn skills_list(
     }
 
     gemini_core::skills_list_core(&state.sessions, workspace_id).await
+}
+
+#[tauri::command]
+pub(crate) async fn apps_list(
+    workspace_id: String,
+    cursor: Option<String>,
+    limit: Option<u32>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "apps_list",
+            json!({ "workspaceId": workspace_id, "cursor": cursor, "limit": limit }),
+        )
+        .await;
+    }
+
+    codex_core::apps_list_core(&state.sessions, workspace_id, cursor, limit).await
 }
 
 #[tauri::command]
@@ -554,6 +622,16 @@ pub(crate) async fn respond_to_server_request(
         .await
 }
 
+fn build_commit_message_prompt(diff: &str) -> String {
+    format!(
+        "Generate a concise git commit message for the following changes. \
+Follow conventional commit format (e.g., feat:, fix:, refactor:, docs:, etc.). \
+Keep the summary line under 72 characters. \
+Only output the commit message, nothing else.\n\n\
+Changes:\n{diff}"
+    )
+}
+
 /// Gets the diff content for commit message generation
 #[tauri::command]
 pub(crate) async fn get_commit_message_prompt(
@@ -567,13 +645,7 @@ pub(crate) async fn get_commit_message_prompt(
         return Err("No changes to generate commit message for".to_string());
     }
 
-    let prompt = format!(
-        "Generate a concise git commit message for the following changes. \
-Follow conventional commit format (e.g., feat:, fix:, refactor:, docs:, etc.). \
-Focus on the 'why' rather than the 'what'. Keep the summary line under 72 characters. \
-Only output the commit message, nothing else.\n\n\
-Changes:\n{diff}"
-    );
+    let prompt = build_commit_message_prompt(&diff);
 
     Ok(prompt)
 }
@@ -620,13 +692,7 @@ pub(crate) async fn generate_commit_message(
         return Err("No changes to generate commit message for".to_string());
     }
 
-    let prompt = format!(
-        "Generate a concise git commit message for the following changes. \
-Follow conventional commit format (e.g., feat:, fix:, refactor:, docs:, etc.). \
-Focus on the 'why' rather than the 'what'. Keep the summary line under 72 characters. \
-Only output the commit message, nothing else.\n\n\
-Changes:\n{diff}"
-    );
+    let prompt = build_commit_message_prompt(&diff);
 
     // Get the session
     let session = {

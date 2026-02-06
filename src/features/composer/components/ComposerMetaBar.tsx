@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
+import { BrainCog } from "lucide-react";
 import type { AccessMode, ThreadTokenUsage } from "../../../types";
-import { formatCollaborationModeLabel } from "../../../utils/collaborationModes";
 
 type ComposerMetaBarProps = {
   disabled: boolean;
@@ -47,61 +47,109 @@ export function ComposerMetaBar({
             Math.min(Math.max((usedTokens / contextWindow) * 100, 0), 100),
         )
       : null;
+  const planMode =
+    collaborationModes.find((mode) => mode.id === "plan") ?? null;
+  const defaultMode =
+    collaborationModes.find((mode) => mode.id === "default") ?? null;
+  const canUsePlanToggle =
+    Boolean(planMode) &&
+    collaborationModes.every(
+      (mode) => mode.id === "default" || mode.id === "plan",
+    );
+  const planSelected = selectedCollaborationModeId === (planMode?.id ?? "");
 
   return (
     <div className="composer-bar">
       <div className="composer-meta">
         {collaborationModes.length > 0 && (
-          <div className="composer-select-wrap">
+          canUsePlanToggle ? (
+            <div className="composer-select-wrap composer-plan-toggle-wrap">
+              <label className="composer-plan-toggle" aria-label="Plan mode">
+                <input
+                  className="composer-plan-toggle-input"
+                  type="checkbox"
+                  checked={planSelected}
+                  disabled={disabled}
+                  onChange={(event) =>
+                    onSelectCollaborationMode(
+                      event.target.checked
+                        ? planMode?.id ?? "plan"
+                        : (defaultMode?.id ?? null),
+                    )
+                  }
+                />
+                <span className="composer-plan-toggle-icon" aria-hidden>
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="m6.5 7.5 1 1 2-2M6.5 12.5l1 1 2-2M6.5 17.5l1 1 2-2M11 7.5h7M11 12.5h7M11 17.5h7"
+                      stroke="currentColor"
+                      strokeWidth="1.4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span className="composer-plan-toggle-label">
+                  {planMode?.label || "Plan"}
+                </span>
+              </label>
+            </div>
+          ) : (
+            <div className="composer-select-wrap">
             <span className="composer-icon" aria-hidden>
               <svg viewBox="0 0 24 24" fill="none">
                 <path
-                  d="M7 7h10M7 12h6M7 17h8"
+                  d="m6.5 7.5 1 1 2-2M6.5 12.5l1 1 2-2M6.5 17.5l1 1 2-2M11 7.5h7M11 12.5h7M11 17.5h7"
                   stroke="currentColor"
                   strokeWidth="1.4"
                   strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
               </svg>
             </span>
-            <select
-              className="composer-select composer-select--model composer-select--collab"
-              aria-label="Collaboration mode"
-              value={selectedCollaborationModeId ?? ""}
-              onChange={(event) =>
-                onSelectCollaborationMode(event.target.value || null)
-              }
-              disabled={disabled}
-            >
-              {collaborationModes.map((mode) => (
-                <option key={mode.id} value={mode.id}>
-                  {formatCollaborationModeLabel(mode.label || mode.id)}
-                </option>
-              ))}
-            </select>
-          </div>
+              <select
+                className="composer-select composer-select--model composer-select--collab"
+                aria-label="Collaboration mode"
+                value={selectedCollaborationModeId ?? ""}
+                onChange={(event) =>
+                  onSelectCollaborationMode(event.target.value || null)
+                }
+                disabled={disabled}
+              >
+                {collaborationModes.map((mode) => (
+                  <option key={mode.id} value={mode.id}>
+                    {mode.label || mode.id}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )
         )}
-        <div className="composer-select-wrap">
-          <span className="composer-icon" aria-hidden>
+        <div className="composer-select-wrap composer-select-wrap--model">
+          <span className="composer-icon composer-icon--model" aria-hidden>
             <svg viewBox="0 0 24 24" fill="none">
               <path
-                d="M7 8V6a5 5 0 0 1 10 0v2"
+                d="M12 4v2"
                 stroke="currentColor"
                 strokeWidth="1.4"
                 strokeLinecap="round"
               />
-              <rect
-                x="4.5"
-                y="8"
-                width="15"
-                height="11"
-                rx="3"
+              <path
+                d="M8 7.5h8a2.5 2.5 0 0 1 2.5 2.5v5a2.5 2.5 0 0 1-2.5 2.5H8A2.5 2.5 0 0 1 5.5 15v-5A2.5 2.5 0 0 1 8 7.5Z"
                 stroke="currentColor"
                 strokeWidth="1.4"
+                strokeLinejoin="round"
               />
-              <circle cx="9" cy="13" r="1" fill="currentColor" />
-              <circle cx="15" cy="13" r="1" fill="currentColor" />
+              <circle cx="9.5" cy="12.5" r="1" fill="currentColor" />
+              <circle cx="14.5" cy="12.5" r="1" fill="currentColor" />
               <path
-                d="M9 16h6"
+                d="M9.5 15.5h5"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+              />
+              <path
+                d="M5.5 11H4M20 11h-1.5"
                 stroke="currentColor"
                 strokeWidth="1.4"
                 strokeLinecap="round"
@@ -123,34 +171,9 @@ export function ComposerMetaBar({
             ))}
           </select>
         </div>
-        <div className="composer-select-wrap">
-          <span className="composer-icon" aria-hidden>
-            <svg viewBox="0 0 24 24" fill="none">
-              <path
-                d="M8.5 4.5a3.5 3.5 0 0 0-3.46 4.03A4 4 0 0 0 6 16.5h2"
-                stroke="currentColor"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-              />
-              <path
-                d="M15.5 4.5a3.5 3.5 0 0 1 3.46 4.03A4 4 0 0 1 18 16.5h-2"
-                stroke="currentColor"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-              />
-              <path
-                d="M9 12h6"
-                stroke="currentColor"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-              />
-              <path
-                d="M12 12v6"
-                stroke="currentColor"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-              />
-            </svg>
+        <div className="composer-select-wrap composer-select-wrap--effort">
+          <span className="composer-icon composer-icon--effort" aria-hidden>
+            <BrainCog size={14} strokeWidth={1.8} />
           </span>
           <select
             className="composer-select composer-select--effort"

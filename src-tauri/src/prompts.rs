@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use tokio::task;
 use tauri::State;
 
-use crate::gemini::home::{resolve_default_gemini_home, resolve_workspace_gemini_home};
+use crate::codex::home::{resolve_default_codex_home, resolve_workspace_codex_home};
 use crate::state::AppState;
 use crate::types::WorkspaceEntry;
 
@@ -21,7 +21,7 @@ pub(crate) struct CustomPromptEntry {
     pub(crate) scope: Option<String>,
 }
 
-fn resolve_gemini_home_for_workspace(
+fn resolve_codex_home_for_workspace(
     workspaces: &HashMap<String, WorkspaceEntry>,
     entry: &WorkspaceEntry,
 ) -> Option<PathBuf> {
@@ -29,14 +29,14 @@ fn resolve_gemini_home_for_workspace(
         .parent_id
         .as_ref()
         .and_then(|parent_id| workspaces.get(parent_id));
-    resolve_workspace_gemini_home(entry, parent_entry).or_else(resolve_default_gemini_home)
+    resolve_workspace_codex_home(entry, parent_entry).or_else(resolve_default_codex_home)
 }
 
 fn default_prompts_dir_for_workspace(
     workspaces: &HashMap<String, WorkspaceEntry>,
     entry: &WorkspaceEntry,
 ) -> Option<PathBuf> {
-    resolve_gemini_home_for_workspace(workspaces, entry).map(|home| home.join("prompts"))
+    resolve_codex_home_for_workspace(workspaces, entry).map(|home| home.join("prompts"))
 }
 
 fn require_workspace_entry(
@@ -327,7 +327,7 @@ pub(crate) async fn prompts_global_dir(
     let workspaces = state.workspaces.lock().await;
     let entry = require_workspace_entry(&workspaces, &workspace_id)?;
     let dir = default_prompts_dir_for_workspace(&workspaces, &entry)
-        .ok_or("Unable to resolve GEMINI_HOME".to_string())?;
+        .ok_or("Unable to resolve CODEX_HOME".to_string())?;
     fs::create_dir_all(&dir).map_err(|err| err.to_string())?;
     Ok(dir.to_string_lossy().to_string())
 }
@@ -353,7 +353,7 @@ pub(crate) async fn prompts_create(
             }
             "global" => {
                 let dir = default_prompts_dir_for_workspace(&workspaces, &entry)
-                    .ok_or("Unable to resolve GEMINI_HOME".to_string())?;
+                    .ok_or("Unable to resolve CODEX_HOME".to_string())?;
                 (dir, "global")
             }
             _ => return Err("Invalid scope.".to_string()),
@@ -477,7 +477,7 @@ pub(crate) async fn prompts_move(
         match scope.as_str() {
             "workspace" => workspace_prompts_dir(&state, &entry)?,
             "global" => default_prompts_dir_for_workspace(&workspaces, &entry)
-                .ok_or("Unable to resolve GEMINI_HOME".to_string())?,
+                .ok_or("Unable to resolve CODEX_HOME".to_string())?,
             _ => return Err("Invalid scope.".to_string()),
         }
     };

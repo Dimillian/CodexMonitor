@@ -7,26 +7,6 @@ on:
     branches: ["main"]
 
 jobs:
-  test-tauri:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Cache Rust build
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            src-tauri/target
-          key: ${{ runner.os }}-cargo-test-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-test-
-      - name: Install CMake
-        run: command -v cmake >/dev/null 2>&1 || brew install cmake
-      - name: Rust tests
-        run: cargo test
-        working-directory: src-tauri
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -63,12 +43,81 @@ jobs:
         run: npm ci
       - name: Tests
         run: npm run test
-  build-macos:
-    runs-on: macos-latest
+
+  test-tauri:
+    name: Rust tests (${{ matrix.platform.name }})
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: macOS
+            os: macos-latest
+          - name: Linux
+            os: ubuntu-latest
+          - name: Windows
+            os: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cache Rust build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-test-
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: command -v cmake >/dev/null 2>&1 || brew install cmake
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libasound2-dev \
+            pkg-config
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: choco install cmake llvm -y --no-progress
+      - name: Configure LLVM (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_ENV
+          echo "C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_PATH
+      - name: Rust tests
+        run: cargo test
+        working-directory: src-tauri
+
+  build-tauri:
+    name: Tauri build (${{ matrix.platform.name }})
+    runs-on: ${{ matrix.platform.os }}
     needs:
       - lint
       - typecheck
       - test-js
+      - test-tauri
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: macOS
+            os: macos-latest
+            build_command: npm run tauri -- build --debug --no-bundle
+          - name: Linux
+            os: ubuntu-latest
+            build_command: npm run tauri -- build --debug --no-bundle
+          - name: Windows
+            os: windows-latest
+            build_command: npm run tauri -- build --debug --no-bundle --config src-tauri/tauri.windows.conf.json
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -86,9 +135,33 @@ jobs:
           key: ${{ runner.os }}-cargo-build-${{ hashFiles('src-tauri/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-build-
-      - name: Install CMake
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
         run: command -v cmake >/dev/null 2>&1 || brew install cmake
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libasound2-dev \
+            pkg-config
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: choco install cmake llvm -y --no-progress
+      - name: Configure LLVM (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_ENV
+          echo "C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_PATH
       - name: Install dependencies
         run: npm ci
+      - name: Doctor (Windows)
+        if: runner.os == 'Windows'
+        run: npm run doctor:win
       - name: Tauri debug build
-        run: npm run tauri -- build --debug --no-bundle
+        run: ${{ matrix.platform.build_command }}

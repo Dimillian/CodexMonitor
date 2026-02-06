@@ -7,7 +7,7 @@ use serde::Serialize;
 use tauri::{AppHandle, State};
 use tokio::sync::Mutex;
 
-use crate::backend::events::{EventSink, TerminalOutput};
+use crate::backend::events::{EventSink, TerminalExit, TerminalOutput};
 use crate::event_sink::TauriEventSink;
 use crate::state::AppState;
 
@@ -25,6 +25,28 @@ pub(crate) struct TerminalSessionInfo {
 
 fn terminal_key(workspace_id: &str, terminal_id: &str) -> String {
     format!("{workspace_id}:{terminal_id}")
+}
+
+fn is_terminal_closed_error(message: &str) -> bool {
+    let lower = message.to_ascii_lowercase();
+    lower.contains("broken pipe")
+        || lower.contains("input/output error")
+        || lower.contains("os error 5")
+        || lower.contains("eio")
+        || lower.contains("io error")
+        || lower.contains("not connected")
+        || lower.contains("closed")
+}
+
+async fn get_terminal_session(
+    state: &State<'_, AppState>,
+    key: &str,
+) -> Result<Arc<TerminalSession>, String> {
+    let sessions = state.terminal_sessions.lock().await;
+    sessions
+        .get(key)
+        .cloned()
+        .ok_or_else(|| "Terminal session not found".to_string())
 }
 
 fn shell_path() -> String {
@@ -102,6 +124,10 @@ fn spawn_terminal_reader(
                 Err(_) => break,
             }
         }
+        event_sink.emit_terminal_exit(TerminalExit {
+            workspace_id,
+            terminal_id,
+        });
     });
 }
 
@@ -183,11 +209,14 @@ pub(crate) async fn terminal_open(
     {
         let mut sessions = state.terminal_sessions.lock().await;
         if let Some(existing) = sessions.get(&key) {
-            let mut child = session.child.lock().await;
-            let _ = child.kill();
-            return Ok(TerminalSessionInfo {
-                id: existing.id.clone(),
-            });
+            let id = existing.id.clone();
+            drop(sessions);
+            let _ = tokio::task::spawn_blocking(move || {
+                let mut child = session.child.blocking_lock();
+                let _ = child.kill();
+            })
+            .await;
+            return Ok(TerminalSessionInfo { id });
         }
         sessions.insert(key, session);
     }
@@ -207,17 +236,27 @@ pub(crate) async fn terminal_write(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let key = terminal_key(&workspace_id, &terminal_id);
-    let sessions = state.terminal_sessions.lock().await;
-    let session = sessions
-        .get(&key)
-        .ok_or_else(|| "Terminal session not found".to_string())?;
-    let mut writer = session.writer.lock().await;
-    writer
-        .write_all(data.as_bytes())
-        .map_err(|e| format!("Failed to write to pty: {e}"))?;
-    writer
-        .flush()
-        .map_err(|e| format!("Failed to flush pty: {e}"))?;
+    let session = get_terminal_session(&state, &key).await?;
+    let write_result = tokio::task::spawn_blocking(move || {
+        let mut writer = session.writer.blocking_lock();
+        writer
+            .write_all(data.as_bytes())
+            .map_err(|e| format!("Failed to write to pty: {e}"))?;
+        writer
+            .flush()
+            .map_err(|e| format!("Failed to flush pty: {e}"))?;
+        Ok::<(), String>(())
+    })
+    .await
+    .map_err(|e| format!("Terminal write task failed: {e}"))?;
+
+    if let Err(err) = write_result {
+        if is_terminal_closed_error(&err) {
+            let mut sessions = state.terminal_sessions.lock().await;
+            sessions.remove(&key);
+        }
+        return Err(err);
+    }
     Ok(())
 }
 
@@ -230,20 +269,28 @@ pub(crate) async fn terminal_resize(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let key = terminal_key(&workspace_id, &terminal_id);
-    let sessions = state.terminal_sessions.lock().await;
-    let session = sessions
-        .get(&key)
-        .ok_or_else(|| "Terminal session not found".to_string())?;
+    let session = get_terminal_session(&state, &key).await?;
     let size = PtySize {
         rows: rows.max(2),
         cols: cols.max(2),
         pixel_width: 0,
         pixel_height: 0,
     };
-    let master = session.master.lock().await;
-    master
-        .resize(size)
-        .map_err(|e| format!("Failed to resize pty: {e}"))?;
+    let resize_result = tokio::task::spawn_blocking(move || {
+        let master = session.master.blocking_lock();
+        master
+            .resize(size)
+            .map_err(|e| format!("Failed to resize pty: {e}"))
+    })
+    .await
+    .map_err(|e| format!("Terminal resize task failed: {e}"))?;
+    if let Err(err) = resize_result {
+        if is_terminal_closed_error(&err) {
+            let mut sessions = state.terminal_sessions.lock().await;
+            sessions.remove(&key);
+        }
+        return Err(err);
+    }
     Ok(())
 }
 
@@ -258,7 +305,11 @@ pub(crate) async fn terminal_close(
     let session = sessions
         .remove(&key)
         .ok_or_else(|| "Terminal session not found".to_string())?;
-    let mut child = session.child.lock().await;
-    let _ = child.kill();
+    drop(sessions);
+    let _ = tokio::task::spawn_blocking(move || {
+        let mut child = session.child.blocking_lock();
+        let _ = child.kill();
+    })
+    .await;
     Ok(())
 }

@@ -13,8 +13,12 @@ use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::timeout;
 
 use crate::backend::events::{AppServerEvent, EventSink};
-use crate::gemini::args::apply_gemini_args;
+use crate::shared::process_core::{kill_child_process_tree, tokio_command};
+use crate::codex::args::parse_codex_args;
 use crate::types::WorkspaceEntry;
+
+#[cfg(target_os = "windows")]
+use crate::shared::process_core::{build_cmd_c_command, resolve_windows_executable};
 
 fn extract_thread_id(value: &Value) -> Option<String> {
     let params = value.get("params")?;
@@ -31,6 +35,19 @@ fn extract_thread_id(value: &Value) -> Option<String> {
                 .and_then(|t| t.as_str())
                 .map(|s| s.to_string())
         })
+}
+
+fn build_initialize_params(client_version: &str) -> Value {
+    json!({
+        "clientInfo": {
+            "name": "codex_monitor",
+            "title": "Codex Monitor",
+            "version": client_version
+        },
+        "capabilities": {
+            "experimentalApi": true
+        }
+    })
 }
 
 pub(crate) struct WorkspaceSession {
@@ -82,83 +99,151 @@ impl WorkspaceSession {
     }
 }
 
-pub(crate) fn build_gemini_path_env(gemini_bin: Option<&str>) -> Option<String> {
-    let mut paths: Vec<String> = env::var("PATH")
-        .unwrap_or_default()
-        .split(':')
-        .filter(|value| !value.is_empty())
-        .map(|value| value.to_string())
-        .collect();
-    let mut extras = vec![
-        "/opt/homebrew/bin",
-        "/usr/local/bin",
-        "/usr/bin",
-        "/bin",
-        "/usr/sbin",
-        "/sbin",
-    ]
-    .into_iter()
-    .map(|value| value.to_string())
-    .collect::<Vec<String>>();
-    if let Ok(home) = env::var("HOME") {
-        extras.push(format!("{home}/.local/bin"));
-        extras.push(format!("{home}/.local/share/mise/shims"));
-        extras.push(format!("{home}/.cargo/bin"));
-        extras.push(format!("{home}/.bun/bin"));
-        // Add Google Cloud SDK path for gemini
-        extras.push(format!("{home}/google-cloud-sdk/bin"));
-        let nvm_root = Path::new(&home).join(".nvm/versions/node");
-        if let Ok(entries) = std::fs::read_dir(nvm_root) {
-            for entry in entries.flatten() {
-                let bin_path = entry.path().join("bin");
-                if bin_path.is_dir() {
-                    extras.push(bin_path.to_string_lossy().to_string());
+pub(crate) fn build_codex_path_env(codex_bin: Option<&str>) -> Option<String> {
+    let mut paths: Vec<PathBuf> = env::var_os("PATH")
+        .map(|value| env::split_paths(&value).collect())
+        .unwrap_or_default();
+
+    let mut extras: Vec<PathBuf> = Vec::new();
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        extras.extend([
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            "/usr/bin",
+            "/bin",
+            "/usr/sbin",
+            "/sbin",
+        ].into_iter().map(PathBuf::from));
+
+        if let Ok(home) = env::var("HOME") {
+            let home_path = Path::new(&home);
+            extras.push(home_path.join(".local/bin"));
+            extras.push(home_path.join(".local/share/mise/shims"));
+            extras.push(home_path.join(".cargo/bin"));
+            extras.push(home_path.join(".bun/bin"));
+            let nvm_root = home_path.join(".nvm/versions/node");
+            if let Ok(entries) = std::fs::read_dir(nvm_root) {
+                for entry in entries.flatten() {
+                    let bin_path = entry.path().join("bin");
+                    if bin_path.is_dir() {
+                        extras.push(bin_path);
+                    }
                 }
             }
         }
     }
-    if let Some(bin_path) = gemini_bin.filter(|value| !value.trim().is_empty()) {
-        let parent = Path::new(bin_path).parent();
-        if let Some(parent) = parent {
-            extras.push(parent.to_string_lossy().to_string());
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(appdata) = env::var("APPDATA") {
+            extras.push(Path::new(&appdata).join("npm"));
+        }
+        if let Ok(local_app_data) = env::var("LOCALAPPDATA") {
+            extras.push(
+                Path::new(&local_app_data)
+                    .join("Microsoft")
+                    .join("WindowsApps"),
+            );
+        }
+        if let Ok(home) = env::var("USERPROFILE").or_else(|_| env::var("HOME")) {
+            let home_path = Path::new(&home);
+            extras.push(home_path.join(".cargo").join("bin"));
+            extras.push(home_path.join("scoop").join("shims"));
+        }
+        if let Ok(program_data) = env::var("PROGRAMDATA") {
+            extras.push(Path::new(&program_data).join("chocolatey").join("bin"));
         }
     }
+
+    if let Some(bin_path) = codex_bin.filter(|value| !value.trim().is_empty()) {
+        if let Some(parent) = Path::new(bin_path).parent() {
+            extras.push(parent.to_path_buf());
+        }
+    }
+
     for extra in extras {
-        if !paths.contains(&extra) {
+        if !paths.iter().any(|path| path == &extra) {
             paths.push(extra);
         }
     }
+
     if paths.is_empty() {
-        None
-    } else {
-        Some(paths.join(":"))
+        return None;
     }
+
+    env::join_paths(paths)
+        .ok()
+        .map(|joined| joined.to_string_lossy().to_string())
 }
 
-pub(crate) fn build_gemini_command_with_bin(gemini_bin: Option<String>) -> Command {
-    let bin = gemini_bin
+pub(crate) fn build_codex_command_with_bin(
+    codex_bin: Option<String>,
+    codex_args: Option<&str>,
+    args: Vec<String>,
+) -> Result<Command, String> {
+    let bin = codex_bin
         .clone()
         .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| "gemini".into());
-    let mut command = Command::new(bin);
-    if let Some(path_env) = build_gemini_path_env(gemini_bin.as_deref()) {
+        .unwrap_or_else(|| "codex".into());
+
+    let path_env = build_codex_path_env(codex_bin.as_deref());
+    let mut command_args = parse_codex_args(codex_args)?;
+    command_args.extend(args);
+
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let bin_trimmed = bin.trim();
+        let resolved = resolve_windows_executable(bin_trimmed, path_env.as_deref());
+        let resolved_path = resolved
+            .as_deref()
+            .unwrap_or_else(|| Path::new(bin_trimmed));
+        let ext = resolved_path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.to_ascii_lowercase());
+
+        if matches!(ext.as_deref(), Some("cmd") | Some("bat")) {
+            let mut command = tokio_command("cmd");
+            let command_line = build_cmd_c_command(resolved_path, &command_args)?;
+            command.arg("/D");
+            command.arg("/S");
+            command.arg("/C");
+            command.arg(command_line);
+            command
+        } else {
+            let mut command = tokio_command(resolved_path);
+            command.args(command_args);
+            command
+        }
+    };
+
+    #[cfg(not(target_os = "windows"))]
+    let mut command = {
+        let mut command = tokio_command(bin.trim());
+        command.args(command_args);
+        command
+    };
+
+    if let Some(path_env) = path_env {
         command.env("PATH", path_env);
     }
-    command
+    Ok(command)
 }
 
-pub(crate) async fn check_gemini_installation(
-    gemini_bin: Option<String>,
+pub(crate) async fn check_codex_installation(
+    codex_bin: Option<String>,
 ) -> Result<Option<String>, String> {
-    let mut command = build_gemini_command_with_bin(gemini_bin);
-    command.arg("--version");
+    let mut command =
+        build_codex_command_with_bin(codex_bin, None, vec!["--version".to_string()])?;
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
 
     let output = match timeout(Duration::from_secs(5), command.output()).await {
         Ok(result) => result.map_err(|e| {
             if e.kind() == ErrorKind::NotFound {
-                "Gemini CLI not found. Install Gemini CLI and ensure `gemini` is on your PATH."
+                "Codex CLI not found. Install Codex and ensure `codex` is on your PATH."
                     .to_string()
             } else {
                 e.to_string()
@@ -166,7 +251,7 @@ pub(crate) async fn check_gemini_installation(
         })?,
         Err(_) => {
             return Err(
-                "Timed out while checking Gemini CLI. Make sure `gemini --version` runs in Terminal."
+                "Timed out while checking Codex CLI. Make sure `codex --version` runs in Terminal."
                     .to_string(),
             );
         }
@@ -182,395 +267,43 @@ pub(crate) async fn check_gemini_installation(
         };
         if detail.is_empty() {
             return Err(
-                "Gemini CLI failed to start. Try running `gemini --version` in Terminal."
+                "Codex CLI failed to start. Try running `codex --version` in Terminal."
                     .to_string(),
             );
         }
         return Err(format!(
-            "Gemini CLI failed to start: {detail}. Try running `gemini --version` in Terminal."
+            "Codex CLI failed to start: {detail}. Try running `codex --version` in Terminal."
         ));
     }
 
     let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
     Ok(if version.is_empty() { None } else { Some(version) })
-}
-
-// Cursor CLI support
-
-pub(crate) fn build_cursor_path_env(cursor_bin: Option<&str>) -> Option<String> {
-    let mut paths: Vec<String> = env::var("PATH")
-        .unwrap_or_default()
-        .split(':')
-        .filter(|value| !value.is_empty())
-        .map(|value| value.to_string())
-        .collect();
-    let mut extras = vec![
-        "/opt/homebrew/bin",
-        "/usr/local/bin",
-        "/usr/bin",
-        "/bin",
-        "/usr/sbin",
-        "/sbin",
-    ]
-    .into_iter()
-    .map(|value| value.to_string())
-    .collect::<Vec<String>>();
-    if let Ok(home) = env::var("HOME") {
-        extras.push(format!("{home}/.local/bin"));
-        extras.push(format!("{home}/.local/share/mise/shims"));
-        extras.push(format!("{home}/.cargo/bin"));
-        extras.push(format!("{home}/.bun/bin"));
-        // Common Cursor CLI installation paths
-        extras.push(format!("{home}/.cursor/bin"));
-        let nvm_root = Path::new(&home).join(".nvm/versions/node");
-        if let Ok(entries) = std::fs::read_dir(nvm_root) {
-            for entry in entries.flatten() {
-                let bin_path = entry.path().join("bin");
-                if bin_path.is_dir() {
-                    extras.push(bin_path.to_string_lossy().to_string());
-                }
-            }
-        }
-    }
-    if let Some(bin_path) = cursor_bin.filter(|value| !value.trim().is_empty()) {
-        let parent = Path::new(bin_path).parent();
-        if let Some(parent) = parent {
-            extras.push(parent.to_string_lossy().to_string());
-        }
-    }
-    for extra in extras {
-        if !paths.contains(&extra) {
-            paths.push(extra);
-        }
-    }
-    if paths.is_empty() {
-        None
-    } else {
-        Some(paths.join(":"))
-    }
-}
-
-pub(crate) fn build_cursor_command_with_bin(cursor_bin: Option<String>) -> Command {
-    let bin = cursor_bin
-        .clone()
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| "cursor".into());
-    let mut command = Command::new(bin);
-    if let Some(path_env) = build_cursor_path_env(cursor_bin.as_deref()) {
-        command.env("PATH", path_env);
-    }
-    command
-}
-
-/// Cursor CLI settings for spawning
-pub(crate) struct CursorCliSettings {
-    pub(crate) vim_mode: bool,
-    pub(crate) default_mode: String,
-    pub(crate) output_format: String,
-    pub(crate) attribute_commits: bool,
-    pub(crate) attribute_prs: bool,
-    pub(crate) use_http1: bool,
-}
-
-impl Default for CursorCliSettings {
-    fn default() -> Self {
-        Self {
-            vim_mode: false,
-            default_mode: "agent".to_string(),
-            output_format: "stream-json".to_string(),
-            attribute_commits: false,
-            attribute_prs: false,
-            use_http1: false,
-        }
-    }
-}
-
-pub(crate) fn apply_cursor_flags(command: &mut Command, settings: &CursorCliSettings) {
-    // Apply operating mode
-    if !settings.default_mode.is_empty() {
-        command.args(["--mode", &settings.default_mode]);
-    }
-
-    // Apply output format for streaming JSON (required for our protocol)
-    if !settings.output_format.is_empty() {
-        command.args(["--output-format", &settings.output_format]);
-    }
-
-    // Apply vim mode if enabled
-    if settings.vim_mode {
-        command.arg("--vim");
-    }
-
-    // Apply attribution settings
-    if settings.attribute_commits {
-        command.arg("--attribute-commits");
-    }
-    if settings.attribute_prs {
-        command.arg("--attribute-prs");
-    }
-
-    // Apply HTTP/1 mode if needed
-    if settings.use_http1 {
-        command.arg("--use-http1");
-    }
-}
-
-pub(crate) async fn check_cursor_installation(
-    cursor_bin: Option<String>,
-) -> Result<Option<String>, String> {
-    let mut command = build_cursor_command_with_bin(cursor_bin);
-    command.arg("--version");
-    command.stdout(std::process::Stdio::piped());
-    command.stderr(std::process::Stdio::piped());
-
-    let output = match timeout(Duration::from_secs(5), command.output()).await {
-        Ok(result) => result.map_err(|e| {
-            if e.kind() == ErrorKind::NotFound {
-                "Cursor CLI not found. Install Cursor CLI and ensure `cursor` is on your PATH."
-                    .to_string()
-            } else {
-                e.to_string()
-            }
-        })?,
-        Err(_) => {
-            return Err(
-                "Timed out while checking Cursor CLI. Make sure `cursor --version` runs in Terminal."
-                    .to_string(),
-            );
-        }
-    };
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let detail = if stderr.trim().is_empty() {
-            stdout.trim()
-        } else {
-            stderr.trim()
-        };
-        if detail.is_empty() {
-            return Err(
-                "Cursor CLI failed to start. Try running `cursor --version` in Terminal."
-                    .to_string(),
-            );
-        }
-        return Err(format!(
-            "Cursor CLI failed to start: {detail}. Try running `cursor --version` in Terminal."
-        ));
-    }
-
-    let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    Ok(if version.is_empty() { None } else { Some(version) })
-}
-
-// Claude Code CLI support
-
-pub(crate) fn build_claude_path_env(claude_bin: Option<&str>) -> Option<String> {
-    let mut paths: Vec<String> = env::var("PATH")
-        .unwrap_or_default()
-        .split(':')
-        .filter(|value| !value.is_empty())
-        .map(|value| value.to_string())
-        .collect();
-    let mut extras = vec![
-        "/opt/homebrew/bin",
-        "/usr/local/bin",
-        "/usr/bin",
-        "/bin",
-        "/usr/sbin",
-        "/sbin",
-    ]
-    .into_iter()
-    .map(|value| value.to_string())
-    .collect::<Vec<String>>();
-    if let Ok(home) = env::var("HOME") {
-        extras.push(format!("{home}/.local/bin"));
-        extras.push(format!("{home}/.local/share/mise/shims"));
-        extras.push(format!("{home}/.cargo/bin"));
-        extras.push(format!("{home}/.bun/bin"));
-        // Common Claude Code CLI installation paths
-        extras.push(format!("{home}/.claude/bin"));
-        let nvm_root = Path::new(&home).join(".nvm/versions/node");
-        if let Ok(entries) = std::fs::read_dir(nvm_root) {
-            for entry in entries.flatten() {
-                let bin_path = entry.path().join("bin");
-                if bin_path.is_dir() {
-                    extras.push(bin_path.to_string_lossy().to_string());
-                }
-            }
-        }
-    }
-    if let Some(bin_path) = claude_bin.filter(|value| !value.trim().is_empty()) {
-        let parent = Path::new(bin_path).parent();
-        if let Some(parent) = parent {
-            extras.push(parent.to_string_lossy().to_string());
-        }
-    }
-    for extra in extras {
-        if !paths.contains(&extra) {
-            paths.push(extra);
-        }
-    }
-    if paths.is_empty() {
-        None
-    } else {
-        Some(paths.join(":"))
-    }
-}
-
-pub(crate) fn build_claude_command_with_bin(claude_bin: Option<String>) -> Command {
-    let bin = claude_bin
-        .clone()
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| "claude".into());
-    let mut command = Command::new(bin);
-    if let Some(path_env) = build_claude_path_env(claude_bin.as_deref()) {
-        command.env("PATH", path_env);
-    }
-    command
-}
-
-pub(crate) async fn check_claude_installation(
-    claude_bin: Option<String>,
-) -> Result<Option<String>, String> {
-    let mut command = build_claude_command_with_bin(claude_bin);
-    command.arg("--version");
-    command.stdout(std::process::Stdio::piped());
-    command.stderr(std::process::Stdio::piped());
-
-    let output = match timeout(Duration::from_secs(5), command.output()).await {
-        Ok(result) => result.map_err(|e| {
-            if e.kind() == ErrorKind::NotFound {
-                "Claude Code CLI not found. Install Claude Code CLI and ensure `claude` is on your PATH."
-                    .to_string()
-            } else {
-                e.to_string()
-            }
-        })?,
-        Err(_) => {
-            return Err(
-                "Timed out while checking Claude Code CLI. Make sure `claude --version` runs in Terminal."
-                    .to_string(),
-            );
-        }
-    };
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let detail = if stderr.trim().is_empty() {
-            stdout.trim()
-        } else {
-            stderr.trim()
-        };
-        if detail.is_empty() {
-            return Err(
-                "Claude Code CLI failed to start. Try running `claude --version` in Terminal."
-                    .to_string(),
-            );
-        }
-        return Err(format!(
-            "Claude Code CLI failed to start: {detail}. Try running `claude --version` in Terminal."
-        ));
-    }
-
-    let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    Ok(if version.is_empty() { None } else { Some(version) })
-}
-
-/// CLI spawn configuration
-pub(crate) struct CliSpawnConfig {
-    pub(crate) cli_type: String,
-    pub(crate) gemini_bin: Option<String>,
-    pub(crate) gemini_args: Option<String>,
-    pub(crate) gemini_home: Option<PathBuf>,
-    pub(crate) cursor_bin: Option<String>,
-    pub(crate) cursor_args: Option<String>,
-    pub(crate) cursor_settings: CursorCliSettings,
-    pub(crate) claude_bin: Option<String>,
-    pub(crate) claude_args: Option<String>,
-}
-
-impl Default for CliSpawnConfig {
-    fn default() -> Self {
-        Self {
-            cli_type: "gemini".to_string(),
-            gemini_bin: None,
-            gemini_args: None,
-            gemini_home: None,
-            cursor_bin: None,
-            cursor_args: None,
-            cursor_settings: CursorCliSettings::default(),
-            claude_bin: None,
-            claude_args: None,
-        }
-    }
 }
 
 pub(crate) async fn spawn_workspace_session<E: EventSink>(
     entry: WorkspaceEntry,
-    config: CliSpawnConfig,
+    default_codex_bin: Option<String>,
+    codex_args: Option<String>,
+    codex_home: Option<PathBuf>,
     client_version: String,
     event_sink: E,
 ) -> Result<Arc<WorkspaceSession>, String> {
-    let cli_type = config.cli_type.as_str();
-    let cli_name = match cli_type {
-        "cursor" => "cursor",
-        "claude" => "claude",
-        _ => "gemini",
-    };
+    let codex_bin = entry
+        .codex_bin
+        .clone()
+        .filter(|value| !value.trim().is_empty())
+        .or(default_codex_bin);
+    let _ = check_codex_installation(codex_bin.clone()).await?;
 
-    // Build command based on CLI type
-    let mut command = match cli_type {
-        "cursor" => {
-            // Cursor CLI
-            let cursor_bin = config.cursor_bin;
-            let _ = check_cursor_installation(cursor_bin.clone()).await?;
-
-            let mut cmd = build_cursor_command_with_bin(cursor_bin);
-            apply_cursor_flags(&mut cmd, &config.cursor_settings);
-            if let Some(args) = config.cursor_args.as_deref() {
-                let parsed = shell_words::split(args).map_err(|e| format!("Invalid Cursor args: {e}"))?;
-                cmd.args(parsed);
-            }
-            cmd.current_dir(&entry.path);
-            cmd
-        }
-        "claude" => {
-            // Claude Code CLI
-            let claude_bin = config.claude_bin;
-            let _ = check_claude_installation(claude_bin.clone()).await?;
-
-            let mut cmd = build_claude_command_with_bin(claude_bin);
-            if let Some(args) = config.claude_args.as_deref() {
-                let parsed = shell_words::split(args).map_err(|e| format!("Invalid Claude args: {e}"))?;
-                cmd.args(parsed);
-            }
-            cmd.current_dir(&entry.path);
-            cmd.arg("sandbox");
-            cmd
-        }
-        _ => {
-            // Gemini CLI (default)
-            let gemini_bin = entry
-                .gemini_bin
-                .clone()
-                .filter(|value| !value.trim().is_empty())
-                .or(config.gemini_bin);
-            let _ = check_gemini_installation(gemini_bin.clone()).await?;
-
-            let mut cmd = build_gemini_command_with_bin(gemini_bin);
-            apply_gemini_args(&mut cmd, config.gemini_args.as_deref())?;
-            cmd.current_dir(&entry.path);
-            // Use Gemini's sandbox mode
-            cmd.arg("sandbox");
-            if let Some(gemini_home) = config.gemini_home {
-                cmd.env("GEMINI_HOME", gemini_home);
-            }
-            cmd
-        }
-    };
-
+    let mut command = build_codex_command_with_bin(
+        codex_bin,
+        codex_args.as_deref(),
+        vec!["app-server".to_string()],
+    )?;
+    command.current_dir(&entry.path);
+    if let Some(codex_home) = codex_home {
+        command.env("CODEX_HOME", codex_home);
+    }
     command.stdin(std::process::Stdio::piped());
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
@@ -604,7 +337,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                     let payload = AppServerEvent {
                         workspace_id: workspace_id.clone(),
                         message: json!({
-                            "method": "cli/parseError",
+                            "method": "codex/parseError",
                             "params": { "error": err.to_string(), "raw": line },
                         }),
                     };
@@ -679,7 +412,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
             let payload = AppServerEvent {
                 workspace_id: workspace_id.clone(),
                 message: json!({
-                    "method": "cli/stderr",
+                    "method": "codex/stderr",
                     "params": { "message": line },
                 }),
             };
@@ -687,13 +420,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
         }
     });
 
-    let init_params = json!({
-        "clientInfo": {
-            "name": "gemini_monitor",
-            "title": "GeminiMonitor",
-            "version": client_version
-        }
-    });
+    let init_params = build_initialize_params(&client_version);
     let init_result = timeout(
         Duration::from_secs(15),
         session.send_request("initialize", init_params),
@@ -703,16 +430,11 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
         Ok(response) => response,
         Err(_) => {
             let mut child = session.child.lock().await;
-            let _ = child.kill().await;
-            let display_name = match cli_name {
-                "cursor" => "Cursor",
-                "claude" => "Claude Code",
-                _ => "Gemini",
-            };
-            let check_cmd = if cli_name == "cursor" { "--help" } else { "sandbox" };
-            return Err(format!(
-                "{display_name} CLI did not respond to initialize. Check that `{cli_name} {check_cmd}` works in Terminal."
-            ));
+            kill_child_process_tree(&mut child).await;
+            return Err(
+                "Codex app-server did not respond to initialize. Check that `codex app-server` works in Terminal."
+                    .to_string(),
+            );
         }
     };
     init_response?;
@@ -721,8 +443,8 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     let payload = AppServerEvent {
         workspace_id: entry.id.clone(),
         message: json!({
-            "method": "cli/connected",
-            "params": { "workspaceId": entry.id.clone(), "cliType": cli_name }
+            "method": "codex/connected",
+            "params": { "workspaceId": entry.id.clone() }
         }),
     };
     event_sink.emit_app_server_event(payload);
@@ -732,7 +454,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 
 #[cfg(test)]
 mod tests {
-    use super::extract_thread_id;
+    use super::{build_initialize_params, extract_thread_id};
     use serde_json::json;
 
     #[test]
@@ -751,5 +473,17 @@ mod tests {
     fn extract_thread_id_returns_none_when_missing() {
         let value = json!({ "params": {} });
         assert_eq!(extract_thread_id(&value), None);
+    }
+
+    #[test]
+    fn build_initialize_params_enables_experimental_api() {
+        let params = build_initialize_params("1.2.3");
+        assert_eq!(
+            params
+                .get("capabilities")
+                .and_then(|caps| caps.get("experimentalApi"))
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
     }
 }

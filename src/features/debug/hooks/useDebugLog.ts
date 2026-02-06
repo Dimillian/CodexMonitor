@@ -9,7 +9,7 @@ export function useDebugLog() {
   const [hasDebugAlerts, setHasDebugAlerts] = useState(false);
   const [debugPinned, setDebugPinned] = useState(false);
 
-  const shouldLogEntry = useCallback((entry: DebugEntry) => {
+  const isAlertEntry = useCallback((entry: DebugEntry) => {
     if (entry.source === "error" || entry.source === "stderr") {
       return true;
     }
@@ -24,15 +24,27 @@ export function useDebugLog() {
     return false;
   }, []);
 
+  const shouldStoreEntry = useCallback(
+    (entry: DebugEntry) => {
+      if (debugOpen) {
+        return true;
+      }
+      return isAlertEntry(entry);
+    },
+    [debugOpen, isAlertEntry],
+  );
+
   const addDebugEntry = useCallback(
     (entry: DebugEntry) => {
-      if (!shouldLogEntry(entry)) {
+      if (!shouldStoreEntry(entry)) {
         return;
       }
-      setHasDebugAlerts(true);
+      if (isAlertEntry(entry)) {
+        setHasDebugAlerts(true);
+      }
       setDebugEntries((prev) => [...prev, entry].slice(-MAX_DEBUG_ENTRIES));
     },
-    [shouldLogEntry],
+    [isAlertEntry, shouldStoreEntry],
   );
 
   const handleCopyDebug = useCallback(async () => {

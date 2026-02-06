@@ -1,11 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import type { Options as NotificationOptions } from "@tauri-apps/plugin-notification";
 import type {
   AppSettings,
-  ClaudeDoctorResult,
-  GeminiDoctorResult,
-  GeminiSettings,
-  GeminiMcpSettings,
+  CodexDoctorResult,
   DictationModelStatus,
   DictationSessionState,
   LocalUsageSnapshot,
@@ -70,8 +68,8 @@ export async function listWorkspaces(): Promise<WorkspaceInfo[]> {
   }
 }
 
-export async function getGeminiConfigPath(): Promise<string> {
-  return invoke<string>("get_gemini_config_path");
+export async function getCodexConfigPath(): Promise<string> {
+  return invoke<string>("get_codex_config_path");
 }
 
 export type TextFileResponse = {
@@ -81,7 +79,7 @@ export type TextFileResponse = {
 };
 
 export type GlobalAgentsResponse = TextFileResponse;
-export type GlobalGeminiConfigResponse = TextFileResponse;
+export type GlobalCodexConfigResponse = TextFileResponse;
 export type AgentMdResponse = TextFileResponse;
 
 type FileScope = "workspace" | "global";
@@ -112,11 +110,11 @@ export async function writeGlobalAgentsMd(content: string): Promise<void> {
   return fileWrite("global", "agents", content);
 }
 
-export async function readGlobalGeminiConfigToml(): Promise<GlobalGeminiConfigResponse> {
+export async function readGlobalCodexConfigToml(): Promise<GlobalCodexConfigResponse> {
   return fileRead("global", "config");
 }
 
-export async function writeGlobalGeminiConfigToml(content: string): Promise<void> {
+export async function writeGlobalCodexConfigToml(content: string): Promise<void> {
   return fileWrite("global", "config", content);
 }
 
@@ -134,9 +132,9 @@ export async function getConfigModel(workspaceId: string): Promise<string | null
 
 export async function addWorkspace(
   path: string,
-  gemini_bin: string | null,
+  codex_bin: string | null,
 ): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("add_workspace", { path, gemini_bin });
+  return invoke<WorkspaceInfo>("add_workspace", { path, codex_bin });
 }
 
 export async function isWorkspacePathDir(path: string): Promise<boolean> {
@@ -158,8 +156,10 @@ export async function addClone(
 export async function addWorktree(
   parentId: string,
   branch: string,
+  name: string | null,
+  copyAgentsMd = true,
 ): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("add_worktree", { parentId, branch });
+  return invoke<WorkspaceInfo>("add_worktree", { parentId, branch, name, copyAgentsMd });
 }
 
 export type WorktreeSetupStatus = {
@@ -184,11 +184,11 @@ export async function updateWorkspaceSettings(
   return invoke<WorkspaceInfo>("update_workspace_settings", { id, settings });
 }
 
-export async function updateWorkspaceGeminiBin(
+export async function updateWorkspaceCodexBin(
   id: string,
-  gemini_bin: string | null,
+  codex_bin: string | null,
 ): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("update_workspace_gemini_bin", { id, gemini_bin });
+  return invoke<WorkspaceInfo>("update_workspace_codex_bin", { id, codex_bin });
 }
 
 export async function removeWorkspace(id: string): Promise<void> {
@@ -248,6 +248,10 @@ export async function startThread(workspaceId: string) {
 
 export async function forkThread(workspaceId: string, threadId: string) {
   return invoke<any>("fork_thread", { workspaceId, threadId });
+}
+
+export async function compactThread(workspaceId: string, threadId: string) {
+  return invoke<any>("compact_thread", { workspaceId, threadId });
 }
 
 export async function sendUserMessage(
@@ -406,6 +410,10 @@ export async function pullGit(workspaceId: string): Promise<void> {
   return invoke("pull_git", { workspaceId });
 }
 
+export async function fetchGit(workspaceId: string): Promise<void> {
+  return invoke("fetch_git", { workspaceId });
+}
+
 export async function syncGit(workspaceId: string): Promise<void> {
   return invoke("sync_git", { workspaceId });
 }
@@ -476,16 +484,29 @@ export async function getAccountInfo(workspaceId: string) {
   return invoke<any>("account_read", { workspaceId });
 }
 
-export async function runGeminiLogin(workspaceId: string) {
-  return invoke<{ output: string }>("gemini_login", { workspaceId });
+export async function runCodexLogin(workspaceId: string) {
+  return invoke<{ loginId: string; authUrl: string; raw?: unknown }>("codex_login", {
+    workspaceId,
+  });
 }
 
-export async function cancelGeminiLogin(workspaceId: string) {
-  return invoke<{ canceled: boolean }>("gemini_login_cancel", { workspaceId });
+export async function cancelCodexLogin(workspaceId: string) {
+  return invoke<{ canceled: boolean; status?: string; raw?: unknown }>(
+    "codex_login_cancel",
+    { workspaceId },
+  );
 }
 
 export async function getSkillsList(workspaceId: string) {
   return invoke<any>("skills_list", { workspaceId });
+}
+
+export async function getAppsList(
+  workspaceId: string,
+  cursor?: string | null,
+  limit?: number | null,
+) {
+  return invoke<any>("apps_list", { workspaceId, cursor, limit });
 }
 
 export async function getPromptsList(workspaceId: string) {
@@ -574,18 +595,11 @@ export async function setMenuAccelerators(
   return invoke("menu_set_accelerators", { updates });
 }
 
-export async function runGeminiDoctor(
-  geminiBin: string | null,
-  geminiArgs: string | null,
-): Promise<GeminiDoctorResult> {
-  return invoke<GeminiDoctorResult>("gemini_doctor", { geminiBin, geminiArgs });
-}
-
-export async function runClaudeDoctor(
-  claudeBin: string | null,
-  claudeArgs: string | null,
-): Promise<ClaudeDoctorResult> {
-  return invoke<ClaudeDoctorResult>("claude_doctor", { claudeBin, claudeArgs });
+export async function runCodexDoctor(
+  codexBin: string | null,
+  codexArgs: string | null,
+): Promise<CodexDoctorResult> {
+  return invoke<CodexDoctorResult>("codex_doctor", { codexBin, codexArgs });
 }
 
 export async function getWorkspaceFiles(workspaceId: string) {
@@ -717,8 +731,9 @@ export async function listThreads(
   workspaceId: string,
   cursor?: string | null,
   limit?: number | null,
+  sortKey?: "created_at" | "updated_at" | null,
 ) {
-  return invoke<any>("list_threads", { workspaceId, cursor, limit });
+  return invoke<any>("list_threads", { workspaceId, cursor, limit, sortKey });
 }
 
 export async function listMcpServerStatus(
@@ -737,6 +752,14 @@ export async function archiveThread(workspaceId: string, threadId: string) {
   return invoke<any>("archive_thread", { workspaceId, threadId });
 }
 
+export async function setThreadName(
+  workspaceId: string,
+  threadId: string,
+  name: string,
+) {
+  return invoke<any>("set_thread_name", { workspaceId, threadId, name });
+}
+
 export async function getCommitMessagePrompt(
   workspaceId: string,
 ): Promise<string> {
@@ -749,20 +772,76 @@ export async function generateCommitMessage(
   return invoke("generate_commit_message", { workspaceId });
 }
 
-// Gemini CLI settings.json commands
+export async function sendNotification(
+  title: string,
+  body: string,
+  options?: {
+    id?: number;
+    group?: string;
+    actionTypeId?: string;
+    sound?: string;
+    autoCancel?: boolean;
+    extra?: Record<string, unknown>;
+  },
+): Promise<void> {
+  const macosDebugBuild = await invoke<boolean>("is_macos_debug_build").catch(
+    () => false,
+  );
+  const attemptFallback = async () => {
+    try {
+      await invoke("send_notification_fallback", { title, body });
+      return true;
+    } catch (error) {
+      console.warn("Notification fallback failed.", { error });
+      return false;
+    }
+  };
 
-export async function getGeminiSettings(): Promise<GeminiSettings> {
-  return invoke<GeminiSettings>("get_gemini_settings");
-}
+  // In dev builds on macOS, the notification plugin can silently fail because
+  // the process is not a bundled app. Prefer the native AppleScript fallback.
+  if (macosDebugBuild) {
+    await attemptFallback();
+    return;
+  }
 
-export async function updateGeminiSettings(settings: GeminiSettings): Promise<void> {
-  return invoke("update_gemini_settings", { settings });
-}
+  try {
+    const notification = await import("@tauri-apps/plugin-notification");
+    let permissionGranted = await notification.isPermissionGranted();
+    if (!permissionGranted) {
+      const permission = await notification.requestPermission();
+      permissionGranted = permission === "granted";
+      if (!permissionGranted) {
+        console.warn("Notification permission not granted.", { permission });
+        await attemptFallback();
+        return;
+      }
+    }
+    if (permissionGranted) {
+      const payload: NotificationOptions = { title, body };
+      if (options?.id !== undefined) {
+        payload.id = options.id;
+      }
+      if (options?.group !== undefined) {
+        payload.group = options.group;
+      }
+      if (options?.actionTypeId !== undefined) {
+        payload.actionTypeId = options.actionTypeId;
+      }
+      if (options?.sound !== undefined) {
+        payload.sound = options.sound;
+      }
+      if (options?.autoCancel !== undefined) {
+        payload.autoCancel = options.autoCancel;
+      }
+      if (options?.extra !== undefined) {
+        payload.extra = options.extra;
+      }
+      await notification.sendNotification(payload);
+      return;
+    }
+  } catch (error) {
+    console.warn("Notification plugin failed.", { error });
+  }
 
-export async function getMcpConfig(): Promise<GeminiMcpSettings> {
-  return invoke<GeminiMcpSettings>("get_mcp_config");
-}
-
-export async function getGeminiSettingsPath(): Promise<string> {
-  return invoke<string>("get_gemini_settings_path");
+  await attemptFallback();
 }

@@ -1,25 +1,28 @@
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::process::Stdio;
+use std::pin::Pin;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use tokio::io::AsyncReadExt;
 use tokio::sync::{Mutex, oneshot};
+use tokio::sync::oneshot::error::TryRecvError;
 use tokio::time::timeout;
+use tokio::time::Instant;
 
-#[cfg(target_os = "windows")]
-use tokio::process::Command;
-
-use crate::backend::app_server::{build_gemini_command_with_bin, WorkspaceSession};
-use crate::gemini::args::{apply_gemini_args, resolve_workspace_gemini_args};
-use crate::gemini::config as gemini_config;
-use crate::gemini::home::{resolve_default_gemini_home, resolve_workspace_gemini_home};
+use crate::backend::app_server::WorkspaceSession;
+use crate::codex::config as codex_config;
+use crate::codex::home::{resolve_default_codex_home, resolve_workspace_codex_home};
 use crate::rules;
 use crate::shared::account::{build_account_response, read_auth_account};
-use crate::types::{AppSettings, WorkspaceEntry};
+use crate::types::WorkspaceEntry;
+
+const LOGIN_START_TIMEOUT: Duration = Duration::from_secs(30);
+
+pub(crate) enum CodexLoginCancelState {
+    PendingStart(oneshot::Sender<()>),
+    LoginId(String),
+}
 
 async fn get_session_clone(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
@@ -96,9 +99,10 @@ pub(crate) async fn list_threads_core(
     workspace_id: String,
     cursor: Option<String>,
     limit: Option<u32>,
+    sort_key: Option<String>,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let params = json!({ "cursor": cursor, "limit": limit });
+    let params = json!({ "cursor": cursor, "limit": limit, "sortKey": sort_key });
     session.send_request("thread/list", params).await
 }
 
@@ -121,6 +125,27 @@ pub(crate) async fn archive_thread_core(
     let session = get_session_clone(sessions, &workspace_id).await?;
     let params = json!({ "threadId": thread_id });
     session.send_request("thread/archive", params).await
+}
+
+pub(crate) async fn compact_thread_core(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspace_id: String,
+    thread_id: String,
+) -> Result<Value, String> {
+    let session = get_session_clone(sessions, &workspace_id).await?;
+    let params = json!({ "threadId": thread_id });
+    session.send_request("thread/compact/start", params).await
+}
+
+pub(crate) async fn set_thread_name_core(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspace_id: String,
+    thread_id: String,
+    name: String,
+) -> Result<Value, String> {
+    let session = get_session_clone(sessions, &workspace_id).await?;
+    let params = json!({ "threadId": thread_id, "name": name });
+    session.send_request("thread/name/set", params).await
 }
 
 pub(crate) async fn send_user_message_core(
@@ -276,168 +301,137 @@ pub(crate) async fn account_read_core(
     Ok(build_account_response(response, fallback))
 }
 
-pub(crate) async fn gemini_login_core(
-    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
-    app_settings: &Mutex<AppSettings>,
-    gemini_login_cancels: &Mutex<HashMap<String, oneshot::Sender<()>>>,
+pub(crate) async fn codex_login_core(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    codex_login_cancels: &Mutex<HashMap<String, CodexLoginCancelState>>,
     workspace_id: String,
 ) -> Result<Value, String> {
-    let (entry, parent_entry, settings) = {
-        let workspaces = workspaces.lock().await;
-        let entry = workspaces
-            .get(&workspace_id)
-            .ok_or_else(|| "workspace not found".to_string())?
-            .clone();
-        let parent_entry = entry
-            .parent_id
-            .as_ref()
-            .and_then(|parent_id| workspaces.get(parent_id))
-            .cloned();
-        let settings = app_settings.lock().await.clone();
-        (entry, parent_entry, settings)
-    };
-
-    let gemini_bin = entry
-        .gemini_bin
-        .clone()
-        .filter(|value| !value.trim().is_empty())
-        .or(settings.gemini_bin.clone());
-    let gemini_args = resolve_workspace_gemini_args(&entry, parent_entry.as_ref(), Some(&settings));
-    let gemini_home = resolve_workspace_gemini_home(&entry, parent_entry.as_ref())
-        .or_else(resolve_default_gemini_home);
-
-    let mut command = build_gemini_command_with_bin(gemini_bin);
-    if let Some(ref gemini_home) = gemini_home {
-        command.env("GEMINI_HOME", gemini_home);
-    }
-    apply_gemini_args(&mut command, gemini_args.as_deref())?;
-    command.arg("login");
-    command.stdout(Stdio::piped());
-    command.stderr(Stdio::piped());
-
-    let mut child = command.spawn().map_err(|error| error.to_string())?;
+    let session = get_session_clone(sessions, &workspace_id).await?;
     let (cancel_tx, cancel_rx) = oneshot::channel::<()>();
     {
         let mut cancels = gemini_login_cancels.lock().await;
         if let Some(existing) = cancels.remove(&workspace_id) {
-            let _ = existing.send(());
-        }
-        cancels.insert(workspace_id.clone(), cancel_tx);
-    }
-    let pid = child.id();
-    let canceled = Arc::new(AtomicBool::new(false));
-    let canceled_for_task = Arc::clone(&canceled);
-    let cancel_task = tokio::spawn(async move {
-        if cancel_rx.await.is_ok() {
-            canceled_for_task.store(true, Ordering::Relaxed);
-            if let Some(pid) = pid {
-                #[cfg(not(target_os = "windows"))]
-                unsafe {
-                    libc::kill(pid as i32, libc::SIGKILL);
+            match existing {
+                CodexLoginCancelState::PendingStart(tx) => {
+                    let _ = tx.send(());
                 }
-                #[cfg(target_os = "windows")]
-                {
-                    let _ = Command::new("taskkill")
-                        .args(["/PID", &pid.to_string(), "/T", "/F"])
-                        .status()
-                        .await;
-                }
+                CodexLoginCancelState::LoginId(_) => {}
             }
         }
-    });
-    let stdout_pipe = child.stdout.take();
-    let stderr_pipe = child.stderr.take();
+        cancels.insert(workspace_id.clone(), CodexLoginCancelState::PendingStart(cancel_tx));
+    }
 
-    let stdout_task = tokio::spawn(async move {
-        let mut buffer = Vec::new();
-        if let Some(mut stdout) = stdout_pipe {
-            let _ = stdout.read_to_end(&mut buffer).await;
-        }
-        buffer
-    });
-    let stderr_task = tokio::spawn(async move {
-        let mut buffer = Vec::new();
-        if let Some(mut stderr) = stderr_pipe {
-            let _ = stderr.read_to_end(&mut buffer).await;
-        }
-        buffer
-    });
+    let start = Instant::now();
+    let mut cancel_rx = cancel_rx;
+    let mut login_request: Pin<Box<_>> = Box::pin(
+        session.send_request("account/login/start", json!({ "type": "chatgpt" })),
+    );
 
-    let status = match timeout(Duration::from_secs(120), child.wait()).await {
-        Ok(result) => result.map_err(|error| error.to_string())?,
-        Err(_) => {
-            let _ = child.kill().await;
-            let _ = child.wait().await;
-            cancel_task.abort();
-            {
-                let mut cancels = gemini_login_cancels.lock().await;
+    let response = loop {
+        match cancel_rx.try_recv() {
+            Ok(_) => {
+                let mut cancels = codex_login_cancels.lock().await;
                 cancels.remove(&workspace_id);
+                return Err("Codex login canceled.".to_string());
             }
-            return Err("Gemini login timed out.".to_string());
+            Err(TryRecvError::Closed) => {
+                let mut cancels = codex_login_cancels.lock().await;
+                cancels.remove(&workspace_id);
+                return Err("Codex login canceled.".to_string());
+            }
+            Err(TryRecvError::Empty) => {}
+        }
+
+        let elapsed = start.elapsed();
+        if elapsed >= LOGIN_START_TIMEOUT {
+            let mut cancels = codex_login_cancels.lock().await;
+            cancels.remove(&workspace_id);
+            return Err("Codex login start timed out.".to_string());
+        }
+
+        let tick = Duration::from_millis(150);
+        let remaining = LOGIN_START_TIMEOUT.saturating_sub(elapsed);
+        let wait_for = remaining.min(tick);
+
+        match timeout(wait_for, &mut login_request).await {
+            Ok(result) => break result?,
+            Err(_elapsed) => continue,
         }
     };
 
-    cancel_task.abort();
+    let payload = response.get("result").unwrap_or(&response);
+    let login_id = payload
+        .get("loginId")
+        .or_else(|| payload.get("login_id"))
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .ok_or_else(|| "missing login id in account/login/start response".to_string())?;
+    let auth_url = payload
+        .get("authUrl")
+        .or_else(|| payload.get("auth_url"))
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .ok_or_else(|| "missing auth url in account/login/start response".to_string())?;
+
     {
-        let mut cancels = gemini_login_cancels.lock().await;
-        cancels.remove(&workspace_id);
+        let mut cancels = codex_login_cancels.lock().await;
+        cancels.insert(workspace_id, CodexLoginCancelState::LoginId(login_id.clone()));
     }
 
-    if canceled.load(Ordering::Relaxed) {
-        return Err("Gemini login canceled.".to_string());
-    }
-
-    let stdout_bytes = match stdout_task.await {
-        Ok(bytes) => bytes,
-        Err(_) => Vec::new(),
-    };
-    let stderr_bytes = match stderr_task.await {
-        Ok(bytes) => bytes,
-        Err(_) => Vec::new(),
-    };
-
-    let stdout = String::from_utf8_lossy(&stdout_bytes);
-    let stderr = String::from_utf8_lossy(&stderr_bytes);
-    let detail = if stderr.trim().is_empty() {
-        stdout.trim()
-    } else {
-        stderr.trim()
-    };
-    let combined = if stdout.trim().is_empty() {
-        stderr.trim().to_string()
-    } else if stderr.trim().is_empty() {
-        stdout.trim().to_string()
-    } else {
-        format!("{}\n{}", stdout.trim(), stderr.trim())
-    };
-    let limited = combined.chars().take(4000).collect::<String>();
-
-    if !status.success() {
-        return Err(if detail.is_empty() {
-            "Gemini login failed.".to_string()
-        } else {
-            format!("Gemini login failed: {detail}")
-        });
-    }
-
-    Ok(json!({ "output": limited }))
+    Ok(json!({
+        "loginId": login_id,
+        "authUrl": auth_url,
+        "raw": response,
+    }))
 }
 
-pub(crate) async fn gemini_login_cancel_core(
-    gemini_login_cancels: &Mutex<HashMap<String, oneshot::Sender<()>>>,
+pub(crate) async fn codex_login_cancel_core(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    codex_login_cancels: &Mutex<HashMap<String, CodexLoginCancelState>>,
     workspace_id: String,
 ) -> Result<Value, String> {
-    let cancel_tx = {
-        let mut cancels = gemini_login_cancels.lock().await;
+    let cancel_state = {
+        let mut cancels = codex_login_cancels.lock().await;
         cancels.remove(&workspace_id)
     };
-    let canceled = if let Some(tx) = cancel_tx {
-        let _ = tx.send(());
-        true
-    } else {
-        false
+
+    let Some(cancel_state) = cancel_state else {
+        return Ok(json!({ "canceled": false }));
     };
-    Ok(json!({ "canceled": canceled }))
+
+    match cancel_state {
+        CodexLoginCancelState::PendingStart(cancel_tx) => {
+            let _ = cancel_tx.send(());
+            return Ok(json!({
+                "canceled": true,
+                "status": "canceled",
+            }));
+        }
+        CodexLoginCancelState::LoginId(login_id) => {
+            let session = get_session_clone(sessions, &workspace_id).await?;
+            let response = session
+                .send_request(
+                    "account/login/cancel",
+                    json!({
+                        "loginId": login_id,
+                    }),
+                )
+                .await?;
+
+            let payload = response.get("result").unwrap_or(&response);
+            let status = payload
+                .get("status")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let canceled = status.eq_ignore_ascii_case("canceled");
+
+            Ok(json!({
+                "canceled": canceled,
+                "status": status,
+                "raw": response,
+            }))
+        }
+    }
 }
 
 pub(crate) async fn skills_list_core(
@@ -447,6 +441,17 @@ pub(crate) async fn skills_list_core(
     let session = get_session_clone(sessions, &workspace_id).await?;
     let params = json!({ "cwd": session.entry.path });
     session.send_request("skills/list", params).await
+}
+
+pub(crate) async fn apps_list_core(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspace_id: String,
+    cursor: Option<String>,
+    limit: Option<u32>,
+) -> Result<Value, String> {
+    let session = get_session_clone(sessions, &workspace_id).await?;
+    let params = json!({ "cursor": cursor, "limit": limit });
+    session.send_request("app/list", params).await
 }
 
 pub(crate) async fn respond_to_server_request_core(

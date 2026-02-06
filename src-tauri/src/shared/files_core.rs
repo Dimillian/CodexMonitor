@@ -3,15 +3,15 @@ use std::path::PathBuf;
 
 use tokio::sync::Mutex;
 
-use crate::gemini::home as gemini_home;
+use crate::codex::home as codex_home;
 use crate::files::io::TextFileResponse;
 use crate::files::ops::{read_with_policy, write_with_policy};
 use crate::files::policy::{policy_for, FileKind, FileScope};
 use crate::types::WorkspaceEntry;
 
-fn resolve_default_gemini_home() -> Result<PathBuf, String> {
-    gemini_home::resolve_default_gemini_home()
-        .ok_or_else(|| "Unable to resolve GEMINI_HOME".to_string())
+fn resolve_default_codex_home() -> Result<PathBuf, String> {
+    codex_home::resolve_default_codex_home()
+        .ok_or_else(|| "Unable to resolve CODEX_HOME".to_string())
 }
 
 async fn resolve_workspace_root(
@@ -31,7 +31,7 @@ pub(crate) async fn resolve_root_core(
     workspace_id: Option<&str>,
 ) -> Result<PathBuf, String> {
     match scope {
-        FileScope::Global => resolve_default_gemini_home(),
+        FileScope::Global => resolve_default_codex_home(),
         FileScope::Workspace => {
             let workspace_id =
                 workspace_id.ok_or_else(|| "workspaceId is required".to_string())?;

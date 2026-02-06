@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DebugEntry, SkillOption, WorkspaceInfo } from "../../../types";
 import { getSkillsList } from "../../../services/tauri";
+import { subscribeAppServerEvents } from "../../../services/events";
+import { isSkillsUpdateAvailableEvent } from "../../../utils/appServerEvents";
 
 type UseSkillsOptions = {
   activeWorkspace: WorkspaceInfo | null;
@@ -75,6 +77,30 @@ export function useSkills({ activeWorkspace, onDebug }: UseSkillsOptions) {
     }
     refreshSkills();
   }, [isConnected, refreshSkills, skills.length, workspaceId]);
+
+  useEffect(() => {
+    if (!workspaceId || !isConnected) {
+      return;
+    }
+
+    return subscribeAppServerEvents((event) => {
+      if (event.workspace_id !== workspaceId) {
+        return;
+      }
+      if (!isSkillsUpdateAvailableEvent(event)) {
+        return;
+      }
+
+      onDebug?.({
+        id: `${Date.now()}-server-skills-update-available`,
+        timestamp: Date.now(),
+        source: "server",
+        label: "skills/update available",
+        payload: event,
+      });
+      void refreshSkills();
+    });
+  }, [isConnected, onDebug, refreshSkills, workspaceId]);
 
   const skillOptions = useMemo(
     () => skills.filter((skill) => skill.name),

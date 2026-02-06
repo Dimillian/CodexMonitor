@@ -32,9 +32,15 @@ const workspaceTwoConnected: WorkspaceInfo = {
 
 const makeModesResponse = () => ({
   result: {
-    data: [{ mode: "plan" }, { mode: "code" }],
+    data: [{ mode: "plan" }, { mode: "default" }],
   },
 });
+
+const makeModesResponseArrayResult = () => ({
+  result: [{ mode: "plan" }, { mode: "default" }],
+});
+
+const makeModesResponseTopLevelArray = () => [{ mode: "plan" }, { mode: "default" }];
 
 describe("useCollaborationModes", () => {
   afterEach(() => {
@@ -52,7 +58,7 @@ describe("useCollaborationModes", () => {
       },
     );
 
-    await waitFor(() => expect(result.current.selectedCollaborationModeId).toBe("code"));
+    await waitFor(() => expect(result.current.selectedCollaborationModeId).toBe("default"));
 
     act(() => {
       result.current.setSelectedCollaborationModeId("plan");
@@ -82,7 +88,7 @@ describe("useCollaborationModes", () => {
       },
     );
 
-    await waitFor(() => expect(result.current.selectedCollaborationModeId).toBe("code"));
+    await waitFor(() => expect(result.current.selectedCollaborationModeId).toBe("default"));
 
     act(() => {
       result.current.setSelectedCollaborationModeId("plan");
@@ -94,5 +100,34 @@ describe("useCollaborationModes", () => {
     expect(result.current.selectedCollaborationModeId).toBeNull();
     expect(result.current.collaborationModes).toEqual([]);
   });
-});
 
+  it("accepts alternate response shapes from the backend", async () => {
+    vi.mocked(getCollaborationModes)
+      .mockResolvedValueOnce(makeModesResponseArrayResult() as any)
+      .mockResolvedValueOnce(makeModesResponseTopLevelArray() as any);
+
+    const { result, rerender } = renderHook(
+      ({ workspace }: { workspace: WorkspaceInfo | null }) =>
+        useCollaborationModes({ activeWorkspace: workspace, enabled: true }),
+      {
+        initialProps: { workspace: workspaceOne },
+      },
+    );
+
+    await waitFor(() =>
+      expect(result.current.collaborationModes.map((mode) => mode.id)).toEqual([
+        "plan",
+        "default",
+      ]),
+    );
+
+    rerender({ workspace: { ...workspaceOne, id: "workspace-1b" } });
+
+    await waitFor(() =>
+      expect(result.current.collaborationModes.map((mode) => mode.id)).toEqual([
+        "plan",
+        "default",
+      ]),
+    );
+  });
+});

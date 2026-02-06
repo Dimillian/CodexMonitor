@@ -5,5 +5,5 @@ fn main() {
     if let Err(err) = fix_path_env::fix() {
         eprintln!("Failed to sync PATH from shell: {err}");
     }
-    gemini_monitor_lib::run()
+    codex_monitor_lib::run()
 }

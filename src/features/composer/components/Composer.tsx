@@ -1,5 +1,14 @@
-import { useCallback, useEffect, useRef, useState, type ClipboardEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ClipboardEvent,
+} from "react";
 import type {
+  AppOption,
   ComposerEditorSettings,
   CustomPromptOption,
   DictationTranscript,
@@ -20,6 +29,7 @@ import {
   isCursorInsideFence,
   normalizePastedText,
 } from "../../../utils/composerText";
+import { getCaretPosition } from "../../../utils/caretPosition";
 import { useComposerAutocompleteState } from "../hooks/useComposerAutocompleteState";
 import { usePromptHistory } from "../hooks/usePromptHistory";
 import { ComposerInput } from "./ComposerInput";
@@ -32,6 +42,7 @@ type ComposerProps = {
   onStop: () => void;
   canStop: boolean;
   disabled?: boolean;
+  appsEnabled: boolean;
   isProcessing: boolean;
   steerEnabled: boolean;
   collaborationModes: { id: string; label: string }[];
@@ -47,6 +58,7 @@ type ComposerProps = {
   accessMode: "read-only" | "current" | "full-access";
   onSelectAccessMode: (mode: "read-only" | "current" | "full-access") => void;
   skills: { name: string; description?: string }[];
+  apps: AppOption[];
   prompts: CustomPromptOption[];
   files: string[];
   contextUsage?: ThreadTokenUsage | null;
@@ -105,6 +117,7 @@ type ComposerProps = {
   onReviewPromptConfirmCommit?: () => Promise<void>;
   onReviewPromptUpdateCustomInstructions?: (value: string) => void;
   onReviewPromptConfirmCustom?: () => Promise<void>;
+  onFileAutocompleteActiveChange?: (active: boolean) => void;
 };
 
 const DEFAULT_EDITOR_SETTINGS: ComposerEditorSettings = {
@@ -117,6 +130,7 @@ const DEFAULT_EDITOR_SETTINGS: ComposerEditorSettings = {
   autoWrapPasteCodeLike: false,
   continueListOnShiftEnter: false,
 };
+const CARET_ANCHOR_GAP = 8;
 
 export function Composer({
   onSend,
@@ -124,6 +138,7 @@ export function Composer({
   onStop,
   canStop,
   disabled = false,
+  appsEnabled,
   isProcessing,
   steerEnabled,
   collaborationModes,
@@ -139,6 +154,7 @@ export function Composer({
   accessMode,
   onSelectAccessMode,
   skills,
+  apps,
   prompts,
   files,
   contextUsage = null,
@@ -191,9 +207,13 @@ export function Composer({
   onReviewPromptConfirmCommit,
   onReviewPromptUpdateCustomInstructions,
   onReviewPromptConfirmCustom,
+  onFileAutocompleteActiveChange,
 }: ComposerProps) {
   const [text, setText] = useState(draftText);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
+  const [suggestionsStyle, setSuggestionsStyle] = useState<
+    CSSProperties | undefined
+  >(undefined);
   const internalRef = useRef<HTMLTextAreaElement | null>(null);
   const textareaRef = externalTextareaRef ?? internalRef;
   const editorSettings = editorSettingsProp ?? DEFAULT_EDITOR_SETTINGS;
@@ -224,26 +244,64 @@ export function Composer({
   const {
     isAutocompleteOpen,
     autocompleteMatches,
+    autocompleteAnchorIndex,
     highlightIndex,
     setHighlightIndex,
     applyAutocomplete,
     handleInputKeyDown,
     handleTextChange,
     handleSelectionChange,
+    fileTriggerActive,
   } = useComposerAutocompleteState({
     text,
     selectionStart,
     disabled,
+    appsEnabled,
     skills,
+    apps,
     prompts,
     files,
     textareaRef,
     setText: setComposerText,
     setSelectionStart,
   });
+  useEffect(() => {
+    onFileAutocompleteActiveChange?.(fileTriggerActive);
+  }, [fileTriggerActive, onFileAutocompleteActiveChange]);
   const reviewPromptOpen = Boolean(reviewPrompt);
   const suggestionsOpen = reviewPromptOpen || isAutocompleteOpen;
   const suggestions = reviewPromptOpen ? [] : autocompleteMatches;
+
+  useLayoutEffect(() => {
+    if (!isAutocompleteOpen) {
+      setSuggestionsStyle(undefined);
+      return;
+    }
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return;
+    }
+    const cursor = autocompleteAnchorIndex ?? textarea.selectionStart ?? selectionStart ?? text.length;
+    const caret = getCaretPosition(textarea, cursor);
+    if (!caret) {
+      return;
+    }
+    const textareaRect = textarea.getBoundingClientRect();
+    const container = textarea.closest(".composer-input");
+    const containerRect = container?.getBoundingClientRect();
+    const offsetLeft = textareaRect.left - (containerRect?.left ?? 0);
+    const containerWidth = container?.clientWidth ?? textarea.clientWidth ?? 0;
+    const popoverWidth = Math.min(containerWidth, 420);
+    const rawLeft = offsetLeft + caret.left;
+    const maxLeft = Math.max(0, containerWidth - popoverWidth);
+    const left = Math.min(Math.max(0, rawLeft), maxLeft);
+    setSuggestionsStyle({
+      left,
+      right: "auto",
+      bottom: `calc(100% + ${CARET_ANCHOR_GAP}px)`,
+      top: "auto",
+    });
+  }, [autocompleteAnchorIndex, isAutocompleteOpen, selectionStart, text, textareaRef]);
 
   const {
     handleHistoryKeyDown,
@@ -629,6 +687,7 @@ export function Composer({
         highlightIndex={highlightIndex}
         onHighlightIndex={setHighlightIndex}
         onSelectSuggestion={applyAutocomplete}
+        suggestionsStyle={suggestionsStyle}
         reviewPrompt={reviewPrompt}
         onReviewPromptClose={onReviewPromptClose}
         onReviewPromptShowPreset={onReviewPromptShowPreset}

@@ -18,13 +18,26 @@ import {
   defaultAppSettings,
   resetMocks,
 } from "./mocks/tauri.mock";
-import type { AppSettings, GeminiDoctorResult } from "../../types";
+import type { AppSettings } from "../../types";
 
 // Import hooks after mocking (mocks are set up in setup.ts)
 import { useAppSettingsController } from "../../features/app/hooks/useAppSettingsController";
 
+// Doctor result shape matching the gemini_doctor mock handler
+type MockDoctorResult = {
+  ok: boolean;
+  geminiBin: string | null;
+  version: string | null;
+  appServerOk: boolean;
+  details: string | null;
+  path: string | null;
+  nodeOk: boolean;
+  nodeVersion: string | null;
+  nodeDetails: string | null;
+};
+
 // Helper to create mock doctor result
-function createMockDoctorResult(overrides: Partial<GeminiDoctorResult> = {}): GeminiDoctorResult {
+function createMockDoctorResult(overrides: Partial<MockDoctorResult> = {}): MockDoctorResult {
   return {
     ok: true,
     geminiBin: "/usr/local/bin/gemini",
@@ -54,7 +67,7 @@ describe("Settings Management E2E", () => {
     it("loads app settings on initialization", async () => {
       const customSettings: AppSettings = {
         ...defaultAppSettings,
-        geminiBin: "/usr/local/bin/gemini",
+        codexBin: "/usr/local/bin/gemini",
         defaultAccessMode: "full-access",
         notificationSoundsEnabled: false,
       };
@@ -97,14 +110,14 @@ describe("Settings Management E2E", () => {
       await act(async () => {
         await result.current.queueSaveSettings({
           ...result.current.appSettings,
-          geminiBin: "/custom/path/gemini",
+          codexBin: "/custom/path/gemini",
         });
       });
 
       expect(mockHandlers.update_app_settings).toHaveBeenCalledWith(
         expect.objectContaining({
           settings: expect.objectContaining({
-            geminiBin: "/custom/path/gemini",
+            codexBin: "/custom/path/gemini",
           }),
         })
       );
@@ -165,19 +178,19 @@ describe("Settings Management E2E", () => {
         expect(result.current.appSettingsLoading).toBe(false);
       });
 
-      expect(result.current.appSettings.experimentalCollaborationModesEnabled).toBe(false);
+      expect(result.current.appSettings.experimentalCollabEnabled).toBe(false);
 
       await act(async () => {
         await result.current.queueSaveSettings({
           ...result.current.appSettings,
-          experimentalCollaborationModesEnabled: true,
+          experimentalCollabEnabled: true,
         });
       });
 
       expect(mockHandlers.update_app_settings).toHaveBeenCalledWith(
         expect.objectContaining({
           settings: expect.objectContaining({
-            experimentalCollaborationModesEnabled: true,
+            experimentalCollabEnabled: true,
           }),
         })
       );
@@ -193,14 +206,14 @@ describe("Settings Management E2E", () => {
       await act(async () => {
         await result.current.queueSaveSettings({
           ...result.current.appSettings,
-          experimentalSteerEnabled: true,
+          steerEnabled: true,
         });
       });
 
       expect(mockHandlers.update_app_settings).toHaveBeenCalledWith(
         expect.objectContaining({
           settings: expect.objectContaining({
-            experimentalSteerEnabled: true,
+            steerEnabled: true,
           }),
         })
       );
@@ -426,13 +439,13 @@ describe("Settings Management E2E", () => {
         expect(result.current.appSettingsLoading).toBe(false);
       });
 
-      let doctorResponse: GeminiDoctorResult | undefined;
+      let doctorResponse: unknown;
       await act(async () => {
         doctorResponse = await result.current.doctor(null, null);
       });
 
-      expect(doctorResponse?.ok).toBe(false);
-      expect(doctorResponse?.details).toBe("Gemini CLI not found in PATH");
+      expect((doctorResponse as MockDoctorResult)?.ok).toBe(false);
+      expect((doctorResponse as MockDoctorResult)?.details).toBe("Gemini CLI not found in PATH");
     });
   });
 

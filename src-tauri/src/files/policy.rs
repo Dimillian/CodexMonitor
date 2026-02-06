@@ -37,14 +37,14 @@ pub(crate) fn policy_for(scope: FileScope, kind: FileKind) -> Result<FilePolicy,
         }),
         (FileScope::Global, FileKind::Agents) => Ok(FilePolicy {
             filename: AGENTS_FILENAME,
-            root_context: "GEMINI_HOME",
+            root_context: "CODEX_HOME",
             root_may_be_missing: true,
             create_root: true,
             allow_external_symlink_target: true,
         }),
         (FileScope::Global, FileKind::Config) => Ok(FilePolicy {
             filename: CONFIG_FILENAME,
-            root_context: "GEMINI_HOME",
+            root_context: "CODEX_HOME",
             root_may_be_missing: true,
             create_root: true,
             allow_external_symlink_target: false,
@@ -73,7 +73,7 @@ mod tests {
     fn global_agents_policy_creates_root() {
         let policy = policy_for(FileScope::Global, FileKind::Agents).expect("policy");
         assert_eq!(policy.filename, "AGENTS.md");
-        assert_eq!(policy.root_context, "GEMINI_HOME");
+        assert_eq!(policy.root_context, "CODEX_HOME");
         assert!(policy.root_may_be_missing);
         assert!(policy.create_root);
         assert!(policy.allow_external_symlink_target);
@@ -83,7 +83,7 @@ mod tests {
     fn global_config_policy_creates_root() {
         let policy = policy_for(FileScope::Global, FileKind::Config).expect("policy");
         assert_eq!(policy.filename, "config.toml");
-        assert_eq!(policy.root_context, "GEMINI_HOME");
+        assert_eq!(policy.root_context, "CODEX_HOME");
         assert!(policy.root_may_be_missing);
         assert!(policy.create_root);
         assert!(!policy.allow_external_symlink_target);

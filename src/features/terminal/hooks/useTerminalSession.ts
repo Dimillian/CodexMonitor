@@ -5,7 +5,12 @@ import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import type { DebugEntry, TerminalStatus, WorkspaceInfo } from "../../../types";
 import { buildErrorDebugEntry } from "../../../utils/debugEntries";
-import { subscribeTerminalOutput, type TerminalOutputEvent } from "../../../services/events";
+import {
+  subscribeTerminalExit,
+  subscribeTerminalOutput,
+  type TerminalExitEvent,
+  type TerminalOutputEvent,
+} from "../../../services/events";
 import {
   openTerminalSession,
   resizeTerminalSession,
@@ -19,6 +24,7 @@ type UseTerminalSessionOptions = {
   activeTerminalId: string | null;
   isVisible: boolean;
   onDebug?: (entry: DebugEntry) => void;
+  onSessionExit?: (workspaceId: string, terminalId: string) => void;
 };
 
 type TerminalAppearance = {
@@ -50,7 +56,16 @@ function appendBuffer(existing: string | undefined, data: string): string {
 
 function shouldIgnoreTerminalError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
-  return message.includes("Terminal session not found");
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("terminal session not found") ||
+    lower.includes("broken pipe") ||
+    lower.includes("input/output error") ||
+    lower.includes("os error 5") ||
+    lower.includes("eio") ||
+    lower.includes("not connected") ||
+    lower.includes("closed")
+  );
 }
 
 function getTerminalAppearance(container: HTMLElement | null): TerminalAppearance {
@@ -100,6 +115,7 @@ export function useTerminalSession({
   activeTerminalId,
   isVisible,
   onDebug,
+  onSessionExit,
 }: UseTerminalSessionOptions): TerminalSessionState {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
@@ -196,6 +212,23 @@ export function useTerminalSession({
       unlisten();
     };
   }, [onDebug, writeToTerminal]);
+
+  useEffect(() => {
+    const unlisten = subscribeTerminalExit(
+      (payload: TerminalExitEvent) => {
+        cleanupTerminalSession(payload.workspaceId, payload.terminalId);
+        onSessionExit?.(payload.workspaceId, payload.terminalId);
+      },
+      {
+        onError: (error) => {
+          onDebug?.(buildErrorDebugEntry("terminal exit listen error", error));
+        },
+      },
+    );
+    return () => {
+      unlisten();
+    };
+  }, [cleanupTerminalSession, onDebug, onSessionExit]);
 
   useEffect(() => {
     if (!isVisible) {

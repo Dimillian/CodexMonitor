@@ -1,6 +1,7 @@
 import type {
   AccountSnapshot,
   RateLimitSnapshot,
+  ThreadListSortKey,
   ThreadSummary,
   WorkspaceInfo,
 } from "../../../types";
@@ -22,10 +23,11 @@ import { useCollapsedGroups } from "../hooks/useCollapsedGroups";
 import { useSidebarMenus } from "../hooks/useSidebarMenus";
 import { useSidebarScrollFade } from "../hooks/useSidebarScrollFade";
 import { useThreadRows } from "../hooks/useThreadRows";
+import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { getUsageLabels } from "../utils/usageLabels";
 import { formatRelativeTimeShort } from "../../../utils/time";
 
-const COLLAPSED_GROUPS_STORAGE_KEY = "geminimonitor.collapsedGroups";
+const COLLAPSED_GROUPS_STORAGE_KEY = "codexmonitor.collapsedGroups";
 const UNGROUPED_COLLAPSE_ID = "__ungrouped__";
 const ADD_MENU_WIDTH = 200;
 
@@ -40,6 +42,8 @@ type SidebarProps = {
   groupedWorkspaces: WorkspaceGroupSection[];
   hasWorkspaceGroups: boolean;
   deletingWorktreeIds: Set<string>;
+  newAgentDraftWorkspaceId?: string | null;
+  startingDraftThreadWorkspaceId?: string | null;
   threadsByWorkspace: Record<string, ThreadSummary[]>;
   threadParentById: Record<string, string>;
   threadStatusById: Record<
@@ -49,6 +53,8 @@ type SidebarProps = {
   threadListLoadingByWorkspace: Record<string, boolean>;
   threadListPagingByWorkspace: Record<string, boolean>;
   threadListCursorByWorkspace: Record<string, string | null>;
+  threadListSortKey: ThreadListSortKey;
+  onSetThreadListSortKey: (sortKey: ThreadListSortKey) => void;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   accountRateLimits: RateLimitSnapshot | null;
@@ -94,12 +100,16 @@ export function Sidebar({
   groupedWorkspaces,
   hasWorkspaceGroups,
   deletingWorktreeIds,
+  newAgentDraftWorkspaceId = null,
+  startingDraftThreadWorkspaceId = null,
   threadsByWorkspace,
   threadParentById,
   threadStatusById,
   threadListLoadingByWorkspace,
   threadListPagingByWorkspace,
   threadListCursorByWorkspace,
+  threadListSortKey,
+  onSetThreadListSortKey,
   activeWorkspaceId,
   activeThreadId,
   accountRateLimits,
@@ -143,7 +153,6 @@ export function Sidebar({
     new Set<string>(),
   );
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [addMenuAnchor, setAddMenuAnchor] = useState<{
     workspaceId: string;
@@ -176,6 +185,7 @@ export function Sidebar({
     creditsLabel,
     showWeekly,
   } = getUsageLabels(accountRateLimits, usageShowRemaining);
+  const debouncedQuery = useDebouncedValue(searchQuery, 150);
   const normalizedQuery = debouncedQuery.trim().toLowerCase();
 
   const isWorkspaceMatch = useCallback(
@@ -225,7 +235,7 @@ export function Sidebar({
     ? accountEmail
     : accountInfo?.type === "apikey"
       ? "API key"
-      : "Sign in to Gemini";
+      : "Sign in to Codex";
   const accountActionLabel = accountEmail ? "Switch account" : "Sign in";
   const showAccountSwitcher = Boolean(activeWorkspaceId);
   const accountSwitchDisabled = accountSwitching || !activeWorkspaceId;
@@ -381,13 +391,6 @@ export function Sidebar({
     }
   }, [isSearchOpen, searchQuery]);
 
-  useEffect(() => {
-    const handle = window.setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 150);
-    return () => window.clearTimeout(handle);
-  }, [searchQuery]);
-
   return (
     <aside
       className={`sidebar${isSearchOpen ? " search-open" : ""}`}
@@ -402,6 +405,8 @@ export function Sidebar({
         onAddWorkspace={onAddWorkspace}
         onToggleSearch={() => setIsSearchOpen((prev) => !prev)}
         isSearchOpen={isSearchOpen}
+        threadListSortKey={threadListSortKey}
+        onSetThreadListSortKey={onSetThreadListSortKey}
       />
       <div className={`sidebar-search${isSearchOpen ? " is-open" : ""}`}>
         {isSearchOpen && (
@@ -502,14 +507,23 @@ export function Sidebar({
                   const nextCursor =
                     threadListCursorByWorkspace[entry.id] ?? null;
                   const showThreadList =
-                    !isCollapsed && (threads.length > 0 || Boolean(nextCursor));
+                    threads.length > 0 || Boolean(nextCursor);
                   const isLoadingThreads =
                     threadListLoadingByWorkspace[entry.id] ?? false;
                   const showThreadLoader =
-                    !isCollapsed && isLoadingThreads && threads.length === 0;
+                    isLoadingThreads && threads.length === 0;
                   const isPaging = threadListPagingByWorkspace[entry.id] ?? false;
                   const worktrees = worktreesByParent.get(entry.id) ?? [];
                   const addMenuOpen = addMenuAnchor?.workspaceId === entry.id;
+                  const isDraftNewAgent = newAgentDraftWorkspaceId === entry.id;
+                  const isDraftRowActive =
+                    isDraftNewAgent &&
+                    entry.id === activeWorkspaceId &&
+                    !activeThreadId;
+                  const draftStatusClass =
+                    startingDraftThreadWorkspaceId === entry.id
+                      ? "processing"
+                      : "ready";
 
                   return (
                     <WorkspaceCard
@@ -570,7 +584,26 @@ export function Sidebar({
                           </div>,
                           document.body,
                         )}
-                      {!isCollapsed && worktrees.length > 0 && (
+                      {isDraftNewAgent && (
+                        <div
+                          className={`thread-row thread-row-draft${
+                            isDraftRowActive ? " active" : ""
+                          }`}
+                          onClick={() => onSelectWorkspace(entry.id)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              onSelectWorkspace(entry.id);
+                            }
+                          }}
+                        >
+                          <span className={`thread-status ${draftStatusClass}`} aria-hidden />
+                          <span className="thread-name">New Agent</span>
+                        </div>
+                      )}
+                      {worktrees.length > 0 && (
                         <WorktreeSection
                           worktrees={worktrees}
                           deletingWorktreeIds={deletingWorktreeIds}

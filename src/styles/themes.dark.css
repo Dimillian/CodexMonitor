@@ -1,14 +1,15 @@
 :root {
-  font-family: "SF Pro Text", "SF Pro Display", -apple-system, "Helvetica Neue",
-    sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
   color: var(--text-primary);
   background-color: transparent;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   color-scheme: light dark;
-  --ui-font-family: "SF Pro Text", "SF Pro Display", -apple-system, "Helvetica Neue",
-    sans-serif;
-  --code-font-family: "SF Mono", "SFMono-Regular", Menlo, Monaco, monospace;
+  --ui-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --code-font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Menlo,
+    Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --code-font-size: 11px;
   --code-font-weight: 400;
   --code-line-height: 1.28;

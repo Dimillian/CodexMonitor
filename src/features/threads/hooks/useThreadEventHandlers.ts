@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import type { Dispatch, MutableRefObject } from "react";
-import type { AppServerEvent, DebugEntry } from "../../../types";
+import type { AppServerEvent, DebugEntry, TurnPlan } from "../../../types";
+import { getAppServerRawMethod } from "../../../utils/appServerEvents";
 import { useThreadApprovalEvents } from "./useThreadApprovalEvents";
 import { useThreadItemEvents } from "./useThreadItemEvents";
 import { useThreadTurnEvents } from "./useThreadTurnEvents";
@@ -10,6 +11,7 @@ import type { ThreadAction } from "./useThreadsReducer";
 type ThreadEventHandlersOptions = {
   activeThreadId: string | null;
   dispatch: Dispatch<ThreadAction>;
+  planByThreadRef: MutableRefObject<Record<string, TurnPlan | null>>;
   getCustomName: (workspaceId: string, threadId: string) => string | undefined;
   isThreadHidden: (workspaceId: string, threadId: string) => boolean;
   markProcessing: (threadId: string, isProcessing: boolean) => void;
@@ -28,6 +30,7 @@ type ThreadEventHandlersOptions = {
     threadId: string,
     item: Record<string, unknown>,
   ) => void;
+  onReviewExited?: (workspaceId: string, threadId: string) => void;
   approvalAllowlistRef: MutableRefObject<Record<string, string[][]>>;
   pendingInterruptsRef: MutableRefObject<Set<string>>;
 };
@@ -35,6 +38,7 @@ type ThreadEventHandlersOptions = {
 export function useThreadEventHandlers({
   activeThreadId,
   dispatch,
+  planByThreadRef,
   getCustomName,
   isThreadHidden,
   markProcessing,
@@ -46,6 +50,7 @@ export function useThreadEventHandlers({
   onDebug,
   onWorkspaceConnected,
   applyCollabThreadLinks,
+  onReviewExited,
   approvalAllowlistRef,
   pendingInterruptsRef,
 }: ThreadEventHandlersOptions) {
@@ -63,6 +68,7 @@ export function useThreadEventHandlers({
     onReasoningSummaryDelta,
     onReasoningSummaryBoundary,
     onReasoningTextDelta,
+    onPlanDelta,
     onCommandOutputDelta,
     onTerminalInteraction,
     onFileChangeOutputDelta,
@@ -75,19 +81,21 @@ export function useThreadEventHandlers({
     safeMessageActivity,
     recordThreadActivity,
     applyCollabThreadLinks,
+    onReviewExited,
   });
 
   const {
     onThreadStarted,
+    onThreadNameUpdated,
     onTurnStarted,
     onTurnCompleted,
     onTurnPlanUpdated,
     onThreadTokenUsageUpdated,
     onAccountRateLimitsUpdated,
     onTurnError,
-    onContextCompacted,
   } = useThreadTurnEvents({
     dispatch,
+    planByThreadRef,
     getCustomName,
     isThreadHidden,
     markProcessing,
@@ -111,8 +119,8 @@ export function useThreadEventHandlers({
 
   const onAppServerEvent = useCallback(
     (event: AppServerEvent) => {
-      const method = String(event.message?.method ?? "");
-      const inferredSource = method === "gemini/stderr" ? "stderr" : "event";
+      const method = getAppServerRawMethod(event) ?? "";
+      const inferredSource = method === "codex/stderr" ? "stderr" : "event";
       onDebug?.({
         id: `${Date.now()}-server-event`,
         timestamp: Date.now(),
@@ -138,17 +146,18 @@ export function useThreadEventHandlers({
       onReasoningSummaryDelta,
       onReasoningSummaryBoundary,
       onReasoningTextDelta,
+      onPlanDelta,
       onCommandOutputDelta,
       onTerminalInteraction,
       onFileChangeOutputDelta,
       onThreadStarted,
+      onThreadNameUpdated,
       onTurnStarted,
       onTurnCompleted,
       onTurnPlanUpdated,
       onThreadTokenUsageUpdated,
       onAccountRateLimitsUpdated,
       onTurnError,
-      onContextCompacted,
     }),
     [
       onWorkspaceConnected,
@@ -163,17 +172,18 @@ export function useThreadEventHandlers({
       onReasoningSummaryDelta,
       onReasoningSummaryBoundary,
       onReasoningTextDelta,
+      onPlanDelta,
       onCommandOutputDelta,
       onTerminalInteraction,
       onFileChangeOutputDelta,
       onThreadStarted,
+      onThreadNameUpdated,
       onTurnStarted,
       onTurnCompleted,
       onTurnPlanUpdated,
       onThreadTokenUsageUpdated,
       onAccountRateLimitsUpdated,
       onTurnError,
-      onContextCompacted,
     ],
   );
 

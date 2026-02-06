@@ -11,6 +11,7 @@ type DesktopLayoutProps = {
   showWorkspace: boolean;
   topbarLeftNode: ReactNode;
   centerMode: "chat" | "diff";
+  preloadGitDiffs: boolean;
   messagesNode: ReactNode;
   gitDiffViewerNode: ReactNode;
   gitDiffPanelNode: ReactNode;
@@ -34,6 +35,7 @@ export function DesktopLayout({
   showWorkspace,
   topbarLeftNode,
   centerMode,
+  preloadGitDiffs,
   messagesNode,
   gitDiffViewerNode,
   gitDiffPanelNode,
@@ -48,6 +50,7 @@ export function DesktopLayout({
 }: DesktopLayoutProps) {
   const diffLayerRef = useRef<HTMLDivElement | null>(null);
   const chatLayerRef = useRef<HTMLDivElement | null>(null);
+  const shouldRenderDiffViewer = preloadGitDiffs || centerMode === "diff";
 
   useEffect(() => {
     const diffLayer = diffLayerRef.current;
@@ -106,7 +109,7 @@ export function DesktopLayout({
                 aria-hidden={centerMode !== "diff"}
                 ref={diffLayerRef}
               >
-                {gitDiffViewerNode}
+                {shouldRenderDiffViewer ? gitDiffViewerNode : null}
               </div>
               <div
                 className={`content-layer ${centerMode === "chat" ? "is-active" : "is-hidden"}`}

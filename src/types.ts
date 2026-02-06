@@ -3,10 +3,35 @@ export type WorkspaceSettings = {
   sortOrder?: number | null;
   groupId?: string | null;
   gitRoot?: string | null;
-  geminiHome?: string | null;
-  geminiArgs?: string | null;
+  codexHome?: string | null;
+  codexArgs?: string | null;
   launchScript?: string | null;
+  launchScripts?: LaunchScriptEntry[] | null;
   worktreeSetupScript?: string | null;
+};
+
+export type LaunchScriptIconId =
+  | "play"
+  | "build"
+  | "debug"
+  | "wrench"
+  | "terminal"
+  | "code"
+  | "server"
+  | "database"
+  | "package"
+  | "test"
+  | "lint"
+  | "dev"
+  | "git"
+  | "config"
+  | "logs";
+
+export type LaunchScriptEntry = {
+  id: string;
+  script: string;
+  icon: LaunchScriptIconId;
+  label?: string | null;
 };
 
 export type WorkspaceGroup = {
@@ -27,7 +52,7 @@ export type WorkspaceInfo = {
   name: string;
   path: string;
   connected: boolean;
-  gemini_bin?: string | null;
+  codex_bin?: string | null;
   kind?: WorkspaceKind;
   parentId?: string | null;
   worktree?: WorktreeInfo | null;
@@ -80,6 +105,8 @@ export type ThreadSummary = {
   updatedAt: number;
 };
 
+export type ThreadListSortKey = "created_at" | "updated_at";
+
 export type ReviewTarget =
   | { type: "uncommittedChanges" }
   | { type: "baseBranch"; branch: string }
@@ -89,7 +116,8 @@ export type ReviewTarget =
 export type AccessMode = "read-only" | "current" | "full-access";
 export type BackendMode = "local" | "remote";
 export type ThemePreference = "system" | "light" | "dark" | "dim";
-export type CliType = "gemini" | "cursor" | "claude";
+export type PersonalityPreference = "friendly" | "pragmatic";
+export type CliType = "codex" | "gemini" | "cursor" | "claude";
 export type CursorOperatingMode = "agent" | "plan" | "ask" | "debug";
 export type CursorOutputFormat = "text" | "json" | "stream-json";
 
@@ -118,13 +146,14 @@ export type OpenAppTarget = {
 
 export type AppSettings = {
   cliType: CliType;
+  codexBin: string | null;
+  codexArgs: string | null;
   geminiBin: string | null;
   geminiArgs: string | null;
   cursorBin: string | null;
   cursorArgs: string | null;
   claudeBin: string | null;
   claudeArgs: string | null;
-  // Cursor CLI specific settings
   cursorVimMode: boolean;
   cursorDefaultMode: CursorOperatingMode;
   cursorOutputFormat: CursorOutputFormat;
@@ -135,6 +164,7 @@ export type AppSettings = {
   remoteBackendHost: string;
   remoteBackendToken: string | null;
   defaultAccessMode: AccessMode;
+  reviewDeliveryMode: "inline" | "detached";
   composerModelShortcut: string | null;
   composerAccessShortcut: string | null;
   composerReasoningShortcut: string | null;
@@ -146,6 +176,7 @@ export type AppSettings = {
   archiveThreadShortcut: string | null;
   toggleProjectsSidebarShortcut: string | null;
   toggleGitSidebarShortcut: string | null;
+  branchSwitcherShortcut: string | null;
   toggleDebugPanelShortcut: string | null;
   toggleTerminalShortcut: string | null;
   cycleAgentNextShortcut: string | null;
@@ -161,11 +192,15 @@ export type AppSettings = {
   codeFontFamily: string;
   codeFontSize: number;
   notificationSoundsEnabled: boolean;
+  systemNotificationsEnabled: boolean;
   preloadGitDiffs: boolean;
+  gitDiffIgnoreWhitespaceChanges: boolean;
   experimentalCollabEnabled: boolean;
-  experimentalCollaborationModesEnabled: boolean;
-  experimentalSteerEnabled: boolean;
-  experimentalUnifiedExecEnabled: boolean;
+  collaborationModesEnabled: boolean;
+  steerEnabled: boolean;
+  unifiedExecEnabled: boolean;
+  experimentalAppsEnabled: boolean;
+  personality: PersonalityPreference;
   dictationEnabled: boolean;
   dictationModelId: string;
   dictationPreferredLanguage: string | null;
@@ -184,9 +219,9 @@ export type AppSettings = {
   selectedOpenAppId: string;
 };
 
-export type GeminiDoctorResult = {
+export type CodexDoctorResult = {
   ok: boolean;
-  geminiBin: string | null;
+  codexBin: string | null;
   version: string | null;
   appServerOk: boolean;
   details: string | null;
@@ -194,15 +229,6 @@ export type GeminiDoctorResult = {
   nodeOk: boolean;
   nodeVersion: string | null;
   nodeDetails: string | null;
-};
-
-export type ClaudeDoctorResult = {
-  ok: boolean;
-  claudeBin: string | null;
-  version: string | null;
-  sandboxOk: boolean;
-  details: string | null;
-  path: string | null;
 };
 
 export type ApprovalRequest = {
@@ -256,6 +282,8 @@ export type GitFileStatus = {
 export type GitFileDiff = {
   path: string;
   diff: string;
+  oldLines?: string[];
+  newLines?: string[];
   isBinary?: boolean;
   isImage?: boolean;
   oldImageData?: string | null;
@@ -268,6 +296,8 @@ export type GitCommitDiff = {
   path: string;
   status: string;
   diff: string;
+  oldLines?: string[];
+  newLines?: string[];
   isBinary?: boolean;
   isImage?: boolean;
   oldImageData?: string | null;
@@ -459,6 +489,15 @@ export type SkillOption = {
   description?: string;
 };
 
+export type AppOption = {
+  id: string;
+  name: string;
+  description?: string;
+  isAccessible: boolean;
+  installUrl?: string | null;
+  distributionChannel?: string | null;
+};
+
 export type CustomPromptOption = {
   name: string;
   path: string;
@@ -510,73 +549,4 @@ export type DictationEvent =
 export type DictationTranscript = {
   id: string;
   text: string;
-};
-
-// Gemini CLI settings.json types
-
-export type GeminiModelSettings = {
-  name?: string | null;
-  maxSessionTurns?: number | null;
-  compressionThreshold?: number | null;
-};
-
-export type GeminiOutputSettings = {
-  format?: string | null;
-};
-
-export type GeminiAccessibilitySettings = {
-  screenReader?: boolean | null;
-};
-
-export type GeminiUiSettings = {
-  theme?: string | null;
-  customThemes?: Record<string, unknown> | null;
-  hideWindowTitle?: boolean | null;
-  hideBanner?: boolean | null;
-  hideFooter?: boolean | null;
-  accessibility?: GeminiAccessibilitySettings | null;
-};
-
-export type GeminiCheckpointSettings = {
-  enabled?: boolean | null;
-};
-
-export type GeminiPrivacySettings = {
-  usageStatisticsEnabled?: boolean | null;
-};
-
-export type GeminiToolSettings = {
-  autoAcceptSafe?: boolean | null;
-};
-
-export type GeminiMcpServerConfig = {
-  command?: string | null;
-  args?: string[] | null;
-  env?: Record<string, string> | null;
-  cwd?: string | null;
-  enabled?: boolean | null;
-};
-
-export type GeminiMcpSettings = {
-  servers?: Record<string, GeminiMcpServerConfig> | null;
-};
-
-export type GeminiIdeSettings = {
-  enabled?: boolean | null;
-};
-
-export type GeminiSettings = {
-  previewFeatures?: boolean | null;
-  vimMode?: boolean | null;
-  enableAutoUpdate?: boolean | null;
-  model?: GeminiModelSettings | null;
-  output?: GeminiOutputSettings | null;
-  ui?: GeminiUiSettings | null;
-  checkpointing?: GeminiCheckpointSettings | null;
-  privacy?: GeminiPrivacySettings | null;
-  tools?: GeminiToolSettings | null;
-  mcp?: GeminiMcpSettings | null;
-  sandbox?: Record<string, unknown> | null;
-  ide?: GeminiIdeSettings | null;
-  hooks?: Record<string, unknown> | null;
 };

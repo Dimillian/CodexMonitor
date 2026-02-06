@@ -36,6 +36,8 @@ export function WorkspaceCard({
   onToggleAddMenu,
   children,
 }: WorkspaceCardProps) {
+  const contentCollapsedClass = isCollapsed ? " collapsed" : "";
+
   return (
     <div className="workspace-card">
       <div
@@ -109,7 +111,13 @@ export function WorkspaceCard({
           </span>
         )}
       </div>
-      {children}
+      <div
+        className={`workspace-card-content${contentCollapsedClass}`}
+        aria-hidden={isCollapsed}
+        inert={isCollapsed ? true : undefined}
+      >
+        <div className="workspace-card-content-inner">{children}</div>
+      </div>
     </div>
   );
 }

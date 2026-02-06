@@ -7,8 +7,8 @@ export type SettingsSection =
   | "shortcuts"
   | "open-apps"
   | "git"
-  | "gemini"
-  | "experimental";
+  | "codex"
+  | "features";
 
 export function useSettingsModalState() {
   const [settingsOpen, setSettingsOpen] = useState(false);

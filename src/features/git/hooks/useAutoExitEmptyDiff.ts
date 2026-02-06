@@ -10,7 +10,7 @@ type AutoExitEmptyDiffOptions = {
   isCompact: boolean;
   setCenterMode: (mode: "chat" | "diff") => void;
   setSelectedDiffPath: (path: string | null) => void;
-  setActiveTab: (tab: "projects" | "gemini" | "git" | "log") => void;
+  setActiveTab: (tab: "projects" | "codex" | "git" | "log") => void;
 };
 
 export function useAutoExitEmptyDiff({
@@ -44,7 +44,7 @@ export function useAutoExitEmptyDiff({
     setCenterMode("chat");
     setSelectedDiffPath(null);
     if (isCompact) {
-      setActiveTab("gemini");
+      setActiveTab("codex");
     }
   }, [
     activeDiffCount,

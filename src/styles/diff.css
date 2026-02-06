@@ -136,6 +136,43 @@
   margin-bottom: 4px;
 }
 
+.diff-branch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.diff-branch-row .diff-branch {
+  margin-bottom: 0;
+}
+
+.diff-branch-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.diff-branch-refresh:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+.diff-branch-refresh:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .git-root-current {
   display: flex;
   align-items: center;
@@ -322,6 +359,50 @@
   font-size: 12px;
   color: rgba(255, 160, 160, 0.9);
   white-space: pre-wrap;
+}
+
+.sidebar-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.sidebar-error-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.sidebar-error .diff-error,
+.sidebar-error .commit-message-error {
+  min-width: 0;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.sidebar-error-action {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+.sidebar-error-dismiss {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 4px;
+  color: var(--text-faint);
+}
+
+.sidebar-error-dismiss:hover {
+  color: var(--text-emphasis);
 }
 
 .diff-row {
@@ -1069,9 +1150,22 @@
   margin-bottom: 8px;
 }
 
+.diff-list > .push-section:first-child {
+  padding-top: 1px;
+}
+
 .push-sync-buttons {
   display: flex;
   gap: 8px;
+}
+
+.push-sync-buttons .push-button-secondary {
+  flex: 1;
+}
+
+.push-sync-buttons > button:only-child {
+  flex: 1;
+  width: 100%;
 }
 
 .push-button {
