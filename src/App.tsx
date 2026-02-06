@@ -106,6 +106,7 @@ import { pickWorkspacePath } from "./services/tauri";
 import type {
   AccessMode,
   ComposerEditorSettings,
+  ThreadListSortKey,
   WorkspaceInfo,
 } from "./types";
 import { OPEN_APP_STORAGE_KEY } from "./features/app/constants";
@@ -133,6 +134,18 @@ const GitHubPanelData = lazy(() =>
   })),
 );
 
+const THREAD_LIST_SORT_KEY_STORAGE_KEY = "codexmonitor.threadListSortKey";
+
+function getStoredThreadListSortKey(): ThreadListSortKey {
+  if (typeof window === "undefined") {
+    return "updated_at";
+  }
+  const stored = window.localStorage.getItem(THREAD_LIST_SORT_KEY_STORAGE_KEY);
+  if (stored === "created_at" || stored === "updated_at") {
+    return stored;
+  }
+  return "updated_at";
+}
 
 function MainApp() {
   const {
@@ -171,6 +184,9 @@ function MainApp() {
   } = useDebugLog();
   useLiquidGlassEffect({ reduceTransparency, onDebug: addDebugEntry });
   const [accessMode, setAccessMode] = useState<AccessMode>("current");
+  const [threadListSortKey, setThreadListSortKey] = useState<ThreadListSortKey>(
+    () => getStoredThreadListSortKey(),
+  );
   const [activeTab, setActiveTab] = useState<
     "projects" | "codex" | "git" | "log"
   >("codex");
@@ -711,8 +727,27 @@ function MainApp() {
     reviewDeliveryMode: appSettings.reviewDeliveryMode,
     steerEnabled: appSettings.steerEnabled,
     customPrompts: prompts,
-    onMessageActivity: queueGitStatusRefresh
+    onMessageActivity: queueGitStatusRefresh,
+    threadSortKey: threadListSortKey,
   });
+
+  const handleSetThreadListSortKey = useCallback(
+    (nextSortKey: ThreadListSortKey) => {
+      if (nextSortKey === threadListSortKey) {
+        return;
+      }
+      setThreadListSortKey(nextSortKey);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(THREAD_LIST_SORT_KEY_STORAGE_KEY, nextSortKey);
+      }
+      workspaces
+        .filter((workspace) => workspace.connected)
+        .forEach((workspace) => {
+          void listThreadsForWorkspace(workspace, { sortKey: nextSortKey });
+        });
+    },
+    [threadListSortKey, workspaces, listThreadsForWorkspace],
+  );
 
   useResponseRequiredNotificationsController({
     systemNotificationsEnabled: appSettings.systemNotificationsEnabled,
@@ -1757,6 +1792,8 @@ function MainApp() {
     threadListLoadingByWorkspace,
     threadListPagingByWorkspace,
     threadListCursorByWorkspace,
+    threadListSortKey,
+    onSetThreadListSortKey: handleSetThreadListSortKey,
     activeWorkspaceId,
     activeThreadId,
     activeItems,

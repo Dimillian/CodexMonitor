@@ -4,6 +4,7 @@ import type {
   ConversationItem,
   RateLimitSnapshot,
   RequestUserInputRequest,
+  ThreadListSortKey,
   ThreadSummary,
   ThreadTokenUsage,
   TurnPlan,
@@ -127,6 +128,7 @@ export type ThreadState = {
   threadListLoadingByWorkspace: Record<string, boolean>;
   threadListPagingByWorkspace: Record<string, boolean>;
   threadListCursorByWorkspace: Record<string, string | null>;
+  threadSortKeyByWorkspace: Record<string, ThreadListSortKey>;
   activeTurnIdByThread: Record<string, string | null>;
   approvals: ApprovalRequest[];
   userInputRequests: RequestUserInputRequest[];
@@ -197,7 +199,12 @@ export type ThreadAction =
   | { type: "appendReasoningContent"; threadId: string; itemId: string; delta: string }
   | { type: "appendPlanDelta"; threadId: string; itemId: string; delta: string }
   | { type: "appendToolOutput"; threadId: string; itemId: string; delta: string }
-  | { type: "setThreads"; workspaceId: string; threads: ThreadSummary[] }
+  | {
+      type: "setThreads";
+      workspaceId: string;
+      threads: ThreadSummary[];
+      sortKey: ThreadListSortKey;
+    }
   | {
       type: "setThreadListLoading";
       workspaceId: string;
@@ -260,6 +267,7 @@ export const initialState: ThreadState = {
   threadListLoadingByWorkspace: {},
   threadListPagingByWorkspace: {},
   threadListCursorByWorkspace: {},
+  threadSortKeyByWorkspace: {},
   activeTurnIdByThread: {},
   approvals: [],
   userInputRequests: [],
@@ -364,6 +372,10 @@ function isDuplicateReviewById(
       item.state === target.state &&
       item.text.trim() === normalizedText,
   );
+}
+
+function prefersUpdatedSort(state: ThreadState, workspaceId: string) {
+  return (state.threadSortKeyByWorkspace[workspaceId] ?? "updated_at") === "updated_at";
 }
 
 export function threadReducer(state: ThreadState, action: ThreadAction): ThreadState {
@@ -642,11 +654,17 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       if (!didChange) {
         return state;
       }
+      const sorted = prefersUpdatedSort(state, action.workspaceId)
+        ? [
+            ...next.filter((thread) => thread.id === action.threadId),
+            ...next.filter((thread) => thread.id !== action.threadId),
+          ]
+        : next;
       return {
         ...state,
         threadsByWorkspace: {
           ...state.threadsByWorkspace,
-          [action.workspaceId]: next,
+          [action.workspaceId]: sorted,
         },
       };
     }
@@ -768,12 +786,13 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
                 : thread.name;
           return { ...thread, name: nextName };
         });
-        const bumpedThreads = updatedThreads.length
-          ? [
-              ...updatedThreads.filter((thread) => thread.id === action.threadId),
-              ...updatedThreads.filter((thread) => thread.id !== action.threadId),
-            ]
-          : updatedThreads;
+        const bumpedThreads =
+          prefersUpdatedSort(state, action.workspaceId) && updatedThreads.length
+            ? [
+                ...updatedThreads.filter((thread) => thread.id === action.threadId),
+                ...updatedThreads.filter((thread) => thread.id !== action.threadId),
+              ]
+            : updatedThreads;
         nextThreadsByWorkspace = {
           ...state.threadsByWorkspace,
           [action.workspaceId]: bumpedThreads,
@@ -1009,6 +1028,10 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         threadsByWorkspace: {
           ...state.threadsByWorkspace,
           [action.workspaceId]: visibleThreads,
+        },
+        threadSortKeyByWorkspace: {
+          ...state.threadSortKeyByWorkspace,
+          [action.workspaceId]: action.sortKey,
         },
       };
     }

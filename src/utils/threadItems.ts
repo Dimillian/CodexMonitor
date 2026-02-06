@@ -549,10 +549,7 @@ export function upsertItem(list: ConversationItem[], item: ConversationItem) {
   return next;
 }
 
-export function getThreadTimestamp(thread: Record<string, unknown>) {
-  const raw =
-    (thread.updatedAt ?? thread.updated_at ?? thread.createdAt ?? thread.created_at) ??
-    0;
+function normalizeThreadTimestamp(raw: unknown) {
   let numeric: number;
   if (typeof raw === "string") {
     const asNumber = Number(raw);
@@ -572,6 +569,18 @@ export function getThreadTimestamp(thread: Record<string, unknown>) {
     return 0;
   }
   return numeric < 1_000_000_000_000 ? numeric * 1000 : numeric;
+}
+
+export function getThreadTimestamp(thread: Record<string, unknown>) {
+  const raw =
+    (thread.updatedAt ?? thread.updated_at ?? thread.createdAt ?? thread.created_at) ??
+    0;
+  return normalizeThreadTimestamp(raw);
+}
+
+export function getThreadCreatedTimestamp(thread: Record<string, unknown>) {
+  const raw = (thread.createdAt ?? thread.created_at) ?? 0;
+  return normalizeThreadTimestamp(raw);
 }
 
 export function previewThreadName(text: string, fallback: string) {

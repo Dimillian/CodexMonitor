@@ -46,6 +46,7 @@ import type {
   RequestUserInputRequest,
   RequestUserInputResponse,
   SkillOption,
+  ThreadListSortKey,
   ThreadSummary,
   ThreadTokenUsage,
   TurnPlan,
@@ -112,6 +113,8 @@ type LayoutNodesOptions = {
   threadListLoadingByWorkspace: Record<string, boolean>;
   threadListPagingByWorkspace: Record<string, boolean>;
   threadListCursorByWorkspace: Record<string, string | null>;
+  threadListSortKey: ThreadListSortKey;
+  onSetThreadListSortKey: (sortKey: ThreadListSortKey) => void;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   activeItems: ConversationItem[];
@@ -485,6 +488,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       threadListLoadingByWorkspace={options.threadListLoadingByWorkspace}
       threadListPagingByWorkspace={options.threadListPagingByWorkspace}
       threadListCursorByWorkspace={options.threadListCursorByWorkspace}
+      threadListSortKey={options.threadListSortKey}
+      onSetThreadListSortKey={options.onSetThreadListSortKey}
       activeWorkspaceId={options.activeWorkspaceId}
       activeThreadId={options.activeThreadId}
       accountRateLimits={options.activeRateLimits}

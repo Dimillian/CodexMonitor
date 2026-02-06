@@ -89,6 +89,54 @@ describe("threadReducer", () => {
     expect(next.threadsByWorkspace["ws-1"]?.[0]?.updatedAt).toBe(1500);
   });
 
+  it("moves active thread to top on timestamp updates when sorted by updated_at", () => {
+    const threads: ThreadSummary[] = [
+      { id: "thread-1", name: "Agent 1", updatedAt: 1000 },
+      { id: "thread-2", name: "Agent 2", updatedAt: 900 },
+    ];
+    const next = threadReducer(
+      {
+        ...initialState,
+        threadsByWorkspace: { "ws-1": threads },
+        threadSortKeyByWorkspace: { "ws-1": "updated_at" },
+      },
+      {
+        type: "setThreadTimestamp",
+        workspaceId: "ws-1",
+        threadId: "thread-2",
+        timestamp: 1500,
+      },
+    );
+    expect(next.threadsByWorkspace["ws-1"]?.map((thread) => thread.id)).toEqual([
+      "thread-2",
+      "thread-1",
+    ]);
+  });
+
+  it("keeps ordering stable on timestamp updates when sorted by created_at", () => {
+    const threads: ThreadSummary[] = [
+      { id: "thread-1", name: "Agent 1", updatedAt: 1000 },
+      { id: "thread-2", name: "Agent 2", updatedAt: 900 },
+    ];
+    const next = threadReducer(
+      {
+        ...initialState,
+        threadsByWorkspace: { "ws-1": threads },
+        threadSortKeyByWorkspace: { "ws-1": "created_at" },
+      },
+      {
+        type: "setThreadTimestamp",
+        workspaceId: "ws-1",
+        threadId: "thread-2",
+        timestamp: 1500,
+      },
+    );
+    expect(next.threadsByWorkspace["ws-1"]?.map((thread) => thread.id)).toEqual([
+      "thread-1",
+      "thread-2",
+    ]);
+  });
+
   it("tracks processing durations", () => {
     const started = threadReducer(
       {
@@ -421,6 +469,7 @@ describe("threadReducer", () => {
     const synced = threadReducer(hidden, {
       type: "setThreads",
       workspaceId: "ws-1",
+      sortKey: "updated_at",
       threads: [
         { id: "thread-bg", name: "Agent 1", updatedAt: Date.now() },
         { id: "thread-visible", name: "Agent 2", updatedAt: Date.now() },

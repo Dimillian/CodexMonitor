@@ -105,6 +105,8 @@ export type ThreadSummary = {
   updatedAt: number;
 };
 
+export type ThreadListSortKey = "created_at" | "updated_at";
+
 export type ReviewTarget =
   | { type: "uncommittedChanges" }
   | { type: "baseBranch"; branch: string }

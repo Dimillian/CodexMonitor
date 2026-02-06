@@ -526,8 +526,9 @@ impl DaemonState {
         workspace_id: String,
         cursor: Option<String>,
         limit: Option<u32>,
+        sort_key: Option<String>,
     ) -> Result<Value, String> {
-        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit).await
+        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key).await
     }
 
     async fn list_mcp_server_status(
@@ -1133,7 +1134,8 @@ async fn handle_rpc_request(
             let workspace_id = parse_string(&params, "workspaceId")?;
             let cursor = parse_optional_string(&params, "cursor");
             let limit = parse_optional_u32(&params, "limit");
-            state.list_threads(workspace_id, cursor, limit).await
+            let sort_key = parse_optional_string(&params, "sortKey");
+            state.list_threads(workspace_id, cursor, limit, sort_key).await
         }
         "list_mcp_server_status" => {
             let workspace_id = parse_string(&params, "workspaceId")?;

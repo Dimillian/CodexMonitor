@@ -16,6 +16,7 @@ type MarkdownProps = {
   codeBlock?: boolean;
   codeBlockStyle?: "default" | "message";
   codeBlockCopyUseModifier?: boolean;
+  workspacePath?: string | null;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
   onOpenThreadLink?: (threadId: string) => void;
@@ -50,6 +51,96 @@ type ParsedFileReference = {
   lineLabel: string | null;
   parentPath: string | null;
 };
+
+function normalizePathSeparators(path: string) {
+  return path.replace(/\\/g, "/");
+}
+
+function trimTrailingPathSeparators(path: string) {
+  return path.replace(/\/+$/, "");
+}
+
+function isWindowsAbsolutePath(path: string) {
+  return /^[A-Za-z]:\//.test(path);
+}
+
+function isAbsolutePath(path: string) {
+  return path.startsWith("/") || isWindowsAbsolutePath(path);
+}
+
+function extractPathRoot(path: string) {
+  if (isWindowsAbsolutePath(path)) {
+    return path.slice(0, 2).toLowerCase();
+  }
+  if (path.startsWith("/")) {
+    return "/";
+  }
+  return "";
+}
+
+function splitAbsolutePath(path: string) {
+  const root = extractPathRoot(path);
+  if (!root) {
+    return null;
+  }
+  const withoutRoot =
+    root === "/" ? path.slice(1) : path.slice(2).replace(/^\/+/, "");
+  return {
+    root,
+    segments: withoutRoot.split("/").filter(Boolean),
+  };
+}
+
+function toRelativePath(fromPath: string, toPath: string) {
+  const fromAbsolute = splitAbsolutePath(fromPath);
+  const toAbsolute = splitAbsolutePath(toPath);
+  if (!fromAbsolute || !toAbsolute) {
+    return null;
+  }
+  if (fromAbsolute.root !== toAbsolute.root) {
+    return null;
+  }
+  const caseInsensitive = fromAbsolute.root !== "/";
+  let commonLength = 0;
+  while (
+    commonLength < fromAbsolute.segments.length &&
+    commonLength < toAbsolute.segments.length &&
+    (caseInsensitive
+      ? fromAbsolute.segments[commonLength].toLowerCase() ===
+        toAbsolute.segments[commonLength].toLowerCase()
+      : fromAbsolute.segments[commonLength] === toAbsolute.segments[commonLength])
+  ) {
+    commonLength += 1;
+  }
+  const backtrack = new Array(fromAbsolute.segments.length - commonLength).fill("..");
+  const forward = toAbsolute.segments.slice(commonLength);
+  return [...backtrack, ...forward].join("/");
+}
+
+function relativeDisplayPath(path: string, workspacePath?: string | null) {
+  const normalizedPath = trimTrailingPathSeparators(normalizePathSeparators(path.trim()));
+  if (!workspacePath) {
+    return normalizedPath;
+  }
+  const normalizedWorkspace = trimTrailingPathSeparators(
+    normalizePathSeparators(workspacePath.trim()),
+  );
+  if (!normalizedWorkspace) {
+    return normalizedPath;
+  }
+  if (!isAbsolutePath(normalizedPath) || !isAbsolutePath(normalizedWorkspace)) {
+    return normalizedPath;
+  }
+  const relative = toRelativePath(normalizedWorkspace, normalizedPath);
+  if (relative === null) {
+    return normalizedPath;
+  }
+  if (relative.length === 0) {
+    const segments = normalizedPath.split("/").filter(Boolean);
+    return segments.length > 0 ? segments[segments.length - 1] : normalizedPath;
+  }
+  return relative;
+}
 
 function extractLanguageTag(className?: string) {
   if (!className) {
@@ -199,17 +290,23 @@ function LinkBlock({ urls }: LinkBlockProps) {
   );
 }
 
-function parseFileReference(rawPath: string): ParsedFileReference {
+function parseFileReference(
+  rawPath: string,
+  workspacePath?: string | null,
+): ParsedFileReference {
   const trimmed = rawPath.trim();
   const lineMatch = trimmed.match(/^(.*?):(\d+(?::\d+)?)$/);
   const pathWithoutLine = (lineMatch?.[1] ?? trimmed).trim();
   const lineLabel = lineMatch?.[2] ?? null;
-  const normalizedPath = pathWithoutLine.replace(/\/+$/, "");
-  const segments = normalizedPath.split("/").filter(Boolean);
+  const displayPath = relativeDisplayPath(pathWithoutLine, workspacePath);
+  const normalizedPath = trimTrailingPathSeparators(displayPath) || displayPath;
+  const lastSlashIndex = normalizedPath.lastIndexOf("/");
   const fallbackFile = normalizedPath || trimmed;
-  const fileName = segments.length > 0 ? segments[segments.length - 1] : fallbackFile;
-  const parentPath =
-    segments.length > 1 ? segments.slice(0, -1).join("/") : null;
+  const fileName =
+    lastSlashIndex >= 0 ? normalizedPath.slice(lastSlashIndex + 1) : fallbackFile;
+  const rawParentPath =
+    lastSlashIndex >= 0 ? normalizedPath.slice(0, lastSlashIndex) : "";
+  const parentPath = rawParentPath || (normalizedPath.startsWith("/") ? "/" : null);
 
   return {
     fullPath: trimmed,
@@ -222,15 +319,20 @@ function parseFileReference(rawPath: string): ParsedFileReference {
 function FileReferenceLink({
   href,
   rawPath,
+  workspacePath,
   onClick,
   onContextMenu,
 }: {
   href: string;
   rawPath: string;
+  workspacePath?: string | null;
   onClick: (event: React.MouseEvent, path: string) => void;
   onContextMenu: (event: React.MouseEvent, path: string) => void;
 }) {
-  const { fullPath, fileName, lineLabel, parentPath } = parseFileReference(rawPath);
+  const { fullPath, fileName, lineLabel, parentPath } = parseFileReference(
+    rawPath,
+    workspacePath,
+  );
   return (
     <a
       href={href}
@@ -331,6 +433,7 @@ export function Markdown({
   codeBlock,
   codeBlockStyle = "default",
   codeBlockCopyUseModifier = false,
+  workspacePath = null,
   onOpenFileLink,
   onOpenFileLinkMenu,
   onOpenThreadLink,
@@ -393,6 +496,7 @@ export function Markdown({
           <FileReferenceLink
             href={href ?? toFileLink(path)}
             rawPath={path}
+            workspacePath={workspacePath}
             onClick={handleFileLinkClick}
             onContextMenu={handleFileLinkContextMenu}
           />
@@ -434,6 +538,7 @@ export function Markdown({
         <FileReferenceLink
           href={href}
           rawPath={linkablePath}
+          workspacePath={workspacePath}
           onClick={handleFileLinkClick}
           onContextMenu={handleFileLinkContextMenu}
         />

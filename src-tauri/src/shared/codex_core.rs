@@ -99,9 +99,10 @@ pub(crate) async fn list_threads_core(
     workspace_id: String,
     cursor: Option<String>,
     limit: Option<u32>,
+    sort_key: Option<String>,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let params = json!({ "cursor": cursor, "limit": limit });
+    let params = json!({ "cursor": cursor, "limit": limit, "sortKey": sort_key });
     session.send_request("thread/list", params).await
 }
 

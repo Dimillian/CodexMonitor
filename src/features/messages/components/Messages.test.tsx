@@ -189,6 +189,75 @@ describe("Messages", () => {
     );
   });
 
+  it("renders absolute file references as workspace-relative paths", () => {
+    const workspacePath = "/Users/dimillian/Documents/Dev/CodexMonitor";
+    const absolutePath =
+      "/Users/dimillian/Documents/Dev/CodexMonitor/src/features/messages/components/Markdown.tsx:244";
+    const items: ConversationItem[] = [
+      {
+        id: "msg-file-link-absolute-inside",
+        kind: "message",
+        role: "assistant",
+        text: `Reference: \`${absolutePath}\``,
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        workspacePath={workspacePath}
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(screen.getByText("Markdown.tsx")).toBeTruthy();
+    expect(screen.getByText("L244")).toBeTruthy();
+    expect(screen.getByText("src/features/messages/components")).toBeTruthy();
+
+    const fileLink = container.querySelector(".message-file-link");
+    expect(fileLink).toBeTruthy();
+    fireEvent.click(fileLink as Element);
+    expect(openFileLinkMock).toHaveBeenCalledWith(absolutePath);
+  });
+
+  it("renders absolute file references outside workspace using dotdot-relative paths", () => {
+    const workspacePath = "/Users/dimillian/Documents/Dev/CodexMonitor";
+    const absolutePath = "/Users/dimillian/Documents/Other/IceCubesApp/file.rs:123";
+    const items: ConversationItem[] = [
+      {
+        id: "msg-file-link-absolute-outside",
+        kind: "message",
+        role: "assistant",
+        text: `Reference: \`${absolutePath}\``,
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        workspacePath={workspacePath}
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(screen.getByText("file.rs")).toBeTruthy();
+    expect(screen.getByText("L123")).toBeTruthy();
+    expect(screen.getByText("../../Other/IceCubesApp")).toBeTruthy();
+
+    const fileLink = container.querySelector(".message-file-link");
+    expect(fileLink).toBeTruthy();
+    fireEvent.click(fileLink as Element);
+    expect(openFileLinkMock).toHaveBeenCalledWith(absolutePath);
+  });
+
   it("does not re-render messages while typing when message props stay stable", () => {
     const items: ConversationItem[] = [
       {

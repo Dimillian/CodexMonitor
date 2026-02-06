@@ -1,5 +1,10 @@
 import { useCallback, useMemo, useReducer, useRef } from "react";
-import type { CustomPromptOption, DebugEntry, WorkspaceInfo } from "../../../types";
+import type {
+  CustomPromptOption,
+  DebugEntry,
+  ThreadListSortKey,
+  WorkspaceInfo,
+} from "../../../types";
 import { useAppServerEvents } from "../../app/hooks/useAppServerEvents";
 import { initialState, threadReducer } from "./useThreadsReducer";
 import { useThreadStorage } from "./useThreadStorage";
@@ -28,6 +33,7 @@ type UseThreadsOptions = {
   steerEnabled?: boolean;
   customPrompts?: CustomPromptOption[];
   onMessageActivity?: () => void;
+  threadSortKey?: ThreadListSortKey;
 };
 
 export function useThreads({
@@ -42,6 +48,7 @@ export function useThreads({
   steerEnabled = false,
   customPrompts = [],
   onMessageActivity,
+  threadSortKey = "updated_at",
 }: UseThreadsOptions) {
   const [state, dispatch] = useReducer(threadReducer, initialState);
   const loadedThreadsRef = useRef<Record<string, boolean>>({});
@@ -245,6 +252,7 @@ export function useThreads({
     activeThreadIdByWorkspace: state.activeThreadIdByWorkspace,
     threadListCursorByWorkspace: state.threadListCursorByWorkspace,
     threadStatusById: state.threadStatusById,
+    threadSortKey,
     onDebug,
     getCustomName,
     threadActivityRef,

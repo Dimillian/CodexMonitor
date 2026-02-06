@@ -3,6 +3,7 @@ import type { ConversationItem } from "../types";
 import {
   buildConversationItem,
   buildConversationItemFromThreadItem,
+  getThreadCreatedTimestamp,
   getThreadTimestamp,
   mergeThreadItems,
   normalizeItem,
@@ -654,6 +655,11 @@ describe("threadItems", () => {
   it("returns 0 for invalid thread timestamps", () => {
     const timestamp = getThreadTimestamp({ updated_at: "not-a-date" });
     expect(timestamp).toBe(0);
+  });
+
+  it("parses created timestamps", () => {
+    const timestamp = getThreadCreatedTimestamp({ created_at: "2025-01-01T00:00:00Z" });
+    expect(timestamp).toBe(Date.parse("2025-01-01T00:00:00Z"));
   });
 
 });

@@ -1,6 +1,7 @@
 import type {
   AccountSnapshot,
   RateLimitSnapshot,
+  ThreadListSortKey,
   ThreadSummary,
   WorkspaceInfo,
 } from "../../../types";
@@ -52,6 +53,8 @@ type SidebarProps = {
   threadListLoadingByWorkspace: Record<string, boolean>;
   threadListPagingByWorkspace: Record<string, boolean>;
   threadListCursorByWorkspace: Record<string, string | null>;
+  threadListSortKey: ThreadListSortKey;
+  onSetThreadListSortKey: (sortKey: ThreadListSortKey) => void;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   accountRateLimits: RateLimitSnapshot | null;
@@ -105,6 +108,8 @@ export function Sidebar({
   threadListLoadingByWorkspace,
   threadListPagingByWorkspace,
   threadListCursorByWorkspace,
+  threadListSortKey,
+  onSetThreadListSortKey,
   activeWorkspaceId,
   activeThreadId,
   accountRateLimits,
@@ -400,6 +405,8 @@ export function Sidebar({
         onAddWorkspace={onAddWorkspace}
         onToggleSearch={() => setIsSearchOpen((prev) => !prev)}
         isSearchOpen={isSearchOpen}
+        threadListSortKey={threadListSortKey}
+        onSetThreadListSortKey={onSetThreadListSortKey}
       />
       <div className={`sidebar-search${isSearchOpen ? " is-open" : ""}`}>
         {isSearchOpen && (
