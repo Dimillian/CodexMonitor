@@ -1,0 +1,57 @@
+.ds-popover {
+  background: var(--ds-popover-bg, var(--surface-popover));
+  border: 1px solid var(--ds-popover-border, var(--border-muted));
+  box-shadow: var(--ds-popover-shadow, 0 14px 34px rgba(0, 0, 0, 0.3));
+  border-radius: 10px;
+}
+
+.ds-popover-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--ds-popover-item-text, var(--text-muted));
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ds-popover-item:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ds-popover-item:hover:not(:disabled),
+.ds-popover-item:focus-visible,
+.ds-popover-item.is-active {
+  background: var(--surface-hover);
+  color: var(--ds-popover-item-text-active, var(--text-stronger));
+  transform: none;
+  box-shadow: none;
+}
+
+.ds-popover-item-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ds-popover-item-icon svg,
+.ds-popover-item-icon img {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.ds-popover-item-label {
+  min-width: 0;
+  flex: 1;
+}

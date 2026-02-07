@@ -1,87 +1,16 @@
-.diff-panel {
-  background: transparent;
-  padding: 12px 12px 0;
+.diff-header {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  -webkit-app-region: no-drag;
-  flex: 1;
-  min-height: 0;
-}
-
-.diff-panel,
-.diff-panel * {
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-.diff-panel input,
-.diff-panel textarea,
-.diff-panel [contenteditable="true"] {
-  -webkit-user-select: text;
-  user-select: text;
-}
-
-.app.reduced-transparency .diff-panel {
-  background: var(--surface-right-panel);
-  border: 1px solid var(--border-subtle);
-  border-radius: 14px;
+  justify-content: space-between;
+  align-items: center;
+  min-height: var(--ds-panel-header-min-height, 26px);
+  color: var(--ds-panel-header-text, var(--text-subtle));
 }
 
 .diff-header,
 .git-panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-subtle);
-  min-height: 26px;
-}
-
-.git-panel-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  background: transparent;
-  border: none;
-  padding: 4px 8px;
-  color: inherit;
-  cursor: pointer;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
-}
-
-.git-panel-title-button {
-  background: var(--surface-control);
-  border-color: var(--border-subtle);
-}
-
-.git-panel-title-button:hover {
-  background: var(--surface-control-hover);
-  color: var(--text-emphasis);
-}
-
-.git-panel-title-button:focus-visible {
-  outline: 2px solid var(--border-accent-soft);
-  outline-offset: 4px;
-  border-radius: 6px;
-}
-
-.git-panel-switch-icon {
-  width: 12px;
-  height: 12px;
-  opacity: 0.7;
-}
-
-.git-panel-icon {
-  width: 14px;
-  height: 14px;
 }
 
 .git-panel-select {
@@ -945,12 +874,6 @@
 
 .git-pr-author-inline {
   font-size: var(--code-font-size, 11px);
-}
-
-.git-pr-branches {
-  font-family: var(--code-font-family);
-  font-size: var(--code-font-size, 11px);
-  color: var(--text-faint);
 }
 
 .git-pr-draft {

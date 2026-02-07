@@ -26,12 +26,6 @@
   --surface-popover: rgba(16, 20, 30, 0.995);
 }
 
-.popover-surface {
-  background: var(--surface-popover);
-  border: 1px solid var(--border-muted);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.3);
-}
-
 * {
   box-sizing: border-box;
 }

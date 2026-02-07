@@ -7,12 +7,6 @@
   color: var(--text-faint);
 }
 
-.file-tree-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .file-tree-toggle {
   padding: 4px;
 }
@@ -20,40 +14,6 @@
 .file-tree-toggle svg {
   width: 14px;
   height: 14px;
-}
-
-.file-tree-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 10px;
-  background: var(--surface-raised);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-faint);
-}
-
-.file-tree-search:focus-within {
-  border-color: var(--border-strong);
-  color: var(--text-emphasis);
-}
-
-.file-tree-search-icon {
-  width: 14px;
-  height: 14px;
-}
-
-.file-tree-search-input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  color: inherit;
-  font-size: 12px;
-  outline: none;
-}
-
-.file-tree-search-input::placeholder {
-  color: var(--text-faint);
 }
 
 .file-tree-search-filter {

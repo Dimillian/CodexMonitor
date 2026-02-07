@@ -2,11 +2,6 @@
   gap: 12px;
 }
 
-.prompt-panel-meta {
-  font-size: 11px;
-  color: var(--text-faint);
-}
-
 .prompt-section {
   display: flex;
   flex-direction: column;

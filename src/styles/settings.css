@@ -1,33 +1,17 @@
 .settings-overlay {
-  position: fixed;
-  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 30;
 }
 
-
-.settings-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(6, 8, 12, 0.55);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
 .settings-window {
-  position: relative;
   width: min(980px, 94vw);
   height: min(680px, 88vh);
   border-radius: 18px;
-  background: var(--surface-card-strong);
-  border: 1px solid var(--border-stronger);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  z-index: 1;
 }
 
 
@@ -38,11 +22,6 @@
   padding: 12px 16px;
   border-bottom: 1px solid var(--border-muted);
   background: var(--surface-topbar);
-}
-
-.app.reduced-transparency .settings-backdrop {
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
 }
 
 .app.reduced-transparency .settings-titlebar {
@@ -146,8 +125,27 @@
   color: var(--text-subtle);
 }
 
+.settings-help-error {
+  color: var(--text-danger);
+}
+
 .settings-help-inline {
   margin-right: 4px;
+}
+
+.settings-command-preview {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-1);
+  color: var(--text-strong);
+  font-family: var(--code-font-family);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .settings-agents-header {

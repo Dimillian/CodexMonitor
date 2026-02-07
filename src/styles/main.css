@@ -155,29 +155,16 @@
   top: calc(100% + 8px);
   min-width: 160px;
   padding: 6px;
-  border-radius: 12px;
-  background: var(--surface-popover);
-  border: 1px solid var(--border-muted);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.3);
   z-index: 5;
 }
 
 .open-app-option {
   width: 100%;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 12px;
-  text-align: left;
+  justify-content: flex-start;
 }
 
 .open-app-option:hover,
 .open-app-option.is-active {
-  background: var(--surface-hover);
   color: var(--text-stronger);
 }
 

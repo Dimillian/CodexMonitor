@@ -1,0 +1,88 @@
+.ds-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-panel-gap);
+  background: transparent;
+  padding: 12px 12px 0;
+  -webkit-app-region: no-drag;
+  min-height: 0;
+  flex: 1;
+}
+
+.ds-panel,
+.ds-panel * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.ds-panel input,
+.ds-panel textarea,
+.ds-panel [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.app.reduced-transparency .ds-panel {
+  background: var(--surface-right-panel);
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: 14px;
+}
+
+.ds-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: var(--ds-panel-header-min-height);
+  color: var(--ds-panel-header-text);
+}
+
+.ds-panel-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.ds-panel-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-faint);
+}
+
+.ds-panel-search:focus-within {
+  border-color: var(--border-strong);
+  color: var(--text-emphasis);
+}
+
+.ds-panel-search-icon {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ds-panel-search-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ds-panel-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.ds-panel-search-input::placeholder {
+  color: var(--text-faint);
+}

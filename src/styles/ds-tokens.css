@@ -1,0 +1,40 @@
+:root {
+  --ds-surface-overlay: var(--surface-context-core);
+  --ds-surface-card: var(--surface-card-strong);
+  --ds-surface-muted: var(--surface-card-muted);
+  --ds-surface-panel: var(--surface-right-panel);
+
+  --ds-border-subtle: var(--border-subtle);
+  --ds-border-strong: var(--border-stronger);
+  --ds-border-accent-soft: var(--border-accent-soft);
+
+  --ds-text-strong: var(--text-strong);
+  --ds-text-subtle: var(--text-subtle);
+  --ds-text-faint: var(--text-faint);
+
+  --ds-modal-backdrop: rgba(6, 8, 12, 0.55);
+  --ds-modal-card-bg: var(--ds-surface-card);
+  --ds-modal-card-border: var(--ds-border-strong);
+  --ds-modal-focus-ring: color-mix(in srgb, var(--border-accent) 70%, transparent);
+
+  --ds-toast-bg: var(--ds-surface-overlay);
+  --ds-toast-border: var(--ds-border-subtle);
+  --ds-toast-shadow: 0 16px 32px rgba(0, 0, 0, 0.25);
+  --ds-toast-title: var(--ds-text-subtle);
+  --ds-toast-body: var(--text);
+
+  --ds-panel-gap: 8px;
+  --ds-panel-header-min-height: 26px;
+  --ds-panel-header-text: var(--ds-text-subtle);
+
+  --ds-popover-bg: var(--surface-popover);
+  --ds-popover-border: var(--border-muted);
+  --ds-popover-shadow: 0 14px 34px rgba(0, 0, 0, 0.3);
+  --ds-popover-item-text: var(--text-muted);
+  --ds-popover-item-text-active: var(--text-stronger);
+
+  --ds-diff-lib-bg-light: rgba(255, 255, 255, 0.35);
+  --ds-diff-lib-bg-dark: rgba(10, 12, 16, 0.35);
+  --ds-diff-lib-bg-system-light: rgba(255, 255, 255, 0.35);
+  --ds-diff-lib-bg-system-dark: rgba(10, 12, 16, 0.35);
+}

@@ -242,10 +242,6 @@
   left: calc(100% + 6px);
   min-width: 80px;
   padding: 6px;
-  border-radius: 10px;
-  background: var(--surface-popover);
-  border: 1px solid var(--border-muted);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
   opacity: 0;
   pointer-events: none;
   transform: translateX(-4px);
