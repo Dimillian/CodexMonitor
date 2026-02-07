@@ -29,7 +29,6 @@ function buildDefaultSettings(): AppSettings {
     remoteBackendProvider: "tcp",
     remoteBackendHost: "127.0.0.1:4732",
     remoteBackendToken: null,
-    orbitDeploymentMode: "hosted",
     orbitWsUrl: null,
     orbitAuthUrl: null,
     orbitRunnerName: null,

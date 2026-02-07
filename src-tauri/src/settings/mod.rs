@@ -41,8 +41,13 @@ pub(crate) async fn get_codex_config_path() -> Result<String, String> {
 fn should_reset_remote_backend(previous: &AppSettings, updated: &AppSettings) -> bool {
     let backend_mode_changed = !matches!(
         (&previous.backend_mode, &updated.backend_mode),
-        (crate::types::BackendMode::Local, crate::types::BackendMode::Local)
-            | (crate::types::BackendMode::Remote, crate::types::BackendMode::Remote)
+        (
+            crate::types::BackendMode::Local,
+            crate::types::BackendMode::Local
+        ) | (
+            crate::types::BackendMode::Remote,
+            crate::types::BackendMode::Remote
+        )
     );
     backend_mode_changed
         || previous.remote_backend_provider != updated.remote_backend_provider

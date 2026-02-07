@@ -831,18 +831,6 @@ export function SettingsView({
     });
   };
 
-  const handleChangeOrbitDeploymentMode = async (
-    deploymentMode: AppSettings["orbitDeploymentMode"],
-  ) => {
-    if (deploymentMode === appSettings.orbitDeploymentMode) {
-      return;
-    }
-    await onUpdateAppSettings({
-      ...appSettings,
-      orbitDeploymentMode: deploymentMode,
-    });
-  };
-
   const handleCommitOrbitWsUrl = async () => {
     const nextValue = normalizeOverrideValue(orbitWsUrlDraft);
     setOrbitWsUrlDraft(nextValue ?? "");
@@ -1644,7 +1632,6 @@ export function SettingsView({
               onCommitRemoteHost={handleCommitRemoteHost}
               onCommitRemoteToken={handleCommitRemoteToken}
               onChangeRemoteProvider={handleChangeRemoteProvider}
-              onChangeOrbitDeploymentMode={handleChangeOrbitDeploymentMode}
               onCommitOrbitWsUrl={handleCommitOrbitWsUrl}
               onCommitOrbitAuthUrl={handleCommitOrbitAuthUrl}
               onCommitOrbitRunnerName={handleCommitOrbitRunnerName}

@@ -33,7 +33,7 @@ This document is the canonical implementation plan for shipping CodexMonitor on 
 - Remote provider settings baseline is implemented:
   - `remoteBackendProvider`: `"tcp" | "orbit"`
   - `remoteBackendHost`, `remoteBackendToken`
-  - `orbitDeploymentMode`, `orbitWsUrl`, `orbitAuthUrl`
+  - `orbitWsUrl`, `orbitAuthUrl`
   - `orbitRunnerName`, `orbitAutoStartRunner`
   - `orbitUseAccess`, `orbitAccessClientId`, `orbitAccessClientSecretRef`
 - Orbit remote operations are implemented in app and daemon wiring via shared core:
@@ -45,7 +45,7 @@ This document is the canonical implementation plan for shipping CodexMonitor on 
   - `orbit_runner_stop`
   - `orbit_runner_status`
 - Settings UI now includes Orbit provider setup/actions in `SettingsView`:
-  - deployment mode, URLs, runner name, access fields, connect/sign-in/sign-out, runner start/stop/status
+  - URLs, runner name, access fields, connect/sign-in/sign-out, runner start/stop/status
   - inline device-code polling flow wired to `orbit_sign_in_poll`
 - Remote notification forwarding currently handles only:
   - `app-server-event`
@@ -73,7 +73,7 @@ This document is the canonical implementation plan for shipping CodexMonitor on 
 3. Orbit Cloud Services
 - Auth service (passkey + JWT/session).
 - Orbit relay (Worker + Durable Object routing + event persistence endpoint).
-- Optional hosted deployment path or self-host deployment path.
+- User-owned self-host deployment path only.
 
 ## Canonical Protocol Choice
 
@@ -92,19 +92,9 @@ This document is the canonical implementation plan for shipping CodexMonitor on 
 7. Orbit relays results and notifications back to subscribed iOS clients.
 8. On reconnect, iOS reloads state from thread resume + stored events endpoint.
 
-## Orbit Deployment Modes
+## Orbit Deployment Model
 
-## Mode A (Recommended): Hosted Orbit
-
-Best setup UX for most users.
-
-- User does not deploy Cloudflare services manually.
-- User authenticates in app, pairs device, and connects.
-- CodexMonitor stores only required client credentials/tokens in secure storage.
-
-## Mode B: Self-Hosted Orbit
-
-Advanced setup for users who want full control.
+## Self-Hosted Orbit Only
 
 - User deploys Orbit/Auth workers and D1 with Wrangler.
 - User provides Orbit/Auth endpoints in Settings.
@@ -147,7 +137,6 @@ Implemented baseline fields:
 - `remoteBackendProvider`: `"tcp" | "orbit"`
 - `remoteBackendHost`
 - `remoteBackendToken`
-- `orbitDeploymentMode`
 - `orbitWsUrl`
 - `orbitAuthUrl`
 - `orbitRunnerName`
@@ -158,7 +147,7 @@ Implemented baseline fields:
 
 Planned next (not yet implemented in settings model):
 
-- deployment/auth/pairing metadata required for full hosted/self-host Orbit UX
+- deployment/auth/pairing metadata required for full self-host Orbit UX
 - secure-storage integration for secret material lifecycle (set/reset/rotation)
 
 Keep secrets out of plain `settings.json` where possible.
@@ -260,11 +249,10 @@ Update `src/features/settings/components/SettingsView.tsx` to add an Orbit secti
 Required controls:
 
 - Provider selector (`TCP daemon` / `Orbit`)
-- Deployment mode selector (`Hosted` / `Self-Hosted`)
-- Orbit WS URL input (self-host only)
-- Orbit Auth URL input (self-host only)
+- Orbit WS URL input
+- Orbit Auth URL input
 - Runner name input
-- Access auth toggle + client id input + secret set/reset (self-host optional)
+- Access auth toggle + client id input + secret set/reset (optional)
 - `Connect test` button
 - `Sign In` / `Sign Out` actions
 - `Start Runner` / `Stop Runner` buttons
@@ -276,7 +264,7 @@ Required controls:
 Current implementation status:
 
 - Implemented now:
-  - Provider selector, deployment mode selector
+  - Provider selector
   - Orbit WS/Auth URL inputs
   - Runner name input
   - Access toggle + client id/secret ref fields
@@ -290,7 +278,6 @@ Current implementation status:
 
 UX behavior:
 
-- Hide manual endpoint fields in hosted mode.
 - Disable invalid combinations.
 - Show clear actionable errors (auth failed, runner offline, endpoint invalid, token expired).
 - Persist non-secret fields immediately.
@@ -299,7 +286,7 @@ UX behavior:
 ## iOS client UX
 
 - First launch setup:
-  - `Sign In` (hosted) or endpoint-aware sign-in (self-host)
+  - endpoint-aware sign-in (self-host)
   - `Scan QR` / `Enter pair code`
   - Recent sessions
 - Runtime status:
@@ -312,35 +299,13 @@ UX behavior:
 
 ## User Setup Flows
 
-## Hosted Orbit (default)
-
-Desktop setup:
-
-1. Open CodexMonitor Settings.
-2. Set `Backend Mode = Remote`, `Provider = Orbit`, `Mode = Hosted`.
-3. Click `Sign In` and complete auth.
-4. Click `Start Runner`.
-5. Click `Show QR` (or `Copy Pair Code`).
-
-Mobile setup:
-
-1. Launch iOS app.
-2. Sign in.
-3. Scan QR (or enter pair code).
-4. App stores credentials in Keychain and auto-connects.
-
-User-provided information:
-
-- No manual URL/session entry required.
-- Only account login + pair action.
-
 ## Self-Hosted Orbit
 
 Desktop setup:
 
 1. Deploy Orbit/Auth services to Cloudflare.
 2. Open CodexMonitor Settings.
-3. Set `Backend Mode = Remote`, `Provider = Orbit`, `Mode = Self-Hosted`.
+3. Set `Backend Mode = Remote`, `Provider = Orbit`.
 4. Enter `Orbit WS URL` and `Orbit Auth URL`.
 5. Configure optional Access credentials.
 6. Sign in and start runner.
@@ -511,7 +476,7 @@ cargo test
 ## Implementation Milestones
 
 1. Milestone A: iOS compile baseline + mobile-safe stubs.
-2. Milestone B: Orbit integration baseline (hosted + self-host config paths).
+2. Milestone B: Orbit integration baseline (self-host config path).
 3. Milestone C: `remote_backend` transport refactor + Orbit WS transport + runner Orbit mode.
 4. Milestone D: daemon parity closure for mobile scope (excluding terminal/dictation).
 5. Milestone E: Settings UX/service manager + pairing UX.
@@ -521,7 +486,7 @@ cargo test
 
 - iOS app can fully control a macOS runner via Orbit bridge.
 - Remote feature parity with desktop local mode for supported workflows.
-- macOS users can configure Orbit from Settings without terminal steps in hosted mode.
+- macOS users can configure Orbit from Settings using self-hosted Orbit endpoints.
 - Runner can be started/stopped/auto-started from app.
 - Reconnect/resync is robust and observable.
 - Build/install flow is documented and reproducible.

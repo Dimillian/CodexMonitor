@@ -25,7 +25,6 @@ const baseSettings: AppSettings = {
   remoteBackendProvider: "tcp",
   remoteBackendHost: "127.0.0.1:4732",
   remoteBackendToken: null,
-  orbitDeploymentMode: "hosted",
   orbitWsUrl: null,
   orbitAuthUrl: null,
   orbitRunnerName: null,
@@ -679,7 +678,6 @@ describe("SettingsView Codex overrides", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Orbit deployment mode")).toBeTruthy();
       expect(screen.getByLabelText("Orbit websocket URL")).toBeTruthy();
       expect(screen.getByLabelText("Orbit auth URL")).toBeTruthy();
       expect(screen.getByLabelText("Orbit runner name")).toBeTruthy();

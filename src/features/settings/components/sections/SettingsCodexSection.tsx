@@ -63,9 +63,6 @@ type SettingsCodexSectionProps = {
   onCommitRemoteHost: () => Promise<void>;
   onCommitRemoteToken: () => Promise<void>;
   onChangeRemoteProvider: (provider: AppSettings["remoteBackendProvider"]) => Promise<void>;
-  onChangeOrbitDeploymentMode: (
-    deploymentMode: AppSettings["orbitDeploymentMode"],
-  ) => Promise<void>;
   onCommitOrbitWsUrl: () => Promise<void>;
   onCommitOrbitAuthUrl: () => Promise<void>;
   onCommitOrbitRunnerName: () => Promise<void>;
@@ -150,7 +147,6 @@ export function SettingsCodexSection({
   onCommitRemoteHost,
   onCommitRemoteToken,
   onChangeRemoteProvider,
-  onChangeOrbitDeploymentMode,
   onCommitOrbitWsUrl,
   onCommitOrbitAuthUrl,
   onCommitOrbitRunnerName,
@@ -366,7 +362,7 @@ export function SettingsCodexSection({
               <option value="orbit">Orbit</option>
             </select>
             <div className="settings-help">
-              Use TCP for host:port daemon access, or Orbit for managed/authenticated remote
+              Use TCP for host:port daemon access, or Orbit for self-hosted Cloudflare relay
               sessions.
             </div>
           </div>
@@ -417,26 +413,6 @@ export function SettingsCodexSection({
 
           {appSettings.remoteBackendProvider === "orbit" && (
             <>
-              <div className="settings-field">
-                <label className="settings-field-label" htmlFor="orbit-deployment-mode">
-                  Orbit deployment mode
-                </label>
-                <select
-                  id="orbit-deployment-mode"
-                  className="settings-select"
-                  value={appSettings.orbitDeploymentMode}
-                  onChange={(event) => {
-                    void onChangeOrbitDeploymentMode(
-                      event.target.value as AppSettings["orbitDeploymentMode"],
-                    );
-                  }}
-                  aria-label="Orbit deployment mode"
-                >
-                  <option value="hosted">Hosted</option>
-                  <option value="self_hosted">Self-hosted</option>
-                </select>
-              </div>
-
               <div className="settings-field">
                 <label className="settings-field-label" htmlFor="orbit-ws-url">
                   Orbit websocket URL

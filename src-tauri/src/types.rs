@@ -400,8 +400,6 @@ pub(crate) struct AppSettings {
     pub(crate) remote_backend_host: String,
     #[serde(default, rename = "remoteBackendToken")]
     pub(crate) remote_backend_token: Option<String>,
-    #[serde(default, rename = "orbitDeploymentMode")]
-    pub(crate) orbit_deployment_mode: OrbitDeploymentMode,
     #[serde(default, rename = "orbitWsUrl")]
     pub(crate) orbit_ws_url: Option<String>,
     #[serde(default, rename = "orbitAuthUrl")]
@@ -651,19 +649,6 @@ pub(crate) enum RemoteBackendProvider {
 impl Default for RemoteBackendProvider {
     fn default() -> Self {
         RemoteBackendProvider::Tcp
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum OrbitDeploymentMode {
-    Hosted,
-    SelfHosted,
-}
-
-impl Default for OrbitDeploymentMode {
-    fn default() -> Self {
-        OrbitDeploymentMode::Hosted
     }
 }
 
@@ -1072,7 +1057,6 @@ impl Default for AppSettings {
             remote_backend_provider: RemoteBackendProvider::Tcp,
             remote_backend_host: default_remote_backend_host(),
             remote_backend_token: None,
-            orbit_deployment_mode: OrbitDeploymentMode::Hosted,
             orbit_ws_url: None,
             orbit_auth_url: None,
             orbit_runner_name: None,
@@ -1142,8 +1126,8 @@ impl Default for AppSettings {
 #[cfg(test)]
 mod tests {
     use super::{
-        AppSettings, BackendMode, OrbitDeploymentMode, RemoteBackendProvider, WorkspaceEntry,
-        WorkspaceGroup, WorkspaceKind, WorkspaceSettings,
+        AppSettings, BackendMode, RemoteBackendProvider, WorkspaceEntry, WorkspaceGroup,
+        WorkspaceKind, WorkspaceSettings,
     };
 
     #[test]
@@ -1157,10 +1141,6 @@ mod tests {
         ));
         assert_eq!(settings.remote_backend_host, "127.0.0.1:4732");
         assert!(settings.remote_backend_token.is_none());
-        assert!(matches!(
-            settings.orbit_deployment_mode,
-            OrbitDeploymentMode::Hosted
-        ));
         assert!(settings.orbit_ws_url.is_none());
         assert!(settings.orbit_auth_url.is_none());
         assert!(settings.orbit_runner_name.is_none());

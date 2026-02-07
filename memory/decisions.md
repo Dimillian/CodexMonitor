@@ -260,3 +260,10 @@ Type: decision
 Event: Split `SettingsView` into section-focused components plus a dedicated sidebar nav while keeping orchestration/state in the container.
 Action: Added `SettingsNav`, extracted section components under `src/features/settings/components/sections/*`, introduced shared settings types in `settingsTypes.ts`, and rewired `SettingsView.tsx` to modal shell + section routing.
 Rule: For large settings surfaces, keep `SettingsView` as layout/orchestration and move section UI into dedicated components with typed props.
+
+## 2026-02-07 20:23
+Context: Orbit product scope canonicalization
+Type: decision
+Event: Product direction is now self-hosted Orbit only; app should not present hosted Orbit mode or imply CodexMonitor-hosted relay/auth services.
+Action: Removed `orbitDeploymentMode` from frontend/backend settings models and defaults, removed deployment mode selector from Settings UI, and updated mobile Orbit blueprint/setup language to self-host-only.
+Rule: Keep Orbit setup/docs/UI self-host-only unless user explicitly requests reintroducing hosted mode.
