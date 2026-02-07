@@ -3,6 +3,7 @@
 ## Open
 - [ ] 2026-02-07: Implement Orbit-only mobile remote foundation: Orbit transport in `remote_backend`, runner Orbit mode, hosted/self-host settings + pairing UX, and iOS keychain-backed auth storage.
 - [ ] 2026-02-07: Harden Orbit WS transport with explicit reconnect/backoff + replay/resync handling for mobile reconnect flows.
+- [ ] 2026-02-07: Complete Orbit production readiness gaps after baseline wiring: secure secret storage (Keychain/keyring), LaunchAgent/background runner management, pairing QR/code UX, and app-side Orbit reconnect/resync handling.
 
 ## Done
 - [x] 2026-02-07: Restored Sentry frontend reporting removed in `83a37da` (`@sentry/react`, `Sentry.init`, captureException callsites, and metrics instrumentation).

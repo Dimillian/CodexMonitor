@@ -13,6 +13,7 @@ mod git_utils;
 mod local_usage;
 mod menu;
 mod notifications;
+mod orbit;
 mod prompts;
 mod remote_backend;
 mod rules;
@@ -178,7 +179,14 @@ pub fn run() {
             dictation::dictation_cancel,
             local_usage::local_usage_snapshot,
             notifications::is_macos_debug_build,
-            notifications::send_notification_fallback
+            notifications::send_notification_fallback,
+            orbit::orbit_connect_test,
+            orbit::orbit_sign_in_start,
+            orbit::orbit_sign_in_poll,
+            orbit::orbit_sign_out,
+            orbit::orbit_runner_start,
+            orbit::orbit_runner_stop,
+            orbit::orbit_runner_status
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application");

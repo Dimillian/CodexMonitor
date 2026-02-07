@@ -65,11 +65,16 @@ use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
+use futures_util::{SinkExt, StreamExt};
 use ignore::WalkBuilder;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{broadcast, mpsc, Mutex};
+use tokio::time::sleep;
+use tokio_tungstenite::connect_async;
+use tokio_tungstenite::tungstenite::Message;
 
 use backend::app_server::{spawn_workspace_session, WorkspaceSession};
 use backend::events::{AppServerEvent, EventSink, TerminalExit, TerminalOutput};
@@ -83,7 +88,8 @@ use storage::{read_settings, read_workspaces};
 use types::{
     AppSettings, GitCommitDiff, GitFileDiff, GitHubIssuesResponse, GitHubPullRequestComment,
     GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse, LocalUsageSnapshot,
-    WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorktreeSetupStatus,
+    OrbitConnectTestResult, OrbitDeviceCodeStart, OrbitSignInPollResult, OrbitSignInStatus,
+    OrbitSignOutResult, WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorktreeSetupStatus,
 };
 use workspace_settings::apply_workspace_settings_update;
 
@@ -139,6 +145,10 @@ struct DaemonConfig {
     listen: SocketAddr,
     token: Option<String>,
     data_dir: PathBuf,
+    orbit_url: Option<String>,
+    orbit_token: Option<String>,
+    orbit_auth_url: Option<String>,
+    orbit_runner_name: Option<String>,
 }
 
 struct DaemonState {
@@ -484,6 +494,75 @@ impl DaemonState {
     async fn update_app_settings(&self, settings: AppSettings) -> Result<AppSettings, String> {
         settings_core::update_app_settings_core(settings, &self.app_settings, &self.settings_path)
             .await
+    }
+
+    async fn orbit_connect_test(&self) -> Result<OrbitConnectTestResult, String> {
+        let settings = self.app_settings.lock().await.clone();
+        let ws_url = shared::orbit_core::orbit_ws_url_from_settings(&settings)?;
+        shared::orbit_core::orbit_connect_test_core(
+            &ws_url,
+            settings.remote_backend_token.as_deref(),
+        )
+        .await
+    }
+
+    async fn orbit_sign_in_start(&self) -> Result<OrbitDeviceCodeStart, String> {
+        let settings = self.app_settings.lock().await.clone();
+        let auth_url = shared::orbit_core::orbit_auth_url_from_settings(&settings)?;
+        shared::orbit_core::orbit_sign_in_start_core(
+            &auth_url,
+            settings.orbit_runner_name.as_deref(),
+        )
+        .await
+    }
+
+    async fn orbit_sign_in_poll(
+        &self,
+        device_code: String,
+    ) -> Result<OrbitSignInPollResult, String> {
+        let auth_url = {
+            let settings = self.app_settings.lock().await.clone();
+            shared::orbit_core::orbit_auth_url_from_settings(&settings)?
+        };
+        let result = shared::orbit_core::orbit_sign_in_poll_core(&auth_url, &device_code).await?;
+
+        if matches!(result.status, OrbitSignInStatus::Authorized) {
+            if let Some(token) = result.token.as_ref() {
+                let _ = settings_core::update_remote_backend_token_core(
+                    &self.app_settings,
+                    &self.settings_path,
+                    Some(token),
+                )
+                .await?;
+            }
+        }
+
+        Ok(result)
+    }
+
+    async fn orbit_sign_out(&self) -> Result<OrbitSignOutResult, String> {
+        let settings = self.app_settings.lock().await.clone();
+        let auth_url = shared::orbit_core::orbit_auth_url_optional(&settings);
+        let token = shared::orbit_core::remote_backend_token_optional(&settings);
+
+        let mut logout_error: Option<String> = None;
+        if let (Some(auth_url), Some(token)) = (auth_url.as_ref(), token.as_ref()) {
+            if let Err(err) = shared::orbit_core::orbit_sign_out_core(auth_url, token).await {
+                logout_error = Some(err);
+            }
+        }
+
+        let _ = settings_core::update_remote_backend_token_core(
+            &self.app_settings,
+            &self.settings_path,
+            None,
+        )
+        .await?;
+
+        Ok(OrbitSignOutResult {
+            success: logout_error.is_none(),
+            message: logout_error,
+        })
     }
 
     async fn list_workspace_files(&self, workspace_id: String) -> Result<Vec<String>, String> {
@@ -1241,8 +1320,8 @@ fn default_data_dir() -> PathBuf {
 fn usage() -> String {
     format!(
         "\
-USAGE:\n  codex-monitor-daemon [--listen <addr>] [--data-dir <path>] [--token <token> | --insecure-no-auth]\n\n\
-OPTIONS:\n  --listen <addr>        Bind address (default: {DEFAULT_LISTEN_ADDR})\n  --data-dir <path>      Data dir holding workspaces.json/settings.json\n  --token <token>        Shared token required by clients\n  --insecure-no-auth      Disable auth (dev only)\n  -h, --help             Show this help\n"
+USAGE:\n  codex-monitor-daemon [--listen <addr>] [--data-dir <path>] [--token <token> | --insecure-no-auth]\n  codex-monitor-daemon --orbit-url <ws-url> [--orbit-token <token>] [--orbit-auth-url <url>] [--orbit-runner-name <name>] [--data-dir <path>]\n\n\
+OPTIONS:\n  --listen <addr>          Bind address (default: {DEFAULT_LISTEN_ADDR})\n  --data-dir <path>        Data dir holding workspaces.json/settings.json\n  --token <token>          Shared token required by TCP clients\n  --insecure-no-auth       Disable TCP auth (dev only)\n  --orbit-url <ws-url>     Run in Orbit runner mode and connect outbound to this WS URL\n  --orbit-token <token>    Orbit auth token (optional if URL already includes token)\n  --orbit-auth-url <url>   Orbit auth base URL (metadata only, optional)\n  --orbit-runner-name <n>  Runner display name (metadata only, optional)\n  -h, --help               Show this help\n"
     )
 }
 
@@ -1256,6 +1335,19 @@ fn parse_args() -> Result<DaemonConfig, String> {
         .filter(|value| !value.is_empty());
     let mut insecure_no_auth = false;
     let mut data_dir: Option<PathBuf> = None;
+    let mut orbit_url: Option<String> = None;
+    let mut orbit_token: Option<String> = env::var("CODEX_MONITOR_ORBIT_TOKEN")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    let mut orbit_auth_url: Option<String> = env::var("CODEX_MONITOR_ORBIT_AUTH_URL")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    let mut orbit_runner_name: Option<String> = env::var("CODEX_MONITOR_ORBIT_RUNNER_NAME")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
 
     let mut args = env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -1288,11 +1380,44 @@ fn parse_args() -> Result<DaemonConfig, String> {
                 insecure_no_auth = true;
                 token = None;
             }
+            "--orbit-url" => {
+                let value = args.next().ok_or("--orbit-url requires a value")?;
+                let trimmed = value.trim();
+                if trimmed.is_empty() {
+                    return Err("--orbit-url requires a non-empty value".to_string());
+                }
+                orbit_url = Some(trimmed.to_string());
+            }
+            "--orbit-token" => {
+                let value = args.next().ok_or("--orbit-token requires a value")?;
+                let trimmed = value.trim();
+                if trimmed.is_empty() {
+                    return Err("--orbit-token requires a non-empty value".to_string());
+                }
+                orbit_token = Some(trimmed.to_string());
+            }
+            "--orbit-auth-url" => {
+                let value = args.next().ok_or("--orbit-auth-url requires a value")?;
+                let trimmed = value.trim();
+                if trimmed.is_empty() {
+                    return Err("--orbit-auth-url requires a non-empty value".to_string());
+                }
+                orbit_auth_url = Some(trimmed.to_string());
+            }
+            "--orbit-runner-name" => {
+                let value = args.next().ok_or("--orbit-runner-name requires a value")?;
+                let trimmed = value.trim();
+                if trimmed.is_empty() {
+                    return Err("--orbit-runner-name requires a non-empty value".to_string());
+                }
+                orbit_runner_name = Some(trimmed.to_string());
+            }
             _ => return Err(format!("Unknown argument: {arg}")),
         }
     }
 
-    if token.is_none() && !insecure_no_auth {
+    let is_orbit_mode = orbit_url.is_some();
+    if !is_orbit_mode && token.is_none() && !insecure_no_auth {
         return Err(
             "Missing --token (or set CODEX_MONITOR_DAEMON_TOKEN). Use --insecure-no-auth for local dev only."
                 .to_string(),
@@ -1303,6 +1428,10 @@ fn parse_args() -> Result<DaemonConfig, String> {
         listen,
         token,
         data_dir: data_dir.unwrap_or_else(default_data_dir),
+        orbit_url,
+        orbit_token,
+        orbit_auth_url,
+        orbit_runner_name,
     })
 }
 
@@ -1584,6 +1713,23 @@ async fn handle_rpc_request(
                 serde_json::from_value(settings_value).map_err(|err| err.to_string())?;
             let updated = state.update_app_settings(settings).await?;
             serde_json::to_value(updated).map_err(|err| err.to_string())
+        }
+        "orbit_connect_test" => {
+            let result = state.orbit_connect_test().await?;
+            serde_json::to_value(result).map_err(|err| err.to_string())
+        }
+        "orbit_sign_in_start" => {
+            let result = state.orbit_sign_in_start().await?;
+            serde_json::to_value(result).map_err(|err| err.to_string())
+        }
+        "orbit_sign_in_poll" => {
+            let device_code = parse_string(&params, "deviceCode")?;
+            let result = state.orbit_sign_in_poll(device_code).await?;
+            serde_json::to_value(result).map_err(|err| err.to_string())
+        }
+        "orbit_sign_out" => {
+            let result = state.orbit_sign_out().await?;
+            serde_json::to_value(result).map_err(|err| err.to_string())
         }
         "get_codex_config_path" => {
             let path = settings_core::get_codex_config_path_core()?;
@@ -2132,6 +2278,160 @@ async fn handle_client(
     write_task.abort();
 }
 
+async fn handle_orbit_line(
+    line: &str,
+    state: &DaemonState,
+    out_tx: &mpsc::UnboundedSender<String>,
+    client_version: &str,
+) {
+    let message: Value = match serde_json::from_str(line) {
+        Ok(value) => value,
+        Err(_) => return,
+    };
+
+    if let Some(message_type) = message.get("type").and_then(Value::as_str) {
+        if message_type.eq_ignore_ascii_case("ping") {
+            let _ = out_tx.send(json!({ "type": "pong" }).to_string());
+        }
+        return;
+    }
+
+    let id = message.get("id").and_then(|value| value.as_u64());
+    let method = message
+        .get("method")
+        .and_then(|value| value.as_str())
+        .unwrap_or("")
+        .to_string();
+    let params = message.get("params").cloned().unwrap_or(Value::Null);
+    if method.is_empty() {
+        return;
+    }
+
+    if method == "auth" {
+        if let Some(response) = build_result_response(id, json!({ "ok": true })) {
+            let _ = out_tx.send(response);
+        }
+        return;
+    }
+
+    let result = handle_rpc_request(state, &method, params, client_version.to_string()).await;
+    let response = match result {
+        Ok(value) => build_result_response(id, value),
+        Err(message) => build_error_response(id, &message),
+    };
+    if let Some(response) = response {
+        let _ = out_tx.send(response);
+    }
+}
+
+async fn run_orbit_mode(
+    config: Arc<DaemonConfig>,
+    state: Arc<DaemonState>,
+    events_tx: broadcast::Sender<DaemonEvent>,
+) {
+    let orbit_url = config.orbit_url.clone().unwrap_or_default();
+    let runner_name = config
+        .orbit_runner_name
+        .clone()
+        .unwrap_or_else(|| "codex-monitor-daemon".to_string());
+
+    let mut reconnect_delay = Duration::from_secs(1);
+    loop {
+        let ws_url =
+            match shared::orbit_core::build_orbit_ws_url(&orbit_url, config.orbit_token.as_deref())
+            {
+                Ok(value) => value,
+                Err(err) => {
+                    eprintln!("invalid orbit url: {err}");
+                    sleep(reconnect_delay).await;
+                    reconnect_delay = (reconnect_delay * 2).min(Duration::from_secs(20));
+                    continue;
+                }
+            };
+
+        let stream = match connect_async(&ws_url).await {
+            Ok((stream, _response)) => stream,
+            Err(err) => {
+                eprintln!(
+                    "orbit runner failed to connect to {}: {}. retrying in {}s",
+                    ws_url,
+                    err,
+                    reconnect_delay.as_secs()
+                );
+                sleep(reconnect_delay).await;
+                reconnect_delay = (reconnect_delay * 2).min(Duration::from_secs(20));
+                continue;
+            }
+        };
+
+        reconnect_delay = Duration::from_secs(1);
+        eprintln!("orbit runner connected to {}", ws_url);
+
+        let (mut writer, mut reader) = stream.split();
+        let (out_tx, mut out_rx) = mpsc::unbounded_channel::<String>();
+
+        let write_task = tokio::spawn(async move {
+            while let Some(message) = out_rx.recv().await {
+                if writer.send(Message::Text(message.into())).await.is_err() {
+                    break;
+                }
+            }
+        });
+
+        let events_task = {
+            let rx = events_tx.subscribe();
+            let out_tx_events = out_tx.clone();
+            tokio::spawn(forward_events(rx, out_tx_events))
+        };
+
+        let _ = out_tx.send(
+            json!({
+                "type": "anchor.hello",
+                "name": runner_name.clone(),
+                "platform": std::env::consts::OS,
+                "authUrl": config.orbit_auth_url.clone(),
+            })
+            .to_string(),
+        );
+
+        let client_version = format!("daemon-{}", env!("CARGO_PKG_VERSION"));
+        while let Some(frame) = reader.next().await {
+            match frame {
+                Ok(Message::Text(text)) => {
+                    for line in text.lines().map(str::trim).filter(|line| !line.is_empty()) {
+                        handle_orbit_line(line, &state, &out_tx, &client_version).await;
+                    }
+                }
+                Ok(Message::Binary(bytes)) => {
+                    if let Ok(text) = String::from_utf8(bytes.to_vec()) {
+                        for line in text.lines().map(str::trim).filter(|line| !line.is_empty()) {
+                            handle_orbit_line(line, &state, &out_tx, &client_version).await;
+                        }
+                    }
+                }
+                Ok(Message::Close(_)) => break,
+                Ok(Message::Ping(_)) | Ok(Message::Pong(_)) => {}
+                Ok(Message::Frame(_)) => {}
+                Err(err) => {
+                    eprintln!("orbit runner connection error: {err}");
+                    break;
+                }
+            }
+        }
+
+        drop(out_tx);
+        events_task.abort();
+        write_task.abort();
+
+        eprintln!(
+            "orbit runner disconnected. reconnecting in {}s",
+            reconnect_delay.as_secs()
+        );
+        sleep(reconnect_delay).await;
+        reconnect_delay = (reconnect_delay * 2).min(Duration::from_secs(20));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2305,6 +2605,19 @@ fn main() {
         };
         let state = Arc::new(DaemonState::load(&config, event_sink));
         let config = Arc::new(config);
+
+        if config.orbit_url.is_some() {
+            eprintln!(
+                "codex-monitor-daemon orbit mode (data dir: {})",
+                state
+                    .storage_path
+                    .parent()
+                    .unwrap_or(&state.storage_path)
+                    .display()
+            );
+            run_orbit_mode(config, state, events_tx).await;
+            return;
+        }
 
         let listener = TcpListener::bind(config.listen)
             .await

@@ -27,14 +27,26 @@ This document is the canonical implementation plan for shipping CodexMonitor on 
   - `src-tauri/src/remote_backend/orbit_ws_transport.rs`
 - Current transport behavior:
   - TCP transport remains intact (existing remote path preserved).
-  - Orbit WS transport is implemented for connect/read/write + request/response routing.
-  - Reconnect/backoff and replay/resync hardening are still pending.
+  - Orbit WS transport is implemented for connect/read/write + request/response routing, including line-delimited frame splitting.
+  - App transport is currently single-connection (no client-side reconnect loop yet).
+  - Daemon Orbit runner mode includes reconnect/backoff for outbound Orbit WS.
 - Remote provider settings baseline is implemented:
   - `remoteBackendProvider`: `"tcp" | "orbit"`
   - `remoteBackendHost`, `remoteBackendToken`
   - `orbitDeploymentMode`, `orbitWsUrl`, `orbitAuthUrl`
   - `orbitRunnerName`, `orbitAutoStartRunner`
   - `orbitUseAccess`, `orbitAccessClientId`, `orbitAccessClientSecretRef`
+- Orbit remote operations are implemented in app and daemon wiring via shared core:
+  - `orbit_connect_test`
+  - `orbit_sign_in_start`
+  - `orbit_sign_in_poll` (stores token to app settings on authorization)
+  - `orbit_sign_out` (best-effort logout + token clear)
+  - `orbit_runner_start`
+  - `orbit_runner_stop`
+  - `orbit_runner_status`
+- Settings UI now includes Orbit provider setup/actions in `SettingsView`:
+  - deployment mode, URLs, runner name, access fields, connect/sign-in/sign-out, runner start/stop/status
+  - inline device-code polling flow wired to `orbit_sign_in_poll`
 - Remote notification forwarding currently handles only:
   - `app-server-event`
   - `terminal-output`
@@ -123,7 +135,8 @@ Implemented structure:
 Current status:
 
 - Done: transport split + provider routing + Orbit WS connect/read/write path.
-- Pending: reconnect strategy, backoff policy, replay/resync contract integration.
+- Done: WebSocket payload parsing split to protocol lines before JSON-RPC dispatch.
+- Pending: app-side reconnect strategy and replay/resync contract integration.
 
 ## 2) Add bridge configuration to settings model
 
@@ -173,6 +186,11 @@ Responsibilities:
 - Persist last logs ring buffer.
 - Auto-start on app launch if enabled.
 
+Current implementation:
+
+- Basic runner lifecycle controls are implemented via Tauri commands in `src-tauri/src/orbit/mod.rs` and daemon Orbit mode args in `src-tauri/src/bin/codex_monitor_daemon.rs`.
+- Full background service management (LaunchAgent install/remove, log viewer, lifecycle recovery after app restart) remains pending.
+
 Potential implementations:
 
 - Embedded task in app process (faster iteration).
@@ -194,6 +212,12 @@ Behavior:
 - Outbound WS to Orbit relay.
 - Translate Orbit-relayed JSON-RPC to existing RPC handler + event bus.
 - Support runner reconnect and re-subscription behavior.
+
+Current implementation status:
+
+- Orbit mode args are implemented: `--orbit-url`, `--orbit-token`, `--orbit-auth-url`, `--orbit-runner-name`.
+- Orbit mode loop is implemented with reconnect/backoff, event forwarding, ping/pong handling, and `anchor.hello` metadata send.
+- Further Orbit-specific subscription/replay semantics remain pending until mobile Orbit client wiring is added.
 
 ## 6) Command parity scope (mobile phase)
 
@@ -248,6 +272,21 @@ Required controls:
 - Status badge + last heartbeat + error message
 - `Copy Pair Code` / `Show QR`
 - `View Logs` drawer
+
+Current implementation status:
+
+- Implemented now:
+  - Provider selector, deployment mode selector
+  - Orbit WS/Auth URL inputs
+  - Runner name input
+  - Access toggle + client id/secret ref fields
+  - `Connect test`, `Sign In`, `Sign Out`, `Start Runner`, `Stop Runner`, `Refresh Status`
+  - inline status/auth-code/verification URL display
+- Pending:
+  - LaunchAgent install/remove controls
+  - status badge with heartbeat metadata
+  - `Copy Pair Code` / `Show QR`
+  - logs drawer UI
 
 UX behavior:
 

@@ -2,12 +2,33 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{AppHandle, Manager};
+use tokio::process::Child;
 use tokio::sync::Mutex;
 
 use crate::dictation::DictationState;
 use crate::shared::codex_core::CodexLoginCancelState;
 use crate::storage::{read_settings, read_workspaces};
-use crate::types::{AppSettings, WorkspaceEntry};
+use crate::types::{AppSettings, OrbitRunnerState, OrbitRunnerStatus, WorkspaceEntry};
+
+pub(crate) struct OrbitRunnerRuntime {
+    pub(crate) child: Option<Child>,
+    pub(crate) status: OrbitRunnerStatus,
+}
+
+impl Default for OrbitRunnerRuntime {
+    fn default() -> Self {
+        Self {
+            child: None,
+            status: OrbitRunnerStatus {
+                state: OrbitRunnerState::Stopped,
+                pid: None,
+                started_at_ms: None,
+                last_error: None,
+                orbit_url: None,
+            },
+        }
+    }
+}
 
 pub(crate) struct AppState {
     pub(crate) workspaces: Mutex<HashMap<String, WorkspaceEntry>>,
@@ -19,6 +40,7 @@ pub(crate) struct AppState {
     pub(crate) app_settings: Mutex<AppSettings>,
     pub(crate) dictation: Mutex<DictationState>,
     pub(crate) codex_login_cancels: Mutex<HashMap<String, CodexLoginCancelState>>,
+    pub(crate) orbit_runner: Mutex<OrbitRunnerRuntime>,
 }
 
 impl AppState {
@@ -41,6 +63,7 @@ impl AppState {
             app_settings: Mutex::new(app_settings),
             dictation: Mutex::new(DictationState::default()),
             codex_login_cancels: Mutex::new(HashMap::new()),
+            orbit_runner: Mutex::new(OrbitRunnerRuntime::default()),
         }
     }
 }

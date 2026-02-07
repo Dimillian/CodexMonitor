@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ask, open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
@@ -20,12 +20,27 @@ import type {
   AppSettings,
   CodexDoctorResult,
   DictationModelStatus,
+  OrbitConnectTestResult,
+  OrbitDeviceCodeStart,
+  OrbitRunnerStatus,
+  OrbitSignInPollResult,
+  OrbitSignOutResult,
   WorkspaceSettings,
   OpenAppTarget,
   WorkspaceGroup,
   WorkspaceInfo,
 } from "../../../types";
 import { formatDownloadSize } from "../../../utils/formatting";
+import {
+  getCodexConfigPath,
+  orbitConnectTest,
+  orbitRunnerStart,
+  orbitRunnerStatus,
+  orbitRunnerStop,
+  orbitSignInPoll,
+  orbitSignInStart,
+  orbitSignOut,
+} from "../../../services/tauri";
 import {
   fileManagerName,
   isMacPlatform,
@@ -38,7 +53,6 @@ import {
   getDefaultInterruptShortcut,
 } from "../../../utils/shortcuts";
 import { clampUiScale } from "../../../utils/uiScale";
-import { getCodexConfigPath } from "../../../services/tauri";
 import { pushErrorToast } from "../../../services/toasts";
 import {
   DEFAULT_CODE_FONT_FAMILY,
@@ -142,6 +156,90 @@ const buildWorkspaceOverrideDrafts = (
   return next;
 };
 
+type OrbitServiceClient = {
+  orbitConnectTest: () => Promise<OrbitConnectTestResult>;
+  orbitSignInStart: () => Promise<OrbitDeviceCodeStart>;
+  orbitSignInPoll: (deviceCode: string) => Promise<OrbitSignInPollResult>;
+  orbitSignOut: () => Promise<OrbitSignOutResult>;
+  orbitRunnerStart: () => Promise<OrbitRunnerStatus>;
+  orbitRunnerStop: () => Promise<OrbitRunnerStatus>;
+  orbitRunnerStatus: () => Promise<OrbitRunnerStatus>;
+};
+
+const orbitServices: OrbitServiceClient = {
+  orbitConnectTest,
+  orbitSignInStart,
+  orbitSignInPoll,
+  orbitSignOut,
+  orbitRunnerStart,
+  orbitRunnerStop,
+  orbitRunnerStatus,
+};
+
+const ORBIT_DEFAULT_POLL_INTERVAL_SECONDS = 5;
+const ORBIT_MAX_INLINE_POLL_SECONDS = 180;
+
+const delay = (durationMs: number): Promise<void> =>
+  new Promise((resolve) => {
+    window.setTimeout(resolve, durationMs);
+  });
+
+type OrbitActionResult =
+  | OrbitConnectTestResult
+  | OrbitSignInPollResult
+  | OrbitSignOutResult
+  | OrbitRunnerStatus;
+
+const getOrbitStatusText = (value: OrbitActionResult, fallback: string): string => {
+  if ("ok" in value) {
+    if (!value.ok) {
+      return value.message || fallback;
+    }
+    if (value.message.trim()) {
+      return value.message;
+    }
+    if (typeof value.latencyMs === "number") {
+      return `Connected to Orbit relay in ${value.latencyMs}ms.`;
+    }
+    return fallback;
+  }
+
+  if ("status" in value) {
+    if (value.message && value.message.trim()) {
+      return value.message;
+    }
+    switch (value.status) {
+      case "pending":
+        return "Waiting for Orbit sign-in authorization.";
+      case "authorized":
+        return "Orbit sign in complete.";
+      case "denied":
+        return "Orbit sign in denied.";
+      case "expired":
+        return "Orbit sign in code expired.";
+      case "error":
+        return "Orbit sign in failed.";
+      default:
+        return fallback;
+    }
+  }
+
+  if ("success" in value) {
+    if (!value.success && value.message && value.message.trim()) {
+      return value.message;
+    }
+    return value.success ? "Signed out from Orbit." : fallback;
+  }
+
+  if (value.state === "running") {
+    return value.pid ? `Orbit runner is running (pid ${value.pid}).` : "Orbit runner is running.";
+  }
+  if (value.state === "error") {
+    return value.lastError?.trim() || "Orbit runner is in error state.";
+  }
+  return "Orbit runner is stopped.";
+};
+
 export type SettingsViewProps = {
   workspaceGroups: WorkspaceGroup[];
   groupedWorkspaces: Array<{
@@ -184,6 +282,7 @@ export type SettingsViewProps = {
   onCancelDictationDownload?: () => void;
   onRemoveDictationModel?: () => void;
   initialSection?: CodexSection;
+  orbitServiceClient?: OrbitServiceClient;
 };
 
 type SettingsSection =
@@ -328,6 +427,7 @@ export function SettingsView({
   onCancelDictationDownload,
   onRemoveDictationModel,
   initialSection,
+  orbitServiceClient = orbitServices,
 }: SettingsViewProps) {
   const [activeSection, setActiveSection] = useState<CodexSection>("projects");
   const [environmentWorkspaceId, setEnvironmentWorkspaceId] = useState<string | null>(
@@ -346,6 +446,22 @@ export function SettingsView({
   const [codexArgsDraft, setCodexArgsDraft] = useState(appSettings.codexArgs ?? "");
   const [remoteHostDraft, setRemoteHostDraft] = useState(appSettings.remoteBackendHost);
   const [remoteTokenDraft, setRemoteTokenDraft] = useState(appSettings.remoteBackendToken ?? "");
+  const [orbitWsUrlDraft, setOrbitWsUrlDraft] = useState(appSettings.orbitWsUrl ?? "");
+  const [orbitAuthUrlDraft, setOrbitAuthUrlDraft] = useState(appSettings.orbitAuthUrl ?? "");
+  const [orbitRunnerNameDraft, setOrbitRunnerNameDraft] = useState(
+    appSettings.orbitRunnerName ?? "",
+  );
+  const [orbitAccessClientIdDraft, setOrbitAccessClientIdDraft] = useState(
+    appSettings.orbitAccessClientId ?? "",
+  );
+  const [orbitAccessClientSecretRefDraft, setOrbitAccessClientSecretRefDraft] =
+    useState(appSettings.orbitAccessClientSecretRef ?? "");
+  const [orbitStatusText, setOrbitStatusText] = useState<string | null>(null);
+  const [orbitAuthCode, setOrbitAuthCode] = useState<string | null>(null);
+  const [orbitVerificationUrl, setOrbitVerificationUrl] = useState<string | null>(
+    null,
+  );
+  const [orbitBusyAction, setOrbitBusyAction] = useState<string | null>(null);
   const [scaleDraft, setScaleDraft] = useState(
     `${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`,
   );
@@ -420,6 +536,7 @@ export function SettingsView({
     cycleWorkspaceNext: appSettings.cycleWorkspaceNextShortcut ?? "",
     cycleWorkspacePrev: appSettings.cycleWorkspacePrevShortcut ?? "",
   });
+  const latestSettingsRef = useRef(appSettings);
   const dictationReady = dictationModelStatus?.state === "ready";
   const dictationProgress = dictationModelStatus?.progress ?? null;
   const globalAgentsStatus = globalAgentsLoading
@@ -532,6 +649,10 @@ export function SettingsView({
   }, [onClose]);
 
   useEffect(() => {
+    latestSettingsRef.current = appSettings;
+  }, [appSettings]);
+
+  useEffect(() => {
     setCodexPathDraft(appSettings.codexBin ?? "");
   }, [appSettings.codexBin]);
 
@@ -546,6 +667,26 @@ export function SettingsView({
   useEffect(() => {
     setRemoteTokenDraft(appSettings.remoteBackendToken ?? "");
   }, [appSettings.remoteBackendToken]);
+
+  useEffect(() => {
+    setOrbitWsUrlDraft(appSettings.orbitWsUrl ?? "");
+  }, [appSettings.orbitWsUrl]);
+
+  useEffect(() => {
+    setOrbitAuthUrlDraft(appSettings.orbitAuthUrl ?? "");
+  }, [appSettings.orbitAuthUrl]);
+
+  useEffect(() => {
+    setOrbitRunnerNameDraft(appSettings.orbitRunnerName ?? "");
+  }, [appSettings.orbitRunnerName]);
+
+  useEffect(() => {
+    setOrbitAccessClientIdDraft(appSettings.orbitAccessClientId ?? "");
+  }, [appSettings.orbitAccessClientId]);
+
+  useEffect(() => {
+    setOrbitAccessClientSecretRefDraft(appSettings.orbitAccessClientSecretRef ?? "");
+  }, [appSettings.orbitAccessClientSecretRef]);
 
   useEffect(() => {
     setScaleDraft(`${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`);
@@ -751,6 +892,242 @@ export function SettingsView({
       ...appSettings,
       remoteBackendToken: nextToken,
     });
+  };
+
+  const handleChangeRemoteProvider = async (
+    provider: AppSettings["remoteBackendProvider"],
+  ) => {
+    if (provider === appSettings.remoteBackendProvider) {
+      return;
+    }
+    await onUpdateAppSettings({
+      ...appSettings,
+      remoteBackendProvider: provider,
+    });
+  };
+
+  const handleChangeOrbitDeploymentMode = async (
+    deploymentMode: AppSettings["orbitDeploymentMode"],
+  ) => {
+    if (deploymentMode === appSettings.orbitDeploymentMode) {
+      return;
+    }
+    await onUpdateAppSettings({
+      ...appSettings,
+      orbitDeploymentMode: deploymentMode,
+    });
+  };
+
+  const handleCommitOrbitWsUrl = async () => {
+    const nextValue = normalizeOverrideValue(orbitWsUrlDraft);
+    setOrbitWsUrlDraft(nextValue ?? "");
+    if (nextValue === appSettings.orbitWsUrl) {
+      return;
+    }
+    await onUpdateAppSettings({
+      ...appSettings,
+      orbitWsUrl: nextValue,
+    });
+  };
+
+  const handleCommitOrbitAuthUrl = async () => {
+    const nextValue = normalizeOverrideValue(orbitAuthUrlDraft);
+    setOrbitAuthUrlDraft(nextValue ?? "");
+    if (nextValue === appSettings.orbitAuthUrl) {
+      return;
+    }
+    await onUpdateAppSettings({
+      ...appSettings,
+      orbitAuthUrl: nextValue,
+    });
+  };
+
+  const handleCommitOrbitRunnerName = async () => {
+    const nextValue = normalizeOverrideValue(orbitRunnerNameDraft);
+    setOrbitRunnerNameDraft(nextValue ?? "");
+    if (nextValue === appSettings.orbitRunnerName) {
+      return;
+    }
+    await onUpdateAppSettings({
+      ...appSettings,
+      orbitRunnerName: nextValue,
+    });
+  };
+
+  const handleCommitOrbitAccessClientId = async () => {
+    const nextValue = normalizeOverrideValue(orbitAccessClientIdDraft);
+    setOrbitAccessClientIdDraft(nextValue ?? "");
+    if (nextValue === appSettings.orbitAccessClientId) {
+      return;
+    }
+    await onUpdateAppSettings({
+      ...appSettings,
+      orbitAccessClientId: nextValue,
+    });
+  };
+
+  const handleCommitOrbitAccessClientSecretRef = async () => {
+    const nextValue = normalizeOverrideValue(orbitAccessClientSecretRefDraft);
+    setOrbitAccessClientSecretRefDraft(nextValue ?? "");
+    if (nextValue === appSettings.orbitAccessClientSecretRef) {
+      return;
+    }
+    await onUpdateAppSettings({
+      ...appSettings,
+      orbitAccessClientSecretRef: nextValue,
+    });
+  };
+
+  const runOrbitAction = async <T extends OrbitActionResult>(
+    actionKey: string,
+    actionLabel: string,
+    action: () => Promise<T>,
+    successFallback: string,
+  ): Promise<T | null> => {
+    setOrbitBusyAction(actionKey);
+    setOrbitStatusText(`${actionLabel}...`);
+    try {
+      const result = await action();
+      setOrbitStatusText(getOrbitStatusText(result, successFallback));
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown Orbit error";
+      setOrbitStatusText(`${actionLabel} failed: ${message}`);
+      return null;
+    } finally {
+      setOrbitBusyAction(null);
+    }
+  };
+
+  const syncRemoteBackendToken = async (nextToken: string | null) => {
+    const normalizedToken = nextToken?.trim() ? nextToken.trim() : null;
+    setRemoteTokenDraft(normalizedToken ?? "");
+    const latestSettings = latestSettingsRef.current;
+    if (normalizedToken === latestSettings.remoteBackendToken) {
+      return;
+    }
+    const nextSettings = {
+      ...latestSettings,
+      remoteBackendToken: normalizedToken,
+    };
+    latestSettingsRef.current = nextSettings;
+    await onUpdateAppSettings({
+      ...nextSettings,
+    });
+  };
+
+  const handleOrbitConnectTest = () => {
+    void runOrbitAction(
+      "connect-test",
+      "Connect test",
+      orbitServiceClient.orbitConnectTest,
+      "Orbit connection test succeeded.",
+    );
+  };
+
+  const handleOrbitSignIn = () => {
+    void (async () => {
+      setOrbitBusyAction("sign-in");
+      setOrbitStatusText("Starting Orbit sign in...");
+      setOrbitAuthCode(null);
+      setOrbitVerificationUrl(null);
+      try {
+        const startResult = await orbitServiceClient.orbitSignInStart();
+        setOrbitAuthCode(startResult.userCode ?? startResult.deviceCode);
+        setOrbitVerificationUrl(
+          startResult.verificationUriComplete ?? startResult.verificationUri,
+        );
+        setOrbitStatusText(
+          "Orbit sign in started. Finish authorization in the browser window, then keep this dialog open while we poll for completion.",
+        );
+
+        const maxPollWindowSeconds = Math.max(
+          1,
+          Math.min(startResult.expiresInSeconds, ORBIT_MAX_INLINE_POLL_SECONDS),
+        );
+        const deadlineMs = Date.now() + maxPollWindowSeconds * 1000;
+        let pollIntervalSeconds = Math.max(
+          1,
+          startResult.intervalSeconds || ORBIT_DEFAULT_POLL_INTERVAL_SECONDS,
+        );
+
+        while (Date.now() < deadlineMs) {
+          await delay(pollIntervalSeconds * 1000);
+          const pollResult = await orbitServiceClient.orbitSignInPoll(
+            startResult.deviceCode,
+          );
+          setOrbitStatusText(
+            getOrbitStatusText(pollResult, "Orbit sign in status refreshed."),
+          );
+
+          if (pollResult.status === "pending") {
+            if (typeof pollResult.intervalSeconds === "number") {
+              pollIntervalSeconds = Math.max(1, pollResult.intervalSeconds);
+            }
+            continue;
+          }
+
+          if (pollResult.status === "authorized") {
+            if (pollResult.token) {
+              await syncRemoteBackendToken(pollResult.token);
+            }
+          }
+          return;
+        }
+
+        setOrbitStatusText(
+          "Orbit sign in is still pending. Leave this window open and try Sign In again if authorization just completed.",
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown Orbit error";
+        setOrbitStatusText(`Sign In failed: ${message}`);
+      } finally {
+        setOrbitBusyAction(null);
+      }
+    })();
+  };
+
+  const handleOrbitSignOut = () => {
+    void (async () => {
+      const result = await runOrbitAction(
+        "sign-out",
+        "Sign Out",
+        orbitServiceClient.orbitSignOut,
+        "Signed out from Orbit.",
+      );
+      if (result !== null) {
+        await syncRemoteBackendToken(null);
+        setOrbitAuthCode(null);
+        setOrbitVerificationUrl(null);
+      }
+    })();
+  };
+
+  const handleOrbitRunnerStart = () => {
+    void runOrbitAction(
+      "runner-start",
+      "Start Runner",
+      orbitServiceClient.orbitRunnerStart,
+      "Orbit runner started.",
+    );
+  };
+
+  const handleOrbitRunnerStop = () => {
+    void runOrbitAction(
+      "runner-stop",
+      "Stop Runner",
+      orbitServiceClient.orbitRunnerStop,
+      "Orbit runner stopped.",
+    );
+  };
+
+  const handleOrbitRunnerStatus = () => {
+    void runOrbitAction(
+      "runner-status",
+      "Refresh Status",
+      orbitServiceClient.orbitRunnerStatus,
+      "Orbit runner status refreshed.",
+    );
   };
 
   const handleCommitScale = async () => {
@@ -3203,47 +3580,358 @@ export function SettingsView({
                 </div>
 
                 {appSettings.backendMode === "remote" && (
-                  <div className="settings-field">
-                    <div className="settings-field-label">Remote backend</div>
-                    <div className="settings-field-row">
-                      <input
-                        className="settings-input settings-input--compact"
-                        value={remoteHostDraft}
-                        placeholder="127.0.0.1:4732"
-                        onChange={(event) => setRemoteHostDraft(event.target.value)}
-                        onBlur={() => {
-                          void handleCommitRemoteHost();
+                  <>
+                    <div className="settings-field">
+                      <label className="settings-field-label" htmlFor="remote-provider">
+                        Remote provider
+                      </label>
+                      <select
+                        id="remote-provider"
+                        className="settings-select"
+                        value={appSettings.remoteBackendProvider}
+                        onChange={(event) => {
+                          void handleChangeRemoteProvider(
+                            event.target.value as AppSettings["remoteBackendProvider"],
+                          );
                         }}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            void handleCommitRemoteHost();
-                          }
-                        }}
-                        aria-label="Remote backend host"
-                      />
-                      <input
-                        type="password"
-                        className="settings-input settings-input--compact"
-                        value={remoteTokenDraft}
-                        placeholder="Token (optional)"
-                        onChange={(event) => setRemoteTokenDraft(event.target.value)}
-                        onBlur={() => {
-                          void handleCommitRemoteToken();
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            void handleCommitRemoteToken();
-                          }
-                        }}
-                        aria-label="Remote backend token"
-                      />
+                        aria-label="Remote provider"
+                      >
+                        <option value="tcp">TCP</option>
+                        <option value="orbit">Orbit</option>
+                      </select>
+                      <div className="settings-help">
+                        Use TCP for host:port daemon access, or Orbit for managed/authenticated
+                        remote sessions.
+                      </div>
                     </div>
-                    <div className="settings-help">
-                      Start the daemon separately and point CodexMonitor to it (host:port + token).
-                    </div>
-                  </div>
+
+                    {appSettings.remoteBackendProvider === "tcp" && (
+                      <div className="settings-field">
+                        <div className="settings-field-label">Remote backend</div>
+                        <div className="settings-field-row">
+                          <input
+                            className="settings-input settings-input--compact"
+                            value={remoteHostDraft}
+                            placeholder="127.0.0.1:4732"
+                            onChange={(event) => setRemoteHostDraft(event.target.value)}
+                            onBlur={() => {
+                              void handleCommitRemoteHost();
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                void handleCommitRemoteHost();
+                              }
+                            }}
+                            aria-label="Remote backend host"
+                          />
+                          <input
+                            type="password"
+                            className="settings-input settings-input--compact"
+                            value={remoteTokenDraft}
+                            placeholder="Token (optional)"
+                            onChange={(event) => setRemoteTokenDraft(event.target.value)}
+                            onBlur={() => {
+                              void handleCommitRemoteToken();
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                void handleCommitRemoteToken();
+                              }
+                            }}
+                            aria-label="Remote backend token"
+                          />
+                        </div>
+                        <div className="settings-help">
+                          Start the daemon separately and point CodexMonitor to it (host:port +
+                          token).
+                        </div>
+                      </div>
+                    )}
+
+                    {appSettings.remoteBackendProvider === "orbit" && (
+                      <>
+                        <div className="settings-field">
+                          <label
+                            className="settings-field-label"
+                            htmlFor="orbit-deployment-mode"
+                          >
+                            Orbit deployment mode
+                          </label>
+                          <select
+                            id="orbit-deployment-mode"
+                            className="settings-select"
+                            value={appSettings.orbitDeploymentMode}
+                            onChange={(event) => {
+                              void handleChangeOrbitDeploymentMode(
+                                event.target.value as AppSettings["orbitDeploymentMode"],
+                              );
+                            }}
+                            aria-label="Orbit deployment mode"
+                          >
+                            <option value="hosted">Hosted</option>
+                            <option value="self_hosted">Self-hosted</option>
+                          </select>
+                        </div>
+
+                        <div className="settings-field">
+                          <label className="settings-field-label" htmlFor="orbit-ws-url">
+                            Orbit websocket URL
+                          </label>
+                          <input
+                            id="orbit-ws-url"
+                            className="settings-input settings-input--compact"
+                            value={orbitWsUrlDraft}
+                            placeholder="wss://..."
+                            onChange={(event) => setOrbitWsUrlDraft(event.target.value)}
+                            onBlur={() => {
+                              void handleCommitOrbitWsUrl();
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                void handleCommitOrbitWsUrl();
+                              }
+                            }}
+                            aria-label="Orbit websocket URL"
+                          />
+                        </div>
+
+                        <div className="settings-field">
+                          <label className="settings-field-label" htmlFor="orbit-auth-url">
+                            Orbit auth URL
+                          </label>
+                          <input
+                            id="orbit-auth-url"
+                            className="settings-input settings-input--compact"
+                            value={orbitAuthUrlDraft}
+                            placeholder="https://..."
+                            onChange={(event) => setOrbitAuthUrlDraft(event.target.value)}
+                            onBlur={() => {
+                              void handleCommitOrbitAuthUrl();
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                void handleCommitOrbitAuthUrl();
+                              }
+                            }}
+                            aria-label="Orbit auth URL"
+                          />
+                        </div>
+
+                        <div className="settings-field">
+                          <label className="settings-field-label" htmlFor="orbit-runner-name">
+                            Orbit runner name
+                          </label>
+                          <input
+                            id="orbit-runner-name"
+                            className="settings-input settings-input--compact"
+                            value={orbitRunnerNameDraft}
+                            placeholder="codex-monitor"
+                            onChange={(event) => setOrbitRunnerNameDraft(event.target.value)}
+                            onBlur={() => {
+                              void handleCommitOrbitRunnerName();
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                void handleCommitOrbitRunnerName();
+                              }
+                            }}
+                            aria-label="Orbit runner name"
+                          />
+                        </div>
+
+                        <div className="settings-toggle-row">
+                          <div>
+                            <div className="settings-toggle-title">Auto start runner</div>
+                            <div className="settings-toggle-subtitle">
+                              Start the Orbit runner automatically when remote mode activates.
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className={`settings-toggle ${
+                              appSettings.orbitAutoStartRunner ? "on" : ""
+                            }`}
+                            onClick={() =>
+                              void onUpdateAppSettings({
+                                ...appSettings,
+                                orbitAutoStartRunner: !appSettings.orbitAutoStartRunner,
+                              })
+                            }
+                            aria-pressed={appSettings.orbitAutoStartRunner}
+                          >
+                            <span className="settings-toggle-knob" />
+                          </button>
+                        </div>
+
+                        <div className="settings-toggle-row">
+                          <div>
+                            <div className="settings-toggle-title">Use Orbit Access</div>
+                            <div className="settings-toggle-subtitle">
+                              Enable OAuth client credentials for Orbit Access.
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className={`settings-toggle ${appSettings.orbitUseAccess ? "on" : ""}`}
+                            onClick={() =>
+                              void onUpdateAppSettings({
+                                ...appSettings,
+                                orbitUseAccess: !appSettings.orbitUseAccess,
+                              })
+                            }
+                            aria-pressed={appSettings.orbitUseAccess}
+                          >
+                            <span className="settings-toggle-knob" />
+                          </button>
+                        </div>
+
+                        <div className="settings-field">
+                          <label
+                            className="settings-field-label"
+                            htmlFor="orbit-access-client-id"
+                          >
+                            Orbit access client ID
+                          </label>
+                          <input
+                            id="orbit-access-client-id"
+                            className="settings-input settings-input--compact"
+                            value={orbitAccessClientIdDraft}
+                            placeholder="client-id"
+                            disabled={!appSettings.orbitUseAccess}
+                            onChange={(event) =>
+                              setOrbitAccessClientIdDraft(event.target.value)
+                            }
+                            onBlur={() => {
+                              void handleCommitOrbitAccessClientId();
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                void handleCommitOrbitAccessClientId();
+                              }
+                            }}
+                            aria-label="Orbit access client ID"
+                          />
+                        </div>
+
+                        <div className="settings-field">
+                          <label
+                            className="settings-field-label"
+                            htmlFor="orbit-access-client-secret-ref"
+                          >
+                            Orbit access client secret ref
+                          </label>
+                          <input
+                            id="orbit-access-client-secret-ref"
+                            className="settings-input settings-input--compact"
+                            value={orbitAccessClientSecretRefDraft}
+                            placeholder="secret-ref"
+                            disabled={!appSettings.orbitUseAccess}
+                            onChange={(event) =>
+                              setOrbitAccessClientSecretRefDraft(event.target.value)
+                            }
+                            onBlur={() => {
+                              void handleCommitOrbitAccessClientSecretRef();
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                void handleCommitOrbitAccessClientSecretRef();
+                              }
+                            }}
+                            aria-label="Orbit access client secret ref"
+                          />
+                        </div>
+
+                        <div className="settings-field">
+                          <div className="settings-field-label">Orbit actions</div>
+                          <div className="settings-field-row">
+                            <button
+                              type="button"
+                              className="button settings-button-compact"
+                              onClick={handleOrbitConnectTest}
+                              disabled={orbitBusyAction !== null}
+                            >
+                              {orbitBusyAction === "connect-test"
+                                ? "Testing..."
+                                : "Connect test"}
+                            </button>
+                            <button
+                              type="button"
+                              className="button settings-button-compact"
+                              onClick={handleOrbitSignIn}
+                              disabled={orbitBusyAction !== null}
+                            >
+                              {orbitBusyAction === "sign-in" ? "Signing In..." : "Sign In"}
+                            </button>
+                            <button
+                              type="button"
+                              className="button settings-button-compact"
+                              onClick={handleOrbitSignOut}
+                              disabled={orbitBusyAction !== null}
+                            >
+                              {orbitBusyAction === "sign-out" ? "Signing Out..." : "Sign Out"}
+                            </button>
+                          </div>
+                          <div className="settings-field-row">
+                            <button
+                              type="button"
+                              className="button settings-button-compact"
+                              onClick={handleOrbitRunnerStart}
+                              disabled={orbitBusyAction !== null}
+                            >
+                              {orbitBusyAction === "runner-start"
+                                ? "Starting..."
+                                : "Start Runner"}
+                            </button>
+                            <button
+                              type="button"
+                              className="button settings-button-compact"
+                              onClick={handleOrbitRunnerStop}
+                              disabled={orbitBusyAction !== null}
+                            >
+                              {orbitBusyAction === "runner-stop" ? "Stopping..." : "Stop Runner"}
+                            </button>
+                            <button
+                              type="button"
+                              className="button settings-button-compact"
+                              onClick={handleOrbitRunnerStatus}
+                              disabled={orbitBusyAction !== null}
+                            >
+                              {orbitBusyAction === "runner-status"
+                                ? "Refreshing..."
+                                : "Refresh Status"}
+                            </button>
+                          </div>
+                          {orbitStatusText && (
+                            <div className="settings-help">{orbitStatusText}</div>
+                          )}
+                          {orbitAuthCode && (
+                            <div className="settings-help">
+                              Auth code: <code>{orbitAuthCode}</code>
+                            </div>
+                          )}
+                          {orbitVerificationUrl && (
+                            <div className="settings-help">
+                              Verification URL:{" "}
+                              <a
+                                href={orbitVerificationUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                {orbitVerificationUrl}
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </>
                 )}
 
                 <FileEditorCard

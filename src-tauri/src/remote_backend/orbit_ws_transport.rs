@@ -7,6 +7,8 @@ use tokio::sync::{mpsc, Mutex};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 
+use crate::shared::orbit_core;
+
 use super::transport::{
     dispatch_incoming_line, mark_disconnected, PendingMap, RemoteTransport, RemoteTransportConfig,
     TransportConnection, TransportFuture,
@@ -17,11 +19,11 @@ pub(crate) struct OrbitWsTransport;
 impl RemoteTransport for OrbitWsTransport {
     fn connect(&self, app: AppHandle, config: RemoteTransportConfig) -> TransportFuture {
         Box::pin(async move {
-            let RemoteTransportConfig::OrbitWs { ws_url, .. } = config else {
+            let RemoteTransportConfig::OrbitWs { ws_url, auth_token } = config else {
                 return Err("invalid transport config for orbit websocket transport".to_string());
             };
 
-            let ws_url = normalize_ws_url(&ws_url)?;
+            let ws_url = orbit_core::build_orbit_ws_url(&ws_url, auth_token.as_deref())?;
             let (stream, _response) = connect_async(&ws_url)
                 .await
                 .map_err(|err| format!("Failed to connect to Orbit relay at {ws_url}: {err}"))?;
@@ -76,6 +78,25 @@ impl RemoteTransport for OrbitWsTransport {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::protocol_lines;
+
+    #[test]
+    fn protocol_lines_splits_multiline_payload() {
+        let payload = "{\"id\":1}\n{\"id\":2}\n";
+        let lines: Vec<&str> = protocol_lines(payload).collect();
+        assert_eq!(lines, vec!["{\"id\":1}", "{\"id\":2}"]);
+    }
+
+    #[test]
+    fn protocol_lines_trims_and_skips_empty_lines() {
+        let payload = "  {\"id\":1}  \n\n\t{\"id\":2}\r\n";
+        let lines: Vec<&str> = protocol_lines(payload).collect();
+        assert_eq!(lines, vec!["{\"id\":1}", "{\"id\":2}"]);
+    }
+}
+
 async fn dispatch_incoming_payload(
     app: &AppHandle,
     pending: &Arc<Mutex<PendingMap>>,
@@ -91,55 +112,4 @@ fn protocol_lines(payload: &str) -> impl Iterator<Item = &str> {
         .lines()
         .map(str::trim)
         .filter(|line| !line.is_empty())
-}
-
-fn normalize_ws_url(ws_url: &str) -> Result<String, String> {
-    let raw_url = ws_url.trim();
-    if raw_url.is_empty() {
-        return Err("Orbit provider requires orbitWsUrl in app settings.".to_string());
-    }
-
-    let normalized = if let Some(rest) = raw_url.strip_prefix("https://") {
-        format!("wss://{rest}")
-    } else if let Some(rest) = raw_url.strip_prefix("http://") {
-        format!("ws://{rest}")
-    } else if raw_url.starts_with("wss://") || raw_url.starts_with("ws://") {
-        raw_url.to_string()
-    } else {
-        return Err("orbitWsUrl must start with https://, http://, wss://, or ws://".to_string());
-    };
-    Ok(normalized)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{normalize_ws_url, protocol_lines};
-
-    #[test]
-    fn normalize_ws_url_rewrites_http_scheme() {
-        let value =
-            normalize_ws_url("https://bridge.example.workers.dev/ws/session-1").expect("ws url");
-        assert_eq!(value, "wss://bridge.example.workers.dev/ws/session-1");
-    }
-
-    #[test]
-    fn normalize_ws_url_keeps_ws_scheme() {
-        let value =
-            normalize_ws_url("wss://bridge.example.workers.dev/ws/session-1").expect("ws url");
-        assert_eq!(value, "wss://bridge.example.workers.dev/ws/session-1");
-    }
-
-    #[test]
-    fn protocol_lines_splits_multiline_payload() {
-        let payload = "{\"id\":1}\n{\"id\":2}\n";
-        let lines: Vec<&str> = protocol_lines(payload).collect();
-        assert_eq!(lines, vec!["{\"id\":1}", "{\"id\":2}"]);
-    }
-
-    #[test]
-    fn protocol_lines_trims_and_skips_empty_lines() {
-        let payload = "  {\"id\":1}  \n\n\t{\"id\":2}\r\n";
-        let lines: Vec<&str> = protocol_lines(payload).collect();
-        assert_eq!(lines, vec!["{\"id\":1}", "{\"id\":2}"]);
-    }
 }

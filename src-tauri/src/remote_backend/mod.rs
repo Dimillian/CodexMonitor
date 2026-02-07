@@ -117,6 +117,7 @@ async fn ensure_remote_backend(state: &AppState, app: AppHandle) -> Result<Remot
         let settings = state.app_settings.lock().await;
         resolve_transport_config(&settings)?
     };
+    let transport_kind = transport_config.kind();
     let auth_token = transport_config.auth_token().map(|value| value.to_string());
 
     let transport: Box<dyn RemoteTransport> = match transport_config.kind() {
@@ -134,11 +135,13 @@ async fn ensure_remote_backend(state: &AppState, app: AppHandle) -> Result<Remot
         }),
     };
 
-    if let Some(token) = auth_token {
-        client
-            .call("auth", json!({ "token": token }))
-            .await
-            .map(|_| ())?;
+    if matches!(transport_kind, RemoteTransportKind::Tcp) {
+        if let Some(token) = auth_token {
+            client
+                .call("auth", json!({ "token": token }))
+                .await
+                .map(|_| ())?;
+        }
     }
 
     {

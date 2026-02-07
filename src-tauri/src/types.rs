@@ -190,6 +190,81 @@ pub(crate) struct LocalUsageSnapshot {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct OrbitConnectTestResult {
+    pub(crate) ok: bool,
+    pub(crate) latency_ms: Option<u64>,
+    pub(crate) message: String,
+    #[serde(default)]
+    pub(crate) details: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct OrbitDeviceCodeStart {
+    pub(crate) device_code: String,
+    #[serde(default)]
+    pub(crate) user_code: Option<String>,
+    pub(crate) verification_uri: String,
+    #[serde(default)]
+    pub(crate) verification_uri_complete: Option<String>,
+    pub(crate) interval_seconds: u32,
+    pub(crate) expires_in_seconds: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum OrbitSignInStatus {
+    Pending,
+    Authorized,
+    Denied,
+    Expired,
+    Error,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct OrbitSignInPollResult {
+    pub(crate) status: OrbitSignInStatus,
+    #[serde(default)]
+    pub(crate) token: Option<String>,
+    #[serde(default)]
+    pub(crate) message: Option<String>,
+    #[serde(default)]
+    pub(crate) interval_seconds: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct OrbitSignOutResult {
+    pub(crate) success: bool,
+    #[serde(default)]
+    pub(crate) message: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum OrbitRunnerState {
+    Stopped,
+    Running,
+    Error,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct OrbitRunnerStatus {
+    pub(crate) state: OrbitRunnerState,
+    #[serde(default)]
+    pub(crate) pid: Option<u32>,
+    #[serde(default)]
+    pub(crate) started_at_ms: Option<i64>,
+    #[serde(default)]
+    pub(crate) last_error: Option<String>,
+    #[serde(default)]
+    pub(crate) orbit_url: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct BranchInfo {
     pub(crate) name: String,
     pub(crate) last_commit: i64,

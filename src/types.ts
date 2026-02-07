@@ -232,6 +232,51 @@ export type AppSettings = {
   selectedOpenAppId: string;
 };
 
+export type OrbitConnectTestResult = {
+  ok: boolean;
+  latencyMs: number | null;
+  message: string;
+  details?: string | null;
+};
+
+export type OrbitDeviceCodeStart = {
+  deviceCode: string;
+  userCode: string | null;
+  verificationUri: string;
+  verificationUriComplete: string | null;
+  intervalSeconds: number;
+  expiresInSeconds: number;
+};
+
+export type OrbitSignInStatus =
+  | "pending"
+  | "authorized"
+  | "denied"
+  | "expired"
+  | "error";
+
+export type OrbitSignInPollResult = {
+  status: OrbitSignInStatus;
+  token: string | null;
+  message: string | null;
+  intervalSeconds: number | null;
+};
+
+export type OrbitSignOutResult = {
+  success: boolean;
+  message: string | null;
+};
+
+export type OrbitRunnerState = "stopped" | "running" | "error";
+
+export type OrbitRunnerStatus = {
+  state: OrbitRunnerState;
+  pid: number | null;
+  startedAtMs: number | null;
+  lastError: string | null;
+  orbitUrl: string | null;
+};
+
 export type CodexDoctorResult = {
   ok: boolean;
   codexBin: string | null;

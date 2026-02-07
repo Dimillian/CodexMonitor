@@ -8,6 +8,11 @@ import type {
   DictationModelStatus,
   DictationSessionState,
   LocalUsageSnapshot,
+  OrbitConnectTestResult,
+  OrbitDeviceCodeStart,
+  OrbitRunnerStatus,
+  OrbitSignInPollResult,
+  OrbitSignOutResult,
   WorkspaceInfo,
   WorkspaceSettings,
 } from "../types";
@@ -583,6 +588,34 @@ export async function getAppSettings(): Promise<AppSettings> {
 
 export async function updateAppSettings(settings: AppSettings): Promise<AppSettings> {
   return invoke<AppSettings>("update_app_settings", { settings });
+}
+
+export async function orbitConnectTest(): Promise<OrbitConnectTestResult> {
+  return invoke<OrbitConnectTestResult>("orbit_connect_test");
+}
+
+export async function orbitSignInStart(): Promise<OrbitDeviceCodeStart> {
+  return invoke<OrbitDeviceCodeStart>("orbit_sign_in_start");
+}
+
+export async function orbitSignInPoll(deviceCode: string): Promise<OrbitSignInPollResult> {
+  return invoke<OrbitSignInPollResult>("orbit_sign_in_poll", { deviceCode });
+}
+
+export async function orbitSignOut(): Promise<OrbitSignOutResult> {
+  return invoke<OrbitSignOutResult>("orbit_sign_out");
+}
+
+export async function orbitRunnerStart(): Promise<OrbitRunnerStatus> {
+  return invoke<OrbitRunnerStatus>("orbit_runner_start");
+}
+
+export async function orbitRunnerStop(): Promise<OrbitRunnerStatus> {
+  return invoke<OrbitRunnerStatus>("orbit_runner_stop");
+}
+
+export async function orbitRunnerStatus(): Promise<OrbitRunnerStatus> {
+  return invoke<OrbitRunnerStatus>("orbit_runner_status");
 }
 
 type MenuAcceleratorUpdate = {
