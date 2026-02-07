@@ -24,6 +24,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
+    "i18n:check": "npx i18next-parser",
+    "test:i18n": "vitest run src/i18n/hooks/useTranslation.test.ts",
     "preview": "vite preview",
     "tauri": "tauri",
     "pretauri:dev": "npm run sync:material-icons",
@@ -54,7 +56,10 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "tauri-plugin-liquid-glass-api": "^0.1.6",
-    "vscode-material-icons": "^0.1.1"
+    "vscode-material-icons": "^0.1.1",
+    "react-i18next": "^15.x",
+    "i18next": "^23.x",
+    "i18next-browser-languagedetector": "^8.x"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.9.6",

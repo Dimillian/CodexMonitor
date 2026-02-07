@@ -1,0 +1,33 @@
+{
+  "agents": [
+    {
+      "agent_id": "ad7dc52",
+      "agent_type": "oh-my-claudecode:architect-medium",
+      "started_at": "2026-02-07T10:09:21.522Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-02-07T10:10:37.592Z",
+      "duration_ms": 76070
+    },
+    {
+      "agent_id": "a99159e",
+      "agent_type": "oh-my-claudecode:architect-medium",
+      "started_at": "2026-02-07T10:13:24.169Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-02-07T10:15:20.625Z",
+      "duration_ms": 116456
+    },
+    {
+      "agent_id": "aa15040",
+      "agent_type": "oh-my-claudecode:git-master",
+      "started_at": "2026-02-07T10:15:49.283Z",
+      "parent_mode": "none",
+      "status": "running"
+    }
+  ],
+  "total_spawned": 3,
+  "total_completed": 2,
+  "total_failed": 0,
+  "last_updated": "2026-02-07T10:15:49.384Z"
+}

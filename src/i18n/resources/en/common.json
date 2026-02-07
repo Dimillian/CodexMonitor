@@ -1,0 +1,39 @@
+{
+  "app": {
+    "name": "CodexMonitor",
+    "title": "Codex Monitor",
+    "description": "Orchestrate Codex agents across local workspaces"
+  },
+  "navigation": {
+    "home": "Home",
+    "projects": "Projects",
+    "threads": "Threads",
+    "settings": "Settings"
+  },
+  "actions": {
+    "add": "Add",
+    "remove": "Remove",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete"
+  },
+  "errors": {
+    "generic": "Something went wrong",
+    "network": "Network error",
+    "notFound": "Not found"
+  },
+  "success": {
+    "saved": "Saved successfully",
+    "deleted": "Deleted successfully"
+  },
+  "terms": {
+    "workspace": "Workspace",
+    "thread": "Thread",
+    "agent": "Agent"
+  },
+  "settings": {
+    "language": "Language"
+  }
+}

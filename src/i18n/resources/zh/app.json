@@ -1,0 +1,14 @@
+{
+  "sidebar": {
+    "title": "工作区",
+    "search": "搜索",
+    "recent": "最近",
+    "pinned": "固定",
+    "addWorkspace": "添加工作区"
+  },
+  "dashboard": {
+    "welcome": "欢迎使用 CodexMonitor",
+    "quickActions": "快速操作",
+    "recentActivity": "最近活动"
+  }
+}
