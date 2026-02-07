@@ -24,10 +24,19 @@
       "started_at": "2026-02-07T10:15:49.283Z",
       "parent_mode": "none",
       "status": "running"
+    },
+    {
+      "agent_id": "af39840",
+      "agent_type": "oh-my-claudecode:build-fixer",
+      "started_at": "2026-02-07T11:37:23.851Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-02-07T11:40:51.264Z",
+      "duration_ms": 207413
     }
   ],
-  "total_spawned": 3,
-  "total_completed": 2,
+  "total_spawned": 4,
+  "total_completed": 3,
   "total_failed": 0,
-  "last_updated": "2026-02-07T10:15:49.384Z"
+  "last_updated": "2026-02-07T11:40:51.378Z"
 }
