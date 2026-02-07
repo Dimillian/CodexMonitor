@@ -38,4 +38,3 @@ All notable changes to this project are documented in this file.
 - Added Playwright smoke coverage for opening Settings and verifying the CLI Backend section with a minimal Tauri runtime mock.
 - Added Playwright Claude-focused coverage for persisting default CLI path/args and workspace Claude binary/home/args overrides.
 - Added Codex-focused Playwright golden coverage for default Codex CLI persistence and workspace Codex override persistence.
-- Added updated app screenshots for PR review at `docs/screenshots/pr-19/home.png` and `docs/screenshots/pr-19/settings-cli-backend.png`.
