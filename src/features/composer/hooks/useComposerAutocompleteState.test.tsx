@@ -106,10 +106,11 @@ describe("useComposerAutocompleteState slash commands", () => {
         "new",
         "resume",
         "review",
+        "skill",
         "status",
       ]),
     );
-    expect(labels.slice(0, 8)).toEqual([
+    expect(labels.slice(0, 9)).toEqual([
       "apps",
       "compact",
       "fork",
@@ -117,6 +118,7 @@ describe("useComposerAutocompleteState slash commands", () => {
       "new",
       "resume",
       "review",
+      "skill",
       "status",
     ]);
   });
@@ -148,7 +150,86 @@ describe("useComposerAutocompleteState slash commands", () => {
 
     const labels = result.current.autocompleteMatches.map((item) => item.label);
     expect(labels).not.toContain("apps");
-    expect(labels).toEqual(["compact", "fork", "mcp", "new", "resume", "review", "status"]);
+    expect(labels).toEqual([
+      "compact",
+      "fork",
+      "mcp",
+      "new",
+      "resume",
+      "review",
+      "skill",
+      "status",
+    ]);
+  });
+});
+
+describe("useComposerAutocompleteState /skill completions", () => {
+  it("shows skills after /skill and a space", () => {
+    const text = "/skill ";
+    const selectionStart = text.length;
+    const textareaRef = createRef<HTMLTextAreaElement>();
+    textareaRef.current = {
+      focus: vi.fn(),
+      setSelectionRange: vi.fn(),
+    } as unknown as HTMLTextAreaElement;
+
+    const { result } = renderHook(() =>
+      useComposerAutocompleteState({
+        text,
+        selectionStart,
+        disabled: false,
+        appsEnabled: true,
+        skills: [
+          { name: "build_project", description: "Build it" },
+          { name: "debug_app", description: "Debug it" },
+        ],
+        apps: [],
+        prompts: [],
+        files: [],
+        textareaRef,
+        setText: vi.fn(),
+        setSelectionStart: vi.fn(),
+      }),
+    );
+
+    expect(result.current.isAutocompleteOpen).toBe(true);
+    expect(result.current.autocompleteMatches.map((item) => item.label)).toEqual([
+      "build_project",
+      "debug_app",
+    ]);
+  });
+
+  it("filters skills after /skill with a query", () => {
+    const text = "/skill deb";
+    const selectionStart = text.length;
+    const textareaRef = createRef<HTMLTextAreaElement>();
+    textareaRef.current = {
+      focus: vi.fn(),
+      setSelectionRange: vi.fn(),
+    } as unknown as HTMLTextAreaElement;
+
+    const { result } = renderHook(() =>
+      useComposerAutocompleteState({
+        text,
+        selectionStart,
+        disabled: false,
+        appsEnabled: true,
+        skills: [
+          { name: "build_project", description: "Build it" },
+          { name: "debug_app", description: "Debug it" },
+        ],
+        apps: [],
+        prompts: [],
+        files: [],
+        textareaRef,
+        setText: vi.fn(),
+        setSelectionStart: vi.fn(),
+      }),
+    );
+
+    expect(result.current.autocompleteMatches.map((item) => item.label)).toEqual([
+      "debug_app",
+    ]);
   });
 });
 

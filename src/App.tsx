@@ -32,6 +32,7 @@ import "./styles/worktree-modal.css";
 import "./styles/clone-modal.css";
 import "./styles/branch-switcher-modal.css";
 import "./styles/settings.css";
+import "./styles/skills.css";
 import "./styles/compact-base.css";
 import "./styles/compact-phone.css";
 import "./styles/compact-tablet.css";
@@ -490,7 +491,7 @@ function MainApp() {
     reasoningSupported,
     onFocusComposer: () => composerInputRef.current?.focus(),
   });
-  const { skills } = useSkills({ activeWorkspace, onDebug: addDebugEntry });
+  const { skills, refreshSkills } = useSkills({ activeWorkspace, onDebug: addDebugEntry });
   const { apps } = useApps({
     activeWorkspace,
     enabled: appSettings.experimentalAppsEnabled,
@@ -2402,6 +2403,13 @@ function MainApp() {
           onDownloadDictationModel: dictationModel.download,
           onCancelDictationDownload: dictationModel.cancel,
           onRemoveDictationModel: dictationModel.remove,
+          skills,
+          onUseSkill: (name: string) => {
+            handleInsertComposerText(`/skill ${name}`);
+          },
+          onRefreshSkills: () => {
+            void refreshSkills();
+          },
         }}
       />
     </div>

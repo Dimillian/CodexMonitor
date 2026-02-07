@@ -471,6 +471,8 @@ export type SkillOption = {
   name: string;
   path: string;
   description?: string;
+  codexHome?: string | null;
+  workspacePath?: string | null;
 };
 
 export type AppOption = {

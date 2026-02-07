@@ -16,6 +16,7 @@ import X from "lucide-react/dist/esm/icons/x";
 import FlaskConical from "lucide-react/dist/esm/icons/flask-conical";
 import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 import Layers from "lucide-react/dist/esm/icons/layers";
+import Wrench from "lucide-react/dist/esm/icons/wrench";
 import type {
   AppSettings,
   CodexDoctorResult,
@@ -24,6 +25,7 @@ import type {
   OpenAppTarget,
   WorkspaceGroup,
   WorkspaceInfo,
+  SkillOption,
 } from "../../../types";
 import { formatDownloadSize } from "../../../utils/formatting";
 import {
@@ -55,6 +57,7 @@ import { useGlobalAgentsMd } from "../hooks/useGlobalAgentsMd";
 import { useGlobalCodexConfigToml } from "../hooks/useGlobalCodexConfigToml";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 import { FileEditorCard } from "../../shared/components/FileEditorCard";
+import { SkillsView } from "./SkillsView";
 
 const DICTATION_MODELS = [
   { id: "tiny", label: "Tiny", size: "75 MB", note: "Fastest, least accurate." },
@@ -184,6 +187,9 @@ export type SettingsViewProps = {
   onCancelDictationDownload?: () => void;
   onRemoveDictationModel?: () => void;
   initialSection?: CodexSection;
+  skills: SkillOption[];
+  onUseSkill: (name: string) => void;
+  onRefreshSkills: () => void;
 };
 
 type SettingsSection =
@@ -194,7 +200,8 @@ type SettingsSection =
   | "dictation"
   | "shortcuts"
   | "open-apps"
-  | "git";
+  | "git"
+  | "skills";
 type CodexSection = SettingsSection | "codex" | "features";
 type ShortcutSettingKey =
   | "composerModelShortcut"
@@ -327,6 +334,9 @@ export function SettingsView({
   onDownloadDictationModel,
   onCancelDictationDownload,
   onRemoveDictationModel,
+  skills,
+  onUseSkill,
+  onRefreshSkills,
   initialSection,
 }: SettingsViewProps) {
   const [activeSection, setActiveSection] = useState<CodexSection>("projects");
@@ -1223,6 +1233,14 @@ export function SettingsView({
             >
               <GitBranch aria-hidden />
               Git
+            </button>
+            <button
+              type="button"
+              className={`settings-nav ${activeSection === "skills" ? "active" : ""}`}
+              onClick={() => setActiveSection("skills")}
+            >
+              <Wrench aria-hidden />
+              Skills
             </button>
             <button
               type="button"
@@ -2996,6 +3014,13 @@ export function SettingsView({
                   </button>
                 </div>
               </section>
+            )}
+            {activeSection === "skills" && (
+              <SkillsView
+                skills={skills}
+                onUseSkill={onUseSkill}
+                onRefreshSkills={onRefreshSkills}
+              />
             )}
             {activeSection === "codex" && (
               <section className="settings-section">

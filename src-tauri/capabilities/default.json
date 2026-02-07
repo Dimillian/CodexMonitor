@@ -7,6 +7,20 @@
     "core:default",
     "core:webview:allow-set-webview-zoom",
     "opener:default",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        {
+          "path": "$HOME/**"
+        },
+        {
+          "path": "$HOME/.codex/**"
+        },
+        {
+          "path": "$HOME/**/.codex/**"
+        }
+      ]
+    },
     "dialog:default",
     "process:default",
     "updater:default",
