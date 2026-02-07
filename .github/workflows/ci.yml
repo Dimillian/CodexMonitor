@@ -16,7 +16,12 @@ jobs:
           node-version: "20"
           cache: "npm"
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm config set registry https://registry.npmmirror.com
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+          npm ci --verbose
+        timeout-minutes: 10
       - name: Lint
         run: npm run lint
   typecheck:
@@ -28,7 +33,12 @@ jobs:
           node-version: "20"
           cache: "npm"
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm config set registry https://registry.npmmirror.com
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+          npm ci --verbose
+        timeout-minutes: 10
       - name: Typecheck
         run: npm run typecheck
   test-js:
@@ -40,7 +50,12 @@ jobs:
           node-version: "20"
           cache: "npm"
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm config set registry https://registry.npmmirror.com
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+          npm ci --verbose
+        timeout-minutes: 10
       - name: Tests
         run: npm run test
 
@@ -159,7 +174,12 @@ jobs:
           echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_ENV
           echo "C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_PATH
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm config set registry https://registry.npmmirror.com
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+          npm ci --verbose
+        timeout-minutes: 10
       - name: Doctor (Windows)
         if: runner.os == 'Windows'
         run: npm run doctor:win
