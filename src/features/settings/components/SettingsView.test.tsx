@@ -19,7 +19,6 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 }));
 
 const baseSettings: AppSettings = {
-  language: "en",
   codexBin: null,
   codexArgs: null,
   backendMode: "local",

@@ -120,3 +120,24 @@ Type: decision
 Event: Published `latest.json` referenced asset names that did not match uploaded release asset filenames, causing updater download 404s.
 Action: Updated `.github/workflows/release.yml` to normalize artifact filenames before publish, URL-encode generated `latest.json` URLs, and validate that every `latest.json` URL maps to an actual artifact before creating the release.
 Rule: Generate `latest.json` URLs from normalized artifact filenames and fail the release job if any referenced asset is missing.
+
+## 2026-02-07 13:26
+Context: Mobile remote architecture direction
+Type: preference
+Event: User chose Cloudflare as the bridge for mobile-to-desktop remote backend connectivity and questioned duplicating backend logic in-app.
+Action: Adopted plan direction toward a Cloudflare bridge layer (realtime transport + durable queue/snapshots) while keeping daemon/core logic as the execution authority on desktop.
+Rule: Mobile remote mode should connect through a Cloudflare bridge to the desktop daemon, not a duplicated backend implementation on-device.
+
+## 2026-02-07 13:26
+Context: Remote-mode implementation strategy
+Type: decision
+Event: Command/event parity analysis showed major mismatch between local Tauri commands and daemon RPC coverage.
+Action: Established parity-first roadmap: complete daemon RPC surface and remote adapter routing before shipping mobile remote mode.
+Rule: Remote/mobile rollouts must gate on command/event parity with local mode for user-facing features.
+
+## 2026-02-07 13:31
+Context: Mobile bridge implementation direction
+Type: preference
+Event: User explicitly requested to ignore PR #31 and CloudKit for mobile architecture planning.
+Action: Canonical mobile plan now targets Cloudflare bridge only, with no dependency on CloudKit or PR #31 implementation details.
+Rule: Do not propose CloudKit/PR31-based mobile backend patterns unless user re-requests them.
