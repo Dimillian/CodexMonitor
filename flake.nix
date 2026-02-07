@@ -13,10 +13,13 @@
         packageJson = builtins.fromJSON (builtins.readFile ./package.json);
 
         linuxPackages = pkgs.lib.optionals pkgs.stdenv.isLinux [
+          pkgs.alsa-lib
+          pkgs.glib-networking
           pkgs.gtk3
-          pkgs.libxkbcommon
+          pkgs.libayatana-appindicator
           pkgs.librsvg
           pkgs.libsoup_3
+          pkgs.libxkbcommon
           pkgs.webkitgtk_4_1
         ];
 
@@ -25,7 +28,7 @@
           version = packageJson.version;
           src = ./.;
           nodejs = pkgs.nodejs_20;
-          npmDepsHash = "sha256-TT9Po/VVzuObcqAkv4HoRSo41IMvouorlPnPTabxcTA=";
+          npmDepsHash = "sha256-GWBewwZD6Q3wstZCvVYToiRHRPvrVQcPBJGJPvook6o=";
           npmBuildScript = "build";
           installPhase = ''
             mkdir -p $out
@@ -56,6 +59,9 @@
             pkgs.cargo-tauri
             pkgs.cmake
             pkgs.pkg-config
+          ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            pkgs.llvmPackages.libclang
+            pkgs.wrapGAppsHook3
           ];
 
           buildInputs = [
@@ -63,6 +69,9 @@
           ] ++ linuxPackages;
 
           TAURI_CONFIG = tauriConfig;
+
+          LIBCLANG_PATH = pkgs.lib.optionalString pkgs.stdenv.isLinux
+            "${pkgs.llvmPackages.libclang.lib}/lib";
 
           preBuild = ''
             mkdir -p dist
@@ -95,10 +104,16 @@
             pkgs.rustc
             pkgs.rustfmt
             pkgs.rustPlatform.rustLibSrc
+          ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            pkgs.llvmPackages.libclang
           ] ++ linuxPackages;
 
           shellHook = ''
             export RUST_SRC_PATH=${pkgs.rustPlatform.rustLibSrc}
+          '' + pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+            export LIBCLANG_PATH="${pkgs.llvmPackages.libclang.lib}/lib"
+            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath linuxPackages}:$LD_LIBRARY_PATH"
+            export GIO_MODULE_PATH="${pkgs.glib-networking}/lib/gio/modules"
           '';
         };
 
