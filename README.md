@@ -2,7 +2,7 @@
 
 ![GeminiMonitor](screenshot.png)
 
-CodexMonitor is a Tauri app for orchestrating multiple Codex agents across local workspaces. It provides a sidebar to manage projects, a home screen for quick actions, and a conversation view backed by the Codex app-server protocol.
+Agent Monitor is a Tauri app for orchestrating multiple agents across local workspaces. It provides a sidebar to manage projects, a home screen for quick actions, and a conversation view backed by the agent app-server protocol.
 
 ## Features
 
@@ -66,7 +66,7 @@ The app will detect the Gemini CLI automatically. If not found, you can configur
 - Rust toolchain (stable)
 - CMake (required for native dependencies; dictation/Whisper uses it)
 - LLVM/Clang (required on Windows to build dictation dependencies via bindgen)
-- Codex installed on your system and available as `codex` in `PATH`
+- Agent CLI installed on your system and available in `PATH`
 - Git CLI (used for worktree operations)
 - GitHub CLI (`gh`) for the Issues panel (optional)
 
@@ -150,7 +150,7 @@ src-tauri/
 ## Notes
 
 - Workspaces persist to `workspaces.json` under the app data directory.
-- App settings persist to `settings.json` under the app data directory (Codex path, default access mode, UI scale).
+- App settings persist to `settings.json` under the app data directory (Agent path, default access mode, UI scale).
 - Feature settings are supported in the UI and synced to `$CODEX_HOME/config.toml` (or `~/.codex/config.toml`) on load/save. Stable: Collaboration modes (`features.collaboration_modes`), personality (`personality`), Steer mode (`features.steer`), and Background terminal (`features.unified_exec`). Experimental: Collab mode (`features.collab`) and Apps (`features.apps`).
 - On launch and on window focus, the app reconnects and refreshes thread lists for each workspace.
 - The app spawns the Gemini CLI for each conversation turn; see `src-tauri/src/backend/gemini_session.rs`.

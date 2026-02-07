@@ -21,7 +21,7 @@ Before building, ensure you have the following installed:
 | Rust toolchain | Backend compilation | [rustup.rs](https://rustup.rs/) |
 | CMake | Native dependencies | See below |
 | Git CLI | Worktree operations | Usually pre-installed |
-| Codex | Agent runtime | Must be in `PATH` |
+| Agent CLI | Agent runtime | Must be in `PATH` |
 | GitHub CLI (`gh`) | Issues panel (optional) | [cli.github.com](https://cli.github.com/) |
 
 #### Installing CMake
@@ -124,9 +124,9 @@ npm run doctor
 
 This will identify missing dependencies and provide installation instructions.
 
-### Codex Not Found
+### Agent CLI Not Found
 
-If the `codex` binary is not in your `PATH`, you can configure a custom path per workspace in the application settings.
+If the agent CLI binary is not in your `PATH`, you can configure a custom path per workspace in the application settings.
 
 ### macOS Gatekeeper Warning
 

@@ -274,6 +274,26 @@ pub(crate) struct WorkspaceSettings {
     pub(crate) codex_home: Option<String>,
     #[serde(default, rename = "codexArgs")]
     pub(crate) codex_args: Option<String>,
+    #[serde(default, rename = "geminiHome")]
+    pub(crate) gemini_home: Option<String>,
+    #[serde(default, rename = "geminiArgs")]
+    pub(crate) gemini_args: Option<String>,
+    #[serde(default, rename = "cursorHome")]
+    pub(crate) cursor_home: Option<String>,
+    #[serde(default, rename = "cursorArgs")]
+    pub(crate) cursor_args: Option<String>,
+    #[serde(default, rename = "claudeHome")]
+    pub(crate) claude_home: Option<String>,
+    #[serde(default, rename = "claudeArgs")]
+    pub(crate) claude_args: Option<String>,
+    #[serde(default, rename = "codexBin")]
+    pub(crate) codex_bin: Option<String>,
+    #[serde(default, rename = "geminiBin")]
+    pub(crate) gemini_bin: Option<String>,
+    #[serde(default, rename = "cursorBin")]
+    pub(crate) cursor_bin: Option<String>,
+    #[serde(default, rename = "claudeBin")]
+    pub(crate) claude_bin: Option<String>,
     #[serde(default, rename = "launchScript")]
     pub(crate) launch_script: Option<String>,
     #[serde(default, rename = "launchScripts")]
@@ -313,10 +333,36 @@ pub(crate) struct OpenAppTarget {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct AppSettings {
+    #[serde(default = "default_cli_type", rename = "cliType")]
+    pub(crate) cli_type: String,
     #[serde(default, rename = "codexBin")]
     pub(crate) codex_bin: Option<String>,
     #[serde(default, rename = "codexArgs")]
     pub(crate) codex_args: Option<String>,
+    #[serde(default, rename = "geminiBin")]
+    pub(crate) gemini_bin: Option<String>,
+    #[serde(default, rename = "geminiArgs")]
+    pub(crate) gemini_args: Option<String>,
+    #[serde(default, rename = "cursorBin")]
+    pub(crate) cursor_bin: Option<String>,
+    #[serde(default, rename = "cursorArgs")]
+    pub(crate) cursor_args: Option<String>,
+    #[serde(default, rename = "claudeBin")]
+    pub(crate) claude_bin: Option<String>,
+    #[serde(default, rename = "claudeArgs")]
+    pub(crate) claude_args: Option<String>,
+    #[serde(default = "default_cursor_vim_mode", rename = "cursorVimMode")]
+    pub(crate) cursor_vim_mode: bool,
+    #[serde(default = "default_cursor_default_mode", rename = "cursorDefaultMode")]
+    pub(crate) cursor_default_mode: String,
+    #[serde(default = "default_cursor_output_format", rename = "cursorOutputFormat")]
+    pub(crate) cursor_output_format: String,
+    #[serde(default = "default_cursor_attribute_commits", rename = "cursorAttributeCommits")]
+    pub(crate) cursor_attribute_commits: bool,
+    #[serde(default = "default_cursor_attribute_prs", rename = "cursorAttributePRs")]
+    pub(crate) cursor_attribute_prs: bool,
+    #[serde(default = "default_cursor_use_http1", rename = "cursorUseHttp1")]
+    pub(crate) cursor_use_http1: bool,
     #[serde(default, rename = "backendMode")]
     pub(crate) backend_mode: BackendMode,
     #[serde(default = "default_remote_backend_host", rename = "remoteBackendHost")]
@@ -529,6 +575,34 @@ impl Default for BackendMode {
 
 fn default_access_mode() -> String {
     "current".to_string()
+}
+
+fn default_cli_type() -> String {
+    "codex".to_string()
+}
+
+fn default_cursor_vim_mode() -> bool {
+    false
+}
+
+fn default_cursor_default_mode() -> String {
+    "agent".to_string()
+}
+
+fn default_cursor_output_format() -> String {
+    "text".to_string()
+}
+
+fn default_cursor_attribute_commits() -> bool {
+    true
+}
+
+fn default_cursor_attribute_prs() -> bool {
+    true
+}
+
+fn default_cursor_use_http1() -> bool {
+    false
 }
 
 fn default_review_delivery_mode() -> String {
@@ -922,8 +996,21 @@ fn default_selected_open_app_id() -> String {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
+            cli_type: default_cli_type(),
             codex_bin: None,
             codex_args: None,
+            gemini_bin: None,
+            gemini_args: None,
+            cursor_bin: None,
+            cursor_args: None,
+            claude_bin: None,
+            claude_args: None,
+            cursor_vim_mode: default_cursor_vim_mode(),
+            cursor_default_mode: default_cursor_default_mode(),
+            cursor_output_format: default_cursor_output_format(),
+            cursor_attribute_commits: default_cursor_attribute_commits(),
+            cursor_attribute_prs: default_cursor_attribute_prs(),
+            cursor_use_http1: default_cursor_use_http1(),
             backend_mode: BackendMode::Local,
             remote_backend_host: default_remote_backend_host(),
             remote_backend_token: None,
@@ -993,7 +1080,21 @@ mod tests {
     #[test]
     fn app_settings_defaults_from_empty_json() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
+        assert_eq!(settings.cli_type, "codex");
         assert!(settings.codex_bin.is_none());
+        assert!(settings.codex_args.is_none());
+        assert!(settings.gemini_bin.is_none());
+        assert!(settings.gemini_args.is_none());
+        assert!(settings.cursor_bin.is_none());
+        assert!(settings.cursor_args.is_none());
+        assert!(settings.claude_bin.is_none());
+        assert!(settings.claude_args.is_none());
+        assert!(!settings.cursor_vim_mode);
+        assert_eq!(settings.cursor_default_mode, "agent");
+        assert_eq!(settings.cursor_output_format, "text");
+        assert!(settings.cursor_attribute_commits);
+        assert!(settings.cursor_attribute_prs);
+        assert!(!settings.cursor_use_http1);
         assert!(matches!(settings.backend_mode, BackendMode::Local));
         assert_eq!(settings.remote_backend_host, "127.0.0.1:4732");
         assert!(settings.remote_backend_token.is_none());
@@ -1117,6 +1218,76 @@ mod tests {
     }
 
     #[test]
+    fn app_settings_deserializes_new_cli_fields() {
+        let settings: AppSettings = serde_json::from_str(
+            r#"{
+                "cliType":"claude",
+                "codexBin":"/usr/local/bin/codex",
+                "codexArgs":"--profile codex",
+                "geminiBin":"/usr/local/bin/gemini",
+                "geminiArgs":"--profile gemini",
+                "cursorBin":"/usr/local/bin/cursor",
+                "cursorArgs":"--output-format stream-json",
+                "claudeBin":"/usr/local/bin/claude",
+                "claudeArgs":"--model sonnet",
+                "cursorVimMode":true,
+                "cursorDefaultMode":"plan",
+                "cursorOutputFormat":"stream-json",
+                "cursorAttributeCommits":false,
+                "cursorAttributePRs":false,
+                "cursorUseHttp1":true
+            }"#,
+        )
+        .expect("settings deserialize");
+
+        assert_eq!(settings.cli_type, "claude");
+        assert_eq!(settings.codex_bin.as_deref(), Some("/usr/local/bin/codex"));
+        assert_eq!(settings.codex_args.as_deref(), Some("--profile codex"));
+        assert_eq!(settings.gemini_bin.as_deref(), Some("/usr/local/bin/gemini"));
+        assert_eq!(settings.gemini_args.as_deref(), Some("--profile gemini"));
+        assert_eq!(settings.cursor_bin.as_deref(), Some("/usr/local/bin/cursor"));
+        assert_eq!(
+            settings.cursor_args.as_deref(),
+            Some("--output-format stream-json")
+        );
+        assert_eq!(settings.claude_bin.as_deref(), Some("/usr/local/bin/claude"));
+        assert_eq!(settings.claude_args.as_deref(), Some("--model sonnet"));
+        assert!(settings.cursor_vim_mode);
+        assert_eq!(settings.cursor_default_mode, "plan");
+        assert_eq!(settings.cursor_output_format, "stream-json");
+        assert!(!settings.cursor_attribute_commits);
+        assert!(!settings.cursor_attribute_prs);
+        assert!(settings.cursor_use_http1);
+    }
+
+    #[test]
+    fn app_settings_legacy_json_defaults_new_cli_fields() {
+        let settings: AppSettings = serde_json::from_str(
+            r#"{
+                "codexBin":"/usr/local/bin/codex",
+                "codexArgs":"--profile legacy"
+            }"#,
+        )
+        .expect("settings deserialize");
+
+        assert_eq!(settings.cli_type, "codex");
+        assert_eq!(settings.codex_bin.as_deref(), Some("/usr/local/bin/codex"));
+        assert_eq!(settings.codex_args.as_deref(), Some("--profile legacy"));
+        assert!(settings.gemini_bin.is_none());
+        assert!(settings.gemini_args.is_none());
+        assert!(settings.cursor_bin.is_none());
+        assert!(settings.cursor_args.is_none());
+        assert!(settings.claude_bin.is_none());
+        assert!(settings.claude_args.is_none());
+        assert!(!settings.cursor_vim_mode);
+        assert_eq!(settings.cursor_default_mode, "agent");
+        assert_eq!(settings.cursor_output_format, "text");
+        assert!(settings.cursor_attribute_commits);
+        assert!(settings.cursor_attribute_prs);
+        assert!(!settings.cursor_use_http1);
+    }
+
+    #[test]
     fn workspace_group_defaults_from_minimal_json() {
         let group: WorkspaceGroup =
             serde_json::from_str(r#"{"id":"g1","name":"Group"}"#).expect("group deserialize");
@@ -1163,5 +1334,46 @@ mod tests {
         assert!(settings.sort_order.is_none());
         assert!(settings.group_id.is_none());
         assert!(settings.git_root.is_none());
+        assert!(settings.codex_home.is_none());
+        assert!(settings.codex_args.is_none());
+        assert!(settings.gemini_home.is_none());
+        assert!(settings.gemini_args.is_none());
+        assert!(settings.cursor_home.is_none());
+        assert!(settings.cursor_args.is_none());
+        assert!(settings.claude_home.is_none());
+        assert!(settings.claude_args.is_none());
+        assert!(settings.codex_bin.is_none());
+        assert!(settings.gemini_bin.is_none());
+        assert!(settings.cursor_bin.is_none());
+        assert!(settings.claude_bin.is_none());
+    }
+
+    #[test]
+    fn workspace_settings_deserialize_cli_specific_home_and_args() {
+        let settings: WorkspaceSettings = serde_json::from_str(
+            r#"{
+                "codexHome":".codex",
+                "codexArgs":"--profile codex",
+                "geminiHome":".gemini",
+                "geminiArgs":"--sandbox",
+                "cursorHome":".cursor",
+                "cursorArgs":"--output-format stream-json",
+                "claudeHome":".claude",
+                "claudeArgs":"--model sonnet"
+            }"#,
+        )
+        .expect("workspace settings deserialize");
+
+        assert_eq!(settings.codex_home.as_deref(), Some(".codex"));
+        assert_eq!(settings.codex_args.as_deref(), Some("--profile codex"));
+        assert_eq!(settings.gemini_home.as_deref(), Some(".gemini"));
+        assert_eq!(settings.gemini_args.as_deref(), Some("--sandbox"));
+        assert_eq!(settings.cursor_home.as_deref(), Some(".cursor"));
+        assert_eq!(
+            settings.cursor_args.as_deref(),
+            Some("--output-format stream-json")
+        );
+        assert_eq!(settings.claude_home.as_deref(), Some(".claude"));
+        assert_eq!(settings.claude_args.as_deref(), Some("--model sonnet"));
     }
 }

@@ -22,8 +22,29 @@ use crate::shared::process_core::tokio_command;
 use crate::event_sink::TauriEventSink;
 use crate::remote_backend;
 use crate::shared::codex_core;
+use crate::shared::workspaces_core;
 use crate::state::AppState;
-use crate::types::WorkspaceEntry;
+use crate::types::{AppSettings, WorkspaceEntry};
+
+fn resolve_doctor_defaults(settings: &AppSettings) -> (Option<String>, Option<String>) {
+    (
+        workspaces_core::resolve_default_cli_bin(settings),
+        args::resolve_default_cli_args(settings),
+    )
+}
+
+fn app_server_check_failure_details(cli_type: &str, resolved_bin: Option<&str>) -> String {
+    let display_bin = resolved_bin
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(match cli_type {
+            "gemini" => "gemini",
+            "cursor" => "cursor",
+            "claude" => "claude",
+            _ => "codex",
+        });
+    format!("Failed to run `{display_bin} app-server --help`.")
+}
 
 pub(crate) async fn spawn_workspace_session(
     entry: WorkspaceEntry,
@@ -51,9 +72,10 @@ pub(crate) async fn codex_doctor(
     codex_args: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
-    let (default_bin, default_args) = {
+    let (cli_type, default_bin, default_args) = {
         let settings = state.app_settings.lock().await;
-        (settings.codex_bin.clone(), settings.codex_args.clone())
+        let (bin, args) = resolve_doctor_defaults(&settings);
+        (settings.cli_type.clone(), bin, args)
     };
     let resolved = codex_bin
         .clone()
@@ -129,10 +151,15 @@ pub(crate) async fn codex_doctor(
     let details = if app_server_ok {
         None
     } else {
-        Some("Failed to run `codex app-server --help`.".to_string())
+        Some(app_server_check_failure_details(
+            cli_type.as_str(),
+            resolved.as_deref(),
+        ))
     };
     Ok(json!({
         "ok": version.is_some() && app_server_ok,
+        "cliType": cli_type,
+        "cliBin": resolved,
         "codexBin": resolved,
         "version": version,
         "appServerOk": app_server_ok,
@@ -1079,4 +1106,110 @@ fn sanitize_run_worktree_name(value: &str) -> String {
         }
     }
     format!("feat/{}", cleaned.trim_start_matches('/'))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{app_server_check_failure_details, resolve_doctor_defaults};
+    use crate::types::AppSettings;
+
+    #[test]
+    fn resolve_doctor_defaults_uses_active_cli_fields() {
+        let mut settings = AppSettings::default();
+        settings.codex_bin = Some("/bin/codex".to_string());
+        settings.codex_args = Some("--codex".to_string());
+        settings.gemini_bin = Some("/bin/gemini".to_string());
+        settings.gemini_args = Some("--gemini".to_string());
+        settings.cursor_bin = Some("/bin/cursor".to_string());
+        settings.cursor_args = Some("--cursor".to_string());
+        settings.claude_bin = Some("/bin/claude".to_string());
+        settings.claude_args = Some("--claude".to_string());
+
+        settings.cli_type = "codex".to_string();
+        assert_eq!(
+            resolve_doctor_defaults(&settings),
+            (
+                Some("/bin/codex".to_string()),
+                Some("--codex".to_string())
+            )
+        );
+
+        settings.cli_type = "gemini".to_string();
+        assert_eq!(
+            resolve_doctor_defaults(&settings),
+            (
+                Some("/bin/gemini".to_string()),
+                Some("--gemini".to_string())
+            )
+        );
+
+        settings.cli_type = "cursor".to_string();
+        assert_eq!(
+            resolve_doctor_defaults(&settings),
+            (
+                Some("/bin/cursor".to_string()),
+                Some("--cursor".to_string())
+            )
+        );
+
+        settings.cli_type = "claude".to_string();
+        assert_eq!(
+            resolve_doctor_defaults(&settings),
+            (
+                Some("/bin/claude".to_string()),
+                Some("--claude".to_string())
+            )
+        );
+    }
+
+    #[test]
+    fn resolve_doctor_defaults_falls_back_to_cli_binaries() {
+        let mut settings = AppSettings::default();
+        settings.codex_bin = Some("/bin/codex".to_string());
+        settings.codex_args = Some("--codex".to_string());
+        settings.gemini_bin = None;
+        settings.gemini_args = None;
+        settings.cursor_bin = None;
+        settings.cursor_args = None;
+        settings.claude_bin = None;
+        settings.claude_args = None;
+
+        settings.cli_type = "gemini".to_string();
+        assert_eq!(
+            resolve_doctor_defaults(&settings),
+            (Some("gemini".to_string()), None)
+        );
+
+        settings.cli_type = "cursor".to_string();
+        assert_eq!(
+            resolve_doctor_defaults(&settings),
+            (Some("cursor".to_string()), None)
+        );
+
+        settings.cli_type = "claude".to_string();
+        assert_eq!(
+            resolve_doctor_defaults(&settings),
+            (Some("claude".to_string()), None)
+        );
+    }
+
+    #[test]
+    fn app_server_failure_details_use_resolved_bin() {
+        assert_eq!(
+            app_server_check_failure_details("claude", Some("/opt/claude/bin/claude")),
+            "Failed to run `/opt/claude/bin/claude app-server --help`."
+        );
+    }
+
+    #[test]
+    fn app_server_failure_details_fall_back_to_cli_name() {
+        assert_eq!(
+            app_server_check_failure_details("claude", None),
+            "Failed to run `claude app-server --help`."
+        );
+        assert_eq!(
+            app_server_check_failure_details("cursor", Some("   ")),
+            "Failed to run `cursor app-server --help`."
+        );
+    }
 }

@@ -40,12 +40,12 @@ pub fn run() {
         .manage(menu::MenuItemRegistry::<tauri::Wry>::default())
         .menu(menu::build_menu)
         .on_menu_event(menu::handle_menu_event)
-        .on_window_event(|window, event| {
+        .on_window_event(|window, _event| {
             if window.label() != "main" {
                 return;
             }
             #[cfg(target_os = "macos")]
-            if let WindowEvent::CloseRequested { api, .. } = event {
+            if let WindowEvent::CloseRequested { api, .. } = _event {
                 api.prevent_close();
                 let _ = window.hide();
             }
@@ -92,6 +92,7 @@ pub fn run() {
             workspaces::rename_worktree_upstream,
             workspaces::apply_worktree_changes,
             workspaces::update_workspace_settings,
+            workspaces::update_workspace_cli_bin,
             workspaces::update_workspace_codex_bin,
             codex::start_thread,
             codex::send_user_message,
@@ -171,10 +172,10 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while running tauri application");
 
-    app.run(|app_handle, event| {
+    app.run(|_app_handle, _event| {
         #[cfg(target_os = "macos")]
-        if let RunEvent::Reopen { .. } = event {
-            if let Some(window) = app_handle.get_webview_window("main") {
+        if let RunEvent::Reopen { .. } = _event {
+            if let Some(window) = _app_handle.get_webview_window("main") {
                 let _ = window.show();
                 let _ = window.set_focus();
             }

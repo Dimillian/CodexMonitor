@@ -26,8 +26,6 @@ use super::worktree::{
 
 use crate::backend::app_server::WorkspaceSession;
 use crate::codex::spawn_workspace_session;
-use crate::codex::args::resolve_workspace_codex_args;
-use crate::codex::home::resolve_workspace_codex_home;
 use crate::git_utils::resolve_git_root;
 use crate::remote_backend;
 use crate::shared::process_core::{kill_child_process_tree, tokio_command};
@@ -221,18 +219,26 @@ pub(crate) async fn add_clone(
         worktree: None,
         settings: WorkspaceSettings {
             group_id: inherited_group_id,
+            codex_bin: source_entry.settings.codex_bin.clone(),
+            gemini_bin: source_entry.settings.gemini_bin.clone(),
+            cursor_bin: source_entry.settings.cursor_bin.clone(),
+            claude_bin: source_entry.settings.claude_bin.clone(),
             ..WorkspaceSettings::default()
         },
     };
 
+    let settings_snapshot = state.app_settings.lock().await.clone();
     let (default_bin, codex_args) = {
-        let settings = state.app_settings.lock().await;
         (
-            settings.codex_bin.clone(),
-            resolve_workspace_codex_args(&entry, None, Some(&settings)),
+            workspaces_core::resolve_workspace_cli_bin(&entry, &settings_snapshot),
+            workspaces_core::resolve_workspace_cli_args(&entry, None, Some(&settings_snapshot)),
         )
     };
-    let codex_home = resolve_workspace_codex_home(&entry, None);
+    let codex_home = workspaces_core::resolve_workspace_cli_home(
+        &entry,
+        None,
+        Some(&settings_snapshot),
+    );
     let session = match spawn_workspace_session(
         entry.clone(),
         default_bin,
@@ -739,7 +745,7 @@ pub(crate) async fn update_workspace_settings(
 
 
 #[tauri::command]
-pub(crate) async fn update_workspace_codex_bin(
+pub(crate) async fn update_workspace_cli_bin(
     id: String,
     codex_bin: Option<String>,
     state: State<'_, AppState>,
@@ -750,7 +756,7 @@ pub(crate) async fn update_workspace_codex_bin(
         let response = remote_backend::call_remote(
             &*state,
             app,
-            "update_workspace_codex_bin",
+            "update_workspace_cli_bin",
             json!({ "id": id, "codex_bin": codex_bin }),
         )
         .await?;
@@ -762,9 +768,20 @@ pub(crate) async fn update_workspace_codex_bin(
         codex_bin,
         &state.workspaces,
         &state.sessions,
+        &state.app_settings,
         &state.storage_path,
     )
     .await
+}
+
+#[tauri::command]
+pub(crate) async fn update_workspace_codex_bin(
+    id: String,
+    codex_bin: Option<String>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<WorkspaceInfo, String> {
+    update_workspace_cli_bin(id, codex_bin, state, app).await
 }
 
 

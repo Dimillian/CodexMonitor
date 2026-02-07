@@ -598,43 +598,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "codex-monitor"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "block2",
- "chrono",
- "cpal",
- "fix-path-env",
- "git2",
- "ignore",
- "libc",
- "objc2",
- "objc2-app-kit",
- "objc2-av-foundation",
- "objc2-foundation",
- "portable-pty",
- "reqwest",
- "serde",
- "serde_json",
- "sha2",
- "shell-words",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-liquid-glass",
- "tauri-plugin-notification",
- "tauri-plugin-opener",
- "tauri-plugin-process",
- "tauri-plugin-updater",
- "tauri-plugin-window-state",
- "tokio",
- "toml 0.8.2",
- "uuid",
- "whisper-rs",
-]
-
-[[package]]
 name = "combine"
 version = "4.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1502,6 +1465,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-dialog",
  "tauri-plugin-liquid-glass",
+ "tauri-plugin-notification",
  "tauri-plugin-opener",
  "tauri-plugin-process",
  "tauri-plugin-updater",

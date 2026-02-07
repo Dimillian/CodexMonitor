@@ -2382,7 +2382,7 @@ function MainApp() {
           onUpdateAppSettings: async (next) => {
             await queueSaveSettings(next);
           },
-          onRunDoctor: doctor,
+          onRunAgentDoctor: doctor,
           onUpdateWorkspaceCodexBin: async (id, codexBin) => {
             await updateWorkspaceCodexBin(id, codexBin);
           },

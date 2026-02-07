@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AppSettings,
+  CliType,
   DebugEntry,
   WorkspaceGroup,
   WorkspaceInfo,
@@ -19,7 +20,7 @@ import {
   removeWorktree as removeWorktreeService,
   renameWorktree as renameWorktreeService,
   renameWorktreeUpstream as renameWorktreeUpstreamService,
-  updateWorkspaceCodexBin as updateWorkspaceCodexBinService,
+  updateWorkspaceCliBin as updateWorkspaceCliBinService,
   updateWorkspaceSettings as updateWorkspaceSettingsService,
 } from "../../../services/tauri";
 
@@ -71,6 +72,33 @@ function createGroupId() {
     return crypto.randomUUID();
   }
   return `${Date.now()}-${Math.floor(Math.random() * GROUP_ID_RANDOM_MODULUS)}`;
+}
+
+function withWorkspaceCliBinOverride(
+  workspace: WorkspaceInfo,
+  cliType: CliType,
+  cliBin: string | null,
+): WorkspaceInfo {
+  const nextSettings: WorkspaceSettings = { ...workspace.settings };
+  switch (cliType) {
+    case "gemini":
+      nextSettings.geminiBin = cliBin;
+      break;
+    case "cursor":
+      nextSettings.cursorBin = cliBin;
+      break;
+    case "claude":
+      nextSettings.claudeBin = cliBin;
+      break;
+    default:
+      nextSettings.codexBin = cliBin;
+      break;
+  }
+  return {
+    ...workspace,
+    codex_bin: cliType === "codex" ? cliBin : workspace.codex_bin,
+    settings: nextSettings,
+  };
 }
 
 export function useWorkspaces(options: UseWorkspacesOptions = {}) {
@@ -448,23 +476,26 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
   );
 
   async function updateWorkspaceCodexBin(workspaceId: string, codexBin: string | null) {
+    const activeCliType = appSettings?.cliType ?? "codex";
     onDebug?.({
       id: `${Date.now()}-client-update-workspace-codex-bin`,
       timestamp: Date.now(),
       source: "client",
       label: "workspace/codexBin",
-      payload: { workspaceId, codexBin },
+      payload: { workspaceId, cliType: activeCliType, codexBin },
     });
     const previous = workspaces.find((entry) => entry.id === workspaceId) ?? null;
     if (previous) {
       setWorkspaces((prev) =>
         prev.map((entry) =>
-          entry.id === workspaceId ? { ...entry, codex_bin: codexBin } : entry,
+          entry.id === workspaceId
+            ? withWorkspaceCliBinOverride(entry, activeCliType, codexBin)
+            : entry,
         ),
       );
     }
     try {
-      const updated = await updateWorkspaceCodexBinService(workspaceId, codexBin);
+      const updated = await updateWorkspaceCliBinService(workspaceId, codexBin);
       setWorkspaces((prev) =>
         prev.map((entry) => (entry.id === workspaceId ? updated : entry)),
       );
@@ -659,7 +690,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
         : "";
 
     const confirmed = await ask(
-      `Are you sure you want to delete "${workspaceName}"?\n\nThis will remove the workspace from CodexMonitor.${detail}`,
+      `Are you sure you want to delete "${workspaceName}"?\n\nThis will remove the workspace from Agent Monitor.${detail}`,
       {
         title: "Delete Workspace",
         kind: "warning",
@@ -711,7 +742,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     const workspaceName = workspace?.name || "this worktree";
 
     const confirmed = await ask(
-      `Are you sure you want to delete "${workspaceName}"?\n\nThis will close the agent, remove its worktree, and delete it from CodexMonitor.`,
+      `Are you sure you want to delete "${workspaceName}"?\n\nThis will close the agent, remove its worktree, and delete it from Agent Monitor.`,
       {
         title: "Delete Worktree",
         kind: "warning",

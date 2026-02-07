@@ -17,6 +17,8 @@
     "lint": "eslint . --ext .ts,.tsx",
     "test": "vitest run",
     "test:watch": "vitest",
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "tauri": "tauri",
@@ -50,6 +52,7 @@
     "vscode-material-icons": "^0.1.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@tauri-apps/cli": "^2.9.6",
     "@testing-library/react": "^16.3.2",
     "@types/prismjs": "^1.26.5",

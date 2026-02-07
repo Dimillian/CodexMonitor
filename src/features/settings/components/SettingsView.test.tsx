@@ -144,7 +144,7 @@ const renderDisplaySection = (
     onMoveWorkspaceGroup: vi.fn().mockResolvedValue(null),
     onDeleteWorkspaceGroup: vi.fn().mockResolvedValue(null),
     onAssignWorkspaceGroup: vi.fn().mockResolvedValue(null),
-    onRunDoctor: vi.fn().mockResolvedValue(createDoctorResult()),
+    onRunAgentDoctor: vi.fn().mockResolvedValue(createDoctorResult()),
     onUpdateWorkspaceCodexBin: vi.fn().mockResolvedValue(undefined),
     onUpdateWorkspaceSettings: vi.fn().mockResolvedValue(undefined),
     scaleShortcutTitle: "Scale shortcut",
@@ -189,7 +189,7 @@ const renderFeaturesSection = (
     onMoveWorkspaceGroup: vi.fn().mockResolvedValue(null),
     onDeleteWorkspaceGroup: vi.fn().mockResolvedValue(null),
     onAssignWorkspaceGroup: vi.fn().mockResolvedValue(null),
-    onRunDoctor: vi.fn().mockResolvedValue(createDoctorResult()),
+    onRunAgentDoctor: vi.fn().mockResolvedValue(createDoctorResult()),
     onUpdateWorkspaceCodexBin: vi.fn().mockResolvedValue(undefined),
     onUpdateWorkspaceSettings: vi.fn().mockResolvedValue(undefined),
     scaleShortcutTitle: "Scale shortcut",
@@ -279,7 +279,7 @@ const renderEnvironmentsSection = (
     onMoveWorkspaceGroup: vi.fn().mockResolvedValue(null),
     onDeleteWorkspaceGroup: vi.fn().mockResolvedValue(null),
     onAssignWorkspaceGroup: vi.fn().mockResolvedValue(null),
-    onRunDoctor: vi.fn().mockResolvedValue(createDoctorResult()),
+    onRunAgentDoctor: vi.fn().mockResolvedValue(createDoctorResult()),
     onUpdateWorkspaceCodexBin: vi.fn().mockResolvedValue(undefined),
     onUpdateWorkspaceSettings,
     scaleShortcutTitle: "Scale shortcut",
@@ -295,6 +295,53 @@ const renderEnvironmentsSection = (
 
   render(<SettingsView {...props} />);
   return { onUpdateWorkspaceSettings };
+};
+
+const renderCliSection = (
+  options: {
+    appSettings?: Partial<AppSettings>;
+    onUpdateAppSettings?: ComponentProps<typeof SettingsView>["onUpdateAppSettings"];
+    onRunAgentDoctor?: ComponentProps<typeof SettingsView>["onRunAgentDoctor"];
+  } = {},
+) => {
+  cleanup();
+  const onUpdateAppSettings =
+    options.onUpdateAppSettings ?? vi.fn().mockResolvedValue(undefined);
+  const onRunAgentDoctor = options.onRunAgentDoctor ?? vi.fn().mockResolvedValue(createDoctorResult());
+  const props: ComponentProps<typeof SettingsView> = {
+    reduceTransparency: false,
+    onToggleTransparency: vi.fn(),
+    appSettings: { ...baseSettings, ...options.appSettings },
+    openAppIconById: {},
+    onUpdateAppSettings,
+    workspaceGroups: [],
+    groupedWorkspaces: [],
+    ungroupedLabel: "Ungrouped",
+    onClose: vi.fn(),
+    onMoveWorkspace: vi.fn(),
+    onDeleteWorkspace: vi.fn(),
+    onCreateWorkspaceGroup: vi.fn().mockResolvedValue(null),
+    onRenameWorkspaceGroup: vi.fn().mockResolvedValue(null),
+    onMoveWorkspaceGroup: vi.fn().mockResolvedValue(null),
+    onDeleteWorkspaceGroup: vi.fn().mockResolvedValue(null),
+    onAssignWorkspaceGroup: vi.fn().mockResolvedValue(null),
+    onRunAgentDoctor,
+    onUpdateWorkspaceCodexBin: vi.fn().mockResolvedValue(undefined),
+    onUpdateWorkspaceSettings: vi.fn().mockResolvedValue(undefined),
+    scaleShortcutTitle: "Scale shortcut",
+    scaleShortcutText: "Use Command +/-",
+    onTestNotificationSound: vi.fn(),
+    onTestSystemNotification: vi.fn(),
+    dictationModelStatus: null,
+    onDownloadDictationModel: vi.fn(),
+    onCancelDictationDownload: vi.fn(),
+    onRemoveDictationModel: vi.fn(),
+  };
+
+  render(<SettingsView {...props} />);
+  fireEvent.click(screen.getByRole("button", { name: "CLI Backend" }));
+
+  return { onUpdateAppSettings, onRunAgentDoctor };
 };
 
 describe("SettingsView Display", () => {
@@ -317,7 +364,7 @@ describe("SettingsView Display", () => {
     renderDisplaySection({ onUpdateAppSettings });
 
     const row = screen
-      .getByText("Show remaining Codex limits")
+      .getByText("Show remaining Agent limits")
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected remaining limits row");
@@ -532,8 +579,228 @@ describe("SettingsView Environments", () => {
   });
 });
 
-describe("SettingsView Codex overrides", () => {
-  it("updates workspace Codex args override on blur", async () => {
+describe("SettingsView CLI Backend", () => {
+  it("writes path and args to Claude fields when Claude Code is active", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    renderCliSection({
+      appSettings: {
+        cliType: "claude",
+        codexBin: "/bin/codex",
+        codexArgs: "--codex-profile",
+        claudeBin: "/bin/claude-old",
+        claudeArgs: "--old",
+      },
+      onUpdateAppSettings,
+    });
+
+    fireEvent.change(screen.getByLabelText("Default Agent path"), {
+      target: { value: "/opt/claude/bin/claude" },
+    });
+    fireEvent.change(screen.getByLabelText("Default Agent args"), {
+      target: { value: "--model sonnet" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cliType: "claude",
+          claudeBin: "/opt/claude/bin/claude",
+          claudeArgs: "--model sonnet",
+          codexBin: "/bin/codex",
+          codexArgs: "--codex-profile",
+        }),
+      );
+    });
+  });
+
+  it("runs doctor with Claude path and args when Claude Code is active", async () => {
+    const onRunAgentDoctor = vi.fn().mockResolvedValue(createDoctorResult());
+    renderCliSection({
+      appSettings: {
+        cliType: "claude",
+        claudeBin: "/usr/local/bin/claude",
+        claudeArgs: "--model sonnet",
+      },
+      onRunAgentDoctor,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Run doctor" }));
+
+    await waitFor(() => {
+      expect(onRunAgentDoctor).toHaveBeenCalledWith(
+        "/usr/local/bin/claude",
+        "--model sonnet",
+      );
+    });
+  });
+});
+
+describe("SettingsView agent overrides", () => {
+  it("switches workspace binary override drafts when Active CLI changes", () => {
+    cleanup();
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    const workspace: WorkspaceInfo = {
+      id: "w1",
+      name: "Workspace",
+      path: "/tmp/workspace",
+      connected: false,
+      codex_bin: "/legacy/codex",
+      kind: "main",
+      parentId: null,
+      worktree: null,
+      settings: {
+        sidebarCollapsed: false,
+        codexBin: "/workspace/codex",
+        claudeBin: "/workspace/claude",
+      },
+    };
+
+    const { rerender } = render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[
+          { id: null, name: "Ungrouped", workspaces: [workspace] },
+        ]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={{ ...baseSettings, cliType: "codex" }}
+        openAppIconById={{}}
+        onUpdateAppSettings={onUpdateAppSettings}
+        onRunAgentDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "CLI Backend" }));
+
+    const activeCliSelect = screen.getByLabelText("Active CLI");
+    const input = screen.getByLabelText("Agent binary override for Workspace");
+    expect((input as HTMLInputElement).value).toBe("/workspace/codex");
+
+    fireEvent.change(activeCliSelect, { target: { value: "claude" } });
+
+    expect(onUpdateAppSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ cliType: "claude" }),
+    );
+
+    rerender(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[
+          { id: null, name: "Ungrouped", workspaces: [workspace] },
+        ]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={{ ...baseSettings, cliType: "claude" }}
+        openAppIconById={{}}
+        onUpdateAppSettings={onUpdateAppSettings}
+        onRunAgentDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "CLI Backend" }));
+    const updatedInput = screen.getByLabelText("Agent binary override for Workspace");
+    expect((updatedInput as HTMLInputElement).value).toBe("/workspace/claude");
+  });
+
+  it("shows active Claude workspace binary override", () => {
+    cleanup();
+    const workspace: WorkspaceInfo = {
+      id: "w1",
+      name: "Workspace",
+      path: "/tmp/workspace",
+      connected: false,
+      codex_bin: "/legacy/codex",
+      kind: "main",
+      parentId: null,
+      worktree: null,
+      settings: {
+        sidebarCollapsed: false,
+        codexBin: "/workspace/codex",
+        claudeBin: "/workspace/claude",
+      },
+    };
+
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[
+          { id: null, name: "Ungrouped", workspaces: [workspace] },
+        ]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={{ ...baseSettings, cliType: "claude" }}
+        openAppIconById={{}}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+        onRunAgentDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="codex"
+      />,
+    );
+
+    const input = screen.getByLabelText("Agent binary override for Workspace");
+    expect((input as HTMLInputElement).value).toBe("/workspace/claude");
+  });
+
+  it("updates workspace agent args override on blur", async () => {
+    cleanup();
     const onUpdateWorkspaceSettings = vi.fn().mockResolvedValue(undefined);
     const workspace: WorkspaceInfo = {
       id: "w1",
@@ -567,7 +834,7 @@ describe("SettingsView Codex overrides", () => {
         appSettings={baseSettings}
         openAppIconById={{}}
         onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
-        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunAgentDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={onUpdateWorkspaceSettings}
         scaleShortcutTitle="Scale shortcut"
@@ -582,13 +849,135 @@ describe("SettingsView Codex overrides", () => {
       />,
     );
 
-    const input = screen.getByLabelText("Codex args override for Workspace");
+    const input = screen.getByLabelText("Agent args override for Workspace");
     fireEvent.change(input, { target: { value: "--profile dev" } });
     fireEvent.blur(input);
 
     await waitFor(() => {
       expect(onUpdateWorkspaceSettings).toHaveBeenCalledWith("w1", {
         codexArgs: "--profile dev",
+      });
+    });
+  });
+
+  it("updates workspace agent args override for active Claude CLI", async () => {
+    cleanup();
+    const onUpdateWorkspaceSettings = vi.fn().mockResolvedValue(undefined);
+    const workspace: WorkspaceInfo = {
+      id: "w1",
+      name: "Workspace",
+      path: "/tmp/workspace",
+      connected: false,
+      codex_bin: null,
+      kind: "main",
+      parentId: null,
+      worktree: null,
+      settings: { sidebarCollapsed: false, codexArgs: "--legacy", claudeArgs: null },
+    };
+
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[
+          { id: null, name: "Ungrouped", workspaces: [workspace] },
+        ]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={{ ...baseSettings, cliType: "claude" }}
+        openAppIconById={{}}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+        onRunAgentDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
+        onUpdateWorkspaceSettings={onUpdateWorkspaceSettings}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="codex"
+      />,
+    );
+
+    const input = screen.getByLabelText("Agent args override for Workspace");
+    fireEvent.change(input, { target: { value: "--model sonnet" } });
+    fireEvent.blur(input);
+
+    await waitFor(() => {
+      expect(onUpdateWorkspaceSettings).toHaveBeenCalledWith("w1", {
+        claudeArgs: "--model sonnet",
+      });
+    });
+  });
+
+  it("updates workspace agent home override for active Claude CLI", async () => {
+    cleanup();
+    const onUpdateWorkspaceSettings = vi.fn().mockResolvedValue(undefined);
+    const workspace: WorkspaceInfo = {
+      id: "w1",
+      name: "Workspace",
+      path: "/tmp/workspace",
+      connected: false,
+      codex_bin: null,
+      kind: "main",
+      parentId: null,
+      worktree: null,
+      settings: { sidebarCollapsed: false, codexHome: ".legacy", claudeHome: null },
+    };
+
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[
+          { id: null, name: "Ungrouped", workspaces: [workspace] },
+        ]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={{ ...baseSettings, cliType: "claude" }}
+        openAppIconById={{}}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+        onRunAgentDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
+        onUpdateWorkspaceSettings={onUpdateWorkspaceSettings}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="codex"
+      />,
+    );
+
+    const input = screen.getByLabelText("Agent home override for Workspace");
+    fireEvent.change(input, { target: { value: ".claude-home" } });
+    fireEvent.blur(input);
+
+    await waitFor(() => {
+      expect(onUpdateWorkspaceSettings).toHaveBeenCalledWith("w1", {
+        claudeHome: ".claude-home",
       });
     });
   });
@@ -614,7 +1003,7 @@ describe("SettingsView Codex overrides", () => {
         appSettings={baseSettings}
         openAppIconById={{}}
         onUpdateAppSettings={onUpdateAppSettings}
-        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunAgentDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
         scaleShortcutTitle="Scale shortcut"
@@ -721,7 +1110,7 @@ describe("SettingsView Shortcuts", () => {
         appSettings={baseSettings}
         openAppIconById={{}}
         onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
-        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunAgentDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
         scaleShortcutTitle="Scale shortcut"
@@ -762,7 +1151,7 @@ describe("SettingsView Shortcuts", () => {
         appSettings={baseSettings}
         openAppIconById={{}}
         onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
-        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunAgentDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
         scaleShortcutTitle="Scale shortcut"

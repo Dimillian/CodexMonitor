@@ -16,6 +16,8 @@ import {
   listWorkspaces,
   openWorkspaceIn,
   readAgentMd,
+  runAgentDoctor,
+  runCodexDoctor,
   stageGitAll,
   respondToServerRequest,
   respondToUserInputRequest,
@@ -23,6 +25,8 @@ import {
   sendNotification,
   startReview,
   setThreadName,
+  updateWorkspaceCliBin,
+  updateWorkspaceCodexBin,
   writeGlobalAgentsMd,
   writeGlobalCodexConfigToml,
   writeAgentMd,
@@ -130,6 +134,54 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("fork_thread", {
       workspaceId: "ws-9",
       threadId: "thread-9",
+    });
+  });
+
+  it("uses update_workspace_cli_bin for workspace CLI overrides", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({ id: "ws-1" });
+
+    await updateWorkspaceCliBin("ws-1", "/opt/claude/bin/claude");
+
+    expect(invokeMock).toHaveBeenCalledWith("update_workspace_cli_bin", {
+      id: "ws-1",
+      codex_bin: "/opt/claude/bin/claude",
+    });
+  });
+
+  it("keeps updateWorkspaceCodexBin as an alias", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({ id: "ws-2" });
+
+    await updateWorkspaceCodexBin("ws-2", "/bin/codex");
+
+    expect(invokeMock).toHaveBeenCalledWith("update_workspace_cli_bin", {
+      id: "ws-2",
+      codex_bin: "/bin/codex",
+    });
+  });
+
+  it("uses runAgentDoctor for doctor invocation", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({ ok: true });
+
+    await runAgentDoctor("/bin/claude", "--model sonnet");
+
+    expect(invokeMock).toHaveBeenCalledWith("codex_doctor", {
+      codexBin: "/bin/claude",
+      codexArgs: "--model sonnet",
+    });
+  });
+
+  it("keeps runCodexDoctor as an alias", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({ ok: true });
+
+    await runCodexDoctor("/bin/codex", "--profile dev");
+
+    expect(invokeMock).toHaveBeenCalledWith("codex_doctor", {
+      codexBin: "/bin/codex",
+      codexArgs: "--profile dev",
     });
   });
 

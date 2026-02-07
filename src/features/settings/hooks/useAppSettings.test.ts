@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AppSettings, CodexDoctorResult } from "../../../types";
+import type { AgentDoctorResult, AppSettings } from "../../../types";
 import { useAppSettings } from "./useAppSettings";
 import {
   getAppSettings,
-  runCodexDoctor,
+  runAgentDoctor,
   updateAppSettings,
 } from "../../../services/tauri";
 import { UI_SCALE_DEFAULT, UI_SCALE_MAX } from "../../../utils/uiScale";
@@ -13,12 +13,12 @@ import { UI_SCALE_DEFAULT, UI_SCALE_MAX } from "../../../utils/uiScale";
 vi.mock("../../../services/tauri", () => ({
   getAppSettings: vi.fn(),
   updateAppSettings: vi.fn(),
-  runCodexDoctor: vi.fn(),
+  runAgentDoctor: vi.fn(),
 }));
 
 const getAppSettingsMock = vi.mocked(getAppSettings);
 const updateAppSettingsMock = vi.mocked(updateAppSettings);
-const runCodexDoctorMock = vi.mocked(runCodexDoctor);
+const runAgentDoctorMock = vi.mocked(runAgentDoctor);
 
 describe("useAppSettings", () => {
   beforeEach(() => {
@@ -123,7 +123,7 @@ describe("useAppSettings", () => {
 
   it("surfaces doctor errors", async () => {
     getAppSettingsMock.mockResolvedValue({} as AppSettings);
-    runCodexDoctorMock.mockRejectedValue(new Error("doctor fail"));
+    runAgentDoctorMock.mockRejectedValue(new Error("doctor fail"));
     const { result } = renderHook(() => useAppSettings());
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -131,7 +131,7 @@ describe("useAppSettings", () => {
     await expect(result.current.doctor("/bin/codex", "--profile test")).rejects.toThrow(
       "doctor fail",
     );
-    expect(runCodexDoctorMock).toHaveBeenCalledWith(
+    expect(runAgentDoctorMock).toHaveBeenCalledWith(
       "/bin/codex",
       "--profile test",
     );
@@ -139,7 +139,7 @@ describe("useAppSettings", () => {
 
   it("returns doctor results", async () => {
     getAppSettingsMock.mockResolvedValue({} as AppSettings);
-    const response: CodexDoctorResult = {
+    const response: AgentDoctorResult = {
       ok: true,
       codexBin: "/bin/codex",
       version: "1.0.0",
@@ -150,7 +150,7 @@ describe("useAppSettings", () => {
       nodeVersion: "20.0.0",
       nodeDetails: null,
     };
-    runCodexDoctorMock.mockResolvedValue(response);
+    runAgentDoctorMock.mockResolvedValue(response);
     const { result } = renderHook(() => useAppSettings());
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));

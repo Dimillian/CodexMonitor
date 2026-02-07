@@ -417,7 +417,7 @@ impl DaemonState {
         .await
     }
 
-    async fn update_workspace_codex_bin(
+    async fn update_workspace_cli_bin(
         &self,
         id: String,
         codex_bin: Option<String>,
@@ -427,9 +427,18 @@ impl DaemonState {
             codex_bin,
             &self.workspaces,
             &self.sessions,
+            &self.app_settings,
             &self.storage_path,
         )
         .await
+    }
+
+    async fn update_workspace_codex_bin(
+        &self,
+        id: String,
+        codex_bin: Option<String>,
+    ) -> Result<WorkspaceInfo, String> {
+        self.update_workspace_cli_bin(id, codex_bin).await
     }
 
     async fn connect_workspace(&self, id: String, client_version: String) -> Result<(), String> {
@@ -1056,6 +1065,12 @@ async fn handle_rpc_request(
             let workspace = state
                 .update_workspace_settings(id, settings, client_version)
                 .await?;
+            serde_json::to_value(workspace).map_err(|err| err.to_string())
+        }
+        "update_workspace_cli_bin" => {
+            let id = parse_string(&params, "id")?;
+            let codex_bin = parse_optional_string(&params, "codex_bin");
+            let workspace = state.update_workspace_cli_bin(id, codex_bin).await?;
             serde_json::to_value(workspace).map_err(|err| err.to_string())
         }
         "update_workspace_codex_bin" => {

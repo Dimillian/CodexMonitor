@@ -6,7 +6,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::backend::app_server::WorkspaceSession;
-use crate::codex::args::resolve_workspace_codex_args;
+use crate::codex::args::{resolve_default_cli_args, resolve_workspace_codex_args};
 use crate::codex::home::resolve_workspace_codex_home;
 use crate::shared::process_core::kill_child_process_tree;
 use crate::storage::write_workspaces;
@@ -19,6 +19,152 @@ use uuid::Uuid;
 pub(crate) const WORKTREE_SETUP_MARKERS_DIR: &str = "worktree-setup";
 pub(crate) const WORKTREE_SETUP_MARKER_EXT: &str = "ran";
 const AGENTS_MD_FILE_NAME: &str = "AGENTS.md";
+
+pub(crate) fn resolve_default_cli_bin(settings: &AppSettings) -> Option<String> {
+    match settings.cli_type.as_str() {
+        "gemini" => settings
+            .gemini_bin
+            .clone()
+            .or_else(|| Some("gemini".to_string())),
+        "cursor" => settings
+            .cursor_bin
+            .clone()
+            .or_else(|| Some("cursor".to_string())),
+        "claude" => settings
+            .claude_bin
+            .clone()
+            .or_else(|| Some("claude".to_string())),
+        _ => settings.codex_bin.clone(),
+    }
+}
+
+fn normalize_workspace_cli_bin(value: Option<String>) -> Option<String> {
+    match value {
+        Some(raw) => {
+            let trimmed = raw.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        }
+        None => None,
+    }
+}
+
+fn normalize_workspace_cli_value(value: Option<String>) -> Option<String> {
+    match value {
+        Some(raw) => {
+            let trimmed = raw.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        }
+        None => None,
+    }
+}
+
+fn workspace_cli_override(settings: &WorkspaceSettings, cli_type: &str) -> Option<String> {
+    match cli_type {
+        "gemini" => normalize_workspace_cli_bin(settings.gemini_bin.clone()),
+        "cursor" => normalize_workspace_cli_bin(settings.cursor_bin.clone()),
+        "claude" => normalize_workspace_cli_bin(settings.claude_bin.clone()),
+        _ => normalize_workspace_cli_bin(settings.codex_bin.clone()),
+    }
+}
+
+fn workspace_cli_args_override(settings: &WorkspaceSettings, cli_type: &str) -> Option<String> {
+    match cli_type {
+        "gemini" => normalize_workspace_cli_value(settings.gemini_args.clone())
+            .or_else(|| normalize_workspace_cli_value(settings.codex_args.clone())),
+        "cursor" => normalize_workspace_cli_value(settings.cursor_args.clone())
+            .or_else(|| normalize_workspace_cli_value(settings.codex_args.clone())),
+        "claude" => normalize_workspace_cli_value(settings.claude_args.clone())
+            .or_else(|| normalize_workspace_cli_value(settings.codex_args.clone())),
+        _ => normalize_workspace_cli_value(settings.codex_args.clone()),
+    }
+}
+
+fn workspace_cli_home_override(settings: &WorkspaceSettings, cli_type: &str) -> Option<String> {
+    match cli_type {
+        "gemini" => normalize_workspace_cli_value(settings.gemini_home.clone())
+            .or_else(|| normalize_workspace_cli_value(settings.codex_home.clone())),
+        "cursor" => normalize_workspace_cli_value(settings.cursor_home.clone())
+            .or_else(|| normalize_workspace_cli_value(settings.codex_home.clone())),
+        "claude" => normalize_workspace_cli_value(settings.claude_home.clone())
+            .or_else(|| normalize_workspace_cli_value(settings.codex_home.clone())),
+        _ => normalize_workspace_cli_value(settings.codex_home.clone()),
+    }
+}
+
+fn set_workspace_cli_override(entry: &mut WorkspaceEntry, cli_type: &str, cli_bin: Option<String>) {
+    let normalized = normalize_workspace_cli_bin(cli_bin);
+    match cli_type {
+        "gemini" => entry.settings.gemini_bin = normalized,
+        "cursor" => entry.settings.cursor_bin = normalized,
+        "claude" => entry.settings.claude_bin = normalized,
+        _ => {
+            entry.settings.codex_bin = normalized.clone();
+            entry.codex_bin = normalized;
+        }
+    }
+}
+
+pub(crate) fn resolve_workspace_cli_bin(
+    entry: &WorkspaceEntry,
+    app_settings: &AppSettings,
+) -> Option<String> {
+    let cli_type = app_settings.cli_type.as_str();
+    workspace_cli_override(&entry.settings, cli_type)
+        .or_else(|| {
+            if cli_type == "codex" {
+                normalize_workspace_cli_bin(entry.codex_bin.clone())
+            } else {
+                None
+            }
+        })
+        .or_else(|| resolve_default_cli_bin(app_settings))
+}
+
+pub(crate) fn resolve_workspace_cli_args(
+    entry: &WorkspaceEntry,
+    parent_entry: Option<&WorkspaceEntry>,
+    app_settings: Option<&AppSettings>,
+) -> Option<String> {
+    let cli_type = app_settings.map(|settings| settings.cli_type.as_str()).unwrap_or("codex");
+    if cli_type == "codex" {
+        return resolve_workspace_codex_args(entry, parent_entry, app_settings);
+    }
+    workspace_cli_args_override(&entry.settings, cli_type)
+        .or_else(|| {
+            if entry.kind.is_worktree() {
+                parent_entry.and_then(|parent| workspace_cli_args_override(&parent.settings, cli_type))
+            } else {
+                None
+            }
+        })
+        .or_else(|| {
+            app_settings.and_then(|settings| normalize_workspace_cli_value(resolve_default_cli_args(settings)))
+        })
+}
+
+pub(crate) fn resolve_workspace_cli_home(
+    entry: &WorkspaceEntry,
+    parent_entry: Option<&WorkspaceEntry>,
+    app_settings: Option<&AppSettings>,
+) -> Option<PathBuf> {
+    let cli_type = app_settings.map(|settings| settings.cli_type.as_str()).unwrap_or("codex");
+    let mut entry_with_override = entry.clone();
+    entry_with_override.settings.codex_home = workspace_cli_home_override(&entry.settings, cli_type);
+    let parent_with_override = parent_entry.map(|parent| {
+        let mut parent_clone = parent.clone();
+        parent_clone.settings.codex_home = workspace_cli_home_override(&parent.settings, cli_type);
+        parent_clone
+    });
+    resolve_workspace_codex_home(&entry_with_override, parent_with_override.as_ref())
+}
 
 fn copy_agents_md_from_parent_to_worktree(
     parent_repo_root: &PathBuf,
@@ -203,25 +349,26 @@ where
         .and_then(|s| s.to_str())
         .unwrap_or("Workspace")
         .to_string();
-    let entry = WorkspaceEntry {
+    let settings_snapshot = app_settings.lock().await.clone();
+    let mut entry = WorkspaceEntry {
         id: Uuid::new_v4().to_string(),
         name: name.clone(),
         path: path.clone(),
-        codex_bin,
+        codex_bin: None,
         kind: WorkspaceKind::Main,
         parent_id: None,
         worktree: None,
         settings: WorkspaceSettings::default(),
     };
+    set_workspace_cli_override(&mut entry, settings_snapshot.cli_type.as_str(), codex_bin);
 
     let (default_bin, codex_args) = {
-        let settings = app_settings.lock().await;
         (
-            settings.codex_bin.clone(),
-            resolve_workspace_codex_args(&entry, None, Some(&settings)),
+            resolve_workspace_cli_bin(&entry, &settings_snapshot),
+            resolve_workspace_cli_args(&entry, None, Some(&settings_snapshot)),
         )
     };
-    let codex_home = resolve_workspace_codex_home(&entry, None);
+    let codex_home = resolve_workspace_cli_home(&entry, None, Some(&settings_snapshot));
     let session = spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?;
 
     if let Err(error) = {
@@ -400,18 +547,23 @@ where
             worktree_setup_script: normalize_setup_script(
                 parent_entry.settings.worktree_setup_script.clone(),
             ),
+            codex_bin: parent_entry.settings.codex_bin.clone(),
+            gemini_bin: parent_entry.settings.gemini_bin.clone(),
+            cursor_bin: parent_entry.settings.cursor_bin.clone(),
+            claude_bin: parent_entry.settings.claude_bin.clone(),
             ..WorkspaceSettings::default()
         },
     };
 
+    let settings_snapshot = app_settings.lock().await.clone();
     let (default_bin, codex_args) = {
-        let settings = app_settings.lock().await;
         (
-            settings.codex_bin.clone(),
-            resolve_workspace_codex_args(&entry, Some(&parent_entry), Some(&settings)),
+            resolve_workspace_cli_bin(&entry, &settings_snapshot),
+            resolve_workspace_cli_args(&entry, Some(&parent_entry), Some(&settings_snapshot)),
         )
     };
-    let codex_home = resolve_workspace_codex_home(&entry, Some(&parent_entry));
+    let codex_home =
+        resolve_workspace_cli_home(&entry, Some(&parent_entry), Some(&settings_snapshot));
     let session = spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?;
 
     {
@@ -448,14 +600,15 @@ where
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     let (entry, parent_entry) = resolve_entry_and_parent(workspaces, &workspace_id).await?;
+    let settings_snapshot = app_settings.lock().await.clone();
     let (default_bin, codex_args) = {
-        let settings = app_settings.lock().await;
         (
-            settings.codex_bin.clone(),
-            resolve_workspace_codex_args(&entry, parent_entry.as_ref(), Some(&settings)),
+            resolve_workspace_cli_bin(&entry, &settings_snapshot),
+            resolve_workspace_cli_args(&entry, parent_entry.as_ref(), Some(&settings_snapshot)),
         )
     };
-    let codex_home = resolve_workspace_codex_home(&entry, parent_entry.as_ref());
+    let codex_home =
+        resolve_workspace_cli_home(&entry, parent_entry.as_ref(), Some(&settings_snapshot));
     let session = spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?;
     sessions.lock().await.insert(entry.id, session);
     Ok(())
@@ -775,14 +928,19 @@ where
     let was_connected = sessions.lock().await.contains_key(&entry_snapshot.id);
     if was_connected {
         kill_session_by_id(sessions, &entry_snapshot.id).await;
+        let settings_snapshot = app_settings.lock().await.clone();
         let (default_bin, codex_args) = {
-            let settings = app_settings.lock().await;
             (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry_snapshot, Some(&parent), Some(&settings)),
+                resolve_workspace_cli_bin(&entry_snapshot, &settings_snapshot),
+                resolve_workspace_cli_args(
+                    &entry_snapshot,
+                    Some(&parent),
+                    Some(&settings_snapshot),
+                ),
             )
         };
-        let codex_home = resolve_workspace_codex_home(&entry_snapshot, Some(&parent));
+        let codex_home =
+            resolve_workspace_cli_home(&entry_snapshot, Some(&parent), Some(&settings_snapshot));
         match spawn_session(entry_snapshot.clone(), default_bin, codex_args, codex_home).await {
             Ok(session) => {
                 sessions
@@ -946,13 +1104,14 @@ where
     FutSpawn: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     settings.worktree_setup_script = normalize_setup_script(settings.worktree_setup_script);
+    let app_settings_snapshot = app_settings.lock().await.clone();
 
     let (
         previous_entry,
         entry_snapshot,
         parent_entry,
-        previous_codex_home,
-        previous_codex_args,
+        previous_cli_home,
+        previous_cli_args,
         previous_worktree_setup_script,
         child_entries,
     ) = {
@@ -961,8 +1120,14 @@ where
             .get(&id)
             .cloned()
             .ok_or_else(|| "workspace not found".to_string())?;
-        let previous_codex_home = previous_entry.settings.codex_home.clone();
-        let previous_codex_args = previous_entry.settings.codex_args.clone();
+        let previous_cli_home = workspace_cli_home_override(
+            &previous_entry.settings,
+            app_settings_snapshot.cli_type.as_str(),
+        );
+        let previous_cli_args = workspace_cli_args_override(
+            &previous_entry.settings,
+            app_settings_snapshot.cli_type.as_str(),
+        );
         let previous_worktree_setup_script = previous_entry.settings.worktree_setup_script.clone();
         let entry_snapshot = apply_settings_update(&mut workspaces, &id, settings)?;
         let parent_entry = entry_snapshot
@@ -979,28 +1144,43 @@ where
             previous_entry,
             entry_snapshot,
             parent_entry,
-            previous_codex_home,
-            previous_codex_args,
+            previous_cli_home,
+            previous_cli_args,
             previous_worktree_setup_script,
             child_entries,
         )
     };
 
-    let codex_home_changed = previous_codex_home != entry_snapshot.settings.codex_home;
-    let codex_args_changed = previous_codex_args != entry_snapshot.settings.codex_args;
+    let next_cli_home = workspace_cli_home_override(
+        &entry_snapshot.settings,
+        app_settings_snapshot.cli_type.as_str(),
+    );
+    let next_cli_args = workspace_cli_args_override(
+        &entry_snapshot.settings,
+        app_settings_snapshot.cli_type.as_str(),
+    );
+    let codex_home_changed = previous_cli_home != next_cli_home;
+    let codex_args_changed = previous_cli_args != next_cli_args;
     let worktree_setup_script_changed =
         previous_worktree_setup_script != entry_snapshot.settings.worktree_setup_script;
     let connected = sessions.lock().await.contains_key(&id);
     if connected && (codex_home_changed || codex_args_changed) {
         let rollback_entry = previous_entry.clone();
         let (default_bin, codex_args) = {
-            let settings = app_settings.lock().await;
             (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry_snapshot, parent_entry.as_ref(), Some(&settings)),
+                resolve_workspace_cli_bin(&entry_snapshot, &app_settings_snapshot),
+                resolve_workspace_cli_args(
+                    &entry_snapshot,
+                    parent_entry.as_ref(),
+                    Some(&app_settings_snapshot),
+                ),
             )
         };
-        let codex_home = resolve_workspace_codex_home(&entry_snapshot, parent_entry.as_ref());
+        let codex_home = resolve_workspace_cli_home(
+            &entry_snapshot,
+            parent_entry.as_ref(),
+            Some(&app_settings_snapshot),
+        );
         let new_session =
             match spawn_session(entry_snapshot.clone(), default_bin, codex_args, codex_home).await
             {
@@ -1021,25 +1201,32 @@ where
         }
     }
     if codex_home_changed || codex_args_changed {
-        let app_settings_snapshot = app_settings.lock().await.clone();
-        let default_bin = app_settings_snapshot.codex_bin.clone();
         for child in &child_entries {
             let connected = sessions.lock().await.contains_key(&child.id);
             if !connected {
                 continue;
             }
-            let previous_child_home = resolve_workspace_codex_home(child, Some(&previous_entry));
-            let next_child_home = resolve_workspace_codex_home(child, Some(&entry_snapshot));
+            let previous_child_home = resolve_workspace_cli_home(
+                child,
+                Some(&previous_entry),
+                Some(&app_settings_snapshot),
+            );
+            let next_child_home = resolve_workspace_cli_home(
+                child,
+                Some(&entry_snapshot),
+                Some(&app_settings_snapshot),
+            );
             let previous_child_args =
-                resolve_workspace_codex_args(child, Some(&previous_entry), Some(&app_settings_snapshot));
+                resolve_workspace_cli_args(child, Some(&previous_entry), Some(&app_settings_snapshot));
             let next_child_args =
-                resolve_workspace_codex_args(child, Some(&entry_snapshot), Some(&app_settings_snapshot));
+                resolve_workspace_cli_args(child, Some(&entry_snapshot), Some(&app_settings_snapshot));
+            let child_bin = resolve_workspace_cli_bin(child, &app_settings_snapshot);
             if previous_child_home == next_child_home && previous_child_args == next_child_args {
                 continue;
             }
             let new_session = match spawn_session(
                 child.clone(),
-                default_bin.clone(),
+                child_bin,
                 next_child_args,
                 next_child_home,
             )
@@ -1102,13 +1289,15 @@ pub(crate) async fn update_workspace_codex_bin_core(
     codex_bin: Option<String>,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    app_settings: &Mutex<AppSettings>,
     storage_path: &PathBuf,
 ) -> Result<WorkspaceInfo, String> {
+    let cli_type = app_settings.lock().await.cli_type.clone();
     let (entry_snapshot, list) = {
         let mut workspaces = workspaces.lock().await;
         let entry_snapshot = match workspaces.get_mut(&id) {
             Some(entry) => {
-                entry.codex_bin = codex_bin.clone();
+                set_workspace_cli_override(entry, cli_type.as_str(), codex_bin.clone());
                 entry.clone()
             }
             None => return Err("workspace not found".to_string()),
@@ -1172,8 +1361,15 @@ fn sort_workspaces(workspaces: &mut [WorkspaceInfo]) {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::copy_agents_md_from_parent_to_worktree;
+    use super::resolve_workspace_cli_args;
+    use super::resolve_workspace_cli_bin;
+    use super::resolve_workspace_cli_home;
+    use super::resolve_default_cli_bin;
     use super::AGENTS_MD_FILE_NAME;
+    use crate::types::{AppSettings, WorkspaceEntry, WorkspaceKind, WorkspaceSettings};
     use uuid::Uuid;
 
     fn make_temp_dir() -> std::path::PathBuf {
@@ -1220,5 +1416,220 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(parent);
         let _ = std::fs::remove_dir_all(worktree);
+    }
+
+    #[test]
+    fn resolves_default_cli_bin_from_active_cli_type() {
+        let mut settings = AppSettings::default();
+        settings.codex_bin = Some("/bin/codex".to_string());
+        settings.gemini_bin = Some("/bin/gemini".to_string());
+        settings.cursor_bin = Some("/bin/cursor".to_string());
+        settings.claude_bin = Some("/bin/claude".to_string());
+
+        settings.cli_type = "codex".to_string();
+        assert_eq!(resolve_default_cli_bin(&settings).as_deref(), Some("/bin/codex"));
+
+        settings.cli_type = "gemini".to_string();
+        assert_eq!(resolve_default_cli_bin(&settings).as_deref(), Some("/bin/gemini"));
+
+        settings.cli_type = "cursor".to_string();
+        assert_eq!(resolve_default_cli_bin(&settings).as_deref(), Some("/bin/cursor"));
+
+        settings.cli_type = "claude".to_string();
+        assert_eq!(resolve_default_cli_bin(&settings).as_deref(), Some("/bin/claude"));
+
+        settings.gemini_bin = None;
+        settings.cursor_bin = None;
+        settings.claude_bin = None;
+
+        settings.cli_type = "gemini".to_string();
+        assert_eq!(resolve_default_cli_bin(&settings).as_deref(), Some("gemini"));
+
+        settings.cli_type = "cursor".to_string();
+        assert_eq!(resolve_default_cli_bin(&settings).as_deref(), Some("cursor"));
+
+        settings.cli_type = "claude".to_string();
+        assert_eq!(resolve_default_cli_bin(&settings).as_deref(), Some("claude"));
+    }
+
+    #[test]
+    fn resolves_workspace_cli_bin_from_active_workspace_override() {
+        let mut settings = AppSettings::default();
+        settings.codex_bin = Some("/app/codex".to_string());
+        settings.gemini_bin = Some("/app/gemini".to_string());
+        settings.cursor_bin = Some("/app/cursor".to_string());
+        settings.claude_bin = Some("/app/claude".to_string());
+
+        let entry = WorkspaceEntry {
+            id: "w1".to_string(),
+            name: "Workspace".to_string(),
+            path: "/tmp/w1".to_string(),
+            codex_bin: Some("/legacy/codex".to_string()),
+            kind: WorkspaceKind::Main,
+            parent_id: None,
+            worktree: None,
+            settings: WorkspaceSettings {
+                codex_bin: Some("/workspace/codex".to_string()),
+                gemini_bin: Some("/workspace/gemini".to_string()),
+                cursor_bin: Some("/workspace/cursor".to_string()),
+                claude_bin: Some("/workspace/claude".to_string()),
+                ..WorkspaceSettings::default()
+            },
+        };
+
+        settings.cli_type = "codex".to_string();
+        assert_eq!(
+            resolve_workspace_cli_bin(&entry, &settings).as_deref(),
+            Some("/workspace/codex")
+        );
+
+        settings.cli_type = "gemini".to_string();
+        assert_eq!(
+            resolve_workspace_cli_bin(&entry, &settings).as_deref(),
+            Some("/workspace/gemini")
+        );
+
+        settings.cli_type = "cursor".to_string();
+        assert_eq!(
+            resolve_workspace_cli_bin(&entry, &settings).as_deref(),
+            Some("/workspace/cursor")
+        );
+
+        settings.cli_type = "claude".to_string();
+        assert_eq!(
+            resolve_workspace_cli_bin(&entry, &settings).as_deref(),
+            Some("/workspace/claude")
+        );
+    }
+
+    #[test]
+    fn resolves_workspace_cli_bin_uses_legacy_codex_field_for_codex() {
+        let mut settings = AppSettings::default();
+        settings.cli_type = "codex".to_string();
+        settings.codex_bin = Some("/app/codex".to_string());
+
+        let entry = WorkspaceEntry {
+            id: "w1".to_string(),
+            name: "Workspace".to_string(),
+            path: "/tmp/w1".to_string(),
+            codex_bin: Some("/legacy/codex".to_string()),
+            kind: WorkspaceKind::Main,
+            parent_id: None,
+            worktree: None,
+            settings: WorkspaceSettings::default(),
+        };
+
+        assert_eq!(
+            resolve_workspace_cli_bin(&entry, &settings).as_deref(),
+            Some("/legacy/codex")
+        );
+    }
+
+    #[test]
+    fn resolves_workspace_cli_args_from_active_workspace_override() {
+        let mut settings = AppSettings::default();
+        settings.codex_args = Some("--app-codex".to_string());
+        settings.gemini_args = Some("--app-gemini".to_string());
+        settings.claude_args = Some("--app-claude".to_string());
+
+        let parent = WorkspaceEntry {
+            id: "parent".to_string(),
+            name: "Parent".to_string(),
+            path: "/tmp/parent".to_string(),
+            codex_bin: None,
+            kind: WorkspaceKind::Main,
+            parent_id: None,
+            worktree: None,
+            settings: WorkspaceSettings {
+                codex_args: Some("--parent-codex".to_string()),
+                claude_args: Some("--parent-claude".to_string()),
+                ..WorkspaceSettings::default()
+            },
+        };
+
+        let child = WorkspaceEntry {
+            id: "child".to_string(),
+            name: "Child".to_string(),
+            path: "/tmp/child".to_string(),
+            codex_bin: None,
+            kind: WorkspaceKind::Worktree,
+            parent_id: Some(parent.id.clone()),
+            worktree: None,
+            settings: WorkspaceSettings::default(),
+        };
+
+        settings.cli_type = "claude".to_string();
+        assert_eq!(
+            resolve_workspace_cli_args(&child, Some(&parent), Some(&settings)).as_deref(),
+            Some("--parent-claude")
+        );
+
+        let mut child_override = child.clone();
+        child_override.settings.claude_args = Some("--child-claude".to_string());
+        assert_eq!(
+            resolve_workspace_cli_args(&child_override, Some(&parent), Some(&settings)).as_deref(),
+            Some("--child-claude")
+        );
+    }
+
+    #[test]
+    fn resolves_workspace_cli_args_falls_back_to_legacy_codex_override() {
+        let mut settings = AppSettings::default();
+        settings.cli_type = "claude".to_string();
+        settings.claude_args = Some("--app-claude".to_string());
+
+        let entry = WorkspaceEntry {
+            id: "w1".to_string(),
+            name: "Workspace".to_string(),
+            path: "/tmp/w1".to_string(),
+            codex_bin: None,
+            kind: WorkspaceKind::Main,
+            parent_id: None,
+            worktree: None,
+            settings: WorkspaceSettings {
+                codex_args: Some("--legacy-shared".to_string()),
+                ..WorkspaceSettings::default()
+            },
+        };
+
+        assert_eq!(
+            resolve_workspace_cli_args(&entry, None, Some(&settings)).as_deref(),
+            Some("--legacy-shared")
+        );
+    }
+
+    #[test]
+    fn resolves_workspace_cli_home_from_active_workspace_override() {
+        let mut settings = AppSettings::default();
+        settings.cli_type = "claude".to_string();
+
+        let parent = WorkspaceEntry {
+            id: "parent".to_string(),
+            name: "Parent".to_string(),
+            path: "/tmp/parent".to_string(),
+            codex_bin: None,
+            kind: WorkspaceKind::Main,
+            parent_id: None,
+            worktree: None,
+            settings: WorkspaceSettings {
+                claude_home: Some(".claude-home".to_string()),
+                ..WorkspaceSettings::default()
+            },
+        };
+        let child = WorkspaceEntry {
+            id: "child".to_string(),
+            name: "Child".to_string(),
+            path: "/tmp/child".to_string(),
+            codex_bin: None,
+            kind: WorkspaceKind::Worktree,
+            parent_id: Some(parent.id.clone()),
+            worktree: None,
+            settings: WorkspaceSettings::default(),
+        };
+
+        assert_eq!(
+            resolve_workspace_cli_home(&child, Some(&parent), Some(&settings)),
+            Some(PathBuf::from("/tmp/parent/.claude-home"))
+        );
     }
 }

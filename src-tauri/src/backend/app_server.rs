@@ -288,11 +288,14 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     client_version: String,
     event_sink: E,
 ) -> Result<Arc<WorkspaceSession>, String> {
-    let codex_bin = entry
+    let codex_bin = default_codex_bin
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            entry
         .codex_bin
         .clone()
         .filter(|value| !value.trim().is_empty())
-        .or(default_codex_bin);
+        });
     let _ = check_codex_installation(codex_bin.clone()).await?;
 
     let mut command = build_codex_command_with_bin(

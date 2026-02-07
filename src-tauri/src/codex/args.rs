@@ -30,11 +30,20 @@ pub(crate) fn resolve_workspace_codex_args(
         }
     }
     if let Some(settings) = app_settings {
-        if let Some(value) = settings.codex_args.as_deref() {
+        if let Some(value) = resolve_default_cli_args(settings).as_deref() {
             return normalize_codex_args(value);
         }
     }
     None
+}
+
+pub(crate) fn resolve_default_cli_args(settings: &AppSettings) -> Option<String> {
+    match settings.cli_type.as_str() {
+        "gemini" => settings.gemini_args.clone(),
+        "cursor" => settings.cursor_args.clone(),
+        "claude" => settings.claude_args.clone(),
+        _ => settings.codex_args.clone(),
+    }
 }
 
 fn normalize_codex_args(value: &str) -> Option<String> {
@@ -48,7 +57,7 @@ fn normalize_codex_args(value: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_codex_args, resolve_workspace_codex_args};
+    use super::{parse_codex_args, resolve_default_cli_args, resolve_workspace_codex_args};
     use crate::types::{AppSettings, WorkspaceEntry, WorkspaceKind, WorkspaceSettings};
 
     #[test]
@@ -122,5 +131,26 @@ mod tests {
         };
         let resolved_main = resolve_workspace_codex_args(&main, None, Some(&app_settings));
         assert_eq!(resolved_main.as_deref(), Some("--profile app"));
+    }
+
+    #[test]
+    fn resolves_default_cli_args_from_active_cli_type() {
+        let mut settings = AppSettings::default();
+        settings.codex_args = Some("--codex".to_string());
+        settings.gemini_args = Some("--gemini".to_string());
+        settings.cursor_args = Some("--cursor".to_string());
+        settings.claude_args = Some("--claude".to_string());
+
+        settings.cli_type = "codex".to_string();
+        assert_eq!(resolve_default_cli_args(&settings).as_deref(), Some("--codex"));
+
+        settings.cli_type = "gemini".to_string();
+        assert_eq!(resolve_default_cli_args(&settings).as_deref(), Some("--gemini"));
+
+        settings.cli_type = "cursor".to_string();
+        assert_eq!(resolve_default_cli_args(&settings).as_deref(), Some("--cursor"));
+
+        settings.cli_type = "claude".to_string();
+        assert_eq!(resolve_default_cli_args(&settings).as_deref(), Some("--claude"));
     }
 }

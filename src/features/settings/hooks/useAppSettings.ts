@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppSettings } from "../../../types";
-import { getAppSettings, runCodexDoctor, updateAppSettings } from "../../../services/tauri";
+import { getAppSettings, runAgentDoctor, updateAppSettings } from "../../../services/tauri";
 import { clampUiScale, UI_SCALE_DEFAULT } from "../../../utils/uiScale";
 import {
   DEFAULT_CODE_FONT_FAMILY,
@@ -209,7 +209,7 @@ export function useAppSettings() {
 
   const doctor = useCallback(
     async (codexBin: string | null, codexArgs: string | null) => {
-      return runCodexDoctor(codexBin, codexArgs);
+      return runAgentDoctor(codexBin, codexArgs);
     },
     [],
   );

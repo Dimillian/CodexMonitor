@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { WorkspaceInfo } from "../../../types";
+import type { AppSettings, WorkspaceInfo } from "../../../types";
 import {
   addWorkspace,
   listWorkspaces,
   renameWorktree,
   renameWorktreeUpstream,
+  updateWorkspaceCliBin,
   updateWorkspaceSettings,
 } from "../../../services/tauri";
 import { useWorkspaces } from "./useWorkspaces";
@@ -23,6 +24,7 @@ vi.mock("../../../services/tauri", () => ({
   pickWorkspacePath: vi.fn(),
   removeWorkspace: vi.fn(),
   removeWorktree: vi.fn(),
+  updateWorkspaceCliBin: vi.fn(),
   updateWorkspaceCodexBin: vi.fn(),
   updateWorkspaceSettings: vi.fn(),
 }));
@@ -246,5 +248,41 @@ describe("useWorkspaces.addWorkspaceFromPath", () => {
     expect(addWorkspaceMock).toHaveBeenCalledWith("/tmp/repo", null);
     expect(result.current.workspaces).toHaveLength(1);
     expect(result.current.activeWorkspaceId).toBe("workspace-1");
+  });
+});
+
+describe("useWorkspaces.updateWorkspaceCodexBin", () => {
+  it("updates Claude workspace override when Claude Code is active", async () => {
+    const listWorkspacesMock = vi.mocked(listWorkspaces);
+    const updateWorkspaceCliBinMock = vi.mocked(updateWorkspaceCliBin);
+    listWorkspacesMock.mockResolvedValue([workspaceOne]);
+    updateWorkspaceCliBinMock.mockImplementation(async (id, codexBin) => ({
+      ...workspaceOne,
+      id,
+      settings: {
+        ...workspaceOne.settings,
+        claudeBin: codexBin,
+      },
+    }));
+
+    const appSettings = { cliType: "claude" } as AppSettings;
+    const { result } = renderHook(() => useWorkspaces({ appSettings }));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await result.current.updateWorkspaceCodexBin("ws-1", "/opt/claude/bin/claude");
+    });
+
+    expect(updateWorkspaceCliBinMock).toHaveBeenCalledWith(
+      "ws-1",
+      "/opt/claude/bin/claude",
+    );
+    expect(
+      result.current.workspaces.find((entry) => entry.id === "ws-1")?.settings
+        .claudeBin,
+    ).toBe("/opt/claude/bin/claude");
   });
 });

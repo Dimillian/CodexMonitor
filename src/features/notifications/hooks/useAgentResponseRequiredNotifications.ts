@@ -328,7 +328,7 @@ export function useAgentResponseRequiredNotifications({
       const text = String(item.text ?? "").trim();
       const body = text
         ? truncateText(text.split("\n")[0] ?? text, MAX_BODY_LENGTH)
-        : "Plan is ready. Open CodexMonitor to respond.";
+        : "Plan is ready. Open Agent Monitor to respond.";
       const extra = {
         kind: "response_required",
         type: "plan",

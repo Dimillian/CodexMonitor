@@ -2,8 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { Options as NotificationOptions } from "@tauri-apps/plugin-notification";
 import type {
+  AgentDoctorResult,
   AppSettings,
-  CodexDoctorResult,
   DictationModelStatus,
   DictationSessionState,
   LocalUsageSnapshot,
@@ -184,11 +184,18 @@ export async function updateWorkspaceSettings(
   return invoke<WorkspaceInfo>("update_workspace_settings", { id, settings });
 }
 
+export async function updateWorkspaceCliBin(
+  id: string,
+  codex_bin: string | null,
+): Promise<WorkspaceInfo> {
+  return invoke<WorkspaceInfo>("update_workspace_cli_bin", { id, codex_bin });
+}
+
 export async function updateWorkspaceCodexBin(
   id: string,
   codex_bin: string | null,
 ): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("update_workspace_codex_bin", { id, codex_bin });
+  return updateWorkspaceCliBin(id, codex_bin);
 }
 
 export async function removeWorkspace(id: string): Promise<void> {
@@ -595,11 +602,18 @@ export async function setMenuAccelerators(
   return invoke("menu_set_accelerators", { updates });
 }
 
+export async function runAgentDoctor(
+  codexBin: string | null,
+  codexArgs: string | null,
+): Promise<AgentDoctorResult> {
+  return invoke<AgentDoctorResult>("codex_doctor", { codexBin, codexArgs });
+}
+
 export async function runCodexDoctor(
   codexBin: string | null,
   codexArgs: string | null,
-): Promise<CodexDoctorResult> {
-  return invoke<CodexDoctorResult>("codex_doctor", { codexBin, codexArgs });
+): Promise<AgentDoctorResult> {
+  return runAgentDoctor(codexBin, codexArgs);
 }
 
 export async function getWorkspaceFiles(workspaceId: string) {

@@ -5,6 +5,16 @@ export type WorkspaceSettings = {
   gitRoot?: string | null;
   codexHome?: string | null;
   codexArgs?: string | null;
+  geminiHome?: string | null;
+  geminiArgs?: string | null;
+  cursorHome?: string | null;
+  cursorArgs?: string | null;
+  claudeHome?: string | null;
+  claudeArgs?: string | null;
+  codexBin?: string | null;
+  geminiBin?: string | null;
+  cursorBin?: string | null;
+  claudeBin?: string | null;
   launchScript?: string | null;
   launchScripts?: LaunchScriptEntry[] | null;
   worktreeSetupScript?: string | null;
@@ -219,8 +229,10 @@ export type AppSettings = {
   selectedOpenAppId: string;
 };
 
-export type CodexDoctorResult = {
+export type AgentDoctorResult = {
   ok: boolean;
+  cliType?: CliType;
+  cliBin?: string | null;
   codexBin: string | null;
   version: string | null;
   appServerOk: boolean;
@@ -230,6 +242,8 @@ export type CodexDoctorResult = {
   nodeVersion: string | null;
   nodeDetails: string | null;
 };
+
+export type CodexDoctorResult = AgentDoctorResult;
 
 export type ApprovalRequest = {
   workspace_id: string;
