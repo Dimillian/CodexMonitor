@@ -16,24 +16,24 @@ function formatProgress(plan: TurnPlan) {
 
 function statusLabel(status: TurnPlan["steps"][number]["status"]) {
   if (status === "completed") {
-    return "[x]";
+    return "[已完成]";
   }
   if (status === "inProgress") {
-    return "[>]";
+    return "[进行中]";
   }
-  return "[ ]";
+  return "[待开始]";
 }
 
 export function PlanPanel({ plan, isProcessing }: PlanPanelProps) {
   const progress = plan ? formatProgress(plan) : "";
   const steps = plan?.steps ?? [];
   const showEmpty = !steps.length && !plan?.explanation;
-  const emptyLabel = isProcessing ? "Waiting on a plan..." : "No active plan.";
+  const emptyLabel = isProcessing ? "正在等待计划..." : "暂无活动计划。";
 
   return (
     <aside className="plan-panel">
       <div className="plan-header">
-        <span>Plan</span>
+        <span>计划</span>
         {progress && <span className="plan-progress">{progress}</span>}
       </div>
       {plan?.explanation && (

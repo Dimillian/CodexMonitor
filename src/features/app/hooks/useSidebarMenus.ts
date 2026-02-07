@@ -40,19 +40,19 @@ export function useSidebarMenus({
       event.preventDefault();
       event.stopPropagation();
       const renameItem = await MenuItem.new({
-        text: "Rename",
+        text: "重命名",
         action: () => onRenameThread(workspaceId, threadId),
       });
       const syncItem = await MenuItem.new({
-        text: "Sync from server",
+        text: "从服务器同步",
         action: () => onSyncThread(workspaceId, threadId),
       });
       const archiveItem = await MenuItem.new({
-        text: "Archive",
+        text: "归档",
         action: () => onDeleteThread(workspaceId, threadId),
       });
       const copyItem = await MenuItem.new({
-        text: "Copy ID",
+        text: "复制 ID",
         action: async () => {
           try {
             await navigator.clipboard.writeText(threadId);
@@ -66,7 +66,7 @@ export function useSidebarMenus({
         const isPinned = isThreadPinned(workspaceId, threadId);
         items.push(
           await MenuItem.new({
-            text: isPinned ? "Unpin" : "Pin",
+            text: isPinned ? "取消固定" : "固定",
             action: () => {
               if (isPinned) {
                 onUnpinThread(workspaceId, threadId);
@@ -98,11 +98,11 @@ export function useSidebarMenus({
       event.preventDefault();
       event.stopPropagation();
       const reloadItem = await MenuItem.new({
-        text: "Reload threads",
+        text: "重新加载对话",
         action: () => onReloadWorkspaceThreads(workspaceId),
       });
       const deleteItem = await MenuItem.new({
-        text: "Delete",
+        text: "删除",
         action: () => onDeleteWorkspace(workspaceId),
       });
       const menu = await Menu.new({ items: [reloadItem, deleteItem] });
@@ -119,11 +119,11 @@ export function useSidebarMenus({
       event.stopPropagation();
       const fileManagerLabel = fileManagerName();
       const reloadItem = await MenuItem.new({
-        text: "Reload threads",
+        text: "重新加载对话",
         action: () => onReloadWorkspaceThreads(worktree.id),
       });
       const revealItem = await MenuItem.new({
-        text: `Show in ${fileManagerLabel}`,
+        text: `在 ${fileManagerLabel} 中显示`,
         action: async () => {
           if (!worktree.path) {
             return;
@@ -136,7 +136,7 @@ export function useSidebarMenus({
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             pushErrorToast({
-              title: `Couldn't show worktree in ${fileManagerLabel}`,
+              title: `无法在 ${fileManagerLabel} 中显示工作树`,
               message,
             });
             console.warn("Failed to reveal worktree", {
@@ -148,7 +148,7 @@ export function useSidebarMenus({
         },
       });
       const deleteItem = await MenuItem.new({
-        text: "Delete worktree",
+        text: "删除工作树",
         action: () => onDeleteWorktree(worktree.id),
       });
       const menu = await Menu.new({ items: [reloadItem, revealItem, deleteItem] });

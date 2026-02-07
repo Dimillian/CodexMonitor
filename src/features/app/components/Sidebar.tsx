@@ -242,9 +242,9 @@ export function Sidebar({
   const accountButtonLabel = accountEmail
     ? accountEmail
     : accountInfo?.type === "apikey"
-      ? "API key"
-      : "Sign in to Codex";
-  const accountActionLabel = accountEmail ? "Switch account" : "Sign in";
+      ? "API 密钥"
+      : "登录 Codex";
+  const accountActionLabel = accountEmail ? "切换账号" : "登录";
   const showAccountSwitcher = Boolean(activeWorkspaceId);
   const accountSwitchDisabled = accountSwitching || !activeWorkspaceId;
   const accountCancelDisabled = !accountSwitching || !activeWorkspaceId;
@@ -422,8 +422,8 @@ export function Sidebar({
             className="sidebar-search-input"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search projects"
-            aria-label="Search projects"
+            placeholder="搜索工作区"
+            aria-label="搜索工作区"
             data-tauri-drag-region="false"
             autoFocus
           />
@@ -433,7 +433,7 @@ export function Sidebar({
             type="button"
             className="sidebar-search-clear"
             onClick={() => setSearchQuery("")}
-            aria-label="Clear search"
+            aria-label="清除搜索"
             data-tauri-drag-region="false"
           >
             <X size={12} aria-hidden />
@@ -448,10 +448,10 @@ export function Sidebar({
       >
         <div
           className={`workspace-drop-overlay-text${
-            workspaceDropText === "Adding Project..." ? " is-busy" : ""
+            workspaceDropText === "正在添加工作区..." ? " is-busy" : ""
           }`}
         >
-          {workspaceDropText === "Drop Project Here" && (
+          {workspaceDropText === "将工作区拖放到此处" && (
             <FolderOpen className="workspace-drop-overlay-icon" aria-hidden />
           )}
           {workspaceDropText}
@@ -468,7 +468,7 @@ export function Sidebar({
           {pinnedThreadRows.length > 0 && (
             <div className="pinned-section">
               <div className="workspace-group-header">
-                <div className="workspace-group-label">Pinned</div>
+                <div className="workspace-group-label">已固定</div>
               </div>
               <PinnedThreadList
                 rows={pinnedThreadRows}
@@ -568,7 +568,7 @@ export function Sidebar({
                               }}
                               icon={<Plus aria-hidden />}
                             >
-                              New agent
+                              新建智能体
                             </PopoverMenuItem>
                             <PopoverMenuItem
                               className="workspace-add-option"
@@ -579,7 +579,7 @@ export function Sidebar({
                               }}
                               icon={<GitBranch aria-hidden />}
                             >
-                              New worktree agent
+                              新建工作树智能体
                             </PopoverMenuItem>
                             <PopoverMenuItem
                               className="workspace-add-option"
@@ -590,7 +590,7 @@ export function Sidebar({
                               }}
                               icon={<Copy aria-hidden />}
                             >
-                              New clone agent
+                              新建克隆智能体
                             </PopoverMenuItem>
                           </PopoverSurface>,
                           document.body,
@@ -611,7 +611,7 @@ export function Sidebar({
                           }}
                         >
                           <span className={`thread-status ${draftStatusClass}`} aria-hidden />
-                          <span className="thread-name">New Agent</span>
+                          <span className="thread-name">新建智能体</span>
                         </div>
                       )}
                       {worktrees.length > 0 && (
@@ -670,8 +670,8 @@ export function Sidebar({
           {!filteredGroupedWorkspaces.length && (
             <div className="empty">
               {isSearchActive
-                ? "No projects match your search."
-                : "Add a workspace to start."}
+                ? "没有匹配的工作区。"
+                : "先添加一个工作区。"}
             </div>
           )}
         </div>

@@ -44,15 +44,15 @@ export function AboutView() {
           <img
             className="about-icon"
             src="/app-icon.png"
-            alt="Codex Monitor icon"
+            alt="Codex Monitor 图标"
           />
           <div className="about-title">Codex Monitor</div>
         </div>
         <div className="about-version">
-          {version ? `Version ${version}` : "Version —"}
+          {version ? `版本 ${version}` : "版本 —"}
         </div>
         <div className="about-tagline">
-          Monitor the situation of your Codex agents
+          监控 Codex 智能体的运行情况
         </div>
         <div className="about-divider" />
         <div className="about-links">
@@ -72,7 +72,7 @@ export function AboutView() {
             Twitter
           </button>
         </div>
-        <div className="about-footer">Made with ♥ by Codex & Dimillian</div>
+        <div className="about-footer">由 Codex 与 Dimillian 用 ♥ 制作</div>
       </div>
     </div>
   );

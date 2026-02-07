@@ -34,24 +34,24 @@ export function fileManagerName(): string {
     return "Finder";
   }
   if (platform === "windows") {
-    return "Explorer";
+    return "资源管理器";
   }
-  return "File Manager";
+  return "文件管理器";
 }
 
 export function revealInFileManagerLabel(): string {
   const platform = platformKind();
   if (platform === "mac") {
-    return "Reveal in Finder";
+    return "在 Finder 中显示";
   }
   if (platform === "windows") {
-    return "Show in Explorer";
+    return "在资源管理器中显示";
   }
-  return "Reveal in File Manager";
+  return "在文件管理器中显示";
 }
 
 export function openInFileManagerLabel(): string {
-  return `Open in ${fileManagerName()}`;
+  return `在 ${fileManagerName()} 中打开`;
 }
 
 function looksLikeWindowsAbsolutePath(value: string): boolean {

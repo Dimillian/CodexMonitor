@@ -257,7 +257,7 @@ function parseSearch(tokens: string[]): ExploreEntry | null {
   const rawPath = positional.length > 1 ? positional[1] : "";
   const path =
     commandName === "rg" ? rawPath : rawPath && isPathLike(rawPath) ? rawPath : "";
-  const label = path ? `${query} in ${path}` : query;
+  const label = path ? `${query} 在 ${path}` : query;
   return { kind: "search", label };
 }
 
@@ -348,7 +348,7 @@ function summarizeCommandExecution(item: Extract<ConversationItem, { kind: "tool
   if (isFailedStatus(item.status)) {
     return null;
   }
-  const rawCommand = item.title.replace(/^Command:\s*/i, "").trim();
+  const rawCommand = item.title.replace(/^(?:Command|命令)[:：]\s*/i, "").trim();
   const cleaned = cleanCommandText(rawCommand);
   if (!cleaned) {
     return null;
@@ -625,7 +625,7 @@ export function buildConversationItem(
       id,
       kind: "tool",
       toolType: "plan",
-      title: "Plan",
+      title: "计划",
       detail: asString(item.status ?? ""),
       status: asString(item.status ?? ""),
       output: asString(item.text ?? ""),
@@ -640,7 +640,7 @@ export function buildConversationItem(
       id,
       kind: "tool",
       toolType: type,
-      title: command ? `Command: ${command}` : "Command",
+      title: command ? `命令：${command}` : "命令",
       detail: asString(item.cwd ?? ""),
       status: asString(item.status ?? ""),
       output: asString(item.aggregatedOutput ?? ""),
@@ -686,8 +686,8 @@ export function buildConversationItem(
       id,
       kind: "tool",
       toolType: type,
-      title: "File changes",
-      detail: paths || "Pending changes",
+      title: "文件变更",
+      detail: paths || "待处理变更",
       status: asString(item.status ?? ""),
       output: diffOutput,
       changes: normalizedChanges,
@@ -720,7 +720,7 @@ export function buildConversationItem(
     const agentsState = formatCollabAgentStates(
       item.agentStatus ?? item.agentsStates ?? item.agents_states,
     );
-    const detailParts = [sender ? `From ${sender}` : ""]
+    const detailParts = [sender ? `来自 ${sender}` : ""]
       .concat(receivers.length > 0 ? `→ ${receivers.join(", ")}` : "")
       .filter(Boolean);
     const outputParts = [prompt, agentsState].filter(Boolean);
@@ -728,7 +728,7 @@ export function buildConversationItem(
       id,
       kind: "tool",
       toolType: "collabToolCall",
-      title: tool ? `Collab: ${tool}` : "Collab tool call",
+      title: tool ? `协作：${tool}` : "协作工具调用",
       detail: detailParts.join(" "),
       status,
       output: outputParts.join("\n\n"),
@@ -739,7 +739,7 @@ export function buildConversationItem(
       id,
       kind: "tool",
       toolType: type,
-      title: "Web search",
+      title: "网页搜索",
       detail: asString(item.query ?? ""),
       status: "",
       output: "",
@@ -750,7 +750,7 @@ export function buildConversationItem(
       id,
       kind: "tool",
       toolType: type,
-      title: "Image view",
+      title: "图片查看",
       detail: asString(item.path ?? ""),
       status: "",
       output: "",
@@ -762,8 +762,8 @@ export function buildConversationItem(
       id,
       kind: "tool",
       toolType: type,
-      title: "Context compaction",
-      detail: "Compacting conversation context to fit token limits.",
+      title: "上下文压缩",
+      detail: "正在压缩对话上下文以适配 token 限制。",
       status: status || "completed",
       output: "",
     };

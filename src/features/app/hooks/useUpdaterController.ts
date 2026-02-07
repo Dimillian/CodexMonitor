@@ -81,8 +81,8 @@ export function useUpdaterController({
       return;
     }
     void sendNotification(
-      "Test Notification",
-      "This is a test notification from CodexMonitor.",
+      "测试通知",
+      "这是来自 CodexMonitor 的测试通知。",
     ).catch((error) => {
       onDebug({
         id: `${Date.now()}-client-notification-test-error`,

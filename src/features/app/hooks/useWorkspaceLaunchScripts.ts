@@ -180,7 +180,7 @@ export function useWorkspaceLaunchScripts({
     }
     const trimmed = newDraftScript.trim();
     if (!trimmed) {
-      setNewError("Script cannot be empty.");
+      setNewError("脚本不能为空。");
       return;
     }
     setIsSaving(true);
@@ -220,8 +220,8 @@ export function useWorkspaceLaunchScripts({
     }
     const trimmed = draftScript.trim();
     if (!trimmed) {
-      setError("Script cannot be empty.");
-      setErrorById((prev) => ({ ...prev, [editorOpenId]: "Script cannot be empty." }));
+      setError("脚本不能为空。");
+      setErrorById((prev) => ({ ...prev, [editorOpenId]: "脚本不能为空。" }));
       return;
     }
     setIsSaving(true);
@@ -344,7 +344,7 @@ export function useWorkspaceLaunchScripts({
         setError(message);
         setErrorById((prev) => ({ ...prev, [pending.entryId]: message }));
         pushErrorToast({
-          title: "Launch script error",
+          title: "启动脚本错误",
           message,
         });
       },

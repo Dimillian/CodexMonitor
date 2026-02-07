@@ -515,7 +515,7 @@ export function FileTreePanel({
   const selectionHints = useMemo(
     () =>
       previewKind === "text"
-        ? ["Shift + click or drag + click", "for multi-line selection"]
+        ? ["Shift + 点击 或 拖拽 + 点击", "用于多行选择"]
         : [],
     [previewKind],
   );
@@ -557,7 +557,7 @@ export function FileTreePanel({
       const menu = await Menu.new({
         items: [
           await MenuItem.new({
-            text: "Add to chat",
+            text: "添加到对话",
             enabled: canInsertText,
             action: async () => {
               if (!canInsertText) {
@@ -637,8 +637,8 @@ export function FileTreePanel({
               onInsertText?.(node.path);
             }}
             disabled={!canInsertText}
-            aria-label={`Mention ${node.name}`}
-            title="Mention in chat"
+            aria-label={`提及 ${node.name}`}
+            title="在对话中提及"
           >
             <Plus size={10} aria-hidden />
           </button>
@@ -655,23 +655,23 @@ export function FileTreePanel({
           <div className="file-tree-count">
             {visibleEntries.length
               ? normalizedQuery
-                ? `${visibleEntries.length} match${visibleEntries.length === 1 ? "" : "es"}`
+                ? `${visibleEntries.length} 个匹配项`
                 : filterMode === "modified"
-                  ? `${visibleEntries.length} modified`
-                  : `${visibleEntries.length} file${visibleEntries.length === 1 ? "" : "s"}`
+                  ? `${visibleEntries.length} 个已修改`
+                  : `${visibleEntries.length} 个文件`
               : showLoading
-                ? "Loading files"
+                ? "正在加载文件"
                 : filterMode === "modified"
-                  ? "No modified"
-                  : "No files"}
+                  ? "无已修改"
+                  : "无文件"}
           </div>
           {hasFolders ? (
             <button
               type="button"
               className="ghost icon-button file-tree-toggle"
               onClick={toggleAllFolders}
-              aria-label={allVisibleExpanded ? "Collapse all folders" : "Expand all folders"}
-              title={allVisibleExpanded ? "Collapse all folders" : "Expand all folders"}
+              aria-label={allVisibleExpanded ? "折叠所有文件夹" : "展开所有文件夹"}
+              title={allVisibleExpanded ? "折叠所有文件夹" : "展开所有文件夹"}
             >
               <ChevronsUpDown aria-hidden />
             </button>
@@ -681,10 +681,10 @@ export function FileTreePanel({
       <PanelSearchField
         className="file-tree-search"
         inputClassName="file-tree-search-input"
-        placeholder="Filter files and folders"
+        placeholder="筛选文件和文件夹"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        aria-label="Filter files and folders"
+        aria-label="筛选文件和文件夹"
         icon={<Search aria-hidden />}
         trailing={
           <button
@@ -695,9 +695,9 @@ export function FileTreePanel({
             }}
             aria-pressed={filterMode === "modified"}
             aria-label={
-              filterMode === "modified" ? "Show all files" : "Show modified files only"
+              filterMode === "modified" ? "显示全部文件" : "仅显示已修改文件"
             }
-            title={filterMode === "modified" ? "Show all files" : "Show modified files only"}
+            title={filterMode === "modified" ? "显示全部文件" : "仅显示已修改文件"}
           >
             <GitBranch size={14} aria-hidden />
           </button>
@@ -722,11 +722,11 @@ export function FileTreePanel({
           <div className="file-tree-empty">
             {normalizedQuery
               ? filterMode === "modified"
-                ? "No modified files match your filter."
-                : "No matches found."
+                ? "没有已修改文件符合筛选条件。"
+                : "未找到匹配项。"
               : filterMode === "modified"
-                ? "No modified files."
-                : "No files available."}
+                ? "暂无已修改文件。"
+                : "暂无文件。"}
           </div>
         ) : (
           <div

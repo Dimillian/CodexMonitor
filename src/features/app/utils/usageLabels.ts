@@ -18,8 +18,8 @@ function formatResetLabel(resetsAt?: number | null) {
     return null;
   }
   const resetMs = resetsAt > 1_000_000_000_000 ? resetsAt : resetsAt * 1000;
-  const relative = formatRelativeTime(resetMs).replace(/^in\s+/i, "");
-  return `Resets ${relative}`;
+  const relative = formatRelativeTime(resetMs);
+  return `将在${relative}重置`;
 }
 
 function formatCreditsLabel(accountRateLimits: RateLimitSnapshot | null) {
@@ -28,7 +28,7 @@ function formatCreditsLabel(accountRateLimits: RateLimitSnapshot | null) {
     return null;
   }
   if (credits.unlimited) {
-    return "Credits: Unlimited";
+    return "额度：无限制";
   }
   const balance = credits.balance?.trim() ?? "";
   if (!balance) {
@@ -36,12 +36,12 @@ function formatCreditsLabel(accountRateLimits: RateLimitSnapshot | null) {
   }
   const intValue = Number.parseInt(balance, 10);
   if (Number.isFinite(intValue) && intValue > 0) {
-    return `Credits: ${intValue} credits`;
+    return `额度：${intValue} 点`;
   }
   const floatValue = Number.parseFloat(balance);
   if (Number.isFinite(floatValue) && floatValue > 0) {
     const rounded = Math.round(floatValue);
-    return rounded > 0 ? `Credits: ${rounded} credits` : null;
+    return rounded > 0 ? `额度：${rounded} 点` : null;
   }
   return null;
 }

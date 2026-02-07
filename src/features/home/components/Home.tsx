@@ -169,7 +169,7 @@ export function Home({
     ),
   );
   const updatedLabel = localUsageSnapshot
-    ? `Updated ${formatRelativeTime(localUsageSnapshot.updatedAt)}`
+    ? `更新于 ${formatRelativeTime(localUsageSnapshot.updatedAt)}`
     : null;
   const showUsageSkeleton = isLoadingLocalUsage && !localUsageSnapshot;
   const showUsageEmpty = !isLoadingLocalUsage && !localUsageSnapshot;
@@ -177,14 +177,14 @@ export function Home({
   return (
     <div className="home">
       <div className="home-hero">
-        <div className="home-title">Codex Monitor</div>
+        <div className="home-title">Codex 监控</div>
         <div className="home-subtitle">
-          Orchestrate agents across your local projects.
+          跨本地项目编排代理。
         </div>
       </div>
       <div className="home-latest">
         <div className="home-latest-header">
-          <div className="home-latest-label">Latest agents</div>
+          <div className="home-latest-label">最近的代理</div>
         </div>
         {latestAgentRuns.length > 0 ? (
           <div className="home-latest-grid">
@@ -207,16 +207,16 @@ export function Home({
                   </div>
                 </div>
                 <div className="home-latest-message">
-                  {run.message.trim() || "Agent replied."}
+                  {run.message.trim() || "代理已回复。"}
                 </div>
                 {run.isProcessing && (
-                  <div className="home-latest-status">Running</div>
+                  <div className="home-latest-status">运行中</div>
                 )}
               </button>
             ))}
           </div>
         ) : isLoadingLatestAgents ? (
-          <div className="home-latest-grid home-latest-grid-loading" aria-label="Loading agents">
+          <div className="home-latest-grid home-latest-grid-loading" aria-label="加载代理">
             {Array.from({ length: 3 }).map((_, index) => (
               <div className="home-latest-card home-latest-card-skeleton" key={index}>
                 <div className="home-latest-card-header">
@@ -230,9 +230,9 @@ export function Home({
           </div>
         ) : (
           <div className="home-latest-empty">
-            <div className="home-latest-empty-title">No agent activity yet</div>
+            <div className="home-latest-empty-title">暂无代理活动</div>
             <div className="home-latest-empty-subtitle">
-              Start a thread to see the latest responses here.
+              启动一个线程以在此查看最新回复。
             </div>
           </div>
         )}
@@ -246,7 +246,7 @@ export function Home({
           <span className="home-icon" aria-hidden>
             <FolderOpen size={18} />
           </span>
-          Open Project
+          打开项目
         </button>
         <button
           className="home-button secondary"
@@ -256,12 +256,12 @@ export function Home({
           <span className="home-icon" aria-hidden>
             +
           </span>
-          Add Workspace
+          添加工作区
         </button>
       </div>
       <div className="home-usage">
         <div className="home-section-header">
-          <div className="home-section-title">Usage snapshot</div>
+          <div className="home-section-title">使用快照</div>
           <div className="home-section-meta-row">
             {updatedLabel && <div className="home-section-meta">{updatedLabel}</div>}
             <button
@@ -273,8 +273,8 @@ export function Home({
               }
               onClick={onRefreshLocalUsage}
               disabled={isLoadingLocalUsage}
-              aria-label="Refresh usage"
-              title="Refresh usage"
+              aria-label="刷新使用情况"
+              title="刷新使用情况"
             >
               <RefreshCw
                 className={
@@ -289,7 +289,7 @@ export function Home({
         </div>
         <div className="home-usage-controls">
           <div className="home-usage-control-group">
-            <span className="home-usage-control-label">Workspace</span>
+            <span className="home-usage-control-label">工作区</span>
             <div className="home-usage-select-wrap">
               <select
                 className="home-usage-select"
@@ -299,7 +299,7 @@ export function Home({
                 }
                 disabled={usageWorkspaceOptions.length === 0}
               >
-                <option value="">All workspaces</option>
+                <option value="">所有工作区</option>
                 {usageWorkspaceOptions.map((option) => (
                   <option key={option.id} value={option.id}>
                     {option.label}
@@ -309,8 +309,8 @@ export function Home({
             </div>
           </div>
           <div className="home-usage-control-group">
-            <span className="home-usage-control-label">View</span>
-            <div className="home-usage-toggle" role="group" aria-label="Usage view">
+            <span className="home-usage-control-label">视图</span>
+            <div className="home-usage-toggle" role="group" aria-label="使用情况视图">
               <button
                 type="button"
                 className={
@@ -321,7 +321,7 @@ export function Home({
                 onClick={() => onUsageMetricChange("tokens")}
                 aria-pressed={usageMetric === "tokens"}
               >
-                Tokens
+                令牌
               </button>
               <button
                 type="button"
@@ -333,7 +333,7 @@ export function Home({
                 onClick={() => onUsageMetricChange("time")}
                 aria-pressed={usageMetric === "time"}
               >
-                Time
+                时间
               </button>
             </div>
           </div>
@@ -354,9 +354,9 @@ export function Home({
           </div>
         ) : showUsageEmpty ? (
           <div className="home-usage-empty">
-            <div className="home-usage-empty-title">No usage data yet</div>
+            <div className="home-usage-empty-title">暂无使用数据</div>
             <div className="home-usage-empty-subtitle">
-              Run a Codex session to start tracking local usage.
+              运行 Codex 会话以开始跟踪本地使用情况。
             </div>
             {localUsageError && (
               <div className="home-usage-error">{localUsageError}</div>
@@ -368,31 +368,31 @@ export function Home({
               {usageMetric === "tokens" ? (
                 <>
                   <div className="home-usage-card">
-                    <div className="home-usage-label">Last 7 days</div>
+                    <div className="home-usage-label">最近 7 天</div>
                     <div className="home-usage-value">
                       <span className="home-usage-number">
                         {formatCompactNumber(usageTotals?.last7DaysTokens)}
                       </span>
-                      <span className="home-usage-suffix">tokens</span>
+                      <span className="home-usage-suffix">令牌</span>
                     </div>
                     <div className="home-usage-caption">
-                      Avg {formatCompactNumber(usageTotals?.averageDailyTokens)} / day
+                      平均 {formatCompactNumber(usageTotals?.averageDailyTokens)} / 天
                     </div>
                   </div>
                   <div className="home-usage-card">
-                    <div className="home-usage-label">Last 30 days</div>
+                    <div className="home-usage-label">最近 30 天</div>
                     <div className="home-usage-value">
                       <span className="home-usage-number">
                         {formatCompactNumber(usageTotals?.last30DaysTokens)}
                       </span>
-                      <span className="home-usage-suffix">tokens</span>
+                      <span className="home-usage-suffix">令牌</span>
                     </div>
                     <div className="home-usage-caption">
-                      Total {formatCount(usageTotals?.last30DaysTokens)}
+                      总计 {formatCount(usageTotals?.last30DaysTokens)}
                     </div>
                   </div>
                   <div className="home-usage-card">
-                    <div className="home-usage-label">Cache hit rate</div>
+                    <div className="home-usage-label">缓存命中率</div>
                     <div className="home-usage-value">
                       <span className="home-usage-number">
                         {usageTotals
@@ -400,65 +400,65 @@ export function Home({
                           : "--"}
                       </span>
                     </div>
-                    <div className="home-usage-caption">Last 7 days</div>
+                    <div className="home-usage-caption">最近 7 天</div>
                   </div>
                   <div className="home-usage-card">
-                    <div className="home-usage-label">Peak day</div>
+                    <div className="home-usage-label">峰值日</div>
                     <div className="home-usage-value">
                       <span className="home-usage-number">
                         {formatDayLabel(usageTotals?.peakDay)}
                       </span>
                     </div>
                     <div className="home-usage-caption">
-                      {formatCompactNumber(usageTotals?.peakDayTokens)} tokens
+                      {formatCompactNumber(usageTotals?.peakDayTokens)} 令牌
                     </div>
                   </div>
                 </>
               ) : (
                 <>
                   <div className="home-usage-card">
-                    <div className="home-usage-label">Last 7 days</div>
+                    <div className="home-usage-label">最近 7 天</div>
                     <div className="home-usage-value">
                       <span className="home-usage-number">
                         {formatDurationCompact(last7AgentMs)}
                       </span>
-                      <span className="home-usage-suffix">agent time</span>
+                      <span className="home-usage-suffix">代理时间</span>
                     </div>
                     <div className="home-usage-caption">
-                      Avg {formatDurationCompact(averageDailyAgentMs)} / day
+                      平均 {formatDurationCompact(averageDailyAgentMs)} / 天
                     </div>
                   </div>
                   <div className="home-usage-card">
-                    <div className="home-usage-label">Last 30 days</div>
+                    <div className="home-usage-label">最近 30 天</div>
                     <div className="home-usage-value">
                       <span className="home-usage-number">
                         {formatDurationCompact(last30AgentMs)}
                       </span>
-                      <span className="home-usage-suffix">agent time</span>
+                      <span className="home-usage-suffix">代理时间</span>
                     </div>
                     <div className="home-usage-caption">
-                      Total {formatDuration(last30AgentMs)}
+                      总计 {formatDuration(last30AgentMs)}
                     </div>
                   </div>
                   <div className="home-usage-card">
-                    <div className="home-usage-label">Runs</div>
+                    <div className="home-usage-label">运行次数</div>
                     <div className="home-usage-value">
                       <span className="home-usage-number">
                         {formatCount(last7AgentRuns)}
                       </span>
-                      <span className="home-usage-suffix">runs</span>
+                      <span className="home-usage-suffix">次运行</span>
                     </div>
-                    <div className="home-usage-caption">Last 7 days</div>
+                    <div className="home-usage-caption">最近 7 天</div>
                   </div>
                   <div className="home-usage-card">
-                    <div className="home-usage-label">Peak day</div>
+                    <div className="home-usage-label">峰值日</div>
                     <div className="home-usage-value">
                       <span className="home-usage-number">
                         {formatDayLabel(peakAgentDayLabel)}
                       </span>
                     </div>
                     <div className="home-usage-caption">
-                      {formatDurationCompact(peakAgentTimeMs)} agent time
+                      {formatDurationCompact(peakAgentTimeMs)} 代理时间
                     </div>
                   </div>
                 </>
@@ -475,8 +475,8 @@ export function Home({
                   );
                   const tooltip =
                     usageMetric === "tokens"
-                      ? `${formatDayLabel(day.day)} · ${formatCount(day.totalTokens)} tokens`
-                      : `${formatDayLabel(day.day)} · ${formatDuration(day.agentTimeMs ?? 0)} agent time`;
+                      ? `${formatDayLabel(day.day)} · ${formatCount(day.totalTokens)} 令牌`
+                      : `${formatDayLabel(day.day)} · ${formatDuration(day.agentTimeMs ?? 0)} 代理时间`;
                   return (
                     <div
                       className="home-usage-bar"
@@ -497,9 +497,9 @@ export function Home({
             </div>
             <div className="home-usage-models">
               <div className="home-usage-models-label">
-                Top models
+                顶级模型
                 {usageMetric === "time" && (
-                  <span className="home-usage-models-hint">Tokens</span>
+                  <span className="home-usage-models-hint">令牌</span>
                 )}
               </div>
               <div className="home-usage-models-list">
@@ -508,7 +508,7 @@ export function Home({
                     <span
                       className="home-usage-model-chip"
                       key={model.model}
-                      title={`${model.model}: ${formatCount(model.tokens)} tokens`}
+                      title={`${model.model}: ${formatCount(model.tokens)} 令牌`}
                     >
                       {model.model}
                       <span className="home-usage-model-share">
@@ -517,7 +517,7 @@ export function Home({
                     </span>
                   ))
                 ) : (
-                  <span className="home-usage-model-empty">No models yet</span>
+                  <span className="home-usage-model-empty">暂无模型</span>
                 )}
               </div>
               {localUsageError && (

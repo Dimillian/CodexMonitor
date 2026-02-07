@@ -13,12 +13,12 @@ type TabletNavProps = {
 const tabs: { id: TabletNavTab; label: string; icon: ReactNode }[] = [
   { id: "codex", label: "Codex", icon: <MessagesSquare className="tablet-nav-icon" /> },
   { id: "git", label: "Git", icon: <GitBranch className="tablet-nav-icon" /> },
-  { id: "log", label: "Log", icon: <TerminalSquare className="tablet-nav-icon" /> },
+  { id: "log", label: "日志", icon: <TerminalSquare className="tablet-nav-icon" /> },
 ];
 
 export function TabletNav({ activeTab, onSelect }: TabletNavProps) {
   return (
-    <nav className="tablet-nav" aria-label="Workspace">
+    <nav className="tablet-nav" aria-label="工作区">
       <div className="tablet-nav-group">
         {tabs.map((tab) => (
           <button

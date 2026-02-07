@@ -45,25 +45,25 @@ export function UpdateToast({ state, onUpdate, onDismiss }: UpdateToastProps) {
     <ToastViewport className="update-toasts" role="region" ariaLive="polite">
       <ToastCard className="update-toast" role="status">
         <ToastHeader className="update-toast-header">
-          <ToastTitle className="update-toast-title">Update</ToastTitle>
+          <ToastTitle className="update-toast-title">更新</ToastTitle>
           {state.version ? (
             <div className="update-toast-version">v{state.version}</div>
           ) : null}
         </ToastHeader>
         {state.stage === "checking" && (
-          <ToastBody className="update-toast-body">Checking for updates...</ToastBody>
+          <ToastBody className="update-toast-body">正在检查更新…</ToastBody>
         )}
         {state.stage === "available" && (
           <>
             <ToastBody className="update-toast-body">
-              A new version is available.
+              发现新版本。
             </ToastBody>
             <ToastActions className="update-toast-actions">
               <button className="secondary" onClick={onDismiss}>
-                Later
+                稍后
               </button>
               <button className="primary" onClick={onUpdate}>
-                Update
+                更新
               </button>
             </ToastActions>
           </>
@@ -71,17 +71,17 @@ export function UpdateToast({ state, onUpdate, onDismiss }: UpdateToastProps) {
         {state.stage === "latest" && (
           <div className="update-toast-inline">
             <ToastBody className="update-toast-body update-toast-body-inline">
-              You’re up to date.
+              已是最新版本。
             </ToastBody>
             <button className="secondary" onClick={onDismiss}>
-              Dismiss
+              关闭
             </button>
           </div>
         )}
         {state.stage === "downloading" && (
           <>
             <ToastBody className="update-toast-body">
-              Downloading update…
+              正在下载更新…
             </ToastBody>
             <div className="update-toast-progress">
               <div className="update-toast-progress-bar">
@@ -93,29 +93,29 @@ export function UpdateToast({ state, onUpdate, onDismiss }: UpdateToastProps) {
               <div className="update-toast-progress-meta">
                 {totalBytes
                   ? `${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)}`
-                  : `${formatBytes(downloadedBytes)} downloaded`}
+                  : `${formatBytes(downloadedBytes)} 已下载`}
               </div>
             </div>
           </>
         )}
         {state.stage === "installing" && (
-          <ToastBody className="update-toast-body">Installing update…</ToastBody>
+          <ToastBody className="update-toast-body">正在安装更新…</ToastBody>
         )}
         {state.stage === "restarting" && (
-          <ToastBody className="update-toast-body">Restarting…</ToastBody>
+          <ToastBody className="update-toast-body">正在重启…</ToastBody>
         )}
         {state.stage === "error" && (
           <>
-            <ToastBody className="update-toast-body">Update failed.</ToastBody>
+            <ToastBody className="update-toast-body">更新失败。</ToastBody>
             {state.error ? (
               <ToastError className="update-toast-error">{state.error}</ToastError>
             ) : null}
             <ToastActions className="update-toast-actions">
               <button className="secondary" onClick={onDismiss}>
-                Dismiss
+                关闭
               </button>
               <button className="primary" onClick={onUpdate}>
-                Retry
+                重试
               </button>
             </ToastActions>
           </>

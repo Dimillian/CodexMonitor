@@ -187,6 +187,38 @@ function formatCount(value: number, singular: string, plural: string) {
   return `${value} ${value === 1 ? singular : plural}`;
 }
 
+function summaryLabelText(label: string) {
+  switch (label.toLowerCase()) {
+    case "command":
+      return "命令";
+    case "searched":
+      return "搜索";
+    case "read":
+      return "读取";
+    case "tool":
+      return "工具";
+    default:
+      return label;
+  }
+}
+
+function statusLabelText(status?: string) {
+  if (!status) {
+    return "";
+  }
+  const normalized = status.toLowerCase();
+  if (/(fail|error)/.test(normalized)) {
+    return "失败";
+  }
+  if (/(pending|running|processing|started|in_progress|inprogress)/.test(normalized)) {
+    return "处理中";
+  }
+  if (/(complete|completed|success|done)/.test(normalized)) {
+    return "已完成";
+  }
+  return status;
+}
+
 function sanitizeReasoningTitle(title: string) {
   return title
     .replace(/[`*_~]/g, "")
@@ -208,7 +240,7 @@ function parseReasoning(item: Extract<ConversationItem, { kind: "reasoning" }>) 
     ? cleanTitle.length > 80
       ? `${cleanTitle.slice(0, 80)}…`
       : cleanTitle
-    : "Reasoning";
+    : "推理";
   const summaryLines = summary.split("\n");
   const contentLines = content.split("\n");
   const summaryBody =
@@ -276,7 +308,7 @@ const MessageImageGrid = memo(function MessageImageGrid({
           type="button"
           className="message-image-thumb"
           onClick={() => onOpen(index)}
-          aria-label={`Open image ${index + 1}`}
+          aria-label={`打开图片 ${index + 1}`}
         >
           <img src={image.src} alt={image.label} loading="lazy" />
         </button>
@@ -335,7 +367,7 @@ const ImageLightbox = memo(function ImageLightbox({
           type="button"
           className="message-image-lightbox-close"
           onClick={onClose}
-          aria-label="Close image preview"
+          aria-label="关闭图片预览"
         >
           <X size={16} aria-hidden />
         </button>
@@ -451,7 +483,7 @@ function buildToolSummary(
     const cleanedCommand = cleanCommandText(commandText);
     return {
       label: "command",
-      value: cleanedCommand || "Command",
+      value: cleanedCommand || "命令",
       detail: "",
       output: item.output || "",
     };
@@ -468,7 +500,7 @@ function buildToolSummary(
     const file = basename(item.detail || "");
     return {
       label: "read",
-      value: file || "image",
+      value: file || "图片",
     };
   }
 
@@ -653,14 +685,14 @@ const WorkingIndicator = memo(function WorkingIndicator({
           <div className="working-timer">
             <span className="working-timer-clock">{formatDurationMs(elapsedMs)}</span>
           </div>
-          <span className="working-text">{reasoningLabel || "Working…"}</span>
+          <span className="working-text">{reasoningLabel || "思考中…"}</span>
         </div>
       )}
       {!isThinking && lastDurationMs !== null && hasItems && (
         <div className="turn-complete" aria-live="polite">
           <span className="turn-complete-line" aria-hidden />
           <span className="turn-complete-label">
-            Done in {formatDurationMs(lastDurationMs)}
+            用时 {formatDurationMs(lastDurationMs)}
           </span>
           <span className="turn-complete-line" aria-hidden />
         </div>
@@ -691,7 +723,7 @@ const MessageRow = memo(function MessageRow({
         if (!src) {
           return null;
         }
-        return { src, label: `Image ${index + 1}` };
+        return { src, label: `图片 ${index + 1}` };
       })
       .filter(Boolean) as MessageImage[];
   }, [item.images]);
@@ -729,8 +761,8 @@ const MessageRow = memo(function MessageRow({
           type="button"
           className={`ghost message-copy-button${isCopied ? " is-copied" : ""}`}
           onClick={() => onCopy(item)}
-          aria-label="Copy message"
-          title="Copy message"
+          aria-label="复制消息"
+          title="复制消息"
         >
           <span className="message-copy-icon" aria-hidden>
             <Copy className="message-copy-icon-copy" size={14} />
@@ -761,7 +793,7 @@ const ReasoningRow = memo(function ReasoningRow({
         className="tool-inline-bar-toggle"
         onClick={() => onToggle(item.id)}
         aria-expanded={isExpanded}
-        aria-label="Toggle reasoning details"
+        aria-label="展开/收起推理详情"
       />
       <div className="tool-inline-content">
         <button
@@ -801,7 +833,7 @@ const ReviewRow = memo(function ReviewRow({
   onOpenFileLinkMenu,
   onOpenThreadLink,
 }: ReviewRowProps) {
-  const title = item.state === "started" ? "Review started" : "Review completed";
+  const title = item.state === "started" ? "评审已开始" : "评审已完成";
   return (
     <div className="item-card review">
       <div className="review-header">
@@ -831,7 +863,7 @@ const DiffRow = memo(function DiffRow({ item }: DiffRowProps) {
     <div className="item-card diff">
       <div className="diff-header">
         <span className="diff-title">{item.title}</span>
-        {item.status && <span className="item-status">{item.status}</span>}
+        {item.status && <span className="item-status">{statusLabelText(item.status)}</span>}
       </div>
       <div className="diff-viewer-output">
         <DiffBlock diff={item.diff} language={languageFromPath(item.title)} />
@@ -852,8 +884,9 @@ const ToolRow = memo(function ToolRow({
 }: ToolRowProps) {
   const isFileChange = item.toolType === "fileChange";
   const isCommand = item.toolType === "commandExecution";
+  const isPlan = item.toolType === "plan";
   const commandText = isCommand
-    ? item.title.replace(/^Command:\s*/i, "").trim()
+    ? item.title.replace(/^(?:Command|命令)[:：]\s*/i, "").trim()
     : "";
   const summary = buildToolSummary(item, commandText);
   const changeNames = (item.changes ?? [])
@@ -863,16 +896,14 @@ const ToolRow = memo(function ToolRow({
   const tone = toolStatusTone(item, hasChanges);
   const ToolIcon = toolIconForSummary(item, summary);
   const summaryLabel = isFileChange
-    ? changeNames.length > 1
-      ? "files edited"
-      : "file edited"
+    ? "文件变更"
     : isCommand
       ? ""
-      : summary.label;
+      : summaryLabelText(summary.label);
   const summaryValue = isFileChange
     ? changeNames.length > 1
       ? `${changeNames[0]} +${changeNames.length - 1}`
-      : changeNames[0] || "changes"
+      : changeNames[0] || "变更"
     : summary.value;
   const shouldFadeCommand =
     isCommand && !isExpanded && (summaryValue?.length ?? 0) > 80;
@@ -907,6 +938,8 @@ const ToolRow = memo(function ToolRow({
       onRequestAutoScroll?.();
     }
   }, [isCommandRunning, onRequestAutoScroll, showCommandOutput, showLiveOutput]);
+  const summaryDetail = isPlan ? statusLabelText(summary.detail) : summary.detail;
+
   return (
     <div className={`tool-inline ${isExpanded ? "tool-inline-expanded" : ""}`}>
       <button
@@ -914,7 +947,7 @@ const ToolRow = memo(function ToolRow({
         className="tool-inline-bar-toggle"
         onClick={() => onToggle(item.id)}
         aria-expanded={isExpanded}
-        aria-label="Toggle tool details"
+        aria-label="展开/收起工具详情"
       />
       <div className="tool-inline-content">
         <button
@@ -947,12 +980,12 @@ const ToolRow = memo(function ToolRow({
             </span>
           )}
         </button>
-        {isExpanded && summary.detail && !isFileChange && (
-          <div className="tool-inline-detail">{summary.detail}</div>
+        {isExpanded && summaryDetail && !isFileChange && (
+          <div className="tool-inline-detail">{summaryDetail}</div>
         )}
         {isExpanded && isCommand && item.detail && (
           <div className="tool-inline-detail tool-inline-muted">
-            cwd: {item.detail}
+            工作目录: {item.detail}
           </div>
         )}
         {isExpanded && isFileChange && hasChanges && (
@@ -1071,11 +1104,24 @@ const CommandOutput = memo(function CommandOutput({ output }: CommandOutputProps
 });
 
 function exploreKindLabel(kind: ExploreRowProps["item"]["entries"][number]["kind"]) {
-  return kind[0].toUpperCase() + kind.slice(1);
+  switch (kind) {
+    case "search":
+      return "搜索";
+    case "read":
+      return "读取";
+    case "list":
+      return "列表";
+    case "open":
+      return "打开";
+    case "write":
+      return "写入";
+    default:
+      return kind;
+  }
 }
 
 const ExploreRow = memo(function ExploreRow({ item }: ExploreRowProps) {
-  const title = item.status === "exploring" ? "Exploring" : "Explored";
+  const title = item.status === "exploring" ? "探索中" : "已探索";
   return (
     <div className="tool-inline explore-inline">
       <div className="tool-inline-bar-toggle" aria-hidden />
@@ -1413,10 +1459,10 @@ export const Messages = memo(function Messages({
           const { group } = entry;
           const isCollapsed = collapsedToolGroups.has(group.id);
           const summaryParts = [
-            formatCount(group.toolCount, "tool call", "tool calls"),
+            formatCount(group.toolCount, "次工具调用", "次工具调用"),
           ];
           if (group.messageCount > 0) {
-            summaryParts.push(formatCount(group.messageCount, "message", "messages"));
+            summaryParts.push(formatCount(group.messageCount, "条消息", "条消息"));
           }
           const summaryText = summaryParts.join(", ");
           const groupBodyId = `tool-group-${group.id}`;
@@ -1433,7 +1479,7 @@ export const Messages = memo(function Messages({
                   onClick={() => toggleToolGroup(group.id)}
                   aria-expanded={!isCollapsed}
                   aria-controls={groupBodyId}
-                  aria-label={isCollapsed ? "Expand tool calls" : "Collapse tool calls"}
+                  aria-label={isCollapsed ? "展开工具调用" : "收起工具调用"}
                 >
                   <span className="tool-group-chevron" aria-hidden>
                     <ChevronIcon size={14} />
@@ -1461,14 +1507,14 @@ export const Messages = memo(function Messages({
       />
       {!items.length && !userInputNode && !isThinking && !isLoadingMessages && (
         <div className="empty messages-empty">
-          {threadId ? "Send a prompt to the agent." : "Send a prompt to start a new agent."}
+          {threadId ? "向智能体发送提示。" : "发送提示以启动新的智能体。"}
         </div>
       )}
       {!items.length && !userInputNode && !isThinking && isLoadingMessages && (
         <div className="empty messages-empty">
           <div className="messages-loading-indicator" role="status" aria-live="polite">
             <span className="working-spinner" aria-hidden />
-            <span className="messages-loading-label">Loading…</span>
+            <span className="messages-loading-label">加载中…</span>
           </div>
         </div>
       )}

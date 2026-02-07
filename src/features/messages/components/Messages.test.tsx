@@ -66,7 +66,7 @@ describe("Messages", () => {
     if (grid && markdown) {
       expect(bubble?.firstChild).toBe(grid);
     }
-    const openButton = screen.getByRole("button", { name: "Open image 1" });
+    const openButton = screen.getByRole("button", { name: "打开图片 1" });
     fireEvent.click(openButton);
     expect(screen.getByRole("dialog")).toBeTruthy();
   });
@@ -416,7 +416,7 @@ describe("Messages", () => {
     );
 
     const workingText = container.querySelector(".working-text");
-    expect(workingText?.textContent ?? "").toContain("Working");
+    expect(workingText?.textContent ?? "").toContain("思考中");
     expect(workingText?.textContent ?? "").not.toContain("Old reasoning title");
   });
 
@@ -486,11 +486,11 @@ describe("Messages", () => {
     await waitFor(() => {
       expect(container.querySelector(".explore-inline")).toBeTruthy();
     });
-    expect(screen.queryByText(/tool calls/i)).toBeNull();
+    expect(screen.queryByText(/工具调用/i)).toBeNull();
     const exploreItems = container.querySelectorAll(".explore-inline-item");
     expect(exploreItems.length).toBe(2);
     expect(container.querySelector(".explore-inline-title")?.textContent ?? "").toContain(
-      "Explored",
+      "已探索",
     );
   });
 
@@ -525,7 +525,7 @@ describe("Messages", () => {
       expect(container.querySelectorAll(".explore-inline").length).toBe(1);
     });
     const exploreTitle = container.querySelector(".explore-inline-title");
-    expect(exploreTitle?.textContent ?? "").toContain("Explored");
+    expect(exploreTitle?.textContent ?? "").toContain("已探索");
   });
 
   it("does not merge explore items across interleaved tools", async () => {
@@ -713,7 +713,7 @@ describe("Messages", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("5 tool calls")).toBeTruthy();
+      expect(screen.getByText("5 次工具调用")).toBeTruthy();
     });
   });
 });

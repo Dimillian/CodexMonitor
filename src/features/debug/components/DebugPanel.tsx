@@ -96,25 +96,25 @@ export function DebugPanel({
           className="debug-panel-resizer"
           role="separator"
           aria-orientation="horizontal"
-          aria-label="Resize debug panel"
+          aria-label="调整调试面板大小"
           onMouseDown={onResizeStart}
         />
       ) : null}
       <div className="debug-header">
-        <div className="debug-title">Debug</div>
+        <div className="debug-title">调试</div>
         <div className="debug-actions">
           <button className="ghost" onClick={onCopy}>
-            Copy
+            复制
           </button>
           <button className="ghost" onClick={onClear}>
-            Clear
+            清除
           </button>
         </div>
       </div>
       {isOpen ? (
         <div className="debug-list">
           {formattedEntries.length === 0 ? (
-            <div className="debug-empty">No debug events yet.</div>
+            <div className="debug-empty">暂无调试事件。</div>
           ) : null}
           {formattedEntries.map((entry) => (
             <div key={entry.id} className="debug-row">

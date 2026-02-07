@@ -85,7 +85,7 @@ export function WorktreeSection({
     <div className="worktree-section">
       <div className="worktree-header">
         <Layers className="worktree-header-icon" aria-hidden />
-        Worktrees
+        工作树
       </div>
       <div className="worktree-list">
         {worktrees.map((worktree) => {

@@ -24,7 +24,7 @@ export const MainHeaderActions = memo(function MainHeaderActions({
   return (
     <>
       {centerMode === "diff" && (
-        <div className="diff-view-toggle" role="group" aria-label="Diff view">
+        <div className="diff-view-toggle" role="group" aria-label="差异视图">
           <button
             type="button"
             className={`diff-view-toggle-button${
@@ -32,7 +32,7 @@ export const MainHeaderActions = memo(function MainHeaderActions({
             }`}
             onClick={() => onSelectDiffViewStyle("split")}
             aria-pressed={gitDiffViewStyle === "split"}
-            title="Dual-panel diff"
+            title="双栏差异"
             data-tauri-drag-region="false"
           >
             <Columns2 size={14} aria-hidden />
@@ -44,7 +44,7 @@ export const MainHeaderActions = memo(function MainHeaderActions({
             }`}
             onClick={() => onSelectDiffViewStyle("unified")}
             aria-pressed={gitDiffViewStyle === "unified"}
-            title="Single-column diff"
+            title="单栏差异"
             data-tauri-drag-region="false"
           >
             <AlignLeft size={14} aria-hidden />

@@ -105,7 +105,7 @@ export function BranchSwitcherPrompt({
     <ModalShell
       className="branch-switcher-modal"
       onBackdropClick={onCancel}
-      ariaLabel="Switch branch"
+      ariaLabel="切换分支"
     >
       <input
         ref={inputRef}
@@ -113,7 +113,7 @@ export function BranchSwitcherPrompt({
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Search branches..."
+        placeholder="搜索分支..."
       />
       <BranchList
         branches={filteredBranches}
@@ -125,7 +125,7 @@ export function BranchSwitcherPrompt({
         selectedItemClassName="selected"
         itemLabelClassName="branch-switcher-modal-item-name"
         emptyClassName="branch-switcher-modal-empty"
-        emptyText="No branches found"
+        emptyText="未找到分支"
         onSelect={handleSelect}
         onMouseEnter={setSelectedIndex}
         renderMeta={(branch) => {
@@ -138,10 +138,10 @@ export function BranchSwitcherPrompt({
           return (
             <span className="branch-switcher-modal-item-meta">
               {isCurrent && (
-                <span className="branch-switcher-modal-item-current">current</span>
+                <span className="branch-switcher-modal-item-current">当前</span>
               )}
               {worktree && (
-                <span className="branch-switcher-modal-item-worktree">worktree</span>
+                <span className="branch-switcher-modal-item-worktree">工作树</span>
               )}
             </span>
           );

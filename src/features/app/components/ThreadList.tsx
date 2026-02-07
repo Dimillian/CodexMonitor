@@ -99,7 +99,7 @@ export function ThreadList({
         }}
       >
         <span className={`thread-status ${statusClass}`} aria-hidden />
-        {isPinned && <span className="thread-pin-icon" aria-label="Pinned">📌</span>}
+        {isPinned && <span className="thread-pin-icon" aria-label="已固定">📌</span>}
         <span className="thread-name">{thread.name}</span>
         <div className="thread-meta">
           {relativeTime && <span className="thread-time">{relativeTime}</span>}
@@ -126,7 +126,7 @@ export function ThreadList({
             onToggleExpanded(workspaceId);
           }}
         >
-          {isExpanded ? "Show less" : "More..."}
+          {isExpanded ? "收起" : "更多..."}
         </button>
       )}
       {showLoadOlder && nextCursor && (isExpanded || totalThreadRoots <= 3) && (
@@ -139,10 +139,10 @@ export function ThreadList({
           disabled={isPaging}
         >
           {isPaging
-            ? "Loading..."
+            ? "加载中..."
             : totalThreadRoots === 0
-              ? "Search older..."
-              : "Load older..."}
+              ? "搜索更早..."
+              : "加载更早..."}
         </button>
       )}
     </div>

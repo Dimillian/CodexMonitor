@@ -215,11 +215,11 @@ export function PromptPanel({
     }
     const name = editor.name.trim();
     if (!name) {
-      setEditorError("Name is required.");
+      setEditorError("名称不能为空。");
       return;
     }
     if (/\s/.test(name)) {
-      setEditorError("Name cannot include whitespace.");
+      setEditorError("名称不能包含空格。");
       return;
     }
     setEditorError(null);
@@ -299,15 +299,15 @@ export function PromptPanel({
     const menu = await Menu.new({
       items: [
         await MenuItem.new({
-          text: "Edit",
+          text: "编辑",
           action: () => startEdit(prompt),
         }),
         await MenuItem.new({
-          text: `Move to ${nextScope === "workspace" ? "workspace" : "general"}`,
+          text: `移动到 ${nextScope === "workspace" ? "工作区" : "通用"}`,
           action: () => void handleMove(prompt, nextScope),
         }),
         await MenuItem.new({
-          text: "Delete",
+          text: "删除",
           action: () => handleDeleteRequest(prompt),
         }),
       ],
@@ -338,10 +338,10 @@ export function PromptPanel({
             <input
               className="prompt-args-input"
               type="text"
-              placeholder={hint ?? "Arguments"}
+              placeholder={hint ?? "参数"}
               value={argsValue}
               onChange={(event) => handleArgsChange(key, event.target.value)}
-              aria-label={`Arguments for ${prompt.name}`}
+              aria-label={`${prompt.name}的参数`}
             />
           ) : null}
           <button
@@ -354,9 +354,9 @@ export function PromptPanel({
               }
               void onSendPrompt(text);
             }}
-            title="Send to current agent"
+            title="发送到当前代理"
           >
-            Send
+            发送
           </button>
           <button
             type="button"
@@ -368,36 +368,36 @@ export function PromptPanel({
               }
               void onSendPromptToNewAgent(text);
             }}
-            title="Send to a new agent"
+            title="发送到新代理"
           >
-            New agent
+            新代理
           </button>
           <button
             type="button"
             className="ghost icon-button prompt-action-menu"
             onClick={(event) => void showPromptMenu(event, prompt)}
-            aria-label="Prompt actions"
-            title="Prompt actions"
+            aria-label="提示操作"
+            title="提示操作"
           >
             <MoreHorizontal aria-hidden />
           </button>
         </div>
         {pendingDeletePath === prompt.path && (
           <div className="prompt-delete-confirm">
-            <span>Delete this prompt?</span>
+            <span>确定要删除这个提示吗？</span>
             <button
               type="button"
               className="ghost prompt-action"
               onClick={() => void handleDeleteConfirm(prompt)}
             >
-              Delete
+              删除
             </button>
             <button
               type="button"
               className="ghost prompt-action"
               onClick={() => setPendingDeletePath(null)}
             >
-              Cancel
+              取消
             </button>
           </div>
         )}
@@ -410,16 +410,16 @@ export function PromptPanel({
       <PanelHeader className="git-panel-header">
         <PanelTabs active={filePanelMode} onSelect={onFilePanelModeChange} />
         <PanelMeta className="prompt-panel-meta">
-          {hasPrompts ? `${totalCount} prompt${totalCount === 1 ? "" : "s"}` : "No prompts"}
+          {hasPrompts ? `${totalCount} 个提示${totalCount === 1 ? "" : ""}` : "无提示"}
         </PanelMeta>
       </PanelHeader>
       <PanelSearchField
         className="file-tree-search"
         inputClassName="file-tree-search-input"
-        placeholder="Filter prompts"
+        placeholder="筛选提示"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        aria-label="Filter prompts"
+        aria-label="筛选提示"
         icon={<Search aria-hidden />}
       />
       <div className="prompt-panel-scroll">
@@ -427,17 +427,17 @@ export function PromptPanel({
           <div className="prompt-editor">
             <div className="prompt-editor-row">
               <label className="prompt-editor-label">
-                Name
+                名称
                 <input
                   className="prompt-args-input"
                   type="text"
                   value={editor.name}
                   onChange={(event) => updateEditor({ name: event.target.value })}
-                  placeholder="Prompt name"
+                  placeholder="提示名称"
                 />
               </label>
               <label className="prompt-editor-label">
-                Scope
+                作用域
                 <select
                   className="prompt-scope-select"
                   value={editor.scope}
@@ -448,40 +448,40 @@ export function PromptPanel({
                   }
                   disabled={editor.mode === "edit"}
                 >
-                  <option value="workspace">Workspace</option>
-                  <option value="global">General</option>
+                  <option value="workspace">工作区</option>
+                  <option value="global">通用</option>
                 </select>
               </label>
             </div>
             <div className="prompt-editor-row">
               <label className="prompt-editor-label">
-                Description
+                描述
                 <input
                   className="prompt-args-input"
                   type="text"
                   value={editor.description}
                   onChange={(event) => updateEditor({ description: event.target.value })}
-                  placeholder="Optional description"
+                  placeholder="可选描述"
                 />
               </label>
               <label className="prompt-editor-label">
-                Argument hint
+                参数提示
                 <input
                   className="prompt-args-input"
                   type="text"
                   value={editor.argumentHint}
                   onChange={(event) => updateEditor({ argumentHint: event.target.value })}
-                  placeholder="Optional argument hint"
+                  placeholder="可选参数提示"
                 />
               </label>
             </div>
             <label className="prompt-editor-label">
-              Content
+              内容
               <textarea
                 className="prompt-editor-textarea"
                 value={editor.content}
                 onChange={(event) => updateEditor({ content: event.target.value })}
-                placeholder="Prompt content"
+                placeholder="提示内容"
                 rows={6}
               />
             </label>
@@ -493,7 +493,7 @@ export function PromptPanel({
                 onClick={() => setEditor(null)}
                 disabled={isSaving}
               >
-                Cancel
+                取消
               </button>
               <button
                 type="button"
@@ -501,20 +501,20 @@ export function PromptPanel({
                 onClick={() => void handleSave()}
                 disabled={isSaving}
               >
-                {editor.mode === "create" ? "Create" : "Save"}
+                {editor.mode === "create" ? "创建" : "保存"}
               </button>
             </div>
           </div>
         )}
         <div className="prompt-section">
           <div className="prompt-section-header">
-            <div className="prompt-section-title">Workspace prompts</div>
+            <div className="prompt-section-title">工作区提示</div>
             <button
               type="button"
               className="ghost icon-button prompt-section-add"
               onClick={() => startCreate("workspace")}
-              aria-label="Add workspace prompt"
-              title="Add workspace prompt"
+              aria-label="添加工作区提示"
+              title="添加工作区提示"
             >
               <Plus aria-hidden />
             </button>
@@ -527,23 +527,23 @@ export function PromptPanel({
             <div className="prompt-empty-card">
               <ScrollText className="prompt-empty-icon" aria-hidden />
               <div className="prompt-empty-text">
-                <div className="prompt-empty-title">No workspace prompts yet</div>
+                <div className="prompt-empty-title">暂无工作区提示</div>
                 <div className="prompt-empty-subtitle">
-                  Create one here or drop a .md file into the{" "}
+                  在此处创建一个，或拖放一个 .md 文件到
                   {workspacePath ? (
                     <button
                       type="button"
                       className="prompt-empty-link"
                       onClick={() => void onRevealWorkspacePrompts()}
                     >
-                      workspace prompts folder
+                      工作区提示文件夹
                     </button>
                   ) : (
                     <span className="prompt-empty-link is-disabled">
-                      workspace prompts folder
+                      工作区提示文件夹
                     </span>
                   )}
-                  .
+                  中。
                 </div>
               </div>
             </div>
@@ -551,13 +551,13 @@ export function PromptPanel({
         </div>
         <div className="prompt-section">
           <div className="prompt-section-header">
-            <div className="prompt-section-title">General prompts</div>
+            <div className="prompt-section-title">通用提示</div>
             <button
               type="button"
               className="ghost icon-button prompt-section-add"
               onClick={() => startCreate("global")}
-              aria-label="Add general prompt"
-              title="Add general prompt"
+              aria-label="添加通用提示"
+              title="添加通用提示"
             >
               <Plus aria-hidden />
             </button>
@@ -570,9 +570,9 @@ export function PromptPanel({
             <div className="prompt-empty-card">
               <ScrollText className="prompt-empty-icon" aria-hidden />
               <div className="prompt-empty-text">
-                <div className="prompt-empty-title">No general prompts yet</div>
+                <div className="prompt-empty-title">暂无通用提示</div>
                 <div className="prompt-empty-subtitle">
-                  Create one here or drop a .md file into{" "}
+                  在此处创建一个，或拖放一个 .md 文件到
                   {canRevealGeneralPrompts ? (
                     <button
                       type="button"
@@ -586,7 +586,7 @@ export function PromptPanel({
                       CODEX_HOME/prompts
                     </span>
                   )}
-                  .
+                  中。
                 </div>
               </div>
             </div>

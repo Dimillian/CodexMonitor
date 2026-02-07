@@ -209,7 +209,7 @@ export function MainHeader({
                 aria-haspopup="dialog"
                 aria-expanded={infoOpen}
                 data-tauri-drag-region="false"
-                title="Worktree info"
+                title="工作树信息"
               >
                 {worktreeLabel || branchName}
               </button>
@@ -217,7 +217,7 @@ export function MainHeader({
                 <PopoverSurface className="worktree-info-popover" role="dialog">
                   {worktreeRename && (
                     <div className="worktree-info-rename">
-                      <span className="worktree-info-label">Name</span>
+                      <span className="worktree-info-label">名称</span>
                       <div className="worktree-info-command">
                         <input
                           ref={renameInputRef}
@@ -264,8 +264,8 @@ export function MainHeader({
                           disabled={
                             worktreeRename.isSubmitting || !worktreeRename.isDirty
                           }
-                          aria-label="Confirm rename"
-                          title="Confirm rename"
+                          aria-label="确认重命名"
+                          title="确认重命名"
                         >
                           <Check aria-hidden />
                         </button>
@@ -281,7 +281,7 @@ export function MainHeader({
                       {worktreeRename.upstream && (
                         <div className="worktree-info-upstream">
                           <span className="worktree-info-subtle">
-                            Do you want to update the upstream branch to{" "}
+                            是否将上游分支更新为{" "}
                             <strong>{worktreeRename.upstream.newBranch}</strong>?
                           </span>
                           <button
@@ -290,7 +290,7 @@ export function MainHeader({
                             onClick={worktreeRename.upstream.onConfirm}
                             disabled={worktreeRename.upstream.isSubmitting}
                           >
-                            Update upstream
+                            更新上游
                           </button>
                           {worktreeRename.upstream.error && (
                             <div className="worktree-info-error">
@@ -301,10 +301,10 @@ export function MainHeader({
                       )}
                     </div>
                   )}
-                  <div className="worktree-info-title">Worktree</div>
+                  <div className="worktree-info-title">工作树</div>
                   <div className="worktree-info-row">
                     <span className="worktree-info-label">
-                      Terminal{parentPath ? " (repo root)" : ""}
+                      终端{parentPath ? "（仓库根目录）" : ""}
                     </span>
                     <div className="worktree-info-command">
                       <code className="worktree-info-code">
@@ -317,18 +317,18 @@ export function MainHeader({
                           await navigator.clipboard.writeText(cdCommand);
                         }}
                         data-tauri-drag-region="false"
-                        aria-label="Copy command"
-                        title="Copy command"
+                        aria-label="复制命令"
+                        title="复制命令"
                       >
                         <Copy aria-hidden />
                       </button>
                     </div>
                     <span className="worktree-info-subtle">
-                      Open this worktree in your terminal.
+                      在终端中打开此工作树。
                     </span>
                   </div>
                   <div className="worktree-info-row">
-                    <span className="worktree-info-label">Reveal</span>
+                    <span className="worktree-info-label">显示</span>
                     <button
                       type="button"
                       className="worktree-info-reveal"
@@ -407,14 +407,14 @@ export function MainHeader({
                             }
                           }
                         }}
-                        placeholder="Search or create branch"
+                        placeholder="搜索或创建分支"
                         className="branch-input"
                         autoCorrect="off"
                         autoCapitalize="none"
                         spellCheck={false}
                         autoFocus
                         data-tauri-drag-region="false"
-                        aria-label="Search branches"
+                        aria-label="搜索分支"
                       />
                       <button
                         type="button"
@@ -441,7 +441,7 @@ export function MainHeader({
                         }}
                         data-tauri-drag-region="false"
                       >
-                        Create
+                        创建
                       </button>
                     </div>
                     {branchValidationMessage && (
@@ -449,7 +449,7 @@ export function MainHeader({
                     )}
                     {canCreate && !branchValidationMessage && (
                       <div className="branch-create-hint">
-                        Create branch “{trimmedQuery}”
+                        创建分支“{trimmedQuery}”
                       </div>
                     )}
                   </div>
@@ -463,7 +463,7 @@ export function MainHeader({
                     itemRole="menuitem"
                     itemDataTauriDragRegion="false"
                     emptyClassName="branch-empty"
-                    emptyText="No branches found"
+                    emptyText="未找到分支"
                     onSelect={async (branch) => {
                       if (branch.name === branchName) {
                         return;
@@ -551,8 +551,8 @@ export function MainHeader({
             className={`ghost main-header-action${isTerminalOpen ? " is-active" : ""}`}
             onClick={onToggleTerminal}
             data-tauri-drag-region="false"
-            aria-label="Toggle terminal panel"
-            title="Terminal"
+            aria-label="切换终端面板"
+            title="终端"
           >
             <Terminal size={14} aria-hidden />
           </button>
@@ -563,8 +563,8 @@ export function MainHeader({
           onClick={handleCopyClick}
           disabled={!canCopyThread || !onCopyThread}
           data-tauri-drag-region="false"
-          aria-label="Copy thread"
-          title="Copy thread"
+          aria-label="复制对话"
+          title="复制对话"
         >
           <span className="main-header-icon" aria-hidden>
             <Copy className="main-header-icon-copy" size={14} />

@@ -53,7 +53,7 @@ export function SidebarHeader({
             className="sidebar-title-add"
             onClick={onAddWorkspace}
             data-tauri-drag-region="false"
-            aria-label="Add workspace"
+            aria-label="添加工作区"
             type="button"
           >
             <FolderPlus aria-hidden />
@@ -62,9 +62,9 @@ export function SidebarHeader({
             className="subtitle subtitle-button sidebar-title-button"
             onClick={onSelectHome}
             data-tauri-drag-region="false"
-            aria-label="Open home"
+            aria-label="打开主页"
           >
-            Projects
+            工作区
           </button>
         </div>
       </div>
@@ -74,11 +74,11 @@ export function SidebarHeader({
             className={`ghost sidebar-sort-toggle${sortMenuOpen ? " is-active" : ""}`}
             onClick={() => setSortMenuOpen((open) => !open)}
             data-tauri-drag-region="false"
-            aria-label="Sort threads"
+            aria-label="排序对话"
             aria-haspopup="menu"
             aria-expanded={sortMenuOpen}
             type="button"
-            title="Sort threads"
+            title="排序对话"
           >
             <ListFilter aria-hidden />
           </button>
@@ -93,7 +93,7 @@ export function SidebarHeader({
                 icon={<Clock3 aria-hidden />}
                 active={threadListSortKey === "updated_at"}
               >
-                Last updated
+                最近更新
               </PopoverMenuItem>
               <PopoverMenuItem
                 className="sidebar-sort-option"
@@ -104,7 +104,7 @@ export function SidebarHeader({
                 icon={<Calendar aria-hidden />}
                 active={threadListSortKey === "created_at"}
               >
-                Most recent
+                最新创建
               </PopoverMenuItem>
             </PopoverSurface>
           )}
@@ -113,7 +113,7 @@ export function SidebarHeader({
           className={`ghost sidebar-search-toggle${isSearchOpen ? " is-active" : ""}`}
           onClick={onToggleSearch}
           data-tauri-drag-region="false"
-          aria-label="Toggle search"
+          aria-label="切换搜索"
           aria-pressed={isSearchOpen}
           type="button"
         >

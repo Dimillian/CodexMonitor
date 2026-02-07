@@ -64,10 +64,10 @@ export function FilePreviewPopover({
   );
   const language = useMemo(() => languageFromPath(path), [path]);
   const selectionLabel = selection
-    ? `Lines ${selection.start + 1}-${selection.end + 1}`
+    ? `第 ${selection.start + 1}-${selection.end + 1} 行`
     : isImagePreview
-      ? "Image preview"
-      : "No selection";
+      ? "图片预览"
+      : "未选择";
   const highlightedLines = useMemo(
     () =>
       isImagePreview
@@ -85,21 +85,21 @@ export function FilePreviewPopover({
         <div className="file-preview-title">
           <span className="file-preview-path">{path}</span>
           {truncated && (
-            <span className="file-preview-warning">Truncated</span>
+            <span className="file-preview-warning">已截断</span>
           )}
         </div>
         <button
           type="button"
           className="icon-button file-preview-close"
           onClick={onClose}
-          aria-label="Close preview"
-          title="Close preview"
+          aria-label="关闭预览"
+          title="关闭预览"
         >
           <X size={14} aria-hidden />
         </button>
       </div>
       {isLoading ? (
-        <div className="file-preview-status">Loading file...</div>
+        <div className="file-preview-status">正在加载文件...</div>
       ) : error ? (
         <div className="file-preview-status file-preview-error">{error}</div>
       ) : isImagePreview ? (
@@ -122,7 +122,7 @@ export function FilePreviewPopover({
             </div>
           ) : (
             <div className="file-preview-status file-preview-error">
-              Image preview unavailable.
+              无法预览图片。
             </div>
           )}
         </div>
@@ -132,7 +132,7 @@ export function FilePreviewPopover({
             <div className="file-preview-selection-group">
               <span className="file-preview-selection">{selectionLabel}</span>
               {selectionHints.length > 0 ? (
-                <div className="file-preview-hints" aria-label="Selection hints">
+                <div className="file-preview-hints" aria-label="选择提示">
                   {selectionHints.map((hint) => (
                     <span key={hint} className="file-preview-hint">
                       {hint}
@@ -155,7 +155,7 @@ export function FilePreviewPopover({
                 onClick={onClearSelection}
                 disabled={!selection}
               >
-                Clear
+                清除
               </button>
               <button
                 type="button"
@@ -163,7 +163,7 @@ export function FilePreviewPopover({
                 onClick={onAddSelection}
                 disabled={!selection || !canInsertText}
               >
-                Add to chat
+                添加到对话
               </button>
             </div>
           </div>

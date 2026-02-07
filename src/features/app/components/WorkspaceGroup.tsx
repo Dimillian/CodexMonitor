@@ -39,7 +39,7 @@ export function WorkspaceGroup({
               : undefined
           }
           role={isToggleable ? "button" : undefined}
-          aria-label={isToggleable ? `${isCollapsed ? "Expand" : "Collapse"} group` : undefined}
+          aria-label={isToggleable ? `${isCollapsed ? "展开" : "折叠"}分组` : undefined}
           aria-expanded={isToggleable ? !isCollapsed : undefined}
           tabIndex={isToggleable ? 0 : undefined}
         >
@@ -54,7 +54,7 @@ export function WorkspaceGroup({
                 }
                 onToggleCollapse(toggleId);
               }}
-              aria-label={isCollapsed ? "Expand group" : "Collapse group"}
+              aria-label={isCollapsed ? "展开分组" : "折叠分组"}
               aria-expanded={!isCollapsed}
               type="button"
             >

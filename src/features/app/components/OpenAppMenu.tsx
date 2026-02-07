@@ -71,7 +71,7 @@ export function OpenAppMenu({
       DEFAULT_OPEN_APP_TARGETS.find((target) => target.id === DEFAULT_OPEN_APP_ID)
         ?.label ??
       DEFAULT_OPEN_APP_TARGETS[0]?.label ??
-      "Open",
+      "打开",
     icon: getKnownOpenAppIcon(DEFAULT_OPEN_APP_ID) ?? GENERIC_APP_ICON,
     target:
       DEFAULT_OPEN_APP_TARGETS.find((target) => target.id === DEFAULT_OPEN_APP_ID) ??
@@ -104,7 +104,7 @@ export function OpenAppMenu({
       },
     });
     pushErrorToast({
-      title: "Couldn’t open workspace",
+      title: "无法打开工作区",
       message,
     });
     console.warn("Failed to open workspace in target app", {
@@ -183,10 +183,10 @@ export function OpenAppMenu({
 
   const selectedCanOpen = canOpenTarget(selectedOpenTarget);
   const openLabel = selectedCanOpen
-    ? `Open in ${selectedOpenTarget.label}`
+    ? `在 ${selectedOpenTarget.label} 中打开`
     : selectedOpenTarget.target.kind === "command"
-      ? "Set command in Settings"
-      : "Set app name in Settings";
+      ? "请在设置中配置命令"
+      : "请在设置中配置应用名称";
 
   return (
     <div className="open-app-menu" ref={openMenuRef}>
@@ -197,7 +197,7 @@ export function OpenAppMenu({
           onClick={handleOpen}
           disabled={!selectedCanOpen}
           data-tauri-drag-region="false"
-          aria-label={`Open in ${selectedOpenTarget.label}`}
+          aria-label={`在 ${selectedOpenTarget.label} 中打开`}
           title={openLabel}
         >
           <span className="open-app-label">
@@ -217,8 +217,8 @@ export function OpenAppMenu({
           data-tauri-drag-region="false"
           aria-haspopup="menu"
           aria-expanded={openMenuOpen}
-          aria-label="Select editor"
-          title="Select editor"
+          aria-label="选择编辑器"
+          title="选择编辑器"
         >
           <ChevronDown size={14} aria-hidden />
         </button>

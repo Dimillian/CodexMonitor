@@ -82,7 +82,7 @@ export function PinnedThreadList({
           >
             <span className={`thread-status ${statusClass}`} aria-hidden />
             {isPinned && (
-              <span className="thread-pin-icon" aria-label="Pinned">
+              <span className="thread-pin-icon" aria-label="已固定">
                 📌
               </span>
             )}

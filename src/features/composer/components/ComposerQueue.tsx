@@ -21,11 +21,11 @@ export function ComposerQueue({
       event.stopPropagation();
       const { clientX, clientY } = event;
       const editItem = await MenuItem.new({
-        text: "Edit",
+        text: "编辑",
         action: () => onEditQueued?.(item),
       });
       const deleteItem = await MenuItem.new({
-        text: "Delete",
+        text: "删除",
         action: () => onDeleteQueued?.(item.id),
       });
       const menu = await Menu.new({ items: [editItem, deleteItem] });
@@ -42,25 +42,23 @@ export function ComposerQueue({
 
   return (
     <div className="composer-queue">
-      <div className="composer-queue-title">Queued</div>
+      <div className="composer-queue-title">队列</div>
       <div className="composer-queue-list">
         {queuedMessages.map((item) => (
           <div key={item.id} className="composer-queue-item">
             <span className="composer-queue-text">
               {item.text ||
                 (item.images?.length
-                  ? item.images.length === 1
-                    ? "Image"
-                    : "Images"
+                  ? "图片"
                   : "")}
               {item.images?.length
-                ? ` · ${item.images.length} image${item.images.length === 1 ? "" : "s"}`
+                ? ` · ${item.images.length} 张图片`
                 : ""}
             </span>
             <button
               className="composer-queue-menu"
               onClick={(event) => handleQueueMenu(event, item)}
-              aria-label="Queue item menu"
+              aria-label="队列项菜单"
             >
               ...
             </button>

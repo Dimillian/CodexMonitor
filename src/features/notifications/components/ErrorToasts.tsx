@@ -27,8 +27,8 @@ export function ErrorToasts({ toasts, onDismiss }: ErrorToastsProps) {
               type="button"
               className="ghost error-toast-dismiss"
               onClick={() => onDismiss(toast.id)}
-              aria-label="Dismiss error"
-              title="Dismiss"
+              aria-label="关闭错误"
+              title="关闭"
             >
               ×
             </button>

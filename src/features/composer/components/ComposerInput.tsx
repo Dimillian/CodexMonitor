@@ -88,6 +88,23 @@ type ComposerInputProps = {
 
 const isFileSuggestion = (item: AutocompleteItem) => item.group === "Files";
 
+const suggestionGroupLabel = (group?: AutocompleteItem["group"]) => {
+  switch (group) {
+    case "Files":
+      return "文件";
+    case "Skills":
+      return "技能";
+    case "Apps":
+      return "应用";
+    case "Slash":
+      return "斜杠命令";
+    case "Prompts":
+      return "提示";
+    default:
+      return group ?? "";
+  }
+};
+
 const suggestionIcon = (item: AutocompleteItem) => {
   if (isFileSuggestion(item)) {
     return FileText;
@@ -255,19 +272,19 @@ export function ComposerInput({
   const micDisabled =
     disabled || dictationState === "processing" || !dictationEnabled || !onToggleDictation;
   const micAriaLabel = allowOpenDictationSettings
-    ? "Open dictation settings"
+    ? "打开语音输入设置"
     : dictationState === "processing"
-      ? "Dictation processing"
+      ? "语音输入处理中"
       : isDictating
-        ? "Stop dictation"
-        : "Start dictation";
+        ? "停止语音输入"
+        : "开始语音输入";
   const micTitle = allowOpenDictationSettings
-    ? "Dictation disabled. Open settings"
+    ? "语音输入已禁用。打开设置"
     : dictationState === "processing"
-      ? "Processing dictation"
+      ? "正在处理语音输入"
       : isDictating
-        ? "Stop dictation"
-        : "Start dictation";
+        ? "停止语音输入"
+        : "开始语音输入";
   const handleMicClick = useCallback(() => {
     if (allowOpenDictationSettings) {
       onOpenDictationSettings?.();
@@ -329,8 +346,8 @@ export function ComposerInput({
             className="composer-attach"
             onClick={onAddAttachment}
             disabled={disabled || !onAddAttachment}
-            aria-label="Add image"
-            title="Add image"
+            aria-label="添加图片"
+            title="添加图片"
           >
             <ImagePlus size={14} aria-hidden />
           </button>
@@ -338,8 +355,8 @@ export function ComposerInput({
             ref={textareaRef}
             placeholder={
               disabled
-                ? "Review in progress. Chat will re-enable when it completes."
-                : "Ask Codex to do something..."
+                ? "审查进行中，完成后将重新启用聊天。"
+                : "让 Codex 执行任务…"
             }
             value={text}
             onChange={handleTextareaChange}
@@ -368,7 +385,7 @@ export function ComposerInput({
               className="ghost composer-dictation-error-dismiss"
               onClick={onDismissDictationError}
             >
-              Dismiss
+              关闭
             </button>
           </div>
         )}
@@ -381,7 +398,7 @@ export function ComposerInput({
                 className="ghost composer-dictation-error-dismiss"
                 onClick={onDismissDictationHint}
               >
-                Dismiss
+                关闭
               </button>
             )}
           </div>
@@ -441,7 +458,9 @@ export function ComposerInput({
                 return (
                   <div key={item.id}>
                     {showGroup && (
-                      <div className="composer-suggestion-section">{item.group}</div>
+                      <div className="composer-suggestion-section">
+                        {suggestionGroupLabel(item.group)}
+                      </div>
                     )}
                     <button
                       type="button"
@@ -516,8 +535,8 @@ export function ComposerInput({
           }`}
           onClick={onToggleExpand}
           disabled={disabled}
-          aria-label={isExpanded ? "Collapse input" : "Expand input"}
-          title={isExpanded ? "Collapse input" : "Expand input"}
+          aria-label={isExpanded ? "收起输入框" : "展开输入框"}
+          title={isExpanded ? "收起输入框" : "展开输入框"}
         >
           {isExpanded ? <ChevronDown aria-hidden /> : <ChevronUp aria-hidden />}
         </button>
@@ -545,7 +564,7 @@ export function ComposerInput({
         }`}
         onClick={handleActionClick}
         disabled={disabled || isDictationBusy || (!canStop && !canSend)}
-        aria-label={canStop ? "Stop" : sendLabel}
+        aria-label={canStop ? "停止" : sendLabel}
       >
         {canStop ? (
           <>

@@ -12,15 +12,15 @@ type TabBarProps = {
 };
 
 const tabs: { id: TabKey; label: string; icon: ReactNode }[] = [
-  { id: "projects", label: "Projects", icon: <FolderKanban className="tabbar-icon" /> },
+  { id: "projects", label: "工作区", icon: <FolderKanban className="tabbar-icon" /> },
   { id: "codex", label: "Codex", icon: <MessagesSquare className="tabbar-icon" /> },
   { id: "git", label: "Git", icon: <GitBranch className="tabbar-icon" /> },
-  { id: "log", label: "Log", icon: <TerminalSquare className="tabbar-icon" /> },
+  { id: "log", label: "日志", icon: <TerminalSquare className="tabbar-icon" /> },
 ];
 
 export function TabBar({ activeTab, onSelect }: TabBarProps) {
   return (
-    <nav className="tabbar" aria-label="Primary">
+    <nav className="tabbar" aria-label="主导航">
       {tabs.map((tab) => (
         <button
           key={tab.id}

@@ -75,7 +75,7 @@ export function ApprovalToasts({
 
   const renderParamValue = (value: unknown) => {
     if (value === null || value === undefined) {
-      return { text: "None", isCode: false };
+      return { text: "无", isCode: false };
     }
     if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
       return { text: String(value), isCode: false };
@@ -103,7 +103,7 @@ export function ApprovalToasts({
             role="alert"
           >
             <ToastHeader className="approval-toast-header">
-              <ToastTitle className="approval-toast-title">Approval needed</ToastTitle>
+              <ToastTitle className="approval-toast-title">需要批准</ToastTitle>
               {workspaceName ? (
                 <div className="approval-toast-workspace">{workspaceName}</div>
               ) : null}
@@ -132,7 +132,7 @@ export function ApprovalToasts({
                 })
               ) : (
                 <div className="approval-toast-detail approval-toast-detail-empty">
-                  No extra details.
+                  没有其他详情。
                 </div>
               )}
             </div>
@@ -141,22 +141,22 @@ export function ApprovalToasts({
                 className="secondary"
                 onClick={() => onDecision(request, "decline")}
               >
-                Decline
+                拒绝
               </button>
               {commandInfo && onRemember ? (
                 <button
                   className="ghost approval-toast-remember"
                   onClick={() => onRemember(request, commandInfo.tokens)}
-                  title={`Allow commands that start with ${commandInfo.preview}`}
+                  title={`允许以 ${commandInfo.preview} 开头的命令`}
                 >
-                  Always allow
+                  始终允许
                 </button>
               ) : null}
               <button
                 className="primary"
                 onClick={() => onDecision(request, "accept")}
               >
-                Approve (Enter)
+                批准（Enter）
               </button>
             </ToastActions>
           </ToastCard>

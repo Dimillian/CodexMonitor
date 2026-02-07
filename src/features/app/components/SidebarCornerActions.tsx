@@ -56,14 +56,14 @@ export function SidebarCornerActions({
             className="ghost sidebar-corner-button"
             type="button"
             onClick={() => setAccountMenuOpen((open) => !open)}
-            aria-label="Account"
-            title="Account"
+            aria-label="账号"
+            title="账号"
           >
             <User size={14} aria-hidden />
           </button>
           {accountMenuOpen && (
             <PopoverSurface className="sidebar-account-popover" role="dialog">
-              <div className="sidebar-account-title">Account</div>
+              <div className="sidebar-account-title">账号</div>
               <div className="sidebar-account-value">{accountLabel}</div>
               <div className="sidebar-account-actions-row">
                 <button
@@ -86,8 +86,8 @@ export function SidebarCornerActions({
                     className="secondary sidebar-account-cancel"
                     onClick={onCancelSwitchAccount}
                     disabled={accountCancelDisabled}
-                    aria-label="Cancel account switch"
-                    title="Cancel"
+                    aria-label="取消切换账号"
+                    title="取消"
                   >
                     <X size={12} aria-hidden />
                   </button>
@@ -101,8 +101,8 @@ export function SidebarCornerActions({
         className="ghost sidebar-corner-button"
         type="button"
         onClick={onOpenSettings}
-        aria-label="Open settings"
-        title="Settings"
+        aria-label="打开设置"
+        title="设置"
       >
         <Settings size={14} aria-hidden />
       </button>
@@ -111,8 +111,8 @@ export function SidebarCornerActions({
           className="ghost sidebar-corner-button"
           type="button"
           onClick={onOpenDebug}
-          aria-label="Open debug log"
-          title="Debug log"
+          aria-label="打开调试日志"
+          title="调试日志"
         >
           <ScrollText size={14} aria-hidden />
         </button>

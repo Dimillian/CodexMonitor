@@ -37,21 +37,21 @@ const ICON_MAP: Record<LaunchScriptIconId, LucideIcon> = {
 };
 
 const ICON_LABELS: Record<LaunchScriptIconId, string> = {
-  play: "Play",
-  build: "Build",
-  debug: "Debug",
-  wrench: "Wrench",
-  terminal: "Terminal",
-  code: "Code",
-  server: "Server",
-  database: "Database",
-  package: "Package",
-  test: "Test",
-  lint: "Lint",
-  dev: "Dev",
+  play: "运行",
+  build: "构建",
+  debug: "调试",
+  wrench: "工具",
+  terminal: "终端",
+  code: "代码",
+  server: "服务器",
+  database: "数据库",
+  package: "包",
+  test: "测试",
+  lint: "代码检查",
+  dev: "开发",
   git: "Git",
-  config: "Config",
-  logs: "Logs",
+  config: "配置",
+  logs: "日志",
 };
 
 function isLaunchScriptIconId(value: string): value is LaunchScriptIconId {
