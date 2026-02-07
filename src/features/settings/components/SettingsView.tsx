@@ -19,7 +19,6 @@ import Layers from "lucide-react/dist/esm/icons/layers";
 import type {
   AgentDoctorResult,
   AppSettings,
-  CliType,
   DictationModelStatus,
   WorkspaceSettings,
   OpenAppTarget,
@@ -55,6 +54,18 @@ import { GENERIC_APP_ICON, getKnownOpenAppIcon } from "../../app/utils/openAppIc
 import { useGlobalAgentsMd } from "../hooks/useGlobalAgentsMd";
 import { useGlobalCodexConfigToml } from "../hooks/useGlobalCodexConfigToml";
 import { FileEditorCard } from "../../shared/components/FileEditorCard";
+import {
+  getActiveCliArgs,
+  getActiveCliPath,
+  getWorkspaceCliArgsOverride,
+  getWorkspaceCliBinOverride,
+  getWorkspaceCliHomeOverride,
+  normalizeOverrideValue,
+  withActiveCliArgs,
+  withActiveCliPath,
+  withWorkspaceCliArgsOverride,
+  withWorkspaceCliHomeOverride,
+} from "../utils/cliBackend";
 
 const DICTATION_MODELS = [
   { id: "tiny", label: "Tiny", size: "75 MB", note: "Fastest, least accurate." },
@@ -117,11 +128,6 @@ const COMPOSER_PRESET_CONFIGS: Record<ComposerPreset, ComposerPresetSettings> = 
   },
 };
 
-const normalizeOverrideValue = (value: string): string | null => {
-  const trimmed = value.trim();
-  return trimmed ? trimmed : null;
-};
-
 const normalizeWorktreeSetupScript = (
   value: string | null | undefined,
 ): string | null => {
@@ -140,144 +146,6 @@ const buildWorkspaceOverrideDrafts = (
     next[workspace.id] = existing ?? getValue(workspace) ?? "";
   });
   return next;
-};
-
-const getWorkspaceCliBinOverride = (
-  workspace: WorkspaceInfo,
-  cliType: CliType,
-): string | null => {
-  switch (cliType) {
-    case "gemini":
-      return workspace.settings.geminiBin ?? null;
-    case "cursor":
-      return workspace.settings.cursorBin ?? null;
-    case "claude":
-      return workspace.settings.claudeBin ?? null;
-    default:
-      return workspace.settings.codexBin ?? workspace.codex_bin ?? null;
-  }
-};
-
-const getWorkspaceCliHomeOverride = (
-  workspace: WorkspaceInfo,
-  cliType: CliType,
-): string | null => {
-  switch (cliType) {
-    case "gemini":
-      return workspace.settings.geminiHome ?? workspace.settings.codexHome ?? null;
-    case "cursor":
-      return workspace.settings.cursorHome ?? workspace.settings.codexHome ?? null;
-    case "claude":
-      return workspace.settings.claudeHome ?? workspace.settings.codexHome ?? null;
-    default:
-      return workspace.settings.codexHome ?? null;
-  }
-};
-
-const getWorkspaceCliArgsOverride = (
-  workspace: WorkspaceInfo,
-  cliType: CliType,
-): string | null => {
-  switch (cliType) {
-    case "gemini":
-      return workspace.settings.geminiArgs ?? workspace.settings.codexArgs ?? null;
-    case "cursor":
-      return workspace.settings.cursorArgs ?? workspace.settings.codexArgs ?? null;
-    case "claude":
-      return workspace.settings.claudeArgs ?? workspace.settings.codexArgs ?? null;
-    default:
-      return workspace.settings.codexArgs ?? null;
-  }
-};
-
-const withWorkspaceCliHomeOverride = (
-  cliType: CliType,
-  value: string | null,
-): Partial<WorkspaceSettings> => {
-  switch (cliType) {
-    case "gemini":
-      return { geminiHome: value };
-    case "cursor":
-      return { cursorHome: value };
-    case "claude":
-      return { claudeHome: value };
-    default:
-      return { codexHome: value };
-  }
-};
-
-const withWorkspaceCliArgsOverride = (
-  cliType: CliType,
-  value: string | null,
-): Partial<WorkspaceSettings> => {
-  switch (cliType) {
-    case "gemini":
-      return { geminiArgs: value };
-    case "cursor":
-      return { cursorArgs: value };
-    case "claude":
-      return { claudeArgs: value };
-    default:
-      return { codexArgs: value };
-  }
-};
-
-const getActiveCliPath = (settings: AppSettings): string | null => {
-  switch (settings.cliType) {
-    case "gemini":
-      return settings.geminiBin;
-    case "cursor":
-      return settings.cursorBin;
-    case "claude":
-      return settings.claudeBin;
-    default:
-      return settings.codexBin;
-  }
-};
-
-const getActiveCliArgs = (settings: AppSettings): string | null => {
-  switch (settings.cliType) {
-    case "gemini":
-      return settings.geminiArgs;
-    case "cursor":
-      return settings.cursorArgs;
-    case "claude":
-      return settings.claudeArgs;
-    default:
-      return settings.codexArgs;
-  }
-};
-
-const withActiveCliPath = (
-  settings: AppSettings,
-  value: string | null,
-): AppSettings => {
-  switch (settings.cliType) {
-    case "gemini":
-      return { ...settings, geminiBin: value };
-    case "cursor":
-      return { ...settings, cursorBin: value };
-    case "claude":
-      return { ...settings, claudeBin: value };
-    default:
-      return { ...settings, codexBin: value };
-  }
-};
-
-const withActiveCliArgs = (
-  settings: AppSettings,
-  value: string | null,
-): AppSettings => {
-  switch (settings.cliType) {
-    case "gemini":
-      return { ...settings, geminiArgs: value };
-    case "cursor":
-      return { ...settings, cursorArgs: value };
-    case "claude":
-      return { ...settings, claudeArgs: value };
-    default:
-      return { ...settings, codexArgs: value };
-  }
 };
 
 export type SettingsViewProps = {

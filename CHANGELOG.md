@@ -24,6 +24,7 @@ All notable changes to this project are documented in this file.
 - Added first-class Playwright project wiring (`playwright.config.ts`, `npm run e2e`) for browser-based frontend smoke validation.
 - Added a Codex upstream parity CI guardrail (`npm run check:codex-parity`) to fail PRs when tracked Codex visual paths diverge from upstream.
 - Restored the shared Codex Rust core (`src-tauri/src/codex/*` and `src-tauri/src/shared/codex_core.rs`) to upstream parity and reintroduced `codex_aux_core` wiring needed by upstream Codex command flows.
+- Extracted Settings CLI backend mapping logic into `src/features/settings/utils/cliBackend.ts` so multi-model behavior is isolated from the Settings view component for parity-oriented refactors.
 
 ### Added
 - Added this root-level changelog to track ongoing work in canonical form.
@@ -38,3 +39,4 @@ All notable changes to this project are documented in this file.
 - Added Playwright smoke coverage for opening Settings and verifying the CLI Backend section with a minimal Tauri runtime mock.
 - Added Playwright Claude-focused coverage for persisting default CLI path/args and workspace Claude binary/home/args overrides.
 - Added Codex-focused Playwright golden coverage for default Codex CLI persistence and workspace Codex override persistence.
+- Added focused unit tests for settings CLI backend mapping utilities in `src/features/settings/utils/cliBackend.test.ts`.
