@@ -1,0 +1,130 @@
+name: '🏷️ iFLOW CLI Issue Triage'
+
+on:
+  issues:
+    types:
+      - 'opened'
+      - 'reopened'
+  issue_comment:
+    types:
+      - 'created'
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to triage'
+        required: true
+        type: 'number'
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.event.issue.number }}'
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: 'bash'
+
+permissions:
+  contents: 'read'
+  issues: 'write'
+  statuses: 'write'
+
+jobs:
+  triage-issue:
+    if: |
+      github.event_name == 'issues' ||
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'issue_comment' &&
+        (
+          contains(github.event.comment.body, '@iflow-cli /triage') ||
+          contains(github.event.comment.body, '@iflow-cli triage') ||
+          contains(github.event.comment.body, '帮我分类') ||
+          contains(github.event.comment.body, '请帮我分类') ||
+          contains(github.event.comment.body, 'triage this issue')
+        ) &&
+        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+      )
+    timeout-minutes: 10
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 'Run iFlow CLI Issue Triage'
+        uses: vibe-ideas/iflow-cli-action@main
+        id: 'iflow_cli_issue_triage'
+        env:
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+          ISSUE_TITLE: '${{ github.event.issue.title }}'
+          ISSUE_BODY: '${{ github.event.issue.body }}'
+          ISSUE_NUMBER: '${{ github.event.issue.number }}'
+          REPOSITORY: '${{ github.repository }}'
+        with:
+          api_key: ${{ secrets.IFLOW_API_KEY }}
+          timeout: "3600"
+          extra_args: "--debug"
+          prompt: |
+            ## Role
+
+            You are an issue triage assistant for the CodexMonitor project. Analyze the current GitHub issue
+            and apply the most appropriate existing labels. Use the available tools to gather information; do not ask for information to be provided.
+
+            ## Issue Classification Categories
+
+            Classify issues into one of these categories:
+
+            - **kind/bug**: Reports of errors, crashes, unexpected behavior, or malfunctions
+            - **kind/enhancement**: Requests for new features, improvements, or enhancements
+            - **kind/documentation**: Issues related to documentation, README, guides, or help content
+            - **kind/cleanup**: Code cleanup, refactoring, technical debt, or maintenance tasks
+            - **kind/question**: User questions, inquiries, or requests for clarification
+
+            ## Steps
+
+            1. Run: `gh label list` to get all available labels in the repository.
+            2. Review the issue title and body provided in the environment variables: "${ISSUE_TITLE}" and "${ISSUE_BODY}".
+            3. Analyze the issue content to determine the most appropriate category (bug, enhancement, documentation, cleanup, or question).
+            4. Apply the selected label to this issue using: `gh issue edit "${ISSUE_NUMBER}" --add-label "kind/category"`
+            5. Create a comment explaining the classification decision and reasoning using:
+               `gh issue comment "${ISSUE_NUMBER}" --body "Your comment text here"`
+            6. If the "status/needs-triage" label is present, remove it using: `gh issue edit "${ISSUE_NUMBER}" --remove-label "status/needs-triage"`
+
+            ## Guidelines
+
+            - Only use labels that already exist in the repository
+            - Apply exactly one kind/* label based on the primary issue type
+            - The comment should explain:
+              * The classification result (e.g., "This issue has been classified as kind/bug")
+              * The reasoning behind the classification (e.g., "The issue describes a crash when...")
+              * Any additional context or recommendations
+            - Be concise and helpful in your comment
+            - Triage only the current issue
+            - Reference all shell variables as "${VAR}" (with quotes and braces)
+
+            ## Comment Format
+
+            Your comment should follow this format:
+
+            ```
+            🏷️ **Issue Classification**
+
+            This issue has been classified as: **kind/[category]**
+
+            **Reasoning:** [Brief explanation of why this classification was chosen]
+
+            **Next Steps:** [Optional recommendations for next actions]
+            ```
+
+      - name: 'Post Issue Triage Failure Comment'
+        if: |
+          ${{ failure() && steps.iflow_cli_issue_triage.outcome == 'failure' }}
+        uses: 'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |
+            github.rest.issues.createComment({
+              owner: '${{ github.repository }}'.split('/')[0],
+              repo: '${{ github.repository }}'.split('/')[1],
+              issue_number: '${{ github.event.issue.number }}',
+              body: 'There is a problem with the iFlow CLI issue triaging. Please check the [action logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.'
+            })
