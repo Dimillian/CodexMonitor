@@ -1,4 +1,4 @@
-name: '🏷️ iFLOW CLI Issue Triage'
+name: '🏷️ iFlow CLI Issue Triage'
 
 on:
   issues:
@@ -16,7 +16,7 @@ on:
         type: 'number'
 
 concurrency:
-  group: '${{ github.workflow }}-${{ github.event.issue.number }}'
+  group: '${{ github.workflow }}-${{ github.event.issue.number || github.event.inputs.issue_number }}'
   cancel-in-progress: true
 
 defaults:
@@ -27,6 +27,7 @@ permissions:
   contents: 'read'
   issues: 'write'
   statuses: 'write'
+  pull-requests: 'read'
 
 jobs:
   triage-issue:
@@ -44,24 +45,26 @@ jobs:
         ) &&
         contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
       )
-    timeout-minutes: 10
+    timeout-minutes: 15
     runs-on: 'ubuntu-latest'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: 'Run iFlow CLI Issue Triage'
-        uses: vibe-ideas/iflow-cli-action@main
+        uses: vibe-ideas/iflow-cli-action@v1.0.0
         id: 'iflow_cli_issue_triage'
         env:
           GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
-          ISSUE_TITLE: '${{ github.event.issue.title }}'
-          ISSUE_BODY: '${{ github.event.issue.body }}'
-          ISSUE_NUMBER: '${{ github.event.issue.number }}'
+          ISSUE_TITLE: '${{ github.event.issue?.title || '' }}'
+          ISSUE_BODY: '${{ github.event.issue?.body || '' }}'
+          ISSUE_NUMBER: '${{ github.event.issue?.number || github.event.inputs.issue_number }}'
           REPOSITORY: '${{ github.repository }}'
         with:
           api_key: ${{ secrets.IFLOW_API_KEY }}
-          timeout: "3600"
+          timeout: "600"
           extra_args: "--debug"
           prompt: |
             ## Role
@@ -116,15 +119,55 @@ jobs:
             ```
 
       - name: 'Post Issue Triage Failure Comment'
-        if: |
-          ${{ failure() && steps.iflow_cli_issue_triage.outcome == 'failure' }}
-        uses: 'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea'
+        if: ${{ failure() && steps.iflow_cli_issue_triage.outcome == 'failure' }}
+        uses: 'actions/github-script@v7'
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           script: |
-            github.rest.issues.createComment({
-              owner: '${{ github.repository }}'.split('/')[0],
-              repo: '${{ github.repository }}'.split('/')[1],
-              issue_number: '${{ github.event.issue.number }}',
-              body: 'There is a problem with the iFlow CLI issue triaging. Please check the [action logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.'
-            })
+            const issueNumber = ${{ github.event.issue?.number || github.event.inputs.issue_number }};
+            const repo = '${{ github.repository }}'.split('/');
+
+            try {
+              await github.rest.issues.createComment({
+                owner: repo[0],
+                repo: repo[1],
+                issue_number: issueNumber,
+                body: `⚠️ **Issue Triage Failed**\n\nThere was a problem with the iFlow CLI issue triaging process. Please check the [action logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.\n\nIf this issue persists, please contact the repository maintainers.`
+              });
+            } catch (error) {
+              console.error('Failed to create failure comment:', error);
+            }
+
+      - name: 'Post Issue Triage Success Comment'
+        if: ${{ success() && steps.iflow_cli_issue_triage.outcome == 'success' }}
+        uses: 'actions/github-script@v7'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |
+            const issueNumber = ${{ github.event.issue?.number || github.event.inputs.issue_number }};
+            const repo = '${{ github.repository }}'.split('/');
+
+            // 检查是否已存在状态标签，避免重复添加
+            try {
+              const issue = await github.rest.issues.get({
+                owner: repo[0],
+                repo: repo[1],
+                issue_number: issueNumber
+              });
+
+              // 如果 issue 还没有分类标签，添加 needs-triage 标签
+              const hasKindLabel = issue.data.labels.some(label =>
+                typeof label === 'string' ? label.startsWith('kind/') : label.name?.startsWith('kind/')
+              );
+
+              if (!hasKindLabel && !issue.data.labels.includes('status/needs-triage')) {
+                await github.rest.issues.addLabels({
+                  owner: repo[0],
+                  repo: repo[1],
+                  issue_number: issueNumber,
+                  labels: ['status/needs-triage']
+                });
+              }
+            } catch (error) {
+              console.error('Failed to check or update issue labels:', error);
+            }
