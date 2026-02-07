@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import type { Options as NotificationOptions } from "@tauri-apps/plugin-notification";
 import type {
   AppSettings,
+  ClaudeDoctorResult,
   CodexDoctorResult,
   DictationModelStatus,
   DictationSessionState,
@@ -600,6 +601,117 @@ export async function runCodexDoctor(
   codexArgs: string | null,
 ): Promise<CodexDoctorResult> {
   return invoke<CodexDoctorResult>("codex_doctor", { codexBin, codexArgs });
+}
+
+export async function runClaudeDoctor(
+  claudeBin: string | null,
+  claudeArgs: string | null,
+): Promise<ClaudeDoctorResult> {
+  return invoke<ClaudeDoctorResult>("claude_doctor", { claudeBin, claudeArgs });
+}
+
+// --- Claude Code IPC functions ---
+
+export async function claudeStartThread(workspaceId: string) {
+  return invoke<any>("claude_start_thread", { workspaceId });
+}
+
+export async function claudeResumeThread(
+  workspaceId: string,
+  threadId: string,
+) {
+  return invoke<any>("claude_resume_thread", { workspaceId, threadId });
+}
+
+export async function claudeSendUserMessage(
+  workspaceId: string,
+  threadId: string,
+  text: string,
+  options?: {
+    model?: string | null;
+    effort?: string | null;
+    accessMode?: "read-only" | "current" | "full-access";
+    images?: string[];
+    collaborationMode?: Record<string, unknown> | null;
+  },
+) {
+  const payload: Record<string, unknown> = {
+    workspaceId,
+    threadId,
+    text,
+    model: options?.model ?? null,
+    effort: options?.effort ?? null,
+    accessMode: options?.accessMode ?? null,
+    images: options?.images ?? null,
+  };
+  if (options?.collaborationMode) {
+    payload.collaborationMode = options.collaborationMode;
+  }
+  return invoke("claude_send_user_message", payload);
+}
+
+export async function claudeInterruptTurn(
+  workspaceId: string,
+  threadId: string,
+  turnId: string,
+) {
+  return invoke("claude_turn_interrupt", { workspaceId, threadId, turnId });
+}
+
+export async function claudeListThreads(
+  workspaceId: string,
+  cursor?: string | null,
+  limit?: number | null,
+  sortKey?: "created_at" | "updated_at" | null,
+) {
+  return invoke<any>("claude_list_threads", {
+    workspaceId,
+    cursor: cursor ?? null,
+    limit: limit ?? null,
+    sortKey: sortKey ?? null,
+  });
+}
+
+export async function claudeArchiveThread(
+  workspaceId: string,
+  threadId: string,
+) {
+  return invoke<any>("claude_archive_thread", { workspaceId, threadId });
+}
+
+export async function claudeGetModelList(workspaceId: string) {
+  return invoke<any>("claude_model_list", { workspaceId });
+}
+
+export async function claudeGetAccountInfo(workspaceId: string) {
+  return invoke<any>("claude_account_read", { workspaceId });
+}
+
+export async function claudeRespondToServerRequest(
+  workspaceId: string,
+  requestId: number | string,
+  decision: "accept" | "decline",
+) {
+  return invoke("claude_respond_to_server_request", {
+    workspaceId,
+    requestId,
+    result: { decision },
+  });
+}
+
+export async function claudeGetConfigModel(
+  workspaceId: string,
+): Promise<string | null> {
+  const response = await invoke<{ model?: string | null }>(
+    "claude_get_config_model",
+    { workspaceId },
+  );
+  const model = response?.model;
+  if (typeof model !== "string") {
+    return null;
+  }
+  const trimmed = model.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 export async function getWorkspaceFiles(workspaceId: string) {

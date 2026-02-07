@@ -15,6 +15,7 @@ use tokio::time::timeout;
 use crate::backend::events::{AppServerEvent, EventSink};
 use crate::shared::process_core::{kill_child_process_tree, tokio_command};
 use crate::codex::args::parse_codex_args;
+use crate::claude::args::parse_claude_args;
 use crate::types::WorkspaceEntry;
 
 #[cfg(target_os = "windows")]
@@ -280,6 +281,116 @@ pub(crate) async fn check_codex_installation(
     Ok(if version.is_empty() { None } else { Some(version) })
 }
 
+// --- Claude CLI helpers ---
+
+pub(crate) fn build_claude_path_env(claude_bin: Option<&str>) -> Option<String> {
+    // Reuse the same PATH enrichment logic as Codex — the additional dirs
+    // are useful regardless of which CLI binary we are looking for.
+    build_codex_path_env(claude_bin)
+}
+
+pub(crate) fn build_claude_command_with_bin(
+    claude_bin: Option<String>,
+    claude_args: Option<&str>,
+    args: Vec<String>,
+) -> Result<Command, String> {
+    let bin = claude_bin
+        .clone()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "claude".into());
+
+    let path_env = build_claude_path_env(claude_bin.as_deref());
+    let mut command_args = parse_claude_args(claude_args)?;
+    command_args.extend(args);
+
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let bin_trimmed = bin.trim();
+        let resolved = resolve_windows_executable(bin_trimmed, path_env.as_deref());
+        let resolved_path = resolved
+            .as_deref()
+            .unwrap_or_else(|| Path::new(bin_trimmed));
+        let ext = resolved_path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.to_ascii_lowercase());
+
+        if matches!(ext.as_deref(), Some("cmd") | Some("bat")) {
+            let mut command = tokio_command("cmd");
+            let command_line = build_cmd_c_command(resolved_path, &command_args)?;
+            command.arg("/D");
+            command.arg("/S");
+            command.arg("/C");
+            command.arg(command_line);
+            command
+        } else {
+            let mut command = tokio_command(resolved_path);
+            command.args(command_args);
+            command
+        }
+    };
+
+    #[cfg(not(target_os = "windows"))]
+    let mut command = {
+        let mut command = tokio_command(bin.trim());
+        command.args(command_args);
+        command
+    };
+
+    if let Some(path_env) = path_env {
+        command.env("PATH", path_env);
+    }
+    Ok(command)
+}
+
+pub(crate) async fn check_claude_installation(
+    claude_bin: Option<String>,
+) -> Result<Option<String>, String> {
+    let mut command =
+        build_claude_command_with_bin(claude_bin, None, vec!["--version".to_string()])?;
+    command.stdout(std::process::Stdio::piped());
+    command.stderr(std::process::Stdio::piped());
+
+    let output = match timeout(Duration::from_secs(5), command.output()).await {
+        Ok(result) => result.map_err(|e| {
+            if e.kind() == ErrorKind::NotFound {
+                "Claude CLI not found. Install Claude Code and ensure `claude` is on your PATH."
+                    .to_string()
+            } else {
+                e.to_string()
+            }
+        })?,
+        Err(_) => {
+            return Err(
+                "Timed out while checking Claude CLI. Make sure `claude --version` runs in Terminal."
+                    .to_string(),
+            );
+        }
+    };
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let detail = if stderr.trim().is_empty() {
+            stdout.trim()
+        } else {
+            stderr.trim()
+        };
+        if detail.is_empty() {
+            return Err(
+                "Claude CLI failed to start. Try running `claude --version` in Terminal."
+                    .to_string(),
+            );
+        }
+        return Err(format!(
+            "Claude CLI failed to start: {detail}. Try running `claude --version` in Terminal."
+        ));
+    }
+
+    let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    Ok(if version.is_empty() { None } else { Some(version) })
+}
+
 pub(crate) async fn spawn_workspace_session<E: EventSink>(
     entry: WorkspaceEntry,
     default_codex_bin: Option<String>,
@@ -444,6 +555,172 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
         workspace_id: entry.id.clone(),
         message: json!({
             "method": "codex/connected",
+            "params": { "workspaceId": entry.id.clone() }
+        }),
+    };
+    event_sink.emit_app_server_event(payload);
+
+    Ok(session)
+}
+
+/// Spawn a Claude Code app-server session for a workspace.
+/// Mirrors `spawn_workspace_session` but uses the Claude CLI binary and env vars.
+pub(crate) async fn spawn_claude_session<E: EventSink>(
+    entry: WorkspaceEntry,
+    default_claude_bin: Option<String>,
+    claude_args: Option<String>,
+    claude_home: Option<PathBuf>,
+    client_version: String,
+    event_sink: E,
+) -> Result<Arc<WorkspaceSession>, String> {
+    let claude_bin = default_claude_bin;
+    let _ = check_claude_installation(claude_bin.clone()).await?;
+
+    let mut command = build_claude_command_with_bin(
+        claude_bin,
+        claude_args.as_deref(),
+        vec!["app-server".to_string()],
+    )?;
+    command.current_dir(&entry.path);
+    if let Some(claude_home) = claude_home {
+        command.env("CLAUDE_CONFIG_DIR", claude_home);
+    }
+    command.stdin(std::process::Stdio::piped());
+    command.stdout(std::process::Stdio::piped());
+    command.stderr(std::process::Stdio::piped());
+
+    let mut child = command.spawn().map_err(|e| e.to_string())?;
+    let stdin = child.stdin.take().ok_or("missing stdin")?;
+    let stdout = child.stdout.take().ok_or("missing stdout")?;
+    let stderr = child.stderr.take().ok_or("missing stderr")?;
+
+    let session = Arc::new(WorkspaceSession {
+        entry: entry.clone(),
+        child: Mutex::new(child),
+        stdin: Mutex::new(stdin),
+        pending: Mutex::new(HashMap::new()),
+        next_id: AtomicU64::new(1),
+        background_thread_callbacks: Mutex::new(HashMap::new()),
+    });
+
+    let session_clone = Arc::clone(&session);
+    let workspace_id = entry.id.clone();
+    let event_sink_clone = event_sink.clone();
+    tokio::spawn(async move {
+        let mut lines = BufReader::new(stdout).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            if line.trim().is_empty() {
+                continue;
+            }
+            let value: Value = match serde_json::from_str(&line) {
+                Ok(value) => value,
+                Err(err) => {
+                    let payload = AppServerEvent {
+                        workspace_id: workspace_id.clone(),
+                        message: json!({
+                            "method": "claude/parseError",
+                            "params": { "error": err.to_string(), "raw": line },
+                        }),
+                    };
+                    event_sink_clone.emit_app_server_event(payload);
+                    continue;
+                }
+            };
+
+            let maybe_id = value.get("id").and_then(|id| id.as_u64());
+            let has_method = value.get("method").is_some();
+            let has_result_or_error =
+                value.get("result").is_some() || value.get("error").is_some();
+
+            let thread_id = extract_thread_id(&value);
+
+            if let Some(id) = maybe_id {
+                if has_result_or_error {
+                    if let Some(tx) = session_clone.pending.lock().await.remove(&id) {
+                        let _ = tx.send(value);
+                    }
+                } else if has_method {
+                    let mut sent_to_background = false;
+                    if let Some(ref tid) = thread_id {
+                        let callbacks = session_clone.background_thread_callbacks.lock().await;
+                        if let Some(tx) = callbacks.get(tid) {
+                            let _ = tx.send(value.clone());
+                            sent_to_background = true;
+                        }
+                    }
+                    if !sent_to_background {
+                        let payload = AppServerEvent {
+                            workspace_id: workspace_id.clone(),
+                            message: value,
+                        };
+                        event_sink_clone.emit_app_server_event(payload);
+                    }
+                } else if let Some(tx) = session_clone.pending.lock().await.remove(&id) {
+                    let _ = tx.send(value);
+                }
+            } else if has_method {
+                let mut sent_to_background = false;
+                if let Some(ref tid) = thread_id {
+                    let callbacks = session_clone.background_thread_callbacks.lock().await;
+                    if let Some(tx) = callbacks.get(tid) {
+                        let _ = tx.send(value.clone());
+                        sent_to_background = true;
+                    }
+                }
+                if !sent_to_background {
+                    let payload = AppServerEvent {
+                        workspace_id: workspace_id.clone(),
+                        message: value,
+                    };
+                    event_sink_clone.emit_app_server_event(payload);
+                }
+            }
+        }
+    });
+
+    let workspace_id = entry.id.clone();
+    let event_sink_clone = event_sink.clone();
+    tokio::spawn(async move {
+        let mut lines = BufReader::new(stderr).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            if line.trim().is_empty() {
+                continue;
+            }
+            let payload = AppServerEvent {
+                workspace_id: workspace_id.clone(),
+                message: json!({
+                    "method": "claude/stderr",
+                    "params": { "message": line },
+                }),
+            };
+            event_sink_clone.emit_app_server_event(payload);
+        }
+    });
+
+    let init_params = build_initialize_params(&client_version);
+    let init_result = timeout(
+        Duration::from_secs(15),
+        session.send_request("initialize", init_params),
+    )
+    .await;
+    let init_response = match init_result {
+        Ok(response) => response,
+        Err(_) => {
+            let mut child = session.child.lock().await;
+            kill_child_process_tree(&mut child).await;
+            return Err(
+                "Claude app-server did not respond to initialize. Check that `claude app-server` works in Terminal."
+                    .to_string(),
+            );
+        }
+    };
+    init_response?;
+    session.send_notification("initialized", None).await?;
+
+    let payload = AppServerEvent {
+        workspace_id: entry.id.clone(),
+        message: json!({
+            "method": "claude/connected",
             "params": { "workspaceId": entry.id.clone() }
         }),
     };

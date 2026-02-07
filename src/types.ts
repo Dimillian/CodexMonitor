@@ -5,6 +5,8 @@ export type WorkspaceSettings = {
   gitRoot?: string | null;
   codexHome?: string | null;
   codexArgs?: string | null;
+  claudeHome?: string | null;
+  claudeArgs?: string | null;
   launchScript?: string | null;
   launchScripts?: LaunchScriptEntry[] | null;
   worktreeSetupScript?: string | null;
@@ -224,6 +226,18 @@ export type CodexDoctorResult = {
   codexBin: string | null;
   version: string | null;
   appServerOk: boolean;
+  details: string | null;
+  path: string | null;
+  nodeOk: boolean;
+  nodeVersion: string | null;
+  nodeDetails: string | null;
+};
+
+export type ClaudeDoctorResult = {
+  ok: boolean;
+  claudeBin: string | null;
+  version: string | null;
+  cliOk: boolean;
   details: string | null;
   path: string | null;
   nodeOk: boolean;

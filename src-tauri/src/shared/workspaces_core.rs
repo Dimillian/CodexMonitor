@@ -448,16 +448,48 @@ where
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     let (entry, parent_entry) = resolve_entry_and_parent(workspaces, &workspace_id).await?;
-    let (default_bin, codex_args) = {
+    let cli_type = {
         let settings = app_settings.lock().await;
-        (
-            settings.codex_bin.clone(),
-            resolve_workspace_codex_args(&entry, parent_entry.as_ref(), Some(&settings)),
-        )
+        settings.cli_type.clone()
     };
-    let codex_home = resolve_workspace_codex_home(&entry, parent_entry.as_ref());
-    let session = spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?;
-    sessions.lock().await.insert(entry.id, session);
+    match cli_type {
+        crate::types::CliType::Claude => {
+            let (default_bin, claude_args) = {
+                let settings = app_settings.lock().await;
+                (
+                    settings.claude_bin.clone(),
+                    crate::claude::args::resolve_workspace_claude_args(
+                        &entry,
+                        parent_entry.as_ref(),
+                        Some(&settings),
+                    ),
+                )
+            };
+            let claude_home =
+                crate::claude::home::resolve_workspace_claude_home(&entry, parent_entry.as_ref());
+            let session =
+                spawn_session(entry.clone(), default_bin, claude_args, claude_home).await?;
+            sessions.lock().await.insert(entry.id, session);
+        }
+        _ => {
+            let (default_bin, codex_args) = {
+                let settings = app_settings.lock().await;
+                (
+                    settings.codex_bin.clone(),
+                    resolve_workspace_codex_args(
+                        &entry,
+                        parent_entry.as_ref(),
+                        Some(&settings),
+                    ),
+                )
+            };
+            let codex_home =
+                resolve_workspace_codex_home(&entry, parent_entry.as_ref());
+            let session =
+                spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?;
+            sessions.lock().await.insert(entry.id, session);
+        }
+    }
     Ok(())
 }
 

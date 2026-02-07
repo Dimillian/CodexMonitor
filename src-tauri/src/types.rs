@@ -274,6 +274,10 @@ pub(crate) struct WorkspaceSettings {
     pub(crate) codex_home: Option<String>,
     #[serde(default, rename = "codexArgs")]
     pub(crate) codex_args: Option<String>,
+    #[serde(default, rename = "claudeHome")]
+    pub(crate) claude_home: Option<String>,
+    #[serde(default, rename = "claudeArgs")]
+    pub(crate) claude_args: Option<String>,
     #[serde(default, rename = "launchScript")]
     pub(crate) launch_script: Option<String>,
     #[serde(default, rename = "launchScripts")]
@@ -311,12 +315,40 @@ pub(crate) struct OpenAppTarget {
     pub(crate) args: Vec<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum CliType {
+    Codex,
+    Claude,
+}
+
+impl Default for CliType {
+    fn default() -> Self {
+        CliType::Codex
+    }
+}
+
+impl std::fmt::Display for CliType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CliType::Codex => write!(f, "codex"),
+            CliType::Claude => write!(f, "claude"),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct AppSettings {
+    #[serde(default, rename = "cliType")]
+    pub(crate) cli_type: CliType,
     #[serde(default, rename = "codexBin")]
     pub(crate) codex_bin: Option<String>,
     #[serde(default, rename = "codexArgs")]
     pub(crate) codex_args: Option<String>,
+    #[serde(default, rename = "claudeBin")]
+    pub(crate) claude_bin: Option<String>,
+    #[serde(default, rename = "claudeArgs")]
+    pub(crate) claude_args: Option<String>,
     #[serde(default, rename = "backendMode")]
     pub(crate) backend_mode: BackendMode,
     #[serde(default = "default_remote_backend_host", rename = "remoteBackendHost")]
@@ -922,8 +954,11 @@ fn default_selected_open_app_id() -> String {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
+            cli_type: CliType::default(),
             codex_bin: None,
             codex_args: None,
+            claude_bin: None,
+            claude_args: None,
             backend_mode: BackendMode::Local,
             remote_backend_host: default_remote_backend_host(),
             remote_backend_token: None,
@@ -987,13 +1022,16 @@ impl Default for AppSettings {
 #[cfg(test)]
 mod tests {
     use super::{
-        AppSettings, BackendMode, WorkspaceEntry, WorkspaceGroup, WorkspaceKind, WorkspaceSettings,
+        AppSettings, BackendMode, CliType, WorkspaceEntry, WorkspaceGroup, WorkspaceKind, WorkspaceSettings,
     };
 
     #[test]
     fn app_settings_defaults_from_empty_json() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
+        assert_eq!(settings.cli_type, CliType::Codex);
         assert!(settings.codex_bin.is_none());
+        assert!(settings.claude_bin.is_none());
+        assert!(settings.claude_args.is_none());
         assert!(matches!(settings.backend_mode, BackendMode::Local));
         assert_eq!(settings.remote_backend_host, "127.0.0.1:4732");
         assert!(settings.remote_backend_token.is_none());

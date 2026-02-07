@@ -3,6 +3,7 @@ use tauri::Manager;
 use tauri::{RunEvent, WindowEvent};
 
 mod backend;
+mod claude;
 mod codex;
 mod files;
 mod dictation;
@@ -145,6 +146,17 @@ pub fn run() {
             codex::codex_login_cancel,
             codex::skills_list,
             codex::apps_list,
+            claude::claude_doctor,
+            claude::claude_start_thread,
+            claude::claude_resume_thread,
+            claude::claude_send_user_message,
+            claude::claude_turn_interrupt,
+            claude::claude_list_threads,
+            claude::claude_archive_thread,
+            claude::claude_model_list,
+            claude::claude_account_read,
+            claude::claude_respond_to_server_request,
+            claude::claude_get_config_model,
             prompts::prompts_list,
             prompts::prompts_create,
             prompts::prompts_update,

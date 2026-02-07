@@ -25,6 +25,9 @@ use super::worktree::{
 };
 
 use crate::backend::app_server::WorkspaceSession;
+use crate::claude::args::resolve_workspace_claude_args;
+use crate::claude::home::resolve_workspace_claude_home;
+use crate::claude::spawn_workspace_session as claude_spawn_workspace_session;
 use crate::codex::spawn_workspace_session;
 use crate::codex::args::resolve_workspace_codex_args;
 use crate::codex::home::resolve_workspace_codex_home;
@@ -37,7 +40,7 @@ use crate::shared::workspaces_core;
 use crate::state::AppState;
 use crate::storage::write_workspaces;
 use crate::types::{
-    WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings, WorktreeSetupStatus,
+    CliType, WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings, WorktreeSetupStatus,
 };
 use crate::utils::{git_env_path, resolve_git_binary};
 
@@ -49,6 +52,16 @@ fn spawn_with_app(
     codex_home: Option<PathBuf>,
 ) -> impl std::future::Future<Output = Result<Arc<WorkspaceSession>, String>> {
     spawn_workspace_session(entry, default_bin, codex_args, app.clone(), codex_home)
+}
+
+fn spawn_claude_with_app(
+    app: &AppHandle,
+    entry: WorkspaceEntry,
+    default_bin: Option<String>,
+    claude_args: Option<String>,
+    claude_home: Option<PathBuf>,
+) -> impl std::future::Future<Output = Result<Arc<WorkspaceSession>, String>> {
+    claude_spawn_workspace_session(entry, default_bin, claude_args, app.clone(), claude_home)
 }
 
 #[tauri::command]
@@ -780,16 +793,37 @@ pub(crate) async fn connect_workspace(
         return Ok(());
     }
 
-    workspaces_core::connect_workspace_core(
-        id,
-        &state.workspaces,
-        &state.sessions,
-        &state.app_settings,
-        |entry, default_bin, codex_args, codex_home| {
-            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
-        },
-    )
-    .await
+    let cli_type = {
+        let settings = state.app_settings.lock().await;
+        settings.cli_type.clone()
+    };
+
+    match cli_type {
+        CliType::Claude => {
+            workspaces_core::connect_workspace_core(
+                id,
+                &state.workspaces,
+                &state.sessions,
+                &state.app_settings,
+                |entry, default_bin, claude_args, claude_home| {
+                    spawn_claude_with_app(&app, entry, default_bin, claude_args, claude_home)
+                },
+            )
+            .await
+        }
+        _ => {
+            workspaces_core::connect_workspace_core(
+                id,
+                &state.workspaces,
+                &state.sessions,
+                &state.app_settings,
+                |entry, default_bin, codex_args, codex_home| {
+                    spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+                },
+            )
+            .await
+        }
+    }
 }
 
 
