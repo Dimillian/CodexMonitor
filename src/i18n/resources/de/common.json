@@ -1,0 +1,39 @@
+{
+  "app": {
+    "name": "CodexMonitor",
+    "title": "Codex Monitor",
+    "description": "Codex-Agenten in lokalen Arbeitsbereichen orchestrieren"
+  },
+  "navigation": {
+    "home": "Start",
+    "projects": "Projekte",
+    "threads": "Threads",
+    "settings": "Einstellungen"
+  },
+  "actions": {
+    "add": "Hinzufügen",
+    "remove": "Entfernen",
+    "edit": "Bearbeiten",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "confirm": "Bestätigen",
+    "delete": "Löschen"
+  },
+  "errors": {
+    "generic": "Etwas ist schief gelaufen",
+    "network": "Netzwerkfehler",
+    "notFound": "Nicht gefunden"
+  },
+  "success": {
+    "saved": "Erfolgreich gespeichert",
+    "deleted": "Erfolgreich gelöscht"
+  },
+  "terms": {
+    "workspace": "Arbeitsbereich",
+    "thread": "Thread",
+    "agent": "Agent"
+  },
+  "settings": {
+    "language": "Sprache"
+  }
+}

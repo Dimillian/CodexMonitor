@@ -1,0 +1,5 @@
+{
+  "title": "Hilos",
+  "count": "{{count}} hilos",
+  "unread": "{{count}} no leídos"
+}

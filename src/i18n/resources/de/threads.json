@@ -1,0 +1,5 @@
+{
+  "title": "Threads",
+  "count": "{{count}} threads",
+  "unread": "{{count}} ungelesen"
+}

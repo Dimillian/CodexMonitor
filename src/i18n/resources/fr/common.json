@@ -1,0 +1,39 @@
+{
+  "app": {
+    "name": "CodexMonitor",
+    "title": "Codex Monitor",
+    "description": "Orchestrer les agents Codex dans les espaces de travail locaux"
+  },
+  "navigation": {
+    "home": "Accueil",
+    "projects": "Projets",
+    "threads": "Fils de discussion",
+    "settings": "Paramètres"
+  },
+  "actions": {
+    "add": "Ajouter",
+    "remove": "Supprimer",
+    "edit": "Modifier",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "delete": "Supprimer"
+  },
+  "errors": {
+    "generic": "Quelque chose a mal fonctionné",
+    "network": "Erreur réseau",
+    "notFound": "Non trouvé"
+  },
+  "success": {
+    "saved": "Enregistré avec succès",
+    "deleted": "Supprimé avec succès"
+  },
+  "terms": {
+    "workspace": "Espace de travail",
+    "thread": "Fil de discussion",
+    "agent": "Agent"
+  },
+  "settings": {
+    "language": "Langue"
+  }
+}

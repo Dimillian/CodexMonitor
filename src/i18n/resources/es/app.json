@@ -1,0 +1,14 @@
+{
+  "sidebar": {
+    "title": "Espacios de trabajo",
+    "search": "Buscar",
+    "recent": "Reciente",
+    "pinned": "Fijado",
+    "addWorkspace": "Agregar espacio de trabajo"
+  },
+  "dashboard": {
+    "welcome": "Bienvenido a CodexMonitor",
+    "quickActions": "Acciones rápidas",
+    "recentActivity": "Actividad reciente"
+  }
+}
