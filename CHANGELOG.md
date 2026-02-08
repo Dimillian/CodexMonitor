@@ -8,6 +8,8 @@ All notable changes to this project are documented in this file.
 - Workspace connect now auto-attempts sandbox bootstrap for the active CLI: Codex/Claude project MCP registration (`gondolin` via `npx @earendil-works/gondolin mcp`) and Gemini settings upsert, so sandbox tooling is available without separate Gondolin install steps.
 - Added `sandboxBootstrapEnabled` app setting (default `true`) and a Features toggle (`Sandbox bootstrap`) so users can opt out of automatic sandbox setup.
 - Codex parity guardrails now allow the intentional fork divergence in `src-tauri/src/codex/mod.rs`, preventing unrelated PRs from failing `check:codex-parity`.
+- Release workflow now packages Windows installer (`.exe`), MSI (`.msi`), and portable zip assets together and publishes `SHA256SUMS.txt` alongside release assets.
+- Codex parity CI allowlist now includes `src-tauri/src/codex/mod.rs` to account for existing fork-specific backend divergence from upstream.
 - Fixed `homebrew-tap.yml` YAML parsing by indenting the embedded cask heredoc under the `run: |` block, resolving the workflow syntax error reported at line 94.
 - Added compact support for Claude Code mode by routing `/compact` to a regular user command message path instead of Codex-only `compact_thread` RPC, while preserving existing Codex compaction behavior.
 - Added release-driven Homebrew cask sync automation via a dedicated GitHub Actions workflow, plus user docs for `brew` install/upgrade/uninstall and maintainer setup for tap sync credentials.

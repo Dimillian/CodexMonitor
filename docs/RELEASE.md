@@ -116,9 +116,13 @@ The workflow will:
 2. Sign with your Developer ID certificate
 3. Notarize with Apple
 4. Create a DMG
-5. Build Linux AppImages
-6. Create a GitHub release with all artifacts
-7. Bump the version and open a PR
+5. Build Linux AppImages + RPMs
+6. Build Windows NSIS installer (`.exe`), MSI (`.msi`), and portable zip (`.zip`)
+7. Generate `SHA256SUMS.txt` for release artifacts
+8. Create a GitHub release with all artifacts
+9. Bump the version and open a PR
+
+See [RELEASE_CHECKLIST.md](./RELEASE_CHECKLIST.md) for the operational checklist.
 
 ## Homebrew Tap Sync
 
