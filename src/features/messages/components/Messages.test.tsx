@@ -258,6 +258,63 @@ describe("Messages", () => {
     expect(openFileLinkMock).toHaveBeenCalledWith(absolutePath);
   });
 
+  it("renders syntax-highlighted fenced code blocks in messages", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-code-highlight",
+        kind: "message",
+        role: "assistant",
+        text: "```javascript\nconst answer = 42;\n```",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const code = container.querySelector(
+      ".markdown-codeblock code, .markdown-codeblock-single code",
+    );
+    expect(code).toBeTruthy();
+    expect(code?.querySelector(".token.keyword")?.textContent).toBe("const");
+  });
+
+  it("falls back to escaped plain code when language is unknown", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-code-unknown-language",
+        kind: "message",
+        role: "assistant",
+        text: "```not-a-real-language\n<div class='safe'>hi</div>\n```",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const code = container.querySelector(
+      ".markdown-codeblock code, .markdown-codeblock-single code",
+    );
+    expect(code).toBeTruthy();
+    expect(code?.querySelector(".token")).toBeNull();
+    expect(code?.innerHTML ?? "").toContain("&lt;div class='safe'&gt;hi&lt;/div&gt;");
+  });
+
   it("does not re-render messages while typing when message props stay stable", () => {
     const items: ConversationItem[] = [
       {

@@ -14,6 +14,7 @@ All notable changes to this project are documented in this file.
 - Added a non-terminal agent profile switch flow in Settings: users can select a workspace profile and apply it directly from the UI, with automatic `CLAUDE.md` targeting for Claude Code and `AGENTS.md` targeting for other CLIs.
 - Home dashboard title now uses `Agent Monitor` branding instead of `Codex Monitor`.
 - Home usage dashboard now supports a CLI filter (`All CLIs`, `Codex`, `Claude Code`, `Gemini CLI`, `Cursor CLI`) and refreshes metrics for the selected CLI scope.
+- Chat messages now render fenced code blocks with syntax highlighting using existing Prism token styles, while unknown languages safely fall back to escaped plain code.
 - Local usage backend snapshot command now accepts an optional CLI filter and classifies usage by model family so dashboard metrics can be scoped to a selected CLI.
 - Renamed remaining app metadata and release surfaces from `gemini-monitor`/`GeminiMonitor` to `agent-monitor`/`Agent Monitor` (npm package, Cargo package/lib, updater endpoint, docs, and DMG workflow artifact/app naming).
 - Restored upstream CodexMonitor layout primitives and shell surfaces (`Sidebar`, `Home`, design-system modal/panel/popover/toast primitives, DS token imports) to recover visual/interaction parity for Codex paths.
