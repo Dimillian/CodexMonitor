@@ -306,6 +306,13 @@ export function ComposerInput({
     },
     [handlePaste, onTextPaste],
   );
+  const processingQueueMode = isProcessing && !canStop && sendLabel === "Queue";
+  const processingSteerMode = isProcessing && !canStop && !processingQueueMode;
+  const actionLabel = processingQueueMode
+    ? "Queue"
+    : processingSteerMode
+      ? "Steer"
+      : null;
 
   return (
     <div className="composer-input">
@@ -383,6 +390,19 @@ export function ComposerInput({
                 Dismiss
               </button>
             )}
+          </div>
+        )}
+        {processingSteerMode && (
+          <div className="composer-processing-hint" role="status">
+            <span>Agent is working. Enter steers.</span>
+            <span className="composer-processing-hint-shortcut">
+              <kbd>Tab</kbd> queues
+            </span>
+          </div>
+        )}
+        {processingQueueMode && (
+          <div className="composer-processing-hint" role="status">
+            Agent is working. Enter queues.
           </div>
         )}
         {suggestionsOpen && (
@@ -554,15 +574,22 @@ export function ComposerInput({
             )}
           </>
         ) : (
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M12 5l6 6m-6-6L6 11m6-6v14"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <>
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M12 5l6 6m-6-6L6 11m6-6v14"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            {actionLabel && (
+              <span className="composer-action-label" aria-hidden>
+                {actionLabel}
+              </span>
+            )}
+          </>
         )}
       </button>
     </div>
