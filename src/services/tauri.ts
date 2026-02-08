@@ -2,11 +2,22 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { Options as NotificationOptions } from "@tauri-apps/plugin-notification";
 import type {
+  AgentProfileApplyMode,
+  AgentProfileApplyResponse,
+  AgentProfileListResponse,
   AgentDoctorResult,
   AppSettings,
   DictationModelStatus,
   DictationSessionState,
+  LocalUsageCliFilter,
   LocalUsageSnapshot,
+  OrbitConnectTestResult,
+  OrbitDeviceCodeStart,
+  OrbitRunnerStatus,
+  OrbitSignInPollResult,
+  OrbitSignOutResult,
+  TailscaleDaemonCommandPreview,
+  TailscaleStatus,
   WorkspaceInfo,
   WorkspaceSettings,
 } from "../types";
@@ -460,10 +471,18 @@ export async function getGitHubPullRequestComments(
 export async function localUsageSnapshot(
   days?: number,
   workspacePath?: string | null,
+  cliType?: LocalUsageCliFilter | null,
 ): Promise<LocalUsageSnapshot> {
-  const payload: { days: number; workspacePath?: string } = { days: days ?? 30 };
+  const payload: {
+    days: number;
+    workspacePath?: string;
+    cliType?: Exclude<LocalUsageCliFilter, "all">;
+  } = { days: days ?? 30 };
   if (workspacePath) {
     payload.workspacePath = workspacePath;
+  }
+  if (cliType && cliType !== "all") {
+    payload.cliType = cliType;
   }
   return invoke("local_usage_snapshot", payload);
 }
@@ -591,6 +610,42 @@ export async function updateAppSettings(settings: AppSettings): Promise<AppSetti
   return invoke<AppSettings>("update_app_settings", { settings });
 }
 
+export async function orbitConnectTest(): Promise<OrbitConnectTestResult> {
+  return invoke<OrbitConnectTestResult>("orbit_connect_test");
+}
+
+export async function orbitSignInStart(): Promise<OrbitDeviceCodeStart> {
+  return invoke<OrbitDeviceCodeStart>("orbit_sign_in_start");
+}
+
+export async function orbitSignInPoll(deviceCode: string): Promise<OrbitSignInPollResult> {
+  return invoke<OrbitSignInPollResult>("orbit_sign_in_poll", { deviceCode });
+}
+
+export async function orbitSignOut(): Promise<OrbitSignOutResult> {
+  return invoke<OrbitSignOutResult>("orbit_sign_out");
+}
+
+export async function orbitRunnerStart(): Promise<OrbitRunnerStatus> {
+  return invoke<OrbitRunnerStatus>("orbit_runner_start");
+}
+
+export async function orbitRunnerStop(): Promise<OrbitRunnerStatus> {
+  return invoke<OrbitRunnerStatus>("orbit_runner_stop");
+}
+
+export async function orbitRunnerStatus(): Promise<OrbitRunnerStatus> {
+  return invoke<OrbitRunnerStatus>("orbit_runner_status");
+}
+
+export async function tailscaleStatus(): Promise<TailscaleStatus> {
+  return invoke<TailscaleStatus>("tailscale_status");
+}
+
+export async function tailscaleDaemonCommandPreview(): Promise<TailscaleDaemonCommandPreview> {
+  return invoke<TailscaleDaemonCommandPreview>("tailscale_daemon_command_preview");
+}
+
 type MenuAcceleratorUpdate = {
   id: string;
   accelerator: string | null;
@@ -636,6 +691,24 @@ export async function readAgentMd(workspaceId: string): Promise<AgentMdResponse>
 
 export async function writeAgentMd(workspaceId: string, content: string): Promise<void> {
   return fileWrite("workspace", "agents", content, workspaceId);
+}
+
+export async function listAgentProfiles(
+  workspaceId: string,
+): Promise<AgentProfileListResponse> {
+  return invoke<AgentProfileListResponse>("agent_profiles_list", { workspaceId });
+}
+
+export async function applyAgentProfile(
+  workspaceId: string,
+  profile: string,
+  mode: AgentProfileApplyMode = "auto",
+): Promise<AgentProfileApplyResponse> {
+  return invoke<AgentProfileApplyResponse>("agent_profile_apply", {
+    workspaceId,
+    profile,
+    mode,
+  });
 }
 
 export async function listGitBranches(workspaceId: string) {

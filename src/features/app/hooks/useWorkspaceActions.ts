@@ -4,7 +4,7 @@ import { useNewAgentShortcut } from "./useNewAgentShortcut";
 import type { DebugEntry, WorkspaceInfo } from "../../../types";
 
 type Params = {
-  activeWorkspace: WorkspaceInfo | null;
+  activeWorkspace?: WorkspaceInfo | null;
   isCompact: boolean;
   addWorkspace: () => Promise<WorkspaceInfo | null>;
   addWorkspaceFromPath: (path: string) => Promise<WorkspaceInfo | null>;
@@ -20,7 +20,7 @@ type Params = {
 };
 
 export function useWorkspaceActions({
-  activeWorkspace,
+  activeWorkspace = null,
   isCompact,
   addWorkspace,
   addWorkspaceFromPath,

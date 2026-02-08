@@ -74,7 +74,7 @@ Go to **Settings** > **Secrets and variables** > **Actions** > **Variables** and
 | Variable Name | Description | Example |
 |---------------|-------------|---------|
 | `CODESIGN_IDENTITY` | Full name of your signing certificate | `Developer ID Application: Your Name (TEAMID)` |
-| `NOTARY_PROFILE_NAME` | Name for stored notarization credentials | `geminimonitor-notary` |
+| `NOTARY_PROFILE_NAME` | Name for stored notarization credentials | `agentmonitor-notary` |
 | `APPLE_TEAM_ID` | Your Apple Developer Team ID | `ABCD1234EF` |
 
 ### Environment
@@ -86,16 +86,16 @@ Create an environment named `release` in **Settings** > **Environments** for add
 For Tauri's auto-updater, generate a signing key pair:
 
 ```bash
-npm run tauri signer generate -- -w ~/.tauri/geminimonitor.key
+npm run tauri signer generate -- -w ~/.tauri/agentmonitor.key
 ```
 
 This creates:
-- `~/.tauri/geminimonitor.key` - Private key (keep secret!)
+- `~/.tauri/agentmonitor.key` - Private key (keep secret!)
 - Public key displayed in terminal
 
 Base64 encode the private key:
 ```bash
-base64 -i ~/.tauri/geminimonitor.key | pbcopy
+base64 -i ~/.tauri/agentmonitor.key | pbcopy
 ```
 
 Update the public key in `src-tauri/tauri.conf.json` under `plugins.updater.pubkey`.
@@ -173,7 +173,7 @@ npm run tauri build
 # Manual codesign (if needed)
 codesign --deep --force --verify --verbose \
   --sign "Developer ID Application: Your Name (TEAMID)" \
-  src-tauri/target/release/bundle/macos/GeminiMonitor.app
+  "src-tauri/target/release/bundle/macos/Agent Monitor.app"
 ```
 
 ## References

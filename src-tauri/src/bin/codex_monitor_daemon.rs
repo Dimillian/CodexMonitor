@@ -72,7 +72,10 @@ use backend::app_server::{
 };
 use backend::events::{AppServerEvent, EventSink, TerminalExit, TerminalOutput};
 use storage::{read_settings, read_workspaces};
-use shared::{codex_core, files_core, git_core, settings_core, workspaces_core, worktree_core};
+use shared::{
+    agent_profiles_core, codex_core, files_core, git_core, settings_core, workspaces_core,
+    worktree_core,
+};
 use shared::codex_core::CodexLoginCancelState;
 use workspace_settings::apply_workspace_settings_update;
 use types::{
@@ -516,6 +519,38 @@ impl DaemonState {
         content: String,
     ) -> Result<(), String> {
         files_core::file_write_core(&self.workspaces, scope, kind, workspace_id, content).await
+    }
+
+    async fn agent_profiles_list(
+        &self,
+        workspace_id: String,
+    ) -> Result<agent_profiles_core::AgentProfileListResponse, String> {
+        let cli_type = {
+            let settings = self.app_settings.lock().await;
+            settings.cli_type.clone()
+        };
+        agent_profiles_core::list_agent_profiles_core(&self.workspaces, workspace_id, &cli_type)
+            .await
+    }
+
+    async fn agent_profile_apply(
+        &self,
+        workspace_id: String,
+        profile: String,
+        mode: agent_profiles_core::AgentProfileApplyMode,
+    ) -> Result<agent_profiles_core::AgentProfileApplyResponse, String> {
+        let cli_type = {
+            let settings = self.app_settings.lock().await;
+            settings.cli_type.clone()
+        };
+        agent_profiles_core::apply_agent_profile_core(
+            &self.workspaces,
+            workspace_id,
+            profile,
+            &cli_type,
+            mode,
+        )
+        .await
     }
 
     async fn start_thread(&self, workspace_id: String) -> Result<Value, String> {
@@ -973,11 +1008,24 @@ struct FileWriteRequest {
     content: String,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AgentProfileApplyRequest {
+    workspace_id: String,
+    profile: String,
+    #[serde(default)]
+    mode: Option<agent_profiles_core::AgentProfileApplyMode>,
+}
+
 fn parse_file_read_request(params: &Value) -> Result<FileReadRequest, String> {
     serde_json::from_value(params.clone()).map_err(|err| err.to_string())
 }
 
 fn parse_file_write_request(params: &Value) -> Result<FileWriteRequest, String> {
+    serde_json::from_value(params.clone()).map_err(|err| err.to_string())
+}
+
+fn parse_agent_profile_apply_request(params: &Value) -> Result<AgentProfileApplyRequest, String> {
     serde_json::from_value(params.clone()).map_err(|err| err.to_string())
 }
 
@@ -1108,6 +1156,24 @@ async fn handle_rpc_request(
                 )
                 .await?;
             serde_json::to_value(json!({ "ok": true })).map_err(|err| err.to_string())
+        }
+        "agent_profiles_list" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let response = state.agent_profiles_list(workspace_id).await?;
+            serde_json::to_value(response).map_err(|err| err.to_string())
+        }
+        "agent_profile_apply" => {
+            let request = parse_agent_profile_apply_request(&params)?;
+            let response = state
+                .agent_profile_apply(
+                    request.workspace_id,
+                    request.profile,
+                    request
+                        .mode
+                        .unwrap_or(agent_profiles_core::AgentProfileApplyMode::Auto),
+                )
+                .await?;
+            serde_json::to_value(response).map_err(|err| err.to_string())
         }
         "get_app_settings" => {
             let settings = state.get_app_settings().await;

@@ -76,6 +76,8 @@ pub fn run() {
             settings::get_codex_config_path,
             files::file_read,
             files::file_write,
+            files::agent_profiles_list,
+            files::agent_profile_apply,
             codex::get_config_model,
             menu::menu_set_accelerators,
             codex::codex_doctor,

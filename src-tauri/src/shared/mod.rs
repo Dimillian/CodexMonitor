@@ -1,4 +1,6 @@
 pub(crate) mod account;
+pub(crate) mod agent_profiles_core;
+pub(crate) mod codex_aux_core;
 pub(crate) mod codex_core;
 pub(crate) mod files_core;
 pub(crate) mod git_core;

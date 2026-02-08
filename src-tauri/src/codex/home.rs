@@ -273,7 +273,10 @@ mod tests {
         assert_eq!(appdata, Some(PathBuf::from("/tmp/appdata-root/Codex")));
 
         let appdata_lower = normalize_codex_home("$appdata/Codex");
-        assert_eq!(appdata_lower, Some(PathBuf::from("/tmp/appdata-root/Codex")));
+        assert_eq!(
+            appdata_lower,
+            Some(PathBuf::from("/tmp/appdata-root/Codex"))
+        );
 
         match prev_home {
             Some(value) => std::env::set_var("HOME", value),

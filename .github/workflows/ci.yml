@@ -31,6 +31,18 @@ jobs:
         run: npm ci
       - name: Typecheck
         run: npm run typecheck
+  codex-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Codex upstream parity
+        run: npm run check:codex-parity
   test-js:
     runs-on: ubuntu-latest
     steps:
@@ -43,6 +55,20 @@ jobs:
         run: npm ci
       - name: Tests
         run: npm run test
+  e2e-playwright:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Playwright Codex + Claude settings tests
+        run: npm run e2e -- tests/e2e-playwright/codex-golden.spec.ts tests/e2e-playwright/settings-claude.spec.ts
 
   test-tauri:
     name: Rust tests (${{ matrix.platform.name }})
@@ -103,7 +129,9 @@ jobs:
     needs:
       - lint
       - typecheck
+      - codex-parity
       - test-js
+      - e2e-playwright
       - test-tauri
     strategy:
       fail-fast: false

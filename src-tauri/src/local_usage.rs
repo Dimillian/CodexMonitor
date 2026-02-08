@@ -31,10 +31,33 @@ struct UsageTotals {
 
 const MAX_ACTIVITY_GAP_MS: i64 = 2 * 60 * 1000;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CliFilter {
+    Codex,
+    Gemini,
+    Cursor,
+    Claude,
+}
+
+impl CliFilter {
+    fn parse(value: Option<String>) -> Option<Self> {
+        let value = value?;
+        let normalized = value.trim().to_ascii_lowercase();
+        match normalized.as_str() {
+            "codex" => Some(Self::Codex),
+            "gemini" => Some(Self::Gemini),
+            "cursor" => Some(Self::Cursor),
+            "claude" => Some(Self::Claude),
+            _ => None,
+        }
+    }
+}
+
 #[tauri::command]
 pub(crate) async fn local_usage_snapshot(
     days: Option<u32>,
     workspace_path: Option<String>,
+    cli_type: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<LocalUsageSnapshot, String> {
     let days = days.unwrap_or(30).clamp(1, 90);
@@ -46,12 +69,13 @@ pub(crate) async fn local_usage_snapshot(
             Some(PathBuf::from(trimmed))
         }
     });
+    let cli_filter = CliFilter::parse(cli_type);
     let sessions_roots = {
         let workspaces = state.workspaces.lock().await;
         resolve_sessions_roots(&workspaces, workspace_path.as_deref())
     };
     let snapshot = tokio::task::spawn_blocking(move || {
-        scan_local_usage(days, workspace_path.as_deref(), &sessions_roots)
+        scan_local_usage(days, workspace_path.as_deref(), &sessions_roots, cli_filter)
     })
     .await
     .map_err(|err| err.to_string())??;
@@ -62,6 +86,7 @@ fn scan_local_usage(
     days: u32,
     workspace_path: Option<&Path>,
     sessions_roots: &[PathBuf],
+    cli_filter: Option<CliFilter>,
 ) -> Result<LocalUsageSnapshot, String> {
     let updated_at = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -94,7 +119,13 @@ fn scan_local_usage(
                 if path.extension().and_then(|ext| ext.to_str()) != Some("jsonl") {
                     continue;
                 }
-                scan_file(&path, &mut daily, &mut model_totals, workspace_path)?;
+                scan_file(
+                    &path,
+                    &mut daily,
+                    &mut model_totals,
+                    workspace_path,
+                    cli_filter,
+                )?;
             }
         }
     }
@@ -186,6 +217,7 @@ fn scan_file(
     daily: &mut HashMap<String, DailyTotals>,
     model_totals: &mut HashMap<String, i64>,
     workspace_path: Option<&Path>,
+    cli_filter: Option<CliFilter>,
 ) -> Result<(), String> {
     let file = match File::open(path) {
         Ok(file) => file,
@@ -196,6 +228,7 @@ fn scan_file(
     let reader = BufReader::new(file);
     let mut previous_totals: Option<UsageTotals> = None;
     let mut current_model: Option<String> = None;
+    let mut current_cli: Option<CliFilter> = None;
     let mut last_activity_ms: Option<i64> = None;
     let mut seen_runs: HashSet<i64> = HashSet::new();
     let mut match_known = workspace_path.is_none();
@@ -233,6 +266,7 @@ fn scan_file(
 
         if entry_type == "turn_context" {
             if let Some(model) = extract_model_from_turn_context(&value) {
+                current_cli = classify_cli_from_model(&model);
                 current_model = Some(model);
             }
             continue;
@@ -261,21 +295,27 @@ fn scan_file(
 
             if payload_type == Some("agent_message") {
                 if let Some(timestamp_ms) = read_timestamp_ms(&value) {
-                    if seen_runs.insert(timestamp_ms) {
+                    if should_include_activity(cli_filter, current_cli)
+                        && seen_runs.insert(timestamp_ms)
+                    {
                         if let Some(day_key) = day_key_for_timestamp_ms(timestamp_ms) {
                             if let Some(entry) = daily.get_mut(&day_key) {
                                 entry.agent_runs += 1;
                             }
                         }
                     }
-                    track_activity(daily, &mut last_activity_ms, timestamp_ms);
+                    if should_include_activity(cli_filter, current_cli) {
+                        track_activity(daily, &mut last_activity_ms, timestamp_ms);
+                    }
                 }
                 continue;
             }
 
             if payload_type == Some("agent_reasoning") {
                 if let Some(timestamp_ms) = read_timestamp_ms(&value) {
-                    track_activity(daily, &mut last_activity_ms, timestamp_ms);
+                    if should_include_activity(cli_filter, current_cli) {
+                        track_activity(daily, &mut last_activity_ms, timestamp_ms);
+                    }
                 }
                 continue;
             }
@@ -284,10 +324,11 @@ fn scan_file(
                 continue;
             }
 
-            let info = payload.and_then(|payload| payload.get("info")).and_then(|v| v.as_object());
+            let info = payload
+                .and_then(|payload| payload.get("info"))
+                .and_then(|v| v.as_object());
             let (input, cached, output, used_total) = if let Some(info) = info {
-                if let Some(total) =
-                    find_usage_map(info, &["total_token_usage", "totalTokenUsage"])
+                if let Some(total) = find_usage_map(info, &["total_token_usage", "totalTokenUsage"])
                 {
                     (
                         read_i64(total, &["input_tokens", "inputTokens"]),
@@ -340,7 +381,11 @@ fn scan_file(
                     cached: (cached - prev.cached).max(0),
                     output: (output - prev.output).max(0),
                 };
-                previous_totals = Some(UsageTotals { input, cached, output });
+                previous_totals = Some(UsageTotals {
+                    input,
+                    cached,
+                    output,
+                });
             } else {
                 // Some streams emit `last_token_usage` deltas between `total_token_usage` snapshots.
                 // Treat those as already-counted to avoid double-counting when the next total arrives.
@@ -355,6 +400,15 @@ fn scan_file(
                 continue;
             }
 
+            let model = current_model
+                .clone()
+                .or_else(|| extract_model_from_token_count(&value))
+                .unwrap_or_else(|| "unknown".to_string());
+            let token_cli = classify_cli_from_model(&model);
+            if !should_include_usage(cli_filter, token_cli) {
+                continue;
+            }
+
             let timestamp_ms = read_timestamp_ms(&value);
             if let Some(day_key) = timestamp_ms.and_then(|ms| day_key_for_timestamp_ms(ms)) {
                 if let Some(entry) = daily.get_mut(&day_key) {
@@ -362,11 +416,6 @@ fn scan_file(
                     entry.input += delta.input;
                     entry.cached += cached;
                     entry.output += delta.output;
-
-                    let model = current_model
-                        .clone()
-                        .or_else(|| extract_model_from_token_count(&value))
-                        .unwrap_or_else(|| "unknown".to_string());
                     *model_totals.entry(model).or_insert(0) += delta.input + delta.output;
                 }
             }
@@ -389,24 +438,78 @@ fn scan_file(
 
             if role == "assistant" {
                 if let Some(timestamp_ms) = read_timestamp_ms(&value) {
-                    if seen_runs.insert(timestamp_ms) {
+                    if should_include_activity(cli_filter, current_cli)
+                        && seen_runs.insert(timestamp_ms)
+                    {
                         if let Some(day_key) = day_key_for_timestamp_ms(timestamp_ms) {
                             if let Some(entry) = daily.get_mut(&day_key) {
                                 entry.agent_runs += 1;
                             }
                         }
                     }
-                    track_activity(daily, &mut last_activity_ms, timestamp_ms);
+                    if should_include_activity(cli_filter, current_cli) {
+                        track_activity(daily, &mut last_activity_ms, timestamp_ms);
+                    }
                 }
             } else if payload_type != Some("message") {
                 if let Some(timestamp_ms) = read_timestamp_ms(&value) {
-                    track_activity(daily, &mut last_activity_ms, timestamp_ms);
+                    if should_include_activity(cli_filter, current_cli) {
+                        track_activity(daily, &mut last_activity_ms, timestamp_ms);
+                    }
                 }
             }
         }
     }
 
     Ok(())
+}
+
+fn should_include_usage(filter: Option<CliFilter>, cli: Option<CliFilter>) -> bool {
+    match filter {
+        None => true,
+        Some(expected) => cli == Some(expected),
+    }
+}
+
+fn should_include_activity(filter: Option<CliFilter>, cli: Option<CliFilter>) -> bool {
+    match filter {
+        None => true,
+        Some(expected) => cli == Some(expected),
+    }
+}
+
+fn classify_cli_from_model(model: &str) -> Option<CliFilter> {
+    let model = model.trim().to_ascii_lowercase();
+    if model.is_empty() {
+        return None;
+    }
+
+    if model.contains("claude")
+        || model.contains("sonnet")
+        || model.contains("opus")
+        || model.contains("haiku")
+    {
+        return Some(CliFilter::Claude);
+    }
+
+    if model.contains("gemini") {
+        return Some(CliFilter::Gemini);
+    }
+
+    if model.contains("cursor") {
+        return Some(CliFilter::Cursor);
+    }
+
+    if model.contains("codex")
+        || model.starts_with("gpt")
+        || model.starts_with("o1")
+        || model.starts_with("o3")
+        || model.starts_with("o4")
+    {
+        return Some(CliFilter::Codex);
+    }
+
+    None
 }
 
 fn extract_model_from_turn_context(value: &Value) -> Option<String> {
@@ -445,7 +548,11 @@ fn find_usage_map<'a>(
 fn read_i64(map: &serde_json::Map<String, Value>, keys: &[&str]) -> i64 {
     keys.iter()
         .find_map(|key| map.get(*key))
-        .and_then(|value| value.as_i64().or_else(|| value.as_f64().map(|value| value as i64)))
+        .and_then(|value| {
+            value
+                .as_i64()
+                .or_else(|| value.as_f64().map(|value| value as i64))
+        })
         .unwrap_or(0)
 }
 
@@ -525,7 +632,9 @@ fn resolve_sessions_roots(
     if let Some(workspace_path) = workspace_path {
         let codex_home_override =
             resolve_workspace_codex_home_for_path(workspaces, Some(workspace_path));
-        return resolve_codex_sessions_root(codex_home_override).into_iter().collect();
+        return resolve_codex_sessions_root(codex_home_override)
+            .into_iter()
+            .collect();
     }
 
     let mut roots = Vec::new();
@@ -609,10 +718,7 @@ mod tests {
 
     fn make_temp_sessions_root() -> PathBuf {
         let mut root = std::env::temp_dir();
-        root.push(format!(
-            "codexmonitor-local-usage-root-{}",
-            Uuid::new_v4()
-        ));
+        root.push(format!("codexmonitor-local-usage-root-{}", Uuid::new_v4()));
         fs::create_dir_all(&root).expect("create temp root");
         root
     }
@@ -639,7 +745,7 @@ mod tests {
         let mut daily: HashMap<String, DailyTotals> = HashMap::new();
         daily.insert(day_key.to_string(), DailyTotals::default());
         let mut model_totals: HashMap<String, i64> = HashMap::new();
-        scan_file(&path, &mut daily, &mut model_totals, None).expect("scan file");
+        scan_file(&path, &mut daily, &mut model_totals, None, None).expect("scan file");
 
         let totals = daily.get(day_key).copied().unwrap_or_default();
         assert_eq!(totals.input, 10);
@@ -657,7 +763,7 @@ mod tests {
         let mut daily: HashMap<String, DailyTotals> = HashMap::new();
         daily.insert(day_key.to_string(), DailyTotals::default());
         let mut model_totals: HashMap<String, i64> = HashMap::new();
-        scan_file(&path, &mut daily, &mut model_totals, None).expect("scan file");
+        scan_file(&path, &mut daily, &mut model_totals, None, None).expect("scan file");
 
         let totals = daily.get(day_key).copied().unwrap_or_default();
         assert_eq!(totals.input, 20);
@@ -676,7 +782,7 @@ mod tests {
         let mut daily: HashMap<String, DailyTotals> = HashMap::new();
         daily.insert(day_key.to_string(), DailyTotals::default());
         let mut model_totals: HashMap<String, i64> = HashMap::new();
-        scan_file(&path, &mut daily, &mut model_totals, None).expect("scan file");
+        scan_file(&path, &mut daily, &mut model_totals, None, None).expect("scan file");
 
         let totals = daily.get(day_key).copied().unwrap_or_default();
         assert_eq!(totals.input, 12);
@@ -694,7 +800,7 @@ mod tests {
         let mut daily: HashMap<String, DailyTotals> = HashMap::new();
         daily.insert(day_key.to_string(), DailyTotals::default());
         let mut model_totals: HashMap<String, i64> = HashMap::new();
-        scan_file(&path, &mut daily, &mut model_totals, None).expect("scan file");
+        scan_file(&path, &mut daily, &mut model_totals, None, None).expect("scan file");
 
         let totals = daily.get(day_key).copied().unwrap_or_default();
         assert_eq!(totals.agent_ms, 5_000);
@@ -711,7 +817,7 @@ mod tests {
         let mut daily: HashMap<String, DailyTotals> = HashMap::new();
         daily.insert(day_key.to_string(), DailyTotals::default());
         let mut model_totals: HashMap<String, i64> = HashMap::new();
-        scan_file(&path, &mut daily, &mut model_totals, None).expect("scan file");
+        scan_file(&path, &mut daily, &mut model_totals, None, None).expect("scan file");
 
         let totals = daily.get(day_key).copied().unwrap_or_default();
         assert_eq!(totals.agent_runs, 2);
@@ -729,7 +835,7 @@ mod tests {
         let mut daily: HashMap<String, DailyTotals> = HashMap::new();
         daily.insert(day_key.to_string(), DailyTotals::default());
         let mut model_totals: HashMap<String, i64> = HashMap::new();
-        scan_file(&path, &mut daily, &mut model_totals, None).expect("scan file");
+        scan_file(&path, &mut daily, &mut model_totals, None, None).expect("scan file");
 
         let totals = daily.get(day_key).copied().unwrap_or_default();
         assert_eq!(totals.agent_ms, 10_000);
@@ -752,6 +858,7 @@ mod tests {
             &mut daily,
             &mut model_totals,
             Some(Path::new("/tmp/other-project")),
+            None,
         )
         .expect("scan file");
 
@@ -767,11 +874,9 @@ mod tests {
             .last()
             .cloned()
             .unwrap_or_else(|| Local::now().format("%Y-%m-%d").to_string());
-        let naive = NaiveDateTime::parse_from_str(
-            &format!("{day_key} 12:00:00"),
-            "%Y-%m-%d %H:%M:%S",
-        )
-        .expect("timestamp");
+        let naive =
+            NaiveDateTime::parse_from_str(&format!("{day_key} 12:00:00"), "%Y-%m-%d %H:%M:%S")
+                .expect("timestamp");
         let timestamp_ms = Local
             .from_local_datetime(&naive)
             .single()
@@ -791,7 +896,7 @@ mod tests {
         write_session_file(&root_a, &day_key, &[line_a]);
         write_session_file(&root_b, &day_key, &[line_b]);
 
-        let snapshot = scan_local_usage(2, None, &[root_a, root_b]).expect("scan usage");
+        let snapshot = scan_local_usage(2, None, &[root_a, root_b], None).expect("scan usage");
         let day = snapshot
             .days
             .iter()
@@ -801,6 +906,51 @@ mod tests {
         assert_eq!(day.input_tokens, 8);
         assert_eq!(day.output_tokens, 3);
         assert_eq!(snapshot.totals.last30_days_tokens, 11);
+    }
+
+    #[test]
+    fn classify_cli_from_model_detects_known_families() {
+        assert_eq!(classify_cli_from_model("gpt-5"), Some(CliFilter::Codex));
+        assert_eq!(
+            classify_cli_from_model("claude-3-5-sonnet"),
+            Some(CliFilter::Claude)
+        );
+        assert_eq!(
+            classify_cli_from_model("gemini-2.5-pro"),
+            Some(CliFilter::Gemini)
+        );
+        assert_eq!(
+            classify_cli_from_model("cursor-agent"),
+            Some(CliFilter::Cursor)
+        );
+        assert_eq!(classify_cli_from_model("unknown-model"), None);
+    }
+
+    #[test]
+    fn scan_file_filters_tokens_by_cli_family() {
+        let day_key = "2026-01-19";
+        let path = write_temp_jsonl(&[
+            r#"{"timestamp":"2026-01-19T12:00:00.000Z","type":"turn_context","payload":{"model":"claude-3-5-sonnet"}}"#,
+            r#"{"timestamp":"2026-01-19T12:00:01.000Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5}}}}"#,
+            r#"{"timestamp":"2026-01-19T12:00:02.000Z","type":"turn_context","payload":{"model":"gpt-5"}}"#,
+            r#"{"timestamp":"2026-01-19T12:00:03.000Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":14,"cached_input_tokens":0,"output_tokens":7}}}}"#,
+        ]);
+
+        let mut daily: HashMap<String, DailyTotals> = HashMap::new();
+        daily.insert(day_key.to_string(), DailyTotals::default());
+        let mut model_totals: HashMap<String, i64> = HashMap::new();
+        scan_file(
+            &path,
+            &mut daily,
+            &mut model_totals,
+            None,
+            Some(CliFilter::Claude),
+        )
+        .expect("scan file");
+
+        let totals = daily.get(day_key).copied().unwrap_or_default();
+        assert_eq!(totals.input, 10);
+        assert_eq!(totals.output, 5);
     }
 
     #[test]

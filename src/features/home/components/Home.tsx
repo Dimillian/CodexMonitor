@@ -1,6 +1,6 @@
 import FolderOpen from "lucide-react/dist/esm/icons/folder-open";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
-import type { LocalUsageSnapshot } from "../../../types";
+import type { LocalUsageCliFilter, LocalUsageSnapshot } from "../../../types";
 import { formatRelativeTime } from "../../../utils/time";
 
 type LatestAgentRun = {
@@ -20,6 +20,11 @@ type UsageWorkspaceOption = {
   label: string;
 };
 
+type UsageCliOption = {
+  id: LocalUsageCliFilter;
+  label: string;
+};
+
 type HomeProps = {
   onOpenProject: () => void;
   onAddWorkspace: () => void;
@@ -34,6 +39,9 @@ type HomeProps = {
   usageWorkspaceId: string | null;
   usageWorkspaceOptions: UsageWorkspaceOption[];
   onUsageWorkspaceChange: (workspaceId: string | null) => void;
+  usageCliFilter: LocalUsageCliFilter;
+  usageCliOptions: UsageCliOption[];
+  onUsageCliFilterChange: (value: LocalUsageCliFilter) => void;
   onSelectThread: (workspaceId: string, threadId: string) => void;
 };
 
@@ -51,6 +59,9 @@ export function Home({
   usageWorkspaceId,
   usageWorkspaceOptions,
   onUsageWorkspaceChange,
+  usageCliFilter,
+  usageCliOptions,
+  onUsageCliFilterChange,
   onSelectThread,
 }: HomeProps) {
   const formatCompactNumber = (value: number | null | undefined) => {
@@ -301,6 +312,24 @@ export function Home({
               >
                 <option value="">All workspaces</option>
                 {usageWorkspaceOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="home-usage-control-group">
+            <span className="home-usage-control-label">CLI</span>
+            <div className="home-usage-select-wrap">
+              <select
+                className="home-usage-select"
+                value={usageCliFilter}
+                onChange={(event) =>
+                  onUsageCliFilterChange(event.target.value as LocalUsageCliFilter)
+                }
+              >
+                {usageCliOptions.map((option) => (
                   <option key={option.id} value={option.id}>
                     {option.label}
                   </option>

@@ -17,6 +17,12 @@ const baseProps = {
   usageWorkspaceId: null,
   usageWorkspaceOptions: [],
   onUsageWorkspaceChange: vi.fn(),
+  usageCliFilter: "all" as const,
+  usageCliOptions: [
+    { id: "all" as const, label: "All CLIs" },
+    { id: "codex" as const, label: "Codex" },
+  ],
+  onUsageCliFilterChange: vi.fn(),
   onSelectThread: vi.fn(),
 };
 

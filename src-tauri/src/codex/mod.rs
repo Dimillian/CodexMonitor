@@ -1,50 +1,21 @@
 use serde_json::{json, Map, Value};
-use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, State};
-use tokio::sync::mpsc;
-use tokio::time::timeout;
 
 pub(crate) mod args;
 pub(crate) mod config;
 pub(crate) mod home;
 
+use crate::backend::app_server::spawn_workspace_session as spawn_workspace_session_inner;
 pub(crate) use crate::backend::app_server::WorkspaceSession;
 use crate::backend::events::AppServerEvent;
-use crate::backend::app_server::{
-    build_codex_command_with_bin, build_codex_path_env, check_codex_installation,
-    spawn_workspace_session as spawn_workspace_session_inner,
-};
-use crate::shared::process_core::tokio_command;
 use crate::event_sink::TauriEventSink;
 use crate::remote_backend;
 use crate::shared::codex_core;
-use crate::shared::workspaces_core;
 use crate::state::AppState;
-use crate::types::{AppSettings, WorkspaceEntry};
-
-fn resolve_doctor_defaults(settings: &AppSettings) -> (Option<String>, Option<String>) {
-    (
-        workspaces_core::resolve_default_cli_bin(settings),
-        args::resolve_default_cli_args(settings),
-    )
-}
-
-fn app_server_check_failure_details(cli_type: &str, resolved_bin: Option<&str>) -> String {
-    let display_bin = resolved_bin
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .unwrap_or(match cli_type {
-            "gemini" => "gemini",
-            "cursor" => "cursor",
-            "claude" => "claude",
-            _ => "codex",
-        });
-    format!("Failed to run `{display_bin} app-server --help`.")
-}
+use crate::types::WorkspaceEntry;
 
 pub(crate) async fn spawn_workspace_session(
     entry: WorkspaceEntry,
@@ -72,103 +43,8 @@ pub(crate) async fn codex_doctor(
     codex_args: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Value, String> {
-    let (cli_type, default_bin, default_args) = {
-        let settings = state.app_settings.lock().await;
-        let (bin, args) = resolve_doctor_defaults(&settings);
-        (settings.cli_type.clone(), bin, args)
-    };
-    let resolved = codex_bin
-        .clone()
-        .filter(|value| !value.trim().is_empty())
-        .or(default_bin);
-    let resolved_args = codex_args
-        .clone()
-        .filter(|value| !value.trim().is_empty())
-        .or(default_args);
-    let path_env = build_codex_path_env(resolved.as_deref());
-    let version = check_codex_installation(resolved.clone()).await?;
-    let mut command = build_codex_command_with_bin(
-        resolved.clone(),
-        resolved_args.as_deref(),
-        vec!["app-server".to_string(), "--help".to_string()],
-    )?;
-    command.stdout(std::process::Stdio::piped());
-    command.stderr(std::process::Stdio::piped());
-    let app_server_ok = match timeout(Duration::from_secs(5), command.output()).await {
-        Ok(result) => result.map(|output| output.status.success()).unwrap_or(false),
-        Err(_) => false,
-    };
-    let (node_ok, node_version, node_details) = {
-        let mut node_command = tokio_command("node");
-        if let Some(ref path_env) = path_env {
-            node_command.env("PATH", path_env);
-        }
-        node_command.arg("--version");
-        node_command.stdout(std::process::Stdio::piped());
-        node_command.stderr(std::process::Stdio::piped());
-        match timeout(Duration::from_secs(5), node_command.output()).await {
-            Ok(result) => match result {
-                Ok(output) => {
-                    if output.status.success() {
-                        let version = String::from_utf8_lossy(&output.stdout)
-                            .trim()
-                            .to_string();
-                        (
-                            !version.is_empty(),
-                            if version.is_empty() { None } else { Some(version) },
-                            None,
-                        )
-                    } else {
-                        let stderr = String::from_utf8_lossy(&output.stderr);
-                        let stdout = String::from_utf8_lossy(&output.stdout);
-                        let detail = if stderr.trim().is_empty() {
-                            stdout.trim()
-                        } else {
-                            stderr.trim()
-                        };
-                        (
-                            false,
-                            None,
-                            Some(if detail.is_empty() {
-                                "Node failed to start.".to_string()
-                            } else {
-                                detail.to_string()
-                            }),
-                        )
-                    }
-                }
-                Err(err) => {
-                    if err.kind() == ErrorKind::NotFound {
-                        (false, None, Some("Node not found on PATH.".to_string()))
-                    } else {
-                        (false, None, Some(err.to_string()))
-                    }
-                }
-            },
-            Err(_) => (false, None, Some("Timed out while checking Node.".to_string())),
-        }
-    };
-    let details = if app_server_ok {
-        None
-    } else {
-        Some(app_server_check_failure_details(
-            cli_type.as_str(),
-            resolved.as_deref(),
-        ))
-    };
-    Ok(json!({
-        "ok": version.is_some() && app_server_ok,
-        "cliType": cli_type,
-        "cliBin": resolved,
-        "codexBin": resolved,
-        "version": version,
-        "appServerOk": app_server_ok,
-        "details": details,
-        "path": path_env,
-        "nodeOk": node_ok,
-        "nodeVersion": node_version,
-        "nodeDetails": node_details,
-    }))
+    crate::shared::codex_aux_core::codex_doctor_core(&state.app_settings, codex_bin, codex_args)
+        .await
 }
 
 #[tauri::command]
@@ -535,12 +411,7 @@ pub(crate) async fn codex_login(
         .await;
     }
 
-    codex_core::codex_login_core(
-        &state.sessions,
-        &state.codex_login_cancels,
-        workspace_id,
-    )
-    .await
+    codex_core::codex_login_core(&state.sessions, &state.codex_login_cancels, workspace_id).await
 }
 
 #[tauri::command]
@@ -626,16 +497,6 @@ pub(crate) async fn respond_to_server_request(
         .await
 }
 
-fn build_commit_message_prompt(diff: &str) -> String {
-    format!(
-        "Generate a concise git commit message for the following changes. \
-Follow conventional commit format (e.g., feat:, fix:, refactor:, docs:, etc.). \
-Keep the summary line under 72 characters. \
-Only output the commit message, nothing else.\n\n\
-Changes:\n{diff}"
-    )
-}
-
 /// Gets the diff content for commit message generation
 #[tauri::command]
 pub(crate) async fn get_commit_message_prompt(
@@ -649,9 +510,9 @@ pub(crate) async fn get_commit_message_prompt(
         return Err("No changes to generate commit message for".to_string());
     }
 
-    let prompt = build_commit_message_prompt(&diff);
-
-    Ok(prompt)
+    Ok(crate::shared::codex_aux_core::build_commit_message_prompt(
+        &diff,
+    ))
 }
 
 #[tauri::command]
@@ -689,168 +550,38 @@ pub(crate) async fn generate_commit_message(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<String, String> {
-    // Get the diff from git
     let diff = crate::git::get_workspace_diff(&workspace_id, &state).await?;
 
     if diff.trim().is_empty() {
         return Err("No changes to generate commit message for".to_string());
     }
 
-    let prompt = build_commit_message_prompt(&diff);
-
-    // Get the session
-    let session = {
-        let sessions = state.sessions.lock().await;
-        sessions
-            .get(&workspace_id)
-            .ok_or("workspace not connected")?
-            .clone()
-    };
-
-    // Create a background thread
-    let thread_params = json!({
-        "cwd": session.entry.path,
-        "approvalPolicy": "never"  // Never ask for approval in background
-    });
-    let thread_result = session.send_request("thread/start", thread_params).await?;
-
-    // Handle error response
-    if let Some(error) = thread_result.get("error") {
-        let error_msg = error
-            .get("message")
-            .and_then(|m| m.as_str())
-            .unwrap_or("Unknown error starting thread");
-        return Err(error_msg.to_string());
-    }
-
-    // Extract threadId - try multiple paths since response format may vary
-    let thread_id = thread_result
-        .get("result")
-        .and_then(|r| r.get("threadId"))
-        .or_else(|| thread_result.get("result").and_then(|r| r.get("thread")).and_then(|t| t.get("id")))
-        .or_else(|| thread_result.get("threadId"))
-        .or_else(|| thread_result.get("thread").and_then(|t| t.get("id")))
-        .and_then(|t| t.as_str())
-        .ok_or_else(|| format!("Failed to get threadId from thread/start response: {:?}", thread_result))?
-        .to_string();
-
-    // Hide background helper threads from the sidebar, even if a thread/started event leaked.
-    let _ = app.emit(
-        "app-server-event",
-        AppServerEvent {
-            workspace_id: workspace_id.clone(),
-            message: json!({
-                "method": "codex/backgroundThread",
-                "params": {
-                    "threadId": thread_id,
-                    "action": "hide"
-                }
-            }),
-        },
-    );
-
-    // Create channel for receiving events
-    let (tx, mut rx) = mpsc::unbounded_channel::<Value>();
-
-    // Register callback for this thread
-    {
-        let mut callbacks = session.background_thread_callbacks.lock().await;
-        callbacks.insert(thread_id.clone(), tx);
-    }
-
-    // Start a turn with the commit message prompt
-    let turn_params = json!({
-        "threadId": thread_id,
-        "input": [{ "type": "text", "text": prompt }],
-        "cwd": session.entry.path,
-        "approvalPolicy": "never",
-        "sandboxPolicy": { "type": "readOnly" },
-    });
-    let turn_result = session.send_request("turn/start", turn_params).await;
-    let turn_result = match turn_result {
-        Ok(result) => result,
-        Err(error) => {
-            // Clean up if turn fails to start
-            {
-                let mut callbacks = session.background_thread_callbacks.lock().await;
-                callbacks.remove(&thread_id);
-            }
-            let archive_params = json!({ "threadId": thread_id.as_str() });
-            let _ = session.send_request("thread/archive", archive_params).await;
-            return Err(error);
-        }
-    };
-
-    if let Some(error) = turn_result.get("error") {
-        let error_msg = error
-            .get("message")
-            .and_then(|m| m.as_str())
-            .unwrap_or("Unknown error starting turn");
-        {
-            let mut callbacks = session.background_thread_callbacks.lock().await;
-            callbacks.remove(&thread_id);
-        }
-        let archive_params = json!({ "threadId": thread_id.as_str() });
-        let _ = session.send_request("thread/archive", archive_params).await;
-        return Err(error_msg.to_string());
-    }
-
-    // Collect assistant text from events
-    let mut commit_message = String::new();
-    let timeout_duration = Duration::from_secs(60);
-    let collect_result = timeout(timeout_duration, async {
-        while let Some(event) = rx.recv().await {
-            let method = event.get("method").and_then(|m| m.as_str()).unwrap_or("");
-
-            match method {
-                "item/agentMessage/delta" => {
-                    // Extract text delta from agent messages
-                    if let Some(params) = event.get("params") {
-                        if let Some(delta) = params.get("delta").and_then(|d| d.as_str()) {
-                            commit_message.push_str(delta);
+    let prompt = crate::shared::codex_aux_core::build_commit_message_prompt(&diff);
+    let response = crate::shared::codex_aux_core::run_background_prompt_core(
+        &state.sessions,
+        workspace_id,
+        prompt,
+        |workspace_id, thread_id| {
+            let _ = app.emit(
+                "app-server-event",
+                AppServerEvent {
+                    workspace_id: workspace_id.to_string(),
+                    message: json!({
+                        "method": "codex/backgroundThread",
+                        "params": {
+                            "threadId": thread_id,
+                            "action": "hide"
                         }
-                    }
-                }
-                "turn/completed" => {
-                    // Turn completed, we can stop listening
-                    break;
-                }
-                "turn/error" => {
-                    // Error occurred
-                    let error_msg = event
-                        .get("params")
-                        .and_then(|p| p.get("error"))
-                        .and_then(|e| e.as_str())
-                        .unwrap_or("Unknown error during commit message generation");
-                    return Err(error_msg.to_string());
-                }
-                _ => {
-                    // Ignore other events (turn/started, item/started, item/completed, reasoning events, etc.)
-                }
-            }
-        }
-        Ok(())
-    })
-    .await;
+                    }),
+                },
+            );
+        },
+        "Timeout waiting for commit message generation",
+        "Unknown error during commit message generation",
+    )
+    .await?;
 
-    // Unregister callback
-    {
-        let mut callbacks = session.background_thread_callbacks.lock().await;
-        callbacks.remove(&thread_id);
-    }
-
-    // Archive the thread to clean up
-    let archive_params = json!({ "threadId": thread_id });
-    let _ = session.send_request("thread/archive", archive_params).await;
-
-    // Handle timeout or collection error
-    match collect_result {
-        Ok(Ok(())) => {}
-        Ok(Err(e)) => return Err(e),
-        Err(_) => return Err("Timeout waiting for commit message generation".to_string()),
-    }
-
-    let trimmed = commit_message.trim().to_string();
+    let trimmed = response.trim().to_string();
     if trimmed.is_empty() {
         return Err("No commit message was generated".to_string());
     }
@@ -880,163 +611,37 @@ pub(crate) async fn generate_run_metadata(
         return Err("Prompt is required.".to_string());
     }
 
-    let session = {
-        let sessions = state.sessions.lock().await;
-        sessions
-            .get(&workspace_id)
-            .ok_or("workspace not connected")?
-            .clone()
-    };
-
-    let title_prompt = format!(
-        "You create concise run metadata for a coding task.\n\
-Return ONLY a JSON object with keys:\n\
-- title: short, clear, 3-7 words, Title Case\n\
-- worktreeName: lower-case, kebab-case slug prefixed with one of: \
-feat/, fix/, chore/, test/, docs/, refactor/, perf/, build/, ci/, style/.\n\
-\n\
-Choose fix/ when the task is a bug fix, error, regression, crash, or cleanup. \
-Use the closest match for chores/tests/docs/refactors/perf/build/ci/style. \
-Otherwise use feat/.\n\
-\n\
-Examples:\n\
-{{\"title\":\"Fix Login Redirect Loop\",\"worktreeName\":\"fix/login-redirect-loop\"}}\n\
-{{\"title\":\"Add Workspace Home View\",\"worktreeName\":\"feat/workspace-home\"}}\n\
-{{\"title\":\"Update Lint Config\",\"worktreeName\":\"chore/update-lint-config\"}}\n\
-{{\"title\":\"Add Coverage Tests\",\"worktreeName\":\"test/add-coverage-tests\"}}\n\
-\n\
-Task:\n{cleaned_prompt}"
-    );
-
-    let thread_params = json!({
-        "cwd": session.entry.path,
-        "approvalPolicy": "never"
-    });
-    let thread_result = session.send_request("thread/start", thread_params).await?;
-
-    if let Some(error) = thread_result.get("error") {
-        let error_msg = error
-            .get("message")
-            .and_then(|m| m.as_str())
-            .unwrap_or("Unknown error starting thread");
-        return Err(error_msg.to_string());
-    }
-
-    let thread_id = thread_result
-        .get("result")
-        .and_then(|r| r.get("threadId"))
-        .or_else(|| thread_result.get("result").and_then(|r| r.get("thread")).and_then(|t| t.get("id")))
-        .or_else(|| thread_result.get("threadId"))
-        .or_else(|| thread_result.get("thread").and_then(|t| t.get("id")))
-        .and_then(|t| t.as_str())
-        .ok_or_else(|| format!("Failed to get threadId from thread/start response: {:?}", thread_result))?
-        .to_string();
-
-    // Hide background helper threads from the sidebar, even if a thread/started event leaked.
-    let _ = app.emit(
-        "app-server-event",
-        AppServerEvent {
-            workspace_id: workspace_id.clone(),
-            message: json!({
-                "method": "codex/backgroundThread",
-                "params": {
-                    "threadId": thread_id,
-                    "action": "hide"
-                }
-            }),
-        },
-    );
-
-    let (tx, mut rx) = mpsc::unbounded_channel::<Value>();
-    {
-        let mut callbacks = session.background_thread_callbacks.lock().await;
-        callbacks.insert(thread_id.clone(), tx);
-    }
-
-    let turn_params = json!({
-        "threadId": thread_id,
-        "input": [{ "type": "text", "text": title_prompt }],
-        "cwd": session.entry.path,
-        "approvalPolicy": "never",
-        "sandboxPolicy": { "type": "readOnly" },
-    });
-    let turn_result = session.send_request("turn/start", turn_params).await;
-    let turn_result = match turn_result {
-        Ok(result) => result,
-        Err(error) => {
-            {
-                let mut callbacks = session.background_thread_callbacks.lock().await;
-                callbacks.remove(&thread_id);
-            }
-            let archive_params = json!({ "threadId": thread_id.as_str() });
-            let _ = session.send_request("thread/archive", archive_params).await;
-            return Err(error);
-        }
-    };
-
-    if let Some(error) = turn_result.get("error") {
-        let error_msg = error
-            .get("message")
-            .and_then(|m| m.as_str())
-            .unwrap_or("Unknown error starting turn");
-        {
-            let mut callbacks = session.background_thread_callbacks.lock().await;
-            callbacks.remove(&thread_id);
-        }
-        let archive_params = json!({ "threadId": thread_id.as_str() });
-        let _ = session.send_request("thread/archive", archive_params).await;
-        return Err(error_msg.to_string());
-    }
-
-    let mut response_text = String::new();
-    let timeout_duration = Duration::from_secs(60);
-    let collect_result = timeout(timeout_duration, async {
-        while let Some(event) = rx.recv().await {
-            let method = event.get("method").and_then(|m| m.as_str()).unwrap_or("");
-            match method {
-                "item/agentMessage/delta" => {
-                    if let Some(params) = event.get("params") {
-                        if let Some(delta) = params.get("delta").and_then(|d| d.as_str()) {
-                            response_text.push_str(delta);
+    let title_prompt = crate::shared::codex_aux_core::build_run_metadata_prompt(cleaned_prompt);
+    let response_text = crate::shared::codex_aux_core::run_background_prompt_core(
+        &state.sessions,
+        workspace_id,
+        title_prompt,
+        |workspace_id, thread_id| {
+            let _ = app.emit(
+                "app-server-event",
+                AppServerEvent {
+                    workspace_id: workspace_id.to_string(),
+                    message: json!({
+                        "method": "codex/backgroundThread",
+                        "params": {
+                            "threadId": thread_id,
+                            "action": "hide"
                         }
-                    }
-                }
-                "turn/completed" => break,
-                "turn/error" => {
-                    let error_msg = event
-                        .get("params")
-                        .and_then(|p| p.get("error"))
-                        .and_then(|e| e.as_str())
-                        .unwrap_or("Unknown error during metadata generation");
-                    return Err(error_msg.to_string());
-                }
-                _ => {}
-            }
-        }
-        Ok(())
-    })
-    .await;
-
-    {
-        let mut callbacks = session.background_thread_callbacks.lock().await;
-        callbacks.remove(&thread_id);
-    }
-
-    let archive_params = json!({ "threadId": thread_id });
-    let _ = session.send_request("thread/archive", archive_params).await;
-
-    match collect_result {
-        Ok(Ok(())) => {}
-        Ok(Err(e)) => return Err(e),
-        Err(_) => return Err("Timeout waiting for metadata generation".to_string()),
-    }
+                    }),
+                },
+            );
+        },
+        "Timeout waiting for metadata generation",
+        "Unknown error during metadata generation",
+    )
+    .await?;
 
     let trimmed = response_text.trim();
     if trimmed.is_empty() {
         return Err("No metadata was generated".to_string());
     }
 
-    let json_value = extract_json_value(trimmed)
+    let json_value = crate::shared::codex_aux_core::extract_json_value(trimmed)
         .ok_or_else(|| "Failed to parse metadata JSON".to_string())?;
     let title = json_value
         .get("title")
@@ -1048,7 +653,7 @@ Task:\n{cleaned_prompt}"
         .get("worktreeName")
         .or_else(|| json_value.get("worktree_name"))
         .and_then(|v| v.as_str())
-        .map(|v| sanitize_run_worktree_name(v))
+        .map(crate::shared::codex_aux_core::sanitize_run_worktree_name)
         .filter(|v| !v.is_empty())
         .ok_or_else(|| "Missing worktree name in metadata".to_string())?;
 
@@ -1056,160 +661,4 @@ Task:\n{cleaned_prompt}"
         "title": title,
         "worktreeName": worktree_name
     }))
-}
-
-fn extract_json_value(raw: &str) -> Option<Value> {
-    let start = raw.find('{')?;
-    let end = raw.rfind('}')?;
-    if end <= start {
-        return None;
-    }
-    serde_json::from_str::<Value>(&raw[start..=end]).ok()
-}
-
-fn sanitize_run_worktree_name(value: &str) -> String {
-    let trimmed = value.trim().to_lowercase();
-    let mut cleaned = String::new();
-    let mut last_dash = false;
-    for ch in trimmed.chars() {
-        let next = if ch.is_ascii_alphanumeric() || ch == '/' {
-            last_dash = false;
-            Some(ch)
-        } else if ch == '-' || ch.is_whitespace() || ch == '_' {
-            if last_dash {
-                None
-            } else {
-                last_dash = true;
-                Some('-')
-            }
-        } else {
-            None
-        };
-        if let Some(ch) = next {
-            cleaned.push(ch);
-        }
-    }
-    while cleaned.ends_with('-') || cleaned.ends_with('/') {
-        cleaned.pop();
-    }
-    let allowed_prefixes = [
-        "feat/", "fix/", "chore/", "test/", "docs/", "refactor/", "perf/",
-        "build/", "ci/", "style/",
-    ];
-    if allowed_prefixes.iter().any(|prefix| cleaned.starts_with(prefix)) {
-        return cleaned;
-    }
-    for prefix in allowed_prefixes.iter() {
-        let dash_prefix = prefix.replace('/', "-");
-        if cleaned.starts_with(&dash_prefix) {
-            return cleaned.replacen(&dash_prefix, prefix, 1);
-        }
-    }
-    format!("feat/{}", cleaned.trim_start_matches('/'))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{app_server_check_failure_details, resolve_doctor_defaults};
-    use crate::types::AppSettings;
-
-    #[test]
-    fn resolve_doctor_defaults_uses_active_cli_fields() {
-        let mut settings = AppSettings::default();
-        settings.codex_bin = Some("/bin/codex".to_string());
-        settings.codex_args = Some("--codex".to_string());
-        settings.gemini_bin = Some("/bin/gemini".to_string());
-        settings.gemini_args = Some("--gemini".to_string());
-        settings.cursor_bin = Some("/bin/cursor".to_string());
-        settings.cursor_args = Some("--cursor".to_string());
-        settings.claude_bin = Some("/bin/claude".to_string());
-        settings.claude_args = Some("--claude".to_string());
-
-        settings.cli_type = "codex".to_string();
-        assert_eq!(
-            resolve_doctor_defaults(&settings),
-            (
-                Some("/bin/codex".to_string()),
-                Some("--codex".to_string())
-            )
-        );
-
-        settings.cli_type = "gemini".to_string();
-        assert_eq!(
-            resolve_doctor_defaults(&settings),
-            (
-                Some("/bin/gemini".to_string()),
-                Some("--gemini".to_string())
-            )
-        );
-
-        settings.cli_type = "cursor".to_string();
-        assert_eq!(
-            resolve_doctor_defaults(&settings),
-            (
-                Some("/bin/cursor".to_string()),
-                Some("--cursor".to_string())
-            )
-        );
-
-        settings.cli_type = "claude".to_string();
-        assert_eq!(
-            resolve_doctor_defaults(&settings),
-            (
-                Some("/bin/claude".to_string()),
-                Some("--claude".to_string())
-            )
-        );
-    }
-
-    #[test]
-    fn resolve_doctor_defaults_falls_back_to_cli_binaries() {
-        let mut settings = AppSettings::default();
-        settings.codex_bin = Some("/bin/codex".to_string());
-        settings.codex_args = Some("--codex".to_string());
-        settings.gemini_bin = None;
-        settings.gemini_args = None;
-        settings.cursor_bin = None;
-        settings.cursor_args = None;
-        settings.claude_bin = None;
-        settings.claude_args = None;
-
-        settings.cli_type = "gemini".to_string();
-        assert_eq!(
-            resolve_doctor_defaults(&settings),
-            (Some("gemini".to_string()), None)
-        );
-
-        settings.cli_type = "cursor".to_string();
-        assert_eq!(
-            resolve_doctor_defaults(&settings),
-            (Some("cursor".to_string()), None)
-        );
-
-        settings.cli_type = "claude".to_string();
-        assert_eq!(
-            resolve_doctor_defaults(&settings),
-            (Some("claude".to_string()), None)
-        );
-    }
-
-    #[test]
-    fn app_server_failure_details_use_resolved_bin() {
-        assert_eq!(
-            app_server_check_failure_details("claude", Some("/opt/claude/bin/claude")),
-            "Failed to run `/opt/claude/bin/claude app-server --help`."
-        );
-    }
-
-    #[test]
-    fn app_server_failure_details_fall_back_to_cli_name() {
-        assert_eq!(
-            app_server_check_failure_details("claude", None),
-            "Failed to run `claude app-server --help`."
-        );
-        assert_eq!(
-            app_server_check_failure_details("cursor", Some("   ")),
-            "Failed to run `cursor app-server --help`."
-        );
-    }
 }

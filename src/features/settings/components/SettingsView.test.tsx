@@ -34,8 +34,16 @@ const baseSettings: AppSettings = {
   cursorAttributePRs: true,
   cursorUseHttp1: false,
   backendMode: "local",
+  remoteBackendProvider: "tcp",
   remoteBackendHost: "127.0.0.1:4732",
   remoteBackendToken: null,
+  orbitWsUrl: null,
+  orbitAuthUrl: null,
+  orbitRunnerName: null,
+  orbitAutoStartRunner: false,
+  orbitUseAccess: false,
+  orbitAccessClientId: null,
+  orbitAccessClientSecretRef: null,
   defaultAccessMode: "current",
   reviewDeliveryMode: "inline",
   composerModelShortcut: null,
@@ -144,7 +152,7 @@ const renderDisplaySection = (
     onMoveWorkspaceGroup: vi.fn().mockResolvedValue(null),
     onDeleteWorkspaceGroup: vi.fn().mockResolvedValue(null),
     onAssignWorkspaceGroup: vi.fn().mockResolvedValue(null),
-    onRunAgentDoctor: vi.fn().mockResolvedValue(createDoctorResult()),
+    onRunDoctor: vi.fn().mockResolvedValue(createDoctorResult()),
     onUpdateWorkspaceCodexBin: vi.fn().mockResolvedValue(undefined),
     onUpdateWorkspaceSettings: vi.fn().mockResolvedValue(undefined),
     scaleShortcutTitle: "Scale shortcut",
@@ -189,7 +197,7 @@ const renderFeaturesSection = (
     onMoveWorkspaceGroup: vi.fn().mockResolvedValue(null),
     onDeleteWorkspaceGroup: vi.fn().mockResolvedValue(null),
     onAssignWorkspaceGroup: vi.fn().mockResolvedValue(null),
-    onRunAgentDoctor: vi.fn().mockResolvedValue(createDoctorResult()),
+    onRunDoctor: vi.fn().mockResolvedValue(createDoctorResult()),
     onUpdateWorkspaceCodexBin: vi.fn().mockResolvedValue(undefined),
     onUpdateWorkspaceSettings: vi.fn().mockResolvedValue(undefined),
     scaleShortcutTitle: "Scale shortcut",
@@ -279,7 +287,7 @@ const renderEnvironmentsSection = (
     onMoveWorkspaceGroup: vi.fn().mockResolvedValue(null),
     onDeleteWorkspaceGroup: vi.fn().mockResolvedValue(null),
     onAssignWorkspaceGroup: vi.fn().mockResolvedValue(null),
-    onRunAgentDoctor: vi.fn().mockResolvedValue(createDoctorResult()),
+    onRunDoctor: vi.fn().mockResolvedValue(createDoctorResult()),
     onUpdateWorkspaceCodexBin: vi.fn().mockResolvedValue(undefined),
     onUpdateWorkspaceSettings,
     scaleShortcutTitle: "Scale shortcut",
@@ -301,13 +309,13 @@ const renderCliSection = (
   options: {
     appSettings?: Partial<AppSettings>;
     onUpdateAppSettings?: ComponentProps<typeof SettingsView>["onUpdateAppSettings"];
-    onRunAgentDoctor?: ComponentProps<typeof SettingsView>["onRunAgentDoctor"];
+    onRunDoctor?: ComponentProps<typeof SettingsView>["onRunDoctor"];
   } = {},
 ) => {
   cleanup();
   const onUpdateAppSettings =
     options.onUpdateAppSettings ?? vi.fn().mockResolvedValue(undefined);
-  const onRunAgentDoctor = options.onRunAgentDoctor ?? vi.fn().mockResolvedValue(createDoctorResult());
+  const onRunDoctor = options.onRunDoctor ?? vi.fn().mockResolvedValue(createDoctorResult());
   const props: ComponentProps<typeof SettingsView> = {
     reduceTransparency: false,
     onToggleTransparency: vi.fn(),
@@ -325,7 +333,7 @@ const renderCliSection = (
     onMoveWorkspaceGroup: vi.fn().mockResolvedValue(null),
     onDeleteWorkspaceGroup: vi.fn().mockResolvedValue(null),
     onAssignWorkspaceGroup: vi.fn().mockResolvedValue(null),
-    onRunAgentDoctor,
+    onRunDoctor,
     onUpdateWorkspaceCodexBin: vi.fn().mockResolvedValue(undefined),
     onUpdateWorkspaceSettings: vi.fn().mockResolvedValue(undefined),
     scaleShortcutTitle: "Scale shortcut",
@@ -341,7 +349,7 @@ const renderCliSection = (
   render(<SettingsView {...props} />);
   fireEvent.click(screen.getByRole("button", { name: "CLI Backend" }));
 
-  return { onUpdateAppSettings, onRunAgentDoctor };
+  return { onUpdateAppSettings, onRunDoctor };
 };
 
 describe("SettingsView Display", () => {
@@ -364,7 +372,7 @@ describe("SettingsView Display", () => {
     renderDisplaySection({ onUpdateAppSettings });
 
     const row = screen
-      .getByText("Show remaining Agent limits")
+      .getByText("Show remaining Codex limits")
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected remaining limits row");
@@ -616,20 +624,20 @@ describe("SettingsView CLI Backend", () => {
   });
 
   it("runs doctor with Claude path and args when Claude Code is active", async () => {
-    const onRunAgentDoctor = vi.fn().mockResolvedValue(createDoctorResult());
+    const onRunDoctor = vi.fn().mockResolvedValue(createDoctorResult());
     renderCliSection({
       appSettings: {
         cliType: "claude",
         claudeBin: "/usr/local/bin/claude",
         claudeArgs: "--model sonnet",
       },
-      onRunAgentDoctor,
+      onRunDoctor,
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Run doctor" }));
 
     await waitFor(() => {
-      expect(onRunAgentDoctor).toHaveBeenCalledWith(
+      expect(onRunDoctor).toHaveBeenCalledWith(
         "/usr/local/bin/claude",
         "--model sonnet",
       );
@@ -677,7 +685,7 @@ describe("SettingsView agent overrides", () => {
         appSettings={{ ...baseSettings, cliType: "codex" }}
         openAppIconById={{}}
         onUpdateAppSettings={onUpdateAppSettings}
-        onRunAgentDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
         scaleShortcutTitle="Scale shortcut"
@@ -723,7 +731,7 @@ describe("SettingsView agent overrides", () => {
         appSettings={{ ...baseSettings, cliType: "claude" }}
         openAppIconById={{}}
         onUpdateAppSettings={onUpdateAppSettings}
-        onRunAgentDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
         scaleShortcutTitle="Scale shortcut"
@@ -780,7 +788,7 @@ describe("SettingsView agent overrides", () => {
         appSettings={{ ...baseSettings, cliType: "claude" }}
         openAppIconById={{}}
         onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
-        onRunAgentDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
         scaleShortcutTitle="Scale shortcut"
@@ -834,7 +842,7 @@ describe("SettingsView agent overrides", () => {
         appSettings={baseSettings}
         openAppIconById={{}}
         onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
-        onRunAgentDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={onUpdateWorkspaceSettings}
         scaleShortcutTitle="Scale shortcut"
@@ -895,7 +903,7 @@ describe("SettingsView agent overrides", () => {
         appSettings={{ ...baseSettings, cliType: "claude" }}
         openAppIconById={{}}
         onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
-        onRunAgentDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={onUpdateWorkspaceSettings}
         scaleShortcutTitle="Scale shortcut"
@@ -956,7 +964,7 @@ describe("SettingsView agent overrides", () => {
         appSettings={{ ...baseSettings, cliType: "claude" }}
         openAppIconById={{}}
         onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
-        onRunAgentDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={onUpdateWorkspaceSettings}
         scaleShortcutTitle="Scale shortcut"
@@ -1003,7 +1011,7 @@ describe("SettingsView agent overrides", () => {
         appSettings={baseSettings}
         openAppIconById={{}}
         onUpdateAppSettings={onUpdateAppSettings}
-        onRunAgentDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
         scaleShortcutTitle="Scale shortcut"
@@ -1110,7 +1118,7 @@ describe("SettingsView Shortcuts", () => {
         appSettings={baseSettings}
         openAppIconById={{}}
         onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
-        onRunAgentDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
         scaleShortcutTitle="Scale shortcut"
@@ -1151,7 +1159,7 @@ describe("SettingsView Shortcuts", () => {
         appSettings={baseSettings}
         openAppIconById={{}}
         onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
-        onRunAgentDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
         scaleShortcutTitle="Scale shortcut"

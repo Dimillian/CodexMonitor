@@ -1,12 +1,12 @@
 # Installation Guide
 
-This guide covers how to install GeminiMonitor from pre-built releases or build it from source.
+This guide covers how to install Agent Monitor from pre-built releases or build it from source.
 
 ## Installing from Releases
 
-Download the latest release from the [GitHub Releases](https://github.com/Dimillian/GeminiMonitor/releases) page:
+Download the latest release from the [GitHub Releases](https://github.com/N3RDMJ/Agentmonitor/releases) page:
 
-- **macOS**: Download the `.dmg` file, open it, and drag GeminiMonitor to your Applications folder
+- **macOS**: Download the `.dmg` file, open it, and drag Agent Monitor to your Applications folder
 - **Linux**: Download the `.AppImage` file, make it executable (`chmod +x`), and run it
 
 ## Building from Source
@@ -67,8 +67,8 @@ npm run tauri:build
 ```
 
 Output locations:
-- `src-tauri/target/release/bundle/macos/GeminiMonitor.app`
-- `src-tauri/target/release/bundle/dmg/GeminiMonitor_<version>_<arch>.dmg`
+- `src-tauri/target/release/bundle/macos/Agent Monitor.app`
+- `src-tauri/target/release/bundle/dmg/AgentMonitor_<version>_<arch>.dmg`
 
 #### Linux (AppImage)
 
@@ -137,5 +137,5 @@ Unsigned builds will show a Gatekeeper warning. To open:
 
 Or remove the quarantine attribute:
 ```bash
-xattr -cr /Applications/GeminiMonitor.app
+xattr -cr "/Applications/Agent Monitor.app"
 ```

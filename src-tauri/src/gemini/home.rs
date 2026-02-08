@@ -21,15 +21,15 @@ pub(crate) fn resolve_workspace_gemini_home(
                     return Some(path);
                 }
             }
-            let legacy_home = PathBuf::from(&parent.path).join(".geminimonitor");
-            if legacy_home.is_dir() {
-                return Some(legacy_home);
+            let agent_home = PathBuf::from(&parent.path).join(".agentmonitor");
+            if agent_home.is_dir() {
+                return Some(agent_home);
             }
         }
     }
-    let legacy_home = PathBuf::from(&entry.path).join(".geminimonitor");
-    if legacy_home.is_dir() {
-        return Some(legacy_home);
+    let agent_home = PathBuf::from(&entry.path).join(".agentmonitor");
+    if agent_home.is_dir() {
+        return Some(agent_home);
     }
     resolve_default_gemini_home()
 }

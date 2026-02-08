@@ -6,7 +6,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::backend::app_server::WorkspaceSession;
-use crate::codex::args::{resolve_default_cli_args, resolve_workspace_codex_args};
+use crate::codex::args::resolve_workspace_codex_args;
 use crate::codex::home::resolve_workspace_codex_home;
 use crate::shared::process_core::kill_child_process_tree;
 use crate::storage::write_workspaces;
@@ -35,6 +35,15 @@ pub(crate) fn resolve_default_cli_bin(settings: &AppSettings) -> Option<String> 
             .clone()
             .or_else(|| Some("claude".to_string())),
         _ => settings.codex_bin.clone(),
+    }
+}
+
+fn resolve_default_cli_args(settings: &AppSettings) -> Option<String> {
+    match settings.cli_type.as_str() {
+        "gemini" => settings.gemini_args.clone(),
+        "cursor" => settings.cursor_args.clone(),
+        "claude" => settings.claude_args.clone(),
+        _ => settings.codex_args.clone(),
     }
 }
 

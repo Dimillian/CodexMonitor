@@ -28,6 +28,10 @@ export function isWindowsPlatform(): boolean {
   return platformKind() === "windows";
 }
 
+export function isMobilePlatform(): boolean {
+  return false;
+}
+
 export function fileManagerName(): string {
   const platform = platformKind();
   if (platform === "mac") {

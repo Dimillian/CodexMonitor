@@ -1,6 +1,7 @@
-# GeminiMonitor
+# AgentMonitor
 
-![GeminiMonitor](screenshot.png)
+![AgentMonitor home](docs/images/app-home.png)
+![AgentMonitor CLI Backend settings](docs/images/settings-cli-backend.png)
 
 Agent Monitor is a Tauri app for orchestrating multiple agents across local workspaces. It provides a sidebar to manage projects, a home screen for quick actions, and a conversation view backed by the agent app-server protocol.
 
@@ -52,7 +53,7 @@ Agent Monitor is a Tauri app for orchestrating multiple agents across local work
 
 2. **Authenticate** by running `gemini` in your terminal and signing in with your Google account
 
-3. **Download GeminiMonitor** from the releases page and open it
+3. **Download Agent Monitor** from the releases page and open it
 
 The app will detect the Gemini CLI automatically. If not found, you can configure the path in Settings → Run Doctor.
 

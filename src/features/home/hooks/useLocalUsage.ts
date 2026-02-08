@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { LocalUsageSnapshot } from "../../../types";
+import type { LocalUsageCliFilter, LocalUsageSnapshot } from "../../../types";
 import { localUsageSnapshot } from "../../../services/tauri";
 
 type LocalUsageState = {
@@ -16,11 +16,16 @@ const emptyState: LocalUsageState = {
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
-export function useLocalUsage(enabled: boolean, workspacePath: string | null) {
+export function useLocalUsage(
+  enabled: boolean,
+  workspacePath: string | null,
+  cliType: LocalUsageCliFilter,
+) {
   const [state, setState] = useState<LocalUsageState>(emptyState);
   const requestIdRef = useRef(0);
   const enabledRef = useRef(enabled);
   const workspaceRef = useRef(workspacePath);
+  const cliTypeRef = useRef(cliType);
 
   useEffect(() => {
     enabledRef.current = enabled;
@@ -33,6 +38,10 @@ export function useLocalUsage(enabled: boolean, workspacePath: string | null) {
     workspaceRef.current = workspacePath;
   }, [workspacePath]);
 
+  useEffect(() => {
+    cliTypeRef.current = cliType;
+  }, [cliType]);
+
   const refresh = useCallback(() => {
     if (!enabledRef.current) {
       return Promise.resolve();
@@ -40,7 +49,7 @@ export function useLocalUsage(enabled: boolean, workspacePath: string | null) {
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
-    return localUsageSnapshot(30, workspaceRef.current ?? undefined)
+    return localUsageSnapshot(30, workspaceRef.current ?? undefined, cliTypeRef.current)
       .then((snapshot) => {
         if (requestIdRef.current !== requestId || !enabledRef.current) {
           return;
@@ -67,7 +76,7 @@ export function useLocalUsage(enabled: boolean, workspacePath: string | null) {
     return () => {
       window.clearInterval(interval);
     };
-  }, [enabled, refresh, workspacePath]);
+  }, [enabled, refresh, workspacePath, cliType]);
 
   return { ...state, refresh };
 }

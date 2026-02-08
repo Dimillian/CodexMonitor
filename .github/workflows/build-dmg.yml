@@ -97,25 +97,25 @@ jobs:
 
           # Create zip for notarization
           ditto -c -k --keepParent \
-            src-tauri/target/release/bundle/macos/GeminiMonitor.app \
-            GeminiMonitor.zip
+            "src-tauri/target/release/bundle/macos/Agent Monitor.app" \
+            AgentMonitor.zip
 
           # Notarize
-          xcrun notarytool submit GeminiMonitor.zip \
+          xcrun notarytool submit AgentMonitor.zip \
             --keychain-profile "$NOTARY_PROFILE_NAME" \
             --wait
 
           # Staple
           xcrun stapler staple \
-            src-tauri/target/release/bundle/macos/GeminiMonitor.app
+            "src-tauri/target/release/bundle/macos/Agent Monitor.app"
 
           # Create DMG
           mkdir -p dmg-root
-          ditto src-tauri/target/release/bundle/macos/GeminiMonitor.app dmg-root/GeminiMonitor.app
-          hdiutil create -volname "GeminiMonitor" \
+          ditto "src-tauri/target/release/bundle/macos/Agent Monitor.app" "dmg-root/Agent Monitor.app"
+          hdiutil create -volname "Agent Monitor" \
             -srcfolder dmg-root \
             -ov -format UDZO \
-            "GeminiMonitor_${VERSION}_aarch64.dmg"
+            "AgentMonitor_${VERSION}_aarch64.dmg"
 
       - name: Get version
         id: version
@@ -127,12 +127,12 @@ jobs:
         if: ${{ !inputs.sign }}
         uses: actions/upload-artifact@v4
         with:
-          name: GeminiMonitor-${{ steps.version.outputs.version }}-unsigned-dmg
+          name: AgentMonitor-${{ steps.version.outputs.version }}-unsigned-dmg
           path: src-tauri/target/release/bundle/dmg/*.dmg
 
       - name: Upload signed DMG
         if: ${{ inputs.sign }}
         uses: actions/upload-artifact@v4
         with:
-          name: GeminiMonitor-${{ steps.version.outputs.version }}-signed-dmg
-          path: GeminiMonitor_*.dmg
+          name: AgentMonitor-${{ steps.version.outputs.version }}-signed-dmg
+          path: AgentMonitor_*.dmg

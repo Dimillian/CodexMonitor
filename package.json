@@ -1,5 +1,5 @@
 {
-  "name": "gemini-monitor",
+  "name": "agent-monitor",
   "private": true,
   "version": "0.7.42",
   "type": "module",
@@ -19,6 +19,7 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
+    "check:codex-parity": "node scripts/check-codex-upstream-parity.mjs",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "tauri": "tauri",

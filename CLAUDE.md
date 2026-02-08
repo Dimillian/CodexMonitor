@@ -1,4 +1,4 @@
-# GeminiMonitor — Claude Code Instructions
+# Agent Monitor — Claude Code Instructions
 
 Tauri desktop app (React + Vite frontend, Rust backend) for chatting with AI agents across local workspaces.
 

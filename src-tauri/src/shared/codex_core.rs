@@ -5,8 +5,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::sync::{Mutex, oneshot};
 use tokio::sync::oneshot::error::TryRecvError;
+use tokio::sync::{oneshot, Mutex};
 use tokio::time::timeout;
 use tokio::time::Instant;
 
@@ -318,14 +318,16 @@ pub(crate) async fn codex_login_core(
                 CodexLoginCancelState::LoginId(_) => {}
             }
         }
-        cancels.insert(workspace_id.clone(), CodexLoginCancelState::PendingStart(cancel_tx));
+        cancels.insert(
+            workspace_id.clone(),
+            CodexLoginCancelState::PendingStart(cancel_tx),
+        );
     }
 
     let start = Instant::now();
     let mut cancel_rx = cancel_rx;
-    let mut login_request: Pin<Box<_>> = Box::pin(
-        session.send_request("account/login/start", json!({ "type": "chatgpt" })),
-    );
+    let mut login_request: Pin<Box<_>> =
+        Box::pin(session.send_request("account/login/start", json!({ "type": "chatgpt" })));
 
     let response = loop {
         match cancel_rx.try_recv() {
@@ -375,7 +377,10 @@ pub(crate) async fn codex_login_core(
 
     {
         let mut cancels = codex_login_cancels.lock().await;
-        cancels.insert(workspace_id, CodexLoginCancelState::LoginId(login_id.clone()));
+        cancels.insert(
+            workspace_id,
+            CodexLoginCancelState::LoginId(login_id.clone()),
+        );
     }
 
     Ok(json!({
