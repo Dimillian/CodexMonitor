@@ -50,7 +50,7 @@ enum SessionTransport {
 
 pub(crate) struct WorkspaceSession {
     pub(crate) entry: WorkspaceEntry,
-    pub(crate) background_thread_callbacks: Mutex<HashMap<String, mpsc::UnboundedSender<Value>>>,
+    pub(crate) background_thread_callbacks: Arc<Mutex<HashMap<String, mpsc::UnboundedSender<Value>>>>,
     transport: SessionTransport,
 }
 
@@ -129,10 +129,11 @@ impl WorkspaceSession {
     pub(crate) fn new_with_adapter(
         entry: WorkspaceEntry,
         adapter: Box<dyn CliAdapter>,
+        callbacks: Arc<Mutex<HashMap<String, mpsc::UnboundedSender<Value>>>>,
     ) -> Self {
         Self {
             entry,
-            background_thread_callbacks: Mutex::new(HashMap::new()),
+            background_thread_callbacks: callbacks,
             transport: SessionTransport::Adapter(adapter),
         }
     }
@@ -410,7 +411,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 
     let session = Arc::new(WorkspaceSession {
         entry: entry.clone(),
-        background_thread_callbacks: Mutex::new(HashMap::new()),
+        background_thread_callbacks: Arc::new(Mutex::new(HashMap::new())),
         transport: SessionTransport::AppServer(transport),
     });
 

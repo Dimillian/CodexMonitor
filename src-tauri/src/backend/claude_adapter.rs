@@ -6,7 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Child;
-use tokio::sync::Mutex;
+use tokio::sync::{mpsc, Mutex};
 
 use crate::backend::app_server::{
     build_codex_command_with_bin, check_cli_installation, CliAdapter, CliSpawnConfig,
@@ -104,6 +104,8 @@ pub(crate) fn parse_stream_json_line(
     let event: Value = serde_json::from_str(line).ok()?;
     let event_type = event.get("type")?.as_str()?;
 
+    let msg_item_id = format!("msg_{turn_id}");
+
     match event_type {
         "system" => {
             let subtype = event.get("subtype").and_then(|s| s.as_str()).unwrap_or("");
@@ -130,21 +132,12 @@ pub(crate) fn parse_stream_json_line(
                         "params": {
                             "threadId": thread_id,
                             "turnId": turn_id,
+                            "itemId": msg_item_id,
                             "delta": text
                         }
                     }))
                 }
-                "input_json_delta" => {
-                    let partial = delta.get("partial_json")?.as_str()?;
-                    Some(json!({
-                        "method": "item/tool/delta",
-                        "params": {
-                            "threadId": thread_id,
-                            "turnId": turn_id,
-                            "delta": partial
-                        }
-                    }))
-                }
+                "input_json_delta" => None,
                 _ => None,
             }
         }
@@ -152,15 +145,18 @@ pub(crate) fn parse_stream_json_line(
             let block = event.get("content_block")?;
             let block_type = block.get("type")?.as_str()?;
             if block_type == "tool_use" {
-                let tool_name = block.get("name")?.as_str()?;
+                let tool_name = block.get("name").and_then(|n| n.as_str()).unwrap_or("tool");
                 let tool_id = block.get("id").and_then(|i| i.as_str()).unwrap_or("");
                 Some(json!({
-                    "method": "item/tool/started",
+                    "method": "item/started",
                     "params": {
                         "threadId": thread_id,
                         "turnId": turn_id,
-                        "toolName": tool_name,
-                        "toolId": tool_id
+                        "item": {
+                            "id": tool_id,
+                            "type": "tool_use",
+                            "name": tool_name
+                        }
                     }
                 }))
             } else {
@@ -170,11 +166,14 @@ pub(crate) fn parse_stream_json_line(
         "tool_result" => {
             let tool_use_id = event.get("tool_use_id").and_then(|i| i.as_str()).unwrap_or("");
             Some(json!({
-                "method": "item/tool/completed",
+                "method": "item/completed",
                 "params": {
                     "threadId": thread_id,
                     "turnId": turn_id,
-                    "toolId": tool_use_id
+                    "item": {
+                        "id": tool_use_id,
+                        "type": "tool_use"
+                    }
                 }
             }))
         }
@@ -215,6 +214,7 @@ struct ClaudeAdapterSession {
     thread_store: Arc<Mutex<ThreadStore>>,
     active_child: Arc<Mutex<Option<Child>>>,
     event_emitter: Arc<dyn Fn(AppServerEvent) + Send + Sync>,
+    background_callbacks: Arc<Mutex<HashMap<String, mpsc::UnboundedSender<Value>>>>,
 }
 
 impl ClaudeAdapterSession {
@@ -222,6 +222,7 @@ impl ClaudeAdapterSession {
         entry: &WorkspaceEntry,
         config: CliSpawnConfig,
         event_emitter: Arc<dyn Fn(AppServerEvent) + Send + Sync>,
+        background_callbacks: Arc<Mutex<HashMap<String, mpsc::UnboundedSender<Value>>>>,
     ) -> Self {
         let store_path = thread_store_path(&entry.id);
         let store = ThreadStore::load(&store_path);
@@ -233,6 +234,7 @@ impl ClaudeAdapterSession {
             thread_store: Arc::new(Mutex::new(store)),
             active_child: Arc::new(Mutex::new(None)),
             event_emitter,
+            background_callbacks,
         }
     }
 
@@ -384,6 +386,7 @@ impl ClaudeAdapterSession {
             .stdout
             .take()
             .ok_or("Failed to capture claude stdout")?;
+        let stderr = child.stderr.take();
 
         {
             let mut guard: tokio::sync::MutexGuard<'_, Option<Child>> =
@@ -396,6 +399,7 @@ impl ClaudeAdapterSession {
         let store = self.thread_store.clone();
         let store_path = self.thread_store_path.clone();
         let active_child = self.active_child.clone();
+        let bg_callbacks = self.background_callbacks.clone();
         let thread_id_bg = thread_id.clone();
         let turn_id_bg = turn_id.clone();
 
@@ -409,7 +413,9 @@ impl ClaudeAdapterSession {
                     if let Some(meta) = s.threads.get_mut(&thread_id_bg) {
                         meta.claude_session_id = Some(sid);
                         meta.updated_at = now_epoch();
-                        let _ = s.save(&store_path);
+                        if let Err(e) = s.save(&store_path) {
+                            eprintln!("claude adapter: failed to persist session id: {e}");
+                        }
                     }
                 }
 
@@ -417,24 +423,45 @@ impl ClaudeAdapterSession {
                     if event.get("method").and_then(|m| m.as_str()) == Some("turn/completed") {
                         got_result = true;
                     }
-                    (emitter)(AppServerEvent {
-                        workspace_id: ws_id.clone(),
-                        message: event,
-                    });
+                    let mut sent_to_background = false;
+                    {
+                        let callbacks = bg_callbacks.lock().await;
+                        if let Some(tx) = callbacks.get(&thread_id_bg) {
+                            let _ = tx.send(event.clone());
+                            sent_to_background = true;
+                        }
+                    }
+                    if !sent_to_background {
+                        (emitter)(AppServerEvent {
+                            workspace_id: ws_id.clone(),
+                            message: event,
+                        });
+                    }
                 }
             }
 
             if !got_result {
-                (emitter)(AppServerEvent {
-                    workspace_id: ws_id,
-                    message: json!({
-                        "method": "turn/completed",
-                        "params": {
-                            "threadId": thread_id_bg,
-                            "turnId": turn_id_bg
-                        }
-                    }),
+                let fallback_event = json!({
+                    "method": "turn/completed",
+                    "params": {
+                        "threadId": thread_id_bg,
+                        "turnId": turn_id_bg
+                    }
                 });
+                let mut sent_to_background = false;
+                {
+                    let callbacks = bg_callbacks.lock().await;
+                    if let Some(tx) = callbacks.get(&thread_id_bg) {
+                        let _ = tx.send(fallback_event.clone());
+                        sent_to_background = true;
+                    }
+                }
+                if !sent_to_background {
+                    (emitter)(AppServerEvent {
+                        workspace_id: ws_id,
+                        message: fallback_event,
+                    });
+                }
             }
 
             let mut guard: tokio::sync::MutexGuard<'_, Option<Child>> =
@@ -444,9 +471,16 @@ impl ClaudeAdapterSession {
             }
         });
 
+        if let Some(stderr) = stderr {
+            tokio::spawn(async move {
+                let mut lines = BufReader::new(stderr).lines();
+                while let Ok(Some(_)) = lines.next_line().await {}
+            });
+        }
+
         Ok(json!({
             "result": {
-                "turnId": turn_id,
+                "turn": { "id": turn_id },
                 "threadId": thread_id
             }
         }))
@@ -550,10 +584,12 @@ pub(crate) async fn spawn_claude_session<E: EventSink>(
         event_sink_clone.emit_app_server_event(event);
     });
 
-    let adapter = ClaudeAdapterSession::new(&entry, config, emitter);
+    let shared_callbacks = Arc::new(Mutex::new(HashMap::new()));
+    let adapter = ClaudeAdapterSession::new(&entry, config, emitter, shared_callbacks.clone());
     let session = Arc::new(WorkspaceSession::new_with_adapter(
         entry.clone(),
         Box::new(adapter),
+        shared_callbacks,
     ));
 
     event_sink.emit_app_server_event(AppServerEvent {
@@ -612,58 +648,83 @@ mod tests {
     }
 
     #[test]
-    fn parse_stream_json_text_delta() {
+    fn parse_stream_json_text_delta_has_item_id() {
         let line = r#"{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"hello"}}"#;
-        let event = parse_stream_json_line(line, "t1", "turn1");
-        assert!(event.is_some());
-        let event = event.unwrap();
+        let event = parse_stream_json_line(line, "t1", "turn1").unwrap();
         assert_eq!(
             event.get("method").and_then(|v| v.as_str()),
             Some("item/agentMessage/delta")
         );
-        assert_eq!(
-            event
-                .get("params")
-                .and_then(|p| p.get("delta"))
-                .and_then(|d| d.as_str()),
-            Some("hello")
+        let params = event.get("params").unwrap();
+        assert_eq!(params.get("delta").and_then(|d| d.as_str()), Some("hello"));
+        assert!(
+            params.get("itemId").and_then(|i| i.as_str()).is_some(),
+            "item/agentMessage/delta must include itemId for frontend dispatch"
         );
     }
 
     #[test]
-    fn parse_stream_json_tool_use_start() {
+    fn parse_stream_json_tool_use_start_emits_item_started() {
         let line = r#"{"type":"content_block_start","content_block":{"type":"tool_use","name":"Read","id":"tool-1"}}"#;
-        let event = parse_stream_json_line(line, "t1", "turn1");
-        assert!(event.is_some());
-        let event = event.unwrap();
+        let event = parse_stream_json_line(line, "t1", "turn1").unwrap();
         assert_eq!(
             event.get("method").and_then(|v| v.as_str()),
-            Some("item/tool/started")
+            Some("item/started"),
+            "tool_use start must emit item/started (not item/tool/started) to match SUPPORTED_APP_SERVER_METHODS"
         );
+        let item = event.get("params").and_then(|p| p.get("item")).unwrap();
+        assert_eq!(item.get("id").and_then(|i| i.as_str()), Some("tool-1"));
+        assert_eq!(item.get("name").and_then(|n| n.as_str()), Some("Read"));
     }
 
     #[test]
-    fn parse_stream_json_tool_input_delta() {
+    fn parse_stream_json_tool_input_delta_is_dropped() {
         let line = r#"{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"path\":"}}"#;
-        let event = parse_stream_json_line(line, "t1", "turn1");
-        assert!(event.is_some());
-        let event = event.unwrap();
-        assert_eq!(
-            event.get("method").and_then(|v| v.as_str()),
-            Some("item/tool/delta")
+        assert!(
+            parse_stream_json_line(line, "t1", "turn1").is_none(),
+            "input_json_delta has no supported frontend method and should be dropped"
         );
     }
 
     #[test]
-    fn parse_stream_json_tool_result() {
+    fn parse_stream_json_tool_result_emits_item_completed() {
         let line = r#"{"type":"tool_result","tool_use_id":"tool-1","content":"done"}"#;
-        let event = parse_stream_json_line(line, "t1", "turn1");
-        assert!(event.is_some());
-        let event = event.unwrap();
+        let event = parse_stream_json_line(line, "t1", "turn1").unwrap();
         assert_eq!(
             event.get("method").and_then(|v| v.as_str()),
-            Some("item/tool/completed")
+            Some("item/completed"),
+            "tool_result must emit item/completed (not item/tool/completed) to match SUPPORTED_APP_SERVER_METHODS"
         );
+        let item = event.get("params").and_then(|p| p.get("item")).unwrap();
+        assert_eq!(item.get("id").and_then(|i| i.as_str()), Some("tool-1"));
+    }
+
+    const SUPPORTED_METHODS: &[&str] = &[
+        "item/agentMessage/delta",
+        "item/completed",
+        "item/started",
+        "turn/completed",
+        "turn/started",
+    ];
+
+    #[test]
+    fn all_emitted_methods_are_supported_by_frontend() {
+        let test_lines = vec![
+            r#"{"type":"system","subtype":"init","session_id":"s1","tools":[]}"#,
+            r#"{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"hi"}}"#,
+            r#"{"type":"content_block_start","content_block":{"type":"tool_use","name":"Read","id":"t1"}}"#,
+            r#"{"type":"tool_result","tool_use_id":"t1","content":"ok"}"#,
+            r#"{"type":"result","subtype":"success","cost_usd":0.01,"duration_ms":100}}"#,
+        ];
+        for line in test_lines {
+            if let Some(event) = parse_stream_json_line(line, "thread1", "turn1") {
+                let method = event.get("method").and_then(|m| m.as_str()).unwrap();
+                assert!(
+                    SUPPORTED_METHODS.contains(&method),
+                    "Emitted method '{method}' is not in SUPPORTED_APP_SERVER_METHODS"
+                );
+            }
+        }
     }
 
     #[test]
@@ -750,7 +811,7 @@ mod tests {
             cli_args: None,
             cli_home: None,
         };
-        let adapter = ClaudeAdapterSession::new(&entry, config, test_emitter());
+        let adapter = ClaudeAdapterSession::new(&entry, config, test_emitter(), Arc::new(Mutex::new(HashMap::new())));
 
         let init_result = adapter.send_request("initialize", json!({})).await;
         assert!(init_result.is_ok());
@@ -789,5 +850,37 @@ mod tests {
 
         let unknown_result = adapter.send_request("nonexistent/method", json!({})).await;
         assert!(unknown_result.is_err());
+    }
+
+    #[tokio::test]
+    async fn thread_start_response_has_thread_id_and_thread_object() {
+        let entry = WorkspaceEntry {
+            id: "test-ws".to_string(),
+            name: "Test".to_string(),
+            path: "/tmp".to_string(),
+            codex_bin: None,
+            kind: crate::types::WorkspaceKind::Main,
+            parent_id: None,
+            worktree: None,
+            settings: crate::types::WorkspaceSettings::default(),
+        };
+        let config = CliSpawnConfig {
+            cli_type: "claude".to_string(),
+            cli_bin: None,
+            cli_args: None,
+            cli_home: None,
+        };
+        let adapter = ClaudeAdapterSession::new(&entry, config, test_emitter(), Arc::new(Mutex::new(HashMap::new())));
+        let result = adapter.send_request("thread/start", json!({})).await.unwrap();
+        let r = result.get("result").expect("must have result");
+        assert!(
+            r.get("threadId").and_then(|v| v.as_str()).is_some(),
+            "thread/start result must include threadId"
+        );
+        let thread = r.get("thread").expect("must have thread object");
+        assert!(
+            thread.get("id").and_then(|v| v.as_str()).is_some(),
+            "thread/start result.thread must include id"
+        );
     }
 }
