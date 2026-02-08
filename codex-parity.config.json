@@ -12,7 +12,9 @@
     "src/styles/compact-base.css",
     "src/styles/compact-phone.css",
     "src/styles/ds-panel.css",
+    "src/styles/mobile-setup-wizard.css",
     "src/styles/settings.css",
+    "src/styles/sidebar.css",
     "src/styles/tabbar.css"
   ]
 }
