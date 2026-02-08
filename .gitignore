@@ -50,6 +50,7 @@ CodexMonitor.zip
 .codex-worktrees/
 .codexmonitor/
 public/assets/material-icons/
+.omc/
 
 # Environment and credentials
 .env
