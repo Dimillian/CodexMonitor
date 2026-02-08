@@ -25,7 +25,7 @@ export function PlanReadyFollowupMessage({
         <div className="request-user-input-body">
           <section className="request-user-input-question">
             <div className="request-user-input-question-text">
-              Start building from this plan, or describe changes to make first.
+              Start building from this plan, or describe changes to the plan.
             </div>
             <textarea
               className="request-user-input-notes"
@@ -52,7 +52,7 @@ export function PlanReadyFollowupMessage({
             Send changes
           </button>
           <button type="button" className="primary" onClick={onAccept}>
-            Yes, implement this plan
+            Implement this plan
           </button>
         </div>
       </div>

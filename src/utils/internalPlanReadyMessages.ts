@@ -5,7 +5,7 @@ export function isPlanReadyTaggedMessage(text: string) {
 }
 
 export function makePlanReadyAcceptMessage() {
-  return `${PLAN_READY_TAG_PREFIX}accept]] Yes, implement this plan.`;
+  return `${PLAN_READY_TAG_PREFIX}accept]] Implement this plan.`;
 }
 
 export function makePlanReadyChangesMessage(changes: string) {

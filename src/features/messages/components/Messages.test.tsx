@@ -835,7 +835,7 @@ describe("Messages", () => {
 
     expect(screen.getByText("Plan ready")).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Yes, implement this plan" }),
+      screen.getByRole("button", { name: "Implement this plan" }),
     ).toBeTruthy();
   });
 
@@ -1009,7 +1009,7 @@ describe("Messages", () => {
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Yes, implement this plan" }),
+      screen.getByRole("button", { name: "Implement this plan" }),
     );
     expect(onPlanAccept).toHaveBeenCalledTimes(1);
     expect(screen.queryByText("Plan ready")).toBeNull();
@@ -1032,7 +1032,7 @@ describe("Messages", () => {
         id: "internal-user",
         kind: "message",
         role: "user",
-        text: "[[cm_plan_ready:accept]] Yes, implement this plan.",
+        text: "[[cm_plan_ready:accept]] Implement this plan.",
       },
     ];
 
