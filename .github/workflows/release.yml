@@ -293,13 +293,34 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/codexmonitor.key")"
           npm run tauri:build:win
 
+      - name: Package Windows release artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json','utf8')); process.stdout.write(data.version);")
+          mkdir -p release-artifacts release-artifacts/portable
+
+          mapfile -t windows_exes < <(find src-tauri/target/release/bundle/nsis -type f -name '*.exe*' | sort)
+          mapfile -t windows_msis < <(find src-tauri/target/release/bundle/msi -type f -name '*.msi*' | sort)
+          if [ ${#windows_exes[@]} -eq 0 ] || [ ${#windows_msis[@]} -eq 0 ]; then
+            echo "Missing NSIS or MSI bundle outputs"
+            exit 1
+          fi
+
+          cp "${windows_exes[@]}" release-artifacts/
+          cp "${windows_msis[@]}" release-artifacts/
+
+          cp "src-tauri/target/release/Agent Monitor.exe" "release-artifacts/portable/Agent Monitor.exe"
+          powershell.exe -NoProfile -Command "Compress-Archive -Path 'release-artifacts/portable/*' -DestinationPath 'release-artifacts/CodexMonitor_${VERSION}_x64_portable.zip' -Force"
+
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-artifacts
           path: |
-            src-tauri/target/release/bundle/nsis/*.exe*
-            src-tauri/target/release/bundle/msi/*.msi*
+            release-artifacts/*.exe*
+            release-artifacts/*.msi*
+            release-artifacts/*portable*.zip
 
   release:
     runs-on: ubuntu-latest
@@ -332,6 +353,7 @@ jobs:
         with:
           name: windows-artifacts
           path: release-artifacts
+
       - name: Validate RPM artifacts
         run: |
           set -euo pipefail
@@ -347,6 +369,28 @@ jobs:
             rpm -qip "$rpm_file"
             rpm -qp --requires "$rpm_file"
           done
+
+      - name: Validate Windows artifacts
+        run: |
+          set -euo pipefail
+          mapfile -t windows_exes < <(find release-artifacts -type f -name '*.exe*' | sort)
+          mapfile -t windows_msis < <(find release-artifacts -type f -name '*.msi*' | sort)
+          mapfile -t portable_zips < <(find release-artifacts -type f -name '*portable*.zip' | sort)
+          if [ ${#windows_exes[@]} -eq 0 ]; then
+            echo "No Windows .exe artifacts found"
+            find release-artifacts -type f | sort
+            exit 1
+          fi
+          if [ ${#windows_msis[@]} -eq 0 ]; then
+            echo "No Windows .msi artifacts found"
+            find release-artifacts -type f | sort
+            exit 1
+          fi
+          if [ ${#portable_zips[@]} -eq 0 ]; then
+            echo "No Windows portable .zip artifacts found"
+            find release-artifacts -type f | sort
+            exit 1
+          fi
 
       - name: Build latest.json
         run: |
@@ -490,6 +534,11 @@ jobs:
           Path("release-artifacts/latest.json").write_text(json.dumps(payload, indent=2) + "\n")
           PY
 
+      - name: Generate SHA256 checksums
+        run: |
+          set -euo pipefail
+          node scripts/generate-release-checksums.mjs release-artifacts
+
       - name: Create GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -509,6 +558,7 @@ jobs:
           mapfile -t rpms < <(find release-artifacts -type f -name '*.rpm' | sort)
           mapfile -t windows_exes < <(find release-artifacts -type f -name '*.exe*' | sort)
           mapfile -t windows_msis < <(find release-artifacts -type f -name '*.msi*' | sort)
+          mapfile -t portable_zips < <(find release-artifacts -type f -name '*portable*.zip' | sort)
           if [ ${#rpms[@]} -eq 0 ]; then
             echo "No RPM artifacts found for release upload"
             find release-artifacts -type f | sort
@@ -521,6 +571,11 @@ jobs:
           fi
           if [ ${#windows_msis[@]} -eq 0 ]; then
             echo "No Windows .msi artifacts found for release upload"
+            find release-artifacts -type f | sort
+            exit 1
+          fi
+          if [ ${#portable_zips[@]} -eq 0 ]; then
+            echo "No Windows portable .zip artifacts found for release upload"
             find release-artifacts -type f | sort
             exit 1
           fi
@@ -537,7 +592,9 @@ jobs:
             "${rpms[@]}" \
             "${windows_exes[@]}" \
             "${windows_msis[@]}" \
-            release-artifacts/latest.json
+            "${portable_zips[@]}" \
+            release-artifacts/latest.json \
+            release-artifacts/SHA256SUMS.txt
 
       - name: Bump version and open PR
         env:
