@@ -38,6 +38,7 @@ type SendMessageOptions = {
 type UseThreadMessagingOptions = {
   activeWorkspace: WorkspaceInfo | null;
   activeThreadId: string | null;
+  cliType?: "codex" | "gemini" | "cursor" | "claude";
   accessMode?: "read-only" | "current" | "full-access";
   model?: string | null;
   effort?: string | null;
@@ -72,6 +73,7 @@ type UseThreadMessagingOptions = {
 export function useThreadMessaging({
   activeWorkspace,
   activeThreadId,
+  cliType = "codex",
   accessMode,
   model,
   effort,
@@ -853,7 +855,7 @@ export function useThreadMessaging({
   );
 
   const startCompact = useCallback(
-    async (_text: string) => {
+    async (text: string) => {
       if (!activeWorkspace) {
         return;
       }
@@ -862,6 +864,17 @@ export function useThreadMessaging({
         return;
       }
       try {
+        if (cliType === "claude") {
+          const command = text.trim() || "/compact";
+          await sendMessageToThread(
+            activeWorkspace,
+            threadId,
+            command,
+            [],
+            { skipPromptExpansion: true },
+          );
+          return;
+        }
         await compactThreadService(activeWorkspace.id, threadId);
       } catch (error) {
         pushThreadErrorMessage(
@@ -877,9 +890,11 @@ export function useThreadMessaging({
     [
       activeThreadId,
       activeWorkspace,
+      cliType,
       ensureThreadForActiveWorkspace,
       pushThreadErrorMessage,
       safeMessageActivity,
+      sendMessageToThread,
     ],
   );
 

@@ -725,6 +725,7 @@ function MainApp() {
     refreshAccountRateLimits,
   } = useThreads({
     activeWorkspace,
+    cliType: appSettings.cliType,
     onWorkspaceConnected: markWorkspaceConnected,
     onDebug: addDebugEntry,
     model: resolvedModel,

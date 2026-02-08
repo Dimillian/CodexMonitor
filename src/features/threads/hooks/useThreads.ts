@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useReducer, useRef } from "react";
 import type {
+  CliType,
   CustomPromptOption,
   DebugEntry,
   ThreadListSortKey,
@@ -23,6 +24,7 @@ import { makeCustomNameKey, saveCustomName } from "../utils/threadStorage";
 
 type UseThreadsOptions = {
   activeWorkspace: WorkspaceInfo | null;
+  cliType?: CliType;
   onWorkspaceConnected: (id: string) => void;
   onDebug?: (entry: DebugEntry) => void;
   model?: string | null;
@@ -38,6 +40,7 @@ type UseThreadsOptions = {
 
 export function useThreads({
   activeWorkspace,
+  cliType = "codex",
   onWorkspaceConnected,
   onDebug,
   model,
@@ -348,6 +351,7 @@ export function useThreads({
   } = useThreadMessaging({
     activeWorkspace,
     activeThreadId,
+    cliType,
     accessMode,
     model,
     effort,

@@ -5,9 +5,11 @@ import type { WorkspaceInfo } from "../../../types";
 import type { useAppServerEvents } from "../../app/hooks/useAppServerEvents";
 import { useThreadRows } from "../../app/hooks/useThreadRows";
 import {
+  compactThread,
   interruptTurn,
   listThreads,
   resumeThread,
+  sendUserMessage,
   setThreadName,
   startReview,
 } from "../../../services/tauri";
@@ -28,6 +30,7 @@ vi.mock("../../../services/tauri", () => ({
   respondToUserInputRequest: vi.fn(),
   rememberApprovalRule: vi.fn(),
   sendUserMessage: vi.fn(),
+  compactThread: vi.fn(),
   startReview: vi.fn(),
   startThread: vi.fn(),
   listThreads: vi.fn(),
@@ -421,6 +424,60 @@ describe("useThreads UX integration", () => {
       expect(interruptMock).toHaveBeenCalledWith("ws-1", "thread-1", "turn-1");
     });
     expect(interruptMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("routes context compaction through RPC for codex", async () => {
+    vi.mocked(compactThread).mockResolvedValue({ result: {} });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        cliType: "codex",
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-compact-codex");
+    });
+
+    await act(async () => {
+      await result.current.startCompact("/compact");
+    });
+
+    expect(vi.mocked(compactThread)).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-compact-codex",
+    );
+    expect(vi.mocked(sendUserMessage)).not.toHaveBeenCalled();
+  });
+
+  it("routes context compaction through /compact message for claude", async () => {
+    vi.mocked(sendUserMessage).mockResolvedValue({ result: {} });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        cliType: "claude",
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-compact-claude");
+    });
+
+    await act(async () => {
+      await result.current.startCompact("/compact now");
+    });
+
+    expect(vi.mocked(sendUserMessage)).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-compact-claude",
+      "/compact now",
+      expect.any(Object),
+    );
+    expect(vi.mocked(compactThread)).not.toHaveBeenCalled();
   });
 
   it("links detached review thread to its parent", async () => {
