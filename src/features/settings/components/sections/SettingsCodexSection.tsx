@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type {
   AppSettings,
   CodexDoctorResult,
+  CodexUpdateResult,
   WorkspaceInfo,
 } from "../../../../types";
 import { FileEditorCard } from "../../../shared/components/FileEditorCard";
@@ -17,6 +18,10 @@ type SettingsCodexSectionProps = {
   doctorState: {
     status: "idle" | "running" | "done";
     result: CodexDoctorResult | null;
+  };
+  codexUpdateState: {
+    status: "idle" | "running" | "done";
+    result: CodexUpdateResult | null;
   };
   globalAgentsMeta: string;
   globalAgentsError: string | null;
@@ -46,6 +51,7 @@ type SettingsCodexSectionProps = {
   onBrowseCodex: () => Promise<void>;
   onSaveCodexSettings: () => Promise<void>;
   onRunDoctor: () => Promise<void>;
+  onRunCodexUpdate: () => Promise<void>;
   onRefreshGlobalAgents: () => void;
   onSaveGlobalAgents: () => void;
   onRefreshGlobalConfig: () => void;
@@ -70,6 +76,7 @@ export function SettingsCodexSection({
   codexDirty,
   isSavingSettings,
   doctorState,
+  codexUpdateState,
   globalAgentsMeta,
   globalAgentsError,
   globalAgentsContent,
@@ -98,6 +105,7 @@ export function SettingsCodexSection({
   onBrowseCodex,
   onSaveCodexSettings,
   onRunDoctor,
+  onRunCodexUpdate,
   onRefreshGlobalAgents,
   onSaveGlobalAgents,
   onRefreshGlobalConfig,
@@ -187,6 +195,18 @@ export function SettingsCodexSection({
             <Stethoscope aria-hidden />
             {doctorState.status === "running" ? "Running..." : "Run doctor"}
           </button>
+          <button
+            type="button"
+            className="ghost settings-button-compact"
+            onClick={() => {
+              void onRunCodexUpdate();
+            }}
+            disabled={codexUpdateState.status === "running"}
+            title="Update Codex"
+          >
+            <Stethoscope aria-hidden />
+            {codexUpdateState.status === "running" ? "Updating..." : "Update"}
+          </button>
         </div>
 
         {doctorState.result && (
@@ -207,6 +227,39 @@ export function SettingsCodexSection({
               {doctorState.result.nodeDetails && <div>{doctorState.result.nodeDetails}</div>}
               {doctorState.result.path && (
                 <div className="settings-doctor-path">PATH: {doctorState.result.path}</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {codexUpdateState.result && (
+          <div
+            className={`settings-doctor ${codexUpdateState.result.ok ? "ok" : "error"}`}
+          >
+            <div className="settings-doctor-title">
+              {codexUpdateState.result.ok
+                ? codexUpdateState.result.upgraded
+                  ? "Codex updated"
+                  : "Codex already up-to-date"
+                : "Codex update failed"}
+            </div>
+            <div className="settings-doctor-body">
+              <div>Method: {codexUpdateState.result.method}</div>
+              {codexUpdateState.result.package && (
+                <div>Package: {codexUpdateState.result.package}</div>
+              )}
+              <div>
+                Version:{" "}
+                {codexUpdateState.result.afterVersion ??
+                  codexUpdateState.result.beforeVersion ??
+                  "unknown"}
+              </div>
+              {codexUpdateState.result.details && <div>{codexUpdateState.result.details}</div>}
+              {codexUpdateState.result.output && (
+                <details>
+                  <summary>output</summary>
+                  <pre>{codexUpdateState.result.output}</pre>
+                </details>
               )}
             </div>
           </div>
