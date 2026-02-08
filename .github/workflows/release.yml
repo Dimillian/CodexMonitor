@@ -418,7 +418,7 @@ jobs:
 
           platforms = {
             "darwin-aarch64": {
-              "url": "https://github.com/Dimillian/CodexMonitor/releases/download/v${VERSION}/CodexMonitor.app.tar.gz",
+              "url": "https://github.com/N3RDMJ/Agentmonitor/releases/download/v${VERSION}/CodexMonitor.app.tar.gz",
               "signature": "${SIGNATURE}",
             }
           }
@@ -445,7 +445,7 @@ jobs:
             if not sig_path.exists():
               raise SystemExit(f"Missing signature for {appimage.name}")
             platforms[f"linux-{arch}"] = {
-              "url": f"https://github.com/Dimillian/CodexMonitor/releases/download/v${VERSION}/{appimage.name}",
+              "url": f"https://github.com/N3RDMJ/Agentmonitor/releases/download/v${VERSION}/{appimage.name}",
               "signature": sig_path.read_text().strip(),
             }
 
@@ -476,7 +476,7 @@ jobs:
             raise SystemExit(f"Missing signature for {windows_installer.name}")
 
           platforms["windows-x86_64"] = {
-            "url": f"https://github.com/Dimillian/CodexMonitor/releases/download/v${VERSION}/{windows_installer.name}",
+            "url": f"https://github.com/N3RDMJ/Agentmonitor/releases/download/v${VERSION}/{windows_installer.name}",
             "signature": win_sig_path.read_text().strip(),
           }
 
