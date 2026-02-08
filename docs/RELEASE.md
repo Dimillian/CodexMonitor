@@ -66,6 +66,7 @@ Go to your repository **Settings** > **Secrets and variables** > **Actions** > *
 | `APPLE_API_PRIVATE_KEY_B64` | Base64-encoded .p8 API key | From App Store Connect |
 | `TAURI_SIGNING_PRIVATE_KEY_B64` | Base64-encoded Tauri update signing key | Generate with `npm run tauri signer generate` |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Password for Tauri signing key | Set during generation |
+| `HOMEBREW_TAP_TOKEN` | Fine-grained PAT used to update Homebrew tap cask | GitHub PAT with `Contents: Read and write` on tap repo |
 
 ### Repository Variables
 
@@ -76,6 +77,7 @@ Go to **Settings** > **Secrets and variables** > **Actions** > **Variables** and
 | `CODESIGN_IDENTITY` | Full name of your signing certificate | `Developer ID Application: Your Name (TEAMID)` |
 | `NOTARY_PROFILE_NAME` | Name for stored notarization credentials | `agentmonitor-notary` |
 | `APPLE_TEAM_ID` | Your Apple Developer Team ID | `ABCD1234EF` |
+| `HOMEBREW_TAP_REPOSITORY` (optional) | Homebrew tap repository to update | `N3RDMJ/homebrew-tap` |
 
 ### Environment
 
@@ -117,6 +119,16 @@ The workflow will:
 5. Build Linux AppImages
 6. Create a GitHub release with all artifacts
 7. Bump the version and open a PR
+
+## Homebrew Tap Sync
+
+The `Homebrew Tap Sync` workflow updates `Casks/agent-monitor.rb` in your tap after a release is published.
+
+- Trigger: automatically on `release: published`
+- Manual trigger: **Actions** > **Homebrew Tap Sync** > **Run workflow**
+- Default tap repo: `N3RDMJ/homebrew-tap` (override with `HOMEBREW_TAP_REPOSITORY`)
+
+If `HOMEBREW_TAP_TOKEN` is not set, the workflow skips without failing your release flow.
 
 ### Build DMG Only
 

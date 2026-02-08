@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 - Added compact support for Claude Code mode by routing `/compact` to a regular user command message path instead of Codex-only `compact_thread` RPC, while preserving existing Codex compaction behavior.
+- Added release-driven Homebrew cask sync automation via a dedicated GitHub Actions workflow, plus user docs for `brew` install/upgrade/uninstall and maintainer setup for tap sync credentials.
 - Global `config.toml` policy now permits external symlink targets, so Codex config read/write operations work when `~/.codex/config.toml` points to a symlinked file.
 - Composer drag-and-drop now inserts dropped non-image file/folder paths into the draft text while still attaching dropped images to message context.
 - Composer now surfaces queue vs steer behavior while an agent is processing: send button shows `Steer`/`Queue` only for explicit `Send`/`Queue` modes, and steer mode includes an inline `Tab`-to-queue hint.

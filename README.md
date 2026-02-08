@@ -55,6 +55,22 @@ Agent Monitor is a Tauri app for orchestrating multiple agents across local work
 
 The app will detect the Gemini CLI automatically. If not found, you can configure the path in Settings → Run Doctor.
 
+### Homebrew (macOS)
+
+You can install Agent Monitor with Homebrew:
+
+```bash
+brew tap N3RDMJ/tap
+brew install --cask agent-monitor
+```
+
+Upgrade and uninstall:
+
+```bash
+brew upgrade --cask agent-monitor
+brew uninstall --cask agent-monitor
+```
+
 **Optional:**
 - Git CLI (for Git panel features)
 - GitHub CLI (`gh`) for the Issues panel

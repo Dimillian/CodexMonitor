@@ -1,0 +1,128 @@
+name: Homebrew Tap Sync
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to sync (for example: v0.7.42). Defaults to latest release when omitted."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  sync_tap:
+    if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tap repository
+        id: tap_repo
+        env:
+          HOMEBREW_TAP_REPOSITORY: ${{ vars.HOMEBREW_TAP_REPOSITORY }}
+        run: |
+          set -euo pipefail
+          repo="${HOMEBREW_TAP_REPOSITORY:-N3RDMJ/homebrew-tap}"
+          echo "repo=${repo}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve release tag
+        id: release_tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="${INPUT_TAG:-}"
+          if [ -z "$tag" ]; then
+            tag="${EVENT_TAG:-}"
+          fi
+          if [ -z "$tag" ]; then
+            tag="$(gh release list --repo "${GITHUB_REPOSITORY}" --limit 1 --json tagName --jq '.[0].tagName')"
+          fi
+          if [ -z "$tag" ]; then
+            echo "Unable to resolve release tag."
+            exit 1
+          fi
+          version="${tag#v}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Download release DMG and compute SHA256
+        id: artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-artifacts
+          gh release download "${{ steps.release_tag.outputs.tag }}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "CodexMonitor_*_aarch64.dmg" \
+            --dir release-artifacts
+
+          dmg_path="$(find release-artifacts -maxdepth 1 -type f -name 'CodexMonitor_*_aarch64.dmg' | sort | head -n 1)"
+          if [ -z "$dmg_path" ]; then
+            echo "No aarch64 DMG artifact found for tag ${{ steps.release_tag.outputs.tag }}."
+            exit 1
+          fi
+
+          dmg_name="$(basename "$dmg_path")"
+          sha256="$(sha256sum "$dmg_path" | awk '{print $1}')"
+          echo "dmg_name=${dmg_name}" >> "$GITHUB_OUTPUT"
+          echo "sha256=${sha256}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout Homebrew tap
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.tap_repo.outputs.repo }}
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+
+      - name: Update cask
+        env:
+          APP_REPO: ${{ github.repository }}
+          VERSION: ${{ steps.release_tag.outputs.version }}
+          DMG_NAME: ${{ steps.artifact.outputs.dmg_name }}
+          SHA256_ARM64: ${{ steps.artifact.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          mkdir -p tap/Casks
+          cat > tap/Casks/agent-monitor.rb <<EOF
+cask "agent-monitor" do
+  version "${VERSION}"
+  sha256 arm: "${SHA256_ARM64}"
+
+  url "https://github.com/${APP_REPO}/releases/download/v#{version}/${DMG_NAME}",
+      verified: "github.com/${APP_REPO}/"
+  name "Agent Monitor"
+  desc "Desktop app that orchestrates coding agents across local workspaces"
+  homepage "https://github.com/${APP_REPO}"
+  depends_on arch: :arm64
+
+  app "Agent Monitor.app"
+end
+EOF
+
+      - name: Commit and push tap update
+        working-directory: tap
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/agent-monitor.rb
+          if git diff --cached --quiet; then
+            echo "No Homebrew cask changes detected."
+            exit 0
+          fi
+          git commit -m "agent-monitor ${{ steps.release_tag.outputs.version }}"
+          git push
+
+  tap_not_configured:
+    if: ${{ secrets.HOMEBREW_TAP_TOKEN == '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain skip
+        run: echo "Skipping Homebrew tap sync because HOMEBREW_TAP_TOKEN is not configured."

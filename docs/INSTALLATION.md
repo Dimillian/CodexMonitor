@@ -9,6 +9,22 @@ Download the latest release from the [GitHub Releases](https://github.com/N3RDMJ
 - **macOS**: Download the `.dmg` file, open it, and drag Agent Monitor to your Applications folder
 - **Linux**: Download the `.AppImage` file, make it executable (`chmod +x`), and run it
 
+### Homebrew (macOS)
+
+Install via Homebrew cask:
+
+```bash
+brew tap N3RDMJ/tap
+brew install --cask agent-monitor
+```
+
+Upgrade/uninstall:
+
+```bash
+brew upgrade --cask agent-monitor
+brew uninstall --cask agent-monitor
+```
+
 ## Building from Source
 
 ### Prerequisites
