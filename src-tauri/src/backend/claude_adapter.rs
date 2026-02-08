@@ -68,6 +68,7 @@ pub(crate) fn build_claude_command(
     session_id: Option<&str>,
     prompt: &str,
     cwd: &str,
+    effort: Option<&str>,
 ) -> Result<tokio::process::Command, String> {
     let mut args = vec![
         "-p".to_string(),
@@ -89,6 +90,14 @@ pub(crate) fn build_claude_command(
     command.current_dir(cwd);
     if let Some(ref home) = config.cli_home {
         command.env("CLAUDE_HOME", home);
+    }
+    if let Some(effort_value) = effort {
+        if effort_value == "max" {
+            command.env("CLAUDE_CODE_EFFORT_LEVEL", "high");
+            command.env("CLAUDE_CODE_MAX_THINKING_TOKENS", "128000");
+        } else {
+            command.env("CLAUDE_CODE_EFFORT_LEVEL", effort_value);
+        }
     }
     command.stdin(std::process::Stdio::null());
     command.stdout(std::process::Stdio::piped());
@@ -335,12 +344,38 @@ impl ClaudeAdapterSession {
     }
 
     async fn handle_model_list(&self) -> Result<Value, String> {
+        let standard_efforts = json!([
+            { "reasoningEffort": "low", "description": "Fast, minimal thinking" },
+            { "reasoningEffort": "medium", "description": "Balanced speed and depth" },
+            { "reasoningEffort": "high", "description": "Deep thinking (default)" }
+        ]);
+        let opus_efforts = json!([
+            { "reasoningEffort": "low", "description": "Fast, minimal thinking" },
+            { "reasoningEffort": "medium", "description": "Balanced speed and depth" },
+            { "reasoningEffort": "high", "description": "Deep thinking (default)" },
+            { "reasoningEffort": "max", "description": "Maximum depth, no token limit" }
+        ]);
         Ok(json!({
             "result": {
                 "models": [
-                    { "id": "claude-sonnet-4-20250514", "name": "Claude Sonnet 4" },
-                    { "id": "claude-opus-4-20250514", "name": "Claude Opus 4" },
-                    { "id": "claude-haiku-4-20250514", "name": "Claude Haiku 4" }
+                    {
+                        "id": "claude-sonnet-4-20250514",
+                        "name": "Claude Sonnet 4",
+                        "supportedReasoningEfforts": standard_efforts,
+                        "defaultReasoningEffort": "high"
+                    },
+                    {
+                        "id": "claude-opus-4-20250514",
+                        "name": "Claude Opus 4",
+                        "supportedReasoningEfforts": opus_efforts,
+                        "defaultReasoningEffort": "high"
+                    },
+                    {
+                        "id": "claude-haiku-4-20250514",
+                        "name": "Claude Haiku 4",
+                        "supportedReasoningEfforts": standard_efforts,
+                        "defaultReasoningEffort": "high"
+                    }
                 ],
                 "defaultModel": "claude-sonnet-4-20250514"
             }
@@ -377,8 +412,18 @@ impl ClaudeAdapterSession {
             }
         }
 
-        let mut command =
-            build_claude_command(&self.config, session_id.as_deref(), &prompt, &self.cwd)?;
+        let effort = params
+            .get("effort")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        let mut command = build_claude_command(
+            &self.config,
+            session_id.as_deref(),
+            &prompt,
+            &self.cwd,
+            effort.as_deref(),
+        )?;
         let mut child = command
             .spawn()
             .map_err(|e| format!("Failed to spawn claude: {e}"))?;
@@ -619,7 +664,7 @@ mod tests {
             cli_args: None,
             cli_home: None,
         };
-        let result = build_claude_command(&config, None, "hello world", "/tmp");
+        let result = build_claude_command(&config, None, "hello world", "/tmp", None);
         assert!(result.is_ok());
     }
 
@@ -631,7 +676,7 @@ mod tests {
             cli_args: None,
             cli_home: None,
         };
-        let result = build_claude_command(&config, Some("session-123"), "hello", "/tmp");
+        let result = build_claude_command(&config, Some("session-123"), "hello", "/tmp", None);
         assert!(result.is_ok());
     }
 
@@ -882,5 +927,67 @@ mod tests {
             thread.get("id").and_then(|v| v.as_str()).is_some(),
             "thread/start result.thread must include id"
         );
+    }
+
+    #[test]
+    fn build_claude_command_with_effort() {
+        let config = CliSpawnConfig {
+            cli_type: "claude".to_string(),
+            cli_bin: Some("claude".to_string()),
+            cli_args: None,
+            cli_home: None,
+        };
+        let result = build_claude_command(&config, None, "hello", "/tmp", Some("low"));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn build_claude_command_with_max_effort() {
+        let config = CliSpawnConfig {
+            cli_type: "claude".to_string(),
+            cli_bin: Some("claude".to_string()),
+            cli_args: None,
+            cli_home: None,
+        };
+        let result = build_claude_command(&config, None, "hello", "/tmp", Some("max"));
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn model_list_includes_reasoning_efforts() {
+        let entry = WorkspaceEntry {
+            id: "test-ws".to_string(),
+            name: "Test".to_string(),
+            path: "/tmp".to_string(),
+            codex_bin: None,
+            kind: crate::types::WorkspaceKind::Main,
+            parent_id: None,
+            worktree: None,
+            settings: crate::types::WorkspaceSettings::default(),
+        };
+        let config = CliSpawnConfig {
+            cli_type: "claude".to_string(),
+            cli_bin: None,
+            cli_args: None,
+            cli_home: None,
+        };
+        let adapter = ClaudeAdapterSession::new(&entry, config, test_emitter(), Arc::new(Mutex::new(HashMap::new())));
+        let result = adapter.send_request("model/list", json!({})).await.unwrap();
+        let models = result["result"]["models"].as_array().unwrap();
+
+        for model in models {
+            assert!(model.get("supportedReasoningEfforts").is_some());
+            assert!(model.get("defaultReasoningEffort").is_some());
+        }
+
+        let opus = models.iter().find(|m| m["id"] == "claude-opus-4-20250514").unwrap();
+        let opus_efforts = opus["supportedReasoningEfforts"].as_array().unwrap();
+        assert_eq!(opus_efforts.len(), 4);
+        assert!(opus_efforts.iter().any(|e| e["reasoningEffort"] == "max"));
+
+        let sonnet = models.iter().find(|m| m["id"] == "claude-sonnet-4-20250514").unwrap();
+        let sonnet_efforts = sonnet["supportedReasoningEfforts"].as_array().unwrap();
+        assert_eq!(sonnet_efforts.len(), 3);
+        assert!(!sonnet_efforts.iter().any(|e| e["reasoningEffort"] == "max"));
     }
 }
