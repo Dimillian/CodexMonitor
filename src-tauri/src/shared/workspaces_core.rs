@@ -5,10 +5,9 @@ use std::sync::Arc;
 
 use tokio::sync::Mutex;
 
-use crate::backend::app_server::WorkspaceSession;
+use crate::backend::app_server::{CliSpawnConfig, WorkspaceSession};
 use crate::codex::args::resolve_workspace_codex_args;
 use crate::codex::home::resolve_workspace_codex_home;
-use crate::shared::process_core::kill_child_process_tree;
 use crate::storage::write_workspaces;
 use crate::types::{
     AppSettings, WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings, WorktreeInfo,
@@ -173,6 +172,19 @@ pub(crate) fn resolve_workspace_cli_home(
         parent_clone
     });
     resolve_workspace_codex_home(&entry_with_override, parent_with_override.as_ref())
+}
+
+pub(crate) fn build_cli_spawn_config(
+    entry: &WorkspaceEntry,
+    parent_entry: Option<&WorkspaceEntry>,
+    app_settings: &AppSettings,
+) -> CliSpawnConfig {
+    CliSpawnConfig {
+        cli_type: app_settings.cli_type.clone(),
+        cli_bin: resolve_workspace_cli_bin(entry, app_settings),
+        cli_args: resolve_workspace_cli_args(entry, parent_entry, Some(app_settings)),
+        cli_home: resolve_workspace_cli_home(entry, parent_entry, Some(app_settings)),
+    }
 }
 
 fn copy_agents_md_from_parent_to_worktree(
@@ -346,7 +358,7 @@ pub(crate) async fn add_workspace_core<F, Fut>(
     spawn_session: F,
 ) -> Result<WorkspaceInfo, String>
 where
-    F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
+    F: Fn(WorkspaceEntry, CliSpawnConfig) -> Fut,
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     if !PathBuf::from(&path).is_dir() {
@@ -371,14 +383,8 @@ where
     };
     set_workspace_cli_override(&mut entry, settings_snapshot.cli_type.as_str(), codex_bin);
 
-    let (default_bin, codex_args) = {
-        (
-            resolve_workspace_cli_bin(&entry, &settings_snapshot),
-            resolve_workspace_cli_args(&entry, None, Some(&settings_snapshot)),
-        )
-    };
-    let codex_home = resolve_workspace_cli_home(&entry, None, Some(&settings_snapshot));
-    let session = spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?;
+    let config = build_cli_spawn_config(&entry, None, &settings_snapshot);
+    let session = spawn_session(entry.clone(), config).await?;
 
     if let Err(error) = {
         let mut workspaces = workspaces.lock().await;
@@ -390,8 +396,7 @@ where
             let mut workspaces = workspaces.lock().await;
             workspaces.remove(&entry.id);
         }
-        let mut child = session.child.lock().await;
-        kill_child_process_tree(&mut child).await;
+        session.kill().await;
         return Err(error);
     }
 
@@ -457,7 +462,7 @@ pub(crate) async fn add_worktree_core<
     spawn_session: FSpawn,
 ) -> Result<WorkspaceInfo, String>
 where
-    FSpawn: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> FutSpawn,
+    FSpawn: Fn(WorkspaceEntry, CliSpawnConfig) -> FutSpawn,
     FutSpawn: Future<Output = Result<Arc<WorkspaceSession>, String>>,
     FSanitize: Fn(&str) -> String,
     FUniquePath: Fn(&PathBuf, &str) -> Result<PathBuf, String>,
@@ -565,15 +570,8 @@ where
     };
 
     let settings_snapshot = app_settings.lock().await.clone();
-    let (default_bin, codex_args) = {
-        (
-            resolve_workspace_cli_bin(&entry, &settings_snapshot),
-            resolve_workspace_cli_args(&entry, Some(&parent_entry), Some(&settings_snapshot)),
-        )
-    };
-    let codex_home =
-        resolve_workspace_cli_home(&entry, Some(&parent_entry), Some(&settings_snapshot));
-    let session = spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?;
+    let config = build_cli_spawn_config(&entry, Some(&parent_entry), &settings_snapshot);
+    let session = spawn_session(entry.clone(), config).await?;
 
     {
         let mut workspaces = workspaces.lock().await;
@@ -605,20 +603,13 @@ pub(crate) async fn connect_workspace_core<F, Fut>(
     spawn_session: F,
 ) -> Result<(), String>
 where
-    F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
+    F: Fn(WorkspaceEntry, CliSpawnConfig) -> Fut,
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     let (entry, parent_entry) = resolve_entry_and_parent(workspaces, &workspace_id).await?;
     let settings_snapshot = app_settings.lock().await.clone();
-    let (default_bin, codex_args) = {
-        (
-            resolve_workspace_cli_bin(&entry, &settings_snapshot),
-            resolve_workspace_cli_args(&entry, parent_entry.as_ref(), Some(&settings_snapshot)),
-        )
-    };
-    let codex_home =
-        resolve_workspace_cli_home(&entry, parent_entry.as_ref(), Some(&settings_snapshot));
-    let session = spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?;
+    let config = build_cli_spawn_config(&entry, parent_entry.as_ref(), &settings_snapshot);
+    let session = spawn_session(entry.clone(), config).await?;
     sessions.lock().await.insert(entry.id, session);
     Ok(())
 }
@@ -628,8 +619,7 @@ async fn kill_session_by_id(
     id: &str,
 ) {
     if let Some(session) = sessions.lock().await.remove(id) {
-        let mut child = session.child.lock().await;
-        kill_child_process_tree(&mut child).await;
+        session.kill().await;
     }
 }
 
@@ -835,7 +825,7 @@ pub(crate) async fn rename_worktree_core<
     spawn_session: FSpawn,
 ) -> Result<WorkspaceInfo, String>
 where
-    FSpawn: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> FutSpawn,
+    FSpawn: Fn(WorkspaceEntry, CliSpawnConfig) -> FutSpawn,
     FutSpawn: Future<Output = Result<Arc<WorkspaceSession>, String>>,
     FResolveGitRoot: Fn(&WorkspaceEntry) -> Result<PathBuf, String>,
     FUniqueBranch: Fn(&PathBuf, &str) -> FutUniqueBranch,
@@ -938,19 +928,8 @@ where
     if was_connected {
         kill_session_by_id(sessions, &entry_snapshot.id).await;
         let settings_snapshot = app_settings.lock().await.clone();
-        let (default_bin, codex_args) = {
-            (
-                resolve_workspace_cli_bin(&entry_snapshot, &settings_snapshot),
-                resolve_workspace_cli_args(
-                    &entry_snapshot,
-                    Some(&parent),
-                    Some(&settings_snapshot),
-                ),
-            )
-        };
-        let codex_home =
-            resolve_workspace_cli_home(&entry_snapshot, Some(&parent), Some(&settings_snapshot));
-        match spawn_session(entry_snapshot.clone(), default_bin, codex_args, codex_home).await {
+        let config = build_cli_spawn_config(&entry_snapshot, Some(&parent), &settings_snapshot);
+        match spawn_session(entry_snapshot.clone(), config).await {
             Ok(session) => {
                 sessions
                     .lock()
@@ -1109,7 +1088,7 @@ pub(crate) async fn update_workspace_settings_core<
 where
     FApplySettings: Fn(&mut HashMap<String, WorkspaceEntry>, &str, WorkspaceSettings)
         -> Result<WorkspaceEntry, String>,
-    FSpawn: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> FutSpawn,
+    FSpawn: Fn(WorkspaceEntry, CliSpawnConfig) -> FutSpawn,
     FutSpawn: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     settings.worktree_setup_script = normalize_setup_script(settings.worktree_setup_script);
@@ -1175,23 +1154,13 @@ where
     let connected = sessions.lock().await.contains_key(&id);
     if connected && (codex_home_changed || codex_args_changed) {
         let rollback_entry = previous_entry.clone();
-        let (default_bin, codex_args) = {
-            (
-                resolve_workspace_cli_bin(&entry_snapshot, &app_settings_snapshot),
-                resolve_workspace_cli_args(
-                    &entry_snapshot,
-                    parent_entry.as_ref(),
-                    Some(&app_settings_snapshot),
-                ),
-            )
-        };
-        let codex_home = resolve_workspace_cli_home(
+        let config = build_cli_spawn_config(
             &entry_snapshot,
             parent_entry.as_ref(),
-            Some(&app_settings_snapshot),
+            &app_settings_snapshot,
         );
         let new_session =
-            match spawn_session(entry_snapshot.clone(), default_bin, codex_args, codex_home).await
+            match spawn_session(entry_snapshot.clone(), config).await
             {
                 Ok(session) => session,
                 Err(error) => {
@@ -1205,8 +1174,7 @@ where
             .await
             .insert(entry_snapshot.id.clone(), new_session)
         {
-            let mut child = old_session.child.lock().await;
-            kill_child_process_tree(&mut child).await;
+            old_session.kill().await;
         }
     }
     if codex_home_changed || codex_args_changed {
@@ -1229,15 +1197,13 @@ where
                 resolve_workspace_cli_args(child, Some(&previous_entry), Some(&app_settings_snapshot));
             let next_child_args =
                 resolve_workspace_cli_args(child, Some(&entry_snapshot), Some(&app_settings_snapshot));
-            let child_bin = resolve_workspace_cli_bin(child, &app_settings_snapshot);
             if previous_child_home == next_child_home && previous_child_args == next_child_args {
                 continue;
             }
+            let child_config = build_cli_spawn_config(child, Some(&entry_snapshot), &app_settings_snapshot);
             let new_session = match spawn_session(
                 child.clone(),
-                child_bin,
-                next_child_args,
-                next_child_home,
+                child_config,
             )
             .await
             {
@@ -1255,8 +1221,7 @@ where
                 .await
                 .insert(child.id.clone(), new_session)
             {
-                let mut child = old_session.child.lock().await;
-                kill_child_process_tree(&mut child).await;
+                old_session.kill().await;
             }
         }
     }

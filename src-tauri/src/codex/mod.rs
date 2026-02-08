@@ -1,5 +1,4 @@
 use serde_json::{json, Map, Value};
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use tauri::{AppHandle, Emitter, State};
@@ -8,7 +7,7 @@ pub(crate) mod args;
 pub(crate) mod config;
 pub(crate) mod home;
 
-use crate::backend::app_server::spawn_workspace_session as spawn_workspace_session_inner;
+use crate::backend::app_server::{spawn_workspace_session as spawn_workspace_session_inner, CliSpawnConfig};
 pub(crate) use crate::backend::app_server::WorkspaceSession;
 use crate::backend::events::AppServerEvent;
 use crate::event_sink::TauriEventSink;
@@ -19,18 +18,14 @@ use crate::types::WorkspaceEntry;
 
 pub(crate) async fn spawn_workspace_session(
     entry: WorkspaceEntry,
-    default_codex_bin: Option<String>,
-    codex_args: Option<String>,
+    config: CliSpawnConfig,
     app_handle: AppHandle,
-    codex_home: Option<PathBuf>,
 ) -> Result<Arc<WorkspaceSession>, String> {
     let client_version = app_handle.package_info().version.to_string();
     let event_sink = TauriEventSink::new(app_handle);
     spawn_workspace_session_inner(
         entry,
-        default_codex_bin,
-        codex_args,
-        codex_home,
+        config,
         client_version,
         event_sink,
     )

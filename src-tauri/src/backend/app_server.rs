@@ -20,6 +20,125 @@ use crate::types::WorkspaceEntry;
 #[cfg(target_os = "windows")]
 use crate::shared::process_core::{build_cmd_c_command, resolve_windows_executable};
 
+#[derive(Clone, Debug)]
+pub(crate) struct CliSpawnConfig {
+    pub cli_type: String,
+    pub cli_bin: Option<String>,
+    pub cli_args: Option<String>,
+    pub cli_home: Option<PathBuf>,
+}
+
+#[async_trait::async_trait]
+pub(crate) trait CliAdapter: Send + Sync {
+    async fn send_request(&self, method: &str, params: Value) -> Result<Value, String>;
+    async fn send_notification(&self, method: &str, params: Option<Value>) -> Result<(), String>;
+    async fn send_response(&self, id: Value, result: Value) -> Result<(), String>;
+    async fn kill(&self);
+}
+
+struct AppServerTransport {
+    child: Mutex<Child>,
+    stdin: Mutex<ChildStdin>,
+    pending: Mutex<HashMap<u64, oneshot::Sender<Value>>>,
+    next_id: AtomicU64,
+}
+
+enum SessionTransport {
+    AppServer(AppServerTransport),
+    Adapter(Box<dyn CliAdapter>),
+}
+
+pub(crate) struct WorkspaceSession {
+    pub(crate) entry: WorkspaceEntry,
+    pub(crate) background_thread_callbacks: Arc<Mutex<HashMap<String, mpsc::UnboundedSender<Value>>>>,
+    transport: SessionTransport,
+}
+
+impl WorkspaceSession {
+    async fn write_message(&self, value: Value) -> Result<(), String> {
+        match &self.transport {
+            SessionTransport::AppServer(t) => {
+                let mut stdin = t.stdin.lock().await;
+                let mut line = serde_json::to_string(&value).map_err(|e| e.to_string())?;
+                line.push('\n');
+                stdin
+                    .write_all(line.as_bytes())
+                    .await
+                    .map_err(|e| e.to_string())
+            }
+            SessionTransport::Adapter(_) => {
+                Err("write_message not supported on adapter transport".to_string())
+            }
+        }
+    }
+
+    pub(crate) async fn send_request(&self, method: &str, params: Value) -> Result<Value, String> {
+        match &self.transport {
+            SessionTransport::AppServer(t) => {
+                let id = t.next_id.fetch_add(1, Ordering::SeqCst);
+                let (tx, rx) = oneshot::channel();
+                t.pending.lock().await.insert(id, tx);
+                self.write_message(json!({ "id": id, "method": method, "params": params }))
+                    .await?;
+                rx.await.map_err(|_| "request canceled".to_string())
+            }
+            SessionTransport::Adapter(adapter) => adapter.send_request(method, params).await,
+        }
+    }
+
+    pub(crate) async fn send_notification(
+        &self,
+        method: &str,
+        params: Option<Value>,
+    ) -> Result<(), String> {
+        match &self.transport {
+            SessionTransport::AppServer(_) => {
+                let value = if let Some(params) = params {
+                    json!({ "method": method, "params": params })
+                } else {
+                    json!({ "method": method })
+                };
+                self.write_message(value).await
+            }
+            SessionTransport::Adapter(adapter) => adapter.send_notification(method, params).await,
+        }
+    }
+
+    pub(crate) async fn send_response(&self, id: Value, result: Value) -> Result<(), String> {
+        match &self.transport {
+            SessionTransport::AppServer(_) => {
+                self.write_message(json!({ "id": id, "result": result }))
+                    .await
+            }
+            SessionTransport::Adapter(adapter) => adapter.send_response(id, result).await,
+        }
+    }
+
+    pub(crate) async fn kill(&self) {
+        match &self.transport {
+            SessionTransport::AppServer(t) => {
+                let mut child = t.child.lock().await;
+                kill_child_process_tree(&mut child).await;
+            }
+            SessionTransport::Adapter(adapter) => {
+                adapter.kill().await;
+            }
+        }
+    }
+
+    pub(crate) fn new_with_adapter(
+        entry: WorkspaceEntry,
+        adapter: Box<dyn CliAdapter>,
+        callbacks: Arc<Mutex<HashMap<String, mpsc::UnboundedSender<Value>>>>,
+    ) -> Self {
+        Self {
+            entry,
+            background_thread_callbacks: callbacks,
+            transport: SessionTransport::Adapter(adapter),
+        }
+    }
+}
+
 fn extract_thread_id(value: &Value) -> Option<String> {
     let params = value.get("params")?;
 
@@ -48,55 +167,6 @@ fn build_initialize_params(client_version: &str) -> Value {
             "experimentalApi": true
         }
     })
-}
-
-pub(crate) struct WorkspaceSession {
-    pub(crate) entry: WorkspaceEntry,
-    pub(crate) child: Mutex<Child>,
-    pub(crate) stdin: Mutex<ChildStdin>,
-    pub(crate) pending: Mutex<HashMap<u64, oneshot::Sender<Value>>>,
-    pub(crate) next_id: AtomicU64,
-    /// Callbacks for background threads - events for these threadIds are sent through the channel
-    pub(crate) background_thread_callbacks: Mutex<HashMap<String, mpsc::UnboundedSender<Value>>>,
-}
-
-impl WorkspaceSession {
-    async fn write_message(&self, value: Value) -> Result<(), String> {
-        let mut stdin = self.stdin.lock().await;
-        let mut line = serde_json::to_string(&value).map_err(|e| e.to_string())?;
-        line.push('\n');
-        stdin
-            .write_all(line.as_bytes())
-            .await
-            .map_err(|e| e.to_string())
-    }
-
-    pub(crate) async fn send_request(&self, method: &str, params: Value) -> Result<Value, String> {
-        let id = self.next_id.fetch_add(1, Ordering::SeqCst);
-        let (tx, rx) = oneshot::channel();
-        self.pending.lock().await.insert(id, tx);
-        self.write_message(json!({ "id": id, "method": method, "params": params }))
-            .await?;
-        rx.await.map_err(|_| "request canceled".to_string())
-    }
-
-    pub(crate) async fn send_notification(
-        &self,
-        method: &str,
-        params: Option<Value>,
-    ) -> Result<(), String> {
-        let value = if let Some(params) = params {
-            json!({ "method": method, "params": params })
-        } else {
-            json!({ "method": method })
-        };
-        self.write_message(value).await
-    }
-
-    pub(crate) async fn send_response(&self, id: Value, result: Value) -> Result<(), String> {
-        self.write_message(json!({ "id": id, "result": result }))
-            .await
-    }
 }
 
 pub(crate) fn build_codex_path_env(codex_bin: Option<&str>) -> Option<String> {
@@ -232,28 +302,31 @@ pub(crate) fn build_codex_command_with_bin(
     Ok(command)
 }
 
-pub(crate) async fn check_codex_installation(
-    codex_bin: Option<String>,
+pub(crate) async fn check_cli_installation(
+    cli_bin: Option<String>,
+    cli_name: &str,
 ) -> Result<Option<String>, String> {
     let mut command =
-        build_codex_command_with_bin(codex_bin, None, vec!["--version".to_string()])?;
+        build_codex_command_with_bin(cli_bin, None, vec!["--version".to_string()])?;
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
 
     let output = match timeout(Duration::from_secs(5), command.output()).await {
         Ok(result) => result.map_err(|e| {
             if e.kind() == ErrorKind::NotFound {
-                "Codex CLI not found. Install Codex and ensure `codex` is on your PATH."
-                    .to_string()
+                format!(
+                    "{cli_name} CLI not found. Install {cli_name} and ensure `{bin}` is on your PATH.",
+                    bin = cli_name.to_lowercase()
+                )
             } else {
                 e.to_string()
             }
         })?,
         Err(_) => {
-            return Err(
-                "Timed out while checking Codex CLI. Make sure `codex --version` runs in Terminal."
-                    .to_string(),
-            );
+            return Err(format!(
+                "Timed out while checking {cli_name} CLI. Make sure `{bin} --version` runs in Terminal.",
+                bin = cli_name.to_lowercase()
+            ));
         }
     };
 
@@ -266,13 +339,14 @@ pub(crate) async fn check_codex_installation(
             stderr.trim()
         };
         if detail.is_empty() {
-            return Err(
-                "Codex CLI failed to start. Try running `codex --version` in Terminal."
-                    .to_string(),
-            );
+            return Err(format!(
+                "{cli_name} CLI failed to start. Try running `{bin} --version` in Terminal.",
+                bin = cli_name.to_lowercase()
+            ));
         }
         return Err(format!(
-            "Codex CLI failed to start: {detail}. Try running `codex --version` in Terminal."
+            "{cli_name} CLI failed to start: {detail}. Try running `{bin} --version` in Terminal.",
+            bin = cli_name.to_lowercase()
         ));
     }
 
@@ -280,31 +354,43 @@ pub(crate) async fn check_codex_installation(
     Ok(if version.is_empty() { None } else { Some(version) })
 }
 
+pub(crate) async fn check_codex_installation(
+    codex_bin: Option<String>,
+) -> Result<Option<String>, String> {
+    check_cli_installation(codex_bin, "Codex").await
+}
+
 pub(crate) async fn spawn_workspace_session<E: EventSink>(
     entry: WorkspaceEntry,
-    default_codex_bin: Option<String>,
-    codex_args: Option<String>,
-    codex_home: Option<PathBuf>,
+    config: CliSpawnConfig,
     client_version: String,
     event_sink: E,
 ) -> Result<Arc<WorkspaceSession>, String> {
-    let codex_bin = default_codex_bin
+    if config.cli_type == "claude" {
+        return crate::backend::claude_adapter::spawn_claude_session(
+            entry, config, event_sink,
+        )
+        .await;
+    }
+
+    let codex_bin = config
+        .cli_bin
         .filter(|value| !value.trim().is_empty())
         .or_else(|| {
             entry
-        .codex_bin
-        .clone()
-        .filter(|value| !value.trim().is_empty())
+                .codex_bin
+                .clone()
+                .filter(|value| !value.trim().is_empty())
         });
     let _ = check_codex_installation(codex_bin.clone()).await?;
 
     let mut command = build_codex_command_with_bin(
         codex_bin,
-        codex_args.as_deref(),
+        config.cli_args.as_deref(),
         vec!["app-server".to_string()],
     )?;
     command.current_dir(&entry.path);
-    if let Some(codex_home) = codex_home {
+    if let Some(codex_home) = config.cli_home {
         command.env("CODEX_HOME", codex_home);
     }
     command.stdin(std::process::Stdio::piped());
@@ -316,13 +402,17 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     let stdout = child.stdout.take().ok_or("missing stdout")?;
     let stderr = child.stderr.take().ok_or("missing stderr")?;
 
-    let session = Arc::new(WorkspaceSession {
-        entry: entry.clone(),
+    let transport = AppServerTransport {
         child: Mutex::new(child),
         stdin: Mutex::new(stdin),
         pending: Mutex::new(HashMap::new()),
         next_id: AtomicU64::new(1),
-        background_thread_callbacks: Mutex::new(HashMap::new()),
+    };
+
+    let session = Arc::new(WorkspaceSession {
+        entry: entry.clone(),
+        background_thread_callbacks: Arc::new(Mutex::new(HashMap::new())),
+        transport: SessionTransport::AppServer(transport),
     });
 
     let session_clone = Arc::clone(&session);
@@ -353,16 +443,16 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
             let has_method = value.get("method").is_some();
             let has_result_or_error = value.get("result").is_some() || value.get("error").is_some();
 
-            // Check if this event is for a background thread
             let thread_id = extract_thread_id(&value);
 
             if let Some(id) = maybe_id {
                 if has_result_or_error {
-                    if let Some(tx) = session_clone.pending.lock().await.remove(&id) {
-                        let _ = tx.send(value);
+                    if let SessionTransport::AppServer(t) = &session_clone.transport {
+                        if let Some(tx) = t.pending.lock().await.remove(&id) {
+                            let _ = tx.send(value);
+                        }
                     }
                 } else if has_method {
-                    // Check for background thread callback
                     let mut sent_to_background = false;
                     if let Some(ref tid) = thread_id {
                         let callbacks = session_clone.background_thread_callbacks.lock().await;
@@ -371,7 +461,6 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                             sent_to_background = true;
                         }
                     }
-                    // Don't emit to frontend if this is a background thread event
                     if !sent_to_background {
                         let payload = AppServerEvent {
                             workspace_id: workspace_id.clone(),
@@ -379,11 +468,12 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                         };
                         event_sink_clone.emit_app_server_event(payload);
                     }
-                } else if let Some(tx) = session_clone.pending.lock().await.remove(&id) {
-                    let _ = tx.send(value);
+                } else if let SessionTransport::AppServer(t) = &session_clone.transport {
+                    if let Some(tx) = t.pending.lock().await.remove(&id) {
+                        let _ = tx.send(value);
+                    }
                 }
             } else if has_method {
-                // Check for background thread callback
                 let mut sent_to_background = false;
                 if let Some(ref tid) = thread_id {
                     let callbacks = session_clone.background_thread_callbacks.lock().await;
@@ -392,7 +482,6 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                         sent_to_background = true;
                     }
                 }
-                // Don't emit to frontend if this is a background thread event
                 if !sent_to_background {
                     let payload = AppServerEvent {
                         workspace_id: workspace_id.clone(),
@@ -432,8 +521,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     let init_response = match init_result {
         Ok(response) => response,
         Err(_) => {
-            let mut child = session.child.lock().await;
-            kill_child_process_tree(&mut child).await;
+            session.kill().await;
             return Err(
                 "Codex app-server did not respond to initialize. Check that `codex app-server` works in Terminal."
                     .to_string(),
@@ -457,7 +545,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 
 #[cfg(test)]
 mod tests {
-    use super::{build_initialize_params, extract_thread_id};
+    use super::{build_initialize_params, extract_thread_id, CliSpawnConfig};
     use serde_json::json;
 
     #[test]
@@ -488,5 +576,17 @@ mod tests {
                 .and_then(|value| value.as_bool()),
             Some(true)
         );
+    }
+
+    #[test]
+    fn cli_spawn_config_defaults() {
+        let config = CliSpawnConfig {
+            cli_type: "codex".to_string(),
+            cli_bin: None,
+            cli_args: None,
+            cli_home: None,
+        };
+        assert_eq!(config.cli_type, "codex");
+        assert!(config.cli_bin.is_none());
     }
 }

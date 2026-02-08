@@ -24,7 +24,7 @@ use super::worktree::{
     unique_worktree_path_for_rename,
 };
 
-use crate::backend::app_server::WorkspaceSession;
+use crate::backend::app_server::{CliSpawnConfig, WorkspaceSession};
 use crate::codex::spawn_workspace_session;
 use crate::git_utils::resolve_git_root;
 use crate::remote_backend;
@@ -43,11 +43,9 @@ use crate::utils::{git_env_path, resolve_git_binary};
 fn spawn_with_app(
     app: &AppHandle,
     entry: WorkspaceEntry,
-    default_bin: Option<String>,
-    codex_args: Option<String>,
-    codex_home: Option<PathBuf>,
+    config: CliSpawnConfig,
 ) -> impl std::future::Future<Output = Result<Arc<WorkspaceSession>, String>> {
-    spawn_workspace_session(entry, default_bin, codex_args, app.clone(), codex_home)
+    spawn_workspace_session(entry, config, app.clone())
 }
 
 async fn setup_workspace_sandbox_if_needed(
@@ -175,8 +173,8 @@ pub(crate) async fn add_workspace(
         &state.sessions,
         &state.app_settings,
         &state.storage_path,
-        |entry, default_bin, codex_args, codex_home| {
-            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+        |entry, config| {
+            spawn_with_app(&app, entry, config)
         },
     )
     .await
@@ -264,20 +262,11 @@ pub(crate) async fn add_clone(
     };
 
     let settings_snapshot = state.app_settings.lock().await.clone();
-    let (default_bin, codex_args) = {
-        (
-            workspaces_core::resolve_workspace_cli_bin(&entry, &settings_snapshot),
-            workspaces_core::resolve_workspace_cli_args(&entry, None, Some(&settings_snapshot)),
-        )
-    };
-    let codex_home =
-        workspaces_core::resolve_workspace_cli_home(&entry, None, Some(&settings_snapshot));
+    let config = workspaces_core::build_cli_spawn_config(&entry, None, &settings_snapshot);
     let session = match spawn_workspace_session(
         entry.clone(),
-        default_bin,
-        codex_args,
+        config,
         app,
-        codex_home,
     )
     .await
     {
@@ -298,8 +287,7 @@ pub(crate) async fn add_clone(
             let mut workspaces = state.workspaces.lock().await;
             workspaces.remove(&entry.id);
         }
-        let mut child = session.child.lock().await;
-        kill_child_process_tree(&mut child).await;
+        session.kill().await;
         let _ = tokio::fs::remove_dir_all(&destination_path).await;
         return Err(error);
     }
@@ -377,8 +365,8 @@ pub(crate) async fn add_worktree(
                 run_git_command_owned(repo, args_owned)
             })
         },
-        |entry, default_bin, codex_args, codex_home| {
-            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+        |entry, config| {
+            spawn_with_app(&app, entry, config)
         },
     )
     .await
@@ -542,8 +530,8 @@ pub(crate) async fn rename_worktree(
                 run_git_command_owned(repo, args_owned)
             })
         },
-        |entry, default_bin, codex_args, codex_home| {
-            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+        |entry, config| {
+            spawn_with_app(&app, entry, config)
         },
     )
     .await
@@ -759,8 +747,8 @@ pub(crate) async fn update_workspace_settings(
         |workspaces, workspace_id, next_settings| {
             apply_workspace_settings_update(workspaces, workspace_id, next_settings)
         },
-        |entry, default_bin, codex_args, codex_home| {
-            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+        |entry, config| {
+            spawn_with_app(&app, entry, config)
         },
     )
     .await
@@ -826,8 +814,8 @@ pub(crate) async fn connect_workspace(
         &state.workspaces,
         &state.sessions,
         &state.app_settings,
-        |entry, default_bin, codex_args, codex_home| {
-            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+        |entry, config| {
+            spawn_with_app(&app, entry, config)
         },
     )
     .await
