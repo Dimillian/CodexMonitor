@@ -8,6 +8,7 @@ Download the latest release from the [GitHub Releases](https://github.com/N3RDMJ
 
 - **macOS**: Download the `.dmg` file, open it, and drag Agent Monitor to your Applications folder
 - **Linux**: Download the `.AppImage` file, make it executable (`chmod +x`), and run it
+- **Windows**: Download either the installer (`.exe` / `.msi`) or the portable `.zip`
 
 ### Homebrew (macOS)
 
@@ -104,6 +105,7 @@ npm run tauri:build:win
 Output locations:
 - `src-tauri/target/release/bundle/nsis/` (installer exe)
 - `src-tauri/target/release/bundle/msi/` (msi)
+- `src-tauri/target/release/Agent Monitor.exe` (portable binary used for release zip packaging)
 
 ### Nix Users
 
