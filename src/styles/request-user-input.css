@@ -118,6 +118,12 @@
   color: var(--text-muted);
 }
 
+.plan-ready-followup-change {
+  background: #0b0f1a;
+  color: #ffffff;
+  border: 1px solid var(--border-strong);
+}
+
 @media (max-width: 960px) {
   .request-user-input-card {
     width: min(100%, 520px);

@@ -112,8 +112,13 @@ import { useWorkspaceHome } from "./features/workspaces/hooks/useWorkspaceHome";
 import { useWorkspaceAgentMd } from "./features/workspaces/hooks/useWorkspaceAgentMd";
 import { pickWorkspacePath } from "./services/tauri";
 import { isMobilePlatform } from "./utils/platformPaths";
+import {
+  makePlanReadyAcceptMessage,
+  makePlanReadyChangesMessage,
+} from "./utils/internalPlanReadyMessages";
 import type {
   AccessMode,
+  CollaborationModeOption,
   ComposerEditorSettings,
   ThreadListSortKey,
   WorkspaceInfo,
@@ -1704,6 +1709,116 @@ function MainApp() {
     ],
   );
 
+  const findCollaborationMode = useCallback(
+    (wanted: string) => {
+      const normalized = wanted.trim().toLowerCase();
+      if (!normalized) {
+        return null;
+      }
+      return (
+        collaborationModes.find(
+          (mode) => mode.id.trim().toLowerCase() === normalized,
+        ) ??
+        collaborationModes.find(
+          (mode) => (mode.mode || mode.id).trim().toLowerCase() === normalized,
+        ) ??
+        null
+      );
+    },
+    [collaborationModes],
+  );
+
+  const buildCollaborationModePayloadFor = useCallback(
+    (mode: CollaborationModeOption | null) => {
+      if (!mode) {
+        return null;
+      }
+      const modeValue = mode.mode || mode.id;
+      if (!modeValue) {
+        return null;
+      }
+      const settings: Record<string, unknown> = {
+        developer_instructions: mode.developerInstructions ?? null,
+      };
+      if (resolvedModel) {
+        settings.model = resolvedModel;
+      }
+      if (resolvedEffort !== null) {
+        settings.reasoning_effort = resolvedEffort;
+      }
+      return { mode: modeValue, settings };
+    },
+    [resolvedEffort, resolvedModel],
+  );
+
+  const handlePlanAccept = useCallback(async () => {
+    if (!activeWorkspace || !activeThreadId) {
+      return;
+    }
+    if (!activeWorkspace.connected) {
+      await connectWorkspace(activeWorkspace);
+    }
+    const defaultMode =
+      findCollaborationMode("default") ??
+      findCollaborationMode("code") ??
+      collaborationModes[0] ??
+      null;
+    if (defaultMode?.id) {
+      setSelectedCollaborationModeId(defaultMode.id);
+    }
+    const collaborationMode = buildCollaborationModePayloadFor(defaultMode);
+    await sendUserMessageToThread(
+      activeWorkspace,
+      activeThreadId,
+      makePlanReadyAcceptMessage(),
+      [],
+      collaborationMode ? { collaborationMode } : undefined,
+    );
+  }, [
+    activeThreadId,
+    activeWorkspace,
+    buildCollaborationModePayloadFor,
+    collaborationModes,
+    connectWorkspace,
+    findCollaborationMode,
+    sendUserMessageToThread,
+    setSelectedCollaborationModeId,
+  ]);
+
+  const handlePlanSubmitChanges = useCallback(
+    async (changes: string) => {
+      const trimmed = changes.trim();
+      if (!activeWorkspace || !activeThreadId || !trimmed) {
+        return;
+      }
+      if (!activeWorkspace.connected) {
+        await connectWorkspace(activeWorkspace);
+      }
+      const planMode = findCollaborationMode("plan");
+      if (planMode?.id) {
+        setSelectedCollaborationModeId(planMode.id);
+      }
+      const collaborationMode = buildCollaborationModePayloadFor(planMode);
+      const message = makePlanReadyChangesMessage(trimmed);
+      await sendUserMessageToThread(
+        activeWorkspace,
+        activeThreadId,
+        message,
+        [],
+        collaborationMode ? { collaborationMode } : undefined,
+      );
+    },
+    [
+      activeThreadId,
+      activeWorkspace,
+      buildCollaborationModePayloadFor,
+      connectWorkspace,
+      findCollaborationMode,
+      sendUserMessageToThread,
+      setSelectedCollaborationModeId,
+    ],
+  );
+
   const orderValue = (entry: WorkspaceInfo) =>
     typeof entry.settings.sortOrder === "number"
       ? entry.settings.sortOrder
@@ -1873,6 +1988,8 @@ function MainApp() {
     handleApprovalDecision,
     handleApprovalRemember,
     handleUserInputSubmit,
+    onPlanAccept: handlePlanAccept,
+    onPlanSubmitChanges: handlePlanSubmitChanges,
     onOpenSettings: () => openSettings(),
     onOpenDictationSettings: () => openSettings("dictation"),
     onOpenDebug: handleDebugClick,

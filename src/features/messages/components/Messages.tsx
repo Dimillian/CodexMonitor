@@ -32,8 +32,10 @@ import type {
 import { Markdown } from "./Markdown";
 import { DiffBlock } from "../../git/components/DiffBlock";
 import { languageFromPath } from "../../../utils/syntax";
+import { isPlanReadyTaggedMessage } from "../../../utils/internalPlanReadyMessages";
 import { useFileLinkOpener } from "../hooks/useFileLinkOpener";
 import { RequestUserInputMessage } from "../../app/components/RequestUserInputMessage";
+import { PlanReadyFollowupMessage } from "../../app/components/PlanReadyFollowupMessage";
 
 type MessagesProps = {
   items: ConversationItem[];
@@ -53,6 +55,8 @@ type MessagesProps = {
     request: RequestUserInputRequest,
     response: RequestUserInputResponse,
   ) => void;
+  onPlanAccept?: () => void;
+  onPlanSubmitChanges?: (changes: string) => void;
   onOpenThreadLink?: (threadId: string) => void;
 };
 
@@ -1143,6 +1147,8 @@ export const Messages = memo(function Messages({
   showMessageFilePath = true,
   userInputRequests = [],
   onUserInputSubmit,
+  onPlanAccept,
+  onPlanSubmitChanges,
   onOpenThreadLink,
 }: MessagesProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -1255,6 +1261,13 @@ export const Messages = memo(function Messages({
   const visibleItems = useMemo(
     () =>
       items.filter((item) => {
+        if (
+          item.kind === "message" &&
+          item.role === "user" &&
+          isPlanReadyTaggedMessage(item.text)
+        ) {
+          return false;
+        }
         if (item.kind !== "reasoning") {
           return true;
         }
@@ -1331,6 +1344,7 @@ export const Messages = memo(function Messages({
   const groupedItems = useMemo(() => buildToolGroups(visibleItems), [visibleItems]);
 
   const hasActiveUserInputRequest = activeUserInputRequestId !== null;
+  const hasVisibleUserInputRequest = hasActiveUserInputRequest && Boolean(onUserInputSubmit);
   const userInputNode =
     hasActiveUserInputRequest && onUserInputSubmit ? (
       <RequestUserInputMessage
@@ -1338,6 +1352,89 @@ export const Messages = memo(function Messages({
         activeThreadId={threadId}
         activeWorkspaceId={workspaceId}
         onSubmit={onUserInputSubmit}
+      />
+    ) : null;
+
+  const [dismissedPlanFollowupByThread, setDismissedPlanFollowupByThread] =
+    useState<Record<string, string>>({});
+
+  const planFollowup = useMemo(() => {
+    if (!threadId) {
+      return { shouldShow: false, planItemId: null as string | null };
+    }
+    if (!onPlanAccept || !onPlanSubmitChanges) {
+      return { shouldShow: false, planItemId: null as string | null };
+    }
+    if (hasVisibleUserInputRequest) {
+      return { shouldShow: false, planItemId: null as string | null };
+    }
+    let planIndex = -1;
+    let planItem: Extract<ConversationItem, { kind: "tool" }> | null = null;
+    for (let index = items.length - 1; index >= 0; index -= 1) {
+      const item = items[index];
+      if (item.kind === "tool" && item.toolType === "plan") {
+        planIndex = index;
+        planItem = item;
+        break;
+      }
+    }
+    if (!planItem) {
+      return { shouldShow: false, planItemId: null as string | null };
+    }
+    const planItemId = planItem.id;
+    if (dismissedPlanFollowupByThread[threadId] === planItemId) {
+      return { shouldShow: false, planItemId };
+    }
+    if (!(planItem.output ?? "").trim()) {
+      return { shouldShow: false, planItemId };
+    }
+    const planTone = toolStatusTone(planItem, false);
+    if (planTone === "failed") {
+      return { shouldShow: false, planItemId };
+    }
+    // Some backends stream plan output deltas without a final status update. As
+    // soon as the turn stops thinking, treat the latest plan output as ready.
+    if (isThinking && planTone !== "completed") {
+      return { shouldShow: false, planItemId };
+    }
+    for (let index = planIndex + 1; index < items.length; index += 1) {
+      const item = items[index];
+      if (item.kind === "message" && item.role === "user") {
+        return { shouldShow: false, planItemId };
+      }
+    }
+    return { shouldShow: true, planItemId };
+  }, [
+    dismissedPlanFollowupByThread,
+    hasVisibleUserInputRequest,
+    isThinking,
+    items,
+    onPlanAccept,
+    onPlanSubmitChanges,
+    threadId,
+  ]);
+
+  const planFollowupNode =
+    planFollowup.shouldShow && onPlanAccept && onPlanSubmitChanges ? (
+      <PlanReadyFollowupMessage
+        onAccept={() => {
+          if (threadId && planFollowup.planItemId) {
+            setDismissedPlanFollowupByThread((prev) => ({
+              ...prev,
+              [threadId]: planFollowup.planItemId!,
+            }));
+          }
+          onPlanAccept();
+        }}
+        onSubmitChanges={(changes) => {
+          if (threadId && planFollowup.planItemId) {
+            setDismissedPlanFollowupByThread((prev) => ({
+              ...prev,
+              [threadId]: planFollowup.planItemId!,
+            }));
+          }
+          onPlanSubmitChanges(changes);
+        }}
       />
     ) : null;
 
@@ -1465,6 +1562,7 @@ export const Messages = memo(function Messages({
         }
         return renderItem(entry.item);
       })}
+      {planFollowupNode}
       {userInputNode}
       <WorkingIndicator
         isThinking={isThinking}

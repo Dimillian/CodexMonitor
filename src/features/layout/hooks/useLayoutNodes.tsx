@@ -145,6 +145,8 @@ type LayoutNodesOptions = {
     request: RequestUserInputRequest,
     response: RequestUserInputResponse,
   ) => void;
+  onPlanAccept?: () => void;
+  onPlanSubmitChanges?: (changes: string) => void;
   onOpenSettings: () => void;
   onOpenDictationSettings?: () => void;
   onOpenDebug: () => void;
@@ -549,6 +551,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       showMessageFilePath={options.showMessageFilePath}
       userInputRequests={options.userInputRequests}
       onUserInputSubmit={options.handleUserInputSubmit}
+      onPlanAccept={options.onPlanAccept}
+      onPlanSubmitChanges={options.onPlanSubmitChanges}
       onOpenThreadLink={options.onOpenThreadLink}
       isThinking={options.isProcessing}
       isLoadingMessages={
