@@ -112,6 +112,17 @@ const createDoctorResult = () => ({
   nodeDetails: null,
 });
 
+const createUpdateResult = () => ({
+  ok: true,
+  method: "brew_formula" as const,
+  package: "codex",
+  beforeVersion: "codex 0.0.0",
+  afterVersion: "codex 0.0.1",
+  upgraded: true,
+  output: null,
+  details: null,
+});
+
 const renderDisplaySection = (
   options: {
     appSettings?: Partial<AppSettings>;
@@ -592,6 +603,7 @@ describe("SettingsView Codex overrides", () => {
         openAppIconById={{}}
         onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
         onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={onUpdateWorkspaceSettings}
         scaleShortcutTitle="Scale shortcut"
@@ -639,6 +651,7 @@ describe("SettingsView Codex overrides", () => {
         openAppIconById={{}}
         onUpdateAppSettings={onUpdateAppSettings}
         onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
         scaleShortcutTitle="Scale shortcut"

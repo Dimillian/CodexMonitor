@@ -6,6 +6,7 @@ import X from "lucide-react/dist/esm/icons/x";
 import type {
   AppSettings,
   CodexDoctorResult,
+  CodexUpdateResult,
   DictationModelStatus,
   OrbitConnectTestResult,
   OrbitRunnerStatus,
@@ -282,6 +283,10 @@ export type SettingsViewProps = {
     codexBin: string | null,
     codexArgs: string | null,
   ) => Promise<CodexDoctorResult>;
+  onRunCodexUpdate?: (
+    codexBin: string | null,
+    codexArgs: string | null,
+  ) => Promise<CodexUpdateResult>;
   onUpdateWorkspaceCodexBin: (id: string, codexBin: string | null) => Promise<void>;
   onUpdateWorkspaceSettings: (
     id: string,
@@ -380,6 +385,7 @@ export function SettingsView({
   openAppIconById,
   onUpdateAppSettings,
   onRunDoctor,
+  onRunCodexUpdate,
   onUpdateWorkspaceCodexBin,
   onUpdateWorkspaceSettings,
   scaleShortcutTitle,
@@ -479,6 +485,11 @@ export function SettingsView({
   const [doctorState, setDoctorState] = useState<{
     status: "idle" | "running" | "done";
     result: CodexDoctorResult | null;
+  }>({ status: "idle", result: null });
+
+  const [codexUpdateState, setCodexUpdateState] = useState<{
+    status: "idle" | "running" | "done";
+    result: CodexUpdateResult | null;
   }>({ status: "idle", result: null });
   const {
     content: globalAgentsContent,
@@ -1581,6 +1592,45 @@ export function SettingsView({
     }
   };
 
+  const handleRunCodexUpdate = async () => {
+    setCodexUpdateState({ status: "running", result: null });
+    try {
+      if (!onRunCodexUpdate) {
+        setCodexUpdateState({
+          status: "done",
+          result: {
+            ok: false,
+            method: "unknown",
+            package: null,
+            beforeVersion: null,
+            afterVersion: null,
+            upgraded: false,
+            output: null,
+            details: "Codex updates are not available in this build.",
+          },
+        });
+        return;
+      }
+
+      const result = await onRunCodexUpdate(nextCodexBin, nextCodexArgs);
+      setCodexUpdateState({ status: "done", result });
+    } catch (error) {
+      setCodexUpdateState({
+        status: "done",
+        result: {
+          ok: false,
+          method: "unknown",
+          package: null,
+          beforeVersion: null,
+          afterVersion: null,
+          upgraded: false,
+          output: null,
+          details: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  };
+
   const updateShortcut = async (key: ShortcutSettingKey, value: string | null) => {
     const draftKey = shortcutDraftKeyBySetting[key];
     setShortcutDrafts((prev) => ({
@@ -1981,6 +2031,7 @@ export function SettingsView({
               codexDirty={codexDirty}
               isSavingSettings={isSavingSettings}
               doctorState={doctorState}
+              codexUpdateState={codexUpdateState}
               globalAgentsMeta={globalAgentsMeta}
               globalAgentsError={globalAgentsError}
               globalAgentsContent={globalAgentsContent}
@@ -2009,6 +2060,7 @@ export function SettingsView({
               onBrowseCodex={handleBrowseCodex}
               onSaveCodexSettings={handleSaveCodexSettings}
               onRunDoctor={handleRunDoctor}
+              onRunCodexUpdate={handleRunCodexUpdate}
               onRefreshGlobalAgents={() => {
                 void refreshGlobalAgents();
               }}
