@@ -111,6 +111,7 @@ pub fn run() {
             codex::get_config_model,
             menu::menu_set_accelerators,
             codex::codex_doctor,
+            codex::codex_update,
             workspaces::list_workspaces,
             workspaces::is_workspace_path_dir,
             workspaces::add_workspace,
