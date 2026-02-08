@@ -337,7 +337,7 @@ pub(crate) fn handle_menu_event<R: tauri::Runtime>(
                 return;
             }
             let _ = WebviewWindowBuilder::new(app, "about", WebviewUrl::App("index.html".into()))
-                .title("About Codex Monitor")
+                .title("关于 Codex Monitor")
                 .resizable(false)
                 .inner_size(360.0, 240.0)
                 .center()

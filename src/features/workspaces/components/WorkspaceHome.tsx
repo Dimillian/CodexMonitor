@@ -584,7 +584,7 @@ export function WorkspaceHome({
                   icon={<Laptop className="workspace-home-mode-icon" aria-hidden />}
                   active={runMode === "local"}
                 >
-                  Local
+                  本地
                 </PopoverMenuItem>
                 <PopoverMenuItem
                   className="open-app-option"
@@ -596,7 +596,7 @@ export function WorkspaceHome({
                   icon={<GitBranch className="workspace-home-mode-icon" aria-hidden />}
                   active={runMode === "worktree"}
                 >
-                  Worktree
+                  工作树
                 </PopoverMenuItem>
               </PopoverSurface>
             )}
