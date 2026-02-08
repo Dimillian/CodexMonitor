@@ -306,8 +306,9 @@ export function ComposerInput({
     },
     [handlePaste, onTextPaste],
   );
-  const processingQueueMode = isProcessing && !canStop && sendLabel === "Queue";
-  const processingSteerMode = isProcessing && !canStop && !processingQueueMode;
+  const isProcessingNoStop = isProcessing && !canStop;
+  const processingQueueMode = isProcessingNoStop && sendLabel === "Queue";
+  const processingSteerMode = isProcessingNoStop && sendLabel === "Send";
   const actionLabel = processingQueueMode
     ? "Queue"
     : processingSteerMode

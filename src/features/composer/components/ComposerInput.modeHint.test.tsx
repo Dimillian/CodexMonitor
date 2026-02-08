@@ -60,4 +60,13 @@ describe("ComposerInput processing mode hints", () => {
     expect(screen.getByText("Agent is working. Enter queues.")).toBeTruthy();
     expect(screen.queryByText("Agent is working. Enter steers.")).toBeNull();
   });
+
+  it("does not show steer/queue processing hints for custom labels", () => {
+    renderInput({ isProcessing: true, sendLabel: "Ask PR" });
+
+    expect(screen.queryByText("Steer")).toBeNull();
+    expect(screen.queryByText("Queue")).toBeNull();
+    expect(screen.queryByText("Agent is working. Enter steers.")).toBeNull();
+    expect(screen.queryByText("Agent is working. Enter queues.")).toBeNull();
+  });
 });
