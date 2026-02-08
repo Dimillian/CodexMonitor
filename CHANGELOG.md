@@ -5,6 +5,7 @@ All notable changes to this project are documented in this file.
 ## Unreleased
 
 ### Changed
+- Global `config.toml` policy now permits external symlink targets, so Codex config read/write operations work when `~/.codex/config.toml` points to a symlinked file.
 - Composer drag-and-drop now inserts dropped non-image file/folder paths into the draft text while still attaching dropped images to message context.
 - Composer now surfaces queue vs steer behavior while an agent is processing: send button shows `Steer`/`Queue` only for explicit `Send`/`Queue` modes, and steer mode includes an inline `Tab`-to-queue hint.
 - Codex parity guardrails now explicitly allow `src/styles/composer.css` so fork-specific composer UX clarity updates do not fail upstream style parity checks.

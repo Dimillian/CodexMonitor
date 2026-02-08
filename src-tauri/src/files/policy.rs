@@ -47,7 +47,7 @@ pub(crate) fn policy_for(scope: FileScope, kind: FileKind) -> Result<FilePolicy,
             root_context: "CODEX_HOME",
             root_may_be_missing: true,
             create_root: true,
-            allow_external_symlink_target: false,
+            allow_external_symlink_target: true,
         }),
         (FileScope::Workspace, FileKind::Config) => {
             Err("config.toml is only supported for global scope".to_string())
@@ -86,7 +86,7 @@ mod tests {
         assert_eq!(policy.root_context, "CODEX_HOME");
         assert!(policy.root_may_be_missing);
         assert!(policy.create_root);
-        assert!(!policy.allow_external_symlink_target);
+        assert!(policy.allow_external_symlink_target);
     }
 
     #[test]

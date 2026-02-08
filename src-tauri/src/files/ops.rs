@@ -105,4 +105,33 @@ mod tests {
 
         let _ = fs::remove_dir_all(&root);
     }
+
+    #[cfg(unix)]
+    #[test]
+    fn global_config_write_updates_external_symlink_target() {
+        use std::os::unix::fs::symlink;
+
+        let root = temp_dir("global-config-symlink");
+        let outside = temp_dir("global-config-outside");
+        fs::create_dir_all(&root).expect("create root");
+        fs::create_dir_all(&outside).expect("create outside");
+
+        let outside_file = outside.join("config.toml");
+        fs::write(&outside_file, "model = \"before\"\n").expect("seed outside config");
+        symlink(&outside_file, root.join("config.toml")).expect("create config symlink");
+
+        let policy = policy_for(FileScope::Global, FileKind::Config).expect("policy");
+        write_with_policy(&root, policy, "model = \"after\"\n").expect("write config via symlink");
+
+        let response = read_with_policy(&root, policy).expect("read config via symlink");
+        assert!(response.exists);
+        assert_eq!(response.content, "model = \"after\"\n");
+        assert_eq!(
+            fs::read_to_string(&outside_file).expect("read outside config"),
+            "model = \"after\"\n"
+        );
+
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&outside);
+    }
 }
