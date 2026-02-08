@@ -16,6 +16,7 @@
     "src/styles/mobile-setup-wizard.css",
     "src/styles/settings.css",
     "src/styles/sidebar.css",
-    "src/styles/tabbar.css"
+    "src/styles/tabbar.css",
+    "src-tauri/src/codex/mod.rs"
   ]
 }
