@@ -369,6 +369,38 @@
   gap: 10px;
 }
 
+.composer-processing-hint {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(120, 190, 255, 0.4);
+  background: rgba(120, 190, 255, 0.12);
+  color: var(--text-strong);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.composer-processing-hint-shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.composer-processing-hint kbd {
+  border: 1px solid var(--border-muted);
+  border-bottom-color: var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-control);
+  color: var(--text-strong);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 5px;
+}
+
 .composer-action.is-stop {
   border-color: rgba(255, 107, 107, 0.6);
   background: rgba(255, 107, 107, 0.12);
@@ -386,6 +418,20 @@
 .composer-action svg {
   width: 12px;
   height: 12px;
+}
+
+.composer-action.is-send {
+  width: auto;
+  min-width: 24px;
+  padding: 0 8px;
+  gap: 5px;
+}
+
+.composer-action-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .composer-action-stop-square {
