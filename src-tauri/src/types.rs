@@ -571,6 +571,8 @@ pub(crate) struct AppSettings {
         rename = "showMessageFilePath"
     )]
     pub(crate) show_message_file_path: bool,
+    #[serde(default, rename = "threadTitleAutogenerationEnabled")]
+    pub(crate) thread_title_autogeneration_enabled: bool,
     #[serde(default = "default_ui_font_family", rename = "uiFontFamily")]
     pub(crate) ui_font_family: String,
     #[serde(default = "default_code_font_family", rename = "codeFontFamily")]
@@ -1159,6 +1161,7 @@ impl Default for AppSettings {
             theme: default_theme(),
             usage_show_remaining: default_usage_show_remaining(),
             show_message_file_path: default_show_message_file_path(),
+            thread_title_autogeneration_enabled: false,
             ui_font_family: default_ui_font_family(),
             code_font_family: default_code_font_family(),
             code_font_size: default_code_font_size(),
@@ -1318,6 +1321,7 @@ mod tests {
         assert_eq!(settings.theme, "system");
         assert!(!settings.usage_show_remaining);
         assert!(settings.show_message_file_path);
+        assert!(!settings.thread_title_autogeneration_enabled);
         assert!(settings.ui_font_family.contains("system-ui"));
         assert!(settings.code_font_family.contains("ui-monospace"));
         assert_eq!(settings.code_font_size, 11);

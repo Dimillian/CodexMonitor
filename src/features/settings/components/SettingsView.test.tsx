@@ -58,6 +58,7 @@ const baseSettings: AppSettings = {
   theme: "system",
   usageShowRemaining: false,
   showMessageFilePath: true,
+  threadTitleAutogenerationEnabled: false,
   uiFontFamily:
     'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   codeFontFamily:

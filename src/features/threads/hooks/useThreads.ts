@@ -19,6 +19,7 @@ import { useThreadRateLimits } from "./useThreadRateLimits";
 import { useThreadSelectors } from "./useThreadSelectors";
 import { useThreadStatus } from "./useThreadStatus";
 import { useThreadUserInput } from "./useThreadUserInput";
+import { useThreadTitleAutogeneration } from "./useThreadTitleAutogeneration";
 import { setThreadName as setThreadNameService } from "../../../services/tauri";
 import { makeCustomNameKey, saveCustomName } from "../utils/threadStorage";
 
@@ -32,6 +33,7 @@ type UseThreadsOptions = {
   accessMode?: "read-only" | "current" | "full-access";
   reviewDeliveryMode?: "inline" | "detached";
   steerEnabled?: boolean;
+  threadTitleAutogenerationEnabled?: boolean;
   customPrompts?: CustomPromptOption[];
   onMessageActivity?: () => void;
   threadSortKey?: ThreadListSortKey;
@@ -47,6 +49,7 @@ export function useThreads({
   accessMode,
   reviewDeliveryMode = "inline",
   steerEnabled = false,
+  threadTitleAutogenerationEnabled = false,
   customPrompts = [],
   onMessageActivity,
   threadSortKey = "updated_at",
@@ -56,8 +59,12 @@ export function useThreads({
   const replaceOnResumeRef = useRef<Record<string, boolean>>({});
   const pendingInterruptsRef = useRef<Set<string>>(new Set());
   const planByThreadRef = useRef(state.planByThread);
+  const itemsByThreadRef = useRef(state.itemsByThread);
+  const threadsByWorkspaceRef = useRef(state.threadsByWorkspace);
   const detachedReviewNoticeRef = useRef<Set<string>>(new Set());
   planByThreadRef.current = state.planByThread;
+  itemsByThreadRef.current = state.itemsByThread;
+  threadsByWorkspaceRef.current = state.threadsByWorkspace;
   const { approvalAllowlistRef, handleApprovalDecision, handleApprovalRemember } =
     useThreadApprovals({ dispatch, onDebug });
   const { handleUserInputSubmit } = useThreadUserInput({ dispatch });
@@ -119,6 +126,28 @@ export function useThreads({
       // Ignore refresh errors to avoid breaking the UI.
     }
   }, [onMessageActivity]);
+
+  const renameThread = useCallback(
+    (workspaceId: string, threadId: string, newName: string) => {
+      saveCustomName(workspaceId, threadId, newName);
+      const key = makeCustomNameKey(workspaceId, threadId);
+      customNamesRef.current[key] = newName;
+      dispatch({ type: "setThreadName", workspaceId, threadId, name: newName });
+      void Promise.resolve(
+        setThreadNameService(workspaceId, threadId, newName),
+      ).catch((error) => {
+        onDebug?.({
+          id: `${Date.now()}-client-thread-rename-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "thread/name/set error",
+          payload: error instanceof Error ? error.message : String(error),
+        });
+      });
+    },
+    [customNamesRef, dispatch, onDebug],
+  );
+
   const { applyCollabThreadLinks, applyCollabThreadLinksFromThread, updateThreadParent } =
     useThreadLinking({
       dispatch,
@@ -199,6 +228,15 @@ export function useThreads({
     ],
   );
 
+  const { onUserMessageCreated } = useThreadTitleAutogeneration({
+    enabled: threadTitleAutogenerationEnabled,
+    itemsByThreadRef,
+    threadsByWorkspaceRef,
+    getCustomName,
+    renameThread,
+    onDebug,
+  });
+
   const threadHandlers = useThreadEventHandlers({
     activeThreadId,
     dispatch,
@@ -210,6 +248,7 @@ export function useThreads({
     setActiveTurnId,
     safeMessageActivity,
     recordThreadActivity,
+    onUserMessageCreated,
     pushThreadErrorMessage,
     onDebug,
     onWorkspaceConnected: handleWorkspaceConnected,
@@ -408,27 +447,6 @@ export function useThreads({
       void archiveThread(workspaceId, threadId);
     },
     [archiveThread, unpinThread],
-  );
-
-  const renameThread = useCallback(
-    (workspaceId: string, threadId: string, newName: string) => {
-      saveCustomName(workspaceId, threadId, newName);
-      const key = makeCustomNameKey(workspaceId, threadId);
-      customNamesRef.current[key] = newName;
-      dispatch({ type: "setThreadName", workspaceId, threadId, name: newName });
-      void Promise.resolve(
-        setThreadNameService(workspaceId, threadId, newName),
-      ).catch((error) => {
-        onDebug?.({
-          id: `${Date.now()}-client-thread-rename-error`,
-          timestamp: Date.now(),
-          source: "error",
-          label: "thread/name/set error",
-          payload: error instanceof Error ? error.message : String(error),
-        });
-      });
-    },
-    [customNamesRef, dispatch, onDebug],
   );
 
   return {

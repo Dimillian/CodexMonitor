@@ -20,6 +20,11 @@ type UseThreadItemEventsOptions = {
     threadId: string,
     item: Record<string, unknown>,
   ) => void;
+  onUserMessageCreated?: (
+    workspaceId: string,
+    threadId: string,
+    text: string,
+  ) => void | Promise<void>;
   onReviewExited?: (workspaceId: string, threadId: string) => void;
 };
 
@@ -32,6 +37,7 @@ export function useThreadItemEvents({
   safeMessageActivity,
   recordThreadActivity,
   applyCollabThreadLinks,
+  onUserMessageCreated,
   onReviewExited,
 }: UseThreadItemEventsOptions) {
   const handleItemUpdate = useCallback(
@@ -65,6 +71,9 @@ export function useThreadItemEvents({
           : item;
       const converted = buildConversationItem(itemForDisplay);
       if (converted) {
+        if (converted.kind === "message" && converted.role === "user") {
+          void onUserMessageCreated?.(workspaceId, threadId, converted.text);
+        }
         dispatch({
           type: "upsertItem",
           workspaceId,
@@ -82,6 +91,7 @@ export function useThreadItemEvents({
       markProcessing,
       markReviewing,
       onReviewExited,
+      onUserMessageCreated,
       safeMessageActivity,
     ],
   );

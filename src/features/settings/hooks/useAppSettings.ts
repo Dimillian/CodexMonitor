@@ -64,6 +64,7 @@ function buildDefaultSettings(): AppSettings {
     theme: "system",
     usageShowRemaining: false,
     showMessageFilePath: true,
+    threadTitleAutogenerationEnabled: false,
     uiFontFamily: DEFAULT_UI_FONT_FAMILY,
     codeFontFamily: DEFAULT_CODE_FONT_FAMILY,
     codeFontSize: CODE_FONT_SIZE_DEFAULT,

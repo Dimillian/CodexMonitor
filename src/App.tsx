@@ -706,6 +706,7 @@ function MainApp() {
     accessMode,
     reviewDeliveryMode: appSettings.reviewDeliveryMode,
     steerEnabled: appSettings.steerEnabled,
+    threadTitleAutogenerationEnabled: appSettings.threadTitleAutogenerationEnabled,
     customPrompts: prompts,
     onMessageActivity: queueGitStatusRefresh,
     threadSortKey: threadListSortKey,

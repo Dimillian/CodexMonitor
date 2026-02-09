@@ -182,6 +182,7 @@ export type AppSettings = {
   theme: ThemePreference;
   usageShowRemaining: boolean;
   showMessageFilePath: boolean;
+  threadTitleAutogenerationEnabled: boolean;
   uiFontFamily: string;
   codeFontFamily: string;
   codeFontSize: number;
