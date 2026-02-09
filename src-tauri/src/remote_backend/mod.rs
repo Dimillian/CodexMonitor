@@ -95,14 +95,64 @@ pub(crate) async fn call_remote(
     method: &str,
     params: Value,
 ) -> Result<Value, String> {
-    let client = ensure_remote_backend(state, app).await?;
-    match client.call(method, params).await {
+    let client = ensure_remote_backend(state, app.clone()).await?;
+    match client.call(method, params.clone()).await {
         Ok(value) => Ok(value),
+        Err(err) if err == DISCONNECTED_MESSAGE => {
+            *state.remote_backend.lock().await = None;
+            if !can_retry_after_disconnect(method) {
+                return Err(err);
+            }
+            let retry_client = ensure_remote_backend(state, app).await?;
+            match retry_client.call(method, params).await {
+                Ok(value) => Ok(value),
+                Err(retry_err) => {
+                    *state.remote_backend.lock().await = None;
+                    Err(retry_err)
+                }
+            }
+        }
         Err(err) => {
             *state.remote_backend.lock().await = None;
             Err(err)
         }
     }
+}
+
+fn can_retry_after_disconnect(method: &str) -> bool {
+    matches!(
+        method,
+        "account_rate_limits"
+            | "account_read"
+            | "apps_list"
+            | "collaboration_mode_list"
+            | "connect_workspace"
+            | "file_read"
+            | "get_config_model"
+            | "get_git_commit_diff"
+            | "get_commit_message_prompt"
+            | "get_git_diffs"
+            | "get_git_log"
+            | "get_git_remote"
+            | "get_git_status"
+            | "get_github_issues"
+            | "get_github_pull_request_comments"
+            | "get_github_pull_request_diff"
+            | "get_github_pull_requests"
+            | "is_workspace_path_dir"
+            | "list_git_branches"
+            | "list_git_roots"
+            | "list_mcp_server_status"
+            | "list_threads"
+            | "local_usage_snapshot"
+            | "list_workspace_files"
+            | "list_workspaces"
+            | "model_list"
+            | "read_workspace_file"
+            | "resume_thread"
+            | "skills_list"
+            | "worktree_setup_status"
+    )
 }
 
 async fn ensure_remote_backend(state: &AppState, app: AppHandle) -> Result<RemoteBackend, String> {
@@ -184,7 +234,7 @@ fn resolve_transport_config(
 
 #[cfg(test)]
 mod tests {
-    use super::resolve_transport_config;
+    use super::{can_retry_after_disconnect, resolve_transport_config};
     use crate::remote_backend::transport::RemoteTransportConfig;
     use crate::types::{AppSettings, RemoteBackendProvider};
 
@@ -199,5 +249,16 @@ mod tests {
             panic!("expected orbit transport config");
         };
         assert_eq!(ws_url, "https://orbit.example/ws/live");
+    }
+
+    #[test]
+    fn retries_only_retry_safe_methods_after_disconnect() {
+        assert!(can_retry_after_disconnect("resume_thread"));
+        assert!(can_retry_after_disconnect("list_threads"));
+        assert!(can_retry_after_disconnect("get_commit_message_prompt"));
+        assert!(can_retry_after_disconnect("local_usage_snapshot"));
+        assert!(!can_retry_after_disconnect("send_user_message"));
+        assert!(!can_retry_after_disconnect("start_thread"));
+        assert!(!can_retry_after_disconnect("remove_workspace"));
     }
 }

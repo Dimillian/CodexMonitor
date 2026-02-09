@@ -346,7 +346,7 @@ npm run tauri dev
 - USB device:
 ```bash
 ./scripts/build_run_ios_device.sh --list-devices
-./scripts/build_run_ios_device.sh --device "<device name or identifier>" --team <TEAM_ID>
+./scripts/build_run_ios_device.sh --device "Dimillian’s iPhone" --team Z6P74P6T99
 ```
 - If signing is not ready:
 ```bash

@@ -5,6 +5,12 @@
   grid-template-rows: none;
 }
 
+.app.layout-phone.reduced-transparency,
+.app.layout-phone.reduced-transparency .compact-shell,
+.app.layout-phone.reduced-transparency .compact-panel {
+  background: var(--surface-messages);
+}
+
 .app.layout-phone .drag-strip {
   height: 22px;
 }
@@ -21,12 +27,25 @@
   padding-top: calc(10px + env(safe-area-inset-top));
 }
 
+.app.layout-phone .home {
+  padding-top: calc(44px + env(safe-area-inset-top));
+}
+
 .app.layout-phone .messages-full {
-  padding: 12px 16px 16px;
+  padding: 12px 16px 12px;
 }
 
 .app.layout-phone .composer {
-  padding: 12px 16px 18px;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 10px 12px calc(10px + var(--phone-composer-safe-bottom, 0px));
+  border-top: 1px solid var(--border-subtle);
+  backdrop-filter: blur(18px) saturate(1.1);
+}
+
+html[data-mobile-composer-focus="true"] .app.layout-phone {
+  --phone-composer-safe-bottom: env(safe-area-inset-bottom);
 }
 
 .compact-empty {
@@ -61,9 +80,16 @@
 }
 
 .compact-git-list {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+.compact-git-list > .ds-panel {
+  flex: 1;
+  min-height: 0;
 }
 
 .compact-git-viewer {
@@ -79,16 +105,35 @@
 .compact-git-back {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 6px;
+  padding: 8px 12px 6px;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-topbar);
 }
 
-.compact-git-back button {
-  border: none;
-  background: transparent;
-  color: var(--text-strong);
-  font-size: 14px;
+.app.layout-phone .compact-panel > .compact-git-back:first-child {
+  padding-top: calc(8px + env(safe-area-inset-top));
+}
+
+.compact-git-switch-button {
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-control);
+  color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 6px 12px;
   cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.compact-git-switch-button.active {
+  color: var(--text-strong);
+  border-color: var(--border-accent-soft);
+  background: var(--surface-active);
+}
+
+.compact-git-switch-button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }

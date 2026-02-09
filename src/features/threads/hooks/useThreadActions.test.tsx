@@ -275,6 +275,141 @@ describe("useThreadActions", () => {
     });
   });
 
+  it("does not hydrate status from resume when local items are preserved", async () => {
+    const localItem: ConversationItem = {
+      id: "local-assistant-1",
+      kind: "message",
+      role: "assistant",
+      text: "Local snapshot",
+    };
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "thread-1",
+          preview: "Stale remote preview",
+          updated_at: 1000,
+          turns: [{ id: "turn-stale", status: "inProgress", items: [] }],
+        },
+      },
+    });
+    vi.mocked(buildItemsFromThread).mockReturnValue([]);
+    vi.mocked(isReviewingFromThread).mockReturnValue(true);
+
+    const { result, dispatch } = renderActions({
+      itemsByThread: { "thread-1": [localItem] },
+    });
+
+    await act(async () => {
+      await result.current.resumeThreadForWorkspace("ws-1", "thread-1", true);
+    });
+
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "markProcessing",
+        threadId: "thread-1",
+      }),
+    );
+    expect(dispatch).not.toHaveBeenCalledWith({
+      type: "setActiveTurnId",
+      threadId: "thread-1",
+      turnId: "turn-stale",
+    });
+    expect(dispatch).not.toHaveBeenCalledWith({
+      type: "markReviewing",
+      threadId: "thread-1",
+      isReviewing: true,
+    });
+  });
+
+  it("clears processing state from resume when latest turns are completed", async () => {
+    const localItem: ConversationItem = {
+      id: "local-assistant-1",
+      kind: "message",
+      role: "assistant",
+      text: "Local snapshot",
+    };
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "thread-1",
+          preview: "Done thread",
+          updated_at: 1000,
+          turns: [
+            { id: "turn-1", status: "completed", items: [] },
+            { id: "turn-2", status: "completed", items: [] },
+          ],
+        },
+      },
+    });
+    vi.mocked(buildItemsFromThread).mockReturnValue([]);
+    vi.mocked(isReviewingFromThread).mockReturnValue(false);
+
+    const { result, dispatch } = renderActions({
+      itemsByThread: { "thread-1": [localItem] },
+      threadStatusById: {
+        "thread-1": {
+          isProcessing: true,
+          hasUnread: false,
+          isReviewing: false,
+          processingStartedAt: 10,
+          lastDurationMs: null,
+        },
+      },
+    });
+
+    await act(async () => {
+      await result.current.resumeThreadForWorkspace("ws-1", "thread-1", true, true);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "markProcessing",
+      threadId: "thread-1",
+      isProcessing: false,
+      timestamp: expect.any(Number),
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setActiveTurnId",
+      threadId: "thread-1",
+      turnId: null,
+    });
+  });
+
+  it("hydrates processing state from in-progress turns on resume", async () => {
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "thread-3",
+          preview: "Working thread",
+          updated_at: 1000,
+          turns: [
+            { id: "turn-1", status: "completed", items: [] },
+            { id: "turn-2", status: "inProgress", items: [] },
+          ],
+        },
+      },
+    });
+    vi.mocked(buildItemsFromThread).mockReturnValue([]);
+    vi.mocked(isReviewingFromThread).mockReturnValue(false);
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.resumeThreadForWorkspace("ws-1", "thread-3", true);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "markProcessing",
+      threadId: "thread-3",
+      isProcessing: true,
+      timestamp: expect.any(Number),
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setActiveTurnId",
+      threadId: "thread-3",
+      turnId: "turn-2",
+    });
+  });
+
   it("keeps resume loading true until overlapping resumes finish", async () => {
     let resolveFirst: ((value: unknown) => void) | null = null;
     let resolveSecond: ((value: unknown) => void) | null = null;

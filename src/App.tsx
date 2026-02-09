@@ -111,6 +111,7 @@ import { useMobileServerSetup } from "./features/mobile/hooks/useMobileServerSet
 import { useWorkspaceHome } from "./features/workspaces/hooks/useWorkspaceHome";
 import { useWorkspaceAgentMd } from "./features/workspaces/hooks/useWorkspaceAgentMd";
 import { pickWorkspacePath } from "./services/tauri";
+import { isMobilePlatform } from "./utils/platformPaths";
 import type {
   AccessMode,
   ComposerEditorSettings,
@@ -191,15 +192,17 @@ function MainApp() {
     handleCopyDebug,
     clearDebugEntries,
   } = useDebugLog();
-  useLiquidGlassEffect({ reduceTransparency, onDebug: addDebugEntry });
+  const shouldReduceTransparency = reduceTransparency || isMobilePlatform();
+  useLiquidGlassEffect({ reduceTransparency: shouldReduceTransparency, onDebug: addDebugEntry });
   const [accessMode, setAccessMode] = useState<AccessMode>("current");
   const [threadListSortKey, setThreadListSortKey] = useState<ThreadListSortKey>(
     () => getStoredThreadListSortKey(),
   );
   const [activeTab, setActiveTab] = useState<
-    "projects" | "codex" | "git" | "log"
+    "home" | "projects" | "codex" | "git" | "log"
   >("codex");
-  const tabletTab = activeTab === "projects" ? "codex" : activeTab;
+  const tabletTab =
+    activeTab === "projects" || activeTab === "home" ? "codex" : activeTab;
   const {
     workspaces,
     workspaceGroups,
@@ -1495,8 +1498,8 @@ function MainApp() {
     if (!isPhone) {
       return;
     }
-    if (!activeWorkspace && activeTab !== "projects") {
-      setActiveTab("projects");
+    if (!activeWorkspace && activeTab !== "home" && activeTab !== "projects") {
+      setActiveTab("home");
     }
   }, [activeTab, activeWorkspace, isPhone]);
 
@@ -1504,7 +1507,7 @@ function MainApp() {
     if (!isTablet) {
       return;
     }
-    if (activeTab === "projects") {
+    if (activeTab === "projects" || activeTab === "home") {
       setActiveTab("codex");
     }
   }, [activeTab, isTablet]);
@@ -1521,6 +1524,32 @@ function MainApp() {
     refreshWorkspaces,
     listThreadsForWorkspace
   });
+
+  useEffect(() => {
+    if (appSettings.backendMode !== "remote") {
+      return;
+    }
+
+    const refreshActiveThread = () => {
+      if (!activeWorkspace?.connected || !activeThreadId) {
+        return;
+      }
+      void refreshThread(activeWorkspace.id, activeThreadId);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshActiveThread();
+      }
+    };
+
+    window.addEventListener("focus", refreshActiveThread);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", refreshActiveThread);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [activeThreadId, activeWorkspace, appSettings.backendMode, refreshThread]);
 
   const {
     handleAddWorkspace,
@@ -1726,7 +1755,8 @@ function MainApp() {
     );
   };
 
-  const showGitDetail = Boolean(selectedDiffPath) && isPhone;
+  const showGitDetail =
+    Boolean(selectedDiffPath) && isPhone && centerMode === "diff";
   const isThreadOpen = Boolean(activeThreadId && showComposer);
 
   useArchiveShortcut({
@@ -1783,7 +1813,7 @@ function MainApp() {
   const appClassName = `app ${isCompact ? "layout-compact" : "layout-desktop"}${
     isPhone ? " layout-phone" : ""
   }${isTablet ? " layout-tablet" : ""}${
-    reduceTransparency ? " reduced-transparency" : ""
+    shouldReduceTransparency ? " reduced-transparency" : ""
   }${!isCompact && sidebarCollapsed ? " sidebar-collapsed" : ""}${
     !isCompact && rightPanelCollapsed ? " right-panel-collapsed" : ""
   }`;
@@ -1993,10 +2023,19 @@ function MainApp() {
       setSelectedDiffPath(null);
     },
     activeTab,
-    onSelectTab: setActiveTab,
+    onSelectTab: (tab) => {
+      if (tab === "home") {
+        resetPullRequestSelection();
+        clearDraftState();
+        selectHome();
+        return;
+      }
+      setActiveTab(tab);
+    },
     tabletNavTab: tabletTab,
     gitPanelMode,
     onGitPanelModeChange: handleGitPanelModeChange,
+    isPhone,
     gitDiffViewStyle,
     gitDiffIgnoreWhitespaceChanges:
       appSettings.gitDiffIgnoreWhitespaceChanges && diffSource !== "pr",
@@ -2204,8 +2243,16 @@ function MainApp() {
     onResizeDebug: onDebugPanelResizeStart,
     onResizeTerminal: onTerminalPanelResizeStart,
     onBackFromDiff: () => {
-      setSelectedDiffPath(null);
       setCenterMode("chat");
+    },
+    onShowSelectedDiff: () => {
+      if (!selectedDiffPath) {
+        return;
+      }
+      setCenterMode("diff");
+      if (isPhone) {
+        setActiveTab("git");
+      }
     },
     onGoProjects: () => setActiveTab("projects"),
     workspaceDropTargetRef,

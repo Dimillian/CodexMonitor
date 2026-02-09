@@ -21,6 +21,7 @@ type SidebarHeaderProps = {
   onSetThreadListSortKey: (sortKey: ThreadListSortKey) => void;
   onRefreshAllThreads: () => void;
   refreshDisabled?: boolean;
+  refreshInProgress?: boolean;
 };
 
 export function SidebarHeader({
@@ -32,6 +33,7 @@ export function SidebarHeader({
   onSetThreadListSortKey,
   onRefreshAllThreads,
   refreshDisabled = false,
+  refreshInProgress = false,
 }: SidebarHeaderProps) {
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const sortMenuRef = useRef<HTMLDivElement | null>(null);
@@ -122,8 +124,12 @@ export function SidebarHeader({
           type="button"
           title="Refresh all workspace threads"
           disabled={refreshDisabled}
+          aria-busy={refreshInProgress}
         >
-          <RefreshCw aria-hidden />
+          <RefreshCw
+            className={refreshInProgress ? "sidebar-refresh-icon spinning" : "sidebar-refresh-icon"}
+            aria-hidden
+          />
         </button>
         <button
           className={`ghost sidebar-search-toggle${isSearchOpen ? " is-active" : ""}`}

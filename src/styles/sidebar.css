@@ -251,6 +251,10 @@
   height: 14px;
 }
 
+.sidebar-refresh-icon.spinning {
+  animation: sidebar-refresh-spin 0.8s linear infinite;
+}
+
 .sidebar-refresh-toggle:hover,
 .sidebar-refresh-toggle:focus-visible {
   color: var(--text-strong);
@@ -261,6 +265,12 @@
 
 .sidebar-refresh-toggle:disabled {
   opacity: 0.55;
+}
+
+@keyframes sidebar-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .sidebar-search-toggle svg {

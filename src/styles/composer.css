@@ -87,6 +87,22 @@
   gap: 8px;
 }
 
+.composer-mobile-menu {
+  display: none;
+  position: relative;
+}
+
+.composer-mobile-actions-popover {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  min-width: 170px;
+  padding: 6px;
+  display: grid;
+  gap: 4px;
+  z-index: 30;
+}
+
 .composer-attach {
   border: 1px solid var(--border-muted);
   background: var(--surface-card);
@@ -258,6 +274,10 @@
   align-items: center;
   justify-content: center;
   position: relative;
+}
+
+.composer-action--mobile-menu {
+  display: none;
 }
 
 :root[data-theme="light"] .composer-action {
@@ -768,4 +788,103 @@
 .composer-select:focus {
   outline: none;
   color: var(--text-strong);
+}
+
+@media (max-width: 720px) {
+  .app.layout-phone .composer-input {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .app.layout-phone .composer-input.is-phone-tall {
+    align-items: end;
+  }
+
+  .app.layout-phone .composer-input-row {
+    gap: 6px;
+    align-items: flex-start;
+  }
+
+  .app.layout-phone .composer-input.is-phone-tall .composer-input-row {
+    align-items: flex-end;
+  }
+
+  .app.layout-phone .composer-input > .composer-action {
+    align-self: flex-start;
+    margin-top: 2px;
+  }
+
+  .app.layout-phone .composer-input.is-phone-tall > .composer-action {
+    align-self: flex-end;
+    margin-top: 0;
+  }
+
+  .app.layout-phone .composer-action--mobile-menu {
+    align-self: flex-start;
+  }
+
+  .app.layout-phone .composer-input.is-phone-tall .composer-action--mobile-menu {
+    align-self: flex-end;
+  }
+
+  .app.layout-phone .composer-attach,
+  .app.layout-phone .composer-action--expand,
+  .app.layout-phone .composer-action--mic {
+    display: none;
+  }
+
+  .app.layout-phone .composer-mobile-menu {
+    display: inline-flex;
+    align-self: flex-start;
+    margin-top: 2px;
+  }
+
+  .app.layout-phone .composer-input.is-phone-tall .composer-mobile-menu {
+    align-self: flex-end;
+    margin-top: 0;
+  }
+
+  .app.layout-phone .composer-action--mobile-menu {
+    display: inline-flex;
+  }
+
+  .app.layout-phone .composer textarea {
+    min-height: 52px;
+    max-height: 168px;
+    height: 52px;
+    font-size: 16px;
+    padding: 8px 2px;
+  }
+
+  .app.layout-phone .composer-action {
+    width: 32px;
+    height: 32px;
+  }
+
+  .app.layout-phone .composer-bar {
+    gap: 8px;
+    padding-top: 4px;
+  }
+
+  .app.layout-phone .composer-meta {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 6px;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+  }
+
+  .app.layout-phone .composer-context {
+    display: none;
+  }
+
+  .app.layout-phone .composer-select-wrap {
+    gap: 4px;
+    padding: 2px 5px;
+  }
+
+  .app.layout-phone .composer-select {
+    font-size: 12px;
+  }
 }

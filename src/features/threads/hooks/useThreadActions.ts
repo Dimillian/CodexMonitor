@@ -35,6 +35,42 @@ const THREAD_LIST_MAX_PAGES_WITH_ACTIVITY = 8;
 const THREAD_LIST_MAX_PAGES_WITHOUT_ACTIVITY = 3;
 const THREAD_LIST_MAX_PAGES_OLDER = 6;
 
+function normalizeTurnStatus(value: unknown): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]/g, "");
+}
+
+function getResumedActiveTurnId(thread: Record<string, unknown>): string | null {
+  const turns = Array.isArray(thread.turns)
+    ? (thread.turns as Array<Record<string, unknown>>)
+    : [];
+  for (let index = turns.length - 1; index >= 0; index -= 1) {
+    const turn = turns[index];
+    if (!turn || typeof turn !== "object") {
+      continue;
+    }
+    const status = normalizeTurnStatus(
+      turn.status ?? turn.turnStatus ?? turn.turn_status,
+    );
+    const isInProgress =
+      status === "inprogress" ||
+      status === "running" ||
+      status === "processing" ||
+      status === "pending" ||
+      status === "started";
+    if (!isInProgress) {
+      continue;
+    }
+    const turnId = asString(turn.id ?? turn.turnId ?? turn.turn_id);
+    if (turnId) {
+      return turnId;
+    }
+  }
+  return null;
+}
+
 type UseThreadActionsOptions = {
   dispatch: Dispatch<ThreadAction>;
   itemsByThread: ThreadState["itemsByThread"];
@@ -188,6 +224,23 @@ export function useThreadActions({
             loadedThreadsRef.current[threadId] = true;
             return threadId;
           }
+          const resumedActiveTurnId = getResumedActiveTurnId(thread);
+          dispatch({
+            type: "markProcessing",
+            threadId,
+            isProcessing: Boolean(resumedActiveTurnId),
+            timestamp: Date.now(),
+          });
+          dispatch({
+            type: "setActiveTurnId",
+            threadId,
+            turnId: resumedActiveTurnId,
+          });
+          dispatch({
+            type: "markReviewing",
+            threadId,
+            isReviewing: isReviewingFromThread(thread),
+          });
           const hasOverlap =
             items.length > 0 &&
             localItems.length > 0 &&
@@ -203,11 +256,6 @@ export function useThreadActions({
           if (mergedItems.length > 0) {
             dispatch({ type: "setThreadItems", threadId, items: mergedItems });
           }
-          dispatch({
-            type: "markReviewing",
-            threadId,
-            isReviewing: isReviewingFromThread(thread),
-          });
           const preview = asString(thread?.preview ?? "");
           const customName = getCustomName(workspaceId, threadId);
           if (!customName && preview) {

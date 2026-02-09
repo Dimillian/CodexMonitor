@@ -229,11 +229,12 @@ type LayoutNodesOptions = {
   mainHeaderActionsNode?: ReactNode;
   centerMode: "chat" | "diff";
   onExitDiff: () => void;
-  activeTab: "projects" | "codex" | "git" | "log";
-  onSelectTab: (tab: "projects" | "codex" | "git" | "log") => void;
+  activeTab: "home" | "projects" | "codex" | "git" | "log";
+  onSelectTab: (tab: "home" | "projects" | "codex" | "git" | "log") => void;
   tabletNavTab: "codex" | "git" | "log";
   gitPanelMode: "diff" | "log" | "issues" | "prs";
   onGitPanelModeChange: (mode: "diff" | "log" | "issues" | "prs") => void;
+  isPhone: boolean;
   gitDiffViewStyle: "split" | "unified";
   gitDiffIgnoreWhitespaceChanges: boolean;
   worktreeApplyLabel: string;
@@ -446,6 +447,7 @@ type LayoutNodesOptions = {
   onResizeDebug: (event: MouseEvent<Element>) => void;
   onResizeTerminal: (event: MouseEvent<Element>) => void;
   onBackFromDiff: () => void;
+  onShowSelectedDiff: () => void;
   onGoProjects: () => void;
 };
 
@@ -884,7 +886,7 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       scrollRequestId={options.diffScrollRequestId}
       isLoading={options.gitDiffLoading}
       error={options.gitDiffError}
-      diffStyle={options.gitDiffViewStyle}
+      diffStyle={options.isPhone ? "unified" : options.gitDiffViewStyle}
       ignoreWhitespaceChanges={options.gitDiffIgnoreWhitespaceChanges}
       pullRequest={options.selectedPullRequest}
       pullRequestComments={options.selectedPullRequestComments}
@@ -959,10 +961,25 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     </div>
   );
 
+  const compactGitDiffActive =
+    options.centerMode === "diff" && Boolean(options.selectedDiffPath);
   const compactGitBackNode = (
     <div className="compact-git-back">
-      <button onClick={options.onBackFromDiff}>‹ Back</button>
-      <span className="workspace-title">Diff</span>
+      <button
+        type="button"
+        className={`compact-git-switch-button${compactGitDiffActive ? "" : " active"}`}
+        onClick={options.onBackFromDiff}
+      >
+        Files
+      </button>
+      <button
+        type="button"
+        className={`compact-git-switch-button${compactGitDiffActive ? " active" : ""}`}
+        onClick={options.onShowSelectedDiff}
+        disabled={!options.selectedDiffPath}
+      >
+        Diff
+      </button>
     </div>
   );
 

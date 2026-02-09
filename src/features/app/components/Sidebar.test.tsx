@@ -159,6 +159,44 @@ describe("Sidebar", () => {
     expect(onRefreshAllThreads).toHaveBeenCalledTimes(1);
   });
 
+  it("spins the refresh icon while workspace threads are refreshing", () => {
+    render(
+      <Sidebar
+        {...baseProps}
+        workspaces={[
+          {
+            id: "ws-1",
+            name: "Workspace",
+            path: "/tmp/workspace",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-1",
+                name: "Workspace",
+                path: "/tmp/workspace",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+            ],
+          },
+        ]}
+        threadListLoadingByWorkspace={{ "ws-1": true }}
+      />,
+    );
+
+    const refreshButton = screen.getByRole("button", { name: "Refresh all workspace threads" });
+    expect(refreshButton.getAttribute("aria-busy")).toBe("true");
+    const icon = refreshButton.querySelector("svg");
+    expect(icon?.getAttribute("class") ?? "").toContain("spinning");
+  });
+
   it("shows a top New Agent draft row and selects workspace when clicked", () => {
     const onSelectWorkspace = vi.fn();
     const props = {

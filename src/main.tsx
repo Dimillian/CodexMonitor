@@ -43,27 +43,25 @@ function syncMobileViewportHeight() {
     return;
   }
 
+  let rafHandle = 0;
+
   const setViewportHeight = () => {
     const visualViewport = window.visualViewport;
-    const visualHeight = visualViewport
+    const viewportHeight = visualViewport
       ? visualViewport.height + visualViewport.offsetTop
-      : 0;
-    const rootHeight = document.documentElement?.clientHeight ?? 0;
-    const bodyHeight = document.body?.clientHeight ?? 0;
-    const screenCssHeight =
-      window.screen?.height && window.devicePixelRatio > 0
-        ? window.screen.height / window.devicePixelRatio
-        : 0;
-    const nextHeight = Math.round(
-      Math.max(
-        window.innerHeight,
-        visualHeight,
-        rootHeight,
-        bodyHeight,
-        screenCssHeight,
-      ),
-    );
+      : window.innerHeight;
+    const nextHeight = Math.round(viewportHeight);
     document.documentElement.style.setProperty("--app-height", `${nextHeight}px`);
+  };
+
+  const scheduleViewportHeight = () => {
+    if (rafHandle) {
+      return;
+    }
+    rafHandle = window.requestAnimationFrame(() => {
+      rafHandle = 0;
+      setViewportHeight();
+    });
   };
 
   const setComposerFocusState = () => {
@@ -78,10 +76,10 @@ function syncMobileViewportHeight() {
 
   setViewportHeight();
   setComposerFocusState();
-  window.addEventListener("resize", setViewportHeight, { passive: true });
-  window.addEventListener("orientationchange", setViewportHeight, { passive: true });
-  window.visualViewport?.addEventListener("resize", setViewportHeight, { passive: true });
-  window.visualViewport?.addEventListener("scroll", setViewportHeight, { passive: true });
+  window.addEventListener("resize", scheduleViewportHeight, { passive: true });
+  window.addEventListener("orientationchange", scheduleViewportHeight, { passive: true });
+  window.visualViewport?.addEventListener("resize", scheduleViewportHeight, { passive: true });
+  window.visualViewport?.addEventListener("scroll", scheduleViewportHeight, { passive: true });
   document.addEventListener("focusin", setComposerFocusState);
   document.addEventListener("focusout", () => {
     requestAnimationFrame(setComposerFocusState);

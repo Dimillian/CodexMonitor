@@ -423,6 +423,7 @@ export const Sidebar = memo(function Sidebar({
         onSetThreadListSortKey={onSetThreadListSortKey}
         onRefreshAllThreads={onRefreshAllThreads}
         refreshDisabled={refreshDisabled || refreshInProgress}
+        refreshInProgress={refreshInProgress}
       />
       <div className={`sidebar-search${isSearchOpen ? " is-open" : ""}`}>
         {isSearchOpen && (

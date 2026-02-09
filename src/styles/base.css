@@ -40,14 +40,14 @@ body {
 }
 
 #root {
-  height: var(--app-height, 100vh);
-  min-height: var(--app-height, 100vh);
+  height: var(--app-height, 100dvh);
+  min-height: var(--app-height, 100dvh);
   overflow: hidden;
 }
 
 .app {
-  height: var(--app-height, 100vh);
-  min-height: var(--app-height, 100vh);
+  height: var(--app-height, 100dvh);
+  min-height: var(--app-height, 100dvh);
   width: 100vw;
   display: grid;
   grid-template-columns: var(--sidebar-width, 280px) 1fr;
