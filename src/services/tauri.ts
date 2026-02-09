@@ -47,6 +47,14 @@ export async function pickWorkspacePath(): Promise<string | null> {
   return selection;
 }
 
+export async function pickWorkspacePaths(): Promise<string[]> {
+  const selection = await open({ directory: true, multiple: true });
+  if (!selection) {
+    return [];
+  }
+  return Array.isArray(selection) ? selection : [selection];
+}
+
 export async function pickImageFiles(): Promise<string[]> {
   const selection = await open({
     multiple: true,
