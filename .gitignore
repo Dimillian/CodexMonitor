@@ -69,3 +69,9 @@ Thumbs.db
 .Spotlight-V100
 .Trashes
 ehthumbs.db
+
+# Test output files
+test-results.txt
+test-final-verification.txt
+test_output.txt
+test-*.txt

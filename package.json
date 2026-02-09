@@ -39,7 +39,7 @@
     "@pierre/diffs": "^1.0.6",
     "@sentry/react": "^10.36.0",
     "@tanstack/react-virtual": "^3.13.18",
-    "@tauri-apps/api": "^2",
+    "@tauri-apps/api": "2.10.0",
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-notification": "^2.3.3",
     "@tauri-apps/plugin-opener": "^2",
