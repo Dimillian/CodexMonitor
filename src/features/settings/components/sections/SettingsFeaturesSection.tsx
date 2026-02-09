@@ -1,5 +1,6 @@
 import type { AppSettings } from "../../../../types";
-import { fileManagerName, openInFileManagerLabel } from "../../../../utils/platformPaths";
+import { useTranslation } from "react-i18next";
+import { openInFileManagerLabel } from "../../../../utils/platformPaths";
 
 type SettingsFeaturesSectionProps = {
   appSettings: AppSettings;
@@ -16,24 +17,25 @@ export function SettingsFeaturesSection({
   onOpenConfig,
   onUpdateAppSettings,
 }: SettingsFeaturesSectionProps) {
+  const { t } = useTranslation();
   return (
     <section className="settings-section">
-      <div className="settings-section-title">Features</div>
+      <div className="settings-section-title">{t('settings.sections.features')}</div>
       <div className="settings-section-subtitle">
-        Manage stable and experimental Codex features.
+        {t('settings.features.manage_features')}
       </div>
       {hasCodexHomeOverrides && (
         <div className="settings-help">
-          Feature settings are stored in the default CODEX_HOME config.toml.
+          {t('settings.features.features_stored')}
           <br />
-          Workspace overrides are not updated.
+          {t('settings.features.overrides_not_synced')}
         </div>
       )}
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">Config file</div>
+          <div className="settings-toggle-title">{t('settings.features.config_file')}</div>
           <div className="settings-toggle-subtitle">
-            Open the Codex config in {fileManagerName()}.
+            {t('settings.features.communication_style_description')}
           </div>
         </div>
         <button type="button" className="ghost" onClick={onOpenConfig}>
@@ -41,15 +43,15 @@ export function SettingsFeaturesSection({
         </button>
       </div>
       {openConfigError && <div className="settings-help">{openConfigError}</div>}
-      <div className="settings-subsection-title">Stable Features</div>
+      <div className="settings-subsection-title">{t('settings.features.stable_features')}</div>
       <div className="settings-subsection-subtitle">
-        Production-ready features enabled by default.
+        {t('settings.features.stable_features_description')}
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">Collaboration modes</div>
+          <div className="settings-toggle-title">{t('settings.features.collaboration_mode')}</div>
           <div className="settings-toggle-subtitle">
-            Enable collaboration mode presets (Code, Plan).
+            {t('settings.features.collaboration_mode_description')}
           </div>
         </div>
         <button
@@ -68,10 +70,9 @@ export function SettingsFeaturesSection({
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">Personality</div>
+          <div className="settings-toggle-title">{t('settings.communication_style')}</div>
           <div className="settings-toggle-subtitle">
-            Choose Codex communication style (writes top-level <code>personality</code> in
-            config.toml).
+            {t('settings.features.communication_style_subtitle')}
           </div>
         </div>
         <select
@@ -84,17 +85,17 @@ export function SettingsFeaturesSection({
               personality: event.target.value as AppSettings["personality"],
             })
           }
-          aria-label="Personality"
+          aria-label={t('settings.communication_style')}
         >
-          <option value="friendly">Friendly</option>
-          <option value="pragmatic">Pragmatic</option>
+          <option value="friendly">{t('settings.friendly')}</option>
+          <option value="pragmatic">{t('settings.pragmatic')}</option>
         </select>
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">Steer mode</div>
+          <div className="settings-toggle-title">{t('settings.features.guided_mode')}</div>
           <div className="settings-toggle-subtitle">
-            Send messages immediately. Use Tab to queue while a run is active.
+            {t('settings.features.guided_mode_description')}
           </div>
         </div>
         <button
@@ -113,9 +114,9 @@ export function SettingsFeaturesSection({
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">Background terminal</div>
+          <div className="settings-toggle-title">{t('settings.background_terminal')}</div>
           <div className="settings-toggle-subtitle">
-            Run long-running terminal commands in the background.
+            {t('settings.features.background_terminal_description')}
           </div>
         </div>
         <button
@@ -132,15 +133,15 @@ export function SettingsFeaturesSection({
           <span className="settings-toggle-knob" />
         </button>
       </div>
-      <div className="settings-subsection-title">Experimental Features</div>
+      <div className="settings-subsection-title">{t('settings.features.experimental_features')}</div>
       <div className="settings-subsection-subtitle">
-        Preview features that may change or be removed.
+        {t('settings.features.experimental_features_description')}
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">Multi-agent</div>
+          <div className="settings-toggle-title">{t('settings.features.multi_agent')}</div>
           <div className="settings-toggle-subtitle">
-            Enable multi-agent collaboration tools in Codex.
+            {t('settings.features.multi_agent_description')}
           </div>
         </div>
         <button
@@ -159,9 +160,9 @@ export function SettingsFeaturesSection({
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">Apps</div>
+          <div className="settings-toggle-title">{t('settings.features.apps')}</div>
           <div className="settings-toggle-subtitle">
-            Enable ChatGPT apps/connectors and the <code>/apps</code> command.
+            {t('settings.features.apps_description')}
           </div>
         </div>
         <button

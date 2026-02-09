@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ask, open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
@@ -65,7 +66,6 @@ import {
   ORBIT_DEFAULT_POLL_INTERVAL_SECONDS,
   ORBIT_MAX_INLINE_POLL_SECONDS,
   ORBIT_SERVICES,
-  SETTINGS_SECTION_LABELS,
 } from "./settingsViewConstants";
 import {
   buildEditorContentMeta,
@@ -183,6 +183,25 @@ export function SettingsView({
     useMobileMasterDetail,
     handleSelectSection,
   } = useSettingsViewNavigation({ initialSection });
+  const { t } = useTranslation();
+
+  const getSectionLabel = (section: CodexSection): string => {
+    const sectionKeyMap: Record<CodexSection, string> = {
+      projects: "workspaces",
+      environments: "environment",
+      display: "display_sound",
+      composer: "composer",
+      dictation: "dictation",
+      shortcuts: "keyboard_shortcuts",
+      "open-apps": "open_with",
+      git: "git",
+      server: "server",
+      codex: "codex",
+      features: "features",
+    };
+    return t(`settings.sections.${sectionKeyMap[section]}`);
+  };
+
   const [environmentWorkspaceId, setEnvironmentWorkspaceId] = useState<string | null>(
     null,
   );
@@ -1315,7 +1334,7 @@ export function SettingsView({
       setGroupError(error instanceof Error ? error.message : String(error));
     }
   };
-  const activeSectionLabel = SETTINGS_SECTION_LABELS[activeSection];
+  const activeSectionLabel = getSectionLabel(activeSection);
   const settingsBodyClassName = `settings-body${
     useMobileMasterDetail ? " settings-body-mobile-master-detail" : ""
   }${useMobileMasterDetail && showMobileDetail ? " is-detail-visible" : ""}`;

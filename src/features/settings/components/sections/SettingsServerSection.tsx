@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import { useTranslation } from "react-i18next";
 import type {
   AppSettings,
   TailscaleDaemonCommandPreview,
@@ -118,6 +119,7 @@ export function SettingsServerSection({
   onMobileConnectTest,
 }: SettingsServerSectionProps) {
   const isMobileSimplified = isMobilePlatform;
+  const { t } = useTranslation();
   const tcpRunnerStatusText = (() => {
     if (!tcpDaemonStatus) {
       return null;
@@ -135,7 +137,7 @@ export function SettingsServerSection({
 
   return (
     <section className="settings-section">
-      <div className="settings-section-title">Server</div>
+      <div className="settings-section-title">{t('settings.features.server')}</div>
       <div className="settings-section-subtitle">
         {isMobileSimplified
           ? "Choose TCP or Orbit, fill in the connection endpoint and token from your desktop setup, then run a connection test."
@@ -145,7 +147,7 @@ export function SettingsServerSection({
       {!isMobileSimplified && (
         <div className="settings-field">
           <label className="settings-field-label" htmlFor="backend-mode">
-            Backend mode
+            {t('settings.features.backend_mode')}
           </label>
           <select
             id="backend-mode"
@@ -158,12 +160,11 @@ export function SettingsServerSection({
               })
             }
           >
-            <option value="local">Local (default)</option>
-            <option value="remote">Remote (daemon)</option>
+            <option value="local">{t('settings.features.local')}</option>
+            <option value="remote">{t('settings.features.remote')}</option>
           </select>
           <div className="settings-help">
-            Local keeps desktop requests in-process. Remote routes desktop requests through the same
-            network transport path used by mobile clients.
+            {t('settings.features.remote_description')}
           </div>
         </div>
       )}
@@ -221,7 +222,7 @@ export function SettingsServerSection({
         {appSettings.remoteBackendProvider === "tcp" && (
           <>
             <div className="settings-field">
-              <div className="settings-field-label">Remote backend</div>
+              <div className="settings-field-label">{t('settings.features.remote_backend')}</div>
               <div className="settings-field-row">
                 <input
                   className="settings-input settings-input--compact"
@@ -237,7 +238,7 @@ export function SettingsServerSection({
                       void onCommitRemoteHost();
                     }
                   }}
-                  aria-label="Remote backend host"
+                  aria-label={t('settings.features.host')}
                 />
                 <input
                   type="password"
@@ -254,7 +255,7 @@ export function SettingsServerSection({
                       void onCommitRemoteToken();
                     }
                   }}
-                  aria-label="Remote backend token"
+                  aria-label={t('settings.features.remote_backend')}
                 />
               </div>
               <div className="settings-help">

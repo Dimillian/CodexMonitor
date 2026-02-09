@@ -82,12 +82,15 @@
     "title": "Settings",
     "sections": {
       "workspaces": "Workspaces",
-      "environment": "Environment",
+      "environment": "Environments",
       "display_sound": "Display & Sound",
       "composer": "Composer",
       "dictation": "Dictation",
       "keyboard_shortcuts": "Keyboard Shortcuts",
       "open_with": "Open With",
+      "git": "Git",
+      "server": "Server",
+      "codex": "Codex",
       "features": "Features"
     },
     "groups": {
@@ -238,6 +241,7 @@
     },
     "features": {
       "git_diff": "Manage how Git diffs are loaded in the Git sidebar.",
+      "git_diff_description": "Manage how Git diffs are loaded in the Git sidebar.",
       "preload_git_diff": "Preload Git diffs",
       "preload_git_diff_description": "Makes viewing diffs faster.",
       "ignore_whitespace": "Ignore whitespace changes",
@@ -370,6 +374,10 @@
     "move_workspace_down": "Move workspace down",
     "show_remaining_limits": "Show remaining Codex limits",
     "show_remaining_subtitle": "Show remaining instead of used.",
+    "show_file_path_in_messages": "Show file path in messages",
+    "show_file_path_in_messages_subtitle": "Show parent directory path next to file links in messages.",
+    "auto_generate_thread_titles": "Auto-generate new thread titles",
+    "auto_generate_thread_titles_subtitle": "Generate a short title from the first message (uses extra tokens).",
     "reduce_transparency": "Reduce transparency",
     "reduce_transparency_subtitle": "Use opaque interface instead of glass effects.",
     "reset": "Reset",
@@ -823,6 +831,8 @@
     "no_commit": "No commit.",
     "recent_commits": "Recent commits",
     "no_unclosed_issues": "No unclosed issues.",
-    "no_unclosed_pull_requests": "No unclosed pull requests."
+    "no_unclosed_pull_requests": "No unclosed pull requests.",
+    "commit_message_prompt": "Commit message prompt",
+    "commit_message_prompt_help": "Use {code} as a placeholder for the Git diff context."
   }
 }

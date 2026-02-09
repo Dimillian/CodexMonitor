@@ -12,7 +12,8 @@
     "yes": "是",
     "no": "否",
     "ok": "确定",
-    "delete": "删除"
+    "delete": "删除",
+    "copy": "复制"
   },
   "menu": {
     "file": "文件",
@@ -80,6 +81,9 @@
       "dictation": "听写",
       "keyboard_shortcuts": "键盘快捷键",
       "open_with": "打开方式",
+      "git": "Git",
+      "server": "服务器",
+      "codex": "Codex",
       "features": "功能"
     },
     "groups": {
@@ -105,6 +109,8 @@
     },
     "environment": {
       "configure": "配置每个工作区的环境脚本，在创建工作树后运行。",
+      "project": "项目",
+      "no_projects_yet": "暂无项目。",
       "script": "环境设置脚本",
       "script_description": "每次创建新工作树后，会在专用终端中运行一次。",
       "copy_failed": "复制失败",
@@ -230,6 +236,7 @@
     },
     "features": {
       "git_diff": "管理 Git 侧边栏中 Git 差异的加载方式。",
+      "git_diff_description": "管理 Git 侧边栏中差异的加载方式。",
       "preload_git_diff": "预加载 Git 差异",
       "preload_git_diff_description": "使查看差异更快。",
       "ignore_whitespace": "忽略空白变更",
@@ -243,6 +250,7 @@
       "clear": "清除",
       "default_codex_args_description": "在 <code>app-server</code> 之前附加的额外参数。包含空格的值应使用引号。",
       "save": "保存",
+      "reset": "重置",
       "run_diagnosis": "运行诊断",
       "codex_ok": "Codex 状态正常",
       "codex_issue": "检测到 Codex 问题",
@@ -374,6 +382,10 @@
     "move_workspace_down": "下移工作区",
     "show_remaining_limits": "显示剩余 Codex 限额",
     "show_remaining_subtitle": "显示剩余而不是已使用。",
+    "show_file_path_in_messages": "在消息中显示文件路径",
+    "show_file_path_in_messages_subtitle": "在消息中的文件链接旁显示父路径。",
+    "auto_generate_thread_titles": "自动生成新对话标题",
+    "auto_generate_thread_titles_subtitle": "从第一条消息生成简短标题（会消耗额外 token）。",
     "reduce_transparency": "降低透明度",
     "reduce_transparency_subtitle": "使用不透明界面替代玻璃效果。",
     "reset": "重置",
@@ -430,6 +442,8 @@
     },
     "environment": {
       "configure": "配置每个工作区的环境脚本，在创建工作树后运行。",
+      "project": "项目",
+      "no_projects_yet": "暂无项目。",
       "script": "环境设置脚本",
       "script_description": "每次创建新工作树后，会在专用终端中运行一次。",
       "copy_failed": "复制失败",
@@ -454,8 +468,10 @@
       "test_notification": "测试通知"
     },
     "composer": {
+      "title": "编写器",
       "control": "控制消息编辑器中的辅助与格式行为。",
       "presets": "预设",
+      "preset": "预设",
       "presets_description": "选择起点并微调下方开关。",
       "presets_sync": "预设会同步更新下方开关，选择后可继续自定义。",
       "code_fences": "代码围栏",
@@ -771,6 +787,7 @@
     "committing": "提交中...",
     "commit_message_placeholder": "提交说明...",
     "commit_message_required": "请输入提交说明",
+    "enter_commit_message": "请输入提交说明",
     "no_changes_to_commit": "没有可提交的更改",
     "commit_staged": "提交已暂存的更改",
     "commit_unstaged": "提交所有未暂存的更改",
@@ -833,6 +850,7 @@
     "no_description": "无说明",
     "unknown_author": "未知",
     "close_error": "关闭错误提示",
+    "dismiss_error": "关闭错误",
     "sync_pull_then_push": "同步（先拉取再推送）",
     "syncing": "同步中...",
     "remote_has_new_commits": "Remote has new commits. Sync (pull then push) before retrying.",
@@ -852,6 +870,15 @@
     "no_commit": "暂无提交。",
     "recent_commits": "最近提交",
     "no_unclosed_issues": "暂无未关闭的问题。",
-    "no_unclosed_pull_requests": "暂无未关闭的拉取请求。"
+    "no_unclosed_pull_requests": "暂无未关闭的拉取请求。",
+    "commit_message_prompt": "提交说明提示词",
+    "commit_message_prompt_help": "使用 {code} 作为 Git 差异上下文的占位符。",
+    "active": "当前",
+    "to_push": "待推送",
+    "to_pull": "待拉取",
+    "draft": "草稿",
+    "open": "开放",
+    "unknown": "未知",
+    "change": "更改"
   }
 }

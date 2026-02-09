@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { AppSettings } from "../../../../types";
+import { useTranslation } from "react-i18next";
 import {
   CODE_FONT_SIZE_MAX,
   CODE_FONT_SIZE_MIN,
@@ -55,19 +56,21 @@ export function SettingsDisplaySection({
   onTestNotificationSound,
   onTestSystemNotification,
 }: SettingsDisplaySectionProps) {
+  const { t } = useTranslation();
+
   return (
     <section className="settings-section">
-      <div className="settings-section-title">Display &amp; Sound</div>
+      <div className="settings-section-title">{t("settings.sections.display_sound")}</div>
       <div className="settings-section-subtitle">
-        Tune visuals and audio alerts to your preferences.
+        {t("settings.display_sound.adjust")}
       </div>
-      <div className="settings-subsection-title">Display</div>
+      <div className="settings-subsection-title">{t("settings.display_sound.display")}</div>
       <div className="settings-subsection-subtitle">
-        Adjust how the window renders backgrounds and effects.
+        {t("settings.display_sound.rendering")}
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="theme-select">
-          Theme
+          {t("settings.theme")}
         </label>
         <select
           id="theme-select"
@@ -80,17 +83,17 @@ export function SettingsDisplaySection({
             })
           }
         >
-          <option value="system">System</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-          <option value="dim">Dim</option>
+          <option value="system">{t("settings.system")}</option>
+          <option value="light">{t("settings.light")}</option>
+          <option value="dark">{t("settings.dark")}</option>
+          <option value="dim">{t("settings.dim")}</option>
         </select>
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">Show remaining Codex limits</div>
+          <div className="settings-toggle-title">{t("settings.show_remaining_limits")}</div>
           <div className="settings-toggle-subtitle">
-            Display what is left instead of what is used.
+            {t("settings.show_remaining_subtitle")}
           </div>
         </div>
         <button
@@ -109,9 +112,9 @@ export function SettingsDisplaySection({
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">Show file path in messages</div>
+          <div className="settings-toggle-title">{t("settings.show_file_path_in_messages")}</div>
           <div className="settings-toggle-subtitle">
-            Display the parent path next to file links in messages.
+            {t("settings.show_file_path_in_messages_subtitle")}
           </div>
         </div>
         <button
@@ -130,9 +133,9 @@ export function SettingsDisplaySection({
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">Auto-generate new thread titles</div>
+          <div className="settings-toggle-title">{t("settings.auto_generate_thread_titles")}</div>
           <div className="settings-toggle-subtitle">
-            Generate a short title from your first message (uses extra tokens).
+            {t("settings.auto_generate_thread_titles_subtitle")}
           </div>
         </div>
         <button
@@ -152,8 +155,8 @@ export function SettingsDisplaySection({
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">Reduce transparency</div>
-          <div className="settings-toggle-subtitle">Use solid surfaces instead of glass.</div>
+          <div className="settings-toggle-title">{t("settings.reduce_transparency")}</div>
+          <div className="settings-toggle-subtitle">{t("settings.reduce_transparency_subtitle")}</div>
         </div>
         <button
           type="button"
@@ -166,7 +169,7 @@ export function SettingsDisplaySection({
       </div>
       <div className="settings-toggle-row settings-scale-row">
         <div>
-          <div className="settings-toggle-title">Interface scale</div>
+          <div className="settings-toggle-title">{t("settings.ui_scale")}</div>
           <div className="settings-toggle-subtitle" title={scaleShortcutTitle}>
             {scaleShortcutText}
           </div>
@@ -178,7 +181,7 @@ export function SettingsDisplaySection({
             inputMode="decimal"
             className="settings-input settings-input--scale"
             value={scaleDraft}
-            aria-label="Interface scale"
+            aria-label={t("settings.ui_scale")}
             onChange={(event) => onSetScaleDraft(event.target.value)}
             onBlur={() => {
               void onCommitScale();
@@ -197,13 +200,13 @@ export function SettingsDisplaySection({
               void onResetScale();
             }}
           >
-            Reset
+            {t("settings.reset")}
           </button>
         </div>
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="ui-font-family">
-          UI font family
+          {t("settings.ui_font_family")}
         </label>
         <div className="settings-field-row">
           <input
@@ -233,16 +236,16 @@ export function SettingsDisplaySection({
               });
             }}
           >
-            Reset
+            {t("settings.reset")}
           </button>
         </div>
         <div className="settings-help">
-          Applies to all UI text. Leave empty to use the default system font stack.
+          {t("settings.display_sound.ui_font_description")}
         </div>
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="code-font-family">
-          Code font family
+          {t("settings.code_font_family")}
         </label>
         <div className="settings-field-row">
           <input
@@ -272,14 +275,14 @@ export function SettingsDisplaySection({
               });
             }}
           >
-            Reset
+            {t("settings.reset")}
           </button>
         </div>
-        <div className="settings-help">Applies to git diffs and other mono-spaced readouts.</div>
+        <div className="settings-help">{t("settings.code_font_help")}</div>
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="code-font-size">
-          Code font size
+          {t("settings.code_font_size")}
         </label>
         <div className="settings-field-row">
           <input
@@ -305,18 +308,18 @@ export function SettingsDisplaySection({
               void onCommitCodeFontSize(CODE_FONT_SIZE_DEFAULT);
             }}
           >
-            Reset
+            {t("settings.reset")}
           </button>
         </div>
-        <div className="settings-help">Adjusts code and diff text size.</div>
+        <div className="settings-help">{t("settings.display_sound.code_font_description")}</div>
       </div>
-      <div className="settings-subsection-title">Sounds</div>
-      <div className="settings-subsection-subtitle">Control notification audio alerts.</div>
+      <div className="settings-subsection-title">{t("settings.display_sound.sound")}</div>
+      <div className="settings-subsection-subtitle">{t("settings.display_sound.control_sounds")}</div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">Notification sounds</div>
+          <div className="settings-toggle-title">{t("settings.notification_sounds")}</div>
           <div className="settings-toggle-subtitle">
-            Play a sound when a long-running agent finishes while the window is unfocused.
+            {t("settings.display_sound.notification_sound_description")}
           </div>
         </div>
         <button
@@ -335,10 +338,9 @@ export function SettingsDisplaySection({
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">System notifications</div>
+          <div className="settings-toggle-title">{t("settings.system_notifications")}</div>
           <div className="settings-toggle-subtitle">
-            Show a system notification when a long-running agent finishes while the window is
-            unfocused.
+            {t("settings.system_notifications_subtitle")}
           </div>
         </div>
         <button
@@ -361,14 +363,14 @@ export function SettingsDisplaySection({
           className="ghost settings-button-compact"
           onClick={onTestNotificationSound}
         >
-          Test sound
+          {t("settings.test_notification_sound")}
         </button>
         <button
           type="button"
           className="ghost settings-button-compact"
           onClick={onTestSystemNotification}
         >
-          Test notification
+          {t("settings.test_system_notification")}
         </button>
       </div>
     </section>

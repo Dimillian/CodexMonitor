@@ -9,7 +9,6 @@ import {
   orbitSignOut,
 } from "../../../services/tauri";
 import type {
-  CodexSection,
   OrbitServiceClient,
   ShortcutDraftKey,
   ShortcutSettingKey,
@@ -98,20 +97,6 @@ export const ORBIT_DEFAULT_POLL_INTERVAL_SECONDS = 5;
 export const ORBIT_MAX_INLINE_POLL_SECONDS = 180;
 export const SETTINGS_MOBILE_BREAKPOINT_PX = 720;
 export const DEFAULT_REMOTE_HOST = "127.0.0.1:4732";
-
-export const SETTINGS_SECTION_LABELS: Record<CodexSection, string> = {
-  projects: "Projects",
-  environments: "Environments",
-  display: "Display & Sound",
-  composer: "Composer",
-  dictation: "Dictation",
-  shortcuts: "Shortcuts",
-  "open-apps": "Open in",
-  git: "Git",
-  server: "Server",
-  codex: "Codex",
-  features: "Features",
-};
 
 export const SHORTCUT_DRAFT_KEY_BY_SETTING: Record<
   ShortcutSettingKey,

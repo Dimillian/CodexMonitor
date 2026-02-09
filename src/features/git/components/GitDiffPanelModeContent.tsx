@@ -1,6 +1,7 @@
 import type { GitHubIssue, GitHubPullRequest, GitLogEntry } from "../../../types";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { useTranslation } from "react-i18next";
 import ArrowLeftRight from "lucide-react/dist/esm/icons/arrow-left-right";
 import Download from "lucide-react/dist/esm/icons/download";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
@@ -40,6 +41,8 @@ export function GitPanelModeStatus({
   pullRequestsLoading,
   pullRequestsTotal,
 }: GitPanelModeStatusProps) {
+  const { t } = useTranslation();
+
   if (mode === "diff") {
     return <div className="diff-status">{diffStatusLabel}</div>;
   }
@@ -65,11 +68,13 @@ export function GitPanelModeStatus({
     return (
       <>
         <div className="diff-status diff-status-issues">
-          <span>GitHub issues</span>
+          <span>{t("git_diff.github_issues")}</span>
           {issuesLoading && <span className="git-panel-spinner" aria-hidden />}
         </div>
         <div className="git-log-sync">
-          <span>{issuesTotal} open</span>
+          <span>
+            {issuesTotal} {t("git_diff.open")}
+          </span>
         </div>
       </>
     );
@@ -78,11 +83,13 @@ export function GitPanelModeStatus({
   return (
     <>
       <div className="diff-status diff-status-issues">
-        <span>GitHub pull requests</span>
+        <span>{t("git_diff.github_pull_requests")}</span>
         {pullRequestsLoading && <span className="git-panel-spinner" aria-hidden />}
       </div>
       <div className="git-log-sync">
-        <span>{pullRequestsTotal} open</span>
+        <span>
+          {pullRequestsTotal} {t("git_diff.open")}
+        </span>
       </div>
     </>
   );
@@ -96,20 +103,22 @@ type GitBranchRowProps = {
 };
 
 export function GitBranchRow({ mode, branchName, onFetch, fetchLoading }: GitBranchRowProps) {
+  const { t } = useTranslation();
+
   if (mode !== "diff" && mode !== "log") {
     return null;
   }
 
   return (
     <div className="diff-branch-row">
-      <div className="diff-branch">{branchName || "unknown"}</div>
+      <div className="diff-branch">{branchName || t("git_diff.unknown")}</div>
       <button
         type="button"
         className="diff-branch-refresh"
         onClick={() => void onFetch?.()}
         disabled={!onFetch || fetchLoading}
-        title={fetchLoading ? "Fetching remote..." : "Fetch remote"}
-        aria-label={fetchLoading ? "Fetching remote" : "Fetch remote"}
+        title={fetchLoading ? t("git_diff.fetching") : t("git_diff.fetch")}
+        aria-label={fetchLoading ? t("git_diff.fetching") : t("git_diff.fetch")}
       >
         {fetchLoading ? (
           <span className="git-panel-spinner" aria-hidden />
@@ -136,13 +145,15 @@ export function GitRootCurrentPath({
   onScanGitRoots,
   gitRootScanLoading,
 }: GitRootCurrentPathProps) {
+  const { t } = useTranslation();
+
   if (mode === "issues" || !hasGitRoot) {
     return null;
   }
 
   return (
     <div className="git-root-current">
-      <span className="git-root-label">Path:</span>
+      <span className="git-root-label">{t("git_diff.path")}</span>
       <span className="git-root-path" title={gitRoot ?? ""}>
         {gitRoot}
       </span>
@@ -154,7 +165,7 @@ export function GitRootCurrentPath({
           disabled={gitRootScanLoading}
         >
           <ArrowLeftRight className="git-root-button-icon" aria-hidden />
-          Change
+          {t("git_diff.change")}
         </button>
       )}
     </div>
@@ -260,13 +271,14 @@ export function GitDiffModeContent({
   onShowFileMenu,
   onDiffListClick,
 }: GitDiffModeContentProps) {
+  const { t } = useTranslation();
   const normalizedGitRoot = normalizeRootPath(gitRoot);
 
   return (
     <div className="diff-list" onClick={onDiffListClick}>
       {showGitRootPanel && (
         <div className="git-root-panel">
-          <div className="git-root-title">Choose a repo for this workspace.</div>
+          <div className="git-root-title">{t("git_diff.select_repo")}</div>
           <div className="git-root-actions">
             <button
               type="button"
@@ -274,10 +286,10 @@ export function GitDiffModeContent({
               onClick={onScanGitRoots}
               disabled={!onScanGitRoots || gitRootScanLoading}
             >
-              Scan workspace
+              {t("git_diff.scan_workspace")}
             </button>
             <label className="git-root-depth">
-              <span>Depth</span>
+              <span>{t("git_diff.depth")}</span>
               <select
                 className="git-root-select"
                 value={gitRootScanDepth}
@@ -305,7 +317,7 @@ export function GitDiffModeContent({
                 }}
                 disabled={gitRootScanLoading}
               >
-                Pick folder
+                {t("git_diff.select_folder")}
               </button>
             )}
             {hasGitRoot && onClearGitRoot && (
@@ -315,15 +327,15 @@ export function GitDiffModeContent({
                 onClick={onClearGitRoot}
                 disabled={gitRootScanLoading}
               >
-                Use workspace root
+                {t("git_diff.use_workspace_root")}
               </button>
             )}
           </div>
-          {gitRootScanLoading && <div className="diff-empty">Scanning for repositories...</div>}
+          {gitRootScanLoading && <div className="diff-empty">{t("git_diff.scanning_repos")}</div>}
           {!gitRootScanLoading &&
             !gitRootScanError &&
             gitRootScanHasScanned &&
-            gitRootCandidates.length === 0 && <div className="diff-empty">No repositories found.</div>}
+            gitRootCandidates.length === 0 && <div className="diff-empty">{t("git_diff.no_repos_found")}</div>}
           {gitRootCandidates.length > 0 && (
             <div className="git-root-list">
               {gitRootCandidates.map((path) => {
@@ -337,7 +349,7 @@ export function GitDiffModeContent({
                     onClick={() => onSelectGitRoot?.(path)}
                   >
                     <span className="git-root-path">{path}</span>
-                    {isActive && <span className="git-root-tag">Active</span>}
+                    {isActive && <span className="git-root-tag">{t("git_diff.active")}</span>}
                   </button>
                 );
               })}
@@ -350,7 +362,7 @@ export function GitDiffModeContent({
           <div className="commit-message-input-wrapper">
             <textarea
               className="commit-message-input"
-              placeholder="Commit message..."
+              placeholder={t("git_diff.commit_message_placeholder")}
               value={commitMessage}
               onChange={(event) => onCommitMessageChange?.(event.target.value)}
               disabled={commitMessageLoading}
@@ -368,10 +380,10 @@ export function GitDiffModeContent({
               disabled={commitMessageLoading || !canGenerateCommitMessage}
               title={
                 stagedFiles.length > 0
-                  ? "Generate commit message from staged changes"
-                  : "Generate commit message from unstaged changes"
+                  ? t("git_diff.generate_from_staged")
+                  : t("git_diff.generate_from_unstaged")
               }
-              aria-label="Generate commit message"
+              aria-label={t("git_diff.generate_commit_message")}
             >
               {commitMessageLoading ? (
                 <svg
@@ -436,14 +448,14 @@ export function GitDiffModeContent({
                 className="push-button-secondary"
                 onClick={() => void onPull?.()}
                 disabled={!onPull || pullLoading || syncLoading}
-                title={`Pull ${commitsBehind} commit${commitsBehind > 1 ? "s" : ""}`}
+                title={t("git_diff.pull_n_commits", { count: commitsBehind })}
               >
                 {pullLoading ? (
                   <span className="commit-button-spinner" aria-hidden />
                 ) : (
                   <Download size={14} aria-hidden />
                 )}
-                <span>{pullLoading ? "Pulling..." : "Pull"}</span>
+                <span>{pullLoading ? t("git_diff.pulling") : t("git_diff.pull")}</span>
                 <span className="push-count">{commitsBehind}</span>
               </button>
             )}
@@ -455,8 +467,8 @@ export function GitDiffModeContent({
                 disabled={!onPush || pushLoading || commitsBehind > 0}
                 title={
                   commitsBehind > 0
-                    ? "Remote is ahead. Pull first, or use Sync."
-                    : `Push ${commitsAhead} commit${commitsAhead > 1 ? "s" : ""}`
+                    ? t("git_diff.remote_ahead")
+                    : t("git_diff.push_n_commits", { count: commitsAhead })
                 }
               >
                 {pushLoading ? (
@@ -464,7 +476,7 @@ export function GitDiffModeContent({
                 ) : (
                   <Upload size={14} aria-hidden />
                 )}
-                <span>Push</span>
+                <span>{t("git_diff.push")}</span>
                 <span className="push-count">{commitsAhead}</span>
               </button>
             )}
@@ -475,14 +487,14 @@ export function GitDiffModeContent({
               className="push-button-secondary"
               onClick={() => void onSync?.()}
               disabled={!onSync || syncLoading || pullLoading}
-              title="Pull latest changes and push your local commits"
+              title={t("git_diff.pull_and_push")}
             >
               {syncLoading ? (
                 <span className="commit-button-spinner" aria-hidden />
               ) : (
                 <RotateCcw size={14} aria-hidden />
               )}
-              <span>{syncLoading ? "Syncing..." : "Sync (pull then push)"}</span>
+              <span>{syncLoading ? t("git_diff.syncing") : t("git_diff.sync_pull_then_push")}</span>
             </button>
           )}
         </div>
@@ -491,12 +503,12 @@ export function GitDiffModeContent({
         !stagedFiles.length &&
         !unstagedFiles.length &&
         commitsAhead === 0 &&
-        commitsBehind === 0 && <div className="diff-empty">No changes detected.</div>}
+        commitsBehind === 0 && <div className="diff-empty">{t("git_diff.no_changes_detected")}</div>}
       {(stagedFiles.length > 0 || unstagedFiles.length > 0) && (
         <>
           {stagedFiles.length > 0 && (
             <DiffSection
-              title="Staged"
+              title={t("git_diff.staged")}
               files={stagedFiles}
               section="staged"
               selectedFiles={selectedFiles}
@@ -511,7 +523,7 @@ export function GitDiffModeContent({
           )}
           {unstagedFiles.length > 0 && (
             <DiffSection
-              title="Unstaged"
+              title={t("git_diff.unstaged")}
               files={unstagedFiles}
               section="unstaged"
               selectedFiles={selectedFiles}
@@ -556,17 +568,19 @@ export function GitLogModeContent({
   onSelectCommit,
   onShowLogMenu,
 }: GitLogModeContentProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="git-log-list">
-      {!logError && logLoading && <div className="diff-viewer-loading">Loading commits...</div>}
+      {!logError && logLoading && <div className="diff-viewer-loading">{t("git_diff.loading_commit")}</div>}
       {!logError &&
         !logLoading &&
         !logEntries.length &&
         !showAheadSection &&
-        !showBehindSection && <div className="diff-empty">No commits yet.</div>}
+        !showBehindSection && <div className="diff-empty">{t("git_diff.no_commit")}</div>}
       {showAheadSection && (
         <div className="git-log-section">
-          <div className="git-log-section-title">To push</div>
+          <div className="git-log-section-title">{t("git_diff.to_push")}</div>
           <div className="git-log-section-list">
             {logAheadEntries.map((entry) => {
               const isSelected = selectedCommitSha === entry.sha;
@@ -586,7 +600,7 @@ export function GitLogModeContent({
       )}
       {showBehindSection && (
         <div className="git-log-section">
-          <div className="git-log-section-title">To pull</div>
+          <div className="git-log-section-title">{t("git_diff.to_pull")}</div>
           <div className="git-log-section-list">
             {logBehindEntries.map((entry) => {
               const isSelected = selectedCommitSha === entry.sha;
@@ -606,7 +620,7 @@ export function GitLogModeContent({
       )}
       {(logEntries.length > 0 || logLoading) && (
         <div className="git-log-section">
-          <div className="git-log-section-title">Recent commits</div>
+          <div className="git-log-section-title">{t("git_diff.recent_commits")}</div>
           <div className="git-log-section-list">
             {logEntries.map((entry) => {
               const isSelected = selectedCommitSha === entry.sha;
@@ -638,10 +652,12 @@ export function GitIssuesModeContent({
   issuesLoading,
   issues,
 }: GitIssuesModeContentProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="git-issues-list">
       {!issuesError && !issuesLoading && !issues.length && (
-        <div className="diff-empty">No open issues.</div>
+        <div className="diff-empty">{t("git_diff.no_unclosed_issues")}</div>
       )}
       {issues.map((issue) => {
         const relativeTime = formatRelativeTime(new Date(issue.updatedAt).getTime());
@@ -688,14 +704,16 @@ export function GitPullRequestsModeContent({
   onSelectPullRequest,
   onShowPullRequestMenu,
 }: GitPullRequestsModeContentProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="git-pr-list">
       {!pullRequestsError && !pullRequestsLoading && !pullRequests.length && (
-        <div className="diff-empty">No open pull requests.</div>
+        <div className="diff-empty">{t("git_diff.no_unclosed_pull_requests")}</div>
       )}
       {pullRequests.map((pullRequest) => {
         const relativeTime = formatRelativeTime(new Date(pullRequest.updatedAt).getTime());
-        const author = pullRequest.author?.login ?? "unknown";
+        const author = pullRequest.author?.login ?? t("git_diff.unknown");
         const isSelected = selectedPullRequest === pullRequest.number;
 
         return (
@@ -723,7 +741,7 @@ export function GitPullRequestsModeContent({
               <span className="git-pr-time">{relativeTime}</span>
             </div>
             <div className="git-pr-meta">
-              {pullRequest.isDraft && <span className="git-pr-pill git-pr-draft">Draft</span>}
+              {pullRequest.isDraft && <span className="git-pr-pill git-pr-draft">{t("git_diff.draft")}</span>}
             </div>
           </div>
         );

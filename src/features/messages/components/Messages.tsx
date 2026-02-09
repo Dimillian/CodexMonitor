@@ -45,6 +45,9 @@ type MessagesProps = {
     response: RequestUserInputResponse,
   ) => void;
   onOpenThreadLink?: (threadId: string) => void;
+  showMessageFilePath?: boolean;
+  onPlanAccept?: () => void;
+  onPlanSubmitChanges?: (changes: string) => void;
 };
 
 type ToolSummary = {
@@ -73,6 +76,7 @@ type MessageRowProps = {
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
   onOpenThreadLink?: (threadId: string) => void;
+  showMessageFilePath?: boolean;
 };
 
 type ReasoningRowProps = {
@@ -710,6 +714,7 @@ const MessageRow = memo(function MessageRow({
   onOpenFileLink,
   onOpenFileLinkMenu,
   onOpenThreadLink,
+  showMessageFilePath = true,
 }: MessageRowProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const hasText = item.text.trim().length > 0;
@@ -748,6 +753,7 @@ const MessageRow = memo(function MessageRow({
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}
             onOpenThreadLink={onOpenThreadLink}
+            showFilePath={showMessageFilePath}
           />
         )}
         {lightboxIndex !== null && imageItems.length > 0 && (
@@ -1167,6 +1173,9 @@ export const Messages = memo(function Messages({
   userInputRequests = [],
   onUserInputSubmit,
   onOpenThreadLink,
+  showMessageFilePath = true,
+  // onPlanAccept, // TODO: 上游版本添加的新功能，暂未实现
+  // onPlanSubmitChanges, // TODO: 上游版本添加的新功能，暂未实现
 }: MessagesProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -1391,6 +1400,7 @@ export const Messages = memo(function Messages({
           onOpenFileLink={openFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
           onOpenThreadLink={onOpenThreadLink}
+          showMessageFilePath={showMessageFilePath}
         />
       );
     }

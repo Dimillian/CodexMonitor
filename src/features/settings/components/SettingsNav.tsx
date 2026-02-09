@@ -9,6 +9,7 @@ import FlaskConical from "lucide-react/dist/esm/icons/flask-conical";
 import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 import Layers from "lucide-react/dist/esm/icons/layers";
 import ServerCog from "lucide-react/dist/esm/icons/server-cog";
+import { useTranslation } from "react-i18next";
 import { PanelNavItem, PanelNavList } from "../../design-system/components/panel/PanelPrimitives";
 import type { CodexSection } from "./settingsTypes";
 
@@ -23,6 +24,8 @@ export function SettingsNav({
   onSelectSection,
   showDisclosure = false,
 }: SettingsNavProps) {
+  const { t } = useTranslation();
+
   return (
     <aside className="settings-sidebar">
       <PanelNavList className="settings-nav-list">
@@ -33,7 +36,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("projects")}
         >
-          Projects
+          {t('settings.sections.workspaces')}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -42,7 +45,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("environments")}
         >
-          Environments
+          {t('settings.sections.environment')}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -51,7 +54,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("display")}
         >
-          Display &amp; Sound
+          {t('settings.sections.display_sound')}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -60,7 +63,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("composer")}
         >
-          Composer
+          {t('settings.sections.composer')}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -69,7 +72,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("dictation")}
         >
-          Dictation
+          {t('settings.sections.dictation')}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -78,7 +81,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("shortcuts")}
         >
-          Shortcuts
+          {t('settings.sections.keyboard_shortcuts')}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -87,7 +90,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("open-apps")}
         >
-          Open in
+          {t('settings.sections.open_with')}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -96,7 +99,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("git")}
         >
-          Git
+          {t('settings.sections.git')}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -105,7 +108,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("server")}
         >
-          Server
+          {t('settings.sections.server')}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -114,7 +117,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("codex")}
         >
-          Codex
+          {t('settings.sections.codex')}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -123,7 +126,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("features")}
         >
-          Features
+          {t('settings.sections.features')}
         </PanelNavItem>
       </PanelNavList>
     </aside>

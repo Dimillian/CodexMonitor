@@ -1,5 +1,6 @@
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import type { Dispatch, SetStateAction } from "react";
+import { useTranslation } from "react-i18next";
 import type {
   AppSettings,
   CodexDoctorResult,
@@ -113,15 +114,16 @@ export function SettingsCodexSection({
   onUpdateWorkspaceCodexBin,
   onUpdateWorkspaceSettings,
 }: SettingsCodexSectionProps) {
+  const { t } = useTranslation();
   return (
     <section className="settings-section">
-      <div className="settings-section-title">Codex</div>
+      <div className="settings-section-title">{t('settings.sections.codex')}</div>
       <div className="settings-section-subtitle">
-        Configure the Codex CLI used by CodexMonitor and validate the install.
+        {t('settings.features.codex_config')}
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="codex-path">
-          Default Codex path
+          {t('settings.features.default_codex_path')}
         </label>
         <div className="settings-field-row">
           <input
@@ -138,19 +140,19 @@ export function SettingsCodexSection({
               void onBrowseCodex();
             }}
           >
-            Browse
+            {t('settings.features.browse')}
           </button>
           <button
             type="button"
             className="ghost"
             onClick={() => onSetCodexPathDraft("")}
           >
-            Use PATH
+            {t('settings.features.use_path')}
           </button>
         </div>
-        <div className="settings-help">Leave empty to use the system PATH resolution.</div>
+        <div className="settings-help">{t('settings.features.default_codex_path_description')}</div>
         <label className="settings-field-label" htmlFor="codex-args">
-          Default Codex args
+          {t('settings.features.default_codex_args')}
         </label>
         <div className="settings-field-row">
           <input
@@ -165,11 +167,11 @@ export function SettingsCodexSection({
             className="ghost"
             onClick={() => onSetCodexArgsDraft("")}
           >
-            Clear
+            {t('settings.features.clear')}
           </button>
         </div>
         <div className="settings-help">
-          Extra flags passed before <code>app-server</code>. Use quotes for values with spaces.
+          {t('settings.features.default_codex_args_description')}
         </div>
         <div className="settings-field-actions">
           {codexDirty && (
@@ -181,7 +183,7 @@ export function SettingsCodexSection({
               }}
               disabled={isSavingSettings}
             >
-              {isSavingSettings ? "Saving..." : "Save"}
+              {isSavingSettings ? t('common.saving') : t('settings.features.save')}
             </button>
           )}
           <button
@@ -193,7 +195,7 @@ export function SettingsCodexSection({
             disabled={doctorState.status === "running"}
           >
             <Stethoscope aria-hidden />
-            {doctorState.status === "running" ? "Running..." : "Run doctor"}
+            {doctorState.status === "running" ? t('common.loading') : t('settings.features.run_diagnosis')}
           </button>
           <button
             type="button"
@@ -202,26 +204,26 @@ export function SettingsCodexSection({
               void onRunCodexUpdate();
             }}
             disabled={codexUpdateState.status === "running"}
-            title="Update Codex"
+            title={t('common.update')}
           >
             <Stethoscope aria-hidden />
-            {codexUpdateState.status === "running" ? "Updating..." : "Update"}
+            {codexUpdateState.status === "running" ? t('common.loading') : t('common.update')}
           </button>
         </div>
 
         {doctorState.result && (
           <div className={`settings-doctor ${doctorState.result.ok ? "ok" : "error"}`}>
             <div className="settings-doctor-title">
-              {doctorState.result.ok ? "Codex looks good" : "Codex issue detected"}
+              {doctorState.result.ok ? t('settings.features.codex_ok') : t('settings.features.codex_issue')}
             </div>
             <div className="settings-doctor-body">
-              <div>Version: {doctorState.result.version ?? "unknown"}</div>
-              <div>App-server: {doctorState.result.appServerOk ? "ok" : "failed"}</div>
+              <div>{t('settings.features.version')} {doctorState.result.version ?? t('settings.features.unknown')}</div>
+              <div>{t('settings.features.app_server')} {doctorState.result.appServerOk ? t('settings.features.ok') : t('settings.features.failed')}</div>
               <div>
-                Node:{" "}
+                {t('settings.features.node_js')}{" "}
                 {doctorState.result.nodeOk
-                  ? `ok (${doctorState.result.nodeVersion ?? "unknown"})`
-                  : "missing"}
+                  ? `${t('settings.features.ok')} (${doctorState.result.nodeVersion ?? t('settings.features.unknown')})`
+                  : t('settings.features.missing')}
               </div>
               {doctorState.result.details && <div>{doctorState.result.details}</div>}
               {doctorState.result.nodeDetails && <div>{doctorState.result.nodeDetails}</div>}
@@ -239,9 +241,9 @@ export function SettingsCodexSection({
             <div className="settings-doctor-title">
               {codexUpdateState.result.ok
                 ? codexUpdateState.result.upgraded
-                  ? "Codex updated"
-                  : "Codex already up-to-date"
-                : "Codex update failed"}
+                  ? t('common.update')
+                  : t('git_diff.no_changes_to_commit')
+                : t('errors.api_error')}
             </div>
             <div className="settings-doctor-body">
               <div>Method: {codexUpdateState.result.method}</div>
@@ -249,10 +251,10 @@ export function SettingsCodexSection({
                 <div>Package: {codexUpdateState.result.package}</div>
               )}
               <div>
-                Version:{" "}
+                {t('settings.features.version')}{" "}
                 {codexUpdateState.result.afterVersion ??
                   codexUpdateState.result.beforeVersion ??
-                  "unknown"}
+                  t('settings.features.unknown')}
               </div>
               {codexUpdateState.result.details && <div>{codexUpdateState.result.details}</div>}
               {codexUpdateState.result.output && (
@@ -268,7 +270,7 @@ export function SettingsCodexSection({
 
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="default-access">
-          Default access mode
+          {t('settings.features.default_access_mode')}
         </label>
         <select
           id="default-access"
@@ -281,14 +283,14 @@ export function SettingsCodexSection({
             })
           }
         >
-          <option value="read-only">Read only</option>
-          <option value="current">On-request</option>
-          <option value="full-access">Full access</option>
+          <option value="read-only">{t('settings.features.read_only')}</option>
+          <option value="current">{t('settings.features.on_demand')}</option>
+          <option value="full-access">{t('settings.features.full_access')}</option>
         </select>
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="review-delivery">
-          Review mode
+          {t('settings.features.review_mode')}
         </label>
         <select
           id="review-delivery"
@@ -301,21 +303,20 @@ export function SettingsCodexSection({
             })
           }
         >
-          <option value="inline">Inline (same thread)</option>
-          <option value="detached">Detached (new review thread)</option>
+          <option value="inline">{t('settings.features.inline')}</option>
+          <option value="detached">{t('settings.features.detached')}</option>
         </select>
         <div className="settings-help">
-          Choose whether <code>/review</code> runs in the current thread or a detached review
-          thread.
+          {t('settings.features.review_mode_description')}
         </div>
       </div>
 
       <FileEditorCard
-        title="Global AGENTS.md"
+        title={t('settings.features.global_agents_md')}
         meta={globalAgentsMeta}
         error={globalAgentsError}
         value={globalAgentsContent}
-        placeholder="Add global instructions for Codex agents…"
+        placeholder={t('settings.features.global_agents_md_placeholder')}
         disabled={globalAgentsLoading}
         refreshDisabled={globalAgentsRefreshDisabled}
         saveDisabled={globalAgentsSaveDisabled}
@@ -325,7 +326,7 @@ export function SettingsCodexSection({
         onSave={onSaveGlobalAgents}
         helpText={
           <>
-            Stored at <code>~/.codex/AGENTS.md</code>.
+            {t('settings.features.global_agents_md_description')}
           </>
         }
         classNames={{
@@ -342,11 +343,11 @@ export function SettingsCodexSection({
       />
 
       <FileEditorCard
-        title="Global config.toml"
+        title={t('settings.features.global_config_toml')}
         meta={globalConfigMeta}
         error={globalConfigError}
         value={globalConfigContent}
-        placeholder="Edit the global Codex config.toml…"
+        placeholder={t('settings.features.global_config_toml_placeholder')}
         disabled={globalConfigLoading}
         refreshDisabled={globalConfigRefreshDisabled}
         saveDisabled={globalConfigSaveDisabled}
@@ -356,7 +357,7 @@ export function SettingsCodexSection({
         onSave={onSaveGlobalConfig}
         helpText={
           <>
-            Stored at <code>~/.codex/config.toml</code>.
+            {t('settings.features.global_config_toml_description')}
           </>
         }
         classNames={{
@@ -373,7 +374,7 @@ export function SettingsCodexSection({
       />
 
       <div className="settings-field">
-        <div className="settings-field-label">Workspace overrides</div>
+        <div className="settings-field-label">{t('settings.features.workspace_overrides')}</div>
         <div className="settings-overrides">
           {projects.map((workspace) => (
             <div key={workspace.id} className="settings-override-row">
@@ -386,7 +387,7 @@ export function SettingsCodexSection({
                   <input
                     className="settings-input settings-input--compact"
                     value={codexBinOverrideDrafts[workspace.id] ?? ""}
-                    placeholder="Codex binary override"
+                    placeholder={t('settings.features.codex_executable_override')}
                     onChange={(event) =>
                       onSetCodexBinOverrideDrafts((prev) => ({
                         ...prev,
@@ -401,7 +402,7 @@ export function SettingsCodexSection({
                       }
                       await onUpdateWorkspaceCodexBin(workspace.id, nextValue);
                     }}
-                    aria-label={`Codex binary override for ${workspace.name}`}
+                    aria-label={`${t('settings.features.codex_executable_override')} for ${workspace.name}`}
                   />
                   <button
                     type="button"
@@ -414,14 +415,14 @@ export function SettingsCodexSection({
                       await onUpdateWorkspaceCodexBin(workspace.id, null);
                     }}
                   >
-                    Clear
+                    {t('settings.features.clear')}
                   </button>
                 </div>
                 <div className="settings-override-field">
                   <input
                     className="settings-input settings-input--compact"
                     value={codexHomeOverrideDrafts[workspace.id] ?? ""}
-                    placeholder="CODEX_HOME override"
+                    placeholder={t('settings.features.codex_home_override')}
                     onChange={(event) =>
                       onSetCodexHomeOverrideDrafts((prev) => ({
                         ...prev,
@@ -438,7 +439,7 @@ export function SettingsCodexSection({
                         codexHome: nextValue,
                       });
                     }}
-                    aria-label={`CODEX_HOME override for ${workspace.name}`}
+                    aria-label={`${t('settings.features.codex_home_override')} for ${workspace.name}`}
                   />
                   <button
                     type="button"
@@ -453,14 +454,14 @@ export function SettingsCodexSection({
                       });
                     }}
                   >
-                    Clear
+                    {t('settings.features.clear')}
                   </button>
                 </div>
                 <div className="settings-override-field">
                   <input
                     className="settings-input settings-input--compact"
                     value={codexArgsOverrideDrafts[workspace.id] ?? ""}
-                    placeholder="Codex args override"
+                    placeholder={t('settings.features.codex_args_override')}
                     onChange={(event) =>
                       onSetCodexArgsOverrideDrafts((prev) => ({
                         ...prev,
@@ -477,7 +478,7 @@ export function SettingsCodexSection({
                         codexArgs: nextValue,
                       });
                     }}
-                    aria-label={`Codex args override for ${workspace.name}`}
+                    aria-label={`${t('settings.features.codex_args_override')} for ${workspace.name}`}
                   />
                   <button
                     type="button"
@@ -492,13 +493,13 @@ export function SettingsCodexSection({
                       });
                     }}
                   >
-                    Clear
+                    {t('settings.features.clear')}
                   </button>
                 </div>
               </div>
             </div>
           ))}
-          {projects.length === 0 && <div className="settings-empty">No projects yet.</div>}
+          {projects.length === 0 && <div className="settings-empty">{t('sidebar.no_workspaces')}</div>}
         </div>
       </div>
     </section>
