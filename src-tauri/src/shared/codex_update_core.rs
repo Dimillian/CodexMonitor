@@ -161,7 +161,10 @@ pub(crate) async fn codex_update_core(
         .or(default_args);
     let _ = resolved_args;
 
-    let before_version = check_codex_installation(resolved.clone()).await?;
+    let before_version = check_codex_installation(resolved.clone())
+        .await
+        .ok()
+        .flatten();
 
     let (method, package, upgrade_ok, output, upgraded) = if detect_brew_cask("codex").await? {
         let (ok, output) = run_brew_upgrade(&["--cask", "codex"]).await?;
