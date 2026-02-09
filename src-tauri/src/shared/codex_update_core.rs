@@ -40,7 +40,15 @@ async fn run_brew_info(args: &[&str]) -> Result<bool, String> {
     command.stderr(std::process::Stdio::piped());
 
     let output = match timeout(Duration::from_secs(8), command.output()).await {
-        Ok(result) => result.map_err(|err| err.to_string())?,
+        Ok(result) => match result {
+            Ok(output) => output,
+            Err(err) => {
+                if err.kind() == std::io::ErrorKind::NotFound {
+                    return Ok(false);
+                }
+                return Err(err.to_string());
+            }
+        },
         Err(_) => return Ok(false),
     };
 
@@ -100,7 +108,15 @@ async fn npm_has_package(package: &str) -> Result<bool, String> {
     command.stderr(std::process::Stdio::piped());
 
     let output = match timeout(Duration::from_secs(10), command.output()).await {
-        Ok(result) => result.map_err(|err| err.to_string())?,
+        Ok(result) => match result {
+            Ok(output) => output,
+            Err(err) => {
+                if err.kind() == std::io::ErrorKind::NotFound {
+                    return Ok(false);
+                }
+                return Err(err.to_string());
+            }
+        },
         Err(_) => return Ok(false),
     };
 
