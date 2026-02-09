@@ -106,9 +106,32 @@ export function MockI18nProvider({
     interpolate: vi.fn(),
     parse: vi.fn(),
     resourceStore: {},
+    // 添加缺失的 i18n 属性
+    init: vi.fn(() => Promise.resolve()),
+    use: vi.fn(() => ({ type: 'backend' })),
+    modules: {},
+    store: {},
+    isInitialized: true,
+    on: vi.fn(),
+    off: vi.fn(),
+    emit: vi.fn(),
+    cloneInstance: vi.fn(),
+    createInstance: vi.fn(),
+    createTranslator: vi.fn(),
+    exists: vi.fn().mockReturnValue(true),
+    setDefaultNamespace: vi.fn(),
+    getDefaultNamespace: vi.fn().mockReturnValue('translation'),
+    languages: [locale],
+    namespaces: ['translation'],
+    hasLoadedNamespace: vi.fn().mockReturnValue(true),
+    loadNamespaces: vi.fn().mockResolvedValue(undefined),
+    loadLanguages: vi.fn().mockResolvedValue(undefined),
+    toLanguage: vi.fn(),
+    getT: vi.fn().mockReturnValue((key: string) => translations[key] || key),
+    getDataByLanguage: vi.fn().mockReturnValue({}),
   };
 
-  return <I18nextProvider i18n={i18nInstance}>{children}</I18nextProvider>;
+  return <I18nextProvider i18n={i18nInstance as any}>{children}</I18nextProvider>;
 }
 
 /**
