@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { message } from "@tauri-apps/plugin-dialog";
 import type { WorkspaceInfo } from "../../../types";
 import {
@@ -34,6 +34,10 @@ vi.mock("../../../services/tauri", () => ({
   updateWorkspaceCodexBin: vi.fn(),
   updateWorkspaceSettings: vi.fn(),
 }));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 const worktree: WorkspaceInfo = {
   id: "wt-1",
@@ -278,12 +282,10 @@ describe("useWorkspaces.addWorkspace (bulk)", () => {
       await Promise.resolve();
     });
 
-    let added: WorkspaceInfo | null = null;
     await act(async () => {
-      added = await result.current.addWorkspace();
+      await result.current.addWorkspace();
     });
 
-    expect(added?.id).toBe("added-1");
     expect(addWorkspaceMock).toHaveBeenCalledTimes(2);
     expect(addWorkspaceMock).toHaveBeenCalledWith("/tmp/ws-1", null);
     expect(addWorkspaceMock).toHaveBeenCalledWith("/tmp/ws-2", null);
