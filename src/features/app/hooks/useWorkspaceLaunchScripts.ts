@@ -6,6 +6,7 @@ import type {
   WorkspaceSettings,
 } from "../../../types";
 import type { TerminalSessionState } from "../../terminal/hooks/useTerminalSession";
+import { useTranslation } from "react-i18next";
 import { writeTerminalSession } from "../../../services/tauri";
 import { pushErrorToast } from "../../../services/toasts";
 import {
@@ -61,12 +62,12 @@ export type WorkspaceLaunchScriptsState = {
   onCreateNew: () => Promise<void>;
 };
 
-function buildLaunchTitle(entry: LaunchScriptEntry) {
+function buildLaunchTitle(entry: LaunchScriptEntry, t: (key: string) => string) {
   const label = entry.label?.trim();
   if (label) {
-    return `Launch: ${label}`;
+    return `${t("launch_scripts.launch")}: ${label}`;
   }
-  return `Launch: ${getLaunchScriptIconLabel(entry.icon)}`;
+  return `${t("launch_scripts.launch")}: ${getLaunchScriptIconLabel(entry.icon, t)}`;
 }
 
 export function useWorkspaceLaunchScripts({
@@ -78,6 +79,8 @@ export function useWorkspaceLaunchScripts({
   terminalState,
   activeTerminalId,
 }: UseWorkspaceLaunchScriptsOptions): WorkspaceLaunchScriptsState {
+  const { t } = useTranslation();
+
   const [editorOpenId, setEditorOpenId] = useState<string | null>(null);
   const [draftScript, setDraftScript] = useState("");
   const [draftIcon, setDraftIcon] = useState<LaunchScriptIconId>(DEFAULT_LAUNCH_SCRIPT_ICON);
@@ -298,7 +301,7 @@ export function useWorkspaceLaunchScripts({
       }
       setError(null);
       setErrorById((prev) => ({ ...prev, [id]: null }));
-      const title = buildLaunchTitle(entry);
+      const title = buildLaunchTitle(entry, t);
       const terminalId = ensureLaunchTerminal(activeWorkspace.id, entry, title);
       pendingRunRef.current = {
         workspaceId: activeWorkspace.id,

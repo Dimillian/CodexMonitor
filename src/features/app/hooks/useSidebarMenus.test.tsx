@@ -42,6 +42,10 @@ vi.mock("../../../services/toasts", () => ({
   pushErrorToast: vi.fn(),
 }));
 
+vi.mock("../../../utils/platformPaths", () => ({
+  fileManagerName: () => "Finder",
+}));
+
 describe("useSidebarMenus", () => {
   it("adds a show in file manager option for worktrees", async () => {
     const onDeleteThread = vi.fn();

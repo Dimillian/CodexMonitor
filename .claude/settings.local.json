@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run test)",
+      "mcp__plugin_oh-my-claudecode_t__ast_grep_replace",
+      "Bash(npm run typecheck)",
+      "Bash(npm run tauri:dev:win:*)",
+      "Bash(timeout 60s:*)"
+    ]
+  }
+}

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { CSSProperties, MouseEvent } from "react";
+import { useTranslation } from "react-i18next";
 import X from "lucide-react/dist/esm/icons/x";
 import { highlightLine, languageFromPath } from "../../../utils/syntax";
 import { OpenAppMenu } from "../../app/components/OpenAppMenu";
@@ -57,6 +58,8 @@ export function FilePreviewPopover({
   isLoading = false,
   error = null,
 }: FilePreviewPopoverProps) {
+  const { t } = useTranslation();
+
   const isImagePreview = previewKind === "image";
   const lines = useMemo(
     () => (isImagePreview ? [] : content.split("\n")),
@@ -163,7 +166,7 @@ export function FilePreviewPopover({
                 onClick={onAddSelection}
                 disabled={!selection || !canInsertText}
               >
-                添加到对话
+                {t("file_preview.add_to_chat")}
               </button>
             </div>
           </div>

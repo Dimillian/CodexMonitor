@@ -4,6 +4,7 @@ import FolderPlus from "lucide-react/dist/esm/icons/folder-plus";
 import ListFilter from "lucide-react/dist/esm/icons/list-filter";
 import Search from "lucide-react/dist/esm/icons/search";
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { ThreadListSortKey } from "../../../types";
 import {
   PopoverMenuItem,
@@ -28,6 +29,7 @@ export function SidebarHeader({
   threadListSortKey,
   onSetThreadListSortKey,
 }: SidebarHeaderProps) {
+  const { t } = useTranslation();
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const sortMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -53,7 +55,7 @@ export function SidebarHeader({
             className="sidebar-title-add"
             onClick={onAddWorkspace}
             data-tauri-drag-region="false"
-            aria-label="添加工作区"
+            aria-label={t('sidebar.add_workspace')}
             type="button"
           >
             <FolderPlus aria-hidden />
@@ -62,9 +64,9 @@ export function SidebarHeader({
             className="subtitle subtitle-button sidebar-title-button"
             onClick={onSelectHome}
             data-tauri-drag-region="false"
-            aria-label="打开主页"
+            aria-label={t('home.title')}
           >
-            工作区
+            {t('sidebar.workspaces')}
           </button>
         </div>
       </div>
@@ -74,11 +76,11 @@ export function SidebarHeader({
             className={`ghost sidebar-sort-toggle${sortMenuOpen ? " is-active" : ""}`}
             onClick={() => setSortMenuOpen((open) => !open)}
             data-tauri-drag-region="false"
-            aria-label="排序对话"
+            aria-label={t('sidebar.sort_conversations')}
             aria-haspopup="menu"
             aria-expanded={sortMenuOpen}
             type="button"
-            title="排序对话"
+            title={t('sidebar.sort_conversations')}
           >
             <ListFilter aria-hidden />
           </button>
@@ -93,7 +95,7 @@ export function SidebarHeader({
                 icon={<Clock3 aria-hidden />}
                 active={threadListSortKey === "updated_at"}
               >
-                最近更新
+                {t('sidebar.sort_updated')}
               </PopoverMenuItem>
               <PopoverMenuItem
                 className="sidebar-sort-option"
@@ -104,7 +106,7 @@ export function SidebarHeader({
                 icon={<Calendar aria-hidden />}
                 active={threadListSortKey === "created_at"}
               >
-                最新创建
+                {t('sidebar.sort_created')}
               </PopoverMenuItem>
             </PopoverSurface>
           )}
@@ -113,7 +115,7 @@ export function SidebarHeader({
           className={`ghost sidebar-search-toggle${isSearchOpen ? " is-active" : ""}`}
           onClick={onToggleSearch}
           data-tauri-drag-region="false"
-          aria-label="切换搜索"
+          aria-label={t('sidebar.toggle_search')}
           aria-pressed={isSearchOpen}
           type="button"
         >

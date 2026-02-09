@@ -7,7 +7,7 @@ import { parsePatchFiles } from "@pierre/diffs";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import { workerFactory } from "../../../utils/diffsWorker";
 import type { GitHubPullRequest, GitHubPullRequestComment } from "../../../types";
-import { formatRelativeTime } from "../../../utils/time";
+import { formatRelativeTime } from "../../../i18n/utils";
 import {
   DIFF_VIEWER_HIGHLIGHTER_OPTIONS,
   DIFF_VIEWER_SCROLL_CSS,

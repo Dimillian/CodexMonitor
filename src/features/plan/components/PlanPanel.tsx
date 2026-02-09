@@ -1,4 +1,5 @@
 import type { TurnPlan } from "../../../types";
+import { useTranslation } from "react-i18next";
 
 type PlanPanelProps = {
   plan: TurnPlan | null;
@@ -14,26 +15,27 @@ function formatProgress(plan: TurnPlan) {
   return `${completed}/${total}`;
 }
 
-function statusLabel(status: TurnPlan["steps"][number]["status"]) {
+function statusLabel(status: TurnPlan["steps"][number]["status"], t: any) {
   if (status === "completed") {
-    return "[已完成]";
+    return t('plan.step_completed');
   }
   if (status === "inProgress") {
-    return "[进行中]";
+    return t('plan.step_in_progress');
   }
-  return "[待开始]";
+  return t('plan.step_pending');
 }
 
 export function PlanPanel({ plan, isProcessing }: PlanPanelProps) {
+  const { t } = useTranslation();
   const progress = plan ? formatProgress(plan) : "";
   const steps = plan?.steps ?? [];
   const showEmpty = !steps.length && !plan?.explanation;
-  const emptyLabel = isProcessing ? "正在等待计划..." : "暂无活动计划。";
+  const emptyLabel = isProcessing ? t('plan.waiting_for_plan') : t('plan.no_active_plan');
 
   return (
     <aside className="plan-panel">
       <div className="plan-header">
-        <span>计划</span>
+        <span>{t('plan.plan')}</span>
         {progress && <span className="plan-progress">{progress}</span>}
       </div>
       {plan?.explanation && (
@@ -46,7 +48,7 @@ export function PlanPanel({ plan, isProcessing }: PlanPanelProps) {
           {steps.map((step, index) => (
             <li key={`${step.step}-${index}`} className={`plan-step ${step.status}`}>
               <span className="plan-step-status" aria-hidden>
-                {statusLabel(step.status)}
+                {statusLabel(step.status, t)}
               </span>
               <span className="plan-step-text">{step.step}</span>
             </li>

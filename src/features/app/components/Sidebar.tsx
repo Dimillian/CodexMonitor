@@ -33,7 +33,8 @@ import { useThreadRows } from "../hooks/useThreadRows";
 import { useDismissibleMenu } from "../hooks/useDismissibleMenu";
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { getUsageLabels } from "../utils/usageLabels";
-import { formatRelativeTimeShort } from "../../../utils/time";
+import { formatRelativeTimeShort } from "../../../i18n/utils";
+import { useTranslation } from "react-i18next";
 
 const COLLAPSED_GROUPS_STORAGE_KEY = "codexmonitor.collapsedGroups";
 const UNGROUPED_COLLAPSE_ID = "__ungrouped__";
@@ -157,6 +158,7 @@ export function Sidebar({
   onWorkspaceDragLeave,
   onWorkspaceDrop,
 }: SidebarProps) {
+  const { t } = useTranslation();
   const [expandedWorkspaces, setExpandedWorkspaces] = useState(
     new Set<string>(),
   );
@@ -242,9 +244,9 @@ export function Sidebar({
   const accountButtonLabel = accountEmail
     ? accountEmail
     : accountInfo?.type === "apikey"
-      ? "API 密钥"
-      : "登录 Codex";
-  const accountActionLabel = accountEmail ? "切换账号" : "登录";
+      ? "API Key"
+      : t('sidebar.login');
+  const accountActionLabel = accountEmail ? t('sidebar.switch_account') : t('sidebar.login');
   const showAccountSwitcher = Boolean(activeWorkspaceId);
   const accountSwitchDisabled = accountSwitching || !activeWorkspaceId;
   const accountCancelDisabled = !accountSwitching || !activeWorkspaceId;
@@ -422,8 +424,8 @@ export function Sidebar({
             className="sidebar-search-input"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="搜索工作区"
-            aria-label="搜索工作区"
+            placeholder={t('sidebar.search_workspaces')}
+            aria-label={t('sidebar.search_workspaces')}
             data-tauri-drag-region="false"
             autoFocus
           />
@@ -433,7 +435,7 @@ export function Sidebar({
             type="button"
             className="sidebar-search-clear"
             onClick={() => setSearchQuery("")}
-            aria-label="清除搜索"
+            aria-label={t('sidebar.clear_search')}
             data-tauri-drag-region="false"
           >
             <X size={12} aria-hidden />
@@ -448,10 +450,10 @@ export function Sidebar({
       >
         <div
           className={`workspace-drop-overlay-text${
-            workspaceDropText === "正在添加工作区..." ? " is-busy" : ""
+            workspaceDropText === t('workspace.adding_workspace') ? " is-busy" : ""
           }`}
         >
-          {workspaceDropText === "将工作区拖放到此处" && (
+          {workspaceDropText === t('workspace.drag_drop_here') && (
             <FolderOpen className="workspace-drop-overlay-icon" aria-hidden />
           )}
           {workspaceDropText}
@@ -468,7 +470,7 @@ export function Sidebar({
           {pinnedThreadRows.length > 0 && (
             <div className="pinned-section">
               <div className="workspace-group-header">
-                <div className="workspace-group-label">已固定</div>
+                <div className="workspace-group-label">{t('sidebar.pinned')}</div>
               </div>
               <PinnedThreadList
                 rows={pinnedThreadRows}
@@ -568,7 +570,7 @@ export function Sidebar({
                               }}
                               icon={<Plus aria-hidden />}
                             >
-                              新建智能体
+                              {t('workspace.new_agent')}
                             </PopoverMenuItem>
                             <PopoverMenuItem
                               className="workspace-add-option"
@@ -579,7 +581,7 @@ export function Sidebar({
                               }}
                               icon={<GitBranch aria-hidden />}
                             >
-                              新建工作树智能体
+                              {t('workspace.new_worktree_agent')}
                             </PopoverMenuItem>
                             <PopoverMenuItem
                               className="workspace-add-option"
@@ -590,7 +592,7 @@ export function Sidebar({
                               }}
                               icon={<Copy aria-hidden />}
                             >
-                              新建克隆智能体
+                              {t('workspace.new_clone_agent')}
                             </PopoverMenuItem>
                           </PopoverSurface>,
                           document.body,
@@ -611,7 +613,7 @@ export function Sidebar({
                           }}
                         >
                           <span className={`thread-status ${draftStatusClass}`} aria-hidden />
-                          <span className="thread-name">新建智能体</span>
+                          <span className="thread-name">{t('workspace.new_agent')}</span>
                         </div>
                       )}
                       {worktrees.length > 0 && (
@@ -670,8 +672,8 @@ export function Sidebar({
           {!filteredGroupedWorkspaces.length && (
             <div className="empty">
               {isSearchActive
-                ? "没有匹配的工作区。"
-                : "先添加一个工作区。"}
+                ? t('sidebar.no_matching_workspaces')
+                : t('sidebar.no_workspaces')}
             </div>
           )}
         </div>

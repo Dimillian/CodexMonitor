@@ -1,0 +1,11 @@
+{
+  "version": "0.7.44",
+  "notes": "Codex Monitor 0.7.44 版本发布",
+  "pub_date": "2026-02-08T00:00:00Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY0QTgzQUU0QTc2MEVBNDMKUldSRDZtQ241RHFvOURJbm1KeC81aEZaOXlhZHlHd2NEZVpPVWs5NjdjOFNhUFEyZGJpTkV0S2YK",
+      "url": "https://github.com/shenshuoyaoyouguang/CodexMonitor/releases/download/v0.7.44/CodexMonitor_0.7.44_x64-setup.exe"
+    }
+  }
+}

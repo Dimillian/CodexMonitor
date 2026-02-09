@@ -27,7 +27,7 @@ import type {
   WorkspaceHomeRunInstance,
   WorkspaceRunMode,
 } from "../hooks/useWorkspaceHome";
-import { formatRelativeTime } from "../../../utils/time";
+import { formatRelativeTime } from "../../../i18n/utils";
 import Laptop from "lucide-react/dist/esm/icons/laptop";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";

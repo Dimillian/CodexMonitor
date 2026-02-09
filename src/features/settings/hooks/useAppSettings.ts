@@ -52,6 +52,7 @@ function buildDefaultSettings(): AppSettings {
     lastComposerReasoningEffort: null,
     uiScale: UI_SCALE_DEFAULT,
     theme: "system",
+    language: "en",
     usageShowRemaining: false,
     uiFontFamily: DEFAULT_UI_FONT_FAMILY,
     codeFontFamily: DEFAULT_CODE_FONT_FAMILY,

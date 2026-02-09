@@ -6,6 +6,7 @@ import type {
   RefObject,
   SyntheticEvent,
 } from "react";
+import { useTranslation } from "react-i18next";
 import type { AutocompleteItem } from "../hooks/useComposerAutocomplete";
 import ImagePlus from "lucide-react/dist/esm/icons/image-plus";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
@@ -32,7 +33,7 @@ import { getFileTypeIconUrl } from "../../../utils/fileTypeIcons";
 type ComposerInputProps = {
   text: string;
   disabled: boolean;
-  sendLabel: string;
+  sendLabel?: string;
   canStop: boolean;
   canSend: boolean;
   isProcessing: boolean;
@@ -202,6 +203,8 @@ export function ComposerInput({
   onReviewPromptUpdateCustomInstructions,
   onReviewPromptConfirmCustom,
 }: ComposerInputProps) {
+  const { t } = useTranslation();
+
   const suggestionListRef = useRef<HTMLDivElement | null>(null);
   const suggestionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const minTextareaHeight = isExpanded ? 180 : 60;
@@ -564,7 +567,7 @@ export function ComposerInput({
         }`}
         onClick={handleActionClick}
         disabled={disabled || isDictationBusy || (!canStop && !canSend)}
-        aria-label={canStop ? "停止" : sendLabel}
+        aria-label={canStop ? t("composer.interrupt") : (sendLabel ?? t("composer.send"))}
       >
         {canStop ? (
           <>

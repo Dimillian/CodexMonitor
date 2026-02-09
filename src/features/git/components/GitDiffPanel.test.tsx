@@ -3,7 +3,6 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { GitLogEntry } from "../../../types";
 import { GitDiffPanel } from "./GitDiffPanel";
-import { fileManagerName } from "../../../utils/platformPaths";
 
 const menuNew = vi.hoisted(() =>
   vi.fn(async ({ items }) => ({ popup: vi.fn(), items })),
@@ -51,6 +50,11 @@ Object.defineProperty(navigator, "clipboard", {
   configurable: true,
 });
 
+vi.mock("../../../utils/platformPaths", () => ({
+  fileManagerName: () => "Finder",
+  isAbsolutePath: (path: string) => path.startsWith("/") || path.startsWith("~"),
+}));
+
 const logEntries: GitLogEntry[] = [];
 
 const baseProps = {
@@ -82,7 +86,7 @@ describe("GitDiffPanel", () => {
       />,
     );
 
-    const commitButton = screen.getByRole("button", { name: "Commit" });
+    const commitButton = screen.getByRole("button", { name: "提交" });
     expect((commitButton as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(commitButton);
     expect(onCommit).toHaveBeenCalledTimes(1);
@@ -108,7 +112,7 @@ describe("GitDiffPanel", () => {
     await waitFor(() => expect(menuNew).toHaveBeenCalled());
     const menuArgs = menuNew.mock.calls[0]?.[0];
     const revealItem = menuArgs.items.find(
-      (item: { text: string }) => item.text === `Show in ${fileManagerName()}`,
+      (item: { text: string }) => item.text === "Show in Finder",
     );
 
     expect(revealItem).toBeDefined();
@@ -173,7 +177,7 @@ describe("GitDiffPanel", () => {
     await waitFor(() => expect(menuNew).toHaveBeenCalled());
     const menuArgs = menuNew.mock.calls[menuNew.mock.calls.length - 1]?.[0];
     const revealItem = menuArgs.items.find(
-      (item: { text: string }) => item.text === `Show in ${fileManagerName()}`,
+      (item: { text: string }) => item.text === "Show in Finder",
     );
 
     expect(revealItem).toBeDefined();

@@ -19,6 +19,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 }));
 
 const baseSettings: AppSettings = {
+  language: "en",
   codexBin: null,
   codexArgs: null,
   backendMode: "local",
@@ -146,7 +147,7 @@ const renderDisplaySection = (
   };
 
   render(<SettingsView {...props} />);
-  fireEvent.click(screen.getByRole("button", { name: "Display & Sound" }));
+  fireEvent.click(screen.getByRole("button", { name: "Appearance" }));
 
   return { onUpdateAppSettings, onToggleTransparency };
 };
@@ -352,7 +353,7 @@ describe("SettingsView Display", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
-    const scaleInput = screen.getByLabelText("Interface scale");
+    const scaleInput = screen.getByLabelText("UI Scale");
 
     fireEvent.change(scaleInput, { target: { value: "500%" } });
     fireEvent.blur(scaleInput);
@@ -377,7 +378,7 @@ describe("SettingsView Display", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
-    const uiFontInput = screen.getByLabelText("UI font family");
+    const uiFontInput = screen.getByLabelText("UI Font");
     fireEvent.change(uiFontInput, { target: { value: "Avenir, sans-serif" } });
     fireEvent.blur(uiFontInput);
 
@@ -387,7 +388,7 @@ describe("SettingsView Display", () => {
       );
     });
 
-    const codeFontInput = screen.getByLabelText("Code font family");
+    const codeFontInput = screen.getByLabelText("Code Font");
     fireEvent.change(codeFontInput, {
       target: { value: "JetBrains Mono, monospace" },
     });
@@ -426,7 +427,7 @@ describe("SettingsView Display", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
-    const slider = screen.getByLabelText("Code font size");
+    const slider = screen.getByLabelText("Code Font Size");
     fireEvent.change(slider, { target: { value: "14" } });
 
     await waitFor(() => {
@@ -465,7 +466,7 @@ describe("SettingsView Environments", () => {
     renderEnvironmentsSection({ onUpdateWorkspaceSettings });
 
     expect(
-      screen.getByText("Environments", { selector: ".settings-section-title" }),
+      screen.getByText("Advanced", { selector: ".settings-section-title" }),
     ).toBeTruthy();
     const textarea = screen.getByPlaceholderText("pnpm install");
     expect((textarea as HTMLTextAreaElement).value).toBe("echo one");
@@ -572,7 +573,7 @@ describe("SettingsView Codex overrides", () => {
       />,
     );
 
-    const input = screen.getByLabelText("Codex args override for Workspace");
+    const input = screen.getByLabelText("Set Codex parameter overrides for Workspace");
     fireEvent.change(input, { target: { value: "--profile dev" } });
     fireEvent.blur(input);
 
@@ -636,7 +637,7 @@ describe("SettingsView Features", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderFeaturesSection({ onUpdateAppSettings });
 
-    fireEvent.change(screen.getByLabelText("Personality"), {
+    fireEvent.change(screen.getByLabelText("Communication style"), {
       target: { value: "pragmatic" },
     });
 

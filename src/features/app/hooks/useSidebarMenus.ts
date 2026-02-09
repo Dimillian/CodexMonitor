@@ -2,6 +2,7 @@ import { useCallback, type MouseEvent } from "react";
 import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { useTranslation } from "react-i18next";
 
 import type { WorkspaceInfo } from "../../../types";
 import { pushErrorToast } from "../../../services/toasts";
@@ -30,6 +31,8 @@ export function useSidebarMenus({
   onDeleteWorkspace,
   onDeleteWorktree,
 }: SidebarMenuHandlers) {
+  const { t } = useTranslation();
+
   const showThreadMenu = useCallback(
     async (
       event: MouseEvent,
@@ -119,11 +122,11 @@ export function useSidebarMenus({
       event.stopPropagation();
       const fileManagerLabel = fileManagerName();
       const reloadItem = await MenuItem.new({
-        text: "重新加载对话",
+        text: t("workspace.reload_workspace_threads"),
         action: () => onReloadWorkspaceThreads(worktree.id),
       });
       const revealItem = await MenuItem.new({
-        text: `在 ${fileManagerLabel} 中显示`,
+        text: t("git_diff.show_in_file_manager", { fileManager: fileManagerLabel }),
         action: async () => {
           if (!worktree.path) {
             return;
@@ -136,7 +139,7 @@ export function useSidebarMenus({
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             pushErrorToast({
-              title: `无法在 ${fileManagerLabel} 中显示工作树`,
+              title: t("workspace.cannot_show_worktree_in_file_manager", { fileManager: fileManagerLabel }),
               message,
             });
             console.warn("Failed to reveal worktree", {
@@ -148,7 +151,7 @@ export function useSidebarMenus({
         },
       });
       const deleteItem = await MenuItem.new({
-        text: "删除工作树",
+        text: t("workspace.delete_worktree"),
         action: () => onDeleteWorktree(worktree.id),
       });
       const menu = await Menu.new({ items: [reloadItem, revealItem, deleteItem] });
@@ -156,7 +159,7 @@ export function useSidebarMenus({
       const position = new LogicalPosition(event.clientX, event.clientY);
       await menu.popup(position, window);
     },
-    [onReloadWorkspaceThreads, onDeleteWorktree],
+    [onReloadWorkspaceThreads, onDeleteWorktree, t],
   );
 
   return { showThreadMenu, showWorkspaceMenu, showWorktreeMenu };

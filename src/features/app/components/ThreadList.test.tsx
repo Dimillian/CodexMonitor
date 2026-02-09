@@ -84,7 +84,7 @@ describe("ThreadList", () => {
       />,
     );
 
-    const moreButton = screen.getByRole("button", { name: "More..." });
+    const moreButton = screen.getByRole("button", { name: "更多..." });
     fireEvent.click(moreButton);
     expect(onToggleExpanded).toHaveBeenCalledWith("ws-1");
   });
@@ -99,7 +99,7 @@ describe("ThreadList", () => {
       />,
     );
 
-    const loadButton = screen.getByRole("button", { name: "Load older..." });
+    const loadButton = screen.getByRole("button", { name: "加载更早..." });
     fireEvent.click(loadButton);
     expect(onLoadOlderThreads).toHaveBeenCalledWith("ws-1");
   });

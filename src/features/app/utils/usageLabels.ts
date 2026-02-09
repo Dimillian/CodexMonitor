@@ -1,5 +1,5 @@
 import type { RateLimitSnapshot } from "../../../types";
-import { formatRelativeTime } from "../../../utils/time";
+import { formatRelativeTime } from "../../../i18n/utils";
 
 type UsageLabels = {
   sessionPercent: number | null;

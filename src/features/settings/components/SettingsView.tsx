@@ -55,14 +55,7 @@ import { useGlobalAgentsMd } from "../hooks/useGlobalAgentsMd";
 import { useGlobalCodexConfigToml } from "../hooks/useGlobalCodexConfigToml";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 import { FileEditorCard } from "../../shared/components/FileEditorCard";
-
-const DICTATION_MODELS = [
-  { id: "tiny", label: "微型", size: "75 MB", note: "速度最快，准确率最低。" },
-  { id: "base", label: "基础", size: "142 MB", note: "默认的平衡选择。" },
-  { id: "small", label: "小型", size: "466 MB", note: "更高准确率。" },
-  { id: "medium", label: "中型", size: "1.5 GB", note: "高准确率。" },
-  { id: "large-v3", label: "大型 V3", size: "3.0 GB", note: "准确率最高，下载体积较大。" },
-];
+import { useTranslation } from "../../../i18n/hooks/useTranslation";
 
 type ComposerPreset = AppSettings["composerEditorPreset"];
 
@@ -77,12 +70,6 @@ type ComposerPresetSettings = Pick<
   | "composerListContinuation"
   | "composerCodeBlockCopyUseModifier"
 >;
-
-const COMPOSER_PRESET_LABELS: Record<ComposerPreset, string> = {
-  default: "默认（无辅助）",
-  helpful: "辅助",
-  smart: "智能",
-};
 
 const COMPOSER_PRESET_CONFIGS: Record<ComposerPreset, ComposerPresetSettings> = {
   default: {
@@ -329,6 +316,21 @@ export function SettingsView({
   onRemoveDictationModel,
   initialSection,
 }: SettingsViewProps) {
+  const { t } = useTranslation();
+
+  const DICTATION_MODELS = [
+    { id: "tiny", label: t("settings.dictation.models.tiny.label"), size: "75 MB", note: t("settings.dictation.models.tiny.note") },
+    { id: "base", label: t("settings.dictation.models.base.label"), size: "142 MB", note: t("settings.dictation.models.base.note") },
+    { id: "small", label: t("settings.dictation.models.small.label"), size: "466 MB", note: t("settings.dictation.models.small.note") },
+    { id: "medium", label: t("settings.dictation.models.medium.label"), size: "1.5 GB", note: t("settings.dictation.models.medium.note") },
+    { id: "large-v3", label: t("settings.dictation.models.large-v3.label"), size: "3.0 GB", note: t("settings.dictation.models.large-v3.note") },
+  ];
+
+  const COMPOSER_PRESET_LABELS: Record<ComposerPreset, string> = {
+    default: t("settings.writer.presets.default"),
+    helpful: t("settings.writer.presets.helpful"),
+    smart: t("settings.writer.presets.smart"),
+  };
   const [activeSection, setActiveSection] = useState<CodexSection>("projects");
   const [environmentWorkspaceId, setEnvironmentWorkspaceId] = useState<string | null>(
     null,
@@ -423,47 +425,47 @@ export function SettingsView({
   const dictationReady = dictationModelStatus?.state === "ready";
   const dictationProgress = dictationModelStatus?.progress ?? null;
   const globalAgentsStatus = globalAgentsLoading
-    ? "加载中…"
+    ? t("common.loading")
     : globalAgentsSaving
-      ? "保存中…"
+      ? t("common.saving")
       : globalAgentsExists
         ? ""
-        : "未找到";
+        : t("errors.not_found");
   const globalAgentsMetaParts: string[] = [];
   if (globalAgentsStatus) {
     globalAgentsMetaParts.push(globalAgentsStatus);
   }
   if (globalAgentsTruncated) {
-    globalAgentsMetaParts.push("已截断");
+    globalAgentsMetaParts.push(t("settings.truncated"));
   }
   const globalAgentsMeta = globalAgentsMetaParts.join(" · ");
-  const globalAgentsSaveLabel = globalAgentsExists ? "保存" : "创建";
+  const globalAgentsSaveLabel = globalAgentsExists ? t("common.save") : t("settings.create");
   const globalAgentsSaveDisabled = globalAgentsLoading || globalAgentsSaving || !globalAgentsDirty;
   const globalAgentsRefreshDisabled = globalAgentsLoading || globalAgentsSaving;
   const globalConfigStatus = globalConfigLoading
-    ? "加载中…"
+    ? t("common.loading")
     : globalConfigSaving
-      ? "保存中…"
+      ? t("common.saving")
       : globalConfigExists
         ? ""
-        : "未找到";
+        : t("errors.not_found");
   const globalConfigMetaParts: string[] = [];
   if (globalConfigStatus) {
     globalConfigMetaParts.push(globalConfigStatus);
   }
   if (globalConfigTruncated) {
-    globalConfigMetaParts.push("已截断");
+    globalConfigMetaParts.push(t("settings.truncated"));
   }
   const globalConfigMeta = globalConfigMetaParts.join(" · ");
-  const globalConfigSaveLabel = globalConfigExists ? "保存" : "创建";
+  const globalConfigSaveLabel = globalConfigExists ? t("common.save") : t("settings.create");
   const globalConfigSaveDisabled = globalConfigLoading || globalConfigSaving || !globalConfigDirty;
   const globalConfigRefreshDisabled = globalConfigLoading || globalConfigSaving;
-  const optionKeyLabel = isMacPlatform() ? "Option 键" : "Alt 键";
+  const optionKeyLabel = isMacPlatform() ? t("settings.key_option") : t("settings.key_alt");
   const metaKeyLabel = isMacPlatform()
-    ? "Command 键"
+    ? t("settings.key_command")
     : isWindowsPlatform()
-      ? "Windows 键"
-      : "Meta 键";
+      ? t("settings.key_windows")
+      : t("settings.key_meta");
   const selectedDictationModel = useMemo(() => {
     return (
       DICTATION_MODELS.find(
@@ -617,7 +619,7 @@ export function SettingsView({
       await revealItemInDir(configPath);
     } catch (error) {
       setOpenConfigError(
-        error instanceof Error ? error.message : "无法打开配置文件。",
+        error instanceof Error ? error.message : t("errors.cannot_open_config_file"),
       );
     }
   }, []);
@@ -924,7 +926,7 @@ export function SettingsView({
   const handleAddOpenApp = () => {
     const newTarget: OpenAppDraft = {
       id: createOpenAppId(),
-      label: "新应用",
+      label: t("settings.new_app"),
       kind: "app",
       appName: "",
       command: null,
@@ -1116,15 +1118,15 @@ export function SettingsView({
       groupedWorkspaces.find((entry) => entry.id === group.id)?.workspaces ?? [];
     const detail =
       groupProjects.length > 0
-        ? `\n\n该组内的工作区将移动到“${ungroupedLabel}”。`
+        ? `\n\n${t("settings.delete_group_detail", { ungrouped: ungroupedLabel })}`
         : "";
     const confirmed = await ask(
-      `删除“${group.name}”？${detail}`,
+      t("settings.delete_group_confirm", { name: group.name, detail }),
       {
-        title: "删除分组",
+        title: t("settings.delete_group"),
         kind: "warning",
-        okLabel: "删除",
-        cancelLabel: "取消",
+        okLabel: t("common.delete"),
+        cancelLabel: t("common.cancel"),
       },
     );
     if (!confirmed) {
@@ -1147,13 +1149,13 @@ export function SettingsView({
     >
       <div className="settings-titlebar">
         <div className="settings-title" id="settings-modal-title">
-          设置
+          {t("settings.title")}
         </div>
         <button
           type="button"
           className="ghost icon-button settings-close"
           onClick={onClose}
-          aria-label="关闭设置"
+          aria-label={t("settings.close")}
         >
           <X aria-hidden />
         </button>
@@ -1166,7 +1168,7 @@ export function SettingsView({
               onClick={() => setActiveSection("projects")}
             >
               <LayoutGrid aria-hidden />
-              工作区
+              {t("settings.workspaces")}
             </button>
             <button
               type="button"
@@ -1174,7 +1176,7 @@ export function SettingsView({
               onClick={() => setActiveSection("environments")}
             >
               <Layers aria-hidden />
-              环境
+              {t("settings.environments")}
             </button>
             <button
               type="button"
@@ -1182,7 +1184,7 @@ export function SettingsView({
               onClick={() => setActiveSection("display")}
             >
               <SlidersHorizontal aria-hidden />
-              显示与声音
+              {t("settings.display_and_sound")}
             </button>
             <button
               type="button"
@@ -1190,7 +1192,7 @@ export function SettingsView({
               onClick={() => setActiveSection("composer")}
             >
               <FileText aria-hidden />
-              编写器
+              {t("settings.writer")}
             </button>
             <button
               type="button"
@@ -1198,7 +1200,7 @@ export function SettingsView({
               onClick={() => setActiveSection("dictation")}
             >
               <Mic aria-hidden />
-              听写
+              {t("settings.dictation")}
             </button>
             <button
               type="button"
@@ -1206,7 +1208,7 @@ export function SettingsView({
               onClick={() => setActiveSection("shortcuts")}
             >
               <Keyboard aria-hidden />
-              快捷键
+              {t("settings.shortcuts")}
             </button>
             <button
               type="button"
@@ -1214,7 +1216,7 @@ export function SettingsView({
               onClick={() => setActiveSection("open-apps")}
             >
               <ExternalLink aria-hidden />
-              打开方式
+              {t("settings.open_with")}
             </button>
             <button
               type="button"
@@ -1238,26 +1240,26 @@ export function SettingsView({
               onClick={() => setActiveSection("features")}
             >
               <FlaskConical aria-hidden />
-              功能
+              {t("settings.features")}
             </button>
           </aside>
           <div className="settings-content">
             {activeSection === "projects" && (
               <section className="settings-section">
-                <div className="settings-section-title">工作区</div>
+                <div className="settings-section-title">{t("settings.workspaces")}</div>
                 <div className="settings-section-subtitle">
-                  将相关工作区分组并在组内调整顺序。
+                  {t("settings.group_management")}
                 </div>
-                <div className="settings-subsection-title">分组</div>
+                <div className="settings-subsection-title">{t("settings.group_management")}</div>
                 <div className="settings-subsection-subtitle">
-                  为相关仓库创建分组标签。
+                  {t("settings.create_group_label")}
                 </div>
                 <div className="settings-groups">
                   <div className="settings-group-create">
                     <input
                       className="settings-input settings-input--compact"
                       value={newGroupName}
-                      placeholder="新分组名称"
+                      placeholder={t("settings.new_group_name")}
                       onChange={(event) => setNewGroupName(event.target.value)}
                       onKeyDown={(event) => {
                         if (event.key === "Enter" && canCreateGroup) {
@@ -1274,7 +1276,7 @@ export function SettingsView({
                       }}
                       disabled={!canCreateGroup}
                     >
-                      添加分组
+                      {t("settings.add_group")}
                     </button>
                   </div>
                   {groupError && <div className="settings-group-error">{groupError}</div>}
@@ -1304,7 +1306,7 @@ export function SettingsView({
                             />
                             <div className="settings-group-copies">
                               <div className="settings-group-copies-label">
-                                副本文件夹
+                                {t("settings.duplicate_folder")}
                               </div>
                               <div className="settings-group-copies-row">
                                 <div
@@ -1313,7 +1315,7 @@ export function SettingsView({
                                   }`}
                                   title={group.copiesFolder ?? ""}
                                 >
-                                  {group.copiesFolder ?? "未设置"}
+                                  {group.copiesFolder ?? t("settings.not_set")}
                                 </div>
                                 <button
                                   type="button"
@@ -1322,7 +1324,7 @@ export function SettingsView({
                                     void handleChooseGroupCopiesFolder(group);
                                   }}
                                 >
-                                  选择…
+                                  {t("settings.select")}
                                 </button>
                                 <button
                                   type="button"
@@ -1332,7 +1334,7 @@ export function SettingsView({
                                   }}
                                   disabled={!group.copiesFolder}
                                 >
-                                  清除
+                                  {t("settings.clear")}
                                 </button>
                               </div>
                             </div>
@@ -1345,7 +1347,7 @@ export function SettingsView({
                                 void onMoveWorkspaceGroup(group.id, "up");
                               }}
                               disabled={index === 0}
-                              aria-label="上移分组"
+                              aria-label={t("settings.move_group_up")}
                             >
                               <ChevronUp aria-hidden />
                             </button>
@@ -1356,7 +1358,7 @@ export function SettingsView({
                                 void onMoveWorkspaceGroup(group.id, "down");
                               }}
                               disabled={index === workspaceGroups.length - 1}
-                              aria-label="下移分组"
+                              aria-label={t("settings.move_group_down")}
                             >
                               <ChevronDown aria-hidden />
                             </button>
@@ -1366,7 +1368,7 @@ export function SettingsView({
                               onClick={() => {
                                 void handleDeleteGroup(group);
                               }}
-                              aria-label="删除分组"
+                              aria-label={t("settings.delete_group_aria")}
                             >
                               <Trash2 aria-hidden />
                             </button>
@@ -1375,12 +1377,12 @@ export function SettingsView({
                       ))}
                     </div>
                   ) : (
-                    <div className="settings-empty">暂无分组。</div>
+                    <div className="settings-empty">{t("settings.no_groups")}</div>
                   )}
                 </div>
-                <div className="settings-subsection-title">工作区</div>
+                <div className="settings-subsection-title">{t("settings.workspaces")}</div>
                 <div className="settings-subsection-subtitle">
-                  将工作区分配到分组并调整顺序。
+                  {t("settings.workspace_management")}
                 </div>
                 <div className="settings-projects">
                   {groupedWorkspaces.map((group) => (
@@ -1423,7 +1425,7 @@ export function SettingsView({
                                 className="ghost icon-button"
                               onClick={() => onMoveWorkspace(workspace.id, "up")}
                               disabled={index === 0}
-                              aria-label="上移工作区"
+                              aria-label={t("settings.move_workspace_up")}
                             >
                                 <ChevronUp aria-hidden />
                               </button>
@@ -1432,7 +1434,7 @@ export function SettingsView({
                                 className="ghost icon-button"
                               onClick={() => onMoveWorkspace(workspace.id, "down")}
                               disabled={index === group.workspaces.length - 1}
-                              aria-label="下移工作区"
+                              aria-label={t("settings.move_workspace_down")}
                             >
                                 <ChevronDown aria-hidden />
                               </button>
@@ -1440,7 +1442,7 @@ export function SettingsView({
                                 type="button"
                               className="ghost icon-button"
                               onClick={() => onDeleteWorkspace(workspace.id)}
-                              aria-label="删除工作区"
+                              aria-label={t("settings.delete_workspace")}
                             >
                                 <Trash2 aria-hidden />
                               </button>
@@ -1451,19 +1453,19 @@ export function SettingsView({
                     </div>
                   ))}
                   {projects.length === 0 && (
-                    <div className="settings-empty">暂无工作区。</div>
+                    <div className="settings-empty">{t("settings.no_workspaces")}</div>
                   )}
                 </div>
               </section>
             )}
             {activeSection === "environments" && (
               <section className="settings-section">
-                <div className="settings-section-title">环境</div>
+                <div className="settings-section-title">{t("settings.environments")}</div>
                 <div className="settings-section-subtitle">
-                  配置每个工作区的环境脚本，在创建工作树后运行。
+                  {t("settings.environment_settings")}
                 </div>
                 {mainWorkspaces.length === 0 ? (
-                  <div className="settings-empty">暂无工作区。</div>
+                  <div className="settings-empty">{t("settings.workspaces.no_workspaces")}</div>
                 ) : (
                   <>
                     <div className="settings-field">
@@ -1471,7 +1473,7 @@ export function SettingsView({
                         className="settings-field-label"
                         htmlFor="settings-environment-project"
                       >
-                        工作区
+                        {t("settings.workspaces")}
                       </label>
                       <select
                         id="settings-environment-project"
@@ -1492,9 +1494,9 @@ export function SettingsView({
                     </div>
 
                     <div className="settings-field">
-                      <div className="settings-field-label">环境设置脚本</div>
+                      <div className="settings-field-label">{t("settings.environment_script")}</div>
                       <div className="settings-help">
-                        每次创建新工作树后，会在专用终端中运行一次。
+                        {t("settings.environment_script_subtitle")}
                       </div>
                       {environmentError ? (
                         <div className="settings-agents-error">{environmentError}</div>
@@ -1516,24 +1518,24 @@ export function SettingsView({
                               typeof navigator === "undefined" ? null : navigator.clipboard;
                             if (!clipboard?.writeText) {
                               pushErrorToast({
-                                title: "复制失败",
+                                title: t("settings.copy_failed"),
                                 message:
-                                  "当前环境无法访问剪贴板，请手动复制脚本。",
+                                  t("settings.clipboard_unavailable"),
                               });
                               return;
                             }
 
                             void clipboard.writeText(environmentDraftScript).catch(() => {
                               pushErrorToast({
-                                title: "复制失败",
+                                title: t("settings.copy_failed"),
                                 message:
-                                  "无法写入剪贴板，请手动复制脚本。",
+                                  t("settings.cannot_write_clipboard"),
                               });
                             });
                           }}
                           disabled={environmentSaving || environmentDraftScript.length === 0}
                         >
-                          复制
+                          {t("settings.copy")}
                         </button>
                         <button
                           type="button"
@@ -1541,7 +1543,7 @@ export function SettingsView({
                           onClick={() => setEnvironmentDraftScript(environmentSavedScript ?? "")}
                           disabled={environmentSaving || !environmentDirty}
                         >
-                          重置
+                          {t("settings.reset")}
                         </button>
                         <button
                           type="button"
@@ -1551,7 +1553,7 @@ export function SettingsView({
                           }}
                           disabled={environmentSaving || !environmentDirty}
                         >
-                          {environmentSaving ? "保存中..." : "保存"}
+                          {environmentSaving ? t("common.saving") : t("common.save")}
                         </button>
                       </div>
                     </div>
@@ -1561,17 +1563,17 @@ export function SettingsView({
             )}
             {activeSection === "display" && (
               <section className="settings-section">
-                <div className="settings-section-title">显示与声音</div>
+                <div className="settings-section-title">{t("settings.display_and_sound")}</div>
                 <div className="settings-section-subtitle">
-                  调整视觉效果与提示音。
+                  {t("settings.adjust_rendering")}
                 </div>
-                <div className="settings-subsection-title">显示</div>
+                <div className="settings-subsection-title">{t("settings.display")}</div>
                 <div className="settings-subsection-subtitle">
-                  调整窗口背景和效果的渲染方式。
+                  {t("settings.adjust_rendering")}
                 </div>
                 <div className="settings-field">
                   <label className="settings-field-label" htmlFor="theme-select">
-                    主题
+                    {t("settings.theme")}
                   </label>
                   <select
                     id="theme-select"
@@ -1584,19 +1586,19 @@ export function SettingsView({
                       })
                     }
                   >
-                    <option value="system">跟随系统</option>
-                    <option value="light">浅色</option>
-                    <option value="dark">深色</option>
-                    <option value="dim">微暗</option>
+                    <option value="system">{t("settings.follow_system")}</option>
+                    <option value="light">{t("settings.light")}</option>
+                    <option value="dark">{t("settings.dark")}</option>
+                    <option value="dim">{t("settings.dim")}</option>
                   </select>
                 </div>
                 <div className="settings-toggle-row">
                   <div>
                     <div className="settings-toggle-title">
-                      显示剩余 Codex 限额
+                      {t("settings.show_remaining_limits")}
                     </div>
                     <div className="settings-toggle-subtitle">
-                      显示剩余而不是已使用。
+                      {t("settings.show_remaining_subtitle")}
                     </div>
                   </div>
                   <button
@@ -1617,9 +1619,9 @@ export function SettingsView({
                 </div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">降低透明度</div>
+                    <div className="settings-toggle-title">{t("settings.reduce_transparency")}</div>
                     <div className="settings-toggle-subtitle">
-                      使用不透明界面替代玻璃效果。
+                      {t("settings.reduce_transparency_subtitle")}
                     </div>
                   </div>
                   <button
@@ -1633,7 +1635,7 @@ export function SettingsView({
                 </div>
                 <div className="settings-toggle-row settings-scale-row">
                   <div>
-                    <div className="settings-toggle-title">界面缩放</div>
+                    <div className="settings-toggle-title">{t("settings.interface_scaling")}</div>
                     <div
                       className="settings-toggle-subtitle"
                       title={scaleShortcutTitle}
@@ -1648,7 +1650,7 @@ export function SettingsView({
                       inputMode="decimal"
                       className="settings-input settings-input--scale"
                       value={scaleDraft}
-                      aria-label="界面缩放"
+                      aria-label={t("settings.interface_scaling")}
                       onChange={(event) => setScaleDraft(event.target.value)}
                       onBlur={() => {
                         void handleCommitScale();
@@ -1667,13 +1669,13 @@ export function SettingsView({
                         void handleResetScale();
                       }}
                     >
-                      重置
+                      {t("settings.reset")}
                     </button>
                   </div>
                 </div>
                 <div className="settings-field">
                   <label className="settings-field-label" htmlFor="ui-font-family">
-                    界面字体
+                    {t("settings.ui_font_family")}
                   </label>
                   <div className="settings-field-row">
                     <input
@@ -1703,16 +1705,16 @@ export function SettingsView({
                         });
                       }}
                     >
-                      重置
+                      {t("settings.reset")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    应用于所有界面文字。留空将使用系统默认字体。
+                    {t("settings.font_configuration")}
                   </div>
                 </div>
                 <div className="settings-field">
                   <label className="settings-field-label" htmlFor="code-font-family">
-                    代码字体
+                    {t("settings.code_font_family")}
                   </label>
                   <div className="settings-field-row">
                     <input
@@ -1742,16 +1744,16 @@ export function SettingsView({
                         });
                       }}
                     >
-                      重置
+                      {t("settings.reset")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    应用于 Git 差异和其他等宽显示内容。
+                    {t("settings.code_font_help")}
                   </div>
                 </div>
                 <div className="settings-field">
                   <label className="settings-field-label" htmlFor="code-font-size">
-                    代码字号
+                    {t("settings.code_font_size")}
                   </label>
                   <div className="settings-field-row">
                     <input
@@ -1777,22 +1779,22 @@ export function SettingsView({
                         void handleCommitCodeFontSize(CODE_FONT_SIZE_DEFAULT);
                       }}
                     >
-                      重置
+                      {t("settings.reset")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    调整代码与差异文字大小。
+                    {t("settings.code_font_configuration")}
                   </div>
                 </div>
-                <div className="settings-subsection-title">声音</div>
+                <div className="settings-subsection-title">{t("settings.sound")}</div>
                 <div className="settings-subsection-subtitle">
-                  控制通知音效。
+                  {t("settings.control_notification_sounds")}
                 </div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">通知提示音</div>
+                    <div className="settings-toggle-title">{t("settings.notification_sounds")}</div>
                     <div className="settings-toggle-subtitle">
-                      当窗口不在前台且长时间运行的智能体结束时播放提示音。
+                      {t("settings.background_agent_notification")}
                     </div>
                   </div>
                   <button
@@ -1811,9 +1813,9 @@ export function SettingsView({
                 </div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">系统通知</div>
+                    <div className="settings-toggle-title">{t("settings.system_notifications")}</div>
                     <div className="settings-toggle-subtitle">
-                      当窗口不在前台且长时间运行的智能体结束时显示系统通知。
+                      {t("settings.system_notifications_subtitle")}
                     </div>
                   </div>
                   <button
@@ -1836,31 +1838,31 @@ export function SettingsView({
                     className="ghost settings-button-compact"
                     onClick={onTestNotificationSound}
                   >
-                    测试提示音
+                    {t("settings.test_notification_sound")}
                   </button>
                   <button
                     type="button"
                     className="ghost settings-button-compact"
                     onClick={onTestSystemNotification}
                   >
-                    测试通知
+                    {t("settings.test_system_notification")}
                   </button>
                 </div>
               </section>
             )}
             {activeSection === "composer" && (
               <section className="settings-section">
-                <div className="settings-section-title">编写器</div>
+                <div className="settings-section-title">{t("settings.writer")}</div>
                 <div className="settings-section-subtitle">
-                  控制消息编辑器中的辅助与格式行为。
+                  {t("settings.writer_settings")}
                 </div>
-                <div className="settings-subsection-title">预设</div>
+                <div className="settings-subsection-title">{t("settings.presets")}</div>
                 <div className="settings-subsection-subtitle">
-                  选择起点并微调下方开关。
+                  {t("settings.preset_description")}
                 </div>
                 <div className="settings-field">
                   <label className="settings-field-label" htmlFor="composer-preset">
-                    预设
+                    {t("settings.presets")}
                   </label>
                   <select
                     id="composer-preset"
@@ -1879,16 +1881,16 @@ export function SettingsView({
                     ))}
                   </select>
                   <div className="settings-help">
-                    预设会同步更新下方开关，选择后可继续自定义。
+                    {t("settings.preset_sync_description")}
                   </div>
                 </div>
                 <div className="settings-divider" />
-                <div className="settings-subsection-title">代码围栏</div>
+                <div className="settings-subsection-title">{t("settings.code_fences")}</div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">按空格展开围栏</div>
+                    <div className="settings-toggle-title">{t("settings.expand_with_space")}</div>
                     <div className="settings-toggle-subtitle">
-                      输入 ``` 后按空格会插入代码块围栏。
+                      {t("settings.expand_with_space_description")}
                     </div>
                   </div>
                   <button
@@ -1907,9 +1909,9 @@ export function SettingsView({
                 </div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">按回车展开围栏</div>
+                    <div className="settings-toggle-title">{t("settings.expand_with_enter")}</div>
                     <div className="settings-toggle-subtitle">
-                      启用后，可用回车展开 ``` 行。
+                      {t("settings.expand_with_enter_description")}
                     </div>
                   </div>
                   <button
@@ -1928,9 +1930,9 @@ export function SettingsView({
                 </div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">支持语言标签</div>
+                    <div className="settings-toggle-title">{t("settings.support_language_labels")}</div>
                     <div className="settings-toggle-subtitle">
-                      允许使用 ```lang + 空格 指定语言。
+                      {t("settings.support_language_labels_description")}
                     </div>
                   </div>
                   <button
@@ -1949,9 +1951,9 @@ export function SettingsView({
                 </div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">用围栏包裹选中内容</div>
+                    <div className="settings-toggle-title">{t("settings.wrap_selected_with_fence")}</div>
                     <div className="settings-toggle-subtitle">
-                      创建围栏时包裹选中文本。
+                      {t("settings.wrap_selected_with_fence_description")}
                     </div>
                   </div>
                   <button
@@ -1970,9 +1972,9 @@ export function SettingsView({
                 </div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">复制时不含围栏</div>
+                    <div className="settings-toggle-title">{t("settings.copy_without_fence")}</div>
                     <div className="settings-toggle-subtitle">
-                      启用后，复制为纯文本。按住 {optionKeyLabel} 可包含 ``` 围栏。
+                      {t("settings.copy_without_fence_description")}
                     </div>
                   </div>
                   <button
@@ -1991,12 +1993,12 @@ export function SettingsView({
                   </button>
                 </div>
                 <div className="settings-divider" />
-                <div className="settings-subsection-title">粘贴</div>
+                <div className="settings-subsection-title">{t("settings.paste")}</div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">多行粘贴自动包裹</div>
+                    <div className="settings-toggle-title">{t("settings.auto_wrap_multiline")}</div>
                     <div className="settings-toggle-subtitle">
-                      将多行粘贴内容包裹在代码块围栏中。
+                      {t("settings.auto_wrap_multiline_description")}
                     </div>
                   </div>
                   <button
@@ -2016,9 +2018,9 @@ export function SettingsView({
                 </div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">类代码单行自动包裹</div>
+                    <div className="settings-toggle-title">{t("settings.auto_wrap_code_lines")}</div>
                     <div className="settings-toggle-subtitle">
-                      粘贴长单行代码时自动包裹。
+                      {t("settings.auto_wrap_code_lines_description")}
                     </div>
                   </div>
                   <button
@@ -2037,12 +2039,12 @@ export function SettingsView({
                   </button>
                 </div>
                 <div className="settings-divider" />
-                <div className="settings-subsection-title">列表</div>
+                <div className="settings-subsection-title">{t("settings.lists")}</div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">Shift+Enter 继续列表</div>
+                    <div className="settings-toggle-title">{t("settings.continue_list_with_shift_enter")}</div>
                     <div className="settings-toggle-subtitle">
-                      当行有内容时继续编号/项目符号列表。
+                      {t("settings.continue_list_with_shift_enter_description")}
                     </div>
                   </div>
                   <button
@@ -2063,15 +2065,15 @@ export function SettingsView({
             )}
             {activeSection === "dictation" && (
               <section className="settings-section">
-                <div className="settings-section-title">听写</div>
+                <div className="settings-section-title">{t("settings.dictation")}</div>
                 <div className="settings-section-subtitle">
-                  启用麦克风听写与本地转写。
+                  {t("settings.dictation_settings")}
                 </div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">启用听写</div>
+                    <div className="settings-toggle-title">{t("settings.enable_dictation")}</div>
                     <div className="settings-toggle-subtitle">
-                      首次使用时下载所选 Whisper 模型。
+                      {t("settings.first_use")}
                     </div>
                   </div>
                   <button
@@ -2105,7 +2107,7 @@ export function SettingsView({
                 </div>
                 <div className="settings-field">
                   <label className="settings-field-label" htmlFor="dictation-model">
-                    听写模型
+                    {t("settings.dictation_model")}
                   </label>
                   <select
                     id="dictation-model"
@@ -2125,12 +2127,12 @@ export function SettingsView({
                     ))}
                   </select>
                   <div className="settings-help">
-                    {selectedDictationModel.note} 下载大小：{selectedDictationModel.size}。
+                    {selectedDictationModel.note} Download size: {selectedDictationModel.size}.
                   </div>
                 </div>
                 <div className="settings-field">
                   <label className="settings-field-label" htmlFor="dictation-language">
-                    偏好的听写语言
+                    {t("settings.dictation_language_preference")}
                   </label>
                   <select
                     id="dictation-language"
@@ -2143,33 +2145,33 @@ export function SettingsView({
                       })
                     }
                   >
-                    <option value="">仅自动检测</option>
-                    <option value="en">英语</option>
-                    <option value="es">西班牙语</option>
-                    <option value="fr">法语</option>
-                    <option value="de">德语</option>
-                    <option value="it">意大利语</option>
-                    <option value="pt">葡萄牙语</option>
-                    <option value="nl">荷兰语</option>
-                    <option value="sv">瑞典语</option>
-                    <option value="no">挪威语</option>
-                    <option value="da">丹麦语</option>
-                    <option value="fi">芬兰语</option>
-                    <option value="pl">波兰语</option>
-                    <option value="tr">土耳其语</option>
-                    <option value="ru">俄语</option>
-                    <option value="uk">乌克兰语</option>
-                    <option value="ja">日语</option>
-                    <option value="ko">韩语</option>
+                    <option value="">{t("settings.auto_detect_only")}</option>
+                    <option value="en">English</option>
+                    <option value="es">Español</option>
+                    <option value="fr">Français</option>
+                    <option value="de">Deutsch</option>
+                    <option value="it">Italiano</option>
+                    <option value="pt">Português</option>
+                    <option value="nl">Nederlands</option>
+                    <option value="sv">Svenska</option>
+                    <option value="no">Norsk</option>
+                    <option value="da">Dansk</option>
+                    <option value="fi">Suomi</option>
+                    <option value="pl">Polski</option>
+                    <option value="tr">Türkçe</option>
+                    <option value="ru">Русский</option>
+                    <option value="uk">Українська</option>
+                    <option value="ja">日本語</option>
+                    <option value="ko">한국어</option>
                     <option value="zh">中文</option>
                   </select>
                   <div className="settings-help">
-                    自动检测保持开启；此设置会引导解码器偏向你的偏好。
+                    {t("settings.auto_detect_description")}
                   </div>
                 </div>
                 <div className="settings-field">
                   <label className="settings-field-label" htmlFor="dictation-hold-key">
-                    按住听写键
+                    {t("settings.hold_to_dictate")}
                   </label>
                   <select
                     id="dictation-hold-key"
@@ -2189,21 +2191,21 @@ export function SettingsView({
                     <option value="meta">{metaKeyLabel}</option>
                   </select>
                   <div className="settings-help">
-                    按住该键开始听写，松开后停止并处理。
+                    {t("settings.dictation.hold_to_dictate_description")}
                   </div>
                 </div>
                 {dictationModelStatus && (
                   <div className="settings-field">
                     <div className="settings-field-label">
-                      模型状态（{selectedDictationModel.label}）
+                      {t("settings.dictation.model_status", { modelLabel: selectedDictationModel.label })}
                     </div>
                     <div className="settings-help">
-                      {dictationModelStatus.state === "ready" && "可开始听写。"}
-                      {dictationModelStatus.state === "missing" && "模型尚未下载。"}
+                      {dictationModelStatus.state === "ready" && t("settings.ready_to_dictate")}
+                      {dictationModelStatus.state === "missing" && t("settings.dictation.not_downloaded")}
                       {dictationModelStatus.state === "downloading" &&
-                        "正在下载模型..."}
+                        t("settings.dictation.downloading")}
                       {dictationModelStatus.state === "error" &&
-                        (dictationModelStatus.error ?? "下载出错。")}
+                        (dictationModelStatus.error ?? t("settings.dictation.download_error"))}
                     </div>
                     {dictationProgress && (
                       <div className="settings-download-progress">
@@ -2235,7 +2237,7 @@ export function SettingsView({
                           onClick={onDownloadDictationModel}
                           disabled={!onDownloadDictationModel}
                         >
-                          下载模型
+                          {t("settings.dictation.download_model")}
                         </button>
                       )}
                       {dictationModelStatus.state === "downloading" && (
@@ -2245,7 +2247,7 @@ export function SettingsView({
                           onClick={onCancelDictationDownload}
                           disabled={!onCancelDictationDownload}
                         >
-                          取消下载
+                          {t("settings.dictation.cancel_download")}
                         </button>
                       )}
                       {dictationReady && (
@@ -2255,7 +2257,7 @@ export function SettingsView({
                           onClick={onRemoveDictationModel}
                           disabled={!onRemoveDictationModel}
                         >
-                          移除模型
+                          {t("settings.dictation.remove_model")}
                         </button>
                       )}
                     </div>
@@ -2265,16 +2267,16 @@ export function SettingsView({
             )}
             {activeSection === "shortcuts" && (
               <section className="settings-section">
-                <div className="settings-section-title">快捷键</div>
+                <div className="settings-section-title">{t("settings.shortcuts")}</div>
                 <div className="settings-section-subtitle">
-                  自定义文件操作、编写器、面板与导航的快捷键。
+                  {t("settings.shortcuts.customize")}
                 </div>
-                <div className="settings-subsection-title">文件</div>
+                <div className="settings-subsection-title">{t("settings.shortcuts.files")}</div>
                 <div className="settings-subsection-subtitle">
-                  通过键盘创建智能体和工作树。
+                  {t("settings.shortcuts.files_description")}
                 </div>
                 <div className="settings-field">
-                  <div className="settings-field-label">新建智能体</div>
+                  <div className="settings-field-label">{t("settings.shortcuts.new_agent")}</div>
                   <div className="settings-field-row">
                     <input
                       className="settings-input settings-input--shortcut"
@@ -2282,7 +2284,7 @@ export function SettingsView({
                       onKeyDown={(event) =>
                         handleShortcutKeyDown(event, "newAgentShortcut")
                       }
-                      placeholder="输入快捷键"
+                      placeholder={`${t("settings.shortcuts.placeholder")}`}
                       readOnly
                     />
                     <button
@@ -2290,15 +2292,15 @@ export function SettingsView({
                       className="ghost settings-button-compact"
                       onClick={() => void updateShortcut("newAgentShortcut", null)}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    默认：{formatShortcut("cmd+n")}
+                    {t("settings.default")}: {formatShortcut("cmd+n")}
                   </div>
                 </div>
                 <div className="settings-field">
-                  <div className="settings-field-label">新建工作树智能体</div>
+                  <div className="settings-field-label">{t("settings.shortcuts.new_worktree_agent")}</div>
                   <div className="settings-field-row">
                     <input
                       className="settings-input settings-input--shortcut"
@@ -2306,7 +2308,7 @@ export function SettingsView({
                       onKeyDown={(event) =>
                         handleShortcutKeyDown(event, "newWorktreeAgentShortcut")
                       }
-                      placeholder="输入快捷键"
+                      placeholder={`${t("settings.shortcuts.placeholder")}`}
                       readOnly
                     />
                     <button
@@ -2314,15 +2316,15 @@ export function SettingsView({
                       className="ghost settings-button-compact"
                       onClick={() => void updateShortcut("newWorktreeAgentShortcut", null)}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    默认：{formatShortcut("cmd+shift+n")}
+                    {t("settings.default")}: {formatShortcut("cmd+shift+n")}
                   </div>
                 </div>
                 <div className="settings-field">
-                  <div className="settings-field-label">新建克隆智能体</div>
+                  <div className="settings-field-label">{t("settings.shortcuts.new_clone_agent")}</div>
                   <div className="settings-field-row">
                     <input
                       className="settings-input settings-input--shortcut"
@@ -2330,7 +2332,7 @@ export function SettingsView({
                       onKeyDown={(event) =>
                         handleShortcutKeyDown(event, "newCloneAgentShortcut")
                       }
-                      placeholder="输入快捷键"
+                      placeholder={`${t("settings.shortcuts.placeholder")}`}
                       readOnly
                     />
                     <button
@@ -2338,15 +2340,15 @@ export function SettingsView({
                       className="ghost settings-button-compact"
                       onClick={() => void updateShortcut("newCloneAgentShortcut", null)}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    默认：{formatShortcut("cmd+alt+n")}
+                    {t("settings.default")}: {formatShortcut("cmd+alt+n")}
                   </div>
                 </div>
                 <div className="settings-field">
-                  <div className="settings-field-label">归档当前对话</div>
+                  <div className="settings-field-label">{t("settings.shortcuts.archive_thread")}</div>
                   <div className="settings-field-row">
                     <input
                       className="settings-input settings-input--shortcut"
@@ -2354,7 +2356,7 @@ export function SettingsView({
                       onKeyDown={(event) =>
                         handleShortcutKeyDown(event, "archiveThreadShortcut")
                       }
-                      placeholder="输入快捷键"
+                      placeholder={`${t("settings.shortcuts.placeholder")}`}
                       readOnly
                     />
                     <button
@@ -2362,21 +2364,21 @@ export function SettingsView({
                       className="ghost settings-button-compact"
                       onClick={() => void updateShortcut("archiveThreadShortcut", null)}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    默认：{" "}
+                    {t("settings.default")}:{" "}
                     {formatShortcut(isMacPlatform() ? "cmd+ctrl+a" : "ctrl+alt+a")}
                   </div>
                 </div>
                 <div className="settings-divider" />
-                <div className="settings-subsection-title">编写器</div>
+                <div className="settings-subsection-title">{t("settings.writer")}</div>
                 <div className="settings-subsection-subtitle">
-                  在模型、访问、推理和协作模式之间切换。
+                  {t("settings.switch_mode")}
                 </div>
                 <div className="settings-field">
-                  <div className="settings-field-label">切换模型</div>
+                  <div className="settings-field-label">{t("settings.switch_model")}</div>
                   <div className="settings-field-row">
                     <input
                       className="settings-input settings-input--shortcut"
@@ -2384,7 +2386,7 @@ export function SettingsView({
                       onKeyDown={(event) =>
                         handleShortcutKeyDown(event, "composerModelShortcut")
                       }
-                      placeholder="输入快捷键"
+                      placeholder={`${t("settings.shortcuts.placeholder")}`}
                       readOnly
                     />
                     <button
@@ -2392,15 +2394,15 @@ export function SettingsView({
                       className="ghost settings-button-compact"
                       onClick={() => void updateShortcut("composerModelShortcut", null)}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    聚焦后按新快捷键。默认：{formatShortcut("cmd+shift+m")}
+                    聚焦后按新{t("settings.shortcuts")}。默认：{formatShortcut("cmd+shift+m")}
                   </div>
                 </div>
                 <div className="settings-field">
-                  <div className="settings-field-label">切换访问模式</div>
+                  <div className="settings-field-label">{t("settings.switch_access_mode")}</div>
                   <div className="settings-field-row">
                     <input
                       className="settings-input settings-input--shortcut"
@@ -2408,7 +2410,7 @@ export function SettingsView({
                       onKeyDown={(event) =>
                         handleShortcutKeyDown(event, "composerAccessShortcut")
                       }
-                      placeholder="输入快捷键"
+                      placeholder={`${t("settings.shortcuts.placeholder")}`}
                       readOnly
                     />
                     <button
@@ -2416,15 +2418,15 @@ export function SettingsView({
                       className="ghost settings-button-compact"
                       onClick={() => void updateShortcut("composerAccessShortcut", null)}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    默认：{formatShortcut("cmd+shift+a")}
+                    {t("settings.default")}:{formatShortcut("cmd+shift+a")}
                   </div>
                 </div>
                 <div className="settings-field">
-                  <div className="settings-field-label">切换推理模式</div>
+                  <div className="settings-field-label">{t("settings.switch_reasoning_mode")}</div>
                   <div className="settings-field-row">
                     <input
                       className="settings-input settings-input--shortcut"
@@ -2432,7 +2434,7 @@ export function SettingsView({
                       onKeyDown={(event) =>
                         handleShortcutKeyDown(event, "composerReasoningShortcut")
                       }
-                      placeholder="输入快捷键"
+                      placeholder={`${t("settings.shortcuts.placeholder")}`}
                       readOnly
                     />
                     <button
@@ -2440,15 +2442,15 @@ export function SettingsView({
                       className="ghost settings-button-compact"
                       onClick={() => void updateShortcut("composerReasoningShortcut", null)}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    默认：{formatShortcut("cmd+shift+r")}
+                    {t("settings.default")}:{formatShortcut("cmd+shift+r")}
                   </div>
                 </div>
                 <div className="settings-field">
-                  <div className="settings-field-label">切换协作模式</div>
+                  <div className="settings-field-label">{t("settings.switch_collaboration_mode")}</div>
                   <div className="settings-field-row">
                     <input
                       className="settings-input settings-input--shortcut"
@@ -2456,7 +2458,7 @@ export function SettingsView({
                       onKeyDown={(event) =>
                         handleShortcutKeyDown(event, "composerCollaborationShortcut")
                       }
-                      placeholder="输入快捷键"
+                      placeholder={`${t("settings.shortcuts.placeholder")}`}
                       readOnly
                     />
                     <button
@@ -2464,15 +2466,15 @@ export function SettingsView({
                       className="ghost settings-button-compact"
                       onClick={() => void updateShortcut("composerCollaborationShortcut", null)}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    默认：{formatShortcut("shift+tab")}
+                    {t("settings.default")}:{formatShortcut("shift+tab")}
                   </div>
                 </div>
                 <div className="settings-field">
-                  <div className="settings-field-label">停止当前运行</div>
+                  <div className="settings-field-label">{t("settings.stop_current_run")}</div>
                   <div className="settings-field-row">
                     <input
                       className="settings-input settings-input--shortcut"
@@ -2480,7 +2482,7 @@ export function SettingsView({
                       onKeyDown={(event) =>
                         handleShortcutKeyDown(event, "interruptShortcut")
                       }
-                      placeholder="输入快捷键"
+                      placeholder={`${t("settings.shortcuts.placeholder")}`}
                       readOnly
                     />
                     <button
@@ -2488,20 +2490,20 @@ export function SettingsView({
                       className="ghost settings-button-compact"
                       onClick={() => void updateShortcut("interruptShortcut", null)}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    默认：{formatShortcut(getDefaultInterruptShortcut())}
+                    {t("settings.default")}:{formatShortcut(getDefaultInterruptShortcut())}
                   </div>
                 </div>
                 <div className="settings-divider" />
-                <div className="settings-subsection-title">面板</div>
+                <div className="settings-subsection-title">{t("settings.panels")}</div>
                 <div className="settings-subsection-subtitle">
-                  切换侧边栏和面板。
+                  {t("settings.toggle_sidebar_and_panels")}
                 </div>
                 <div className="settings-field">
-                  <div className="settings-field-label">切换工作区侧边栏</div>
+                  <div className="settings-field-label">切换{t("settings.workspaces")}侧边栏</div>
                   <div className="settings-field-row">
                     <input
                       className="settings-input settings-input--shortcut"
@@ -2509,7 +2511,7 @@ export function SettingsView({
                       onKeyDown={(event) =>
                         handleShortcutKeyDown(event, "toggleProjectsSidebarShortcut")
                       }
-                      placeholder="输入快捷键"
+                      placeholder={`${t("settings.shortcuts.placeholder")}`}
                       readOnly
                     />
                     <button
@@ -2517,15 +2519,15 @@ export function SettingsView({
                       className="ghost settings-button-compact"
                       onClick={() => void updateShortcut("toggleProjectsSidebarShortcut", null)}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    默认：{formatShortcut("cmd+shift+p")}
+                    {t("settings.default")}:{formatShortcut("cmd+shift+p")}
                   </div>
                 </div>
                 <div className="settings-field">
-                  <div className="settings-field-label">切换 Git 侧边栏</div>
+                  <div className="settings-field-label">{t("settings.toggle_git_sidebar")}</div>
                   <div className="settings-field-row">
                     <input
                       className="settings-input settings-input--shortcut"
@@ -2533,7 +2535,7 @@ export function SettingsView({
                       onKeyDown={(event) =>
                         handleShortcutKeyDown(event, "toggleGitSidebarShortcut")
                       }
-                      placeholder="输入快捷键"
+                      placeholder={`${t("settings.shortcuts.placeholder")}`}
                       readOnly
                     />
                     <button
@@ -2541,15 +2543,15 @@ export function SettingsView({
                       className="ghost settings-button-compact"
                       onClick={() => void updateShortcut("toggleGitSidebarShortcut", null)}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    默认：{formatShortcut("cmd+shift+g")}
+                    {t("settings.default")}:{formatShortcut("cmd+shift+g")}
                   </div>
                 </div>
                 <div className="settings-field">
-                  <div className="settings-field-label">分支切换器</div>
+                  <div className="settings-field-label">{t("settings.branch_switcher")}</div>
                   <div className="settings-field-row">
                     <input
                       className="settings-input settings-input--shortcut"
@@ -2557,7 +2559,7 @@ export function SettingsView({
                       onKeyDown={(event) =>
                         handleShortcutKeyDown(event, "branchSwitcherShortcut")
                       }
-                      placeholder="输入快捷键"
+                      placeholder={`${t("settings.shortcuts.placeholder")}`}
                       readOnly
                     />
                     <button
@@ -2565,15 +2567,15 @@ export function SettingsView({
                       className="ghost settings-button-compact"
                       onClick={() => void updateShortcut("branchSwitcherShortcut", null)}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    默认：{formatShortcut("cmd+b")}
+                    {t("settings.default")}:{formatShortcut("cmd+b")}
                   </div>
                 </div>
                 <div className="settings-field">
-                  <div className="settings-field-label">切换调试面板</div>
+                  <div className="settings-field-label">{t("settings.toggle_debug_panel")}</div>
                   <div className="settings-field-row">
                     <input
                       className="settings-input settings-input--shortcut"
@@ -2581,7 +2583,7 @@ export function SettingsView({
                       onKeyDown={(event) =>
                         handleShortcutKeyDown(event, "toggleDebugPanelShortcut")
                       }
-                      placeholder="输入快捷键"
+                      placeholder={`${t("settings.shortcuts.placeholder")}`}
                       readOnly
                     />
                     <button
@@ -2589,15 +2591,15 @@ export function SettingsView({
                       className="ghost settings-button-compact"
                       onClick={() => void updateShortcut("toggleDebugPanelShortcut", null)}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    默认：{formatShortcut("cmd+shift+d")}
+                    {t("settings.default")}:{formatShortcut("cmd+shift+d")}
                   </div>
                 </div>
                 <div className="settings-field">
-                  <div className="settings-field-label">切换终端面板</div>
+                  <div className="settings-field-label">{t("settings.toggle_terminal_panel")}</div>
                   <div className="settings-field-row">
                     <input
                       className="settings-input settings-input--shortcut"
@@ -2605,7 +2607,7 @@ export function SettingsView({
                       onKeyDown={(event) =>
                         handleShortcutKeyDown(event, "toggleTerminalShortcut")
                       }
-                      placeholder="输入快捷键"
+                      placeholder={`${t("settings.shortcuts.placeholder")}`}
                       readOnly
                     />
                     <button
@@ -2613,20 +2615,20 @@ export function SettingsView({
                       className="ghost settings-button-compact"
                       onClick={() => void updateShortcut("toggleTerminalShortcut", null)}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    默认：{formatShortcut("cmd+shift+t")}
+                    {t("settings.default")}:{formatShortcut("cmd+shift+t")}
                   </div>
                 </div>
                 <div className="settings-divider" />
-                <div className="settings-subsection-title">导航</div>
+                <div className="settings-subsection-title">{t("settings.navigation")}</div>
                 <div className="settings-subsection-subtitle">
-                  在智能体与工作区之间切换。
+                  {t("settings.switch_between_agents_and_workspaces")}
                 </div>
                 <div className="settings-field">
-                  <div className="settings-field-label">下一个智能体</div>
+                  <div className="settings-field-label">{t("settings.next_agent")}</div>
                   <div className="settings-field-row">
                     <input
                       className="settings-input settings-input--shortcut"
@@ -2634,7 +2636,7 @@ export function SettingsView({
                       onKeyDown={(event) =>
                         handleShortcutKeyDown(event, "cycleAgentNextShortcut")
                       }
-                      placeholder="输入快捷键"
+                      placeholder={`${t("settings.shortcuts.placeholder")}`}
                       readOnly
                     />
                     <button
@@ -2642,18 +2644,18 @@ export function SettingsView({
                       className="ghost settings-button-compact"
                       onClick={() => void updateShortcut("cycleAgentNextShortcut", null)}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    默认：{" "}
+                    {t("settings.default")}:{" "}
                     {formatShortcut(
                       isMacPlatform() ? "cmd+ctrl+down" : "ctrl+alt+down",
                     )}
                   </div>
                 </div>
                 <div className="settings-field">
-                  <div className="settings-field-label">上一个智能体</div>
+                  <div className="settings-field-label">{t("settings.previous_agent")}</div>
                   <div className="settings-field-row">
                     <input
                       className="settings-input settings-input--shortcut"
@@ -2661,7 +2663,7 @@ export function SettingsView({
                       onKeyDown={(event) =>
                         handleShortcutKeyDown(event, "cycleAgentPrevShortcut")
                       }
-                      placeholder="输入快捷键"
+                      placeholder={`${t("settings.shortcuts.placeholder")}`}
                       readOnly
                     />
                     <button
@@ -2669,18 +2671,18 @@ export function SettingsView({
                       className="ghost settings-button-compact"
                       onClick={() => void updateShortcut("cycleAgentPrevShortcut", null)}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    默认：{" "}
+                    {t("settings.default")}:{" "}
                     {formatShortcut(
                       isMacPlatform() ? "cmd+ctrl+up" : "ctrl+alt+up",
                     )}
                   </div>
                 </div>
                 <div className="settings-field">
-                  <div className="settings-field-label">下一个工作区</div>
+                  <div className="settings-field-label">下一个{t("settings.workspaces")}</div>
                   <div className="settings-field-row">
                     <input
                       className="settings-input settings-input--shortcut"
@@ -2688,7 +2690,7 @@ export function SettingsView({
                       onKeyDown={(event) =>
                         handleShortcutKeyDown(event, "cycleWorkspaceNextShortcut")
                       }
-                      placeholder="输入快捷键"
+                      placeholder={`${t("settings.shortcuts.placeholder")}`}
                       readOnly
                     />
                     <button
@@ -2696,11 +2698,11 @@ export function SettingsView({
                       className="ghost settings-button-compact"
                       onClick={() => void updateShortcut("cycleWorkspaceNextShortcut", null)}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    默认：{" "}
+                    {t("settings.default")}:{" "}
                     {formatShortcut(
                       isMacPlatform()
                         ? "cmd+shift+down"
@@ -2709,7 +2711,7 @@ export function SettingsView({
                   </div>
                 </div>
                 <div className="settings-field">
-                  <div className="settings-field-label">上一个工作区</div>
+                  <div className="settings-field-label">上一个{t("settings.workspaces")}</div>
                   <div className="settings-field-row">
                     <input
                       className="settings-input settings-input--shortcut"
@@ -2717,7 +2719,7 @@ export function SettingsView({
                       onKeyDown={(event) =>
                         handleShortcutKeyDown(event, "cycleWorkspacePrevShortcut")
                       }
-                      placeholder="输入快捷键"
+                      placeholder={`${t("settings.shortcuts.placeholder")}`}
                       readOnly
                     />
                     <button
@@ -2725,11 +2727,11 @@ export function SettingsView({
                       className="ghost settings-button-compact"
                       onClick={() => void updateShortcut("cycleWorkspacePrevShortcut", null)}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    默认：{" "}
+                    {t("settings.default")}:{" "}
                     {formatShortcut(
                       isMacPlatform() ? "cmd+shift+up" : "ctrl+alt+shift+up",
                     )}
@@ -2739,9 +2741,9 @@ export function SettingsView({
             )}
             {activeSection === "open-apps" && (
               <section className="settings-section">
-                <div className="settings-section-title">打开方式</div>
+                <div className="settings-section-title">{t("settings.open_with")}</div>
                 <div className="settings-section-subtitle">
-                  自定义标题栏和文件预览中的“打开方式”菜单。
+                  {t("settings.open_with_settings")}
                 </div>
                 <div className="settings-open-apps">
                   {openAppDrafts.map((target, index) => {
@@ -2756,12 +2758,12 @@ export function SettingsView({
                       target.kind !== "command" || Boolean(target.command?.trim());
                     const isComplete = labelValid && appNameValid && commandValid;
                     const incompleteHint = !labelValid
-                      ? "需要标签"
+                      ? t("settings.requires_label")
                       : target.kind === "app"
-                        ? "需要应用名称"
+                        ? t("settings.requires_app_name")
                         : target.kind === "command"
-                          ? "需要命令"
-                          : "请填写必填项";
+                          ? t("settings.requires_command")
+                          : t("settings.fill_required");
                     return (
                       <div
                         key={target.id}
@@ -2780,11 +2782,11 @@ export function SettingsView({
                         </div>
                         <div className="settings-open-app-fields">
                           <label className="settings-open-app-field settings-open-app-field--label">
-                            <span className="settings-visually-hidden">标签</span>
+                            <span className="settings-visually-hidden">{t("settings.label")}</span>
                             <input
                               className="settings-input settings-input--compact settings-open-app-input settings-open-app-input--label"
                               value={target.label}
-                              placeholder="标签"
+                              placeholder={t("settings.label")}
                               onChange={(event) =>
                                 handleOpenAppDraftChange(index, {
                                   label: event.target.value,
@@ -2793,12 +2795,12 @@ export function SettingsView({
                               onBlur={() => {
                                 void handleCommitOpenApps(openAppDrafts);
                               }}
-                              aria-label={`打开方式标签 ${index + 1}`}
+                              aria-label={`${t("settings.open_with")} ${t("settings.label")} ${index + 1}`}
                               data-invalid={!labelValid || undefined}
                             />
                           </label>
                           <label className="settings-open-app-field settings-open-app-field--type">
-                            <span className="settings-visually-hidden">类型</span>
+                            <span className="settings-visually-hidden">{t("settings.type")}</span>
                             <select
                               className="settings-select settings-select--compact settings-open-app-kind"
                               value={target.kind}
@@ -2808,20 +2810,20 @@ export function SettingsView({
                                   event.target.value as OpenAppTarget["kind"],
                                 )
                               }
-                              aria-label={`打开方式类型 ${index + 1}`}
+                              aria-label={`${t("settings.open_with")} ${t("settings.type")} ${index + 1}`}
                             >
-                              <option value="app">应用</option>
-                              <option value="command">命令</option>
+                              <option value="app">{t("settings.app")}</option>
+                              <option value="command">{t("settings.command")}</option>
                               <option value="finder">{fileManagerName()}</option>
                             </select>
                           </label>
                           {target.kind === "app" && (
                             <label className="settings-open-app-field settings-open-app-field--appname">
-                              <span className="settings-visually-hidden">应用名称</span>
+                              <span className="settings-visually-hidden">{t("settings.app_name")}</span>
                               <input
                                 className="settings-input settings-input--compact settings-open-app-input settings-open-app-input--appname"
                                 value={target.appName ?? ""}
-                                placeholder="应用名称"
+                                placeholder={t("settings.app_name")}
                                 onChange={(event) =>
                                   handleOpenAppDraftChange(index, {
                                     appName: event.target.value,
@@ -2830,18 +2832,18 @@ export function SettingsView({
                                 onBlur={() => {
                                   void handleCommitOpenApps(openAppDrafts);
                                 }}
-                                aria-label={`打开方式应用名称 ${index + 1}`}
+                                aria-label={`${t("settings.open_with")} ${t("settings.app_name")} ${index + 1}`}
                                 data-invalid={!appNameValid || undefined}
                               />
                             </label>
                           )}
                           {target.kind === "command" && (
                             <label className="settings-open-app-field settings-open-app-field--command">
-                              <span className="settings-visually-hidden">命令</span>
+                              <span className="settings-visually-hidden">{t("settings.command")}</span>
                               <input
                                 className="settings-input settings-input--compact settings-open-app-input settings-open-app-input--command"
                                 value={target.command ?? ""}
-                                placeholder="命令"
+                                placeholder={t("settings.command")}
                                 onChange={(event) =>
                                   handleOpenAppDraftChange(index, {
                                     command: event.target.value,
@@ -2850,18 +2852,18 @@ export function SettingsView({
                                 onBlur={() => {
                                   void handleCommitOpenApps(openAppDrafts);
                                 }}
-                                aria-label={`打开方式命令 ${index + 1}`}
+                                aria-label={`${t("settings.open_with")} ${t("settings.command")} ${index + 1}`}
                                 data-invalid={!commandValid || undefined}
                               />
                             </label>
                           )}
                           {target.kind !== "finder" && (
                             <label className="settings-open-app-field settings-open-app-field--args">
-                              <span className="settings-visually-hidden">参数</span>
+                              <span className="settings-visually-hidden">{t("settings.arguments")}</span>
                               <input
                                 className="settings-input settings-input--compact settings-open-app-input settings-open-app-input--args"
                                 value={target.argsText}
-                                placeholder="参数"
+                                placeholder={t("settings.arguments")}
                                 onChange={(event) =>
                                   handleOpenAppDraftChange(index, {
                                     argsText: event.target.value,
@@ -2870,7 +2872,7 @@ export function SettingsView({
                                 onBlur={() => {
                                   void handleCommitOpenApps(openAppDrafts);
                                 }}
-                                aria-label={`打开方式参数 ${index + 1}`}
+                                aria-label={`${t("settings.open_with")} ${t("settings.arguments")} ${index + 1}`}
                               />
                             </label>
                           )}
@@ -2882,7 +2884,7 @@ export function SettingsView({
                               title={incompleteHint}
                               aria-label={incompleteHint}
                             >
-                              未完成
+                              {t("settings.incomplete")}
                             </span>
                           )}
                           <label className="settings-open-app-default">
@@ -2893,7 +2895,7 @@ export function SettingsView({
                               onChange={() => handleSelectOpenAppDefault(target.id)}
                               disabled={!isComplete}
                             />
-                            默认
+                            {t("settings.default")}
                           </label>
                           <div className="settings-open-app-order">
                             <button
@@ -2901,7 +2903,7 @@ export function SettingsView({
                               className="ghost icon-button"
                               onClick={() => handleMoveOpenApp(index, "up")}
                               disabled={index === 0}
-                              aria-label="上移"
+                              aria-label={t("settings.move_up")}
                             >
                               <ChevronUp aria-hidden />
                             </button>
@@ -2910,7 +2912,7 @@ export function SettingsView({
                               className="ghost icon-button"
                               onClick={() => handleMoveOpenApp(index, "down")}
                               disabled={index === openAppDrafts.length - 1}
-                              aria-label="下移"
+                              aria-label={t("settings.move_down")}
                             >
                               <ChevronDown aria-hidden />
                             </button>
@@ -2920,8 +2922,8 @@ export function SettingsView({
                             className="ghost icon-button"
                             onClick={() => handleDeleteOpenApp(index)}
                             disabled={openAppDrafts.length <= 1}
-                            aria-label="移除应用"
-                            title="移除应用"
+                            aria-label={t("settings.remove")}
+                            title={t("settings.remove")}
                           >
                             <Trash2 aria-hidden />
                           </button>
@@ -2936,13 +2938,13 @@ export function SettingsView({
                     className="ghost"
                     onClick={handleAddOpenApp}
                   >
-                    添加应用
+                    {t("settings.add")}
                   </button>
                   <div className="settings-help">
-                    命令会把所选路径作为最后一个参数。{" "}
+                    {t("settings.command_description")}{" "}
                     {isMacPlatform()
-                      ? "应用通过 `open -a` 打开，可附加参数。"
-                      : "应用以可执行程序方式启动，可附加参数。"}
+                      ? t("settings.app_mode_description")
+                      : t("settings.command_mode_description")}
                   </div>
                 </div>
               </section>
@@ -2951,13 +2953,13 @@ export function SettingsView({
               <section className="settings-section">
                 <div className="settings-section-title">Git</div>
                 <div className="settings-section-subtitle">
-                  管理 Git 侧边栏中差异的加载方式。
+                  {t("settings.git_diff")}
                 </div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">预加载 Git 差异</div>
+                    <div className="settings-toggle-title">{t("settings.preload_git_diff")}</div>
                     <div className="settings-toggle-subtitle">
-                      让查看差异更快。
+                      {t("settings.preload_git_diff_description")}
                     </div>
                   </div>
                   <button
@@ -2976,9 +2978,9 @@ export function SettingsView({
                 </div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">忽略空白变更</div>
+                    <div className="settings-toggle-title">{t("settings.ignore_whitespace")}</div>
                     <div className="settings-toggle-subtitle">
-                      在本地和提交差异中隐藏仅空白的变更。
+                      {t("settings.ignore_whitespace_description")}
                     </div>
                   </div>
                   <button
@@ -3001,11 +3003,11 @@ export function SettingsView({
               <section className="settings-section">
                 <div className="settings-section-title">Codex</div>
                 <div className="settings-section-subtitle">
-                  配置 CodexMonitor 使用的 Codex CLI 并校验安装。
+                  {t("settings.codex_config")}
                 </div>
                 <div className="settings-field">
                   <label className="settings-field-label" htmlFor="codex-path">
-                    默认 Codex 路径
+                    {t("settings.default_codex_path")}
                   </label>
                   <div className="settings-field-row">
                     <input
@@ -3016,21 +3018,21 @@ export function SettingsView({
                       onChange={(event) => setCodexPathDraft(event.target.value)}
                     />
                     <button type="button" className="ghost" onClick={handleBrowseCodex}>
-                      浏览
+                      {t("settings.browse")}
                     </button>
                     <button
                       type="button"
                       className="ghost"
                       onClick={() => setCodexPathDraft("")}
                     >
-                      使用 PATH
+                      {t("settings.use_path")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    留空则使用系统 PATH。
+                    {t("settings.default_codex_path_description")}
                   </div>
                   <label className="settings-field-label" htmlFor="codex-args">
-                    默认 Codex 参数
+                    {t("settings.default_codex_args")}
                   </label>
                   <div className="settings-field-row">
                     <input
@@ -3045,11 +3047,11 @@ export function SettingsView({
                       className="ghost"
                       onClick={() => setCodexArgsDraft("")}
                     >
-                      清除
+                      {t("settings.shortcuts.clear")}
                     </button>
                   </div>
                   <div className="settings-help">
-                    会在 <code>app-server</code> 前附加额外参数。包含空格的值请使用引号。
+                    {t("settings.default_codex_args_description")}
                   </div>
                 <div className="settings-field-actions">
                   {codexDirty && (
@@ -3059,7 +3061,7 @@ export function SettingsView({
                       onClick={handleSaveCodexSettings}
                       disabled={isSavingSettings}
                     >
-                      {isSavingSettings ? "保存中..." : "保存"}
+                      {isSavingSettings ? t("common.saving") : t("common.save")}
                     </button>
                   )}
                   <button
@@ -3069,7 +3071,7 @@ export function SettingsView({
                     disabled={doctorState.status === "running"}
                   >
                     <Stethoscope aria-hidden />
-                    {doctorState.status === "running" ? "运行中..." : "运行诊断"}
+                    {doctorState.status === "running" ? t("common.loading") : t("settings.run_diagnosis")}
                   </button>
                 </div>
 
@@ -3078,20 +3080,20 @@ export function SettingsView({
                     className={`settings-doctor ${doctorState.result.ok ? "ok" : "error"}`}
                   >
                     <div className="settings-doctor-title">
-                      {doctorState.result.ok ? "Codex 状态正常" : "检测到 Codex 问题"}
+                      {doctorState.result.ok ? t("settings.codex_ok") : t("settings.codex_issue")}
                     </div>
                     <div className="settings-doctor-body">
                       <div>
-                        版本：{doctorState.result.version ?? "未知"}
+                        {t("settings.version")}{doctorState.result.version ?? t("settings.unknown")}
                       </div>
                       <div>
-                        App-server：{doctorState.result.appServerOk ? "正常" : "失败"}
+                        {t("settings.app_server")}{doctorState.result.appServerOk ? t("settings.ok") : t("settings.failed")}
                       </div>
                       <div>
-                        Node：{" "}
+                        {t("settings.node_js")}{" "}
                         {doctorState.result.nodeOk
-                          ? `正常 (${doctorState.result.nodeVersion ?? "未知"})`
-                          : "缺失"}
+                          ? `${t("settings.ok")} (${doctorState.result.nodeVersion ?? t("settings.unknown")})`
+                          : t("settings.missing")}
                       </div>
                       {doctorState.result.details && (
                         <div>{doctorState.result.details}</div>
@@ -3111,7 +3113,7 @@ export function SettingsView({
 
                 <div className="settings-field">
                   <label className="settings-field-label" htmlFor="default-access">
-                    默认访问模式
+                    {t("settings.default_access_mode")}
                   </label>
                   <select
                     id="default-access"
@@ -3124,14 +3126,14 @@ export function SettingsView({
                       })
                     }
                   >
-                    <option value="read-only">只读</option>
-                    <option value="current">按需</option>
-                    <option value="full-access">完全访问</option>
+                    <option value="read-only">{t("settings.read_only")}</option>
+                    <option value="current">{t("settings.on_demand")}</option>
+                    <option value="full-access">{t("settings.full_access")}</option>
                   </select>
                 </div>
                 <div className="settings-field">
                   <label className="settings-field-label" htmlFor="review-delivery">
-                    审阅模式
+                    {t("settings.review_mode")}
                   </label>
                   <select
                     id="review-delivery"
@@ -3145,17 +3147,17 @@ export function SettingsView({
                       })
                     }
                   >
-                    <option value="inline">内联（同一对话）</option>
-                    <option value="detached">分离（新审阅对话）</option>
+                    <option value="inline">{t("settings.inline")}</option>
+                    <option value="detached">{t("settings.detached")}</option>
                   </select>
                   <div className="settings-help">
-                    选择 <code>/review</code> 在当前对话或独立审阅对话中运行。
+                    {t("settings.review_mode_description")}
                   </div>
                 </div>
 
                 <div className="settings-field">
                   <label className="settings-field-label" htmlFor="backend-mode">
-                    后端模式
+                    {t("settings.backend_mode")}
                   </label>
                   <select
                     id="backend-mode"
@@ -3168,17 +3170,17 @@ export function SettingsView({
                       })
                     }
                   >
-                    <option value="local">本地（默认）</option>
-                    <option value="remote">远程（守护进程）</option>
+                    <option value="local">{t("settings.local")}</option>
+                    <option value="remote">{t("settings.remote")}</option>
                   </select>
                   <div className="settings-help">
-                    远程模式会连接到另一台机器上的守护进程（例如 WSL2/Linux）运行后端。
+                    {t("settings.remote_description")}
                   </div>
                 </div>
 
                 {appSettings.backendMode === "remote" && (
                   <div className="settings-field">
-                    <div className="settings-field-label">远程后端</div>
+                    <div className="settings-field-label">{t("settings.remote_backend")}</div>
                     <div className="settings-field-row">
                       <input
                         className="settings-input settings-input--compact"
@@ -3194,13 +3196,13 @@ export function SettingsView({
                             void handleCommitRemoteHost();
                           }
                         }}
-                        aria-label="远程后端主机"
+                        aria-label={t("settings.host")}
                       />
                       <input
                         type="password"
                         className="settings-input settings-input--compact"
                         value={remoteTokenDraft}
-                        placeholder="令牌（可选）"
+                        placeholder={t("settings.token_optional")}
                         onChange={(event) => setRemoteTokenDraft(event.target.value)}
                         onBlur={() => {
                           void handleCommitRemoteToken();
@@ -3211,21 +3213,21 @@ export function SettingsView({
                             void handleCommitRemoteToken();
                           }
                         }}
-                        aria-label="远程后端令牌"
+                        aria-label={t("settings.token_optional")}
                       />
                     </div>
                     <div className="settings-help">
-                      请单独启动守护进程，并在此指定 host:port 与令牌。
+                      {t("settings.remote_backend_description")}
                     </div>
                   </div>
                 )}
 
                 <FileEditorCard
-                  title="全局 AGENTS.md"
+                  title={t("settings.global_agents_md")}
                   meta={globalAgentsMeta}
                   error={globalAgentsError}
                   value={globalAgentsContent}
-                  placeholder="为 Codex 智能体添加全局指令…"
+                  placeholder={t("settings.global_agents_md_placeholder")}
                   disabled={globalAgentsLoading}
                   refreshDisabled={globalAgentsRefreshDisabled}
                   saveDisabled={globalAgentsSaveDisabled}
@@ -3239,7 +3241,7 @@ export function SettingsView({
                   }}
                   helpText={
                     <>
-                      存储于 <code>~/.codex/AGENTS.md</code>。
+                      {t("settings.global_agents_md_description")}
                     </>
                   }
                   classNames={{
@@ -3256,7 +3258,7 @@ export function SettingsView({
                 />
 
                 <FileEditorCard
-                  title="全局 config.toml"
+                  title={t("settings.global_config_toml")}
                   meta={globalConfigMeta}
                   error={globalConfigError}
                   value={globalConfigContent}
@@ -3291,7 +3293,7 @@ export function SettingsView({
                 />
 
                 <div className="settings-field">
-                  <div className="settings-field-label">工作区覆盖项</div>
+                  <div className="settings-field-label">{t("settings.workspaces")}覆盖项</div>
                   <div className="settings-overrides">
                     {projects.map((workspace) => (
                       <div key={workspace.id} className="settings-override-row">
@@ -3332,7 +3334,7 @@ export function SettingsView({
                                 await onUpdateWorkspaceCodexBin(workspace.id, null);
                               }}
                             >
-                              清除
+                              {t("settings.shortcuts.clear")}
                             </button>
                           </div>
                           <div className="settings-override-field">
@@ -3371,7 +3373,7 @@ export function SettingsView({
                                 });
                               }}
                             >
-                              清除
+                              {t("settings.shortcuts.clear")}
                             </button>
                           </div>
                           <div className="settings-override-field">
@@ -3410,14 +3412,14 @@ export function SettingsView({
                                 });
                               }}
                             >
-                              清除
+                              {t("settings.shortcuts.clear")}
                             </button>
                           </div>
                         </div>
                       </div>
                     ))}
                     {projects.length === 0 && (
-                      <div className="settings-empty">暂无工作区。</div>
+                      <div className="settings-empty">{t("settings.no_workspaces")}</div>
                     )}
                   </div>
                 </div>
@@ -3426,20 +3428,20 @@ export function SettingsView({
             )}
             {activeSection === "features" && (
               <section className="settings-section">
-                <div className="settings-section-title">功能</div>
+                <div className="settings-section-title">{t("settings.features")}</div>
                 <div className="settings-section-subtitle">
-                  管理稳定与实验性 Codex 功能。
+                  管理稳定与实验性 Codex {t("settings.features")}。
                 </div>
                 {hasCodexHomeOverrides && (
                   <div className="settings-help">
-                    功能设置存储在默认 CODEX_HOME 的 config.toml 中。
+                    {t("settings.features")}设置存储在默认 CODEX_HOME 的 config.toml 中。
                     <br />
-                    工作区覆盖项不会同步更新。
+                    {t("settings.workspaces")}覆盖项不会同步更新。
                   </div>
                 )}
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">配置文件</div>
+                    <div className="settings-toggle-title">{t("settings.features.config_file")}</div>
                     <div className="settings-toggle-subtitle">
                       在 {fileManagerName()} 中打开 Codex 配置。
                     </div>
@@ -3451,15 +3453,15 @@ export function SettingsView({
                 {openConfigError && (
                   <div className="settings-help">{openConfigError}</div>
                 )}
-                <div className="settings-subsection-title">稳定功能</div>
+                <div className="settings-subsection-title">{t("settings.features.stable_features")}</div>
                 <div className="settings-subsection-subtitle">
-                  默认启用的生产级功能。
+                  {t("settings.features.stable_features_description")}
                 </div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">协作模式</div>
+                    <div className="settings-toggle-title">{t("settings.features.collaboration_mode")}</div>
                     <div className="settings-toggle-subtitle">
-                      启用协作模式预设（代码、计划）。
+                      {t("settings.features.collaboration_mode_description")}
                     </div>
                   </div>
                   <button
@@ -3481,10 +3483,9 @@ export function SettingsView({
                 </div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">沟通风格</div>
+                    <div className="settings-toggle-title">{t("settings.features.communication_style")}</div>
                     <div className="settings-toggle-subtitle">
-                      选择 Codex 的沟通风格（会写入 config.toml 的顶层{" "}
-                      <code>personality</code>）。
+                      {t("settings.features.communication_style_description")}
                     </div>
                   </div>
                   <select
@@ -3499,15 +3500,15 @@ export function SettingsView({
                     }
                     aria-label="沟通风格"
                   >
-                    <option value="friendly">友好</option>
-                    <option value="pragmatic">务实</option>
+                    <option value="friendly">{t("settings.friendly")}</option>
+                    <option value="pragmatic">{t("settings.pragmatic")}</option>
                   </select>
                 </div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">引导模式</div>
+                    <div className="settings-toggle-title">{t("settings.features.guided_mode")}</div>
                     <div className="settings-toggle-subtitle">
-                      消息立即发送。运行中可用 Tab 排队。
+                      {t("settings.features.guided_mode_description")}
                     </div>
                   </div>
                   <button
@@ -3526,9 +3527,9 @@ export function SettingsView({
                 </div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">后台终端</div>
+                    <div className="settings-toggle-title">{t("settings.features.background_terminal")}</div>
                     <div className="settings-toggle-subtitle">
-                      在后台运行耗时的终端命令。
+                      {t("settings.features.background_terminal_description")}
                     </div>
                   </div>
                   <button
@@ -3545,15 +3546,15 @@ export function SettingsView({
                     <span className="settings-toggle-knob" />
                   </button>
                 </div>
-                <div className="settings-subsection-title">实验性功能</div>
+                <div className="settings-subsection-title">{t("settings.features.experimental_features")}</div>
                 <div className="settings-subsection-subtitle">
-                  预览可能变更或移除的功能。
+                  {t("settings.features.experimental_features_description")}
                 </div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">多智能体</div>
+                    <div className="settings-toggle-title">{t("settings.features.multi_agent")}</div>
                     <div className="settings-toggle-subtitle">
-                      启用 Codex 的多智能体协作工具。
+                      {t("settings.features.multi_agent_description")}
                     </div>
                   </div>
                   <button
@@ -3572,9 +3573,9 @@ export function SettingsView({
                 </div>
                 <div className="settings-toggle-row">
                   <div>
-                    <div className="settings-toggle-title">应用</div>
+                    <div className="settings-toggle-title">{t("settings.features.apps")}</div>
                     <div className="settings-toggle-subtitle">
-                      启用 ChatGPT 应用/连接器及 <code>/apps</code> 命令。
+                      {t("settings.features.apps_description")}
                     </div>
                   </div>
                   <button

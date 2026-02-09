@@ -19,7 +19,8 @@ import Search from "lucide-react/dist/esm/icons/search";
 import Upload from "lucide-react/dist/esm/icons/upload";
 import X from "lucide-react/dist/esm/icons/x";
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
-import { formatRelativeTime } from "../../../utils/time";
+import { useTranslation } from "react-i18next";
+import { formatRelativeTime } from "../../../i18n/utils";
 import { PanelTabs, type PanelTabId } from "../../layout/components/PanelTabs";
 import {
   PanelFrame,
@@ -256,6 +257,7 @@ type CommitButtonProps = {
   hasUnstagedFiles: boolean;
   commitLoading: boolean;
   onCommit?: () => void | Promise<void>;
+  t: (key: string) => string;
 };
 
 function CommitButton({
@@ -264,6 +266,7 @@ function CommitButton({
   hasUnstagedFiles,
   commitLoading,
   onCommit,
+  t,
 }: CommitButtonProps) {
   const hasMessage = commitMessage.trim().length > 0;
   const hasChanges = hasStagedFiles || hasUnstagedFiles;
@@ -284,12 +287,12 @@ function CommitButton({
         disabled={!canCommit}
         title={
           !hasMessage
-            ? "请输入提交说明"
+            ? t("git_diff.commit_message_required")
             : !hasChanges
-              ? "没有可提交的更改"
+              ? t("git_diff.no_changes_to_commit")
               : hasStagedFiles
-                ? "提交已暂存的更改"
-                : "提交所有未暂存的更改"
+                ? t("git_diff.commit_staged")
+                : t("git_diff.commit_unstaged")
         }
       >
         {commitLoading ? (
@@ -334,6 +337,7 @@ type SidebarErrorProps = {
     loading?: boolean;
   } | null;
   onDismiss: () => void;
+  t: (key: string) => string;
 };
 
 function SidebarError({
@@ -341,6 +345,7 @@ function SidebarError({
   message,
   action,
   onDismiss,
+  t,
 }: SidebarErrorProps) {
   return (
     <div className={`sidebar-error sidebar-error-${variant}`}>
@@ -366,8 +371,8 @@ function SidebarError({
         type="button"
         className="ghost icon-button sidebar-error-dismiss"
         onClick={onDismiss}
-        aria-label="关闭错误提示"
-        title="关闭错误提示"
+        aria-label={t("git_diff.close_error")}
+        title={t("git_diff.close_error")}
       >
         <X size={12} aria-hidden />
       </button>
@@ -386,6 +391,7 @@ type DiffFileRowProps = {
   onStageFile?: (path: string) => Promise<void> | void;
   onUnstageFile?: (path: string) => Promise<void> | void;
   onDiscardFile?: (path: string) => Promise<void> | void;
+  t: (key: string) => string;
 };
 
 function DiffFileRow({
@@ -399,6 +405,7 @@ function DiffFileRow({
   onStageFile,
   onUnstageFile,
   onDiscardFile,
+  t,
 }: DiffFileRowProps) {
   const { name, dir } = splitPath(file.path);
   const { base, extension } = splitNameAndExtension(name);
@@ -442,7 +449,7 @@ function DiffFileRow({
           <span className="diff-sep">/</span>
           <span className="diff-del">-{file.deletions}</span>
         </span>
-        <div className="diff-row-actions" role="group" aria-label="文件操作">
+        <div className="diff-row-actions" role="group" aria-label={t("git_diff.file_operations")}>
           {showStage && (
             <button
               type="button"
@@ -451,8 +458,8 @@ function DiffFileRow({
                 event.stopPropagation();
                 void onStageFile?.(file.path);
               }}
-              data-tooltip="暂存更改"
-              aria-label="暂存文件"
+              data-tooltip={t("git_diff.stage_file")}
+              aria-label={t("git_diff.stage_file")}
             >
               <Plus size={12} aria-hidden />
             </button>
@@ -465,8 +472,8 @@ function DiffFileRow({
                 event.stopPropagation();
                 void onUnstageFile?.(file.path);
               }}
-              data-tooltip="取消暂存"
-              aria-label="取消暂存文件"
+              data-tooltip={t("git_diff.unstage_file")}
+              aria-label={t("git_diff.unstage_file")}
             >
               <Minus size={12} aria-hidden />
             </button>
@@ -479,8 +486,8 @@ function DiffFileRow({
                 event.stopPropagation();
                 void onDiscardFile?.(file.path);
               }}
-              data-tooltip="丢弃更改"
-              aria-label="丢弃更改"
+              data-tooltip={t("git_diff.discard_file")}
+              aria-label={t("git_diff.discard_file")}
             >
               <RotateCcw size={12} aria-hidden />
             </button>
@@ -513,6 +520,7 @@ type DiffSectionProps = {
     path: string,
     section: "staged" | "unstaged",
   ) => void;
+  t: (key: string) => string;
 };
 
 function DiffSection({
@@ -529,6 +537,7 @@ function DiffSection({
   onDiscardFiles,
   onFileClick,
   onShowFileMenu,
+  t,
 }: DiffSectionProps) {
   const filePaths = files.map((file) => file.path);
   const canStageAll =
@@ -544,7 +553,7 @@ function DiffSection({
       <div className="diff-section-title diff-section-title--row">
         <span>
           {title} ({files.length})
-        </span>
+</span>
         {showSectionActions && (
           <div
             className="diff-section-actions"
@@ -566,8 +575,8 @@ function DiffSection({
                     }
                   })();
                 }}
-                data-tooltip="暂存全部更改"
-                aria-label="暂存全部更改"
+                data-tooltip={t("git_diff.stage_all")}
+                aria-label={t("git_diff.stage_all")}
               >
                 <Plus size={12} aria-hidden />
               </button>
@@ -583,8 +592,8 @@ function DiffSection({
                     }
                   })();
                 }}
-                data-tooltip="取消暂存全部更改"
-                aria-label="取消暂存全部更改"
+                data-tooltip={t("git_diff.unstage_all")}
+                aria-label={t("git_diff.unstage_all")}
               >
                 <Minus size={12} aria-hidden />
               </button>
@@ -596,8 +605,8 @@ function DiffSection({
                 onClick={() => {
                   void onDiscardFiles?.(filePaths);
                 }}
-                data-tooltip="丢弃全部更改"
-                aria-label="丢弃全部更改"
+                data-tooltip={t("git_diff.discard_all")}
+                aria-label={t("git_diff.discard_all")}
               >
                 <RotateCcw size={12} aria-hidden />
               </button>
@@ -608,7 +617,7 @@ function DiffSection({
       <div className="diff-section-list">
         {files.map((file) => {
           const isSelected = selectedFiles.size > 1 && selectedFiles.has(file.path);
-          const isActive = selectedPath === file.path;
+const isActive = selectedPath === file.path;
           return (
             <DiffFileRow
               key={`${section}-${file.path}`}
@@ -622,6 +631,7 @@ function DiffSection({
               onStageFile={onStageFile}
               onUnstageFile={onUnstageFile}
               onDiscardFile={onDiscardFile}
+              t={t}
             />
           );
         })}
@@ -636,6 +646,7 @@ type GitLogEntryRowProps = {
   compact?: boolean;
   onSelect?: (entry: GitLogEntry) => void;
   onContextMenu: (event: ReactMouseEvent<HTMLDivElement>) => void;
+  t: (key: string) => string;
 };
 
 function GitLogEntryRow({
@@ -644,6 +655,7 @@ function GitLogEntryRow({
   compact = false,
   onSelect,
   onContextMenu,
+  t,
 }: GitLogEntryRowProps) {
   return (
     <div
@@ -659,11 +671,11 @@ function GitLogEntryRow({
         }
       }}
     >
-      <div className="git-log-summary">{entry.summary || "无说明"}</div>
+      <div className="git-log-summary">{entry.summary || t("git_diff.no_description")}</div>
       <div className="git-log-meta">
         <span className="git-log-sha">{entry.sha.slice(0, 7)}</span>
         <span className="git-log-sep">·</span>
-        <span className="git-log-author">{entry.author || "未知"}</span>
+        <span className="git-log-author">{entry.author || t("git_diff.unknown_author")}</span>
         <span className="git-log-sep">·</span>
         <span className="git-log-date">
           {formatRelativeTime(entry.timestamp * 1000)}
@@ -753,9 +765,11 @@ export function GitDiffPanel({
   pullError = null,
   fetchError = null,
   pushError = null,
-  syncError = null,
+syncError = null,
   commitsAhead = 0,
 }: GitDiffPanelProps) {
+  const { t } = useTranslation();
+
   const [dismissedErrorSignatures, setDismissedErrorSignatures] = useState<Set<string>>(
     new Set(),
   );
@@ -884,17 +898,17 @@ export function GitDiffPanel({
   const handleSyncFromError = useCallback(() => {
     void _onSync?.();
   }, [_onSync]);
-  const pushErrorAction = useMemo(() => {
+const pushErrorAction = useMemo(() => {
     if (!pushNeedsSync || !_onSync) {
       return null;
     }
     return {
-      label: _syncLoading ? "同步中..." : "同步（先拉取再推送）",
+      label: _syncLoading ? t("git_diff.syncing") : t("git_diff.sync_pull_then_push"),
       onAction: handleSyncFromError,
       disabled: _syncLoading,
       loading: _syncLoading,
     };
-  }, [pushNeedsSync, _onSync, _syncLoading, handleSyncFromError]);
+  }, [pushNeedsSync, _onSync, _syncLoading, handleSyncFromError, t]);
   const githubBaseUrl = useMemo(() => {
     if (!gitRemoteUrl) {
       return null;
@@ -918,12 +932,12 @@ export function GitDiffPanel({
     return `https://github.com/${path}`;
   }, [gitRemoteUrl]);
 
-  const showLogMenu = useCallback(
+const showLogMenu = useCallback(
     async (event: ReactMouseEvent<HTMLDivElement>, entry: GitLogEntry) => {
       event.preventDefault();
       event.stopPropagation();
       const copyItem = await MenuItem.new({
-        text: "复制 SHA",
+        text: t("git_diff.copy_sha"),
         action: async () => {
           await navigator.clipboard.writeText(entry.sha);
         },
@@ -931,7 +945,7 @@ export function GitDiffPanel({
       const items = [copyItem];
       if (githubBaseUrl) {
         const openItem = await MenuItem.new({
-          text: "在 GitHub 打开",
+          text: t("git_diff.open_in_github"),
           action: async () => {
             await openUrl(`${githubBaseUrl}/commit/${entry.sha}`);
           },
@@ -943,7 +957,7 @@ export function GitDiffPanel({
       const position = new LogicalPosition(event.clientX, event.clientY);
       await menu.popup(position, window);
     },
-    [githubBaseUrl],
+    [githubBaseUrl, t],
   );
 
   const showPullRequestMenu = useCallback(
@@ -954,7 +968,7 @@ export function GitDiffPanel({
       event.preventDefault();
       event.stopPropagation();
       const openItem = await MenuItem.new({
-        text: "在 GitHub 打开",
+        text: t("git_diff.open_in_github"),
         action: async () => {
           await openUrl(pullRequest.url);
         },
@@ -964,7 +978,7 @@ export function GitDiffPanel({
       const position = new LogicalPosition(event.clientX, event.clientY);
       await menu.popup(position, window);
     },
-    [],
+    [t],
   );
 
   const discardFiles = useCallback(
@@ -976,12 +990,12 @@ export function GitDiffPanel({
       const previewLimit = 6;
       const preview = paths.slice(0, previewLimit).join("\n");
       const more =
-        paths.length > previewLimit ? `\n… 以及 ${paths.length - previewLimit} 个更多文件` : "";
+        paths.length > previewLimit ? t("git_diff.and_more", { count: paths.length - previewLimit }) : "";
       const message = isSingle
-        ? `丢弃以下文件的更改：\n\n${paths[0]}\n\n此操作无法撤销。`
-        : `是否丢弃这些文件的更改？\n\n${preview}${more}\n\n此操作无法撤销。`;
+        ? t("git_diff.discard_single_confirm", { path: paths[0] })
+        : t("git_diff.discard_multiple_confirm", { preview, more });
       const confirmed = await ask(message, {
-        title: "丢弃更改",
+        title: t("git_diff.discard_changes"),
         kind: "warning",
       });
       if (!confirmed) {
@@ -991,7 +1005,7 @@ export function GitDiffPanel({
         await onRevertFile(path);
       }
     },
-    [onRevertFile],
+    [onRevertFile, t],
   );
 
   const discardFile = useCallback(
@@ -1024,9 +1038,7 @@ export function GitDiffPanel({
         setLastClickedFile(path);
       }
 
-      const fileCount = targetPaths.length;
-      const plural = fileCount > 1 ? "s" : "";
-      const countSuffix = fileCount > 1 ? ` (${fileCount})` : "";
+const fileCount = targetPaths.length;
       const normalizedRoot = resolveRootPath(gitRoot, workspacePath);
       const inferredRoot =
         !normalizedRoot && gitRootCandidates.length === 1
@@ -1043,13 +1055,13 @@ export function GitDiffPanel({
         unstagedFiles.some((f) => f.path === p),
       );
 
-      const items: MenuItem[] = [];
+const items: MenuItem[] = [];
 
       // Unstage action for staged files
       if (stagedPaths.length > 0 && onUnstageFile) {
         items.push(
           await MenuItem.new({
-            text: `取消暂存文件${stagedPaths.length > 1 ? ` (${stagedPaths.length})` : ""}`,
+            text: t("git_diff.unstage_multiple", { count: stagedPaths.length }),
             action: async () => {
               for (const p of stagedPaths) {
                 await onUnstageFile(p);
@@ -1063,7 +1075,7 @@ export function GitDiffPanel({
       if (unstagedPaths.length > 0 && onStageFile) {
         items.push(
           await MenuItem.new({
-            text: `暂存文件${unstagedPaths.length > 1 ? ` (${unstagedPaths.length})` : ""}`,
+            text: t("git_diff.stage_multiple", { count: unstagedPaths.length }),
             action: async () => {
               for (const p of unstagedPaths) {
                 await onStageFile(p);
@@ -1088,13 +1100,13 @@ export function GitDiffPanel({
         const fileName = getFileName(rawPath);
         items.push(
           await MenuItem.new({
-            text: `在${fileManagerLabel}中显示`,
+            text: t("git_diff.show_in_file_manager", { fileManager: fileManagerLabel }),
             action: async () => {
               try {
                 if (!resolvedRoot && !isAbsolutePathForPlatform(absolutePath)) {
                   pushErrorToast({
-                    title: `无法在${fileManagerLabel}中显示文件`,
-                    message: "请先选择 Git 根目录。",
+                    title: t("git_diff.cannot_show_in_file_manager", { fileManager: fileManagerLabel }),
+                    message: t("git_diff.select_git_root_first"),
                   });
                   return;
                 }
@@ -1106,7 +1118,7 @@ export function GitDiffPanel({
                 const message =
                   error instanceof Error ? error.message : String(error);
                 pushErrorToast({
-                  title: `无法在${fileManagerLabel}中显示文件`,
+                  title: t("git_diff.cannot_show_in_file_manager", { fileManager: fileManagerLabel }),
                   message,
                 });
                 console.warn("Failed to reveal file", {
@@ -1119,13 +1131,13 @@ export function GitDiffPanel({
         );
         items.push(
           await MenuItem.new({
-            text: "复制文件名",
+            text: t("git_diff.copy_filename"),
             action: async () => {
               await navigator.clipboard.writeText(fileName);
             },
           }),
           await MenuItem.new({
-            text: "复制文件路径",
+            text: t("git_diff.copy_filepath"),
             action: async () => {
               await navigator.clipboard.writeText(projectRelativePath);
             },
@@ -1137,7 +1149,7 @@ export function GitDiffPanel({
       if (onRevertFile) {
         items.push(
           await MenuItem.new({
-            text: `Discard change${plural}${countSuffix}`,
+            text: t("git_diff.discard_multiple", { count: fileCount }),
             action: async () => {
               await discardFiles(targetPaths);
             },
@@ -1164,17 +1176,17 @@ export function GitDiffPanel({
       gitRoot,
       gitRootCandidates,
       workspacePath,
-    ],
+],
   );
   const logCountLabel = logTotal
-    ? `${logTotal} 次提交`
+    ? t("git_diff.commits", { count: logTotal })
     : logEntries.length
-      ? `${logEntries.length} 次提交`
-    : "无提交";
+      ? t("git_diff.commits", { count: logEntries.length })
+    : t("git_diff.no_commits");
   const logSyncLabel = logUpstream
     ? `↑${logAhead} ↓${logBehind}`
-    : "未配置上游";
-  const logUpstreamLabel = logUpstream ? `上游 ${logUpstream}` : "";
+    : t("git_diff.no_upstream");
+  const logUpstreamLabel = logUpstream ? t("git_diff.upstream", { upstream: logUpstream }) : "";
   const showAheadSection = logUpstream && logAhead > 0;
   const showBehindSection = logUpstream && logBehind > 0;
   const hasDiffTotals = totalAdditions > 0 || totalDeletions > 0;
@@ -1296,10 +1308,10 @@ export function GitDiffPanel({
               }
               aria-label="Git 面板视图"
             >
-              <option value="diff">差异</option>
-              <option value="log">日志</option>
-              <option value="issues">问题</option>
-              <option value="prs">拉取请求</option>
+<option value="diff">{t("git_diff.diff")}</option>
+              <option value="log">{t("git_diff.log")}</option>
+              <option value="issues">{t("git_diff.issues")}</option>
+              <option value="prs">{t("git_diff.pull_requests")}</option>
             </select>
           </div>
           {showApplyWorktree && (
@@ -1310,8 +1322,8 @@ export function GitDiffPanel({
                 void onApplyWorktreeChanges?.();
               }}
               disabled={worktreeApplyLoading || worktreeApplySuccess}
-              data-tooltip={worktreeApplyTitle ?? "应用更改到父工作区"}
-              aria-label="应用工作树更改"
+              data-tooltip={worktreeApplyTitle ?? t("git_diff.apply_worktree_changes")}
+              aria-label={t("git_diff.apply_worktree")}
             >
               {worktreeApplyIcon}
             </button>
@@ -1338,36 +1350,36 @@ export function GitDiffPanel({
       ) : mode === "issues" ? (
         <>
           <div className="diff-status diff-status-issues">
-            <span>GitHub 问题</span>
+            <span>{t("git_diff.github_issues")}</span>
             {issuesLoading && <span className="git-panel-spinner" aria-hidden />}
           </div>
           <div className="git-log-sync">
-            <span>{issuesTotal} 个未关闭</span>
+            <span>{t("git_diff.unclosed_count", { count: issuesTotal })}</span>
           </div>
         </>
       ) : (
-        <>
+<>
           <div className="diff-status diff-status-issues">
-            <span>GitHub 拉取请求</span>
+            <span>{t("git_diff.github_pull_requests")}</span>
             {pullRequestsLoading && (
               <span className="git-panel-spinner" aria-hidden />
             )}
           </div>
           <div className="git-log-sync">
-            <span>{pullRequestsTotal} 个未关闭</span>
+            <span>{t("git_diff.unclosed_count", { count: pullRequestsTotal })}</span>
           </div>
         </>
       )}
       {mode === "diff" || mode === "log" ? (
         <div className="diff-branch-row">
-          <div className="diff-branch">{branchName || "未知"}</div>
+          <div className="diff-branch">{branchName || t("git_diff.unknown_branch")}</div>
           <button
             type="button"
             className="diff-branch-refresh"
             onClick={() => void onFetch?.()}
             disabled={!onFetch || fetchLoading}
-            title={fetchLoading ? "正在获取远程..." : "获取远程"}
-            aria-label={fetchLoading ? "正在获取远程" : "获取远程"}
+            title={fetchLoading ? t("git_diff.fetching_remote") : t("git_diff.fetch_remote")}
+            aria-label={fetchLoading ? t("git_diff.fetching_remote") : t("git_diff.fetch_remote")}
           >
             {fetchLoading ? (
               <span className="git-panel-spinner" aria-hidden />
@@ -1379,7 +1391,7 @@ export function GitDiffPanel({
       ) : null}
       {mode !== "issues" && hasGitRoot && (
         <div className="git-root-current">
-          <span className="git-root-label">路径：</span>
+          <span className="git-root-label">{t("git_diff.path")}</span>
           <span className="git-root-path" title={gitRoot ?? ""}>
             {gitRoot}
           </span>
@@ -1391,16 +1403,16 @@ export function GitDiffPanel({
               disabled={gitRootScanLoading}
             >
               <ArrowLeftRight className="git-root-button-icon" aria-hidden />
-              更改
+              {t("git_diff.change")}
             </button>
           )}
         </div>
       )}
-      {mode === "diff" ? (
+{mode === "diff" ? (
         <div className="diff-list" onClick={handleDiffListClick}>
           {showGitRootPanel && (
             <div className="git-root-panel">
-              <div className="git-root-title">为此工作区选择一个仓库。</div>
+              <div className="git-root-title">{t("git_diff.select_repo")}</div>
               <div className="git-root-actions">
                 <button
                   type="button"
@@ -1408,10 +1420,10 @@ export function GitDiffPanel({
                   onClick={onScanGitRoots}
                   disabled={!onScanGitRoots || gitRootScanLoading}
                 >
-                  扫描工作区
+                  {t("git_diff.scan_workspace")}
                 </button>
                 <label className="git-root-depth">
-                  <span>深度</span>
+                  <span>{t("git_diff.depth")}</span>
                   <select
                     className="git-root-select"
                     value={gitRootScanDepth}
@@ -1439,7 +1451,7 @@ export function GitDiffPanel({
                     }}
                     disabled={gitRootScanLoading}
                   >
-                    选择文件夹
+                    {t("git_diff.select_folder")}
                   </button>
                 )}
                 {hasGitRoot && onClearGitRoot && (
@@ -1449,18 +1461,18 @@ export function GitDiffPanel({
                     onClick={onClearGitRoot}
                     disabled={gitRootScanLoading}
                   >
-                    使用工作区根目录
+                    {t("git_diff.use_workspace_root")}
                   </button>
                 )}
               </div>
               {gitRootScanLoading && (
-                <div className="diff-empty">正在扫描仓库...</div>
+                <div className="diff-empty">{t("git_diff.scanning_repos")}</div>
               )}
               {!gitRootScanLoading &&
                 !gitRootScanError &&
                 gitRootScanHasScanned &&
                 gitRootCandidates.length === 0 && (
-                  <div className="diff-empty">未找到仓库。</div>
+                  <div className="diff-empty">{t("git_diff.no_repos_found")}</div>
                 )}
               {gitRootCandidates.length > 0 && (
                 <div className="git-root-list">
@@ -1476,7 +1488,7 @@ export function GitDiffPanel({
                       onClick={() => onSelectGitRoot?.(path)}
                     >
                       <span className="git-root-path">{path}</span>
-                      {isActive && <span className="git-root-tag">当前</span>}
+{isActive && <span className="git-root-tag">{t("git_diff.current")}</span>}
                     </button>
                     );
                   })}
@@ -1489,7 +1501,7 @@ export function GitDiffPanel({
               <div className="commit-message-input-wrapper">
                 <textarea
                   className="commit-message-input"
-                  placeholder="提交说明..."
+                  placeholder={t("git_diff.commit_message_placeholder")}
                   value={commitMessage}
                   onChange={(e) => onCommitMessageChange?.(e.target.value)}
                   disabled={commitMessageLoading}
@@ -1506,11 +1518,11 @@ export function GitDiffPanel({
                   }}
                   disabled={commitMessageLoading || !canGenerateCommitMessage}
                   title={
-                    stagedFiles.length > 0
-                      ? "根据已暂存更改生成提交说明"
-                      : "根据未暂存更改生成提交说明"
+stagedFiles.length > 0
+                      ? t("git_diff.generate_from_staged")
+                      : t("git_diff.generate_from_unstaged")
                   }
-                  aria-label="生成提交说明"
+                  aria-label={t("git_diff.generate_commit_message")}
                 >
                   {commitMessageLoading ? (
                     <svg
@@ -1555,7 +1567,7 @@ export function GitDiffPanel({
                       <circle cx="4" cy="20" r="2" fill="none" />
                     </svg>
                   )}
-                </button>
+</button>
               </div>
               <CommitButton
                 commitMessage={commitMessage}
@@ -1563,6 +1575,7 @@ export function GitDiffPanel({
                 hasUnstagedFiles={unstagedFiles.length > 0}
                 commitLoading={commitLoading}
                 onCommit={onCommit}
+                t={t}
               />
             </div>
           )}
@@ -1570,19 +1583,19 @@ export function GitDiffPanel({
             <div className="push-section">
               <div className="push-sync-buttons">
                 {commitsBehind > 0 && (
-                  <button
+<button
                     type="button"
                     className="push-button-secondary"
                     onClick={() => void onPull?.()}
                     disabled={!onPull || pullLoading || _syncLoading}
-                    title={`拉取 ${commitsBehind} 次提交`}
+                    title={t("git_diff.pull_n_commits", { count: commitsBehind })}
                   >
                     {pullLoading ? (
                       <span className="commit-button-spinner" aria-hidden />
                     ) : (
                       <Download size={14} aria-hidden />
                     )}
-                    <span>{pullLoading ? "拉取中..." : "拉取"}</span>
+                    <span>{pullLoading ? t("git_diff.pulling") : t("git_diff.pull")}</span>
                     <span className="push-count">{commitsBehind}</span>
                   </button>
                 )}
@@ -1594,8 +1607,8 @@ export function GitDiffPanel({
                     disabled={!onPush || pushLoading || commitsBehind > 0}
                     title={
                       commitsBehind > 0
-                        ? "远程领先。请先拉取或使用同步。"
-                        : `推送 ${commitsAhead} 次提交`
+                        ? t("git_diff.remote_ahead")
+                        : t("git_diff.push_n_commits", { count: commitsAhead })
                     }
                   >
                     {pushLoading ? (
@@ -1603,7 +1616,7 @@ export function GitDiffPanel({
                     ) : (
                       <Upload size={14} aria-hidden />
                     )}
-                    <span>推送</span>
+                    <span>{t("git_diff.push")}</span>
                     <span className="push-count">{commitsAhead}</span>
                   </button>
                 )}
@@ -1614,14 +1627,14 @@ export function GitDiffPanel({
                   className="push-button-secondary"
                   onClick={() => void _onSync?.()}
                   disabled={!_onSync || _syncLoading || pullLoading}
-                  title="拉取最新更改并推送本地提交"
+                  title={t("git_diff.pull_and_push")}
                 >
                   {_syncLoading ? (
                     <span className="commit-button-spinner" aria-hidden />
                   ) : (
                     <RotateCcw size={14} aria-hidden />
                   )}
-                  <span>{_syncLoading ? "同步中..." : "同步（先拉取再推送）"}</span>
+                  <span>{_syncLoading ? t("git_diff.syncing") : t("git_diff.sync_pull_then_push")}</span>
                 </button>
               )}
             </div>
@@ -1631,13 +1644,13 @@ export function GitDiffPanel({
             !unstagedFiles.length &&
             commitsAhead === 0 &&
             commitsBehind === 0 && (
-            <div className="diff-empty">未检测到更改。</div>
+            <div className="diff-empty">{t("git_diff.no_changes_detected")}</div>
           )}
           {(stagedFiles.length > 0 || unstagedFiles.length > 0) && (
-            <>
+<>
               {stagedFiles.length > 0 && (
                 <DiffSection
-                  title="已暂存"
+                  title={t("git_diff.stage")}
                   files={stagedFiles}
                   section="staged"
                   selectedFiles={selectedFiles}
@@ -1648,11 +1661,12 @@ export function GitDiffPanel({
                   onDiscardFiles={onRevertFile ? discardFiles : undefined}
                   onFileClick={handleFileClick}
                   onShowFileMenu={showFileMenu}
+                  t={t}
                 />
               )}
               {unstagedFiles.length > 0 && (
                 <DiffSection
-                  title="未暂存"
+                  title={t("git_diff.unstage")}
                   files={unstagedFiles}
                   section="unstaged"
                   selectedFiles={selectedFiles}
@@ -1664,6 +1678,7 @@ export function GitDiffPanel({
                   onDiscardFiles={onRevertFile ? discardFiles : undefined}
                   onFileClick={handleFileClick}
                   onShowFileMenu={showFileMenu}
+                  t={t}
                 />
               )}
             </>
@@ -1686,7 +1701,7 @@ export function GitDiffPanel({
               <div className="git-log-section-title">待推送</div>
               <div className="git-log-section-list">
                 {logAheadEntries.map((entry) => {
-                  const isSelected = selectedCommitSha === entry.sha;
+const isSelected = selectedCommitSha === entry.sha;
                   return (
                     <GitLogEntryRow
                       key={entry.sha}
@@ -1695,6 +1710,7 @@ export function GitDiffPanel({
                       compact
                       onSelect={onSelectCommit}
                       onContextMenu={(event) => showLogMenu(event, entry)}
+                      t={t}
                     />
                   );
                 })}
@@ -1703,7 +1719,7 @@ export function GitDiffPanel({
           )}
           {showBehindSection && (
             <div className="git-log-section">
-              <div className="git-log-section-title">待拉取</div>
+              <div className="git-log-section-title">{t("git_diff.fetch")}</div>
               <div className="git-log-section-list">
                 {logBehindEntries.map((entry) => {
                   const isSelected = selectedCommitSha === entry.sha;
@@ -1715,6 +1731,7 @@ export function GitDiffPanel({
                       compact
                       onSelect={onSelectCommit}
                       onContextMenu={(event) => showLogMenu(event, entry)}
+                      t={t}
                     />
                   );
                 })}
@@ -1723,7 +1740,7 @@ export function GitDiffPanel({
           )}
           {(logEntries.length > 0 || logLoading) && (
             <div className="git-log-section">
-              <div className="git-log-section-title">最近提交</div>
+              <div className="git-log-section-title">{t("git_diff.commits", { count: logEntries.length })}</div>
               <div className="git-log-section-list">
                 {logEntries.map((entry) => {
                   const isSelected = selectedCommitSha === entry.sha;
@@ -1734,6 +1751,7 @@ export function GitDiffPanel({
                       isSelected={isSelected}
                       onSelect={onSelectCommit}
                       onContextMenu={(event) => showLogMenu(event, entry)}
+                      t={t}
                     />
                   );
                 })}
@@ -1817,7 +1835,7 @@ export function GitDiffPanel({
           })}
         </div>
       )}
-      {showSidebarError && sidebarError && (
+{showSidebarError && sidebarError && (
         <SidebarError
           message={sidebarError.message}
           action={sidebarError.action ?? null}
@@ -1831,6 +1849,7 @@ export function GitDiffPanel({
               return next;
             })
           }
+          t={t}
         />
       )}
     </PanelFrame>

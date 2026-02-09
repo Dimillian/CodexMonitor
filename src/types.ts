@@ -171,6 +171,7 @@ export type AppSettings = {
   lastComposerReasoningEffort: string | null;
   uiScale: number;
   theme: ThemePreference;
+  language: "en" | "zh";
   usageShowRemaining: boolean;
   uiFontFamily: string;
   codeFontFamily: string;

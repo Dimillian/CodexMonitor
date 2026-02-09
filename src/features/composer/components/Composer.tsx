@@ -161,7 +161,7 @@ export function Composer({
   queuedMessages = [],
   onEditQueued,
   onDeleteQueued,
-  sendLabel = "发送",
+  sendLabel,
   draftText = "",
   onDraftChange,
   historyKey = null,

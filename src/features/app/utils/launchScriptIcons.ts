@@ -37,21 +37,21 @@ const ICON_MAP: Record<LaunchScriptIconId, LucideIcon> = {
 };
 
 const ICON_LABELS: Record<LaunchScriptIconId, string> = {
-  play: "运行",
-  build: "构建",
-  debug: "调试",
-  wrench: "工具",
-  terminal: "终端",
-  code: "代码",
-  server: "服务器",
-  database: "数据库",
-  package: "包",
-  test: "测试",
-  lint: "代码检查",
-  dev: "开发",
-  git: "Git",
-  config: "配置",
-  logs: "日志",
+  play: "launch_scripts.icon_play",
+  build: "launch_scripts.icon_build",
+  debug: "launch_scripts.icon_debug",
+  wrench: "launch_scripts.icon_wrench",
+  terminal: "launch_scripts.icon_terminal",
+  code: "launch_scripts.icon_code",
+  server: "launch_scripts.icon_server",
+  database: "launch_scripts.icon_database",
+  package: "launch_scripts.icon_package",
+  test: "launch_scripts.icon_test",
+  lint: "launch_scripts.icon_lint",
+  dev: "launch_scripts.icon_dev",
+  git: "launch_scripts.icon_git",
+  config: "launch_scripts.icon_config",
+  logs: "launch_scripts.icon_logs",
 };
 
 function isLaunchScriptIconId(value: string): value is LaunchScriptIconId {
@@ -78,7 +78,8 @@ export function getLaunchScriptIcon(id?: string | null): LucideIcon {
   return ICON_MAP[iconId];
 }
 
-export function getLaunchScriptIconLabel(id?: string | null): string {
+export function getLaunchScriptIconLabel(id?: string | null, t?: (key: string) => string): string {
   const iconId = coerceLaunchScriptIconId(id);
-  return ICON_LABELS[iconId];
+  const labelKey = ICON_LABELS[iconId];
+  return t ? t(labelKey) : labelKey;
 }

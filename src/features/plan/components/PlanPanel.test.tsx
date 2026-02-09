@@ -7,7 +7,7 @@ describe("PlanPanel", () => {
   it("shows a waiting label while processing without a plan", () => {
     render(<PlanPanel plan={null} isProcessing />);
 
-    expect(screen.getByText("Waiting on a plan...")).toBeTruthy();
+    expect(screen.getByText("Waiting for plan...")).toBeTruthy();
   });
 
   it("shows an empty label when idle without a plan", () => {

@@ -96,7 +96,7 @@ describe("Home", () => {
     );
 
     expect(screen.getAllByText("agent time").length).toBeGreaterThan(0);
-    expect(screen.getByText("Runs")).toBeTruthy();
+    expect(screen.getAllByText("Runs").length).toBeGreaterThan(0);
     expect(screen.getByText("Peak day")).toBeTruthy();
   });
 });

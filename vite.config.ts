@@ -21,9 +21,10 @@ export default defineConfig(async () => ({
     __APP_VERSION__: JSON.stringify(packageJson.version),
   },
   test: {
-    environment: "node",
+    environment: "jsdom",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     setupFiles: ["src/test/vitest.setup.ts"],
+    globals: true,
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
