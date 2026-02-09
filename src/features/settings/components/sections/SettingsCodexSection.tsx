@@ -1,9 +1,11 @@
+import { useEffect, useMemo, useRef } from "react";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import type { Dispatch, SetStateAction } from "react";
 import type {
   AppSettings,
   CodexDoctorResult,
   CodexUpdateResult,
+  ModelOption,
   WorkspaceInfo,
 } from "../../../../types";
 import { FileEditorCard } from "../../../shared/components/FileEditorCard";
@@ -11,6 +13,11 @@ import { FileEditorCard } from "../../../shared/components/FileEditorCard";
 type SettingsCodexSectionProps = {
   appSettings: AppSettings;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
+  defaultModels: ModelOption[];
+  defaultModelsLoading: boolean;
+  defaultModelsError: string | null;
+  defaultModelsConnectedWorkspaceCount: number;
+  onRefreshDefaultModels: () => void;
   codexPathDraft: string;
   codexArgsDraft: string;
   codexDirty: boolean;
@@ -68,9 +75,40 @@ const normalizeOverrideValue = (value: string): string | null => {
   return trimmed ? trimmed : null;
 };
 
+const DEFAULT_REASONING_EFFORT = "medium";
+const REASONING_EFFORT_OPTIONS = ["low", "medium", "high"] as const;
+
+function coerceReasoningEffort(value: unknown): (typeof REASONING_EFFORT_OPTIONS)[number] | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  return (REASONING_EFFORT_OPTIONS as readonly string[]).includes(normalized)
+    ? (normalized as (typeof REASONING_EFFORT_OPTIONS)[number])
+    : null;
+}
+
+function coerceSavedModelSlug(value: string | null, models: ModelOption[]): string | null {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) {
+    return null;
+  }
+  const bySlug = models.find((model) => model.model === trimmed);
+  if (bySlug) {
+    return bySlug.model;
+  }
+  const byId = models.find((model) => model.id === trimmed);
+  return byId ? byId.model : null;
+}
+
 export function SettingsCodexSection({
   appSettings,
   onUpdateAppSettings,
+  defaultModels,
+  defaultModelsLoading,
+  defaultModelsError,
+  defaultModelsConnectedWorkspaceCount,
+  onRefreshDefaultModels,
   codexPathDraft,
   codexArgsDraft,
   codexDirty,
@@ -113,6 +151,50 @@ export function SettingsCodexSection({
   onUpdateWorkspaceCodexBin,
   onUpdateWorkspaceSettings,
 }: SettingsCodexSectionProps) {
+  const latestModelSlug = defaultModels[0]?.model ?? null;
+  const savedModelSlug = useMemo(
+    () => coerceSavedModelSlug(appSettings.lastComposerModelId, defaultModels),
+    [appSettings.lastComposerModelId, defaultModels],
+  );
+  const selectedModelSlug = savedModelSlug ?? latestModelSlug ?? "";
+  const selectedEffort =
+    coerceReasoningEffort(appSettings.lastComposerReasoningEffort) ?? DEFAULT_REASONING_EFFORT;
+
+  const didNormalizeDefaultsRef = useRef(false);
+  useEffect(() => {
+    if (didNormalizeDefaultsRef.current) {
+      return;
+    }
+    if (!defaultModels.length) {
+      return;
+    }
+    const savedRawModel = (appSettings.lastComposerModelId ?? "").trim();
+    const savedRawEffort = (appSettings.lastComposerReasoningEffort ?? "").trim();
+    const shouldNormalizeModel = savedRawModel.length === 0 || savedModelSlug === null;
+    const shouldNormalizeEffort =
+      savedRawEffort.length === 0 || coerceReasoningEffort(savedRawEffort) === null;
+    if (!shouldNormalizeModel && !shouldNormalizeEffort) {
+      didNormalizeDefaultsRef.current = true;
+      return;
+    }
+
+    const next: AppSettings = {
+      ...appSettings,
+      lastComposerModelId: shouldNormalizeModel ? selectedModelSlug : appSettings.lastComposerModelId,
+      lastComposerReasoningEffort: shouldNormalizeEffort
+        ? DEFAULT_REASONING_EFFORT
+        : appSettings.lastComposerReasoningEffort,
+    };
+    didNormalizeDefaultsRef.current = true;
+    void onUpdateAppSettings(next);
+  }, [
+    appSettings,
+    defaultModels.length,
+    onUpdateAppSettings,
+    savedModelSlug,
+    selectedModelSlug,
+  ]);
+
   return (
     <section className="settings-section">
       <div className="settings-section-title">Codex</div>
@@ -264,6 +346,74 @@ export function SettingsCodexSection({
             </div>
           </div>
         )}
+      </div>
+
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="default-model">
+          Default model
+        </label>
+        <div className="settings-field-row">
+          <select
+            id="default-model"
+            className="settings-select"
+            value={selectedModelSlug}
+            disabled={!defaultModels.length || defaultModelsLoading}
+            onChange={(event) =>
+              void onUpdateAppSettings({
+                ...appSettings,
+                lastComposerModelId: event.target.value,
+              })
+            }
+            aria-label="Default model"
+          >
+            {defaultModels.map((model) => (
+              <option key={model.model} value={model.model}>
+                {model.displayName?.trim() || model.model}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="ghost"
+            onClick={onRefreshDefaultModels}
+            disabled={defaultModelsLoading || defaultModelsConnectedWorkspaceCount === 0}
+          >
+            Refresh
+          </button>
+        </div>
+        {defaultModelsConnectedWorkspaceCount === 0 && (
+          <div className="settings-help">
+            Connect a project to load available models.
+          </div>
+        )}
+        {defaultModelsLoading && (
+          <div className="settings-help">Loading models…</div>
+        )}
+        {defaultModelsError && (
+          <div className="settings-help">Couldn’t load models: {defaultModelsError}</div>
+        )}
+      </div>
+
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="default-effort">
+          Default reasoning effort
+        </label>
+        <select
+          id="default-effort"
+          className="settings-select"
+          value={selectedEffort}
+          onChange={(event) =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              lastComposerReasoningEffort: event.target.value,
+            })
+          }
+          aria-label="Default reasoning effort"
+        >
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
       </div>
 
       <div className="settings-field">
