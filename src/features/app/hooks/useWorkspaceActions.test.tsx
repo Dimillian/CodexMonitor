@@ -35,6 +35,7 @@ describe("useWorkspaceActions telemetry", () => {
         isCompact: false,
         addWorkspace: vi.fn(async () => null),
         addWorkspaceFromPath: vi.fn(async () => null),
+        addWorkspacesFromPaths: vi.fn(async () => null),
         setActiveThreadId,
         setActiveTab: vi.fn(),
         exitDiffView: vi.fn(),
