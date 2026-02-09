@@ -162,6 +162,17 @@ If signing is not ready yet, open Xcode from the script flow:
 ./scripts/build_run_ios_device.sh --open-xcode
 ```
 
+### iOS TestFlight Release (Scripted)
+
+Use the end-to-end script to archive, upload, configure compliance, assign beta group, and submit for beta review.
+
+```bash
+./scripts/release_testflight_ios.sh
+```
+
+The script auto-loads release metadata from `.testflight.local.env` (gitignored).
+For new setups, copy `.testflight.local.env.example` to `.testflight.local.env` and fill values.
+
 ## Release Build
 
 Build the production Tauri bundle:
