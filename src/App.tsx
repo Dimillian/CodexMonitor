@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import "./styles/base.css";
 import "./styles/ds-tokens.css";
 import "./styles/ds-modal.css";
@@ -89,7 +89,6 @@ import { useWorkspaceSelection } from "./features/workspaces/hooks/useWorkspaceS
 import { useLocalUsage } from "./features/home/hooks/useLocalUsage";
 import { useGitHubPanelController } from "./features/app/hooks/useGitHubPanelController";
 import { useSettingsModalState } from "./features/app/hooks/useSettingsModalState";
-import { usePersistComposerSettings } from "./features/app/hooks/usePersistComposerSettings";
 import { useSyncSelectedDiffPath } from "./features/app/hooks/useSyncSelectedDiffPath";
 import { useMenuAcceleratorController } from "./features/app/hooks/useMenuAcceleratorController";
 import { useAppMenuEvents } from "./features/app/hooks/useAppMenuEvents";
@@ -111,6 +110,8 @@ import { MobileServerSetupWizard } from "./features/mobile/components/MobileServ
 import { useMobileServerSetup } from "./features/mobile/hooks/useMobileServerSetup";
 import { useWorkspaceHome } from "./features/workspaces/hooks/useWorkspaceHome";
 import { useWorkspaceAgentMd } from "./features/workspaces/hooks/useWorkspaceAgentMd";
+import { useThreadCodexParams } from "./features/threads/hooks/useThreadCodexParams";
+import { makeThreadCodexParamsKey } from "./features/threads/utils/threadStorage";
 import { isMobilePlatform } from "./utils/platformPaths";
 import type {
   AccessMode,
@@ -185,7 +186,17 @@ function MainApp() {
   } = useDebugLog();
   const shouldReduceTransparency = reduceTransparency || isMobilePlatform();
   useLiquidGlassEffect({ reduceTransparency: shouldReduceTransparency, onDebug: addDebugEntry });
+  const { version: threadCodexParamsVersion, getThreadCodexParams, patchThreadCodexParams } =
+    useThreadCodexParams();
   const [accessMode, setAccessMode] = useState<AccessMode>("current");
+  const [preferredModelId, setPreferredModelId] = useState<string | null>(null);
+  const [preferredEffort, setPreferredEffort] = useState<string | null>(null);
+  const [preferredCollabModeId, setPreferredCollabModeId] = useState<string | null>(
+    null,
+  );
+  const [threadCodexSelectionKey, setThreadCodexSelectionKey] = useState<string | null>(
+    null,
+  );
   const { threadListSortKey, setThreadListSortKey } = useThreadListSortKey();
   const [activeTab, setActiveTab] = useState<
     "home" | "projects" | "codex" | "git" | "log"
@@ -243,6 +254,11 @@ function MainApp() {
     () => new Map(workspaces.map((workspace) => [workspace.id, workspace])),
     [workspaces],
   );
+  const activeWorkspaceIdForParamsRef = useRef<string | null>(activeWorkspaceId ?? null);
+  useEffect(() => {
+    activeWorkspaceIdForParamsRef.current = activeWorkspaceId ?? null;
+  }, [activeWorkspaceId]);
+  const activeThreadIdRef = useRef<string | null>(null);
   const {
     sidebarWidth,
     rightPanelWidth,
@@ -322,11 +338,7 @@ function MainApp() {
 
   const { errorToasts, dismissErrorToast } = useErrorToasts();
 
-  useEffect(() => {
-    setAccessMode((prev) =>
-      prev === "current" ? appSettings.defaultAccessMode : prev
-    );
-  }, [appSettings.defaultAccessMode]);
+  // Access mode is thread-scoped (best-effort persisted) and falls back to the app default.
 
   const {
     gitIssues,
@@ -438,8 +450,9 @@ function MainApp() {
   } = useModels({
     activeWorkspace,
     onDebug: addDebugEntry,
-    preferredModelId: appSettings.lastComposerModelId,
-    preferredEffort: appSettings.lastComposerReasoningEffort,
+    preferredModelId,
+    preferredEffort,
+    selectionKey: threadCodexSelectionKey,
   });
 
   const {
@@ -450,8 +463,92 @@ function MainApp() {
   } = useCollaborationModes({
     activeWorkspace,
     enabled: appSettings.collaborationModesEnabled,
+    preferredModeId: preferredCollabModeId,
+    selectionKey: threadCodexSelectionKey,
     onDebug: addDebugEntry,
   });
+
+  const persistThreadCodexParams = useCallback(
+    (patch: {
+      modelId?: string | null;
+      effort?: string | null;
+      accessMode?: AccessMode | null;
+      collaborationModeId?: string | null;
+    }) => {
+      const workspaceId = activeWorkspaceIdForParamsRef.current;
+      const threadId = activeThreadIdRef.current;
+      if (!workspaceId || !threadId) {
+        return;
+      }
+      patchThreadCodexParams(workspaceId, threadId, patch);
+    },
+    [patchThreadCodexParams],
+  );
+
+  const handleSelectModel = useCallback(
+    (id: string | null) => {
+      setSelectedModelId(id);
+      if (!appSettingsLoading) {
+        setAppSettings((current) => {
+          if (current.lastComposerModelId === id) {
+            return current;
+          }
+          const nextSettings = { ...current, lastComposerModelId: id };
+          void queueSaveSettings(nextSettings);
+          return nextSettings;
+        });
+      }
+      persistThreadCodexParams({ modelId: id });
+    },
+    [
+      appSettingsLoading,
+      persistThreadCodexParams,
+      queueSaveSettings,
+      setAppSettings,
+      setSelectedModelId,
+    ],
+  );
+
+  const handleSelectEffort = useCallback(
+    (raw: string | null) => {
+      const next = typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : null;
+      setSelectedEffort(next);
+      if (!appSettingsLoading) {
+        setAppSettings((current) => {
+          if (current.lastComposerReasoningEffort === next) {
+            return current;
+          }
+          const nextSettings = { ...current, lastComposerReasoningEffort: next };
+          void queueSaveSettings(nextSettings);
+          return nextSettings;
+        });
+      }
+      persistThreadCodexParams({ effort: next });
+    },
+    [
+      appSettingsLoading,
+      persistThreadCodexParams,
+      queueSaveSettings,
+      setAppSettings,
+      setSelectedEffort,
+    ],
+  );
+
+  const handleSelectCollaborationMode = useCallback(
+    (id: string | null) => {
+      setSelectedCollaborationModeId(id);
+      persistThreadCodexParams({ collaborationModeId: id });
+    },
+    [persistThreadCodexParams, setSelectedCollaborationModeId],
+  );
+
+  const handleSelectAccessMode = useCallback(
+    (mode: AccessMode) => {
+      setAccessMode(mode);
+      persistThreadCodexParams({ accessMode: mode });
+    },
+    [persistThreadCodexParams],
+  );
 
   const composerShortcuts = {
     modelShortcut: appSettings.composerModelShortcut,
@@ -463,14 +560,14 @@ function MainApp() {
     models,
     collaborationModes,
     selectedModelId,
-    onSelectModel: setSelectedModelId,
+    onSelectModel: handleSelectModel,
     selectedCollaborationModeId,
-    onSelectCollaborationMode: setSelectedCollaborationModeId,
+    onSelectCollaborationMode: handleSelectCollaborationMode,
     accessMode,
-    onSelectAccessMode: setAccessMode,
+    onSelectAccessMode: handleSelectAccessMode,
     reasoningOptions,
     selectedEffort,
-    onSelectEffort: setSelectedEffort,
+    onSelectEffort: handleSelectEffort,
     reasoningSupported,
   };
 
@@ -487,15 +584,15 @@ function MainApp() {
   useComposerMenuActions({
     models,
     selectedModelId,
-    onSelectModel: setSelectedModelId,
+    onSelectModel: handleSelectModel,
     collaborationModes,
     selectedCollaborationModeId,
-    onSelectCollaborationMode: setSelectedCollaborationModeId,
+    onSelectCollaborationMode: handleSelectCollaborationMode,
     accessMode,
-    onSelectAccessMode: setAccessMode,
+    onSelectAccessMode: handleSelectAccessMode,
     reasoningOptions,
     selectedEffort,
-    onSelectEffort: setSelectedEffort,
+    onSelectEffort: handleSelectEffort,
     reasoningSupported,
     onFocusComposer: () => composerInputRef.current?.focus(),
   });
@@ -580,14 +677,6 @@ function MainApp() {
             gitStatus.files.length === 1 ? "" : "s"
           } changed`
         : "Working tree clean";
-
-  usePersistComposerSettings({
-    appSettingsLoading,
-    selectedModelId,
-    selectedEffort,
-    setAppSettings,
-    queueSaveSettings,
-  });
 
   const { isExpanded: composerEditorExpanded, toggleExpanded: toggleComposerEditorExpanded } =
     useComposerEditorState();
@@ -711,6 +800,51 @@ function MainApp() {
     threadSortKey: threadListSortKey,
   });
 
+  useLayoutEffect(() => {
+    const workspaceId = activeWorkspaceId ?? null;
+    const threadId = activeThreadId ?? null;
+    activeThreadIdRef.current = threadId;
+
+    if (!workspaceId) {
+      return;
+    }
+
+    const scopeKey = threadId
+      ? makeThreadCodexParamsKey(workspaceId, threadId)
+      : `${workspaceId}:__no_thread__`;
+
+    const stored = threadId ? getThreadCodexParams(workspaceId, threadId) : null;
+
+    setThreadCodexSelectionKey(scopeKey);
+    setAccessMode(stored?.accessMode ?? appSettings.defaultAccessMode);
+
+    if (threadId) {
+      // Thread-scoped defaults: no global fallback. If the thread has no stored override,
+      // use the model hook's defaults (config/isDefault) by passing null preferences.
+      setPreferredModelId(stored?.modelId ?? null);
+      setPreferredEffort(stored?.effort ?? null);
+      setPreferredCollabModeId(stored?.collaborationModeId ?? null);
+      return;
+    }
+
+    // No active thread: use global "last composer" preferences.
+    setPreferredModelId(appSettings.lastComposerModelId);
+    setPreferredEffort(appSettings.lastComposerReasoningEffort);
+    setPreferredCollabModeId(null);
+  }, [
+    activeThreadId,
+    activeWorkspaceId,
+    appSettings.defaultAccessMode,
+    appSettings.lastComposerModelId,
+    appSettings.lastComposerReasoningEffort,
+    getThreadCodexParams,
+    setPreferredCollabModeId,
+    setPreferredEffort,
+    setPreferredModelId,
+    setThreadCodexSelectionKey,
+    threadCodexParamsVersion,
+  ]);
+
   const { handleSetThreadListSortKey, handleRefreshAllWorkspaceThreads } =
     useThreadListActions({
       threadListSortKey,
@@ -753,7 +887,6 @@ function MainApp() {
     activeWorkspaceId,
     activeThreadId,
   });
-  const activeThreadIdRef = useRef<string | null>(activeThreadId ?? null);
   const { getThreadRows } = useThreadRows(threadParentById);
   useEffect(() => {
     activeThreadIdRef.current = activeThreadId ?? null;
@@ -2118,16 +2251,16 @@ function MainApp() {
     onDeleteQueued: handleDeleteQueued,
     collaborationModes,
     selectedCollaborationModeId,
-    onSelectCollaborationMode: setSelectedCollaborationModeId,
+    onSelectCollaborationMode: handleSelectCollaborationMode,
     models,
     selectedModelId,
-    onSelectModel: setSelectedModelId,
+    onSelectModel: handleSelectModel,
     reasoningOptions,
     selectedEffort,
-    onSelectEffort: setSelectedEffort,
+    onSelectEffort: handleSelectEffort,
     reasoningSupported,
     accessMode,
-    onSelectAccessMode: setAccessMode,
+    onSelectAccessMode: handleSelectAccessMode,
     skills,
     appsEnabled: appSettings.experimentalAppsEnabled,
     apps,

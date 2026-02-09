@@ -7,6 +7,7 @@ type UseModelsOptions = {
   onDebug?: (entry: DebugEntry) => void;
   preferredModelId?: string | null;
   preferredEffort?: string | null;
+  selectionKey?: string | null;
 };
 
 const CONFIG_MODEL_DESCRIPTION = "Configured in CODEX_HOME/config.toml";
@@ -44,6 +45,7 @@ export function useModels({
   onDebug,
   preferredModelId = null,
   preferredEffort = null,
+  selectionKey = null,
 }: UseModelsOptions) {
   const [models, setModels] = useState<ModelOption[]>([]);
   const [configModel, setConfigModel] = useState<string | null>(null);
@@ -54,9 +56,19 @@ export function useModels({
   const hasUserSelectedModel = useRef(false);
   const hasUserSelectedEffort = useRef(false);
   const lastWorkspaceId = useRef<string | null>(null);
+  const lastSelectionKey = useRef<string | null>(null);
 
   const workspaceId = activeWorkspace?.id ?? null;
   const isConnected = Boolean(activeWorkspace?.connected);
+
+  useEffect(() => {
+    if (selectionKey === lastSelectionKey.current) {
+      return;
+    }
+    lastSelectionKey.current = selectionKey;
+    hasUserSelectedModel.current = false;
+    hasUserSelectedEffort.current = false;
+  }, [selectionKey]);
 
   useEffect(() => {
     if (workspaceId === lastWorkspaceId.current) {

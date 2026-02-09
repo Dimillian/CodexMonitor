@@ -9,12 +9,16 @@ import { getCollaborationModes } from "../../../services/tauri";
 type UseCollaborationModesOptions = {
   activeWorkspace: WorkspaceInfo | null;
   enabled: boolean;
+  preferredModeId?: string | null;
+  selectionKey?: string | null;
   onDebug?: (entry: DebugEntry) => void;
 };
 
 export function useCollaborationModes({
   activeWorkspace,
   enabled,
+  preferredModeId = null,
+  selectionKey = null,
   onDebug,
 }: UseCollaborationModesOptions) {
   const [modes, setModes] = useState<CollaborationModeOption[]>([]);
@@ -23,6 +27,7 @@ export function useCollaborationModes({
   const previousWorkspaceId = useRef<string | null>(null);
   const inFlight = useRef(false);
   const selectedModeIdRef = useRef<string | null>(null);
+  const lastSelectionKey = useRef<string | null>(null);
 
   const workspaceId = activeWorkspace?.id ?? null;
   const isConnected = Boolean(activeWorkspace?.connected);
@@ -175,6 +180,17 @@ export function useCollaborationModes({
   useEffect(() => {
     selectedModeIdRef.current = selectedModeId;
   }, [selectedModeId]);
+
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+    if (selectionKey === lastSelectionKey.current) {
+      return;
+    }
+    lastSelectionKey.current = selectionKey;
+    setSelectedModeId(preferredModeId);
+  }, [enabled, preferredModeId, selectionKey]);
 
   useEffect(() => {
     if (previousWorkspaceId.current !== workspaceId) {
