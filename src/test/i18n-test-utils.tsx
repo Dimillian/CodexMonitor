@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { I18nextProvider } from 'react-i18next';
 import type { I18nService } from '../services/i18n';
 import type { Locale } from '../i18n/config';
 
@@ -84,8 +85,6 @@ export function MockI18nProvider({
   locale?: Locale;
   translations?: Record<string, string>;
 }) {
-  const { I18nextProvider } = require('react-i18next');
-
   const i18nInstance = {
     language: locale,
     changeLanguage: vi.fn(() => Promise.resolve()),

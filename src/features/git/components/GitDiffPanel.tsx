@@ -1176,7 +1176,8 @@ const items: MenuItem[] = [];
       gitRoot,
       gitRootCandidates,
       workspacePath,
-],
+      t,
+    ],
   );
   const logCountLabel = logTotal
     ? t("git_diff.commits", { count: logTotal })

@@ -318,19 +318,19 @@ export function SettingsView({
 }: SettingsViewProps) {
   const { t } = useTranslation();
 
-  const DICTATION_MODELS = [
+  const DICTATION_MODELS = useMemo(() => [
     { id: "tiny", label: t("settings.dictation.models.tiny.label"), size: "75 MB", note: t("settings.dictation.models.tiny.note") },
     { id: "base", label: t("settings.dictation.models.base.label"), size: "142 MB", note: t("settings.dictation.models.base.note") },
     { id: "small", label: t("settings.dictation.models.small.label"), size: "466 MB", note: t("settings.dictation.models.small.note") },
     { id: "medium", label: t("settings.dictation.models.medium.label"), size: "1.5 GB", note: t("settings.dictation.models.medium.note") },
     { id: "large-v3", label: t("settings.dictation.models.large-v3.label"), size: "3.0 GB", note: t("settings.dictation.models.large-v3.note") },
-  ];
+  ], [t]);
 
-  const COMPOSER_PRESET_LABELS: Record<ComposerPreset, string> = {
+  const COMPOSER_PRESET_LABELS: Record<ComposerPreset, string> = useMemo(() => ({
     default: t("settings.writer.presets.default"),
     helpful: t("settings.writer.presets.helpful"),
     smart: t("settings.writer.presets.smart"),
-  };
+  }), [t]);
   const [activeSection, setActiveSection] = useState<CodexSection>("projects");
   const [environmentWorkspaceId, setEnvironmentWorkspaceId] = useState<string | null>(
     null,
@@ -472,7 +472,7 @@ export function SettingsView({
         (model) => model.id === appSettings.dictationModelId,
       ) ?? DICTATION_MODELS[1]
     );
-  }, [appSettings.dictationModelId]);
+  }, [appSettings.dictationModelId, DICTATION_MODELS]);
 
   const projects = useMemo(
     () => groupedWorkspaces.flatMap((group) => group.workspaces),
@@ -622,7 +622,7 @@ export function SettingsView({
         error instanceof Error ? error.message : t("errors.cannot_open_config_file"),
       );
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     setCodexBinOverrideDrafts((prev) =>
@@ -3262,7 +3262,7 @@ export function SettingsView({
                   meta={globalConfigMeta}
                   error={globalConfigError}
                   value={globalConfigContent}
-                  placeholder="编辑全局 Codex config.toml…"
+                  placeholder={t("settings.features.global_config_toml_placeholder")}
                   disabled={globalConfigLoading}
                   refreshDisabled={globalConfigRefreshDisabled}
                   saveDisabled={globalConfigSaveDisabled}
@@ -3276,7 +3276,7 @@ export function SettingsView({
                   }}
                   helpText={
                     <>
-                      存储于 <code>~/.codex/config.toml</code>。
+                      {t("settings.features.global_config_toml_description")}
                     </>
                   }
                   classNames={{
@@ -3293,7 +3293,7 @@ export function SettingsView({
                 />
 
                 <div className="settings-field">
-                  <div className="settings-field-label">{t("settings.workspaces")}覆盖项</div>
+                  <div className="settings-field-label">{t("settings.features.workspace_overrides")}</div>
                   <div className="settings-overrides">
                     {projects.map((workspace) => (
                       <div key={workspace.id} className="settings-override-row">
@@ -3306,7 +3306,7 @@ export function SettingsView({
                             <input
                               className="settings-input settings-input--compact"
                               value={codexBinOverrideDrafts[workspace.id] ?? ""}
-                              placeholder="Codex 可执行文件覆盖"
+                              placeholder={t("settings.features.codex_executable_override")}
                               onChange={(event) =>
                                 setCodexBinOverrideDrafts((prev) => ({
                                   ...prev,
@@ -3321,7 +3321,7 @@ export function SettingsView({
                                 }
                                 await onUpdateWorkspaceCodexBin(workspace.id, nextValue);
                               }}
-                              aria-label={`为 ${workspace.name} 设置 Codex 可执行文件覆盖`}
+                              aria-label={t("workspace.set_codex_overrides", { name: workspace.name })}
                             />
                             <button
                               type="button"
@@ -3341,7 +3341,7 @@ export function SettingsView({
                             <input
                               className="settings-input settings-input--compact"
                               value={codexHomeOverrideDrafts[workspace.id] ?? ""}
-                              placeholder="CODEX_HOME 覆盖"
+                              placeholder={t("settings.features.codex_home_override")}
                               onChange={(event) =>
                                 setCodexHomeOverrideDrafts((prev) => ({
                                   ...prev,
@@ -3358,7 +3358,7 @@ export function SettingsView({
                                   codexHome: nextValue,
                                 });
                               }}
-                              aria-label={`为 ${workspace.name} 设置 CODEX_HOME 覆盖`}
+                              aria-label={t("workspace.set_codex_overrides", { name: workspace.name })}
                             />
                             <button
                               type="button"
@@ -3380,7 +3380,7 @@ export function SettingsView({
                             <input
                               className="settings-input settings-input--compact"
                               value={codexArgsOverrideDrafts[workspace.id] ?? ""}
-                              placeholder="Codex 参数覆盖"
+                              placeholder={t("settings.features.codex_args_override")}
                               onChange={(event) =>
                                 setCodexArgsOverrideDrafts((prev) => ({
                                   ...prev,
@@ -3397,7 +3397,7 @@ export function SettingsView({
                                   codexArgs: nextValue,
                                 });
                               }}
-                              aria-label={`为 ${workspace.name} 设置 Codex 参数覆盖`}
+                              aria-label={t("workspace.set_codex_overrides", { name: workspace.name })}
                             />
                             <button
                               type="button"
@@ -3430,20 +3430,20 @@ export function SettingsView({
               <section className="settings-section">
                 <div className="settings-section-title">{t("settings.features")}</div>
                 <div className="settings-section-subtitle">
-                  管理稳定与实验性 Codex {t("settings.features")}。
+                  {t("settings.features.manage_features")}
                 </div>
                 {hasCodexHomeOverrides && (
                   <div className="settings-help">
-                    {t("settings.features")}设置存储在默认 CODEX_HOME 的 config.toml 中。
+                    {t("settings.features.features_stored")}
                     <br />
-                    {t("settings.workspaces")}覆盖项不会同步更新。
+                    {t("settings.features.overrides_not_synced")}
                   </div>
                 )}
                 <div className="settings-toggle-row">
                   <div>
                     <div className="settings-toggle-title">{t("settings.features.config_file")}</div>
                     <div className="settings-toggle-subtitle">
-                      在 {fileManagerName()} 中打开 Codex 配置。
+                      {t("settings.features.open_in_file_manager")}
                     </div>
                   </div>
                   <button type="button" className="ghost" onClick={handleOpenConfig}>
@@ -3498,7 +3498,7 @@ export function SettingsView({
                         personality: event.target.value as AppSettings["personality"],
                       })
                     }
-                    aria-label="沟通风格"
+                    aria-label={t("settings.features.communication_style")}
                   >
                     <option value="friendly">{t("settings.friendly")}</option>
                     <option value="pragmatic">{t("settings.pragmatic")}</option>

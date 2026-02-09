@@ -82,18 +82,24 @@ describe("Sidebar", () => {
 
     act(() => {
       fireEvent.change(input, { target: { value: "alpha" } });
+    });
+    act(() => {
       vi.runOnlyPendingTimers();
     });
     expect(input.value).toBe("alpha");
 
     act(() => {
       fireEvent.click(toggleButton);
+    });
+    act(() => {
       vi.runOnlyPendingTimers();
     });
     expect(screen.queryByLabelText("Search workspaces")).toBeNull();
 
     act(() => {
       fireEvent.click(toggleButton);
+    });
+    act(() => {
       vi.runOnlyPendingTimers();
     });
     const reopened = screen.getByLabelText("Search workspaces") as HTMLInputElement;
@@ -167,7 +173,9 @@ describe("Sidebar", () => {
     expect(draftRow.className).toContain("thread-row-draft");
     expect(draftRow.className).toContain("active");
 
-    fireEvent.click(draftRow);
+    act(() => {
+      fireEvent.click(draftRow);
+    });
     expect(onSelectWorkspace).toHaveBeenCalledWith("ws-1");
   });
 });

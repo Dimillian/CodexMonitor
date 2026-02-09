@@ -103,7 +103,7 @@ describe("useThreads UX integration", () => {
 
     expect(handlers).not.toBeNull();
 
-    act(() => {
+    await act(async () => {
       result.current.setActiveThreadId("thread-2");
     });
 
@@ -128,7 +128,7 @@ describe("useThreads UX integration", () => {
     }
   });
 
-  it("keeps the latest plan visible when a new turn starts", () => {
+  it("keeps the latest plan visible when a new turn starts", async () => {
     const { result } = renderHook(() =>
       useThreads({
         activeWorkspace: workspace,
@@ -136,27 +136,31 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnPlanUpdated?.("ws-1", "thread-1", "turn-1", {
         explanation: " Plan note ",
         plan: [{ step: "Do it", status: "in_progress" }],
       });
     });
 
-    expect(result.current.planByThread["thread-1"]).toEqual({
-      turnId: "turn-1",
-      explanation: "Plan note",
-      steps: [{ step: "Do it", status: "inProgress" }],
+    await waitFor(() => {
+      expect(result.current.planByThread["thread-1"]).toEqual({
+        turnId: "turn-1",
+        explanation: "Plan note",
+        steps: [{ step: "Do it", status: "inProgress" }],
+      });
     });
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnStarted?.("ws-1", "thread-1", "turn-2");
     });
 
-    expect(result.current.planByThread["thread-1"]).toEqual({
-      turnId: "turn-1",
-      explanation: "Plan note",
-      steps: [{ step: "Do it", status: "inProgress" }],
+    await waitFor(() => {
+      expect(result.current.planByThread["thread-1"]).toEqual({
+        turnId: "turn-1",
+        explanation: "Plan note",
+        steps: [{ step: "Do it", status: "inProgress" }],
+      });
     });
   });
 
@@ -196,7 +200,7 @@ describe("useThreads UX integration", () => {
 
     expect(handlers).not.toBeNull();
 
-    act(() => {
+    await act(async () => {
       handlers?.onAgentMessageCompleted?.({
         workspaceId: "ws-1",
         threadId: "thread-3",
@@ -205,7 +209,7 @@ describe("useThreads UX integration", () => {
       });
     });
 
-    act(() => {
+    await act(async () => {
       result.current.setActiveThreadId("thread-3");
     });
 
@@ -229,7 +233,7 @@ describe("useThreads UX integration", () => {
     });
   });
 
-  it("clears empty plan updates to null", () => {
+  it("clears empty plan updates to null", async () => {
     const { result } = renderHook(() =>
       useThreads({
         activeWorkspace: workspace,
@@ -237,17 +241,19 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnPlanUpdated?.("ws-1", "thread-1", "turn-1", {
         explanation: "   ",
         plan: [],
       });
     });
 
-    expect(result.current.planByThread["thread-1"]).toBeNull();
+    await waitFor(() => {
+      expect(result.current.planByThread["thread-1"]).toBeNull();
+    });
   });
 
-  it("normalizes plan step status values", () => {
+  it("normalizes plan step status values", async () => {
     const { result } = renderHook(() =>
       useThreads({
         activeWorkspace: workspace,
@@ -255,7 +261,7 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnPlanUpdated?.("ws-1", "thread-1", "turn-1", {
         explanation: "",
         plan: [
@@ -268,20 +274,22 @@ describe("useThreads UX integration", () => {
       });
     });
 
-    expect(result.current.planByThread["thread-1"]).toEqual({
-      turnId: "turn-1",
-      explanation: null,
-      steps: [
-        { step: "Step 1", status: "inProgress" },
-        { step: "Step 2", status: "inProgress" },
-        { step: "Step 3", status: "inProgress" },
-        { step: "Step 4", status: "completed" },
-        { step: "Step 5", status: "pending" },
-      ],
+    await waitFor(() => {
+      expect(result.current.planByThread["thread-1"]).toEqual({
+        turnId: "turn-1",
+        explanation: null,
+        steps: [
+          { step: "Step 1", status: "inProgress" },
+          { step: "Step 2", status: "inProgress" },
+          { step: "Step 3", status: "inProgress" },
+          { step: "Step 4", status: "completed" },
+          { step: "Step 5", status: "pending" },
+        ],
+      });
     });
   });
 
-  it("replaces the plan when a new turn updates it", () => {
+  it("replaces the plan when a new turn updates it", async () => {
     const { result } = renderHook(() =>
       useThreads({
         activeWorkspace: workspace,
@@ -289,7 +297,7 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnPlanUpdated?.("ws-1", "thread-1", "turn-1", {
         explanation: "First plan",
         plan: [{ step: "Step 1", status: "pending" }],
@@ -300,14 +308,16 @@ describe("useThreads UX integration", () => {
       });
     });
 
-    expect(result.current.planByThread["thread-1"]).toEqual({
-      turnId: "turn-2",
-      explanation: "Next plan",
-      steps: [{ step: "Step 2", status: "completed" }],
+    await waitFor(() => {
+      expect(result.current.planByThread["thread-1"]).toEqual({
+        turnId: "turn-2",
+        explanation: "Next plan",
+        steps: [{ step: "Step 2", status: "completed" }],
+      });
     });
   });
 
-  it("keeps plans isolated per thread", () => {
+  it("keeps plans isolated per thread", async () => {
     const { result } = renderHook(() =>
       useThreads({
         activeWorkspace: workspace,
@@ -315,7 +325,7 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnPlanUpdated?.("ws-1", "thread-1", "turn-1", {
         explanation: "Thread 1 plan",
         plan: [{ step: "Step 1", status: "pending" }],
@@ -326,19 +336,24 @@ describe("useThreads UX integration", () => {
       });
     });
 
-    expect(result.current.planByThread["thread-1"]).toEqual({
-      turnId: "turn-1",
-      explanation: "Thread 1 plan",
-      steps: [{ step: "Step 1", status: "pending" }],
+    await waitFor(() => {
+      expect(result.current.planByThread["thread-1"]).toEqual({
+        turnId: "turn-1",
+        explanation: "Thread 1 plan",
+        steps: [{ step: "Step 1", status: "pending" }],
+      });
     });
-    expect(result.current.planByThread["thread-2"]).toEqual({
-      turnId: "turn-2",
-      explanation: "Thread 2 plan",
-      steps: [{ step: "Step 2", status: "completed" }],
+
+    await waitFor(() => {
+      expect(result.current.planByThread["thread-2"]).toEqual({
+        turnId: "turn-2",
+        explanation: "Thread 2 plan",
+        steps: [{ step: "Step 2", status: "completed" }],
+      });
     });
   });
 
-  it("clears completed plans when a turn finishes", () => {
+  it("clears completed plans when a turn finishes", async () => {
     const { result } = renderHook(() =>
       useThreads({
         activeWorkspace: workspace,
@@ -346,27 +361,31 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnPlanUpdated?.("ws-1", "thread-1", "turn-1", {
         explanation: "All done",
         plan: [{ step: "Step 1", status: "completed" }],
       });
     });
 
-    expect(result.current.planByThread["thread-1"]).toEqual({
-      turnId: "turn-1",
-      explanation: "All done",
-      steps: [{ step: "Step 1", status: "completed" }],
+    await waitFor(() => {
+      expect(result.current.planByThread["thread-1"]).toEqual({
+        turnId: "turn-1",
+        explanation: "All done",
+        steps: [{ step: "Step 1", status: "completed" }],
+      });
     });
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnCompleted?.("ws-1", "thread-1", "turn-1");
     });
 
-    expect(result.current.planByThread["thread-1"]).toBeNull();
+    await waitFor(() => {
+      expect(result.current.planByThread["thread-1"]).toBeNull();
+    });
   });
 
-  it("keeps plans visible on turn completion when steps remain", () => {
+  it("keeps plans visible on turn completion when steps remain", async () => {
     const { result } = renderHook(() =>
       useThreads({
         activeWorkspace: workspace,
@@ -374,21 +393,23 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnPlanUpdated?.("ws-1", "thread-1", "turn-1", {
         explanation: "Still in progress",
         plan: [{ step: "Step 1", status: "in_progress" }],
       });
     });
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnCompleted?.("ws-1", "thread-1", "turn-1");
     });
 
-    expect(result.current.planByThread["thread-1"]).toEqual({
-      turnId: "turn-1",
-      explanation: "Still in progress",
-      steps: [{ step: "Step 1", status: "inProgress" }],
+    await waitFor(() => {
+      expect(result.current.planByThread["thread-1"]).toEqual({
+        turnId: "turn-1",
+        explanation: "Still in progress",
+        steps: [{ step: "Step 1", status: "inProgress" }],
+      });
     });
   });
 
@@ -403,7 +424,7 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       result.current.setActiveThreadId("thread-1");
     });
 
@@ -413,7 +434,7 @@ describe("useThreads UX integration", () => {
 
     expect(interruptMock).toHaveBeenCalledWith("ws-1", "thread-1", "pending");
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnStarted?.("ws-1", "thread-1", "turn-1");
     });
 
@@ -436,7 +457,7 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       result.current.setActiveThreadId("thread-parent");
     });
 
@@ -469,7 +490,7 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       result.current.setActiveThreadId("thread-parent");
     });
 
@@ -479,7 +500,7 @@ describe("useThreads UX integration", () => {
 
     expect(result.current.threadParentById["thread-review-1"]).toBe("thread-parent");
 
-    act(() => {
+    await act(async () => {
       handlers?.onItemCompleted?.("ws-1", "thread-parent", {
         type: "collabToolCall",
         id: "item-collab-1",
@@ -521,7 +542,7 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       result.current.setActiveThreadId("thread-parent");
     });
 
@@ -532,7 +553,7 @@ describe("useThreads UX integration", () => {
     expect(result.current.threadStatusById["thread-parent"]?.isReviewing).toBe(true);
     expect(result.current.threadStatusById["thread-parent"]?.isProcessing).toBe(true);
 
-    act(() => {
+    await act(async () => {
       handlers?.onItemCompleted?.("ws-1", "thread-review-1", {
         type: "exitedReviewMode",
         id: "review-exit-1",
@@ -564,7 +585,7 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       result.current.setActiveThreadId("thread-parent");
     });
 
@@ -572,7 +593,7 @@ describe("useThreads UX integration", () => {
       await result.current.startReview("/review check this");
     });
 
-    act(() => {
+    await act(async () => {
       handlers?.onItemCompleted?.("ws-1", "thread-review-1", {
         type: "exitedReviewMode",
         id: "review-exit-1",
@@ -605,7 +626,7 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       result.current.setActiveThreadId("thread-parent");
     });
 
@@ -672,7 +693,7 @@ describe("useThreads UX integration", () => {
       result.current.threadsByWorkspace["ws-1"]?.map((thread) => thread.id) ?? [];
     expect(initialOrder).toEqual(["thread-b", "thread-c", "thread-a"]);
 
-    act(() => {
+    await act(async () => {
       result.current.renameThread("ws-1", "thread-b", "Custom Beta");
     });
     expect(vi.mocked(setThreadName)).toHaveBeenCalledWith(
@@ -691,11 +712,11 @@ describe("useThreads UX integration", () => {
     expect(renamed?.name).toBe("Custom Beta");
 
     now = 5000;
-    act(() => {
+    await act(async () => {
       result.current.pinThread("ws-1", "thread-c");
     });
     now = 6000;
-    act(() => {
+    await act(async () => {
       result.current.pinThread("ws-1", "thread-a");
     });
 

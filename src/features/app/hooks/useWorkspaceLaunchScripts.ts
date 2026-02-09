@@ -324,6 +324,7 @@ export function useWorkspaceLaunchScripts({
       onOpenEditor,
       openTerminal,
       restartLaunchSession,
+      t,
     ],
   );
 

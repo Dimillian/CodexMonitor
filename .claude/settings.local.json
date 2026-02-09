@@ -5,7 +5,11 @@
       "mcp__plugin_oh-my-claudecode_t__ast_grep_replace",
       "Bash(npm run typecheck)",
       "Bash(npm run tauri:dev:win:*)",
-      "Bash(timeout 60s:*)"
+      "Bash(timeout 60s:*)",
+      "mcp__plugin_oh-my-claudecode_t__lsp_diagnostics",
+      "Bash(npx eslint:*)",
+      "Bash(npx vitest:*)",
+      "Bash(find:*)"
     ]
   }
 }
