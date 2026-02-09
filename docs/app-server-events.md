@@ -119,6 +119,7 @@ These are v2 request methods CodexMonitor currently sends to Codex app-server:
 - `thread/compact/start`
 - `thread/name/set`
 - `turn/start`
+- `turn/steer` (best-effort; falls back to `turn/start` when unsupported)
 - `turn/interrupt`
 - `review/start`
 - `model/list`
@@ -142,7 +143,6 @@ Compared against Codex v2 request methods, CodexMonitor currently does not send:
 - `skills/remote/read`
 - `skills/remote/write`
 - `skills/config/write`
-- `turn/steer`
 - `experimentalFeature/list`
 - `mock/experimentalMethod`
 - `mcpServer/oauth/login`
@@ -239,5 +239,12 @@ Use this when the method list is unchanged but behavior looks off.
   - Handle in `useThreadTurnEvents.ts` or `useThreadItemEvents.ts`
   - Update state in `useThreadsReducer.ts`
   - Render in `Messages.tsx`
-- `turn/diff/updated` is routed in `useAppServerEvents.ts` but currently has no
-  downstream handler wired in `useThreadEventHandlers.ts`.
+- `turn/diff/updated` is now fully wired:
+  - Routed in `useAppServerEvents.ts`
+  - Handled in `useThreadTurnEvents.ts` / `useThreadEventHandlers.ts`
+  - Stored in `useThreadsReducer.ts` (`turnDiffByThread`)
+  - Exposed by `useThreads.ts` for UI consumers
+- Steering behavior while a turn is processing:
+  - CodexMonitor attempts `turn/steer` when steering is enabled and an active turn exists.
+  - If the server/daemon reports unknown `turn/steer`/`turn_steer`, CodexMonitor
+    degrades to `turn/start` and caches that workspace as steer-unsupported.
