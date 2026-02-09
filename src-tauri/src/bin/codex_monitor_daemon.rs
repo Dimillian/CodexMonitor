@@ -1101,24 +1101,6 @@ impl DaemonState {
         codex_aux_core::codex_doctor_core(&self.app_settings, codex_bin, codex_args).await
     }
 
-    async fn get_commit_message_prompt(&self, workspace_id: String) -> Result<String, String> {
-        let repo_root =
-            git_ui_core::resolve_repo_root_for_workspace_core(&self.workspaces, workspace_id)
-                .await?;
-        let diff = git_ui_core::collect_workspace_diff_core(&repo_root)?;
-        if diff.trim().is_empty() {
-            return Err("No changes to generate commit message for".to_string());
-        }
-        let commit_message_prompt = {
-            let settings = self.app_settings.lock().await;
-            settings.commit_message_prompt.clone()
-        };
-        Ok(codex_aux_core::build_commit_message_prompt(
-            &diff,
-            &commit_message_prompt,
-        ))
-    }
-
     async fn generate_commit_message(&self, workspace_id: String) -> Result<String, String> {
         let repo_root = git_ui_core::resolve_repo_root_for_workspace_core(
             &self.workspaces,
@@ -1126,34 +1108,20 @@ impl DaemonState {
         )
         .await?;
         let diff = git_ui_core::collect_workspace_diff_core(&repo_root)?;
-        if diff.trim().is_empty() {
-            return Err("No changes to generate commit message for".to_string());
-        }
         let commit_message_prompt = {
             let settings = self.app_settings.lock().await;
             settings.commit_message_prompt.clone()
         };
-        let prompt = codex_aux_core::build_commit_message_prompt(
-            &diff,
-            &commit_message_prompt,
-        );
-        let response = codex_aux_core::run_background_prompt_core(
+        codex_aux_core::generate_commit_message_core(
             &self.sessions,
             workspace_id,
-            prompt,
+            &diff,
+            &commit_message_prompt,
             |workspace_id, thread_id| {
                 emit_background_thread_hide(&self.event_sink, workspace_id, thread_id);
             },
-            "Timeout waiting for commit message generation",
-            "Unknown error during commit message generation",
         )
-        .await?;
-
-        let trimmed = response.trim().to_string();
-        if trimmed.is_empty() {
-            return Err("No commit message was generated".to_string());
-        }
-        Ok(trimmed)
+        .await
     }
 
     async fn generate_run_metadata(
@@ -1161,47 +1129,15 @@ impl DaemonState {
         workspace_id: String,
         prompt: String,
     ) -> Result<Value, String> {
-        let cleaned_prompt = prompt.trim();
-        if cleaned_prompt.is_empty() {
-            return Err("Prompt is required.".to_string());
-        }
-
-        let title_prompt = codex_aux_core::build_run_metadata_prompt(cleaned_prompt);
-        let response_text = codex_aux_core::run_background_prompt_core(
+        codex_aux_core::generate_run_metadata_core(
             &self.sessions,
             workspace_id,
-            title_prompt,
+            &prompt,
             |workspace_id, thread_id| {
                 emit_background_thread_hide(&self.event_sink, workspace_id, thread_id);
             },
-            "Timeout waiting for metadata generation",
-            "Unknown error during metadata generation",
         )
-        .await?;
-
-        let trimmed = response_text.trim();
-        if trimmed.is_empty() {
-            return Err("No metadata was generated".to_string());
-        }
-        let json_value = codex_aux_core::extract_json_value(trimmed)
-            .ok_or_else(|| "Failed to parse metadata JSON".to_string())?;
-        let title = json_value
-            .get("title")
-            .and_then(|v| v.as_str())
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty())
-            .ok_or_else(|| "Missing title in metadata".to_string())?;
-        let worktree_name = json_value
-            .get("worktreeName")
-            .or_else(|| json_value.get("worktree_name"))
-            .and_then(|v| v.as_str())
-            .map(codex_aux_core::sanitize_run_worktree_name)
-            .filter(|v| !v.is_empty())
-            .ok_or_else(|| "Missing worktree name in metadata".to_string())?;
-        Ok(json!({
-            "title": title,
-            "worktreeName": worktree_name
-        }))
+        .await
     }
 
     async fn local_usage_snapshot(

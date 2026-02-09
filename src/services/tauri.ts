@@ -844,12 +844,6 @@ export async function setThreadName(
   return invoke<any>("set_thread_name", { workspaceId, threadId, name });
 }
 
-export async function getCommitMessagePrompt(
-  workspaceId: string,
-): Promise<string> {
-  return invoke("get_commit_message_prompt", { workspaceId });
-}
-
 export async function generateCommitMessage(
   workspaceId: string,
 ): Promise<string> {

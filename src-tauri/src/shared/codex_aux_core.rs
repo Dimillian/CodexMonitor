@@ -31,6 +31,16 @@ pub(crate) fn build_commit_message_prompt(diff: &str, template: &str) -> String 
     }
 }
 
+pub(crate) fn build_commit_message_prompt_for_diff(
+    diff: &str,
+    template: &str,
+) -> Result<String, String> {
+    if diff.trim().is_empty() {
+        return Err("No changes to generate commit message for".to_string());
+    }
+    Ok(build_commit_message_prompt(diff, template))
+}
+
 pub(crate) fn build_run_metadata_prompt(cleaned_prompt: &str) -> String {
     format!(
         "You create concise run metadata for a coding task.\n\
@@ -48,6 +58,33 @@ Examples:\n\
 {{\"title\":\"Add Coverage Tests\",\"worktreeName\":\"test/add-coverage-tests\"}}\n\n\
 Task:\n{cleaned_prompt}"
     )
+}
+
+pub(crate) fn parse_run_metadata_value(raw: &str) -> Result<Value, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err("No metadata was generated".to_string());
+    }
+    let json_value =
+        extract_json_value(trimmed).ok_or_else(|| "Failed to parse metadata JSON".to_string())?;
+    let title = json_value
+        .get("title")
+        .and_then(|v| v.as_str())
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| "Missing title in metadata".to_string())?;
+    let worktree_name = json_value
+        .get("worktreeName")
+        .or_else(|| json_value.get("worktree_name"))
+        .and_then(|v| v.as_str())
+        .map(sanitize_run_worktree_name)
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| "Missing worktree name in metadata".to_string())?;
+
+    Ok(json!({
+        "title": title,
+        "worktreeName": worktree_name
+    }))
 }
 
 pub(crate) fn extract_json_value(raw: &str) -> Option<Value> {
@@ -361,4 +398,86 @@ where
     }
 
     Ok(trimmed)
+}
+
+pub(crate) async fn generate_commit_message_core<F>(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspace_id: String,
+    diff: &str,
+    template: &str,
+    on_hide_thread: F,
+) -> Result<String, String>
+where
+    F: Fn(&str, &str),
+{
+    let prompt = build_commit_message_prompt_for_diff(diff, template)?;
+    run_background_prompt_core(
+        sessions,
+        workspace_id,
+        prompt,
+        on_hide_thread,
+        "Timeout waiting for commit message generation",
+        "Unknown error during commit message generation",
+    )
+    .await
+}
+
+pub(crate) async fn generate_run_metadata_core<F>(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspace_id: String,
+    prompt: &str,
+    on_hide_thread: F,
+) -> Result<Value, String>
+where
+    F: Fn(&str, &str),
+{
+    let cleaned_prompt = prompt.trim();
+    if cleaned_prompt.is_empty() {
+        return Err("Prompt is required.".to_string());
+    }
+
+    let metadata_prompt = build_run_metadata_prompt(cleaned_prompt);
+    let response = run_background_prompt_core(
+        sessions,
+        workspace_id,
+        metadata_prompt,
+        on_hide_thread,
+        "Timeout waiting for metadata generation",
+        "Unknown error during metadata generation",
+    )
+    .await?;
+
+    parse_run_metadata_value(&response)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{build_commit_message_prompt_for_diff, parse_run_metadata_value};
+
+    #[test]
+    fn build_commit_message_prompt_for_diff_requires_changes() {
+        let result = build_commit_message_prompt_for_diff("   ", "{diff}");
+        assert_eq!(
+            result.expect_err("should fail"),
+            "No changes to generate commit message for"
+        );
+    }
+
+    #[test]
+    fn parse_run_metadata_value_normalizes_worktree_name_alias() {
+        let raw = r#"{"title":"Fix Login Redirect Loop","worktree_name":"fix-login-redirect-loop"}"#;
+        let parsed = parse_run_metadata_value(raw).expect("parse metadata");
+        assert_eq!(parsed["title"], "Fix Login Redirect Loop");
+        assert_eq!(parsed["worktreeName"], "fix/login-redirect-loop");
+    }
+
+    #[test]
+    fn parse_run_metadata_value_requires_title() {
+        let raw = r#"{"worktreeName":"feat/example"}"#;
+        let result = parse_run_metadata_value(raw);
+        assert_eq!(
+            result.expect_err("should fail"),
+            "Missing title in metadata"
+        );
+    }
 }

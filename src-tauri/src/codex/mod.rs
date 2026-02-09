@@ -550,42 +550,6 @@ pub(crate) async fn respond_to_server_request(
         .await
 }
 
-/// Gets the diff content for commit message generation
-#[tauri::command]
-pub(crate) async fn get_commit_message_prompt(
-    workspace_id: String,
-    state: State<'_, AppState>,
-    app: AppHandle,
-) -> Result<String, String> {
-    if remote_backend::is_remote_mode(&*state).await {
-        let value = remote_backend::call_remote(
-            &*state,
-            app,
-            "get_commit_message_prompt",
-            json!({ "workspaceId": workspace_id }),
-        )
-        .await?;
-        return serde_json::from_value(value).map_err(|err| err.to_string());
-    }
-
-    // Get the diff from git
-    let diff = crate::git::get_workspace_diff(&workspace_id, &state).await?;
-
-    if diff.trim().is_empty() {
-        return Err("No changes to generate commit message for".to_string());
-    }
-
-    let commit_message_prompt = {
-        let settings = state.app_settings.lock().await;
-        settings.commit_message_prompt.clone()
-    };
-
-    Ok(crate::shared::codex_aux_core::build_commit_message_prompt(
-        &diff,
-        &commit_message_prompt,
-    ))
-}
-
 #[tauri::command]
 pub(crate) async fn remember_approval_rule(
     workspace_id: String,
@@ -634,22 +598,15 @@ pub(crate) async fn generate_commit_message(
 
     let diff = crate::git::get_workspace_diff(&workspace_id, &state).await?;
 
-    if diff.trim().is_empty() {
-        return Err("No changes to generate commit message for".to_string());
-    }
-
     let commit_message_prompt = {
         let settings = state.app_settings.lock().await;
         settings.commit_message_prompt.clone()
     };
-    let prompt = crate::shared::codex_aux_core::build_commit_message_prompt(
-        &diff,
-        &commit_message_prompt,
-    );
-    let response = crate::shared::codex_aux_core::run_background_prompt_core(
+    crate::shared::codex_aux_core::generate_commit_message_core(
         &state.sessions,
         workspace_id,
-        prompt,
+        &diff,
+        &commit_message_prompt,
         |workspace_id, thread_id| {
             let _ = app.emit(
                 "app-server-event",
@@ -665,17 +622,8 @@ pub(crate) async fn generate_commit_message(
                 },
             );
         },
-        "Timeout waiting for commit message generation",
-        "Unknown error during commit message generation",
     )
-    .await?;
-
-    let trimmed = response.trim().to_string();
-    if trimmed.is_empty() {
-        return Err("No commit message was generated".to_string());
-    }
-
-    Ok(trimmed)
+    .await
 }
 
 #[tauri::command]
@@ -695,16 +643,10 @@ pub(crate) async fn generate_run_metadata(
         .await;
     }
 
-    let cleaned_prompt = prompt.trim();
-    if cleaned_prompt.is_empty() {
-        return Err("Prompt is required.".to_string());
-    }
-
-    let title_prompt = crate::shared::codex_aux_core::build_run_metadata_prompt(cleaned_prompt);
-    let response_text = crate::shared::codex_aux_core::run_background_prompt_core(
+    crate::shared::codex_aux_core::generate_run_metadata_core(
         &state.sessions,
         workspace_id,
-        title_prompt,
+        &prompt,
         |workspace_id, thread_id| {
             let _ = app.emit(
                 "app-server-event",
@@ -720,34 +662,6 @@ pub(crate) async fn generate_run_metadata(
                 },
             );
         },
-        "Timeout waiting for metadata generation",
-        "Unknown error during metadata generation",
     )
-    .await?;
-
-    let trimmed = response_text.trim();
-    if trimmed.is_empty() {
-        return Err("No metadata was generated".to_string());
-    }
-
-    let json_value = crate::shared::codex_aux_core::extract_json_value(trimmed)
-        .ok_or_else(|| "Failed to parse metadata JSON".to_string())?;
-    let title = json_value
-        .get("title")
-        .and_then(|v| v.as_str())
-        .map(|v| v.trim().to_string())
-        .filter(|v| !v.is_empty())
-        .ok_or_else(|| "Missing title in metadata".to_string())?;
-    let worktree_name = json_value
-        .get("worktreeName")
-        .or_else(|| json_value.get("worktree_name"))
-        .and_then(|v| v.as_str())
-        .map(crate::shared::codex_aux_core::sanitize_run_worktree_name)
-        .filter(|v| !v.is_empty())
-        .ok_or_else(|| "Missing worktree name in metadata".to_string())?;
-
-    Ok(json!({
-        "title": title,
-        "worktreeName": worktree_name
-    }))
+    .await
 }

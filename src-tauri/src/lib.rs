@@ -229,7 +229,6 @@ pub fn run() {
             codex::start_review,
             codex::respond_to_server_request,
             codex::remember_approval_rule,
-            codex::get_commit_message_prompt,
             codex::generate_commit_message,
             codex::generate_run_metadata,
             codex::resume_thread,

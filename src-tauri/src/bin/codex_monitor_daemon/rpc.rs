@@ -695,11 +695,6 @@ pub(super) async fn handle_rpc_request(
             let codex_args = parse_optional_string(&params, "codexArgs");
             state.codex_doctor(codex_bin, codex_args).await
         }
-        "get_commit_message_prompt" => {
-            let workspace_id = parse_string(&params, "workspaceId")?;
-            let prompt = state.get_commit_message_prompt(workspace_id).await?;
-            Ok(Value::String(prompt))
-        }
         "generate_commit_message" => {
             let workspace_id = parse_string(&params, "workspaceId")?;
             let message = state.generate_commit_message(workspace_id).await?;
