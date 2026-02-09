@@ -44,7 +44,7 @@
     "@tauri-apps/plugin-notification": "^2.3.3",
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-process": "^2.3.1",
-    "@tauri-apps/plugin-updater": "^2.9.0",
+    "@tauri-apps/plugin-updater": "^2.10.0",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
     "i18next": "^24.2.3",
@@ -60,7 +60,7 @@
     "vscode-material-icons": "^0.1.1"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.9.6",
+    "@tauri-apps/cli": "^2.10.0",
     "@testing-library/react": "^16.3.2",
     "@types/i18next": "^12.1.0",
     "@types/node": "^22.19.10",
