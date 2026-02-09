@@ -160,6 +160,27 @@ describe("useThreads UX integration", () => {
     });
   });
 
+  it("stores turn diff updates from app-server events", () => {
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      handlers?.onTurnDiffUpdated?.(
+        "ws-1",
+        "thread-1",
+        "diff --git a/src/a.ts b/src/a.ts",
+      );
+    });
+
+    expect(result.current.turnDiffByThread["thread-1"]).toBe(
+      "diff --git a/src/a.ts b/src/a.ts",
+    );
+  });
+
   it("keeps local items when resume response does not overlap", async () => {
     vi.mocked(resumeThread).mockResolvedValue({
       result: {

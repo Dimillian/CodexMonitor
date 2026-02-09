@@ -166,6 +166,7 @@ function MainApp() {
     appSettings,
     setAppSettings,
     doctor,
+    codexUpdate,
     appSettingsLoading,
     reduceTransparency,
     setReduceTransparency,
@@ -203,9 +204,10 @@ function MainApp() {
     () => getStoredThreadListSortKey(),
   );
   const [activeTab, setActiveTab] = useState<
-    "projects" | "codex" | "git" | "log"
+    "home" | "projects" | "codex" | "git" | "log"
   >("codex");
-  const tabletTab = activeTab === "projects" ? "codex" : activeTab;
+  const tabletTab =
+    activeTab === "projects" || activeTab === "home" ? "codex" : activeTab;
   const {
     workspaces,
     workspaceGroups,
@@ -695,6 +697,7 @@ function MainApp() {
     threadListLoadingByWorkspace,
     threadListPagingByWorkspace,
     threadListCursorByWorkspace,
+    activeTurnIdByThread,
     tokenUsageByThread,
     rateLimitsByWorkspace,
     accountByWorkspace,
@@ -1204,6 +1207,9 @@ function MainApp() {
   const isReviewing = activeThreadId
     ? threadStatusById[activeThreadId]?.isReviewing ?? false
     : false;
+  const activeTurnId = activeThreadId
+    ? activeTurnIdByThread[activeThreadId] ?? null
+    : null;
   const {
     activeImages,
     attachImages,
@@ -1226,6 +1232,7 @@ function MainApp() {
     clearDraftForThread,
   } = useComposerController({
     activeThreadId,
+    activeTurnId,
     activeWorkspaceId,
     activeWorkspace,
     isProcessing,
@@ -1501,8 +1508,8 @@ function MainApp() {
     if (!isPhone) {
       return;
     }
-    if (!activeWorkspace && activeTab !== "projects") {
-      setActiveTab("projects");
+    if (!activeWorkspace && activeTab !== "home" && activeTab !== "projects") {
+      setActiveTab("home");
     }
   }, [activeTab, activeWorkspace, isPhone]);
 
@@ -1510,7 +1517,7 @@ function MainApp() {
     if (!isTablet) {
       return;
     }
-    if (activeTab === "projects") {
+    if (activeTab === "projects" || activeTab === "home") {
       setActiveTab("codex");
     }
   }, [activeTab, isTablet]);
@@ -2138,7 +2145,15 @@ function MainApp() {
       setSelectedDiffPath(null);
     },
     activeTab,
-    onSelectTab: setActiveTab,
+    onSelectTab: (tab) => {
+      if (tab === "home") {
+        resetPullRequestSelection();
+        clearDraftState();
+        selectHome();
+        return;
+      }
+      setActiveTab(tab);
+    },
     tabletNavTab: tabletTab,
     gitPanelMode,
     onGitPanelModeChange: handleGitPanelModeChange,
@@ -2570,6 +2585,7 @@ function MainApp() {
             await queueSaveSettings(next);
           },
           onRunDoctor: doctor,
+          onRunCodexUpdate: codexUpdate,
           onUpdateWorkspaceCodexBin: async (id, codexBin) => {
             await updateWorkspaceCodexBin(id, codexBin);
           },

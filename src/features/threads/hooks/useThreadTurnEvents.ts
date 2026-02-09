@@ -162,6 +162,14 @@ export function useThreadTurnEvents({
     [dispatch],
   );
 
+  const onTurnDiffUpdated = useCallback(
+    (workspaceId: string, threadId: string, diff: string) => {
+      dispatch({ type: "ensureThread", workspaceId, threadId });
+      dispatch({ type: "setThreadTurnDiff", threadId, diff });
+    },
+    [dispatch],
+  );
+
   const onThreadTokenUsageUpdated = useCallback(
     (workspaceId: string, threadId: string, tokenUsage: Record<string, unknown>) => {
       dispatch({ type: "ensureThread", workspaceId, threadId });
@@ -221,6 +229,7 @@ export function useThreadTurnEvents({
     onTurnStarted,
     onTurnCompleted,
     onTurnPlanUpdated,
+    onTurnDiffUpdated,
     onThreadTokenUsageUpdated,
     onAccountRateLimitsUpdated,
     onTurnError,

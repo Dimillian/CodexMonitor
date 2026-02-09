@@ -386,6 +386,16 @@ pub(super) async fn handle_rpc_request(
             let turn_id = parse_string(&params, "turnId")?;
             state.turn_interrupt(workspace_id, thread_id, turn_id).await
         }
+        "turn_steer" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let thread_id = parse_string(&params, "threadId")?;
+            let turn_id = parse_string(&params, "turnId")?;
+            let text = parse_string(&params, "text")?;
+            let images = parse_optional_string_array(&params, "images");
+            state
+                .turn_steer(workspace_id, thread_id, turn_id, text, images)
+                .await
+        }
         "start_review" => {
             let workspace_id = parse_string(&params, "workspaceId")?;
             let thread_id = parse_string(&params, "threadId")?;

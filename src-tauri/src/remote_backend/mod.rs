@@ -144,6 +144,7 @@ fn can_retry_after_disconnect(method: &str) -> bool {
             | "list_git_roots"
             | "list_mcp_server_status"
             | "list_threads"
+            | "local_usage_snapshot"
             | "list_workspace_files"
             | "list_workspaces"
             | "model_list"
@@ -255,6 +256,7 @@ mod tests {
         assert!(can_retry_after_disconnect("resume_thread"));
         assert!(can_retry_after_disconnect("list_threads"));
         assert!(can_retry_after_disconnect("get_commit_message_prompt"));
+        assert!(can_retry_after_disconnect("local_usage_snapshot"));
         assert!(!can_retry_after_disconnect("send_user_message"));
         assert!(!can_retry_after_disconnect("start_thread"));
         assert!(!can_retry_after_disconnect("remove_workspace"));

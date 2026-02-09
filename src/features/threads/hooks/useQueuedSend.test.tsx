@@ -16,6 +16,7 @@ const makeOptions = (
   overrides: Partial<Parameters<typeof useQueuedSend>[0]> = {},
 ) => ({
   activeThreadId: "thread-1",
+  activeTurnId: "turn-1",
   isProcessing: false,
   isReviewing: false,
   steerEnabled: false,
@@ -120,6 +121,25 @@ describe("useQueuedSend", () => {
     expect(options.sendUserMessage).toHaveBeenCalledTimes(1);
     expect(options.sendUserMessage).toHaveBeenCalledWith("Steer", []);
     expect(result.current.activeQueue).toHaveLength(0);
+  });
+
+  it("queues send while processing when steer is enabled but turn id is unavailable", async () => {
+    const options = makeOptions({
+      isProcessing: true,
+      steerEnabled: true,
+      activeTurnId: null,
+    });
+    const { result } = renderHook((props) => useQueuedSend(props), {
+      initialProps: options,
+    });
+
+    await act(async () => {
+      await result.current.handleSend("Wait for turn");
+    });
+
+    expect(options.sendUserMessage).not.toHaveBeenCalled();
+    expect(result.current.activeQueue).toHaveLength(1);
+    expect(result.current.activeQueue[0]?.text).toBe("Wait for turn");
   });
 
   it("retries queued send after failure", async () => {

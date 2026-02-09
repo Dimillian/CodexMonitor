@@ -51,6 +51,8 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+        UIBackgroundModes:
+          - fetch
         CFBundleShortVersionString: 0.7.45
         CFBundleVersion: "0.7.45"
     entitlements:

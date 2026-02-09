@@ -48,6 +48,16 @@ pub(crate) async fn codex_doctor(
 }
 
 #[tauri::command]
+pub(crate) async fn codex_update(
+    codex_bin: Option<String>,
+    codex_args: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Value, String> {
+    crate::shared::codex_update_core::codex_update_core(&state.app_settings, codex_bin, codex_args)
+        .await
+}
+
+#[tauri::command]
 pub(crate) async fn start_thread(
     workspace_id: String,
     state: State<'_, AppState>,
@@ -267,6 +277,49 @@ pub(crate) async fn send_user_message(
         access_mode,
         images,
         collaboration_mode,
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn turn_steer(
+    workspace_id: String,
+    thread_id: String,
+    turn_id: String,
+    text: String,
+    images: Option<Vec<String>>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let images = images.map(|paths| {
+            paths
+                .into_iter()
+                .map(remote_backend::normalize_path_for_remote)
+                .collect::<Vec<_>>()
+        });
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "turn_steer",
+            json!({
+                "workspaceId": workspace_id,
+                "threadId": thread_id,
+                "turnId": turn_id,
+                "text": text,
+                "images": images,
+            }),
+        )
+        .await;
+    }
+
+    codex_core::turn_steer_core(
+        &state.sessions,
+        workspace_id,
+        thread_id,
+        turn_id,
+        text,
+        images,
     )
     .await
 }

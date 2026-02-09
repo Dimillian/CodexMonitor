@@ -695,6 +695,25 @@ impl DaemonState {
         .await
     }
 
+    async fn turn_steer(
+        &self,
+        workspace_id: String,
+        thread_id: String,
+        turn_id: String,
+        text: String,
+        images: Option<Vec<String>>,
+    ) -> Result<Value, String> {
+        codex_core::turn_steer_core(
+            &self.sessions,
+            workspace_id,
+            thread_id,
+            turn_id,
+            text,
+            images,
+        )
+        .await
+    }
+
     async fn turn_interrupt(
         &self,
         workspace_id: String,

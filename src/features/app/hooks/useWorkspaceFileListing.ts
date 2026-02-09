@@ -3,7 +3,7 @@ import type { DebugEntry, WorkspaceInfo } from "../../../types";
 import { useWorkspaceFiles } from "../../workspaces/hooks/useWorkspaceFiles";
 
 type FilePanelMode = "git" | "files" | "prompts";
-type TabKey = "projects" | "codex" | "git" | "log";
+type TabKey = "home" | "projects" | "codex" | "git" | "log";
 type TabletTabKey = "codex" | "git" | "log";
 
 type UseWorkspaceFileListingArgs = {

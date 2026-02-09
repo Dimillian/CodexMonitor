@@ -12,7 +12,7 @@ type Params = {
   workspacesById: Map<string, WorkspaceInfo>;
   refreshWorkspaces: () => Promise<WorkspaceInfo[] | undefined>;
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
-  setActiveTab: (tab: "projects" | "codex" | "git" | "log") => void;
+  setActiveTab: (tab: "home" | "projects" | "codex" | "git" | "log") => void;
   setCenterMode: (mode: "chat" | "diff") => void;
   setSelectedDiffPath: (path: string | null) => void;
   setActiveWorkspaceId: (workspaceId: string | null) => void;
@@ -117,4 +117,3 @@ export function useSystemNotificationThreadLinks({
 
   return { recordPendingThreadLink };
 }
-

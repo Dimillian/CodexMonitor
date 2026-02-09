@@ -40,6 +40,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
 	<key>CFBundleDisplayName</key>
 	<string>Codex Monitor</string>
 	<key>NSMicrophoneUsageDescription</key>

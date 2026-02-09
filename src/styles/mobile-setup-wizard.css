@@ -2,15 +2,26 @@
   z-index: 120;
 }
 
+.mobile-setup-wizard-overlay .ds-modal-backdrop {
+  background: rgba(6, 10, 16, 0.78);
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+}
+
+.app.reduced-transparency .mobile-setup-wizard-overlay .ds-modal-backdrop {
+  background: rgba(8, 12, 18, 0.92);
+}
+
 .mobile-setup-wizard-card {
   width: min(520px, 92vw);
   border-radius: 20px;
   overflow: hidden;
-  border: 1px solid var(--border-muted);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 28px 64px rgba(0, 0, 0, 0.55);
   background:
-    radial-gradient(120% 120% at 100% 0%, rgba(46, 170, 220, 0.18), transparent 46%),
-    linear-gradient(170deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
-    var(--surface-panel);
+    radial-gradient(120% 120% at 100% 0%, rgba(46, 170, 220, 0.24), transparent 46%),
+    linear-gradient(170deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    var(--surface-context-core);
 }
 
 .mobile-setup-wizard-header {

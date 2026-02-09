@@ -381,6 +381,25 @@ describe("useThreadTurnEvents", () => {
     });
   });
 
+  it("dispatches turn diff updates", () => {
+    const { result, dispatch } = makeOptions();
+
+    act(() => {
+      result.current.onTurnDiffUpdated("ws-1", "thread-1", "diff --git a/file b/file");
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "ensureThread",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreadTurnDiff",
+      threadId: "thread-1",
+      diff: "diff --git a/file b/file",
+    });
+  });
+
   it("dispatches normalized token usage updates", () => {
     const { result, dispatch } = makeOptions();
     const normalized = { total: 123 };

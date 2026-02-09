@@ -300,6 +300,19 @@ export type CodexDoctorResult = {
   nodeDetails: string | null;
 };
 
+export type CodexUpdateMethod = "brew_formula" | "brew_cask" | "npm" | "unknown";
+
+export type CodexUpdateResult = {
+  ok: boolean;
+  method: CodexUpdateMethod;
+  package: string | null;
+  beforeVersion: string | null;
+  afterVersion: string | null;
+  upgraded: boolean;
+  output: string | null;
+  details: string | null;
+};
+
 export type ApprovalRequest = {
   workspace_id: string;
   request_id: number | string;
