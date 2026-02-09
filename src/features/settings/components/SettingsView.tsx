@@ -76,6 +76,22 @@ import {
   type OrbitActionResult,
 } from "./settingsViewHelpers";
 
+const formatErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string") {
+      return message;
+    }
+  }
+  return fallback;
+};
+
 export type SettingsViewProps = {
   workspaceGroups: WorkspaceGroup[];
   groupedWorkspaces: Array<{
@@ -673,7 +689,7 @@ export function SettingsView({
         setTailscaleStatus(status);
       } catch (error) {
         setTailscaleStatusError(
-          error instanceof Error ? error.message : "Unable to load Tailscale status.",
+          formatErrorMessage(error, "Unable to load Tailscale status."),
         );
       } finally {
         setTailscaleStatusBusy(false);
@@ -690,9 +706,7 @@ export function SettingsView({
         setTailscaleCommandPreview(preview);
       } catch (error) {
         setTailscaleCommandError(
-          error instanceof Error
-            ? error.message
-            : "Unable to build Tailscale daemon command.",
+          formatErrorMessage(error, "Unable to build Tailscale daemon command."),
         );
       } finally {
         setTailscaleCommandBusy(false);
