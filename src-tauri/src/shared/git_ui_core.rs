@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use git2::{BranchType, DiffOptions, Repository, Sort, Status, StatusOptions};
+use git2::{BranchType, DiffOptions, ErrorCode, Repository, Sort, Status, StatusOptions};
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
 
@@ -79,6 +79,45 @@ fn read_text_lines(path: &Path) -> Option<Vec<String>> {
     }
     let content = String::from_utf8_lossy(&data);
     Some(split_lines_preserving_newlines(content.as_ref()))
+}
+
+fn resolve_excludes_path(path: &Path) -> PathBuf {
+    // Expand common home shorthands because git config can store ~/$HOME values.
+    let path_str = path.to_string_lossy();
+    if let Some(stripped) = path_str.strip_prefix("~/").or_else(|| path_str.strip_prefix("~\\")) {
+        if let Some(home) = std::env::var_os("HOME") {
+            return PathBuf::from(home).join(stripped);
+        }
+    }
+    if let Some(stripped) = path_str
+        .strip_prefix("$HOME/")
+        .or_else(|| path_str.strip_prefix("$HOME\\"))
+    {
+        if let Some(home) = std::env::var_os("HOME") {
+            return PathBuf::from(home).join(stripped);
+        }
+    }
+    path.to_path_buf()
+}
+
+fn apply_global_gitignore(repo: &Repository) -> Result<(), String> {
+    // Match git's global ignore behavior by honoring core.excludesfile when set.
+    let config = repo.config().map_err(|err| err.to_string())?;
+    let excludes_path = match config.get_path("core.excludesfile") {
+        Ok(path) => path,
+        Err(err) if err.code() == ErrorCode::NotFound => return Ok(()),
+        Err(err) => return Err(err.to_string()),
+    };
+    let resolved_path = resolve_excludes_path(&excludes_path);
+    let content = match fs::read_to_string(&resolved_path) {
+        Ok(content) => content,
+        Err(_) => return Ok(()),
+    };
+    if content.trim().is_empty() {
+        return Ok(());
+    }
+    repo.add_ignore_rule(&content)
+        .map_err(|err| err.to_string())
 }
 
 async fn run_git_command(repo_root: &Path, args: &[&str]) -> Result<(), String> {
@@ -342,6 +381,7 @@ fn build_combined_diff(diff: &git2::Diff) -> String {
 
 fn collect_workspace_diff(repo_root: &Path) -> Result<String, String> {
     let repo = Repository::open(repo_root).map_err(|e| e.to_string())?;
+    let _ = apply_global_gitignore(&repo);
     let head_tree = repo.head().ok().and_then(|head| head.peel_to_tree().ok());
 
     let mut options = DiffOptions::new();
@@ -770,6 +810,7 @@ async fn get_git_diffs_inner(
 
     tokio::task::spawn_blocking(move || {
         let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
+        let _ = apply_global_gitignore(&repo);
         let head_tree = repo.head().ok().and_then(|head| head.peel_to_tree().ok());
 
         let mut options = DiffOptions::new();
