@@ -2,10 +2,6 @@ use std::path::PathBuf;
 
 use crate::shared::git_core;
 
-pub(crate) async fn run_git_command(repo_path: &PathBuf, args: &[&str]) -> Result<String, String> {
-    git_core::run_git_command(repo_path, args).await
-}
-
 pub(crate) async fn run_git_command_owned(
     repo_path: PathBuf,
     args_owned: Vec<String>,
@@ -15,17 +11,6 @@ pub(crate) async fn run_git_command_owned(
 
 pub(crate) fn is_missing_worktree_error(error: &str) -> bool {
     git_core::is_missing_worktree_error(error)
-}
-
-pub(crate) async fn run_git_command_bytes(
-    repo_path: &PathBuf,
-    args: &[&str],
-) -> Result<Vec<u8>, String> {
-    git_core::run_git_command_bytes(repo_path, args).await
-}
-
-pub(crate) async fn run_git_diff(repo_path: &PathBuf, args: &[&str]) -> Result<Vec<u8>, String> {
-    git_core::run_git_diff(repo_path, args).await
 }
 
 pub(crate) async fn git_branch_exists(repo_path: &PathBuf, branch: &str) -> Result<bool, String> {
@@ -62,8 +47,4 @@ pub(crate) async fn unique_branch_name(
     remote: Option<&str>,
 ) -> Result<(String, bool), String> {
     git_core::unique_branch_name_live(repo_path, desired, remote).await
-}
-
-pub(crate) async fn git_get_origin_url(repo_path: &PathBuf) -> Option<String> {
-    git_core::git_get_origin_url(repo_path).await
 }

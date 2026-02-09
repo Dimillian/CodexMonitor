@@ -6,7 +6,7 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { FolderOpen } from "lucide-react";
 import Copy from "lucide-react/dist/esm/icons/copy";
@@ -64,6 +64,7 @@ type SidebarProps = {
   threadListCursorByWorkspace: Record<string, string | null>;
   threadListSortKey: ThreadListSortKey;
   onSetThreadListSortKey: (sortKey: ThreadListSortKey) => void;
+  onRefreshAllThreads: () => void;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   accountRateLimits: RateLimitSnapshot | null;
@@ -104,7 +105,7 @@ type SidebarProps = {
   onWorkspaceDrop: (event: React.DragEvent<HTMLElement>) => void;
 };
 
-export function Sidebar({
+export const Sidebar = memo(function Sidebar({
   workspaces,
   groupedWorkspaces,
   hasWorkspaceGroups,
@@ -119,6 +120,7 @@ export function Sidebar({
   threadListCursorByWorkspace,
   threadListSortKey,
   onSetThreadListSortKey,
+  onRefreshAllThreads,
   activeWorkspaceId,
   activeThreadId,
   accountRateLimits,
@@ -250,6 +252,10 @@ export function Sidebar({
   const showAccountSwitcher = Boolean(activeWorkspaceId);
   const accountSwitchDisabled = accountSwitching || !activeWorkspaceId;
   const accountCancelDisabled = !accountSwitching || !activeWorkspaceId;
+  const refreshDisabled = workspaces.length === 0 || workspaces.every((workspace) => !workspace.connected);
+  const refreshInProgress = workspaces.some(
+    (workspace) => threadListLoadingByWorkspace[workspace.id] ?? false,
+  );
 
   const pinnedThreadRows = useMemo(() => {
     type ThreadRow = { thread: ThreadSummary; depth: number };
@@ -417,6 +423,9 @@ export function Sidebar({
         isSearchOpen={isSearchOpen}
         threadListSortKey={threadListSortKey}
         onSetThreadListSortKey={onSetThreadListSortKey}
+        onRefreshAllThreads={onRefreshAllThreads}
+        refreshDisabled={refreshDisabled || refreshInProgress}
+        refreshInProgress={refreshInProgress}
       />
       <div className={`sidebar-search${isSearchOpen ? " is-open" : ""}`}>
         {isSearchOpen && (
@@ -701,4 +710,6 @@ export function Sidebar({
       />
     </aside>
   );
-}
+});
+
+Sidebar.displayName = "Sidebar";

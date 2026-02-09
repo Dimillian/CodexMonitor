@@ -2,71 +2,6 @@
 
 All docs must canonical, no past commentary, only live state.
 
-## Agent Memory (Project Scratchpad)
-
-Purpose: keep lightweight, durable project memory so agents avoid repeating mistakes and follow user/project preferences over time.
-
-### Memory Location (Repo Root)
-
-Store memory in the project root under `./memory/`:
-
-- `memory/decisions.md` — durable architecture/implementation decisions and conventions
-- `memory/mistakes.md` — mistakes, fixes, and prevention rules
-- `memory/todo.md` — open loops and follow-up tasks
-- `memory/context.md` — optional short-lived working context (can be compacted)
-
-### Automatic Write Rules
-
-Agents should append an entry when ANY of the following happens:
-
-1. User states a stable preference or rule ("do it this way").
-2. Agent makes a non-trivial mistake and corrects it.
-3. A decision is made that affects future implementation.
-4. A follow-up task is identified but not completed immediately.
-
-Do NOT write:
-- trivial chatter
-- transient debug noise
-- secrets/tokens/passwords
-- private data not required for project execution
-
-### Required Read Rules (Before Work)
-
-Before starting a task, agents must read:
-
-1. `memory/decisions.md`
-2. recent entries in `memory/mistakes.md`
-3. open items in `memory/todo.md`
-
-Then apply those constraints during planning and implementation.
-
-### Entry Format (Append-only)
-
-Use this compact format:
-
-```md
-## YYYY-MM-DD HH:mm
-Context: <task or feature>
-Type: decision | mistake | preference | todo
-Event: <what happened>
-Action: <what changed / fix applied>
-Rule: <one-line future behavior>
-```
-
-### Mistake Entry Requirements
-
-For entries in `memory/mistakes.md`, include:
-
-- `Root cause:`
-- `Fix applied:`
-- `Prevention rule:`
-
-### Maintenance
-
-- Keep memory append-only by default.
-- Compaction is allowed into summaries, but do not silently remove meaning.
-- Preserve recent detail (at least latest 30 days) before aggressive compaction.
-
 ## Project Summary
 CodexMonitor is a Tauri app that orchestrates Codex agents across local workspaces.
 
@@ -210,7 +145,7 @@ Use the design-system layer for shared UI shells and tokenized styling.
   - `src/features/design-system/components/panel/PanelPrimitives.tsx`
   - `src/features/design-system/components/popover/PopoverPrimitives.tsx`
   - Toast sub-primitives: `ToastHeader`, `ToastActions`, `ToastError` (in `ToastPrimitives.tsx`)
-  - Panel sub-primitives: `PanelMeta`, `PanelSearchField` (in `PanelPrimitives.tsx`)
+  - Panel sub-primitives: `PanelMeta`, `PanelSearchField`, `PanelNavList`, `PanelNavItem` (in `PanelPrimitives.tsx`)
   - Popover sub-primitives: `PopoverMenuItem` (in `PopoverPrimitives.tsx`)
 - Diff theming and style bridge:
   - `src/features/design-system/diff/diffViewerTheme.ts`
@@ -226,7 +161,7 @@ Naming conventions:
 
 - DS CSS classes use `.ds-*` prefixes.
 - DS CSS variables use `--ds-*` prefixes.
-- DS React primitives use `PascalCase` component names (`ModalShell`, `ToastCard`, `ToastHeader`, `ToastActions`, `ToastError`, `PanelFrame`, `PanelHeader`, `PanelMeta`, `PanelSearchField`, `PopoverSurface`, `PopoverMenuItem`).
+- DS React primitives use `PascalCase` component names (`ModalShell`, `ToastCard`, `ToastHeader`, `ToastActions`, `ToastError`, `PanelFrame`, `PanelHeader`, `PanelMeta`, `PanelSearchField`, `PanelNavList`, `PanelNavItem`, `PopoverSurface`, `PopoverMenuItem`).
 - Feature CSS should keep feature-prefixed classes (`.worktree-*`, `.update-*`) for content/layout specifics.
 
 Do:
@@ -399,6 +334,23 @@ The app uses a shared event hub so each native event has one `listen` and many s
 ```bash
 npm install
 npm run tauri dev
+```
+
+## iOS (WIP)
+
+- iOS is supported as WIP.
+- Simulator:
+```bash
+./scripts/build_run_ios.sh
+```
+- USB device:
+```bash
+./scripts/build_run_ios_device.sh --list-devices
+./scripts/build_run_ios_device.sh --device "Dimillian’s iPhone" --team Z6P74P6T99
+```
+- If signing is not ready:
+```bash
+./scripts/build_run_ios_device.sh --open-xcode
 ```
 
 ## Release Build

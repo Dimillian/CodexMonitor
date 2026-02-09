@@ -29,6 +29,74 @@ import {
 import { saveThreadActivity } from "../utils/threadStorage";
 import type { ThreadAction, ThreadState } from "./useThreadsReducer";
 
+const THREAD_LIST_TARGET_COUNT = 20;
+const THREAD_LIST_PAGE_SIZE = 100;
+const THREAD_LIST_MAX_PAGES_WITH_ACTIVITY = 8;
+const THREAD_LIST_MAX_PAGES_WITHOUT_ACTIVITY = 3;
+const THREAD_LIST_MAX_PAGES_OLDER = 6;
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function getParentThreadIdFromSource(source: unknown): string | null {
+  const sourceRecord = asRecord(source);
+  if (!sourceRecord) {
+    return null;
+  }
+  const subAgent = asRecord(sourceRecord.subAgent ?? sourceRecord.sub_agent);
+  if (!subAgent) {
+    return null;
+  }
+  const threadSpawn = asRecord(subAgent.thread_spawn ?? subAgent.threadSpawn);
+  if (!threadSpawn) {
+    return null;
+  }
+  const parentId = asString(
+    threadSpawn.parent_thread_id ?? threadSpawn.parentThreadId,
+  );
+  return parentId || null;
+}
+
+function normalizeTurnStatus(value: unknown): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]/g, "");
+}
+
+function getResumedActiveTurnId(thread: Record<string, unknown>): string | null {
+  const turns = Array.isArray(thread.turns)
+    ? (thread.turns as Array<Record<string, unknown>>)
+    : [];
+  for (let index = turns.length - 1; index >= 0; index -= 1) {
+    const turn = turns[index];
+    if (!turn || typeof turn !== "object") {
+      continue;
+    }
+    const status = normalizeTurnStatus(
+      turn.status ?? turn.turnStatus ?? turn.turn_status,
+    );
+    const isInProgress =
+      status === "inprogress" ||
+      status === "running" ||
+      status === "processing" ||
+      status === "pending" ||
+      status === "started";
+    if (!isInProgress) {
+      continue;
+    }
+    const turnId = asString(turn.id ?? turn.turnId ?? turn.turn_id);
+    if (turnId) {
+      return turnId;
+    }
+  }
+  return null;
+}
+
 type UseThreadActionsOptions = {
   dispatch: Dispatch<ThreadAction>;
   itemsByThread: ThreadState["itemsByThread"];
@@ -46,6 +114,7 @@ type UseThreadActionsOptions = {
     threadId: string,
     thread: Record<string, unknown>,
   ) => void;
+  updateThreadParent: (parentId: string, childIds: string[]) => void;
 };
 
 export function useThreadActions({
@@ -62,6 +131,7 @@ export function useThreadActions({
   loadedThreadsRef,
   replaceOnResumeRef,
   applyCollabThreadLinksFromThread,
+  updateThreadParent,
 }: UseThreadActionsOptions) {
   const resumeInFlightByThreadRef = useRef<Record<string, number>>({});
 
@@ -171,6 +241,10 @@ export function useThreadActions({
         if (thread) {
           dispatch({ type: "ensureThread", workspaceId, threadId });
           applyCollabThreadLinksFromThread(threadId, thread);
+          const sourceParentId = getParentThreadIdFromSource(thread.source);
+          if (sourceParentId) {
+            updateThreadParent(sourceParentId, [threadId]);
+          }
           const items = buildItemsFromThread(thread);
           const localItems = itemsByThread[threadId] ?? [];
           const shouldReplace =
@@ -182,6 +256,23 @@ export function useThreadActions({
             loadedThreadsRef.current[threadId] = true;
             return threadId;
           }
+          const resumedActiveTurnId = getResumedActiveTurnId(thread);
+          dispatch({
+            type: "markProcessing",
+            threadId,
+            isProcessing: Boolean(resumedActiveTurnId),
+            timestamp: Date.now(),
+          });
+          dispatch({
+            type: "setActiveTurnId",
+            threadId,
+            turnId: resumedActiveTurnId,
+          });
+          dispatch({
+            type: "markReviewing",
+            threadId,
+            isReviewing: isReviewingFromThread(thread),
+          });
           const hasOverlap =
             items.length > 0 &&
             localItems.length > 0 &&
@@ -197,11 +288,6 @@ export function useThreadActions({
           if (mergedItems.length > 0) {
             dispatch({ type: "setThreadItems", threadId, items: mergedItems });
           }
-          dispatch({
-            type: "markReviewing",
-            threadId,
-            isReviewing: isReviewingFromThread(thread),
-          });
           const preview = asString(thread?.preview ?? "");
           const customName = getCustomName(workspaceId, threadId);
           if (!customName && preview) {
@@ -263,6 +349,7 @@ export function useThreadActions({
       onDebug,
       replaceOnResumeRef,
       threadStatusById,
+      updateThreadParent,
     ],
   );
 
@@ -375,9 +462,9 @@ export function useThreadActions({
         const knownActivityByThread = threadActivityRef.current[workspace.id] ?? {};
         const hasKnownActivity = Object.keys(knownActivityByThread).length > 0;
         const matchingThreads: Record<string, unknown>[] = [];
-        const targetCount = 20;
-        const pageSize = 20;
-        const maxPagesWithoutMatch = hasKnownActivity ? Number.POSITIVE_INFINITY : 5;
+        const maxPagesWithoutMatch = hasKnownActivity
+          ? THREAD_LIST_MAX_PAGES_WITH_ACTIVITY
+          : THREAD_LIST_MAX_PAGES_WITHOUT_ACTIVITY;
         let pagesFetched = 0;
         let cursor: string | null = null;
         do {
@@ -386,7 +473,7 @@ export function useThreadActions({
             (await listThreadsService(
               workspace.id,
               cursor,
-              pageSize,
+              THREAD_LIST_PAGE_SIZE,
               requestedSortKey,
             )) as Record<string, unknown>;
           onDebug?.({
@@ -412,7 +499,10 @@ export function useThreadActions({
           if (matchingThreads.length === 0 && pagesFetched >= maxPagesWithoutMatch) {
             break;
           }
-        } while (cursor && matchingThreads.length < targetCount);
+          if (pagesFetched >= THREAD_LIST_MAX_PAGES_WITH_ACTIVITY) {
+            break;
+          }
+        } while (cursor && matchingThreads.length < THREAD_LIST_TARGET_COUNT);
 
         const uniqueById = new Map<string, Record<string, unknown>>();
         matchingThreads.forEach((thread) => {
@@ -429,6 +519,10 @@ export function useThreadActions({
           const threadId = String(thread?.id ?? "");
           if (!threadId) {
             return;
+          }
+          const sourceParentId = getParentThreadIdFromSource(thread.source);
+          if (sourceParentId) {
+            updateThreadParent(sourceParentId, [threadId]);
           }
           const timestamp = getThreadTimestamp(thread);
           if (timestamp > (nextActivityByThread[threadId] ?? 0)) {
@@ -466,7 +560,7 @@ export function useThreadActions({
           });
         }
         const summaries = uniqueThreads
-          .slice(0, targetCount)
+          .slice(0, THREAD_LIST_TARGET_COUNT)
           .map((thread, index) => {
             const id = String(thread?.id ?? "");
             const preview = asString(thread?.preview ?? "").trim();
@@ -528,7 +622,14 @@ export function useThreadActions({
         }
       }
     },
-    [dispatch, getCustomName, onDebug, threadActivityRef, threadSortKey],
+    [
+      dispatch,
+      getCustomName,
+      onDebug,
+      threadActivityRef,
+      threadSortKey,
+      updateThreadParent,
+    ],
   );
 
   const loadOlderThreadsForWorkspace = useCallback(
@@ -554,9 +655,7 @@ export function useThreadActions({
       });
       try {
         const matchingThreads: Record<string, unknown>[] = [];
-        const targetCount = 20;
-        const pageSize = 20;
-        const maxPagesWithoutMatch = 10;
+        const maxPagesWithoutMatch = THREAD_LIST_MAX_PAGES_OLDER;
         let pagesFetched = 0;
         let cursor: string | null = nextCursor;
         do {
@@ -565,7 +664,7 @@ export function useThreadActions({
             (await listThreadsService(
               workspace.id,
               cursor,
-              pageSize,
+              THREAD_LIST_PAGE_SIZE,
               requestedSortKey,
             )) as Record<string, unknown>;
           onDebug?.({
@@ -591,7 +690,10 @@ export function useThreadActions({
           if (matchingThreads.length === 0 && pagesFetched >= maxPagesWithoutMatch) {
             break;
           }
-        } while (cursor && matchingThreads.length < targetCount);
+          if (pagesFetched >= THREAD_LIST_MAX_PAGES_OLDER) {
+            break;
+          }
+        } while (cursor && matchingThreads.length < THREAD_LIST_TARGET_COUNT);
 
         const existingIds = new Set(existing.map((thread) => thread.id));
         const additions: ThreadSummary[] = [];
@@ -599,6 +701,10 @@ export function useThreadActions({
           const id = String(thread?.id ?? "");
           if (!id || existingIds.has(id)) {
             return;
+          }
+          const sourceParentId = getParentThreadIdFromSource(thread.source);
+          if (sourceParentId) {
+            updateThreadParent(sourceParentId, [id]);
           }
           const preview = asString(thread?.preview ?? "").trim();
           const customName = getCustomName(workspace.id, id);
@@ -663,6 +769,7 @@ export function useThreadActions({
       threadListCursorByWorkspace,
       threadsByWorkspace,
       threadSortKey,
+      updateThreadParent,
     ],
   );
 

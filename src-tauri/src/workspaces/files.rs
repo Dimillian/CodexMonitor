@@ -86,8 +86,7 @@ pub(crate) fn read_workspace_file_inner(
         return Err("Path is not a file".to_string());
     }
 
-    let file =
-        File::open(&canonical_path).map_err(|err| format!("Failed to open file: {err}"))?;
+    let file = File::open(&canonical_path).map_err(|err| format!("Failed to open file: {err}"))?;
     let mut buffer = Vec::new();
     file.take(MAX_WORKSPACE_FILE_BYTES + 1)
         .read_to_end(&mut buffer)
@@ -98,7 +97,6 @@ pub(crate) fn read_workspace_file_inner(
         buffer.truncate(MAX_WORKSPACE_FILE_BYTES as usize);
     }
 
-    let content =
-        String::from_utf8(buffer).map_err(|_| "File is not valid UTF-8".to_string())?;
+    let content = String::from_utf8(buffer).map_err(|_| "File is not valid UTF-8".to_string())?;
     Ok(WorkspaceFileResponse { content, truncated })
 }

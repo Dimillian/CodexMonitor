@@ -167,6 +167,67 @@ describe("threadReducer", () => {
     expect(stopped.threadStatusById["thread-1"]?.lastDurationMs).toBe(600);
   });
 
+  it("does not churn state for repeated processing=true updates", () => {
+    const processingState = threadReducer(
+      {
+        ...initialState,
+        threadStatusById: {
+          "thread-1": {
+            isProcessing: true,
+            hasUnread: false,
+            isReviewing: false,
+            processingStartedAt: 1000,
+            lastDurationMs: null,
+          },
+        },
+      },
+      {
+        type: "markProcessing",
+        threadId: "thread-1",
+        isProcessing: true,
+        timestamp: 1200,
+      },
+    );
+
+    expect(processingState).toBe(
+      threadReducer(processingState, {
+        type: "markProcessing",
+        threadId: "thread-1",
+        isProcessing: true,
+        timestamp: 1400,
+      }),
+    );
+  });
+
+  it("does not churn state for unchanged unread/review flags", () => {
+    const base = {
+      ...initialState,
+      threadStatusById: {
+        "thread-1": {
+          isProcessing: false,
+          hasUnread: true,
+          isReviewing: true,
+          processingStartedAt: null,
+          lastDurationMs: 300,
+        },
+      },
+    };
+
+    const unread = threadReducer(base, {
+      type: "markUnread",
+      threadId: "thread-1",
+      hasUnread: true,
+    });
+    expect(unread).toBe(base);
+
+    const reviewing = threadReducer(base, {
+      type: "markReviewing",
+      threadId: "thread-1",
+      isReviewing: true,
+    });
+    expect(reviewing).toBe(base);
+  });
+
   it("tracks request user input queue", () => {
     const request = {
       workspace_id: "ws-1",
@@ -449,6 +510,37 @@ describe("threadReducer", () => {
       workspaceId: "ws-1",
     });
     expect(removed.userInputRequests).toEqual([requestB]);
+  });
+
+  it("stores turn diff updates by thread id", () => {
+    const next = threadReducer(initialState, {
+      type: "setThreadTurnDiff",
+      threadId: "thread-1",
+      diff: "diff --git a/file.ts b/file.ts",
+    });
+
+    expect(next.turnDiffByThread["thread-1"]).toBe(
+      "diff --git a/file.ts b/file.ts",
+    );
+  });
+
+  it("clears turn diff state when a thread is removed", () => {
+    const base: ThreadState = {
+      ...initialState,
+      threadsByWorkspace: {
+        "ws-1": [{ id: "thread-1", name: "Agent 1", updatedAt: 1 }],
+      },
+      activeThreadIdByWorkspace: { "ws-1": "thread-1" },
+      turnDiffByThread: { "thread-1": "diff --git a/file.ts b/file.ts" },
+    };
+
+    const next = threadReducer(base, {
+      type: "removeThread",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+    });
+
+    expect(next.turnDiffByThread["thread-1"]).toBeUndefined();
   });
 
   it("hides background threads and keeps them hidden on future syncs", () => {

@@ -8,7 +8,7 @@
 .compact-shell {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
   min-height: 0;
   position: relative;
 }
@@ -29,6 +29,18 @@
   padding: 32px 16px 16px;
   flex: 1;
   min-height: 0;
+}
+
+.app.layout-compact .sidebar-corner-actions {
+  position: static;
+  left: auto;
+  bottom: auto;
+  margin-top: 8px;
+  align-self: flex-start;
+}
+
+.app.layout-compact .sidebar-account-popover {
+  bottom: calc(100% + 8px);
 }
 
 .compact-topbar {

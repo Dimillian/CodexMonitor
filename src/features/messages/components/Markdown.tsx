@@ -16,6 +16,7 @@ type MarkdownProps = {
   codeBlock?: boolean;
   codeBlockStyle?: "default" | "message";
   codeBlockCopyUseModifier?: boolean;
+  showFilePath?: boolean;
   workspacePath?: string | null;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
@@ -319,12 +320,14 @@ function parseFileReference(
 function FileReferenceLink({
   href,
   rawPath,
+  showFilePath,
   workspacePath,
   onClick,
   onContextMenu,
 }: {
   href: string;
   rawPath: string;
+  showFilePath: boolean;
   workspacePath?: string | null;
   onClick: (event: React.MouseEvent, path: string) => void;
   onContextMenu: (event: React.MouseEvent, path: string) => void;
@@ -343,7 +346,9 @@ function FileReferenceLink({
     >
       <span className="message-file-link-name">{fileName}</span>
       {lineLabel ? <span className="message-file-link-line">L{lineLabel}</span> : null}
-      {parentPath ? <span className="message-file-link-path">{parentPath}</span> : null}
+      {showFilePath && parentPath ? (
+        <span className="message-file-link-path">{parentPath}</span>
+      ) : null}
     </a>
   );
 }
@@ -433,6 +438,7 @@ export function Markdown({
   codeBlock,
   codeBlockStyle = "default",
   codeBlockCopyUseModifier = false,
+  showFilePath = true,
   workspacePath = null,
   onOpenFileLink,
   onOpenFileLinkMenu,
@@ -496,6 +502,7 @@ export function Markdown({
           <FileReferenceLink
             href={href ?? toFileLink(path)}
             rawPath={path}
+            showFilePath={showFilePath}
             workspacePath={workspacePath}
             onClick={handleFileLinkClick}
             onContextMenu={handleFileLinkContextMenu}
@@ -538,6 +545,7 @@ export function Markdown({
         <FileReferenceLink
           href={href}
           rawPath={linkablePath}
+          showFilePath={showFilePath}
           workspacePath={workspacePath}
           onClick={handleFileLinkClick}
           onContextMenu={handleFileLinkContextMenu}

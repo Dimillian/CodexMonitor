@@ -1,4 +1,4 @@
-# App-Server Events Reference (Codex `41b4962b0a7f5d73bb23d329ad9bb742545f6a2c`)
+# App-Server Events Reference (Codex `383b45279efda1ef611a4aa286621815fe656b8a`)
 
 This document helps agents quickly answer:
 - Which app-server events CodexMonitor supports right now.
@@ -9,8 +9,9 @@ This document helps agents quickly answer:
 When updating this document:
 1. Update the Codex hash in the title using `git -C ../Codex rev-parse HEAD`.
 2. Compare Codex events vs CodexMonitor routing.
-3. Compare Codex request methods vs CodexMonitor outgoing request methods.
-4. Update supported and missing lists below.
+3. Compare Codex client request methods vs CodexMonitor outgoing request methods.
+4. Compare Codex server request methods vs CodexMonitor inbound request handling.
+5. Update supported and missing lists below.
 
 ## Where To Look In CodexMonitor
 
@@ -97,9 +98,11 @@ CodexMonitor status:
 Compared against Codex app-server protocol v2 notifications, the following
 events are currently not routed:
 
+- `app/list/updated`
 - `rawResponseItem/completed`
 - `item/mcpToolCall/progress`
 - `mcpServer/oauthLogin/completed`
+- `thread/compacted` (deprecated; intentionally not routed)
 - `deprecationNotice`
 - `configWarning`
 - `windows/worldWritableWarning`
@@ -116,6 +119,7 @@ These are v2 request methods CodexMonitor currently sends to Codex app-server:
 - `thread/compact/start`
 - `thread/name/set`
 - `turn/start`
+- `turn/steer` (best-effort; falls back to `turn/start` when unsupported)
 - `turn/interrupt`
 - `review/start`
 - `model/list`
@@ -128,7 +132,7 @@ These are v2 request methods CodexMonitor currently sends to Codex app-server:
 - `skills/list`
 - `app/list`
 
-## Missing Requests (Codex v2 Request Methods)
+## Missing Client Requests (Codex v2 ClientRequest Methods)
 
 Compared against Codex v2 request methods, CodexMonitor currently does not send:
 
@@ -139,6 +143,7 @@ Compared against Codex v2 request methods, CodexMonitor currently does not send:
 - `skills/remote/read`
 - `skills/remote/write`
 - `skills/config/write`
+- `experimentalFeature/list`
 - `mock/experimentalMethod`
 - `mcpServer/oauth/login`
 - `config/mcpServer/reload`
@@ -149,9 +154,16 @@ Compared against Codex v2 request methods, CodexMonitor currently does not send:
 - `config/value/write`
 - `config/batchWrite`
 - `configRequirements/read`
-- `item/commandExecution/requestApproval`
-- `item/fileChange/requestApproval`
+
+## Server Requests (App-Server -> CodexMonitor, v2)
+
+Supported server requests:
+
+- `*requestApproval` methods (handled via suffix match in `isApprovalRequestMethod(method)`)
 - `item/tool/requestUserInput`
+
+Missing server requests:
+
 - `item/tool/call`
 - `account/chatgptAuthTokens/refresh`
 
@@ -175,7 +187,7 @@ Use this workflow to update the lists above:
 1. Get the current Codex hash:
    - `git -C ../Codex rev-parse HEAD`
 2. List Codex v2 notification methods:
-   - `rg -n \"=> \\\".*\\\" \\(v2::.*Notification\\)\" ../Codex/codex-rs/app-server-protocol/src/protocol/common.rs`
+   - `(rg -N -o '=>\\s*\"[^\"]+\"\\s*\\(v2::[^)]*Notification\\)' ../Codex/codex-rs/app-server-protocol/src/protocol/common.rs | sed -E 's/.*\"([^\"]+)\".*/\\1/'; printf '%s\\n' 'account/login/completed') | sort -u`
 3. List CodexMonitor routed methods:
    - `rg -n \"SUPPORTED_APP_SERVER_METHODS\" src/utils/appServerEvents.ts`
 4. Update the Supported and Missing sections.
@@ -186,11 +198,13 @@ Use this workflow to update request support lists:
 
 1. Get the current Codex hash:
    - `git -C ../Codex rev-parse HEAD`
-2. List Codex request methods:
-   - `rg -n \"=> \\\".*\\\" \\{\" ../Codex/codex-rs/app-server-protocol/src/protocol/common.rs`
-3. List CodexMonitor outgoing requests:
-   - `rg -n \"send_request\\(\\\"\" src-tauri/src -g\"*.rs\"`
-4. Update the Supported Requests and Missing Requests sections.
+2. List Codex client request methods:
+   - `awk '/client_request_definitions! \\{/,/\\/\\/\\/ DEPRECATED APIs below/' ../Codex/codex-rs/app-server-protocol/src/protocol/common.rs | rg -N -o '=>\\s*\"[^\"]+\"\\s*\\{' | sed -E 's/.*\"([^\"]+)\".*/\\1/' | sort -u`
+3. List Codex server request methods:
+   - `awk '/server_request_definitions! \\{/,/\\/\\/\\/ DEPRECATED APIs below/' ../Codex/codex-rs/app-server-protocol/src/protocol/common.rs | rg -N -o '=>\\s*\"[^\"]+\"\\s*\\{' | sed -E 's/.*\"([^\"]+)\".*/\\1/' | sort -u`
+4. List CodexMonitor outgoing requests:
+   - `perl -0777 -ne 'while(/send_request\\(\\s*\"([^\"]+)\"/g){print \"$1\\n\"}' $(rg --files src-tauri/src -g '*.rs') | sort -u`
+5. Update the Supported Requests, Missing Client Requests, and Server Requests sections.
 
 ## Schema Drift Workflow (Best)
 
@@ -225,5 +239,12 @@ Use this when the method list is unchanged but behavior looks off.
   - Handle in `useThreadTurnEvents.ts` or `useThreadItemEvents.ts`
   - Update state in `useThreadsReducer.ts`
   - Render in `Messages.tsx`
-- `turn/diff/updated` is routed in `useAppServerEvents.ts` but currently has no
-  downstream handler wired in `useThreadEventHandlers.ts`.
+- `turn/diff/updated` is now fully wired:
+  - Routed in `useAppServerEvents.ts`
+  - Handled in `useThreadTurnEvents.ts` / `useThreadEventHandlers.ts`
+  - Stored in `useThreadsReducer.ts` (`turnDiffByThread`)
+  - Exposed by `useThreads.ts` for UI consumers
+- Steering behavior while a turn is processing:
+  - CodexMonitor attempts `turn/steer` when steering is enabled and an active turn exists.
+  - If the server/daemon reports unknown `turn/steer`/`turn_steer`, CodexMonitor
+    degrades to `turn/start` and caches that workspace as steer-unsupported.

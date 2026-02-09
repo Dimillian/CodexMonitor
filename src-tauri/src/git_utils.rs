@@ -126,7 +126,12 @@ mod tests {
 
         let before = repo.head().expect("head").name().unwrap_or("").to_string();
         assert!(checkout_branch(&repo, "does-not-exist").is_err());
-        let after = repo.head().expect("head after").name().unwrap_or("").to_string();
+        let after = repo
+            .head()
+            .expect("head after")
+            .name()
+            .unwrap_or("")
+            .to_string();
         assert_eq!(after, before);
     }
 }
@@ -139,13 +144,18 @@ pub(crate) fn parse_github_repo(remote_url: &str) -> Option<String> {
     let mut path = if trimmed.starts_with("git@github.com:") {
         trimmed.trim_start_matches("git@github.com:").to_string()
     } else if trimmed.starts_with("ssh://git@github.com/") {
-        trimmed.trim_start_matches("ssh://git@github.com/").to_string()
+        trimmed
+            .trim_start_matches("ssh://git@github.com/")
+            .to_string()
     } else if let Some(index) = trimmed.find("github.com/") {
         trimmed[index + "github.com/".len()..].to_string()
     } else {
         return None;
     };
-    path = path.trim_end_matches(".git").trim_end_matches('/').to_string();
+    path = path
+        .trim_end_matches(".git")
+        .trim_end_matches('/')
+        .to_string();
     if path.is_empty() {
         None
     } else {
@@ -183,11 +193,7 @@ fn should_skip_dir(name: &str) -> bool {
     )
 }
 
-pub(crate) fn list_git_roots(
-    root: &Path,
-    max_depth: usize,
-    max_results: usize,
-) -> Vec<String> {
+pub(crate) fn list_git_roots(root: &Path, max_depth: usize, max_results: usize) -> Vec<String> {
     if !root.is_dir() {
         return Vec::new();
     }

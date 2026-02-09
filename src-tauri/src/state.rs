@@ -2,24 +2,71 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{AppHandle, Manager};
+use tokio::process::Child;
 use tokio::sync::Mutex;
 
 use crate::dictation::DictationState;
 use crate::shared::codex_core::CodexLoginCancelState;
 use crate::storage::{read_settings, read_workspaces};
-use crate::types::{AppSettings, WorkspaceEntry};
+use crate::types::{
+    AppSettings, OrbitRunnerState, OrbitRunnerStatus, TcpDaemonState, TcpDaemonStatus,
+    WorkspaceEntry,
+};
+
+pub(crate) struct OrbitRunnerRuntime {
+    pub(crate) child: Option<Child>,
+    pub(crate) status: OrbitRunnerStatus,
+    pub(crate) managed_version: Option<String>,
+}
+
+impl Default for OrbitRunnerRuntime {
+    fn default() -> Self {
+        Self {
+            child: None,
+            status: OrbitRunnerStatus {
+                state: OrbitRunnerState::Stopped,
+                pid: None,
+                started_at_ms: None,
+                last_error: None,
+                orbit_url: None,
+            },
+            managed_version: None,
+        }
+    }
+}
+
+pub(crate) struct TcpDaemonRuntime {
+    pub(crate) child: Option<Child>,
+    pub(crate) status: TcpDaemonStatus,
+}
+
+impl Default for TcpDaemonRuntime {
+    fn default() -> Self {
+        Self {
+            child: None,
+            status: TcpDaemonStatus {
+                state: TcpDaemonState::Stopped,
+                pid: None,
+                started_at_ms: None,
+                last_error: None,
+                listen_addr: None,
+            },
+        }
+    }
+}
 
 pub(crate) struct AppState {
     pub(crate) workspaces: Mutex<HashMap<String, WorkspaceEntry>>,
     pub(crate) sessions: Mutex<HashMap<String, Arc<crate::codex::WorkspaceSession>>>,
-    pub(crate) terminal_sessions:
-        Mutex<HashMap<String, Arc<crate::terminal::TerminalSession>>>,
+    pub(crate) terminal_sessions: Mutex<HashMap<String, Arc<crate::terminal::TerminalSession>>>,
     pub(crate) remote_backend: Mutex<Option<crate::remote_backend::RemoteBackend>>,
     pub(crate) storage_path: PathBuf,
     pub(crate) settings_path: PathBuf,
     pub(crate) app_settings: Mutex<AppSettings>,
     pub(crate) dictation: Mutex<DictationState>,
     pub(crate) codex_login_cancels: Mutex<HashMap<String, CodexLoginCancelState>>,
+    pub(crate) orbit_runner: Mutex<OrbitRunnerRuntime>,
+    pub(crate) tcp_daemon: Mutex<TcpDaemonRuntime>,
 }
 
 impl AppState {
@@ -42,6 +89,8 @@ impl AppState {
             app_settings: Mutex::new(app_settings),
             dictation: Mutex::new(DictationState::default()),
             codex_login_cancels: Mutex::new(HashMap::new()),
+            orbit_runner: Mutex::new(OrbitRunnerRuntime::default()),
+            tcp_daemon: Mutex::new(TcpDaemonRuntime::default()),
         }
     }
 }

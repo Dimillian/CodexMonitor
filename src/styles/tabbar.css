@@ -1,6 +1,6 @@
 .tabbar {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
   padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--border-subtle);
@@ -8,6 +8,24 @@
   backdrop-filter: blur(24px) saturate(1.2);
   -webkit-app-region: no-drag;
   min-height: var(--tabbar-height, 56px);
+  flex-shrink: 0;
+  transition:
+    max-height 140ms ease,
+    min-height 140ms ease,
+    padding 140ms ease,
+    border-top-width 140ms ease,
+    opacity 140ms ease;
+}
+
+html[data-mobile-composer-focus="true"] .app.layout-phone .tabbar {
+  max-height: 0;
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .app.reduced-transparency .tabbar {
@@ -53,10 +71,4 @@
 .tabbar-icon {
   width: 18px;
   height: 18px;
-}
-
-@media (min-width: 521px) {
-  .tabbar {
-    display: none;
-  }
 }

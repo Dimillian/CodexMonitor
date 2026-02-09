@@ -57,9 +57,7 @@ async fn request_microphone_permission(app: &AppHandle) -> Result<bool, String> 
 }
 
 #[cfg(target_os = "macos")]
-fn trigger_microphone_permission_request(
-    tx: oneshot::Sender<Result<bool, String>>,
-) {
+fn trigger_microphone_permission_request(tx: oneshot::Sender<Result<bool, String>>) {
     use block2::RcBlock;
     use objc2::runtime::Bool;
 
@@ -87,9 +85,7 @@ fn trigger_microphone_permission_request(
 }
 
 #[cfg(target_os = "macos")]
-async fn request_microphone_permission_with_completion(
-    app: &AppHandle,
-) -> Result<bool, String> {
+async fn request_microphone_permission_with_completion(app: &AppHandle) -> Result<bool, String> {
     // Trigger the permission request (this shows the system dialog)
     // Ensure we do this on the main thread so the system dialog appears.
     let (tx, rx) = oneshot::channel();
@@ -251,14 +247,14 @@ fn model_info(model_id: &str) -> Option<&'static DictationModelInfo> {
 }
 
 fn model_path(app: &AppHandle, model_id: &str) -> Result<PathBuf, String> {
-    let info = model_info(model_id)
-        .ok_or_else(|| format!("Unknown dictation model: {model_id}"))?;
+    let info =
+        model_info(model_id).ok_or_else(|| format!("Unknown dictation model: {model_id}"))?;
     Ok(model_dir(app).join(info.filename))
 }
 
 fn model_temp_path(app: &AppHandle, model_id: &str) -> Result<PathBuf, String> {
-    let info = model_info(model_id)
-        .ok_or_else(|| format!("Unknown dictation model: {model_id}"))?;
+    let info =
+        model_info(model_id).ok_or_else(|| format!("Unknown dictation model: {model_id}"))?;
     Ok(model_dir(app).join(format!("{}.partial", info.filename)))
 }
 
@@ -290,10 +286,7 @@ fn emit_event(app: &AppHandle, event: DictationEvent) {
     let _ = app.emit("dictation-event", event);
 }
 
-async fn clear_processing_cancel(
-    app: &AppHandle,
-    cancel_flag: &Arc<AtomicBool>,
-) -> bool {
+async fn clear_processing_cancel(app: &AppHandle, cancel_flag: &Arc<AtomicBool>) -> bool {
     let state_handle = app.state::<AppState>();
     let mut dictation = state_handle.dictation.lock().await;
     if dictation
@@ -307,11 +300,7 @@ async fn clear_processing_cancel(
     false
 }
 
-async fn update_status(
-    app: &AppHandle,
-    state: &State<'_, AppState>,
-    status: DictationModelStatus,
-) {
+async fn update_status(app: &AppHandle, state: &State<'_, AppState>, status: DictationModelStatus) {
     {
         let mut dictation = state.dictation.lock().await;
         dictation.model_status = status.clone();
@@ -325,10 +314,7 @@ async fn clear_download_state(state: &State<'_, AppState>) {
     dictation.download_task = None;
 }
 
-async fn resolve_model_id(
-    state: &State<'_, AppState>,
-    model_id: Option<String>,
-) -> String {
+async fn resolve_model_id(state: &State<'_, AppState>, model_id: Option<String>) -> String {
     let candidate = if let Some(model_id) = model_id {
         model_id
     } else {
@@ -401,9 +387,7 @@ pub(crate) async fn dictation_download_model(
     if current.state == DictationModelState::Ready {
         return Ok(current);
     }
-    if current.state == DictationModelState::Downloading
-        && current.model_id == model_id
-    {
+    if current.state == DictationModelState::Downloading && current.model_id == model_id {
         return Ok(current);
     }
 
@@ -762,14 +746,24 @@ pub(crate) async fn dictation_start(
     let model_status = refresh_status(&app, &state, &model_id).await;
     if model_status.state != DictationModelState::Ready {
         let message = "Dictation model is not downloaded yet.".to_string();
-        emit_event(&app, DictationEvent::Error { message: message.clone() });
+        emit_event(
+            &app,
+            DictationEvent::Error {
+                message: message.clone(),
+            },
+        );
         return Err(message);
     }
     {
         let dictation = state.dictation.lock().await;
         if dictation.session_state != DictationSessionState::Idle {
             let message = "Dictation is already active.".to_string();
-            emit_event(&app, DictationEvent::Error { message: message.clone() });
+            emit_event(
+                &app,
+                DictationEvent::Error {
+                    message: message.clone(),
+                },
+            );
             return Err(message);
         }
     }
@@ -781,11 +775,21 @@ pub(crate) async fn dictation_start(
         }
         Ok(false) => {
             let message = "Microphone access was denied. Please grant microphone permission in System Settings > Privacy & Security > Microphone.".to_string();
-            emit_event(&app, DictationEvent::Error { message: message.clone() });
+            emit_event(
+                &app,
+                DictationEvent::Error {
+                    message: message.clone(),
+                },
+            );
             return Err(message);
         }
         Err(error) => {
-            emit_event(&app, DictationEvent::Error { message: error.clone() });
+            emit_event(
+                &app,
+                DictationEvent::Error {
+                    message: error.clone(),
+                },
+            );
             return Err(error);
         }
     }
@@ -813,12 +817,22 @@ pub(crate) async fn dictation_start(
     let sample_rate = match ready_rx.await {
         Ok(Ok(rate)) => rate,
         Ok(Err(message)) => {
-            emit_event(&app, DictationEvent::Error { message: message.clone() });
+            emit_event(
+                &app,
+                DictationEvent::Error {
+                    message: message.clone(),
+                },
+            );
             return Err(message);
         }
         Err(_) => {
             let message = "Failed to start microphone capture.".to_string();
-            emit_event(&app, DictationEvent::Error { message: message.clone() });
+            emit_event(
+                &app,
+                DictationEvent::Error {
+                    message: message.clone(),
+                },
+            );
             return Err(message);
         }
     };
@@ -861,7 +875,12 @@ pub(crate) async fn dictation_stop(
         let mut dictation = state.dictation.lock().await;
         if dictation.session_state != DictationSessionState::Listening {
             let message = "Dictation is not currently listening.".to_string();
-            emit_event(&app, DictationEvent::Error { message: message.clone() });
+            emit_event(
+                &app,
+                DictationEvent::Error {
+                    message: message.clone(),
+                },
+            );
             return Err(message);
         }
         dictation.session_state = DictationSessionState::Processing;
@@ -1001,17 +1020,11 @@ pub(crate) async fn dictation_stop(
         match outcome {
             Ok(text) => {
                 if !text.trim().is_empty() {
-                    emit_event(
-                        &app_handle,
-                        DictationEvent::Transcript { text },
-                    );
+                    emit_event(&app_handle, DictationEvent::Transcript { text });
                 }
             }
             Err(message) => {
-                emit_event(
-                    &app_handle,
-                    DictationEvent::Error { message },
-                );
+                emit_event(&app_handle, DictationEvent::Error { message });
             }
         }
 
@@ -1061,7 +1074,12 @@ pub(crate) async fn dictation_cancel(
         let mut dictation = state.dictation.lock().await;
         if dictation.session_state != DictationSessionState::Listening {
             let message = "Dictation is not currently listening.".to_string();
-            emit_event(&app, DictationEvent::Error { message: message.clone() });
+            emit_event(
+                &app,
+                DictationEvent::Error {
+                    message: message.clone(),
+                },
+            );
             return Err(message);
         }
         dictation.session_state = DictationSessionState::Idle;
@@ -1334,7 +1352,11 @@ fn transcribe_audio(
     }
     let rms = (sum / samples.len() as f32).sqrt();
     let duration = samples.len() as f32 / sample_rate as f32;
-    let gain = if max > 0.0 { (0.6 / max).min(10.0) } else { 1.0 };
+    let gain = if max > 0.0 {
+        (0.6 / max).min(10.0)
+    } else {
+        1.0
+    };
     if gain != 1.0 {
         for value in &mut normalized {
             *value = (*value * gain).clamp(-1.0, 1.0);

@@ -86,3 +86,79 @@
 .ds-panel-search-input::placeholder {
   color: var(--text-faint);
 }
+
+.ds-panel-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ds-panel-nav-item {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ds-panel-nav-item-main {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.ds-panel-nav-item-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ds-panel-nav-item-icon svg,
+.ds-panel-nav-item-icon img {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.ds-panel-nav-item-label {
+  min-width: 0;
+  flex: 1;
+}
+
+.ds-panel-nav-item-disclosure {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.ds-panel-nav-item-disclosure svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.ds-panel-nav-item:hover:not(:disabled),
+.ds-panel-nav-item:focus-visible,
+.ds-panel-nav-item.is-active {
+  background: var(--surface-card);
+  border-color: var(--border-strong);
+  color: var(--text-strong);
+}

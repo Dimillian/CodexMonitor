@@ -3,10 +3,19 @@ import { open } from "@tauri-apps/plugin-dialog";
 import type { Options as NotificationOptions } from "@tauri-apps/plugin-notification";
 import type {
   AppSettings,
+  CodexUpdateResult,
   CodexDoctorResult,
   DictationModelStatus,
   DictationSessionState,
   LocalUsageSnapshot,
+  OrbitConnectTestResult,
+  OrbitDeviceCodeStart,
+  OrbitRunnerStatus,
+  OrbitSignInPollResult,
+  OrbitSignOutResult,
+  TcpDaemonStatus,
+  TailscaleDaemonCommandPreview,
+  TailscaleStatus,
   WorkspaceInfo,
   WorkspaceSettings,
 } from "../types";
@@ -287,6 +296,22 @@ export async function interruptTurn(
   turnId: string,
 ) {
   return invoke("turn_interrupt", { workspaceId, threadId, turnId });
+}
+
+export async function steerTurn(
+  workspaceId: string,
+  threadId: string,
+  turnId: string,
+  text: string,
+  images?: string[],
+) {
+  return invoke("turn_steer", {
+    workspaceId,
+    threadId,
+    turnId,
+    text,
+    images: images ?? null,
+  });
 }
 
 export async function startReview(
@@ -580,8 +605,60 @@ export async function getAppSettings(): Promise<AppSettings> {
   return invoke<AppSettings>("get_app_settings");
 }
 
+export async function isMobileRuntime(): Promise<boolean> {
+  return invoke<boolean>("is_mobile_runtime");
+}
+
 export async function updateAppSettings(settings: AppSettings): Promise<AppSettings> {
   return invoke<AppSettings>("update_app_settings", { settings });
+}
+
+export async function orbitConnectTest(): Promise<OrbitConnectTestResult> {
+  return invoke<OrbitConnectTestResult>("orbit_connect_test");
+}
+
+export async function orbitSignInStart(): Promise<OrbitDeviceCodeStart> {
+  return invoke<OrbitDeviceCodeStart>("orbit_sign_in_start");
+}
+
+export async function orbitSignInPoll(deviceCode: string): Promise<OrbitSignInPollResult> {
+  return invoke<OrbitSignInPollResult>("orbit_sign_in_poll", { deviceCode });
+}
+
+export async function orbitSignOut(): Promise<OrbitSignOutResult> {
+  return invoke<OrbitSignOutResult>("orbit_sign_out");
+}
+
+export async function orbitRunnerStart(): Promise<OrbitRunnerStatus> {
+  return invoke<OrbitRunnerStatus>("orbit_runner_start");
+}
+
+export async function orbitRunnerStop(): Promise<OrbitRunnerStatus> {
+  return invoke<OrbitRunnerStatus>("orbit_runner_stop");
+}
+
+export async function orbitRunnerStatus(): Promise<OrbitRunnerStatus> {
+  return invoke<OrbitRunnerStatus>("orbit_runner_status");
+}
+
+export async function tailscaleStatus(): Promise<TailscaleStatus> {
+  return invoke<TailscaleStatus>("tailscale_status");
+}
+
+export async function tailscaleDaemonCommandPreview(): Promise<TailscaleDaemonCommandPreview> {
+  return invoke<TailscaleDaemonCommandPreview>("tailscale_daemon_command_preview");
+}
+
+export async function tailscaleDaemonStart(): Promise<TcpDaemonStatus> {
+  return invoke<TcpDaemonStatus>("tailscale_daemon_start");
+}
+
+export async function tailscaleDaemonStop(): Promise<TcpDaemonStatus> {
+  return invoke<TcpDaemonStatus>("tailscale_daemon_stop");
+}
+
+export async function tailscaleDaemonStatus(): Promise<TcpDaemonStatus> {
+  return invoke<TcpDaemonStatus>("tailscale_daemon_status");
 }
 
 type MenuAcceleratorUpdate = {
@@ -600,6 +677,13 @@ export async function runCodexDoctor(
   codexArgs: string | null,
 ): Promise<CodexDoctorResult> {
   return invoke<CodexDoctorResult>("codex_doctor", { codexBin, codexArgs });
+}
+
+export async function runCodexUpdate(
+  codexBin: string | null,
+  codexArgs: string | null,
+): Promise<CodexUpdateResult> {
+  return invoke<CodexUpdateResult>("codex_update", { codexBin, codexArgs });
 }
 
 export async function getWorkspaceFiles(workspaceId: string) {
@@ -758,12 +842,6 @@ export async function setThreadName(
   name: string,
 ) {
   return invoke<any>("set_thread_name", { workspaceId, threadId, name });
-}
-
-export async function getCommitMessagePrompt(
-  workspaceId: string,
-): Promise<string> {
-  return invoke("get_commit_message_prompt", { workspaceId });
 }
 
 export async function generateCommitMessage(

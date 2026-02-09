@@ -1,19 +1,38 @@
 {
-  "$schema": "../gen/schemas/desktop-schema.json",
-  "identifier": "default",
-  "description": "Capability for the main window",
-  "windows": ["main", "about"],
-  "permissions": [
-    "core:default",
-    "core:webview:allow-set-webview-zoom",
-    "opener:default",
-    "dialog:default",
-    "process:default",
-    "updater:default",
-    "window-state:default",
-    "liquid-glass:default",
-    "notification:default",
-    "core:window:allow-set-effects",
-    "core:window:allow-start-dragging"
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "capabilities": [
+    {
+      "identifier": "desktop-default",
+      "description": "Capability for desktop windows",
+      "windows": ["main", "about"],
+      "platforms": ["macOS", "windows", "linux"],
+      "permissions": [
+        "core:default",
+        "core:webview:allow-set-webview-zoom",
+        "opener:default",
+        "dialog:default",
+        "process:default",
+        "updater:default",
+        "window-state:default",
+        "liquid-glass:default",
+        "notification:default",
+        "core:window:allow-set-effects",
+        "core:window:allow-start-dragging"
+      ]
+    },
+    {
+      "identifier": "mobile-default",
+      "description": "Capability for mobile main window",
+      "windows": ["main"],
+      "platforms": ["iOS", "android"],
+      "permissions": [
+        "core:default",
+        "core:webview:allow-set-webview-zoom",
+        "opener:default",
+        "dialog:default",
+        "process:default",
+        "notification:default"
+      ]
+    }
   ]
 }

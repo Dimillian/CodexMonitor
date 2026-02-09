@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import type { Dispatch, MutableRefObject } from "react";
 import * as Sentry from "@sentry/react";
 import type {
@@ -12,6 +12,7 @@ import type {
 import {
   compactThread as compactThreadService,
   sendUserMessage as sendUserMessageService,
+  steerTurn as steerTurnService,
   startReview as startReviewService,
   interruptTurn as interruptTurnService,
   getAppsList as getAppsListService,
@@ -26,7 +27,7 @@ import {
 } from "../utils/threadNormalize";
 import type { ThreadAction, ThreadState } from "./useThreadsReducer";
 import { useReviewPrompt } from "./useReviewPrompt";
-import { formatRelativeTime } from "../../../i18n/utils";
+import { formatRelativeTime } from "../../../utils/time";
 
 type SendMessageOptions = {
   skipPromptExpansion?: boolean;
@@ -70,6 +71,16 @@ type UseThreadMessagingOptions = {
   updateThreadParent: (parentId: string, childIds: string[]) => void;
 };
 
+function isUnsupportedTurnSteerError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  const mentionsSteerMethod =
+    normalized.includes("turn/steer") || normalized.includes("turn_steer");
+  return normalized.includes("unknown variant `turn/steer`")
+    || normalized.includes("unknown variant \"turn/steer\"")
+    || (normalized.includes("unknown request") && mentionsSteerMethod)
+    || (normalized.includes("unknown method") && mentionsSteerMethod);
+}
+
 export function useThreadMessaging({
   activeWorkspace,
   activeThreadId,
@@ -99,6 +110,8 @@ export function useThreadMessaging({
   forkThreadForWorkspace,
   updateThreadParent,
 }: UseThreadMessagingOptions) {
+  const steerSupportedByWorkspaceRef = useRef<Record<string, boolean>>({});
+
   const sendMessageToThread = useCallback(
     async (
       workspace: WorkspaceInfo,
@@ -138,9 +151,12 @@ export function useThreadMessaging({
       const resolvedAccessMode =
         options?.accessMode !== undefined ? options.accessMode : accessMode;
 
-      const wasProcessing =
-        (threadStatusById[threadId]?.isProcessing ?? false) && steerEnabled;
-      if (wasProcessing) {
+      const isProcessing = threadStatusById[threadId]?.isProcessing ?? false;
+      const activeTurnId = activeTurnIdByThread[threadId] ?? null;
+      const steerSupported = steerSupportedByWorkspaceRef.current[workspace.id] !== false;
+      const shouldSteer =
+        isProcessing && steerEnabled && Boolean(activeTurnId) && steerSupported;
+      if (isProcessing && steerEnabled) {
         const optimisticText = finalText;
         if (optimisticText || images.length > 0) {
           dispatch({
@@ -182,13 +198,14 @@ export function useThreadMessaging({
       markProcessing(threadId, true);
       safeMessageActivity();
       onDebug?.({
-        id: `${Date.now()}-client-turn-start`,
+        id: `${Date.now()}-${shouldSteer ? "client-turn-steer" : "client-turn-start"}`,
         timestamp: Date.now(),
         source: "client",
-        label: "turn/start",
+        label: shouldSteer ? "turn/steer" : "turn/start",
         payload: {
           workspaceId: workspace.id,
           threadId,
+          turnId: activeTurnId,
           text: finalText,
           images,
           model: resolvedModel,
@@ -196,33 +213,83 @@ export function useThreadMessaging({
           collaborationMode: sanitizedCollaborationMode,
         },
       });
+      let requestMode: "start" | "steer" = shouldSteer ? "steer" : "start";
       try {
-        const response =
-          (await sendUserMessageService(
-            workspace.id,
-            threadId,
-            finalText,
-            {
-              model: resolvedModel,
-              effort: resolvedEffort,
-              collaborationMode: sanitizedCollaborationMode,
-              accessMode: resolvedAccessMode,
+        const startTurn = () => sendUserMessageService(
+          workspace.id,
+          threadId,
+          finalText,
+          {
+            model: resolvedModel,
+            effort: resolvedEffort,
+            collaborationMode: sanitizedCollaborationMode,
+            accessMode: resolvedAccessMode,
+            images,
+          },
+        );
+
+        let response: Record<string, unknown>;
+        if (shouldSteer) {
+          try {
+            response = (await steerTurnService(
+              workspace.id,
+              threadId,
+              activeTurnId ?? "",
+              finalText,
               images,
-            },
-          )) as Record<string, unknown>;
+            )) as Record<string, unknown>;
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            if (!isUnsupportedTurnSteerError(message)) {
+              throw error;
+            }
+            steerSupportedByWorkspaceRef.current[workspace.id] = false;
+            requestMode = "start";
+            response = (await startTurn()) as Record<string, unknown>;
+          }
+        } else {
+          response = (await startTurn()) as Record<string, unknown>;
+        }
+
+        let rpcError = extractRpcErrorMessage(response);
+        if (
+          rpcError
+          && requestMode === "steer"
+          && isUnsupportedTurnSteerError(rpcError)
+        ) {
+          steerSupportedByWorkspaceRef.current[workspace.id] = false;
+          requestMode = "start";
+          response = (await startTurn()) as Record<string, unknown>;
+          rpcError = extractRpcErrorMessage(response);
+        }
+
         onDebug?.({
-          id: `${Date.now()}-server-turn-start`,
+          id: `${Date.now()}-${requestMode === "steer" ? "server-turn-steer" : "server-turn-start"}`,
           timestamp: Date.now(),
           source: "server",
-          label: "turn/start response",
+          label: requestMode === "steer" ? "turn/steer response" : "turn/start response",
           payload: response,
         });
-        const rpcError = extractRpcErrorMessage(response);
         if (rpcError) {
-          markProcessing(threadId, false);
-          setActiveTurnId(threadId, null);
-          pushThreadErrorMessage(threadId, `回合启动失败：${rpcError}`);
+          if (requestMode !== "steer") {
+            markProcessing(threadId, false);
+            setActiveTurnId(threadId, null);
+          }
+          pushThreadErrorMessage(
+            threadId,
+            requestMode === "steer"
+              ? `Turn steer failed: ${rpcError}`
+              : `Turn failed to start: ${rpcError}`,
+          );
           safeMessageActivity();
+          return;
+        }
+        if (requestMode === "steer") {
+          const result = (response?.result ?? response) as Record<string, unknown>;
+          const steeredTurnId = asString(result?.turnId ?? result?.turn_id ?? "");
+          if (steeredTurnId) {
+            setActiveTurnId(threadId, steeredTurnId);
+          }
           return;
         }
         const result = (response?.result ?? response) as Record<string, unknown>;
@@ -233,24 +300,30 @@ export function useThreadMessaging({
         if (!turnId) {
           markProcessing(threadId, false);
           setActiveTurnId(threadId, null);
-          pushThreadErrorMessage(threadId, "回合启动失败。");
+          pushThreadErrorMessage(threadId, "Turn failed to start.");
           safeMessageActivity();
           return;
         }
         setActiveTurnId(threadId, turnId);
       } catch (error) {
-        markProcessing(threadId, false);
-        setActiveTurnId(threadId, null);
+        if (requestMode !== "steer") {
+          markProcessing(threadId, false);
+          setActiveTurnId(threadId, null);
+        }
         onDebug?.({
-          id: `${Date.now()}-client-turn-start-error`,
+          id: `${Date.now()}-${requestMode === "steer" ? "client-turn-steer-error" : "client-turn-start-error"}`,
           timestamp: Date.now(),
           source: "error",
-          label: "turn/start error",
+          label: requestMode === "steer" ? "turn/steer error" : "turn/start error",
           payload: error instanceof Error ? error.message : String(error),
         });
         pushThreadErrorMessage(
           threadId,
-          error instanceof Error ? error.message : String(error),
+          requestMode === "steer"
+            ? `Turn steer failed: ${error instanceof Error ? error.message : String(error)}`
+            : error instanceof Error
+              ? error.message
+              : String(error),
         );
         safeMessageActivity();
       }
@@ -261,6 +334,7 @@ export function useThreadMessaging({
       customPrompts,
       dispatch,
       effort,
+      activeTurnIdByThread,
       getCustomName,
       markProcessing,
       model,
@@ -344,7 +418,7 @@ export function useThreadMessaging({
     dispatch({
       type: "addAssistantMessage",
       threadId: activeThreadId,
-      text: "会话已停止。",
+      text: "Session stopped.",
     });
     if (!activeTurnId) {
       pendingInterruptsRef.current.add(activeThreadId);
@@ -440,7 +514,7 @@ export function useThreadMessaging({
           markProcessing(threadId, false);
           markReviewing(threadId, false);
           setActiveTurnId(threadId, null);
-          pushThreadErrorMessage(threadId, `评审启动失败：${rpcError}`);
+          pushThreadErrorMessage(threadId, `Review failed to start: ${rpcError}`);
           safeMessageActivity();
           return false;
         }
@@ -572,34 +646,34 @@ export function useThreadMessaging({
           : "";
 
       const lines = [
-        "会话状态：",
-        `- 模型：${model ?? "default"}`,
-        `- 推理强度：${effort ?? "default"}`,
-        `- 访问权限：${accessMode ?? "current"}`,
-        `- 协作模式：${collabId || "off"}`,
+        "Session status:",
+        `- Model: ${model ?? "default"}`,
+        `- Reasoning effort: ${effort ?? "default"}`,
+        `- Access: ${accessMode ?? "current"}`,
+        `- Collaboration: ${collabId || "off"}`,
       ];
 
       if (typeof primaryUsed === "number") {
         const reset = resetLabel(primaryReset);
         lines.push(
-          `- 会话用量：${Math.round(primaryUsed)}%${
-            reset ? `（${reset}重置）` : ""
+          `- Session usage: ${Math.round(primaryUsed)}%${
+            reset ? ` (resets ${reset})` : ""
           }`,
         );
       }
       if (typeof secondaryUsed === "number") {
         const reset = resetLabel(secondaryReset);
         lines.push(
-          `- 每周用量：${Math.round(secondaryUsed)}%${
-            reset ? `（${reset}重置）` : ""
+          `- Weekly usage: ${Math.round(secondaryUsed)}%${
+            reset ? ` (resets ${reset})` : ""
           }`,
         );
       }
       if (credits?.hasCredits) {
         if (credits.unlimited) {
-          lines.push("- 额度：无限");
+          lines.push("- Credits: unlimited");
         } else if (credits.balance) {
-          lines.push(`- 额度：${credits.balance}`);
+          lines.push(`- Credits: ${credits.balance}`);
         }
       }
 
@@ -649,15 +723,15 @@ export function useThreadMessaging({
           ? (result?.data as Array<Record<string, unknown>>)
           : [];
 
-        const lines: string[] = ["MCP 工具："];
+        const lines: string[] = ["MCP tools:"];
         if (data.length === 0) {
-          lines.push("- 未配置 MCP 服务器。");
+          lines.push("- No MCP servers configured.");
         } else {
           const servers = [...data].sort((a, b) =>
             String(a.name ?? "").localeCompare(String(b.name ?? "")),
           );
           for (const server of servers) {
-            const name = String(server.name ?? "未知");
+            const name = String(server.name ?? "unknown");
             const authStatus = server.authStatus ?? server.auth_status ?? null;
             const authLabel =
               typeof authStatus === "string"
@@ -667,7 +741,7 @@ export function useThreadMessaging({
                     "status" in authStatus
                   ? String((authStatus as { status?: unknown }).status ?? "")
                   : "";
-            lines.push(`- ${name}${authLabel ? `（认证：${authLabel}）` : ""}`);
+            lines.push(`- ${name}${authLabel ? ` (auth: ${authLabel})` : ""}`);
 
             const toolsRecord =
               server.tools && typeof server.tools === "object"
@@ -683,8 +757,8 @@ export function useThreadMessaging({
               .sort((a, b) => a.localeCompare(b));
             lines.push(
               toolNames.length > 0
-                ? `  工具：${toolNames.join(", ")}`
-                : "  工具：无",
+                ? `  tools: ${toolNames.join(", ")}`
+                : "  tools: none",
             );
 
             const resources = Array.isArray(server.resources)
@@ -696,7 +770,7 @@ export function useThreadMessaging({
                 ? server.resource_templates.length
                 : 0;
             if (resources > 0 || templates > 0) {
-              lines.push(`  资源：${resources}，模板：${templates}`);
+              lines.push(`  resources: ${resources}, templates: ${templates}`);
             }
           }
         }
@@ -710,11 +784,11 @@ export function useThreadMessaging({
         });
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "无法加载 MCP 状态。";
+          error instanceof Error ? error.message : "Failed to load MCP status.";
         dispatch({
           type: "addAssistantMessage",
           threadId,
-          text: `MCP 工具：\n- ${message}`,
+          text: `MCP tools:\n- ${message}`,
         });
       } finally {
         safeMessageActivity();
@@ -752,26 +826,26 @@ export function useThreadMessaging({
           ? (result?.data as Array<Record<string, unknown>>)
           : [];
 
-        const lines: string[] = ["应用："];
+        const lines: string[] = ["Apps:"];
         if (data.length === 0) {
-          lines.push("- 没有可用应用。");
+          lines.push("- No apps available.");
         } else {
           const apps = [...data].sort((a, b) =>
             String(a.name ?? "").localeCompare(String(b.name ?? "")),
           );
           for (const app of apps) {
-            const name = String(app.name ?? app.id ?? "未知");
+            const name = String(app.name ?? app.id ?? "unknown");
             const appId = String(app.id ?? "");
             const isAccessible = Boolean(
               app.isAccessible ?? app.is_accessible ?? false,
             );
-            const status = isAccessible ? "已连接" : "可安装";
+            const status = isAccessible ? "connected" : "can be installed";
             const description =
               typeof app.description === "string" && app.description.trim().length > 0
                 ? app.description.trim()
                 : "";
             lines.push(
-              `- ${name}${appId ? ` (${appId})` : ""} — ${status}${description ? `：${description}` : ""}`,
+              `- ${name}${appId ? ` (${appId})` : ""} — ${status}${description ? `: ${description}` : ""}`,
             );
 
             const installUrl =
@@ -781,7 +855,7 @@ export function useThreadMessaging({
                   ? app.install_url
                   : "";
             if (!isAccessible && installUrl) {
-              lines.push(`  安装：${installUrl}`);
+              lines.push(`  install: ${installUrl}`);
             }
           }
         }
@@ -795,11 +869,11 @@ export function useThreadMessaging({
         });
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "无法加载应用列表。";
+          error instanceof Error ? error.message : "Failed to load apps.";
         dispatch({
           type: "addAssistantMessage",
           threadId,
-          text: `应用：\n- ${message}`,
+          text: `Apps:\n- ${message}`,
         });
       } finally {
         safeMessageActivity();
@@ -880,7 +954,7 @@ export function useThreadMessaging({
           threadId,
           error instanceof Error
             ? error.message
-            : "无法开始上下文压缩。",
+            : "Failed to start context compaction.",
         );
       } finally {
         safeMessageActivity();

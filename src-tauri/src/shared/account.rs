@@ -9,7 +9,10 @@ pub(crate) struct AuthAccount {
     pub(crate) plan_type: Option<String>,
 }
 
-pub(crate) fn build_account_response(response: Option<Value>, fallback: Option<AuthAccount>) -> Value {
+pub(crate) fn build_account_response(
+    response: Option<Value>,
+    fallback: Option<AuthAccount>,
+) -> Value {
     let mut account = response
         .as_ref()
         .and_then(extract_account_map)
@@ -20,7 +23,10 @@ pub(crate) fn build_account_response(response: Option<Value>, fallback: Option<A
             .and_then(|value| value.as_str())
             .map(|value| value.to_ascii_lowercase());
         let allow_fallback = account.is_empty()
-            || matches!(account_type.as_deref(), None | Some("chatgpt") | Some("unknown"));
+            || matches!(
+                account_type.as_deref(),
+                None | Some("chatgpt") | Some("unknown")
+            );
         if allow_fallback {
             if !account.contains_key("email") {
                 if let Some(email) = fallback.email {
@@ -45,10 +51,7 @@ pub(crate) fn build_account_response(response: Option<Value>, fallback: Option<A
     };
     let mut result = Map::new();
     result.insert("account".to_string(), account_value);
-    if let Some(requires_openai_auth) = response
-        .as_ref()
-        .and_then(extract_requires_openai_auth)
-    {
+    if let Some(requires_openai_auth) = response.as_ref().and_then(extract_requires_openai_auth) {
         result.insert(
             "requiresOpenaiAuth".to_string(),
             Value::Bool(requires_openai_auth),
@@ -188,7 +191,10 @@ mod tests {
             account.get("email").and_then(Value::as_str),
             Some("chatgpt@example.com"),
         );
-        assert_eq!(account.get("planType").and_then(Value::as_str), Some("plus"));
+        assert_eq!(
+            account.get("planType").and_then(Value::as_str),
+            Some("plus")
+        );
         assert_eq!(account.get("type").and_then(Value::as_str), Some("chatgpt"));
     }
 
@@ -207,6 +213,9 @@ mod tests {
             account.get("email").and_then(Value::as_str),
             Some("chatgpt@example.com"),
         );
-        assert_eq!(account.get("planType").and_then(Value::as_str), Some("plus"));
+        assert_eq!(
+            account.get("planType").and_then(Value::as_str),
+            Some("plus")
+        );
     }
 }

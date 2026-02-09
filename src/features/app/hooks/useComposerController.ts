@@ -5,6 +5,7 @@ import { useQueuedSend } from "../../threads/hooks/useQueuedSend";
 
 export function useComposerController({
   activeThreadId,
+  activeTurnId,
   activeWorkspaceId,
   activeWorkspace,
   isProcessing,
@@ -24,6 +25,7 @@ export function useComposerController({
   startStatus,
 }: {
   activeThreadId: string | null;
+  activeTurnId: string | null;
   activeWorkspaceId: string | null;
   activeWorkspace: WorkspaceInfo | null;
   isProcessing: boolean;
@@ -75,6 +77,7 @@ export function useComposerController({
     removeQueuedMessage,
   } = useQueuedSend({
     activeThreadId,
+    activeTurnId,
     isProcessing,
     isReviewing,
     steerEnabled,

@@ -35,15 +35,19 @@ body {
   margin: 0;
   background: transparent;
   overflow: hidden;
+  width: 100%;
+  height: 100%;
 }
 
 #root {
-  height: 100vh;
+  height: var(--app-height, 100dvh);
+  min-height: var(--app-height, 100dvh);
   overflow: hidden;
 }
 
 .app {
-  height: 100vh;
+  height: var(--app-height, 100dvh);
+  min-height: var(--app-height, 100dvh);
   width: 100vw;
   display: grid;
   grid-template-columns: var(--sidebar-width, 280px) 1fr;

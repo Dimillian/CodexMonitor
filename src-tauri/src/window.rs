@@ -1,4 +1,6 @@
-use tauri::{Theme, Window};
+#[cfg(desktop)]
+use tauri::Theme;
+use tauri::Window;
 
 #[cfg(test)]
 use std::sync::{Mutex, OnceLock};
@@ -11,22 +13,14 @@ type WindowAppearanceOverride =
 static WINDOW_APPEARANCE_OVERRIDE: OnceLock<Mutex<Option<WindowAppearanceOverride>>> =
     OnceLock::new();
 
-#[cfg(test)]
-pub(crate) fn set_window_appearance_override(handler: Option<WindowAppearanceOverride>) {
-    let slot = WINDOW_APPEARANCE_OVERRIDE.get_or_init(|| Mutex::new(None));
-    *slot.lock().unwrap() = handler;
-}
-
 #[cfg(target_os = "macos")]
 fn apply_macos_window_appearance(window: &Window, theme: &str) -> Result<(), String> {
     use objc2_app_kit::{
-        NSAppearance, NSAppearanceCustomization, NSAppearanceNameAqua,
-        NSAppearanceNameDarkAqua, NSWindow,
+        NSAppearance, NSAppearanceCustomization, NSAppearanceNameAqua, NSAppearanceNameDarkAqua,
+        NSWindow,
     };
 
-    let ns_window = window
-        .ns_window()
-        .map_err(|error| error.to_string())?;
+    let ns_window = window.ns_window().map_err(|error| error.to_string())?;
     let ns_window: &NSWindow = unsafe { &*ns_window.cast() };
 
     if theme == "system" {
@@ -58,12 +52,15 @@ pub(crate) fn apply_window_appearance(window: &Window, theme: &str) -> Result<()
         return handler(window, theme);
     }
 
-    let next_theme = match theme {
-        "light" => Some(Theme::Light),
-        "dark" | "dim" => Some(Theme::Dark),
-        _ => None,
-    };
-    let _ = window.set_theme(next_theme);
+    #[cfg(desktop)]
+    {
+        let next_theme = match theme {
+            "light" => Some(Theme::Light),
+            "dark" | "dim" => Some(Theme::Dark),
+            _ => None,
+        };
+        let _ = window.set_theme(next_theme);
+    }
 
     #[cfg(target_os = "macos")]
     {
@@ -77,4 +74,43 @@ pub(crate) fn apply_window_appearance(window: &Window, theme: &str) -> Result<()
     }
 
     Ok(())
+}
+
+#[cfg(target_os = "ios")]
+pub(crate) fn configure_ios_webview_edge_to_edge(
+    webview_window: &tauri::WebviewWindow,
+) -> Result<(), String> {
+    use objc2::runtime::AnyObject;
+
+    webview_window
+        .with_webview(|webview| unsafe {
+            let wk_webview = webview.inner().cast::<AnyObject>();
+            if !wk_webview.is_null() {
+                let scroll_view: *mut AnyObject = objc2::msg_send![wk_webview, scrollView];
+                if !scroll_view.is_null() {
+                    // UIScrollViewContentInsetAdjustmentNever
+                    let adjustment_never: isize = 2;
+                    let () = objc2::msg_send![
+                        scroll_view,
+                        setContentInsetAdjustmentBehavior: adjustment_never
+                    ];
+                    let () = objc2::msg_send![
+                        scroll_view,
+                        setAutomaticallyAdjustsScrollIndicatorInsets: false
+                    ];
+                }
+            }
+
+            let view_controller = webview.view_controller().cast::<AnyObject>();
+            if !view_controller.is_null() {
+                // UIRectEdgeAll
+                let all_edges: usize = 15;
+                let () = objc2::msg_send![view_controller, setEdgesForExtendedLayout: all_edges];
+                let () = objc2::msg_send![
+                    view_controller,
+                    setExtendedLayoutIncludesOpaqueBars: true
+                ];
+            }
+        })
+        .map_err(|error| error.to_string())
 }

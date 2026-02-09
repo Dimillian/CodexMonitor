@@ -33,8 +33,7 @@ pub(crate) async fn resolve_root_core(
     match scope {
         FileScope::Global => resolve_default_codex_home(),
         FileScope::Workspace => {
-            let workspace_id =
-                workspace_id.ok_or_else(|| "workspaceId is required".to_string())?;
+            let workspace_id = workspace_id.ok_or_else(|| "workspaceId is required".to_string())?;
             resolve_workspace_root(workspaces, workspace_id).await
         }
     }

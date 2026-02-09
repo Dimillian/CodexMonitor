@@ -23,10 +23,7 @@ pub(crate) fn unique_worktree_path_for_rename(
     worktree_core::unique_worktree_path_for_rename(base_dir, name, current_path)
 }
 
+#[cfg(test)]
 pub(crate) fn build_clone_destination_path(copies_folder: &PathBuf, copy_name: &str) -> PathBuf {
     worktree_core::build_clone_destination_path(copies_folder, copy_name)
-}
-
-pub(crate) fn null_device_path() -> &'static str {
-    worktree_core::null_device_path()
 }

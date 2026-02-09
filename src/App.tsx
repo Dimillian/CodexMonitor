@@ -93,6 +93,7 @@ import { usePersistComposerSettings } from "./features/app/hooks/usePersistCompo
 import { useSyncSelectedDiffPath } from "./features/app/hooks/useSyncSelectedDiffPath";
 import { useMenuAcceleratorController } from "./features/app/hooks/useMenuAcceleratorController";
 import { useAppMenuEvents } from "./features/app/hooks/useAppMenuEvents";
+import { usePlanReadyActions } from "./features/app/hooks/usePlanReadyActions";
 import { useWorkspaceActions } from "./features/app/hooks/useWorkspaceActions";
 import { useWorkspaceCycling } from "./features/app/hooks/useWorkspaceCycling";
 import { useThreadRows } from "./features/app/hooks/useThreadRows";
@@ -106,13 +107,14 @@ import { useWorkspaceLaunchScripts } from "./features/app/hooks/useWorkspaceLaun
 import { useWorktreeSetupScript } from "./features/app/hooks/useWorktreeSetupScript";
 import { useGitCommitController } from "./features/app/hooks/useGitCommitController";
 import { WorkspaceHome } from "./features/workspaces/components/WorkspaceHome";
+import { MobileServerSetupWizard } from "./features/mobile/components/MobileServerSetupWizard";
+import { useMobileServerSetup } from "./features/mobile/hooks/useMobileServerSetup";
 import { useWorkspaceHome } from "./features/workspaces/hooks/useWorkspaceHome";
 import { useWorkspaceAgentMd } from "./features/workspaces/hooks/useWorkspaceAgentMd";
-import { pickWorkspacePath } from "./services/tauri";
+import { isMobilePlatform } from "./utils/platformPaths";
 import type {
   AccessMode,
   ComposerEditorSettings,
-  ThreadListSortKey,
   WorkspaceInfo,
 } from "./types";
 import { OPEN_APP_STORAGE_KEY } from "./features/app/constants";
@@ -121,6 +123,11 @@ import { useCodeCssVars } from "./features/app/hooks/useCodeCssVars";
 import { useAccountSwitching } from "./features/app/hooks/useAccountSwitching";
 import { useNewAgentDraft } from "./features/app/hooks/useNewAgentDraft";
 import { useSystemNotificationThreadLinks } from "./features/app/hooks/useSystemNotificationThreadLinks";
+import { useThreadListSortKey } from "./features/app/hooks/useThreadListSortKey";
+import { useThreadListActions } from "./features/app/hooks/useThreadListActions";
+import { useGitRootSelection } from "./features/app/hooks/useGitRootSelection";
+import { useTabActivationGuard } from "./features/app/hooks/useTabActivationGuard";
+import { useRemoteThreadRefreshOnFocus } from "./features/app/hooks/useRemoteThreadRefreshOnFocus";
 
 const AboutView = lazy(() =>
   import("./features/about/components/AboutView").then((module) => ({
@@ -140,24 +147,12 @@ const GitHubPanelData = lazy(() =>
   })),
 );
 
-const THREAD_LIST_SORT_KEY_STORAGE_KEY = "codexmonitor.threadListSortKey";
-
-function getStoredThreadListSortKey(): ThreadListSortKey {
-  if (typeof window === "undefined") {
-    return "updated_at";
-  }
-  const stored = window.localStorage.getItem(THREAD_LIST_SORT_KEY_STORAGE_KEY);
-  if (stored === "created_at" || stored === "updated_at") {
-    return stored;
-  }
-  return "updated_at";
-}
-
 function MainApp() {
   const {
     appSettings,
     setAppSettings,
     doctor,
+    codexUpdate,
     appSettingsLoading,
     reduceTransparency,
     setReduceTransparency,
@@ -188,15 +183,15 @@ function MainApp() {
     handleCopyDebug,
     clearDebugEntries,
   } = useDebugLog();
-  useLiquidGlassEffect({ reduceTransparency, onDebug: addDebugEntry });
+  const shouldReduceTransparency = reduceTransparency || isMobilePlatform();
+  useLiquidGlassEffect({ reduceTransparency: shouldReduceTransparency, onDebug: addDebugEntry });
   const [accessMode, setAccessMode] = useState<AccessMode>("current");
-  const [threadListSortKey, setThreadListSortKey] = useState<ThreadListSortKey>(
-    () => getStoredThreadListSortKey(),
-  );
+  const { threadListSortKey, setThreadListSortKey } = useThreadListSortKey();
   const [activeTab, setActiveTab] = useState<
-    "projects" | "codex" | "git" | "log"
+    "home" | "projects" | "codex" | "git" | "log"
   >("codex");
-  const tabletTab = activeTab === "projects" ? "codex" : activeTab;
+  const tabletTab =
+    activeTab === "projects" || activeTab === "home" ? "codex" : activeTab;
   const {
     workspaces,
     workspaceGroups,
@@ -231,6 +226,19 @@ function MainApp() {
     addDebugEntry,
     queueSaveSettings,
   });
+  const {
+    isMobileRuntime,
+    showMobileSetupWizard,
+    mobileSetupWizardProps,
+    handleMobileConnectSuccess,
+  } = useMobileServerSetup({
+    appSettings,
+    appSettingsLoading,
+    queueSaveSettings,
+    refreshWorkspaces,
+  });
+  const updaterEnabled = !isMobileRuntime;
+
   const workspacesById = useMemo(
     () => new Map(workspaces.map((workspace) => [workspace.id, workspace])),
     [workspaces],
@@ -301,6 +309,7 @@ function MainApp() {
     handleTestNotificationSound,
     handleTestSystemNotification,
   } = useUpdaterController({
+    enabled: updaterEnabled,
     notificationSoundsEnabled: appSettings.notificationSoundsEnabled,
     systemNotificationsEnabled: appSettings.systemNotificationsEnabled,
     getWorkspaceName,
@@ -557,48 +566,12 @@ function MainApp() {
 
   const resolvedModel = selectedModel?.model ?? null;
   const resolvedEffort = reasoningSupported ? selectedEffort : null;
-  const activeGitRoot = activeWorkspace?.settings.gitRoot ?? null;
-  const normalizePath = useCallback((value: string) => {
-    return value.replace(/\\/g, "/").replace(/\/+$/, "");
-  }, []);
-  const handleSetGitRoot = useCallback(
-    async (path: string | null) => {
-      if (!activeWorkspace) {
-        return;
-      }
-      await updateWorkspaceSettings(activeWorkspace.id, {
-        gitRoot: path,
-      });
-      clearGitRootCandidates();
-      refreshGitStatus();
-    },
-    [
-      activeWorkspace,
-      clearGitRootCandidates,
-      refreshGitStatus,
-      updateWorkspaceSettings,
-    ],
-  );
-  const handlePickGitRoot = useCallback(async () => {
-    if (!activeWorkspace) {
-      return;
-    }
-    const selection = await pickWorkspacePath();
-    if (!selection) {
-      return;
-    }
-    const workspacePath = normalizePath(activeWorkspace.path);
-    const selectedPath = normalizePath(selection);
-    let nextRoot: string | null = null;
-    if (selectedPath === workspacePath) {
-      nextRoot = null;
-    } else if (selectedPath.startsWith(`${workspacePath}/`)) {
-      nextRoot = selectedPath.slice(workspacePath.length + 1);
-    } else {
-      nextRoot = selectedPath;
-    }
-    await handleSetGitRoot(nextRoot);
-  }, [activeWorkspace, handleSetGitRoot, normalizePath]);
+  const { activeGitRoot, handleSetGitRoot, handlePickGitRoot } = useGitRootSelection({
+    activeWorkspace,
+    updateWorkspaceSettings,
+    clearGitRootCandidates,
+    refreshGitStatus,
+  });
   const fileStatus =
     gitStatus.error
       ? "Git 状态不可用"
@@ -670,6 +643,7 @@ function MainApp() {
     threadListLoadingByWorkspace,
     threadListPagingByWorkspace,
     threadListCursorByWorkspace,
+    activeTurnIdByThread,
     tokenUsageByThread,
     rateLimitsByWorkspace,
     accountByWorkspace,
@@ -730,28 +704,20 @@ function MainApp() {
     accessMode,
     reviewDeliveryMode: appSettings.reviewDeliveryMode,
     steerEnabled: appSettings.steerEnabled,
+    threadTitleAutogenerationEnabled: appSettings.threadTitleAutogenerationEnabled,
     customPrompts: prompts,
     onMessageActivity: queueGitStatusRefresh,
     threadSortKey: threadListSortKey,
   });
 
-  const handleSetThreadListSortKey = useCallback(
-    (nextSortKey: ThreadListSortKey) => {
-      if (nextSortKey === threadListSortKey) {
-        return;
-      }
-      setThreadListSortKey(nextSortKey);
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(THREAD_LIST_SORT_KEY_STORAGE_KEY, nextSortKey);
-      }
-      workspaces
-        .filter((workspace) => workspace.connected)
-        .forEach((workspace) => {
-          void listThreadsForWorkspace(workspace, { sortKey: nextSortKey });
-        });
-    },
-    [threadListSortKey, workspaces, listThreadsForWorkspace],
-  );
+  const { handleSetThreadListSortKey, handleRefreshAllWorkspaceThreads } =
+    useThreadListActions({
+      threadListSortKey,
+      setThreadListSortKey,
+      workspaces,
+      listThreadsForWorkspace,
+      resetWorkspaceThreads,
+    });
 
   useResponseRequiredNotificationsController({
     systemNotificationsEnabled: appSettings.systemNotificationsEnabled,
@@ -1171,6 +1137,9 @@ function MainApp() {
   const isReviewing = activeThreadId
     ? threadStatusById[activeThreadId]?.isReviewing ?? false
     : false;
+  const activeTurnId = activeThreadId
+    ? activeTurnIdByThread[activeThreadId] ?? null
+    : null;
   const {
     activeImages,
     attachImages,
@@ -1193,6 +1162,7 @@ function MainApp() {
     clearDraftForThread,
   } = useComposerController({
     activeThreadId,
+    activeTurnId,
     activeWorkspaceId,
     activeWorkspace,
     isProcessing,
@@ -1464,23 +1434,13 @@ function MainApp() {
     baseWorkspaceRef.current = activeParentWorkspace ?? activeWorkspace;
   }, [activeParentWorkspace, activeWorkspace]);
 
-  useEffect(() => {
-    if (!isPhone) {
-      return;
-    }
-    if (!activeWorkspace && activeTab !== "projects") {
-      setActiveTab("projects");
-    }
-  }, [activeTab, activeWorkspace, isPhone]);
-
-  useEffect(() => {
-    if (!isTablet) {
-      return;
-    }
-    if (activeTab === "projects") {
-      setActiveTab("codex");
-    }
-  }, [activeTab, isTablet]);
+  useTabActivationGuard({
+    activeTab,
+    activeWorkspace,
+    isPhone,
+    isTablet,
+    setActiveTab,
+  });
 
   useWindowDrag("titlebar");
   useWorkspaceRestore({
@@ -1493,6 +1453,13 @@ function MainApp() {
     workspaces,
     refreshWorkspaces,
     listThreadsForWorkspace
+  });
+
+  useRemoteThreadRefreshOnFocus({
+    backendMode: appSettings.backendMode,
+    activeWorkspace,
+    activeThreadId,
+    refreshThread,
   });
 
   const {
@@ -1650,6 +1617,17 @@ function MainApp() {
     ],
   );
 
+  const { handlePlanAccept, handlePlanSubmitChanges } = usePlanReadyActions({
+    activeWorkspace,
+    activeThreadId,
+    collaborationModes,
+    resolvedModel,
+    resolvedEffort,
+    connectWorkspace,
+    sendUserMessageToThread,
+    setSelectedCollaborationModeId,
+  });
+
   const orderValue = (entry: WorkspaceInfo) =>
     typeof entry.settings.sortOrder === "number"
       ? entry.settings.sortOrder
@@ -1699,7 +1677,8 @@ function MainApp() {
     );
   };
 
-  const showGitDetail = Boolean(selectedDiffPath) && isPhone;
+  const showGitDetail =
+    Boolean(selectedDiffPath) && isPhone && centerMode === "diff";
   const isThreadOpen = Boolean(activeThreadId && showComposer);
 
   useArchiveShortcut({
@@ -1756,7 +1735,7 @@ function MainApp() {
   const appClassName = `app ${isCompact ? "layout-compact" : "layout-desktop"}${
     isPhone ? " layout-phone" : ""
   }${isTablet ? " layout-tablet" : ""}${
-    reduceTransparency ? " reduced-transparency" : ""
+    shouldReduceTransparency ? " reduced-transparency" : ""
   }${!isCompact && sidebarCollapsed ? " sidebar-collapsed" : ""}${
     !isCompact && rightPanelCollapsed ? " right-panel-collapsed" : ""
   }`;
@@ -1797,6 +1776,7 @@ function MainApp() {
     threadListCursorByWorkspace,
     threadListSortKey,
     onSetThreadListSortKey: handleSetThreadListSortKey,
+    onRefreshAllThreads: handleRefreshAllWorkspaceThreads,
     activeWorkspaceId,
     activeThreadId,
     activeItems,
@@ -1807,6 +1787,7 @@ function MainApp() {
     onCancelSwitchAccount: handleCancelSwitchAccount,
     accountSwitching,
     codeBlockCopyUseModifier: appSettings.composerCodeBlockCopyUseModifier,
+    showMessageFilePath: appSettings.showMessageFilePath,
     openAppTargets: appSettings.openAppTargets,
     openAppIconById,
     selectedOpenAppId: appSettings.selectedOpenAppId,
@@ -1816,6 +1797,8 @@ function MainApp() {
     handleApprovalDecision,
     handleApprovalRemember,
     handleUserInputSubmit,
+    onPlanAccept: handlePlanAccept,
+    onPlanSubmitChanges: handlePlanSubmitChanges,
     onOpenSettings: () => openSettings(),
     onOpenDictationSettings: () => openSettings("dictation"),
     onOpenDebug: handleDebugClick,
@@ -1933,6 +1916,7 @@ function MainApp() {
     onCopyThread: handleCopyThread,
     onToggleTerminal: handleToggleTerminal,
     showTerminalButton: !isCompact,
+    showWorkspaceTools: !isCompact,
     launchScript: launchScriptState.launchScript,
     launchScriptEditorOpen: launchScriptState.editorOpen,
     launchScriptDraft: launchScriptState.draftScript,
@@ -1963,10 +1947,19 @@ function MainApp() {
       setSelectedDiffPath(null);
     },
     activeTab,
-    onSelectTab: setActiveTab,
+    onSelectTab: (tab) => {
+      if (tab === "home") {
+        resetPullRequestSelection();
+        clearDraftState();
+        selectHome();
+        return;
+      }
+      setActiveTab(tab);
+    },
     tabletNavTab: tabletTab,
     gitPanelMode,
     onGitPanelModeChange: handleGitPanelModeChange,
+    isPhone,
     gitDiffViewStyle,
     gitDiffIgnoreWhitespaceChanges:
       appSettings.gitDiffIgnoreWhitespaceChanges && diffSource !== "pr",
@@ -2174,8 +2167,16 @@ function MainApp() {
     onResizeDebug: onDebugPanelResizeStart,
     onResizeTerminal: onTerminalPanelResizeStart,
     onBackFromDiff: () => {
-      setSelectedDiffPath(null);
       setCenterMode("chat");
+    },
+    onShowSelectedDiff: () => {
+      if (!selectedDiffPath) {
+        return;
+      }
+      setCenterMode("diff");
+      if (isPhone) {
+        setActiveTab("git");
+      }
     },
     onGoProjects: () => setActiveTab("projects"),
     workspaceDropTargetRef,
@@ -2386,6 +2387,7 @@ function MainApp() {
             await queueSaveSettings(next);
           },
           onRunDoctor: doctor,
+          onRunCodexUpdate: codexUpdate,
           onUpdateWorkspaceCodexBin: async (id, codexBin) => {
             await updateWorkspaceCodexBin(id, codexBin);
           },
@@ -2396,12 +2398,16 @@ function MainApp() {
           scaleShortcutText,
           onTestNotificationSound: handleTestNotificationSound,
           onTestSystemNotification: handleTestSystemNotification,
+          onMobileConnectSuccess: handleMobileConnectSuccess,
           dictationModelStatus: dictationModel.status,
           onDownloadDictationModel: dictationModel.download,
           onCancelDictationDownload: dictationModel.cancel,
           onRemoveDictationModel: dictationModel.remove,
         }}
       />
+      {showMobileSetupWizard && (
+        <MobileServerSetupWizard {...mobileSetupWizardProps} />
+      )}
     </div>
   );
 }

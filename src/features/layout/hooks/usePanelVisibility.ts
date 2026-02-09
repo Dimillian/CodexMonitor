@@ -3,7 +3,7 @@ import { useCallback, useState } from "react";
 type UsePanelVisibilityOptions = {
   isCompact: boolean;
   activeWorkspaceId: string | null;
-  setActiveTab: (tab: "codex" | "git" | "log" | "projects") => void;
+  setActiveTab: (tab: "home" | "codex" | "git" | "log" | "projects") => void;
   setDebugOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
 };
 

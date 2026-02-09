@@ -172,4 +172,21 @@ describe("useUpdater", () => {
       } satisfies Partial<DebugEntry>),
     );
   });
+
+  it("does not run updater workflow when disabled", async () => {
+    checkMock.mockResolvedValue({
+      version: "9.9.9",
+      downloadAndInstall: vi.fn(),
+      close: vi.fn(),
+    } as any);
+    const { result } = renderHook(() => useUpdater({ enabled: false }));
+
+    await act(async () => {
+      await result.current.checkForUpdates({ announceNoUpdate: true });
+      await result.current.startUpdate();
+    });
+
+    expect(checkMock).not.toHaveBeenCalled();
+    expect(result.current.state.stage).toBe("idle");
+  });
 });

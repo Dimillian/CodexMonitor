@@ -2,6 +2,7 @@ import Calendar from "lucide-react/dist/esm/icons/calendar";
 import Clock3 from "lucide-react/dist/esm/icons/clock-3";
 import FolderPlus from "lucide-react/dist/esm/icons/folder-plus";
 import ListFilter from "lucide-react/dist/esm/icons/list-filter";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import Search from "lucide-react/dist/esm/icons/search";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,6 +20,9 @@ type SidebarHeaderProps = {
   isSearchOpen: boolean;
   threadListSortKey: ThreadListSortKey;
   onSetThreadListSortKey: (sortKey: ThreadListSortKey) => void;
+  onRefreshAllThreads: () => void;
+  refreshDisabled?: boolean;
+  refreshInProgress?: boolean;
 };
 
 export function SidebarHeader({
@@ -28,6 +32,9 @@ export function SidebarHeader({
   isSearchOpen,
   threadListSortKey,
   onSetThreadListSortKey,
+  onRefreshAllThreads,
+  refreshDisabled = false,
+  refreshInProgress = false,
 }: SidebarHeaderProps) {
   const { t } = useTranslation();
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
@@ -111,6 +118,21 @@ export function SidebarHeader({
             </PopoverSurface>
           )}
         </div>
+        <button
+          className="ghost sidebar-refresh-toggle"
+          onClick={onRefreshAllThreads}
+          data-tauri-drag-region="false"
+          aria-label="Refresh all workspace threads"
+          type="button"
+          title="Refresh all workspace threads"
+          disabled={refreshDisabled}
+          aria-busy={refreshInProgress}
+        >
+          <RefreshCw
+            className={refreshInProgress ? "sidebar-refresh-icon spinning" : "sidebar-refresh-icon"}
+            aria-hidden
+          />
+        </button>
         <button
           className={`ghost sidebar-search-toggle${isSearchOpen ? " is-active" : ""}`}
           onClick={onToggleSearch}

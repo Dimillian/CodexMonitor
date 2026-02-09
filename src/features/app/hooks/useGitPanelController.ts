@@ -23,9 +23,9 @@ export function useGitPanelController({
   gitDiffIgnoreWhitespaceChanges: boolean;
   isCompact: boolean;
   isTablet: boolean;
-  activeTab: "projects" | "codex" | "git" | "log";
+  activeTab: "home" | "projects" | "codex" | "git" | "log";
   tabletTab: "codex" | "git" | "log";
-  setActiveTab: (tab: "projects" | "codex" | "git" | "log") => void;
+  setActiveTab: (tab: "home" | "projects" | "codex" | "git" | "log") => void;
   prDiffs: GitHubPullRequestDiff[];
   prDiffsLoading: boolean;
   prDiffsError: string | null;

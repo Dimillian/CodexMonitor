@@ -102,7 +102,8 @@ fn spawn_terminal_reader(
                                     pending.drain(..invalid_len.min(pending.len()));
                                     continue;
                                 }
-                                let chunk = String::from_utf8_lossy(&pending[..valid_up_to]).to_string();
+                                let chunk =
+                                    String::from_utf8_lossy(&pending[..valid_up_to]).to_string();
                                 if !chunk.is_empty() {
                                     let payload = TerminalOutput {
                                         workspace_id: workspace_id.clone(),
@@ -223,9 +224,7 @@ pub(crate) async fn terminal_open(
     let event_sink = TauriEventSink::new(app);
     spawn_terminal_reader(event_sink, workspace_id, terminal_id, reader);
 
-    Ok(TerminalSessionInfo {
-        id: session_id,
-    })
+    Ok(TerminalSessionInfo { id: session_id })
 }
 
 #[tauri::command]

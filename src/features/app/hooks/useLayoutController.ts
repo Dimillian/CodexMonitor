@@ -12,7 +12,7 @@ export function useLayoutController({
   toggleTerminalShortcut,
 }: {
   activeWorkspaceId: string | null;
-  setActiveTab: (tab: "projects" | "codex" | "git" | "log") => void;
+  setActiveTab: (tab: "home" | "projects" | "codex" | "git" | "log") => void;
   setDebugOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
   toggleDebugPanelShortcut: string | null;
   toggleTerminalShortcut: string | null;

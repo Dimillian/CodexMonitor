@@ -1,8 +1,14 @@
 pub(crate) mod account;
+pub(crate) mod codex_aux_core;
+pub(crate) mod codex_update_core;
 pub(crate) mod codex_core;
 pub(crate) mod files_core;
 pub(crate) mod git_core;
+pub(crate) mod git_ui_core;
+pub(crate) mod local_usage_core;
+pub(crate) mod orbit_core;
 pub(crate) mod process_core;
+pub(crate) mod prompts_core;
 pub(crate) mod settings_core;
-pub(crate) mod worktree_core;
 pub(crate) mod workspaces_core;
+pub(crate) mod worktree_core;

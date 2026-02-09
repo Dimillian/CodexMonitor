@@ -10,6 +10,7 @@ import { sendNotification } from "../../../services/tauri";
 import type { DebugEntry } from "../../../types";
 
 type Params = {
+  enabled?: boolean;
   notificationSoundsEnabled: boolean;
   systemNotificationsEnabled: boolean;
   getWorkspaceName?: (workspaceId: string) => string | undefined;
@@ -20,6 +21,7 @@ type Params = {
 };
 
 export function useUpdaterController({
+  enabled = true,
   notificationSoundsEnabled,
   systemNotificationsEnabled,
   getWorkspaceName,
@@ -29,6 +31,7 @@ export function useUpdaterController({
   errorSoundUrl,
 }: Params) {
   const { state: updaterState, startUpdate, checkForUpdates, dismiss } = useUpdater({
+    enabled,
     onDebug,
   });
   const isWindowFocused = useWindowFocusState();
@@ -50,9 +53,13 @@ export function useUpdaterController({
     [onDebug],
   );
 
-  useTauriEvent(subscribeUpdaterCheckEvent, () => {
-    void checkForUpdates({ announceNoUpdate: true });
-  });
+  useTauriEvent(
+    subscribeUpdaterCheckEvent,
+    () => {
+      void checkForUpdates({ announceNoUpdate: true });
+    },
+    { enabled },
+  );
 
   useAgentSoundNotifications({
     enabled: notificationSoundsEnabled,

@@ -13,8 +13,8 @@ use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::timeout;
 
 use crate::backend::events::{AppServerEvent, EventSink};
-use crate::shared::process_core::{kill_child_process_tree, tokio_command};
 use crate::codex::args::parse_codex_args;
+use crate::shared::process_core::{kill_child_process_tree, tokio_command};
 use crate::types::WorkspaceEntry;
 
 #[cfg(target_os = "windows")]
@@ -110,14 +110,18 @@ pub(crate) fn build_codex_path_env(codex_bin: Option<&str>) -> Option<String> {
 
     #[cfg(not(target_os = "windows"))]
     {
-        extras.extend([
-            "/opt/homebrew/bin",
-            "/usr/local/bin",
-            "/usr/bin",
-            "/bin",
-            "/usr/sbin",
-            "/sbin",
-        ].into_iter().map(PathBuf::from));
+        extras.extend(
+            [
+                "/opt/homebrew/bin",
+                "/usr/local/bin",
+                "/usr/bin",
+                "/bin",
+                "/usr/sbin",
+                "/sbin",
+            ]
+            .into_iter()
+            .map(PathBuf::from),
+        );
 
         if let Ok(home) = env::var("HOME") {
             let home_path = Path::new(&home);
@@ -237,16 +241,14 @@ pub(crate) fn build_codex_command_with_bin(
 pub(crate) async fn check_codex_installation(
     codex_bin: Option<String>,
 ) -> Result<Option<String>, String> {
-    let mut command =
-        build_codex_command_with_bin(codex_bin, None, vec!["--version".to_string()])?;
+    let mut command = build_codex_command_with_bin(codex_bin, None, vec!["--version".to_string()])?;
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
 
     let output = match timeout(Duration::from_secs(5), command.output()).await {
         Ok(result) => result.map_err(|e| {
             if e.kind() == ErrorKind::NotFound {
-                "Codex CLI not found. Install Codex and ensure `codex` is on your PATH."
-                    .to_string()
+                "Codex CLI not found. Install Codex and ensure `codex` is on your PATH.".to_string()
             } else {
                 e.to_string()
             }
@@ -269,8 +271,7 @@ pub(crate) async fn check_codex_installation(
         };
         if detail.is_empty() {
             return Err(
-                "Codex CLI failed to start. Try running `codex --version` in Terminal."
-                    .to_string(),
+                "Codex CLI failed to start. Try running `codex --version` in Terminal.".to_string(),
             );
         }
         return Err(format!(
@@ -279,7 +280,11 @@ pub(crate) async fn check_codex_installation(
     }
 
     let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    Ok(if version.is_empty() { None } else { Some(version) })
+    Ok(if version.is_empty() {
+        None
+    } else {
+        Some(version)
+    })
 }
 
 pub(crate) async fn spawn_workspace_session<E: EventSink>(

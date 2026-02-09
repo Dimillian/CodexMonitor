@@ -1,6 +1,6 @@
 [package]
 name = "codex-monitor"
-version = "0.1.0"
+version = "0.7.49"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -22,21 +22,22 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2.10.1", features = ["protocol-asset", "macos-private-api"] }
+tauri = { version = "2", features = ["protocol-asset", "macos-private-api"] }
 tauri-plugin-liquid-glass = "0.1"
-tauri-plugin-notification = "2.3.3"
-tauri-plugin-opener = "2.0.0"
-tauri-plugin-process = "2.3.1"
+tauri-plugin-notification = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-process = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["fs", "net", "io-util", "process", "rt", "sync", "time"] }
+futures-util = "0.3"
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
 uuid = { version = "1", features = ["v4"] }
-tauri-plugin-dialog = "2.6.0"
-git2 = "0.20.3"
+tauri-plugin-dialog = "2"
+git2 = { version = "0.20.3", features = ["vendored-openssl", "vendored-libgit2"] }
 base64 = "0.22"
 fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs" }
 ignore = "0.4.25"
-portable-pty = "0.8"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
 libc = "0.2"
 chrono = { version = "0.4", features = ["clock"] }
@@ -44,11 +45,12 @@ shell-words = "1.1"
 toml = "0.8"
 
 [target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
-tauri-plugin-updater = "2.10.0"
-tauri-plugin-window-state = "2.0.0"
+tauri-plugin-updater = "2"
+tauri-plugin-window-state = "2"
 cpal = "0.15"
 whisper-rs = "0.12"
 sha2 = "0.10"
+portable-pty = "0.8"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 objc2 = "0.6"
@@ -56,3 +58,6 @@ objc2-app-kit = { version = "0.3", features = ["NSAppearance", "NSResponder", "N
 objc2-foundation = { version = "0.3", features = ["NSString"] }
 objc2-av-foundation = { version = "0.3", features = ["AVCaptureDevice", "AVMediaFormat"] }
 block2 = "0.6"
+
+[target."cfg(target_os = \"ios\")".dependencies]
+objc2 = "0.6"

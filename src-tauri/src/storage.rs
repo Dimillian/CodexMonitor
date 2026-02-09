@@ -47,8 +47,7 @@ mod tests {
 
     #[test]
     fn write_read_workspaces_persists_sort_and_group() {
-        let temp_dir =
-            std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&temp_dir).expect("create temp dir");
         let path = temp_dir.join("workspaces.json");
 

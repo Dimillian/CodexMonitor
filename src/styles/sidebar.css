@@ -234,6 +234,45 @@
   color: var(--text-muted);
 }
 
+.sidebar-refresh-toggle {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.sidebar-refresh-toggle svg {
+  width: 14px;
+  height: 14px;
+}
+
+.sidebar-refresh-icon.spinning {
+  animation: sidebar-refresh-spin 0.8s linear infinite;
+}
+
+.sidebar-refresh-toggle:hover,
+.sidebar-refresh-toggle:focus-visible {
+  color: var(--text-strong);
+  background: var(--surface-hover);
+  transform: none;
+  box-shadow: none;
+}
+
+.sidebar-refresh-toggle:disabled {
+  opacity: 0.55;
+}
+
+@keyframes sidebar-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .sidebar-search-toggle svg {
   width: 14px;
   height: 14px;

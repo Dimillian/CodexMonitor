@@ -6,7 +6,7 @@ type UseWorkspaceSelectionOptions = {
   workspaces: WorkspaceInfo[];
   isCompact: boolean;
   activeWorkspaceId: string | null;
-  setActiveTab: (tab: "projects" | "codex" | "git" | "log") => void;
+  setActiveTab: (tab: "home" | "projects" | "codex" | "git" | "log") => void;
   setActiveWorkspaceId: (workspaceId: string | null) => void;
   updateWorkspaceSettings: (
     workspaceId: string,
@@ -77,7 +77,7 @@ export function useWorkspaceSelection({
     setSelectedDiffPath(null);
     setActiveWorkspaceId(null);
     if (isCompact) {
-      setActiveTab("projects");
+      setActiveTab("home");
     }
   }, [exitDiffView, isCompact, setActiveTab, setActiveWorkspaceId, setSelectedDiffPath]);
 

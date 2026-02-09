@@ -96,9 +96,7 @@ fn is_lock_stale(path: &Path, stale_after: Duration) -> bool {
 
 fn format_prefix_rule(pattern: &[String]) -> String {
     let items = format_pattern_list(pattern);
-    format!(
-        "prefix_rule(\n    pattern = [{items}],\n    decision = \"allow\",\n)\n"
-    )
+    format!("prefix_rule(\n    pattern = [{items}],\n    decision = \"allow\",\n)\n")
 }
 
 fn format_pattern_list(pattern: &[String]) -> String {

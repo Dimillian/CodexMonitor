@@ -7,19 +7,11 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Dependencies
-node_modules/
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
-
-# Build outputs
-dist/
-dist-ssr/
+node_modules
+dist
+dist-ssr
 *.local
-src-tauri/target/
-src-tauri/release/
-src-tauri/Cargo.lock
+.testflight.local.env
 
 # Editor directories and files
 .vscode/*
@@ -31,47 +23,11 @@ src-tauri/Cargo.lock
 *.njsproj
 *.sln
 *.sw?
-
-# Temporary and cache files
-*.tmp
-*.temp
-.cache/
-.temp/
-.tmp/
-*.swp
-
-# Release artifacts
 /release-artifacts
 CodexMonitor.zip
-*.msi
-*.exe
-
-# Codex monitor specific
 .codex-worktrees/
 .codexmonitor/
 public/assets/material-icons/
-.omc/
 
-# Environment and credentials
-.env
-.env.local
-.env.*.local
-*.pem
-*.pfx
-*.key
-*.cert
-
-# OS files
-Thumbs.db
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-
-# Test output files
-test-results.txt
-test-final-verification.txt
-test_output.txt
-test-*.txt
+# Nix
+result

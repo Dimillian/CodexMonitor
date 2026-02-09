@@ -90,7 +90,9 @@ fn read_feature_flag(key: &str) -> Result<Option<bool>, String> {
         return Ok(None);
     };
     let contents = read_config_contents_from_root(&root)?;
-    Ok(contents.as_deref().and_then(|value| find_feature_flag(value, key)))
+    Ok(contents
+        .as_deref()
+        .and_then(|value| find_feature_flag(value, key)))
 }
 
 fn write_feature_flag(key: &str, enabled: bool) -> Result<(), String> {
@@ -340,9 +342,7 @@ impl<T> RetainWithIndex<T> for Vec<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        parse_personality_from_toml, remove_top_level_key, upsert_top_level_string_key,
-    };
+    use super::{parse_personality_from_toml, remove_top_level_key, upsert_top_level_string_key};
 
     #[test]
     fn parse_personality_reads_supported_values() {
@@ -354,21 +354,30 @@ mod tests {
             parse_personality_from_toml("personality = \"pragmatic\"\n"),
             Some("pragmatic")
         );
-        assert_eq!(parse_personality_from_toml("personality = \"unknown\"\n"), None);
+        assert_eq!(
+            parse_personality_from_toml("personality = \"unknown\"\n"),
+            None
+        );
     }
 
     #[test]
     fn upsert_top_level_personality_before_tables() {
         let input = "[features]\nsteer = true\n";
         let updated = upsert_top_level_string_key(input, "personality", "friendly");
-        assert_eq!(updated, "personality = \"friendly\"\n[features]\nsteer = true\n");
+        assert_eq!(
+            updated,
+            "personality = \"friendly\"\n[features]\nsteer = true\n"
+        );
     }
 
     #[test]
     fn upsert_replaces_existing_top_level_personality() {
         let input = "personality = \"friendly\"\n[features]\nsteer = true\n";
         let updated = upsert_top_level_string_key(input, "personality", "pragmatic");
-        assert_eq!(updated, "personality = \"pragmatic\"\n[features]\nsteer = true\n");
+        assert_eq!(
+            updated,
+            "personality = \"pragmatic\"\n[features]\nsteer = true\n"
+        );
     }
 
     #[test]

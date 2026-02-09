@@ -78,13 +78,13 @@ pub(crate) fn read_text_file_within(
         return Err(format!("Invalid {file_context} path"));
     }
 
-    let mut file =
-        File::open(&canonical_path).map_err(|err| format!("Failed to open {file_context}: {err}"))?;
+    let mut file = File::open(&canonical_path)
+        .map_err(|err| format!("Failed to open {file_context}: {err}"))?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)
         .map_err(|err| format!("Failed to read {file_context}: {err}"))?;
-    let content = String::from_utf8(buffer)
-        .map_err(|_| format!("{file_context} is not valid UTF-8"))?;
+    let content =
+        String::from_utf8(buffer).map_err(|_| format!("{file_context} is not valid UTF-8"))?;
 
     Ok(TextFileResponse {
         exists: true,
@@ -159,17 +159,19 @@ mod tests {
     #[test]
     fn write_creates_root_and_round_trips() {
         let root = temp_dir();
-        write_text_file_within(&root, "AGENTS.md", "hello", true, "CODEX_HOME", "AGENTS.md", false)
-            .expect("write should succeed");
-        let response = read_text_file_within(
+        write_text_file_within(
             &root,
             "AGENTS.md",
-            false,
+            "hello",
+            true,
             "CODEX_HOME",
             "AGENTS.md",
             false,
         )
-        .expect("read should succeed");
+        .expect("write should succeed");
+        let response =
+            read_text_file_within(&root, "AGENTS.md", false, "CODEX_HOME", "AGENTS.md", false)
+                .expect("read should succeed");
         assert!(response.exists);
         assert_eq!(response.content, "hello");
     }
@@ -219,9 +221,15 @@ mod tests {
         let link_path = root.join("AGENTS.md");
         symlink(&outside_file, &link_path).expect("create symlink");
 
-        let error =
-            read_text_file_within(&root, "AGENTS.md", false, "workspace root", "AGENTS.md", false)
-                .expect_err("should reject symlink escape");
+        let error = read_text_file_within(
+            &root,
+            "AGENTS.md",
+            false,
+            "workspace root",
+            "AGENTS.md",
+            false,
+        )
+        .expect_err("should reject symlink escape");
         assert!(error.contains("Invalid AGENTS.md path"));
     }
 

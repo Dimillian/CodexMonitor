@@ -14,15 +14,28 @@ import {
   readGlobalAgentsMd,
   readGlobalCodexConfigToml,
   listWorkspaces,
+  orbitConnectTest,
+  orbitRunnerStart,
+  orbitRunnerStatus,
+  orbitRunnerStop,
+  orbitSignInPoll,
+  orbitSignInStart,
+  orbitSignOut,
   openWorkspaceIn,
   readAgentMd,
   stageGitAll,
   respondToServerRequest,
   respondToUserInputRequest,
   sendUserMessage,
+  steerTurn,
   sendNotification,
   startReview,
   setThreadName,
+  tailscaleDaemonStart,
+  tailscaleDaemonCommandPreview,
+  tailscaleDaemonStatus,
+  tailscaleDaemonStop,
+  tailscaleStatus,
   writeGlobalAgentsMd,
   writeGlobalCodexConfigToml,
   writeAgentMd,
@@ -221,6 +234,46 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
+  it("invokes orbit remote auth/runner wrappers", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValue(undefined);
+
+    await orbitConnectTest();
+    await orbitSignInStart();
+    await orbitSignInPoll("device-code");
+    await orbitSignOut();
+    await orbitRunnerStart();
+    await orbitRunnerStop();
+    await orbitRunnerStatus();
+
+    expect(invokeMock).toHaveBeenCalledWith("orbit_connect_test");
+    expect(invokeMock).toHaveBeenCalledWith("orbit_sign_in_start");
+    expect(invokeMock).toHaveBeenCalledWith("orbit_sign_in_poll", {
+      deviceCode: "device-code",
+    });
+    expect(invokeMock).toHaveBeenCalledWith("orbit_sign_out");
+    expect(invokeMock).toHaveBeenCalledWith("orbit_runner_start");
+    expect(invokeMock).toHaveBeenCalledWith("orbit_runner_stop");
+    expect(invokeMock).toHaveBeenCalledWith("orbit_runner_status");
+  });
+
+  it("invokes tailscale wrappers", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValue(undefined);
+
+    await tailscaleStatus();
+    await tailscaleDaemonCommandPreview();
+    await tailscaleDaemonStart();
+    await tailscaleDaemonStop();
+    await tailscaleDaemonStatus();
+
+    expect(invokeMock).toHaveBeenCalledWith("tailscale_status");
+    expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_command_preview");
+    expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_start");
+    expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_stop");
+    expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_status");
+  });
+
   it("reads agent.md for a workspace", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({ exists: true, content: "# Agent", truncated: false });
@@ -318,6 +371,21 @@ describe("tauri invoke wrappers", () => {
       model: null,
       effort: null,
       accessMode: "full-access",
+      images: ["image.png"],
+    });
+  });
+
+  it("invokes turn_steer for steer payloads", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await steerTurn("ws-4", "thread-1", "turn-2", "continue", ["image.png"]);
+
+    expect(invokeMock).toHaveBeenCalledWith("turn_steer", {
+      workspaceId: "ws-4",
+      threadId: "thread-1",
+      turnId: "turn-2",
+      text: "continue",
       images: ["image.png"],
     });
   });

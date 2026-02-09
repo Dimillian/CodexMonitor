@@ -28,6 +28,39 @@ export function isWindowsPlatform(): boolean {
   return platformKind() === "windows";
 }
 
+export function isMobilePlatform(): boolean {
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+  const platform =
+    (navigator as Navigator & { userAgentData?: { platform?: string } })
+      .userAgentData?.platform ?? navigator.platform ?? "";
+  const normalizedPlatform = platform.toLowerCase();
+  const userAgent = (navigator.userAgent ?? "").toLowerCase();
+  const maxTouchPoints =
+    typeof (navigator as Navigator).maxTouchPoints === "number"
+      ? (navigator as Navigator).maxTouchPoints
+      : 0;
+  const hasTouch = maxTouchPoints > 0;
+  const hasMobileUserAgentToken =
+    userAgent.includes("mobile") ||
+    userAgent.includes("iphone") ||
+    userAgent.includes("ipad") ||
+    userAgent.includes("ipod") ||
+    userAgent.includes("android");
+  const iPadDesktopMode =
+    normalizedPlatform.includes("mac") &&
+    hasTouch &&
+    (hasMobileUserAgentToken || userAgent.includes("like mac os x"));
+  return (
+    normalizedPlatform.includes("iphone") ||
+    normalizedPlatform.includes("ipad") ||
+    normalizedPlatform.includes("android") ||
+    hasMobileUserAgentToken ||
+    iPadDesktopMode
+  );
+}
+
 export function fileManagerName(): string {
   const platform = platformKind();
   if (platform === "mac") {

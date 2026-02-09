@@ -5,8 +5,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::sync::{Mutex, oneshot};
 use tokio::sync::oneshot::error::TryRecvError;
+use tokio::sync::{oneshot, Mutex};
 use tokio::time::timeout;
 use tokio::time::Instant;
 
@@ -102,7 +102,14 @@ pub(crate) async fn list_threads_core(
     sort_key: Option<String>,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let params = json!({ "cursor": cursor, "limit": limit, "sortKey": sort_key });
+    let params = json!({
+        "cursor": cursor,
+        "limit": limit,
+        "sortKey": sort_key,
+        // Keep spawned sub-agent sessions visible in thread/list so UI refreshes
+        // do not drop parent -> child sidebar relationships.
+        "sourceKinds": ["cli", "vscode", "subAgentThreadSpawn"]
+    });
     session.send_request("thread/list", params).await
 }
 
@@ -148,6 +155,34 @@ pub(crate) async fn set_thread_name_core(
     session.send_request("thread/name/set", params).await
 }
 
+fn build_turn_input_items(text: String, images: Option<Vec<String>>) -> Result<Vec<Value>, String> {
+    let trimmed_text = text.trim();
+    let mut input: Vec<Value> = Vec::new();
+    if !trimmed_text.is_empty() {
+        input.push(json!({ "type": "text", "text": trimmed_text }));
+    }
+    if let Some(paths) = images {
+        for path in paths {
+            let trimmed = path.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            if trimmed.starts_with("data:")
+                || trimmed.starts_with("http://")
+                || trimmed.starts_with("https://")
+            {
+                input.push(json!({ "type": "image", "url": trimmed }));
+            } else {
+                input.push(json!({ "type": "localImage", "path": trimmed }));
+            }
+        }
+    }
+    if input.is_empty() {
+        return Err("empty user message".to_string());
+    }
+    Ok(input)
+}
+
 pub(crate) async fn send_user_message_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspace_id: String,
@@ -177,30 +212,7 @@ pub(crate) async fn send_user_message_core(
         "on-request"
     };
 
-    let trimmed_text = text.trim();
-    let mut input: Vec<Value> = Vec::new();
-    if !trimmed_text.is_empty() {
-        input.push(json!({ "type": "text", "text": trimmed_text }));
-    }
-    if let Some(paths) = images {
-        for path in paths {
-            let trimmed = path.trim();
-            if trimmed.is_empty() {
-                continue;
-            }
-            if trimmed.starts_with("data:")
-                || trimmed.starts_with("http://")
-                || trimmed.starts_with("https://")
-            {
-                input.push(json!({ "type": "image", "url": trimmed }));
-            } else {
-                input.push(json!({ "type": "localImage", "path": trimmed }));
-            }
-        }
-    }
-    if input.is_empty() {
-        return Err("empty user message".to_string());
-    }
+    let input = build_turn_input_items(text, images)?;
 
     let mut params = Map::new();
     params.insert("threadId".to_string(), json!(thread_id));
@@ -218,6 +230,27 @@ pub(crate) async fn send_user_message_core(
     session
         .send_request("turn/start", Value::Object(params))
         .await
+}
+
+pub(crate) async fn turn_steer_core(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspace_id: String,
+    thread_id: String,
+    turn_id: String,
+    text: String,
+    images: Option<Vec<String>>,
+) -> Result<Value, String> {
+    if turn_id.trim().is_empty() {
+        return Err("missing active turn id".to_string());
+    }
+    let session = get_session_clone(sessions, &workspace_id).await?;
+    let input = build_turn_input_items(text, images)?;
+    let params = json!({
+        "threadId": thread_id,
+        "expectedTurnId": turn_id,
+        "input": input
+    });
+    session.send_request("turn/steer", params).await
 }
 
 pub(crate) async fn collaboration_mode_list_core(
@@ -318,14 +351,16 @@ pub(crate) async fn codex_login_core(
                 CodexLoginCancelState::LoginId(_) => {}
             }
         }
-        cancels.insert(workspace_id.clone(), CodexLoginCancelState::PendingStart(cancel_tx));
+        cancels.insert(
+            workspace_id.clone(),
+            CodexLoginCancelState::PendingStart(cancel_tx),
+        );
     }
 
     let start = Instant::now();
     let mut cancel_rx = cancel_rx;
-    let mut login_request: Pin<Box<_>> = Box::pin(
-        session.send_request("account/login/start", json!({ "type": "chatgpt" })),
-    );
+    let mut login_request: Pin<Box<_>> =
+        Box::pin(session.send_request("account/login/start", json!({ "type": "chatgpt" })));
 
     let response = loop {
         match cancel_rx.try_recv() {
@@ -375,7 +410,10 @@ pub(crate) async fn codex_login_core(
 
     {
         let mut cancels = codex_login_cancels.lock().await;
-        cancels.insert(workspace_id, CodexLoginCancelState::LoginId(login_id.clone()));
+        cancels.insert(
+            workspace_id,
+            CodexLoginCancelState::LoginId(login_id.clone()),
+        );
     }
 
     Ok(json!({

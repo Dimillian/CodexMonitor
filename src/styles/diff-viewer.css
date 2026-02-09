@@ -8,7 +8,7 @@
   flex: 1;
   min-height: 0;
   min-width: 0;
-  background: color-mix(in srgb, var(--surface-messages) 92%, #000);
+  background: var(--surface-messages);
 }
 
 .main .diff-viewer {
@@ -361,9 +361,30 @@
 }
 
 .diff-viewer-path {
-  color: var(--text-emphasis);
-  word-break: break-word;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
   flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.diff-viewer-name {
+  color: var(--text-emphasis);
+  font-weight: 600;
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diff-viewer-dir {
+  color: var(--text-faint);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   min-width: 0;
 }
 

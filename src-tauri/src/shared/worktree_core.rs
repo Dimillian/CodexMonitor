@@ -42,7 +42,10 @@ pub(crate) fn unique_worktree_path_best_effort(base_dir: &PathBuf, name: &str) -
     candidate
 }
 
-pub(crate) fn unique_worktree_path_strict(base_dir: &PathBuf, name: &str) -> Result<PathBuf, String> {
+pub(crate) fn unique_worktree_path_strict(
+    base_dir: &PathBuf,
+    name: &str,
+) -> Result<PathBuf, String> {
     let candidate = base_dir.join(name);
     if !candidate.exists() {
         return Ok(candidate);

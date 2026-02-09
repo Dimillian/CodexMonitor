@@ -15,6 +15,7 @@
   text-align: left;
   padding: 36px 32px 24px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .home-hero {
@@ -52,6 +53,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
 }
 
 .home-section-title {
@@ -70,6 +72,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .home-usage-controls {
@@ -84,6 +87,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .home-usage-control-label {
@@ -100,6 +104,8 @@
   border-radius: 999px;
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .home-usage-select {
@@ -349,6 +355,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
 }
 
 .home-usage-model-chip {
@@ -361,6 +368,10 @@
   color: var(--text-stronger);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-subtle);
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .home-usage-model-share {
@@ -643,6 +654,14 @@
   .home-usage-select {
     max-width: 100%;
   }
+
+  .home-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .home-button {
+    white-space: normal;
+  }
 }
 
 .home-actions {
@@ -655,6 +674,7 @@
 
 .home-button {
   width: 100%;
+  min-width: 0;
   justify-content: center;
   display: inline-flex;
   align-items: center;

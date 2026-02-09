@@ -54,20 +54,20 @@ mod tests {
     #[test]
     fn parses_empty_args() {
         assert!(parse_codex_args(None).expect("parse none").is_empty());
-        assert!(parse_codex_args(Some("   ")).expect("parse blanks").is_empty());
+        assert!(parse_codex_args(Some("   "))
+            .expect("parse blanks")
+            .is_empty());
     }
 
     #[test]
     fn parses_simple_args() {
-        let args =
-            parse_codex_args(Some("--profile personal --flag")).expect("parse args");
+        let args = parse_codex_args(Some("--profile personal --flag")).expect("parse args");
         assert_eq!(args, vec!["--profile", "personal", "--flag"]);
     }
 
     #[test]
     fn parses_quoted_args() {
-        let args =
-            parse_codex_args(Some("--path \"a b\" --name='c d'")).expect("parse args");
+        let args = parse_codex_args(Some("--path \"a b\" --name='c d'")).expect("parse args");
         assert_eq!(args, vec!["--path", "a b", "--name=c d"]);
     }
 

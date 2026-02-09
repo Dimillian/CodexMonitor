@@ -3,7 +3,10 @@ use std::path::PathBuf;
 use crate::files::io::{read_text_file_within, write_text_file_within, TextFileResponse};
 use crate::files::policy::FilePolicy;
 
-pub(crate) fn read_with_policy(root: &PathBuf, policy: FilePolicy) -> Result<TextFileResponse, String> {
+pub(crate) fn read_with_policy(
+    root: &PathBuf,
+    policy: FilePolicy,
+) -> Result<TextFileResponse, String> {
     read_text_file_within(
         root,
         policy.filename,
