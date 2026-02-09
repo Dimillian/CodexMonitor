@@ -575,8 +575,14 @@ pub(crate) async fn get_commit_message_prompt(
         return Err("No changes to generate commit message for".to_string());
     }
 
+    let commit_message_prompt = {
+        let settings = state.app_settings.lock().await;
+        settings.commit_message_prompt.clone()
+    };
+
     Ok(crate::shared::codex_aux_core::build_commit_message_prompt(
         &diff,
+        &commit_message_prompt,
     ))
 }
 
@@ -632,7 +638,14 @@ pub(crate) async fn generate_commit_message(
         return Err("No changes to generate commit message for".to_string());
     }
 
-    let prompt = crate::shared::codex_aux_core::build_commit_message_prompt(&diff);
+    let commit_message_prompt = {
+        let settings = state.app_settings.lock().await;
+        settings.commit_message_prompt.clone()
+    };
+    let prompt = crate::shared::codex_aux_core::build_commit_message_prompt(
+        &diff,
+        &commit_message_prompt,
+    );
     let response = crate::shared::codex_aux_core::run_background_prompt_core(
         &state.sessions,
         workspace_id,

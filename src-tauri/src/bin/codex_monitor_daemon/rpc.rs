@@ -151,6 +151,7 @@ pub(super) async fn handle_rpc_request(
 ) -> Result<Value, String> {
     match method {
         "ping" => Ok(json!({ "ok": true })),
+        "daemon_info" => Ok(state.daemon_info()),
         "daemon_shutdown" => {
             tokio::spawn(async {
                 sleep(Duration::from_millis(100)).await;

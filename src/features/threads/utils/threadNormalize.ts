@@ -73,9 +73,12 @@ export function extractReviewThreadId(response: unknown): string | null {
   return threadId || null;
 }
 
-export function normalizeTokenUsage(raw: Record<string, unknown>): ThreadTokenUsage {
-  const total = (raw.total as Record<string, unknown>) ?? {};
-  const last = (raw.last as Record<string, unknown>) ?? {};
+export function normalizeTokenUsage(
+  raw: Record<string, unknown> | null | undefined,
+): ThreadTokenUsage {
+  const source = raw ?? {};
+  const total = (source.total as Record<string, unknown>) ?? {};
+  const last = (source.last as Record<string, unknown>) ?? {};
   return {
     total: {
       totalTokens: asNumber(total.totalTokens ?? total.total_tokens),
@@ -98,7 +101,7 @@ export function normalizeTokenUsage(raw: Record<string, unknown>): ThreadTokenUs
       ),
     },
     modelContextWindow: (() => {
-      const value = raw.modelContextWindow ?? raw.model_context_window;
+      const value = source.modelContextWindow ?? source.model_context_window;
       if (typeof value === "number") {
         return value;
       }

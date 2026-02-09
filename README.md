@@ -114,7 +114,7 @@ rustup target add x86_64-apple-ios
 ```
 
 - Apple signing configured (development team).
-  - Set `bundle.iOS.developmentTeam` in `src-tauri/tauri.conf.json`, or
+  - Set `bundle.iOS.developmentTeam` in `src-tauri/tauri.ios.conf.json` (preferred), or
   - pass `--team <TEAM_ID>` to the device script.
 
 ### Run on iOS Simulator
@@ -161,6 +161,17 @@ If signing is not ready yet, open Xcode from the script flow:
 ```bash
 ./scripts/build_run_ios_device.sh --open-xcode
 ```
+
+### iOS TestFlight Release (Scripted)
+
+Use the end-to-end script to archive, upload, configure compliance, assign beta group, and submit for beta review.
+
+```bash
+./scripts/release_testflight_ios.sh
+```
+
+The script auto-loads release metadata from `.testflight.local.env` (gitignored).
+For new setups, copy `.testflight.local.env.example` to `.testflight.local.env` and fill values.
 
 ## Release Build
 

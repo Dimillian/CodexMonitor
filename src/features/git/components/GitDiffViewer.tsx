@@ -14,6 +14,7 @@ import {
 } from "../../design-system/diff/diffViewerTheme";
 import { Markdown } from "../../messages/components/Markdown";
 import { ImageDiffCard } from "./ImageDiffCard";
+import { splitPath } from "./GitDiffPanel.utils";
 
 type GitDiffViewerItem = {
   path: string;
@@ -71,6 +72,8 @@ const DiffCard = memo(function DiffCard({
   showRevert,
   onRequestRevert,
 }: DiffCardProps) {
+  const { name: fileName, dir } = useMemo(() => splitPath(entry.path), [entry.path]);
+  const displayDir = dir ? `${dir}/` : "";
   const diffOptions = useMemo(
     () => ({
       diffStyle,
@@ -123,7 +126,10 @@ const DiffCard = memo(function DiffCard({
         <span className="diff-viewer-status" data-status={entry.status}>
           {entry.status}
         </span>
-        <span className="diff-viewer-path">{entry.path}</span>
+        <span className="diff-viewer-path" title={entry.path}>
+          <span className="diff-viewer-name">{fileName}</span>
+          {displayDir && <span className="diff-viewer-dir">{displayDir}</span>}
+        </span>
         {showRevert && (
           <button
             type="button"
@@ -427,6 +433,13 @@ export function GitDiffViewer({
     }
     return diffs[0];
   }, [diffs, selectedPath, indexByPath]);
+  const stickyPathDisplay = useMemo(() => {
+    if (!stickyEntry) {
+      return null;
+    }
+    const { name, dir } = splitPath(stickyEntry.path);
+    return { fileName: name, displayDir: dir ? `${dir}/` : "" };
+  }, [stickyEntry]);
 
   const showRevert = canRevert && Boolean(onRevertFile);
   const handleRequestRevert = useCallback(
@@ -608,7 +621,14 @@ export function GitDiffViewer({
               >
                 {stickyEntry.status}
               </span>
-              <span className="diff-viewer-path">{stickyEntry.path}</span>
+              <span className="diff-viewer-path" title={stickyEntry.path}>
+                <span className="diff-viewer-name">
+                  {stickyPathDisplay?.fileName ?? stickyEntry.path}
+                </span>
+                {stickyPathDisplay?.displayDir && (
+                  <span className="diff-viewer-dir">{stickyPathDisplay.displayDir}</span>
+                )}
+              </span>
               {showRevert && (
                 <button
                   type="button"

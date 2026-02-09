@@ -36,6 +36,7 @@ import {
   clampCodeFontSize,
   normalizeFontFamily,
 } from "../../../utils/fonts";
+import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "../../../utils/commitMessagePrompt";
 import { useGlobalAgentsMd } from "../hooks/useGlobalAgentsMd";
 import { useGlobalCodexConfigToml } from "../hooks/useGlobalCodexConfigToml";
 import { useSettingsOpenAppDrafts } from "../hooks/useSettingsOpenAppDrafts";
@@ -75,6 +76,22 @@ import {
   normalizeWorktreeSetupScript,
   type OrbitActionResult,
 } from "./settingsViewHelpers";
+
+const formatErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string") {
+      return message;
+    }
+  }
+  return fallback;
+};
 
 export type SettingsViewProps = {
   workspaceGroups: WorkspaceGroup[];
@@ -192,6 +209,10 @@ export function SettingsView({
   );
   const [orbitAccessClientSecretRefDraft, setOrbitAccessClientSecretRefDraft] =
     useState(appSettings.orbitAccessClientSecretRef ?? "");
+  const [commitMessagePromptDraft, setCommitMessagePromptDraft] = useState(
+    appSettings.commitMessagePrompt,
+  );
+  const [commitMessagePromptSaving, setCommitMessagePromptSaving] = useState(false);
   const [orbitStatusText, setOrbitStatusText] = useState<string | null>(null);
   const [orbitAuthCode, setOrbitAuthCode] = useState<string | null>(null);
   const [orbitVerificationUrl, setOrbitVerificationUrl] = useState<string | null>(
@@ -404,6 +425,10 @@ export function SettingsView({
   }, [appSettings.orbitAccessClientSecretRef]);
 
   useEffect(() => {
+    setCommitMessagePromptDraft(appSettings.commitMessagePrompt);
+  }, [appSettings.commitMessagePrompt]);
+
+  useEffect(() => {
     setScaleDraft(`${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`);
   }, [appSettings.uiScale]);
 
@@ -430,6 +455,46 @@ export function SettingsView({
       );
     }
   }, []);
+
+  const commitMessagePromptDirty =
+    commitMessagePromptDraft !== appSettings.commitMessagePrompt;
+
+  const handleSaveCommitMessagePrompt = useCallback(async () => {
+    if (commitMessagePromptSaving || !commitMessagePromptDirty) {
+      return;
+    }
+    setCommitMessagePromptSaving(true);
+    try {
+      await onUpdateAppSettings({
+        ...appSettings,
+        commitMessagePrompt: commitMessagePromptDraft,
+      });
+    } finally {
+      setCommitMessagePromptSaving(false);
+    }
+  }, [
+    appSettings,
+    commitMessagePromptDirty,
+    commitMessagePromptDraft,
+    commitMessagePromptSaving,
+    onUpdateAppSettings,
+  ]);
+
+  const handleResetCommitMessagePrompt = useCallback(async () => {
+    if (commitMessagePromptSaving) {
+      return;
+    }
+    setCommitMessagePromptDraft(DEFAULT_COMMIT_MESSAGE_PROMPT);
+    setCommitMessagePromptSaving(true);
+    try {
+      await onUpdateAppSettings({
+        ...appSettings,
+        commitMessagePrompt: DEFAULT_COMMIT_MESSAGE_PROMPT,
+      });
+    } finally {
+      setCommitMessagePromptSaving(false);
+    }
+  }, [appSettings, commitMessagePromptSaving, onUpdateAppSettings]);
 
   useEffect(() => {
     setCodexBinOverrideDrafts((prev) =>
@@ -673,7 +738,7 @@ export function SettingsView({
         setTailscaleStatus(status);
       } catch (error) {
         setTailscaleStatusError(
-          error instanceof Error ? error.message : "Unable to load Tailscale status.",
+          formatErrorMessage(error, "Unable to load Tailscale status."),
         );
       } finally {
         setTailscaleStatusBusy(false);
@@ -690,9 +755,7 @@ export function SettingsView({
         setTailscaleCommandPreview(preview);
       } catch (error) {
         setTailscaleCommandError(
-          error instanceof Error
-            ? error.message
-            : "Unable to build Tailscale daemon command.",
+          formatErrorMessage(error, "Unable to build Tailscale daemon command."),
         );
       } finally {
         setTailscaleCommandBusy(false);
@@ -1417,6 +1480,12 @@ export function SettingsView({
             <SettingsGitSection
               appSettings={appSettings}
               onUpdateAppSettings={onUpdateAppSettings}
+              commitMessagePromptDraft={commitMessagePromptDraft}
+              commitMessagePromptDirty={commitMessagePromptDirty}
+              commitMessagePromptSaving={commitMessagePromptSaving}
+              onSetCommitMessagePromptDraft={setCommitMessagePromptDraft}
+              onSaveCommitMessagePrompt={handleSaveCommitMessagePrompt}
+              onResetCommitMessagePrompt={handleResetCommitMessagePrompt}
             />
           )}
           {activeSection === "server" && (

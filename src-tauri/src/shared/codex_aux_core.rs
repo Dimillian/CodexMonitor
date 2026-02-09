@@ -12,14 +12,23 @@ use crate::backend::app_server::{
 use crate::shared::process_core::tokio_command;
 use crate::types::AppSettings;
 
-pub(crate) fn build_commit_message_prompt(diff: &str) -> String {
-    format!(
-        "Generate a concise git commit message for the following changes. \
+const DEFAULT_COMMIT_MESSAGE_PROMPT: &str = "Generate a concise git commit message for the following changes. \
 Follow conventional commit format (e.g., feat:, fix:, refactor:, docs:, etc.). \
 Keep the summary line under 72 characters. \
 Only output the commit message, nothing else.\n\n\
-Changes:\n{diff}"
-    )
+Changes:\n{diff}";
+
+pub(crate) fn build_commit_message_prompt(diff: &str, template: &str) -> String {
+    let base = if template.trim().is_empty() {
+        DEFAULT_COMMIT_MESSAGE_PROMPT
+    } else {
+        template
+    };
+    if base.contains("{diff}") {
+        base.replace("{diff}", diff)
+    } else {
+        format!("{base}\n\nChanges:\n{diff}")
+    }
 }
 
 pub(crate) fn build_run_metadata_prompt(cleaned_prompt: &str) -> String {
