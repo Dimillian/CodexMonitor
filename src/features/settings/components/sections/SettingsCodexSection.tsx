@@ -4,6 +4,7 @@ import type {
   AppSettings,
   CodexDoctorResult,
   CodexUpdateResult,
+  ModelOption,
   WorkspaceInfo,
 } from "../../../../types";
 import { FileEditorCard } from "../../../shared/components/FileEditorCard";
@@ -11,6 +12,12 @@ import { FileEditorCard } from "../../../shared/components/FileEditorCard";
 type SettingsCodexSectionProps = {
   appSettings: AppSettings;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
+  defaultModels: ModelOption[];
+  defaultModelsConfigModel: string | null;
+  defaultModelsLoading: boolean;
+  defaultModelsError: string | null;
+  defaultModelsWorkspace: WorkspaceInfo | null;
+  onRefreshDefaultModels: () => void;
   codexPathDraft: string;
   codexArgsDraft: string;
   codexDirty: boolean;
@@ -68,9 +75,43 @@ const normalizeOverrideValue = (value: string): string | null => {
   return trimmed ? trimmed : null;
 };
 
+const normalizeEffort = (value: unknown): string | null => {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const findModelByIdOrModel = (
+  models: ModelOption[],
+  idOrModel: string | null,
+): ModelOption | null => {
+  if (!idOrModel) {
+    return null;
+  }
+  return (
+    models.find((model) => model.id === idOrModel) ??
+    models.find((model) => model.model === idOrModel) ??
+    null
+  );
+};
+
+const pickDefaultModel = (models: ModelOption[], configModel: string | null) =>
+  findModelByIdOrModel(models, configModel) ??
+  models.find((model) => model.isDefault) ??
+  models[0] ??
+  null;
+
 export function SettingsCodexSection({
   appSettings,
   onUpdateAppSettings,
+  defaultModels,
+  defaultModelsConfigModel,
+  defaultModelsLoading,
+  defaultModelsError,
+  defaultModelsWorkspace,
+  onRefreshDefaultModels,
   codexPathDraft,
   codexArgsDraft,
   codexDirty,
@@ -113,6 +154,35 @@ export function SettingsCodexSection({
   onUpdateWorkspaceCodexBin,
   onUpdateWorkspaceSettings,
 }: SettingsCodexSectionProps) {
+  const savedModelId = appSettings.lastComposerModelId;
+  const savedModel =
+    findModelByIdOrModel(defaultModels, savedModelId) ?? null;
+  const fallbackModel = pickDefaultModel(defaultModels, defaultModelsConfigModel);
+  const effectiveModel = savedModel ?? fallbackModel;
+  const effortOptions = (() => {
+    if (!effectiveModel) {
+      return [];
+    }
+    const supported = effectiveModel.supportedReasoningEfforts
+      .map((effort) => effort.reasoningEffort)
+      .filter((value) => value.trim().length > 0);
+    if (supported.length > 0) {
+      return supported;
+    }
+    const defaultEffort = normalizeEffort(effectiveModel.defaultReasoningEffort);
+    return defaultEffort ? [defaultEffort] : [];
+  })();
+  const savedEffort = normalizeEffort(appSettings.lastComposerReasoningEffort);
+  const showSavedEffortFallback =
+    Boolean(savedEffort) && !effortOptions.includes(savedEffort ?? "");
+  const showSavedModelFallback = Boolean(savedModelId) && !savedModel;
+  const hasConnectedWorkspace = projects.some((workspace) => workspace.connected);
+
+  const modelSelectDisabled = !hasConnectedWorkspace || defaultModelsLoading;
+  const effortSelectDisabled =
+    modelSelectDisabled ||
+    (effortOptions.length === 0 && !showSavedEffortFallback);
+
   return (
     <section className="settings-section">
       <div className="settings-section-title">Codex</div>
@@ -262,6 +332,97 @@ export function SettingsCodexSection({
                 </details>
               )}
             </div>
+          </div>
+        )}
+      </div>
+
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="default-model">
+          Default model
+        </label>
+        <div className="settings-field-row">
+          <select
+            id="default-model"
+            className="settings-select"
+            value={savedModelId ?? ""}
+            disabled={modelSelectDisabled}
+            onChange={(event) =>
+              void onUpdateAppSettings({
+                ...appSettings,
+                lastComposerModelId: event.target.value.trim() ? event.target.value : null,
+              })
+            }
+            aria-label="Default model"
+          >
+            <option value="">Default (auto)</option>
+            {showSavedModelFallback && (
+              <option value={savedModelId ?? ""}>
+                {savedModelId} (saved)
+              </option>
+            )}
+            {defaultModels.map((model) => (
+              <option key={model.id} value={model.id}>
+                {model.displayName || model.model}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="ghost"
+            onClick={onRefreshDefaultModels}
+            disabled={defaultModelsLoading || !hasConnectedWorkspace}
+          >
+            Refresh
+          </button>
+        </div>
+        {!hasConnectedWorkspace && (
+          <div className="settings-help">Connect a project to load available models.</div>
+        )}
+        {defaultModelsWorkspace && (
+          <div className="settings-help">
+            Loaded from <code>{defaultModelsWorkspace.name}</code>.
+          </div>
+        )}
+        {defaultModelsLoading && (
+          <div className="settings-help">Loading models…</div>
+        )}
+        {defaultModelsError && (
+          <div className="settings-help">Couldn’t load models: {defaultModelsError}</div>
+        )}
+      </div>
+
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="default-effort">
+          Default reasoning effort
+        </label>
+        <select
+          id="default-effort"
+          className="settings-select"
+          value={savedEffort ?? ""}
+          disabled={effortSelectDisabled}
+          onChange={(event) =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              lastComposerReasoningEffort: event.target.value.trim()
+                ? event.target.value
+                : null,
+            })
+          }
+          aria-label="Default reasoning effort"
+        >
+          <option value="">Default</option>
+          {showSavedEffortFallback && (
+            <option value={savedEffort ?? ""}>{savedEffort} (saved)</option>
+          )}
+          {effortOptions.map((effort) => (
+            <option key={effort} value={effort}>
+              {effort}
+            </option>
+          ))}
+        </select>
+        {effectiveModel && effortOptions.length === 0 && !showSavedEffortFallback && (
+          <div className="settings-help">
+            Selected model does not expose reasoning effort options.
           </div>
         )}
       </div>

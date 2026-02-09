@@ -11,6 +11,7 @@ import {
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { AppSettings, WorkspaceInfo } from "../../../types";
+import { getConfigModel, getModelList } from "../../../services/tauri";
 import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "../../../utils/commitMessagePrompt";
 import { SettingsView } from "./SettingsView";
 
@@ -18,6 +19,20 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
   ask: vi.fn(),
   open: vi.fn(),
 }));
+
+vi.mock("../../../services/tauri", async () => {
+  const actual = await vi.importActual<typeof import("../../../services/tauri")>(
+    "../../../services/tauri",
+  );
+  return {
+    ...actual,
+    getModelList: vi.fn(),
+    getConfigModel: vi.fn(),
+  };
+});
+
+const getModelListMock = vi.mocked(getModelList);
+const getConfigModelMock = vi.mocked(getConfigModel);
 
 const baseSettings: AppSettings = {
   codexBin: null,
@@ -678,6 +693,201 @@ describe("SettingsView Codex overrides", () => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({ reviewDeliveryMode: "detached" }),
       );
+    });
+  });
+
+  it("updates default model + effort in codex section", async () => {
+    cleanup();
+    getModelListMock.mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "gpt-4.1",
+            model: "gpt-4.1",
+            displayName: "GPT-4.1",
+            description: "Model 4.1",
+            supported_reasoning_efforts: [
+              { reasoning_effort: "low", description: "Low" },
+              { reasoning_effort: "medium", description: "Medium" },
+              { reasoning_effort: "high", description: "High" },
+            ],
+            default_reasoning_effort: "medium",
+            is_default: true,
+          },
+        ],
+      },
+    });
+    getConfigModelMock.mockResolvedValue(null);
+
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    const workspace: WorkspaceInfo = {
+      id: "w1",
+      name: "Workspace",
+      path: "/tmp/workspace",
+      connected: true,
+      codex_bin: null,
+      kind: "main",
+      parentId: null,
+      worktree: null,
+      settings: { sidebarCollapsed: false, codexArgs: null },
+    };
+
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[
+          { id: null, name: "Ungrouped", workspaces: [workspace] },
+        ]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={baseSettings}
+        openAppIconById={{}}
+        onUpdateAppSettings={onUpdateAppSettings}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
+        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="codex"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(getModelListMock).toHaveBeenCalledWith("w1");
+    });
+
+    const modelSelect = screen.getByLabelText("Default model") as HTMLSelectElement;
+    await waitFor(() => {
+      expect(modelSelect.disabled).toBe(false);
+    });
+
+    fireEvent.change(modelSelect, { target: { value: "gpt-4.1" } });
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ lastComposerModelId: "gpt-4.1" }),
+      );
+    });
+
+    const effortSelect = screen.getByLabelText(
+      "Default reasoning effort",
+    ) as HTMLSelectElement;
+    await waitFor(() => {
+      expect(effortSelect.disabled).toBe(false);
+    });
+    fireEvent.change(effortSelect, { target: { value: "high" } });
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ lastComposerReasoningEffort: "high" }),
+      );
+    });
+
+    fireEvent.change(modelSelect, { target: { value: "" } });
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ lastComposerModelId: null }),
+      );
+    });
+
+    fireEvent.change(effortSelect, { target: { value: "" } });
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ lastComposerReasoningEffort: null }),
+      );
+    });
+  });
+
+  it("disables default reasoning effort when selected model exposes none", async () => {
+    cleanup();
+    getModelListMock.mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "gpt-lite",
+            model: "gpt-lite",
+            displayName: "GPT Lite",
+            description: "Lite model",
+            supported_reasoning_efforts: [],
+            default_reasoning_effort: null,
+            is_default: true,
+          },
+        ],
+      },
+    });
+    getConfigModelMock.mockResolvedValue(null);
+
+    const workspace: WorkspaceInfo = {
+      id: "w1",
+      name: "Workspace",
+      path: "/tmp/workspace",
+      connected: true,
+      codex_bin: null,
+      kind: "main",
+      parentId: null,
+      worktree: null,
+      settings: { sidebarCollapsed: false, codexArgs: null },
+    };
+
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[
+          { id: null, name: "Ungrouped", workspaces: [workspace] },
+        ]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={baseSettings}
+        openAppIconById={{}}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
+        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="codex"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(getModelListMock).toHaveBeenCalledWith("w1");
+    });
+
+    const effortSelect = screen.getByLabelText(
+      "Default reasoning effort",
+    ) as HTMLSelectElement;
+    await waitFor(() => {
+      expect(effortSelect.disabled).toBe(true);
     });
   });
 

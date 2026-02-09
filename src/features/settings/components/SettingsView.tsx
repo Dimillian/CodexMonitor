@@ -39,6 +39,7 @@ import {
 import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "../../../utils/commitMessagePrompt";
 import { useGlobalAgentsMd } from "../hooks/useGlobalAgentsMd";
 import { useGlobalCodexConfigToml } from "../hooks/useGlobalCodexConfigToml";
+import { useSettingsDefaultModels } from "../hooks/useSettingsDefaultModels";
 import { useSettingsOpenAppDrafts } from "../hooks/useSettingsOpenAppDrafts";
 import { useSettingsShortcutDrafts } from "../hooks/useSettingsShortcutDrafts";
 import { useSettingsViewCloseShortcuts } from "../hooks/useSettingsViewCloseShortcuts";
@@ -354,6 +355,14 @@ export function SettingsView({
     () => groupedWorkspaces.flatMap((group) => group.workspaces),
     [groupedWorkspaces],
   );
+  const {
+    models: defaultModels,
+    configModel: defaultModelsConfigModel,
+    isLoading: defaultModelsLoading,
+    error: defaultModelsError,
+    refresh: refreshDefaultModels,
+    sourceWorkspace: defaultModelsWorkspace,
+  } = useSettingsDefaultModels(projects);
   const mainWorkspaces = useMemo(
     () => projects.filter((workspace) => (workspace.kind ?? "main") !== "worktree"),
     [projects],
@@ -1549,6 +1558,14 @@ export function SettingsView({
             <SettingsCodexSection
               appSettings={appSettings}
               onUpdateAppSettings={onUpdateAppSettings}
+              defaultModels={defaultModels}
+              defaultModelsConfigModel={defaultModelsConfigModel}
+              defaultModelsLoading={defaultModelsLoading}
+              defaultModelsError={defaultModelsError}
+              defaultModelsWorkspace={defaultModelsWorkspace}
+              onRefreshDefaultModels={() => {
+                void refreshDefaultModels();
+              }}
               codexPathDraft={codexPathDraft}
               codexArgsDraft={codexArgsDraft}
               codexDirty={codexDirty}
