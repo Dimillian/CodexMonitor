@@ -399,6 +399,7 @@ function MainApp() {
     activeWorkspace,
     gitDiffPreloadEnabled: appSettings.preloadGitDiffs,
     gitDiffIgnoreWhitespaceChanges: appSettings.gitDiffIgnoreWhitespaceChanges,
+    splitChatDiffView: appSettings.splitChatDiffView,
     isCompact,
     isTablet,
     activeTab,
@@ -2326,6 +2327,7 @@ function MainApp() {
         tabletTab={tabletTab}
         centerMode={centerMode}
         preloadGitDiffs={appSettings.preloadGitDiffs}
+        splitChatDiffView={appSettings.splitChatDiffView}
         hasActivePlan={hasActivePlan}
         activeWorkspace={Boolean(activeWorkspace)}
         sidebarNode={sidebarNode}

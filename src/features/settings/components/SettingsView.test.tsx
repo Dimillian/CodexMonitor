@@ -68,6 +68,7 @@ const baseSettings: AppSettings = {
   codeFontSize: 11,
   notificationSoundsEnabled: true,
   systemNotificationsEnabled: true,
+  splitChatDiffView: false,
   preloadGitDiffs: true,
   gitDiffIgnoreWhitespaceChanges: false,
   commitMessagePrompt: DEFAULT_COMMIT_MESSAGE_PROMPT,
@@ -370,6 +371,29 @@ describe("SettingsView Display", () => {
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({ showMessageFilePath: false }),
+      );
+    });
+  });
+
+  it("toggles split chat and diff center panes", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    renderDisplaySection({ onUpdateAppSettings });
+
+    const row = screen
+      .getByText("Split chat and diff center panes")
+      .closest(".settings-toggle-row") as HTMLElement | null;
+    if (!row) {
+      throw new Error("Expected split center panes row");
+    }
+    const toggle = row.querySelector("button.settings-toggle") as HTMLButtonElement | null;
+    if (!toggle) {
+      throw new Error("Expected split center panes toggle");
+    }
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ splitChatDiffView: true }),
       );
     });
   });
