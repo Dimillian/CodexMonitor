@@ -333,8 +333,9 @@ export function SettingsServerSection({
                   </div>
                 )}
                 <div className="settings-help">
-                  Start this daemon before connecting from iOS. It uses your current token and
-                  listens on <code>0.0.0.0:&lt;port&gt;</code>, matching your configured host port.
+                  Start this daemon before connecting from a mobile device. It uses your current
+                  token and listens on <code>0.0.0.0:&lt;port&gt;</code>, matching your configured
+                  host port.
                 </div>
               </div>
             )}
@@ -379,7 +380,7 @@ export function SettingsServerSection({
                     <div className="settings-help">
                       {tailscaleStatus.installed
                         ? `Version: ${tailscaleStatus.version ?? "unknown"}`
-                        : "Install Tailscale on both desktop and iOS to continue."}
+                        : "Install Tailscale on both desktop and your mobile device to continue."}
                     </div>
                     {tailscaleStatus.suggestedRemoteHost && (
                       <div className="settings-help">
@@ -713,8 +714,8 @@ export function SettingsServerSection({
       <div className="settings-help">
         {isMobileSimplified
           ? appSettings.remoteBackendProvider === "tcp"
-            ? "Use your own infrastructure only. On iOS, get the Tailscale hostname and token from your desktop CodexMonitor setup."
-            : "Use your own infrastructure only. On iOS, use the Orbit websocket URL and token configured on your desktop CodexMonitor setup."
+            ? "Use your own infrastructure only. On mobile, get the Tailscale hostname and token from your desktop CodexMonitor setup."
+            : "Use your own infrastructure only. On mobile, use the Orbit websocket URL and token configured on your desktop CodexMonitor setup."
           : "Mobile access should stay scoped to your own infrastructure (tailnet or self-hosted Orbit). CodexMonitor does not provide hosted backend services."}
       </div>
     </section>

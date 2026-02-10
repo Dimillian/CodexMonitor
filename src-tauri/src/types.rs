@@ -728,7 +728,7 @@ fn default_review_delivery_mode() -> String {
 }
 
 fn default_backend_mode() -> BackendMode {
-    if cfg!(target_os = "ios") {
+    if cfg!(any(target_os = "ios", target_os = "android")) {
         BackendMode::Remote
     } else {
         BackendMode::Local
@@ -1226,7 +1226,7 @@ mod tests {
     fn app_settings_defaults_from_empty_json() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
         assert!(settings.codex_bin.is_none());
-        let expected_backend_mode = if cfg!(target_os = "ios") {
+        let expected_backend_mode = if cfg!(any(target_os = "ios", target_os = "android")) {
             BackendMode::Remote
         } else {
             BackendMode::Local

@@ -73,34 +73,34 @@ Run in dev mode:
 npm run tauri:dev
 ```
 
-## iOS Support (WIP)
+## Mobile Support (WIP)
 
-iOS support is currently in progress.
+Mobile support is currently in progress for iOS and Android.
 
-- Current status: mobile layout runs, remote backend flow is wired, and iOS defaults to remote backend mode.
+- Current status: mobile layout runs, remote backend flow is wired, and mobile builds default to remote backend mode.
 - Current limits: terminal and dictation remain unavailable on mobile builds.
 - Desktop behavior is unchanged: macOS/Linux/Windows remain local-first unless remote mode is explicitly selected.
 
-### iOS + Tailscale Setup (TCP)
+### Mobile + Tailscale Setup (TCP)
 
-Use this when connecting the iOS app to a desktop-hosted daemon over your Tailscale tailnet.
+Use this when connecting the mobile app (iOS/Android) to a desktop-hosted daemon over your Tailscale tailnet.
 
-1. Install and sign in to Tailscale on both desktop and iPhone (same tailnet).
+1. Install and sign in to Tailscale on desktop and your mobile device (same tailnet).
 2. On desktop CodexMonitor, open `Settings > Server`.
 3. Keep `Remote provider` set to `TCP (wip)`.
 4. Set a `Remote backend token`.
 5. Start the desktop daemon with `Start daemon` (in `Mobile access daemon`).
 6. In `Tailscale helper`, use `Detect Tailscale` and note the suggested host (for example `your-mac.your-tailnet.ts.net:4732`).
-7. On iOS CodexMonitor, open `Settings > Server`.
+7. On mobile CodexMonitor, open `Settings > Server`.
 8. Set `Connection type` to `TCP`.
 9. Enter the desktop Tailscale host and the same token.
 10. Tap `Connect & test` and confirm it succeeds.
 
 Notes:
 
-- The desktop daemon must stay running while iOS is connected.
+- The desktop daemon must stay running while mobile clients are connected.
 - If the test fails, confirm both devices are online in Tailscale and that host/token match desktop settings.
-- If you want to use Orbit instead of Tailscale TCP, switch `Connection type` to `Orbit` on iOS and use your desktop Orbit websocket URL/token.
+- If you want to use Orbit instead of Tailscale TCP, switch `Connection type` to `Orbit` on mobile and use your desktop Orbit websocket URL/token.
 
 ### iOS Prerequisites
 
@@ -130,7 +130,7 @@ Options:
 - `--skip-build` to reuse the current app bundle.
 - `--no-clean` to preserve `src-tauri/gen/apple/build` between builds.
 
-### Run on USB Device
+### Run on iOS USB Device
 
 List discoverable devices:
 
@@ -160,6 +160,105 @@ If signing is not ready yet, open Xcode from the script flow:
 
 ```bash
 ./scripts/build_run_ios_device.sh --open-xcode
+```
+
+### Android Prerequisites
+
+- Android Studio installed with Android SDK + SDK Platform + SDK Platform Tools.
+- Android command line tools installed and `adb` available in `PATH`.
+- JDK 17 configured for Gradle/Android builds.
+- Rust Android targets installed:
+
+```bash
+rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+```
+
+- Android environment variables configured (typical setup):
+
+```bash
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
+export NDK_HOME="$ANDROID_HOME/ndk/<installed-version>"
+```
+
+Android scripts auto-detect common SDK paths and the latest installed NDK, but explicit env vars are recommended for reproducible CI/dev setups.
+
+### Initialize Android Project Files
+
+```bash
+./scripts/init_android.sh
+```
+
+### Run on Android (Dev)
+
+List connected Android devices/emulators:
+
+```bash
+./scripts/build_run_android.sh --list-devices
+```
+
+Run dev mode on default/first available device:
+
+```bash
+./scripts/build_run_android.sh
+```
+
+Run dev mode on a specific device:
+
+```bash
+./scripts/build_run_android.sh --device "<device id or name>"
+```
+
+Optional:
+
+- Use `--host <lan-ip>` for physical-device testing when the dev server is on your local network.
+- Use `--open` to open Android Studio.
+- Use `--release` for release-mode run.
+
+### Build Android Artifacts (APK/AAB)
+
+```bash
+./scripts/build_android.sh
+```
+
+Common options:
+
+- `--target aarch64 --target x86_64` for specific ABIs.
+- `--split-per-abi` for split outputs.
+- `--apk-only` or `--aab-only` to limit artifact types.
+- `--debug` for debug build artifacts.
+
+Build outputs are generated under `src-tauri/gen/android/app/build/outputs/`.
+
+### Install on Android Phone
+
+Prerequisites on phone:
+
+1. Enable `Developer options`.
+2. Enable `USB debugging`.
+3. Connect phone via USB and authorize this computer on the phone prompt.
+
+Verify the device is visible:
+
+```bash
+./scripts/build_run_android.sh --list-devices
+```
+
+Build and install debug APK:
+
+```bash
+./scripts/build_android.sh --apk-only --debug
+./scripts/install_android_apk.sh --device "<device-id>"
+```
+
+The installer script also launches the app after install.
+
+Optional wireless adb (after first USB authorization):
+
+```bash
+adb -s "<device-id>" tcpip 5555
+adb connect "<phone-ip>:5555"
+./scripts/install_android_apk.sh --device "<phone-ip>:5555"
 ```
 
 ### iOS TestFlight Release (Scripted)
