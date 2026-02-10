@@ -45,6 +45,7 @@ export function useCollaborationModes({
   const inFlight = useRef(false);
   const selectedModeIdRef = useRef<string | null>(null);
   const lastSelectionKey = useRef<string | null>(null);
+  const lastEnabled = useRef(enabled);
 
   const workspaceId = activeWorkspace?.id ?? null;
   const isConnected = Boolean(activeWorkspace?.connected);
@@ -187,10 +188,13 @@ export function useCollaborationModes({
   }, [selectedModeId]);
 
   useEffect(() => {
+    const wasEnabled = lastEnabled.current;
+    lastEnabled.current = enabled;
     if (!enabled) {
       return;
     }
-    if (selectionKey === lastSelectionKey.current) {
+    const enabledJustReenabled = !wasEnabled;
+    if (!enabledJustReenabled && selectionKey === lastSelectionKey.current) {
       return;
     }
     lastSelectionKey.current = selectionKey;
