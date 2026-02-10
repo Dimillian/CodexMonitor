@@ -1,5 +1,6 @@
 import FolderOpen from "lucide-react/dist/esm/icons/folder-open";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
+import Sparkles from "lucide-react/dist/esm/icons/sparkles";
 import type { LocalUsageSnapshot } from "../../../types";
 import { UI_LOCALE } from "../../../i18n/locale";
 import { formatRelativeTime } from "../../../utils/time";
@@ -133,6 +134,7 @@ export function Home({
 
   const usageTotals = localUsageSnapshot?.totals ?? null;
   const usageDays = localUsageSnapshot?.days ?? [];
+  const latestRun = latestAgentRuns[0] ?? null;
   const last7Days = usageDays.slice(-7);
   const last7AgentMs = last7Days.reduce(
     (total, day) => total + (day.agentTimeMs ?? 0),
@@ -175,17 +177,90 @@ export function Home({
   const showUsageSkeleton = isLoadingLocalUsage && !localUsageSnapshot;
   const showUsageEmpty = !isLoadingLocalUsage && !localUsageSnapshot;
 
+  const handleResumeLatest = () => {
+    if (!latestRun) {
+      return;
+    }
+    onSelectThread(latestRun.workspaceId, latestRun.threadId);
+  };
+
+  const handleExploreMore = () => {
+    const usageSection = document.querySelector(".home-usage");
+    if (!(usageSection instanceof HTMLElement)) {
+      return;
+    }
+    usageSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <div className="home">
       <div className="home-hero">
-        <div className="home-title">Codex Monitor</div>
+        <div className="home-hero-icon" aria-hidden>
+          <Sparkles size={18} />
+        </div>
+        <div className="home-hero-eyebrow">CodexMonitor</div>
+        <div className="home-title">Let&apos;s build</div>
         <div className="home-subtitle">
-          在本地项目中统一编排多个智能体。
+          对话优先、文档优先的 AI 编码工作台。
+        </div>
+        <div className="home-hero-shortcuts" aria-label="快捷入口">
+          <span>⌘K 命令菜单</span>
+          <span>/ Slash 命令</span>
+          <span>$ Skills</span>
+          <span>@ 文件上下文</span>
+        </div>
+      </div>
+      <div className="home-suggestions">
+        <div className="home-suggestions-header">
+          <div className="home-section-title">快速开始</div>
+          <button
+            type="button"
+            className="home-suggestions-explore"
+            onClick={handleExploreMore}
+          >
+            Explore more
+          </button>
+        </div>
+        <div className="home-suggestions-grid">
+          <button className="home-suggestion-card" type="button" onClick={onOpenProject}>
+            <span className="home-suggestion-icon" aria-hidden>
+              🎮
+            </span>
+            <span className="home-suggestion-title">打开项目并开始对话</span>
+            <span className="home-suggestion-description">
+              选择本地仓库，立即进入提问 - 审阅 - 修改闭环。
+            </span>
+          </button>
+          <button className="home-suggestion-card" type="button" onClick={onAddWorkspace}>
+            <span className="home-suggestion-icon" aria-hidden>
+              📊
+            </span>
+            <span className="home-suggestion-title">添加工作区并连接 Codex</span>
+            <span className="home-suggestion-description">
+              接入新环境，集中管理多项目上下文与历史对话。
+            </span>
+          </button>
+          <button
+            className="home-suggestion-card"
+            type="button"
+            onClick={handleResumeLatest}
+            disabled={!latestRun}
+          >
+            <span className="home-suggestion-icon" aria-hidden>
+              👤
+            </span>
+            <span className="home-suggestion-title">继续最近一次任务</span>
+            <span className="home-suggestion-description">
+              {latestRun
+                ? `继续 ${latestRun.projectName} 的最新对话，减少上下文切换。`
+                : "暂无最近对话，先发起一次新会话。"}
+            </span>
+          </button>
         </div>
       </div>
       <div className="home-latest">
         <div className="home-latest-header">
-          <div className="home-latest-label">最新智能体</div>
+          <div className="home-latest-label">最新对话</div>
         </div>
         {latestAgentRuns.length > 0 ? (
           <div className="home-latest-grid">
@@ -208,7 +283,7 @@ export function Home({
                   </div>
                 </div>
                 <div className="home-latest-message">
-                  {run.message.trim() || "智能体已回复。"}
+                  {run.message.trim() || "Agent 已回复。"}
                 </div>
                 {run.isProcessing && (
                   <div className="home-latest-status">运行中</div>
@@ -217,7 +292,7 @@ export function Home({
             ))}
           </div>
         ) : isLoadingLatestAgents ? (
-          <div className="home-latest-grid home-latest-grid-loading" aria-label="正在加载智能体">
+          <div className="home-latest-grid home-latest-grid-loading" aria-label="正在加载对话">
             {Array.from({ length: 3 }).map((_, index) => (
               <div className="home-latest-card home-latest-card-skeleton" key={index}>
                 <div className="home-latest-card-header">
@@ -231,21 +306,21 @@ export function Home({
           </div>
         ) : (
           <div className="home-latest-empty">
-            <div className="home-latest-empty-title">暂无智能体活动</div>
+            <div className="home-latest-empty-title">暂无对话记录</div>
             <div className="home-latest-empty-subtitle">
-              发起一个线程后，这里会显示最新回复。
+              发起一个对话后，这里会显示最新回复。
             </div>
           </div>
         )}
       </div>
       <div className="home-actions">
         <button
-          className="home-button primary"
+          className="home-button secondary"
           onClick={onOpenProject}
           data-tauri-drag-region="false"
         >
           <span className="home-icon" aria-hidden>
-            <FolderOpen size={18} />
+            <FolderOpen size={16} />
           </span>
           打开项目
         </button>
@@ -423,7 +498,7 @@ export function Home({
                       <span className="home-usage-number">
                         {formatDurationCompact(last7AgentMs)}
                       </span>
-                      <span className="home-usage-suffix">智能体时长</span>
+                      <span className="home-usage-suffix">Agent 时长</span>
                     </div>
                     <div className="home-usage-caption">
                       日均 {formatDurationCompact(averageDailyAgentMs)}
@@ -435,7 +510,7 @@ export function Home({
                       <span className="home-usage-number">
                         {formatDurationCompact(last30AgentMs)}
                       </span>
-                      <span className="home-usage-suffix">智能体时长</span>
+                      <span className="home-usage-suffix">Agent 时长</span>
                     </div>
                     <div className="home-usage-caption">
                       总计 {formatDuration(last30AgentMs)}
@@ -459,7 +534,7 @@ export function Home({
                       </span>
                     </div>
                     <div className="home-usage-caption">
-                      {formatDurationCompact(peakAgentTimeMs)} 智能体时长
+                      {formatDurationCompact(peakAgentTimeMs)} Agent 时长
                     </div>
                   </div>
                 </>
@@ -477,7 +552,7 @@ export function Home({
                   const tooltip =
                     usageMetric === "tokens"
                       ? `${formatDayLabel(day.day)} · ${formatCount(day.totalTokens)} 令牌`
-                      : `${formatDayLabel(day.day)} · ${formatDuration(day.agentTimeMs ?? 0)} 智能体时长`;
+                      : `${formatDayLabel(day.day)} · ${formatDuration(day.agentTimeMs ?? 0)} Agent 时长`;
                   return (
                     <div
                       className="home-usage-bar"

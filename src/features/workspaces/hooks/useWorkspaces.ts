@@ -728,7 +728,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     const workspaceName = workspace?.name || "此工作树";
 
     const confirmed = await ask(
-      `确定要删除 "${workspaceName}" 吗？\n\n这将关闭代理、移除工作树，并从 CodexMonitor 中删除。`,
+      `确定要删除 "${workspaceName}" 吗？\n\n这将关闭对话、移除工作树，并从 CodexMonitor 中删除。`,
       {
         title: "删除工作树",
         kind: "warning",

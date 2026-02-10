@@ -52,7 +52,7 @@ describe("ClonePrompt", () => {
       />,
     );
 
-    const copyNameInput = screen.getByLabelText("Copy name");
+    const copyNameInput = screen.getByLabelText("副本名称");
     fireEvent.keyDown(copyNameInput, {
       key: "Escape",
       code: "Escape",

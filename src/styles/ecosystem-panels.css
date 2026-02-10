@@ -1,0 +1,267 @@
+/* ── Skills Panel ── */
+
+/* Header bar that contains PanelTabs — no extra padding; ds-panel handles it */
+.skills-panel-header-bar {
+  padding: 0;
+}
+
+/* Sub-header row: icon + title + count */
+.skills-panel-subheader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-stronger);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 2px;
+}
+
+.skills-panel-count {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-faint);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 0 6px;
+  line-height: 1.6;
+}
+
+.skills-panel-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+}
+
+.skills-panel-search:focus-within {
+  border-color: var(--border-strong);
+}
+
+.skills-panel-search-icon {
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.skills-panel-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 12px;
+  color: var(--text-strong);
+  font-family: inherit;
+}
+
+.skills-panel-search-input::placeholder {
+  color: var(--text-faint);
+}
+
+.skills-panel-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.skills-panel-empty {
+  padding: 24px 2px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.skills-panel-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.skills-panel-item:hover {
+  background: var(--surface-hover);
+}
+
+.skills-panel-item-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.skills-panel-item-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-stronger);
+}
+
+.skills-panel-item-source {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-faint);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 0 5px;
+  line-height: 1.6;
+  flex-shrink: 0;
+}
+
+.skills-panel-item-desc {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Automations Panel ── */
+.automations-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.automations-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-stronger);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.automations-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.automations-panel-empty {
+  padding: 24px 14px;
+  text-align: center;
+}
+
+.automations-panel-empty-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin: 0 0 6px;
+}
+
+.automations-panel-empty-hint {
+  font-size: 12px;
+  color: var(--text-faint);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── MCP Status Panel ── */
+
+/* Header bar that contains PanelTabs — no extra padding; ds-panel handles it */
+.mcp-panel-header-bar {
+  padding: 0;
+}
+
+/* Sub-header row: icon + title + refresh */
+.mcp-panel-subheader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-stronger);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 2px;
+}
+
+.mcp-panel-refresh {
+  margin-left: auto;
+  padding: 4px;
+}
+
+.mcp-panel-refresh .spin {
+  animation: working-spin 800ms linear infinite;
+}
+
+.mcp-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.mcp-panel-empty,
+.mcp-panel-error {
+  padding: 24px 2px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.mcp-panel-error {
+  color: var(--text-danger);
+}
+
+.mcp-panel-item {
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition: background 0.1s;
+}
+
+.mcp-panel-item:hover {
+  background: var(--surface-hover);
+}
+
+.mcp-panel-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mcp-panel-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--status-unknown);
+}
+
+.mcp-panel-status-dot.mcp-status-running,
+.mcp-panel-status-dot.mcp-status-connected {
+  background: var(--status-success);
+}
+
+.mcp-panel-status-dot.mcp-status-error,
+.mcp-panel-status-dot.mcp-status-failed {
+  background: var(--status-error);
+}
+
+.mcp-panel-status-dot.mcp-status-starting {
+  background: var(--status-warning);
+}
+
+.mcp-panel-item-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-stronger);
+}
+
+.mcp-panel-item-tools {
+  font-size: 10px;
+  color: var(--text-faint);
+  margin-left: auto;
+}
+
+.mcp-panel-item-error {
+  font-size: 11px;
+  color: var(--text-danger);
+  margin-top: 4px;
+  padding-left: 14px;
+}

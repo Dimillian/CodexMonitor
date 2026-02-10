@@ -367,80 +367,101 @@ export const Messages = memo(function Messages({
       />
     ) : null;
 
-  const renderItem = (item: ConversationItem) => {
-    if (item.kind === "message") {
-      const isCopied = copiedMessageId === item.id;
-      return (
-        <MessageRow
-          key={item.id}
-          item={item}
-          isCopied={isCopied}
-          onCopy={handleCopyMessage}
-          codeBlockCopyUseModifier={codeBlockCopyUseModifier}
-          showMessageFilePath={showMessageFilePath}
-          workspacePath={workspacePath}
-          onOpenFileLink={openFileLink}
-          onOpenFileLinkMenu={showFileLinkMenu}
-          onOpenThreadLink={onOpenThreadLink}
-        />
-      );
-    }
-    if (item.kind === "reasoning") {
-      const isExpanded = expandedItems.has(item.id);
-      const parsed = reasoningMetaById.get(item.id) ?? parseReasoning(item);
-      return (
-        <ReasoningRow
-          key={item.id}
-          item={item}
-          parsed={parsed}
-          isExpanded={isExpanded}
-          onToggle={toggleExpanded}
-          showMessageFilePath={showMessageFilePath}
-          workspacePath={workspacePath}
-          onOpenFileLink={openFileLink}
-          onOpenFileLinkMenu={showFileLinkMenu}
-          onOpenThreadLink={onOpenThreadLink}
-        />
-      );
-    }
-    if (item.kind === "review") {
-      return (
-        <ReviewRow
-          key={item.id}
-          item={item}
-          showMessageFilePath={showMessageFilePath}
-          workspacePath={workspacePath}
-          onOpenFileLink={openFileLink}
-          onOpenFileLinkMenu={showFileLinkMenu}
-          onOpenThreadLink={onOpenThreadLink}
-        />
-      );
-    }
-    if (item.kind === "diff") {
-      return <DiffRow key={item.id} item={item} />;
-    }
-    if (item.kind === "tool") {
-      const isExpanded = expandedItems.has(item.id);
-      return (
-        <ToolRow
-          key={item.id}
-          item={item}
-          isExpanded={isExpanded}
-          onToggle={toggleExpanded}
-          showMessageFilePath={showMessageFilePath}
-          workspacePath={workspacePath}
-          onOpenFileLink={openFileLink}
-          onOpenFileLinkMenu={showFileLinkMenu}
-          onOpenThreadLink={onOpenThreadLink}
-          onRequestAutoScroll={requestAutoScroll}
-        />
-      );
-    }
-    if (item.kind === "explore") {
-      return <ExploreRow key={item.id} item={item} />;
-    }
-    return null;
-  };
+  const renderItem = useCallback(
+    (item: ConversationItem) => {
+      if (item.kind === "message") {
+        const isCopied = copiedMessageId === item.id;
+        return (
+          <MessageRow
+            key={item.id}
+            item={item}
+            isCopied={isCopied}
+            onCopy={handleCopyMessage}
+            codeBlockCopyUseModifier={codeBlockCopyUseModifier}
+            showMessageFilePath={showMessageFilePath}
+            workspaceId={workspaceId}
+            workspacePath={workspacePath}
+            onOpenFileLink={openFileLink}
+            onOpenFileLinkMenu={showFileLinkMenu}
+            onOpenThreadLink={onOpenThreadLink}
+          />
+        );
+      }
+      if (item.kind === "reasoning") {
+        const isExpanded = expandedItems.has(item.id);
+        const parsed = reasoningMetaById.get(item.id) ?? parseReasoning(item);
+        return (
+          <ReasoningRow
+            key={item.id}
+            item={item}
+            parsed={parsed}
+            isExpanded={isExpanded}
+            onToggle={toggleExpanded}
+            showMessageFilePath={showMessageFilePath}
+            workspaceId={workspaceId}
+            workspacePath={workspacePath}
+            onOpenFileLink={openFileLink}
+            onOpenFileLinkMenu={showFileLinkMenu}
+            onOpenThreadLink={onOpenThreadLink}
+          />
+        );
+      }
+      if (item.kind === "review") {
+        return (
+          <ReviewRow
+            key={item.id}
+            item={item}
+            showMessageFilePath={showMessageFilePath}
+            workspaceId={workspaceId}
+            workspacePath={workspacePath}
+            onOpenFileLink={openFileLink}
+            onOpenFileLinkMenu={showFileLinkMenu}
+            onOpenThreadLink={onOpenThreadLink}
+          />
+        );
+      }
+      if (item.kind === "diff") {
+        return <DiffRow key={item.id} item={item} />;
+      }
+      if (item.kind === "tool") {
+        const isExpanded = expandedItems.has(item.id);
+        return (
+          <ToolRow
+            key={item.id}
+            item={item}
+            isExpanded={isExpanded}
+            onToggle={toggleExpanded}
+            showMessageFilePath={showMessageFilePath}
+            workspaceId={workspaceId}
+            workspacePath={workspacePath}
+            onOpenFileLink={openFileLink}
+            onOpenFileLinkMenu={showFileLinkMenu}
+            onOpenThreadLink={onOpenThreadLink}
+            onRequestAutoScroll={requestAutoScroll}
+          />
+        );
+      }
+      if (item.kind === "explore") {
+        return <ExploreRow key={item.id} item={item} />;
+      }
+      return null;
+    },
+    [
+      copiedMessageId,
+      handleCopyMessage,
+      codeBlockCopyUseModifier,
+      showMessageFilePath,
+      workspaceId,
+      workspacePath,
+      openFileLink,
+      showFileLinkMenu,
+      onOpenThreadLink,
+      expandedItems,
+      reasoningMetaById,
+      toggleExpanded,
+      requestAutoScroll,
+    ],
+  );
 
   return (
     <div

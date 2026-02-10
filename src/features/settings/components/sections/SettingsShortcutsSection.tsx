@@ -77,28 +77,28 @@ export function SettingsShortcutsSection({
   const groups: ShortcutGroup[] = [
     {
       title: "文件",
-      subtitle: "通过键盘创建智能体和 worktree。",
+      subtitle: "通过键盘创建对话和 worktree。",
       items: [
         {
-          label: "新建智能体",
+          label: "新建对话",
           draftKey: "newAgent",
           settingKey: "newAgentShortcut",
           help: `默认： ${formatShortcut("cmd+n")}`,
         },
         {
-          label: "新建 Worktree 智能体",
+          label: "新建 Worktree 对话",
           draftKey: "newWorktreeAgent",
           settingKey: "newWorktreeAgentShortcut",
           help: `默认： ${formatShortcut("cmd+shift+n")}`,
         },
         {
-          label: "新建克隆智能体",
+          label: "新建克隆对话",
           draftKey: "newCloneAgent",
           settingKey: "newCloneAgentShortcut",
           help: `默认： ${formatShortcut("cmd+alt+n")}`,
         },
         {
-          label: "归档当前会话",
+          label: "归档当前对话",
           draftKey: "archiveThread",
           settingKey: "archiveThreadShortcut",
           help: `默认： ${formatShortcut(isMac ? "cmd+ctrl+a" : "ctrl+alt+a")}`,
@@ -179,16 +179,16 @@ export function SettingsShortcutsSection({
     },
     {
       title: "导航",
-      subtitle: "在智能体与工作区间循环切换。",
+      subtitle: "在对话与工作区间循环切换。",
       items: [
         {
-          label: "下一个智能体",
+          label: "下一个对话",
           draftKey: "cycleAgentNext",
           settingKey: "cycleAgentNextShortcut",
           help: `默认： ${formatShortcut(isMac ? "cmd+ctrl+down" : "ctrl+alt+down")}`,
         },
         {
-          label: "上一个智能体",
+          label: "上一个对话",
           draftKey: "cycleAgentPrev",
           settingKey: "cycleAgentPrevShortcut",
           help: `默认： ${formatShortcut(isMac ? "cmd+ctrl+up" : "ctrl+alt+up")}`,

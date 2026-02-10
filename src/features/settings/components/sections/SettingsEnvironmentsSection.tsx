@@ -31,7 +31,7 @@ export function SettingsEnvironmentsSection({
     <section className="settings-section">
       <div className="settings-section-title">环境</div>
       <div className="settings-section-subtitle">
-        配置每个项目在创建 worktree 后运行的初始化脚本。
+        为每个项目配置 worktree 创建后自动运行的初始化脚本（如安装依赖）。
       </div>
       {mainWorkspaces.length === 0 ? (
         <div className="settings-empty">暂无项目。</div>

@@ -34,6 +34,7 @@ import { Markdown } from "./Markdown";
 
 type MarkdownFileLinkProps = {
   showMessageFilePath?: boolean;
+  workspaceId?: string | null;
   workspacePath?: string | null;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: MouseEvent, path: string) => void;
@@ -271,6 +272,31 @@ function toolIconForSummary(
   return Wrench;
 }
 
+/**
+ * Derive streaming phase from elapsed time and whether we have content yet.
+ * - "start": first ~2 seconds or before any items arrive
+ * - "in-progress": actively generating content
+ * - "done": finished (shown via turn-complete)
+ */
+function deriveStreamingPhase(
+  isThinking: boolean,
+  hasItems: boolean,
+  elapsedMs: number,
+): "start" | "in-progress" | "done" {
+  if (!isThinking) {
+    return "done";
+  }
+  if (!hasItems && elapsedMs < 2000) {
+    return "start";
+  }
+  return "in-progress";
+}
+
+const PHASE_LABELS: Record<"start" | "in-progress", string> = {
+  start: "启动中…",
+  "in-progress": "处理中…",
+};
+
 export const WorkingIndicator = memo(function WorkingIndicator({
   isThinking,
   processingStartedAt = null,
@@ -292,22 +318,29 @@ export const WorkingIndicator = memo(function WorkingIndicator({
     return () => window.clearInterval(interval);
   }, [isThinking, processingStartedAt]);
 
+  const phase = deriveStreamingPhase(isThinking, hasItems, elapsedMs);
+
   return (
     <>
       {isThinking && (
-        <div className="working">
+        <div className={`working working-phase-${phase}`} aria-live="polite">
           <span className="working-spinner" aria-hidden />
           <div className="working-timer">
             <span className="working-timer-clock">{formatDurationMs(elapsedMs)}</span>
           </div>
-          <span className="working-text">{reasoningLabel || "处理中…"}</span>
+          <span className="working-text">
+            {reasoningLabel || (phase !== "done" ? PHASE_LABELS[phase] : "处理中…")}
+          </span>
+          <span className="working-phase-badge" aria-label={`阶段：${phase}`}>
+            {phase === "start" ? "启动" : "生成"}
+          </span>
         </div>
       )}
       {!isThinking && lastDurationMs !== null && hasItems && (
-        <div className="turn-complete" aria-live="polite">
+        <div className="turn-complete working-phase-done" aria-live="polite">
           <span className="turn-complete-line" aria-hidden />
           <span className="turn-complete-label">
-            Done in {formatDurationMs(lastDurationMs)}
+            完成于 {formatDurationMs(lastDurationMs)}
           </span>
           <span className="turn-complete-line" aria-hidden />
         </div>
@@ -322,6 +355,7 @@ export const MessageRow = memo(function MessageRow({
   onCopy,
   codeBlockCopyUseModifier,
   showMessageFilePath,
+  workspaceId,
   workspacePath,
   onOpenFileLink,
   onOpenFileLinkMenu,
@@ -361,6 +395,7 @@ export const MessageRow = memo(function MessageRow({
             codeBlockStyle="message"
             codeBlockCopyUseModifier={codeBlockCopyUseModifier}
             showFilePath={showMessageFilePath}
+            workspaceId={workspaceId}
             workspacePath={workspacePath}
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}
@@ -397,6 +432,7 @@ export const ReasoningRow = memo(function ReasoningRow({
   isExpanded,
   onToggle,
   showMessageFilePath,
+  workspaceId,
   workspacePath,
   onOpenFileLink,
   onOpenFileLinkMenu,
@@ -434,6 +470,7 @@ export const ReasoningRow = memo(function ReasoningRow({
               isExpanded ? "" : "tool-inline-clamp"
             }`}
             showFilePath={showMessageFilePath}
+            workspaceId={workspaceId}
             workspacePath={workspacePath}
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}
@@ -448,6 +485,7 @@ export const ReasoningRow = memo(function ReasoningRow({
 export const ReviewRow = memo(function ReviewRow({
   item,
   showMessageFilePath,
+  workspaceId,
   workspacePath,
   onOpenFileLink,
   onOpenFileLinkMenu,
@@ -469,6 +507,7 @@ export const ReviewRow = memo(function ReviewRow({
           value={item.text}
           className="item-text markdown"
           showFilePath={showMessageFilePath}
+          workspaceId={workspaceId}
           workspacePath={workspacePath}
           onOpenFileLink={onOpenFileLink}
           onOpenFileLinkMenu={onOpenFileLinkMenu}
@@ -498,6 +537,7 @@ export const ToolRow = memo(function ToolRow({
   isExpanded,
   onToggle,
   showMessageFilePath,
+  workspaceId,
   workspacePath,
   onOpenFileLink,
   onOpenFileLinkMenu,
@@ -644,6 +684,7 @@ export const ToolRow = memo(function ToolRow({
             value={item.detail}
             className="item-text markdown"
             showFilePath={showMessageFilePath}
+            workspaceId={workspaceId}
             workspacePath={workspacePath}
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}
@@ -657,6 +698,7 @@ export const ToolRow = memo(function ToolRow({
             className="tool-inline-output markdown"
             codeBlock
             showFilePath={showMessageFilePath}
+            workspaceId={workspaceId}
             workspacePath={workspacePath}
             onOpenFileLink={onOpenFileLink}
             onOpenFileLinkMenu={onOpenFileLinkMenu}

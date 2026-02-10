@@ -13,6 +13,18 @@ const useFileLinkOpenerMock = vi.fn(
 );
 const openFileLinkMock = vi.fn();
 const showFileLinkMenuMock = vi.fn();
+const readWorkspaceFileMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../services/tauri", async () => {
+  const actual = await vi.importActual<typeof import("../../../services/tauri")>(
+    "../../../services/tauri",
+  );
+  return {
+    ...actual,
+    readWorkspaceFile: (workspaceId: string, path: string) =>
+      readWorkspaceFileMock(workspaceId, path),
+  };
+});
 
 vi.mock("../hooks/useFileLinkOpener", () => ({
   useFileLinkOpener: (
@@ -37,6 +49,11 @@ describe("Messages", () => {
     useFileLinkOpenerMock.mockClear();
     openFileLinkMock.mockReset();
     showFileLinkMenuMock.mockReset();
+    readWorkspaceFileMock.mockReset();
+    readWorkspaceFileMock.mockResolvedValue({
+      content: "line-1\nline-2\nline-3\nline-4",
+      truncated: false,
+    });
   });
 
   it("renders image grid above message text and opens lightbox", () => {
@@ -191,6 +208,55 @@ describe("Messages", () => {
     expect(openFileLinkMock).toHaveBeenCalledWith(
       "iosApp/src/views/DocumentsList/DocumentListView.swift:111",
     );
+  });
+
+  it("shows hover preview for workspace file references", async () => {
+    readWorkspaceFileMock.mockResolvedValue({
+      content: [
+        "line-1",
+        "line-2",
+        "line-3",
+        "line-4",
+        "line-5 target",
+        "line-6",
+        "line-7",
+        "line-8",
+      ].join("\n"),
+      truncated: false,
+    });
+
+    const items: ConversationItem[] = [
+      {
+        id: "msg-file-link-preview",
+        kind: "message",
+        role: "assistant",
+        text: "Check `src/features/messages/components/Markdown.tsx:5`",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        workspacePath="/tmp/repo"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const fileLink = container.querySelector(".message-file-link");
+    expect(fileLink).toBeTruthy();
+    fireEvent.mouseEnter(fileLink as Element);
+
+    await waitFor(() => {
+      expect(readWorkspaceFileMock).toHaveBeenCalledWith(
+        "ws-1",
+        "src/features/messages/components/Markdown.tsx",
+      );
+    });
+    expect(screen.getByText("line-5 target")).toBeTruthy();
   });
 
   it("hides file parent paths when message file path display is disabled", () => {
@@ -449,7 +515,7 @@ describe("Messages", () => {
     );
 
     const workingText = container.querySelector(".working-text");
-    expect(workingText?.textContent ?? "").toContain("Working");
+    expect(workingText?.textContent ?? "").toContain("处理中");
     expect(workingText?.textContent ?? "").not.toContain("Old reasoning title");
   });
 
@@ -523,7 +589,7 @@ describe("Messages", () => {
     const exploreItems = container.querySelectorAll(".explore-inline-item");
     expect(exploreItems.length).toBe(2);
     expect(container.querySelector(".explore-inline-title")?.textContent ?? "").toContain(
-      "Explored",
+      "已探索",
     );
   });
 
@@ -558,7 +624,7 @@ describe("Messages", () => {
       expect(container.querySelectorAll(".explore-inline").length).toBe(1);
     });
     const exploreTitle = container.querySelector(".explore-inline-title");
-    expect(exploreTitle?.textContent ?? "").toContain("Explored");
+    expect(exploreTitle?.textContent ?? "").toContain("已探索");
   });
 
   it("does not merge explore items across interleaved tools", async () => {

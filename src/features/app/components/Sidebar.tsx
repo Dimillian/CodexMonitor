@@ -1,6 +1,5 @@
 import type {
   AccountSnapshot,
-  RateLimitSnapshot,
   ThreadListSortKey,
   ThreadSummary,
   WorkspaceInfo,
@@ -18,7 +17,6 @@ import {
   PopoverSurface,
 } from "../../design-system/components/popover/PopoverPrimitives";
 import { SidebarCornerActions } from "./SidebarCornerActions";
-import { SidebarFooter } from "./SidebarFooter";
 import { SidebarHeader } from "./SidebarHeader";
 import { ThreadList } from "./ThreadList";
 import { ThreadLoading } from "./ThreadLoading";
@@ -32,7 +30,6 @@ import { useSidebarScrollFade } from "../hooks/useSidebarScrollFade";
 import { useThreadRows } from "../hooks/useThreadRows";
 import { useDismissibleMenu } from "../hooks/useDismissibleMenu";
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
-import { getUsageLabels } from "../utils/usageLabels";
 import { formatRelativeTimeShort } from "../../../utils/time";
 
 const COLLAPSED_GROUPS_STORAGE_KEY = "codexmonitor.collapsedGroups";
@@ -66,8 +63,6 @@ type SidebarProps = {
   onRefreshAllThreads: () => void;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
-  accountRateLimits: RateLimitSnapshot | null;
-  usageShowRemaining: boolean;
   accountInfo: AccountSnapshot | null;
   onSwitchAccount: () => void;
   onCancelSwitchAccount: () => void;
@@ -85,7 +80,6 @@ type SidebarProps = {
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
   onSelectThread: (workspaceId: string, threadId: string) => void;
   onDeleteThread: (workspaceId: string, threadId: string) => void;
-  onSyncThread: (workspaceId: string, threadId: string) => void;
   pinThread: (workspaceId: string, threadId: string) => boolean;
   unpinThread: (workspaceId: string, threadId: string) => void;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
@@ -122,8 +116,6 @@ export const Sidebar = memo(function Sidebar({
   onRefreshAllThreads,
   activeWorkspaceId,
   activeThreadId,
-  accountRateLimits,
-  usageShowRemaining,
   accountInfo,
   onSwitchAccount,
   onCancelSwitchAccount,
@@ -141,7 +133,6 @@ export const Sidebar = memo(function Sidebar({
   onToggleWorkspaceCollapse,
   onSelectThread,
   onDeleteThread,
-  onSyncThread,
   pinThread,
   unpinThread,
   isThreadPinned,
@@ -178,7 +169,6 @@ export const Sidebar = memo(function Sidebar({
   const { showThreadMenu, showWorkspaceMenu, showWorktreeMenu } =
     useSidebarMenus({
       onDeleteThread,
-      onSyncThread,
       onPinThread: pinThread,
       onUnpinThread: unpinThread,
       isThreadPinned,
@@ -187,14 +177,6 @@ export const Sidebar = memo(function Sidebar({
       onDeleteWorkspace,
       onDeleteWorktree,
     });
-  const {
-    sessionPercent,
-    weeklyPercent,
-    sessionResetLabel,
-    weeklyResetLabel,
-    creditsLabel,
-    showWeekly,
-  } = getUsageLabels(accountRateLimits, usageShowRemaining);
   const debouncedQuery = useDebouncedValue(searchQuery, 150);
   const normalizedQuery = debouncedQuery.trim().toLowerCase();
 
@@ -577,7 +559,7 @@ export const Sidebar = memo(function Sidebar({
                               }}
                               icon={<Plus aria-hidden />}
                             >
-                              新建代理
+                              新建对话
                             </PopoverMenuItem>
                             <PopoverMenuItem
                               className="workspace-add-option"
@@ -588,7 +570,7 @@ export const Sidebar = memo(function Sidebar({
                               }}
                               icon={<GitBranch aria-hidden />}
                             >
-                              新建工作树代理
+                              新建工作树对话
                             </PopoverMenuItem>
                             <PopoverMenuItem
                               className="workspace-add-option"
@@ -599,7 +581,7 @@ export const Sidebar = memo(function Sidebar({
                               }}
                               icon={<Copy aria-hidden />}
                             >
-                              新建克隆代理
+                              新建克隆对话
                             </PopoverMenuItem>
                           </PopoverSurface>,
                           document.body,
@@ -620,7 +602,7 @@ export const Sidebar = memo(function Sidebar({
                           }}
                         >
                           <span className={`thread-status ${draftStatusClass}`} aria-hidden />
-                          <span className="thread-name">新建代理</span>
+                          <span className="thread-name">新建对话</span>
                         </div>
                       )}
                       {worktrees.length > 0 && (
@@ -685,14 +667,6 @@ export const Sidebar = memo(function Sidebar({
           )}
         </div>
       </div>
-      <SidebarFooter
-        sessionPercent={sessionPercent}
-        weeklyPercent={weeklyPercent}
-        sessionResetLabel={sessionResetLabel}
-        weeklyResetLabel={weeklyResetLabel}
-        creditsLabel={creditsLabel}
-        showWeekly={showWeekly}
-      />
       <SidebarCornerActions
         onOpenSettings={onOpenSettings}
         onOpenDebug={onOpenDebug}

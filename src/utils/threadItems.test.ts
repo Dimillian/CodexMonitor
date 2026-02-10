@@ -613,7 +613,7 @@ describe("threadItems", () => {
     });
     expect(item).not.toBeNull();
     if (item && item.kind === "tool") {
-      expect(item.title).toBe("Collab: handoff");
+      expect(item.title).toBe("协作: handoff");
       expect(item.detail).toContain("From thread-a");
       expect(item.detail).toContain("thread-b, thread-c");
       expect(item.output).toBe("Coordinate work\n\nagent-1: running");

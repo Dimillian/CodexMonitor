@@ -43,9 +43,9 @@ type ComposerPresetSettings = Pick<
 >;
 
 export const COMPOSER_PRESET_LABELS: Record<ComposerPreset, string> = {
-  default: "默认（无辅助）",
-  helpful: "实用",
-  smart: "智能",
+  default: "关闭 — 不自动格式化",
+  helpful: "实用 — 常用快捷格式化",
+  smart: "智能 — 全部自动格式化",
 };
 
 export const COMPOSER_PRESET_CONFIGS: Record<

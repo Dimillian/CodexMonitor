@@ -2,6 +2,8 @@ import { FileTreePanel } from "../../../files/components/FileTreePanel";
 import { GitDiffPanel } from "../../../git/components/GitDiffPanel";
 import { GitDiffViewer } from "../../../git/components/GitDiffViewer";
 import { PromptPanel } from "../../../prompts/components/PromptPanel";
+import { SkillsPanel } from "../../../skills/components/SkillsPanel";
+import { McpStatusPanel } from "../../../mcp/components/McpStatusPanel";
 import type { LayoutNodesOptions, LayoutNodesResult } from "./types";
 
 type GitLayoutNodes = Pick<LayoutNodesResult, "gitDiffPanelNode" | "gitDiffViewerNode">;
@@ -32,6 +34,25 @@ export function buildGitNodes(options: LayoutNodesOptions): GitLayoutNodes {
         openAppIconById={options.openAppIconById}
         selectedOpenAppId={options.selectedOpenAppId}
         onSelectOpenAppId={options.onSelectOpenAppId}
+      />
+    );
+  } else if (options.filePanelMode === "skills") {
+    gitDiffPanelNode = (
+      <SkillsPanel
+        skills={options.skills}
+        onInvokeSkill={(skill) => {
+          options.onInsertComposerText?.(`$ ${skill.name} `);
+        }}
+        filePanelMode={options.filePanelMode}
+        onFilePanelModeChange={options.onFilePanelModeChange}
+      />
+    );
+  } else if (options.filePanelMode === "mcp") {
+    gitDiffPanelNode = (
+      <McpStatusPanel
+        workspaceId={options.activeWorkspace?.id ?? null}
+        filePanelMode={options.filePanelMode}
+        onFilePanelModeChange={options.onFilePanelModeChange}
       />
     );
   } else if (options.filePanelMode === "prompts") {

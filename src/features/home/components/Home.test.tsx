@@ -41,8 +41,8 @@ describe("Home", () => {
       />,
     );
 
-    expect(screen.getByText("最新智能体")).toBeTruthy();
-    expect(screen.getByText("CodexMonitor")).toBeTruthy();
+    expect(screen.getByText("最新对话")).toBeTruthy();
+    expect(screen.getAllByText("CodexMonitor").length).toBeGreaterThan(0);
     expect(screen.getByText("Frontend")).toBeTruthy();
     const message = screen.getByText("Ship the dashboard refresh");
     const card = message.closest("button");
@@ -58,9 +58,9 @@ describe("Home", () => {
   it("shows the empty state when there are no latest runs", () => {
     render(<Home {...baseProps} />);
 
-    expect(screen.getByText("暂无智能体活动")).toBeTruthy();
+    expect(screen.getByText("暂无对话记录")).toBeTruthy();
     expect(
-      screen.getByText("发起一个线程后，这里会显示最新回复。"),
+      screen.getByText("发起一个对话后，这里会显示最新回复。"),
     ).toBeTruthy();
   });
 
@@ -95,7 +95,7 @@ describe("Home", () => {
       />,
     );
 
-    expect(screen.getAllByText("智能体时长").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Agent 时长").length).toBeGreaterThan(0);
     expect(screen.getByText("运行次数")).toBeTruthy();
     expect(screen.getByText("峰值日期")).toBeTruthy();
   });

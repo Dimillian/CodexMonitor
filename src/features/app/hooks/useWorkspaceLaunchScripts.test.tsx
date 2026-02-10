@@ -114,7 +114,7 @@ describe("useWorkspaceLaunchScripts", () => {
     expect(ensureLaunchTerminal).toHaveBeenCalledWith(
       "workspace-1",
       scripts[0],
-      "Launch: Play",
+      "Launch: 运行",
     );
     expect(restartLaunchSession).toHaveBeenCalledWith("workspace-1", "launch-one");
 

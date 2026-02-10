@@ -14,6 +14,30 @@ import {
   splitPath,
 } from "./GitDiffPanel.utils";
 
+type DirectoryGroup = {
+  directory: string;
+  files: DiffFile[];
+};
+
+function groupFilesByDirectory(files: DiffFile[]): DirectoryGroup[] {
+  const groups = new Map<string, DiffFile[]>();
+  for (const file of files) {
+    const lastSlash = file.path.lastIndexOf("/");
+    const dir = lastSlash >= 0 ? file.path.slice(0, lastSlash) : "";
+    if (!groups.has(dir)) {
+      groups.set(dir, []);
+    }
+    groups.get(dir)!.push(file);
+  }
+  // Sort directories; root files first, then alphabetical
+  const entries = Array.from(groups.entries()).sort((a, b) => {
+    if (a[0] === "") return -1;
+    if (b[0] === "") return 1;
+    return a[0].localeCompare(b[0]);
+  });
+  return entries.map(([directory, dirFiles]) => ({ directory, files: dirFiles }));
+}
+
 export type DiffFile = {
   path: string;
   status: string;
@@ -362,25 +386,34 @@ export function DiffSection({
         )}
       </div>
       <div className="diff-section-list">
-        {files.map((file) => {
-          const isSelected = selectedFiles.size > 1 && selectedFiles.has(file.path);
-          const isActive = selectedPath === file.path;
-          return (
-            <DiffFileRow
-              key={`${section}-${file.path}`}
-              file={file}
-              isSelected={isSelected}
-              isActive={isActive}
-              section={section}
-              onClick={(event) => onFileClick(event, file.path, section)}
-              onKeySelect={() => onSelectFile?.(file.path)}
-              onContextMenu={(event) => onShowFileMenu(event, file.path, section)}
-              onStageFile={onStageFile}
-              onUnstageFile={onUnstageFile}
-              onDiscardFile={onDiscardFile}
-            />
-          );
-        })}
+        {groupFilesByDirectory(files).map((group) => (
+          <div key={group.directory} className="diff-directory-group">
+            {group.directory !== "" && (
+              <div className="diff-directory-label" title={group.directory}>
+                {group.directory}/
+              </div>
+            )}
+            {group.files.map((file) => {
+              const isSelected = selectedFiles.size > 1 && selectedFiles.has(file.path);
+              const isActive = selectedPath === file.path;
+              return (
+                <DiffFileRow
+                  key={`${section}-${file.path}`}
+                  file={file}
+                  isSelected={isSelected}
+                  isActive={isActive}
+                  section={section}
+                  onClick={(event) => onFileClick(event, file.path, section)}
+                  onKeySelect={() => onSelectFile?.(file.path)}
+                  onContextMenu={(event) => onShowFileMenu(event, file.path, section)}
+                  onStageFile={onStageFile}
+                  onUnstageFile={onUnstageFile}
+                  onDiscardFile={onDiscardFile}
+                />
+              );
+            })}
+          </div>
+        ))}
       </div>
     </div>
   );

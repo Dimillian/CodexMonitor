@@ -169,7 +169,7 @@ export function SettingsCodexSection({
           </button>
         </div>
         <div className="settings-help">
-          在 <code>app-server</code> 之前附加的参数。包含空格的值请使用引号。
+          启动 Codex 时附加的额外命令行参数（如 <code>--profile personal</code>）。含空格的值请用引号。
         </div>
         <div className="settings-field-actions">
           {codexDirty && (
@@ -281,14 +281,17 @@ export function SettingsCodexSection({
             })
           }
         >
-          <option value="read-only">只读</option>
-          <option value="current">按需申请</option>
-          <option value="full-access">完全访问</option>
+          <option value="read-only">只读 — Agent 仅能读取文件</option>
+          <option value="current">按需申请 — 每次写入前需你确认</option>
+          <option value="full-access">完全访问 — Agent 可自由读写文件和执行命令</option>
         </select>
+        <div className="settings-help">
+          控制新建对话时 Codex Agent 默认拥有的文件系统和命令执行权限。
+        </div>
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="review-delivery">
-          审查模式
+          代码审查方式
         </label>
         <select
           id="review-delivery"
@@ -301,11 +304,11 @@ export function SettingsCodexSection({
             })
           }
         >
-          <option value="inline">内联（当前线程）</option>
-          <option value="detached">分离（新审查线程）</option>
+          <option value="inline">在当前对话中审查</option>
+          <option value="detached">打开新对话进行审查</option>
         </select>
         <div className="settings-help">
-          选择 <code>/review</code> 在当前线程执行，还是在独立审查线程中执行。
+          使用 <code>/review</code> 命令时，审查结果显示在当前对话还是新建独立对话。
         </div>
       </div>
 

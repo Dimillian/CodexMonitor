@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { DebugEntry, WorkspaceInfo } from "../../../types";
 import { useWorkspaceFiles } from "../../workspaces/hooks/useWorkspaceFiles";
 
-type FilePanelMode = "git" | "files" | "prompts";
+type FilePanelMode = "git" | "files" | "prompts" | "skills" | "mcp";
 type TabKey = "home" | "projects" | "codex" | "git" | "log";
 type TabletTabKey = "codex" | "git" | "log";
 

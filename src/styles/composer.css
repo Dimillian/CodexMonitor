@@ -3,7 +3,7 @@
   flex-direction: column;
   gap: 8px;
   -webkit-app-region: no-drag;
-  padding: 12px var(--main-panel-padding) 24px;
+  padding: 10px var(--main-panel-padding) 16px;
   border-top: 1px solid var(--border-subtle);
   background: var(--surface-composer);
   grid-column: 1;
@@ -84,7 +84,20 @@
 .composer-input-row {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card-strong);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.composer-input-row:focus-within {
+  border-color: var(--border-accent);
+  box-shadow: 0 0 0 2px var(--border-accent-soft);
 }
 
 .composer-mobile-menu {
@@ -110,13 +123,13 @@
   padding: 0;
   border-radius: 999px;
   cursor: pointer;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   align-self: flex-start;
-  margin-top: 5px;
+  margin-top: 2px;
 }
 
 .composer-attach:hover {
@@ -240,9 +253,9 @@
 }
 
 .composer textarea {
-  min-height: 60px;
+  min-height: 56px;
   max-height: 120px;
-  height: 60px;
+  height: 56px;
   width: 100%;
   flex: 1;
   resize: none;
@@ -250,8 +263,9 @@
   border: none;
   background: transparent;
   color: inherit;
-  padding: 8px 4px;
+  padding: 8px 2px;
   font-size: 14px;
+  line-height: 1.5;
   -webkit-app-region: no-drag;
   overflow-y: hidden;
 }
@@ -261,15 +275,15 @@
 }
 
 .composer-action {
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  background: transparent;
-  color: #ffffff;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-card-strong);
+  color: var(--text-muted);
   padding: 0;
   border-radius: 999px;
   font-size: 12px;
   cursor: pointer;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -280,25 +294,6 @@
   display: none;
 }
 
-:root[data-theme="light"] .composer-action {
-  border-color: var(--border-strong);
-  color: var(--text-strong);
-}
-
-:root[data-theme="light"] .composer-action:hover {
-  color: var(--text-strong);
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme]) .composer-action {
-    border-color: var(--border-strong);
-    color: var(--text-strong);
-  }
-
-  :root:not([data-theme]) .composer-action:hover {
-    color: var(--text-strong);
-  }
-}
 
 .composer-action--mic.is-active {
   border-color: rgba(120, 235, 190, 0.6);
@@ -395,8 +390,8 @@
 }
 
 .composer-action:hover {
-  background: var(--surface-control-hover);
-  color: #ffffff;
+  background: var(--surface-hover);
+  color: var(--text-stronger);
 }
 
 .composer-action.is-stop:hover {
@@ -586,7 +581,7 @@
   display: flex;
   align-items: center;
   padding-top: 6px;
-  border-top: 1px solid var(--border-muted);
+  border-top: 1px solid var(--border-subtle);
   gap: 12px;
 }
 
@@ -596,62 +591,87 @@
   flex-wrap: wrap;
 }
 
-.composer-context {
+/* ── Context Meter ─────────────────────────────────────────────────── */
+/* Replaces the old tiny ring with a readable progress bar + numbers.  */
+
+.composer-context-meter {
   margin-left: auto;
-  display: grid;
-  grid-template-columns: auto;
+  display: flex;
   align-items: center;
   gap: 8px;
   font-size: 11px;
   color: var(--text-muted);
-}
-
-.composer-context-ring {
-  --context-free: 0;
-  width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  position: relative;
-  background:
-    radial-gradient(circle, var(--surface-context-core) 54%, transparent 56%),
-    conic-gradient(
-      from 180deg,
-      hsl(calc(120deg * var(--context-free) / 100), 80%, 55%)
-        calc(var(--context-free) * 1%),
-      var(--border-strong) 0
-    );
-  transition: background 0.2s ease;
-}
-
-.composer-context-ring::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 6px);
-  transform: translateY(4px);
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: var(--surface-command);
-  color: var(--text-emphasis);
-  font-size: 10px;
   white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-  border: 1px solid var(--border-subtle);
+  flex-shrink: 0;
 }
 
-.composer-context-ring:hover::after {
-  opacity: 1;
-  transform: translateY(0);
+/* Thin horizontal progress bar */
+.context-meter-bar {
+  width: 64px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border-muted);
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
-.composer-context-value {
-  font-weight: 600;
-  font-size: 6px;
-  color: var(--text-quiet);
+.context-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: hsl(145, 65%, 48%);
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+.context-meter-fill--warn {
+  background: hsl(38, 92%, 55%);
+}
+
+.context-meter-fill--danger {
+  background: hsl(0, 72%, 55%);
+}
+
+/* "45.2k / 128k" label */
+.context-meter-label {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--text-subtle);
+}
+
+.context-meter-label--empty {
+  color: var(--text-faint);
+}
+
+/* Per-turn breakdown: "本轮 ↓12k ⚡85% ↑3.2k" */
+.context-meter-turn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border-muted);
+}
+
+.context-meter-turn-label {
+  color: var(--text-faint);
+  font-size: 10px;
+}
+
+.context-meter-turn-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  color: var(--text-subtle);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.context-meter-cached {
+  color: hsl(38, 80%, 50%);
+  font-size: 10px;
+}
+
+.context-meter-reasoning {
+  font-size: 10px;
+  color: var(--text-muted);
 }
 
 
@@ -875,7 +895,7 @@
     scrollbar-width: thin;
   }
 
-  .app.layout-phone .composer-context {
+  .app.layout-phone .composer-context-meter {
     display: none;
   }
 

@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { readWorkspaceFile } from "../../../services/tauri";
 import {
   decodeFileLink,
   isFileLinkUrl,
@@ -17,6 +20,7 @@ type MarkdownProps = {
   codeBlockStyle?: "default" | "message";
   codeBlockCopyUseModifier?: boolean;
   showFilePath?: boolean;
+  workspaceId?: string | null;
   workspacePath?: string | null;
   onOpenFileLink?: (path: string) => void;
   onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
@@ -51,6 +55,24 @@ type ParsedFileReference = {
   fileName: string;
   lineLabel: string | null;
   parentPath: string | null;
+};
+
+type FileLinkPreviewAnchor = {
+  top: number;
+  left: number;
+};
+
+type FileLinkPreviewLine = {
+  lineNumber: number;
+  text: string;
+  focused: boolean;
+};
+
+type FileLinkPreviewState = {
+  lines: FileLinkPreviewLine[];
+  title: string;
+  path: string;
+  truncated: boolean;
 };
 
 function normalizePathSeparators(path: string) {
@@ -317,10 +339,101 @@ function parseFileReference(
   };
 }
 
+function stripLineSuffix(path: string) {
+  const match = path.match(/^(.*?)(?::\d+(?::\d+)?)?$/);
+  return (match?.[1] ?? path).trim();
+}
+
+function parseLineNumber(rawPath: string) {
+  const match = rawPath.trim().match(/:(\d+)(?::\d+)?$/);
+  if (!match) {
+    return null;
+  }
+  const parsed = Number(match[1]);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return null;
+  }
+  return parsed;
+}
+
+function resolveWorkspacePreviewPath(rawPath: string, workspacePath?: string | null) {
+  const withoutLine = normalizePathSeparators(stripLineSuffix(rawPath));
+  if (!withoutLine) {
+    return null;
+  }
+  if (!isAbsolutePath(withoutLine)) {
+    if (withoutLine.startsWith("../")) {
+      return null;
+    }
+    return withoutLine.replace(/^\.\/+/, "");
+  }
+
+  if (!workspacePath) {
+    return null;
+  }
+
+  const normalizedWorkspace = trimTrailingPathSeparators(
+    normalizePathSeparators(workspacePath.trim()),
+  );
+  if (!normalizedWorkspace || !isAbsolutePath(normalizedWorkspace)) {
+    return null;
+  }
+
+  const relative = toRelativePath(normalizedWorkspace, withoutLine);
+  if (relative === null || !relative || relative.startsWith("..")) {
+    return null;
+  }
+
+  return relative;
+}
+
+function computePreviewAnchor(link: HTMLAnchorElement): FileLinkPreviewAnchor {
+  const rect = link.getBoundingClientRect();
+  const width = 420;
+  const height = 260;
+  const gutter = 12;
+
+  let left = Math.min(rect.left, window.innerWidth - width - gutter);
+  left = Math.max(gutter, left);
+
+  let top = rect.bottom + 8;
+  if (top + height > window.innerHeight - gutter) {
+    top = rect.top - height - 8;
+  }
+  top = Math.max(gutter, Math.min(top, window.innerHeight - height - gutter));
+
+  return { top, left };
+}
+
+function buildPreviewState(rawPath: string, content: string, truncated: boolean): FileLinkPreviewState {
+  const targetLine = parseLineNumber(rawPath);
+  const source = content.split(/\r?\n/);
+  const fallbackStart = 0;
+  const focusIndex = targetLine ? Math.max(0, targetLine - 1) : fallbackStart;
+  const start = Math.max(0, focusIndex - 3);
+  const end = Math.min(source.length, focusIndex + 4);
+  const lines = source.slice(start, end).map((text, index) => {
+    const lineNumber = start + index + 1;
+    return {
+      lineNumber,
+      text,
+      focused: Boolean(targetLine) && lineNumber === targetLine,
+    };
+  });
+
+  return {
+    title: `L${targetLine ?? start + 1} 附近`,
+    path: stripLineSuffix(rawPath),
+    truncated,
+    lines,
+  };
+}
+
 function FileReferenceLink({
   href,
   rawPath,
   showFilePath,
+  workspaceId,
   workspacePath,
   onClick,
   onContextMenu,
@@ -328,6 +441,7 @@ function FileReferenceLink({
   href: string;
   rawPath: string;
   showFilePath: boolean;
+  workspaceId?: string | null;
   workspacePath?: string | null;
   onClick: (event: React.MouseEvent, path: string) => void;
   onContextMenu: (event: React.MouseEvent, path: string) => void;
@@ -336,20 +450,178 @@ function FileReferenceLink({
     rawPath,
     workspacePath,
   );
+  const [previewAnchor, setPreviewAnchor] = useState<FileLinkPreviewAnchor | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewState, setPreviewState] = useState<FileLinkPreviewState | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
+  const previewPath = resolveWorkspacePreviewPath(rawPath, workspacePath);
+
+  const clearCloseTimer = () => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  };
+
+  const closePreview = useCallback(() => {
+    clearCloseTimer();
+    setIsPreviewOpen(false);
+    setIsPreviewLoading(false);
+    setPreviewError(null);
+    setPreviewState(null);
+    setPreviewAnchor(null);
+  }, []);
+
+  const scheduleClose = () => {
+    clearCloseTimer();
+    closeTimerRef.current = window.setTimeout(closePreview, 120);
+  };
+
+  const openPreview = (target: HTMLAnchorElement) => {
+    if (!workspaceId || !previewPath) {
+      return;
+    }
+    clearCloseTimer();
+    setPreviewAnchor(computePreviewAnchor(target));
+    setIsPreviewOpen(true);
+  };
+
+  // Close preview on Escape key
+  useEffect(() => {
+    if (!isPreviewOpen) {
+      return undefined;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        closePreview();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [isPreviewOpen, closePreview]);
+
+  useEffect(() => {
+    return () => {
+      clearCloseTimer();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!workspaceId || !previewPath || !isPreviewOpen) {
+      return;
+    }
+    let cancelled = false;
+    setIsPreviewLoading(true);
+    setPreviewError(null);
+    setPreviewState(null);
+
+    readWorkspaceFile(workspaceId, previewPath)
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+        const content = response.content ?? "";
+        setPreviewState(buildPreviewState(rawPath, content, Boolean(response.truncated)));
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+        setPreviewError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsPreviewLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isPreviewOpen, previewPath, rawPath, workspaceId]);
+
   return (
-    <a
-      href={href}
-      className="message-file-link"
-      title={fullPath}
-      onClick={(event) => onClick(event, rawPath)}
-      onContextMenu={(event) => onContextMenu(event, rawPath)}
-    >
-      <span className="message-file-link-name">{fileName}</span>
-      {lineLabel ? <span className="message-file-link-line">L{lineLabel}</span> : null}
-      {showFilePath && parentPath ? (
-        <span className="message-file-link-path">{parentPath}</span>
-      ) : null}
-    </a>
+    <>
+      <a
+        href={href}
+        className="message-file-link"
+        title={fullPath}
+        onClick={(event) => onClick(event, rawPath)}
+        onContextMenu={(event) => onContextMenu(event, rawPath)}
+        onMouseEnter={(event) => openPreview(event.currentTarget)}
+        onMouseLeave={scheduleClose}
+        onFocus={(event) => openPreview(event.currentTarget)}
+        onBlur={scheduleClose}
+      >
+        <span className="message-file-link-name">{fileName}</span>
+        {lineLabel ? <span className="message-file-link-line">L{lineLabel}</span> : null}
+        {showFilePath && parentPath ? (
+          <span className="message-file-link-path">{parentPath}</span>
+        ) : null}
+      </a>
+      {isPreviewOpen && previewAnchor
+        ? createPortal(
+            <div
+              className="message-file-link-preview"
+              style={{ top: previewAnchor.top, left: previewAnchor.left }}
+              onMouseEnter={clearCloseTimer}
+              onMouseLeave={scheduleClose}
+              role="dialog"
+              aria-label={`${fileName} 预览`}
+              tabIndex={-1}
+            >
+              <div className="message-file-link-preview-header">
+                <span className="message-file-link-preview-title">{previewState?.title ?? "文件预览"}</span>
+                {previewState?.truncated ? (
+                  <span className="message-file-link-preview-tag">已截断</span>
+                ) : null}
+                <button
+                  type="button"
+                  className="message-file-link-preview-open"
+                  title="打开完整文件"
+                  aria-label="打开完整文件"
+                  onClick={(event) => {
+                    closePreview();
+                    onClick(event as unknown as React.MouseEvent, rawPath);
+                  }}
+                >
+                  <ExternalLink size={12} aria-hidden />
+                  <span>打开</span>
+                </button>
+              </div>
+              <div className="message-file-link-preview-path" title={previewState?.path ?? fullPath}>
+                {previewState?.path ?? fullPath}
+              </div>
+              {isPreviewLoading ? (
+                <div className="message-file-link-preview-status">正在读取文件...</div>
+              ) : previewError ? (
+                <div className="message-file-link-preview-status message-file-link-preview-error">
+                  预览失败：{previewError}
+                </div>
+              ) : previewState && previewState.lines.length > 0 ? (
+                <div className="message-file-link-preview-lines" role="list">
+                  {previewState.lines.map((line) => (
+                    <div
+                      key={`${line.lineNumber}-${line.text}`}
+                      className={`message-file-link-preview-line${line.focused ? " is-focused" : ""}`}
+                      role="listitem"
+                    >
+                      <span className="message-file-link-preview-line-number">{line.lineNumber}</span>
+                      <code className="message-file-link-preview-line-text">{line.text || " "}</code>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="message-file-link-preview-status">文件为空。</div>
+              )}
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
 
@@ -432,6 +704,33 @@ function PreBlock({ node, children, copyUseModifier }: PreProps) {
   );
 }
 
+// Stable regex – created once outside render to avoid per-render allocation
+const FILE_PATH_WITH_OPTIONAL_LINE_RE = /^(.+?)(:\d+(?::\d+)?)?$/;
+
+// Stable remarkPlugins array – prevents ReactMarkdown from re-parsing
+const REMARK_PLUGINS = [remarkGfm, remarkFileLinks];
+
+// Stable urlTransform – referentially stable across renders
+function markdownUrlTransform(url: string): string {
+  const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(url);
+  if (
+    isFileLinkUrl(url) ||
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("mailto:") ||
+    url.startsWith("#") ||
+    url.startsWith("/") ||
+    url.startsWith("./") ||
+    url.startsWith("../")
+  ) {
+    return url;
+  }
+  if (!hasScheme) {
+    return url;
+  }
+  return "";
+}
+
 export function Markdown({
   value,
   className,
@@ -439,6 +738,7 @@ export function Markdown({
   codeBlockStyle = "default",
   codeBlockCopyUseModifier = false,
   showFilePath = true,
+  workspaceId = null,
   workspacePath = null,
   onOpenFileLink,
   onOpenFileLinkMenu,
@@ -448,143 +748,146 @@ export function Markdown({
   const content = codeBlock
     ? `\`\`\`\n${normalizedValue}\n\`\`\``
     : normalizedValue;
-  const handleFileLinkClick = (event: React.MouseEvent, path: string) => {
-    event.preventDefault();
-    event.stopPropagation();
-    onOpenFileLink?.(path);
-  };
-  const handleFileLinkContextMenu = (
-    event: React.MouseEvent,
-    path: string,
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    onOpenFileLinkMenu?.(event, path);
-  };
-  const filePathWithOptionalLineMatch = /^(.+?)(:\d+(?::\d+)?)?$/;
-  const getLinkablePath = (rawValue: string) => {
-    const trimmed = rawValue.trim();
-    if (!trimmed) {
-      return null;
-    }
-    const match = trimmed.match(filePathWithOptionalLineMatch);
-    const pathOnly = match?.[1]?.trim() ?? trimmed;
-    if (!pathOnly || !isLinkableFilePath(pathOnly)) {
-      return null;
-    }
-    return trimmed;
-  };
-  const components: Components = {
-    a: ({ href, children }) => {
-      const url = href ?? "";
-      const threadId = url.startsWith("thread://")
-        ? url.slice("thread://".length).trim()
-        : url.startsWith("/thread/")
-          ? url.slice("/thread/".length).trim()
-          : "";
-      if (threadId) {
+  const handleFileLinkClick = useCallback(
+    (event: React.MouseEvent, path: string) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onOpenFileLink?.(path);
+    },
+    [onOpenFileLink],
+  );
+  const handleFileLinkContextMenu = useCallback(
+    (event: React.MouseEvent, path: string) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onOpenFileLinkMenu?.(event, path);
+    },
+    [onOpenFileLinkMenu],
+  );
+
+  // Memoize the components object so ReactMarkdown receives a stable reference
+  // and skips a full re-parse when only unrelated props change.
+  const components: Components = useMemo(() => {
+    const getLinkablePath = (rawValue: string) => {
+      const trimmed = rawValue.trim();
+      if (!trimmed) {
+        return null;
+      }
+      const match = trimmed.match(FILE_PATH_WITH_OPTIONAL_LINE_RE);
+      const pathOnly = match?.[1]?.trim() ?? trimmed;
+      if (!pathOnly || !isLinkableFilePath(pathOnly)) {
+        return null;
+      }
+      return trimmed;
+    };
+
+    const result: Components = {
+      a: ({ href, children }) => {
+        const url = href ?? "";
+        const tid = url.startsWith("thread://")
+          ? url.slice("thread://".length).trim()
+          : url.startsWith("/thread/")
+            ? url.slice("/thread/".length).trim()
+            : "";
+        if (tid) {
+          return (
+            <a
+              href={href}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onOpenThreadLink?.(tid);
+              }}
+            >
+              {children}
+            </a>
+          );
+        }
+        if (isFileLinkUrl(url)) {
+          const path = decodeFileLink(url);
+          return (
+            <FileReferenceLink
+              href={href ?? toFileLink(path)}
+              rawPath={path}
+              showFilePath={showFilePath}
+              workspaceId={workspaceId}
+              workspacePath={workspacePath}
+              onClick={handleFileLinkClick}
+              onContextMenu={handleFileLinkContextMenu}
+            />
+          );
+        }
+        const isExternal =
+          url.startsWith("http://") ||
+          url.startsWith("https://") ||
+          url.startsWith("mailto:");
+
+        if (!isExternal) {
+          return <a href={href}>{children}</a>;
+        }
+
         return (
           <a
             href={href}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              onOpenThreadLink?.(threadId);
+              void openUrl(url);
             }}
           >
             {children}
           </a>
         );
-      }
-      if (isFileLinkUrl(url)) {
-        const path = decodeFileLink(url);
+      },
+      code: ({ className: codeClassName, children }) => {
+        if (codeClassName) {
+          return <code className={codeClassName}>{children}</code>;
+        }
+        const text = String(children ?? "").trim();
+        const linkablePath = getLinkablePath(text);
+        if (!linkablePath) {
+          return <code>{children}</code>;
+        }
+        const href = toFileLink(linkablePath);
         return (
           <FileReferenceLink
-            href={href ?? toFileLink(path)}
-            rawPath={path}
+            href={href}
+            rawPath={linkablePath}
             showFilePath={showFilePath}
+            workspaceId={workspaceId}
             workspacePath={workspacePath}
             onClick={handleFileLinkClick}
             onContextMenu={handleFileLinkContextMenu}
           />
         );
-      }
-      const isExternal =
-        url.startsWith("http://") ||
-        url.startsWith("https://") ||
-        url.startsWith("mailto:");
+      },
+    };
 
-      if (!isExternal) {
-        return <a href={href}>{children}</a>;
-      }
-
-      return (
-        <a
-          href={href}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            void openUrl(url);
-          }}
-        >
+    if (codeBlockStyle === "message") {
+      result.pre = ({ node, children }) => (
+        <PreBlock node={node as PreProps["node"]} copyUseModifier={codeBlockCopyUseModifier}>
           {children}
-        </a>
+        </PreBlock>
       );
-    },
-    code: ({ className: codeClassName, children }) => {
-      if (codeClassName) {
-        return <code className={codeClassName}>{children}</code>;
-      }
-      const text = String(children ?? "").trim();
-      const linkablePath = getLinkablePath(text);
-      if (!linkablePath) {
-        return <code>{children}</code>;
-      }
-      const href = toFileLink(linkablePath);
-      return (
-        <FileReferenceLink
-          href={href}
-          rawPath={linkablePath}
-          showFilePath={showFilePath}
-          workspacePath={workspacePath}
-          onClick={handleFileLinkClick}
-          onContextMenu={handleFileLinkContextMenu}
-        />
-      );
-    },
-  };
+    }
 
-  if (codeBlockStyle === "message") {
-    components.pre = ({ node, children }) => (
-      <PreBlock node={node as PreProps["node"]} copyUseModifier={codeBlockCopyUseModifier}>
-        {children}
-      </PreBlock>
-    );
-  }
+    return result;
+  }, [
+    showFilePath,
+    workspaceId,
+    workspacePath,
+    handleFileLinkClick,
+    handleFileLinkContextMenu,
+    onOpenThreadLink,
+    codeBlockStyle,
+    codeBlockCopyUseModifier,
+  ]);
 
   return (
     <div className={className}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkFileLinks]}
-        urlTransform={(url) => {
-          const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(url);
-          if (
-            isFileLinkUrl(url) ||
-            url.startsWith("http://") ||
-            url.startsWith("https://") ||
-            url.startsWith("mailto:") ||
-            url.startsWith("#") ||
-            url.startsWith("/") ||
-            url.startsWith("./") ||
-            url.startsWith("../")
-          ) {
-            return url;
-          }
-          if (!hasScheme) {
-            return url;
-          }
-          return "";
-        }}
+        remarkPlugins={REMARK_PLUGINS}
+        urlTransform={markdownUrlTransform}
         components={components}
       >
         {content}

@@ -29,8 +29,6 @@ const baseProps = {
   onRefreshAllThreads: vi.fn(),
   activeWorkspaceId: null,
   activeThreadId: null,
-  accountRateLimits: null,
-  usageShowRemaining: false,
   accountInfo: null,
   onSwitchAccount: vi.fn(),
   onCancelSwitchAccount: vi.fn(),
@@ -48,7 +46,6 @@ const baseProps = {
   onToggleWorkspaceCollapse: vi.fn(),
   onSelectThread: vi.fn(),
   onDeleteThread: vi.fn(),
-  onSyncThread: vi.fn(),
   pinThread: vi.fn(() => false),
   unpinThread: vi.fn(),
   isThreadPinned: vi.fn(() => false),
@@ -111,7 +108,7 @@ describe("Sidebar", () => {
       />,
     );
 
-    const button = screen.getByRole("button", { name: "排序线程" });
+    const button = screen.getByRole("button", { name: "排序对话" });
     expect(screen.queryByRole("menu")).toBeNull();
 
     fireEvent.click(button);
@@ -155,7 +152,7 @@ describe("Sidebar", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "刷新全部工作区线程" }));
+    fireEvent.click(screen.getByRole("button", { name: "刷新全部工作区对话" }));
     expect(onRefreshAllThreads).toHaveBeenCalledTimes(1);
   });
 
@@ -191,7 +188,7 @@ describe("Sidebar", () => {
       />,
     );
 
-    const refreshButton = screen.getByRole("button", { name: "刷新全部工作区线程" });
+    const refreshButton = screen.getByRole("button", { name: "刷新全部工作区对话" });
     expect(refreshButton.getAttribute("aria-busy")).toBe("true");
     const icon = refreshButton.querySelector("svg");
     expect(icon?.getAttribute("class") ?? "").toContain("spinning");
@@ -233,7 +230,7 @@ describe("Sidebar", () => {
 
     render(<Sidebar {...props} />);
 
-    const draftRow = screen.getByRole("button", { name: /新建代理/i });
+    const draftRow = screen.getByRole("button", { name: /新建对话/i });
     expect(draftRow).toBeTruthy();
     expect(draftRow.className).toContain("thread-row-draft");
     expect(draftRow.className).toContain("active");

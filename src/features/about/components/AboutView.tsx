@@ -52,7 +52,7 @@ export function AboutView() {
           {version ? `版本 ${version}` : "版本 —"}
         </div>
         <div className="about-tagline">
-          统一监控你的 Codex 智能体运行状态
+          统一监控你的 Codex Agent 运行状态
         </div>
         <div className="about-divider" />
         <div className="about-links">

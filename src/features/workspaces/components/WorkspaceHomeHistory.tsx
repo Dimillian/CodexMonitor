@@ -99,7 +99,7 @@ export function WorkspaceHomeHistory({
         </div>
         {runs.length === 0 ? (
           <div className="workspace-home-empty">
-            Start a run to see its instances tracked here.
+            发起一次运行，即可在此追踪实例状态。
           </div>
         ) : (
           <div className="workspace-home-run-grid">
@@ -131,7 +131,7 @@ export function WorkspaceHomeHistory({
                       ))}
                       {run.instanceErrors.length > 2 && (
                         <div className="workspace-home-run-error-item">
-                          +{run.instanceErrors.length - 2} more
+                          还有 {run.instanceErrors.length - 2} 条
                         </div>
                       )}
                     </div>
@@ -146,13 +146,13 @@ export function WorkspaceHomeHistory({
                     />
                   ) : run.status === "failed" ? (
                     <div className="workspace-home-empty">
-                      No instances were started.
+                      未启动任何实例。
                     </div>
                   ) : (
                     <div className="workspace-home-empty workspace-home-pending">
                       <span className="working-spinner" aria-hidden />
                       <span className="workspace-home-pending-text">
-                        Instances are preparing...
+                        实例准备中…
                       </span>
                     </div>
                   )}
@@ -165,21 +165,20 @@ export function WorkspaceHomeHistory({
 
       <div className="workspace-home-runs">
         <div className="workspace-home-section-header">
-          <div className="workspace-home-section-title">最近的线程</div>
+          <div className="workspace-home-section-title">最近的对话</div>
         </div>
         {recentThreadInstances.length === 0 ? (
           <div className="workspace-home-empty">
-            Threads from the sidebar will appear here.
+            侧边栏中的对话将显示在这里。
           </div>
         ) : (
           <div className="workspace-home-run-grid">
             <div className="workspace-home-run-card">
               <div className="workspace-home-run-header">
                 <div>
-                  <div className="workspace-home-run-title">代理活动</div>
+                  <div className="workspace-home-run-title">对话活动</div>
                   <div className="workspace-home-run-meta">
-                    {recentThreadInstances.length} thread
-                    {recentThreadInstances.length === 1 ? "" : "s"}
+                    {recentThreadInstances.length} 个对话
                   </div>
                 </div>
                 {recentThreadsUpdatedAt ? (

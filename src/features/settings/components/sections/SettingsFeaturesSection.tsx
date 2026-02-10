@@ -20,13 +20,11 @@ export function SettingsFeaturesSection({
     <section className="settings-section">
       <div className="settings-section-title">功能</div>
       <div className="settings-section-subtitle">
-        管理稳定版和实验版 Codex 功能。
+        开关 Codex 的稳定功能和实验性功能。
       </div>
       {hasCodexHomeOverrides && (
         <div className="settings-help">
-          功能设置保存在默认 CODEX_HOME 的 config.toml。
-          <br />
-          不会更新工作区覆盖项。
+          以下设置会写入默认 CODEX_HOME 下的 config.toml，不影响工作区级别的覆盖配置。
         </div>
       )}
       <div className="settings-toggle-row">
@@ -43,13 +41,13 @@ export function SettingsFeaturesSection({
       {openConfigError && <div className="settings-help">{openConfigError}</div>}
       <div className="settings-subsection-title">稳定功能</div>
       <div className="settings-subsection-subtitle">
-        默认启用且可用于生产环境的功能。
+        已稳定、可放心使用的功能。
       </div>
       <div className="settings-toggle-row">
         <div>
           <div className="settings-toggle-title">协作模式</div>
           <div className="settings-toggle-subtitle">
-            启用协作模式预设（Code、Plan）。
+            启用 Code（编码）和 Plan（规划）两种协作模式预设。
           </div>
         </div>
         <button
@@ -68,9 +66,9 @@ export function SettingsFeaturesSection({
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">个性风格</div>
+          <div className="settings-toggle-title">回复风格</div>
           <div className="settings-toggle-subtitle">
-            选择 Codex 的沟通风格（会写入 config.toml 顶层 <code>personality</code>）。
+            设置 Codex Agent 的沟通语气。
           </div>
         </div>
         <select
@@ -83,17 +81,17 @@ export function SettingsFeaturesSection({
               personality: event.target.value as AppSettings["personality"],
             })
           }
-          aria-label="个性风格"
+          aria-label="回复风格"
         >
-          <option value="friendly">友好</option>
-          <option value="pragmatic">务实</option>
+          <option value="friendly">友好 — 语气温和，解释详细</option>
+          <option value="pragmatic">务实 — 简洁直接，专注结果</option>
         </select>
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">引导模式</div>
+          <div className="settings-toggle-title">即时发送（Steer）</div>
           <div className="settings-toggle-subtitle">
-            立即发送消息；运行中可按 Tab 排队。
+            消息输入即发送，无需等待当前任务完成。运行中可按 Tab 排队追加指令。
           </div>
         </div>
         <button
@@ -114,7 +112,7 @@ export function SettingsFeaturesSection({
         <div>
           <div className="settings-toggle-title">后台终端</div>
           <div className="settings-toggle-subtitle">
-            在后台运行长时终端命令。
+            允许 Codex 将耗时较长的终端命令（如编译、测试）放到后台执行，不阻塞对话。
           </div>
         </div>
         <button
@@ -133,13 +131,13 @@ export function SettingsFeaturesSection({
       </div>
       <div className="settings-subsection-title">实验功能</div>
       <div className="settings-subsection-subtitle">
-        预览可能变更或下线的功能。
+        尚在测试中的功能，后续版本可能变更或移除。
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">多智能体</div>
+          <div className="settings-toggle-title">多 Agent 协作</div>
           <div className="settings-toggle-subtitle">
-            启用 Codex 多智能体协作工具。
+            允许 Codex 调用多个 Agent 并行处理子任务，适用于大型重构等复杂场景。
           </div>
         </div>
         <button
@@ -158,9 +156,9 @@ export function SettingsFeaturesSection({
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">Apps</div>
+          <div className="settings-toggle-title">应用连接器</div>
           <div className="settings-toggle-subtitle">
-            启用 ChatGPT 应用/连接器与 <code>/apps</code> 命令。
+            启用 ChatGPT 应用/连接器，可通过 <code>/apps</code> 命令调用外部服务。
           </div>
         </div>
         <button

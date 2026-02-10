@@ -354,7 +354,7 @@ export function PromptPanel({
               }
               void onSendPrompt(text);
             }}
-            title="发送到当前代理"
+            title="发送到当前对话"
           >
             Send
           </button>
@@ -368,7 +368,7 @@ export function PromptPanel({
               }
               void onSendPromptToNewAgent(text);
             }}
-            title="发送到新代理"
+            title="发送到新对话"
           >
             New agent
           </button>
@@ -529,21 +529,21 @@ export function PromptPanel({
               <div className="prompt-empty-text">
                 <div className="prompt-empty-title">暂无工作区提示词</div>
                 <div className="prompt-empty-subtitle">
-                  Create one here or drop a .md file into the{" "}
+                  在此创建，或将 .md 文件拖入{" "}
                   {workspacePath ? (
                     <button
                       type="button"
                       className="prompt-empty-link"
                       onClick={() => void onRevealWorkspacePrompts()}
                     >
-                      workspace prompts folder
+                      工作区提示词目录
                     </button>
                   ) : (
                     <span className="prompt-empty-link is-disabled">
-                      workspace prompts folder
+                      工作区提示词目录
                     </span>
                   )}
-                  .
+                  。
                 </div>
               </div>
             </div>
@@ -572,7 +572,7 @@ export function PromptPanel({
               <div className="prompt-empty-text">
                 <div className="prompt-empty-title">暂无通用提示词</div>
                 <div className="prompt-empty-subtitle">
-                  Create one here or drop a .md file into{" "}
+                  在此创建，或将 .md 文件拖入{" "}
                   {canRevealGeneralPrompts ? (
                     <button
                       type="button"
@@ -586,7 +586,7 @@ export function PromptPanel({
                       CODEX_HOME/prompts
                     </span>
                   )}
-                  .
+                  。
                 </div>
               </div>
             </div>

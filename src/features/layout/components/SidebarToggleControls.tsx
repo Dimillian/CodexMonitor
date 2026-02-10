@@ -27,8 +27,8 @@ export function SidebarCollapseButton({
       className="ghost main-header-action"
       onClick={onCollapseSidebar}
       data-tauri-drag-region="false"
-      aria-label="隐藏线程侧栏"
-      title="隐藏线程侧栏"
+      aria-label="隐藏对话侧栏"
+      title="隐藏对话侧栏"
     >
       <PanelLeftClose size={14} aria-hidden />
     </button>
@@ -76,8 +76,8 @@ export function TitlebarExpandControls({
             className="ghost main-header-action"
             onClick={onExpandSidebar}
             data-tauri-drag-region="false"
-            aria-label="显示线程侧栏"
-            title="显示线程侧栏"
+            aria-label="显示对话侧栏"
+            title="显示对话侧栏"
           >
             <PanelLeftOpen size={14} aria-hidden />
           </button>

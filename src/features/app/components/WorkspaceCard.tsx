@@ -64,7 +64,7 @@ export function WorkspaceCard({
                   onToggleWorkspaceCollapse(workspace.id, !isCollapsed);
                 }}
                 data-tauri-drag-region="false"
-                aria-label={isCollapsed ? "显示代理" : "隐藏代理"}
+                aria-label={isCollapsed ? "显示对话" : "隐藏对话"}
                 aria-expanded={!isCollapsed}
               >
                 <span className="workspace-toggle-icon">›</span>
@@ -92,7 +92,7 @@ export function WorkspaceCard({
                 );
               }}
               data-tauri-drag-region="false"
-              aria-label="添加代理选项"
+              aria-label="添加对话选项"
               aria-expanded={addMenuOpen}
             >
               +

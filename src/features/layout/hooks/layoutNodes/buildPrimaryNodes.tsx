@@ -50,8 +50,6 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       onRefreshAllThreads={options.onRefreshAllThreads}
       activeWorkspaceId={options.activeWorkspaceId}
       activeThreadId={options.activeThreadId}
-      accountRateLimits={options.activeRateLimits}
-      usageShowRemaining={options.usageShowRemaining}
       accountInfo={options.accountInfo}
       onSwitchAccount={options.onSwitchAccount}
       onCancelSwitchAccount={options.onCancelSwitchAccount}
@@ -69,7 +67,6 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       onToggleWorkspaceCollapse={options.onToggleWorkspaceCollapse}
       onSelectThread={options.onSelectThread}
       onDeleteThread={options.onDeleteThread}
-      onSyncThread={options.onSyncThread}
       pinThread={options.pinThread}
       unpinThread={options.unpinThread}
       isThreadPinned={options.isThreadPinned}
@@ -273,6 +270,8 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       onSaveLaunchScript={options.onSaveLaunchScript}
       launchScriptsState={options.launchScriptsState}
       extraActionsNode={options.mainHeaderActionsNode}
+      backendMode={options.backendMode}
+      accessMode={options.accessMode}
     />
   ) : null;
 

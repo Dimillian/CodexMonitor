@@ -91,6 +91,7 @@ export function useResizablePanels() {
     ),
   );
   const resizeRef = useRef<ResizeState | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY_SIDEBAR, String(sidebarWidth));
@@ -125,7 +126,7 @@ export function useResizablePanels() {
   }, [debugPanelHeight]);
 
   useEffect(() => {
-    function handleMouseMove(event: MouseEvent) {
+    function applyResize(event: MouseEvent) {
       if (!resizeRef.current) {
         return;
       }
@@ -172,13 +173,33 @@ export function useResizablePanels() {
       }
     }
 
+    // Throttle mouse-move with requestAnimationFrame for smoother resize
+    function handleMouseMove(event: MouseEvent) {
+      if (!resizeRef.current) {
+        return;
+      }
+      if (rafRef.current !== null) {
+        return; // already scheduled
+      }
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        applyResize(event);
+      });
+    }
+
     function handleMouseUp() {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
       if (!resizeRef.current) {
         return;
       }
       resizeRef.current = null;
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
+      // Remove the is-resizing class so transitions resume
+      document.querySelector(".app")?.classList.remove("is-resizing");
     }
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -186,8 +207,16 @@ export function useResizablePanels() {
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+      }
     };
   }, []);
+
+  /** Add is-resizing class to disable CSS transitions during drag */
+  function markResizing() {
+    document.querySelector(".app")?.classList.add("is-resizing");
+  }
 
   const onSidebarResizeStart = useCallback(
     (event: ReactMouseEvent) => {
@@ -200,6 +229,7 @@ export function useResizablePanels() {
       };
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
+      markResizing();
     },
     [planPanelHeight, sidebarWidth],
   );
@@ -215,6 +245,7 @@ export function useResizablePanels() {
       };
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
+      markResizing();
     },
     [planPanelHeight, rightPanelWidth],
   );
@@ -230,6 +261,7 @@ export function useResizablePanels() {
       };
       document.body.style.cursor = "row-resize";
       document.body.style.userSelect = "none";
+      markResizing();
     },
     [planPanelHeight, rightPanelWidth],
   );
@@ -245,6 +277,7 @@ export function useResizablePanels() {
       };
       document.body.style.cursor = "row-resize";
       document.body.style.userSelect = "none";
+      markResizing();
     },
     [rightPanelWidth, terminalPanelHeight],
   );
@@ -260,6 +293,7 @@ export function useResizablePanels() {
       };
       document.body.style.cursor = "row-resize";
       document.body.style.userSelect = "none";
+      markResizing();
     },
     [debugPanelHeight, rightPanelWidth],
   );

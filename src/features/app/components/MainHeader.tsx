@@ -3,7 +3,7 @@ import Check from "lucide-react/dist/esm/icons/check";
 import Copy from "lucide-react/dist/esm/icons/copy";
 import Terminal from "lucide-react/dist/esm/icons/terminal";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import type { BranchInfo, OpenAppTarget, WorkspaceInfo } from "../../../types";
+import type { AccessMode, BackendMode, BranchInfo, OpenAppTarget, WorkspaceInfo } from "../../../types";
 import type { ReactNode } from "react";
 import { revealInFileManagerLabel } from "../../../utils/platformPaths";
 import { BranchList } from "../../git/components/BranchList";
@@ -49,6 +49,8 @@ type MainHeaderProps = {
   onLaunchScriptDraftChange?: (value: string) => void;
   onSaveLaunchScript?: () => void;
   launchScriptsState?: WorkspaceLaunchScriptsState;
+  backendMode?: BackendMode;
+  accessMode?: AccessMode;
   worktreeRename?: {
     name: string;
     error: string | null;
@@ -103,6 +105,8 @@ export function MainHeader({
   onSaveLaunchScript,
   launchScriptsState,
   worktreeRename,
+  backendMode = "local",
+  accessMode = "full-access",
 }: MainHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -196,7 +200,14 @@ export function MainHeader({
     <header className="main-header" data-tauri-drag-region>
       <div className="workspace-header">
         <div className="workspace-title-line">
-          <span className="workspace-title">
+          <span
+            className="workspace-title"
+            title={
+              parentName
+                ? `${parentName} — ${workspace.path}`
+                : `${workspace.name} — ${workspace.path}`
+            }
+          >
             {parentName ? parentName : workspace.name}
           </span>
           <span className="workspace-separator" aria-hidden>
@@ -485,6 +496,30 @@ export function MainHeader({
               )}
             </div>
           )}
+        </div>
+        <div className="status-rail" aria-label="状态栏">
+          <span
+            className={`status-rail-badge${backendMode === "remote" ? " is-remote" : ""}`}
+            title={backendMode === "local" ? "本地环境" : "远程环境"}
+          >
+            {backendMode === "local" ? "本地" : "远程"}
+          </span>
+          <span
+            className={`status-rail-badge status-rail-access${accessMode === "full-access" ? " is-full" : ""}`}
+            title={
+              accessMode === "full-access"
+                ? "完全访问"
+                : accessMode === "read-only"
+                  ? "只读"
+                  : "当前权限"
+            }
+          >
+            {accessMode === "full-access"
+              ? "完全访问"
+              : accessMode === "read-only"
+                ? "只读"
+                : "当前"}
+          </span>
         </div>
       </div>
       <div className="main-header-actions">

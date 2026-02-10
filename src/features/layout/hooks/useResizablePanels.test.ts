@@ -63,7 +63,7 @@ describe("useResizablePanels", () => {
     hook.unmount();
   });
 
-  it("persists sidebar width changes and clamps max", () => {
+  it("persists sidebar width changes and clamps max", async () => {
     const hook = renderResizablePanels();
 
     act(() => {
@@ -77,6 +77,11 @@ describe("useResizablePanels", () => {
       window.dispatchEvent(
         new MouseEvent("mousemove", { clientX: 4000, clientY: 0 }),
       );
+    });
+
+    // Flush the requestAnimationFrame throttle used by the resize handler
+    await act(async () => {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     });
 
     expect(hook.result.sidebarWidth).toBe(420);

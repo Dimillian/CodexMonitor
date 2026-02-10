@@ -60,6 +60,12 @@ body {
   font-family: var(--ui-font-family);
 }
 
+/* Disable all transitions during active panel resize to prevent lag */
+.app.is-resizing,
+.app.is-resizing * {
+  transition: none !important;
+}
+
 .drag-strip {
   position: absolute;
   top: 0;

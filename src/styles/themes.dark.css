@@ -13,6 +13,8 @@
   --code-font-size: 11px;
   --code-font-weight: 400;
   --code-line-height: 1.28;
+  --accent-primary: #e5582a;
+  --accent-primary-hover: #cf4c22;
   --text-primary: #e6e7ea;
   --text-strong: #ffffff;
   --text-emphasis: rgba(255, 255, 255, 0.9);
@@ -33,6 +35,7 @@
   --surface-card-strong: rgba(255, 255, 255, 0.12);
   --surface-card-muted: rgba(255, 255, 255, 0.06);
   --surface-item: rgba(255, 255, 255, 0.02);
+  --surface-quiet: rgba(8, 10, 16, 0.82);
   --surface-control: rgba(255, 255, 255, 0.08);
   --surface-control-hover: rgba(255, 255, 255, 0.14);
   --surface-control-disabled: rgba(255, 255, 255, 0.05);
@@ -73,6 +76,7 @@
   --status-warning: rgba(255, 175, 85, 0.95);
   --status-error: rgba(255, 110, 110, 0.95);
   --status-unknown: rgba(255, 255, 255, 0.3);
+  --text-danger: rgba(255, 132, 132, 0.96);
   --select-caret: rgba(255, 255, 255, 0.6);
   --tabbar-height: 56px;
   --ui-scale: 1;

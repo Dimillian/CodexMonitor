@@ -12,6 +12,7 @@
   --terminal-cursor: var(--text-stronger);
   --terminal-selection: rgba(100, 200, 255, 0.25);
   --terminal-font-family: var(--code-font-family);
+  contain: layout style;
 }
 
 .terminal-panel-resizer {

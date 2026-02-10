@@ -41,13 +41,13 @@ export function SettingsDictationSection({
     <section className="settings-section">
       <div className="settings-section-title">听写</div>
       <div className="settings-section-subtitle">
-        启用麦克风听写（本地转写）。
+        通过麦克风语音输入，使用本地 Whisper 模型转为文字。
       </div>
       <div className="settings-toggle-row">
         <div>
           <div className="settings-toggle-title">启用听写</div>
           <div className="settings-toggle-subtitle">
-            首次使用时下载所选 Whisper 模型。
+            开启后，首次使用时会自动下载所选的 Whisper 语音识别模型。
           </div>
         </div>
         <button

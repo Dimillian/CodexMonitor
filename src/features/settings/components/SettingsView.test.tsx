@@ -58,7 +58,6 @@ const baseSettings: AppSettings = {
   lastComposerReasoningEffort: null,
   uiScale: 1,
   theme: "system",
-  usageShowRemaining: false,
   showMessageFilePath: true,
   threadTitleAutogenerationEnabled: false,
   uiFontFamily:
@@ -320,31 +319,6 @@ describe("SettingsView Display", () => {
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({ theme: "dark" }),
-      );
-    });
-  });
-
-  it("toggles remaining limits display", async () => {
-    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
-    renderDisplaySection({ onUpdateAppSettings });
-
-    const row = screen
-      .getByText("显示 Codex 剩余额度")
-      .closest(".settings-toggle-row") as HTMLElement | null;
-    if (!row) {
-      throw new Error("Expected remaining limits row");
-    }
-    const toggle = row.querySelector(
-      "button.settings-toggle",
-    ) as HTMLButtonElement | null;
-    if (!toggle) {
-      throw new Error("Expected remaining limits toggle");
-    }
-    fireEvent.click(toggle);
-
-    await waitFor(() => {
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ usageShowRemaining: true }),
       );
     });
   });
@@ -622,7 +596,7 @@ describe("SettingsView Codex overrides", () => {
       />,
     );
 
-    const input = screen.getByLabelText("Codex args override for Workspace");
+    const input = screen.getByLabelText("Workspace 的 Codex 参数覆盖");
     fireEvent.change(input, { target: { value: "--profile dev" } });
     fireEvent.blur(input);
 
@@ -670,7 +644,7 @@ describe("SettingsView Codex overrides", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("审查模式"), {
+    fireEvent.change(screen.getByLabelText("代码审查方式"), {
       target: { value: "detached" },
     });
 
@@ -854,18 +828,16 @@ describe("SettingsView Codex overrides", () => {
         expect(screen.getByLabelText("连接类型")).toBeTruthy();
         expect(screen.getByLabelText("Orbit WebSocket 地址")).toBeTruthy();
         expect(screen.getByLabelText("远程后端 token")).toBeTruthy();
-        expect(screen.getByRole("button", { name: "Connect & test" })).toBeTruthy();
+        expect(screen.getByRole("button", { name: "连接并测试" })).toBeTruthy();
       });
 
       expect(screen.queryByLabelText("后端模式")).toBeNull();
       expect(screen.queryByRole("button", { name: "启动守护进程" })).toBeNull();
-      expect(screen.queryByRole("button", { name: "Detect Tailscale" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "检测 Tailscale" })).toBeNull();
       expect(screen.queryByRole("button", { name: "连接测试" })).toBeNull();
       expect(screen.queryByLabelText("远程后端 host")).toBeNull();
       expect(screen.queryByRole("button", { name: "登录" })).toBeNull();
-      expect(
-        screen.getByText(/use the orbit websocket url and token configured/i),
-      ).toBeTruthy();
+      expect(screen.getByText(/Orbit WebSocket 地址和令牌/)).toBeTruthy();
     } finally {
       if (originalPlatformDescriptor) {
         Object.defineProperty(window.navigator, "platform", originalPlatformDescriptor);
@@ -1038,7 +1010,7 @@ describe("SettingsView Codex overrides", () => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({ remoteBackendToken: "orbit-token-1", theme: "dark" }),
       );
-      expect(screen.getByText(/Auth code:/).textContent ?? "").toContain("ABCD-1234");
+      expect(screen.getByText(/授权码：/).textContent ?? "").toContain("ABCD-1234");
       expect(screen.getByText("Orbit 登录完成。")).toBeTruthy();
     }, { timeout: 3500 });
   });
@@ -1236,7 +1208,7 @@ describe("SettingsView Features", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderFeaturesSection({ onUpdateAppSettings });
 
-    fireEvent.change(screen.getByLabelText("个性风格"), {
+    fireEvent.change(screen.getByLabelText("回复风格"), {
       target: { value: "pragmatic" },
     });
 
@@ -1254,7 +1226,7 @@ describe("SettingsView Features", () => {
       appSettings: { steerEnabled: true },
     });
 
-    const steerTitle = screen.getByText("引导模式");
+    const steerTitle = screen.getByText("即时发送（Steer）");
     const steerRow = steerTitle.closest(".settings-toggle-row");
     expect(steerRow).not.toBeNull();
 

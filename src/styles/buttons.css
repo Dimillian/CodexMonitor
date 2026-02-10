@@ -4,36 +4,56 @@
 }
 
 button {
-  border: none;
+  border: 1px solid transparent;
   border-radius: 10px;
   padding: 8px 14px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease;
   -webkit-app-region: no-drag;
 }
 
 button:disabled {
-  opacity: 0.5;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
 .primary {
-  background: linear-gradient(135deg, #62b7ff, #4fe3a3);
-  color: #0b0f1a;
-  box-shadow: 0 12px 22px var(--shadow-accent);
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #ffffff;
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--accent-primary-hover);
+  border-color: var(--accent-primary-hover);
 }
 
 .secondary {
   background: var(--surface-card-strong);
-  color: inherit;
+  border-color: var(--border-subtle);
+  color: var(--text-stronger);
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--surface-item);
+  border-color: var(--border-strong);
 }
 
 .ghost {
   background: transparent;
   color: var(--text-muted);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border-subtle);
+}
+
+.ghost:hover:not(:disabled) {
+  color: var(--text-stronger);
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
 }
 
 .icon-button {
@@ -46,9 +66,4 @@ button:disabled {
 .icon-button svg {
   width: 16px;
   height: 16px;
-}
-
-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 18px rgba(0, 0, 0, 0.2);
 }

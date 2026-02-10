@@ -1,5 +1,22 @@
 :root[data-theme="dim"] {
   color-scheme: dark;
+  /* Accent */
+  --accent-primary: #e5582a;
+  --accent-primary-hover: #cf4c22;
+  /* Text */
+  --text-primary: #d4d6da;
+  --text-strong: #f0f1f3;
+  --text-emphasis: rgba(255, 255, 255, 0.88);
+  --text-stronger: rgba(255, 255, 255, 0.82);
+  --text-quiet: rgba(255, 255, 255, 0.7);
+  --text-muted: rgba(255, 255, 255, 0.62);
+  --text-subtle: rgba(255, 255, 255, 0.52);
+  --text-faint: rgba(255, 255, 255, 0.42);
+  --text-fainter: rgba(255, 255, 255, 0.36);
+  --text-dim: rgba(255, 255, 255, 0.28);
+  --text-accent: rgba(164, 195, 255, 0.7);
+  --text-danger: rgba(255, 142, 142, 0.95);
+  /* Surfaces */
   --surface-sidebar: rgba(41, 44, 51, 0.78);
   --surface-sidebar-opaque: rgb(41, 44, 51);
   --surface-topbar: rgba(35, 38, 45, 0.72);
@@ -10,6 +27,7 @@
   --surface-card-strong: rgba(255, 255, 255, 0.14);
   --surface-card-muted: rgba(255, 255, 255, 0.08);
   --surface-item: rgba(255, 255, 255, 0.04);
+  --surface-quiet: rgba(32, 35, 42, 0.9);
   --surface-control: rgba(255, 255, 255, 0.1);
   --surface-control-hover: rgba(255, 255, 255, 0.16);
   --surface-control-disabled: rgba(255, 255, 255, 0.06);
@@ -23,6 +41,29 @@
   --surface-bubble-user: rgba(77, 153, 255, 0.5);
   --surface-context-core: rgba(32, 35, 42, 0.92);
   --surface-popover: rgba(32, 35, 42, 0.98);
+  /* Review */
+  --surface-review: rgba(255, 144, 200, 0.08);
+  --border-review: rgba(255, 144, 200, 0.3);
+  --surface-review-active: rgba(255, 144, 200, 0.15);
+  --text-review-active: rgba(255, 195, 226, 0.92);
+  --surface-review-done: rgba(120, 255, 200, 0.15);
+  --text-review-done: rgba(170, 255, 220, 0.92);
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.1);
+  --border-muted: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-stronger: rgba(255, 255, 255, 0.2);
+  --border-quiet: rgba(255, 255, 255, 0.22);
+  --border-accent: rgba(100, 200, 255, 0.55);
+  --border-accent-soft: rgba(100, 200, 255, 0.25);
+  /* Misc */
+  --message-link-color: rgba(196, 154, 255, 0.94);
+  --shadow-accent: rgba(92, 168, 255, 0.24);
+  --select-caret: rgba(255, 255, 255, 0.55);
+  --status-success: rgba(120, 235, 190, 0.92);
+  --status-warning: rgba(255, 175, 85, 0.92);
+  --status-error: rgba(255, 110, 110, 0.92);
+  --status-unknown: rgba(255, 255, 255, 0.28);
 }
 
 :root[data-theme="dim"] .app.reduced-transparency {
@@ -36,6 +77,7 @@
   --surface-card-strong: rgba(64, 68, 78, 0.98);
   --surface-card-muted: rgba(50, 54, 64, 0.94);
   --surface-item: rgba(50, 54, 64, 0.92);
+  --surface-quiet: rgba(32, 35, 42, 0.98);
   --surface-control: rgba(68, 72, 84, 0.78);
   --surface-control-hover: rgba(78, 84, 96, 0.84);
   --surface-control-disabled: rgba(68, 72, 84, 0.6);

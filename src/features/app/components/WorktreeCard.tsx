@@ -71,7 +71,7 @@ export function WorktreeCard({
                   onToggleWorkspaceCollapse(worktree.id, !worktreeCollapsed);
                 }}
                 data-tauri-drag-region="false"
-                aria-label={worktreeCollapsed ? "显示代理" : "隐藏代理"}
+                aria-label={worktreeCollapsed ? "显示对话" : "隐藏对话"}
                 aria-expanded={!worktreeCollapsed}
               >
                 <span className="worktree-toggle-icon">›</span>

@@ -2,8 +2,10 @@ import { useRef, type KeyboardEvent, type ReactNode } from "react";
 import Folder from "lucide-react/dist/esm/icons/folder";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
+import Server from "lucide-react/dist/esm/icons/server";
+import Zap from "lucide-react/dist/esm/icons/zap";
 
-export type PanelTabId = "git" | "files" | "prompts";
+export type PanelTabId = "git" | "files" | "prompts" | "skills" | "mcp";
 
 type PanelTab = {
   id: PanelTabId;
@@ -21,6 +23,8 @@ const defaultTabs: PanelTab[] = [
   { id: "git", label: "Git", icon: <GitBranch aria-hidden /> },
   { id: "files", label: "Files", icon: <Folder aria-hidden /> },
   { id: "prompts", label: "Prompts", icon: <ScrollText aria-hidden /> },
+  { id: "skills", label: "Skills", icon: <Zap aria-hidden /> },
+  { id: "mcp", label: "MCP", icon: <Server aria-hidden /> },
 ];
 
 export function PanelTabs({ active, onSelect, tabs = defaultTabs }: PanelTabsProps) {

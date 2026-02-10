@@ -88,27 +88,6 @@ export function SettingsDisplaySection({
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">显示 Codex 剩余额度</div>
-          <div className="settings-toggle-subtitle">
-            显示剩余额度而不是已使用额度。
-          </div>
-        </div>
-        <button
-          type="button"
-          className={`settings-toggle ${appSettings.usageShowRemaining ? "on" : ""}`}
-          onClick={() =>
-            void onUpdateAppSettings({
-              ...appSettings,
-              usageShowRemaining: !appSettings.usageShowRemaining,
-            })
-          }
-          aria-pressed={appSettings.usageShowRemaining}
-        >
-          <span className="settings-toggle-knob" />
-        </button>
-      </div>
-      <div className="settings-toggle-row">
-        <div>
           <div className="settings-toggle-title">在消息中显示文件路径</div>
           <div className="settings-toggle-subtitle">
             在消息中的文件链接旁显示父级路径。
@@ -130,9 +109,9 @@ export function SettingsDisplaySection({
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">自动生成新会话标题</div>
+          <div className="settings-toggle-title">自动生成对话标题</div>
           <div className="settings-toggle-subtitle">
-            根据首条消息生成简短标题（会额外消耗 token）。
+            根据首条消息自动生成简短标题（会额外消耗少量 token）。
           </div>
         </div>
         <button
@@ -275,7 +254,7 @@ export function SettingsDisplaySection({
             重置
           </button>
         </div>
-        <div className="settings-help">应用于 Git diff 等等宽文本区域。</div>
+        <div className="settings-help">应用于代码块、Git diff 等等宽显示区域。</div>
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="code-font-size">
@@ -316,7 +295,7 @@ export function SettingsDisplaySection({
         <div>
           <div className="settings-toggle-title">通知声音</div>
           <div className="settings-toggle-subtitle">
-            当窗口失焦且长任务结束时播放提示音。
+            窗口不在前台时，任务完成后播放提示音。
           </div>
         </div>
         <button
@@ -337,7 +316,7 @@ export function SettingsDisplaySection({
         <div>
           <div className="settings-toggle-title">系统通知</div>
           <div className="settings-toggle-subtitle">
-            当窗口失焦且长任务结束时显示系统通知。
+            窗口不在前台时，任务完成后显示系统级通知横幅。
           </div>
         </div>
         <button

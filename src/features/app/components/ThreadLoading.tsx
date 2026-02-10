@@ -6,7 +6,7 @@ export function ThreadLoading({ nested }: ThreadLoadingProps) {
   return (
     <div
       className={`thread-loading${nested ? " thread-loading-nested" : ""}`}
-      aria-label="加载代理中"
+      aria-label="加载对话中"
     >
       <span className="thread-skeleton thread-skeleton-wide" />
       <span className="thread-skeleton" />

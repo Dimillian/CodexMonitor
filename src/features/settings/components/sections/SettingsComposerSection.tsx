@@ -21,15 +21,15 @@ export function SettingsComposerSection({
     <section className="settings-section">
       <div className="settings-section-title">编辑器</div>
       <div className="settings-section-subtitle">
-        控制消息编辑器中的辅助与格式化行为。
+        控制输入框中的快捷输入与格式化行为。
       </div>
-      <div className="settings-subsection-title">预设</div>
+      <div className="settings-subsection-title">快捷输入预设</div>
       <div className="settings-subsection-subtitle">
-        选择一个起点，再按需微调下方开关。
+        选择一个起点，然后按需微调下方各项开关。
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="composer-preset">
-          预设
+          预设方案
         </label>
         <select
           id="composer-preset"
@@ -46,16 +46,16 @@ export function SettingsComposerSection({
           ))}
         </select>
         <div className="settings-help">
-          预设会更新下方开关，选择后仍可单独调整。
+          切换预设会重置下方开关；选择后仍可逐项调整。
         </div>
       </div>
       <div className="settings-divider" />
-      <div className="settings-subsection-title">代码围栏</div>
+      <div className="settings-subsection-title">代码块</div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">空格展开代码围栏</div>
+          <div className="settings-toggle-title">空格创建代码块</div>
           <div className="settings-toggle-subtitle">
-            输入 ``` 后按空格会插入代码围栏。
+            输入三个反引号 ``` 后按空格，自动插入代码块。
           </div>
         </div>
         <button
@@ -74,9 +74,9 @@ export function SettingsComposerSection({
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">回车展开代码围栏</div>
+          <div className="settings-toggle-title">回车创建代码块</div>
           <div className="settings-toggle-subtitle">
-            启用后按回车可展开 ``` 行。
+            输入三个反引号 ``` 后按回车，自动插入代码块。
           </div>
         </div>
         <button
@@ -95,9 +95,9 @@ export function SettingsComposerSection({
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">支持语言标签</div>
+          <div className="settings-toggle-title">语言标记</div>
           <div className="settings-toggle-subtitle">
-            支持通过 ```lang + 空格附带语言标记。
+            支持输入 ```python 等语言名 + 空格，自动标记代码块语言。
           </div>
         </div>
         <button
@@ -116,9 +116,9 @@ export function SettingsComposerSection({
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">选中文本包裹为代码围栏</div>
+          <div className="settings-toggle-title">选中文本自动包裹</div>
           <div className="settings-toggle-subtitle">
-            创建代码围栏时自动包裹选中文本。
+            创建代码块时，自动将已选中的文本包裹在其中。
           </div>
         </div>
         <button
@@ -137,9 +137,9 @@ export function SettingsComposerSection({
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">复制代码块时不带围栏</div>
+          <div className="settings-toggle-title">复制代码块为纯文本</div>
           <div className="settings-toggle-subtitle">
-            启用后复制为纯文本。按住 {optionKeyLabel} 可包含 ``` 围栏。
+            复制时只保留代码内容，不含 ``` 标记。按住 {optionKeyLabel} 可保留完整格式。
           </div>
         </div>
         <button
@@ -161,9 +161,9 @@ export function SettingsComposerSection({
       <div className="settings-subsection-title">粘贴</div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">自动包裹多行粘贴</div>
+          <div className="settings-toggle-title">多行粘贴自动成块</div>
           <div className="settings-toggle-subtitle">
-            将多行粘贴内容自动包裹进代码围栏。
+            粘贴多行内容时，自动包裹为代码块。
           </div>
         </div>
         <button
@@ -183,9 +183,9 @@ export function SettingsComposerSection({
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">自动包裹代码风格单行</div>
+          <div className="settings-toggle-title">单行代码自动成块</div>
           <div className="settings-toggle-subtitle">
-            粘贴长单行代码片段时自动包裹。
+            粘贴较长的单行代码时，自动包裹为代码块。
           </div>
         </div>
         <button
@@ -207,9 +207,9 @@ export function SettingsComposerSection({
       <div className="settings-subsection-title">列表</div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">Shift+Enter 续写列表</div>
+          <div className="settings-toggle-title">Shift+Enter 继续列表</div>
           <div className="settings-toggle-subtitle">
-            当前行有内容时继续编号/项目符号列表。
+            在有序列表或项目符号列表中按 Shift+Enter，自动续写下一项。
           </div>
         </div>
         <button

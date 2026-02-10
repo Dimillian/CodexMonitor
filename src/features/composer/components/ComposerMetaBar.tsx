@@ -2,6 +2,18 @@ import type { CSSProperties } from "react";
 import { BrainCog } from "lucide-react";
 import type { AccessMode, ThreadTokenUsage } from "../../../types";
 
+/** Format a token count into a short human-readable string (e.g. 1234 → "1.2k") */
+function fmtTokens(n: number): string {
+  if (n <= 0) return "0";
+  if (n < 1_000) return String(n);
+  if (n < 1_000_000) {
+    const k = n / 1_000;
+    return k < 10 ? `${k.toFixed(1)}k` : `${Math.round(k)}k`;
+  }
+  const m = n / 1_000_000;
+  return m < 10 ? `${m.toFixed(1)}m` : `${Math.round(m)}m`;
+}
+
 type ComposerMetaBarProps = {
   disabled: boolean;
   collaborationModes: { id: string; label: string }[];
@@ -36,17 +48,28 @@ export function ComposerMetaBar({
   contextUsage = null,
 }: ComposerMetaBarProps) {
   const contextWindow = contextUsage?.modelContextWindow ?? null;
-  const lastTokens = contextUsage?.last.totalTokens ?? 0;
-  const totalTokens = contextUsage?.total.totalTokens ?? 0;
+  const lastTurn = contextUsage?.last ?? null;
+  const totalUsage = contextUsage?.total ?? null;
+  const lastTokens = lastTurn?.totalTokens ?? 0;
+  const totalTokens = totalUsage?.totalTokens ?? 0;
+  // "usedTokens" reflects how much of the context window is occupied:
+  // prefer last-turn snapshot; fall back to cumulative total.
   const usedTokens = lastTokens > 0 ? lastTokens : totalTokens;
-  const contextFreePercent =
+  const usedPercent =
     contextWindow && contextWindow > 0 && usedTokens > 0
-      ? Math.max(
-          0,
-          100 -
-            Math.min(Math.max((usedTokens / contextWindow) * 100, 0), 100),
-        )
+      ? Math.min(Math.max((usedTokens / contextWindow) * 100, 0), 100)
       : null;
+
+  // Per-turn breakdown for the tooltip / detail panel
+  const lastInputTokens = lastTurn?.inputTokens ?? 0;
+  const lastCachedTokens = lastTurn?.cachedInputTokens ?? 0;
+  const lastOutputTokens = lastTurn?.outputTokens ?? 0;
+  const lastReasoningTokens = lastTurn?.reasoningOutputTokens ?? 0;
+  const cacheHitPercent =
+    lastInputTokens > 0
+      ? Math.round((lastCachedTokens / lastInputTokens) * 100)
+      : null;
+
   const planMode =
     collaborationModes.find((mode) => mode.id === "plan") ?? null;
   const defaultMode =
@@ -210,7 +233,7 @@ export function ComposerMetaBar({
           </span>
           <select
             className="composer-select composer-select--approval"
-            aria-label="代理权限"
+            aria-label="Agent 权限"
             disabled={disabled}
             value={accessMode}
             onChange={(event) =>
@@ -223,27 +246,59 @@ export function ComposerMetaBar({
           </select>
         </div>
       </div>
-      <div className="composer-context">
-        <div
-          className="composer-context-ring"
-          data-tooltip={
-            contextFreePercent === null
-              ? "Context free --"
-              : `Context free ${Math.round(contextFreePercent)}%`
-          }
-          aria-label={
-            contextFreePercent === null
-              ? "Context free --"
-              : `Context free ${Math.round(contextFreePercent)}%`
-          }
-          style={
-            {
-              "--context-free": contextFreePercent ?? 0,
-            } as CSSProperties
-          }
-        >
-          <span className="composer-context-value">●</span>
-        </div>
+      <div className="composer-context-meter">
+        {/* ── Progress bar: used / total context window ── */}
+        {usedPercent !== null && contextWindow ? (
+          <>
+            <div
+              className="context-meter-bar"
+              role="progressbar"
+              aria-valuenow={Math.round(usedPercent)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`上下文已用 ${Math.round(usedPercent)}%`}
+            >
+              <div
+                className={`context-meter-fill${
+                  usedPercent > 85
+                    ? " context-meter-fill--danger"
+                    : usedPercent > 65
+                      ? " context-meter-fill--warn"
+                      : ""
+                }`}
+                style={{ width: `${usedPercent}%` } as CSSProperties}
+              />
+            </div>
+            <span className="context-meter-label">
+              {fmtTokens(usedTokens)}{" / "}{fmtTokens(contextWindow)}
+            </span>
+          </>
+        ) : (
+          <span className="context-meter-label context-meter-label--empty">
+            上下文 --
+          </span>
+        )}
+
+        {/* ── Last-turn detail tooltip (hover to see breakdown) ── */}
+        {lastTokens > 0 && (
+          <div className="context-meter-turn">
+            <span className="context-meter-turn-label">本轮</span>
+            <span className="context-meter-turn-value">
+              ↓{fmtTokens(lastInputTokens)}
+              {lastCachedTokens > 0 && (
+                <span className="context-meter-cached" title="缓存命中">
+                  ⚡{cacheHitPercent}%
+                </span>
+              )}
+              {" "}↑{fmtTokens(lastOutputTokens)}
+              {lastReasoningTokens > 0 && (
+                <span className="context-meter-reasoning" title="推理 token">
+                  🧠{fmtTokens(lastReasoningTokens)}
+                </span>
+              )}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

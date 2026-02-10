@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { GitLogEntry } from "../../../types";
 import { GitDiffPanel } from "./GitDiffPanel";
@@ -82,7 +82,7 @@ describe("GitDiffPanel", () => {
       />,
     );
 
-    const commitButton = screen.getByRole("button", { name: "Commit" });
+    const commitButton = screen.getByRole("button", { name: "提交" });
     expect((commitButton as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(commitButton);
     expect(onCommit).toHaveBeenCalledTimes(1);
@@ -237,6 +237,37 @@ describe("GitDiffPanel", () => {
     await copyPathItem.action();
 
     expect(clipboardWriteText).toHaveBeenCalledWith("src/sample.ts");
+  });
+
+  it("switches review scope between uncommitted, staged and unstaged", () => {
+    const { container } = render(
+      <GitDiffPanel
+        {...baseProps}
+        stagedFiles={[
+          { path: "src/staged.ts", status: "M", additions: 2, deletions: 1 },
+        ]}
+        unstagedFiles={[
+          { path: "src/unstaged.ts", status: "M", additions: 3, deletions: 0 },
+        ]}
+      />,
+    );
+
+    const scope = container.querySelector(".diff-review-scope");
+    expect(scope).not.toBeNull();
+
+    const panelQuery = within(container);
+    const scopeQuery = within(scope as HTMLElement);
+
+    expect(panelQuery.queryAllByText("已暂存 (1)").length).toBeGreaterThan(0);
+    expect(panelQuery.queryAllByText("未暂存 (1)").length).toBeGreaterThan(0);
+
+    fireEvent.click(scopeQuery.getByRole("button", { name: "Staged" }));
+    expect(panelQuery.queryAllByText("已暂存 (1)").length).toBeGreaterThan(0);
+    expect(panelQuery.queryAllByText("未暂存 (1)").length).toBe(0);
+
+    fireEvent.click(scopeQuery.getByRole("button", { name: "Unstaged" }));
+    expect(panelQuery.queryAllByText("已暂存 (1)").length).toBe(0);
+    expect(panelQuery.queryAllByText("未暂存 (1)").length).toBeGreaterThan(0);
   });
 
 });

@@ -135,7 +135,7 @@ export function SettingsServerSection({
 
   return (
     <section className="settings-section">
-      <div className="settings-section-title">服务器</div>
+      <div className="settings-section-title">服务</div>
       <div className="settings-section-subtitle">
         {isMobileSimplified
           ? "请选择 TCP 或 Orbit，填写桌面端配置的连接地址与令牌，然后执行连接测试。"
@@ -258,7 +258,7 @@ export function SettingsServerSection({
               </div>
               <div className="settings-help">
                 {isMobileSimplified
-                  ? "使用桌面端 CodexMonitor（服务器设置）中的 Tailscale 地址，例如 `macbook.your-tailnet.ts.net:4732`。"
+                  ? "使用桌面端 CodexMonitor（服务设置）中的 Tailscale 地址，例如 `macbook.your-tailnet.ts.net:4732`。"
                   : "该地址/令牌用于移动端连接和桌面远程模式测试。"}
               </div>
             </div>

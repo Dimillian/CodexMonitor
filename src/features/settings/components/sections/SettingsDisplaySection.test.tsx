@@ -13,7 +13,6 @@ describe("SettingsDisplaySection", () => {
         appSettings={
           ({
             theme: "system",
-            usageShowRemaining: false,
             showMessageFilePath: true,
             threadTitleAutogenerationEnabled: false,
             uiFontFamily: "",
@@ -47,7 +46,7 @@ describe("SettingsDisplaySection", () => {
     );
 
     const row = screen
-      .getByText("自动生成新会话标题")
+      .getByText("自动生成对话标题")
       .closest(".settings-toggle-row");
     expect(row).toBeTruthy();
     const button = within(row as HTMLElement).getByRole("button");

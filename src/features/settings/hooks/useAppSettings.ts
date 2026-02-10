@@ -64,7 +64,6 @@ function buildDefaultSettings(): AppSettings {
     lastComposerReasoningEffort: null,
     uiScale: UI_SCALE_DEFAULT,
     theme: "system",
-    usageShowRemaining: false,
     showMessageFilePath: true,
     threadTitleAutogenerationEnabled: false,
     uiFontFamily: DEFAULT_UI_FONT_FAMILY,

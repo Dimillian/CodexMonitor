@@ -240,6 +240,50 @@
   min-height: 0;
 }
 
+.diff-review-scope {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-item) 78%, transparent);
+}
+
+.diff-review-scope-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+}
+
+.diff-review-scope-options {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.diff-review-scope-option {
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+}
+
+.diff-review-scope-option:hover {
+  background: color-mix(in srgb, var(--surface-hover) 72%, transparent);
+}
+
+.diff-review-scope-option.is-active {
+  border-color: var(--border-accent-soft);
+  color: var(--text-emphasis);
+  background: color-mix(in srgb, var(--surface-active) 46%, transparent);
+}
+
 .diff-section {
   display: flex;
   flex-direction: column;
@@ -1157,4 +1201,21 @@
   color: var(--text-emphasis);
   background: var(--surface-card-strong);
   border-radius: 9px;
+}
+
+/* Directory grouping in review workbench */
+.diff-directory-group + .diff-directory-group {
+  margin-top: 4px;
+}
+
+.diff-directory-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-faint);
+  padding: 4px 14px 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--code-font-family);
+  letter-spacing: 0.01em;
 }

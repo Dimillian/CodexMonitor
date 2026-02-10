@@ -24,6 +24,7 @@ import {
   GitBranchRow,
   GitDiffModeContent,
   GitIssuesModeContent,
+  type DiffReviewScope,
   GitLogModeContent,
   GitPanelModeStatus,
   GitPullRequestsModeContent,
@@ -228,6 +229,25 @@ export function GitDiffPanel({
 }: GitDiffPanelProps) {
   const [dismissedErrorSignatures, setDismissedErrorSignatures] = useState<Set<string>>(
     new Set(),
+  );
+  const diffScopeStorageKey = workspaceId ? `codex-diff-scope:${workspaceId}` : null;
+  const [diffScope, setDiffScopeRaw] = useState<DiffReviewScope>(() => {
+    if (diffScopeStorageKey) {
+      const saved = sessionStorage.getItem(diffScopeStorageKey);
+      if (saved === "uncommitted" || saved === "staged" || saved === "unstaged") {
+        return saved;
+      }
+    }
+    return "uncommitted";
+  });
+  const setDiffScope = useCallback(
+    (next: DiffReviewScope) => {
+      setDiffScopeRaw(next);
+      if (diffScopeStorageKey) {
+        sessionStorage.setItem(diffScopeStorageKey, next);
+      }
+    },
+    [diffScopeStorageKey],
   );
   const {
     selectedFiles,
@@ -713,6 +733,8 @@ export function GitDiffPanel({
           onGenerateCommitMessage={onGenerateCommitMessage}
           stagedFiles={stagedFiles}
           unstagedFiles={unstagedFiles}
+          diffScope={diffScope}
+          onDiffScopeChange={setDiffScope}
           commitLoading={commitLoading}
           onCommit={onCommit}
           commitsAhead={commitsAhead}

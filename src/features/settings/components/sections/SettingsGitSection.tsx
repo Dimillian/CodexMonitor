@@ -25,12 +25,12 @@ export function SettingsGitSection({
     <section className="settings-section">
       <div className="settings-section-title">Git</div>
       <div className="settings-section-subtitle">
-        管理 Git 侧边栏中 diff 的加载方式。
+        管理 Git 变更对比（diff）的加载和显示偏好。
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">预加载 Git diff</div>
-          <div className="settings-toggle-subtitle">提升查看 Git diff 的速度。</div>
+          <div className="settings-toggle-title">预加载变更对比</div>
+          <div className="settings-toggle-subtitle">提前加载 Git diff 内容，切换文件时显示更快。</div>
         </div>
         <button
           type="button"
@@ -50,7 +50,7 @@ export function SettingsGitSection({
         <div>
           <div className="settings-toggle-title">忽略空白字符变化</div>
           <div className="settings-toggle-subtitle">
-            在本地和提交 diff 中隐藏仅空白字符变化。
+            隐藏仅包含空格、缩进等空白字符的变更行。
           </div>
         </div>
         <button
@@ -68,9 +68,9 @@ export function SettingsGitSection({
         </button>
       </div>
       <div className="settings-field">
-        <div className="settings-field-label">提交信息提示词</div>
+        <div className="settings-field-label">Commit Message 生成提示词</div>
         <div className="settings-help">
-          用于生成提交信息。包含 <code>{"{diff}"}</code> 以插入 git diff。
+          自定义 AI 生成提交信息的提示词模板。使用 <code>{"{diff}"}</code> 占位符插入当前 diff 内容。
         </div>
         <textarea
           className="settings-agents-textarea"

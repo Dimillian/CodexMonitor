@@ -27,9 +27,9 @@ export function RenameThreadPrompt({
     <ModalShell
       className="worktree-modal"
       onBackdropClick={onCancel}
-      ariaLabel="重命名线程"
+      ariaLabel="重命名对话"
     >
-      <div className="ds-modal-title worktree-modal-title">重命名线程</div>
+      <div className="ds-modal-title worktree-modal-title">重命名对话</div>
       <div className="ds-modal-subtitle worktree-modal-subtitle">当前名称："{currentName}"</div>
       <label className="ds-modal-label worktree-modal-label" htmlFor="thread-rename">
         新名称

@@ -35,11 +35,13 @@ import "./styles/settings.css";
 import "./styles/compact-base.css";
 import "./styles/compact-phone.css";
 import "./styles/compact-tablet.css";
+import "./styles/ecosystem-panels.css";
 import successSoundUrl from "./assets/success-notification.mp3";
 import errorSoundUrl from "./assets/error-notification.mp3";
 import { AppLayout } from "./features/app/components/AppLayout";
 import { AppModals } from "./features/app/components/AppModals";
 import { MainHeaderActions } from "./features/app/components/MainHeaderActions";
+import { CommandPalette, useCommandPalette, type CommandItem } from "./features/app/components/CommandPalette";
 import { useLayoutNodes } from "./features/layout/hooks/useLayoutNodes";
 import { useWorkspaceDropZone } from "./features/workspaces/hooks/useWorkspaceDropZone";
 import { useThreads } from "./features/threads/hooks/useThreads";
@@ -291,7 +293,6 @@ function MainApp() {
     closeSettings,
   } = useSettingsModalState();
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
-  const workspaceHomeTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const getWorkspaceName = useCallback(
     (workspaceId: string) => workspacesById.get(workspaceId)?.name,
@@ -479,11 +480,6 @@ function MainApp() {
     ...composerShortcuts,
   });
 
-  useComposerShortcuts({
-    textareaRef: workspaceHomeTextareaRef,
-    ...composerShortcuts,
-  });
-
   useComposerMenuActions({
     models,
     selectedModelId,
@@ -645,7 +641,6 @@ function MainApp() {
     threadListCursorByWorkspace,
     activeTurnIdByThread,
     tokenUsageByThread,
-    rateLimitsByWorkspace,
     accountByWorkspace,
     planByThread,
     lastAgentMessageByThread,
@@ -1062,9 +1057,6 @@ function MainApp() {
     [hasLoaded, threadListLoadingByWorkspace, workspaces]
   );
 
-  const activeRateLimits = activeWorkspaceId
-    ? rateLimitsByWorkspace[activeWorkspaceId] ?? null
-    : null;
   const activeTokenUsage = activeThreadId
     ? tokenUsageByThread[activeThreadId] ?? null
     : null;
@@ -1184,16 +1176,6 @@ function MainApp() {
 
   const {
     runs: workspaceRuns,
-    draft: workspacePrompt,
-    runMode: workspaceRunMode,
-    modelSelections: workspaceModelSelections,
-    error: workspaceRunError,
-    isSubmitting: workspaceRunSubmitting,
-    setDraft: setWorkspacePrompt,
-    setRunMode: setWorkspaceRunMode,
-    toggleModelSelection: toggleWorkspaceModelSelection,
-    setModelCount: setWorkspaceModelCount,
-    startRun: startWorkspaceRun,
   } = useWorkspaceHome({
     activeWorkspace,
     models,
@@ -1207,14 +1189,12 @@ function MainApp() {
     onWorktreeCreated: handleWorktreeCreated,
   });
 
-  const canInsertComposerText = showWorkspaceHome
-    ? Boolean(activeWorkspace)
-    : Boolean(activeThreadId);
+  const canInsertComposerText = Boolean(activeThreadId);
   const handleInsertComposerText = useComposerInsert({
     isEnabled: canInsertComposerText,
-    draftText: showWorkspaceHome ? workspacePrompt : activeDraft,
-    onDraftChange: showWorkspaceHome ? setWorkspacePrompt : handleDraftChange,
-    textareaRef: showWorkspaceHome ? workspaceHomeTextareaRef : composerInputRef,
+    draftText: activeDraft,
+    onDraftChange: handleDraftChange,
+    textareaRef: composerInputRef,
   });
   const RECENT_THREAD_LIMIT = 8;
   const { recentThreadInstances, recentThreadsUpdatedAt } = useMemo(() => {
@@ -1236,7 +1216,7 @@ function MainApp() {
       workspaceId: activeWorkspaceId,
       threadId: thread.id,
       modelId: null,
-      modelLabel: thread.name?.trim() || "未命名线程",
+      modelLabel: thread.name?.trim() || "未命名对话",
       sequence: index + 1,
     }));
     return {
@@ -1780,8 +1760,6 @@ function MainApp() {
     activeWorkspaceId,
     activeThreadId,
     activeItems,
-    activeRateLimits,
-    usageShowRemaining: appSettings.usageShowRemaining,
     accountInfo: activeAccount,
     onSwitchAccount: handleSwitchAccount,
     onCancelSwitchAccount: handleCancelSwitchAccount,
@@ -1846,9 +1824,6 @@ function MainApp() {
       removeThread(workspaceId, threadId);
       clearDraftForThread(threadId);
       removeImagesForThread(threadId);
-    },
-    onSyncThread: (workspaceId, threadId) => {
-      void refreshThread(workspaceId, threadId);
     },
     pinThread,
     unpinThread,
@@ -2126,6 +2101,7 @@ function MainApp() {
     onSelectEffort: setSelectedEffort,
     reasoningSupported,
     accessMode,
+    backendMode: appSettings.backendMode,
     onSelectAccessMode: setAccessMode,
     skills,
     appsEnabled: appSettings.experimentalAppsEnabled,
@@ -2194,48 +2170,10 @@ function MainApp() {
       runs={workspaceRuns}
       recentThreadInstances={recentThreadInstances}
       recentThreadsUpdatedAt={recentThreadsUpdatedAt}
-      prompt={workspacePrompt}
-      onPromptChange={setWorkspacePrompt}
-      onStartRun={startWorkspaceRun}
-      runMode={workspaceRunMode}
-      onRunModeChange={setWorkspaceRunMode}
-      models={models}
-      selectedModelId={selectedModelId}
-      onSelectModel={setSelectedModelId}
-      modelSelections={workspaceModelSelections}
-      onToggleModel={toggleWorkspaceModelSelection}
-      onModelCountChange={setWorkspaceModelCount}
-      collaborationModes={collaborationModes}
-      selectedCollaborationModeId={selectedCollaborationModeId}
-      onSelectCollaborationMode={setSelectedCollaborationModeId}
-      reasoningOptions={reasoningOptions}
-      selectedEffort={selectedEffort}
-      onSelectEffort={setSelectedEffort}
-      reasoningSupported={reasoningSupported}
-      error={workspaceRunError}
-      isSubmitting={workspaceRunSubmitting}
       activeWorkspaceId={activeWorkspaceId}
       activeThreadId={activeThreadId}
       threadStatusById={threadStatusById}
       onSelectInstance={handleSelectWorkspaceInstance}
-      skills={skills}
-      appsEnabled={appSettings.experimentalAppsEnabled}
-      apps={apps}
-      prompts={prompts}
-      files={files}
-      onFileAutocompleteActiveChange={setFileAutocompleteActive}
-      dictationEnabled={appSettings.dictationEnabled && dictationReady}
-      dictationState={dictationState}
-      dictationLevel={dictationLevel}
-      onToggleDictation={handleToggleDictation}
-      onOpenDictationSettings={() => openSettings("dictation")}
-      dictationError={dictationError}
-      onDismissDictationError={clearDictationError}
-      dictationHint={dictationHint}
-      onDismissDictationHint={clearDictationHint}
-      dictationTranscript={dictationTranscript}
-      onDictationTranscriptHandled={clearDictationTranscript}
-      textareaRef={workspaceHomeTextareaRef}
       agentMdContent={agentMdContent}
       agentMdExists={agentMdExists}
       agentMdTruncated={agentMdTruncated}
@@ -2264,6 +2202,21 @@ function MainApp() {
     desktopTopbarLeftNode
   );
 
+  // ── Command Palette (⌘K) ──
+  const commandItems: CommandItem[] = useMemo(() => [
+    ...(activeWorkspace
+      ? [
+          { id: "new-agent", label: "新建 Agent", shortcut: appSettings.newAgentShortcut ?? "⌘N", section: "工作区", action: () => { void handleAddAgent(activeWorkspace); } },
+          { id: "new-worktree", label: "新建工作树 Agent", shortcut: appSettings.newWorktreeAgentShortcut ?? undefined, section: "工作区", action: () => { void handleAddWorktreeAgent(activeWorkspace); } },
+        ]
+      : []),
+    { id: "toggle-terminal", label: "切换终端", shortcut: appSettings.toggleTerminalShortcut ?? "⌘`", section: "面板", action: handleToggleTerminal },
+    { id: "toggle-sidebar", label: "切换侧栏", shortcut: appSettings.toggleProjectsSidebarShortcut ?? undefined, section: "面板", action: () => { sidebarCollapsed ? sidebarToggleProps.onExpandSidebar() : sidebarToggleProps.onCollapseSidebar(); } },
+    { id: "open-settings", label: "打开设置", section: "导航", action: () => openSettings() },
+  ], [appSettings, activeWorkspace, handleAddAgent, handleAddWorktreeAgent, handleToggleTerminal, sidebarCollapsed, sidebarToggleProps, openSettings]);
+
+  const cmdPalette = useCommandPalette(commandItems);
+
   return (
     <div
       className={appClassName}
@@ -2286,6 +2239,7 @@ function MainApp() {
     >
       <div className="drag-strip" id="titlebar" data-tauri-drag-region />
       <TitlebarExpandControls {...sidebarToggleProps} />
+      <CommandPalette commands={cmdPalette.commands} open={cmdPalette.open} onClose={cmdPalette.close} />
       {shouldLoadGitHubPanelData ? (
         <Suspense fallback={null}>
           <GitHubPanelData

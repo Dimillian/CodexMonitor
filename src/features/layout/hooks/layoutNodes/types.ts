@@ -3,6 +3,7 @@ import type { ReviewPromptState, ReviewPromptStep } from "../../../threads/hooks
 import type { WorkspaceLaunchScriptsState } from "../../../app/hooks/useWorkspaceLaunchScripts";
 import type {
   AccessMode,
+  BackendMode,
   ApprovalRequest,
   BranchInfo,
   CollaborationModeOption,
@@ -23,7 +24,6 @@ import type {
   ModelOption,
   OpenAppTarget,
   QueuedMessage,
-  RateLimitSnapshot,
   RequestUserInputRequest,
   RequestUserInputResponse,
   SkillOption,
@@ -100,8 +100,6 @@ export type LayoutNodesOptions = {
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   activeItems: ConversationItem[];
-  activeRateLimits: RateLimitSnapshot | null;
-  usageShowRemaining: boolean;
   accountInfo: AccountSnapshot | null;
   onSwitchAccount: () => void;
   onCancelSwitchAccount: () => void;
@@ -143,7 +141,6 @@ export type LayoutNodesOptions = {
   onSelectThread: (workspaceId: string, threadId: string) => void;
   onOpenThreadLink: (threadId: string) => void;
   onDeleteThread: (workspaceId: string, threadId: string) => void;
-  onSyncThread: (workspaceId: string, threadId: string) => void;
   pinThread: (workspaceId: string, threadId: string) => boolean;
   unpinThread: (workspaceId: string, threadId: string) => void;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
@@ -226,8 +223,8 @@ export type LayoutNodesOptions = {
   worktreeApplyError: string | null;
   worktreeApplySuccess: boolean;
   onApplyWorktreeChanges?: () => void | Promise<void>;
-  filePanelMode: "git" | "files" | "prompts";
-  onFilePanelModeChange: (mode: "git" | "files" | "prompts") => void;
+  filePanelMode: "git" | "files" | "prompts" | "skills" | "mcp";
+  onFilePanelModeChange: (mode: "git" | "files" | "prompts" | "skills" | "mcp") => void;
   fileTreeLoading: boolean;
   gitStatus: {
     branchName: string;
@@ -391,6 +388,7 @@ export type LayoutNodesOptions = {
   onSelectEffort: (effort: string | null) => void;
   reasoningSupported: boolean;
   accessMode: AccessMode;
+  backendMode: BackendMode;
   onSelectAccessMode: (mode: AccessMode) => void;
   skills: SkillOption[];
   appsEnabled: boolean;

@@ -451,7 +451,7 @@ export function SettingsView({
       await revealItemInDir(configPath);
     } catch (error) {
       setOpenConfigError(
-        error instanceof Error ? error.message : "Unable to open config.",
+        error instanceof Error ? error.message : "无法打开配置文件。",
       );
     }
   }, []);
@@ -679,7 +679,7 @@ export function SettingsView({
           const nextOrbitWsUrl = normalizeOverrideValue(orbitWsUrlDraft);
           setOrbitWsUrlDraft(nextOrbitWsUrl ?? "");
           if (!nextOrbitWsUrl) {
-            throw new Error("Orbit websocket URL is required.");
+            throw new Error("请填写 Orbit WebSocket 地址。");
           }
           await updateRemoteBackendSettings({
             token: nextToken,
@@ -688,15 +688,14 @@ export function SettingsView({
         }
         const workspaces = await listWorkspaces();
         const workspaceCount = workspaces.length;
-        const workspaceWord = workspaceCount === 1 ? "workspace" : "workspaces";
         setMobileConnectStatusText(
-          `Connected. ${workspaceCount} ${workspaceWord} reachable on the remote backend.`,
+          `连接成功。远程后端可访问 ${workspaceCount} 个工作区。`,
         );
         await onMobileConnectSuccess?.();
       } catch (error) {
         setMobileConnectStatusError(true);
         setMobileConnectStatusText(
-          error instanceof Error ? error.message : "Unable to connect to remote backend.",
+          error instanceof Error ? error.message : "无法连接远程后端。",
         );
       } finally {
         setMobileConnectBusy(false);
@@ -738,7 +737,7 @@ export function SettingsView({
         setTailscaleStatus(status);
       } catch (error) {
         setTailscaleStatusError(
-          formatErrorMessage(error, "Unable to load Tailscale status."),
+          formatErrorMessage(error, "无法获取 Tailscale 状态。"),
         );
       } finally {
         setTailscaleStatusBusy(false);
@@ -755,7 +754,7 @@ export function SettingsView({
         setTailscaleCommandPreview(preview);
       } catch (error) {
         setTailscaleCommandError(
-          formatErrorMessage(error, "Unable to build Tailscale daemon command."),
+          formatErrorMessage(error, "无法生成 Tailscale 守护进程命令。"),
         );
       } finally {
         setTailscaleCommandBusy(false);
@@ -786,7 +785,7 @@ export function SettingsView({
             ? error.message
             : typeof error === "string"
               ? error
-              : "Unable to update mobile access daemon status.";
+              : "无法更新移动端守护进程状态。";
         setTcpDaemonStatus((prev) => ({
           state: "error",
           pid: null,
@@ -1175,7 +1174,7 @@ export function SettingsView({
             afterVersion: null,
             upgraded: false,
             output: null,
-            details: "Codex updates are not available in this build.",
+            details: "当前版本不支持在线更新 Codex。",
           },
         });
         return;

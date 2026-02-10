@@ -319,8 +319,10 @@
 }
 
 .diff-viewer-header-sticky {
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  /* Replaced expensive backdrop-filter: blur() with a high-opacity solid background.
+     backdrop-filter on a sticky header inside a scrolling virtualised list
+     forces GPU re-composition on every scroll frame, causing jank. */
+  background: color-mix(in srgb, var(--surface-strong) 92%, transparent);
   pointer-events: auto;
 }
 

@@ -499,7 +499,7 @@ export function ComposerInput({
             placeholder={
               disabled
                 ? "审查进行中，完成后聊天将重新启用。"
-                : "让 Codex 做点什么..."
+                : "Ask Codex anything，@ 添加文件，/ 输入命令，$ 调用技能（⌘K）"
             }
             value={text}
             onChange={handleTextareaChange}

@@ -9,7 +9,6 @@ import { fileManagerName } from "../../../utils/platformPaths";
 
 type SidebarMenuHandlers = {
   onDeleteThread: (workspaceId: string, threadId: string) => void;
-  onSyncThread: (workspaceId: string, threadId: string) => void;
   onPinThread: (workspaceId: string, threadId: string) => void;
   onUnpinThread: (workspaceId: string, threadId: string) => void;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
@@ -21,7 +20,6 @@ type SidebarMenuHandlers = {
 
 export function useSidebarMenus({
   onDeleteThread,
-  onSyncThread,
   onPinThread,
   onUnpinThread,
   isThreadPinned,
@@ -43,10 +41,6 @@ export function useSidebarMenus({
         text: "重命名",
         action: () => onRenameThread(workspaceId, threadId),
       });
-      const syncItem = await MenuItem.new({
-        text: "从服务器同步",
-        action: () => onSyncThread(workspaceId, threadId),
-      });
       const archiveItem = await MenuItem.new({
         text: "归档",
         action: () => onDeleteThread(workspaceId, threadId),
@@ -61,7 +55,7 @@ export function useSidebarMenus({
           }
         },
       });
-      const items = [renameItem, syncItem];
+      const items = [renameItem];
       if (canPin) {
         const isPinned = isThreadPinned(workspaceId, threadId);
         items.push(
@@ -88,7 +82,6 @@ export function useSidebarMenus({
       onDeleteThread,
       onPinThread,
       onRenameThread,
-      onSyncThread,
       onUnpinThread,
     ],
   );
@@ -98,7 +91,7 @@ export function useSidebarMenus({
       event.preventDefault();
       event.stopPropagation();
       const reloadItem = await MenuItem.new({
-        text: "刷新线程",
+        text: "刷新对话",
         action: () => onReloadWorkspaceThreads(workspaceId),
       });
       const deleteItem = await MenuItem.new({
@@ -119,7 +112,7 @@ export function useSidebarMenus({
       event.stopPropagation();
       const fileManagerLabel = fileManagerName();
       const reloadItem = await MenuItem.new({
-        text: "刷新线程",
+        text: "刷新对话",
         action: () => onReloadWorkspaceThreads(worktree.id),
       });
       const revealItem = await MenuItem.new({

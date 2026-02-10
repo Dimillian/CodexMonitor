@@ -17,6 +17,8 @@ import { DEPTH_OPTIONS, normalizeRootPath } from "./GitDiffPanel.utils";
 
 type GitMode = "diff" | "log" | "issues" | "prs";
 
+export type DiffReviewScope = "uncommitted" | "staged" | "unstaged";
+
 type GitPanelModeStatusProps = {
   mode: GitMode;
   diffStatusLabel: string;
@@ -184,6 +186,8 @@ type GitDiffModeContentProps = {
   onGenerateCommitMessage?: () => void | Promise<void>;
   stagedFiles: DiffFile[];
   unstagedFiles: DiffFile[];
+  diffScope: DiffReviewScope;
+  onDiffScopeChange: (scope: DiffReviewScope) => void;
   commitLoading: boolean;
   onCommit?: () => void | Promise<void>;
   commitsAhead: number;
@@ -238,6 +242,8 @@ export function GitDiffModeContent({
   onGenerateCommitMessage,
   stagedFiles,
   unstagedFiles,
+  diffScope,
+  onDiffScopeChange,
   commitLoading,
   onCommit,
   commitsAhead,
@@ -261,6 +267,18 @@ export function GitDiffModeContent({
   onDiffListClick,
 }: GitDiffModeContentProps) {
   const normalizedGitRoot = normalizeRootPath(gitRoot);
+  const showStagedSection = diffScope !== "unstaged";
+  const showUnstagedSection = diffScope !== "staged";
+  const hasScopeFiles =
+    (showStagedSection && stagedFiles.length > 0) ||
+    (showUnstagedSection && unstagedFiles.length > 0);
+  const hasAnyFiles = stagedFiles.length > 0 || unstagedFiles.length > 0;
+  const emptyScopeLabel =
+    diffScope === "staged"
+      ? "当前范围没有已暂存改动。"
+      : diffScope === "unstaged"
+        ? "当前范围没有未暂存改动。"
+        : "当前审查范围无改动。";
 
   return (
     <div className="diff-list" onClick={onDiffListClick}>
@@ -345,6 +363,35 @@ export function GitDiffModeContent({
           )}
         </div>
       )}
+      <div className="diff-review-scope" role="group" aria-label="变更文件">
+        <span className="diff-review-scope-label">变更文件</span>
+        <div className="diff-review-scope-options">
+          <button
+            type="button"
+            className={`diff-review-scope-option${diffScope === "uncommitted" ? " is-active" : ""}`}
+            onClick={() => onDiffScopeChange("uncommitted")}
+            aria-pressed={diffScope === "uncommitted"}
+          >
+            Uncommitted
+          </button>
+          <button
+            type="button"
+            className={`diff-review-scope-option${diffScope === "staged" ? " is-active" : ""}`}
+            onClick={() => onDiffScopeChange("staged")}
+            aria-pressed={diffScope === "staged"}
+          >
+            Staged
+          </button>
+          <button
+            type="button"
+            className={`diff-review-scope-option${diffScope === "unstaged" ? " is-active" : ""}`}
+            onClick={() => onDiffScopeChange("unstaged")}
+            aria-pressed={diffScope === "unstaged"}
+          >
+            Unstaged
+          </button>
+        </div>
+      </div>
       {showGenerateCommitMessage && (
         <div className="commit-message-section">
           <div className="commit-message-input-wrapper">
@@ -488,13 +535,14 @@ export function GitDiffModeContent({
         </div>
       )}
       {!error &&
-        !stagedFiles.length &&
-        !unstagedFiles.length &&
+        !hasScopeFiles &&
         commitsAhead === 0 &&
-        commitsBehind === 0 && <div className="diff-empty">未检测到更改。</div>}
+        commitsBehind === 0 && (
+          <div className="diff-empty">{hasAnyFiles ? emptyScopeLabel : "未检测到更改。"}</div>
+        )}
       {(stagedFiles.length > 0 || unstagedFiles.length > 0) && (
         <>
-          {stagedFiles.length > 0 && (
+          {showStagedSection && stagedFiles.length > 0 && (
             <DiffSection
               title="已暂存"
               files={stagedFiles}
@@ -509,7 +557,7 @@ export function GitDiffModeContent({
               onShowFileMenu={onShowFileMenu}
             />
           )}
-          {unstagedFiles.length > 0 && (
+          {showUnstagedSection && unstagedFiles.length > 0 && (
             <DiffSection
               title="未暂存"
               files={unstagedFiles}

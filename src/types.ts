@@ -181,7 +181,6 @@ export type AppSettings = {
   lastComposerReasoningEffort: string | null;
   uiScale: number;
   theme: ThemePreference;
-  usageShowRemaining: boolean;
   showMessageFilePath: boolean;
   threadTitleAutogenerationEnabled: boolean;
   uiFontFamily: string;

@@ -81,11 +81,11 @@ export function SidebarHeader({
             className={`ghost sidebar-sort-toggle${sortMenuOpen ? " is-active" : ""}`}
             onClick={() => setSortMenuOpen((open) => !open)}
             data-tauri-drag-region="false"
-            aria-label="排序线程"
+            aria-label="排序对话"
             aria-haspopup="menu"
             aria-expanded={sortMenuOpen}
             type="button"
-            title="排序线程"
+            title="排序对话"
           >
             <ListFilter aria-hidden />
           </button>
@@ -120,9 +120,9 @@ export function SidebarHeader({
           className="ghost sidebar-refresh-toggle"
           onClick={onRefreshAllThreads}
           data-tauri-drag-region="false"
-          aria-label="刷新全部工作区线程"
+          aria-label="刷新全部工作区对话"
           type="button"
-          title="刷新全部工作区线程"
+          title="刷新全部工作区对话"
           disabled={refreshDisabled}
           aria-busy={refreshInProgress}
         >
