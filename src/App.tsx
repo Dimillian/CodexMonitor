@@ -265,6 +265,7 @@ function MainApp() {
   const pendingNewThreadSeedRef = useRef<{
     workspaceId: string;
     collaborationModeId: string | null;
+    accessMode: AccessMode;
   } | null>(null);
   const {
     sidebarWidth,
@@ -833,23 +834,30 @@ function MainApp() {
     const stored = threadId ? getThreadCodexParams(workspaceId, threadId) : null;
 
     setThreadCodexSelectionKey(scopeKey);
-    setAccessMode(stored?.accessMode ?? appSettings.defaultAccessMode);
 
     if (threadId) {
+      const pendingSeed = pendingNewThreadSeedRef.current;
+      const pendingAccessMode =
+        pendingSeed && pendingSeed.workspaceId === workspaceId
+          ? pendingSeed.accessMode
+          : null;
+      setAccessMode(stored?.accessMode ?? pendingAccessMode ?? appSettings.defaultAccessMode);
+
       // Thread-scoped defaults: prefer stored overrides, but fall back to the global
       // "last composer" preferences for newly created threads.
-    setPreferredModelId(stored?.modelId ?? appSettings.lastComposerModelId ?? null);
-    setPreferredEffort(
-      stored?.effort ?? appSettings.lastComposerReasoningEffort ?? null,
-    );
-    const pendingSeed = pendingNewThreadSeedRef.current;
-    const pendingCollabModeId =
-      pendingSeed && pendingSeed.workspaceId === workspaceId
-        ? pendingSeed.collaborationModeId
-        : null;
-    setPreferredCollabModeId(stored?.collaborationModeId ?? pendingCollabModeId ?? null);
-    return;
-  }
+      setPreferredModelId(stored?.modelId ?? appSettings.lastComposerModelId ?? null);
+      setPreferredEffort(
+        stored?.effort ?? appSettings.lastComposerReasoningEffort ?? null,
+      );
+      const pendingCollabModeId =
+        pendingSeed && pendingSeed.workspaceId === workspaceId
+          ? pendingSeed.collaborationModeId
+          : null;
+      setPreferredCollabModeId(stored?.collaborationModeId ?? pendingCollabModeId ?? null);
+      return;
+    }
+
+    setAccessMode(appSettings.defaultAccessMode);
 
     // No active thread: use global "last composer" preferences.
     setPreferredModelId(appSettings.lastComposerModelId);
@@ -897,6 +905,10 @@ function MainApp() {
     patchThreadCodexParams(workspaceId, threadId, {
       modelId: selectedModelId,
       effort: resolvedEffort,
+      accessMode:
+        pendingSeed && pendingSeed.workspaceId === workspaceId
+          ? pendingSeed.accessMode
+          : accessMode,
       collaborationModeId: pendingCollabModeId ?? selectedCollaborationModeId,
     });
     if (pendingSeed?.workspaceId === workspaceId) {
@@ -905,6 +917,7 @@ function MainApp() {
   }, [
     activeThreadId,
     activeWorkspaceId,
+    accessMode,
     getThreadCodexParams,
     patchThreadCodexParams,
     resolvedEffort,
@@ -1769,8 +1782,9 @@ function MainApp() {
     pendingNewThreadSeedRef.current = {
       workspaceId: activeWorkspaceId,
       collaborationModeId: selectedCollaborationModeId,
+      accessMode,
     };
-  }, [activeThreadId, activeWorkspaceId, selectedCollaborationModeId]);
+  }, [accessMode, activeThreadId, activeWorkspaceId, selectedCollaborationModeId]);
 
   const handleComposerSendWithDraftStart = useCallback(
     (text: string, images: string[]) => {

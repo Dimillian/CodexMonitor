@@ -196,7 +196,18 @@ export function useCollaborationModes({
     lastSelectionKey.current = selectionKey;
     // When switching threads, prefer the per-thread override. If there is no stored override,
     // reset to the workspace default instead of carrying over the previous thread's selection.
-    setSelectedModeId(preferredModeId ?? pickWorkspaceDefaultModeId(modes));
+    // Also validate that a stored override still exists; otherwise fall back to the workspace default
+    // so collaboration payload generation remains enabled.
+    setSelectedModeId(() => {
+      if (!modes.length) {
+        // If modes aren't loaded yet, keep the preferred ID (if any) until refresh validates it.
+        return preferredModeId;
+      }
+      if (preferredModeId && modes.some((mode) => mode.id === preferredModeId)) {
+        return preferredModeId;
+      }
+      return pickWorkspaceDefaultModeId(modes);
+    });
   }, [enabled, modes, preferredModeId, selectionKey]);
 
   useEffect(() => {

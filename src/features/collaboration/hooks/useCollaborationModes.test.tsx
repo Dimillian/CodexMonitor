@@ -179,4 +179,44 @@ describe("useCollaborationModes", () => {
 
     expect(result.current.selectedCollaborationModeId).toBe("default");
   });
+
+  it("falls back to the workspace default when the preferredModeId is stale", async () => {
+    vi.mocked(getCollaborationModes).mockResolvedValue(makeModesResponse());
+
+    const { result, rerender } = renderHook(
+      (props: {
+        enabled: boolean;
+        preferredModeId: string | null;
+        selectionKey: string;
+      }) =>
+        useCollaborationModes({
+          activeWorkspace: workspaceOne,
+          enabled: props.enabled,
+          preferredModeId: props.preferredModeId,
+          selectionKey: props.selectionKey,
+        }),
+      {
+        initialProps: {
+          enabled: true,
+          preferredModeId: "plan",
+          selectionKey: "thread-a",
+        },
+      },
+    );
+
+    await waitFor(() => {
+      expect(result.current.collaborationModes.length).toBeGreaterThan(0);
+    });
+    expect(result.current.selectedCollaborationModeId).toBe("plan");
+
+    rerender({
+      enabled: true,
+      preferredModeId: "stale-mode-id",
+      selectionKey: "thread-b",
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedCollaborationModeId).toBe("default");
+    });
+  });
 });
