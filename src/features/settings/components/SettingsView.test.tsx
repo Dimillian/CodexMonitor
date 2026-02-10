@@ -1255,8 +1255,12 @@ describe("SettingsView Codex defaults", () => {
           model: "gpt-4.1",
           displayName: "GPT-4.1",
           description: "",
-          supportedReasoningEfforts: [],
-          defaultReasoningEffort: null,
+          supportedReasoningEfforts: [
+            { reasoningEffort: "low", description: "" },
+            { reasoningEffort: "medium", description: "" },
+            { reasoningEffort: "high", description: "" },
+          ],
+          defaultReasoningEffort: "medium",
           isDefault: false,
         },
         {
@@ -1264,8 +1268,12 @@ describe("SettingsView Codex defaults", () => {
           model: "gpt-5.1",
           displayName: "GPT-5.1",
           description: "",
-          supportedReasoningEfforts: [],
-          defaultReasoningEffort: null,
+          supportedReasoningEfforts: [
+            { reasoningEffort: "low", description: "" },
+            { reasoningEffort: "medium", description: "" },
+            { reasoningEffort: "high", description: "" },
+          ],
+          defaultReasoningEffort: "medium",
           isDefault: false,
         },
       ]),
@@ -1311,9 +1319,9 @@ describe("SettingsView Codex defaults", () => {
       />,
     );
 
-    const modelSelect = screen.getByLabelText("Default model") as HTMLSelectElement;
+    const modelSelect = screen.getByLabelText("Model") as HTMLSelectElement;
     const effortSelect = screen.getByLabelText(
-      "Default reasoning effort",
+      "Reasoning effort",
     ) as HTMLSelectElement;
 
     await waitFor(() => {
@@ -1322,6 +1330,7 @@ describe("SettingsView Codex defaults", () => {
     });
 
     expect(within(modelSelect).queryByRole("option", { name: /default/i })).toBeNull();
+    expect(within(effortSelect).queryByRole("option", { name: /default/i })).toBeNull();
     expect(effortSelect.value).toBe("medium");
 
     await waitFor(() => {
@@ -1344,8 +1353,12 @@ describe("SettingsView Codex defaults", () => {
           model: "gpt-4.1",
           displayName: "GPT-4.1",
           description: "",
-          supportedReasoningEfforts: [],
-          defaultReasoningEffort: null,
+          supportedReasoningEfforts: [
+            { reasoningEffort: "low", description: "" },
+            { reasoningEffort: "medium", description: "" },
+            { reasoningEffort: "high", description: "" },
+          ],
+          defaultReasoningEffort: "medium",
           isDefault: false,
         },
         {
@@ -1353,8 +1366,12 @@ describe("SettingsView Codex defaults", () => {
           model: "gpt-5.1",
           displayName: "GPT-5.1",
           description: "",
-          supportedReasoningEfforts: [],
-          defaultReasoningEffort: null,
+          supportedReasoningEfforts: [
+            { reasoningEffort: "low", description: "" },
+            { reasoningEffort: "medium", description: "" },
+            { reasoningEffort: "high", description: "" },
+          ],
+          defaultReasoningEffort: "medium",
           isDefault: false,
         },
       ]),
@@ -1400,9 +1417,9 @@ describe("SettingsView Codex defaults", () => {
       />,
     );
 
-    const modelSelect = screen.getByLabelText("Default model") as HTMLSelectElement;
+    const modelSelect = screen.getByLabelText("Model") as HTMLSelectElement;
     const effortSelect = screen.getByLabelText(
-      "Default reasoning effort",
+      "Reasoning effort",
     ) as HTMLSelectElement;
 
     await waitFor(() => {

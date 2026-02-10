@@ -819,10 +819,12 @@ function MainApp() {
     setAccessMode(stored?.accessMode ?? appSettings.defaultAccessMode);
 
     if (threadId) {
-      // Thread-scoped defaults: no global fallback. If the thread has no stored override,
-      // use the model hook's defaults (config/isDefault) by passing null preferences.
-      setPreferredModelId(stored?.modelId ?? null);
-      setPreferredEffort(stored?.effort ?? null);
+      // Thread-scoped defaults: prefer stored overrides, but fall back to the global
+      // "last composer" preferences for newly created threads.
+      setPreferredModelId(stored?.modelId ?? appSettings.lastComposerModelId ?? null);
+      setPreferredEffort(
+        stored?.effort ?? appSettings.lastComposerReasoningEffort ?? null,
+      );
       setPreferredCollabModeId(stored?.collaborationModeId ?? null);
       return;
     }
@@ -843,6 +845,43 @@ function MainApp() {
     setPreferredModelId,
     setThreadCodexSelectionKey,
     threadCodexParamsVersion,
+  ]);
+
+  const seededThreadParamsRef = useRef(new Set<string>());
+  useEffect(() => {
+    const workspaceId = activeWorkspaceId ?? null;
+    const threadId = activeThreadId ?? null;
+    if (!workspaceId || !threadId) {
+      return;
+    }
+
+    const key = makeThreadCodexParamsKey(workspaceId, threadId);
+    if (seededThreadParamsRef.current.has(key)) {
+      return;
+    }
+
+    const stored = getThreadCodexParams(workspaceId, threadId);
+    if (stored) {
+      seededThreadParamsRef.current.add(key);
+      return;
+    }
+
+    if (!selectedModelId) {
+      return;
+    }
+
+    seededThreadParamsRef.current.add(key);
+    patchThreadCodexParams(workspaceId, threadId, {
+      modelId: selectedModelId,
+      effort: resolvedEffort,
+    });
+  }, [
+    activeThreadId,
+    activeWorkspaceId,
+    getThreadCodexParams,
+    patchThreadCodexParams,
+    resolvedEffort,
+    selectedModelId,
   ]);
 
   const { handleSetThreadListSortKey, handleRefreshAllWorkspaceThreads } =

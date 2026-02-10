@@ -76,17 +76,14 @@ const normalizeOverrideValue = (value: string): string | null => {
 };
 
 const DEFAULT_REASONING_EFFORT = "medium";
-const REASONING_EFFORT_OPTIONS = ["low", "medium", "high"] as const;
 
-function coerceReasoningEffort(value: unknown): (typeof REASONING_EFFORT_OPTIONS)[number] | null {
+const normalizeEffortValue = (value: unknown): string | null => {
   if (typeof value !== "string") {
     return null;
   }
-  const normalized = value.trim().toLowerCase();
-  return (REASONING_EFFORT_OPTIONS as readonly string[]).includes(normalized)
-    ? (normalized as (typeof REASONING_EFFORT_OPTIONS)[number])
-    : null;
-}
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed.toLowerCase() : null;
+};
 
 function coerceSavedModelSlug(value: string | null, models: ModelOption[]): string | null {
   const trimmed = (value ?? "").trim();
@@ -100,6 +97,27 @@ function coerceSavedModelSlug(value: string | null, models: ModelOption[]): stri
   const byId = models.find((model) => model.id === trimmed);
   return byId ? byId.model : null;
 }
+
+const getReasoningSupport = (model: ModelOption | null): boolean => {
+  if (!model) {
+    return false;
+  }
+  return model.supportedReasoningEfforts.length > 0 || model.defaultReasoningEffort !== null;
+};
+
+const getReasoningOptions = (model: ModelOption | null): string[] => {
+  if (!model) {
+    return [];
+  }
+  const supported = model.supportedReasoningEfforts
+    .map((effort) => normalizeEffortValue(effort.reasoningEffort))
+    .filter((effort): effort is string => Boolean(effort));
+  if (supported.length > 0) {
+    return Array.from(new Set(supported));
+  }
+  const fallback = normalizeEffortValue(model.defaultReasoningEffort);
+  return fallback ? [fallback] : [];
+};
 
 export function SettingsCodexSection({
   appSettings,
@@ -157,8 +175,38 @@ export function SettingsCodexSection({
     [appSettings.lastComposerModelId, defaultModels],
   );
   const selectedModelSlug = savedModelSlug ?? latestModelSlug ?? "";
-  const selectedEffort =
-    coerceReasoningEffort(appSettings.lastComposerReasoningEffort) ?? DEFAULT_REASONING_EFFORT;
+  const selectedModel = useMemo(
+    () => defaultModels.find((model) => model.model === selectedModelSlug) ?? null,
+    [defaultModels, selectedModelSlug],
+  );
+  const reasoningSupported = useMemo(
+    () => getReasoningSupport(selectedModel),
+    [selectedModel],
+  );
+  const reasoningOptions = useMemo(
+    () => getReasoningOptions(selectedModel),
+    [selectedModel],
+  );
+  const savedEffort = useMemo(
+    () => normalizeEffortValue(appSettings.lastComposerReasoningEffort),
+    [appSettings.lastComposerReasoningEffort],
+  );
+  const selectedEffort = useMemo(() => {
+    if (!reasoningSupported) {
+      return "";
+    }
+    if (savedEffort && reasoningOptions.includes(savedEffort)) {
+      return savedEffort;
+    }
+    if (reasoningOptions.includes(DEFAULT_REASONING_EFFORT)) {
+      return DEFAULT_REASONING_EFFORT;
+    }
+    const fallback = normalizeEffortValue(selectedModel?.defaultReasoningEffort);
+    if (fallback && reasoningOptions.includes(fallback)) {
+      return fallback;
+    }
+    return reasoningOptions[0] ?? "";
+  }, [reasoningOptions, reasoningSupported, savedEffort, selectedModel]);
 
   const didNormalizeDefaultsRef = useRef(false);
   useEffect(() => {
@@ -172,7 +220,10 @@ export function SettingsCodexSection({
     const savedRawEffort = (appSettings.lastComposerReasoningEffort ?? "").trim();
     const shouldNormalizeModel = savedRawModel.length === 0 || savedModelSlug === null;
     const shouldNormalizeEffort =
-      savedRawEffort.length === 0 || coerceReasoningEffort(savedRawEffort) === null;
+      reasoningSupported &&
+      (savedRawEffort.length === 0 ||
+        savedEffort === null ||
+        !reasoningOptions.includes(savedEffort));
     if (!shouldNormalizeModel && !shouldNormalizeEffort) {
       didNormalizeDefaultsRef.current = true;
       return;
@@ -182,7 +233,7 @@ export function SettingsCodexSection({
       ...appSettings,
       lastComposerModelId: shouldNormalizeModel ? selectedModelSlug : appSettings.lastComposerModelId,
       lastComposerReasoningEffort: shouldNormalizeEffort
-        ? DEFAULT_REASONING_EFFORT
+        ? selectedEffort
         : appSettings.lastComposerReasoningEffort,
     };
     didNormalizeDefaultsRef.current = true;
@@ -191,8 +242,12 @@ export function SettingsCodexSection({
     appSettings,
     defaultModels.length,
     onUpdateAppSettings,
+    reasoningOptions,
+    reasoningSupported,
+    savedEffort,
     savedModelSlug,
     selectedModelSlug,
+    selectedEffort,
   ]);
 
   return (
@@ -348,10 +403,24 @@ export function SettingsCodexSection({
         )}
       </div>
 
-      <div className="settings-field">
-        <label className="settings-field-label" htmlFor="default-model">
-          Default model
-        </label>
+      <div className="settings-divider" />
+      <div className="settings-field-label">Default parameters</div>
+
+      <div className="settings-toggle-row">
+        <div>
+          <label className="settings-toggle-title" htmlFor="default-model">
+            Model
+          </label>
+          <div className="settings-toggle-subtitle">
+            {defaultModelsConnectedWorkspaceCount === 0
+              ? "Connect a project to load available models."
+              : defaultModelsLoading
+                ? "Loading models…"
+                : defaultModelsError
+                  ? `Couldn’t load models: ${defaultModelsError}`
+                  : "Used when there is no thread-specific override."}
+          </div>
+        </div>
         <div className="settings-field-row">
           <select
             id="default-model"
@@ -364,7 +433,7 @@ export function SettingsCodexSection({
                 lastComposerModelId: event.target.value,
               })
             }
-            aria-label="Default model"
+            aria-label="Model"
           >
             {defaultModels.map((model) => (
               <option key={model.model} value={model.model}>
@@ -381,23 +450,19 @@ export function SettingsCodexSection({
             Refresh
           </button>
         </div>
-        {defaultModelsConnectedWorkspaceCount === 0 && (
-          <div className="settings-help">
-            Connect a project to load available models.
-          </div>
-        )}
-        {defaultModelsLoading && (
-          <div className="settings-help">Loading models…</div>
-        )}
-        {defaultModelsError && (
-          <div className="settings-help">Couldn’t load models: {defaultModelsError}</div>
-        )}
       </div>
 
-      <div className="settings-field">
-        <label className="settings-field-label" htmlFor="default-effort">
-          Default reasoning effort
-        </label>
+      <div className="settings-toggle-row">
+        <div>
+          <label className="settings-toggle-title" htmlFor="default-effort">
+            Reasoning effort
+          </label>
+          <div className="settings-toggle-subtitle">
+            {reasoningSupported
+              ? "Available options depend on the selected model."
+              : "The selected model does not expose reasoning effort options."}
+          </div>
+        </div>
         <select
           id="default-effort"
           className="settings-select"
@@ -408,18 +473,27 @@ export function SettingsCodexSection({
               lastComposerReasoningEffort: event.target.value,
             })
           }
-          aria-label="Default reasoning effort"
+          aria-label="Reasoning effort"
+          disabled={!reasoningSupported}
         >
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
+          {!reasoningSupported && <option value="">not supported</option>}
+          {reasoningOptions.map((effort) => (
+            <option key={effort} value={effort}>
+              {effort}
+            </option>
+          ))}
         </select>
       </div>
 
-      <div className="settings-field">
-        <label className="settings-field-label" htmlFor="default-access">
-          Default access mode
-        </label>
+      <div className="settings-toggle-row">
+        <div>
+          <label className="settings-toggle-title" htmlFor="default-access">
+            Access mode
+          </label>
+          <div className="settings-toggle-subtitle">
+            Used when there is no thread-specific override.
+          </div>
+        </div>
         <select
           id="default-access"
           className="settings-select"
