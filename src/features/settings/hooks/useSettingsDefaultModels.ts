@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ModelOption, WorkspaceInfo } from "../../../types";
 import { getModelList } from "../../../services/tauri";
+import { parseModelListResponse } from "../../models/utils/modelListResponse";
 
 type SettingsDefaultModelsState = {
   models: ModelOption[];
@@ -15,51 +16,6 @@ const EMPTY_STATE: SettingsDefaultModelsState = {
   error: null,
   connectedWorkspaceCount: 0,
 };
-
-const normalizeEffort = (value: unknown): string | null => {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-};
-
-function parseModelListResponse(response: unknown): ModelOption[] {
-  const rawData = (() => {
-    if (!response || typeof response !== "object") {
-      return [];
-    }
-    const record = response as Record<string, unknown>;
-    const result = record.result as Record<string, unknown> | undefined;
-    const nestedData = result?.data;
-    if (Array.isArray(nestedData)) {
-      return nestedData;
-    }
-    const topData = record.data;
-    return Array.isArray(topData) ? topData : [];
-  })();
-
-  return rawData.map((item: any) => ({
-    id: String(item.id ?? item.model ?? ""),
-    model: String(item.model ?? item.id ?? ""),
-    displayName: String(item.displayName ?? item.display_name ?? item.model ?? ""),
-    description: String(item.description ?? ""),
-    supportedReasoningEfforts: Array.isArray(item.supportedReasoningEfforts)
-      ? item.supportedReasoningEfforts
-      : Array.isArray(item.supported_reasoning_efforts)
-        ? item.supported_reasoning_efforts.map((effort: any) => ({
-            reasoningEffort: String(
-              effort.reasoningEffort ?? effort.reasoning_effort ?? "",
-            ),
-            description: String(effort.description ?? ""),
-          }))
-        : [],
-    defaultReasoningEffort: normalizeEffort(
-      item.defaultReasoningEffort ?? item.default_reasoning_effort,
-    ),
-    isDefault: Boolean(item.isDefault ?? item.is_default ?? false),
-  }));
-}
 
 const parseGptVersionScore = (slug: string): number | null => {
   const match = /^gpt-(\d+)(?:\.(\d+))?(?:\.(\d+))?/i.exec(slug.trim());
@@ -203,4 +159,3 @@ export function useSettingsDefaultModels(projects: WorkspaceInfo[]) {
     refresh,
   };
 }
-
