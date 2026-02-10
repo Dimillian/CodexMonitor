@@ -23,6 +23,11 @@ type ThreadEventHandlersOptions = {
     threadId: string,
     timestamp?: number,
   ) => void;
+  onUserMessageCreated?: (
+    workspaceId: string,
+    threadId: string,
+    text: string,
+  ) => void | Promise<void>;
   pushThreadErrorMessage: (threadId: string, message: string) => void;
   onDebug?: (entry: DebugEntry) => void;
   onWorkspaceConnected: (workspaceId: string) => void;
@@ -46,6 +51,7 @@ export function useThreadEventHandlers({
   setActiveTurnId,
   safeMessageActivity,
   recordThreadActivity,
+  onUserMessageCreated,
   pushThreadErrorMessage,
   onDebug,
   onWorkspaceConnected,
@@ -81,6 +87,7 @@ export function useThreadEventHandlers({
     safeMessageActivity,
     recordThreadActivity,
     applyCollabThreadLinks,
+    onUserMessageCreated,
     onReviewExited,
   });
 

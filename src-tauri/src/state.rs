@@ -16,6 +16,7 @@ use crate::types::{
 pub(crate) struct OrbitRunnerRuntime {
     pub(crate) child: Option<Child>,
     pub(crate) status: OrbitRunnerStatus,
+    pub(crate) managed_version: Option<String>,
 }
 
 impl Default for OrbitRunnerRuntime {
@@ -29,6 +30,7 @@ impl Default for OrbitRunnerRuntime {
                 last_error: None,
                 orbit_url: None,
             },
+            managed_version: None,
         }
     }
 }

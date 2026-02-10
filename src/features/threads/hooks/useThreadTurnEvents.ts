@@ -171,7 +171,11 @@ export function useThreadTurnEvents({
   );
 
   const onThreadTokenUsageUpdated = useCallback(
-    (workspaceId: string, threadId: string, tokenUsage: Record<string, unknown>) => {
+    (
+      workspaceId: string,
+      threadId: string,
+      tokenUsage: Record<string, unknown> | null,
+    ) => {
       dispatch({ type: "ensureThread", workspaceId, threadId });
       dispatch({
         type: "setThreadTokenUsage",

@@ -635,6 +635,40 @@ jobs:
           PY
 
           python3 - <<PY
+          import re
+          from pathlib import Path
+
+          path = Path("src-tauri/Cargo.toml")
+          content = path.read_text()
+          content, count = re.subn(
+            r'(?m)^version = ".*"$',
+            'version = "$NEXT_VERSION"',
+            content,
+            count=1,
+          )
+          if count != 1:
+            raise SystemExit("Failed to update src-tauri/Cargo.toml version")
+          path.write_text(content)
+          PY
+
+          python3 - <<PY
+          import re
+          from pathlib import Path
+
+          path = Path("src-tauri/Cargo.lock")
+          content = path.read_text()
+          content, count = re.subn(
+            r'(?ms)(\[\[package\]\]\nname = "codex-monitor"\nversion = ")[^"]+(")',
+            r'\g<1>$NEXT_VERSION\2',
+            content,
+            count=1,
+          )
+          if count != 1:
+            raise SystemExit("Failed to update codex-monitor version in src-tauri/Cargo.lock")
+          path.write_text(content)
+          PY
+
+          python3 - <<PY
           import plistlib
           from pathlib import Path
 
@@ -650,7 +684,7 @@ jobs:
           PY
 
           git checkout -b "chore/bump-version-${NEXT_VERSION}"
-          git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/gen/apple/codex-monitor_iOS/Info.plist
+          git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json src-tauri/gen/apple/codex-monitor_iOS/Info.plist
           git commit -m "chore: bump version to ${NEXT_VERSION}"
           git push origin "chore/bump-version-${NEXT_VERSION}"
 

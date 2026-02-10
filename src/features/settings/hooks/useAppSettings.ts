@@ -17,6 +17,7 @@ import {
 import { normalizeOpenAppTargets } from "../../app/utils/openApp";
 import { getDefaultInterruptShortcut, isMacPlatform } from "../../../utils/shortcuts";
 import { isMobilePlatform } from "../../../utils/platformPaths";
+import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "../../../utils/commitMessagePrompt";
 
 const allowedThemes = new Set(["system", "light", "dark", "dim"]);
 const allowedPersonality = new Set(["friendly", "pragmatic"]);
@@ -35,6 +36,7 @@ function buildDefaultSettings(): AppSettings {
     orbitAuthUrl: null,
     orbitRunnerName: null,
     orbitAutoStartRunner: false,
+    keepDaemonRunningAfterAppClose: false,
     orbitUseAccess: false,
     orbitAccessClientId: null,
     orbitAccessClientSecretRef: null,
@@ -64,6 +66,7 @@ function buildDefaultSettings(): AppSettings {
     theme: "system",
     usageShowRemaining: false,
     showMessageFilePath: true,
+    threadTitleAutogenerationEnabled: false,
     uiFontFamily: DEFAULT_UI_FONT_FAMILY,
     codeFontFamily: DEFAULT_CODE_FONT_FAMILY,
     codeFontSize: CODE_FONT_SIZE_DEFAULT,
@@ -71,6 +74,7 @@ function buildDefaultSettings(): AppSettings {
     systemNotificationsEnabled: true,
     preloadGitDiffs: true,
     gitDiffIgnoreWhitespaceChanges: false,
+    commitMessagePrompt: DEFAULT_COMMIT_MESSAGE_PROMPT,
     experimentalCollabEnabled: false,
     collaborationModesEnabled: true,
     steerEnabled: true,
@@ -117,6 +121,10 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     : hasStoredSelection
       ? storedOpenAppId
       : normalizedTargets[0]?.id ?? DEFAULT_OPEN_APP_ID;
+  const commitMessagePrompt =
+    settings.commitMessagePrompt && settings.commitMessagePrompt.trim().length > 0
+      ? settings.commitMessagePrompt
+      : DEFAULT_COMMIT_MESSAGE_PROMPT;
   return {
     ...settings,
     codexBin: settings.codexBin?.trim() ? settings.codexBin.trim() : null,
@@ -137,6 +145,7 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
       : "friendly",
     reviewDeliveryMode:
       settings.reviewDeliveryMode === "detached" ? "detached" : "inline",
+    commitMessagePrompt,
     openAppTargets: normalizedTargets,
     selectedOpenAppId,
   };

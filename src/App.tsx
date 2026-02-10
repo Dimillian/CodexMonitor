@@ -214,6 +214,7 @@ function MainApp() {
     setActiveWorkspaceId,
     addWorkspace,
     addWorkspaceFromPath,
+    addWorkspacesFromPaths,
     addCloneAgent,
     addWorktreeAgent,
     connectWorkspace,
@@ -795,6 +796,7 @@ function MainApp() {
     accessMode,
     reviewDeliveryMode: appSettings.reviewDeliveryMode,
     steerEnabled: appSettings.steerEnabled,
+    threadTitleAutogenerationEnabled: appSettings.threadTitleAutogenerationEnabled,
     customPrompts: prompts,
     onMessageActivity: queueGitStatusRefresh,
     threadSortKey: threadListSortKey,
@@ -1637,7 +1639,7 @@ function MainApp() {
 
   const {
     handleAddWorkspace,
-    handleAddWorkspaceFromPath,
+    handleAddWorkspacesFromPaths,
     handleAddAgent,
     handleAddWorktreeAgent,
     handleAddCloneAgent,
@@ -1645,6 +1647,7 @@ function MainApp() {
     isCompact,
     addWorkspace,
     addWorkspaceFromPath,
+    addWorkspacesFromPaths,
     setActiveThreadId,
     setActiveTab,
     exitDiffView,
@@ -1664,11 +1667,9 @@ function MainApp() {
       if (uniquePaths.length === 0) {
         return;
       }
-      uniquePaths.forEach((path) => {
-        void handleAddWorkspaceFromPath(path);
-      });
+      void handleAddWorkspacesFromPaths(uniquePaths);
     },
-    [handleAddWorkspaceFromPath],
+    [handleAddWorkspacesFromPaths],
   );
 
   const {

@@ -130,7 +130,6 @@ fn can_retry_after_disconnect(method: &str) -> bool {
             | "file_read"
             | "get_config_model"
             | "get_git_commit_diff"
-            | "get_commit_message_prompt"
             | "get_git_diffs"
             | "get_git_log"
             | "get_git_remote"
@@ -255,7 +254,6 @@ mod tests {
     fn retries_only_retry_safe_methods_after_disconnect() {
         assert!(can_retry_after_disconnect("resume_thread"));
         assert!(can_retry_after_disconnect("list_threads"));
-        assert!(can_retry_after_disconnect("get_commit_message_prompt"));
         assert!(can_retry_after_disconnect("local_usage_snapshot"));
         assert!(!can_retry_after_disconnect("send_user_message"));
         assert!(!can_retry_after_disconnect("start_thread"));

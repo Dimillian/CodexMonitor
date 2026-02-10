@@ -77,7 +77,7 @@ type AppServerEventHandlers = {
   onThreadTokenUsageUpdated?: (
     workspaceId: string,
     threadId: string,
-    tokenUsage: Record<string, unknown>,
+    tokenUsage: Record<string, unknown> | null,
   ) => void;
   onAccountRateLimitsUpdated?: (
     workspaceId: string,
@@ -299,9 +299,9 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       if (method === "thread/tokenUsage/updated") {
         const threadId = String(params.threadId ?? params.thread_id ?? "");
         const tokenUsage =
-          (params.tokenUsage as Record<string, unknown> | undefined) ??
-          (params.token_usage as Record<string, unknown> | undefined);
-        if (threadId && tokenUsage) {
+          (params.tokenUsage as Record<string, unknown> | null | undefined) ??
+          (params.token_usage as Record<string, unknown> | null | undefined);
+        if (threadId && tokenUsage !== undefined) {
           handlers.onThreadTokenUsageUpdated?.(workspace_id, threadId, tokenUsage);
         }
         return;

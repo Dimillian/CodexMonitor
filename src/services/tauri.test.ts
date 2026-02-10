@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import * as notification from "@tauri-apps/plugin-notification";
 import {
   addWorkspace,
@@ -36,6 +37,7 @@ import {
   tailscaleDaemonStatus,
   tailscaleDaemonStop,
   tailscaleStatus,
+  pickWorkspacePaths,
   writeGlobalAgentsMd,
   writeGlobalCodexConfigToml,
   writeAgentMd,
@@ -43,6 +45,10 @@ import {
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
+}));
+
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  open: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/plugin-notification", () => ({
@@ -73,6 +79,27 @@ describe("tauri invoke wrappers", () => {
       path: "/tmp/project",
       codex_bin: null,
     });
+  });
+
+  it("returns an empty list when workspace picker is cancelled", async () => {
+    const openMock = vi.mocked(open);
+    openMock.mockResolvedValueOnce(null);
+
+    await expect(pickWorkspacePaths()).resolves.toEqual([]);
+  });
+
+  it("wraps a single workspace selection in an array", async () => {
+    const openMock = vi.mocked(open);
+    openMock.mockResolvedValueOnce("/tmp/project");
+
+    await expect(pickWorkspacePaths()).resolves.toEqual(["/tmp/project"]);
+  });
+
+  it("returns multiple workspace selections as-is", async () => {
+    const openMock = vi.mocked(open);
+    openMock.mockResolvedValueOnce(["/tmp/one", "/tmp/two"]);
+
+    await expect(pickWorkspacePaths()).resolves.toEqual(["/tmp/one", "/tmp/two"]);
   });
 
   it("maps workspace_id to workspaceId for git status", async () => {
