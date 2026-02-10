@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { WorkspaceInfo } from "../../../types";
 
 type UseRemoteThreadRefreshOnFocusOptions = {
@@ -14,16 +14,28 @@ export function useRemoteThreadRefreshOnFocus({
   activeThreadId,
   refreshThread,
 }: UseRemoteThreadRefreshOnFocusOptions) {
+  const optionsRef = useRef({ backendMode, activeWorkspace, activeThreadId, refreshThread });
   useEffect(() => {
-    if (backendMode !== "remote") {
-      return;
-    }
+    optionsRef.current = { backendMode, activeWorkspace, activeThreadId, refreshThread };
+  });
+
+  useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     const refreshActiveThread = () => {
-      if (!activeWorkspace?.connected || !activeThreadId) {
-        return;
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
       }
-      void refreshThread(activeWorkspace.id, activeThreadId);
+      debounceTimer = setTimeout(() => {
+        const { backendMode: mode, activeWorkspace: ws, activeThreadId: threadId, refreshThread: refresh } = optionsRef.current;
+        if (mode !== "remote") {
+          return;
+        }
+        if (!ws?.connected || !threadId) {
+          return;
+        }
+        void refresh(ws.id, threadId);
+      }, 500);
     };
 
     const handleVisibilityChange = () => {
@@ -37,6 +49,9 @@ export function useRemoteThreadRefreshOnFocus({
     return () => {
       window.removeEventListener("focus", refreshActiveThread);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
     };
-  }, [activeThreadId, activeWorkspace, backendMode, refreshThread]);
+  }, []);
 }

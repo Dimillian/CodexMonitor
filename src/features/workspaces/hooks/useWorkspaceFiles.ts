@@ -114,10 +114,18 @@ export function useWorkspaceFiles({
     if (!workspaceId || !isConnected || !isPollingEnabled) {
       return;
     }
+    // Pause polling when tab is hidden
+    if (document.visibilityState === "hidden") {
+      return;
+    }
     const refreshInterval =
       files.length > LARGE_FILE_COUNT ? LARGE_REFRESH_INTERVAL_MS : REFRESH_INTERVAL_MS;
 
     const interval = window.setInterval(() => {
+      // Skip if tab is hidden
+      if (document.visibilityState === "hidden") {
+        return;
+      }
       refreshFiles().catch(() => {});
     }, refreshInterval);
 
