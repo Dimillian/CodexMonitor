@@ -1,0 +1,57 @@
+.git-init-modal .ds-modal-card {
+  width: min(520px, calc(100vw - 48px));
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* Make this modal fully opaque (no glass/transparency). */
+  background: var(--surface-sidebar-opaque);
+}
+
+.git-init-modal .ds-modal-backdrop {
+  /* Fully opaque backdrop; no blur/transparency so nothing bleeds through. */
+  background: color-mix(in srgb, var(--surface-sidebar-opaque) 18%, black);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.git-init-modal-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ds-text-subtle);
+}
+
+.git-init-modal-checkbox-row code {
+  font-family: var(--code-font-family, Menlo, Monaco, "Courier New", monospace);
+  color: var(--ds-text-strong);
+}
+
+.git-init-modal-checkbox-row--nested {
+  margin-top: 2px;
+  padding-left: 22px;
+}
+
+.git-init-modal-checkbox {
+  margin-top: 2px;
+}
+
+.git-init-modal-remote {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--ds-border-subtle);
+  background: var(--surface-sidebar-opaque);
+}
+
+.git-init-modal-actions {
+  margin-top: 8px;
+}
+
+.git-init-modal-button {
+  white-space: nowrap;
+}

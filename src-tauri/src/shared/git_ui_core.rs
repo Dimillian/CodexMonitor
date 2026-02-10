@@ -110,6 +110,42 @@ async fn run_git_command(repo_root: &Path, args: &[&str]) -> Result<(), String> 
     Err(detail.to_string())
 }
 
+async fn run_gh_command(repo_root: &Path, args: &[&str]) -> Result<(String, String), String> {
+    let output = tokio_command("gh")
+        .args(args)
+        .current_dir(repo_root)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run gh: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    if output.status.success() {
+        return Ok((stdout, stderr));
+    }
+
+    let detail = if stderr.trim().is_empty() {
+        stdout.trim()
+    } else {
+        stderr.trim()
+    };
+    if detail.is_empty() {
+        return Err("GitHub CLI command failed.".to_string());
+    }
+    Err(detail.to_string())
+}
+
+async fn gh_stdout_trim(repo_root: &Path, args: &[&str]) -> Result<String, String> {
+    let (stdout, _) = run_gh_command(repo_root, args).await?;
+    Ok(stdout.trim().to_string())
+}
+
+async fn gh_git_protocol(repo_root: &Path) -> String {
+    gh_stdout_trim(repo_root, &["config", "get", "git_protocol"])
+        .await
+        .unwrap_or_else(|_| "https".to_string())
+}
+
 fn action_paths_for_file(repo_root: &Path, path: &str) -> Vec<String> {
     let target = normalize_git_path(path).trim().to_string();
     if target.is_empty() {
@@ -774,6 +810,304 @@ async fn get_git_status_inner(
         "unstagedFiles": unstaged_files,
         "totalAdditions": total_additions,
         "totalDeletions": total_deletions,
+    }))
+}
+
+fn count_effective_dir_entries(root: &Path) -> Result<usize, String> {
+    let entries = fs::read_dir(root).map_err(|err| format!("Failed to read directory: {err}"))?;
+    let mut count = 0usize;
+    for entry in entries {
+        let entry =
+            entry.map_err(|err| format!("Failed to read directory entry in {}: {err}", root.display()))?;
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if name == ".git" || name == ".DS_Store" || name == "Thumbs.db" {
+            continue;
+        }
+        count += 1;
+    }
+    Ok(count)
+}
+
+fn validate_branch_name(name: &str) -> Result<String, String> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return Err("Branch name is required.".to_string());
+    }
+    if trimmed == "." || trimmed == ".." {
+        return Err("Branch name cannot be '.' or '..'.".to_string());
+    }
+    if trimmed.chars().any(|ch| ch.is_whitespace()) {
+        return Err("Branch name cannot contain spaces.".to_string());
+    }
+    if trimmed.starts_with('/') || trimmed.ends_with('/') {
+        return Err("Branch name cannot start or end with '/'.".to_string());
+    }
+    if trimmed.ends_with(".lock") {
+        return Err("Branch name cannot end with '.lock'.".to_string());
+    }
+    if trimmed.contains("..") {
+        return Err("Branch name cannot contain '..'.".to_string());
+    }
+    if trimmed.contains("@{") {
+        return Err("Branch name cannot contain '@{'.".to_string());
+    }
+    let invalid_chars = ['~', '^', ':', '?', '*', '[', '\\'];
+    if trimmed.chars().any(|ch| invalid_chars.contains(&ch)) {
+        return Err("Branch name contains invalid characters.".to_string());
+    }
+    if trimmed.ends_with('.') {
+        return Err("Branch name cannot end with '.'.".to_string());
+    }
+    Ok(trimmed.to_string())
+}
+
+fn validate_github_repo_name(value: &str) -> Result<String, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err("Repository name is required.".to_string());
+    }
+    if trimmed.chars().any(|ch| ch.is_whitespace()) {
+        return Err("Repository name cannot contain spaces.".to_string());
+    }
+    if trimmed.starts_with('/') || trimmed.ends_with('/') {
+        return Err("Repository name cannot start or end with '/'.".to_string());
+    }
+    if trimmed.contains("//") {
+        return Err("Repository name cannot contain '//'.".to_string());
+    }
+    Ok(trimmed.to_string())
+}
+
+fn github_repo_exists_message(lower: &str) -> bool {
+    lower.contains("already exists")
+        || lower.contains("name already exists")
+        || lower.contains("has already been taken")
+        || lower.contains("repository with this name already exists")
+}
+
+fn normalize_repo_full_name(value: &str) -> String {
+    value
+        .trim()
+        .trim_start_matches("https://github.com/")
+        .trim_start_matches("http://github.com/")
+        .trim_start_matches("git@github.com:")
+        .trim_end_matches(".git")
+        .trim_end_matches('/')
+        .to_string()
+}
+
+fn git_remote_url(repo_root: &Path, remote_name: &str) -> Option<String> {
+    let repo = Repository::open(repo_root).ok()?;
+    let remote = repo.find_remote(remote_name).ok()?;
+    remote.url().map(|url| url.to_string())
+}
+
+async fn init_git_repo_inner(
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    branch: String,
+    force: bool,
+) -> Result<Value, String> {
+    const INITIAL_COMMIT_MESSAGE: &str = "Initial commit";
+
+    let entry = workspace_entry_for_id(workspaces, &workspace_id).await?;
+    let repo_root = resolve_git_root(&entry)?;
+    let branch = validate_branch_name(&branch)?;
+
+    if Repository::open(&repo_root).is_ok() {
+        return Ok(json!({ "status": "already_initialized" }));
+    }
+
+    if !force {
+        let entry_count = count_effective_dir_entries(&repo_root)?;
+        if entry_count > 0 {
+            return Ok(json!({ "status": "needs_confirmation", "entryCount": entry_count }));
+        }
+    }
+
+    let init_with_branch = run_git_command(
+        &repo_root,
+        &["init", "--initial-branch", branch.as_str()],
+    )
+    .await;
+
+    if let Err(error) = init_with_branch {
+        let lower = error.to_lowercase();
+        let unsupported = lower.contains("initial-branch")
+            && (lower.contains("unknown option")
+                || lower.contains("unrecognized option")
+                || lower.contains("unknown switch")
+                || lower.contains("usage:"));
+        if !unsupported {
+            return Err(error);
+        }
+
+        run_git_command(&repo_root, &["init"]).await?;
+        let head_ref = format!("refs/heads/{branch}");
+        run_git_command(&repo_root, &["symbolic-ref", "HEAD", head_ref.as_str()]).await?;
+    }
+
+    // Make the repository usable immediately (avoid "unborn HEAD" edge cases).
+    // This stages all non-ignored files and creates an initial commit. If the
+    // commit fails (e.g. missing user.name/user.email), we still report
+    // initialization success but include the commit error so the UI can surface it.
+    let commit_error = match run_git_command(&repo_root, &["add", "-A"]).await {
+        Ok(()) => match run_git_command(
+            &repo_root,
+            &["commit", "--allow-empty", "-m", INITIAL_COMMIT_MESSAGE],
+        )
+        .await
+        {
+            Ok(()) => None,
+            Err(err) => Some(err),
+        },
+        Err(err) => Some(err),
+    };
+
+    if let Some(commit_error) = commit_error {
+        return Ok(json!({ "status": "initialized", "commitError": commit_error }));
+    }
+
+    Ok(json!({ "status": "initialized" }))
+}
+
+async fn create_github_repo_inner(
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    repo: String,
+    visibility: String,
+    branch: Option<String>,
+) -> Result<Value, String> {
+    let entry = workspace_entry_for_id(workspaces, &workspace_id).await?;
+    let repo_root = resolve_git_root(&entry)?;
+    let repo = normalize_repo_full_name(&validate_github_repo_name(&repo)?);
+
+    let visibility_flag = match visibility.trim() {
+        "private" => "--private",
+        "public" => "--public",
+        other => return Err(format!("Invalid repo visibility: {other}")),
+    };
+
+    // Ensure local repo exists before creating a remote from it.
+    let local_repo = Repository::open(&repo_root)
+        .map_err(|_| "Git is not initialized in this folder yet.".to_string())?;
+    let origin_url_before = local_repo
+        .find_remote("origin")
+        .ok()
+        .and_then(|remote| remote.url().map(|url| url.to_string()));
+
+    let full_name = if repo.contains('/') {
+        repo
+    } else {
+        let owner = gh_stdout_trim(&repo_root, &["api", "user", "--jq", ".login"]).await?;
+        if owner.trim().is_empty() {
+            return Err("Failed to determine GitHub username.".to_string());
+        }
+        format!("{owner}/{repo}")
+    };
+
+    if origin_url_before.is_none() {
+        let create_result = run_gh_command(
+            &repo_root,
+            &[
+                "repo",
+                "create",
+                &full_name,
+                visibility_flag,
+                "--source=.",
+                "--remote=origin",
+            ],
+        )
+        .await;
+
+        if let Err(error) = create_result {
+            let lower = error.to_lowercase();
+            if !github_repo_exists_message(&lower) {
+                return Err(error);
+            }
+        }
+    }
+
+    // Ensure origin exists; gh should create it, but retries / edge cases can leave it missing.
+    if git_remote_url(&repo_root, "origin").is_none() {
+        let protocol = gh_git_protocol(&repo_root).await;
+        let jq_field = if protocol.trim() == "ssh" {
+            ".sshUrl"
+        } else {
+            ".httpsUrl"
+        };
+        let remote_url = gh_stdout_trim(
+            &repo_root,
+            &[
+                "repo",
+                "view",
+                &full_name,
+                "--json",
+                "sshUrl,httpsUrl",
+                "--jq",
+                jq_field,
+            ],
+        )
+        .await?;
+        if remote_url.trim().is_empty() {
+            return Err("Failed to resolve GitHub remote URL.".to_string());
+        }
+        run_git_command(&repo_root, &["remote", "add", "origin", remote_url.trim()]).await?;
+    }
+
+    let remote_url = git_remote_url(&repo_root, "origin");
+
+    let push_result = run_git_command(&repo_root, &["push", "-u", "origin", "HEAD"]).await;
+
+    let default_branch = if let Some(branch) = branch {
+        Some(validate_branch_name(&branch)?)
+    } else {
+        let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
+        let head = repo.head().ok();
+        let name = head
+            .as_ref()
+            .filter(|head| head.is_branch())
+            .and_then(|head| head.shorthand())
+            .map(str::to_string);
+        name.and_then(|name| validate_branch_name(&name).ok())
+    };
+
+    let default_branch_result = if let Some(branch) = default_branch.as_deref() {
+        run_gh_command(
+            &repo_root,
+            &[
+                "api",
+                "-X",
+                "PATCH",
+                &format!("/repos/{full_name}"),
+                "-f",
+                &format!("default_branch={branch}"),
+            ],
+        )
+        .await
+        .map(|_| ())
+    } else {
+        Ok(())
+    };
+
+    let push_error = push_result.err();
+    let default_branch_error = default_branch_result.err();
+
+    if push_error.is_some() || default_branch_error.is_some() {
+        return Ok(json!({
+            "status": "partial",
+            "repo": full_name,
+            "remoteUrl": remote_url,
+            "pushError": push_error,
+            "defaultBranchError": default_branch_error,
+        }));
+    }
+
+    Ok(json!({
+        "status": "ok",
+        "repo": full_name,
+        "remoteUrl": remote_url,
     }))
 }
 
@@ -1585,6 +1919,25 @@ pub(crate) async fn get_git_status_core(
     workspace_id: String,
 ) -> Result<Value, String> {
     get_git_status_inner(workspaces, workspace_id).await
+}
+
+pub(crate) async fn init_git_repo_core(
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    branch: String,
+    force: bool,
+) -> Result<Value, String> {
+    init_git_repo_inner(workspaces, workspace_id, branch, force).await
+}
+
+pub(crate) async fn create_github_repo_core(
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    repo: String,
+    visibility: String,
+    branch: Option<String>,
+) -> Result<Value, String> {
+    create_github_repo_inner(workspaces, workspace_id, repo, visibility, branch).await
 }
 
 pub(crate) async fn list_git_roots_core(

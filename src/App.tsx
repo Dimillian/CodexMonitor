@@ -31,6 +31,7 @@ import "./styles/tabbar.css";
 import "./styles/worktree-modal.css";
 import "./styles/clone-modal.css";
 import "./styles/branch-switcher-modal.css";
+import "./styles/git-init-modal.css";
 import "./styles/settings.css";
 import "./styles/compact-base.css";
 import "./styles/compact-phone.css";
@@ -50,6 +51,8 @@ import { useGitRepoScan } from "./features/git/hooks/useGitRepoScan";
 import { usePullRequestComposer } from "./features/git/hooks/usePullRequestComposer";
 import { useGitActions } from "./features/git/hooks/useGitActions";
 import { useAutoExitEmptyDiff } from "./features/git/hooks/useAutoExitEmptyDiff";
+import { isMissingRepo } from "./features/git/utils/repoErrors";
+import { useInitGitRepoPrompt } from "./features/git/hooks/useInitGitRepoPrompt";
 import { useModels } from "./features/models/hooks/useModels";
 import { useCollaborationModes } from "./features/collaboration/hooks/useCollaborationModes";
 import { useCollaborationModeSelection } from "./features/collaboration/hooks/useCollaborationModeSelection";
@@ -439,7 +442,7 @@ function MainApp() {
   useEffect(() => {
     resetGitHubPanelState();
   }, [activeWorkspaceId, resetGitHubPanelState]);
-  const { remote: gitRemoteUrl } = useGitRemote(activeWorkspace);
+  const { remote: gitRemoteUrl, refresh: refreshGitRemote } = useGitRemote(activeWorkspace);
   const {
     repos: gitRootCandidates,
     isLoading: gitRootScanLoading,
@@ -662,6 +665,10 @@ function MainApp() {
   }, []);
   const {
     applyWorktreeChanges: handleApplyWorktreeChanges,
+    createGitHubRepo: handleCreateGitHubRepo,
+    createGitHubRepoLoading,
+    initGitRepo: handleInitGitRepo,
+    initGitRepoLoading,
     revertAllGitChanges: handleRevertAllGitChanges,
     revertGitFile: handleRevertGitFile,
     stageGitAll: handleStageGitAll,
@@ -674,7 +681,25 @@ function MainApp() {
     activeWorkspace,
     onRefreshGitStatus: refreshGitStatus,
     onRefreshGitDiffs: refreshGitDiffs,
+    onClearGitRootCandidates: clearGitRootCandidates,
     onError: alertError,
+  });
+
+  const {
+    initGitRepoPrompt,
+    openInitGitRepoPrompt,
+    handleInitGitRepoPromptBranchChange,
+    handleInitGitRepoPromptCreateRemoteChange,
+    handleInitGitRepoPromptRepoNameChange,
+    handleInitGitRepoPromptPrivateChange,
+    handleInitGitRepoPromptCancel,
+    handleInitGitRepoPromptConfirm,
+  } = useInitGitRepoPrompt({
+    activeWorkspace,
+    initGitRepo: handleInitGitRepo,
+    createGitHubRepo: handleCreateGitHubRepo,
+    refreshGitRemote,
+    isBusy: initGitRepoLoading || createGitHubRepoLoading,
   });
 
   const resolvedModel = selectedModel?.model ?? null;
@@ -2252,6 +2277,8 @@ function MainApp() {
       void handleSetGitRoot(null);
     },
     onPickGitRoot: handlePickGitRoot,
+    onInitGitRepo: openInitGitRepoPrompt,
+    initGitRepoLoading,
     onStageGitAll: handleStageGitAll,
     onStageGitFile: handleStageGitFile,
     onUnstageGitFile: handleUnstageGitFile,
@@ -2415,9 +2442,18 @@ function MainApp() {
     onWorkspaceDrop: handleWorkspaceDrop,
   });
 
+  const gitRootOverride = activeWorkspace?.settings.gitRoot;
+  const hasGitRootOverride =
+    typeof gitRootOverride === "string" && gitRootOverride.trim().length > 0;
+  const showGitInitBanner =
+    Boolean(activeWorkspace) && !hasGitRootOverride && isMissingRepo(gitStatus.error);
+
   const workspaceHomeNode = activeWorkspace ? (
     <WorkspaceHome
       workspace={activeWorkspace}
+      showGitInitBanner={showGitInitBanner}
+      initGitRepoLoading={initGitRepoLoading}
+      onInitGitRepo={openInitGitRepoPrompt}
       runs={workspaceRuns}
       recentThreadInstances={recentThreadInstances}
       recentThreadsUpdatedAt={recentThreadsUpdatedAt}
@@ -2569,6 +2605,14 @@ function MainApp() {
         onRenamePromptChange={handleRenamePromptChange}
         onRenamePromptCancel={handleRenamePromptCancel}
         onRenamePromptConfirm={handleRenamePromptConfirm}
+        initGitRepoPrompt={initGitRepoPrompt}
+        initGitRepoPromptBusy={initGitRepoLoading || createGitHubRepoLoading}
+        onInitGitRepoPromptBranchChange={handleInitGitRepoPromptBranchChange}
+        onInitGitRepoPromptCreateRemoteChange={handleInitGitRepoPromptCreateRemoteChange}
+        onInitGitRepoPromptRepoNameChange={handleInitGitRepoPromptRepoNameChange}
+        onInitGitRepoPromptPrivateChange={handleInitGitRepoPromptPrivateChange}
+        onInitGitRepoPromptCancel={handleInitGitRepoPromptCancel}
+        onInitGitRepoPromptConfirm={handleInitGitRepoPromptConfirm}
         worktreePrompt={worktreePrompt}
         onWorktreePromptNameChange={updateWorktreeName}
         onWorktreePromptChange={updateWorktreeBranch}

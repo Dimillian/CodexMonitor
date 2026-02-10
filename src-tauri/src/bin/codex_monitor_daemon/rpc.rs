@@ -504,6 +504,21 @@ pub(super) async fn handle_rpc_request(
             let workspace_id = parse_string(&params, "workspaceId")?;
             state.get_git_status(workspace_id).await
         }
+        "init_git_repo" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let branch = parse_string(&params, "branch")?;
+            let force = parse_optional_bool(&params, "force").unwrap_or(false);
+            state.init_git_repo(workspace_id, branch, force).await
+        }
+        "create_github_repo" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let repo = parse_string(&params, "repo")?;
+            let visibility = parse_string(&params, "visibility")?;
+            let branch = parse_optional_string(&params, "branch");
+            state
+                .create_github_repo(workspace_id, repo, visibility, branch)
+                .await
+        }
         "list_git_roots" => {
             let workspace_id = parse_string(&params, "workspaceId")?;
             let depth = parse_optional_u32(&params, "depth").map(|value| value as usize);
