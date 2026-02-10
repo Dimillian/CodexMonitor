@@ -1,6 +1,8 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::process::Stdio;
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use git2::{BranchType, DiffOptions, Repository, Sort, Status, StatusOptions};
@@ -310,13 +312,152 @@ fn status_for_delta(status: git2::Delta) -> &'static str {
     }
 }
 
-fn build_combined_diff(diff: &git2::Diff) -> String {
-    let mut combined_diff = String::new();
-    for (index, delta) in diff.deltas().enumerate() {
-        let path = delta.new_file().path().or_else(|| delta.old_file().path());
-        let Some(path) = path else {
+fn has_ignored_parent_directory(repo: &Repository, path: &Path) -> bool {
+    let mut current = path.parent();
+    while let Some(parent) = current {
+        if parent.as_os_str().is_empty() {
+            break;
+        }
+        let probe = parent.join(".codexmonitor-ignore-probe");
+        if repo.status_should_ignore(&probe).unwrap_or(false) {
+            return true;
+        }
+        current = parent.parent();
+    }
+    false
+}
+
+fn collect_ignored_paths_with_git(repo: &Repository, paths: &[PathBuf]) -> Option<HashSet<PathBuf>> {
+    if paths.is_empty() {
+        return Some(HashSet::new());
+    }
+
+    let repo_root = repo.workdir()?;
+    let git_bin = resolve_git_binary().ok()?;
+    let mut child = std::process::Command::new(git_bin)
+        .arg("check-ignore")
+        .arg("--stdin")
+        .arg("-z")
+        .current_dir(repo_root)
+        .env("PATH", git_env_path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+
+    let mut stdout = child.stdout.take()?;
+    let stdout_thread = std::thread::spawn(move || {
+        let mut buffer = Vec::new();
+        stdout.read_to_end(&mut buffer).ok()?;
+        Some(buffer)
+    });
+
+    let wrote_all_input = {
+        let mut wrote_all = true;
+        if let Some(mut stdin) = child.stdin.take() {
+            for path in paths {
+                if stdin
+                    .write_all(path.as_os_str().as_encoded_bytes())
+                    .is_err()
+                {
+                    wrote_all = false;
+                    break;
+                }
+                if stdin.write_all(&[0]).is_err() {
+                    wrote_all = false;
+                    break;
+                }
+            }
+        } else {
+            wrote_all = false;
+        }
+        wrote_all
+    };
+
+    if !wrote_all_input {
+        let _ = child.kill();
+        let _ = child.wait();
+        let _ = stdout_thread.join();
+        return None;
+    }
+
+    let status = child.wait().ok()?;
+    let stdout = stdout_thread.join().ok().flatten()?;
+    match status.code() {
+        Some(0) | Some(1) => {}
+        _ => return None,
+    }
+
+    let mut ignored_paths = HashSet::new();
+    for raw in stdout.split(|byte| *byte == 0) {
+        if raw.is_empty() {
             continue;
-        };
+        }
+        let path = String::from_utf8_lossy(raw);
+        ignored_paths.insert(PathBuf::from(path.as_ref()));
+    }
+    Some(ignored_paths)
+}
+
+fn check_ignore_with_git(repo: &Repository, path: &Path) -> Option<bool> {
+    let ignored_paths = collect_ignored_paths_with_git(repo, &[path.to_path_buf()])?;
+    Some(ignored_paths.contains(path))
+}
+
+fn is_tracked_path(repo: &Repository, path: &Path) -> bool {
+    if let Ok(index) = repo.index() {
+        if index.get_path(path, 0).is_some() {
+            return true;
+        }
+    }
+    if let Ok(head) = repo.head() {
+        if let Ok(tree) = head.peel_to_tree() {
+            if tree.get_path(path).is_ok() {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn should_skip_ignored_path_with_cache(
+    repo: &Repository,
+    path: &Path,
+    ignored_paths: Option<&HashSet<PathBuf>>,
+) -> bool {
+    if is_tracked_path(repo, path) {
+        return false;
+    }
+    if let Some(ignored_paths) = ignored_paths {
+        return ignored_paths.contains(path);
+    }
+    if let Some(ignored) = check_ignore_with_git(repo, path) {
+        return ignored;
+    }
+    // Fallback when git check-ignore is unavailable.
+    repo.status_should_ignore(path).unwrap_or(false) || has_ignored_parent_directory(repo, path)
+}
+
+fn build_combined_diff(repo: &Repository, diff: &git2::Diff) -> String {
+    let diff_entries: Vec<(usize, PathBuf)> = diff
+        .deltas()
+        .enumerate()
+        .filter_map(|(index, delta)| {
+            delta.new_file()
+                .path()
+                .or_else(|| delta.old_file().path())
+                .map(|path| (index, path.to_path_buf()))
+        })
+        .collect();
+    let diff_paths: Vec<PathBuf> = diff_entries.iter().map(|(_, path)| path.clone()).collect();
+    let ignored_paths = collect_ignored_paths_with_git(repo, &diff_paths);
+
+    let mut combined_diff = String::new();
+    for (index, path) in diff_entries {
+        if should_skip_ignored_path_with_cache(repo, &path, ignored_paths.as_ref()) {
+            continue;
+        }
         let patch = match git2::Patch::from_diff(diff, index) {
             Ok(patch) => patch,
             Err(_) => continue,
@@ -354,7 +495,7 @@ fn collect_workspace_diff(repo_root: &Path) -> Result<String, String> {
             .diff_tree_to_index(None, Some(&index), Some(&mut options))
             .map_err(|e| e.to_string())?,
     };
-    let combined_diff = build_combined_diff(&diff);
+    let combined_diff = build_combined_diff(&repo, &diff);
     if !combined_diff.trim().is_empty() {
         return Ok(combined_diff);
     }
@@ -372,7 +513,7 @@ fn collect_workspace_diff(repo_root: &Path) -> Result<String, String> {
             .diff_tree_to_workdir_with_index(None, Some(&mut options))
             .map_err(|e| e.to_string())?,
     };
-    Ok(build_combined_diff(&diff))
+    Ok(build_combined_diff(&repo, &diff))
 }
 
 fn github_repo_from_path(path: &Path) -> Result<String, String> {
@@ -530,6 +671,12 @@ async fn get_git_status_inner(
     let statuses = repo
         .statuses(Some(&mut status_options))
         .map_err(|e| e.to_string())?;
+    let status_paths: Vec<PathBuf> = statuses
+        .iter()
+        .filter_map(|entry| entry.path().map(PathBuf::from))
+        .filter(|path| !path.as_os_str().is_empty())
+        .collect();
+    let ignored_paths = collect_ignored_paths_with_git(&repo, &status_paths);
 
     let head_tree = repo.head().ok().and_then(|head| head.peel_to_tree().ok());
     let index = repo.index().ok();
@@ -542,6 +689,9 @@ async fn get_git_status_inner(
     for entry in statuses.iter() {
         let path = entry.path().unwrap_or("");
         if path.is_empty() {
+            continue;
+        }
+        if should_skip_ignored_path_with_cache(&repo, Path::new(path), ignored_paths.as_ref()) {
             continue;
         }
         if let Some(index) = index.as_ref() {
@@ -787,6 +937,12 @@ async fn get_git_diffs_inner(
                 .diff_tree_to_workdir_with_index(None, Some(&mut options))
                 .map_err(|e| e.to_string())?,
         };
+        let diff_paths: Vec<PathBuf> = diff
+            .deltas()
+            .filter_map(|delta| delta.new_file().path().or_else(|| delta.old_file().path()))
+            .map(PathBuf::from)
+            .collect();
+        let ignored_paths = collect_ignored_paths_with_git(&repo, &diff_paths);
 
         let mut results = Vec::new();
         for (index, delta) in diff.deltas().enumerate() {
@@ -796,6 +952,9 @@ async fn get_git_diffs_inner(
             let Some(display_path) = display_path else {
                 continue;
             };
+            if should_skip_ignored_path_with_cache(&repo, display_path, ignored_paths.as_ref()) {
+                continue;
+            }
             let old_path_str = old_path.map(|path| path.to_string_lossy());
             let new_path_str = new_path.map(|path| path.to_string_lossy());
             let display_path_str = display_path.to_string_lossy();
@@ -1598,8 +1757,10 @@ pub(crate) async fn create_git_branch_core(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::{WorkspaceKind, WorkspaceSettings};
     use std::fs;
     use std::path::Path;
+    use tokio::runtime::Runtime;
 
     fn create_temp_repo() -> (PathBuf, Repository) {
         let root =
@@ -1658,5 +1819,328 @@ mod tests {
 
         let paths = action_paths_for_file(&root, "b.txt");
         assert_eq!(paths, vec!["a.txt".to_string(), "b.txt".to_string()]);
+    }
+
+    #[test]
+    fn get_git_status_omits_global_ignored_paths() {
+        let (root, repo) = create_temp_repo();
+        fs::write(root.join("tracked.txt"), "tracked\n").expect("write tracked file");
+        let mut index = repo.index().expect("repo index");
+        index.add_path(Path::new("tracked.txt")).expect("add path");
+        let tree_id = index.write_tree().expect("write tree");
+        let tree = repo.find_tree(tree_id).expect("find tree");
+        let sig = git2::Signature::now("Test", "test@example.com").expect("signature");
+        repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+            .expect("commit");
+
+        let excludes_path = root.join("global-excludes.txt");
+        fs::write(&excludes_path, "ignored_root\n").expect("write excludes file");
+        let mut config = repo.config().expect("repo config");
+        config
+            .set_str(
+                "core.excludesfile",
+                excludes_path.to_string_lossy().as_ref(),
+            )
+            .expect("set core.excludesfile");
+
+        let ignored_path = root.join("ignored_root/example/foo/bar.txt");
+        fs::create_dir_all(ignored_path.parent().expect("parent")).expect("create ignored dir");
+        fs::write(&ignored_path, "ignored\n").expect("write ignored file");
+
+        let workspace = WorkspaceEntry {
+            id: "w1".to_string(),
+            name: "w1".to_string(),
+            path: root.to_string_lossy().to_string(),
+            codex_bin: None,
+            kind: WorkspaceKind::Main,
+            parent_id: None,
+            worktree: None,
+            settings: WorkspaceSettings::default(),
+        };
+        let mut entries = HashMap::new();
+        entries.insert("w1".to_string(), workspace);
+        let workspaces = Mutex::new(entries);
+
+        let runtime = Runtime::new().expect("create tokio runtime");
+        let status = runtime
+            .block_on(get_git_status_inner(&workspaces, "w1".to_string()))
+            .expect("get git status");
+
+        let has_ignored = status
+            .get("unstagedFiles")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| entry.get("path").and_then(Value::as_str))
+            .any(|path| path.starts_with("ignored_root/example/foo/bar"));
+        assert!(!has_ignored, "ignored files should not appear in unstagedFiles");
+    }
+
+    #[test]
+    fn get_git_diffs_omits_global_ignored_paths() {
+        let (root, repo) = create_temp_repo();
+        fs::write(root.join("tracked.txt"), "tracked\n").expect("write tracked file");
+        let mut index = repo.index().expect("repo index");
+        index.add_path(Path::new("tracked.txt")).expect("add path");
+        let tree_id = index.write_tree().expect("write tree");
+        let tree = repo.find_tree(tree_id).expect("find tree");
+        let sig = git2::Signature::now("Test", "test@example.com").expect("signature");
+        repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+            .expect("commit");
+
+        let excludes_path = root.join("global-excludes.txt");
+        fs::write(&excludes_path, "ignored_root\n").expect("write excludes file");
+        let mut config = repo.config().expect("repo config");
+        config
+            .set_str(
+                "core.excludesfile",
+                excludes_path.to_string_lossy().as_ref(),
+            )
+            .expect("set core.excludesfile");
+
+        let ignored_path = root.join("ignored_root/example/foo/bar.txt");
+        fs::create_dir_all(ignored_path.parent().expect("parent")).expect("create ignored dir");
+        fs::write(&ignored_path, "ignored\n").expect("write ignored file");
+
+        let workspace = WorkspaceEntry {
+            id: "w1".to_string(),
+            name: "w1".to_string(),
+            path: root.to_string_lossy().to_string(),
+            codex_bin: None,
+            kind: WorkspaceKind::Main,
+            parent_id: None,
+            worktree: None,
+            settings: WorkspaceSettings::default(),
+        };
+        let mut entries = HashMap::new();
+        entries.insert("w1".to_string(), workspace);
+        let workspaces = Mutex::new(entries);
+        let app_settings = Mutex::new(AppSettings::default());
+
+        let runtime = Runtime::new().expect("create tokio runtime");
+        let diffs = runtime
+            .block_on(get_git_diffs_inner(
+                &workspaces,
+                &app_settings,
+                "w1".to_string(),
+            ))
+            .expect("get git diffs");
+
+        let has_ignored = diffs
+            .iter()
+            .any(|diff| diff.path.starts_with("ignored_root/example/foo/bar"));
+        assert!(!has_ignored, "ignored files should not appear in diff list");
+    }
+
+    #[test]
+    fn check_ignore_with_git_respects_negated_rule_for_specific_file() {
+        let (root, repo) = create_temp_repo();
+
+        let excludes_path = root.join("global-excludes.txt");
+        fs::write(&excludes_path, "ignored_root/*\n!ignored_root/keep.txt\n")
+            .expect("write excludes file");
+        let mut config = repo.config().expect("repo config");
+        config
+            .set_str(
+                "core.excludesfile",
+                excludes_path.to_string_lossy().as_ref(),
+            )
+            .expect("set core.excludesfile");
+
+        let kept_path = Path::new("ignored_root/keep.txt");
+        assert!(
+            check_ignore_with_git(&repo, kept_path) == Some(false),
+            "keep.txt should be visible because of negated rule"
+        );
+    }
+
+    #[test]
+    fn should_skip_ignored_path_respects_negated_rule_for_specific_file() {
+        let (root, repo) = create_temp_repo();
+
+        let excludes_path = root.join("global-excludes.txt");
+        fs::write(&excludes_path, "ignored_root/*\n!ignored_root/keep.txt\n")
+            .expect("write excludes file");
+        let mut config = repo.config().expect("repo config");
+        config
+            .set_str(
+                "core.excludesfile",
+                excludes_path.to_string_lossy().as_ref(),
+            )
+            .expect("set core.excludesfile");
+
+        assert!(
+            !should_skip_ignored_path_with_cache(&repo, Path::new("ignored_root/keep.txt"), None),
+            "keep.txt should not be skipped when unignored by negated rule"
+        );
+    }
+
+    #[test]
+    fn should_skip_ignored_path_skips_paths_with_ignored_parent() {
+        let (root, repo) = create_temp_repo();
+
+        let excludes_path = root.join("global-excludes.txt");
+        fs::write(&excludes_path, "ignored_root\n").expect("write excludes file");
+        let mut config = repo.config().expect("repo config");
+        config
+            .set_str(
+                "core.excludesfile",
+                excludes_path.to_string_lossy().as_ref(),
+            )
+            .expect("set core.excludesfile");
+
+        assert!(
+            should_skip_ignored_path_with_cache(
+                &repo,
+                Path::new("ignored_root/example/foo/bar.txt"),
+                None,
+            ),
+            "nested path should be skipped when parent directory is ignored"
+        );
+    }
+
+    #[test]
+    fn should_skip_ignored_path_keeps_tracked_file_under_ignored_parent_pattern() {
+        let (root, repo) = create_temp_repo();
+        let tracked_path = root.join("ignored_root/tracked.txt");
+        fs::create_dir_all(tracked_path.parent().expect("parent")).expect("create tracked dir");
+        fs::write(&tracked_path, "tracked\n").expect("write tracked file");
+        let mut index = repo.index().expect("repo index");
+        index
+            .add_path(Path::new("ignored_root/tracked.txt"))
+            .expect("add tracked path");
+        index.write().expect("write index");
+        let tree_id = index.write_tree().expect("write tree");
+        let tree = repo.find_tree(tree_id).expect("find tree");
+        let sig = git2::Signature::now("Test", "test@example.com").expect("signature");
+        repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+            .expect("commit");
+
+        let excludes_path = root.join("global-excludes.txt");
+        fs::write(&excludes_path, "ignored_root/*\n").expect("write excludes file");
+        let mut config = repo.config().expect("repo config");
+        config
+            .set_str(
+                "core.excludesfile",
+                excludes_path.to_string_lossy().as_ref(),
+            )
+            .expect("set core.excludesfile");
+
+        assert!(
+            !should_skip_ignored_path_with_cache(
+                &repo,
+                Path::new("ignored_root/tracked.txt"),
+                None,
+            ),
+            "tracked file should not be skipped even if ignore pattern matches its path"
+        );
+    }
+
+    #[test]
+    fn check_ignore_with_git_treats_tracked_file_as_not_ignored() {
+        let (root, repo) = create_temp_repo();
+        let tracked_path = root.join("ignored_root/tracked.txt");
+        fs::create_dir_all(tracked_path.parent().expect("parent")).expect("create tracked dir");
+        fs::write(&tracked_path, "tracked\n").expect("write tracked file");
+        let mut index = repo.index().expect("repo index");
+        index
+            .add_path(Path::new("ignored_root/tracked.txt"))
+            .expect("add tracked path");
+        index.write().expect("write index");
+        let tree_id = index.write_tree().expect("write tree");
+        let tree = repo.find_tree(tree_id).expect("find tree");
+        let sig = git2::Signature::now("Test", "test@example.com").expect("signature");
+        repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+            .expect("commit");
+
+        let excludes_path = root.join("global-excludes.txt");
+        fs::write(&excludes_path, "ignored_root/*\n").expect("write excludes file");
+        let mut config = repo.config().expect("repo config");
+        config
+            .set_str(
+                "core.excludesfile",
+                excludes_path.to_string_lossy().as_ref(),
+            )
+            .expect("set core.excludesfile");
+
+        assert_eq!(
+            check_ignore_with_git(&repo, Path::new("ignored_root/tracked.txt")),
+            Some(false),
+            "git check-ignore should treat tracked files as not ignored"
+        );
+    }
+
+    #[test]
+    fn should_skip_ignored_path_respects_repo_negation_over_global_ignore() {
+        let (root, repo) = create_temp_repo();
+
+        fs::write(root.join(".gitignore"), "!keep.log\n").expect("write repo gitignore");
+        let excludes_path = root.join("global-excludes.txt");
+        fs::write(&excludes_path, "*.log\n").expect("write excludes file");
+        let mut config = repo.config().expect("repo config");
+        config
+            .set_str(
+                "core.excludesfile",
+                excludes_path.to_string_lossy().as_ref(),
+            )
+            .expect("set core.excludesfile");
+
+        assert_eq!(
+            check_ignore_with_git(&repo, Path::new("keep.log")),
+            Some(false),
+            "repo negation should override global ignore for keep.log"
+        );
+        assert!(
+            !should_skip_ignored_path_with_cache(&repo, Path::new("keep.log"), None),
+            "keep.log should remain visible when repo .gitignore negates global ignore"
+        );
+    }
+
+    #[test]
+    fn collect_ignored_paths_with_git_checks_multiple_paths_in_one_call() {
+        let (root, repo) = create_temp_repo();
+        let excludes_path = root.join("global-excludes.txt");
+        fs::write(&excludes_path, "ignored_root\n").expect("write excludes file");
+        let mut config = repo.config().expect("repo config");
+        config
+            .set_str(
+                "core.excludesfile",
+                excludes_path.to_string_lossy().as_ref(),
+            )
+            .expect("set core.excludesfile");
+
+        let ignored_path = PathBuf::from("ignored_root/example/foo/bar.txt");
+        let visible_path = PathBuf::from("visible.txt");
+        let ignored_paths = collect_ignored_paths_with_git(
+            &repo,
+            &[ignored_path.clone(), visible_path.clone()],
+        )
+        .expect("collect ignored paths");
+
+        assert!(ignored_paths.contains(&ignored_path));
+        assert!(!ignored_paths.contains(&visible_path));
+    }
+
+    #[test]
+    fn collect_ignored_paths_with_git_handles_large_ignored_output() {
+        let (root, repo) = create_temp_repo();
+        let excludes_path = root.join("global-excludes.txt");
+        fs::write(&excludes_path, "ignored_root\n").expect("write excludes file");
+        let mut config = repo.config().expect("repo config");
+        config
+            .set_str(
+                "core.excludesfile",
+                excludes_path.to_string_lossy().as_ref(),
+            )
+            .expect("set core.excludesfile");
+
+        let total = 6000usize;
+        let paths: Vec<PathBuf> = (0..total)
+            .map(|i| PathBuf::from(format!("ignored_root/deep/path/file-{i}.txt")))
+            .collect();
+        let ignored_paths =
+            collect_ignored_paths_with_git(&repo, &paths).expect("collect ignored paths");
+
+        assert_eq!(ignored_paths.len(), total);
     }
 }
