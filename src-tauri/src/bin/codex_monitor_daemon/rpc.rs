@@ -151,6 +151,7 @@ pub(super) async fn handle_rpc_request(
 ) -> Result<Value, String> {
     match method {
         "ping" => Ok(json!({ "ok": true })),
+        "daemon_info" => Ok(state.daemon_info()),
         "daemon_shutdown" => {
             tokio::spawn(async {
                 sleep(Duration::from_millis(100)).await;
@@ -385,6 +386,16 @@ pub(super) async fn handle_rpc_request(
             let thread_id = parse_string(&params, "threadId")?;
             let turn_id = parse_string(&params, "turnId")?;
             state.turn_interrupt(workspace_id, thread_id, turn_id).await
+        }
+        "turn_steer" => {
+            let workspace_id = parse_string(&params, "workspaceId")?;
+            let thread_id = parse_string(&params, "threadId")?;
+            let turn_id = parse_string(&params, "turnId")?;
+            let text = parse_string(&params, "text")?;
+            let images = parse_optional_string_array(&params, "images");
+            state
+                .turn_steer(workspace_id, thread_id, turn_id, text, images)
+                .await
         }
         "start_review" => {
             let workspace_id = parse_string(&params, "workspaceId")?;
@@ -683,11 +694,6 @@ pub(super) async fn handle_rpc_request(
             let codex_bin = parse_optional_string(&params, "codexBin");
             let codex_args = parse_optional_string(&params, "codexArgs");
             state.codex_doctor(codex_bin, codex_args).await
-        }
-        "get_commit_message_prompt" => {
-            let workspace_id = parse_string(&params, "workspaceId")?;
-            let prompt = state.get_commit_message_prompt(workspace_id).await?;
-            Ok(Value::String(prompt))
         }
         "generate_commit_message" => {
             let workspace_id = parse_string(&params, "workspaceId")?;

@@ -93,6 +93,7 @@ import { usePersistComposerSettings } from "./features/app/hooks/usePersistCompo
 import { useSyncSelectedDiffPath } from "./features/app/hooks/useSyncSelectedDiffPath";
 import { useMenuAcceleratorController } from "./features/app/hooks/useMenuAcceleratorController";
 import { useAppMenuEvents } from "./features/app/hooks/useAppMenuEvents";
+import { usePlanReadyActions } from "./features/app/hooks/usePlanReadyActions";
 import { useWorkspaceActions } from "./features/app/hooks/useWorkspaceActions";
 import { useWorkspaceCycling } from "./features/app/hooks/useWorkspaceCycling";
 import { useThreadRows } from "./features/app/hooks/useThreadRows";
@@ -110,12 +111,10 @@ import { MobileServerSetupWizard } from "./features/mobile/components/MobileServ
 import { useMobileServerSetup } from "./features/mobile/hooks/useMobileServerSetup";
 import { useWorkspaceHome } from "./features/workspaces/hooks/useWorkspaceHome";
 import { useWorkspaceAgentMd } from "./features/workspaces/hooks/useWorkspaceAgentMd";
-import { pickWorkspacePath } from "./services/tauri";
 import { isMobilePlatform } from "./utils/platformPaths";
 import type {
   AccessMode,
   ComposerEditorSettings,
-  ThreadListSortKey,
   WorkspaceInfo,
 } from "./types";
 import { OPEN_APP_STORAGE_KEY } from "./features/app/constants";
@@ -124,6 +123,11 @@ import { useCodeCssVars } from "./features/app/hooks/useCodeCssVars";
 import { useAccountSwitching } from "./features/app/hooks/useAccountSwitching";
 import { useNewAgentDraft } from "./features/app/hooks/useNewAgentDraft";
 import { useSystemNotificationThreadLinks } from "./features/app/hooks/useSystemNotificationThreadLinks";
+import { useThreadListSortKey } from "./features/app/hooks/useThreadListSortKey";
+import { useThreadListActions } from "./features/app/hooks/useThreadListActions";
+import { useGitRootSelection } from "./features/app/hooks/useGitRootSelection";
+import { useTabActivationGuard } from "./features/app/hooks/useTabActivationGuard";
+import { useRemoteThreadRefreshOnFocus } from "./features/app/hooks/useRemoteThreadRefreshOnFocus";
 
 const AboutView = lazy(() =>
   import("./features/about/components/AboutView").then((module) => ({
@@ -143,24 +147,12 @@ const GitHubPanelData = lazy(() =>
   })),
 );
 
-const THREAD_LIST_SORT_KEY_STORAGE_KEY = "codexmonitor.threadListSortKey";
-
-function getStoredThreadListSortKey(): ThreadListSortKey {
-  if (typeof window === "undefined") {
-    return "updated_at";
-  }
-  const stored = window.localStorage.getItem(THREAD_LIST_SORT_KEY_STORAGE_KEY);
-  if (stored === "created_at" || stored === "updated_at") {
-    return stored;
-  }
-  return "updated_at";
-}
-
 function MainApp() {
   const {
     appSettings,
     setAppSettings,
     doctor,
+    codexUpdate,
     appSettingsLoading,
     reduceTransparency,
     setReduceTransparency,
@@ -194,9 +186,7 @@ function MainApp() {
   const shouldReduceTransparency = reduceTransparency || isMobilePlatform();
   useLiquidGlassEffect({ reduceTransparency: shouldReduceTransparency, onDebug: addDebugEntry });
   const [accessMode, setAccessMode] = useState<AccessMode>("current");
-  const [threadListSortKey, setThreadListSortKey] = useState<ThreadListSortKey>(
-    () => getStoredThreadListSortKey(),
-  );
+  const { threadListSortKey, setThreadListSortKey } = useThreadListSortKey();
   const [activeTab, setActiveTab] = useState<
     "home" | "projects" | "codex" | "git" | "log"
   >("codex");
@@ -576,48 +566,12 @@ function MainApp() {
 
   const resolvedModel = selectedModel?.model ?? null;
   const resolvedEffort = reasoningSupported ? selectedEffort : null;
-  const activeGitRoot = activeWorkspace?.settings.gitRoot ?? null;
-  const normalizePath = useCallback((value: string) => {
-    return value.replace(/\\/g, "/").replace(/\/+$/, "");
-  }, []);
-  const handleSetGitRoot = useCallback(
-    async (path: string | null) => {
-      if (!activeWorkspace) {
-        return;
-      }
-      await updateWorkspaceSettings(activeWorkspace.id, {
-        gitRoot: path,
-      });
-      clearGitRootCandidates();
-      refreshGitStatus();
-    },
-    [
-      activeWorkspace,
-      clearGitRootCandidates,
-      refreshGitStatus,
-      updateWorkspaceSettings,
-    ],
-  );
-  const handlePickGitRoot = useCallback(async () => {
-    if (!activeWorkspace) {
-      return;
-    }
-    const selection = await pickWorkspacePath();
-    if (!selection) {
-      return;
-    }
-    const workspacePath = normalizePath(activeWorkspace.path);
-    const selectedPath = normalizePath(selection);
-    let nextRoot: string | null = null;
-    if (selectedPath === workspacePath) {
-      nextRoot = null;
-    } else if (selectedPath.startsWith(`${workspacePath}/`)) {
-      nextRoot = selectedPath.slice(workspacePath.length + 1);
-    } else {
-      nextRoot = selectedPath;
-    }
-    await handleSetGitRoot(nextRoot);
-  }, [activeWorkspace, handleSetGitRoot, normalizePath]);
+  const { activeGitRoot, handleSetGitRoot, handlePickGitRoot } = useGitRootSelection({
+    activeWorkspace,
+    updateWorkspaceSettings,
+    clearGitRootCandidates,
+    refreshGitStatus,
+  });
   const fileStatus =
     gitStatus.error
       ? "Git status unavailable"
@@ -691,6 +645,7 @@ function MainApp() {
     threadListLoadingByWorkspace,
     threadListPagingByWorkspace,
     threadListCursorByWorkspace,
+    activeTurnIdByThread,
     tokenUsageByThread,
     rateLimitsByWorkspace,
     accountByWorkspace,
@@ -751,36 +706,20 @@ function MainApp() {
     accessMode,
     reviewDeliveryMode: appSettings.reviewDeliveryMode,
     steerEnabled: appSettings.steerEnabled,
+    threadTitleAutogenerationEnabled: appSettings.threadTitleAutogenerationEnabled,
     customPrompts: prompts,
     onMessageActivity: queueGitStatusRefresh,
     threadSortKey: threadListSortKey,
   });
 
-  const handleSetThreadListSortKey = useCallback(
-    (nextSortKey: ThreadListSortKey) => {
-      if (nextSortKey === threadListSortKey) {
-        return;
-      }
-      setThreadListSortKey(nextSortKey);
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(THREAD_LIST_SORT_KEY_STORAGE_KEY, nextSortKey);
-      }
-      workspaces
-        .filter((workspace) => workspace.connected)
-        .forEach((workspace) => {
-          void listThreadsForWorkspace(workspace, { sortKey: nextSortKey });
-        });
-    },
-    [threadListSortKey, workspaces, listThreadsForWorkspace],
-  );
-
-  const handleRefreshAllWorkspaceThreads = useCallback(() => {
-    const connectedWorkspaces = workspaces.filter((workspace) => workspace.connected);
-    connectedWorkspaces.forEach((workspace) => {
-      resetWorkspaceThreads(workspace.id);
-      void listThreadsForWorkspace(workspace);
+  const { handleSetThreadListSortKey, handleRefreshAllWorkspaceThreads } =
+    useThreadListActions({
+      threadListSortKey,
+      setThreadListSortKey,
+      workspaces,
+      listThreadsForWorkspace,
+      resetWorkspaceThreads,
     });
-  }, [workspaces, resetWorkspaceThreads, listThreadsForWorkspace]);
 
   useResponseRequiredNotificationsController({
     systemNotificationsEnabled: appSettings.systemNotificationsEnabled,
@@ -1200,6 +1139,9 @@ function MainApp() {
   const isReviewing = activeThreadId
     ? threadStatusById[activeThreadId]?.isReviewing ?? false
     : false;
+  const activeTurnId = activeThreadId
+    ? activeTurnIdByThread[activeThreadId] ?? null
+    : null;
   const {
     activeImages,
     attachImages,
@@ -1222,6 +1164,7 @@ function MainApp() {
     clearDraftForThread,
   } = useComposerController({
     activeThreadId,
+    activeTurnId,
     activeWorkspaceId,
     activeWorkspace,
     isProcessing,
@@ -1493,23 +1436,13 @@ function MainApp() {
     baseWorkspaceRef.current = activeParentWorkspace ?? activeWorkspace;
   }, [activeParentWorkspace, activeWorkspace]);
 
-  useEffect(() => {
-    if (!isPhone) {
-      return;
-    }
-    if (!activeWorkspace && activeTab !== "home" && activeTab !== "projects") {
-      setActiveTab("home");
-    }
-  }, [activeTab, activeWorkspace, isPhone]);
-
-  useEffect(() => {
-    if (!isTablet) {
-      return;
-    }
-    if (activeTab === "projects" || activeTab === "home") {
-      setActiveTab("codex");
-    }
-  }, [activeTab, isTablet]);
+  useTabActivationGuard({
+    activeTab,
+    activeWorkspace,
+    isPhone,
+    isTablet,
+    setActiveTab,
+  });
 
   useWindowDrag("titlebar");
   useWorkspaceRestore({
@@ -1524,31 +1457,12 @@ function MainApp() {
     listThreadsForWorkspace
   });
 
-  useEffect(() => {
-    if (appSettings.backendMode !== "remote") {
-      return;
-    }
-
-    const refreshActiveThread = () => {
-      if (!activeWorkspace?.connected || !activeThreadId) {
-        return;
-      }
-      void refreshThread(activeWorkspace.id, activeThreadId);
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        refreshActiveThread();
-      }
-    };
-
-    window.addEventListener("focus", refreshActiveThread);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      window.removeEventListener("focus", refreshActiveThread);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [activeThreadId, activeWorkspace, appSettings.backendMode, refreshThread]);
+  useRemoteThreadRefreshOnFocus({
+    backendMode: appSettings.backendMode,
+    activeWorkspace,
+    activeThreadId,
+    refreshThread,
+  });
 
   const {
     handleAddWorkspace,
@@ -1704,6 +1618,17 @@ function MainApp() {
       setActiveThreadId,
     ],
   );
+
+  const { handlePlanAccept, handlePlanSubmitChanges } = usePlanReadyActions({
+    activeWorkspace,
+    activeThreadId,
+    collaborationModes,
+    resolvedModel,
+    resolvedEffort,
+    connectWorkspace,
+    sendUserMessageToThread,
+    setSelectedCollaborationModeId,
+  });
 
   const orderValue = (entry: WorkspaceInfo) =>
     typeof entry.settings.sortOrder === "number"
@@ -1874,6 +1799,8 @@ function MainApp() {
     handleApprovalDecision,
     handleApprovalRemember,
     handleUserInputSubmit,
+    onPlanAccept: handlePlanAccept,
+    onPlanSubmitChanges: handlePlanSubmitChanges,
     onOpenSettings: () => openSettings(),
     onOpenDictationSettings: () => openSettings("dictation"),
     onOpenDebug: handleDebugClick,
@@ -2462,6 +2389,7 @@ function MainApp() {
             await queueSaveSettings(next);
           },
           onRunDoctor: doctor,
+          onRunCodexUpdate: codexUpdate,
           onUpdateWorkspaceCodexBin: async (id, codexBin) => {
             await updateWorkspaceCodexBin(id, codexBin);
           },

@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import type { Dispatch, MutableRefObject } from "react";
 import * as Sentry from "@sentry/react";
 import type {
@@ -12,6 +12,7 @@ import type {
 import {
   compactThread as compactThreadService,
   sendUserMessage as sendUserMessageService,
+  steerTurn as steerTurnService,
   startReview as startReviewService,
   interruptTurn as interruptTurnService,
   getAppsList as getAppsListService,
@@ -68,7 +69,22 @@ type UseThreadMessagingOptions = {
   refreshThread: (workspaceId: string, threadId: string) => Promise<string | null>;
   forkThreadForWorkspace: (workspaceId: string, threadId: string) => Promise<string | null>;
   updateThreadParent: (parentId: string, childIds: string[]) => void;
+  registerDetachedReviewChild?: (
+    workspaceId: string,
+    parentId: string,
+    childId: string,
+  ) => void;
 };
+
+function isUnsupportedTurnSteerError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  const mentionsSteerMethod =
+    normalized.includes("turn/steer") || normalized.includes("turn_steer");
+  return normalized.includes("unknown variant `turn/steer`")
+    || normalized.includes("unknown variant \"turn/steer\"")
+    || (normalized.includes("unknown request") && mentionsSteerMethod)
+    || (normalized.includes("unknown method") && mentionsSteerMethod);
+}
 
 export function useThreadMessaging({
   activeWorkspace,
@@ -98,7 +114,10 @@ export function useThreadMessaging({
   refreshThread,
   forkThreadForWorkspace,
   updateThreadParent,
+  registerDetachedReviewChild,
 }: UseThreadMessagingOptions) {
+  const steerSupportedByWorkspaceRef = useRef<Record<string, boolean>>({});
+
   const sendMessageToThread = useCallback(
     async (
       workspace: WorkspaceInfo,
@@ -138,9 +157,12 @@ export function useThreadMessaging({
       const resolvedAccessMode =
         options?.accessMode !== undefined ? options.accessMode : accessMode;
 
-      const wasProcessing =
-        (threadStatusById[threadId]?.isProcessing ?? false) && steerEnabled;
-      if (wasProcessing) {
+      const isProcessing = threadStatusById[threadId]?.isProcessing ?? false;
+      const activeTurnId = activeTurnIdByThread[threadId] ?? null;
+      const steerSupported = steerSupportedByWorkspaceRef.current[workspace.id] !== false;
+      const shouldSteer =
+        isProcessing && steerEnabled && Boolean(activeTurnId) && steerSupported;
+      if (isProcessing && steerEnabled) {
         const optimisticText = finalText;
         if (optimisticText || images.length > 0) {
           dispatch({
@@ -182,13 +204,14 @@ export function useThreadMessaging({
       markProcessing(threadId, true);
       safeMessageActivity();
       onDebug?.({
-        id: `${Date.now()}-client-turn-start`,
+        id: `${Date.now()}-${shouldSteer ? "client-turn-steer" : "client-turn-start"}`,
         timestamp: Date.now(),
         source: "client",
-        label: "turn/start",
+        label: shouldSteer ? "turn/steer" : "turn/start",
         payload: {
           workspaceId: workspace.id,
           threadId,
+          turnId: activeTurnId,
           text: finalText,
           images,
           model: resolvedModel,
@@ -196,33 +219,83 @@ export function useThreadMessaging({
           collaborationMode: sanitizedCollaborationMode,
         },
       });
+      let requestMode: "start" | "steer" = shouldSteer ? "steer" : "start";
       try {
-        const response =
-          (await sendUserMessageService(
-            workspace.id,
-            threadId,
-            finalText,
-            {
-              model: resolvedModel,
-              effort: resolvedEffort,
-              collaborationMode: sanitizedCollaborationMode,
-              accessMode: resolvedAccessMode,
+        const startTurn = () => sendUserMessageService(
+          workspace.id,
+          threadId,
+          finalText,
+          {
+            model: resolvedModel,
+            effort: resolvedEffort,
+            collaborationMode: sanitizedCollaborationMode,
+            accessMode: resolvedAccessMode,
+            images,
+          },
+        );
+
+        let response: Record<string, unknown>;
+        if (shouldSteer) {
+          try {
+            response = (await steerTurnService(
+              workspace.id,
+              threadId,
+              activeTurnId ?? "",
+              finalText,
               images,
-            },
-          )) as Record<string, unknown>;
+            )) as Record<string, unknown>;
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            if (!isUnsupportedTurnSteerError(message)) {
+              throw error;
+            }
+            steerSupportedByWorkspaceRef.current[workspace.id] = false;
+            requestMode = "start";
+            response = (await startTurn()) as Record<string, unknown>;
+          }
+        } else {
+          response = (await startTurn()) as Record<string, unknown>;
+        }
+
+        let rpcError = extractRpcErrorMessage(response);
+        if (
+          rpcError
+          && requestMode === "steer"
+          && isUnsupportedTurnSteerError(rpcError)
+        ) {
+          steerSupportedByWorkspaceRef.current[workspace.id] = false;
+          requestMode = "start";
+          response = (await startTurn()) as Record<string, unknown>;
+          rpcError = extractRpcErrorMessage(response);
+        }
+
         onDebug?.({
-          id: `${Date.now()}-server-turn-start`,
+          id: `${Date.now()}-${requestMode === "steer" ? "server-turn-steer" : "server-turn-start"}`,
           timestamp: Date.now(),
           source: "server",
-          label: "turn/start response",
+          label: requestMode === "steer" ? "turn/steer response" : "turn/start response",
           payload: response,
         });
-        const rpcError = extractRpcErrorMessage(response);
         if (rpcError) {
-          markProcessing(threadId, false);
-          setActiveTurnId(threadId, null);
-          pushThreadErrorMessage(threadId, `Turn failed to start: ${rpcError}`);
+          if (requestMode !== "steer") {
+            markProcessing(threadId, false);
+            setActiveTurnId(threadId, null);
+          }
+          pushThreadErrorMessage(
+            threadId,
+            requestMode === "steer"
+              ? `Turn steer failed: ${rpcError}`
+              : `Turn failed to start: ${rpcError}`,
+          );
           safeMessageActivity();
+          return;
+        }
+        if (requestMode === "steer") {
+          const result = (response?.result ?? response) as Record<string, unknown>;
+          const steeredTurnId = asString(result?.turnId ?? result?.turn_id ?? "");
+          if (steeredTurnId) {
+            setActiveTurnId(threadId, steeredTurnId);
+          }
           return;
         }
         const result = (response?.result ?? response) as Record<string, unknown>;
@@ -239,18 +312,24 @@ export function useThreadMessaging({
         }
         setActiveTurnId(threadId, turnId);
       } catch (error) {
-        markProcessing(threadId, false);
-        setActiveTurnId(threadId, null);
+        if (requestMode !== "steer") {
+          markProcessing(threadId, false);
+          setActiveTurnId(threadId, null);
+        }
         onDebug?.({
-          id: `${Date.now()}-client-turn-start-error`,
+          id: `${Date.now()}-${requestMode === "steer" ? "client-turn-steer-error" : "client-turn-start-error"}`,
           timestamp: Date.now(),
           source: "error",
-          label: "turn/start error",
+          label: requestMode === "steer" ? "turn/steer error" : "turn/start error",
           payload: error instanceof Error ? error.message : String(error),
         });
         pushThreadErrorMessage(
           threadId,
-          error instanceof Error ? error.message : String(error),
+          requestMode === "steer"
+            ? `Turn steer failed: ${error instanceof Error ? error.message : String(error)}`
+            : error instanceof Error
+              ? error.message
+              : String(error),
         );
         safeMessageActivity();
       }
@@ -261,6 +340,7 @@ export function useThreadMessaging({
       customPrompts,
       dispatch,
       effort,
+      activeTurnIdByThread,
       getCustomName,
       markProcessing,
       model,
@@ -407,9 +487,12 @@ export function useThreadMessaging({
         return false;
       }
 
-      markProcessing(threadId, true);
-      markReviewing(threadId, true);
-      safeMessageActivity();
+      const lockParentThread = reviewDeliveryMode !== "detached";
+      if (lockParentThread) {
+        markProcessing(threadId, true);
+        markReviewing(threadId, true);
+        safeMessageActivity();
+      }
       onDebug?.({
         id: `${Date.now()}-client-review-start`,
         timestamp: Date.now(),
@@ -437,9 +520,11 @@ export function useThreadMessaging({
         });
         const rpcError = extractRpcErrorMessage(response);
         if (rpcError) {
-          markProcessing(threadId, false);
-          markReviewing(threadId, false);
-          setActiveTurnId(threadId, null);
+          if (lockParentThread) {
+            markProcessing(threadId, false);
+            markReviewing(threadId, false);
+            setActiveTurnId(threadId, null);
+          }
           pushThreadErrorMessage(threadId, `Review failed to start: ${rpcError}`);
           safeMessageActivity();
           return false;
@@ -447,11 +532,16 @@ export function useThreadMessaging({
         const reviewThreadId = extractReviewThreadId(response);
         if (reviewThreadId && reviewThreadId !== threadId) {
           updateThreadParent(threadId, [reviewThreadId]);
+          if (reviewDeliveryMode === "detached") {
+            registerDetachedReviewChild?.(workspaceId, threadId, reviewThreadId);
+          }
         }
         return true;
       } catch (error) {
-        markProcessing(threadId, false);
-        markReviewing(threadId, false);
+        if (lockParentThread) {
+          markProcessing(threadId, false);
+          markReviewing(threadId, false);
+        }
         onDebug?.({
           id: `${Date.now()}-client-review-start-error`,
           timestamp: Date.now(),
@@ -478,6 +568,7 @@ export function useThreadMessaging({
       safeMessageActivity,
       setActiveTurnId,
       reviewDeliveryMode,
+      registerDetachedReviewChild,
       updateThreadParent,
     ],
   );

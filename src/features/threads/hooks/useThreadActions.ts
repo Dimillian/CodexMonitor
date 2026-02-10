@@ -35,6 +35,32 @@ const THREAD_LIST_MAX_PAGES_WITH_ACTIVITY = 8;
 const THREAD_LIST_MAX_PAGES_WITHOUT_ACTIVITY = 3;
 const THREAD_LIST_MAX_PAGES_OLDER = 6;
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function getParentThreadIdFromSource(source: unknown): string | null {
+  const sourceRecord = asRecord(source);
+  if (!sourceRecord) {
+    return null;
+  }
+  const subAgent = asRecord(sourceRecord.subAgent ?? sourceRecord.sub_agent);
+  if (!subAgent) {
+    return null;
+  }
+  const threadSpawn = asRecord(subAgent.thread_spawn ?? subAgent.threadSpawn);
+  if (!threadSpawn) {
+    return null;
+  }
+  const parentId = asString(
+    threadSpawn.parent_thread_id ?? threadSpawn.parentThreadId,
+  );
+  return parentId || null;
+}
+
 function normalizeTurnStatus(value: unknown): string {
   return String(value ?? "")
     .trim()
@@ -88,6 +114,7 @@ type UseThreadActionsOptions = {
     threadId: string,
     thread: Record<string, unknown>,
   ) => void;
+  updateThreadParent: (parentId: string, childIds: string[]) => void;
 };
 
 export function useThreadActions({
@@ -104,6 +131,7 @@ export function useThreadActions({
   loadedThreadsRef,
   replaceOnResumeRef,
   applyCollabThreadLinksFromThread,
+  updateThreadParent,
 }: UseThreadActionsOptions) {
   const resumeInFlightByThreadRef = useRef<Record<string, number>>({});
 
@@ -213,6 +241,10 @@ export function useThreadActions({
         if (thread) {
           dispatch({ type: "ensureThread", workspaceId, threadId });
           applyCollabThreadLinksFromThread(threadId, thread);
+          const sourceParentId = getParentThreadIdFromSource(thread.source);
+          if (sourceParentId) {
+            updateThreadParent(sourceParentId, [threadId]);
+          }
           const items = buildItemsFromThread(thread);
           const localItems = itemsByThread[threadId] ?? [];
           const shouldReplace =
@@ -317,6 +349,7 @@ export function useThreadActions({
       onDebug,
       replaceOnResumeRef,
       threadStatusById,
+      updateThreadParent,
     ],
   );
 
@@ -487,6 +520,10 @@ export function useThreadActions({
           if (!threadId) {
             return;
           }
+          const sourceParentId = getParentThreadIdFromSource(thread.source);
+          if (sourceParentId) {
+            updateThreadParent(sourceParentId, [threadId]);
+          }
           const timestamp = getThreadTimestamp(thread);
           if (timestamp > (nextActivityByThread[threadId] ?? 0)) {
             nextActivityByThread[threadId] = timestamp;
@@ -585,7 +622,14 @@ export function useThreadActions({
         }
       }
     },
-    [dispatch, getCustomName, onDebug, threadActivityRef, threadSortKey],
+    [
+      dispatch,
+      getCustomName,
+      onDebug,
+      threadActivityRef,
+      threadSortKey,
+      updateThreadParent,
+    ],
   );
 
   const loadOlderThreadsForWorkspace = useCallback(
@@ -658,6 +702,10 @@ export function useThreadActions({
           if (!id || existingIds.has(id)) {
             return;
           }
+          const sourceParentId = getParentThreadIdFromSource(thread.source);
+          if (sourceParentId) {
+            updateThreadParent(sourceParentId, [id]);
+          }
           const preview = asString(thread?.preview ?? "").trim();
           const customName = getCustomName(workspace.id, id);
           const fallbackName = `Agent ${existing.length + additions.length + 1}`;
@@ -721,6 +769,7 @@ export function useThreadActions({
       threadListCursorByWorkspace,
       threadsByWorkspace,
       threadSortKey,
+      updateThreadParent,
     ],
   );
 

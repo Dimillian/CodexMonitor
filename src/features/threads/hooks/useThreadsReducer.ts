@@ -130,6 +130,7 @@ export type ThreadState = {
   threadListCursorByWorkspace: Record<string, string | null>;
   threadSortKeyByWorkspace: Record<string, ThreadListSortKey>;
   activeTurnIdByThread: Record<string, string | null>;
+  turnDiffByThread: Record<string, string>;
   approvals: ApprovalRequest[];
   userInputRequests: RequestUserInputRequest[];
   tokenUsageByThread: Record<string, ThreadTokenUsage>;
@@ -245,6 +246,7 @@ export type ThreadAction =
       account: AccountSnapshot | null;
     }
   | { type: "setActiveTurnId"; threadId: string; turnId: string | null }
+  | { type: "setThreadTurnDiff"; threadId: string; diff: string }
   | { type: "setThreadPlan"; threadId: string; plan: TurnPlan | null }
   | { type: "clearThreadPlan"; threadId: string }
   | {
@@ -269,6 +271,7 @@ export const initialState: ThreadState = {
   threadListCursorByWorkspace: {},
   threadSortKeyByWorkspace: {},
   activeTurnIdByThread: {},
+  turnDiffByThread: {},
   approvals: [],
   userInputRequests: [],
   tokenUsageByThread: {},
@@ -489,8 +492,9 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       const { [action.threadId]: _, ...restItems } = state.itemsByThread;
       const { [action.threadId]: __, ...restStatus } = state.threadStatusById;
       const { [action.threadId]: ___, ...restTurns } = state.activeTurnIdByThread;
-      const { [action.threadId]: ____, ...restPlans } = state.planByThread;
-      const { [action.threadId]: _____, ...restParents } = state.threadParentById;
+      const { [action.threadId]: ____, ...restDiffs } = state.turnDiffByThread;
+      const { [action.threadId]: _____, ...restPlans } = state.planByThread;
+      const { [action.threadId]: ______, ...restParents } = state.threadParentById;
       return {
         ...state,
         threadsByWorkspace: {
@@ -500,6 +504,7 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         itemsByThread: restItems,
         threadStatusById: restStatus,
         activeTurnIdByThread: restTurns,
+        turnDiffByThread: restDiffs,
         planByThread: restPlans,
         threadParentById: restParents,
         activeThreadIdByWorkspace: {
@@ -1133,6 +1138,14 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         accountByWorkspace: {
           ...state.accountByWorkspace,
           [action.workspaceId]: action.account,
+        },
+      };
+    case "setThreadTurnDiff":
+      return {
+        ...state,
+        turnDiffByThread: {
+          ...state.turnDiffByThread,
+          [action.threadId]: action.diff,
         },
       };
     case "setThreadPlan":

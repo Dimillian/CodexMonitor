@@ -5,21 +5,11 @@ import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import ArrowLeftRight from "lucide-react/dist/esm/icons/arrow-left-right";
-import Check from "lucide-react/dist/esm/icons/check";
-import Download from "lucide-react/dist/esm/icons/download";
 import FileText from "lucide-react/dist/esm/icons/file-text";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
-import Minus from "lucide-react/dist/esm/icons/minus";
-import Plus from "lucide-react/dist/esm/icons/plus";
-import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
-import RotateCw from "lucide-react/dist/esm/icons/rotate-cw";
 import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
 import Search from "lucide-react/dist/esm/icons/search";
-import Upload from "lucide-react/dist/esm/icons/upload";
-import X from "lucide-react/dist/esm/icons/x";
-import { useMemo, useState, useCallback, useEffect, useRef } from "react";
-import { formatRelativeTime } from "../../../utils/time";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PanelTabs, type PanelTabId } from "../../layout/components/PanelTabs";
 import {
   PanelFrame,
@@ -30,6 +20,31 @@ import {
   fileManagerName,
   isAbsolutePath as isAbsolutePathForPlatform,
 } from "../../../utils/platformPaths";
+import {
+  GitBranchRow,
+  GitDiffModeContent,
+  GitIssuesModeContent,
+  GitLogModeContent,
+  GitPanelModeStatus,
+  GitPullRequestsModeContent,
+  GitRootCurrentPath,
+} from "./GitDiffPanelModeContent";
+import {
+  SidebarError,
+  type SidebarErrorAction,
+  WorktreeApplyIcon,
+} from "./GitDiffPanelShared";
+import {
+  getFileName,
+  getGitHubBaseUrl,
+  getRelativePathWithin,
+  hasPushSyncConflict,
+  isMissingRepo,
+  joinRootAndPath,
+  normalizeRootPath,
+  resolveRootPath,
+} from "./GitDiffPanel.utils";
+import { useDiffFileSelection } from "../hooks/useDiffFileSelection";
 
 type GitDiffPanelProps = {
   workspaceId?: string | null;
@@ -128,551 +143,6 @@ type GitDiffPanelProps = {
   commitsAhead?: number;
 };
 
-function splitPath(path: string) {
-  const parts = path.split("/");
-  if (parts.length === 1) {
-    return { name: path, dir: "" };
-  }
-  return { name: parts[parts.length - 1], dir: parts.slice(0, -1).join("/") };
-}
-
-function splitNameAndExtension(name: string) {
-  const lastDot = name.lastIndexOf(".");
-  if (lastDot <= 0 || lastDot === name.length - 1) {
-    return { base: name, extension: "" };
-  }
-  return {
-    base: name.slice(0, lastDot),
-    extension: name.slice(lastDot + 1).toLowerCase(),
-  };
-}
-
-function normalizeRootPath(value: string | null | undefined) {
-  if (!value) {
-    return "";
-  }
-  return value.replace(/\\/g, "/").replace(/\/+$/, "");
-}
-
-function normalizeSegment(segment: string) {
-  return /^[A-Za-z]:$/.test(segment) ? segment.toLowerCase() : segment;
-}
-
-function getRelativePathWithin(base: string, target: string) {
-  const normalizedBase = normalizeRootPath(base);
-  const normalizedTarget = normalizeRootPath(target);
-  if (!normalizedBase || !normalizedTarget) {
-    return null;
-  }
-  const baseSegments = normalizedBase.split("/").filter(Boolean);
-  const targetSegments = normalizedTarget.split("/").filter(Boolean);
-  if (baseSegments.length > targetSegments.length) {
-    return null;
-  }
-  for (let index = 0; index < baseSegments.length; index += 1) {
-    if (normalizeSegment(baseSegments[index]) !== normalizeSegment(targetSegments[index])) {
-      return null;
-    }
-  }
-  return targetSegments.slice(baseSegments.length).join("/");
-}
-function resolveRootPath(root: string | null | undefined, workspacePath: string | null | undefined) {
-  const normalized = normalizeRootPath(root);
-  if (!normalized) {
-    return "";
-  }
-  if (workspacePath && !isAbsolutePathForPlatform(normalized)) {
-    return joinRootAndPath(workspacePath, normalized);
-  }
-  return normalized;
-}
-
-function joinRootAndPath(root: string, relativePath: string) {
-  const normalizedRoot = normalizeRootPath(root);
-  if (!normalizedRoot) {
-    return relativePath;
-  }
-  const normalizedPath = relativePath.replace(/^\/+/, "");
-  return `${normalizedRoot}/${normalizedPath}`;
-}
-
-function getFileName(value: string) {
-  const normalized = value.replace(/\\/g, "/");
-  const segments = normalized.split("/");
-  return segments[segments.length - 1] || normalized;
-}
-
-function getStatusSymbol(status: string) {
-  switch (status) {
-    case "A":
-      return "+";
-    case "M":
-      return "M";
-    case "D":
-      return "-";
-    case "R":
-      return "R";
-    case "T":
-      return "T";
-    default:
-      return "?";
-  }
-}
-
-function getStatusClass(status: string) {
-  switch (status) {
-    case "A":
-      return "diff-icon-added";
-    case "M":
-      return "diff-icon-modified";
-    case "D":
-      return "diff-icon-deleted";
-    case "R":
-      return "diff-icon-renamed";
-    case "T":
-      return "diff-icon-typechange";
-    default:
-      return "diff-icon-unknown";
-  }
-}
-
-function isMissingRepo(error: string | null | undefined) {
-  if (!error) {
-    return false;
-  }
-  const normalized = error.toLowerCase();
-  return (
-    normalized.includes("could not find repository") ||
-    normalized.includes("not a git repository") ||
-    (normalized.includes("repository") && normalized.includes("notfound")) ||
-    normalized.includes("repository not found") ||
-    normalized.includes("git root not found")
-  );
-}
-
-type CommitButtonProps = {
-  commitMessage: string;
-  hasStagedFiles: boolean;
-  hasUnstagedFiles: boolean;
-  commitLoading: boolean;
-  onCommit?: () => void | Promise<void>;
-};
-
-function CommitButton({
-  commitMessage,
-  hasStagedFiles,
-  hasUnstagedFiles,
-  commitLoading,
-  onCommit,
-}: CommitButtonProps) {
-  const hasMessage = commitMessage.trim().length > 0;
-  const hasChanges = hasStagedFiles || hasUnstagedFiles;
-  const canCommit = hasMessage && hasChanges && !commitLoading;
-
-  const handleCommit = () => {
-    if (canCommit) {
-      void onCommit?.();
-    }
-  };
-
-  return (
-    <div className="commit-button-container">
-      <button
-        type="button"
-        className="commit-button"
-        onClick={handleCommit}
-        disabled={!canCommit}
-        title={
-          !hasMessage
-            ? "Enter a commit message"
-            : !hasChanges
-              ? "No changes to commit"
-              : hasStagedFiles
-                ? "Commit staged changes"
-                : "Commit all unstaged changes"
-        }
-      >
-        {commitLoading ? (
-          <span className="commit-button-spinner" aria-hidden />
-        ) : (
-          <svg
-            width={14}
-            height={14}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <path d="M20 6 9 17l-5-5" />
-          </svg>
-          )}
-        <span>{commitLoading ? "Committing..." : "Commit"}</span>
-      </button>
-    </div>
-  );
-}
-
-const DEPTH_OPTIONS = [1, 2, 3, 4, 5, 6];
-
-type DiffFile = {
-  path: string;
-  status: string;
-  additions: number;
-  deletions: number;
-};
-
-type SidebarErrorProps = {
-  variant?: "diff" | "commit";
-  message: string;
-  action?: {
-    label: string;
-    onAction: () => void | Promise<void>;
-    disabled?: boolean;
-    loading?: boolean;
-  } | null;
-  onDismiss: () => void;
-};
-
-function SidebarError({
-  variant = "diff",
-  message,
-  action,
-  onDismiss,
-}: SidebarErrorProps) {
-  return (
-    <div className={`sidebar-error sidebar-error-${variant}`}>
-      <div className="sidebar-error-body">
-        <div className={variant === "commit" ? "commit-message-error" : "diff-error"}>
-          {message}
-        </div>
-        {action && (
-          <button
-            type="button"
-            className="ghost sidebar-error-action"
-            onClick={() => void action.onAction()}
-            disabled={action.disabled || action.loading}
-          >
-            {action.loading && (
-              <span className="commit-button-spinner" aria-hidden />
-            )}
-            <span>{action.label}</span>
-          </button>
-        )}
-      </div>
-      <button
-        type="button"
-        className="ghost icon-button sidebar-error-dismiss"
-        onClick={onDismiss}
-        aria-label="Dismiss error"
-        title="Dismiss error"
-      >
-        <X size={12} aria-hidden />
-      </button>
-    </div>
-  );
-}
-
-type DiffFileRowProps = {
-  file: DiffFile;
-  isSelected: boolean;
-  isActive: boolean;
-  section: "staged" | "unstaged";
-  onClick: (event: ReactMouseEvent<HTMLDivElement>) => void;
-  onKeySelect: () => void;
-  onContextMenu: (event: ReactMouseEvent<HTMLDivElement>) => void;
-  onStageFile?: (path: string) => Promise<void> | void;
-  onUnstageFile?: (path: string) => Promise<void> | void;
-  onDiscardFile?: (path: string) => Promise<void> | void;
-};
-
-function DiffFileRow({
-  file,
-  isSelected,
-  isActive,
-  section,
-  onClick,
-  onKeySelect,
-  onContextMenu,
-  onStageFile,
-  onUnstageFile,
-  onDiscardFile,
-}: DiffFileRowProps) {
-  const { name, dir } = splitPath(file.path);
-  const { base, extension } = splitNameAndExtension(name);
-  const statusSymbol = getStatusSymbol(file.status);
-  const statusClass = getStatusClass(file.status);
-  const showStage = section === "unstaged" && Boolean(onStageFile);
-  const showUnstage = section === "staged" && Boolean(onUnstageFile);
-  const showDiscard = section === "unstaged" && Boolean(onDiscardFile);
-  return (
-    <div
-      className={`diff-row ${isActive ? "active" : ""} ${isSelected ? "selected" : ""}`}
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onKeySelect();
-        }
-      }}
-      onContextMenu={onContextMenu}
-    >
-      <span className={`diff-icon ${statusClass}`} aria-hidden>
-        {statusSymbol}
-      </span>
-      <div className="diff-file">
-        <div className="diff-path">
-          <span className="diff-name">
-            <span className="diff-name-base">{base}</span>
-            {extension && <span className="diff-name-ext">.{extension}</span>}
-          </span>
-        </div>
-        {dir && <div className="diff-dir">{dir}</div>}
-      </div>
-      <div className="diff-row-meta">
-        <span
-          className="diff-counts-inline"
-          aria-label={`+${file.additions} -${file.deletions}`}
-        >
-          <span className="diff-add">+{file.additions}</span>
-          <span className="diff-sep">/</span>
-          <span className="diff-del">-{file.deletions}</span>
-        </span>
-        <div className="diff-row-actions" role="group" aria-label="File actions">
-          {showStage && (
-            <button
-              type="button"
-              className="diff-row-action diff-row-action--stage"
-              onClick={(event) => {
-                event.stopPropagation();
-                void onStageFile?.(file.path);
-              }}
-              data-tooltip="Stage Changes"
-              aria-label="Stage file"
-            >
-              <Plus size={12} aria-hidden />
-            </button>
-          )}
-          {showUnstage && (
-            <button
-              type="button"
-              className="diff-row-action diff-row-action--unstage"
-              onClick={(event) => {
-                event.stopPropagation();
-                void onUnstageFile?.(file.path);
-              }}
-              data-tooltip="Unstage Changes"
-              aria-label="Unstage file"
-            >
-              <Minus size={12} aria-hidden />
-            </button>
-          )}
-          {showDiscard && (
-            <button
-              type="button"
-              className="diff-row-action diff-row-action--discard"
-              onClick={(event) => {
-                event.stopPropagation();
-                void onDiscardFile?.(file.path);
-              }}
-              data-tooltip="Discard Changes"
-              aria-label="Discard changes"
-            >
-              <RotateCcw size={12} aria-hidden />
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-type DiffSectionProps = {
-  title: string;
-  files: DiffFile[];
-  section: "staged" | "unstaged";
-  selectedFiles: Set<string>;
-  selectedPath: string | null;
-  onSelectFile?: (path: string) => void;
-  onStageAllChanges?: () => Promise<void> | void;
-  onStageFile?: (path: string) => Promise<void> | void;
-  onUnstageFile?: (path: string) => Promise<void> | void;
-  onDiscardFile?: (path: string) => Promise<void> | void;
-  onDiscardFiles?: (paths: string[]) => Promise<void> | void;
-  onFileClick: (
-    event: ReactMouseEvent<HTMLDivElement>,
-    path: string,
-    section: "staged" | "unstaged",
-  ) => void;
-  onShowFileMenu: (
-    event: ReactMouseEvent<HTMLDivElement>,
-    path: string,
-    section: "staged" | "unstaged",
-  ) => void;
-};
-
-function DiffSection({
-  title,
-  files,
-  section,
-  selectedFiles,
-  selectedPath,
-  onSelectFile,
-  onStageAllChanges,
-  onStageFile,
-  onUnstageFile,
-  onDiscardFile,
-  onDiscardFiles,
-  onFileClick,
-  onShowFileMenu,
-}: DiffSectionProps) {
-  const filePaths = files.map((file) => file.path);
-  const canStageAll =
-    section === "unstaged" &&
-    (Boolean(onStageAllChanges) || Boolean(onStageFile)) &&
-    filePaths.length > 0;
-  const canUnstageAll = section === "staged" && Boolean(onUnstageFile) && filePaths.length > 0;
-  const canDiscardAll = section === "unstaged" && Boolean(onDiscardFiles) && filePaths.length > 0;
-  const showSectionActions = canStageAll || canUnstageAll || canDiscardAll;
-
-  return (
-    <div className="diff-section">
-      <div className="diff-section-title diff-section-title--row">
-        <span>
-          {title} ({files.length})
-        </span>
-        {showSectionActions && (
-          <div
-            className="diff-section-actions"
-            role="group"
-            aria-label={`${title} actions`}
-          >
-            {canStageAll && (
-              <button
-                type="button"
-                className="diff-row-action diff-row-action--stage"
-                onClick={() => {
-                  if (onStageAllChanges) {
-                    void onStageAllChanges();
-                    return;
-                  }
-                  void (async () => {
-                    for (const path of filePaths) {
-                      await onStageFile?.(path);
-                    }
-                  })();
-                }}
-                data-tooltip="Stage All Changes"
-                aria-label="Stage all changes"
-              >
-                <Plus size={12} aria-hidden />
-              </button>
-            )}
-            {canUnstageAll && (
-              <button
-                type="button"
-                className="diff-row-action diff-row-action--unstage"
-                onClick={() => {
-                  void (async () => {
-                    for (const path of filePaths) {
-                      await onUnstageFile?.(path);
-                    }
-                  })();
-                }}
-                data-tooltip="Unstage All Changes"
-                aria-label="Unstage all changes"
-              >
-                <Minus size={12} aria-hidden />
-              </button>
-            )}
-            {canDiscardAll && (
-              <button
-                type="button"
-                className="diff-row-action diff-row-action--discard"
-                onClick={() => {
-                  void onDiscardFiles?.(filePaths);
-                }}
-                data-tooltip="Discard All Changes"
-                aria-label="Discard all changes"
-              >
-                <RotateCcw size={12} aria-hidden />
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-      <div className="diff-section-list">
-        {files.map((file) => {
-          const isSelected = selectedFiles.size > 1 && selectedFiles.has(file.path);
-          const isActive = selectedPath === file.path;
-          return (
-            <DiffFileRow
-              key={`${section}-${file.path}`}
-              file={file}
-              isSelected={isSelected}
-              isActive={isActive}
-              section={section}
-              onClick={(event) => onFileClick(event, file.path, section)}
-              onKeySelect={() => onSelectFile?.(file.path)}
-              onContextMenu={(event) => onShowFileMenu(event, file.path, section)}
-              onStageFile={onStageFile}
-              onUnstageFile={onUnstageFile}
-              onDiscardFile={onDiscardFile}
-            />
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-type GitLogEntryRowProps = {
-  entry: GitLogEntry;
-  isSelected: boolean;
-  compact?: boolean;
-  onSelect?: (entry: GitLogEntry) => void;
-  onContextMenu: (event: ReactMouseEvent<HTMLDivElement>) => void;
-};
-
-function GitLogEntryRow({
-  entry,
-  isSelected,
-  compact = false,
-  onSelect,
-  onContextMenu,
-}: GitLogEntryRowProps) {
-  return (
-    <div
-      className={`git-log-entry ${compact ? "git-log-entry-compact" : ""} ${isSelected ? "active" : ""}`}
-      onClick={() => onSelect?.(entry)}
-      onContextMenu={onContextMenu}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onSelect?.(entry);
-        }
-      }}
-    >
-      <div className="git-log-summary">{entry.summary || "No message"}</div>
-      <div className="git-log-meta">
-        <span className="git-log-sha">{entry.sha.slice(0, 7)}</span>
-        <span className="git-log-sep">·</span>
-        <span className="git-log-author">{entry.author || "Unknown"}</span>
-        <span className="git-log-sep">·</span>
-        <span className="git-log-date">
-          {formatRelativeTime(entry.timestamp * 1000)}
-        </span>
-      </div>
-    </div>
-  );
-}
-
 export function GitDiffPanel({
   workspaceId = null,
   workspacePath = null,
@@ -759,93 +229,16 @@ export function GitDiffPanel({
   const [dismissedErrorSignatures, setDismissedErrorSignatures] = useState<Set<string>>(
     new Set(),
   );
-
-  // Multi-select state for file list
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
-  const [lastClickedFile, setLastClickedFile] = useState<string | null>(null);
-
-  // Combine staged and unstaged files for range selection
-  const allFiles = useMemo(
-    () => [
-      ...stagedFiles.map(f => ({ ...f, section: "staged" as const })),
-      ...unstagedFiles.map(f => ({ ...f, section: "unstaged" as const })),
-    ],
-    [stagedFiles, unstagedFiles],
-  );
-
-  const handleFileClick = useCallback(
-    (
-      event: ReactMouseEvent<HTMLDivElement>,
-      path: string,
-      _section: "staged" | "unstaged",
-    ) => {
-      const isMetaKey = event.metaKey || event.ctrlKey;
-      const isShiftKey = event.shiftKey;
-
-      if (isMetaKey) {
-        // Cmd/Ctrl+click: toggle selection
-        setSelectedFiles((prev) => {
-          const next = new Set(prev);
-          if (next.has(path)) {
-            next.delete(path);
-          } else {
-            next.add(path);
-          }
-          return next;
-        });
-        setLastClickedFile(path);
-      } else if (isShiftKey && lastClickedFile) {
-        // Shift+click: select range
-        const currentIndex = allFiles.findIndex((f) => f.path === path);
-        const lastIndex = allFiles.findIndex((f) => f.path === lastClickedFile);
-        if (currentIndex !== -1 && lastIndex !== -1) {
-          const start = Math.min(currentIndex, lastIndex);
-          const end = Math.max(currentIndex, lastIndex);
-          const range = allFiles.slice(start, end + 1).map((f) => f.path);
-          setSelectedFiles((prev) => {
-            const next = new Set(prev);
-            for (const p of range) {
-              next.add(p);
-            }
-            return next;
-          });
-        }
-      } else {
-        // Regular click: select single file and view it
-        setSelectedFiles(new Set([path]));
-        setLastClickedFile(path);
-        onSelectFile?.(path);
-      }
-    },
-    [lastClickedFile, allFiles, onSelectFile],
-  );
-
-  // Clear selection when files change
-  const filesKey = useMemo(
-    () => [...stagedFiles, ...unstagedFiles].map((f) => f.path).join(","),
-    [stagedFiles, unstagedFiles],
-  );
-  const prevFilesKeyRef = useRef(filesKey);
-  useEffect(() => {
-    if (filesKey === prevFilesKeyRef.current) {
-      return;
-    }
-    prevFilesKeyRef.current = filesKey;
-    setSelectedFiles(new Set());
-    setLastClickedFile(null);
-  }, [filesKey]);
-
-  const handleDiffListClick = useCallback(
-    (event: ReactMouseEvent<HTMLDivElement>) => {
-      const target = event.target as HTMLElement | null;
-      if (target?.closest(".diff-row")) {
-        return;
-      }
-      setSelectedFiles(new Set());
-      setLastClickedFile(null);
-    },
-    [],
-  );
+  const {
+    selectedFiles,
+    handleFileClick,
+    handleDiffListClick,
+    selectOnlyFile,
+  } = useDiffFileSelection({
+    stagedFiles,
+    unstagedFiles,
+    onSelectFile,
+  });
 
   const ModeIcon = useMemo(() => {
     switch (mode) {
@@ -860,18 +253,7 @@ export function GitDiffPanel({
     }
   }, [mode]);
 
-  const pushNeedsSync = useMemo(() => {
-    if (!pushError) {
-      return false;
-    }
-    const lower = pushError.toLowerCase();
-    return (
-      lower.includes("non-fast-forward") ||
-      lower.includes("fetch first") ||
-      lower.includes("tip of your current branch is behind") ||
-      lower.includes("updates were rejected")
-    );
-  }, [pushError]);
+  const pushNeedsSync = useMemo(() => hasPushSyncConflict(pushError), [pushError]);
   const pushErrorMessage = useMemo(() => {
     if (!pushError) {
       return null;
@@ -881,10 +263,12 @@ export function GitDiffPanel({
     }
     return `Remote has new commits. Sync (pull then push) before retrying.\n\n${pushError}`;
   }, [pushError, pushNeedsSync]);
+
   const handleSyncFromError = useCallback(() => {
     void _onSync?.();
   }, [_onSync]);
-  const pushErrorAction = useMemo(() => {
+
+  const pushErrorAction = useMemo<SidebarErrorAction | null>(() => {
     if (!pushNeedsSync || !_onSync) {
       return null;
     }
@@ -895,39 +279,21 @@ export function GitDiffPanel({
       loading: _syncLoading,
     };
   }, [pushNeedsSync, _onSync, _syncLoading, handleSyncFromError]);
-  const githubBaseUrl = useMemo(() => {
-    if (!gitRemoteUrl) {
-      return null;
-    }
-    const trimmed = gitRemoteUrl.trim();
-    if (!trimmed) {
-      return null;
-    }
-    let path = "";
-    if (trimmed.startsWith("git@github.com:")) {
-      path = trimmed.slice("git@github.com:".length);
-    } else if (trimmed.startsWith("ssh://git@github.com/")) {
-      path = trimmed.slice("ssh://git@github.com/".length);
-    } else if (trimmed.includes("github.com/")) {
-      path = trimmed.split("github.com/")[1] ?? "";
-    }
-    path = path.replace(/\.git$/, "").replace(/\/$/, "");
-    if (!path) {
-      return null;
-    }
-    return `https://github.com/${path}`;
-  }, [gitRemoteUrl]);
+
+  const githubBaseUrl = useMemo(() => getGitHubBaseUrl(gitRemoteUrl), [gitRemoteUrl]);
 
   const showLogMenu = useCallback(
     async (event: ReactMouseEvent<HTMLDivElement>, entry: GitLogEntry) => {
       event.preventDefault();
       event.stopPropagation();
+
       const copyItem = await MenuItem.new({
         text: "Copy SHA",
         action: async () => {
           await navigator.clipboard.writeText(entry.sha);
         },
       });
+
       const items = [copyItem];
       if (githubBaseUrl) {
         const openItem = await MenuItem.new({
@@ -938,6 +304,7 @@ export function GitDiffPanel({
         });
         items.push(openItem);
       }
+
       const menu = await Menu.new({ items });
       const window = getCurrentWindow();
       const position = new LogicalPosition(event.clientX, event.clientY);
@@ -947,18 +314,17 @@ export function GitDiffPanel({
   );
 
   const showPullRequestMenu = useCallback(
-    async (
-      event: ReactMouseEvent<HTMLDivElement>,
-      pullRequest: GitHubPullRequest,
-    ) => {
+    async (event: ReactMouseEvent<HTMLDivElement>, pullRequest: GitHubPullRequest) => {
       event.preventDefault();
       event.stopPropagation();
+
       const openItem = await MenuItem.new({
         text: "Open on GitHub",
         action: async () => {
           await openUrl(pullRequest.url);
         },
       });
+
       const menu = await Menu.new({ items: [openItem] });
       const window = getCurrentWindow();
       const position = new LogicalPosition(event.clientX, event.clientY);
@@ -972,11 +338,11 @@ export function GitDiffPanel({
       if (!onRevertFile) {
         return;
       }
+
       const isSingle = paths.length === 1;
       const previewLimit = 6;
       const preview = paths.slice(0, previewLimit).join("\n");
-      const more =
-        paths.length > previewLimit ? `\n… and ${paths.length - previewLimit} more` : "";
+      const more = paths.length > previewLimit ? `\n… and ${paths.length - previewLimit} more` : "";
       const message = isSingle
         ? `Discard changes in:\n\n${paths[0]}\n\nThis cannot be undone.`
         : `Discard changes in these files?\n\n${preview}${more}\n\nThis cannot be undone.`;
@@ -987,6 +353,7 @@ export function GitDiffPanel({
       if (!confirmed) {
         return;
       }
+
       for (const path of paths) {
         await onRevertFile(path);
       }
@@ -1005,23 +372,16 @@ export function GitDiffPanel({
     async (
       event: ReactMouseEvent<HTMLDivElement>,
       path: string,
-      _mode: "staged" | "unstaged",
+      _section: "staged" | "unstaged",
     ) => {
       event.preventDefault();
       event.stopPropagation();
 
-      // Determine which files to operate on
-      // If clicked file is in selection, use all selected files; otherwise just this file
       const isInSelection = selectedFiles.has(path);
-      const targetPaths =
-        isInSelection && selectedFiles.size > 1
-          ? Array.from(selectedFiles)
-          : [path];
+      const targetPaths = isInSelection && selectedFiles.size > 1 ? Array.from(selectedFiles) : [path];
 
-      // If clicking on unselected file, select it
       if (!isInSelection) {
-        setSelectedFiles(new Set([path]));
-        setLastClickedFile(path);
+        selectOnlyFile(path);
       }
 
       const fileCount = targetPaths.length;
@@ -1035,38 +395,35 @@ export function GitDiffPanel({
       const fallbackRoot = normalizeRootPath(workspacePath);
       const resolvedRoot = normalizedRoot || inferredRoot || fallbackRoot;
 
-      // Separate files by their section for stage/unstage operations
-      const stagedPaths = targetPaths.filter((p) =>
-        stagedFiles.some((f) => f.path === p),
+      const stagedPaths = targetPaths.filter((targetPath) =>
+        stagedFiles.some((file) => file.path === targetPath),
       );
-      const unstagedPaths = targetPaths.filter((p) =>
-        unstagedFiles.some((f) => f.path === p),
+      const unstagedPaths = targetPaths.filter((targetPath) =>
+        unstagedFiles.some((file) => file.path === targetPath),
       );
 
       const items: MenuItem[] = [];
 
-      // Unstage action for staged files
       if (stagedPaths.length > 0 && onUnstageFile) {
         items.push(
           await MenuItem.new({
             text: `Unstage file${stagedPaths.length > 1 ? `s (${stagedPaths.length})` : ""}`,
             action: async () => {
-              for (const p of stagedPaths) {
-                await onUnstageFile(p);
+              for (const stagedPath of stagedPaths) {
+                await onUnstageFile(stagedPath);
               }
             },
           }),
         );
       }
 
-      // Stage action for unstaged files
       if (unstagedPaths.length > 0 && onStageFile) {
         items.push(
           await MenuItem.new({
             text: `Stage file${unstagedPaths.length > 1 ? `s (${unstagedPaths.length})` : ""}`,
             action: async () => {
-              for (const p of unstagedPaths) {
-                await onStageFile(p);
+              for (const unstagedPath of unstagedPaths) {
+                await onStageFile(unstagedPath);
               }
             },
           }),
@@ -1076,16 +433,13 @@ export function GitDiffPanel({
       if (targetPaths.length === 1) {
         const fileManagerLabel = fileManagerName();
         const rawPath = targetPaths[0];
-        const absolutePath = resolvedRoot
-          ? joinRootAndPath(resolvedRoot, rawPath)
-          : rawPath;
+        const absolutePath = resolvedRoot ? joinRootAndPath(resolvedRoot, rawPath) : rawPath;
         const relativeRoot =
-          workspacePath && resolvedRoot
-            ? getRelativePathWithin(workspacePath, resolvedRoot)
-            : null;
+          workspacePath && resolvedRoot ? getRelativePathWithin(workspacePath, resolvedRoot) : null;
         const projectRelativePath =
           relativeRoot !== null ? joinRootAndPath(relativeRoot, rawPath) : rawPath;
         const fileName = getFileName(rawPath);
+
         items.push(
           await MenuItem.new({
             text: `Show in ${fileManagerLabel}`,
@@ -1098,13 +452,10 @@ export function GitDiffPanel({
                   });
                   return;
                 }
-                const { revealItemInDir } = await import(
-                  "@tauri-apps/plugin-opener"
-                );
+                const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
                 await revealItemInDir(absolutePath);
-              } catch (error) {
-                const message =
-                  error instanceof Error ? error.message : String(error);
+              } catch (menuError) {
+                const message = menuError instanceof Error ? menuError.message : String(menuError);
                 pushErrorToast({
                   title: `Couldn't show file in ${fileManagerLabel}`,
                   message,
@@ -1117,6 +468,7 @@ export function GitDiffPanel({
             },
           }),
         );
+
         items.push(
           await MenuItem.new({
             text: "Copy file name",
@@ -1133,7 +485,6 @@ export function GitDiffPanel({
         );
       }
 
-      // Revert action for all selected files
       if (onRevertFile) {
         items.push(
           await MenuItem.new({
@@ -1148,6 +499,7 @@ export function GitDiffPanel({
       if (!items.length) {
         return;
       }
+
       const menu = await Menu.new({ items });
       const window = getCurrentWindow();
       const position = new LogicalPosition(event.clientX, event.clientY);
@@ -1155,6 +507,7 @@ export function GitDiffPanel({
     },
     [
       selectedFiles,
+      selectOnlyFile,
       stagedFiles,
       unstagedFiles,
       onUnstageFile,
@@ -1166,23 +519,20 @@ export function GitDiffPanel({
       workspacePath,
     ],
   );
+
   const logCountLabel = logTotal
     ? `${logTotal} commit${logTotal === 1 ? "" : "s"}`
     : logEntries.length
       ? `${logEntries.length} commit${logEntries.length === 1 ? "" : "s"}`
-    : "No commits";
-  const logSyncLabel = logUpstream
-    ? `↑${logAhead} ↓${logBehind}`
-    : "No upstream configured";
+      : "No commits";
+  const logSyncLabel = logUpstream ? `↑${logAhead} ↓${logBehind}` : "No upstream configured";
   const logUpstreamLabel = logUpstream ? `Upstream ${logUpstream}` : "";
-  const showAheadSection = logUpstream && logAhead > 0;
-  const showBehindSection = logUpstream && logBehind > 0;
+  const showAheadSection = Boolean(logUpstream && logAhead > 0);
+  const showBehindSection = Boolean(logUpstream && logBehind > 0);
   const hasDiffTotals = totalAdditions > 0 || totalDeletions > 0;
   const diffTotalsLabel = `+${totalAdditions} / -${totalDeletions}`;
   const diffStatusLabel = hasDiffTotals
-    ? [logUpstream ? logSyncLabel : null, diffTotalsLabel]
-        .filter(Boolean)
-        .join(" · ")
+    ? [logUpstream ? logSyncLabel : null, diffTotalsLabel].filter(Boolean).join(" · ")
     : logUpstream
       ? `${logSyncLabel} · ${fileStatus}`
       : fileStatus;
@@ -1196,21 +546,20 @@ export function GitDiffPanel({
   const normalizedGitRoot = normalizeRootPath(gitRoot);
   const errorScope = `${workspaceId ?? "no-workspace"}:${normalizedGitRoot || "no-git-root"}:${mode}`;
   const hasAnyChanges = stagedFiles.length > 0 || unstagedFiles.length > 0;
-  const showApplyWorktree =
-    mode === "diff" && Boolean(onApplyWorktreeChanges) && hasAnyChanges;
+  const showApplyWorktree = mode === "diff" && Boolean(onApplyWorktreeChanges) && hasAnyChanges;
   const canGenerateCommitMessage = hasAnyChanges;
-  const showGenerateCommitMessage =
-    mode === "diff" && Boolean(onGenerateCommitMessage) && hasAnyChanges;
+  const showGenerateCommitMessage = mode === "diff" && Boolean(onGenerateCommitMessage) && hasAnyChanges;
   const commitsBehind = logBehind;
+
   const sidebarErrorCandidates = useMemo(() => {
     const options: Array<{
       key: string;
       message: string | null | undefined;
-      action?: SidebarErrorProps["action"];
+      action?: SidebarErrorAction;
     }> =
       mode === "diff"
         ? [
-            { key: "push", message: pushErrorMessage, action: pushErrorAction },
+            { key: "push", message: pushErrorMessage, action: pushErrorAction ?? undefined },
             { key: "pull", message: pullError },
             { key: "fetch", message: fetchError },
             { key: "commit", message: commitError },
@@ -1225,6 +574,7 @@ export function GitDiffPanel({
           : mode === "issues"
             ? [{ key: "issues", message: issuesError }]
             : [{ key: "pullRequests", message: pullRequestsError }];
+
     return options
       .filter((entry) => Boolean(entry.message))
       .map((entry) => ({
@@ -1242,43 +592,39 @@ export function GitDiffPanel({
     logError,
     pullRequestsError,
     pullError,
-    pushErrorMessage,
     pushErrorAction,
+    pushErrorMessage,
     syncError,
     worktreeApplyError,
     errorScope,
     mode,
   ]);
+
   const sidebarError = useMemo(
     () =>
-      sidebarErrorCandidates.find(
-        (entry) => !dismissedErrorSignatures.has(entry.signature),
-      ) ?? null,
+      sidebarErrorCandidates.find((entry) => !dismissedErrorSignatures.has(entry.signature)) ??
+      null,
     [dismissedErrorSignatures, sidebarErrorCandidates],
   );
+
   useEffect(() => {
-    const activeSignatures = new Set(
-      sidebarErrorCandidates.map((entry) => entry.signature),
-    );
-    setDismissedErrorSignatures((prev) => {
+    const activeSignatures = new Set(sidebarErrorCandidates.map((entry) => entry.signature));
+    setDismissedErrorSignatures((previous) => {
       let changed = false;
       const next = new Set<string>();
-      prev.forEach((signature) => {
+      previous.forEach((signature) => {
         if (activeSignatures.has(signature)) {
           next.add(signature);
         } else {
           changed = true;
         }
       });
-      return changed || next.size !== prev.size ? next : prev;
+      return changed || next.size !== previous.size ? next : previous;
     });
   }, [sidebarErrorCandidates]);
+
   const showSidebarError = Boolean(sidebarError);
-  const worktreeApplyIcon = worktreeApplySuccess ? (
-    <Check size={12} aria-hidden />
-  ) : (
-    <Upload size={12} aria-hidden />
-  );
+
   return (
     <PanelFrame>
       <PanelHeader className="git-panel-header">
@@ -1291,9 +637,7 @@ export function GitDiffPanel({
             <select
               className="git-panel-select-input"
               value={mode}
-              onChange={(event) =>
-                onModeChange(event.target.value as GitDiffPanelProps["mode"])
-              }
+              onChange={(event) => onModeChange(event.target.value as GitDiffPanelProps["mode"])}
               aria-label="Git panel view"
             >
               <option value="diff">Diff</option>
@@ -1313,520 +657,125 @@ export function GitDiffPanel({
               data-tooltip={worktreeApplyTitle ?? "Apply changes to parent workspace"}
               aria-label="Apply worktree changes"
             >
-              {worktreeApplyIcon}
+              <WorktreeApplyIcon success={worktreeApplySuccess} />
             </button>
           )}
         </div>
       </PanelHeader>
+
+      <GitPanelModeStatus
+        mode={mode}
+        diffStatusLabel={diffStatusLabel}
+        logCountLabel={logCountLabel}
+        logSyncLabel={logSyncLabel}
+        logUpstreamLabel={logUpstreamLabel}
+        issuesLoading={issuesLoading}
+        issuesTotal={issuesTotal}
+        pullRequestsLoading={pullRequestsLoading}
+        pullRequestsTotal={pullRequestsTotal}
+      />
+
+      <GitBranchRow
+        mode={mode}
+        branchName={branchName}
+        onFetch={onFetch}
+        fetchLoading={fetchLoading}
+      />
+
+      <GitRootCurrentPath
+        mode={mode}
+        hasGitRoot={hasGitRoot}
+        gitRoot={gitRoot}
+        onScanGitRoots={onScanGitRoots}
+        gitRootScanLoading={gitRootScanLoading}
+      />
+
       {mode === "diff" ? (
-        <>
-          <div className="diff-status">{diffStatusLabel}</div>
-        </>
+        <GitDiffModeContent
+          error={error}
+          showGitRootPanel={showGitRootPanel}
+          onScanGitRoots={onScanGitRoots}
+          gitRootScanLoading={gitRootScanLoading}
+          gitRootScanDepth={gitRootScanDepth}
+          onGitRootScanDepthChange={onGitRootScanDepthChange}
+          onPickGitRoot={onPickGitRoot}
+          hasGitRoot={hasGitRoot}
+          onClearGitRoot={onClearGitRoot}
+          gitRootScanError={gitRootScanError}
+          gitRootScanHasScanned={gitRootScanHasScanned}
+          gitRootCandidates={gitRootCandidates}
+          gitRoot={gitRoot}
+          onSelectGitRoot={onSelectGitRoot}
+          showGenerateCommitMessage={showGenerateCommitMessage}
+          commitMessage={commitMessage}
+          onCommitMessageChange={onCommitMessageChange}
+          commitMessageLoading={commitMessageLoading}
+          canGenerateCommitMessage={canGenerateCommitMessage}
+          onGenerateCommitMessage={onGenerateCommitMessage}
+          stagedFiles={stagedFiles}
+          unstagedFiles={unstagedFiles}
+          commitLoading={commitLoading}
+          onCommit={onCommit}
+          commitsAhead={commitsAhead}
+          commitsBehind={commitsBehind}
+          onPull={onPull}
+          pullLoading={pullLoading}
+          onPush={onPush}
+          pushLoading={pushLoading}
+          onSync={_onSync}
+          syncLoading={_syncLoading}
+          onStageAllChanges={onStageAllChanges}
+          onStageFile={onStageFile}
+          onUnstageFile={onUnstageFile}
+          onDiscardFile={onRevertFile ? discardFile : undefined}
+          onDiscardFiles={onRevertFile ? discardFiles : undefined}
+          selectedFiles={selectedFiles}
+          selectedPath={selectedPath}
+          onSelectFile={onSelectFile}
+          onFileClick={handleFileClick}
+          onShowFileMenu={showFileMenu}
+          onDiffListClick={handleDiffListClick}
+        />
       ) : mode === "log" ? (
-        <>
-          <div className="diff-status">{logCountLabel}</div>
-          <div className="git-log-sync">
-            <span>{logSyncLabel}</span>
-            {logUpstreamLabel && (
-              <>
-                <span className="git-log-sep">·</span>
-                <span>{logUpstreamLabel}</span>
-              </>
-            )}
-          </div>
-        </>
+        <GitLogModeContent
+          logError={logError}
+          logLoading={logLoading}
+          logEntries={logEntries}
+          showAheadSection={showAheadSection}
+          showBehindSection={showBehindSection}
+          logAheadEntries={logAheadEntries}
+          logBehindEntries={logBehindEntries}
+          selectedCommitSha={selectedCommitSha}
+          onSelectCommit={onSelectCommit}
+          onShowLogMenu={showLogMenu}
+        />
       ) : mode === "issues" ? (
-        <>
-          <div className="diff-status diff-status-issues">
-            <span>GitHub issues</span>
-            {issuesLoading && <span className="git-panel-spinner" aria-hidden />}
-          </div>
-          <div className="git-log-sync">
-            <span>{issuesTotal} open</span>
-          </div>
-        </>
+        <GitIssuesModeContent
+          issuesError={issuesError}
+          issuesLoading={issuesLoading}
+          issues={issues}
+        />
       ) : (
-        <>
-          <div className="diff-status diff-status-issues">
-            <span>GitHub pull requests</span>
-            {pullRequestsLoading && (
-              <span className="git-panel-spinner" aria-hidden />
-            )}
-          </div>
-          <div className="git-log-sync">
-            <span>{pullRequestsTotal} open</span>
-          </div>
-        </>
+        <GitPullRequestsModeContent
+          pullRequestsError={pullRequestsError}
+          pullRequestsLoading={pullRequestsLoading}
+          pullRequests={pullRequests}
+          selectedPullRequest={selectedPullRequest}
+          onSelectPullRequest={onSelectPullRequest}
+          onShowPullRequestMenu={showPullRequestMenu}
+        />
       )}
-      {mode === "diff" || mode === "log" ? (
-        <div className="diff-branch-row">
-          <div className="diff-branch">{branchName || "unknown"}</div>
-          <button
-            type="button"
-            className="diff-branch-refresh"
-            onClick={() => void onFetch?.()}
-            disabled={!onFetch || fetchLoading}
-            title={fetchLoading ? "Fetching remote..." : "Fetch remote"}
-            aria-label={fetchLoading ? "Fetching remote" : "Fetch remote"}
-          >
-            {fetchLoading ? (
-              <span className="git-panel-spinner" aria-hidden />
-            ) : (
-              <RotateCw size={12} aria-hidden />
-            )}
-          </button>
-        </div>
-      ) : null}
-      {mode !== "issues" && hasGitRoot && (
-        <div className="git-root-current">
-          <span className="git-root-label">Path:</span>
-          <span className="git-root-path" title={gitRoot ?? ""}>
-            {gitRoot}
-          </span>
-          {onScanGitRoots && (
-            <button
-              type="button"
-              className="ghost git-root-button git-root-button--icon"
-              onClick={onScanGitRoots}
-              disabled={gitRootScanLoading}
-            >
-              <ArrowLeftRight className="git-root-button-icon" aria-hidden />
-              Change
-            </button>
-          )}
-        </div>
-      )}
-      {mode === "diff" ? (
-        <div className="diff-list" onClick={handleDiffListClick}>
-          {showGitRootPanel && (
-            <div className="git-root-panel">
-              <div className="git-root-title">Choose a repo for this workspace.</div>
-              <div className="git-root-actions">
-                <button
-                  type="button"
-                  className="ghost git-root-button"
-                  onClick={onScanGitRoots}
-                  disabled={!onScanGitRoots || gitRootScanLoading}
-                >
-                  Scan workspace
-                </button>
-                <label className="git-root-depth">
-                  <span>Depth</span>
-                  <select
-                    className="git-root-select"
-                    value={gitRootScanDepth}
-                    onChange={(event) => {
-                      const value = Number(event.target.value);
-                      if (!Number.isNaN(value)) {
-                        onGitRootScanDepthChange?.(value);
-                      }
-                    }}
-                    disabled={gitRootScanLoading}
-                  >
-                    {DEPTH_OPTIONS.map((depth) => (
-                      <option key={depth} value={depth}>
-                        {depth}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {onPickGitRoot && (
-                  <button
-                    type="button"
-                    className="ghost git-root-button"
-                    onClick={() => {
-                      void onPickGitRoot();
-                    }}
-                    disabled={gitRootScanLoading}
-                  >
-                    Pick folder
-                  </button>
-                )}
-                {hasGitRoot && onClearGitRoot && (
-                  <button
-                    type="button"
-                    className="ghost git-root-button"
-                    onClick={onClearGitRoot}
-                    disabled={gitRootScanLoading}
-                  >
-                    Use workspace root
-                  </button>
-                )}
-              </div>
-              {gitRootScanLoading && (
-                <div className="diff-empty">Scanning for repositories...</div>
-              )}
-              {!gitRootScanLoading &&
-                !gitRootScanError &&
-                gitRootScanHasScanned &&
-                gitRootCandidates.length === 0 && (
-                  <div className="diff-empty">No repositories found.</div>
-                )}
-              {gitRootCandidates.length > 0 && (
-                <div className="git-root-list">
-                  {gitRootCandidates.map((path) => {
-                    const normalizedPath = normalizeRootPath(path);
-                    const isActive =
-                      normalizedGitRoot && normalizedGitRoot === normalizedPath;
-                    return (
-                    <button
-                      key={path}
-                      type="button"
-                      className={`git-root-item ${isActive ? "active" : ""}`}
-                      onClick={() => onSelectGitRoot?.(path)}
-                    >
-                      <span className="git-root-path">{path}</span>
-                      {isActive && <span className="git-root-tag">Active</span>}
-                    </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-          {showGenerateCommitMessage && (
-            <div className="commit-message-section">
-              <div className="commit-message-input-wrapper">
-                <textarea
-                  className="commit-message-input"
-                  placeholder="Commit message..."
-                  value={commitMessage}
-                  onChange={(e) => onCommitMessageChange?.(e.target.value)}
-                  disabled={commitMessageLoading}
-                  rows={2}
-                />
-                <button
-                  type="button"
-                  className="commit-message-generate-button"
-                  onClick={() => {
-                    if (!canGenerateCommitMessage) {
-                      return;
-                    }
-                    void onGenerateCommitMessage?.();
-                  }}
-                  disabled={commitMessageLoading || !canGenerateCommitMessage}
-                  title={
-                    stagedFiles.length > 0
-                      ? "Generate commit message from staged changes"
-                      : "Generate commit message from unstaged changes"
-                  }
-                  aria-label="Generate commit message"
-                >
-                  {commitMessageLoading ? (
-                    <svg
-                      className="commit-message-loader"
-                      width={14}
-                      height={14}
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden
-                    >
-                      <path d="M12 2v4" />
-                      <path d="m16.2 7.8 2.9-2.9" />
-                      <path d="M18 12h4" />
-                      <path d="m16.2 16.2 2.9 2.9" />
-                      <path d="M12 18v4" />
-                      <path d="m4.9 19.1 2.9-2.9" />
-                      <path d="M2 12h4" />
-                      <path d="m4.9 4.9 2.9 2.9" />
-                    </svg>
-                  ) : (
-                    <svg
-                      width={14}
-                      height={14}
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden
-                    >
-                      <path
-                        d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"
-                        stroke="none"
-                      />
-                      <path d="M20 2v4" fill="none" />
-                      <path d="M22 4h-4" fill="none" />
-                      <circle cx="4" cy="20" r="2" fill="none" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-              <CommitButton
-                commitMessage={commitMessage}
-                hasStagedFiles={stagedFiles.length > 0}
-                hasUnstagedFiles={unstagedFiles.length > 0}
-                commitLoading={commitLoading}
-                onCommit={onCommit}
-              />
-            </div>
-          )}
-          {(commitsAhead > 0 || commitsBehind > 0) && !stagedFiles.length && (
-            <div className="push-section">
-              <div className="push-sync-buttons">
-                {commitsBehind > 0 && (
-                  <button
-                    type="button"
-                    className="push-button-secondary"
-                    onClick={() => void onPull?.()}
-                    disabled={!onPull || pullLoading || _syncLoading}
-                    title={`Pull ${commitsBehind} commit${commitsBehind > 1 ? "s" : ""}`}
-                  >
-                    {pullLoading ? (
-                      <span className="commit-button-spinner" aria-hidden />
-                    ) : (
-                      <Download size={14} aria-hidden />
-                    )}
-                    <span>{pullLoading ? "Pulling..." : "Pull"}</span>
-                    <span className="push-count">{commitsBehind}</span>
-                  </button>
-                )}
-                {commitsAhead > 0 && (
-                  <button
-                    type="button"
-                    className="push-button"
-                    onClick={() => void onPush?.()}
-                    disabled={!onPush || pushLoading || commitsBehind > 0}
-                    title={
-                      commitsBehind > 0
-                        ? "Remote is ahead. Pull first, or use Sync."
-                        : `Push ${commitsAhead} commit${commitsAhead > 1 ? "s" : ""}`
-                    }
-                  >
-                    {pushLoading ? (
-                      <span className="commit-button-spinner" aria-hidden />
-                    ) : (
-                      <Upload size={14} aria-hidden />
-                    )}
-                    <span>Push</span>
-                    <span className="push-count">{commitsAhead}</span>
-                  </button>
-                )}
-              </div>
-              {commitsAhead > 0 && commitsBehind > 0 && (
-                <button
-                  type="button"
-                  className="push-button-secondary"
-                  onClick={() => void _onSync?.()}
-                  disabled={!_onSync || _syncLoading || pullLoading}
-                  title="Pull latest changes and push your local commits"
-                >
-                  {_syncLoading ? (
-                    <span className="commit-button-spinner" aria-hidden />
-                  ) : (
-                    <RotateCcw size={14} aria-hidden />
-                  )}
-                  <span>{_syncLoading ? "Syncing..." : "Sync (pull then push)"}</span>
-                </button>
-              )}
-            </div>
-          )}
-          {!error &&
-            !stagedFiles.length &&
-            !unstagedFiles.length &&
-            commitsAhead === 0 &&
-            commitsBehind === 0 && (
-            <div className="diff-empty">No changes detected.</div>
-          )}
-          {(stagedFiles.length > 0 || unstagedFiles.length > 0) && (
-            <>
-              {stagedFiles.length > 0 && (
-                <DiffSection
-                  title="Staged"
-                  files={stagedFiles}
-                  section="staged"
-                  selectedFiles={selectedFiles}
-                  selectedPath={selectedPath}
-                  onSelectFile={onSelectFile}
-                  onUnstageFile={onUnstageFile}
-                  onDiscardFile={onRevertFile ? discardFile : undefined}
-                  onDiscardFiles={onRevertFile ? discardFiles : undefined}
-                  onFileClick={handleFileClick}
-                  onShowFileMenu={showFileMenu}
-                />
-              )}
-              {unstagedFiles.length > 0 && (
-                <DiffSection
-                  title="Unstaged"
-                  files={unstagedFiles}
-                  section="unstaged"
-                  selectedFiles={selectedFiles}
-                  selectedPath={selectedPath}
-                  onSelectFile={onSelectFile}
-                  onStageAllChanges={onStageAllChanges}
-                  onStageFile={onStageFile}
-                  onDiscardFile={onRevertFile ? discardFile : undefined}
-                  onDiscardFiles={onRevertFile ? discardFiles : undefined}
-                  onFileClick={handleFileClick}
-                  onShowFileMenu={showFileMenu}
-                />
-              )}
-            </>
-          )}
-        </div>
-      ) : mode === "log" ? (
-        <div className="git-log-list">
-          {!logError && logLoading && (
-            <div className="diff-viewer-loading">Loading commits...</div>
-          )}
-          {!logError &&
-            !logLoading &&
-            !logEntries.length &&
-            !showAheadSection &&
-            !showBehindSection && (
-            <div className="diff-empty">No commits yet.</div>
-          )}
-          {showAheadSection && (
-            <div className="git-log-section">
-              <div className="git-log-section-title">To push</div>
-              <div className="git-log-section-list">
-                {logAheadEntries.map((entry) => {
-                  const isSelected = selectedCommitSha === entry.sha;
-                  return (
-                    <GitLogEntryRow
-                      key={entry.sha}
-                      entry={entry}
-                      isSelected={isSelected}
-                      compact
-                      onSelect={onSelectCommit}
-                      onContextMenu={(event) => showLogMenu(event, entry)}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          {showBehindSection && (
-            <div className="git-log-section">
-              <div className="git-log-section-title">To pull</div>
-              <div className="git-log-section-list">
-                {logBehindEntries.map((entry) => {
-                  const isSelected = selectedCommitSha === entry.sha;
-                  return (
-                    <GitLogEntryRow
-                      key={entry.sha}
-                      entry={entry}
-                      isSelected={isSelected}
-                      compact
-                      onSelect={onSelectCommit}
-                      onContextMenu={(event) => showLogMenu(event, entry)}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          {(logEntries.length > 0 || logLoading) && (
-            <div className="git-log-section">
-              <div className="git-log-section-title">Recent commits</div>
-              <div className="git-log-section-list">
-                {logEntries.map((entry) => {
-                  const isSelected = selectedCommitSha === entry.sha;
-                  return (
-                    <GitLogEntryRow
-                      key={entry.sha}
-                      entry={entry}
-                      isSelected={isSelected}
-                      onSelect={onSelectCommit}
-                      onContextMenu={(event) => showLogMenu(event, entry)}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      ) : mode === "issues" ? (
-        <div className="git-issues-list">
-          {!issuesError && !issuesLoading && !issues.length && (
-            <div className="diff-empty">No open issues.</div>
-          )}
-          {issues.map((issue) => {
-            const relativeTime = formatRelativeTime(new Date(issue.updatedAt).getTime());
-            return (
-              <a
-                key={issue.number}
-                className="git-issue-entry"
-                href={issue.url}
-                onClick={(event) => {
-                  event.preventDefault();
-                  void openUrl(issue.url);
-                }}
-              >
-                <div className="git-issue-summary">
-                  <span className="git-issue-title">
-                    <span className="git-issue-number">#{issue.number}</span>{" "}
-                    {issue.title}{" "}
-                    <span className="git-issue-date">· {relativeTime}</span>
-                  </span>
-                </div>
-              </a>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="git-pr-list">
-          {!pullRequestsError &&
-            !pullRequestsLoading &&
-            !pullRequests.length && (
-            <div className="diff-empty">No open pull requests.</div>
-          )}
-          {pullRequests.map((pullRequest) => {
-            const relativeTime = formatRelativeTime(
-              new Date(pullRequest.updatedAt).getTime(),
-            );
-            const author = pullRequest.author?.login ?? "unknown";
-            const isSelected = selectedPullRequest === pullRequest.number;
-            return (
-              <div
-                key={pullRequest.number}
-                className={`git-pr-entry ${isSelected ? "active" : ""}`}
-                onClick={() => onSelectPullRequest?.(pullRequest)}
-                onContextMenu={(event) => showPullRequestMenu(event, pullRequest)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onSelectPullRequest?.(pullRequest);
-                  }
-                }}
-              >
-                <div className="git-pr-header">
-                  <span className="git-pr-title">
-                    <span className="git-pr-number">#{pullRequest.number}</span>
-                    <span className="git-pr-title-text">
-                      {pullRequest.title}{" "}
-                      <span className="git-pr-author-inline">@{author}</span>
-                    </span>
-                  </span>
-                  <span className="git-pr-time">{relativeTime}</span>
-                </div>
-                <div className="git-pr-meta">
-                  {pullRequest.isDraft && (
-                    <span className="git-pr-pill git-pr-draft">Draft</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+
       {showSidebarError && sidebarError && (
         <SidebarError
           message={sidebarError.message}
           action={sidebarError.action ?? null}
           onDismiss={() =>
-            setDismissedErrorSignatures((prev) => {
-              if (prev.has(sidebarError.signature)) {
-                return prev;
+            setDismissedErrorSignatures((previous) => {
+              if (previous.has(sidebarError.signature)) {
+                return previous;
               }
-              const next = new Set(prev);
+              const next = new Set(previous);
               next.add(sidebarError.signature);
               return next;
             })

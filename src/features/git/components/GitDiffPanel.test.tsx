@@ -238,4 +238,5 @@ describe("GitDiffPanel", () => {
 
     expect(clipboardWriteText).toHaveBeenCalledWith("src/sample.ts");
   });
+
 });

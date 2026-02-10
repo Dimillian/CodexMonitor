@@ -65,6 +65,7 @@ describe("useThreadActions", () => {
       current: {} as Record<string, Record<string, number>>,
     };
     const applyCollabThreadLinksFromThread = vi.fn();
+    const updateThreadParent = vi.fn();
 
     const args: Parameters<typeof useThreadActions>[0] = {
       dispatch,
@@ -79,6 +80,7 @@ describe("useThreadActions", () => {
       loadedThreadsRef,
       replaceOnResumeRef,
       applyCollabThreadLinksFromThread,
+      updateThreadParent,
       ...overrides,
     };
 
@@ -90,6 +92,7 @@ describe("useThreadActions", () => {
       replaceOnResumeRef: args.replaceOnResumeRef,
       threadActivityRef: args.threadActivityRef,
       applyCollabThreadLinksFromThread: args.applyCollabThreadLinksFromThread,
+      updateThreadParent: args.updateThreadParent,
       ...utils,
     };
   }
@@ -273,6 +276,34 @@ describe("useThreadActions", () => {
       text: "Hello!",
       timestamp: 999,
     });
+  });
+
+  it("links resumed spawn subagent to its parent from thread source", async () => {
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "child-thread",
+          source: {
+            subAgent: {
+              thread_spawn: {
+                parent_thread_id: "parent-thread",
+                depth: 1,
+              },
+            },
+          },
+        },
+      },
+    });
+    vi.mocked(buildItemsFromThread).mockReturnValue([]);
+    vi.mocked(isReviewingFromThread).mockReturnValue(false);
+
+    const { result, updateThreadParent } = renderActions();
+
+    await act(async () => {
+      await result.current.resumeThreadForWorkspace("ws-1", "child-thread", true);
+    });
+
+    expect(updateThreadParent).toHaveBeenCalledWith("parent-thread", ["child-thread"]);
   });
 
   it("does not hydrate status from resume when local items are preserved", async () => {
@@ -530,6 +561,49 @@ describe("useThreadActions", () => {
     expect(threadActivityRef.current).toEqual({
       "ws-1": { "thread-1": 5000 },
     });
+  });
+
+  it("restores parent-child links from thread/list source metadata", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "parent-thread",
+            cwd: "/tmp/codex",
+            preview: "Parent",
+            updated_at: 5000,
+            source: "vscode",
+          },
+          {
+            id: "child-thread",
+            cwd: "/tmp/codex",
+            preview: "Child",
+            updated_at: 4500,
+            source: {
+              subAgent: {
+                thread_spawn: {
+                  parent_thread_id: "parent-thread",
+                  depth: 1,
+                },
+              },
+            },
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, updateThreadParent } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    expect(updateThreadParent).toHaveBeenCalledWith("parent-thread", ["child-thread"]);
   });
 
   it("preserves list state when requested", async () => {

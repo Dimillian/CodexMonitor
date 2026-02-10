@@ -3,6 +3,7 @@ import type { QueuedMessage, WorkspaceInfo } from "../../../types";
 
 type UseQueuedSendOptions = {
   activeThreadId: string | null;
+  activeTurnId: string | null;
   isProcessing: boolean;
   isReviewing: boolean;
   steerEnabled: boolean;
@@ -78,6 +79,7 @@ function parseSlashCommand(text: string, appsEnabled: boolean): SlashCommandKind
 
 export function useQueuedSend({
   activeThreadId,
+  activeTurnId,
   isProcessing,
   isReviewing,
   steerEnabled,
@@ -200,7 +202,7 @@ export function useQueuedSend({
       if (activeThreadId && isReviewing) {
         return;
       }
-      if (isProcessing && activeThreadId && !steerEnabled) {
+      if (isProcessing && activeThreadId && (!steerEnabled || !activeTurnId)) {
         const item: QueuedMessage = {
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           text: trimmed,
@@ -229,6 +231,7 @@ export function useQueuedSend({
       clearActiveImages,
       connectWorkspace,
       enqueueMessage,
+      activeTurnId,
       isProcessing,
       isReviewing,
       steerEnabled,

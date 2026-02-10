@@ -6,29 +6,18 @@ import X from "lucide-react/dist/esm/icons/x";
 import type {
   AppSettings,
   CodexDoctorResult,
+  CodexUpdateResult,
   DictationModelStatus,
-  OrbitConnectTestResult,
-  OrbitRunnerStatus,
-  OrbitSignInPollResult,
-  OrbitSignOutResult,
   TcpDaemonStatus,
   TailscaleDaemonCommandPreview,
   TailscaleStatus,
   WorkspaceSettings,
-  OpenAppTarget,
   WorkspaceGroup,
   WorkspaceInfo,
 } from "../../../types";
 import {
   getCodexConfigPath,
   listWorkspaces,
-  orbitConnectTest,
-  orbitRunnerStart,
-  orbitRunnerStatus,
-  orbitRunnerStop,
-  orbitSignInPoll,
-  orbitSignInStart,
-  orbitSignOut,
   tailscaleDaemonStart,
   tailscaleDaemonStatus,
   tailscaleDaemonStop,
@@ -40,7 +29,6 @@ import {
   isMobilePlatform,
   isWindowsPlatform,
 } from "../../../utils/platformPaths";
-import { buildShortcutValue } from "../../../utils/shortcuts";
 import { clampUiScale } from "../../../utils/uiScale";
 import {
   DEFAULT_CODE_FONT_FAMILY,
@@ -48,18 +36,16 @@ import {
   clampCodeFontSize,
   normalizeFontFamily,
 } from "../../../utils/fonts";
-import { DEFAULT_OPEN_APP_ID, OPEN_APP_STORAGE_KEY } from "../../app/constants";
+import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "../../../utils/commitMessagePrompt";
 import { useGlobalAgentsMd } from "../hooks/useGlobalAgentsMd";
 import { useGlobalCodexConfigToml } from "../hooks/useGlobalCodexConfigToml";
+import { useSettingsOpenAppDrafts } from "../hooks/useSettingsOpenAppDrafts";
+import { useSettingsShortcutDrafts } from "../hooks/useSettingsShortcutDrafts";
+import { useSettingsViewCloseShortcuts } from "../hooks/useSettingsViewCloseShortcuts";
+import { useSettingsViewNavigation } from "../hooks/useSettingsViewNavigation";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 import { SettingsNav } from "./SettingsNav";
-import {
-  type CodexSection,
-  type OpenAppDraft,
-  type OrbitServiceClient,
-  type ShortcutDraftKey,
-  type ShortcutSettingKey,
-} from "./settingsTypes";
+import type { CodexSection, OrbitServiceClient } from "./settingsTypes";
 import { SettingsProjectsSection } from "./sections/SettingsProjectsSection";
 import { SettingsEnvironmentsSection } from "./sections/SettingsEnvironmentsSection";
 import { SettingsDisplaySection } from "./sections/SettingsDisplaySection";
@@ -71,187 +57,40 @@ import { SettingsGitSection } from "./sections/SettingsGitSection";
 import { SettingsCodexSection } from "./sections/SettingsCodexSection";
 import { SettingsServerSection } from "./sections/SettingsServerSection";
 import { SettingsFeaturesSection } from "./sections/SettingsFeaturesSection";
+import {
+  COMPOSER_PRESET_CONFIGS,
+  COMPOSER_PRESET_LABELS,
+  DEFAULT_REMOTE_HOST,
+  DICTATION_MODELS,
+  ORBIT_DEFAULT_POLL_INTERVAL_SECONDS,
+  ORBIT_MAX_INLINE_POLL_SECONDS,
+  ORBIT_SERVICES,
+  SETTINGS_SECTION_LABELS,
+} from "./settingsViewConstants";
+import {
+  buildEditorContentMeta,
+  buildWorkspaceOverrideDrafts,
+  delay,
+  getOrbitStatusText,
+  normalizeOverrideValue,
+  normalizeWorktreeSetupScript,
+  type OrbitActionResult,
+} from "./settingsViewHelpers";
 
-const DICTATION_MODELS = [
-  { id: "tiny", label: "Tiny", size: "75 MB", note: "Fastest, least accurate." },
-  { id: "base", label: "Base", size: "142 MB", note: "Balanced default." },
-  { id: "small", label: "Small", size: "466 MB", note: "Better accuracy." },
-  { id: "medium", label: "Medium", size: "1.5 GB", note: "High accuracy." },
-  { id: "large-v3", label: "Large V3", size: "3.0 GB", note: "Best accuracy, heavy download." },
-];
-
-type ComposerPreset = AppSettings["composerEditorPreset"];
-
-type ComposerPresetSettings = Pick<
-  AppSettings,
-  | "composerFenceExpandOnSpace"
-  | "composerFenceExpandOnEnter"
-  | "composerFenceLanguageTags"
-  | "composerFenceWrapSelection"
-  | "composerFenceAutoWrapPasteMultiline"
-  | "composerFenceAutoWrapPasteCodeLike"
-  | "composerListContinuation"
-  | "composerCodeBlockCopyUseModifier"
->;
-
-const COMPOSER_PRESET_LABELS: Record<ComposerPreset, string> = {
-  default: "Default (no helpers)",
-  helpful: "Helpful",
-  smart: "Smart",
-};
-
-const COMPOSER_PRESET_CONFIGS: Record<ComposerPreset, ComposerPresetSettings> = {
-  default: {
-    composerFenceExpandOnSpace: false,
-    composerFenceExpandOnEnter: false,
-    composerFenceLanguageTags: false,
-    composerFenceWrapSelection: false,
-    composerFenceAutoWrapPasteMultiline: false,
-    composerFenceAutoWrapPasteCodeLike: false,
-    composerListContinuation: false,
-    composerCodeBlockCopyUseModifier: false,
-  },
-  helpful: {
-    composerFenceExpandOnSpace: true,
-    composerFenceExpandOnEnter: false,
-    composerFenceLanguageTags: true,
-    composerFenceWrapSelection: true,
-    composerFenceAutoWrapPasteMultiline: true,
-    composerFenceAutoWrapPasteCodeLike: false,
-    composerListContinuation: true,
-    composerCodeBlockCopyUseModifier: false,
-  },
-  smart: {
-    composerFenceExpandOnSpace: true,
-    composerFenceExpandOnEnter: false,
-    composerFenceLanguageTags: true,
-    composerFenceWrapSelection: true,
-    composerFenceAutoWrapPasteMultiline: true,
-    composerFenceAutoWrapPasteCodeLike: true,
-    composerListContinuation: true,
-    composerCodeBlockCopyUseModifier: false,
-  },
-};
-
-const normalizeOverrideValue = (value: string): string | null => {
-  const trimmed = value.trim();
-  return trimmed ? trimmed : null;
-};
-
-const normalizeWorktreeSetupScript = (
-  value: string | null | undefined,
-): string | null => {
-  const next = value ?? "";
-  return next.trim().length > 0 ? next : null;
-};
-
-const buildWorkspaceOverrideDrafts = (
-  projects: WorkspaceInfo[],
-  prev: Record<string, string>,
-  getValue: (workspace: WorkspaceInfo) => string | null | undefined,
-): Record<string, string> => {
-  const next: Record<string, string> = {};
-  projects.forEach((workspace) => {
-    const existing = prev[workspace.id];
-    next[workspace.id] = existing ?? getValue(workspace) ?? "";
-  });
-  return next;
-};
-
-const orbitServices: OrbitServiceClient = {
-  orbitConnectTest,
-  orbitSignInStart,
-  orbitSignInPoll,
-  orbitSignOut,
-  orbitRunnerStart,
-  orbitRunnerStop,
-  orbitRunnerStatus,
-};
-
-const ORBIT_DEFAULT_POLL_INTERVAL_SECONDS = 5;
-const ORBIT_MAX_INLINE_POLL_SECONDS = 180;
-const SETTINGS_MOBILE_BREAKPOINT_PX = 720;
-
-const SETTINGS_SECTION_LABELS: Record<CodexSection, string> = {
-  projects: "Projects",
-  environments: "Environments",
-  display: "Display & Sound",
-  composer: "Composer",
-  dictation: "Dictation",
-  shortcuts: "Shortcuts",
-  "open-apps": "Open in",
-  git: "Git",
-  server: "Server",
-  codex: "Codex",
-  features: "Features",
-};
-
-const isNarrowSettingsViewport = (): boolean => {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-    return false;
+const formatErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error) {
+    return error.message;
   }
-  return window.matchMedia(`(max-width: ${SETTINGS_MOBILE_BREAKPOINT_PX}px)`).matches;
-};
-
-const delay = (durationMs: number): Promise<void> =>
-  new Promise((resolve) => {
-    window.setTimeout(resolve, durationMs);
-  });
-
-type OrbitActionResult =
-  | OrbitConnectTestResult
-  | OrbitSignInPollResult
-  | OrbitSignOutResult
-  | OrbitRunnerStatus;
-
-const getOrbitStatusText = (value: OrbitActionResult, fallback: string): string => {
-  if ("ok" in value) {
-    if (!value.ok) {
-      return value.message || fallback;
-    }
-    if (value.message.trim()) {
-      return value.message;
-    }
-    if (typeof value.latencyMs === "number") {
-      return `Connected to Orbit relay in ${value.latencyMs}ms.`;
-    }
-    return fallback;
+  if (typeof error === "string") {
+    return error;
   }
-
-  if ("status" in value) {
-    if (value.message && value.message.trim()) {
-      return value.message;
-    }
-    switch (value.status) {
-      case "pending":
-        return "Waiting for Orbit sign-in authorization.";
-      case "authorized":
-        return "Orbit sign in complete.";
-      case "denied":
-        return "Orbit sign in denied.";
-      case "expired":
-        return "Orbit sign in code expired.";
-      case "error":
-        return "Orbit sign in failed.";
-      default:
-        return fallback;
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string") {
+      return message;
     }
   }
-
-  if ("success" in value) {
-    if (!value.success && value.message && value.message.trim()) {
-      return value.message;
-    }
-    return value.success ? "Signed out from Orbit." : fallback;
-  }
-
-  if (value.state === "running") {
-    return value.pid ? `Orbit runner is running (pid ${value.pid}).` : "Orbit runner is running.";
-  }
-  if (value.state === "error") {
-    return value.lastError?.trim() || "Orbit runner is in error state.";
-  }
-  return "Orbit runner is stopped.";
+  return fallback;
 };
 
 export type SettingsViewProps = {
@@ -282,6 +121,10 @@ export type SettingsViewProps = {
     codexBin: string | null,
     codexArgs: string | null,
   ) => Promise<CodexDoctorResult>;
+  onRunCodexUpdate?: (
+    codexBin: string | null,
+    codexArgs: string | null,
+  ) => Promise<CodexUpdateResult>;
   onUpdateWorkspaceCodexBin: (id: string, codexBin: string | null) => Promise<void>;
   onUpdateWorkspaceSettings: (
     id: string,
@@ -298,68 +141,6 @@ export type SettingsViewProps = {
   onRemoveDictationModel?: () => void;
   initialSection?: CodexSection;
   orbitServiceClient?: OrbitServiceClient;
-};
-
-const shortcutDraftKeyBySetting: Record<ShortcutSettingKey, ShortcutDraftKey> = {
-  composerModelShortcut: "model",
-  composerAccessShortcut: "access",
-  composerReasoningShortcut: "reasoning",
-  composerCollaborationShortcut: "collaboration",
-  interruptShortcut: "interrupt",
-  newAgentShortcut: "newAgent",
-  newWorktreeAgentShortcut: "newWorktreeAgent",
-  newCloneAgentShortcut: "newCloneAgent",
-  archiveThreadShortcut: "archiveThread",
-  toggleProjectsSidebarShortcut: "projectsSidebar",
-  toggleGitSidebarShortcut: "gitSidebar",
-  branchSwitcherShortcut: "branchSwitcher",
-  toggleDebugPanelShortcut: "debugPanel",
-  toggleTerminalShortcut: "terminal",
-  cycleAgentNextShortcut: "cycleAgentNext",
-  cycleAgentPrevShortcut: "cycleAgentPrev",
-  cycleWorkspaceNextShortcut: "cycleWorkspaceNext",
-  cycleWorkspacePrevShortcut: "cycleWorkspacePrev",
-};
-
-const buildOpenAppDrafts = (targets: OpenAppTarget[]): OpenAppDraft[] =>
-  targets.map((target) => ({
-    ...target,
-    argsText: target.args.join(" "),
-  }));
-
-const isOpenAppLabelValid = (label: string) => label.trim().length > 0;
-
-const isOpenAppDraftComplete = (draft: OpenAppDraft) => {
-  if (!isOpenAppLabelValid(draft.label)) {
-    return false;
-  }
-  if (draft.kind === "app") {
-    return Boolean(draft.appName?.trim());
-  }
-  if (draft.kind === "command") {
-    return Boolean(draft.command?.trim());
-  }
-  return true;
-};
-
-const isOpenAppTargetComplete = (target: OpenAppTarget) => {
-  if (!isOpenAppLabelValid(target.label)) {
-    return false;
-  }
-  if (target.kind === "app") {
-    return Boolean(target.appName?.trim());
-  }
-  if (target.kind === "command") {
-    return Boolean(target.command?.trim());
-  }
-  return true;
-};
-
-const createOpenAppId = () => {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `open-app-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
 export function SettingsView({
@@ -380,6 +161,7 @@ export function SettingsView({
   openAppIconById,
   onUpdateAppSettings,
   onRunDoctor,
+  onRunCodexUpdate,
   onUpdateWorkspaceCodexBin,
   onUpdateWorkspaceSettings,
   scaleShortcutTitle,
@@ -392,9 +174,15 @@ export function SettingsView({
   onCancelDictationDownload,
   onRemoveDictationModel,
   initialSection,
-  orbitServiceClient = orbitServices,
+  orbitServiceClient = ORBIT_SERVICES,
 }: SettingsViewProps) {
-  const [activeSection, setActiveSection] = useState<CodexSection>("projects");
+  const {
+    activeSection,
+    showMobileDetail,
+    setShowMobileDetail,
+    useMobileMasterDetail,
+    handleSelectSection,
+  } = useSettingsViewNavigation({ initialSection });
   const [environmentWorkspaceId, setEnvironmentWorkspaceId] = useState<string | null>(
     null,
   );
@@ -421,6 +209,10 @@ export function SettingsView({
   );
   const [orbitAccessClientSecretRefDraft, setOrbitAccessClientSecretRefDraft] =
     useState(appSettings.orbitAccessClientSecretRef ?? "");
+  const [commitMessagePromptDraft, setCommitMessagePromptDraft] = useState(
+    appSettings.commitMessagePrompt,
+  );
+  const [commitMessagePromptSaving, setCommitMessagePromptSaving] = useState(false);
   const [orbitStatusText, setOrbitStatusText] = useState<string | null>(null);
   const [orbitAuthCode, setOrbitAuthCode] = useState<string | null>(null);
   const [orbitVerificationUrl, setOrbitVerificationUrl] = useState<string | null>(
@@ -448,10 +240,6 @@ export function SettingsView({
   );
   const [mobileConnectStatusError, setMobileConnectStatusError] = useState(false);
   const mobilePlatform = useMemo(() => isMobilePlatform(), []);
-  const [isNarrowViewport, setIsNarrowViewport] = useState(() =>
-    isNarrowSettingsViewport(),
-  );
-  const [showMobileDetail, setShowMobileDetail] = useState(Boolean(initialSection));
   const [scaleDraft, setScaleDraft] = useState(
     `${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`,
   );
@@ -470,15 +258,28 @@ export function SettingsView({
   const [groupDrafts, setGroupDrafts] = useState<Record<string, string>>({});
   const [newGroupName, setNewGroupName] = useState("");
   const [groupError, setGroupError] = useState<string | null>(null);
-  const [openAppDrafts, setOpenAppDrafts] = useState<OpenAppDraft[]>(() =>
-    buildOpenAppDrafts(appSettings.openAppTargets),
-  );
-  const [openAppSelectedId, setOpenAppSelectedId] = useState(
-    appSettings.selectedOpenAppId,
-  );
+  const {
+    openAppDrafts,
+    openAppSelectedId,
+    handleOpenAppDraftChange,
+    handleOpenAppKindChange,
+    handleCommitOpenAppsDrafts,
+    handleMoveOpenApp,
+    handleDeleteOpenApp,
+    handleAddOpenApp,
+    handleSelectOpenAppDefault,
+  } = useSettingsOpenAppDrafts({
+    appSettings,
+    onUpdateAppSettings,
+  });
   const [doctorState, setDoctorState] = useState<{
     status: "idle" | "running" | "done";
     result: CodexDoctorResult | null;
+  }>({ status: "idle", result: null });
+
+  const [codexUpdateState, setCodexUpdateState] = useState<{
+    status: "idle" | "running" | "done";
+    result: CodexUpdateResult | null;
   }>({ status: "idle", result: null });
   const {
     content: globalAgentsContent,
@@ -506,64 +307,35 @@ export function SettingsView({
   } = useGlobalCodexConfigToml();
   const [openConfigError, setOpenConfigError] = useState<string | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
-  const [shortcutDrafts, setShortcutDrafts] = useState({
-    model: appSettings.composerModelShortcut ?? "",
-    access: appSettings.composerAccessShortcut ?? "",
-    reasoning: appSettings.composerReasoningShortcut ?? "",
-    collaboration: appSettings.composerCollaborationShortcut ?? "",
-    interrupt: appSettings.interruptShortcut ?? "",
-    newAgent: appSettings.newAgentShortcut ?? "",
-    newWorktreeAgent: appSettings.newWorktreeAgentShortcut ?? "",
-    newCloneAgent: appSettings.newCloneAgentShortcut ?? "",
-    archiveThread: appSettings.archiveThreadShortcut ?? "",
-    projectsSidebar: appSettings.toggleProjectsSidebarShortcut ?? "",
-    gitSidebar: appSettings.toggleGitSidebarShortcut ?? "",
-    branchSwitcher: appSettings.branchSwitcherShortcut ?? "",
-    debugPanel: appSettings.toggleDebugPanelShortcut ?? "",
-    terminal: appSettings.toggleTerminalShortcut ?? "",
-    cycleAgentNext: appSettings.cycleAgentNextShortcut ?? "",
-    cycleAgentPrev: appSettings.cycleAgentPrevShortcut ?? "",
-    cycleWorkspaceNext: appSettings.cycleWorkspaceNextShortcut ?? "",
-    cycleWorkspacePrev: appSettings.cycleWorkspacePrevShortcut ?? "",
-  });
+  const { shortcutDrafts, handleShortcutKeyDown, clearShortcut } =
+    useSettingsShortcutDrafts({
+      appSettings,
+      onUpdateAppSettings,
+    });
   const latestSettingsRef = useRef(appSettings);
   const dictationReady = dictationModelStatus?.state === "ready";
-  const globalAgentsStatus = globalAgentsLoading
-    ? "Loading…"
-    : globalAgentsSaving
-      ? "Saving…"
-      : globalAgentsExists
-        ? ""
-        : "Not found";
-  const globalAgentsMetaParts: string[] = [];
-  if (globalAgentsStatus) {
-    globalAgentsMetaParts.push(globalAgentsStatus);
-  }
-  if (globalAgentsTruncated) {
-    globalAgentsMetaParts.push("Truncated");
-  }
-  const globalAgentsMeta = globalAgentsMetaParts.join(" · ");
-  const globalAgentsSaveLabel = globalAgentsExists ? "Save" : "Create";
-  const globalAgentsSaveDisabled = globalAgentsLoading || globalAgentsSaving || !globalAgentsDirty;
-  const globalAgentsRefreshDisabled = globalAgentsLoading || globalAgentsSaving;
-  const globalConfigStatus = globalConfigLoading
-    ? "Loading…"
-    : globalConfigSaving
-      ? "Saving…"
-      : globalConfigExists
-        ? ""
-        : "Not found";
-  const globalConfigMetaParts: string[] = [];
-  if (globalConfigStatus) {
-    globalConfigMetaParts.push(globalConfigStatus);
-  }
-  if (globalConfigTruncated) {
-    globalConfigMetaParts.push("Truncated");
-  }
-  const globalConfigMeta = globalConfigMetaParts.join(" · ");
-  const globalConfigSaveLabel = globalConfigExists ? "Save" : "Create";
-  const globalConfigSaveDisabled = globalConfigLoading || globalConfigSaving || !globalConfigDirty;
-  const globalConfigRefreshDisabled = globalConfigLoading || globalConfigSaving;
+  const globalAgentsEditorMeta = buildEditorContentMeta({
+    isLoading: globalAgentsLoading,
+    isSaving: globalAgentsSaving,
+    exists: globalAgentsExists,
+    truncated: globalAgentsTruncated,
+    isDirty: globalAgentsDirty,
+  });
+  const globalConfigEditorMeta = buildEditorContentMeta({
+    isLoading: globalConfigLoading,
+    isSaving: globalConfigSaving,
+    exists: globalConfigExists,
+    truncated: globalConfigTruncated,
+    isDirty: globalConfigDirty,
+  });
+  const globalAgentsMeta = globalAgentsEditorMeta.meta;
+  const globalAgentsSaveLabel = globalAgentsEditorMeta.saveLabel;
+  const globalAgentsSaveDisabled = globalAgentsEditorMeta.saveDisabled;
+  const globalAgentsRefreshDisabled = globalAgentsEditorMeta.refreshDisabled;
+  const globalConfigMeta = globalConfigEditorMeta.meta;
+  const globalConfigSaveLabel = globalConfigEditorMeta.saveLabel;
+  const globalConfigSaveDisabled = globalConfigEditorMeta.saveDisabled;
+  const globalConfigRefreshDisabled = globalConfigEditorMeta.refreshDisabled;
   const optionKeyLabel = isMacPlatform() ? "Option" : "Alt";
   const metaKeyLabel = isMacPlatform()
     ? "Command"
@@ -610,32 +382,7 @@ export function SettingsView({
     [projects],
   );
 
-  useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.key !== "Escape") {
-        return;
-      }
-      event.preventDefault();
-      onClose();
-    };
-
-    const handleCloseShortcut = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) {
-        return;
-      }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "w") {
-        event.preventDefault();
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleEscape);
-    window.addEventListener("keydown", handleCloseShortcut);
-    return () => {
-      window.removeEventListener("keydown", handleEscape);
-      window.removeEventListener("keydown", handleCloseShortcut);
-    };
-  }, [onClose]);
+  useSettingsViewCloseShortcuts(onClose);
 
   useEffect(() => {
     latestSettingsRef.current = appSettings;
@@ -678,6 +425,10 @@ export function SettingsView({
   }, [appSettings.orbitAccessClientSecretRef]);
 
   useEffect(() => {
+    setCommitMessagePromptDraft(appSettings.commitMessagePrompt);
+  }, [appSettings.commitMessagePrompt]);
+
+  useEffect(() => {
     setScaleDraft(`${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`);
   }, [appSettings.uiScale]);
 
@@ -693,53 +444,6 @@ export function SettingsView({
     setCodeFontSizeDraft(appSettings.codeFontSize);
   }, [appSettings.codeFontSize]);
 
-  useEffect(() => {
-    setOpenAppDrafts(buildOpenAppDrafts(appSettings.openAppTargets));
-    setOpenAppSelectedId(appSettings.selectedOpenAppId);
-  }, [appSettings.openAppTargets, appSettings.selectedOpenAppId]);
-
-  useEffect(() => {
-    setShortcutDrafts({
-      model: appSettings.composerModelShortcut ?? "",
-      access: appSettings.composerAccessShortcut ?? "",
-      reasoning: appSettings.composerReasoningShortcut ?? "",
-      collaboration: appSettings.composerCollaborationShortcut ?? "",
-      interrupt: appSettings.interruptShortcut ?? "",
-      newAgent: appSettings.newAgentShortcut ?? "",
-      newWorktreeAgent: appSettings.newWorktreeAgentShortcut ?? "",
-      newCloneAgent: appSettings.newCloneAgentShortcut ?? "",
-      archiveThread: appSettings.archiveThreadShortcut ?? "",
-      projectsSidebar: appSettings.toggleProjectsSidebarShortcut ?? "",
-      gitSidebar: appSettings.toggleGitSidebarShortcut ?? "",
-      branchSwitcher: appSettings.branchSwitcherShortcut ?? "",
-      debugPanel: appSettings.toggleDebugPanelShortcut ?? "",
-      terminal: appSettings.toggleTerminalShortcut ?? "",
-      cycleAgentNext: appSettings.cycleAgentNextShortcut ?? "",
-      cycleAgentPrev: appSettings.cycleAgentPrevShortcut ?? "",
-      cycleWorkspaceNext: appSettings.cycleWorkspaceNextShortcut ?? "",
-      cycleWorkspacePrev: appSettings.cycleWorkspacePrevShortcut ?? "",
-    });
-  }, [
-    appSettings.composerAccessShortcut,
-    appSettings.composerModelShortcut,
-    appSettings.composerReasoningShortcut,
-    appSettings.composerCollaborationShortcut,
-    appSettings.interruptShortcut,
-    appSettings.newAgentShortcut,
-    appSettings.newWorktreeAgentShortcut,
-    appSettings.newCloneAgentShortcut,
-    appSettings.archiveThreadShortcut,
-    appSettings.toggleProjectsSidebarShortcut,
-    appSettings.toggleGitSidebarShortcut,
-    appSettings.branchSwitcherShortcut,
-    appSettings.toggleDebugPanelShortcut,
-    appSettings.toggleTerminalShortcut,
-    appSettings.cycleAgentNextShortcut,
-    appSettings.cycleAgentPrevShortcut,
-    appSettings.cycleWorkspaceNextShortcut,
-    appSettings.cycleWorkspacePrevShortcut,
-  ]);
-
   const handleOpenConfig = useCallback(async () => {
     setOpenConfigError(null);
     try {
@@ -751,6 +455,46 @@ export function SettingsView({
       );
     }
   }, []);
+
+  const commitMessagePromptDirty =
+    commitMessagePromptDraft !== appSettings.commitMessagePrompt;
+
+  const handleSaveCommitMessagePrompt = useCallback(async () => {
+    if (commitMessagePromptSaving || !commitMessagePromptDirty) {
+      return;
+    }
+    setCommitMessagePromptSaving(true);
+    try {
+      await onUpdateAppSettings({
+        ...appSettings,
+        commitMessagePrompt: commitMessagePromptDraft,
+      });
+    } finally {
+      setCommitMessagePromptSaving(false);
+    }
+  }, [
+    appSettings,
+    commitMessagePromptDirty,
+    commitMessagePromptDraft,
+    commitMessagePromptSaving,
+    onUpdateAppSettings,
+  ]);
+
+  const handleResetCommitMessagePrompt = useCallback(async () => {
+    if (commitMessagePromptSaving) {
+      return;
+    }
+    setCommitMessagePromptDraft(DEFAULT_COMMIT_MESSAGE_PROMPT);
+    setCommitMessagePromptSaving(true);
+    try {
+      await onUpdateAppSettings({
+        ...appSettings,
+        commitMessagePrompt: DEFAULT_COMMIT_MESSAGE_PROMPT,
+      });
+    } finally {
+      setCommitMessagePromptSaving(false);
+    }
+  }, [appSettings, commitMessagePromptSaving, onUpdateAppSettings]);
 
   useEffect(() => {
     setCodexBinOverrideDrafts((prev) =>
@@ -785,45 +529,6 @@ export function SettingsView({
       return next;
     });
   }, [workspaceGroups]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-      return;
-    }
-    const query = window.matchMedia(`(max-width: ${SETTINGS_MOBILE_BREAKPOINT_PX}px)`);
-    const applyViewportState = () => {
-      setIsNarrowViewport(query.matches);
-    };
-    applyViewportState();
-    if (typeof query.addEventListener === "function") {
-      query.addEventListener("change", applyViewportState);
-      return () => {
-        query.removeEventListener("change", applyViewportState);
-      };
-    }
-    query.addListener(applyViewportState);
-    return () => {
-      query.removeListener(applyViewportState);
-    };
-  }, []);
-
-  const useMobileMasterDetail = isNarrowViewport;
-
-  useEffect(() => {
-    if (useMobileMasterDetail) {
-      return;
-    }
-    setShowMobileDetail(false);
-  }, [useMobileMasterDetail]);
-
-  useEffect(() => {
-    if (initialSection) {
-      setActiveSection(initialSection);
-      if (useMobileMasterDetail) {
-        setShowMobileDetail(true);
-      }
-    }
-  }, [initialSection, useMobileMasterDetail]);
 
   useEffect(() => {
     if (!environmentWorkspace) {
@@ -939,7 +644,7 @@ export function SettingsView({
   );
 
   const applyRemoteHost = async (rawValue: string) => {
-    const nextHost = rawValue.trim() || "127.0.0.1:4732";
+    const nextHost = rawValue.trim() || DEFAULT_REMOTE_HOST;
     setRemoteHostDraft(nextHost);
     await updateRemoteBackendSettings({ host: nextHost });
   };
@@ -964,7 +669,7 @@ export function SettingsView({
       setMobileConnectStatusError(false);
       try {
         if (provider === "tcp") {
-          const nextHost = remoteHostDraft.trim() || "127.0.0.1:4732";
+          const nextHost = remoteHostDraft.trim() || DEFAULT_REMOTE_HOST;
           setRemoteHostDraft(nextHost);
           await updateRemoteBackendSettings({
             host: nextHost,
@@ -1033,7 +738,7 @@ export function SettingsView({
         setTailscaleStatus(status);
       } catch (error) {
         setTailscaleStatusError(
-          error instanceof Error ? error.message : "Unable to load Tailscale status.",
+          formatErrorMessage(error, "Unable to load Tailscale status."),
         );
       } finally {
         setTailscaleStatusBusy(false);
@@ -1050,9 +755,7 @@ export function SettingsView({
         setTailscaleCommandPreview(preview);
       } catch (error) {
         setTailscaleCommandError(
-          error instanceof Error
-            ? error.message
-            : "Unable to build Tailscale daemon command.",
+          formatErrorMessage(error, "Unable to build Tailscale daemon command."),
         );
       } finally {
         setTailscaleCommandBusy(false);
@@ -1416,132 +1119,9 @@ export function SettingsView({
     });
   };
 
-  const normalizeOpenAppTargets = useCallback(
-    (drafts: OpenAppDraft[]): OpenAppTarget[] =>
-      drafts.map(({ argsText, ...target }) => ({
-        ...target,
-        label: target.label.trim(),
-        appName: (target.appName?.trim() ?? "") || null,
-        command: (target.command?.trim() ?? "") || null,
-        args: argsText.trim() ? argsText.trim().split(/\s+/) : [],
-      })),
-    [],
-  );
-
-  const handleCommitOpenApps = useCallback(
-    async (drafts: OpenAppDraft[], selectedId = openAppSelectedId) => {
-      const nextTargets = normalizeOpenAppTargets(drafts);
-      const resolvedSelectedId = nextTargets.find(
-        (target) => target.id === selectedId && isOpenAppTargetComplete(target),
-      )?.id;
-      const firstCompleteId = nextTargets.find(isOpenAppTargetComplete)?.id;
-      const nextSelectedId =
-        resolvedSelectedId ??
-        firstCompleteId ??
-        nextTargets[0]?.id ??
-        DEFAULT_OPEN_APP_ID;
-      setOpenAppDrafts(buildOpenAppDrafts(nextTargets));
-      setOpenAppSelectedId(nextSelectedId);
-      await onUpdateAppSettings({
-        ...appSettings,
-        openAppTargets: nextTargets,
-        selectedOpenAppId: nextSelectedId,
-      });
-    },
-    [
-      appSettings,
-      normalizeOpenAppTargets,
-      onUpdateAppSettings,
-      openAppSelectedId,
-    ],
-  );
-
-  const handleOpenAppDraftChange = (
-    index: number,
-    updates: Partial<OpenAppDraft>,
+  const handleComposerPresetChange = (
+    preset: AppSettings["composerEditorPreset"],
   ) => {
-    setOpenAppDrafts((prev) => {
-      const next = [...prev];
-      const current = next[index];
-      if (!current) {
-        return prev;
-      }
-      next[index] = { ...current, ...updates };
-      return next;
-    });
-  };
-
-  const handleOpenAppKindChange = (index: number, kind: OpenAppTarget["kind"]) => {
-    setOpenAppDrafts((prev) => {
-      const next = [...prev];
-      const current = next[index];
-      if (!current) {
-        return prev;
-      }
-      next[index] = {
-        ...current,
-        kind,
-        appName: kind === "app" ? current.appName ?? "" : null,
-        command: kind === "command" ? current.command ?? "" : null,
-        argsText: kind === "finder" ? "" : current.argsText,
-      };
-      void handleCommitOpenApps(next);
-      return next;
-    });
-  };
-
-  const handleMoveOpenApp = (index: number, direction: "up" | "down") => {
-    const nextIndex = direction === "up" ? index - 1 : index + 1;
-    if (nextIndex < 0 || nextIndex >= openAppDrafts.length) {
-      return;
-    }
-    const next = [...openAppDrafts];
-    const [moved] = next.splice(index, 1);
-    next.splice(nextIndex, 0, moved);
-    setOpenAppDrafts(next);
-    void handleCommitOpenApps(next);
-  };
-
-  const handleDeleteOpenApp = (index: number) => {
-    if (openAppDrafts.length <= 1) {
-      return;
-    }
-    const removed = openAppDrafts[index];
-    const next = openAppDrafts.filter((_, draftIndex) => draftIndex !== index);
-    const nextSelected =
-      removed?.id === openAppSelectedId ? next[0]?.id ?? DEFAULT_OPEN_APP_ID : openAppSelectedId;
-    setOpenAppDrafts(next);
-    void handleCommitOpenApps(next, nextSelected);
-  };
-
-  const handleAddOpenApp = () => {
-    const newTarget: OpenAppDraft = {
-      id: createOpenAppId(),
-      label: "New App",
-      kind: "app",
-      appName: "",
-      command: null,
-      args: [],
-      argsText: "",
-    };
-    const next = [...openAppDrafts, newTarget];
-    setOpenAppDrafts(next);
-    void handleCommitOpenApps(next, newTarget.id);
-  };
-
-  const handleSelectOpenAppDefault = (id: string) => {
-    const selectedTarget = openAppDrafts.find((target) => target.id === id);
-    if (selectedTarget && !isOpenAppDraftComplete(selectedTarget)) {
-      return;
-    }
-    setOpenAppSelectedId(id);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(OPEN_APP_STORAGE_KEY, id);
-    }
-    void handleCommitOpenApps(openAppDrafts, id);
-  };
-
-  const handleComposerPresetChange = (preset: ComposerPreset) => {
     const config = COMPOSER_PRESET_CONFIGS[preset];
     void onUpdateAppSettings({
       ...appSettings,
@@ -1581,38 +1161,43 @@ export function SettingsView({
     }
   };
 
-  const updateShortcut = async (key: ShortcutSettingKey, value: string | null) => {
-    const draftKey = shortcutDraftKeyBySetting[key];
-    setShortcutDrafts((prev) => ({
-      ...prev,
-      [draftKey]: value ?? "",
-    }));
-    await onUpdateAppSettings({
-      ...appSettings,
-      [key]: value,
-    });
-  };
+  const handleRunCodexUpdate = async () => {
+    setCodexUpdateState({ status: "running", result: null });
+    try {
+      if (!onRunCodexUpdate) {
+        setCodexUpdateState({
+          status: "done",
+          result: {
+            ok: false,
+            method: "unknown",
+            package: null,
+            beforeVersion: null,
+            afterVersion: null,
+            upgraded: false,
+            output: null,
+            details: "Codex updates are not available in this build.",
+          },
+        });
+        return;
+      }
 
-  const handleShortcutKeyDown = (
-    event: React.KeyboardEvent<HTMLInputElement>,
-    key: ShortcutSettingKey,
-  ) => {
-    if (event.key === "Tab" && key !== "composerCollaborationShortcut") {
-      return;
+      const result = await onRunCodexUpdate(nextCodexBin, nextCodexArgs);
+      setCodexUpdateState({ status: "done", result });
+    } catch (error) {
+      setCodexUpdateState({
+        status: "done",
+        result: {
+          ok: false,
+          method: "unknown",
+          package: null,
+          beforeVersion: null,
+          afterVersion: null,
+          upgraded: false,
+          output: null,
+          details: error instanceof Error ? error.message : String(error),
+        },
+      });
     }
-    if (event.key === "Tab" && !event.shiftKey) {
-      return;
-    }
-    event.preventDefault();
-    if (event.key === "Backspace" || event.key === "Delete") {
-      void updateShortcut(key, null);
-      return;
-    }
-    const value = buildShortcutValue(event.nativeEvent);
-    if (!value) {
-      return;
-    }
-    void updateShortcut(key, value);
   };
 
   const handleSaveEnvironmentSetup = async () => {
@@ -1730,22 +1315,6 @@ export function SettingsView({
       setGroupError(error instanceof Error ? error.message : String(error));
     }
   };
-
-
-  const handleCommitOpenAppsDrafts = () => {
-    void handleCommitOpenApps(openAppDrafts);
-  };
-
-  const handleSelectSection = useCallback(
-    (section: CodexSection) => {
-      setActiveSection(section);
-      if (useMobileMasterDetail) {
-        setShowMobileDetail(true);
-      }
-    },
-    [useMobileMasterDetail],
-  );
-
   const activeSectionLabel = SETTINGS_SECTION_LABELS[activeSection];
   const settingsBodyClassName = `settings-body${
     useMobileMasterDetail ? " settings-body-mobile-master-detail" : ""
@@ -1890,9 +1459,7 @@ export function SettingsView({
             <SettingsShortcutsSection
               shortcutDrafts={shortcutDrafts}
               onShortcutKeyDown={handleShortcutKeyDown}
-              onClearShortcut={(key) => {
-                void updateShortcut(key, null);
-              }}
+              onClearShortcut={clearShortcut}
             />
           )}
           {activeSection === "open-apps" && (
@@ -1913,6 +1480,12 @@ export function SettingsView({
             <SettingsGitSection
               appSettings={appSettings}
               onUpdateAppSettings={onUpdateAppSettings}
+              commitMessagePromptDraft={commitMessagePromptDraft}
+              commitMessagePromptDirty={commitMessagePromptDirty}
+              commitMessagePromptSaving={commitMessagePromptSaving}
+              onSetCommitMessagePromptDraft={setCommitMessagePromptDraft}
+              onSaveCommitMessagePrompt={handleSaveCommitMessagePrompt}
+              onResetCommitMessagePrompt={handleResetCommitMessagePrompt}
             />
           )}
           {activeSection === "server" && (
@@ -1981,6 +1554,7 @@ export function SettingsView({
               codexDirty={codexDirty}
               isSavingSettings={isSavingSettings}
               doctorState={doctorState}
+              codexUpdateState={codexUpdateState}
               globalAgentsMeta={globalAgentsMeta}
               globalAgentsError={globalAgentsError}
               globalAgentsContent={globalAgentsContent}
@@ -2009,6 +1583,7 @@ export function SettingsView({
               onBrowseCodex={handleBrowseCodex}
               onSaveCodexSettings={handleSaveCodexSettings}
               onRunDoctor={handleRunDoctor}
+              onRunCodexUpdate={handleRunCodexUpdate}
               onRefreshGlobalAgents={() => {
                 void refreshGlobalAgents();
               }}

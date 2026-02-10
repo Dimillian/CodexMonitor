@@ -512,6 +512,37 @@ describe("threadReducer", () => {
     expect(removed.userInputRequests).toEqual([requestB]);
   });
 
+  it("stores turn diff updates by thread id", () => {
+    const next = threadReducer(initialState, {
+      type: "setThreadTurnDiff",
+      threadId: "thread-1",
+      diff: "diff --git a/file.ts b/file.ts",
+    });
+
+    expect(next.turnDiffByThread["thread-1"]).toBe(
+      "diff --git a/file.ts b/file.ts",
+    );
+  });
+
+  it("clears turn diff state when a thread is removed", () => {
+    const base: ThreadState = {
+      ...initialState,
+      threadsByWorkspace: {
+        "ws-1": [{ id: "thread-1", name: "Agent 1", updatedAt: 1 }],
+      },
+      activeThreadIdByWorkspace: { "ws-1": "thread-1" },
+      turnDiffByThread: { "thread-1": "diff --git a/file.ts b/file.ts" },
+    };
+
+    const next = threadReducer(base, {
+      type: "removeThread",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+    });
+
+    expect(next.turnDiffByThread["thread-1"]).toBeUndefined();
+  });
+
   it("hides background threads and keeps them hidden on future syncs", () => {
     const withThread = threadReducer(initialState, {
       type: "ensureThread",

@@ -2,12 +2,22 @@ use super::*;
 
 const DAEMON_RPC_TIMEOUT: Duration = Duration::from_millis(700);
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct DaemonInfo {
+    pub(super) name: String,
+    pub(super) version: String,
+    pub(super) pid: Option<u32>,
+    pub(super) mode: String,
+    pub(super) binary_path: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub(super) enum DaemonProbe {
     NotReachable,
     Running {
         auth_ok: bool,
         auth_error: Option<String>,
+        info: Option<DaemonInfo>,
     },
     NotDaemon,
 }
@@ -25,6 +35,48 @@ fn parse_daemon_error_message(response: &Value) -> Option<String> {
 fn is_auth_error_message(message: &str) -> bool {
     let lower = message.to_ascii_lowercase();
     lower.contains("unauthorized") || lower.contains("invalid token")
+}
+
+fn parse_daemon_info(value: &Value) -> Result<DaemonInfo, String> {
+    let name = value
+        .get("name")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "daemon_info missing `name`".to_string())?
+        .to_string();
+    let version = value
+        .get("version")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "daemon_info missing `version`".to_string())?
+        .to_string();
+    let mode = value
+        .get("mode")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "daemon_info missing `mode`".to_string())?
+        .to_string();
+    let pid = value
+        .get("pid")
+        .and_then(Value::as_u64)
+        .and_then(|value| u32::try_from(value).ok());
+    let binary_path = value
+        .get("binaryPath")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string);
+
+    Ok(DaemonInfo {
+        name,
+        version,
+        pid,
+        mode,
+        binary_path,
+    })
 }
 
 async fn send_rpc_request(
@@ -90,6 +142,15 @@ async fn send_and_expect_result(
         .ok_or_else(|| "daemon response missing result".to_string())
 }
 
+async fn request_daemon_info(
+    writer: &mut OwnedWriteHalf,
+    lines: &mut DaemonLines,
+    id: u64,
+) -> Result<DaemonInfo, String> {
+    let result = send_and_expect_result(writer, lines, id, "daemon_info", json!({})).await?;
+    parse_daemon_info(&result)
+}
+
 pub(super) async fn probe_daemon(listen_addr: &str, token: Option<&str>) -> DaemonProbe {
     let Some(connect_addr) = daemon_connect_addr(listen_addr) else {
         return DaemonProbe::NotReachable;
@@ -107,6 +168,7 @@ pub(super) async fn probe_daemon(listen_addr: &str, token: Option<&str>) -> Daem
         Ok(_) => DaemonProbe::Running {
             auth_ok: true,
             auth_error: None,
+            info: request_daemon_info(&mut writer, &mut lines, 2).await.ok(),
         },
         Err(message) => {
             if !is_auth_error_message(&message) {
@@ -120,31 +182,34 @@ pub(super) async fn probe_daemon(listen_addr: &str, token: Option<&str>) -> Daem
                     auth_error: Some(
                         "Daemon is running but requires a remote backend token.".to_string(),
                     ),
+                    info: None,
                 };
             };
 
             match send_and_expect_result(
                 &mut writer,
                 &mut lines,
-                2,
+                10,
                 "auth",
                 json!({ "token": auth_token }),
             )
             .await
             {
                 Ok(_) => {
-                    match send_and_expect_result(&mut writer, &mut lines, 3, "ping", json!({}))
+                    match send_and_expect_result(&mut writer, &mut lines, 11, "ping", json!({}))
                         .await
                     {
                         Ok(_) => DaemonProbe::Running {
                             auth_ok: true,
                             auth_error: None,
+                            info: request_daemon_info(&mut writer, &mut lines, 12).await.ok(),
                         },
                         Err(ping_error) => DaemonProbe::Running {
                             auth_ok: false,
                             auth_error: Some(format!(
                                 "Daemon is running but ping failed after auth: {ping_error}"
                             )),
+                            info: None,
                         },
                     }
                 }
@@ -155,6 +220,7 @@ pub(super) async fn probe_daemon(listen_addr: &str, token: Option<&str>) -> Daem
                             auth_error: Some(format!(
                                 "Daemon is running but token authentication failed: {auth_error}"
                             )),
+                            info: None,
                         }
                     } else {
                         DaemonProbe::NotDaemon

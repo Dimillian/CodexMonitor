@@ -355,6 +355,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
 }
 
 .home-usage-model-chip {
@@ -367,6 +368,10 @@
   color: var(--text-stronger);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-subtle);
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .home-usage-model-share {

@@ -11,6 +11,7 @@ import {
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { AppSettings, WorkspaceInfo } from "../../../types";
+import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "../../../utils/commitMessagePrompt";
 import { SettingsView } from "./SettingsView";
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
@@ -29,6 +30,7 @@ const baseSettings: AppSettings = {
   orbitAuthUrl: null,
   orbitRunnerName: null,
   orbitAutoStartRunner: false,
+  keepDaemonRunningAfterAppClose: false,
   orbitUseAccess: false,
   orbitAccessClientId: null,
   orbitAccessClientSecretRef: null,
@@ -58,6 +60,7 @@ const baseSettings: AppSettings = {
   theme: "system",
   usageShowRemaining: false,
   showMessageFilePath: true,
+  threadTitleAutogenerationEnabled: false,
   uiFontFamily:
     'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   codeFontFamily:
@@ -67,6 +70,7 @@ const baseSettings: AppSettings = {
   systemNotificationsEnabled: true,
   preloadGitDiffs: true,
   gitDiffIgnoreWhitespaceChanges: false,
+  commitMessagePrompt: DEFAULT_COMMIT_MESSAGE_PROMPT,
   experimentalCollabEnabled: false,
   collaborationModesEnabled: true,
   steerEnabled: true,
@@ -110,6 +114,17 @@ const createDoctorResult = () => ({
   nodeOk: true,
   nodeVersion: null,
   nodeDetails: null,
+});
+
+const createUpdateResult = () => ({
+  ok: true,
+  method: "brew_formula" as const,
+  package: "codex",
+  beforeVersion: "codex 0.0.0",
+  afterVersion: "codex 0.0.1",
+  upgraded: true,
+  output: null,
+  details: null,
 });
 
 const renderDisplaySection = (
@@ -592,6 +607,7 @@ describe("SettingsView Codex overrides", () => {
         openAppIconById={{}}
         onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
         onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={onUpdateWorkspaceSettings}
         scaleShortcutTitle="Scale shortcut"
@@ -639,6 +655,7 @@ describe("SettingsView Codex overrides", () => {
         openAppIconById={{}}
         onUpdateAppSettings={onUpdateAppSettings}
         onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
         onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
         onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
         scaleShortcutTitle="Scale shortcut"

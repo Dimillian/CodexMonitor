@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { useCallback, useState } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationItem } from "../../../types";
 import { Messages } from "./Messages";
 
@@ -27,6 +27,10 @@ describe("Messages", () => {
     if (!HTMLElement.prototype.scrollIntoView) {
       HTMLElement.prototype.scrollIntoView = vi.fn();
     }
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   beforeEach(() => {
@@ -799,5 +803,298 @@ describe("Messages", () => {
     );
 
     expect(scrollNode.scrollTop).toBe(900);
+  });
+
+  it("shows a plan-ready follow-up prompt after a completed plan tool item", () => {
+    const onPlanAccept = vi.fn();
+    const onPlanSubmitChanges = vi.fn();
+    const items: ConversationItem[] = [
+      {
+        id: "plan-1",
+        kind: "tool",
+        toolType: "plan",
+        title: "Plan",
+        detail: "completed",
+        status: "completed",
+        output: "- Step 1",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+        onPlanAccept={onPlanAccept}
+        onPlanSubmitChanges={onPlanSubmitChanges}
+      />,
+    );
+
+    expect(screen.getByText("Plan ready")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Implement this plan" }),
+    ).toBeTruthy();
+  });
+
+  it("hides the plan-ready follow-up once the user has replied after the plan", () => {
+    const onPlanAccept = vi.fn();
+    const onPlanSubmitChanges = vi.fn();
+    const items: ConversationItem[] = [
+      {
+        id: "plan-2",
+        kind: "tool",
+        toolType: "plan",
+        title: "Plan",
+        detail: "completed",
+        status: "completed",
+        output: "Plan text",
+      },
+      {
+        id: "user-after-plan",
+        kind: "message",
+        role: "user",
+        text: "OK",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+        onPlanAccept={onPlanAccept}
+        onPlanSubmitChanges={onPlanSubmitChanges}
+      />,
+    );
+
+    expect(screen.queryByText("Plan ready")).toBeNull();
+  });
+
+  it("hides the plan-ready follow-up when the plan tool item is still running", () => {
+    const onPlanAccept = vi.fn();
+    const onPlanSubmitChanges = vi.fn();
+    const items: ConversationItem[] = [
+      {
+        id: "plan-3",
+        kind: "tool",
+        toolType: "plan",
+        title: "Plan",
+        detail: "Generating plan...",
+        status: "in_progress",
+        output: "Partial plan",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={true}
+        openTargets={[]}
+        selectedOpenAppId=""
+        onPlanAccept={onPlanAccept}
+        onPlanSubmitChanges={onPlanSubmitChanges}
+      />,
+    );
+
+    expect(screen.queryByText("Plan ready")).toBeNull();
+  });
+
+  it("shows the plan-ready follow-up once the turn stops thinking even if the plan status stays in_progress", () => {
+    const onPlanAccept = vi.fn();
+    const onPlanSubmitChanges = vi.fn();
+    const items: ConversationItem[] = [
+      {
+        id: "plan-stuck-in-progress",
+        kind: "tool",
+        toolType: "plan",
+        title: "Plan",
+        detail: "Generating plan...",
+        status: "in_progress",
+        output: "Plan text",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+        onPlanAccept={onPlanAccept}
+        onPlanSubmitChanges={onPlanSubmitChanges}
+      />,
+    );
+
+    expect(screen.getByText("Plan ready")).toBeTruthy();
+  });
+
+  it("calls the plan follow-up callbacks", () => {
+    const onPlanAccept = vi.fn();
+    const onPlanSubmitChanges = vi.fn();
+    const items: ConversationItem[] = [
+      {
+        id: "plan-4",
+        kind: "tool",
+        toolType: "plan",
+        title: "Plan",
+        detail: "completed",
+        status: "completed",
+        output: "Plan text",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+        onPlanAccept={onPlanAccept}
+        onPlanSubmitChanges={onPlanSubmitChanges}
+      />,
+    );
+
+    const sendChangesButton = screen.getByRole("button", { name: "Send changes" });
+    expect((sendChangesButton as HTMLButtonElement).disabled).toBe(true);
+
+    const textarea = screen.getByPlaceholderText(
+      "Describe what you want to change in the plan...",
+    );
+    fireEvent.change(textarea, { target: { value: "Add error handling" } });
+
+    expect((sendChangesButton as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(sendChangesButton);
+    expect(onPlanSubmitChanges).toHaveBeenCalledWith("Add error handling");
+    expect(screen.queryByText("Plan ready")).toBeNull();
+  });
+
+  it("dismisses the plan-ready follow-up when the plan is accepted", () => {
+    const onPlanAccept = vi.fn();
+    const onPlanSubmitChanges = vi.fn();
+    const items: ConversationItem[] = [
+      {
+        id: "plan-accept",
+        kind: "tool",
+        toolType: "plan",
+        title: "Plan",
+        detail: "completed",
+        status: "completed",
+        output: "Plan text",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+        onPlanAccept={onPlanAccept}
+        onPlanSubmitChanges={onPlanSubmitChanges}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Implement this plan" }),
+    );
+    expect(onPlanAccept).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Plan ready")).toBeNull();
+  });
+
+  it("does not render plan-ready tagged internal user messages", () => {
+    const onPlanAccept = vi.fn();
+    const onPlanSubmitChanges = vi.fn();
+    const items: ConversationItem[] = [
+      {
+        id: "plan-6",
+        kind: "tool",
+        toolType: "plan",
+        title: "Plan",
+        detail: "completed",
+        status: "completed",
+        output: "Plan text",
+      },
+      {
+        id: "internal-user",
+        kind: "message",
+        role: "user",
+        text: "[[cm_plan_ready:accept]] Implement this plan.",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+        onPlanAccept={onPlanAccept}
+        onPlanSubmitChanges={onPlanSubmitChanges}
+      />,
+    );
+
+    expect(screen.queryByText(/cm_plan_ready/)).toBeNull();
+    expect(screen.queryByText("Plan ready")).toBeNull();
+  });
+
+  it("hides the plan follow-up when an input-requested bubble is active", () => {
+    const onPlanAccept = vi.fn();
+    const onPlanSubmitChanges = vi.fn();
+    const items: ConversationItem[] = [
+      {
+        id: "plan-5",
+        kind: "tool",
+        toolType: "plan",
+        title: "Plan",
+        detail: "completed",
+        status: "completed",
+        output: "Plan text",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+        userInputRequests={[
+          {
+            workspace_id: "ws-1",
+            request_id: 1,
+            params: {
+              thread_id: "thread-1",
+              turn_id: "turn-1",
+              item_id: "item-1",
+              questions: [],
+            },
+          },
+        ]}
+        onUserInputSubmit={vi.fn()}
+        onPlanAccept={onPlanAccept}
+        onPlanSubmitChanges={onPlanSubmitChanges}
+      />,
+    );
+
+    expect(screen.getByText("Input requested")).toBeTruthy();
+    expect(screen.queryByText("Plan ready")).toBeNull();
   });
 });

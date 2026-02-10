@@ -27,6 +27,7 @@ import {
   respondToServerRequest,
   respondToUserInputRequest,
   sendUserMessage,
+  steerTurn,
   sendNotification,
   startReview,
   setThreadName,
@@ -370,6 +371,21 @@ describe("tauri invoke wrappers", () => {
       model: null,
       effort: null,
       accessMode: "full-access",
+      images: ["image.png"],
+    });
+  });
+
+  it("invokes turn_steer for steer payloads", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await steerTurn("ws-4", "thread-1", "turn-2", "continue", ["image.png"]);
+
+    expect(invokeMock).toHaveBeenCalledWith("turn_steer", {
+      workspaceId: "ws-4",
+      threadId: "thread-1",
+      turnId: "turn-2",
+      text: "continue",
       images: ["image.png"],
     });
   });

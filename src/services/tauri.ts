@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import type { Options as NotificationOptions } from "@tauri-apps/plugin-notification";
 import type {
   AppSettings,
+  CodexUpdateResult,
   CodexDoctorResult,
   DictationModelStatus,
   DictationSessionState,
@@ -295,6 +296,22 @@ export async function interruptTurn(
   turnId: string,
 ) {
   return invoke("turn_interrupt", { workspaceId, threadId, turnId });
+}
+
+export async function steerTurn(
+  workspaceId: string,
+  threadId: string,
+  turnId: string,
+  text: string,
+  images?: string[],
+) {
+  return invoke("turn_steer", {
+    workspaceId,
+    threadId,
+    turnId,
+    text,
+    images: images ?? null,
+  });
 }
 
 export async function startReview(
@@ -662,6 +679,13 @@ export async function runCodexDoctor(
   return invoke<CodexDoctorResult>("codex_doctor", { codexBin, codexArgs });
 }
 
+export async function runCodexUpdate(
+  codexBin: string | null,
+  codexArgs: string | null,
+): Promise<CodexUpdateResult> {
+  return invoke<CodexUpdateResult>("codex_update", { codexBin, codexArgs });
+}
+
 export async function getWorkspaceFiles(workspaceId: string) {
   return invoke<string[]>("list_workspace_files", { workspaceId });
 }
@@ -818,12 +842,6 @@ export async function setThreadName(
   name: string,
 ) {
   return invoke<any>("set_thread_name", { workspaceId, threadId, name });
-}
-
-export async function getCommitMessagePrompt(
-  workspaceId: string,
-): Promise<string> {
-  return invoke("get_commit_message_prompt", { workspaceId });
 }
 
 export async function generateCommitMessage(

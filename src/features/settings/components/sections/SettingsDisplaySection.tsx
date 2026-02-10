@@ -130,6 +130,28 @@ export function SettingsDisplaySection({
       </div>
       <div className="settings-toggle-row">
         <div>
+          <div className="settings-toggle-title">Auto-generate new thread titles</div>
+          <div className="settings-toggle-subtitle">
+            Generate a short title from your first message (uses extra tokens).
+          </div>
+        </div>
+        <button
+          type="button"
+          className={`settings-toggle ${appSettings.threadTitleAutogenerationEnabled ? "on" : ""}`}
+          onClick={() =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              threadTitleAutogenerationEnabled:
+                !appSettings.threadTitleAutogenerationEnabled,
+            })
+          }
+          aria-pressed={appSettings.threadTitleAutogenerationEnabled}
+        >
+          <span className="settings-toggle-knob" />
+        </button>
+      </div>
+      <div className="settings-toggle-row">
+        <div>
           <div className="settings-toggle-title">Reduce transparency</div>
           <div className="settings-toggle-subtitle">Use solid surfaces instead of glass.</div>
         </div>

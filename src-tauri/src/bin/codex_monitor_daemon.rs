@@ -99,6 +99,7 @@ use workspace_settings::apply_workspace_settings_update;
 
 const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:4732";
 const MAX_IN_FLIGHT_RPC_PER_CONNECTION: usize = 32;
+const DAEMON_NAME: &str = "codex-monitor-daemon";
 
 fn spawn_with_client(
     event_sink: DaemonEventSink,
@@ -165,6 +166,8 @@ struct DaemonState {
     app_settings: Mutex<AppSettings>,
     event_sink: DaemonEventSink,
     codex_login_cancels: Mutex<HashMap<String, CodexLoginCancelState>>,
+    daemon_mode: String,
+    daemon_binary_path: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -179,6 +182,14 @@ impl DaemonState {
         let settings_path = config.data_dir.join("settings.json");
         let workspaces = read_workspaces(&storage_path).unwrap_or_default();
         let app_settings = read_settings(&settings_path).unwrap_or_default();
+        let daemon_mode = if config.orbit_url.is_some() {
+            "orbit".to_string()
+        } else {
+            "tcp".to_string()
+        };
+        let daemon_binary_path = std::env::current_exe()
+            .ok()
+            .and_then(|path| path.to_str().map(str::to_string));
         Self {
             data_dir: config.data_dir.clone(),
             workspaces: Mutex::new(workspaces),
@@ -188,7 +199,19 @@ impl DaemonState {
             app_settings: Mutex::new(app_settings),
             event_sink,
             codex_login_cancels: Mutex::new(HashMap::new()),
+            daemon_mode,
+            daemon_binary_path,
         }
+    }
+
+    fn daemon_info(&self) -> Value {
+        json!({
+            "name": DAEMON_NAME,
+            "version": env!("CARGO_PKG_VERSION"),
+            "pid": std::process::id(),
+            "mode": self.daemon_mode,
+            "binaryPath": self.daemon_binary_path,
+        })
     }
 
     async fn list_workspaces(&self) -> Vec<WorkspaceInfo> {
@@ -695,6 +718,25 @@ impl DaemonState {
         .await
     }
 
+    async fn turn_steer(
+        &self,
+        workspace_id: String,
+        thread_id: String,
+        turn_id: String,
+        text: String,
+        images: Option<Vec<String>>,
+    ) -> Result<Value, String> {
+        codex_core::turn_steer_core(
+            &self.sessions,
+            workspace_id,
+            thread_id,
+            turn_id,
+            text,
+            images,
+        )
+        .await
+    }
+
     async fn turn_interrupt(
         &self,
         workspace_id: String,
@@ -1059,17 +1101,6 @@ impl DaemonState {
         codex_aux_core::codex_doctor_core(&self.app_settings, codex_bin, codex_args).await
     }
 
-    async fn get_commit_message_prompt(&self, workspace_id: String) -> Result<String, String> {
-        let repo_root =
-            git_ui_core::resolve_repo_root_for_workspace_core(&self.workspaces, workspace_id)
-                .await?;
-        let diff = git_ui_core::collect_workspace_diff_core(&repo_root)?;
-        if diff.trim().is_empty() {
-            return Err("No changes to generate commit message for".to_string());
-        }
-        Ok(codex_aux_core::build_commit_message_prompt(&diff))
-    }
-
     async fn generate_commit_message(&self, workspace_id: String) -> Result<String, String> {
         let repo_root = git_ui_core::resolve_repo_root_for_workspace_core(
             &self.workspaces,
@@ -1077,27 +1108,20 @@ impl DaemonState {
         )
         .await?;
         let diff = git_ui_core::collect_workspace_diff_core(&repo_root)?;
-        if diff.trim().is_empty() {
-            return Err("No changes to generate commit message for".to_string());
-        }
-        let prompt = codex_aux_core::build_commit_message_prompt(&diff);
-        let response = codex_aux_core::run_background_prompt_core(
+        let commit_message_prompt = {
+            let settings = self.app_settings.lock().await;
+            settings.commit_message_prompt.clone()
+        };
+        codex_aux_core::generate_commit_message_core(
             &self.sessions,
             workspace_id,
-            prompt,
+            &diff,
+            &commit_message_prompt,
             |workspace_id, thread_id| {
                 emit_background_thread_hide(&self.event_sink, workspace_id, thread_id);
             },
-            "Timeout waiting for commit message generation",
-            "Unknown error during commit message generation",
         )
-        .await?;
-
-        let trimmed = response.trim().to_string();
-        if trimmed.is_empty() {
-            return Err("No commit message was generated".to_string());
-        }
-        Ok(trimmed)
+        .await
     }
 
     async fn generate_run_metadata(
@@ -1105,47 +1129,15 @@ impl DaemonState {
         workspace_id: String,
         prompt: String,
     ) -> Result<Value, String> {
-        let cleaned_prompt = prompt.trim();
-        if cleaned_prompt.is_empty() {
-            return Err("Prompt is required.".to_string());
-        }
-
-        let title_prompt = codex_aux_core::build_run_metadata_prompt(cleaned_prompt);
-        let response_text = codex_aux_core::run_background_prompt_core(
+        codex_aux_core::generate_run_metadata_core(
             &self.sessions,
             workspace_id,
-            title_prompt,
+            &prompt,
             |workspace_id, thread_id| {
                 emit_background_thread_hide(&self.event_sink, workspace_id, thread_id);
             },
-            "Timeout waiting for metadata generation",
-            "Unknown error during metadata generation",
         )
-        .await?;
-
-        let trimmed = response_text.trim();
-        if trimmed.is_empty() {
-            return Err("No metadata was generated".to_string());
-        }
-        let json_value = codex_aux_core::extract_json_value(trimmed)
-            .ok_or_else(|| "Failed to parse metadata JSON".to_string())?;
-        let title = json_value
-            .get("title")
-            .and_then(|v| v.as_str())
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty())
-            .ok_or_else(|| "Missing title in metadata".to_string())?;
-        let worktree_name = json_value
-            .get("worktreeName")
-            .or_else(|| json_value.get("worktree_name"))
-            .and_then(|v| v.as_str())
-            .map(codex_aux_core::sanitize_run_worktree_name)
-            .filter(|v| !v.is_empty())
-            .ok_or_else(|| "Missing worktree name in metadata".to_string())?;
-        Ok(json!({
-            "title": title,
-            "worktreeName": worktree_name
-        }))
+        .await
     }
 
     async fn local_usage_snapshot(
@@ -1484,6 +1476,8 @@ mod tests {
             app_settings: Mutex::new(AppSettings::default()),
             event_sink: DaemonEventSink { tx },
             codex_login_cancels: Mutex::new(HashMap::new()),
+            daemon_mode: "tcp".to_string(),
+            daemon_binary_path: Some("/tmp/codex-monitor-daemon".to_string()),
         }
     }
 
@@ -1587,6 +1581,34 @@ mod tests {
 
             assert!(result.get("days").and_then(Value::as_array).is_some());
             assert!(result.get("totals").is_some());
+            let _ = std::fs::remove_dir_all(&tmp);
+        });
+    }
+
+    #[test]
+    fn rpc_daemon_info_reports_identity() {
+        run_async_test(async {
+            let tmp = make_temp_dir("rpc-daemon-info");
+            let state = test_state(&tmp);
+
+            let result = rpc::handle_rpc_request(
+                &state,
+                "daemon_info",
+                json!({}),
+                "daemon-test".to_string(),
+            )
+            .await
+            .expect("daemon_info should succeed");
+
+            assert_eq!(
+                result.get("name").and_then(Value::as_str),
+                Some(DAEMON_NAME)
+            );
+            assert_eq!(result.get("mode").and_then(Value::as_str), Some("tcp"));
+            assert_eq!(
+                result.get("version").and_then(Value::as_str),
+                Some(env!("CARGO_PKG_VERSION"))
+            );
             let _ = std::fs::remove_dir_all(&tmp);
         });
     }
