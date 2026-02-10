@@ -489,15 +489,20 @@ function MainApp() {
   const handleSelectModel = useCallback(
     (id: string | null) => {
       setSelectedModelId(id);
+      const hasActiveThread = Boolean(activeThreadIdRef.current);
       if (!appSettingsLoading) {
-        setAppSettings((current) => {
-          if (current.lastComposerModelId === id) {
-            return current;
-          }
-          const nextSettings = { ...current, lastComposerModelId: id };
-          void queueSaveSettings(nextSettings);
-          return nextSettings;
-        });
+        // Picking a model inside a thread should not overwrite the global defaults
+        // configured in Settings; it should remain thread-scoped.
+        if (!hasActiveThread) {
+          setAppSettings((current) => {
+            if (current.lastComposerModelId === id) {
+              return current;
+            }
+            const nextSettings = { ...current, lastComposerModelId: id };
+            void queueSaveSettings(nextSettings);
+            return nextSettings;
+          });
+        }
       }
       persistThreadCodexParams({ modelId: id });
     },
@@ -514,15 +519,19 @@ function MainApp() {
     (raw: string | null) => {
       const next = typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : null;
       setSelectedEffort(next);
+      const hasActiveThread = Boolean(activeThreadIdRef.current);
       if (!appSettingsLoading) {
-        setAppSettings((current) => {
-          if (current.lastComposerReasoningEffort === next) {
-            return current;
-          }
-          const nextSettings = { ...current, lastComposerReasoningEffort: next };
-          void queueSaveSettings(nextSettings);
-          return nextSettings;
-        });
+        // Keep per-thread overrides from mutating the global defaults.
+        if (!hasActiveThread) {
+          setAppSettings((current) => {
+            if (current.lastComposerReasoningEffort === next) {
+              return current;
+            }
+            const nextSettings = { ...current, lastComposerReasoningEffort: next };
+            void queueSaveSettings(nextSettings);
+            return nextSettings;
+          });
+        }
       }
       persistThreadCodexParams({ effort: next });
     },
