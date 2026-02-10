@@ -7,6 +7,7 @@ import {
   compactThread,
   fetchGit,
   forkThread,
+  getAppsList,
   getGitHubIssues,
   getGitLog,
   getGitStatus,
@@ -211,6 +212,20 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
+  it("maps workspaceId/cursor/limit/threadId for apps_list", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await getAppsList("ws-11", "cursor-1", 25, "thread-11");
+
+    expect(invokeMock).toHaveBeenCalledWith("apps_list", {
+      workspaceId: "ws-11",
+      cursor: "cursor-1",
+      limit: 25,
+      threadId: "thread-11",
+    });
+  });
+
   it("invokes stage_git_all", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({});
@@ -399,6 +414,26 @@ describe("tauri invoke wrappers", () => {
       effort: null,
       accessMode: "full-access",
       images: ["image.png"],
+    });
+  });
+
+  it("includes app mentions when sending a message", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await sendUserMessage("ws-4", "thread-1", "hello $calendar", {
+      appMentions: [{ name: "Calendar", path: "app://connector_calendar" }],
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("send_user_message", {
+      workspaceId: "ws-4",
+      threadId: "thread-1",
+      text: "hello $calendar",
+      model: null,
+      effort: null,
+      accessMode: null,
+      images: null,
+      appMentions: [{ name: "Calendar", path: "app://connector_calendar" }],
     });
   });
 

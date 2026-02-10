@@ -12,6 +12,7 @@ type DesktopLayoutProps = {
   topbarLeftNode: ReactNode;
   centerMode: "chat" | "diff";
   preloadGitDiffs: boolean;
+  splitChatDiffView: boolean;
   messagesNode: ReactNode;
   gitDiffViewerNode: ReactNode;
   gitDiffPanelNode: ReactNode;
@@ -36,6 +37,7 @@ export function DesktopLayout({
   topbarLeftNode,
   centerMode,
   preloadGitDiffs,
+  splitChatDiffView,
   messagesNode,
   gitDiffViewerNode,
   gitDiffPanelNode,
@@ -50,11 +52,18 @@ export function DesktopLayout({
 }: DesktopLayoutProps) {
   const diffLayerRef = useRef<HTMLDivElement | null>(null);
   const chatLayerRef = useRef<HTMLDivElement | null>(null);
-  const shouldRenderDiffViewer = preloadGitDiffs || centerMode === "diff";
+  const shouldRenderDiffViewer =
+    splitChatDiffView || preloadGitDiffs || centerMode === "diff";
 
   useEffect(() => {
     const diffLayer = diffLayerRef.current;
     const chatLayer = chatLayerRef.current;
+
+    if (splitChatDiffView) {
+      diffLayer?.removeAttribute("inert");
+      chatLayer?.removeAttribute("inert");
+      return;
+    }
 
     if (diffLayer) {
       if (centerMode === "diff") {
@@ -81,7 +90,7 @@ export function DesktopLayout({
     ) {
       activeElement.blur();
     }
-  }, [centerMode]);
+  }, [centerMode, splitChatDiffView]);
 
   return (
     <>
@@ -103,21 +112,44 @@ export function DesktopLayout({
           <>
             <MainTopbar leftNode={topbarLeftNode} />
             {approvalToastsNode}
-            <div className="content">
-              <div
-                className={`content-layer ${centerMode === "diff" ? "is-active" : "is-hidden"}`}
-                aria-hidden={centerMode !== "diff"}
-                ref={diffLayerRef}
-              >
-                {shouldRenderDiffViewer ? gitDiffViewerNode : null}
-              </div>
-              <div
-                className={`content-layer ${centerMode === "chat" ? "is-active" : "is-hidden"}`}
-                aria-hidden={centerMode !== "chat"}
-                ref={chatLayerRef}
-              >
-                {messagesNode}
-              </div>
+            <div className={`content${splitChatDiffView ? " content-split" : ""}`}>
+              {splitChatDiffView ? (
+                <>
+                  <div
+                    className={`content-layer content-layer-split content-layer-chat${
+                      centerMode === "chat" ? " is-active" : ""
+                    }`}
+                    ref={chatLayerRef}
+                  >
+                    {messagesNode}
+                  </div>
+                  <div
+                    className={`content-layer content-layer-split content-layer-diff${
+                      centerMode === "diff" ? " is-active" : ""
+                    }`}
+                    ref={diffLayerRef}
+                  >
+                    {shouldRenderDiffViewer ? gitDiffViewerNode : null}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div
+                    className={`content-layer ${centerMode === "diff" ? "is-active" : "is-hidden"}`}
+                    aria-hidden={centerMode !== "diff"}
+                    ref={diffLayerRef}
+                  >
+                    {shouldRenderDiffViewer ? gitDiffViewerNode : null}
+                  </div>
+                  <div
+                    className={`content-layer ${centerMode === "chat" ? "is-active" : "is-hidden"}`}
+                    aria-hidden={centerMode !== "chat"}
+                    ref={chatLayerRef}
+                  >
+                    {messagesNode}
+                  </div>
+                </>
+              )}
             </div>
 
             <div

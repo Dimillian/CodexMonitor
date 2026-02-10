@@ -72,6 +72,7 @@ function buildDefaultSettings(): AppSettings {
     codeFontSize: CODE_FONT_SIZE_DEFAULT,
     notificationSoundsEnabled: true,
     systemNotificationsEnabled: true,
+    splitChatDiffView: false,
     preloadGitDiffs: true,
     gitDiffIgnoreWhitespaceChanges: false,
     commitMessagePrompt: DEFAULT_COMMIT_MESSAGE_PROMPT,

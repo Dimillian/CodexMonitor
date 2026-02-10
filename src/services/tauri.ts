@@ -17,6 +17,7 @@ import type {
   TailscaleDaemonCommandPreview,
   TailscaleStatus,
   WorkspaceInfo,
+  AppMention,
   WorkspaceSettings,
 } from "../types";
 import type {
@@ -281,6 +282,7 @@ export async function sendUserMessage(
     accessMode?: "read-only" | "current" | "full-access";
     images?: string[];
     collaborationMode?: Record<string, unknown> | null;
+    appMentions?: AppMention[];
   },
 ) {
   const payload: Record<string, unknown> = {
@@ -294,6 +296,9 @@ export async function sendUserMessage(
   };
   if (options?.collaborationMode) {
     payload.collaborationMode = options.collaborationMode;
+  }
+  if (options?.appMentions && options.appMentions.length > 0) {
+    payload.appMentions = options.appMentions;
   }
   return invoke("send_user_message", payload);
 }
@@ -312,14 +317,19 @@ export async function steerTurn(
   turnId: string,
   text: string,
   images?: string[],
+  appMentions?: AppMention[],
 ) {
-  return invoke("turn_steer", {
+  const payload: Record<string, unknown> = {
     workspaceId,
     threadId,
     turnId,
     text,
     images: images ?? null,
-  });
+  };
+  if (appMentions && appMentions.length > 0) {
+    payload.appMentions = appMentions;
+  }
+  return invoke("turn_steer", payload);
 }
 
 export async function startReview(
@@ -538,8 +548,9 @@ export async function getAppsList(
   workspaceId: string,
   cursor?: string | null,
   limit?: number | null,
+  threadId?: string | null,
 ) {
-  return invoke<any>("apps_list", { workspaceId, cursor, limit });
+  return invoke<any>("apps_list", { workspaceId, cursor, limit, threadId });
 }
 
 export async function getPromptsList(workspaceId: string) {

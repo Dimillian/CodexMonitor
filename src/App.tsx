@@ -115,6 +115,7 @@ import { makeThreadCodexParamsKey } from "./features/threads/utils/threadStorage
 import { isMobilePlatform } from "./utils/platformPaths";
 import type {
   AccessMode,
+  AppMention,
   ComposerEditorSettings,
   WorkspaceInfo,
 } from "./types";
@@ -417,6 +418,7 @@ function MainApp() {
     activeWorkspace,
     gitDiffPreloadEnabled: appSettings.preloadGitDiffs,
     gitDiffIgnoreWhitespaceChanges: appSettings.gitDiffIgnoreWhitespaceChanges,
+    splitChatDiffView: appSettings.splitChatDiffView,
     isCompact,
     isTablet,
     activeTab,
@@ -614,11 +616,6 @@ function MainApp() {
     onFocusComposer: () => composerInputRef.current?.focus(),
   });
   const { skills } = useSkills({ activeWorkspace, onDebug: addDebugEntry });
-  const { apps } = useApps({
-    activeWorkspace,
-    enabled: appSettings.experimentalAppsEnabled,
-    onDebug: addDebugEntry,
-  });
   const {
     prompts,
     createPrompt,
@@ -816,6 +813,12 @@ function MainApp() {
     customPrompts: prompts,
     onMessageActivity: queueGitStatusRefresh,
     threadSortKey: threadListSortKey,
+  });
+  const { apps } = useApps({
+    activeWorkspace,
+    activeThreadId,
+    enabled: appSettings.experimentalAppsEnabled,
+    onDebug: addDebugEntry,
   });
 
   useLayoutEffect(() => {
@@ -1787,18 +1790,30 @@ function MainApp() {
   }, [accessMode, activeThreadId, activeWorkspaceId, selectedCollaborationModeId]);
 
   const handleComposerSendWithDraftStart = useCallback(
-    (text: string, images: string[]) => {
+    (text: string, images: string[], appMentions?: AppMention[]) => {
       rememberPendingNewThreadSeed();
-      return runWithDraftStart(() => handleComposerSend(text, images));
+      return runWithDraftStart(() => (
+        appMentions && appMentions.length > 0
+          ? handleComposerSend(text, images, appMentions)
+          : handleComposerSend(text, images)
+      ));
     },
     [handleComposerSend, rememberPendingNewThreadSeed, runWithDraftStart],
   );
   const handleComposerQueueWithDraftStart = useCallback(
-    (text: string, images: string[]) => {
+    (text: string, images: string[], appMentions?: AppMention[]) => {
       // Queueing without an active thread would no-op; bootstrap through send so user input is not lost.
       const runner = activeThreadId
-        ? () => handleComposerQueue(text, images)
-        : () => handleComposerSend(text, images);
+        ? () => (
+          appMentions && appMentions.length > 0
+            ? handleComposerQueue(text, images, appMentions)
+            : handleComposerQueue(text, images)
+        )
+        : () => (
+          appMentions && appMentions.length > 0
+            ? handleComposerSend(text, images, appMentions)
+            : handleComposerSend(text, images)
+        );
       if (!activeThreadId) {
         rememberPendingNewThreadSeed();
       }
@@ -2547,6 +2562,7 @@ function MainApp() {
         tabletTab={tabletTab}
         centerMode={centerMode}
         preloadGitDiffs={appSettings.preloadGitDiffs}
+        splitChatDiffView={appSettings.splitChatDiffView}
         hasActivePlan={hasActivePlan}
         activeWorkspace={Boolean(activeWorkspace)}
         sidebarNode={sidebarNode}

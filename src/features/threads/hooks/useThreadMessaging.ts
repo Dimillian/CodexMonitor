@@ -3,6 +3,7 @@ import type { Dispatch, MutableRefObject } from "react";
 import * as Sentry from "@sentry/react";
 import type {
   AccessMode,
+  AppMention,
   RateLimitSnapshot,
   CustomPromptOption,
   DebugEntry,
@@ -35,6 +36,7 @@ type SendMessageOptions = {
   effort?: string | null;
   collaborationMode?: Record<string, unknown> | null;
   accessMode?: AccessMode;
+  appMentions?: AppMention[];
 };
 
 type UseThreadMessagingOptions = {
@@ -156,6 +158,7 @@ export function useThreadMessaging({
           : null;
       const resolvedAccessMode =
         options?.accessMode !== undefined ? options.accessMode : accessMode;
+      const appMentions = options?.appMentions ?? [];
 
       const isProcessing = threadStatusById[threadId]?.isProcessing ?? false;
       const activeTurnId = activeTurnIdByThread[threadId] ?? null;
@@ -221,29 +224,51 @@ export function useThreadMessaging({
       });
       let requestMode: "start" | "steer" = shouldSteer ? "steer" : "start";
       try {
-        const startTurn = () => sendUserMessageService(
-          workspace.id,
-          threadId,
-          finalText,
-          {
+        const startTurn = () => {
+          const payload: {
+            model?: string | null;
+            effort?: string | null;
+            collaborationMode?: Record<string, unknown> | null;
+            accessMode?: AccessMode;
+            images?: string[];
+            appMentions?: AppMention[];
+          } = {
             model: resolvedModel,
             effort: resolvedEffort,
             collaborationMode: sanitizedCollaborationMode,
             accessMode: resolvedAccessMode,
             images,
-          },
-        );
+          };
+          if (appMentions.length > 0) {
+            payload.appMentions = appMentions;
+          }
+          return sendUserMessageService(
+            workspace.id,
+            threadId,
+            finalText,
+            payload,
+          );
+        };
 
         let response: Record<string, unknown>;
         if (shouldSteer) {
           try {
-            response = (await steerTurnService(
-              workspace.id,
-              threadId,
-              activeTurnId ?? "",
-              finalText,
-              images,
-            )) as Record<string, unknown>;
+            response = (await (appMentions.length > 0
+              ? steerTurnService(
+                workspace.id,
+                threadId,
+                activeTurnId ?? "",
+                finalText,
+                images,
+                appMentions,
+              )
+              : steerTurnService(
+                workspace.id,
+                threadId,
+                activeTurnId ?? "",
+                finalText,
+                images,
+              ))) as Record<string, unknown>;
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             if (!isUnsupportedTurnSteerError(message)) {
@@ -355,7 +380,11 @@ export function useThreadMessaging({
   );
 
   const sendUserMessage = useCallback(
-    async (text: string, images: string[] = []) => {
+    async (
+      text: string,
+      images: string[] = [],
+      appMentions: AppMention[] = [],
+    ) => {
       if (!activeWorkspace) {
         return;
       }
@@ -386,6 +415,7 @@ export function useThreadMessaging({
       }
       await sendMessageToThread(activeWorkspace, threadId, finalText, images, {
         skipPromptExpansion: true,
+        appMentions,
       });
     },
     [
@@ -835,6 +865,7 @@ export function useThreadMessaging({
           activeWorkspace.id,
           null,
           100,
+          threadId,
         )) as Record<string, unknown> | null;
         const result = (response?.result ?? response) as
           | Record<string, unknown>
