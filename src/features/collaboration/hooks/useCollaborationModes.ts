@@ -189,6 +189,11 @@ export function useCollaborationModes({
       return;
     }
     lastSelectionKey.current = selectionKey;
+    // Preserve a valid selection when the caller has no stored preference (preferredModeId is null).
+    // This avoids clearing the mode on thread switches/new-thread creation when modes are already fetched.
+    if (preferredModeId === null) {
+      return;
+    }
     setSelectedModeId(preferredModeId);
   }, [enabled, preferredModeId, selectionKey]);
 

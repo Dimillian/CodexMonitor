@@ -877,14 +877,11 @@ function MainApp() {
       return;
     }
 
-    if (!selectedModelId) {
-      return;
-    }
-
     seededThreadParamsRef.current.add(key);
     patchThreadCodexParams(workspaceId, threadId, {
       modelId: selectedModelId,
       effort: resolvedEffort,
+      collaborationModeId: selectedCollaborationModeId,
     });
   }, [
     activeThreadId,
@@ -892,6 +889,7 @@ function MainApp() {
     getThreadCodexParams,
     patchThreadCodexParams,
     resolvedEffort,
+    selectedCollaborationModeId,
     selectedModelId,
   ]);
 

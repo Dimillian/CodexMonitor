@@ -130,4 +130,53 @@ describe("useCollaborationModes", () => {
       ]),
     );
   });
+
+  it("preserves the current selection when selectionKey changes and preferredModeId is null", async () => {
+    vi.mocked(getCollaborationModes).mockResolvedValue(makeModesResponse());
+
+    const { result, rerender } = renderHook(
+      ({
+        workspace,
+        enabled,
+        preferredModeId,
+        selectionKey,
+      }: {
+        workspace: WorkspaceInfo | null;
+        enabled: boolean;
+        preferredModeId: string | null;
+        selectionKey: string | null;
+      }) =>
+        useCollaborationModes({
+          activeWorkspace: workspace,
+          enabled,
+          preferredModeId,
+          selectionKey,
+        }),
+      {
+        initialProps: {
+          workspace: workspaceOne,
+          enabled: true,
+          preferredModeId: "default" as string | null,
+          selectionKey: "thread-a",
+        },
+      },
+    );
+
+    await waitFor(() => expect(result.current.selectedCollaborationModeId).toBe("default"));
+
+    act(() => {
+      result.current.setSelectedCollaborationModeId("plan");
+    });
+    expect(result.current.selectedCollaborationModeId).toBe("plan");
+
+    // Thread switch with no stored override: preferredModeId is null.
+    rerender({
+      workspace: workspaceOne,
+      enabled: true,
+      preferredModeId: null,
+      selectionKey: "thread-b",
+    });
+
+    expect(result.current.selectedCollaborationModeId).toBe("plan");
+  });
 });

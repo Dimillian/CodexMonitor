@@ -404,7 +404,9 @@ export function SettingsCodexSection({
       </div>
 
       <div className="settings-divider" />
-      <div className="settings-field-label">Default parameters</div>
+      <div className="settings-field-label settings-field-label--section">
+        Default parameters
+      </div>
 
       <div className="settings-toggle-row">
         <div>
