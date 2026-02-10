@@ -260,6 +260,12 @@ function MainApp() {
     activeWorkspaceIdForParamsRef.current = activeWorkspaceId ?? null;
   }, [activeWorkspaceId]);
   const activeThreadIdRef = useRef<string | null>(null);
+  // When sending the first message from the "no thread" composer, snapshot the
+  // collaboration mode so it can be applied to the created thread.
+  const pendingNewThreadSeedRef = useRef<{
+    workspaceId: string;
+    collaborationModeId: string | null;
+  } | null>(null);
   const {
     sidebarWidth,
     rightPanelWidth,
@@ -832,13 +838,18 @@ function MainApp() {
     if (threadId) {
       // Thread-scoped defaults: prefer stored overrides, but fall back to the global
       // "last composer" preferences for newly created threads.
-      setPreferredModelId(stored?.modelId ?? appSettings.lastComposerModelId ?? null);
-      setPreferredEffort(
-        stored?.effort ?? appSettings.lastComposerReasoningEffort ?? null,
-      );
-      setPreferredCollabModeId(stored?.collaborationModeId ?? null);
-      return;
-    }
+    setPreferredModelId(stored?.modelId ?? appSettings.lastComposerModelId ?? null);
+    setPreferredEffort(
+      stored?.effort ?? appSettings.lastComposerReasoningEffort ?? null,
+    );
+    const pendingSeed = pendingNewThreadSeedRef.current;
+    const pendingCollabModeId =
+      pendingSeed && pendingSeed.workspaceId === workspaceId
+        ? pendingSeed.collaborationModeId
+        : null;
+    setPreferredCollabModeId(stored?.collaborationModeId ?? pendingCollabModeId ?? null);
+    return;
+  }
 
     // No active thread: use global "last composer" preferences.
     setPreferredModelId(appSettings.lastComposerModelId);
@@ -878,11 +889,19 @@ function MainApp() {
     }
 
     seededThreadParamsRef.current.add(key);
+    const pendingSeed = pendingNewThreadSeedRef.current;
+    const pendingCollabModeId =
+      pendingSeed && pendingSeed.workspaceId === workspaceId
+        ? pendingSeed.collaborationModeId
+        : null;
     patchThreadCodexParams(workspaceId, threadId, {
       modelId: selectedModelId,
       effort: resolvedEffort,
-      collaborationModeId: selectedCollaborationModeId,
+      collaborationModeId: pendingCollabModeId ?? selectedCollaborationModeId,
     });
+    if (pendingSeed?.workspaceId === workspaceId) {
+      pendingNewThreadSeedRef.current = null;
+    }
   }, [
     activeThreadId,
     activeWorkspaceId,
@@ -1741,10 +1760,24 @@ function MainApp() {
     handleSend,
     queueMessage,
   });
+
+  const rememberPendingNewThreadSeed = useCallback(() => {
+    // Only relevant when the composer is starting a brand-new thread.
+    if (activeThreadId || !activeWorkspaceId) {
+      return;
+    }
+    pendingNewThreadSeedRef.current = {
+      workspaceId: activeWorkspaceId,
+      collaborationModeId: selectedCollaborationModeId,
+    };
+  }, [activeThreadId, activeWorkspaceId, selectedCollaborationModeId]);
+
   const handleComposerSendWithDraftStart = useCallback(
-    (text: string, images: string[]) =>
-      runWithDraftStart(() => handleComposerSend(text, images)),
-    [handleComposerSend, runWithDraftStart],
+    (text: string, images: string[]) => {
+      rememberPendingNewThreadSeed();
+      return runWithDraftStart(() => handleComposerSend(text, images));
+    },
+    [handleComposerSend, rememberPendingNewThreadSeed, runWithDraftStart],
   );
   const handleComposerQueueWithDraftStart = useCallback(
     (text: string, images: string[]) => {
@@ -1752,9 +1785,18 @@ function MainApp() {
       const runner = activeThreadId
         ? () => handleComposerQueue(text, images)
         : () => handleComposerSend(text, images);
+      if (!activeThreadId) {
+        rememberPendingNewThreadSeed();
+      }
       return runWithDraftStart(runner);
     },
-    [activeThreadId, handleComposerQueue, handleComposerSend, runWithDraftStart],
+    [
+      activeThreadId,
+      handleComposerQueue,
+      handleComposerSend,
+      rememberPendingNewThreadSeed,
+      runWithDraftStart,
+    ],
   );
 
   const handleSelectWorkspaceInstance = useCallback(

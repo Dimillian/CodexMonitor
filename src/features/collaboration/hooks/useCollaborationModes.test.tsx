@@ -131,7 +131,7 @@ describe("useCollaborationModes", () => {
     );
   });
 
-  it("preserves the current selection when selectionKey changes and preferredModeId is null", async () => {
+  it("resets to the workspace default when selectionKey changes and preferredModeId is null", async () => {
     vi.mocked(getCollaborationModes).mockResolvedValue(makeModesResponse());
 
     const { result, rerender } = renderHook(
@@ -177,6 +177,6 @@ describe("useCollaborationModes", () => {
       selectionKey: "thread-b",
     });
 
-    expect(result.current.selectedCollaborationModeId).toBe("plan");
+    expect(result.current.selectedCollaborationModeId).toBe("default");
   });
 });

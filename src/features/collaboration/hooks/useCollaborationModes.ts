@@ -14,6 +14,23 @@ type UseCollaborationModesOptions = {
   onDebug?: (entry: DebugEntry) => void;
 };
 
+function pickWorkspaceDefaultModeId(modes: CollaborationModeOption[]): string | null {
+  return (
+    modes.find(
+      (mode) =>
+        mode.id.trim().toLowerCase() === "default" ||
+        mode.mode.trim().toLowerCase() === "default",
+    )?.id ??
+    modes.find(
+      (mode) =>
+        mode.id.trim().toLowerCase() === "code" ||
+        mode.mode.trim().toLowerCase() === "code",
+    )?.id ??
+    modes[0]?.id ??
+    null
+  );
+}
+
 export function useCollaborationModes({
   activeWorkspace,
   enabled,
@@ -141,26 +158,14 @@ export function useCollaborationModes({
         .filter((mode): mode is CollaborationModeOption => mode !== null);
       setModes(data);
       lastFetchedWorkspaceId.current = workspaceId;
-      const preferredModeId =
-        data.find(
-          (mode) =>
-            mode.id.trim().toLowerCase() === "default" ||
-            mode.mode.trim().toLowerCase() === "default",
-        )?.id ??
-        data.find(
-          (mode) =>
-            mode.id.trim().toLowerCase() === "code" ||
-            mode.mode.trim().toLowerCase() === "code",
-        )?.id ??
-        data[0]?.id ??
-        null;
+      const workspaceDefaultModeId = pickWorkspaceDefaultModeId(data);
       setSelectedModeId((currentSelection) => {
         const selection = currentSelection ?? selectedModeIdRef.current;
         if (!selection) {
-          return preferredModeId;
+          return workspaceDefaultModeId;
         }
         if (!data.some((mode) => mode.id === selection)) {
-          return preferredModeId;
+          return workspaceDefaultModeId;
         }
         return selection;
       });
@@ -189,13 +194,10 @@ export function useCollaborationModes({
       return;
     }
     lastSelectionKey.current = selectionKey;
-    // Preserve a valid selection when the caller has no stored preference (preferredModeId is null).
-    // This avoids clearing the mode on thread switches/new-thread creation when modes are already fetched.
-    if (preferredModeId === null) {
-      return;
-    }
-    setSelectedModeId(preferredModeId);
-  }, [enabled, preferredModeId, selectionKey]);
+    // When switching threads, prefer the per-thread override. If there is no stored override,
+    // reset to the workspace default instead of carrying over the previous thread's selection.
+    setSelectedModeId(preferredModeId ?? pickWorkspaceDefaultModeId(modes));
+  }, [enabled, modes, preferredModeId, selectionKey]);
 
   useEffect(() => {
     if (previousWorkspaceId.current !== workspaceId) {
