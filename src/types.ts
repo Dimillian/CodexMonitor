@@ -183,6 +183,7 @@ export type AppSettings = {
   theme: ThemePreference;
   usageShowRemaining: boolean;
   showMessageFilePath: boolean;
+  threadTitleAutogenerationEnabled: boolean;
   uiFontFamily: string;
   codeFontFamily: string;
   codeFontSize: number;
@@ -190,6 +191,7 @@ export type AppSettings = {
   systemNotificationsEnabled: boolean;
   preloadGitDiffs: boolean;
   gitDiffIgnoreWhitespaceChanges: boolean;
+  commitMessagePrompt: string;
   experimentalCollabEnabled: boolean;
   collaborationModesEnabled: boolean;
   steerEnabled: boolean;

@@ -69,6 +69,11 @@ type UseThreadMessagingOptions = {
   refreshThread: (workspaceId: string, threadId: string) => Promise<string | null>;
   forkThreadForWorkspace: (workspaceId: string, threadId: string) => Promise<string | null>;
   updateThreadParent: (parentId: string, childIds: string[]) => void;
+  registerDetachedReviewChild?: (
+    workspaceId: string,
+    parentId: string,
+    childId: string,
+  ) => void;
 };
 
 function isUnsupportedTurnSteerError(message: string): boolean {
@@ -109,6 +114,7 @@ export function useThreadMessaging({
   refreshThread,
   forkThreadForWorkspace,
   updateThreadParent,
+  registerDetachedReviewChild,
 }: UseThreadMessagingOptions) {
   const steerSupportedByWorkspaceRef = useRef<Record<string, boolean>>({});
 
@@ -481,9 +487,12 @@ export function useThreadMessaging({
         return false;
       }
 
-      markProcessing(threadId, true);
-      markReviewing(threadId, true);
-      safeMessageActivity();
+      const lockParentThread = reviewDeliveryMode !== "detached";
+      if (lockParentThread) {
+        markProcessing(threadId, true);
+        markReviewing(threadId, true);
+        safeMessageActivity();
+      }
       onDebug?.({
         id: `${Date.now()}-client-review-start`,
         timestamp: Date.now(),
@@ -511,9 +520,11 @@ export function useThreadMessaging({
         });
         const rpcError = extractRpcErrorMessage(response);
         if (rpcError) {
-          markProcessing(threadId, false);
-          markReviewing(threadId, false);
-          setActiveTurnId(threadId, null);
+          if (lockParentThread) {
+            markProcessing(threadId, false);
+            markReviewing(threadId, false);
+            setActiveTurnId(threadId, null);
+          }
           pushThreadErrorMessage(threadId, `Review failed to start: ${rpcError}`);
           safeMessageActivity();
           return false;
@@ -521,11 +532,16 @@ export function useThreadMessaging({
         const reviewThreadId = extractReviewThreadId(response);
         if (reviewThreadId && reviewThreadId !== threadId) {
           updateThreadParent(threadId, [reviewThreadId]);
+          if (reviewDeliveryMode === "detached") {
+            registerDetachedReviewChild?.(workspaceId, threadId, reviewThreadId);
+          }
         }
         return true;
       } catch (error) {
-        markProcessing(threadId, false);
-        markReviewing(threadId, false);
+        if (lockParentThread) {
+          markProcessing(threadId, false);
+          markReviewing(threadId, false);
+        }
         onDebug?.({
           id: `${Date.now()}-client-review-start-error`,
           timestamp: Date.now(),
@@ -552,6 +568,7 @@ export function useThreadMessaging({
       safeMessageActivity,
       setActiveTurnId,
       reviewDeliveryMode,
+      registerDetachedReviewChild,
       updateThreadParent,
     ],
   );

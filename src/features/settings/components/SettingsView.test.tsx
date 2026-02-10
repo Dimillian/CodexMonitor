@@ -11,6 +11,7 @@ import {
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { AppSettings, WorkspaceInfo } from "../../../types";
+import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "../../../utils/commitMessagePrompt";
 import { SettingsView } from "./SettingsView";
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
@@ -59,6 +60,7 @@ const baseSettings: AppSettings = {
   theme: "system",
   usageShowRemaining: false,
   showMessageFilePath: true,
+  threadTitleAutogenerationEnabled: false,
   uiFontFamily:
     'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   codeFontFamily:
@@ -68,6 +70,7 @@ const baseSettings: AppSettings = {
   systemNotificationsEnabled: true,
   preloadGitDiffs: true,
   gitDiffIgnoreWhitespaceChanges: false,
+  commitMessagePrompt: DEFAULT_COMMIT_MESSAGE_PROMPT,
   experimentalCollabEnabled: false,
   collaborationModesEnabled: true,
   steerEnabled: true,

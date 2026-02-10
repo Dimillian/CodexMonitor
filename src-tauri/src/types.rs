@@ -573,6 +573,8 @@ pub(crate) struct AppSettings {
         rename = "showMessageFilePath"
     )]
     pub(crate) show_message_file_path: bool,
+    #[serde(default, rename = "threadTitleAutogenerationEnabled")]
+    pub(crate) thread_title_autogeneration_enabled: bool,
     #[serde(default = "default_ui_font_family", rename = "uiFontFamily")]
     pub(crate) ui_font_family: String,
     #[serde(default = "default_code_font_family", rename = "codeFontFamily")]
@@ -591,6 +593,11 @@ pub(crate) struct AppSettings {
         rename = "gitDiffIgnoreWhitespaceChanges"
     )]
     pub(crate) git_diff_ignore_whitespace_changes: bool,
+    #[serde(
+        default = "default_commit_message_prompt",
+        rename = "commitMessagePrompt"
+    )]
+    pub(crate) commit_message_prompt: String,
     #[serde(
         default = "default_system_notifications_enabled",
         rename = "systemNotificationsEnabled"
@@ -924,6 +931,15 @@ fn default_git_diff_ignore_whitespace_changes() -> bool {
     false
 }
 
+fn default_commit_message_prompt() -> String {
+    "Generate a concise git commit message for the following changes. \
+Follow conventional commit format (e.g., feat:, fix:, refactor:, docs:, etc.). \
+Keep the summary line under 72 characters. \
+Only output the commit message, nothing else.\n\n\
+Changes:\n{diff}"
+        .to_string()
+}
+
 fn default_experimental_collab_enabled() -> bool {
     false
 }
@@ -1162,6 +1178,7 @@ impl Default for AppSettings {
             theme: default_theme(),
             usage_show_remaining: default_usage_show_remaining(),
             show_message_file_path: default_show_message_file_path(),
+            thread_title_autogeneration_enabled: false,
             ui_font_family: default_ui_font_family(),
             code_font_family: default_code_font_family(),
             code_font_size: default_code_font_size(),
@@ -1169,6 +1186,7 @@ impl Default for AppSettings {
             system_notifications_enabled: true,
             preload_git_diffs: default_preload_git_diffs(),
             git_diff_ignore_whitespace_changes: default_git_diff_ignore_whitespace_changes(),
+            commit_message_prompt: default_commit_message_prompt(),
             experimental_collab_enabled: false,
             collaboration_modes_enabled: true,
             steer_enabled: true,
@@ -1322,6 +1340,7 @@ mod tests {
         assert_eq!(settings.theme, "system");
         assert!(!settings.usage_show_remaining);
         assert!(settings.show_message_file_path);
+        assert!(!settings.thread_title_autogeneration_enabled);
         assert!(settings.ui_font_family.contains("system-ui"));
         assert!(settings.code_font_family.contains("ui-monospace"));
         assert_eq!(settings.code_font_size, 11);
@@ -1329,6 +1348,7 @@ mod tests {
         assert!(settings.system_notifications_enabled);
         assert!(settings.preload_git_diffs);
         assert!(!settings.git_diff_ignore_whitespace_changes);
+        assert!(settings.commit_message_prompt.contains("{diff}"));
         assert!(settings.collaboration_modes_enabled);
         assert!(settings.steer_enabled);
         assert!(settings.unified_exec_enabled);
