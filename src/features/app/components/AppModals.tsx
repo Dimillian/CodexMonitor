@@ -28,6 +28,11 @@ const BranchSwitcherPrompt = lazy(() =>
     default: module.BranchSwitcherPrompt,
   })),
 );
+const InitGitRepoPrompt = lazy(() =>
+  import("../../git/components/InitGitRepoPrompt").then((module) => ({
+    default: module.InitGitRepoPrompt,
+  })),
+);
 
 type RenamePromptState = ReturnType<typeof useRenameThreadPrompt>["renamePrompt"];
 
@@ -40,6 +45,21 @@ type AppModalsProps = {
   onRenamePromptChange: (value: string) => void;
   onRenamePromptCancel: () => void;
   onRenamePromptConfirm: () => void;
+  initGitRepoPrompt: {
+    workspaceName: string;
+    branch: string;
+    createRemote: boolean;
+    repoName: string;
+    isPrivate: boolean;
+    error: string | null;
+  } | null;
+  initGitRepoPromptBusy: boolean;
+  onInitGitRepoPromptBranchChange: (value: string) => void;
+  onInitGitRepoPromptCreateRemoteChange: (value: boolean) => void;
+  onInitGitRepoPromptRepoNameChange: (value: string) => void;
+  onInitGitRepoPromptPrivateChange: (value: boolean) => void;
+  onInitGitRepoPromptCancel: () => void;
+  onInitGitRepoPromptConfirm: () => void;
   worktreePrompt: WorktreePromptState;
   onWorktreePromptNameChange: (value: string) => void;
   onWorktreePromptChange: (value: string) => void;
@@ -73,6 +93,14 @@ export const AppModals = memo(function AppModals({
   onRenamePromptChange,
   onRenamePromptCancel,
   onRenamePromptConfirm,
+  initGitRepoPrompt,
+  initGitRepoPromptBusy,
+  onInitGitRepoPromptBranchChange,
+  onInitGitRepoPromptCreateRemoteChange,
+  onInitGitRepoPromptRepoNameChange,
+  onInitGitRepoPromptPrivateChange,
+  onInitGitRepoPromptCancel,
+  onInitGitRepoPromptConfirm,
   worktreePrompt,
   onWorktreePromptNameChange,
   onWorktreePromptChange,
@@ -114,6 +142,25 @@ export const AppModals = memo(function AppModals({
             onChange={onRenamePromptChange}
             onCancel={onRenamePromptCancel}
             onConfirm={onRenamePromptConfirm}
+          />
+        </Suspense>
+      )}
+      {initGitRepoPrompt && (
+        <Suspense fallback={null}>
+          <InitGitRepoPrompt
+            workspaceName={initGitRepoPrompt.workspaceName}
+            branch={initGitRepoPrompt.branch}
+            createRemote={initGitRepoPrompt.createRemote}
+            repoName={initGitRepoPrompt.repoName}
+            isPrivate={initGitRepoPrompt.isPrivate}
+            error={initGitRepoPrompt.error}
+            isBusy={initGitRepoPromptBusy}
+            onBranchChange={onInitGitRepoPromptBranchChange}
+            onCreateRemoteChange={onInitGitRepoPromptCreateRemoteChange}
+            onRepoNameChange={onInitGitRepoPromptRepoNameChange}
+            onPrivateChange={onInitGitRepoPromptPrivateChange}
+            onCancel={onInitGitRepoPromptCancel}
+            onConfirm={onInitGitRepoPromptConfirm}
           />
         </Suspense>
       )}

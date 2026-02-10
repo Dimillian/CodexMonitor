@@ -280,6 +280,8 @@ export type LayoutNodesOptions = {
   onSelectGitRoot: (path: string) => void;
   onClearGitRoot: () => void;
   onPickGitRoot: () => void | Promise<void>;
+  onInitGitRepo: () => void | Promise<void>;
+  initGitRepoLoading: boolean;
   onStageGitAll: () => Promise<void>;
   onStageGitFile: (path: string) => Promise<void>;
   onUnstageGitFile: (path: string) => Promise<void>;

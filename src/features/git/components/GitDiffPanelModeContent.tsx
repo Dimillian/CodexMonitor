@@ -13,7 +13,12 @@ import {
   type DiffFile,
   GitLogEntryRow,
 } from "./GitDiffPanelShared";
-import { DEPTH_OPTIONS, normalizeRootPath } from "./GitDiffPanel.utils";
+import {
+  DEPTH_OPTIONS,
+  isGitRootNotFound,
+  isMissingRepo,
+  normalizeRootPath,
+} from "./GitDiffPanel.utils";
 
 type GitMode = "diff" | "log" | "issues" | "prs";
 
@@ -169,6 +174,8 @@ type GitDiffModeContentProps = {
   gitRootScanDepth: number;
   onGitRootScanDepthChange?: (depth: number) => void;
   onPickGitRoot?: () => void | Promise<void>;
+  onInitGitRepo?: () => void | Promise<void>;
+  initGitRepoLoading: boolean;
   hasGitRoot: boolean;
   onClearGitRoot?: () => void;
   gitRootScanError: string | null | undefined;
@@ -223,6 +230,8 @@ export function GitDiffModeContent({
   gitRootScanDepth,
   onGitRootScanDepthChange,
   onPickGitRoot,
+  onInitGitRepo,
+  initGitRepoLoading,
   hasGitRoot,
   onClearGitRoot,
   gitRootScanError,
@@ -261,18 +270,38 @@ export function GitDiffModeContent({
   onDiffListClick,
 }: GitDiffModeContentProps) {
   const normalizedGitRoot = normalizeRootPath(gitRoot);
+  const missingRepo = isMissingRepo(error);
+  const gitRootNotFound = isGitRootNotFound(error);
+  const showInitGitRepo = Boolean(onInitGitRepo) && missingRepo && !gitRootNotFound;
+  const gitRootTitle = gitRootNotFound
+    ? "Git root folder not found."
+    : missingRepo
+      ? "This workspace isn't a Git repository yet."
+      : "Choose a repo for this workspace.";
 
   return (
     <div className="diff-list" onClick={onDiffListClick}>
       {showGitRootPanel && (
         <div className="git-root-panel">
-          <div className="git-root-title">Choose a repo for this workspace.</div>
+          <div className="git-root-title">{gitRootTitle}</div>
           <div className="git-root-actions">
+            {showInitGitRepo && (
+              <button
+                type="button"
+                className="primary git-root-button"
+                onClick={() => {
+                  void onInitGitRepo?.();
+                }}
+                disabled={initGitRepoLoading || gitRootScanLoading}
+              >
+                {initGitRepoLoading ? "Initializing..." : "Initialize Git"}
+              </button>
+            )}
             <button
               type="button"
               className="ghost git-root-button"
               onClick={onScanGitRoots}
-              disabled={!onScanGitRoots || gitRootScanLoading}
+              disabled={!onScanGitRoots || gitRootScanLoading || initGitRepoLoading}
             >
               Scan workspace
             </button>
@@ -287,7 +316,7 @@ export function GitDiffModeContent({
                     onGitRootScanDepthChange?.(value);
                   }
                 }}
-                disabled={gitRootScanLoading}
+                disabled={gitRootScanLoading || initGitRepoLoading}
               >
                 {DEPTH_OPTIONS.map((depth) => (
                   <option key={depth} value={depth}>
@@ -303,7 +332,7 @@ export function GitDiffModeContent({
                 onClick={() => {
                   void onPickGitRoot();
                 }}
-                disabled={gitRootScanLoading}
+                disabled={gitRootScanLoading || initGitRepoLoading}
               >
                 Pick folder
               </button>
@@ -313,7 +342,7 @@ export function GitDiffModeContent({
                 type="button"
                 className="ghost git-root-button"
                 onClick={onClearGitRoot}
-                disabled={gitRootScanLoading}
+                disabled={gitRootScanLoading || initGitRepoLoading}
               >
                 Use workspace root
               </button>

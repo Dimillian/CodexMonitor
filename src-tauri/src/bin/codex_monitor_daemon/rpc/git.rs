@@ -13,6 +13,38 @@ pub(super) async fn try_handle(
             };
             Some(state.get_git_status(workspace_id).await)
         }
+        "init_git_repo" => {
+            let workspace_id = match parse_string(params, "workspaceId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let branch = match parse_string(params, "branch") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let force = parse_optional_bool(params, "force").unwrap_or(false);
+            Some(state.init_git_repo(workspace_id, branch, force).await)
+        }
+        "create_github_repo" => {
+            let workspace_id = match parse_string(params, "workspaceId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let repo = match parse_string(params, "repo") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let visibility = match parse_string(params, "visibility") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let branch = parse_optional_string(params, "branch");
+            Some(
+                state
+                    .create_github_repo(workspace_id, repo, visibility, branch)
+                    .await,
+            )
+        }
         "list_git_roots" => {
             let workspace_id = match parse_string(params, "workspaceId") {
                 Ok(value) => value,
