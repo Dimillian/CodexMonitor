@@ -1,4 +1,4 @@
-import { formatRelativeTime } from "../../../utils/time";
+import { formatRelativeTime } from "../../../i18n/utils/date";
 import type {
   WorkspaceHomeRun,
   WorkspaceHomeRunInstance,

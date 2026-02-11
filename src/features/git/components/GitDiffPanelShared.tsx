@@ -6,7 +6,7 @@ import Plus from "lucide-react/dist/esm/icons/plus";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import Upload from "lucide-react/dist/esm/icons/upload";
 import X from "lucide-react/dist/esm/icons/x";
-import { formatRelativeTime } from "../../../utils/time";
+import { formatRelativeTime } from "../../../i18n/utils/date";
 import { useTranslation } from "../../../i18n/hooks/useTranslation";
 import {
   getStatusClass,

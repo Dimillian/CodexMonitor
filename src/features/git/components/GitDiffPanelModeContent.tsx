@@ -7,7 +7,7 @@ import Download from "lucide-react/dist/esm/icons/download";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import RotateCw from "lucide-react/dist/esm/icons/rotate-cw";
 import Upload from "lucide-react/dist/esm/icons/upload";
-import { formatRelativeTime } from "../../../utils/time";
+import { formatRelativeTime } from "../../../i18n/utils/date";
 import {
   CommitButton,
   DiffSection,

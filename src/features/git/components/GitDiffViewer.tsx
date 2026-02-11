@@ -8,7 +8,7 @@ import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import GitCommitHorizontal from "lucide-react/dist/esm/icons/git-commit-horizontal";
 import { workerFactory } from "../../../utils/diffsWorker";
 import type { GitHubPullRequest, GitHubPullRequestComment } from "../../../types";
-import { formatRelativeTime } from "../../../utils/time";
+import { formatRelativeTime } from "../../../i18n/utils/date";
 import {
   DIFF_VIEWER_HIGHLIGHTER_OPTIONS,
   DIFF_VIEWER_SCROLL_CSS,

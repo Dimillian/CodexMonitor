@@ -1,7 +1,7 @@
 import FolderOpen from "lucide-react/dist/esm/icons/folder-open";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import type { LocalUsageSnapshot } from "../../../types";
-import { formatRelativeTime } from "../../../utils/time";
+import { formatRelativeTime } from "../../../i18n/utils/date";
 
 type LatestAgentRun = {
   message: string;

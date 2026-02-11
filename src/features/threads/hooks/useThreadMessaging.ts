@@ -28,7 +28,7 @@ import {
 } from "../utils/threadNormalize";
 import type { ThreadAction, ThreadState } from "./useThreadsReducer";
 import { useReviewPrompt } from "./useReviewPrompt";
-import { formatRelativeTime } from "../../../utils/time";
+import { formatRelativeTime } from "../../../i18n/utils/date";
 
 type SendMessageOptions = {
   skipPromptExpansion?: boolean;
