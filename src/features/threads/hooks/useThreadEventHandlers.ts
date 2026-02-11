@@ -64,12 +64,7 @@ export function useThreadEventHandlers({
     dispatch,
     approvalAllowlistRef,
   });
-  const onRequestUserInput = useThreadUserInputEvents({
-    dispatch,
-    markProcessing,
-    markReviewing,
-    setActiveTurnId,
-  });
+  const onRequestUserInput = useThreadUserInputEvents({ dispatch });
 
   const {
     onAgentMessageDelta,
