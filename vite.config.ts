@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
@@ -14,6 +15,16 @@ const packageJson = JSON.parse(
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "@app": fileURLToPath(new URL("./src/features/app", import.meta.url)),
+      "@settings": fileURLToPath(new URL("./src/features/settings", import.meta.url)),
+      "@threads": fileURLToPath(new URL("./src/features/threads", import.meta.url)),
+      "@services": fileURLToPath(new URL("./src/services", import.meta.url)),
+      "@utils": fileURLToPath(new URL("./src/utils", import.meta.url)),
+    },
+  },
   worker: {
     format: "es",
   },

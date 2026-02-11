@@ -15,7 +15,7 @@ import {
   connectWorkspace as connectWorkspaceService,
   isWorkspacePathDir as isWorkspacePathDirService,
   listWorkspaces,
-  pickWorkspacePath,
+  pickWorkspacePaths,
   removeWorkspace as removeWorkspaceService,
   removeWorktree as removeWorktreeService,
   renameWorktree as renameWorktreeService,
@@ -72,6 +72,10 @@ function createGroupId() {
     return crypto.randomUUID();
   }
   return `${Date.now()}-${Math.floor(Math.random() * GROUP_ID_RANDOM_MODULUS)}`;
+}
+
+function normalizeWorkspacePathKey(value: string) {
+  return value.trim().replace(/\\/g, "/").replace(/\/+$/, "");
 }
 
 export function useWorkspaces(options: UseWorkspacesOptions = {}) {
@@ -220,11 +224,12 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
   );
 
   const addWorkspaceFromPath = useCallback(
-    async (path: string) => {
+    async (path: string, options?: { activate?: boolean }) => {
       const selection = path.trim();
       if (!selection) {
         return null;
       }
+      const shouldActivate = options?.activate !== false;
       onDebug?.({
         id: `${Date.now()}-client-add-workspace`,
         timestamp: Date.now(),
@@ -235,7 +240,9 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
       try {
         const workspace = await addWorkspaceService(selection, defaultCodexBin ?? null);
         setWorkspaces((prev) => [...prev, workspace]);
-        setActiveWorkspaceId(workspace.id);
+        if (shouldActivate) {
+          setActiveWorkspaceId(workspace.id);
+        }
         Sentry.metrics.count("workspace_added", 1, {
           attributes: {
             workspace_id: workspace.id,
@@ -257,13 +264,125 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     [defaultCodexBin, onDebug],
   );
 
+  const addWorkspacesFromPaths = useCallback(
+    async (paths: string[]) => {
+      const existingPaths = new Set(
+        workspaces.map((entry) => normalizeWorkspacePathKey(entry.path)),
+      );
+      const skippedExisting: string[] = [];
+      const skippedInvalid: string[] = [];
+      const failures: { path: string; message: string }[] = [];
+      const added: WorkspaceInfo[] = [];
+
+      const seenSelections = new Set<string>();
+      const selections = paths
+        .map((path) => path.trim())
+        .filter(Boolean)
+        .filter((path) => {
+          const key = normalizeWorkspacePathKey(path);
+          if (seenSelections.has(key)) {
+            return false;
+          }
+          seenSelections.add(key);
+          return true;
+        });
+
+      for (const selection of selections) {
+        const key = normalizeWorkspacePathKey(selection);
+        if (existingPaths.has(key)) {
+          skippedExisting.push(selection);
+          continue;
+        }
+
+        let isDir = false;
+        try {
+          isDir = await isWorkspacePathDirService(selection);
+        } catch (error) {
+          failures.push({
+            path: selection,
+            message: error instanceof Error ? error.message : String(error),
+          });
+          continue;
+        }
+
+        if (!isDir) {
+          skippedInvalid.push(selection);
+          continue;
+        }
+
+        try {
+          const workspace = await addWorkspaceFromPath(selection, {
+            activate: added.length === 0,
+          });
+          if (workspace) {
+            added.push(workspace);
+            existingPaths.add(key);
+          }
+        } catch (error) {
+          failures.push({
+            path: selection,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      const hasIssues =
+        skippedExisting.length > 0 || skippedInvalid.length > 0 || failures.length > 0;
+      if (hasIssues) {
+        const lines: string[] = [];
+        lines.push(`Added ${added.length} workspace${added.length === 1 ? "" : "s"}.`);
+        if (skippedExisting.length > 0) {
+          lines.push(
+            `Skipped ${skippedExisting.length} already added workspace${
+              skippedExisting.length === 1 ? "" : "s"
+            }.`,
+          );
+        }
+        if (skippedInvalid.length > 0) {
+          lines.push(
+            `Skipped ${skippedInvalid.length} invalid path${
+              skippedInvalid.length === 1 ? "" : "s"
+            } (not a folder).`,
+          );
+        }
+        if (failures.length > 0) {
+          lines.push(
+            `Failed to add ${failures.length} workspace${
+              failures.length === 1 ? "" : "s"
+            }.`,
+          );
+          const details = failures
+            .slice(0, 3)
+            .map(({ path, message }) => `- ${path}: ${message}`);
+          if (failures.length > 3) {
+            details.push(`- …and ${failures.length - 3} more`);
+          }
+          lines.push("");
+          lines.push("Failures:");
+          lines.push(...details);
+        }
+
+        const summary = lines.join("\n");
+        const title =
+          failures.length > 0 ? "Some workspaces failed to add" : "Some workspaces were skipped";
+        void message(summary, {
+          title,
+          kind: failures.length > 0 ? "error" : "warning",
+        });
+      }
+
+      return added[0] ?? null;
+    },
+    [addWorkspaceFromPath, workspaces],
+  );
+
   const addWorkspace = useCallback(async () => {
-    const selection = await pickWorkspacePath();
-    if (!selection) {
+    const selection = await pickWorkspacePaths();
+    if (selection.length === 0) {
       return null;
     }
-    return addWorkspaceFromPath(selection);
-  }, [addWorkspaceFromPath]);
+    return addWorkspacesFromPaths(selection);
+  }, [addWorkspacesFromPaths]);
 
   const filterWorkspacePaths = useCallback(async (paths: string[]) => {
     const trimmed = paths.map((path) => path.trim()).filter(Boolean);
@@ -867,6 +986,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     setActiveWorkspaceId,
     addWorkspace,
     addWorkspaceFromPath,
+    addWorkspacesFromPaths,
     filterWorkspacePaths,
     addCloneAgent,
     addWorktreeAgent,

@@ -6,7 +6,7 @@ import type {
   OrbitSignInPollResult,
   OrbitSignOutResult,
   WorkspaceInfo,
-} from "../../../types";
+} from "@/types";
 import type { OpenAppDraft, ShortcutDrafts } from "./settingsTypes";
 import { SETTINGS_MOBILE_BREAKPOINT_PX } from "./settingsViewConstants";
 

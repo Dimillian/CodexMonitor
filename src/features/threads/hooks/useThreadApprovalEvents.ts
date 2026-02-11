@@ -1,11 +1,11 @@
 import { useCallback } from "react";
 import type { Dispatch, MutableRefObject } from "react";
-import type { ApprovalRequest } from "../../../types";
+import type { ApprovalRequest } from "@/types";
 import {
   getApprovalCommandInfo,
   matchesCommandPrefix,
-} from "../../../utils/approvalRules";
-import { respondToServerRequest } from "../../../services/tauri";
+} from "@utils/approvalRules";
+import { respondToServerRequest } from "@services/tauri";
 import type { ThreadAction } from "./useThreadsReducer";
 
 type UseThreadApprovalEventsOptions = {

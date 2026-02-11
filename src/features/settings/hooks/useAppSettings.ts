@@ -1,23 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { AppSettings } from "../../../types";
-import { getAppSettings, runCodexDoctor, updateAppSettings } from "../../../services/tauri";
-import { clampUiScale, UI_SCALE_DEFAULT } from "../../../utils/uiScale";
+import type { AppSettings } from "@/types";
+import { getAppSettings, runCodexDoctor, updateAppSettings } from "@services/tauri";
+import { clampUiScale, UI_SCALE_DEFAULT } from "@utils/uiScale";
 import {
   DEFAULT_CODE_FONT_FAMILY,
   DEFAULT_UI_FONT_FAMILY,
   CODE_FONT_SIZE_DEFAULT,
   clampCodeFontSize,
   normalizeFontFamily,
-} from "../../../utils/fonts";
+} from "@utils/fonts";
 import {
   DEFAULT_OPEN_APP_ID,
   DEFAULT_OPEN_APP_TARGETS,
   OPEN_APP_STORAGE_KEY,
-} from "../../app/constants";
-import { normalizeOpenAppTargets } from "../../app/utils/openApp";
-import { getDefaultInterruptShortcut, isMacPlatform } from "../../../utils/shortcuts";
-import { isMobilePlatform } from "../../../utils/platformPaths";
-import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "../../../utils/commitMessagePrompt";
+} from "@app/constants";
+import { normalizeOpenAppTargets } from "@app/utils/openApp";
+import { getDefaultInterruptShortcut, isMacPlatform } from "@utils/shortcuts";
+import { isMobilePlatform } from "@utils/platformPaths";
+import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
 
 const allowedThemes = new Set(["system", "light", "dark", "dim"]);
 const allowedPersonality = new Set(["friendly", "pragmatic"]);
@@ -72,6 +72,7 @@ function buildDefaultSettings(): AppSettings {
     codeFontSize: CODE_FONT_SIZE_DEFAULT,
     notificationSoundsEnabled: true,
     systemNotificationsEnabled: true,
+    splitChatDiffView: false,
     preloadGitDiffs: true,
     gitDiffIgnoreWhitespaceChanges: false,
     commitMessagePrompt: DEFAULT_COMMIT_MESSAGE_PROMPT,

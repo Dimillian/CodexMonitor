@@ -5,8 +5,8 @@ import type {
   GitLogEntry,
   ReviewTarget,
   WorkspaceInfo,
-} from "../../../types";
-import { getGitLog, listGitBranches } from "../../../services/tauri";
+} from "@/types";
+import { getGitLog, listGitBranches } from "@services/tauri";
 
 export type ReviewPromptStep = "preset" | "baseBranch" | "commit" | "custom";
 

@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { Dispatch } from "react";
-import { buildConversationItem } from "../../../utils/threadItems";
-import { asString } from "../utils/threadNormalize";
+import { buildConversationItem } from "@utils/threadItems";
+import { asString } from "@threads/utils/threadNormalize";
 import type { ThreadAction } from "./useThreadsReducer";
 
 type UseThreadItemEventsOptions = {

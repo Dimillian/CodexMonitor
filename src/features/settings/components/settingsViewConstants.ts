@@ -1,4 +1,4 @@
-import type { AppSettings } from "../../../types";
+import type { AppSettings } from "@/types";
 import {
   orbitConnectTest,
   orbitRunnerStart,
@@ -7,7 +7,7 @@ import {
   orbitSignInPoll,
   orbitSignInStart,
   orbitSignOut,
-} from "../../../services/tauri";
+} from "@services/tauri";
 import type {
   CodexSection,
   OrbitServiceClient,

@@ -1,5 +1,10 @@
 import { useCallback, useMemo } from "react";
-import type { GitHubPullRequest, GitHubPullRequestDiff, WorkspaceInfo } from "../../../types";
+import type {
+  AppMention,
+  GitHubPullRequest,
+  GitHubPullRequestDiff,
+  WorkspaceInfo,
+} from "../../../types";
 import {
   buildPullRequestDraft,
   buildPullRequestPrompt,
@@ -29,11 +34,23 @@ type UsePullRequestComposerOptions = {
     threadId: string,
     text: string,
     images?: string[],
-    options?: { model?: string | null; effort?: string | null },
+    options?: {
+      model?: string | null;
+      effort?: string | null;
+      appMentions?: AppMention[];
+    },
   ) => Promise<void>;
   clearActiveImages: () => void;
-  handleSend: (text: string, images: string[]) => Promise<void>;
-  queueMessage: (text: string, images: string[]) => Promise<void>;
+  handleSend: (
+    text: string,
+    images: string[],
+    appMentions?: AppMention[],
+  ) => Promise<void>;
+  queueMessage: (
+    text: string,
+    images: string[],
+    appMentions?: AppMention[],
+  ) => Promise<void>;
 };
 
 export function usePullRequestComposer({
@@ -101,10 +118,18 @@ export function usePullRequestComposer({
   }, [setDiffSource, setSelectedPullRequest]);
 
   const handleSendPullRequestQuestion = useCallback(
-    async (text: string, images: string[] = []) => {
+    async (
+      text: string,
+      images: string[] = [],
+      appMentions: AppMention[] = [],
+    ) => {
       const trimmed = text.trim();
       if (KNOWN_SLASH_COMMAND_REGEX.test(trimmed)) {
-        await handleSend(trimmed, images);
+        if (appMentions.length > 0) {
+          await handleSend(trimmed, images, appMentions);
+        } else {
+          await handleSend(trimmed, images);
+        }
         return;
       }
       if (!activeWorkspace || !selectedPullRequest) {

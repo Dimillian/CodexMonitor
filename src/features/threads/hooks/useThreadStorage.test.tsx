@@ -9,10 +9,10 @@ import {
   loadThreadActivity,
   savePinnedThreads,
   saveThreadActivity,
-} from "../utils/threadStorage";
+} from "@threads/utils/threadStorage";
 import { useThreadStorage } from "./useThreadStorage";
 
-vi.mock("../utils/threadStorage", () => ({
+vi.mock("@threads/utils/threadStorage", () => ({
   MAX_PINS_SOFT_LIMIT: 2,
   STORAGE_KEY_CUSTOM_NAMES: "custom-names",
   STORAGE_KEY_PINNED_THREADS: "pinned-threads",

@@ -219,18 +219,30 @@ npm run typecheck
 cd src-tauri && cargo check
 ```
 
+## Codebase Navigation
+
+For task-oriented file lookup ("if you need X, edit Y"), use:
+
+- `docs/codebase-map.md`
+
 ## Project Structure
 
 ```
 src/
   features/         feature-sliced UI + hooks
+  features/app/bootstrap/      app bootstrap orchestration
+  features/app/orchestration/  app layout/thread/workspace orchestration
+  features/threads/hooks/threadReducer/  thread reducer slices
   services/         Tauri IPC wrapper
   styles/           split CSS by area
   types.ts          shared types
 src-tauri/
   src/lib.rs        Tauri app backend command registry
   src/bin/codex_monitor_daemon.rs  remote daemon JSON-RPC process
+  src/bin/codex_monitor_daemon/rpc/  daemon RPC domain handlers
   src/shared/       shared backend core used by app + daemon
+  src/shared/git_ui_core/      git/github shared core modules
+  src/shared/workspaces_core/  workspace/worktree shared core modules
   src/workspaces/   workspace/worktree adapters
   src/codex/        codex app-server adapters
   src/files/        file adapters
@@ -247,7 +259,8 @@ src-tauri/
 - Selecting a thread always calls `thread/resume` to refresh messages from disk.
 - CLI sessions appear if their `cwd` matches the workspace path; they are not live-streamed unless resumed.
 - The app uses `codex app-server` over stdio; see `src-tauri/src/lib.rs` and `src-tauri/src/codex/`.
-- The remote daemon entrypoint is `src-tauri/src/bin/codex_monitor_daemon.rs`; shared domain logic lives in `src-tauri/src/shared/`.
+- The remote daemon entrypoint is `src-tauri/src/bin/codex_monitor_daemon.rs`; RPC routing lives in `src-tauri/src/bin/codex_monitor_daemon/rpc.rs` and domain handlers in `src-tauri/src/bin/codex_monitor_daemon/rpc/`.
+- Shared domain logic lives in `src-tauri/src/shared/` (notably `src-tauri/src/shared/git_ui_core/` and `src-tauri/src/shared/workspaces_core/`).
 - Codex home resolves from workspace settings (if set), then legacy `.codexmonitor/`, then `$CODEX_HOME`/`~/.codex`.
 - Worktree agents live under the app data directory (`worktrees/<workspace-id>`); legacy `.codex-worktrees/` paths remain supported, and the app no longer edits repo `.gitignore` files.
 - UI state (panel sizes, reduced transparency toggle, recent thread activity) is stored in `localStorage`.

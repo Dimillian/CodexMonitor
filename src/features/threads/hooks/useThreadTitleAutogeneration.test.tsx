@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { ConversationItem, ThreadSummary } from "../../../types";
-import { generateRunMetadata } from "../../../services/tauri";
+import type { ConversationItem, ThreadSummary } from "@/types";
+import { generateRunMetadata } from "@services/tauri";
 import { useThreadTitleAutogeneration } from "./useThreadTitleAutogeneration";
 
-vi.mock("../../../services/tauri", () => ({
+vi.mock("@services/tauri", () => ({
   generateRunMetadata: vi.fn(),
 }));
 

@@ -9,6 +9,7 @@ export function useGitPanelController({
   activeWorkspace,
   gitDiffPreloadEnabled,
   gitDiffIgnoreWhitespaceChanges,
+  splitChatDiffView,
   isCompact,
   isTablet,
   activeTab,
@@ -21,6 +22,7 @@ export function useGitPanelController({
   activeWorkspace: WorkspaceInfo | null;
   gitDiffPreloadEnabled: boolean;
   gitDiffIgnoreWhitespaceChanges: boolean;
+  splitChatDiffView: boolean;
   isCompact: boolean;
   isTablet: boolean;
   activeTab: "home" | "projects" | "codex" | "git" | "log";
@@ -104,10 +106,13 @@ export function useGitPanelController({
   );
   const shouldLoadSelectedLocalDiff =
     centerMode === "diff" && Boolean(selectedDiffPath);
+  const shouldLoadLocalDiffsForSplitView = splitChatDiffView && diffSource === "local";
   const shouldLoadLocalDiffs =
     Boolean(activeWorkspace) &&
     (shouldPreloadDiffs ||
-      (gitDiffPreloadEnabled ? diffUiVisible : shouldLoadSelectedLocalDiff));
+      (gitDiffPreloadEnabled
+        ? diffUiVisible
+        : shouldLoadSelectedLocalDiff || shouldLoadLocalDiffsForSplitView));
   const shouldLoadDiffs =
     Boolean(activeWorkspace) &&
     (diffSource === "local" ? shouldLoadLocalDiffs : diffUiVisible);

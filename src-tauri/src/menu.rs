@@ -94,7 +94,7 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
     let new_clone_agent_item =
         MenuItemBuilder::with_id("file_new_clone_agent", "New Clone Agent").build(handle)?;
     let add_workspace_item =
-        MenuItemBuilder::with_id("file_add_workspace", "Add Workspace...").build(handle)?;
+        MenuItemBuilder::with_id("file_add_workspace", "Add Workspaces...").build(handle)?;
 
     registry.register("file_new_agent", &new_agent_item);
     registry.register("file_new_worktree_agent", &new_worktree_agent_item);

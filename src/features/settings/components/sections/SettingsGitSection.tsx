@@ -1,4 +1,4 @@
-import type { AppSettings } from "../../../../types";
+import type { AppSettings } from "@/types";
 
 type SettingsGitSectionProps = {
   appSettings: AppSettings;

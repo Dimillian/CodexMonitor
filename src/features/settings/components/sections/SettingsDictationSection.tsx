@@ -1,5 +1,5 @@
-import type { AppSettings, DictationModelStatus } from "../../../../types";
-import { formatDownloadSize } from "../../../../utils/formatting";
+import type { AppSettings, DictationModelStatus } from "@/types";
+import { formatDownloadSize } from "@utils/formatting";
 
 type DictationModelOption = {
   id: string;

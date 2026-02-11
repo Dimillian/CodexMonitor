@@ -1,23 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DebugEntry, ModelOption, WorkspaceInfo } from "../../../types";
 import { getConfigModel, getModelList } from "../../../services/tauri";
+import {
+  normalizeEffortValue,
+  parseModelListResponse,
+} from "../utils/modelListResponse";
 
 type UseModelsOptions = {
   activeWorkspace: WorkspaceInfo | null;
   onDebug?: (entry: DebugEntry) => void;
   preferredModelId?: string | null;
   preferredEffort?: string | null;
+  selectionKey?: string | null;
 };
 
 const CONFIG_MODEL_DESCRIPTION = "Configured in CODEX_HOME/config.toml";
-
-const normalizeEffort = (value: unknown): string | null => {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-};
 
 const findModelByIdOrModel = (
   models: ModelOption[],
@@ -44,6 +41,7 @@ export function useModels({
   onDebug,
   preferredModelId = null,
   preferredEffort = null,
+  selectionKey = null,
 }: UseModelsOptions) {
   const [models, setModels] = useState<ModelOption[]>([]);
   const [configModel, setConfigModel] = useState<string | null>(null);
@@ -54,9 +52,19 @@ export function useModels({
   const hasUserSelectedModel = useRef(false);
   const hasUserSelectedEffort = useRef(false);
   const lastWorkspaceId = useRef<string | null>(null);
+  const lastSelectionKey = useRef<string | null>(null);
 
   const workspaceId = activeWorkspace?.id ?? null;
   const isConnected = Boolean(activeWorkspace?.connected);
+
+  useEffect(() => {
+    if (selectionKey === lastSelectionKey.current) {
+      return;
+    }
+    lastSelectionKey.current = selectionKey;
+    hasUserSelectedModel.current = false;
+    hasUserSelectedEffort.current = false;
+  }, [selectionKey]);
 
   useEffect(() => {
     if (workspaceId === lastWorkspaceId.current) {
@@ -111,7 +119,7 @@ export function useModels({
     if (supported && supported.length > 0) {
       return supported;
     }
-    const defaultEffort = normalizeEffort(selectedModel?.defaultReasoningEffort);
+    const defaultEffort = normalizeEffortValue(selectedModel?.defaultReasoningEffort);
     return defaultEffort ? [defaultEffort] : [];
   }, [selectedModel]);
 
@@ -120,18 +128,18 @@ export function useModels({
       const supportedEfforts = model.supportedReasoningEfforts.map(
         (effort) => effort.reasoningEffort,
       );
-      const currentEffort = normalizeEffort(selectedEffort);
+      const currentEffort = normalizeEffortValue(selectedEffort);
       if (preferCurrent && currentEffort) {
         return currentEffort;
       }
       if (supportedEfforts.length === 0) {
-        return normalizeEffort(preferredEffort);
+        return normalizeEffortValue(preferredEffort);
       }
-      const preferred = normalizeEffort(preferredEffort);
+      const preferred = normalizeEffortValue(preferredEffort);
       if (preferred && supportedEfforts.includes(preferred)) {
         return preferred;
       }
-      return normalizeEffort(model.defaultReasoningEffort);
+      return normalizeEffortValue(model.defaultReasoningEffort);
     },
     [preferredEffort, selectedEffort],
   );
@@ -194,27 +202,7 @@ export function useModels({
         payload: response,
       });
       setConfigModel(configModelFromConfig);
-      const rawData = response?.result?.data ?? response?.data ?? [];
-      const dataFromServer: ModelOption[] = rawData.map((item: any) => ({
-        id: String(item.id ?? item.model ?? ""),
-        model: String(item.model ?? item.id ?? ""),
-        displayName: String(item.displayName ?? item.display_name ?? item.model ?? ""),
-        description: String(item.description ?? ""),
-        supportedReasoningEfforts: Array.isArray(item.supportedReasoningEfforts)
-          ? item.supportedReasoningEfforts
-          : Array.isArray(item.supported_reasoning_efforts)
-            ? item.supported_reasoning_efforts.map((effort: any) => ({
-                reasoningEffort: String(
-                  effort.reasoningEffort ?? effort.reasoning_effort ?? "",
-                ),
-                description: String(effort.description ?? ""),
-              }))
-            : [],
-        defaultReasoningEffort: normalizeEffort(
-          item.defaultReasoningEffort ?? item.default_reasoning_effort,
-        ),
-        isDefault: Boolean(item.isDefault ?? item.is_default ?? false),
-      }));
+      const dataFromServer: ModelOption[] = parseModelListResponse(response);
       const data = (() => {
         if (!configModelFromConfig) {
           return dataFromServer;
@@ -290,11 +278,11 @@ export function useModels({
     if (!selectedModel) {
       return;
     }
-    const currentEffort = normalizeEffort(selectedEffort);
+    const currentEffort = normalizeEffortValue(selectedEffort);
     if (currentEffort) {
       return;
     }
-    const nextEffort = normalizeEffort(selectedModel.defaultReasoningEffort);
+    const nextEffort = normalizeEffortValue(selectedModel.defaultReasoningEffort);
     if (nextEffort === null) {
       return;
     }

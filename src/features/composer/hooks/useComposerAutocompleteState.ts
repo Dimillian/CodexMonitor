@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import type { AutocompleteItem } from "./useComposerAutocomplete";
 import { useComposerAutocomplete } from "./useComposerAutocomplete";
 import type { AppOption, CustomPromptOption } from "../../../types";
+import { connectorMentionSlug } from "../../apps/utils/appMentions";
 import {
   buildPromptInsertText,
   findNextPromptArgCursor,
@@ -23,6 +24,10 @@ type UseComposerAutocompleteStateArgs = {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   setText: (next: string) => void;
   setSelectionStart: (next: number | null) => void;
+  onItemApplied?: (
+    item: AutocompleteItem,
+    context: { triggerChar: string; insertedText: string },
+  ) => void;
 };
 
 const MAX_FILE_SUGGESTIONS = 500;
@@ -77,6 +82,7 @@ export function useComposerAutocompleteState({
   textareaRef,
   setText,
   setSelectionStart,
+  onItemApplied,
 }: UseComposerAutocompleteStateArgs) {
   const skillItems = useMemo<AutocompleteItem[]>(
     () => [
@@ -90,12 +96,13 @@ export function useComposerAutocompleteState({
       ...apps
         .filter((app) => app.isAccessible)
         .map((app) => ({
-        id: `app:${app.id}`,
-        label: app.name,
-        description: app.description,
-        insertText: app.id,
-        group: "Apps" as const,
-      })),
+          id: `app:${app.id}`,
+          label: app.name,
+          description: app.description,
+          insertText: connectorMentionSlug(app.name),
+          group: "Apps" as const,
+          mentionPath: `app://${app.id}`,
+        })),
     ],
     [apps, skills],
   );
@@ -261,6 +268,7 @@ export function useComposerAutocompleteState({
           : !/^\s/.test(after);
       const nextText = `${before}${actualInsert}${needsSpace ? " " : ""}${after}`;
       setText(nextText);
+      onItemApplied?.(item, { triggerChar, insertedText: actualInsert });
       closeAutocomplete();
       requestAnimationFrame(() => {
         const textarea = textareaRef.current;
@@ -288,6 +296,7 @@ export function useComposerAutocompleteState({
       setText,
       text,
       textareaRef,
+      onItemApplied,
     ],
   );
 

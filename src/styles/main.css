@@ -851,6 +851,10 @@
   position: relative;
 }
 
+.content-split {
+  position: relative;
+}
+
 .content-layer {
   position: absolute;
   inset: 0;
@@ -859,6 +863,22 @@
   min-height: 0;
   min-width: 0;
   isolation: isolate;
+}
+
+.content-layer-split {
+  top: var(--main-topbar-height);
+  bottom: 0;
+}
+
+.content-layer-chat {
+  left: 0;
+  right: 50%;
+  border-right: 1px solid var(--border-subtle);
+}
+
+.content-layer-diff {
+  left: 50%;
+  right: 0;
 }
 
 .content-layer.is-hidden {

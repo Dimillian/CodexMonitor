@@ -5,9 +5,9 @@ import type {
   OrbitRunnerStatus,
   OrbitSignInPollResult,
   OrbitSignOutResult,
-} from "../../../types";
+} from "@/types";
 
-export type SettingsSection =
+type SettingsSection =
   | "projects"
   | "environments"
   | "display"

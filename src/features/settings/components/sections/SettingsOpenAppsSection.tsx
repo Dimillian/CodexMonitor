@@ -1,16 +1,16 @@
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
-import type { OpenAppTarget } from "../../../../types";
+import type { OpenAppTarget } from "@/types";
 import {
   fileManagerName,
   isMacPlatform,
-} from "../../../../utils/platformPaths";
+} from "@utils/platformPaths";
 import {
   GENERIC_APP_ICON,
   getKnownOpenAppIcon,
-} from "../../../app/utils/openAppIcons";
-import type { OpenAppDraft } from "../settingsTypes";
+} from "@app/utils/openAppIcons";
+import type { OpenAppDraft } from "@settings/components/settingsTypes";
 
 type SettingsOpenAppsSectionProps = {
   openAppDrafts: OpenAppDraft[];

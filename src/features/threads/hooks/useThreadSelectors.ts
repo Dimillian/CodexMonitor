@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { ConversationItem } from "../../../types";
+import type { ConversationItem } from "@/types";
 import type { ThreadState } from "./useThreadsReducer";
 
 type UseThreadSelectorsOptions = {

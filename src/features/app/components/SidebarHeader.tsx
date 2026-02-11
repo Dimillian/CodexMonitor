@@ -60,7 +60,7 @@ export function SidebarHeader({
             className="sidebar-title-add"
             onClick={onAddWorkspace}
             data-tauri-drag-region="false"
-            aria-label="Add workspace"
+            aria-label="Add workspaces"
             type="button"
           >
             <FolderPlus aria-hidden />

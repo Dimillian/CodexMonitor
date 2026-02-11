@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import type { ThreadSummary } from "../../../types";
+import type { ThreadSummary } from "@/types";
 
 type RenamePromptState = {
   workspaceId: string;

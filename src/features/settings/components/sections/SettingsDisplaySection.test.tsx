@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { AppSettings } from "../../../../types";
+import type { AppSettings } from "@/types";
 import { SettingsDisplaySection } from "./SettingsDisplaySection";
 
 describe("SettingsDisplaySection", () => {
