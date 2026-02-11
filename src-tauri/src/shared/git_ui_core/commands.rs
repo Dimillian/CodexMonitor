@@ -108,6 +108,9 @@ fn validate_branch_name(name: &str) -> Result<String, String> {
     if trimmed.starts_with('/') || trimmed.ends_with('/') {
         return Err("Branch name cannot start or end with '/'.".to_string());
     }
+    if trimmed.contains("//") {
+        return Err("Branch name cannot contain '//'.".to_string());
+    }
     if trimmed.ends_with(".lock") {
         return Err("Branch name cannot end with '.lock'.".to_string());
     }
@@ -723,4 +726,17 @@ pub(super) async fn create_git_branch_inner(
     repo.branch(&name, &target, false)
         .map_err(|e| e.to_string())?;
     checkout_branch(&repo, &name).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_branch_name;
+
+    #[test]
+    fn validate_branch_name_rejects_repeated_slashes() {
+        assert_eq!(
+            validate_branch_name("feature//oops"),
+            Err("Branch name cannot contain '//'.".to_string())
+        );
+    }
 }

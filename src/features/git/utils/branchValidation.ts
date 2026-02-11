@@ -12,6 +12,9 @@ export function validateBranchName(name: string): string | null {
   if (trimmed.startsWith("/") || trimmed.endsWith("/")) {
     return "Branch name cannot start or end with '/'.";
   }
+  if (trimmed.includes("//")) {
+    return "Branch name cannot contain '//'.";
+  }
   if (trimmed.endsWith(".lock")) {
     return "Branch name cannot end with '.lock'.";
   }
