@@ -439,7 +439,7 @@ describe("SettingsView Display", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
-    const scaleInput = screen.getByLabelText("UI Scale");
+    const scaleInput = screen.getByLabelText("Interface scale");
 
     fireEvent.change(scaleInput, { target: { value: "500%" } });
     fireEvent.blur(scaleInput);
@@ -593,7 +593,7 @@ describe("SettingsView Environments", () => {
     try {
       renderEnvironmentsSection();
 
-      fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+      fireEvent.click(screen.getByRole("button", { name: "common.copy" }));
 
       await waitFor(() => {
         expect(writeText).toHaveBeenCalledWith("echo one");
@@ -816,8 +816,8 @@ describe("SettingsView Codex overrides", () => {
       expect(screen.getByRole("button", { name: "Start daemon" })).toBeTruthy();
       expect(screen.getByRole("button", { name: "Stop daemon" })).toBeTruthy();
       expect(screen.getByRole("button", { name: "Refresh status" })).toBeTruthy();
-      expect(screen.getByLabelText("Remote backend host")).toBeTruthy();
-      expect(screen.getByLabelText("Remote backend token")).toBeTruthy();
+      expect(screen.getByLabelText("settings.features.host")).toBeTruthy();
+      expect(screen.getByLabelText("settings.features.remote_backend")).toBeTruthy();
     });
   });
 
@@ -899,7 +899,7 @@ describe("SettingsView Codex overrides", () => {
       expect(screen.queryByRole("button", { name: "Start daemon" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Detect Tailscale" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Connect test" })).toBeNull();
-      expect(screen.queryByLabelText("Remote backend host")).toBeNull();
+      expect(screen.queryByLabelText("settings.features.host")).toBeNull();
       expect(screen.queryByRole("button", { name: "Sign In" })).toBeNull();
       expect(
         screen.getByText(/use the orbit websocket url and token configured/i),
