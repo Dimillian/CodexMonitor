@@ -33,7 +33,17 @@ export function normalizeStringList(value: unknown) {
 }
 
 export function normalizeRootPath(value: string) {
-  return value.replace(/\\/g, "/").replace(/\/+$/, "");
+  const normalized = value.trim().replace(/\\/g, "/").replace(/\/+$/, "");
+  if (!normalized) {
+    return "";
+  }
+  if (/^[A-Za-z]:\//.test(normalized)) {
+    return `${normalized.charAt(0).toLowerCase()}${normalized.slice(1)}`;
+  }
+  if (normalized.startsWith("//")) {
+    return normalized.toLowerCase();
+  }
+  return normalized;
 }
 
 export function extractRpcErrorMessage(response: unknown) {

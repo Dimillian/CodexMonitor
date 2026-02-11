@@ -632,6 +632,46 @@ describe("useThreadActions", () => {
     expect(updateThreadParent).toHaveBeenCalledWith("parent-thread", ["child-thread"]);
   });
 
+  it("matches thread cwd on Windows paths even when drive-letter casing differs", async () => {
+    const windowsWorkspace: WorkspaceInfo = {
+      ...workspace,
+      path: "C:\\dev\\codexMon",
+    };
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-win-1",
+            cwd: "c:/dev/codexMon",
+            preview: "Windows thread",
+            updated_at: 5000,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockReturnValue(5000);
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(windowsWorkspace);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-1",
+      sortKey: "updated_at",
+      threads: [
+        {
+          id: "thread-win-1",
+          name: "Windows thread",
+          updatedAt: 5000,
+        },
+      ],
+    });
+  });
+
   it("preserves list state when requested", async () => {
     vi.mocked(listThreads).mockResolvedValue({
       result: {
