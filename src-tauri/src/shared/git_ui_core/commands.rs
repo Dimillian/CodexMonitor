@@ -6,7 +6,9 @@ use git2::{BranchType, Repository, Status, StatusOptions};
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
 
-use crate::git_utils::{checkout_branch, list_git_roots as scan_git_roots, resolve_git_root};
+use crate::git_utils::{
+    checkout_branch, list_git_roots as scan_git_roots, parse_github_repo, resolve_git_root,
+};
 use crate::shared::process_core::tokio_command;
 use crate::types::{BranchInfo, WorkspaceEntry};
 use crate::utils::{git_env_path, normalize_git_path, resolve_git_binary};
@@ -158,6 +160,10 @@ fn normalize_repo_full_name(value: &str) -> String {
         .trim_end_matches(".git")
         .trim_end_matches('/')
         .to_string()
+}
+
+pub(super) fn github_repo_names_match(existing: &str, requested: &str) -> bool {
+    normalize_repo_full_name(existing).eq_ignore_ascii_case(&normalize_repo_full_name(requested))
 }
 
 fn git_remote_url(repo_root: &Path, remote_name: &str) -> Option<String> {
@@ -549,6 +555,18 @@ pub(super) async fn create_github_repo_inner(
         }
         format!("{owner}/{repo}")
     };
+
+    if let Some(origin_url) = origin_url_before.as_deref() {
+        let existing_repo = parse_github_repo(origin_url).ok_or_else(|| {
+            "Origin remote is not a GitHub repository. Remove or reconfigure origin before creating a GitHub remote."
+                .to_string()
+        })?;
+        if !github_repo_names_match(&existing_repo, &full_name) {
+            return Err(format!(
+                "Origin remote already points to '{existing_repo}', but '{full_name}' was requested. Remove or reconfigure origin to continue."
+            ));
+        }
+    }
 
     if origin_url_before.is_none() {
         let create_result = run_gh_command(
