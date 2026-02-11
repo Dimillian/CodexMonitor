@@ -284,8 +284,8 @@ export function GitDiffModeContent({
       {showGitRootPanel && (
         <div className="git-root-panel">
           <div className="git-root-title">{gitRootTitle}</div>
-          <div className="git-root-actions">
-            {showInitGitRepo && (
+          {showInitGitRepo && (
+            <div className="git-root-primary-action">
               <button
                 type="button"
                 className="primary git-root-button"
@@ -296,7 +296,9 @@ export function GitDiffModeContent({
               >
                 {initGitRepoLoading ? "Initializing..." : "Initialize Git"}
               </button>
-            )}
+            </div>
+          )}
+          <div className="git-root-actions">
             <button
               type="button"
               className="ghost git-root-button"
