@@ -2,7 +2,7 @@ import type { AccessMode } from "@/types";
 import type { ThreadCodexParams } from "./threadStorage";
 import { makeThreadCodexParamsKey } from "./threadStorage";
 
-export const NO_THREAD_SCOPE_SUFFIX = "__no_thread__";
+const NO_THREAD_SCOPE_SUFFIX = "__no_thread__";
 
 export type PendingNewThreadSeed = {
   workspaceId: string;
@@ -20,7 +20,7 @@ type ResolveThreadCodexStateInput = {
   pendingSeed: PendingNewThreadSeed | null;
 };
 
-export type ResolvedThreadCodexState = {
+type ResolvedThreadCodexState = {
   scopeKey: string;
   accessMode: AccessMode;
   preferredModelId: string | null;
@@ -28,7 +28,7 @@ export type ResolvedThreadCodexState = {
   preferredCollabModeId: string | null;
 };
 
-export type ThreadCodexSeedPatch = {
+type ThreadCodexSeedPatch = {
   modelId: string | null;
   effort: string | null;
   accessMode: AccessMode;

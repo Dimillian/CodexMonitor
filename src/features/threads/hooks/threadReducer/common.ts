@@ -3,7 +3,7 @@ import type { ThreadState } from "../useThreadsReducer";
 
 const MAX_THREAD_NAME_LENGTH = 38;
 
-export function formatThreadName(text: string) {
+function formatThreadName(text: string) {
   const trimmed = text.trim();
   if (!trimmed) {
     return null;

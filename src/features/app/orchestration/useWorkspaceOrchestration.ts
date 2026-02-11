@@ -1,63 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AppSettings, DebugEntry, WorkspaceInfo } from "@/types";
-import { useMobileServerSetup } from "@/features/mobile/hooks/useMobileServerSetup";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { WorkspaceInfo } from "@/types";
 import { useLocalUsage } from "@/features/home/hooks/useLocalUsage";
-import { useWorkspaceController } from "@app/hooks/useWorkspaceController";
-
-type UseWorkspaceOrchestrationParams = {
-  appSettings: AppSettings;
-  appSettingsLoading: boolean;
-  addDebugEntry: (entry: DebugEntry) => void;
-  queueSaveSettings: (next: AppSettings) => Promise<AppSettings>;
-};
-
-export function useWorkspaceOrchestration({
-  appSettings,
-  appSettingsLoading,
-  addDebugEntry,
-  queueSaveSettings,
-}: UseWorkspaceOrchestrationParams) {
-  const workspaceState = useWorkspaceController({
-    appSettings,
-    addDebugEntry,
-    queueSaveSettings,
-  });
-
-  const mobileSetupState = useMobileServerSetup({
-    appSettings,
-    appSettingsLoading,
-    queueSaveSettings,
-    refreshWorkspaces: workspaceState.refreshWorkspaces,
-  });
-
-  const updaterEnabled = !mobileSetupState.isMobileRuntime;
-  const workspacesById = useMemo(
-    () => new Map(workspaceState.workspaces.map((workspace) => [workspace.id, workspace])),
-    [workspaceState.workspaces],
-  );
-
-  const activeWorkspaceIdForParamsRef = useRef<string | null>(
-    workspaceState.activeWorkspaceId ?? null,
-  );
-
-  useEffect(() => {
-    activeWorkspaceIdForParamsRef.current = workspaceState.activeWorkspaceId ?? null;
-  }, [workspaceState.activeWorkspaceId]);
-
-  const getWorkspaceName = useCallback(
-    (workspaceId: string) => workspacesById.get(workspaceId)?.name,
-    [workspacesById],
-  );
-
-  return {
-    ...workspaceState,
-    ...mobileSetupState,
-    updaterEnabled,
-    workspacesById,
-    activeWorkspaceIdForParamsRef,
-    getWorkspaceName,
-  };
-}
 
 type ThreadSummary = {
   id: string;

@@ -14,7 +14,7 @@ import { reduceThreadLifecycle } from "./threadReducer/threadLifecycleSlice";
 import { reduceThreadQueue } from "./threadReducer/threadQueueSlice";
 import { reduceThreadSnapshots } from "./threadReducer/threadSnapshotSlice";
 
-export type ThreadActivityStatus = {
+type ThreadActivityStatus = {
   isProcessing: boolean;
   hasUnread: boolean;
   isReviewing: boolean;

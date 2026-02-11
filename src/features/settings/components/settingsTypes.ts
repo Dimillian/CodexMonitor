@@ -7,7 +7,7 @@ import type {
   OrbitSignOutResult,
 } from "@/types";
 
-export type SettingsSection =
+type SettingsSection =
   | "projects"
   | "environments"
   | "display"

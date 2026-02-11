@@ -9,7 +9,7 @@ import {
   saveThreadCodexParams,
 } from "@threads/utils/threadStorage";
 
-export type ThreadCodexParamsPatch = Partial<
+type ThreadCodexParamsPatch = Partial<
   Pick<ThreadCodexParams, "modelId" | "effort" | "accessMode" | "collaborationModeId">
 >;
 
@@ -122,4 +122,3 @@ export function useThreadCodexParams(): UseThreadCodexParamsResult {
     [deleteThreadCodexParams, getThreadCodexParams, patchThreadCodexParams, version],
   );
 }
-

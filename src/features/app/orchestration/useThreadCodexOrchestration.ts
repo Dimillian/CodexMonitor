@@ -1,13 +1,12 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { AccessMode } from "@/types";
 import { useThreadCodexParams } from "@threads/hooks/useThreadCodexParams";
 import {
-  resolveThreadCodexState,
   type PendingNewThreadSeed,
 } from "@threads/utils/threadCodexParamsSeed";
 
-export type ThreadCodexOrchestration = {
+type ThreadCodexOrchestration = {
   accessMode: AccessMode;
   setAccessMode: Dispatch<SetStateAction<AccessMode>>;
   preferredModelId: string | null;
@@ -33,15 +32,6 @@ export type ThreadCodexOrchestration = {
 
 type UseThreadCodexOrchestrationParams = {
   activeWorkspaceIdForParamsRef: MutableRefObject<string | null>;
-};
-
-type UseThreadCodexSelectionSyncParams = {
-  orchestration: ThreadCodexOrchestration;
-  activeWorkspaceId: string | null | undefined;
-  activeThreadId: string | null;
-  defaultAccessMode: AccessMode;
-  lastComposerModelId: string | null;
-  lastComposerReasoningEffort: string | null;
 };
 
 export function useThreadCodexOrchestration({
@@ -112,67 +102,4 @@ export function useThreadCodexOrchestration({
       persistThreadCodexParams,
     ],
   );
-}
-
-export function useThreadCodexSelectionSync({
-  orchestration,
-  activeWorkspaceId,
-  activeThreadId,
-  defaultAccessMode,
-  lastComposerModelId,
-  lastComposerReasoningEffort,
-}: UseThreadCodexSelectionSyncParams) {
-  const {
-    activeThreadIdRef,
-    getThreadCodexParams,
-    pendingNewThreadSeedRef,
-    setAccessMode,
-    setPreferredCollabModeId,
-    setPreferredEffort,
-    setPreferredModelId,
-    setThreadCodexSelectionKey,
-    threadCodexParamsVersion,
-  } = orchestration;
-
-  useLayoutEffect(() => {
-    const workspaceId = activeWorkspaceId ?? null;
-    const threadId = activeThreadId ?? null;
-    activeThreadIdRef.current = threadId;
-
-    if (!workspaceId) {
-      return;
-    }
-
-    const stored = threadId ? getThreadCodexParams(workspaceId, threadId) : null;
-    const resolved = resolveThreadCodexState({
-      workspaceId,
-      threadId,
-      defaultAccessMode,
-      lastComposerModelId,
-      lastComposerReasoningEffort,
-      stored,
-      pendingSeed: pendingNewThreadSeedRef.current,
-    });
-
-    setThreadCodexSelectionKey(resolved.scopeKey);
-    setAccessMode(resolved.accessMode);
-    setPreferredModelId(resolved.preferredModelId);
-    setPreferredEffort(resolved.preferredEffort);
-    setPreferredCollabModeId(resolved.preferredCollabModeId);
-  }, [
-    activeThreadId,
-    activeWorkspaceId,
-    defaultAccessMode,
-    getThreadCodexParams,
-    lastComposerModelId,
-    lastComposerReasoningEffort,
-    pendingNewThreadSeedRef,
-    setAccessMode,
-    setPreferredCollabModeId,
-    setPreferredEffort,
-    setPreferredModelId,
-    setThreadCodexSelectionKey,
-    threadCodexParamsVersion,
-    activeThreadIdRef,
-  ]);
 }

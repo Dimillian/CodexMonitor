@@ -61,7 +61,7 @@ type GroupedWorkspaces = Array<{
   workspaces: WorkspaceInfo[];
 }>;
 
-export type UseSettingsViewOrchestrationArgs = {
+type UseSettingsViewOrchestrationArgs = {
   workspaceGroups: WorkspaceGroup[];
   groupedWorkspaces: GroupedWorkspaces;
   ungroupedLabel: string;
