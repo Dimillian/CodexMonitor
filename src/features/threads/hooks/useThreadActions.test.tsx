@@ -151,6 +151,32 @@ describe("useThreadActions", () => {
     expect(loadedThreadsRef.current["thread-fork-1"]).toBe(true);
   });
 
+  it("forks a thread without activating when requested", async () => {
+    vi.mocked(forkThread).mockResolvedValue({
+      result: { thread: { id: "thread-fork-2" } },
+    });
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.forkThreadForWorkspace("ws-1", "thread-1", {
+        activate: false,
+      });
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "ensureThread",
+      workspaceId: "ws-1",
+      threadId: "thread-fork-2",
+    });
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "setActiveThreadId",
+        threadId: "thread-fork-2",
+      }),
+    );
+  });
+
   it("starts a thread without activating when requested", async () => {
     vi.mocked(startThread).mockResolvedValue({
       result: { thread: { id: "thread-2" } },

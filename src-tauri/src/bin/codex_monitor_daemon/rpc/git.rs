@@ -272,6 +272,24 @@ pub(super) async fn try_handle(
             };
             Some(serde_json::to_value(comments).map_err(|err| err.to_string()))
         }
+        "checkout_github_pull_request" => {
+            let workspace_id = match parse_string(params, "workspaceId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let pr_number = match super::super::parse_optional_u64(params, "prNumber")
+                .ok_or("missing or invalid `prNumber`")
+            {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err.to_string())),
+            };
+            Some(
+                state
+                    .checkout_github_pull_request(workspace_id, pr_number)
+                    .await
+                    .map(|_| json!({ "ok": true })),
+            )
+        }
         "list_git_branches" => {
             let workspace_id = match parse_string(params, "workspaceId") {
                 Ok(value) => value,

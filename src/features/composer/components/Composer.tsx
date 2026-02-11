@@ -126,6 +126,13 @@ type ComposerProps = {
   onReviewPromptUpdateCustomInstructions?: (value: string) => void;
   onReviewPromptConfirmCustom?: () => Promise<void>;
   onFileAutocompleteActiveChange?: (active: boolean) => void;
+  contextActions?: {
+    id: string;
+    label: string;
+    title?: string;
+    disabled?: boolean;
+    onSelect: () => void | Promise<void>;
+  }[];
 };
 
 const DEFAULT_EDITOR_SETTINGS: ComposerEditorSettings = {
@@ -216,6 +223,7 @@ export const Composer = memo(function Composer({
   onReviewPromptUpdateCustomInstructions,
   onReviewPromptConfirmCustom,
   onFileAutocompleteActiveChange,
+  contextActions = [],
 }: ComposerProps) {
   const [text, setText] = useState(draftText);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
@@ -630,6 +638,24 @@ export const Composer = memo(function Composer({
         onEditQueued={onEditQueued}
         onDeleteQueued={onDeleteQueued}
       />
+      {contextActions.length > 0 ? (
+        <div className="composer-context-actions" role="toolbar" aria-label="PR review tools">
+          {contextActions.map((action) => (
+            <button
+              key={action.id}
+              type="button"
+              className="ghost composer-context-action"
+              title={action.title}
+              disabled={disabled || Boolean(action.disabled)}
+              onClick={() => {
+                void action.onSelect();
+              }}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <ComposerInput
         text={text}
         disabled={disabled}

@@ -24,6 +24,9 @@ import type {
   ModelOption,
   OpenAppTarget,
   QueuedMessage,
+  PullRequestReviewAction,
+  PullRequestReviewIntent,
+  PullRequestSelectionRange,
   RateLimitSnapshot,
   RequestUserInputRequest,
   RequestUserInputResponse,
@@ -75,6 +78,14 @@ export type WorktreeRenameState = {
   onChange: (value: string) => void;
   onCancel: () => void;
   onCommit: () => void;
+};
+
+export type ComposerContextAction = {
+  id: string;
+  label: string;
+  title?: string;
+  disabled?: boolean;
+  onSelect: () => void | Promise<void>;
 };
 
 export type LayoutNodesOptions = {
@@ -194,6 +205,9 @@ export type LayoutNodesOptions = {
   branchName: string;
   branches: BranchInfo[];
   onCheckoutBranch: (name: string) => Promise<void>;
+  onCheckoutPullRequest: (
+    pullRequest: GitHubPullRequest,
+  ) => Promise<void> | void;
   onCreateBranch: (name: string) => Promise<void>;
   onCopyThread: () => void | Promise<void>;
   onToggleTerminal: () => void;
@@ -267,6 +281,15 @@ export type LayoutNodesOptions = {
   selectedPullRequestComments: GitHubPullRequestComment[];
   selectedPullRequestCommentsLoading: boolean;
   selectedPullRequestCommentsError: string | null;
+  pullRequestReviewActions: PullRequestReviewAction[];
+  onRunPullRequestReview: (options: {
+    intent: PullRequestReviewIntent;
+    question?: string;
+    selection?: PullRequestSelectionRange | null;
+    images?: string[];
+  }) => Promise<string | null>;
+  pullRequestReviewLaunching: boolean;
+  pullRequestReviewThreadId: string | null;
   onSelectPullRequest: (pullRequest: GitHubPullRequest) => void;
   gitRemoteUrl: string | null;
   gitRoot: string | null;
@@ -422,6 +445,7 @@ export type LayoutNodesOptions = {
   onDismissDictationError: () => void;
   dictationHint: string | null;
   onDismissDictationHint: () => void;
+  composerContextActions: ComposerContextAction[];
   showComposer: boolean;
   composerSendLabel?: string;
   plan: TurnPlan | null;

@@ -1,4 +1,4 @@
-# App-Server Events Reference (Codex `383b45279efda1ef611a4aa286621815fe656b8a`)
+# App-Server Events Reference (Codex `2c5eeb6b1fb32776b9c4d3d3ff62b55aa3c464a3`)
 
 This document helps agents quickly answer:
 - Which app-server events CodexMonitor supports right now.
@@ -48,9 +48,10 @@ Primary outgoing request layer:
 ## Supported Events (Current)
 
 These are the app-server methods currently supported in
-`src/utils/appServerEvents.ts` (`SUPPORTED_APP_SERVER_METHODS`) and routed in
-`useAppServerEvents.ts`.
+`src/utils/appServerEvents.ts` (`SUPPORTED_APP_SERVER_METHODS`) and then either
+routed in `useAppServerEvents.ts` or handled in feature-specific subscriptions.
 
+- `app/list/updated`
 - `codex/connected`
 - `*requestApproval` methods (matched via
   `isApprovalRequestMethod(method)`; suffix check)
@@ -98,7 +99,6 @@ CodexMonitor status:
 Compared against Codex app-server protocol v2 notifications, the following
 events are currently not routed:
 
-- `app/list/updated`
 - `rawResponseItem/completed`
 - `item/mcpToolCall/progress`
 - `mcpServer/oauthLogin/completed`
@@ -138,6 +138,7 @@ Compared against Codex v2 request methods, CodexMonitor currently does not send:
 
 - `thread/unarchive`
 - `thread/rollback`
+- `thread/backgroundTerminals/clean`
 - `thread/loaded/list`
 - `thread/read`
 - `skills/remote/read`

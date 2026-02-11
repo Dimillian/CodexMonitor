@@ -140,6 +140,33 @@ fn command_failure_detail(stdout: &[u8], stderr: &[u8], fallback: &str) -> Strin
     }
 }
 
+pub(super) async fn checkout_github_pull_request_inner(
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    pr_number: u64,
+) -> Result<(), String> {
+    let entry = workspace_entry_for_id(workspaces, &workspace_id).await?;
+    let repo_root = resolve_git_root(&entry)?;
+    let pr_number_text = pr_number.to_string();
+
+    let output = tokio_command("gh")
+        .args(["pr", "checkout", &pr_number_text])
+        .current_dir(&repo_root)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run gh: {e}"))?;
+
+    if !output.status.success() {
+        return Err(command_failure_detail(
+            &output.stdout,
+            &output.stderr,
+            "GitHub CLI command failed.",
+        ));
+    }
+
+    Ok(())
+}
+
 pub(super) async fn get_github_issues_inner(
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,

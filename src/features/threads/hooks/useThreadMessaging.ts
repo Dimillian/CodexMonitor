@@ -70,7 +70,11 @@ type UseThreadMessagingOptions = {
   ensureThreadForActiveWorkspace: () => Promise<string | null>;
   ensureThreadForWorkspace: (workspaceId: string) => Promise<string | null>;
   refreshThread: (workspaceId: string, threadId: string) => Promise<string | null>;
-  forkThreadForWorkspace: (workspaceId: string, threadId: string) => Promise<string | null>;
+  forkThreadForWorkspace: (
+    workspaceId: string,
+    threadId: string,
+    options?: { activate?: boolean },
+  ) => Promise<string | null>;
   updateThreadParent: (parentId: string, childIds: string[]) => void;
   registerDetachedReviewChild?: (
     workspaceId: string,

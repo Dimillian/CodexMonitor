@@ -1004,6 +1004,15 @@ impl DaemonState {
         .await
     }
 
+    async fn checkout_github_pull_request(
+        &self,
+        workspace_id: String,
+        pr_number: u64,
+    ) -> Result<(), String> {
+        git_ui_core::checkout_github_pull_request_core(&self.workspaces, workspace_id, pr_number)
+            .await
+    }
+
     async fn list_git_branches(&self, workspace_id: String) -> Result<Value, String> {
         git_ui_core::list_git_branches_core(&self.workspaces, workspace_id).await
     }

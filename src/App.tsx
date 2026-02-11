@@ -49,6 +49,7 @@ import { useGitPanelController } from "@app/hooks/useGitPanelController";
 import { useGitRemote } from "@/features/git/hooks/useGitRemote";
 import { useGitRepoScan } from "@/features/git/hooks/useGitRepoScan";
 import { usePullRequestComposer } from "@/features/git/hooks/usePullRequestComposer";
+import { usePullRequestReviewActions } from "@/features/git/hooks/usePullRequestReviewActions";
 import { useGitActions } from "@/features/git/hooks/useGitActions";
 import { useAutoExitEmptyDiff } from "@/features/git/hooks/useAutoExitEmptyDiff";
 import { useModels } from "@/features/models/hooks/useModels";
@@ -544,13 +545,22 @@ function MainApp() {
     getWorkspacePromptsDir,
     getGlobalPromptsDir,
   } = useCustomPrompts({ activeWorkspace, onDebug: addDebugEntry });
-  const { branches, checkoutBranch, createBranch } = useGitBranches({
+  const { branches, checkoutBranch, checkoutPullRequest, createBranch } = useGitBranches({
     activeWorkspace,
     onDebug: addDebugEntry
   });
   const handleCheckoutBranch = async (name: string) => {
     await checkoutBranch(name);
     refreshGitStatus();
+  };
+  const handleCheckoutPullRequest = async (prNumber: number) => {
+    try {
+      await checkoutPullRequest(prNumber);
+      await Promise.resolve(refreshGitStatus());
+      await Promise.resolve(refreshGitLog());
+    } catch (error) {
+      alertError(error);
+    }
   };
   const handleCreateBranch = async (name: string) => {
     await createBranch(name);
@@ -1429,8 +1439,6 @@ function MainApp() {
 
   useTabActivationGuard({
     activeTab,
-    activeWorkspace,
-    isPhone,
     isTablet,
     setActiveTab,
   });
@@ -1510,15 +1518,30 @@ function MainApp() {
   });
 
   const {
+    isLaunchingReview: isLaunchingPullRequestReview,
+    lastReviewThreadId: lastPullRequestReviewThreadId,
+    reviewActions: pullRequestReviewActions,
+    runPullRequestReview,
+  } = usePullRequestReviewActions({
+    activeWorkspace,
+    pullRequest: selectedPullRequest,
+    pullRequestDiffs: gitPullRequestDiffs,
+    pullRequestComments: gitPullRequestComments,
+    connectWorkspace,
+    startThreadForWorkspace,
+    sendUserMessageToThread,
+  });
+
+  const {
     handleSelectPullRequest,
     resetPullRequestSelection,
+    composerContextActions,
     composerSendLabel,
     handleComposerSend,
     handleComposerQueue,
   } = usePullRequestComposer({
     activeWorkspace,
     selectedPullRequest,
-    gitPullRequestDiffs,
     filePanelMode,
     gitPanelMode,
     centerMode,
@@ -1530,9 +1553,9 @@ function MainApp() {
     setGitPanelMode,
     setPrefillDraft,
     setActiveTab,
-    connectWorkspace,
-    startThreadForWorkspace,
-    sendUserMessageToThread,
+    pullRequestReviewActions,
+    pullRequestReviewLaunching: isLaunchingPullRequestReview,
+    runPullRequestReview,
     clearActiveImages,
     handleSend,
     queueMessage,
@@ -1831,6 +1854,8 @@ const {
     branchName: gitStatus.branchName || "未知",
     branches,
     onCheckoutBranch: handleCheckoutBranch,
+    onCheckoutPullRequest: (pullRequest) =>
+      handleCheckoutPullRequest(pullRequest.number),
     onCreateBranch: handleCreateBranch,
     onCopyThread: handleCopyThread,
     onToggleTerminal: handleToggleTerminal,
@@ -1921,6 +1946,10 @@ const {
     selectedPullRequestComments: diffSource === "pr" ? gitPullRequestComments : [],
     selectedPullRequestCommentsLoading: gitPullRequestCommentsLoading,
     selectedPullRequestCommentsError: gitPullRequestCommentsError,
+    pullRequestReviewActions,
+    onRunPullRequestReview: runPullRequestReview,
+    pullRequestReviewLaunching: isLaunchingPullRequestReview,
+    pullRequestReviewThreadId: lastPullRequestReviewThreadId,
     onSelectPullRequest: (pullRequest) => {
       setSelectedCommitSha(null);
       handleSelectPullRequest(pullRequest);
@@ -2069,6 +2098,7 @@ const {
     onDismissDictationError: clearDictationError,
     dictationHint,
     onDismissDictationHint: clearDictationHint,
+    composerContextActions,
     composerSendLabel,
     showComposer,
     plan: activePlan,

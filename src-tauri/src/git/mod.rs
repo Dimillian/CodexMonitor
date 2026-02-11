@@ -403,6 +403,22 @@ pub(crate) async fn get_github_pull_request_comments(
 }
 
 #[tauri::command]
+pub(crate) async fn checkout_github_pull_request(
+    workspace_id: String,
+    pr_number: u64,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    try_remote_unit!(
+        state,
+        app,
+        "checkout_github_pull_request",
+        json!({ "workspaceId": &workspace_id, "prNumber": pr_number })
+    );
+    git_ui_core::checkout_github_pull_request_core(&state.workspaces, workspace_id, pr_number).await
+}
+
+#[tauri::command]
 pub(crate) async fn list_git_branches(
     workspace_id: String,
     state: State<'_, AppState>,

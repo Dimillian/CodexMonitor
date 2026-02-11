@@ -493,6 +493,16 @@ export async function getGitHubPullRequestComments(
   });
 }
 
+export async function checkoutGitHubPullRequest(
+  workspace_id: string,
+  prNumber: number,
+): Promise<void> {
+  return invoke("checkout_github_pull_request", {
+    workspaceId: workspace_id,
+    prNumber,
+  });
+}
+
 export async function localUsageSnapshot(
   days?: number,
   workspacePath?: string | null,

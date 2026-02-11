@@ -186,6 +186,14 @@ pub(crate) async fn get_github_pull_request_comments_core(
     github::get_github_pull_request_comments_inner(workspaces, workspace_id, pr_number).await
 }
 
+pub(crate) async fn checkout_github_pull_request_core(
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    pr_number: u64,
+) -> Result<(), String> {
+    github::checkout_github_pull_request_inner(workspaces, workspace_id, pr_number).await
+}
+
 pub(crate) async fn list_git_branches_core(
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,

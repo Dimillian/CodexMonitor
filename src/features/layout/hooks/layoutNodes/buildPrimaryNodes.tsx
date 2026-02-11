@@ -176,6 +176,7 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       onDismissDictationError={options.onDismissDictationError}
       dictationHint={options.dictationHint}
       onDismissDictationHint={options.onDismissDictationHint}
+      contextActions={options.composerContextActions}
       reviewPrompt={options.reviewPrompt}
       onReviewPromptClose={options.onReviewPromptClose}
       onReviewPromptShowPreset={options.onReviewPromptShowPreset}

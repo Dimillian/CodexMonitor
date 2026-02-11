@@ -1,21 +1,27 @@
 import { useCallback, useMemo } from "react";
 import type {
   AppMention,
+  PullRequestReviewAction,
+  PullRequestReviewIntent,
   GitHubPullRequest,
-  GitHubPullRequestDiff,
   WorkspaceInfo,
 } from "../../../types";
-import {
-  buildPullRequestDraft,
-  buildPullRequestPrompt,
-} from "../../../utils/pullRequestPrompt";
+import { buildPullRequestDraft } from "../../../utils/pullRequestPrompt";
+import { parsePullRequestReviewCommand } from "../utils/pullRequestReviewCommands";
 
-const KNOWN_SLASH_COMMAND_REGEX = /^\/(?:apps|fork|mcp|new|resume|review|status)\b/i;
+const KNOWN_SLASH_COMMAND_REGEX = /^\/(?:apps|fork|mcp|new|resume|status)\b/i;
+
+type ComposerContextAction = {
+  id: string;
+  label: string;
+  title?: string;
+  disabled?: boolean;
+  onSelect: () => void | Promise<void>;
+};
 
 type UsePullRequestComposerOptions = {
   activeWorkspace: WorkspaceInfo | null;
   selectedPullRequest: GitHubPullRequest | null;
-  gitPullRequestDiffs: GitHubPullRequestDiff[];
   filePanelMode: "git" | "files" | "prompts";
   gitPanelMode: "diff" | "log" | "issues" | "prs";
   centerMode: "chat" | "diff";
@@ -27,19 +33,14 @@ type UsePullRequestComposerOptions = {
   setGitPanelMode: (mode: "diff" | "log" | "issues" | "prs") => void;
   setPrefillDraft: (draft: { id: string; text: string; createdAt: number }) => void;
   setActiveTab: (tab: "home" | "projects" | "codex" | "git" | "log") => void;
-  connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
-  startThreadForWorkspace: (workspaceId: string, options?: { activate?: boolean }) => Promise<string | null>;
-  sendUserMessageToThread: (
-    workspace: WorkspaceInfo,
-    threadId: string,
-    text: string,
-    images?: string[],
-    options?: {
-      model?: string | null;
-      effort?: string | null;
-      appMentions?: AppMention[];
-    },
-  ) => Promise<void>;
+  pullRequestReviewActions: PullRequestReviewAction[];
+  pullRequestReviewLaunching: boolean;
+  runPullRequestReview: (options: {
+    intent: PullRequestReviewIntent;
+    question?: string;
+    images?: string[];
+    activateThread?: boolean;
+  }) => Promise<string | null>;
   clearActiveImages: () => void;
   handleSend: (
     text: string,
@@ -56,7 +57,6 @@ type UsePullRequestComposerOptions = {
 export function usePullRequestComposer({
   activeWorkspace,
   selectedPullRequest,
-  gitPullRequestDiffs,
   filePanelMode,
   gitPanelMode,
   centerMode,
@@ -68,9 +68,9 @@ export function usePullRequestComposer({
   setGitPanelMode,
   setPrefillDraft,
   setActiveTab,
-  connectWorkspace,
-  startThreadForWorkspace,
-  sendUserMessageToThread,
+  pullRequestReviewActions,
+  pullRequestReviewLaunching,
+  runPullRequestReview,
   clearActiveImages,
   handleSend,
   queueMessage,
@@ -123,7 +123,23 @@ export function usePullRequestComposer({
       images: string[] = [],
       appMentions: AppMention[] = [],
     ) => {
+      if (pullRequestReviewLaunching) {
+        return;
+      }
       const trimmed = text.trim();
+      const reviewCommand = parsePullRequestReviewCommand(trimmed);
+      if (reviewCommand) {
+        const reviewThreadId = await runPullRequestReview({
+          intent: reviewCommand.intent,
+          question: reviewCommand.question,
+          images,
+          activateThread: true,
+        });
+        if (reviewThreadId) {
+          clearActiveImages();
+        }
+        return;
+      }
       if (KNOWN_SLASH_COMMAND_REGEX.test(trimmed)) {
         if (appMentions.length > 0) {
           await handleSend(trimmed, images, appMentions);
@@ -138,34 +154,54 @@ export function usePullRequestComposer({
       if (!trimmed && images.length === 0) {
         return;
       }
-      if (!activeWorkspace.connected) {
-        await connectWorkspace(activeWorkspace);
-      }
-      const prompt = buildPullRequestPrompt(
-        selectedPullRequest,
-        gitPullRequestDiffs,
-        trimmed,
-      );
-      const threadId = await startThreadForWorkspace(activeWorkspace.id, {
-        activate: false,
+      const reviewThreadId = await runPullRequestReview({
+        intent: "question",
+        question: trimmed,
+        images,
+        activateThread: true,
       });
-      if (!threadId) {
-        return;
+      if (reviewThreadId) {
+        clearActiveImages();
       }
-      await sendUserMessageToThread(activeWorkspace, threadId, prompt, images);
-      clearActiveImages();
     },
     [
       activeWorkspace,
       clearActiveImages,
-      connectWorkspace,
-      gitPullRequestDiffs,
       handleSend,
       selectedPullRequest,
-      sendUserMessageToThread,
-      startThreadForWorkspace,
+      pullRequestReviewLaunching,
+      runPullRequestReview,
     ],
   );
+
+  const composerContextActions = useMemo<ComposerContextAction[]>(() => {
+    if (!isPullRequestComposer || !activeWorkspace || !selectedPullRequest) {
+      return [];
+    }
+    return pullRequestReviewActions.map((action) => ({
+      id: action.id,
+      label: action.label,
+      title: `${action.label} for PR #${selectedPullRequest.number}`,
+      disabled: pullRequestReviewLaunching,
+      onSelect: async () => {
+        const reviewThreadId = await runPullRequestReview({
+          intent: action.intent,
+          activateThread: true,
+        });
+        if (reviewThreadId) {
+          clearActiveImages();
+        }
+      },
+    }));
+  }, [
+    activeWorkspace,
+    clearActiveImages,
+    isPullRequestComposer,
+    pullRequestReviewLaunching,
+    pullRequestReviewActions,
+    runPullRequestReview,
+    selectedPullRequest,
+  ]);
 
   const composerSendLabel = isPullRequestComposer ? "Ask PR" : undefined;
   const handleComposerSend = isPullRequestComposer
@@ -179,6 +215,7 @@ export function usePullRequestComposer({
     handleSelectPullRequest,
     resetPullRequestSelection,
     isPullRequestComposer,
+    composerContextActions,
     composerSendLabel,
     handleComposerSend,
     handleComposerQueue,
