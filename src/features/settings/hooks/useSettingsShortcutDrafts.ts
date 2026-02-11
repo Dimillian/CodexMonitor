@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
-import type { AppSettings } from "../../../types";
-import { buildShortcutValue } from "../../../utils/shortcuts";
-import type { ShortcutSettingKey } from "../components/settingsTypes";
-import { SHORTCUT_DRAFT_KEY_BY_SETTING } from "../components/settingsViewConstants";
-import { buildShortcutDrafts } from "../components/settingsViewHelpers";
+import type { AppSettings } from "@/types";
+import { buildShortcutValue } from "@utils/shortcuts";
+import type { ShortcutSettingKey } from "@settings/components/settingsTypes";
+import { SHORTCUT_DRAFT_KEY_BY_SETTING } from "@settings/components/settingsViewConstants";
+import { buildShortcutDrafts } from "@settings/components/settingsViewHelpers";
 
 type UseSettingsShortcutDraftsParams = {
   appSettings: AppSettings;

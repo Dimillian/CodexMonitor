@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ConversationItem, ThreadSummary } from "../../../types";
+import type { ConversationItem, ThreadSummary } from "@/types";
 import { initialState, threadReducer } from "./useThreadsReducer";
 import type { ThreadState } from "./useThreadsReducer";
 

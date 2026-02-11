@@ -29,4 +29,3 @@ describe("normalizePlanUpdate", () => {
     expect(normalizePlanUpdate("turn-3", "", { steps: [] })).toBeNull();
   });
 });
-

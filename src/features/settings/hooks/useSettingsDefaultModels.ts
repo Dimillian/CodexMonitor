@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ModelOption, WorkspaceInfo } from "../../../types";
-import { getModelList } from "../../../services/tauri";
-import { parseModelListResponse } from "../../models/utils/modelListResponse";
+import type { ModelOption, WorkspaceInfo } from "@/types";
+import { getModelList } from "@services/tauri";
+import { parseModelListResponse } from "@/features/models/utils/modelListResponse";
 
 type SettingsDefaultModelsState = {
   models: ModelOption[];

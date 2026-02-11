@@ -1,4 +1,4 @@
-import type { AppSettings } from "../../../../types";
+import type { AppSettings } from "@/types";
 import { useTranslation } from "react-i18next";
 
 type ComposerPreset = AppSettings["composerEditorPreset"];

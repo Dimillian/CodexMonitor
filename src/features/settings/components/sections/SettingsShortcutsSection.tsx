@@ -1,12 +1,12 @@
 import type { KeyboardEvent } from "react";
-import { formatShortcut, getDefaultInterruptShortcut } from "../../../../utils/shortcuts";
-import { isMacPlatform } from "../../../../utils/platformPaths";
+import { formatShortcut, getDefaultInterruptShortcut } from "@utils/shortcuts";
+import { isMacPlatform } from "@utils/platformPaths";
 import { useTranslation } from "react-i18next";
 import type {
   ShortcutDraftKey,
   ShortcutDrafts,
   ShortcutSettingKey,
-} from "../settingsTypes";
+} from "@settings/components/settingsTypes";
 
 type ShortcutItem = {
   label: string;

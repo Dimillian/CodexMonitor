@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AccessMode } from "../../../types";
+import type { AccessMode } from "@/types";
 import {
   STORAGE_KEY_THREAD_CODEX_PARAMS,
   type ThreadCodexParams,
@@ -7,9 +7,9 @@ import {
   loadThreadCodexParams,
   makeThreadCodexParamsKey,
   saveThreadCodexParams,
-} from "../utils/threadStorage";
+} from "@threads/utils/threadStorage";
 
-export type ThreadCodexParamsPatch = Partial<
+type ThreadCodexParamsPatch = Partial<
   Pick<ThreadCodexParams, "modelId" | "effort" | "accessMode" | "collaborationModeId">
 >;
 
@@ -122,4 +122,3 @@ export function useThreadCodexParams(): UseThreadCodexParamsResult {
     [deleteThreadCodexParams, getThreadCodexParams, patchThreadCodexParams, version],
   );
 }
-

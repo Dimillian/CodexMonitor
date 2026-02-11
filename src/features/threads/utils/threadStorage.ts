@@ -1,6 +1,6 @@
-import type { AccessMode } from "../../../types";
+import type { AccessMode } from "@/types";
 
-export const STORAGE_KEY_THREAD_ACTIVITY = "codexmonitor.threadLastUserActivity";
+const STORAGE_KEY_THREAD_ACTIVITY = "codexmonitor.threadLastUserActivity";
 export const STORAGE_KEY_PINNED_THREADS = "codexmonitor.pinnedThreads";
 export const STORAGE_KEY_CUSTOM_NAMES = "codexmonitor.threadCustomNames";
 export const STORAGE_KEY_THREAD_CODEX_PARAMS = "codexmonitor.threadCodexParams";
@@ -10,7 +10,7 @@ export const MAX_PINS_SOFT_LIMIT = 5;
 export type ThreadActivityMap = Record<string, Record<string, number>>;
 export type PinnedThreadsMap = Record<string, number>;
 export type CustomNamesMap = Record<string, string>;
-export type DetachedReviewLinksMap = Record<string, Record<string, string>>;
+type DetachedReviewLinksMap = Record<string, Record<string, string>>;
 
 // Per-thread Codex parameter overrides. Keyed by `${workspaceId}:${threadId}`.
 // These are UI-level preferences (not server state) and are best-effort persisted.

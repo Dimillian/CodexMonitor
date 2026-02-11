@@ -10,7 +10,7 @@ import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 import Layers from "lucide-react/dist/esm/icons/layers";
 import ServerCog from "lucide-react/dist/esm/icons/server-cog";
 import { useTranslation } from "react-i18next";
-import { PanelNavItem, PanelNavList } from "../../design-system/components/panel/PanelPrimitives";
+import { PanelNavItem, PanelNavList } from "@/features/design-system/components/panel/PanelPrimitives";
 import type { CodexSection } from "./settingsTypes";
 
 type SettingsNavProps = {

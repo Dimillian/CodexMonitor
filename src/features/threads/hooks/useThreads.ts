@@ -5,8 +5,8 @@ import type {
   DebugEntry,
   ThreadListSortKey,
   WorkspaceInfo,
-} from "../../../types";
-import { useAppServerEvents } from "../../app/hooks/useAppServerEvents";
+} from "@/types";
+import { useAppServerEvents } from "@app/hooks/useAppServerEvents";
 import { initialState, threadReducer } from "./useThreadsReducer";
 import { useThreadStorage } from "./useThreadStorage";
 import { useThreadLinking } from "./useThreadLinking";
@@ -20,13 +20,13 @@ import { useThreadSelectors } from "./useThreadSelectors";
 import { useThreadStatus } from "./useThreadStatus";
 import { useThreadUserInput } from "./useThreadUserInput";
 import { useThreadTitleAutogeneration } from "./useThreadTitleAutogeneration";
-import { setThreadName as setThreadNameService } from "../../../services/tauri";
+import { setThreadName as setThreadNameService } from "@services/tauri";
 import {
   loadDetachedReviewLinks,
   makeCustomNameKey,
   saveCustomName,
   saveDetachedReviewLinks,
-} from "../utils/threadStorage";
+} from "@threads/utils/threadStorage";
 
 type UseThreadsOptions = {
   activeWorkspace: WorkspaceInfo | null;

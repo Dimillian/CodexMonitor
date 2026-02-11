@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { buildConversationItem } from "../../../utils/threadItems";
+import { buildConversationItem } from "@utils/threadItems";
 import { useThreadItemEvents } from "./useThreadItemEvents";
 
-vi.mock("../../../utils/threadItems", () => ({
+vi.mock("@utils/threadItems", () => ({
   buildConversationItem: vi.fn(),
 }));
 

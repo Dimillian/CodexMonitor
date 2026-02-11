@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { getAccountInfo } from "../../../services/tauri";
+import { getAccountInfo } from "@services/tauri";
 import { useThreadAccountInfo } from "./useThreadAccountInfo";
 
-vi.mock("../../../services/tauri", () => ({
+vi.mock("@services/tauri", () => ({
   getAccountInfo: vi.fn(),
 }));
 

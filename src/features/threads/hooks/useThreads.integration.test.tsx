@@ -1,30 +1,30 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { WorkspaceInfo } from "../../../types";
-import type { useAppServerEvents } from "../../app/hooks/useAppServerEvents";
-import { useThreadRows } from "../../app/hooks/useThreadRows";
+import type { WorkspaceInfo } from "@/types";
+import type { useAppServerEvents } from "@app/hooks/useAppServerEvents";
+import { useThreadRows } from "@app/hooks/useThreadRows";
 import {
   interruptTurn,
   listThreads,
   resumeThread,
   setThreadName,
   startReview,
-} from "../../../services/tauri";
-import { STORAGE_KEY_DETACHED_REVIEW_LINKS } from "../utils/threadStorage";
+} from "@services/tauri";
+import { STORAGE_KEY_DETACHED_REVIEW_LINKS } from "@threads/utils/threadStorage";
 import { useThreads } from "./useThreads";
 
 type AppServerHandlers = Parameters<typeof useAppServerEvents>[0];
 
 let handlers: AppServerHandlers | null = null;
 
-vi.mock("../../app/hooks/useAppServerEvents", () => ({
+vi.mock("@app/hooks/useAppServerEvents", () => ({
   useAppServerEvents: (incoming: AppServerHandlers) => {
     handlers = incoming;
   },
 }));
 
-vi.mock("../../../services/tauri", () => ({
+vi.mock("@services/tauri", () => ({
   respondToServerRequest: vi.fn(),
   respondToUserInputRequest: vi.fn(),
   rememberApprovalRule: vi.fn(),

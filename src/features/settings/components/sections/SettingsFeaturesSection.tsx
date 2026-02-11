@@ -1,6 +1,6 @@
-import type { AppSettings } from "../../../../types";
+import type { AppSettings } from "@/types";
 import { useTranslation } from "react-i18next";
-import { openInFileManagerLabel } from "../../../../utils/platformPaths";
+import { fileManagerName, openInFileManagerLabel } from "@utils/platformPaths";
 
 type SettingsFeaturesSectionProps = {
   appSettings: AppSettings;

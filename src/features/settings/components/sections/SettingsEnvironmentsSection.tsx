@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { WorkspaceInfo } from "../../../../types";
-import { pushErrorToast } from "../../../../services/toasts";
+import type { WorkspaceInfo } from "@/types";
+import { pushErrorToast } from "@services/toasts";
 import { useTranslation } from "react-i18next";
 
 type SettingsEnvironmentsSectionProps = {

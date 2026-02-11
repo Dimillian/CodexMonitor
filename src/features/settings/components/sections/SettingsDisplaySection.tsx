@@ -1,12 +1,12 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { AppSettings } from "../../../../types";
+import type { AppSettings } from "@/types";
 import {
   CODE_FONT_SIZE_MAX,
   CODE_FONT_SIZE_MIN,
   CODE_FONT_SIZE_DEFAULT,
   DEFAULT_CODE_FONT_FAMILY,
   DEFAULT_UI_FONT_FAMILY,
-} from "../../../../utils/fonts";
+} from "@utils/fonts";
 
 type SettingsDisplaySectionProps = {
   appSettings: AppSettings;

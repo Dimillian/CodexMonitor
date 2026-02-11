@@ -5,7 +5,7 @@ import type {
   TailscaleDaemonCommandPreview,
   TailscaleStatus,
   TcpDaemonStatus,
-} from "../../../../types";
+} from "@/types";
 
 type SettingsServerSectionProps = {
   appSettings: AppSettings;

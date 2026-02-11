@@ -1,7 +1,7 @@
 import { useCallback, useRef } from "react";
 import type { MutableRefObject } from "react";
-import type { ConversationItem, DebugEntry, ThreadSummary } from "../../../types";
-import { generateRunMetadata } from "../../../services/tauri";
+import type { ConversationItem, DebugEntry, ThreadSummary } from "@/types";
+import { generateRunMetadata } from "@services/tauri";
 
 const MAX_THREAD_NAME_LENGTH = 38;
 const MAX_PROMPT_CHARS = 1200;

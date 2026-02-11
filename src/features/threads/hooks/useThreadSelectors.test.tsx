@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type { ConversationItem } from "../../../types";
+import type { ConversationItem } from "@/types";
 import { useThreadSelectors } from "./useThreadSelectors";
 
 const messageItem: ConversationItem = {

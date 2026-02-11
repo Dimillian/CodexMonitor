@@ -2,7 +2,6 @@ use std::env;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-#[allow(dead_code)]
 pub(crate) fn normalize_git_path(path: &str) -> String {
     path.replace('\\', "/")
 }

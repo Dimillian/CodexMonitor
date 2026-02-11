@@ -10,9 +10,9 @@ import {
 } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { AppSettings, WorkspaceInfo } from "../../../types";
-import { getModelList } from "../../../services/tauri";
-import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "../../../utils/commitMessagePrompt";
+import type { AppSettings, WorkspaceInfo } from "@/types";
+import { getModelList } from "@services/tauri";
+import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
 import { SettingsView } from "./SettingsView";
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
@@ -20,9 +20,9 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
 }));
 
-vi.mock("../../../services/tauri", async () => {
-  const actual = await vi.importActual<typeof import("../../../services/tauri")>(
-    "../../../services/tauri",
+vi.mock("@services/tauri", async () => {
+  const actual = await vi.importActual<typeof import("@services/tauri")>(
+    "@services/tauri",
   );
   return {
     ...actual,

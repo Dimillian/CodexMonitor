@@ -7,8 +7,8 @@ import type {
   CodexUpdateResult,
   ModelOption,
   WorkspaceInfo,
-} from "../../../../types";
-import { FileEditorCard } from "../../../shared/components/FileEditorCard";
+} from "@/types";
+import { FileEditorCard } from "@/features/shared/components/FileEditorCard";
 
 type SettingsCodexSectionProps = {
   appSettings: AppSettings;

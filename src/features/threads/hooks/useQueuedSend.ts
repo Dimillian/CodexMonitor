@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { AppMention, QueuedMessage, WorkspaceInfo } from "../../../types";
+import type { AppMention, QueuedMessage, WorkspaceInfo } from "@/types";
 
 type UseQueuedSendOptions = {
   activeThreadId: string | null;

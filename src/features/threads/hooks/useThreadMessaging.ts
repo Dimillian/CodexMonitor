@@ -9,7 +9,7 @@ import type {
   DebugEntry,
   ReviewTarget,
   WorkspaceInfo,
-} from "../../../types";
+} from "@/types";
 import {
   compactThread as compactThreadService,
   sendUserMessage as sendUserMessageService,
@@ -18,14 +18,15 @@ import {
   interruptTurn as interruptTurnService,
   getAppsList as getAppsListService,
   listMcpServerStatus as listMcpServerStatusService,
-} from "../../../services/tauri";
-import { expandCustomPromptText } from "../../../utils/customPrompts";
+} from "@services/tauri";
+import { expandCustomPromptText } from "@utils/customPrompts";
 import {
   asString,
   extractReviewThreadId,
   extractRpcErrorMessage,
   parseReviewTarget,
-} from "../utils/threadNormalize";
+} from "@threads/utils/threadNormalize";
+import { isUnsupportedTurnSteerError } from "@threads/utils/threadRpc";
 import type { ThreadAction, ThreadState } from "./useThreadsReducer";
 import { useReviewPrompt } from "./useReviewPrompt";
 import { formatRelativeTime } from "../../../i18n/utils/date";
@@ -77,16 +78,6 @@ type UseThreadMessagingOptions = {
     childId: string,
   ) => void;
 };
-
-function isUnsupportedTurnSteerError(message: string): boolean {
-  const normalized = message.toLowerCase();
-  const mentionsSteerMethod =
-    normalized.includes("turn/steer") || normalized.includes("turn_steer");
-  return normalized.includes("unknown variant `turn/steer`")
-    || normalized.includes("unknown variant \"turn/steer\"")
-    || (normalized.includes("unknown request") && mentionsSteerMethod)
-    || (normalized.includes("unknown method") && mentionsSteerMethod);
-}
 
 export function useThreadMessaging({
   activeWorkspace,

@@ -36,122 +36,117 @@ import "./styles/settings.css";
 import "./styles/compact-base.css";
 import "./styles/compact-phone.css";
 import "./styles/compact-tablet.css";
-import successSoundUrl from "./assets/success-notification.mp3";
-import errorSoundUrl from "./assets/error-notification.mp3";
-import { AppLayout } from "./features/app/components/AppLayout";
-import { AppModals } from "./features/app/components/AppModals";
-import { MainHeaderActions } from "./features/app/components/MainHeaderActions";
-import { useLayoutNodes } from "./features/layout/hooks/useLayoutNodes";
-import { useWorkspaceDropZone } from "./features/workspaces/hooks/useWorkspaceDropZone";
-import { useThreads } from "./features/threads/hooks/useThreads";
-import { useWindowDrag } from "./features/layout/hooks/useWindowDrag";
-import { useGitPanelController } from "./features/app/hooks/useGitPanelController";
-import { useGitRemote } from "./features/git/hooks/useGitRemote";
-import { useGitRepoScan } from "./features/git/hooks/useGitRepoScan";
-import { usePullRequestComposer } from "./features/git/hooks/usePullRequestComposer";
-import { useGitActions } from "./features/git/hooks/useGitActions";
-import { useAutoExitEmptyDiff } from "./features/git/hooks/useAutoExitEmptyDiff";
-import { useModels } from "./features/models/hooks/useModels";
-import { useCollaborationModes } from "./features/collaboration/hooks/useCollaborationModes";
-import { useCollaborationModeSelection } from "./features/collaboration/hooks/useCollaborationModeSelection";
-import { useSkills } from "./features/skills/hooks/useSkills";
-import { useApps } from "./features/apps/hooks/useApps";
-import { useCustomPrompts } from "./features/prompts/hooks/useCustomPrompts";
-import { useWorkspaceFileListing } from "./features/app/hooks/useWorkspaceFileListing";
-import { useGitBranches } from "./features/git/hooks/useGitBranches";
-import { useBranchSwitcher } from "./features/git/hooks/useBranchSwitcher";
-import { useBranchSwitcherShortcut } from "./features/git/hooks/useBranchSwitcherShortcut";
-import { useDebugLog } from "./features/debug/hooks/useDebugLog";
-import { useWorkspaceRefreshOnFocus } from "./features/workspaces/hooks/useWorkspaceRefreshOnFocus";
-import { useWorkspaceRestore } from "./features/workspaces/hooks/useWorkspaceRestore";
-import { useRenameWorktreePrompt } from "./features/workspaces/hooks/useRenameWorktreePrompt";
-import { useLayoutController } from "./features/app/hooks/useLayoutController";
-import { useWindowLabel } from "./features/layout/hooks/useWindowLabel";
+import successSoundUrl from "@/assets/success-notification.mp3";
+import errorSoundUrl from "@/assets/error-notification.mp3";
+import { AppLayout } from "@app/components/AppLayout";
+import { AppModals } from "@app/components/AppModals";
+import { MainHeaderActions } from "@app/components/MainHeaderActions";
+import { useLayoutNodes } from "@/features/layout/hooks/useLayoutNodes";
+import { useWorkspaceDropZone } from "@/features/workspaces/hooks/useWorkspaceDropZone";
+import { useThreads } from "@threads/hooks/useThreads";
+import { useWindowDrag } from "@/features/layout/hooks/useWindowDrag";
+import { useGitPanelController } from "@app/hooks/useGitPanelController";
+import { useGitRemote } from "@/features/git/hooks/useGitRemote";
+import { useGitRepoScan } from "@/features/git/hooks/useGitRepoScan";
+import { usePullRequestComposer } from "@/features/git/hooks/usePullRequestComposer";
+import { useGitActions } from "@/features/git/hooks/useGitActions";
+import { useAutoExitEmptyDiff } from "@/features/git/hooks/useAutoExitEmptyDiff";
+import { useModels } from "@/features/models/hooks/useModels";
+import { useCollaborationModes } from "@/features/collaboration/hooks/useCollaborationModes";
+import { useCollaborationModeSelection } from "@/features/collaboration/hooks/useCollaborationModeSelection";
+import { useSkills } from "@/features/skills/hooks/useSkills";
+import { useApps } from "@/features/apps/hooks/useApps";
+import { useCustomPrompts } from "@/features/prompts/hooks/useCustomPrompts";
+import { useWorkspaceFileListing } from "@app/hooks/useWorkspaceFileListing";
+import { useGitBranches } from "@/features/git/hooks/useGitBranches";
+import { useBranchSwitcher } from "@/features/git/hooks/useBranchSwitcher";
+import { useBranchSwitcherShortcut } from "@/features/git/hooks/useBranchSwitcherShortcut";
+import { useWorkspaceRefreshOnFocus } from "@/features/workspaces/hooks/useWorkspaceRefreshOnFocus";
+import { useWorkspaceRestore } from "@/features/workspaces/hooks/useWorkspaceRestore";
+import { useRenameWorktreePrompt } from "@/features/workspaces/hooks/useRenameWorktreePrompt";
+import { useLayoutController } from "@app/hooks/useLayoutController";
+import { useWindowLabel } from "@/features/layout/hooks/useWindowLabel";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
   SidebarCollapseButton,
   TitlebarExpandControls,
-} from "./features/layout/components/SidebarToggleControls";
-import { useAppSettingsController } from "./features/app/hooks/useAppSettingsController";
-import { useUpdaterController } from "./features/app/hooks/useUpdaterController";
-import { useResponseRequiredNotificationsController } from "./features/app/hooks/useResponseRequiredNotificationsController";
-import { useErrorToasts } from "./features/notifications/hooks/useErrorToasts";
-import { useComposerShortcuts } from "./features/composer/hooks/useComposerShortcuts";
-import { useComposerMenuActions } from "./features/composer/hooks/useComposerMenuActions";
-import { useComposerEditorState } from "./features/composer/hooks/useComposerEditorState";
-import { useDictationController } from "./features/app/hooks/useDictationController";
-import { useComposerController } from "./features/app/hooks/useComposerController";
-import { useComposerInsert } from "./features/app/hooks/useComposerInsert";
-import { useRenameThreadPrompt } from "./features/threads/hooks/useRenameThreadPrompt";
-import { useWorktreePrompt } from "./features/workspaces/hooks/useWorktreePrompt";
-import { useClonePrompt } from "./features/workspaces/hooks/useClonePrompt";
-import { useWorkspaceController } from "./features/app/hooks/useWorkspaceController";
-import { useWorkspaceSelection } from "./features/workspaces/hooks/useWorkspaceSelection";
-import { useLocalUsage } from "./features/home/hooks/useLocalUsage";
-import { useGitHubPanelController } from "./features/app/hooks/useGitHubPanelController";
-import { useSettingsModalState } from "./features/app/hooks/useSettingsModalState";
-import { useSyncSelectedDiffPath } from "./features/app/hooks/useSyncSelectedDiffPath";
-import { useMenuAcceleratorController } from "./features/app/hooks/useMenuAcceleratorController";
-import { useAppMenuEvents } from "./features/app/hooks/useAppMenuEvents";
-import { usePlanReadyActions } from "./features/app/hooks/usePlanReadyActions";
-import { useWorkspaceActions } from "./features/app/hooks/useWorkspaceActions";
-import { useWorkspaceCycling } from "./features/app/hooks/useWorkspaceCycling";
-import { useThreadRows } from "./features/app/hooks/useThreadRows";
-import { useInterruptShortcut } from "./features/app/hooks/useInterruptShortcut";
-import { useArchiveShortcut } from "./features/app/hooks/useArchiveShortcut";
-import { useLiquidGlassEffect } from "./features/app/hooks/useLiquidGlassEffect";
-import { useCopyThread } from "./features/threads/hooks/useCopyThread";
-import { useTerminalController } from "./features/terminal/hooks/useTerminalController";
-import { useWorkspaceLaunchScript } from "./features/app/hooks/useWorkspaceLaunchScript";
-import { useWorkspaceLaunchScripts } from "./features/app/hooks/useWorkspaceLaunchScripts";
-import { useWorktreeSetupScript } from "./features/app/hooks/useWorktreeSetupScript";
-import { useGitCommitController } from "./features/app/hooks/useGitCommitController";
-import { WorkspaceHome } from "./features/workspaces/components/WorkspaceHome";
-import { MobileServerSetupWizard } from "./features/mobile/components/MobileServerSetupWizard";
-import { useMobileServerSetup } from "./features/mobile/hooks/useMobileServerSetup";
-import { useWorkspaceHome } from "./features/workspaces/hooks/useWorkspaceHome";
-import { useWorkspaceAgentMd } from "./features/workspaces/hooks/useWorkspaceAgentMd";
-import { useThreadCodexParams } from "./features/threads/hooks/useThreadCodexParams";
-import { makeThreadCodexParamsKey } from "./features/threads/utils/threadStorage";
-import {
-  buildThreadCodexSeedPatch,
-  createPendingThreadSeed,
-  resolveThreadCodexState,
-  type PendingNewThreadSeed,
-} from "./features/threads/utils/threadCodexParamsSeed";
-import { isMobilePlatform } from "./utils/platformPaths";
+} from "@/features/layout/components/SidebarToggleControls";
+import { useUpdaterController } from "@app/hooks/useUpdaterController";
+import { useResponseRequiredNotificationsController } from "@app/hooks/useResponseRequiredNotificationsController";
+import { useErrorToasts } from "@/features/notifications/hooks/useErrorToasts";
+import { useComposerShortcuts } from "@/features/composer/hooks/useComposerShortcuts";
+import { useComposerMenuActions } from "@/features/composer/hooks/useComposerMenuActions";
+import { useComposerEditorState } from "@/features/composer/hooks/useComposerEditorState";
+import { useComposerController } from "@app/hooks/useComposerController";
+import { useComposerInsert } from "@app/hooks/useComposerInsert";
+import { useRenameThreadPrompt } from "@threads/hooks/useRenameThreadPrompt";
+import { useWorktreePrompt } from "@/features/workspaces/hooks/useWorktreePrompt";
+import { useClonePrompt } from "@/features/workspaces/hooks/useClonePrompt";
+import { useWorkspaceController } from "@app/hooks/useWorkspaceController";
+import { useWorkspaceSelection } from "@/features/workspaces/hooks/useWorkspaceSelection";
+import { useGitHubPanelController } from "@app/hooks/useGitHubPanelController";
+import { useSettingsModalState } from "@app/hooks/useSettingsModalState";
+import { useSyncSelectedDiffPath } from "@app/hooks/useSyncSelectedDiffPath";
+import { useMenuAcceleratorController } from "@app/hooks/useMenuAcceleratorController";
+import { useAppMenuEvents } from "@app/hooks/useAppMenuEvents";
+import { usePlanReadyActions } from "@app/hooks/usePlanReadyActions";
+import { useWorkspaceActions } from "@app/hooks/useWorkspaceActions";
+import { useWorkspaceCycling } from "@app/hooks/useWorkspaceCycling";
+import { useThreadRows } from "@app/hooks/useThreadRows";
+import { useInterruptShortcut } from "@app/hooks/useInterruptShortcut";
+import { useArchiveShortcut } from "@app/hooks/useArchiveShortcut";
+import { useCopyThread } from "@threads/hooks/useCopyThread";
+import { useTerminalController } from "@/features/terminal/hooks/useTerminalController";
+import { useWorkspaceLaunchScript } from "@app/hooks/useWorkspaceLaunchScript";
+import { useWorkspaceLaunchScripts } from "@app/hooks/useWorkspaceLaunchScripts";
+import { useWorktreeSetupScript } from "@app/hooks/useWorktreeSetupScript";
+import { useGitCommitController } from "@app/hooks/useGitCommitController";
+import { WorkspaceHome } from "@/features/workspaces/components/WorkspaceHome";
+import { MobileServerSetupWizard } from "@/features/mobile/components/MobileServerSetupWizard";
+import { useMobileServerSetup } from "@/features/mobile/hooks/useMobileServerSetup";
+import { useWorkspaceHome } from "@/features/workspaces/hooks/useWorkspaceHome";
+import { useWorkspaceAgentMd } from "@/features/workspaces/hooks/useWorkspaceAgentMd";
 import type {
-  AccessMode,
-  AppMention,
   ComposerEditorSettings,
   WorkspaceInfo,
-} from "./types";
-import { OPEN_APP_STORAGE_KEY } from "./features/app/constants";
-import { useOpenAppIcons } from "./features/app/hooks/useOpenAppIcons";
-import { useCodeCssVars } from "./features/app/hooks/useCodeCssVars";
-import { useAccountSwitching } from "./features/app/hooks/useAccountSwitching";
-import { useNewAgentDraft } from "./features/app/hooks/useNewAgentDraft";
-import { useSystemNotificationThreadLinks } from "./features/app/hooks/useSystemNotificationThreadLinks";
-import { useThreadListSortKey } from "./features/app/hooks/useThreadListSortKey";
-import { useThreadListActions } from "./features/app/hooks/useThreadListActions";
-import { useGitRootSelection } from "./features/app/hooks/useGitRootSelection";
-import { useTabActivationGuard } from "./features/app/hooks/useTabActivationGuard";
-import { useRemoteThreadRefreshOnFocus } from "./features/app/hooks/useRemoteThreadRefreshOnFocus";
+} from "@/types";
+import { OPEN_APP_STORAGE_KEY } from "@app/constants";
+import { useOpenAppIcons } from "@app/hooks/useOpenAppIcons";
+import { useAccountSwitching } from "@app/hooks/useAccountSwitching";
+import { useNewAgentDraft } from "@app/hooks/useNewAgentDraft";
+import { useSystemNotificationThreadLinks } from "@app/hooks/useSystemNotificationThreadLinks";
+import { useThreadListSortKey } from "@app/hooks/useThreadListSortKey";
+import { useThreadListActions } from "@app/hooks/useThreadListActions";
+import { useGitRootSelection } from "@app/hooks/useGitRootSelection";
+import { useTabActivationGuard } from "@app/hooks/useTabActivationGuard";
+import { useRemoteThreadRefreshOnFocus } from "@app/hooks/useRemoteThreadRefreshOnFocus";
+import { useAppBootstrapOrchestration } from "@app/bootstrap/useAppBootstrapOrchestration";
+import {
+  useThreadCodexBootstrapOrchestration,
+  useThreadCodexSyncOrchestration,
+  useThreadSelectionHandlersOrchestration,
+  useThreadUiOrchestration,
+} from "@app/orchestration/useThreadOrchestration";
+import {
+  useWorkspaceInsightsOrchestration,
+  useWorkspaceOrderingOrchestration,
+} from "@app/orchestration/useWorkspaceOrchestration";
+import { useAppShellOrchestration } from "@app/orchestration/useLayoutOrchestration";
 
 const AboutView = lazy(() =>
-  import("./features/about/components/AboutView").then((module) => ({
+  import("@/features/about/components/AboutView").then((module) => ({
     default: module.AboutView,
   })),
 );
 
 const SettingsView = lazy(() =>
-  import("./features/settings/components/SettingsView").then((module) => ({
+  import("@settings/components/SettingsView").then((module) => ({
     default: module.SettingsView,
   })),
 );
 
 const GitHubPanelData = lazy(() =>
-  import("./features/git/components/GitHubPanelData").then((module) => ({
+  import("@/features/git/components/GitHubPanelData").then((module) => ({
     default: module.GitHubPanelData,
   })),
 );
@@ -168,9 +163,6 @@ function MainApp() {
     scaleShortcutTitle,
     scaleShortcutText,
     queueSaveSettings,
-  } = useAppSettingsController();
-  useCodeCssVars(appSettings);
-  const {
     dictationModel,
     dictationState,
     dictationLevel,
@@ -182,8 +174,6 @@ function MainApp() {
     clearDictationTranscript,
     clearDictationError,
     clearDictationHint,
-  } = useDictationController(appSettings);
-  const {
     debugOpen,
     setDebugOpen,
     debugEntries,
@@ -191,20 +181,8 @@ function MainApp() {
     addDebugEntry,
     handleCopyDebug,
     clearDebugEntries,
-  } = useDebugLog();
-  const shouldReduceTransparency = reduceTransparency || isMobilePlatform();
-  useLiquidGlassEffect({ reduceTransparency: shouldReduceTransparency, onDebug: addDebugEntry });
-  const { version: threadCodexParamsVersion, getThreadCodexParams, patchThreadCodexParams } =
-    useThreadCodexParams();
-  const [accessMode, setAccessMode] = useState<AccessMode>("current");
-  const [preferredModelId, setPreferredModelId] = useState<string | null>(null);
-  const [preferredEffort, setPreferredEffort] = useState<string | null>(null);
-  const [preferredCollabModeId, setPreferredCollabModeId] = useState<string | null>(
-    null,
-  );
-  const [threadCodexSelectionKey, setThreadCodexSelectionKey] = useState<string | null>(
-    null,
-  );
+    shouldReduceTransparency,
+  } = useAppBootstrapOrchestration();
   const { threadListSortKey, setThreadListSortKey } = useThreadListSortKey();
   const [activeTab, setActiveTab] = useState<
     "home" | "projects" | "codex" | "git" | "log"
@@ -263,14 +241,26 @@ function MainApp() {
     () => new Map(workspaces.map((workspace) => [workspace.id, workspace])),
     [workspaces],
   );
-  const activeWorkspaceIdForParamsRef = useRef<string | null>(activeWorkspaceId ?? null);
-  useEffect(() => {
-    activeWorkspaceIdForParamsRef.current = activeWorkspaceId ?? null;
-  }, [activeWorkspaceId]);
-  const activeThreadIdRef = useRef<string | null>(null);
-  // When sending the first message from the "no thread" composer, snapshot the
-  // collaboration mode so it can be applied to the created thread.
-  const pendingNewThreadSeedRef = useRef<PendingNewThreadSeed | null>(null);
+  const {
+    threadCodexParamsVersion,
+    getThreadCodexParams,
+    patchThreadCodexParams,
+    accessMode,
+    setAccessMode,
+    preferredModelId,
+    setPreferredModelId,
+    preferredEffort,
+    setPreferredEffort,
+    preferredCollabModeId,
+    setPreferredCollabModeId,
+    threadCodexSelectionKey,
+    setThreadCodexSelectionKey,
+    activeThreadIdRef,
+    pendingNewThreadSeedRef,
+    persistThreadCodexParams,
+  } = useThreadCodexBootstrapOrchestration({
+    activeWorkspaceId,
+  });
   const {
     sidebarWidth,
     rightPanelWidth,
@@ -481,96 +471,22 @@ function MainApp() {
     onDebug: addDebugEntry,
   });
 
-  const persistThreadCodexParams = useCallback(
-    (patch: {
-      modelId?: string | null;
-      effort?: string | null;
-      accessMode?: AccessMode | null;
-      collaborationModeId?: string | null;
-    }) => {
-      const workspaceId = activeWorkspaceIdForParamsRef.current;
-      const threadId = activeThreadIdRef.current;
-      if (!workspaceId || !threadId) {
-        return;
-      }
-      patchThreadCodexParams(workspaceId, threadId, patch);
-    },
-    [patchThreadCodexParams],
-  );
-
-  const handleSelectModel = useCallback(
-    (id: string | null) => {
-      setSelectedModelId(id);
-      const hasActiveThread = Boolean(activeThreadIdRef.current);
-      if (!appSettingsLoading) {
-        // Picking a model inside a thread should not overwrite the global defaults
-        // configured in Settings; it should remain thread-scoped.
-        if (!hasActiveThread) {
-          setAppSettings((current) => {
-            if (current.lastComposerModelId === id) {
-              return current;
-            }
-            const nextSettings = { ...current, lastComposerModelId: id };
-            void queueSaveSettings(nextSettings);
-            return nextSettings;
-          });
-        }
-      }
-      persistThreadCodexParams({ modelId: id });
-    },
-    [
-      appSettingsLoading,
-      persistThreadCodexParams,
-      queueSaveSettings,
-      setAppSettings,
-      setSelectedModelId,
-    ],
-  );
-
-  const handleSelectEffort = useCallback(
-    (raw: string | null) => {
-      const next = typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : null;
-      setSelectedEffort(next);
-      const hasActiveThread = Boolean(activeThreadIdRef.current);
-      if (!appSettingsLoading) {
-        // Keep per-thread overrides from mutating the global defaults.
-        if (!hasActiveThread) {
-          setAppSettings((current) => {
-            if (current.lastComposerReasoningEffort === next) {
-              return current;
-            }
-            const nextSettings = { ...current, lastComposerReasoningEffort: next };
-            void queueSaveSettings(nextSettings);
-            return nextSettings;
-          });
-        }
-      }
-      persistThreadCodexParams({ effort: next });
-    },
-    [
-      appSettingsLoading,
-      persistThreadCodexParams,
-      queueSaveSettings,
-      setAppSettings,
-      setSelectedEffort,
-    ],
-  );
-
-  const handleSelectCollaborationMode = useCallback(
-    (id: string | null) => {
-      setSelectedCollaborationModeId(id);
-      persistThreadCodexParams({ collaborationModeId: id });
-    },
-    [persistThreadCodexParams, setSelectedCollaborationModeId],
-  );
-
-  const handleSelectAccessMode = useCallback(
-    (mode: AccessMode) => {
-      setAccessMode(mode);
-      persistThreadCodexParams({ accessMode: mode });
-    },
-    [persistThreadCodexParams],
-  );
+  const {
+    handleSelectModel,
+    handleSelectEffort,
+    handleSelectCollaborationMode,
+    handleSelectAccessMode,
+  } = useThreadSelectionHandlersOrchestration({
+    appSettingsLoading,
+    setAppSettings,
+    queueSaveSettings,
+    activeThreadIdRef,
+    setSelectedModelId,
+    setSelectedEffort,
+    setSelectedCollaborationModeId,
+    setAccessMode,
+    persistThreadCodexParams,
+  });
 
   const composerShortcuts = {
     modelShortcut: appSettings.composerModelShortcut,
@@ -822,91 +738,29 @@ function MainApp() {
     onDebug: addDebugEntry,
   });
 
-  useLayoutEffect(() => {
-    const workspaceId = activeWorkspaceId ?? null;
-    const threadId = activeThreadId ?? null;
-    activeThreadIdRef.current = threadId;
-
-    if (!workspaceId) {
-      return;
-    }
-
-    const stored = threadId ? getThreadCodexParams(workspaceId, threadId) : null;
-    const resolved = resolveThreadCodexState({
-      workspaceId,
-      threadId,
+  useThreadCodexSyncOrchestration({
+    activeWorkspaceId,
+    activeThreadId,
+    appSettings: {
       defaultAccessMode: appSettings.defaultAccessMode,
       lastComposerModelId: appSettings.lastComposerModelId,
       lastComposerReasoningEffort: appSettings.lastComposerReasoningEffort,
-      stored,
-      pendingSeed: pendingNewThreadSeedRef.current,
-    });
-
-    setThreadCodexSelectionKey(resolved.scopeKey);
-    setAccessMode(resolved.accessMode);
-    setPreferredModelId(resolved.preferredModelId);
-    setPreferredEffort(resolved.preferredEffort);
-    setPreferredCollabModeId(resolved.preferredCollabModeId);
-  }, [
-    activeThreadId,
-    activeWorkspaceId,
-    appSettings.defaultAccessMode,
-    appSettings.lastComposerModelId,
-    appSettings.lastComposerReasoningEffort,
-    getThreadCodexParams,
-    setPreferredCollabModeId,
-    setPreferredEffort,
-    setPreferredModelId,
-    setThreadCodexSelectionKey,
+    },
     threadCodexParamsVersion,
-  ]);
-
-  const seededThreadParamsRef = useRef(new Set<string>());
-  useEffect(() => {
-    const workspaceId = activeWorkspaceId ?? null;
-    const threadId = activeThreadId ?? null;
-    if (!workspaceId || !threadId) {
-      return;
-    }
-
-    const key = makeThreadCodexParamsKey(workspaceId, threadId);
-    if (seededThreadParamsRef.current.has(key)) {
-      return;
-    }
-
-    const stored = getThreadCodexParams(workspaceId, threadId);
-    if (stored) {
-      seededThreadParamsRef.current.add(key);
-      return;
-    }
-
-    seededThreadParamsRef.current.add(key);
-    const pendingSeed = pendingNewThreadSeedRef.current;
-    patchThreadCodexParams(
-      workspaceId,
-      threadId,
-      buildThreadCodexSeedPatch({
-        workspaceId,
-        selectedModelId,
-        resolvedEffort,
-        accessMode,
-        selectedCollaborationModeId,
-        pendingSeed,
-      }),
-    );
-    if (pendingSeed?.workspaceId === workspaceId) {
-      pendingNewThreadSeedRef.current = null;
-    }
-  }, [
-    activeThreadId,
-    activeWorkspaceId,
-    accessMode,
     getThreadCodexParams,
     patchThreadCodexParams,
-    resolvedEffort,
-    selectedCollaborationModeId,
+    setThreadCodexSelectionKey,
+    setAccessMode,
+    setPreferredModelId,
+    setPreferredEffort,
+    setPreferredCollabModeId,
+    activeThreadIdRef,
+    pendingNewThreadSeedRef,
     selectedModelId,
-  ]);
+    resolvedEffort,
+    accessMode,
+    selectedCollaborationModeId,
+  });
 
   const { handleSetThreadListSortKey, handleRefreshAllWorkspaceThreads } =
     useThreadListActions({
@@ -1211,50 +1065,30 @@ function MainApp() {
     },
   });
 
-  const latestAgentRuns = useMemo(() => {
-    const entries: Array<{
-      threadId: string;
-      message: string;
-      timestamp: number;
-      projectName: string;
-      groupName?: string | null;
-      workspaceId: string;
-      isProcessing: boolean;
-    }> = [];
-    workspaces.forEach((workspace) => {
-      const threads = threadsByWorkspace[workspace.id] ?? [];
-      threads.forEach((thread) => {
-        const entry = lastAgentMessageByThread[thread.id];
-        if (!entry) {
-          return;
-        }
-        entries.push({
-          threadId: thread.id,
-          message: entry.text,
-          timestamp: entry.timestamp,
-          projectName: workspace.name,
-          groupName: getWorkspaceGroupName(workspace.id),
-          workspaceId: workspace.id,
-          isProcessing: threadStatusById[thread.id]?.isProcessing ?? false
-        });
-      });
-    });
-    return entries.sort((a, b) => b.timestamp - a.timestamp).slice(0, 3);
-  }, [
-    lastAgentMessageByThread,
-    getWorkspaceGroupName,
-    threadStatusById,
+  const showHome = !activeWorkspace;
+  const {
+    latestAgentRuns,
+    isLoadingLatestAgents,
+    usageMetric,
+    setUsageMetric,
+    usageWorkspaceId,
+    setUsageWorkspaceId,
+    usageWorkspaceOptions,
+    localUsageSnapshot,
+    isLoadingLocalUsage,
+    localUsageError,
+    refreshLocalUsage,
+  } = useWorkspaceInsightsOrchestration({
+    workspaces,
+    workspacesById,
+    hasLoaded,
+    showHome,
     threadsByWorkspace,
-    workspaces
-  ]);
-  const isLoadingLatestAgents = useMemo(
-    () =>
-      !hasLoaded ||
-      workspaces.some(
-        (workspace) => threadListLoadingByWorkspace[workspace.id] ?? false
-      ),
-    [hasLoaded, threadListLoadingByWorkspace, workspaces]
-  );
+    lastAgentMessageByThread,
+    threadStatusById,
+    threadListLoadingByWorkspace,
+    getWorkspaceGroupName,
+  });
 
   const activeRateLimits = activeWorkspaceId
     ? rateLimitsByWorkspace[activeWorkspaceId] ?? null
@@ -1268,7 +1102,6 @@ function MainApp() {
   const hasActivePlan = Boolean(
     activePlan && (activePlan.steps.length > 0 || activePlan.explanation)
   );
-  const showHome = !activeWorkspace;
   const showWorkspaceHome = Boolean(activeWorkspace && !activeThreadId && !isNewAgentDraftMode);
   const showComposer = (!isCompact
     ? centerMode === "chat" || centerMode === "diff"
@@ -1286,40 +1119,6 @@ function MainApp() {
       hasComposerSurface: showComposer || showWorkspaceHome,
       onDebug: addDebugEntry,
     });
-  const [usageMetric, setUsageMetric] = useState<"tokens" | "time">("tokens");
-  const [usageWorkspaceId, setUsageWorkspaceId] = useState<string | null>(null);
-  const usageWorkspaceOptions = useMemo(
-    () =>
-      workspaces.map((workspace) => {
-        const groupName = getWorkspaceGroupName(workspace.id);
-        const label = groupName
-          ? `${groupName} / ${workspace.name}`
-          : workspace.name;
-        return { id: workspace.id, label };
-      }),
-    [getWorkspaceGroupName, workspaces],
-  );
-  const usageWorkspacePath = useMemo(() => {
-    if (!usageWorkspaceId) {
-      return null;
-    }
-    return workspacesById.get(usageWorkspaceId)?.path ?? null;
-  }, [usageWorkspaceId, workspacesById]);
-  useEffect(() => {
-    if (!usageWorkspaceId) {
-      return;
-    }
-    if (workspaces.some((workspace) => workspace.id === usageWorkspaceId)) {
-      return;
-    }
-    setUsageWorkspaceId(null);
-  }, [usageWorkspaceId, workspaces]);
-  const {
-    snapshot: localUsageSnapshot,
-    isLoading: isLoadingLocalUsage,
-    error: localUsageError,
-    refresh: refreshLocalUsage,
-  } = useLocalUsage(showHome, usageWorkspacePath);
   const canInterrupt = activeThreadId
     ? threadStatusById[activeThreadId]?.isProcessing ?? false
     : false;
@@ -1702,21 +1501,6 @@ function MainApp() {
     onDropPaths: handleDropWorkspacePaths,
   });
 
-  const handleArchiveActiveThread = useCallback(() => {
-    if (!activeWorkspaceId || !activeThreadId) {
-      return;
-    }
-    removeThread(activeWorkspaceId, activeThreadId);
-    clearDraftForThread(activeThreadId);
-    removeImagesForThread(activeThreadId);
-  }, [
-    activeThreadId,
-    activeWorkspaceId,
-    clearDraftForThread,
-    removeImagesForThread,
-    removeThread,
-  ]);
-
   useInterruptShortcut({
     isEnabled: canInterrupt,
     shortcut: appSettings.interruptShortcut,
@@ -1754,94 +1538,32 @@ function MainApp() {
     queueMessage,
   });
 
-  const rememberPendingNewThreadSeed = useCallback(() => {
-    pendingNewThreadSeedRef.current = createPendingThreadSeed({
-      activeThreadId: activeThreadId ?? null,
-      activeWorkspaceId: activeWorkspaceId ?? null,
-      selectedCollaborationModeId,
-      accessMode,
-    });
-  }, [accessMode, activeThreadId, activeWorkspaceId, selectedCollaborationModeId]);
-
-  const handleComposerSendWithDraftStart = useCallback(
-    (text: string, images: string[], appMentions?: AppMention[]) => {
-      rememberPendingNewThreadSeed();
-      return runWithDraftStart(() => (
-        appMentions && appMentions.length > 0
-          ? handleComposerSend(text, images, appMentions)
-          : handleComposerSend(text, images)
-      ));
-    },
-    [handleComposerSend, rememberPendingNewThreadSeed, runWithDraftStart],
-  );
-  const handleComposerQueueWithDraftStart = useCallback(
-    (text: string, images: string[], appMentions?: AppMention[]) => {
-      // Queueing without an active thread would no-op; bootstrap through send so user input is not lost.
-      const runner = activeThreadId
-        ? () => (
-          appMentions && appMentions.length > 0
-            ? handleComposerQueue(text, images, appMentions)
-            : handleComposerQueue(text, images)
-        )
-        : () => (
-          appMentions && appMentions.length > 0
-            ? handleComposerSend(text, images, appMentions)
-            : handleComposerSend(text, images)
-        );
-      if (!activeThreadId) {
-        rememberPendingNewThreadSeed();
-      }
-      return runWithDraftStart(runner);
-    },
-    [
-      activeThreadId,
-      handleComposerQueue,
-      handleComposerSend,
-      rememberPendingNewThreadSeed,
-      runWithDraftStart,
-    ],
-  );
-
-  const handleSelectWorkspaceInstance = useCallback(
-    (workspaceId: string, threadId: string) => {
-      exitDiffView();
-      resetPullRequestSelection();
-      clearDraftState();
-      selectWorkspace(workspaceId);
-      setActiveThreadId(threadId, workspaceId);
-      if (isCompact) {
-        setActiveTab("codex");
-      }
-    },
-    [
-      clearDraftState,
-      exitDiffView,
-      isCompact,
-      resetPullRequestSelection,
-      selectWorkspace,
-      setActiveTab,
-      setActiveThreadId,
-    ],
-  );
-
-  const handleOpenThreadLink = useCallback(
-    (threadId: string) => {
-      if (!activeWorkspaceId) {
-        return;
-      }
-      exitDiffView();
-      resetPullRequestSelection();
-      clearDraftState();
-      setActiveThreadId(threadId, activeWorkspaceId);
-    },
-    [
-      activeWorkspaceId,
-      clearDraftState,
-      exitDiffView,
-      resetPullRequestSelection,
-      setActiveThreadId,
-    ],
-  );
+  const {
+    handleComposerSendWithDraftStart,
+    handleComposerQueueWithDraftStart,
+    handleSelectWorkspaceInstance,
+    handleOpenThreadLink,
+    handleArchiveActiveThread,
+  } = useThreadUiOrchestration({
+    activeWorkspaceId,
+    activeThreadId,
+    accessMode,
+    selectedCollaborationModeId,
+    pendingNewThreadSeedRef,
+    runWithDraftStart,
+    handleComposerSend,
+    handleComposerQueue,
+    clearDraftState,
+    exitDiffView,
+    resetPullRequestSelection,
+    selectWorkspace,
+    setActiveThreadId,
+    setActiveTab,
+    isCompact,
+    removeThread,
+    clearDraftForThread,
+    removeImagesForThread,
+  });
 
   const { handlePlanAccept, handlePlanSubmitChanges } = usePlanReadyActions({
     activeWorkspace,
@@ -1854,58 +1576,38 @@ function MainApp() {
     setSelectedCollaborationModeId,
   });
 
-  const orderValue = (entry: WorkspaceInfo) =>
-    typeof entry.settings.sortOrder === "number"
-      ? entry.settings.sortOrder
-      : Number.MAX_SAFE_INTEGER;
+  const { handleMoveWorkspace } = useWorkspaceOrderingOrchestration({
+    workspaces,
+    workspacesById,
+    updateWorkspaceSettings,
+  });
 
-  const handleMoveWorkspace = async (
-    workspaceId: string,
-    direction: "up" | "down"
-  ) => {
-    const target = workspacesById.get(workspaceId);
-    if (!target || (target.kind ?? "main") === "worktree") {
-      return;
-    }
-    const targetGroupId = target.settings.groupId ?? null;
-    const ordered = workspaces
-      .filter(
-        (entry) =>
-          (entry.kind ?? "main") !== "worktree" &&
-          (entry.settings.groupId ?? null) === targetGroupId,
-      )
-      .slice()
-      .sort((a, b) => {
-        const orderDiff = orderValue(a) - orderValue(b);
-        if (orderDiff !== 0) {
-          return orderDiff;
-        }
-        return a.name.localeCompare(b.name);
-      });
-    const index = ordered.findIndex((entry) => entry.id === workspaceId);
-    if (index === -1) {
-      return;
-    }
-    const nextIndex = direction === "up" ? index - 1 : index + 1;
-    if (nextIndex < 0 || nextIndex >= ordered.length) {
-      return;
-    }
-    const next = ordered.slice();
-    const temp = next[index];
-    next[index] = next[nextIndex];
-    next[nextIndex] = temp;
-    await Promise.all(
-      next.map((entry, idx) =>
-        updateWorkspaceSettings(entry.id, {
-          sortOrder: idx
-        })
-      )
-    );
-  };
-
-  const showGitDetail =
-    Boolean(selectedDiffPath) && isPhone && centerMode === "diff";
-  const isThreadOpen = Boolean(activeThreadId && showComposer);
+  const {
+    showGitDetail,
+    isThreadOpen,
+    dropOverlayActive,
+    dropOverlayText,
+    appClassName,
+    appStyle,
+  } = useAppShellOrchestration({
+    isCompact,
+    isPhone,
+    isTablet,
+    sidebarCollapsed,
+    rightPanelCollapsed,
+    shouldReduceTransparency,
+    isWorkspaceDropActive,
+    centerMode,
+    selectedDiffPath,
+    showComposer,
+    activeThreadId,
+    sidebarWidth,
+    rightPanelWidth,
+    planPanelHeight,
+    terminalPanelHeight,
+    debugPanelHeight,
+    appSettings,
+  });
 
   useArchiveShortcut({
     isEnabled: isThreadOpen,
@@ -1956,16 +1658,7 @@ function MainApp() {
   });
 
   useMenuAcceleratorController({ appSettings, onDebug: addDebugEntry });
-  const dropOverlayActive = isWorkspaceDropActive;
-  const dropOverlayText = "将工作区拖放到此处";
-  const appClassName = `app ${isCompact ? "layout-compact" : "layout-desktop"}${
-    isPhone ? " layout-phone" : ""
-  }${isTablet ? " layout-tablet" : ""}${
-    shouldReduceTransparency ? " reduced-transparency" : ""
-  }${!isCompact && sidebarCollapsed ? " sidebar-collapsed" : ""}${
-    !isCompact && rightPanelCollapsed ? " right-panel-collapsed" : ""
-  }`;
-  const {
+const {
     sidebarNode,
     messagesNode,
     composerNode,
@@ -2491,25 +2184,7 @@ function MainApp() {
   );
 
   return (
-    <div
-      className={appClassName}
-      style={
-        {
-          "--sidebar-width": `${
-            isCompact ? sidebarWidth : sidebarCollapsed ? 0 : sidebarWidth
-          }px`,
-          "--right-panel-width": `${
-            isCompact ? rightPanelWidth : rightPanelCollapsed ? 0 : rightPanelWidth
-          }px`,
-          "--plan-panel-height": `${planPanelHeight}px`,
-          "--terminal-panel-height": `${terminalPanelHeight}px`,
-          "--debug-panel-height": `${debugPanelHeight}px`,
-          "--ui-font-family": appSettings.uiFontFamily,
-          "--code-font-family": appSettings.codeFontFamily,
-          "--code-font-size": `${appSettings.codeFontSize}px`
-        } as React.CSSProperties
-      }
-    >
+    <div className={appClassName} style={appStyle}>
       <div className="drag-strip" id="titlebar" data-tauri-drag-region />
       <TitlebarExpandControls {...sidebarToggleProps} />
       {shouldLoadGitHubPanelData ? (

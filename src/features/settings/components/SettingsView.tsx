@@ -9,56 +9,18 @@ import type {
   CodexDoctorResult,
   CodexUpdateResult,
   DictationModelStatus,
-  TcpDaemonStatus,
-  TailscaleDaemonCommandPreview,
-  TailscaleStatus,
   WorkspaceSettings,
   WorkspaceGroup,
   WorkspaceInfo,
-} from "../../../types";
-import {
-  getCodexConfigPath,
-  listWorkspaces,
-  tailscaleDaemonStart,
-  tailscaleDaemonStatus,
-  tailscaleDaemonStop,
-  tailscaleDaemonCommandPreview as fetchTailscaleDaemonCommandPreview,
-  tailscaleStatus as fetchTailscaleStatus,
-} from "../../../services/tauri";
-import {
-  isMacPlatform,
-  isMobilePlatform,
-  isWindowsPlatform,
-} from "../../../utils/platformPaths";
-import { clampUiScale } from "../../../utils/uiScale";
-import {
-  DEFAULT_CODE_FONT_FAMILY,
-  DEFAULT_UI_FONT_FAMILY,
-  clampCodeFontSize,
-  normalizeFontFamily,
-} from "../../../utils/fonts";
-import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "../../../utils/commitMessagePrompt";
-import { useGlobalAgentsMd } from "../hooks/useGlobalAgentsMd";
-import { useGlobalCodexConfigToml } from "../hooks/useGlobalCodexConfigToml";
-import { useSettingsDefaultModels } from "../hooks/useSettingsDefaultModels";
-import { useSettingsOpenAppDrafts } from "../hooks/useSettingsOpenAppDrafts";
-import { useSettingsShortcutDrafts } from "../hooks/useSettingsShortcutDrafts";
-import { useSettingsViewCloseShortcuts } from "../hooks/useSettingsViewCloseShortcuts";
-import { useSettingsViewNavigation } from "../hooks/useSettingsViewNavigation";
-import { ModalShell } from "../../design-system/components/modal/ModalShell";
+} from "@/types";
+import { useSettingsViewCloseShortcuts } from "@settings/hooks/useSettingsViewCloseShortcuts";
+import { useSettingsViewNavigation } from "@settings/hooks/useSettingsViewNavigation";
+import { useSettingsViewOrchestration } from "@settings/hooks/useSettingsViewOrchestration";
+import { ModalShell } from "@/features/design-system/components/modal/ModalShell";
 import { SettingsNav } from "./SettingsNav";
 import type { CodexSection, OrbitServiceClient } from "./settingsTypes";
-import { SettingsProjectsSection } from "./sections/SettingsProjectsSection";
-import { SettingsEnvironmentsSection } from "./sections/SettingsEnvironmentsSection";
-import { SettingsDisplaySection } from "./sections/SettingsDisplaySection";
-import { SettingsComposerSection } from "./sections/SettingsComposerSection";
-import { SettingsDictationSection } from "./sections/SettingsDictationSection";
-import { SettingsShortcutsSection } from "./sections/SettingsShortcutsSection";
-import { SettingsOpenAppsSection } from "./sections/SettingsOpenAppsSection";
-import { SettingsGitSection } from "./sections/SettingsGitSection";
-import { SettingsCodexSection } from "./sections/SettingsCodexSection";
-import { SettingsServerSection } from "./sections/SettingsServerSection";
-import { SettingsFeaturesSection } from "./sections/SettingsFeaturesSection";
+import { ORBIT_SERVICES, SETTINGS_SECTION_LABELS } from "./settingsViewConstants";
+import { SettingsSectionContainers } from "./sections/SettingsSectionContainers";
 import {
   COMPOSER_PRESET_CONFIGS,
   COMPOSER_PRESET_LABELS,
@@ -66,7 +28,6 @@ import {
   DICTATION_MODELS,
   ORBIT_DEFAULT_POLL_INTERVAL_SECONDS,
   ORBIT_MAX_INLINE_POLL_SECONDS,
-  ORBIT_SERVICES,
 } from "./settingsViewConstants";
 import {
   buildEditorContentMeta,
@@ -186,245 +147,39 @@ export function SettingsView({
   } = useSettingsViewNavigation({ initialSection });
   const { t } = useTranslation();
 
-  const getSectionLabel = (section: CodexSection): string => {
-    const sectionKeyMap: Record<CodexSection, string> = {
-      projects: "workspaces",
-      environments: "environment",
-      display: "display_sound",
-      composer: "composer",
-      dictation: "dictation",
-      shortcuts: "keyboard_shortcuts",
-      "open-apps": "open_with",
-      git: "git",
-      server: "server",
-      codex: "codex",
-      features: "features",
-    };
-    return t(`settings.sections.${sectionKeyMap[section]}`);
-  };
-
-  const [environmentWorkspaceId, setEnvironmentWorkspaceId] = useState<string | null>(
-    null,
-  );
-  const [environmentDraftScript, setEnvironmentDraftScript] = useState("");
-  const [environmentSavedScript, setEnvironmentSavedScript] = useState<string | null>(
-    null,
-  );
-  const [environmentLoadedWorkspaceId, setEnvironmentLoadedWorkspaceId] = useState<
-    string | null
-  >(null);
-  const [environmentError, setEnvironmentError] = useState<string | null>(null);
-  const [environmentSaving, setEnvironmentSaving] = useState(false);
-  const [codexPathDraft, setCodexPathDraft] = useState(appSettings.codexBin ?? "");
-  const [codexArgsDraft, setCodexArgsDraft] = useState(appSettings.codexArgs ?? "");
-  const [remoteHostDraft, setRemoteHostDraft] = useState(appSettings.remoteBackendHost);
-  const [remoteTokenDraft, setRemoteTokenDraft] = useState(appSettings.remoteBackendToken ?? "");
-  const [orbitWsUrlDraft, setOrbitWsUrlDraft] = useState(appSettings.orbitWsUrl ?? "");
-  const [orbitAuthUrlDraft, setOrbitAuthUrlDraft] = useState(appSettings.orbitAuthUrl ?? "");
-  const [orbitRunnerNameDraft, setOrbitRunnerNameDraft] = useState(
-    appSettings.orbitRunnerName ?? "",
-  );
-  const [orbitAccessClientIdDraft, setOrbitAccessClientIdDraft] = useState(
-    appSettings.orbitAccessClientId ?? "",
-  );
-  const [orbitAccessClientSecretRefDraft, setOrbitAccessClientSecretRefDraft] =
-    useState(appSettings.orbitAccessClientSecretRef ?? "");
-  const [commitMessagePromptDraft, setCommitMessagePromptDraft] = useState(
-    appSettings.commitMessagePrompt,
-  );
-  const [commitMessagePromptSaving, setCommitMessagePromptSaving] = useState(false);
-  const [orbitStatusText, setOrbitStatusText] = useState<string | null>(null);
-  const [orbitAuthCode, setOrbitAuthCode] = useState<string | null>(null);
-  const [orbitVerificationUrl, setOrbitVerificationUrl] = useState<string | null>(
-    null,
-  );
-  const [orbitBusyAction, setOrbitBusyAction] = useState<string | null>(null);
-  const [tailscaleStatus, setTailscaleStatus] = useState<TailscaleStatus | null>(
-    null,
-  );
-  const [tailscaleStatusBusy, setTailscaleStatusBusy] = useState(false);
-  const [tailscaleStatusError, setTailscaleStatusError] = useState<string | null>(null);
-  const [tailscaleCommandPreview, setTailscaleCommandPreview] =
-    useState<TailscaleDaemonCommandPreview | null>(null);
-  const [tailscaleCommandBusy, setTailscaleCommandBusy] = useState(false);
-  const [tailscaleCommandError, setTailscaleCommandError] = useState<string | null>(
-    null,
-  );
-  const [tcpDaemonStatus, setTcpDaemonStatus] = useState<TcpDaemonStatus | null>(null);
-  const [tcpDaemonBusyAction, setTcpDaemonBusyAction] = useState<
-    "start" | "stop" | "status" | null
-  >(null);
-  const [mobileConnectBusy, setMobileConnectBusy] = useState(false);
-  const [mobileConnectStatusText, setMobileConnectStatusText] = useState<string | null>(
-    null,
-  );
-  const [mobileConnectStatusError, setMobileConnectStatusError] = useState(false);
-  const mobilePlatform = useMemo(() => isMobilePlatform(), []);
-  const [scaleDraft, setScaleDraft] = useState(
-    `${Math.round(clampUiScale(appSettings.uiScale) * 100)}%`,
-  );
-  const [uiFontDraft, setUiFontDraft] = useState(appSettings.uiFontFamily);
-  const [codeFontDraft, setCodeFontDraft] = useState(appSettings.codeFontFamily);
-  const [codeFontSizeDraft, setCodeFontSizeDraft] = useState(appSettings.codeFontSize);
-  const [codexBinOverrideDrafts, setCodexBinOverrideDrafts] = useState<
-    Record<string, string>
-  >({});
-  const [codexHomeOverrideDrafts, setCodexHomeOverrideDrafts] = useState<
-    Record<string, string>
-  >({});
-  const [codexArgsOverrideDrafts, setCodexArgsOverrideDrafts] = useState<
-    Record<string, string>
-  >({});
-  const [groupDrafts, setGroupDrafts] = useState<Record<string, string>>({});
-  const [newGroupName, setNewGroupName] = useState("");
-  const [groupError, setGroupError] = useState<string | null>(null);
-  const {
-    openAppDrafts,
-    openAppSelectedId,
-    handleOpenAppDraftChange,
-    handleOpenAppKindChange,
-    handleCommitOpenAppsDrafts,
-    handleMoveOpenApp,
-    handleDeleteOpenApp,
-    handleAddOpenApp,
-    handleSelectOpenAppDefault,
-  } = useSettingsOpenAppDrafts({
+  const orchestration = useSettingsViewOrchestration({
+    workspaceGroups,
+    groupedWorkspaces,
+    ungroupedLabel,
+    reduceTransparency,
+    onToggleTransparency,
     appSettings,
+    openAppIconById,
     onUpdateAppSettings,
+    onRunDoctor,
+    onRunCodexUpdate,
+    onUpdateWorkspaceCodexBin,
+    onUpdateWorkspaceSettings,
+    scaleShortcutTitle,
+    scaleShortcutText,
+    onTestNotificationSound,
+    onTestSystemNotification,
+    onMoveWorkspace,
+    onDeleteWorkspace,
+    onCreateWorkspaceGroup,
+    onRenameWorkspaceGroup,
+    onMoveWorkspaceGroup,
+    onDeleteWorkspaceGroup,
+    onAssignWorkspaceGroup,
+    onMobileConnectSuccess,
+    dictationModelStatus,
+    onDownloadDictationModel,
+    onCancelDictationDownload,
+    onRemoveDictationModel,
+    orbitServiceClient,
   });
-  const [doctorState, setDoctorState] = useState<{
-    status: "idle" | "running" | "done";
-    result: CodexDoctorResult | null;
-  }>({ status: "idle", result: null });
-
-  const [codexUpdateState, setCodexUpdateState] = useState<{
-    status: "idle" | "running" | "done";
-    result: CodexUpdateResult | null;
-  }>({ status: "idle", result: null });
-  const {
-    content: globalAgentsContent,
-    exists: globalAgentsExists,
-    truncated: globalAgentsTruncated,
-    isLoading: globalAgentsLoading,
-    isSaving: globalAgentsSaving,
-    error: globalAgentsError,
-    isDirty: globalAgentsDirty,
-    setContent: setGlobalAgentsContent,
-    refresh: refreshGlobalAgents,
-    save: saveGlobalAgents,
-  } = useGlobalAgentsMd();
-  const {
-    content: globalConfigContent,
-    exists: globalConfigExists,
-    truncated: globalConfigTruncated,
-    isLoading: globalConfigLoading,
-    isSaving: globalConfigSaving,
-    error: globalConfigError,
-    isDirty: globalConfigDirty,
-    setContent: setGlobalConfigContent,
-    refresh: refreshGlobalConfig,
-    save: saveGlobalConfig,
-  } = useGlobalCodexConfigToml();
-  const [openConfigError, setOpenConfigError] = useState<string | null>(null);
-  const [isSavingSettings, setIsSavingSettings] = useState(false);
-  const { shortcutDrafts, handleShortcutKeyDown, clearShortcut } =
-    useSettingsShortcutDrafts({
-      appSettings,
-      onUpdateAppSettings,
-    });
-  const latestSettingsRef = useRef(appSettings);
-  const dictationReady = dictationModelStatus?.state === "ready";
-  const globalAgentsEditorMeta = buildEditorContentMeta({
-    isLoading: globalAgentsLoading,
-    isSaving: globalAgentsSaving,
-    exists: globalAgentsExists,
-    truncated: globalAgentsTruncated,
-    isDirty: globalAgentsDirty,
-  });
-  const globalConfigEditorMeta = buildEditorContentMeta({
-    isLoading: globalConfigLoading,
-    isSaving: globalConfigSaving,
-    exists: globalConfigExists,
-    truncated: globalConfigTruncated,
-    isDirty: globalConfigDirty,
-  });
-  const globalAgentsMeta = globalAgentsEditorMeta.meta;
-  const globalAgentsSaveLabel = globalAgentsEditorMeta.saveLabel;
-  const globalAgentsSaveDisabled = globalAgentsEditorMeta.saveDisabled;
-  const globalAgentsRefreshDisabled = globalAgentsEditorMeta.refreshDisabled;
-  const globalConfigMeta = globalConfigEditorMeta.meta;
-  const globalConfigSaveLabel = globalConfigEditorMeta.saveLabel;
-  const globalConfigSaveDisabled = globalConfigEditorMeta.saveDisabled;
-  const globalConfigRefreshDisabled = globalConfigEditorMeta.refreshDisabled;
-  const optionKeyLabel = isMacPlatform() ? "Option" : "Alt";
-  const metaKeyLabel = isMacPlatform()
-    ? "Command"
-    : isWindowsPlatform()
-      ? "Windows"
-      : "Meta";
-  const selectedDictationModel = useMemo(() => {
-    return (
-      DICTATION_MODELS.find(
-        (model) => model.id === appSettings.dictationModelId,
-      ) ?? DICTATION_MODELS[1]
-    );
-  }, [appSettings.dictationModelId]);
-
-  const projects = useMemo(
-    () => groupedWorkspaces.flatMap((group) => group.workspaces),
-    [groupedWorkspaces],
-  );
-  const {
-    models: defaultModels,
-    isLoading: defaultModelsLoading,
-    error: defaultModelsError,
-    connectedWorkspaceCount: defaultModelsConnectedWorkspaceCount,
-    refresh: refreshDefaultModels,
-  } = useSettingsDefaultModels(projects);
-  const mainWorkspaces = useMemo(
-    () => projects.filter((workspace) => (workspace.kind ?? "main") !== "worktree"),
-    [projects],
-  );
-  const environmentWorkspace = useMemo(() => {
-    if (mainWorkspaces.length === 0) {
-      return null;
-    }
-    if (environmentWorkspaceId) {
-      const found = mainWorkspaces.find((workspace) => workspace.id === environmentWorkspaceId);
-      if (found) {
-        return found;
-      }
-    }
-    return mainWorkspaces[0] ?? null;
-  }, [environmentWorkspaceId, mainWorkspaces]);
-  const environmentSavedScriptFromWorkspace = useMemo(() => {
-    return normalizeWorktreeSetupScript(environmentWorkspace?.settings.worktreeSetupScript);
-  }, [environmentWorkspace?.settings.worktreeSetupScript]);
-  const environmentDraftNormalized = useMemo(() => {
-    return normalizeWorktreeSetupScript(environmentDraftScript);
-  }, [environmentDraftScript]);
-  const environmentDirty = environmentDraftNormalized !== environmentSavedScript;
-  const hasCodexHomeOverrides = useMemo(
-    () => projects.some((workspace) => workspace.settings.codexHome != null),
-    [projects],
-  );
 
   useSettingsViewCloseShortcuts(onClose);
-
-  useEffect(() => {
-    latestSettingsRef.current = appSettings;
-  }, [appSettings]);
-
-  useEffect(() => {
-    setCodexPathDraft(appSettings.codexBin ?? "");
-  }, [appSettings.codexBin]);
-
-  useEffect(() => {
-    setCodexArgsDraft(appSettings.codexArgs ?? "");
-  }, [appSettings.codexArgs]);
-
-  useEffect(() => {
-    setRemoteHostDraft(appSettings.remoteBackendHost);
   }, [appSettings.remoteBackendHost]);
 
   useEffect(() => {
@@ -1343,6 +1098,9 @@ export function SettingsView({
     }
   };
   const activeSectionLabel = getSectionLabel(activeSection);
+=======
+  const activeSectionLabel = SETTINGS_SECTION_LABELS[activeSection];
+>>>>>>> upstream/main
   const settingsBodyClassName = `settings-body${
     useMobileMasterDetail ? " settings-body-mobile-master-detail" : ""
   }${useMobileMasterDetail && showMobileDetail ? " is-detail-visible" : ""}`;
@@ -1390,265 +1148,18 @@ export function SettingsView({
                   <ChevronLeft aria-hidden />
                   Sections
                 </button>
-                <div className="settings-mobile-detail-title">
-                  {activeSectionLabel}
-                </div>
+                <div className="settings-mobile-detail-title">{activeSectionLabel}</div>
               </div>
             )}
             <div className="settings-content">
-          {activeSection === "projects" && (
-            <SettingsProjectsSection
-              workspaceGroups={workspaceGroups}
-              groupedWorkspaces={groupedWorkspaces}
-              ungroupedLabel={ungroupedLabel}
-              groupDrafts={groupDrafts}
-              newGroupName={newGroupName}
-              groupError={groupError}
-              projects={projects}
-              canCreateGroup={canCreateGroup}
-              onSetNewGroupName={setNewGroupName}
-              onSetGroupDrafts={setGroupDrafts}
-              onCreateGroup={handleCreateGroup}
-              onRenameGroup={handleRenameGroup}
-              onMoveWorkspaceGroup={onMoveWorkspaceGroup}
-              onDeleteGroup={handleDeleteGroup}
-              onChooseGroupCopiesFolder={handleChooseGroupCopiesFolder}
-              onClearGroupCopiesFolder={handleClearGroupCopiesFolder}
-              onAssignWorkspaceGroup={onAssignWorkspaceGroup}
-              onMoveWorkspace={onMoveWorkspace}
-              onDeleteWorkspace={onDeleteWorkspace}
-            />
-          )}
-          {activeSection === "environments" && (
-            <SettingsEnvironmentsSection
-              mainWorkspaces={mainWorkspaces}
-              environmentWorkspace={environmentWorkspace}
-              environmentSaving={environmentSaving}
-              environmentError={environmentError}
-              environmentDraftScript={environmentDraftScript}
-              environmentSavedScript={environmentSavedScript}
-              environmentDirty={environmentDirty}
-              onSetEnvironmentWorkspaceId={setEnvironmentWorkspaceId}
-              onSetEnvironmentDraftScript={setEnvironmentDraftScript}
-              onSaveEnvironmentSetup={handleSaveEnvironmentSetup}
-            />
-          )}
-          {activeSection === "display" && (
-            <SettingsDisplaySection
-              appSettings={appSettings}
-              reduceTransparency={reduceTransparency}
-              scaleShortcutTitle={scaleShortcutTitle}
-              scaleShortcutText={scaleShortcutText}
-              scaleDraft={scaleDraft}
-              uiFontDraft={uiFontDraft}
-              codeFontDraft={codeFontDraft}
-              codeFontSizeDraft={codeFontSizeDraft}
-              onUpdateAppSettings={onUpdateAppSettings}
-              onToggleTransparency={onToggleTransparency}
-              onSetScaleDraft={setScaleDraft}
-              onCommitScale={handleCommitScale}
-              onResetScale={handleResetScale}
-              onSetUiFontDraft={setUiFontDraft}
-              onCommitUiFont={handleCommitUiFont}
-              onSetCodeFontDraft={setCodeFontDraft}
-              onCommitCodeFont={handleCommitCodeFont}
-              onSetCodeFontSizeDraft={setCodeFontSizeDraft}
-              onCommitCodeFontSize={handleCommitCodeFontSize}
-              onTestNotificationSound={onTestNotificationSound}
-              onTestSystemNotification={onTestSystemNotification}
-            />
-          )}
-          {activeSection === "composer" && (
-            <SettingsComposerSection
-              appSettings={appSettings}
-              optionKeyLabel={optionKeyLabel}
-              composerPresetLabels={COMPOSER_PRESET_LABELS}
-              onComposerPresetChange={handleComposerPresetChange}
-              onUpdateAppSettings={onUpdateAppSettings}
-            />
-          )}
-          {activeSection === "dictation" && (
-            <SettingsDictationSection
-              appSettings={appSettings}
-              optionKeyLabel={optionKeyLabel}
-              metaKeyLabel={metaKeyLabel}
-              dictationModels={DICTATION_MODELS}
-              selectedDictationModel={selectedDictationModel}
-              dictationModelStatus={dictationModelStatus}
-              dictationReady={dictationReady}
-              onUpdateAppSettings={onUpdateAppSettings}
-              onDownloadDictationModel={onDownloadDictationModel}
-              onCancelDictationDownload={onCancelDictationDownload}
-              onRemoveDictationModel={onRemoveDictationModel}
-            />
-          )}
-          {activeSection === "shortcuts" && (
-            <SettingsShortcutsSection
-              shortcutDrafts={shortcutDrafts}
-              onShortcutKeyDown={handleShortcutKeyDown}
-              onClearShortcut={clearShortcut}
-            />
-          )}
-          {activeSection === "open-apps" && (
-            <SettingsOpenAppsSection
-              openAppDrafts={openAppDrafts}
-              openAppSelectedId={openAppSelectedId}
-              openAppIconById={openAppIconById}
-              onOpenAppDraftChange={handleOpenAppDraftChange}
-              onOpenAppKindChange={handleOpenAppKindChange}
-              onCommitOpenApps={handleCommitOpenAppsDrafts}
-              onMoveOpenApp={handleMoveOpenApp}
-              onDeleteOpenApp={handleDeleteOpenApp}
-              onAddOpenApp={handleAddOpenApp}
-              onSelectOpenAppDefault={handleSelectOpenAppDefault}
-            />
-          )}
-          {activeSection === "git" && (
-            <SettingsGitSection
-              appSettings={appSettings}
-              onUpdateAppSettings={onUpdateAppSettings}
-              commitMessagePromptDraft={commitMessagePromptDraft}
-              commitMessagePromptDirty={commitMessagePromptDirty}
-              commitMessagePromptSaving={commitMessagePromptSaving}
-              onSetCommitMessagePromptDraft={setCommitMessagePromptDraft}
-              onSaveCommitMessagePrompt={handleSaveCommitMessagePrompt}
-              onResetCommitMessagePrompt={handleResetCommitMessagePrompt}
-            />
-          )}
-          {activeSection === "server" && (
-            <SettingsServerSection
-              appSettings={appSettings}
-              onUpdateAppSettings={onUpdateAppSettings}
-              remoteHostDraft={remoteHostDraft}
-              remoteTokenDraft={remoteTokenDraft}
-              orbitWsUrlDraft={orbitWsUrlDraft}
-              orbitAuthUrlDraft={orbitAuthUrlDraft}
-              orbitRunnerNameDraft={orbitRunnerNameDraft}
-              orbitAccessClientIdDraft={orbitAccessClientIdDraft}
-              orbitAccessClientSecretRefDraft={orbitAccessClientSecretRefDraft}
-              orbitStatusText={orbitStatusText}
-              orbitAuthCode={orbitAuthCode}
-              orbitVerificationUrl={orbitVerificationUrl}
-              orbitBusyAction={orbitBusyAction}
-              tailscaleStatus={tailscaleStatus}
-              tailscaleStatusBusy={tailscaleStatusBusy}
-              tailscaleStatusError={tailscaleStatusError}
-              tailscaleCommandPreview={tailscaleCommandPreview}
-              tailscaleCommandBusy={tailscaleCommandBusy}
-              tailscaleCommandError={tailscaleCommandError}
-              tcpDaemonStatus={tcpDaemonStatus}
-              tcpDaemonBusyAction={tcpDaemonBusyAction}
-              onSetRemoteHostDraft={setRemoteHostDraft}
-              onSetRemoteTokenDraft={setRemoteTokenDraft}
-              onSetOrbitWsUrlDraft={setOrbitWsUrlDraft}
-              onSetOrbitAuthUrlDraft={setOrbitAuthUrlDraft}
-              onSetOrbitRunnerNameDraft={setOrbitRunnerNameDraft}
-              onSetOrbitAccessClientIdDraft={setOrbitAccessClientIdDraft}
-              onSetOrbitAccessClientSecretRefDraft={setOrbitAccessClientSecretRefDraft}
-              onCommitRemoteHost={handleCommitRemoteHost}
-              onCommitRemoteToken={handleCommitRemoteToken}
-              onChangeRemoteProvider={handleChangeRemoteProvider}
-              onRefreshTailscaleStatus={handleRefreshTailscaleStatus}
-              onRefreshTailscaleCommandPreview={handleRefreshTailscaleCommandPreview}
-              onUseSuggestedTailscaleHost={handleUseSuggestedTailscaleHost}
-              onTcpDaemonStart={handleTcpDaemonStart}
-              onTcpDaemonStop={handleTcpDaemonStop}
-              onTcpDaemonStatus={handleTcpDaemonStatus}
-              onCommitOrbitWsUrl={handleCommitOrbitWsUrl}
-              onCommitOrbitAuthUrl={handleCommitOrbitAuthUrl}
-              onCommitOrbitRunnerName={handleCommitOrbitRunnerName}
-              onCommitOrbitAccessClientId={handleCommitOrbitAccessClientId}
-              onCommitOrbitAccessClientSecretRef={handleCommitOrbitAccessClientSecretRef}
-              onOrbitConnectTest={handleOrbitConnectTest}
-              onOrbitSignIn={handleOrbitSignIn}
-              onOrbitSignOut={handleOrbitSignOut}
-              onOrbitRunnerStart={handleOrbitRunnerStart}
-              onOrbitRunnerStop={handleOrbitRunnerStop}
-              onOrbitRunnerStatus={handleOrbitRunnerStatus}
-              isMobilePlatform={mobilePlatform}
-              mobileConnectBusy={mobileConnectBusy}
-              mobileConnectStatusText={mobileConnectStatusText}
-              mobileConnectStatusError={mobileConnectStatusError}
-              onMobileConnectTest={handleMobileConnectTest}
-            />
-          )}
-          {activeSection === "codex" && (
-            <SettingsCodexSection
-              appSettings={appSettings}
-              onUpdateAppSettings={onUpdateAppSettings}
-              defaultModels={defaultModels}
-              defaultModelsLoading={defaultModelsLoading}
-              defaultModelsError={defaultModelsError}
-              defaultModelsConnectedWorkspaceCount={defaultModelsConnectedWorkspaceCount}
-              onRefreshDefaultModels={() => {
-                void refreshDefaultModels();
-              }}
-              codexPathDraft={codexPathDraft}
-              codexArgsDraft={codexArgsDraft}
-              codexDirty={codexDirty}
-              isSavingSettings={isSavingSettings}
-              doctorState={doctorState}
-              codexUpdateState={codexUpdateState}
-              globalAgentsMeta={globalAgentsMeta}
-              globalAgentsError={globalAgentsError}
-              globalAgentsContent={globalAgentsContent}
-              globalAgentsLoading={globalAgentsLoading}
-              globalAgentsRefreshDisabled={globalAgentsRefreshDisabled}
-              globalAgentsSaveDisabled={globalAgentsSaveDisabled}
-              globalAgentsSaveLabel={globalAgentsSaveLabel}
-              globalConfigMeta={globalConfigMeta}
-              globalConfigError={globalConfigError}
-              globalConfigContent={globalConfigContent}
-              globalConfigLoading={globalConfigLoading}
-              globalConfigRefreshDisabled={globalConfigRefreshDisabled}
-              globalConfigSaveDisabled={globalConfigSaveDisabled}
-              globalConfigSaveLabel={globalConfigSaveLabel}
-              projects={projects}
-              codexBinOverrideDrafts={codexBinOverrideDrafts}
-              codexHomeOverrideDrafts={codexHomeOverrideDrafts}
-              codexArgsOverrideDrafts={codexArgsOverrideDrafts}
-              onSetCodexPathDraft={setCodexPathDraft}
-              onSetCodexArgsDraft={setCodexArgsDraft}
-              onSetGlobalAgentsContent={setGlobalAgentsContent}
-              onSetGlobalConfigContent={setGlobalConfigContent}
-              onSetCodexBinOverrideDrafts={setCodexBinOverrideDrafts}
-              onSetCodexHomeOverrideDrafts={setCodexHomeOverrideDrafts}
-              onSetCodexArgsOverrideDrafts={setCodexArgsOverrideDrafts}
-              onBrowseCodex={handleBrowseCodex}
-              onSaveCodexSettings={handleSaveCodexSettings}
-              onRunDoctor={handleRunDoctor}
-              onRunCodexUpdate={handleRunCodexUpdate}
-              onRefreshGlobalAgents={() => {
-                void refreshGlobalAgents();
-              }}
-              onSaveGlobalAgents={() => {
-                void saveGlobalAgents();
-              }}
-              onRefreshGlobalConfig={() => {
-                void refreshGlobalConfig();
-              }}
-              onSaveGlobalConfig={() => {
-                void saveGlobalConfig();
-              }}
-              onUpdateWorkspaceCodexBin={onUpdateWorkspaceCodexBin}
-              onUpdateWorkspaceSettings={onUpdateWorkspaceSettings}
-            />
-          )}
-          {activeSection === "features" && (
-            <SettingsFeaturesSection
-              appSettings={appSettings}
-              hasCodexHomeOverrides={hasCodexHomeOverrides}
-              openConfigError={openConfigError}
-              onOpenConfig={() => {
-                void handleOpenConfig();
-              }}
-              onUpdateAppSettings={onUpdateAppSettings}
-            />
-          )}
+              <SettingsSectionContainers
+                activeSection={activeSection}
+                orchestration={orchestration}
+              />
             </div>
           </div>
         )}
-        </div>
+      </div>
     </ModalShell>
   );
 }

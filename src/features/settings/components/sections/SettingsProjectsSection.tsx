@@ -3,7 +3,7 @@ import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import { useTranslation } from "react-i18next";
 import type { Dispatch, SetStateAction } from "react";
-import type { WorkspaceGroup, WorkspaceInfo } from "../../../../types";
+import type { WorkspaceGroup, WorkspaceInfo } from "@/types";
 
 type GroupedWorkspaces = Array<{
   id: string | null;

@@ -10,8 +10,8 @@ import {
   getAppsList as getAppsListService,
   listMcpServerStatus as listMcpServerStatusService,
   compactThread as compactThreadService,
-} from "../../../services/tauri";
-import type { WorkspaceInfo } from "../../../types";
+} from "@services/tauri";
+import type { WorkspaceInfo } from "@/types";
 import { useThreadMessaging } from "./useThreadMessaging";
 
 vi.mock("@sentry/react", () => ({
@@ -20,7 +20,7 @@ vi.mock("@sentry/react", () => ({
   },
 }));
 
-vi.mock("../../../services/tauri", () => ({
+vi.mock("@services/tauri", () => ({
   sendUserMessage: vi.fn(),
   steerTurn: vi.fn(),
   startReview: vi.fn(),

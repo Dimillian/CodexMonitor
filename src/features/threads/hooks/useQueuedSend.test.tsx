@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { WorkspaceInfo } from "../../../types";
+import type { WorkspaceInfo } from "@/types";
 import { useQueuedSend } from "./useQueuedSend";
 
 const workspace: WorkspaceInfo = {

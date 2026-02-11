@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { STORAGE_KEY_THREAD_CODEX_PARAMS } from "../utils/threadStorage";
+import { STORAGE_KEY_THREAD_CODEX_PARAMS } from "@threads/utils/threadStorage";
 import { useThreadCodexParams } from "./useThreadCodexParams";
 
 describe("useThreadCodexParams", () => {
