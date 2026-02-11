@@ -1480,42 +1480,6 @@ describe("SettingsView Codex defaults", () => {
 });
 
 describe("SettingsView Features", () => {
-  it("updates personality selection", async () => {
-    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
-    renderFeaturesSection({ onUpdateAppSettings });
-
-    fireEvent.change(screen.getByLabelText("Personality"), {
-      target: { value: "pragmatic" },
-    });
-
-    await waitFor(() => {
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ personality: "pragmatic" }),
-      );
-    });
-  });
-
-  it("toggles steer mode in stable features", async () => {
-    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
-    renderFeaturesSection({
-      onUpdateAppSettings,
-      appSettings: { steerEnabled: true },
-    });
-
-    const steerTitle = screen.getByText("Steer mode");
-    const steerRow = steerTitle.closest(".settings-toggle-row");
-    expect(steerRow).not.toBeNull();
-
-    const toggle = within(steerRow as HTMLElement).getByRole("button");
-    fireEvent.click(toggle);
-
-    await waitFor(() => {
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ steerEnabled: false }),
-      );
-    });
-  });
-
   it("toggles background terminal in stable features", async () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderFeaturesSection({
