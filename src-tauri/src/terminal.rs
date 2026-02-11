@@ -50,7 +50,26 @@ async fn get_terminal_session(
 }
 
 fn shell_path() -> String {
-    std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string())
+    if let Ok(shell) = std::env::var("SHELL") {
+        if !shell.trim().is_empty() {
+            return shell;
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(comspec) = std::env::var("COMSPEC") {
+            if !comspec.trim().is_empty() {
+                return comspec;
+            }
+        }
+        return "powershell.exe".to_string();
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        "/bin/zsh".to_string()
+    }
 }
 
 fn resolve_locale() -> String {
@@ -179,7 +198,6 @@ pub(crate) async fn terminal_open(
 
     let mut cmd = CommandBuilder::new(shell_path());
     cmd.cwd(cwd);
-    cmd.arg("-i");
     cmd.env("TERM", "xterm-256color");
     let locale = resolve_locale();
     cmd.env("LANG", &locale);

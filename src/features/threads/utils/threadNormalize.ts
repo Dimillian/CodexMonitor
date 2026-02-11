@@ -36,6 +36,14 @@ export function normalizeRootPath(value: string) {
   return value.replace(/\\/g, "/").replace(/\/+$/, "");
 }
 
+export function normalizeRootPathForCompare(value: string) {
+  const normalized = normalizeRootPath(value);
+  if (/^(?:[a-zA-Z]:\/|\\\\|\/\/\?\/)/.test(normalized)) {
+    return normalized.toLowerCase();
+  }
+  return normalized;
+}
+
 export function extractRpcErrorMessage(response: unknown) {
   if (!response || typeof response !== "object") {
     return null;

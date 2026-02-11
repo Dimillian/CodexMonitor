@@ -24,7 +24,7 @@ import {
 } from "../../../utils/threadItems";
 import {
   asString,
-  normalizeRootPath,
+  normalizeRootPathForCompare,
 } from "../utils/threadNormalize";
 import { saveThreadActivity } from "../utils/threadStorage";
 import type { ThreadAction, ThreadState } from "./useThreadsReducer";
@@ -438,7 +438,7 @@ export function useThreadActions({
     ) => {
       const preserveState = options?.preserveState ?? false;
       const requestedSortKey = options?.sortKey ?? threadSortKey;
-      const workspacePath = normalizeRootPath(workspace.path);
+      const workspacePath = normalizeRootPathForCompare(workspace.path);
       if (!preserveState) {
         dispatch({
           type: "setThreadListLoading",
@@ -492,7 +492,7 @@ export function useThreadActions({
           matchingThreads.push(
             ...data.filter(
               (thread) =>
-                normalizeRootPath(String(thread?.cwd ?? "")) === workspacePath,
+                normalizeRootPathForCompare(String(thread?.cwd ?? "")) === workspacePath,
             ),
           );
           cursor = nextCursor;
@@ -639,7 +639,7 @@ export function useThreadActions({
       if (!nextCursor) {
         return;
       }
-      const workspacePath = normalizeRootPath(workspace.path);
+      const workspacePath = normalizeRootPathForCompare(workspace.path);
       const existing = threadsByWorkspace[workspace.id] ?? [];
       dispatch({
         type: "setThreadListPaging",
@@ -683,7 +683,7 @@ export function useThreadActions({
           matchingThreads.push(
             ...data.filter(
               (thread) =>
-                normalizeRootPath(String(thread?.cwd ?? "")) === workspacePath,
+                normalizeRootPathForCompare(String(thread?.cwd ?? "")) === workspacePath,
             ),
           );
           cursor = next;
