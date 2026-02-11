@@ -1,8 +1,7 @@
 import FolderOpen from "lucide-react/dist/esm/icons/folder-open";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import type { LocalUsageSnapshot } from "../../../types";
-import { formatRelativeTime, formatDate, formatInteger } from "../../../i18n/utils";
-import { useTranslation } from "react-i18next";
+import { formatRelativeTime } from "../../../utils/time";
 
 type LatestAgentRun = {
   message: string;
@@ -54,7 +53,6 @@ export function Home({
   onUsageWorkspaceChange,
   onSelectThread,
 }: HomeProps) {
-  const { t } = useTranslation();
   const formatCompactNumber = (value: number | null | undefined) => {
     if (value === null || value === undefined) {
       return "--";
@@ -78,7 +76,7 @@ export function Home({
     if (value === null || value === undefined) {
       return "--";
     }
-    return formatInteger(value);
+    return new Intl.NumberFormat().format(value);
   };
 
   const formatDuration = (valueMs: number | null | undefined) => {
@@ -126,7 +124,10 @@ export function Home({
     if (Number.isNaN(date.getTime())) {
       return value;
     }
-    return formatDate(date, 'medium');
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+    }).format(date);
   };
 
   const usageTotals = localUsageSnapshot?.totals ?? null;
@@ -168,7 +169,7 @@ export function Home({
     ),
   );
   const updatedLabel = localUsageSnapshot
-    ? `${t('home.updated_at')} ${formatRelativeTime(localUsageSnapshot.updatedAt)}`
+    ? `Updated ${formatRelativeTime(localUsageSnapshot.updatedAt)}`
     : null;
   const showUsageSkeleton = isLoadingLocalUsage && !localUsageSnapshot;
   const showUsageEmpty = !isLoadingLocalUsage && !localUsageSnapshot;
@@ -176,14 +177,14 @@ export function Home({
   return (
     <div className="home">
       <div className="home-hero">
-        <div className="home-title">{t('common.app_name')}</div>
+        <div className="home-title">Codex Monitor</div>
         <div className="home-subtitle">
-          {t('home.title')}
+          Orchestrate agents across your local projects.
         </div>
       </div>
       <div className="home-latest">
         <div className="home-latest-header">
-          <div className="home-latest-label">{t('home.recent_activity')}</div>
+          <div className="home-latest-label">Latest agents</div>
         </div>
         {latestAgentRuns.length > 0 ? (
           <div className="home-latest-grid">
@@ -206,16 +207,16 @@ export function Home({
                   </div>
                 </div>
                 <div className="home-latest-message">
-                  {run.message.trim() || t('home.recent_activity')}
+                  {run.message.trim() || "Agent replied."}
                 </div>
                 {run.isProcessing && (
-                  <div className="home-latest-status">{t('home.status_running')}</div>
+                  <div className="home-latest-status">Running</div>
                 )}
               </button>
             ))}
           </div>
         ) : isLoadingLatestAgents ? (
-          <div className="home-latest-grid home-latest-grid-loading" aria-label={t('home.loading_agents')}>
+          <div className="home-latest-grid home-latest-grid-loading" aria-label="Loading agents">
             {Array.from({ length: 3 }).map((_, index) => (
               <div className="home-latest-card home-latest-card-skeleton" key={index}>
                 <div className="home-latest-card-header">
@@ -229,9 +230,9 @@ export function Home({
           </div>
         ) : (
           <div className="home-latest-empty">
-            <div className="home-latest-empty-title">{t('home.no_recent_activity')}</div>
+            <div className="home-latest-empty-title">No agent activity yet</div>
             <div className="home-latest-empty-subtitle">
-              {t('home.no_recent_activity_subtitle')}
+              Start a thread to see the latest responses here.
             </div>
           </div>
         )}
@@ -245,7 +246,7 @@ export function Home({
           <span className="home-icon" aria-hidden>
             <FolderOpen size={18} />
           </span>
-          {t('home.open_project')}
+          Open Project
         </button>
         <button
           className="home-button secondary"
@@ -255,12 +256,12 @@ export function Home({
           <span className="home-icon" aria-hidden>
             +
           </span>
-          {t('home.add_workspace')}
+          Add Workspaces
         </button>
       </div>
       <div className="home-usage">
         <div className="home-section-header">
-          <div className="home-section-title">{t('home.usage_statistics')}</div>
+          <div className="home-section-title">Usage snapshot</div>
           <div className="home-section-meta-row">
             {updatedLabel && <div className="home-section-meta">{updatedLabel}</div>}
             <button
@@ -272,8 +273,8 @@ export function Home({
               }
               onClick={onRefreshLocalUsage}
               disabled={isLoadingLocalUsage}
-              aria-label={t('home.refresh')}
-              title={t('home.refresh')}
+              aria-label="Refresh usage"
+              title="Refresh usage"
             >
               <RefreshCw
                 className={
@@ -288,7 +289,7 @@ export function Home({
         </div>
         <div className="home-usage-controls">
           <div className="home-usage-control-group">
-            <span className="home-usage-control-label">{t('sidebar.workspaces')}</span>
+            <span className="home-usage-control-label">Workspace</span>
             <div className="home-usage-select-wrap">
               <select
                 className="home-usage-select"
@@ -298,7 +299,7 @@ export function Home({
                 }
                 disabled={usageWorkspaceOptions.length === 0}
               >
-                <option value="">{t('home.view_all')}</option>
+                <option value="">All workspaces</option>
                 {usageWorkspaceOptions.map((option) => (
                   <option key={option.id} value={option.id}>
                     {option.label}
@@ -308,8 +309,8 @@ export function Home({
             </div>
           </div>
           <div className="home-usage-control-group">
-            <span className="home-usage-control-label">{t('home.usage_statistics')}</span>
-            <div className="home-usage-toggle" role="group" aria-label={t('home.usage_statistics')}>
+            <span className="home-usage-control-label">View</span>
+            <div className="home-usage-toggle" role="group" aria-label="Usage view">
               <button
                 type="button"
                 className={
@@ -320,7 +321,7 @@ export function Home({
                 onClick={() => onUsageMetricChange("tokens")}
                 aria-pressed={usageMetric === "tokens"}
               >
-                {t('home.tokens_used')}
+                Tokens
               </button>
               <button
                 type="button"
@@ -332,7 +333,7 @@ export function Home({
                 onClick={() => onUsageMetricChange("time")}
                 aria-pressed={usageMetric === "time"}
               >
-                {t('home.agent_time')}
+                Time
               </button>
             </div>
           </div>
@@ -353,9 +354,9 @@ export function Home({
           </div>
         ) : showUsageEmpty ? (
           <div className="home-usage-empty">
-            <div className="home-usage-empty-title">{t('home.loading_usage')}</div>
+            <div className="home-usage-empty-title">No usage data yet</div>
             <div className="home-usage-empty-subtitle">
-              {t('home.loading_usage')}
+              Run a Codex session to start tracking local usage.
             </div>
             {localUsageError && (
               <div className="home-usage-error">{localUsageError}</div>
@@ -367,31 +368,31 @@ export function Home({
               {usageMetric === "tokens" ? (
                 <>
                   <div className="home-usage-card">
-                    <div className="home-usage-label">{t('home.last_7_days')}</div>
+                    <div className="home-usage-label">Last 7 days</div>
                     <div className="home-usage-value">
                       <span className="home-usage-number">
                         {formatCompactNumber(usageTotals?.last7DaysTokens)}
                       </span>
-                      <span className="home-usage-suffix">{t('home.tokens_used')}</span>
+                      <span className="home-usage-suffix">tokens</span>
                     </div>
                     <div className="home-usage-caption">
-                      {t('home.average_daily')} {formatCompactNumber(usageTotals?.averageDailyTokens)} / {t('common.day')}
+                      Avg {formatCompactNumber(usageTotals?.averageDailyTokens)} / day
                     </div>
                   </div>
                   <div className="home-usage-card">
-                    <div className="home-usage-label">{t('home.last_30_days')}</div>
+                    <div className="home-usage-label">Last 30 days</div>
                     <div className="home-usage-value">
                       <span className="home-usage-number">
                         {formatCompactNumber(usageTotals?.last30DaysTokens)}
                       </span>
-                      <span className="home-usage-suffix">{t('home.tokens_used')}</span>
+                      <span className="home-usage-suffix">tokens</span>
                     </div>
                     <div className="home-usage-caption">
-                      {t('home.total')} {formatCount(usageTotals?.last30DaysTokens)}
+                      Total {formatCount(usageTotals?.last30DaysTokens)}
                     </div>
                   </div>
                   <div className="home-usage-card">
-                    <div className="home-usage-label">{t('home.cache_hit_rate')}</div>
+                    <div className="home-usage-label">Cache hit rate</div>
                     <div className="home-usage-value">
                       <span className="home-usage-number">
                         {usageTotals
@@ -399,65 +400,65 @@ export function Home({
                           : "--"}
                       </span>
                     </div>
-                    <div className="home-usage-caption">{t('home.last_7_days')}</div>
+                    <div className="home-usage-caption">Last 7 days</div>
                   </div>
                   <div className="home-usage-card">
-                    <div className="home-usage-label">{t('home.peak_day')}</div>
+                    <div className="home-usage-label">Peak day</div>
                     <div className="home-usage-value">
                       <span className="home-usage-number">
                         {formatDayLabel(usageTotals?.peakDay)}
                       </span>
                     </div>
                     <div className="home-usage-caption">
-                      {formatCompactNumber(usageTotals?.peakDayTokens)} {t('home.tokens_used')}
+                      {formatCompactNumber(usageTotals?.peakDayTokens)} tokens
                     </div>
                   </div>
                 </>
               ) : (
                 <>
                   <div className="home-usage-card">
-                    <div className="home-usage-label">{t('home.last_7_days')}</div>
+                    <div className="home-usage-label">Last 7 days</div>
                     <div className="home-usage-value">
                       <span className="home-usage-number">
                         {formatDurationCompact(last7AgentMs)}
                       </span>
-                      <span className="home-usage-suffix">{t('home.agent_time')}</span>
+                      <span className="home-usage-suffix">agent time</span>
                     </div>
                     <div className="home-usage-caption">
-                      {t('home.average_daily')} {formatDurationCompact(averageDailyAgentMs)} / {t('common.day')}
+                      Avg {formatDurationCompact(averageDailyAgentMs)} / day
                     </div>
                   </div>
                   <div className="home-usage-card">
-                    <div className="home-usage-label">{t('home.last_30_days')}</div>
+                    <div className="home-usage-label">Last 30 days</div>
                     <div className="home-usage-value">
                       <span className="home-usage-number">
                         {formatDurationCompact(last30AgentMs)}
                       </span>
-                      <span className="home-usage-suffix">{t('home.agent_time')}</span>
+                      <span className="home-usage-suffix">agent time</span>
                     </div>
                     <div className="home-usage-caption">
-                      {t('home.total')} {formatDuration(last30AgentMs)}
+                      Total {formatDuration(last30AgentMs)}
                     </div>
                   </div>
                   <div className="home-usage-card">
-                    <div className="home-usage-label">{t('home.agent_runs')}</div>
+                    <div className="home-usage-label">Runs</div>
                     <div className="home-usage-value">
                       <span className="home-usage-number">
                         {formatCount(last7AgentRuns)}
                       </span>
-                      <span className="home-usage-suffix">{t('home.agent_runs')}</span>
+                      <span className="home-usage-suffix">runs</span>
                     </div>
-                    <div className="home-usage-caption">{t('home.last_7_days')}</div>
+                    <div className="home-usage-caption">Last 7 days</div>
                   </div>
                   <div className="home-usage-card">
-                    <div className="home-usage-label">{t('home.peak_day')}</div>
+                    <div className="home-usage-label">Peak day</div>
                     <div className="home-usage-value">
                       <span className="home-usage-number">
                         {formatDayLabel(peakAgentDayLabel)}
                       </span>
                     </div>
                     <div className="home-usage-caption">
-                      {formatDurationCompact(peakAgentTimeMs)} {t('home.agent_time')}
+                      {formatDurationCompact(peakAgentTimeMs)} agent time
                     </div>
                   </div>
                 </>
@@ -474,8 +475,8 @@ export function Home({
                   );
                   const tooltip =
                     usageMetric === "tokens"
-                      ? `${formatDayLabel(day.day)} · ${formatCount(day.totalTokens)} ${t('home.tokens_used')}`
-                      : `${formatDayLabel(day.day)} · ${formatDuration(day.agentTimeMs ?? 0)} ${t('home.agent_time')}`;
+                      ? `${formatDayLabel(day.day)} · ${formatCount(day.totalTokens)} tokens`
+                      : `${formatDayLabel(day.day)} · ${formatDuration(day.agentTimeMs ?? 0)} agent time`;
                   return (
                     <div
                       className="home-usage-bar"
@@ -496,9 +497,9 @@ export function Home({
             </div>
             <div className="home-usage-models">
               <div className="home-usage-models-label">
-                {t('home.top_models')}
+                Top models
                 {usageMetric === "time" && (
-                  <span className="home-usage-models-hint">{t('home.tokens_used')}</span>
+                  <span className="home-usage-models-hint">Tokens</span>
                 )}
               </div>
               <div className="home-usage-models-list">
@@ -507,7 +508,7 @@ export function Home({
                     <span
                       className="home-usage-model-chip"
                       key={model.model}
-                      title={`${model.model}: ${formatCount(model.tokens)} ${t('home.tokens_used')}`}
+                      title={`${model.model}: ${formatCount(model.tokens)} tokens`}
                     >
                       {model.model}
                       <span className="home-usage-model-share">
@@ -516,7 +517,7 @@ export function Home({
                     </span>
                   ))
                 ) : (
-                  <span className="home-usage-model-empty">{t('home.no_models')}</span>
+                  <span className="home-usage-model-empty">No models yet</span>
                 )}
               </div>
               {localUsageError && (

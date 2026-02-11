@@ -234,6 +234,7 @@ pub(crate) async fn send_user_message(
     effort: Option<String>,
     access_mode: Option<String>,
     images: Option<Vec<String>>,
+    app_mentions: Option<Vec<Value>>,
     collaboration_mode: Option<Value>,
     state: State<'_, AppState>,
     app: AppHandle,
@@ -253,6 +254,7 @@ pub(crate) async fn send_user_message(
         payload.insert("effort".to_string(), json!(effort));
         payload.insert("accessMode".to_string(), json!(access_mode));
         payload.insert("images".to_string(), json!(images));
+        payload.insert("appMentions".to_string(), json!(app_mentions));
         if let Some(mode) = collaboration_mode {
             if !mode.is_null() {
                 payload.insert("collaborationMode".to_string(), mode);
@@ -276,6 +278,7 @@ pub(crate) async fn send_user_message(
         effort,
         access_mode,
         images,
+        app_mentions,
         collaboration_mode,
     )
     .await
@@ -288,6 +291,7 @@ pub(crate) async fn turn_steer(
     turn_id: String,
     text: String,
     images: Option<Vec<String>>,
+    app_mentions: Option<Vec<Value>>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Value, String> {
@@ -308,6 +312,7 @@ pub(crate) async fn turn_steer(
                 "turnId": turn_id,
                 "text": text,
                 "images": images,
+                "appMentions": app_mentions,
             }),
         )
         .await;
@@ -320,6 +325,7 @@ pub(crate) async fn turn_steer(
         turn_id,
         text,
         images,
+        app_mentions,
     )
     .await
 }
@@ -511,6 +517,7 @@ pub(crate) async fn apps_list(
     workspace_id: String,
     cursor: Option<String>,
     limit: Option<u32>,
+    thread_id: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Value, String> {
@@ -519,12 +526,17 @@ pub(crate) async fn apps_list(
             &*state,
             app,
             "apps_list",
-            json!({ "workspaceId": workspace_id, "cursor": cursor, "limit": limit }),
+            json!({
+                "workspaceId": workspace_id,
+                "cursor": cursor,
+                "limit": limit,
+                "threadId": thread_id
+            }),
         )
         .await;
     }
 
-    codex_core::apps_list_core(&state.sessions, workspace_id, cursor, limit).await
+    codex_core::apps_list_core(&state.sessions, workspace_id, cursor, limit, thread_id).await
 }
 
 #[tauri::command]

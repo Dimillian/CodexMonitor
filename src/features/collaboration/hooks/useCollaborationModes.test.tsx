@@ -130,4 +130,139 @@ describe("useCollaborationModes", () => {
       ]),
     );
   });
+
+  it("resets to the workspace default when selectionKey changes and preferredModeId is null", async () => {
+    vi.mocked(getCollaborationModes).mockResolvedValue(makeModesResponse());
+
+    const { result, rerender } = renderHook(
+      ({
+        workspace,
+        enabled,
+        preferredModeId,
+        selectionKey,
+      }: {
+        workspace: WorkspaceInfo | null;
+        enabled: boolean;
+        preferredModeId: string | null;
+        selectionKey: string | null;
+      }) =>
+        useCollaborationModes({
+          activeWorkspace: workspace,
+          enabled,
+          preferredModeId,
+          selectionKey,
+        }),
+      {
+        initialProps: {
+          workspace: workspaceOne,
+          enabled: true,
+          preferredModeId: "default" as string | null,
+          selectionKey: "thread-a",
+        },
+      },
+    );
+
+    await waitFor(() => expect(result.current.selectedCollaborationModeId).toBe("default"));
+
+    act(() => {
+      result.current.setSelectedCollaborationModeId("plan");
+    });
+    expect(result.current.selectedCollaborationModeId).toBe("plan");
+
+    // Thread switch with no stored override: preferredModeId is null.
+    rerender({
+      workspace: workspaceOne,
+      enabled: true,
+      preferredModeId: null,
+      selectionKey: "thread-b",
+    });
+
+    expect(result.current.selectedCollaborationModeId).toBe("default");
+  });
+
+  it("falls back to the workspace default when the preferredModeId is stale", async () => {
+    vi.mocked(getCollaborationModes).mockResolvedValue(makeModesResponse());
+
+    const { result, rerender } = renderHook(
+      (props: {
+        enabled: boolean;
+        preferredModeId: string | null;
+        selectionKey: string;
+      }) =>
+        useCollaborationModes({
+          activeWorkspace: workspaceOne,
+          enabled: props.enabled,
+          preferredModeId: props.preferredModeId,
+          selectionKey: props.selectionKey,
+        }),
+      {
+        initialProps: {
+          enabled: true,
+          preferredModeId: "plan",
+          selectionKey: "thread-a",
+        },
+      },
+    );
+
+    await waitFor(() => {
+      expect(result.current.collaborationModes.length).toBeGreaterThan(0);
+    });
+    expect(result.current.selectedCollaborationModeId).toBe("plan");
+
+    rerender({
+      enabled: true,
+      preferredModeId: "stale-mode-id",
+      selectionKey: "thread-b",
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedCollaborationModeId).toBe("default");
+    });
+  });
+
+  it("reapplies preferred mode when collaboration is re-enabled on the same thread", async () => {
+    vi.mocked(getCollaborationModes).mockResolvedValue(makeModesResponse());
+
+    const { result, rerender } = renderHook(
+      (props: {
+        enabled: boolean;
+        preferredModeId: string | null;
+        selectionKey: string;
+      }) =>
+        useCollaborationModes({
+          activeWorkspace: workspaceOne,
+          enabled: props.enabled,
+          preferredModeId: props.preferredModeId,
+          selectionKey: props.selectionKey,
+        }),
+      {
+        initialProps: {
+          enabled: true,
+          preferredModeId: "plan",
+          selectionKey: "thread-a",
+        },
+      },
+    );
+
+    await waitFor(() => {
+      expect(result.current.selectedCollaborationModeId).toBe("plan");
+    });
+
+    rerender({
+      enabled: false,
+      preferredModeId: "plan",
+      selectionKey: "thread-a",
+    });
+    expect(result.current.selectedCollaborationModeId).toBeNull();
+
+    rerender({
+      enabled: true,
+      preferredModeId: "plan",
+      selectionKey: "thread-a",
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedCollaborationModeId).toBe("plan");
+    });
+  });
 });

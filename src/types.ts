@@ -190,6 +190,7 @@ export type AppSettings = {
   codeFontSize: number;
   notificationSoundsEnabled: boolean;
   systemNotificationsEnabled: boolean;
+  splitChatDiffView: boolean;
   preloadGitDiffs: boolean;
   gitDiffIgnoreWhitespaceChanges: boolean;
   commitMessagePrompt: string;
@@ -547,6 +548,12 @@ export type QueuedMessage = {
   text: string;
   createdAt: number;
   images?: string[];
+  appMentions?: AppMention[];
+};
+
+export type AppMention = {
+  name: string;
+  path: string;
 };
 
 export type ModelOption = {

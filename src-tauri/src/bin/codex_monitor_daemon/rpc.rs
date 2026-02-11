@@ -367,6 +367,8 @@ pub(super) async fn handle_rpc_request(
             let effort = parse_optional_string(&params, "effort");
             let access_mode = parse_optional_string(&params, "accessMode");
             let images = parse_optional_string_array(&params, "images");
+            let app_mentions = parse_optional_value(&params, "appMentions")
+                .and_then(|value| value.as_array().cloned());
             let collaboration_mode = parse_optional_value(&params, "collaborationMode");
             state
                 .send_user_message(
@@ -377,6 +379,7 @@ pub(super) async fn handle_rpc_request(
                     effort,
                     access_mode,
                     images,
+                    app_mentions,
                     collaboration_mode,
                 )
                 .await
@@ -393,8 +396,10 @@ pub(super) async fn handle_rpc_request(
             let turn_id = parse_string(&params, "turnId")?;
             let text = parse_string(&params, "text")?;
             let images = parse_optional_string_array(&params, "images");
+            let app_mentions = parse_optional_value(&params, "appMentions")
+                .and_then(|value| value.as_array().cloned());
             state
-                .turn_steer(workspace_id, thread_id, turn_id, text, images)
+                .turn_steer(workspace_id, thread_id, turn_id, text, images, app_mentions)
                 .await
         }
         "start_review" => {
@@ -442,7 +447,8 @@ pub(super) async fn handle_rpc_request(
             let workspace_id = parse_string(&params, "workspaceId")?;
             let cursor = parse_optional_string(&params, "cursor");
             let limit = parse_optional_u32(&params, "limit");
-            state.apps_list(workspace_id, cursor, limit).await
+            let thread_id = parse_optional_string(&params, "threadId");
+            state.apps_list(workspace_id, cursor, limit, thread_id).await
         }
         "respond_to_server_request" => {
             let workspace_id = parse_string(&params, "workspaceId")?;

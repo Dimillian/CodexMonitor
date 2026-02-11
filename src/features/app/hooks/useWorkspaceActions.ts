@@ -7,6 +7,7 @@ type Params = {
   isCompact: boolean;
   addWorkspace: () => Promise<WorkspaceInfo | null>;
   addWorkspaceFromPath: (path: string) => Promise<WorkspaceInfo | null>;
+  addWorkspacesFromPaths: (paths: string[]) => Promise<WorkspaceInfo | null>;
   setActiveThreadId: (threadId: string | null, workspaceId: string) => void;
   setActiveTab: (tab: "home" | "projects" | "codex" | "git" | "log") => void;
   exitDiffView: () => void;
@@ -22,6 +23,7 @@ export function useWorkspaceActions({
   isCompact,
   addWorkspace,
   addWorkspaceFromPath,
+  addWorkspacesFromPaths,
   setActiveThreadId,
   setActiveTab,
   exitDiffView,
@@ -60,6 +62,28 @@ export function useWorkspaceActions({
       alert(`Failed to add workspace.\n\n${message}`);
     }
   }, [addWorkspace, handleWorkspaceAdded, onDebug]);
+
+  const handleAddWorkspacesFromPaths = useCallback(
+    async (paths: string[]) => {
+      try {
+        const workspace = await addWorkspacesFromPaths(paths);
+        if (workspace) {
+          handleWorkspaceAdded(workspace);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        onDebug({
+          id: `${Date.now()}-client-add-workspace-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "workspace/add error",
+          payload: message,
+        });
+        alert(`Failed to add workspaces.\n\n${message}`);
+      }
+    },
+    [addWorkspacesFromPaths, handleWorkspaceAdded, onDebug],
+  );
 
   const handleAddWorkspaceFromPath = useCallback(
     async (path: string) => {
@@ -129,6 +153,7 @@ export function useWorkspaceActions({
 
   return {
     handleAddWorkspace,
+    handleAddWorkspacesFromPaths,
     handleAddWorkspaceFromPath,
     handleAddAgent,
     handleAddWorktreeAgent,

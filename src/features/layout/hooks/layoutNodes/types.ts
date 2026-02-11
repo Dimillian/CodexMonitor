@@ -10,6 +10,7 @@ import type {
   ComposerEditorSettings,
   CustomPromptOption,
   AccountSnapshot,
+  AppMention,
   AppOption,
   DebugEntry,
   DictationSessionState,
@@ -333,8 +334,16 @@ export type LayoutNodesOptions = {
   onRevealWorkspacePrompts: () => void | Promise<void>;
   onRevealGeneralPrompts: () => void | Promise<void>;
   canRevealGeneralPrompts: boolean;
-  onSend: (text: string, images: string[]) => void | Promise<void>;
-  onQueue: (text: string, images: string[]) => void | Promise<void>;
+  onSend: (
+    text: string,
+    images: string[],
+    appMentions?: AppMention[],
+  ) => void | Promise<void>;
+  onQueue: (
+    text: string,
+    images: string[],
+    appMentions?: AppMention[],
+  ) => void | Promise<void>;
   onStop: () => void;
   canStop: boolean;
   onFileAutocompleteActiveChange?: (active: boolean) => void;

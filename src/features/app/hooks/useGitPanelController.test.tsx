@@ -38,6 +38,7 @@ function makeProps(overrides?: Partial<Parameters<typeof useGitPanelController>[
     activeWorkspace: workspace,
     gitDiffPreloadEnabled: false,
     gitDiffIgnoreWhitespaceChanges: false,
+    splitChatDiffView: false,
     isCompact: false,
     isTablet: false,
     activeTab: "codex" as const,
@@ -141,5 +142,18 @@ describe("useGitPanelController preload behavior", () => {
 
     const selectedEnabled = getLastEnabledArg();
     expect(selectedEnabled).toBe(true);
+  });
+
+  it("loads local diffs when split view is enabled and preload is disabled", () => {
+    renderHook(() =>
+      useGitPanelController(
+        makeProps({
+          splitChatDiffView: true,
+        }),
+      ),
+    );
+
+    const enabled = getLastEnabledArg();
+    expect(enabled).toBe(true);
   });
 });
