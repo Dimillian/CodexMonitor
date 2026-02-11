@@ -50,6 +50,7 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       onRefreshAllThreads={options.onRefreshAllThreads}
       activeWorkspaceId={options.activeWorkspaceId}
       activeThreadId={options.activeThreadId}
+      userInputRequests={options.userInputRequests}
       accountRateLimits={options.activeRateLimits}
       usageShowRemaining={options.usageShowRemaining}
       accountInfo={options.accountInfo}

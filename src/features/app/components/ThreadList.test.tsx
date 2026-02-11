@@ -133,4 +133,23 @@ describe("ThreadList", () => {
       false,
     );
   });
+
+  it("shows blue unread-style status when a thread is waiting for user input", () => {
+    const { container } = render(
+      <ThreadList
+        {...baseProps}
+        threadStatusById={{
+          "thread-1": { isProcessing: true, hasUnread: false, isReviewing: false },
+          "thread-2": { isProcessing: false, hasUnread: false, isReviewing: false },
+        }}
+        pendingUserInputKeys={new Set(["ws-1:thread-1"])}
+      />,
+    );
+
+    const row = container.querySelector(".thread-row");
+    expect(row).toBeTruthy();
+    expect(row?.querySelector(".thread-name")?.textContent).toBe("Alpha");
+    expect(row?.querySelector(".thread-status")?.className).toContain("unread");
+    expect(row?.querySelector(".thread-status")?.className).not.toContain("processing");
+  });
 });
