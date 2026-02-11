@@ -13,7 +13,30 @@
     "no": "否",
     "ok": "确定",
     "delete": "删除",
-    "copy": "复制"
+    "copy": "复制",
+    "time": {
+      "just_now": "刚刚",
+      "seconds_ago": "{{value}}秒前",
+      "seconds_later": "{{value}}秒后",
+      "minutes_ago": "{{value}}分钟前",
+      "minutes_later": "{{value}}分钟后",
+      "hours_ago": "{{value}}小时前",
+      "hours_later": "{{value}}小时后",
+      "days_ago": "{{value}}天前",
+      "days_later": "{{value}}天后",
+      "weeks_ago": "{{value}}周前",
+      "weeks_later": "{{value}}周后",
+      "months_ago": "{{value}}月前",
+      "months_later": "{{value}}个月后",
+      "years_ago": "{{value}}年前",
+      "years_later": "{{value}}年后",
+      "minutes_short": "{{value}}分钟",
+      "hours_short": "{{value}}小时",
+      "days_short": "{{value}}天",
+      "weeks_short": "{{value}}周",
+      "months_short": "{{value}}月",
+      "years_short": "{{value}}年"
+    }
   },
   "menu": {
     "file": "文件",

@@ -12,7 +12,30 @@
     "yes": "Yes",
     "no": "No",
     "ok": "OK",
-    "delete": "Delete"
+    "delete": "Delete",
+    "time": {
+      "just_now": "Just now",
+      "seconds_ago": "{{value}} seconds ago",
+      "seconds_later": "In {{value}} seconds",
+      "minutes_ago": "{{value}} minutes ago",
+      "minutes_later": "In {{value}} minutes",
+      "hours_ago": "{{value}} hours ago",
+      "hours_later": "In {{value}} hours",
+      "days_ago": "{{value}} days ago",
+      "days_later": "In {{value}} days",
+      "weeks_ago": "{{value}} weeks ago",
+      "weeks_later": "In {{value}} weeks",
+      "months_ago": "{{value}} months ago",
+      "months_later": "In {{value}} months",
+      "years_ago": "{{value}} years ago",
+      "years_later": "In {{value}} years",
+      "minutes_short": "{{value}}min",
+      "hours_short": "{{value}}hr",
+      "days_short": "{{value}}d",
+      "weeks_short": "{{value}}w",
+      "months_short": "{{value}}mo",
+      "years_short": "{{value}}y"
+    }
   },
   "menu": {
     "file": "File",
