@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { WorkspaceInfo } from "../../../types";
 import { validateBranchName } from "../utils/branchValidation";
+import type { InitGitRepoOutcome } from "./useGitActions";
 
 type InitGitRepoPromptState = {
   workspaceId: string;
@@ -20,7 +21,7 @@ export function useInitGitRepoPrompt({
   isBusy,
 }: {
   activeWorkspace: WorkspaceInfo | null;
-  initGitRepo: (branch: string) => Promise<boolean>;
+  initGitRepo: (branch: string) => Promise<InitGitRepoOutcome>;
   createGitHubRepo: (
     repo: string,
     visibility: "private" | "public",
@@ -163,8 +164,14 @@ export function useInitGitRepoPrompt({
       return;
     }
 
-    const ok = await initGitRepo(trimmedBranch);
-    if (!ok) {
+    setInitGitRepoPrompt((prev) => (prev ? { ...prev, error: null } : prev));
+
+    const initOutcome = await initGitRepo(trimmedBranch);
+    if (initOutcome === "cancelled") {
+      return;
+    }
+
+    if (initOutcome !== "initialized") {
       setInitGitRepoPrompt((prev) =>
         prev ? { ...prev, error: prev.error ?? "Failed to initialize Git repository." } : prev,
       );

@@ -20,6 +20,8 @@ type UseGitActionsOptions = {
   onError?: (error: unknown) => void;
 };
 
+export type InitGitRepoOutcome = "initialized" | "cancelled" | "failed";
+
 export function useGitActions({
   activeWorkspace,
   onRefreshGitStatus,
@@ -188,19 +190,19 @@ export function useGitActions({
     }
   }, [isWorktree, workspaceId]);
 
-  const initGitRepo = useCallback(async (branch: string) => {
+  const initGitRepo = useCallback(async (branch: string): Promise<InitGitRepoOutcome> => {
     if (!workspaceId) {
-      return false;
+      return "failed";
     }
     const actionWorkspaceId = workspaceId;
     setInitGitRepoLoading(true);
     let shouldRefresh = false;
-    let completed = false;
+    let outcome: InitGitRepoOutcome = "failed";
     let commitError: string | null = null;
     try {
       const response = await initGitRepoService(actionWorkspaceId, branch, false);
       if (workspaceIdRef.current !== actionWorkspaceId) {
-        return false;
+        return "cancelled";
       }
 
       if (response.status === "needs_confirmation") {
@@ -216,11 +218,11 @@ export function useGitActions({
           },
         );
         if (!confirmed) {
-          return false;
+          return "cancelled";
         }
 
         if (workspaceIdRef.current !== actionWorkspaceId) {
-          return false;
+          return "cancelled";
         }
 
         const forced = await initGitRepoService(actionWorkspaceId, branch, true);
@@ -228,13 +230,13 @@ export function useGitActions({
         if (forced.status === "initialized") {
           commitError = forced.commitError ?? null;
         }
-        completed = shouldRefresh;
+        outcome = shouldRefresh ? "initialized" : "failed";
       } else {
         shouldRefresh = response.status === "initialized" || response.status === "already_initialized";
         if (response.status === "initialized") {
           commitError = response.commitError ?? null;
         }
-        completed = shouldRefresh;
+        outcome = shouldRefresh ? "initialized" : "failed";
       }
 
       if (commitError) {
@@ -246,6 +248,7 @@ export function useGitActions({
       }
     } catch (error) {
       onError?.(error);
+      outcome = "failed";
     } finally {
       if (workspaceIdRef.current === actionWorkspaceId) {
         setInitGitRepoLoading(false);
@@ -255,7 +258,7 @@ export function useGitActions({
         }
       }
     }
-    return completed;
+    return outcome;
   }, [onClearGitRootCandidates, onError, refreshGitData, workspaceId]);
 
   const createGitHubRepo = useCallback(
