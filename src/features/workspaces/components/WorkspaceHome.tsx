@@ -30,6 +30,7 @@ import { isComposingEvent } from "../../../utils/keys";
 import { FileEditorCard } from "../../shared/components/FileEditorCard";
 import { WorkspaceHomeRunControls } from "./WorkspaceHomeRunControls";
 import { WorkspaceHomeHistory } from "./WorkspaceHomeHistory";
+import { WorkspaceHomeGitInitBanner } from "./WorkspaceHomeGitInitBanner";
 import { buildIconPath } from "./workspaceHomeHelpers";
 import { useWorkspaceHomeSuggestionsStyle } from "../hooks/useWorkspaceHomeSuggestionsStyle";
 
@@ -40,6 +41,9 @@ type ThreadStatus = {
 
 type WorkspaceHomeProps = {
   workspace: WorkspaceInfo;
+  showGitInitBanner: boolean;
+  initGitRepoLoading: boolean;
+  onInitGitRepo: () => void | Promise<void>;
   runs: WorkspaceHomeRun[];
   recentThreadInstances: WorkspaceHomeRunInstance[];
   recentThreadsUpdatedAt: number | null;
@@ -99,6 +103,9 @@ type WorkspaceHomeProps = {
 
 export function WorkspaceHome({
   workspace,
+  showGitInitBanner,
+  initGitRepoLoading,
+  onInitGitRepo,
   runs,
   recentThreadInstances,
   recentThreadsUpdatedAt,
@@ -358,6 +365,13 @@ export function WorkspaceHome({
           <div className="workspace-home-path">{workspace.path}</div>
         </div>
       </div>
+
+      {showGitInitBanner && (
+        <WorkspaceHomeGitInitBanner
+          isLoading={initGitRepoLoading}
+          onInitGitRepo={onInitGitRepo}
+        />
+      )}
 
       <div className="workspace-home-composer">
         <div className="composer">

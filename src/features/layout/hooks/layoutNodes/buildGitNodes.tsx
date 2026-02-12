@@ -109,6 +109,8 @@ export function buildGitNodes(options: LayoutNodesOptions): GitLayoutNodes {
         onSelectGitRoot={options.onSelectGitRoot}
         onClearGitRoot={options.onClearGitRoot}
         onPickGitRoot={options.onPickGitRoot}
+        onInitGitRepo={options.onInitGitRepo}
+        initGitRepoLoading={options.initGitRepoLoading}
         onStageAllChanges={options.onStageGitAll}
         onStageFile={options.onStageGitFile}
         onUnstageFile={options.onUnstageGitFile}

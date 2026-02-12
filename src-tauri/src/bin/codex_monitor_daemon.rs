@@ -890,6 +890,26 @@ impl DaemonState {
         git_ui_core::get_git_status_core(&self.workspaces, workspace_id).await
     }
 
+    async fn init_git_repo(
+        &self,
+        workspace_id: String,
+        branch: String,
+        force: bool,
+    ) -> Result<Value, String> {
+        git_ui_core::init_git_repo_core(&self.workspaces, workspace_id, branch, force).await
+    }
+
+    async fn create_github_repo(
+        &self,
+        workspace_id: String,
+        repo: String,
+        visibility: String,
+        branch: Option<String>,
+    ) -> Result<Value, String> {
+        git_ui_core::create_github_repo_core(&self.workspaces, workspace_id, repo, visibility, branch)
+            .await
+    }
+
     async fn list_git_roots(
         &self,
         workspace_id: String,

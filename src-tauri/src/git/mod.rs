@@ -85,6 +85,43 @@ pub(crate) async fn get_git_status(
 }
 
 #[tauri::command]
+pub(crate) async fn init_git_repo(
+    workspace_id: String,
+    branch: String,
+    force: Option<bool>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    try_remote_value!(
+        state,
+        app,
+        "init_git_repo",
+        json!({ "workspaceId": &workspace_id, "branch": &branch, "force": force })
+    );
+    git_ui_core::init_git_repo_core(&state.workspaces, workspace_id, branch, force.unwrap_or(false))
+        .await
+}
+
+#[tauri::command]
+pub(crate) async fn create_github_repo(
+    workspace_id: String,
+    repo: String,
+    visibility: String,
+    branch: Option<String>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    try_remote_value!(
+        state,
+        app,
+        "create_github_repo",
+        json!({ "workspaceId": &workspace_id, "repo": &repo, "visibility": &visibility, "branch": branch })
+    );
+    git_ui_core::create_github_repo_core(&state.workspaces, workspace_id, repo, visibility, branch)
+        .await
+}
+
+#[tauri::command]
 pub(crate) async fn stage_git_file(
     workspace_id: String,
     path: String,

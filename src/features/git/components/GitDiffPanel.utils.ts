@@ -1,4 +1,5 @@
 import { isAbsolutePath as isAbsolutePathForPlatform } from "../../../utils/platformPaths";
+export { isGitRootNotFound, isMissingRepo } from "../utils/repoErrors";
 
 export const DEPTH_OPTIONS = [1, 2, 3, 4, 5, 6];
 
@@ -112,20 +113,6 @@ export function getStatusClass(status: string) {
     default:
       return "diff-icon-unknown";
   }
-}
-
-export function isMissingRepo(error: string | null | undefined) {
-  if (!error) {
-    return false;
-  }
-  const normalized = error.toLowerCase();
-  return (
-    normalized.includes("could not find repository") ||
-    normalized.includes("not a git repository") ||
-    (normalized.includes("repository") && normalized.includes("notfound")) ||
-    normalized.includes("repository not found") ||
-    normalized.includes("git root not found")
-  );
 }
 
 export function hasPushSyncConflict(pushError: string | null | undefined) {
