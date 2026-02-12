@@ -88,6 +88,26 @@ fn github_repo_names_match_detects_mismatch() {
 }
 
 #[test]
+fn validate_normalized_repo_name_rejects_empty_slug_after_normalization() {
+    assert_eq!(
+        commands::validate_normalized_repo_name(".git"),
+        Err("Repository name is empty after normalization. Use 'repo' or 'owner/repo'.".to_string())
+    );
+    assert_eq!(
+        commands::validate_normalized_repo_name("git@github.com:.git"),
+        Err("Repository name is empty after normalization. Use 'repo' or 'owner/repo'.".to_string())
+    );
+}
+
+#[test]
+fn validate_normalized_repo_name_accepts_non_empty_normalized_slug() {
+    assert_eq!(
+        commands::validate_normalized_repo_name("owner/repo.git"),
+        Ok("owner/repo".to_string())
+    );
+}
+
+#[test]
 fn get_git_status_omits_global_ignored_paths() {
     let (root, repo) = create_temp_repo();
     fs::write(root.join("tracked.txt"), "tracked\n").expect("write tracked file");

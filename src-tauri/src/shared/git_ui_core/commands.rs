@@ -165,6 +165,17 @@ fn normalize_repo_full_name(value: &str) -> String {
         .to_string()
 }
 
+pub(super) fn validate_normalized_repo_name(value: &str) -> Result<String, String> {
+    let normalized = normalize_repo_full_name(value);
+    if normalized.is_empty() {
+        return Err(
+            "Repository name is empty after normalization. Use 'repo' or 'owner/repo'."
+                .to_string(),
+        );
+    }
+    Ok(normalized)
+}
+
 pub(super) fn github_repo_names_match(existing: &str, requested: &str) -> bool {
     normalize_repo_full_name(existing).eq_ignore_ascii_case(&normalize_repo_full_name(requested))
 }
@@ -173,6 +184,55 @@ fn git_remote_url(repo_root: &Path, remote_name: &str) -> Option<String> {
     let repo = Repository::open(repo_root).ok()?;
     let remote = repo.find_remote(remote_name).ok()?;
     remote.url().map(|url| url.to_string())
+}
+
+fn gh_repo_create_args<'a>(
+    full_name: &'a str,
+    visibility_flag: &'a str,
+    origin_exists: bool,
+) -> Vec<&'a str> {
+    if origin_exists {
+        vec!["repo", "create", full_name, visibility_flag]
+    } else {
+        vec![
+            "repo",
+            "create",
+            full_name,
+            visibility_flag,
+            "--source=.",
+            "--remote=origin",
+        ]
+    }
+}
+
+async fn ensure_github_repo_exists(
+    repo_root: &Path,
+    full_name: &str,
+    visibility_flag: &str,
+    origin_exists: bool,
+) -> Result<(), String> {
+    // If origin already exists, verify the remote repository is reachable first.
+    // This covers the common retry case where origin is preconfigured but the
+    // GitHub repository itself has not been created yet.
+    if origin_exists
+        && run_gh_command(
+            repo_root,
+            &["repo", "view", full_name, "--json", "name", "--jq", ".name"],
+        )
+        .await
+        .is_ok()
+    {
+        return Ok(());
+    }
+
+    let create_args = gh_repo_create_args(full_name, visibility_flag, origin_exists);
+    if let Err(error) = run_gh_command(repo_root, &create_args).await {
+        let lower = error.to_lowercase();
+        if !github_repo_exists_message(&lower) {
+            return Err(error);
+        }
+    }
+    Ok(())
 }
 
 pub(super) fn action_paths_for_file(repo_root: &Path, path: &str) -> Vec<String> {
@@ -534,7 +594,7 @@ pub(super) async fn create_github_repo_inner(
 ) -> Result<Value, String> {
     let entry = workspace_entry_for_id(workspaces, &workspace_id).await?;
     let repo_root = resolve_git_root(&entry)?;
-    let repo = normalize_repo_full_name(&validate_github_repo_name(&repo)?);
+    let repo = validate_normalized_repo_name(&validate_github_repo_name(&repo)?)?;
 
     let visibility_flag = match visibility.trim() {
         "private" => "--private",
@@ -571,27 +631,13 @@ pub(super) async fn create_github_repo_inner(
         }
     }
 
-    if origin_url_before.is_none() {
-        let create_result = run_gh_command(
-            &repo_root,
-            &[
-                "repo",
-                "create",
-                &full_name,
-                visibility_flag,
-                "--source=.",
-                "--remote=origin",
-            ],
-        )
-        .await;
-
-        if let Err(error) = create_result {
-            let lower = error.to_lowercase();
-            if !github_repo_exists_message(&lower) {
-                return Err(error);
-            }
-        }
-    }
+    ensure_github_repo_exists(
+        &repo_root,
+        &full_name,
+        visibility_flag,
+        origin_url_before.is_some(),
+    )
+    .await?;
 
     if git_remote_url(&repo_root, "origin").is_none() {
         let protocol = gh_git_protocol(&repo_root).await;
@@ -730,13 +776,36 @@ pub(super) async fn create_git_branch_inner(
 
 #[cfg(test)]
 mod tests {
-    use super::validate_branch_name;
+    use super::{gh_repo_create_args, validate_branch_name};
 
     #[test]
     fn validate_branch_name_rejects_repeated_slashes() {
         assert_eq!(
             validate_branch_name("feature//oops"),
             Err("Branch name cannot contain '//'.".to_string())
+        );
+    }
+
+    #[test]
+    fn gh_repo_create_args_include_source_remote_when_origin_missing() {
+        assert_eq!(
+            gh_repo_create_args("owner/repo", "--private", false),
+            vec![
+                "repo",
+                "create",
+                "owner/repo",
+                "--private",
+                "--source=.",
+                "--remote=origin"
+            ]
+        );
+    }
+
+    #[test]
+    fn gh_repo_create_args_omit_source_remote_when_origin_exists() {
+        assert_eq!(
+            gh_repo_create_args("owner/repo", "--public", true),
+            vec!["repo", "create", "owner/repo", "--public"]
         );
     }
 }
