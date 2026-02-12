@@ -1855,16 +1855,47 @@ describe("SettingsView Shortcuts", () => {
       />,
     );
 
+    const searchInput = screen.getByLabelText("Search shortcuts");
     expect(screen.getByText("Toggle terminal panel")).toBeTruthy();
     expect(screen.getByText("Cycle model")).toBeTruthy();
 
-    const searchInput = screen.getByLabelText("Search shortcuts");
-    fireEvent.change(searchInput, { target: { value: "terminal" } });
+    await act(async () => {
+      fireEvent.change(searchInput, { target: { value: "navigation" } });
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Next workspace")).toBeTruthy();
+      expect(screen.queryByText("Toggle terminal panel")).toBeNull();
+    });
 
-    expect(screen.getByText("Toggle terminal panel")).toBeTruthy();
-    expect(screen.queryByText("Cycle model")).toBeNull();
+    await act(async () => {
+      fireEvent.change(searchInput, { target: { value: "sidebars" } });
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Toggle projects sidebar")).toBeTruthy();
+      expect(screen.queryByText("Next workspace")).toBeNull();
+    });
 
-    fireEvent.change(searchInput, { target: { value: "no-such-shortcut" } });
-    expect(screen.getByText('No shortcuts match "no-such-shortcut".')).toBeTruthy();
+    await act(async () => {
+      fireEvent.change(searchInput, { target: { value: "new shortcut while focused" } });
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Cycle model")).toBeTruthy();
+      expect(screen.queryByText("Toggle terminal panel")).toBeNull();
+    });
+
+    await act(async () => {
+      fireEvent.change(searchInput, { target: { value: "no-such-shortcut" } });
+    });
+    await waitFor(() => {
+      expect(screen.getByText('No shortcuts match "no-such-shortcut".')).toBeTruthy();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Toggle terminal panel")).toBeTruthy();
+      expect(screen.queryByText('No shortcuts match "no-such-shortcut".')).toBeNull();
+    });
   });
 });
