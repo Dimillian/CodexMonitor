@@ -7,6 +7,8 @@ import {
   DEFAULT_CODE_FONT_FAMILY,
   DEFAULT_UI_FONT_FAMILY,
 } from "@utils/fonts";
+import { useLocale } from "@/i18n/hooks/useLocale";
+import { supportedLocales } from "@/i18n/config";
 
 type SettingsDisplaySectionProps = {
   appSettings: AppSettings;
@@ -55,6 +57,8 @@ export function SettingsDisplaySection({
   onTestNotificationSound,
   onTestSystemNotification,
 }: SettingsDisplaySectionProps) {
+  const { changeLocale } = useLocale();
+
   return (
     <section className="settings-section">
       <div className="settings-section-title">Display &amp; Sound</div>
@@ -84,6 +88,30 @@ export function SettingsDisplaySection({
           <option value="light">Light</option>
           <option value="dark">Dark</option>
           <option value="dim">Dim</option>
+        </select>
+      </div>
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="language-select">
+          Language
+        </label>
+        <select
+          id="language-select"
+          className="settings-select"
+          value={appSettings.language}
+          onChange={async (event) => {
+            const newLang = event.target.value as AppSettings["language"];
+            await changeLocale(newLang);
+            await onUpdateAppSettings({
+              ...appSettings,
+              language: newLang,
+            });
+          }}
+        >
+          {supportedLocales.map((locale) => (
+            <option key={locale.value} value={locale.value}>
+              {locale.label}
+            </option>
+          ))}
         </select>
       </div>
       <div className="settings-toggle-row">
