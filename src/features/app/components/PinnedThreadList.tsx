@@ -18,6 +18,7 @@ type PinnedThreadListProps = {
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   threadStatusById: ThreadStatusMap;
+  pendingUserInputKeys?: Set<string>;
   getThreadTime: (thread: ThreadSummary) => string | null;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
   onSelectThread: (workspaceId: string, threadId: string) => void;
@@ -34,6 +35,7 @@ export function PinnedThreadList({
   activeWorkspaceId,
   activeThreadId,
   threadStatusById,
+  pendingUserInputKeys,
   getThreadTime,
   isThreadPinned,
   onSelectThread,
@@ -48,7 +50,12 @@ export function PinnedThreadList({
             ? ({ "--thread-indent": `${depth * 14}px` } as CSSProperties)
             : undefined;
         const status = threadStatusById[thread.id];
-        const statusClass = status?.isReviewing
+        const hasPendingUserInput = Boolean(
+          pendingUserInputKeys?.has(`${workspaceId}:${thread.id}`),
+        );
+        const statusClass = hasPendingUserInput
+          ? "unread"
+          : status?.isReviewing
           ? "reviewing"
           : status?.isProcessing
             ? "processing"

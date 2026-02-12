@@ -64,6 +64,26 @@
   color: var(--text-stronger);
 }
 
+.composer-context-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.composer-context-action {
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-card);
+  color: var(--text-muted);
+}
+
+.composer-context-action:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text-strong);
+}
+
 .composer-input {
   display: grid;
   grid-template-columns: 1fr auto auto auto;

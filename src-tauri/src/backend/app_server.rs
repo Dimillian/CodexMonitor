@@ -52,6 +52,8 @@ fn build_initialize_params(client_version: &str) -> Value {
     })
 }
 
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(300);
+
 pub(crate) struct WorkspaceSession {
     pub(crate) entry: WorkspaceEntry,
     pub(crate) child: Mutex<Child>,
@@ -77,9 +79,24 @@ impl WorkspaceSession {
         let id = self.next_id.fetch_add(1, Ordering::SeqCst);
         let (tx, rx) = oneshot::channel();
         self.pending.lock().await.insert(id, tx);
-        self.write_message(json!({ "id": id, "method": method, "params": params }))
-            .await?;
-        rx.await.map_err(|_| "request canceled".to_string())
+        if let Err(error) = self
+            .write_message(json!({ "id": id, "method": method, "params": params }))
+            .await
+        {
+            self.pending.lock().await.remove(&id);
+            return Err(error);
+        }
+        match timeout(REQUEST_TIMEOUT, rx).await {
+            Ok(Ok(value)) => Ok(value),
+            Ok(Err(_)) => Err("request canceled".to_string()),
+            Err(_) => {
+                self.pending.lock().await.remove(&id);
+                Err(format!(
+                    "request timed out after {} seconds",
+                    REQUEST_TIMEOUT.as_secs()
+                ))
+            }
+        }
     }
 
     pub(crate) async fn send_notification(
@@ -406,6 +423,9 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                 }
             }
         }
+
+        // Ensure pending foreground requests cannot accumulate after process output ends.
+        session_clone.pending.lock().await.clear();
     });
 
     let workspace_id = entry.id.clone();

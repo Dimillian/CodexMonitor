@@ -352,7 +352,10 @@ where
 
     let mut response_text = String::new();
     let collect_result = timeout(Duration::from_secs(60), async {
-        while let Some(event) = rx.recv().await {
+        loop {
+            let Some(event) = rx.recv().await else {
+                return Err("Background response stream closed before completion".to_string());
+            };
             let method = event.get("method").and_then(|m| m.as_str()).unwrap_or("");
             match method {
                 "item/agentMessage/delta" => {

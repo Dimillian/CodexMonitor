@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizePlanUpdate } from "./threadNormalize";
+import { normalizePlanUpdate, normalizeRootPath } from "./threadNormalize";
 
 describe("normalizePlanUpdate", () => {
   it("normalizes a plan when the payload uses an array", () => {
@@ -27,5 +27,20 @@ describe("normalizePlanUpdate", () => {
 
   it("returns null when there is no explanation or steps", () => {
     expect(normalizePlanUpdate("turn-3", "", { steps: [] })).toBeNull();
+  });
+});
+
+describe("normalizeRootPath", () => {
+  it("preserves significant leading and trailing whitespace", () => {
+    expect(normalizeRootPath(" /tmp/repo ")).toBe(" /tmp/repo ");
+  });
+
+  it("normalizes Windows drive-letter paths case-insensitively", () => {
+    expect(normalizeRootPath("C:\\Dev\\Repo\\")).toBe("c:/dev/repo");
+    expect(normalizeRootPath("c:/Dev/Repo")).toBe("c:/dev/repo");
+  });
+
+  it("normalizes UNC paths case-insensitively", () => {
+    expect(normalizeRootPath("\\\\SERVER\\Share\\Repo\\")).toBe("//server/share/repo");
   });
 });

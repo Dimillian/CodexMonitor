@@ -1820,4 +1820,82 @@ describe("SettingsView Shortcuts", () => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
   });
+
+  it("filters shortcuts by search query", async () => {
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={baseSettings}
+        openAppIconById={{}}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="shortcuts"
+      />,
+    );
+
+    const searchInput = screen.getByLabelText("Search shortcuts");
+    expect(screen.getByText("Toggle terminal panel")).toBeTruthy();
+    expect(screen.getByText("Cycle model")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.change(searchInput, { target: { value: "navigation" } });
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Next workspace")).toBeTruthy();
+      expect(screen.queryByText("Toggle terminal panel")).toBeNull();
+    });
+
+    await act(async () => {
+      fireEvent.change(searchInput, { target: { value: "sidebars" } });
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Toggle projects sidebar")).toBeTruthy();
+      expect(screen.queryByText("Next workspace")).toBeNull();
+    });
+
+    await act(async () => {
+      fireEvent.change(searchInput, { target: { value: "new shortcut while focused" } });
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Cycle model")).toBeTruthy();
+      expect(screen.queryByText("Toggle terminal panel")).toBeNull();
+    });
+
+    await act(async () => {
+      fireEvent.change(searchInput, { target: { value: "no-such-shortcut" } });
+    });
+    await waitFor(() => {
+      expect(screen.getByText('No shortcuts match "no-such-shortcut".')).toBeTruthy();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Toggle terminal panel")).toBeTruthy();
+      expect(screen.queryByText('No shortcuts match "no-such-shortcut".')).toBeNull();
+    });
+  });
 });

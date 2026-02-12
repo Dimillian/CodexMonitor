@@ -25,6 +25,7 @@ type ThreadListProps = {
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   threadStatusById: ThreadStatusMap;
+  pendingUserInputKeys?: Set<string>;
   getThreadTime: (thread: ThreadSummary) => string | null;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
   onToggleExpanded: (workspaceId: string) => void;
@@ -51,6 +52,7 @@ export function ThreadList({
   activeWorkspaceId,
   activeThreadId,
   threadStatusById,
+  pendingUserInputKeys,
   getThreadTime,
   isThreadPinned,
   onToggleExpanded,
@@ -66,7 +68,12 @@ export function ThreadList({
         ? ({ "--thread-indent": `${depth * indentUnit}px` } as CSSProperties)
         : undefined;
     const status = threadStatusById[thread.id];
-    const statusClass = status?.isReviewing
+    const hasPendingUserInput = Boolean(
+      pendingUserInputKeys?.has(`${workspaceId}:${thread.id}`),
+    );
+    const statusClass = hasPendingUserInput
+      ? "unread"
+      : status?.isReviewing
       ? "reviewing"
       : status?.isProcessing
         ? "processing"

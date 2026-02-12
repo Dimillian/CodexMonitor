@@ -29,6 +29,7 @@ type WorktreeSectionProps = {
   expandedWorkspaces: Set<string>;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
+  pendingUserInputKeys?: Set<string>;
   getThreadRows: (
     threads: ThreadSummary[],
     isExpanded: boolean,
@@ -64,6 +65,7 @@ export function WorktreeSection({
   expandedWorkspaces,
   activeWorkspaceId,
   activeThreadId,
+  pendingUserInputKeys,
   getThreadRows,
   getThreadTime,
   isThreadPinned,
@@ -136,6 +138,7 @@ export function WorktreeSection({
                   activeWorkspaceId={activeWorkspaceId}
                   activeThreadId={activeThreadId}
                   threadStatusById={threadStatusById}
+                  pendingUserInputKeys={pendingUserInputKeys}
                   getThreadTime={getThreadTime}
                   isThreadPinned={isThreadPinned}
                   onToggleExpanded={onToggleExpanded}

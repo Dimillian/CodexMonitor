@@ -29,8 +29,8 @@ describe("threadItems", () => {
     }
   });
 
-  it("preserves tool output for fileChange and commandExecution", () => {
-    const output = "x".repeat(21000);
+  it("truncates extremely large tool output for fileChange and commandExecution", () => {
+    const output = "x".repeat(250000);
     const item: ConversationItem = {
       id: "tool-1",
       kind: "tool",
@@ -42,7 +42,9 @@ describe("threadItems", () => {
     const normalized = normalizeItem(item);
     expect(normalized.kind).toBe("tool");
     if (normalized.kind === "tool") {
-      expect(normalized.output).toBe(output);
+      expect(normalized.output).not.toBe(output);
+      expect(normalized.output?.endsWith("...")).toBe(true);
+      expect((normalized.output ?? "").length).toBeLessThan(output.length);
     }
   });
 

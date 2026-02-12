@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from "react";
+import { useMemo, useState, type KeyboardEvent } from "react";
 import { formatShortcut, getDefaultInterruptShortcut } from "@utils/shortcuts";
 import { isMacPlatform } from "@utils/platformPaths";
 import type {
@@ -73,6 +73,7 @@ export function SettingsShortcutsSection({
   onClearShortcut,
 }: SettingsShortcutsSectionProps) {
   const isMac = isMacPlatform();
+  const [searchQuery, setSearchQuery] = useState("");
 
   const groups: ShortcutGroup[] = [
     {
@@ -209,13 +210,53 @@ export function SettingsShortcutsSection({
     },
   ];
 
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const filteredGroups = useMemo(() => {
+    if (!normalizedSearchQuery) {
+      return groups;
+    }
+    return groups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => {
+          const searchValue = `${group.title} ${group.subtitle} ${item.label} ${item.help}`.toLowerCase();
+          return searchValue.includes(normalizedSearchQuery);
+        }),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [groups, normalizedSearchQuery]);
+
   return (
     <section className="settings-section">
       <div className="settings-section-title">Shortcuts</div>
       <div className="settings-section-subtitle">
         Customize keyboard shortcuts for file actions, composer, panels, and navigation.
       </div>
-      {groups.map((group, index) => (
+      <div className="settings-field settings-shortcuts-search">
+        <label className="settings-field-label" htmlFor="settings-shortcuts-search">
+          Search shortcuts
+        </label>
+        <div className="settings-field-row">
+          <input
+            id="settings-shortcuts-search"
+            className="settings-input"
+            placeholder="Search shortcuts"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              className="ghost settings-button-compact"
+              onClick={() => setSearchQuery("")}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        <div className="settings-help">Filter by section name, action, or default shortcut.</div>
+      </div>
+      {filteredGroups.map((group, index) => (
         <div key={group.title}>
           {index > 0 && <div className="settings-divider" />}
           <div className="settings-subsection-title">{group.title}</div>
@@ -231,6 +272,11 @@ export function SettingsShortcutsSection({
           ))}
         </div>
       ))}
+      {filteredGroups.length === 0 && (
+        <div className="settings-empty">
+          No shortcuts match {normalizedSearchQuery ? `"${searchQuery.trim()}"` : "your search"}.
+        </div>
+      )}
     </section>
   );
 }

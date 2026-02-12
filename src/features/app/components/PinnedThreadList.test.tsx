@@ -101,4 +101,24 @@ describe("PinnedThreadList", () => {
       true,
     );
   });
+
+  it("shows blue unread-style status when a pinned thread is waiting for user input", () => {
+    const { container } = render(
+      <PinnedThreadList
+        {...baseProps}
+        rows={[{ thread: otherThread, depth: 0, workspaceId: "ws-2" }]}
+        threadStatusById={{
+          "thread-1": { isProcessing: false, hasUnread: false, isReviewing: true },
+          "thread-2": { isProcessing: true, hasUnread: false, isReviewing: false },
+        }}
+        pendingUserInputKeys={new Set(["ws-2:thread-2"])}
+      />,
+    );
+
+    const row = container.querySelector(".thread-row");
+    expect(row).toBeTruthy();
+    expect(row?.querySelector(".thread-name")?.textContent).toBe("Pinned Beta");
+    expect(row?.querySelector(".thread-status")?.className).toContain("unread");
+    expect(row?.querySelector(".thread-status")?.className).not.toContain("processing");
+  });
 });

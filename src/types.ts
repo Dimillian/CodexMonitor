@@ -113,6 +113,34 @@ export type ReviewTarget =
   | { type: "commit"; sha: string; title?: string }
   | { type: "custom"; instructions: string };
 
+export type PullRequestReviewIntent =
+  | "full"
+  | "risks"
+  | "tests"
+  | "summary"
+  | "question";
+
+export type PullRequestReviewAction = {
+  id: string;
+  label: string;
+  intent: PullRequestReviewIntent;
+};
+
+export type PullRequestSelectionLine = {
+  type: "add" | "del" | "context";
+  oldLine: number | null;
+  newLine: number | null;
+  text: string;
+};
+
+export type PullRequestSelectionRange = {
+  path: string;
+  status: string;
+  start: number;
+  end: number;
+  lines: PullRequestSelectionLine[];
+};
+
 export type AccessMode = "read-only" | "current" | "full-access";
 export type BackendMode = "local" | "remote";
 export type RemoteBackendProvider = "tcp" | "orbit";
