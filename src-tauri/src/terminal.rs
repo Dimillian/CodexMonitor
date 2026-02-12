@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use serde::Serialize;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 use tokio::sync::Mutex;
 
 use crate::backend::events::{EventSink, TerminalExit, TerminalOutput};
@@ -66,6 +66,8 @@ fn resolve_locale() -> String {
 
 fn spawn_terminal_reader(
     event_sink: impl EventSink,
+    app: AppHandle,
+    session: Arc<TerminalSession>,
     workspace_id: String,
     terminal_id: String,
     mut reader: Box<dyn Read + Send>,
@@ -125,9 +127,23 @@ fn spawn_terminal_reader(
                 Err(_) => break,
             }
         }
+        let cleanup_workspace_id = workspace_id.clone();
+        let cleanup_terminal_id = terminal_id.clone();
+        let cleanup_session = Arc::clone(&session);
         event_sink.emit_terminal_exit(TerminalExit {
             workspace_id,
             terminal_id,
+        });
+        tauri::async_runtime::spawn(async move {
+            let state = app.state::<AppState>();
+            let mut sessions = state.terminal_sessions.lock().await;
+            let key = terminal_key(&cleanup_workspace_id, &cleanup_terminal_id);
+            let should_remove = sessions
+                .get(&key)
+                .is_some_and(|current| Arc::ptr_eq(current, &cleanup_session));
+            if should_remove {
+                sessions.remove(&key);
+            }
         });
     });
 }
@@ -219,10 +235,17 @@ pub(crate) async fn terminal_open(
             .await;
             return Ok(TerminalSessionInfo { id });
         }
-        sessions.insert(key, session);
+        sessions.insert(key, Arc::clone(&session));
     }
-    let event_sink = TauriEventSink::new(app);
-    spawn_terminal_reader(event_sink, workspace_id, terminal_id, reader);
+    let event_sink = TauriEventSink::new(app.clone());
+    spawn_terminal_reader(
+        event_sink,
+        app,
+        Arc::clone(&session),
+        workspace_id,
+        terminal_id,
+        reader,
+    );
 
     Ok(TerminalSessionInfo { id: session_id })
 }

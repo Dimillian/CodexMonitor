@@ -15,6 +15,7 @@ use super::transport::{
 };
 
 pub(crate) struct OrbitWsTransport;
+const OUTBOUND_QUEUE_CAPACITY: usize = 512;
 
 impl RemoteTransport for OrbitWsTransport {
     fn connect(&self, app: AppHandle, config: RemoteTransportConfig) -> TransportFuture {
@@ -29,7 +30,7 @@ impl RemoteTransport for OrbitWsTransport {
                 .map_err(|err| format!("Failed to connect to Orbit relay at {ws_url}: {err}"))?;
             let (mut writer, mut reader) = stream.split();
 
-            let (out_tx, mut out_rx) = mpsc::unbounded_channel::<String>();
+            let (out_tx, mut out_rx) = mpsc::channel::<String>(OUTBOUND_QUEUE_CAPACITY);
             let pending = Arc::new(Mutex::new(PendingMap::new()));
             let pending_for_writer = Arc::clone(&pending);
             let pending_for_reader = Arc::clone(&pending);
