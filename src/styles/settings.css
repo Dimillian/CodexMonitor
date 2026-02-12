@@ -177,6 +177,10 @@
   margin-right: 4px;
 }
 
+.settings-shortcuts-search {
+  margin-bottom: 20px;
+}
+
 .settings-command-preview {
   margin: 0;
   padding: 10px 12px;
