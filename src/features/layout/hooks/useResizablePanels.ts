@@ -3,11 +3,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const STORAGE_KEY_SIDEBAR = "codexmonitor.sidebarWidth";
 const STORAGE_KEY_RIGHT_PANEL = "codexmonitor.rightPanelWidth";
+const STORAGE_KEY_CHAT_DIFF_SPLIT_POSITION_PERCENT =
+  "codexmonitor.chatDiffSplitPositionPercent";
 const STORAGE_KEY_PLAN_PANEL = "codexmonitor.planPanelHeight";
 const STORAGE_KEY_TERMINAL_PANEL = "codexmonitor.terminalPanelHeight";
 const STORAGE_KEY_DEBUG_PANEL = "codexmonitor.debugPanelHeight";
 const MIN_SIDEBAR_WIDTH = 220;
 const MAX_SIDEBAR_WIDTH = 420;
+const MIN_CHAT_DIFF_SPLIT_POSITION_PERCENT = 20;
+const MAX_CHAT_DIFF_SPLIT_POSITION_PERCENT = 80;
 const MIN_RIGHT_PANEL_WIDTH = 270;
 const MAX_RIGHT_PANEL_WIDTH = 420;
 const MIN_PLAN_PANEL_HEIGHT = 140;
@@ -17,17 +21,26 @@ const MAX_TERMINAL_PANEL_HEIGHT = 480;
 const MIN_DEBUG_PANEL_HEIGHT = 120;
 const MAX_DEBUG_PANEL_HEIGHT = 420;
 const DEFAULT_SIDEBAR_WIDTH = 280;
+const DEFAULT_CHAT_DIFF_SPLIT_POSITION_PERCENT = 50;
 const DEFAULT_RIGHT_PANEL_WIDTH = 230;
 const DEFAULT_PLAN_PANEL_HEIGHT = 220;
 const DEFAULT_TERMINAL_PANEL_HEIGHT = 220;
 const DEFAULT_DEBUG_PANEL_HEIGHT = 180;
 
 type ResizeState = {
-  type: "sidebar" | "right-panel" | "plan-panel" | "terminal-panel" | "debug-panel";
+  type:
+    | "sidebar"
+    | "right-panel"
+    | "chat-diff-split"
+    | "plan-panel"
+    | "terminal-panel"
+    | "debug-panel";
   startX: number;
   startY: number;
   startWidth: number;
   startHeight: number;
+  startContainerWidth?: number;
+  startContainerLeft?: number;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -49,6 +62,12 @@ function readStoredWidth(key: string, fallback: number, min: number, max: number
   return clamp(parsed, min, max);
 }
 
+function getContainerPointerPercent(event: MouseEvent, resize: ResizeState) {
+  const containerWidth = resize.startContainerWidth ?? 1;
+  const containerLeft = resize.startContainerLeft ?? 0;
+  return ((event.clientX - containerLeft) / containerWidth) * 100;
+}
+
 export function useResizablePanels() {
   const [sidebarWidth, setSidebarWidth] = useState(() =>
     readStoredWidth(
@@ -58,6 +77,15 @@ export function useResizablePanels() {
       MAX_SIDEBAR_WIDTH,
     ),
   );
+  const [chatDiffSplitPositionPercent, setChatDiffSplitPositionPercent] =
+    useState(() =>
+      readStoredWidth(
+        STORAGE_KEY_CHAT_DIFF_SPLIT_POSITION_PERCENT,
+        DEFAULT_CHAT_DIFF_SPLIT_POSITION_PERCENT,
+        MIN_CHAT_DIFF_SPLIT_POSITION_PERCENT,
+        MAX_CHAT_DIFF_SPLIT_POSITION_PERCENT,
+      ),
+    );
   const [rightPanelWidth, setRightPanelWidth] = useState(() =>
     readStoredWidth(
       STORAGE_KEY_RIGHT_PANEL,
@@ -95,6 +123,13 @@ export function useResizablePanels() {
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY_SIDEBAR, String(sidebarWidth));
   }, [sidebarWidth]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      STORAGE_KEY_CHAT_DIFF_SPLIT_POSITION_PERCENT,
+      String(chatDiffSplitPositionPercent),
+    );
+  }, [chatDiffSplitPositionPercent]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -137,6 +172,14 @@ export function useResizablePanels() {
           MAX_SIDEBAR_WIDTH,
         );
         setSidebarWidth(next);
+      } else if (resizeRef.current.type === "chat-diff-split") {
+        const pointerPercent = getContainerPointerPercent(event, resizeRef.current);
+        const next = clamp(
+          pointerPercent,
+          MIN_CHAT_DIFF_SPLIT_POSITION_PERCENT,
+          MAX_CHAT_DIFF_SPLIT_POSITION_PERCENT,
+        );
+        setChatDiffSplitPositionPercent(next);
       } else if (resizeRef.current.type === "right-panel") {
         const delta = event.clientX - resizeRef.current.startX;
         const next = clamp(
@@ -202,6 +245,26 @@ export function useResizablePanels() {
       document.body.style.userSelect = "none";
     },
     [planPanelHeight, sidebarWidth],
+  );
+
+  const onChatDiffSplitPositionResizeStart = useCallback(
+    (event: ReactMouseEvent) => {
+      const content = event.currentTarget.closest(".content-split") as
+        | HTMLDivElement
+        | null;
+      resizeRef.current = {
+        type: "chat-diff-split",
+        startX: event.clientX,
+        startY: event.clientY,
+        startWidth: chatDiffSplitPositionPercent,
+        startHeight: 0,
+        startContainerWidth: content?.clientWidth,
+        startContainerLeft: content?.getBoundingClientRect().left,
+      };
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    },
+    [chatDiffSplitPositionPercent],
   );
 
   const onRightPanelResizeStart = useCallback(
@@ -271,6 +334,8 @@ export function useResizablePanels() {
     terminalPanelHeight,
     debugPanelHeight,
     onSidebarResizeStart,
+    chatDiffSplitPositionPercent,
+    onChatDiffSplitPositionResizeStart,
     onRightPanelResizeStart,
     onPlanPanelResizeStart,
     onTerminalPanelResizeStart,

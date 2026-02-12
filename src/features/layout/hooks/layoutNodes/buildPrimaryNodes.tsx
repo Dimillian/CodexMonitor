@@ -278,9 +278,10 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
     />
   ) : null;
 
+  const showDesktopBackToChat = options.centerMode === "diff";
   const desktopTopbarLeftNode = (
     <>
-      {options.centerMode === "diff" && (
+      {showDesktopBackToChat && (
         <button
           className="icon-button back-button"
           onClick={options.onExitDiff}

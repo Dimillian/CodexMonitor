@@ -229,6 +229,7 @@ export type LayoutNodesOptions = {
   launchScriptsState?: WorkspaceLaunchScriptsState;
   mainHeaderActionsNode?: ReactNode;
   centerMode: "chat" | "diff";
+  splitChatDiffView: boolean;
   onExitDiff: () => void;
   activeTab: "home" | "projects" | "codex" | "git" | "log";
   onSelectTab: (tab: "home" | "projects" | "codex" | "git" | "log") => void;

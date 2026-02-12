@@ -263,8 +263,10 @@ function MainApp() {
   });
   const {
     sidebarWidth,
+    chatDiffSplitPositionPercent,
     rightPanelWidth,
     onSidebarResizeStart,
+    onChatDiffSplitPositionResizeStart,
     onRightPanelResizeStart,
     planPanelHeight,
     onPlanPanelResizeStart,
@@ -1634,6 +1636,7 @@ function MainApp() {
     showComposer,
     activeThreadId,
     sidebarWidth,
+    chatDiffSplitPositionPercent,
     rightPanelWidth,
     planPanelHeight,
     terminalPanelHeight,
@@ -1895,6 +1898,7 @@ function MainApp() {
     onFilePanelModeChange: setFilePanelMode,
     fileTreeLoading: isFilesLoading,
     centerMode,
+    splitChatDiffView: appSettings.splitChatDiffView,
     onExitDiff: () => {
       setCenterMode("chat");
       setSelectedDiffPath(null);
@@ -2276,6 +2280,7 @@ function MainApp() {
         compactEmptyGitNode={compactEmptyGitNode}
         compactGitBackNode={compactGitBackNode}
         onSidebarResizeStart={onSidebarResizeStart}
+        onChatDiffSplitPositionResizeStart={onChatDiffSplitPositionResizeStart}
         onRightPanelResizeStart={onRightPanelResizeStart}
         onPlanPanelResizeStart={onPlanPanelResizeStart}
       />

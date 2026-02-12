@@ -11,6 +11,11 @@ type RenderedHook = {
   unmount: () => void;
 };
 
+type SplitDom = {
+  split: HTMLDivElement;
+  resizer: HTMLDivElement;
+};
+
 function renderResizablePanels(): RenderedHook {
   let result: HookResult | undefined;
 
@@ -41,6 +46,24 @@ function renderResizablePanels(): RenderedHook {
       container.remove();
     },
   };
+}
+
+function buildSplitDom(): SplitDom {
+  const split = document.createElement("div");
+  split.className = "content-split";
+  const resizer = document.createElement("div");
+  split.appendChild(resizer);
+  split.appendChild(document.createElement("div"));
+  document.body.appendChild(split);
+  Object.defineProperty(split, "clientWidth", {
+    configurable: true,
+    value: 1000,
+  });
+  Object.defineProperty(split, "getBoundingClientRect", {
+    configurable: true,
+    value: () => ({ left: 0 }),
+  });
+  return { split, resizer };
 }
 
 describe("useResizablePanels", () => {
@@ -89,5 +112,61 @@ describe("useResizablePanels", () => {
     });
 
     hook.unmount();
+  });
+
+  it("moves split position right when dragging the splitter right", () => {
+    const hook = renderResizablePanels();
+    const { split, resizer } = buildSplitDom();
+
+    act(() => {
+      hook.result.onChatDiffSplitPositionResizeStart({
+        clientX: 500,
+        clientY: 0,
+        currentTarget: resizer,
+      } as unknown as React.MouseEvent);
+    });
+
+    act(() => {
+      window.dispatchEvent(
+        new MouseEvent("mousemove", { clientX: 750, clientY: 0 }),
+      );
+    });
+
+    expect(hook.result.chatDiffSplitPositionPercent).toBe(75);
+
+    act(() => {
+      window.dispatchEvent(new MouseEvent("mouseup"));
+    });
+
+    hook.unmount();
+    split.remove();
+  });
+
+  it("moves split position left when dragging the splitter left", () => {
+    const hook = renderResizablePanels();
+    const { split, resizer } = buildSplitDom();
+
+    act(() => {
+      hook.result.onChatDiffSplitPositionResizeStart({
+        clientX: 500,
+        clientY: 0,
+        currentTarget: resizer,
+      } as unknown as React.MouseEvent);
+    });
+
+    act(() => {
+      window.dispatchEvent(
+        new MouseEvent("mousemove", { clientX: 250, clientY: 0 }),
+      );
+    });
+
+    expect(hook.result.chatDiffSplitPositionPercent).toBe(25);
+
+    act(() => {
+      window.dispatchEvent(new MouseEvent("mouseup"));
+    });
+
+    hook.unmount();
+    split.remove();
   });
 });
