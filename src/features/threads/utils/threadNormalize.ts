@@ -33,7 +33,7 @@ export function normalizeStringList(value: unknown) {
 }
 
 export function normalizeRootPath(value: string) {
-  const normalized = value.trim().replace(/\\/g, "/").replace(/\/+$/, "");
+  const normalized = value.replace(/\\/g, "/").replace(/\/+$/, "");
   if (!normalized) {
     return "";
   }

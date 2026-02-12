@@ -31,6 +31,10 @@ describe("normalizePlanUpdate", () => {
 });
 
 describe("normalizeRootPath", () => {
+  it("preserves significant leading and trailing whitespace", () => {
+    expect(normalizeRootPath(" /tmp/repo ")).toBe(" /tmp/repo ");
+  });
+
   it("normalizes Windows drive-letter paths case-insensitively", () => {
     expect(normalizeRootPath("C:\\Dev\\Repo\\")).toBe("c:/Dev/Repo");
     expect(normalizeRootPath("c:/Dev/Repo")).toBe("c:/Dev/Repo");
