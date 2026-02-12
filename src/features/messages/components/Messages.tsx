@@ -9,6 +9,7 @@ import {
 } from "react";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import type {
   ConversationItem,
   OpenAppTarget,
@@ -79,8 +80,9 @@ export const Messages = memo(function Messages({
   onPlanSubmitChanges,
   onOpenThreadLink,
 }: MessagesProps) {
-  const bottomRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const rowNodesByKeyRef = useRef(new Map<string, HTMLDivElement>());
+  const rowResizeObserversRef = useRef(new Map<Element, ResizeObserver>());
   const autoScrollRef = useRef(true);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const manuallyToggledExpandedRef = useRef<Set<string>>(new Set());
@@ -126,9 +128,7 @@ export const Messages = memo(function Messages({
     }
     if (container) {
       container.scrollTop = container.scrollHeight;
-      return;
     }
-    bottomRef.current?.scrollIntoView({ block: "end" });
   }, [isNearBottom]);
 
   useLayoutEffect(() => {
@@ -265,9 +265,7 @@ export const Messages = memo(function Messages({
     }
     if (container) {
       container.scrollTop = container.scrollHeight;
-      return;
     }
-    bottomRef.current?.scrollIntoView({ block: "end" });
   }, [scrollKey, isThinking, isNearBottom, threadId]);
 
   const groupedItems = useMemo(() => buildToolGroups(visibleItems), [visibleItems]);
@@ -442,78 +440,221 @@ export const Messages = memo(function Messages({
     return null;
   };
 
+  const renderGroupedEntry = (entry: (typeof groupedItems)[number]) => {
+    if (entry.kind === "toolGroup") {
+      const { group } = entry;
+      const isCollapsed = collapsedToolGroups.has(group.id);
+      const summaryParts = [formatCount(group.toolCount, "tool call", "tool calls")];
+      if (group.messageCount > 0) {
+        summaryParts.push(formatCount(group.messageCount, "message", "messages"));
+      }
+      const summaryText = summaryParts.join(", ");
+      const groupBodyId = `tool-group-${group.id}`;
+      const ChevronIcon = isCollapsed ? ChevronDown : ChevronUp;
+      return (
+        <div className={`tool-group ${isCollapsed ? "tool-group-collapsed" : ""}`}>
+          <div className="tool-group-header">
+            <button
+              type="button"
+              className="tool-group-toggle"
+              onClick={() => toggleToolGroup(group.id)}
+              aria-expanded={!isCollapsed}
+              aria-controls={groupBodyId}
+              aria-label={isCollapsed ? "Expand tool calls" : "Collapse tool calls"}
+            >
+              <span className="tool-group-chevron" aria-hidden>
+                <ChevronIcon size={14} />
+              </span>
+              <span className="tool-group-summary">{summaryText}</span>
+            </button>
+          </div>
+          {!isCollapsed && (
+            <div className="tool-group-body" id={groupBodyId}>
+              {group.items.map(renderItem)}
+            </div>
+          )}
+        </div>
+      );
+    }
+    return renderItem(entry.item);
+  };
+
+  type MessagesVirtualEntry =
+    | { kind: "grouped"; key: string; entry: (typeof groupedItems)[number] }
+    | { kind: "planFollowup"; key: string }
+    | { kind: "userInput"; key: string }
+    | { kind: "working"; key: string }
+    | { kind: "empty"; key: string; variant: "idle" | "loading" };
+
+  const hasPlanFollowup = Boolean(planFollowupNode);
+  const hasUserInput = Boolean(userInputNode);
+
+  const virtualEntries = useMemo<MessagesVirtualEntry[]>(() => {
+    const entries: MessagesVirtualEntry[] = groupedItems.map((entry) => ({
+      kind: "grouped",
+      key: entry.kind === "toolGroup" ? `tool-group-${entry.group.id}` : entry.item.id,
+      entry,
+    }));
+
+    if (hasPlanFollowup) {
+      entries.push({
+        kind: "planFollowup",
+        key: planFollowup.planItemId
+          ? `plan-followup-${planFollowup.planItemId}`
+          : "plan-followup",
+      });
+    }
+
+    if (hasUserInput) {
+      entries.push({
+        kind: "userInput",
+        key: activeUserInputRequestId
+          ? `user-input-${activeUserInputRequestId}`
+          : "user-input",
+      });
+    }
+
+    entries.push({ kind: "working", key: "working" });
+
+    if (!items.length && !hasUserInput && !isThinking && !isLoadingMessages) {
+      entries.push({
+        kind: "empty",
+        key: threadId ? `empty-${threadId}` : "empty",
+        variant: "idle",
+      });
+    }
+
+    if (!items.length && !hasUserInput && !isThinking && isLoadingMessages) {
+      entries.push({
+        kind: "empty",
+        key: threadId ? `loading-${threadId}` : "loading",
+        variant: "loading",
+      });
+    }
+
+    return entries;
+  }, [
+    activeUserInputRequestId,
+    groupedItems,
+    hasPlanFollowup,
+    hasUserInput,
+    isLoadingMessages,
+    isThinking,
+    items.length,
+    planFollowup.planItemId,
+    threadId,
+  ]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: virtualEntries.length,
+    getScrollElement: () => containerRef.current,
+    estimateSize: () => 140,
+    overscan: 8,
+    getItemKey: (index) => virtualEntries[index]?.key ?? index,
+  });
+  const virtualRows = rowVirtualizer.getVirtualItems();
+
+  const setRowRef = useCallback(
+    (key: string) => (node: HTMLDivElement | null) => {
+      const prevNode = rowNodesByKeyRef.current.get(key);
+      if (prevNode && prevNode !== node) {
+        const prevObserver = rowResizeObserversRef.current.get(prevNode);
+        if (prevObserver) {
+          prevObserver.disconnect();
+          rowResizeObserversRef.current.delete(prevNode);
+        }
+      }
+      if (!node) {
+        rowNodesByKeyRef.current.delete(key);
+        return;
+      }
+      rowNodesByKeyRef.current.set(key, node);
+      rowVirtualizer.measureElement(node);
+      if (rowResizeObserversRef.current.has(node)) {
+        return;
+      }
+      const observer = new ResizeObserver(() => {
+        rowVirtualizer.measureElement(node);
+        requestAutoScroll();
+      });
+      observer.observe(node);
+      rowResizeObserversRef.current.set(node, observer);
+    },
+    [requestAutoScroll, rowVirtualizer],
+  );
+
+  useEffect(() => {
+    const observers = rowResizeObserversRef.current;
+    return () => {
+      for (const observer of observers.values()) {
+        observer.disconnect();
+      }
+      observers.clear();
+    };
+  }, []);
+
   return (
     <div
       className="messages messages-full"
       ref={containerRef}
       onScroll={updateAutoScroll}
     >
-      {groupedItems.map((entry) => {
-        if (entry.kind === "toolGroup") {
-          const { group } = entry;
-          const isCollapsed = collapsedToolGroups.has(group.id);
-          const summaryParts = [
-            formatCount(group.toolCount, "tool call", "tool calls"),
-          ];
-          if (group.messageCount > 0) {
-            summaryParts.push(formatCount(group.messageCount, "message", "messages"));
+      <div
+        className="messages-virtual-list"
+        style={{
+          height: rowVirtualizer.getTotalSize(),
+        }}
+      >
+        {virtualRows.map((virtualRow) => {
+          const entry = virtualEntries[virtualRow.index];
+          if (!entry) {
+            return null;
           }
-          const summaryText = summaryParts.join(", ");
-          const groupBodyId = `tool-group-${group.id}`;
-          const ChevronIcon = isCollapsed ? ChevronDown : ChevronUp;
           return (
             <div
-              key={`tool-group-${group.id}`}
-              className={`tool-group ${isCollapsed ? "tool-group-collapsed" : ""}`}
+              key={entry.key}
+              className="messages-virtual-row"
+              data-index={virtualRow.index}
+              ref={setRowRef(entry.key)}
+              style={{
+                transform: `translate3d(0, ${virtualRow.start}px, 0)`,
+              }}
             >
-              <div className="tool-group-header">
-                <button
-                  type="button"
-                  className="tool-group-toggle"
-                  onClick={() => toggleToolGroup(group.id)}
-                  aria-expanded={!isCollapsed}
-                  aria-controls={groupBodyId}
-                  aria-label={isCollapsed ? "Expand tool calls" : "Collapse tool calls"}
-                >
-                  <span className="tool-group-chevron" aria-hidden>
-                    <ChevronIcon size={14} />
-                  </span>
-                  <span className="tool-group-summary">{summaryText}</span>
-                </button>
-              </div>
-              {!isCollapsed && (
-                <div className="tool-group-body" id={groupBodyId}>
-                  {group.items.map(renderItem)}
+              {entry.kind === "grouped" && renderGroupedEntry(entry.entry)}
+              {entry.kind === "planFollowup" && planFollowupNode}
+              {entry.kind === "userInput" && userInputNode}
+              {entry.kind === "working" && (
+                <WorkingIndicator
+                  isThinking={isThinking}
+                  processingStartedAt={processingStartedAt}
+                  lastDurationMs={lastDurationMs}
+                  hasItems={items.length > 0}
+                  reasoningLabel={latestReasoningLabel}
+                />
+              )}
+              {entry.kind === "empty" && entry.variant === "idle" && (
+                <div className="empty messages-empty">
+                  {threadId
+                    ? "Send a prompt to the agent."
+                    : "Send a prompt to start a new agent."}
+                </div>
+              )}
+              {entry.kind === "empty" && entry.variant === "loading" && (
+                <div className="empty messages-empty">
+                  <div
+                    className="messages-loading-indicator"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <span className="working-spinner" aria-hidden />
+                    <span className="messages-loading-label">Loading…</span>
+                  </div>
                 </div>
               )}
             </div>
           );
-        }
-        return renderItem(entry.item);
-      })}
-      {planFollowupNode}
-      {userInputNode}
-      <WorkingIndicator
-        isThinking={isThinking}
-        processingStartedAt={processingStartedAt}
-        lastDurationMs={lastDurationMs}
-        hasItems={items.length > 0}
-        reasoningLabel={latestReasoningLabel}
-      />
-      {!items.length && !userInputNode && !isThinking && !isLoadingMessages && (
-        <div className="empty messages-empty">
-          {threadId ? "Send a prompt to the agent." : "Send a prompt to start a new agent."}
-        </div>
-      )}
-      {!items.length && !userInputNode && !isThinking && isLoadingMessages && (
-        <div className="empty messages-empty">
-          <div className="messages-loading-indicator" role="status" aria-live="polite">
-            <span className="working-spinner" aria-hidden />
-            <span className="messages-loading-label">Loading…</span>
-          </div>
-        </div>
-      )}
-      <div ref={bottomRef} />
+        })}
+      </div>
     </div>
   );
 });

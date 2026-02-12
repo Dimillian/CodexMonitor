@@ -22,6 +22,28 @@ vi.mock("../hooks/useFileLinkOpener", () => ({
   ) => useFileLinkOpenerMock(workspacePath, openTargets, selectedOpenAppId),
 }));
 
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: ({
+    count,
+    estimateSize,
+  }: {
+    count: number;
+    estimateSize?: () => number;
+  }) => {
+    const rowSize = estimateSize ? estimateSize() : 140;
+    return {
+      getVirtualItems: () =>
+        Array.from({ length: count }, (_, index) => ({
+          index,
+          start: index * rowSize,
+        })),
+      getTotalSize: () => count * rowSize,
+      measureElement: () => {},
+      scrollToIndex: () => {},
+    };
+  },
+}));
+
 describe("Messages", () => {
   beforeAll(() => {
     if (!HTMLElement.prototype.scrollIntoView) {

@@ -18,6 +18,20 @@
   padding-top: calc(12px + var(--main-topbar-height));
 }
 
+.messages-virtual-list {
+  position: relative;
+  width: 100%;
+}
+
+.messages-virtual-row {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  will-change: transform;
+  isolation: isolate;
+}
+
 .messages-empty {
   padding: 24px var(--main-panel-padding);
 }
