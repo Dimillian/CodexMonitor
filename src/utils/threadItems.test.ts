@@ -66,6 +66,30 @@ describe("threadItems", () => {
     expect(secondOutput).toBe(output);
   });
 
+  it("respects custom max items per thread in prepareThreadItems", () => {
+    const items: ConversationItem[] = Array.from({ length: 5 }, (_, index) => ({
+      id: `msg-${index}`,
+      kind: "message",
+      role: "assistant",
+      text: `message ${index}`,
+    }));
+    const prepared = prepareThreadItems(items, { maxItemsPerThread: 3 });
+    expect(prepared).toHaveLength(3);
+    expect(prepared[0]?.id).toBe("msg-2");
+    expect(prepared[2]?.id).toBe("msg-4");
+  });
+
+  it("supports unlimited max items per thread in prepareThreadItems", () => {
+    const items: ConversationItem[] = Array.from({ length: 5 }, (_, index) => ({
+      id: `msg-${index}`,
+      kind: "message",
+      role: "assistant",
+      text: `message ${index}`,
+    }));
+    const prepared = prepareThreadItems(items, { maxItemsPerThread: null });
+    expect(prepared).toHaveLength(5);
+  });
+
   it("drops assistant review summaries that duplicate completed review items", () => {
     const items: ConversationItem[] = [
       {

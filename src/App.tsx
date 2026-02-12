@@ -572,6 +572,7 @@ function MainApp() {
     reviewDeliveryMode: appSettings.reviewDeliveryMode,
     steerEnabled: appSettings.steerEnabled,
     threadTitleAutogenerationEnabled: appSettings.threadTitleAutogenerationEnabled,
+    chatHistoryScrollbackItems: appSettings.chatHistoryScrollbackItems,
     customPrompts: prompts,
     onMessageActivity: handleThreadMessageActivity,
     threadSortKey: threadListSortKey,
