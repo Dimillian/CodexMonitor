@@ -632,6 +632,46 @@ describe("useThreadActions", () => {
     expect(updateThreadParent).toHaveBeenCalledWith("parent-thread", ["child-thread"]);
   });
 
+  it("matches thread cwd on Windows paths even when path casing differs", async () => {
+    const windowsWorkspace: WorkspaceInfo = {
+      ...workspace,
+      path: "C:\\Dev\\CodexMon",
+    };
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-win-1",
+            cwd: "c:/dev/codexmon",
+            preview: "Windows thread",
+            updated_at: 5000,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockReturnValue(5000);
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(windowsWorkspace);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-1",
+      sortKey: "updated_at",
+      threads: [
+        {
+          id: "thread-win-1",
+          name: "Windows thread",
+          updatedAt: 5000,
+        },
+      ],
+    });
+  });
+
   it("preserves list state when requested", async () => {
     vi.mocked(listThreads).mockResolvedValue({
       result: {
@@ -720,6 +760,51 @@ describe("useThreadActions", () => {
       type: "setThreadListCursor",
       workspaceId: "ws-1",
       cursor: null,
+    });
+  });
+
+  it("loads older threads for Windows paths even when path casing differs", async () => {
+    const windowsWorkspace: WorkspaceInfo = {
+      ...workspace,
+      path: "C:\\Dev\\CodexMon",
+    };
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-win-older",
+            cwd: "c:/dev/codexmon",
+            preview: "Older windows preview",
+            updated_at: 4000,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, dispatch } = renderActions({
+      threadsByWorkspace: {
+        "ws-1": [{ id: "thread-1", name: "Agent 1", updatedAt: 6000 }],
+      },
+      threadListCursorByWorkspace: { "ws-1": "cursor-1" },
+    });
+
+    await act(async () => {
+      await result.current.loadOlderThreadsForWorkspace(windowsWorkspace);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-1",
+      sortKey: "updated_at",
+      threads: [
+        { id: "thread-1", name: "Agent 1", updatedAt: 6000 },
+        { id: "thread-win-older", name: "Older windows preview", updatedAt: 4000 },
+      ],
     });
   });
 

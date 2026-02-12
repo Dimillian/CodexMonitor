@@ -233,7 +233,10 @@
       "next_agent": "下一个智能体",
       "previous_agent": "上一个智能体",
       "next_workspace": "下一个工作区",
-      "previous_workspace": "上一个工作区"
+      "previous_workspace": "上一个工作区",
+      "search_shortcuts": "搜索快捷键",
+      "search_help": "按分区名称、操作或默认快捷键筛选。",
+      "no_results": "没有匹配\"{{query}}\"的快捷键。"
     },
     "open_with": {
       "customize": "自定义标题栏和文件预览中的“打开方式”菜单。",

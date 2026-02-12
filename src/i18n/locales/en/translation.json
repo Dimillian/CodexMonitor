@@ -238,7 +238,10 @@
       "next_agent": "Next Agent",
       "previous_agent": "Previous Agent",
       "next_workspace": "Next Workspace",
-      "previous_workspace": "Previous Workspace"
+      "previous_workspace": "Previous Workspace",
+      "search_shortcuts": "Search shortcuts",
+      "search_help": "Filter by section name, action, or default shortcut.",
+      "no_results": "No shortcuts match \"{{query}}\"."
     },
     "open_with": {
       "customize": "Customize the \"Open With\" menu in title bar and file previews.",
