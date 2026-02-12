@@ -36,6 +36,7 @@ type AppLayoutProps = {
   compactEmptyGitNode: ReactNode;
   compactGitBackNode: ReactNode;
   onSidebarResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
+  onChatDiffSplitPositionResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
   onRightPanelResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
   onPlanPanelResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
 };
@@ -73,6 +74,7 @@ export const AppLayout = memo(function AppLayout({
   compactEmptyGitNode,
   compactGitBackNode,
   onSidebarResizeStart,
+  onChatDiffSplitPositionResizeStart,
   onRightPanelResizeStart,
   onPlanPanelResizeStart,
 }: AppLayoutProps) {
@@ -146,6 +148,7 @@ export const AppLayout = memo(function AppLayout({
       debugPanelNode={debugPanelNode}
       hasActivePlan={hasActivePlan}
       onSidebarResizeStart={onSidebarResizeStart}
+      onChatDiffSplitPositionResizeStart={onChatDiffSplitPositionResizeStart}
       onRightPanelResizeStart={onRightPanelResizeStart}
       onPlanPanelResizeStart={onPlanPanelResizeStart}
     />

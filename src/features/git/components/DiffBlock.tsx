@@ -69,6 +69,7 @@ export function DiffBlock({
             }${isSelected ? " is-selected" : ""}${
               isRangeStart ? " is-range-start" : ""
             }${isRangeEnd ? " is-range-end" : ""}`}
+            data-has-gutter={showLineNumbers ? "true" : "false"}
             role={isSelectable ? "button" : undefined}
             tabIndex={isSelectable ? 0 : undefined}
             aria-pressed={isSelectable ? isSelected : undefined}

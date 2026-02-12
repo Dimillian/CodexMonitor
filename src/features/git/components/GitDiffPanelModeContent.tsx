@@ -1,130 +1,141 @@
 import type { GitHubIssue, GitHubPullRequest, GitLogEntry } from "../../../types";
 import type { MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import ArrowLeftRight from "lucide-react/dist/esm/icons/arrow-left-right";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
+import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import Download from "lucide-react/dist/esm/icons/download";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import RotateCw from "lucide-react/dist/esm/icons/rotate-cw";
 import Upload from "lucide-react/dist/esm/icons/upload";
 import { formatRelativeTime } from "../../../utils/time";
+import type { GitPanelMode } from "../types";
+import type { PerFileDiffGroup } from "../utils/perFileThreadDiffs";
 import {
-    CommitButton,
-    DiffSection,
-    type DiffFile,
-    GitLogEntryRow,
+  CommitButton,
+  DiffSection,
+  type DiffFile,
+  GitLogEntryRow,
 } from "./GitDiffPanelShared";
 import {
-    DEPTH_OPTIONS,
-    isGitRootNotFound,
-    isMissingRepo,
-    normalizeRootPath,
-    splitPath
+  DEPTH_OPTIONS,
+  isGitRootNotFound,
+  isMissingRepo,
+  normalizeRootPath,
+  splitPath,
 } from "./GitDiffPanel.utils";
 
-type GitMode = "diff" | "log" | "issues" | "prs";
+type GitMode = GitPanelMode;
 
 type GitPanelModeStatusProps = {
-    mode: GitMode;
-    diffStatusLabel: string;
-    logCountLabel: string;
-    logSyncLabel: string;
-    logUpstreamLabel: string;
-    issuesLoading: boolean;
-    issuesTotal: number;
-    pullRequestsLoading: boolean;
-    pullRequestsTotal: number;
+  mode: GitMode;
+  diffStatusLabel: string;
+  perFileDiffStatusLabel: string;
+  logCountLabel: string;
+  logSyncLabel: string;
+  logUpstreamLabel: string;
+  issuesLoading: boolean;
+  issuesTotal: number;
+  pullRequestsLoading: boolean;
+  pullRequestsTotal: number;
 };
 
 export function GitPanelModeStatus({
-    mode,
-    diffStatusLabel,
-    logCountLabel,
-    logSyncLabel,
-    logUpstreamLabel,
-    issuesLoading,
-    issuesTotal,
-    pullRequestsLoading,
-    pullRequestsTotal,
+  mode,
+  diffStatusLabel,
+  perFileDiffStatusLabel,
+  logCountLabel,
+  logSyncLabel,
+  logUpstreamLabel,
+  issuesLoading,
+  issuesTotal,
+  pullRequestsLoading,
+  pullRequestsTotal,
 }: GitPanelModeStatusProps) {
-    if (mode === "diff") {
-        return <div className="diff-status">{diffStatusLabel}</div>;
-    }
+  if (mode === "diff") {
+    return <div className="diff-status">{diffStatusLabel}</div>;
+  }
 
-    if (mode === "log") {
-        return (
-            <>
-                <div className="diff-status">{logCountLabel}</div>
-                <div className="git-log-sync">
-                    <span>{logSyncLabel}</span>
-                    {logUpstreamLabel && (
-                        <>
-                            <span className="git-log-sep">·</span>
-                            <span>{logUpstreamLabel}</span>
-                        </>
-                    )}
-                </div>
-            </>
-        );
-    }
+  if (mode === "perFile") {
+    return <div className="diff-status">{perFileDiffStatusLabel}</div>;
+  }
 
-    if (mode === "issues") {
-        return (
-            <>
-                <div className="diff-status diff-status-issues">
-                    <span>GitHub issues</span>
-                    {issuesLoading && <span className="git-panel-spinner" aria-hidden />}
-                </div>
-                <div className="git-log-sync">
-                    <span>{issuesTotal} open</span>
-                </div>
-            </>
-        );
-    }
-
+  if (mode === "log") {
     return (
-        <>
-            <div className="diff-status diff-status-issues">
-                <span>GitHub pull requests</span>
-                {pullRequestsLoading && <span className="git-panel-spinner" aria-hidden />}
-            </div>
-            <div className="git-log-sync">
-                <span>{pullRequestsTotal} open</span>
-            </div>
-        </>
+      <>
+        <div className="diff-status">{logCountLabel}</div>
+        <div className="git-log-sync">
+          <span>{logSyncLabel}</span>
+          {logUpstreamLabel && (
+            <>
+              <span className="git-log-sep">·</span>
+              <span>{logUpstreamLabel}</span>
+            </>
+          )}
+        </div>
+      </>
     );
+  }
+
+  if (mode === "issues") {
+    return (
+      <>
+        <div className="diff-status diff-status-issues">
+          <span>GitHub issues</span>
+          {issuesLoading && <span className="git-panel-spinner" aria-hidden />}
+        </div>
+        <div className="git-log-sync">
+          <span>{issuesTotal} open</span>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="diff-status diff-status-issues">
+        <span>GitHub pull requests</span>
+        {pullRequestsLoading && <span className="git-panel-spinner" aria-hidden />}
+      </div>
+      <div className="git-log-sync">
+        <span>{pullRequestsTotal} open</span>
+      </div>
+    </>
+  );
 }
 
 type GitBranchRowProps = {
-    mode: GitMode;
-    branchName: string;
-    onFetch?: () => void | Promise<void>;
-    fetchLoading: boolean;
+  mode: GitMode;
+  branchName: string;
+  onFetch?: () => void | Promise<void>;
+  fetchLoading: boolean;
 };
 
 export function GitBranchRow({ mode, branchName, onFetch, fetchLoading }: GitBranchRowProps) {
-    if (mode !== "diff" && mode !== "log") {
-        return null;
-    }
+  if (mode !== "diff" && mode !== "perFile" && mode !== "log") {
+    return null;
+  }
 
-    return (
-        <div className="diff-branch-row">
-            <div className="diff-branch">{branchName || "unknown"}</div>
-            <button
-                type="button"
-                className="diff-branch-refresh"
-                onClick={() => void onFetch?.()}
-                disabled={!onFetch || fetchLoading}
-                title={fetchLoading ? "Fetching remote..." : "Fetch remote"}
-                aria-label={fetchLoading ? "Fetching remote" : "Fetch remote"}
-            >
-                {fetchLoading ? (
-                    <span className="git-panel-spinner" aria-hidden />
-                ) : (
-                    <RotateCw size={12} aria-hidden />
-                )}
-            </button>
-        </div>
-    );
+  return (
+    <div className="diff-branch-row">
+      <div className="diff-branch">{branchName || "unknown"}</div>
+      <button
+        type="button"
+        className="diff-branch-refresh"
+        onClick={() => void onFetch?.()}
+        disabled={!onFetch || fetchLoading}
+        title={fetchLoading ? "Fetching remote..." : "Fetch remote"}
+        aria-label={fetchLoading ? "Fetching remote" : "Fetch remote"}
+      >
+        {fetchLoading ? (
+          <span className="git-panel-spinner" aria-hidden />
+        ) : (
+          <RotateCw size={12} aria-hidden />
+        )}
+      </button>
+    </div>
+  );
 }
 
 type GitRootCurrentPathProps = {
@@ -165,6 +176,125 @@ export function GitRootCurrentPath({
             )}
         </div>
     );
+}
+
+type GitPerFileModeContentProps = {
+  groups: PerFileDiffGroup[];
+  selectedPath: string | null;
+  onSelectFile?: (path: string) => void;
+};
+
+export function GitPerFileModeContent({
+  groups,
+  selectedPath,
+  onSelectFile,
+}: GitPerFileModeContentProps) {
+  const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setCollapsedPaths((previous) => {
+      if (previous.size === 0) {
+        return previous;
+      }
+
+      const activePaths = new Set(groups.map((group) => group.path));
+      let changed = false;
+      const next = new Set<string>();
+
+      for (const path of previous) {
+        if (activePaths.has(path)) {
+          next.add(path);
+        } else {
+          changed = true;
+        }
+      }
+
+      if (!changed && next.size === previous.size) {
+        return previous;
+      }
+
+      return next;
+    });
+  }, [groups]);
+
+  const toggleGroup = useCallback((path: string) => {
+    setCollapsedPaths((previous) => {
+      const next = new Set(previous);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  }, []);
+
+  if (groups.length === 0) {
+    return <div className="diff-empty">No agent edits in this thread yet.</div>;
+  }
+
+  return (
+    <div className="per-file-tree">
+      {groups.map((group) => {
+        const isExpanded = !collapsedPaths.has(group.path);
+        const { name: fileName } = splitPath(group.path);
+        return (
+          <div key={group.path} className="per-file-group">
+            <button
+              type="button"
+              className="per-file-group-row"
+              onClick={() => toggleGroup(group.path)}
+            >
+              <span className="per-file-group-chevron" aria-hidden>
+                {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              </span>
+              <span className="per-file-group-path" title={group.path}>
+                {fileName || group.path}
+              </span>
+              <span className="per-file-group-count">
+                {group.edits.length} edit{group.edits.length === 1 ? "" : "s"}
+              </span>
+            </button>
+            {isExpanded && (
+              <div className="per-file-edit-list">
+                {group.edits.map((edit) => {
+                  const isActive = selectedPath === edit.id;
+                  return (
+                    <button
+                      key={edit.id}
+                      type="button"
+                      className={`per-file-edit-row ${isActive ? "active" : ""}`}
+                      onClick={() => onSelectFile?.(edit.id)}
+                    >
+                      <span className="per-file-edit-status" data-status={edit.status}>
+                        {edit.status}
+                      </span>
+                      <span className="per-file-edit-label">{edit.label}</span>
+                      <span className="per-file-edit-stats">
+                        {edit.additions > 0 && (
+                          <span className="per-file-edit-stat per-file-edit-stat-add">
+                            +{edit.additions}
+                          </span>
+                        )}
+                        {edit.deletions > 0 && (
+                          <span className="per-file-edit-stat per-file-edit-stat-del">
+                            -{edit.deletions}
+                          </span>
+                        )}
+                        {edit.additions === 0 && edit.deletions === 0 && (
+                          <span className="per-file-edit-stat">0</span>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 type GitDiffModeContentProps = {

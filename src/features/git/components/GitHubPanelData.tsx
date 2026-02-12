@@ -6,6 +6,7 @@ import type {
   GitHubPullRequestDiff,
   WorkspaceInfo,
 } from "../../../types";
+import type { GitDiffSource, GitPanelMode } from "../types";
 import { useGitHubIssues } from "../hooks/useGitHubIssues";
 import { useGitHubPullRequests } from "../hooks/useGitHubPullRequests";
 import { useGitHubPullRequestDiffs } from "../hooks/useGitHubPullRequestDiffs";
@@ -39,9 +40,9 @@ type PullRequestCommentsState = {
 
 type GitHubPanelDataProps = {
   activeWorkspace: WorkspaceInfo | null;
-  gitPanelMode: "diff" | "log" | "issues" | "prs";
+  gitPanelMode: GitPanelMode;
   shouldLoadDiffs: boolean;
-  diffSource: "local" | "pr" | "commit";
+  diffSource: GitDiffSource;
   selectedPullRequestNumber: number | null;
   onIssuesChange: (state: IssuesState) => void;
   onPullRequestsChange: (state: PullRequestsState) => void;

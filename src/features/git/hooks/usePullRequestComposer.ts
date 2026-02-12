@@ -1,11 +1,12 @@
 import { useCallback, useMemo } from "react";
 import type {
   AppMention,
+  GitHubPullRequest,
   PullRequestReviewAction,
   PullRequestReviewIntent,
-  GitHubPullRequest,
   WorkspaceInfo,
 } from "../../../types";
+import type { GitDiffSource, GitPanelMode } from "../types";
 import { buildPullRequestDraft } from "../../../utils/pullRequestPrompt";
 import { parsePullRequestReviewCommand } from "../utils/pullRequestReviewCommands";
 
@@ -23,14 +24,14 @@ type UsePullRequestComposerOptions = {
   activeWorkspace: WorkspaceInfo | null;
   selectedPullRequest: GitHubPullRequest | null;
   filePanelMode: "git" | "files" | "prompts";
-  gitPanelMode: "diff" | "log" | "issues" | "prs";
+  gitPanelMode: GitPanelMode;
   centerMode: "chat" | "diff";
   isCompact: boolean;
   setSelectedPullRequest: (pullRequest: GitHubPullRequest | null) => void;
-  setDiffSource: (source: "local" | "pr" | "commit") => void;
+  setDiffSource: (source: GitDiffSource) => void;
   setSelectedDiffPath: (path: string | null) => void;
   setCenterMode: (mode: "chat" | "diff") => void;
-  setGitPanelMode: (mode: "diff" | "log" | "issues" | "prs") => void;
+  setGitPanelMode: (mode: GitPanelMode) => void;
   setPrefillDraft: (draft: { id: string; text: string; createdAt: number }) => void;
   setActiveTab: (tab: "home" | "projects" | "codex" | "git" | "log") => void;
   pullRequestReviewActions: PullRequestReviewAction[];

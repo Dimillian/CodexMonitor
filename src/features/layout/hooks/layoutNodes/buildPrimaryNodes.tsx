@@ -223,7 +223,7 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
 
   const homeNode = (
     <Home
-      onOpenProject={options.onAddWorkspace}
+      onOpenSettings={options.onOpenSettings}
       onAddWorkspace={options.onAddWorkspace}
       latestAgentRuns={options.latestAgentRuns}
       isLoadingLatestAgents={options.isLoadingLatestAgents}
@@ -278,9 +278,10 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
     />
   ) : null;
 
+  const showDesktopBackToChat = options.centerMode === "diff";
   const desktopTopbarLeftNode = (
     <>
-      {options.centerMode === "diff" && (
+      {showDesktopBackToChat && (
         <button
           className="icon-button back-button"
           onClick={options.onExitDiff}

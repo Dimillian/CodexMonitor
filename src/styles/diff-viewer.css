@@ -515,6 +515,12 @@
   white-space: pre-wrap;
 }
 
+.diff-line[data-has-gutter="false"] {
+  grid-template-columns: 1fr;
+  gap: 0;
+  padding-left: 10px;
+}
+
 .diff-line.is-selectable {
   cursor: pointer;
 }
@@ -577,6 +583,11 @@
   min-width: 0;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.diff-line[data-has-gutter="false"] .diff-line-content {
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .diff-line-hunk {

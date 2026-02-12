@@ -872,13 +872,40 @@
 
 .content-layer-chat {
   left: 0;
-  right: 50%;
+  right: calc(100% - var(--chat-diff-split-position-percent, 50%));
   border-right: 1px solid var(--border-subtle);
 }
 
 .content-layer-diff {
-  left: 50%;
+  left: calc(var(--chat-diff-split-position-percent, 50%));
   right: 0;
+}
+
+.content-split-resizer {
+  position: absolute;
+  top: var(--main-topbar-height);
+  bottom: 0;
+  left: calc(var(--chat-diff-split-position-percent, 50%) - 4px);
+  width: 8px;
+  cursor: col-resize;
+  z-index: 2;
+  transition: opacity 160ms ease;
+}
+
+.content-split-resizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 1px;
+  background: var(--border-strong);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.content-split-resizer:hover::after {
+  opacity: 1;
 }
 
 .content-layer.is-hidden {

@@ -1,11 +1,14 @@
 import { useEffect } from "react";
 import type { GitCommitDiff, GitHubPullRequestDiff } from "../../../types";
+import type { GitDiffSource } from "../../git/types";
+import type { PerFileDiffGroup } from "../../git/utils/perFileThreadDiffs";
 
 type Params = {
-  diffSource: "local" | "pr" | "commit";
+  diffSource: GitDiffSource;
   centerMode: "chat" | "diff";
   gitPullRequestDiffs: GitHubPullRequestDiff[];
   gitCommitDiffs: GitCommitDiff[];
+  perFileDiffGroups: PerFileDiffGroup[];
   selectedDiffPath: string | null;
   setSelectedDiffPath: (path: string | null) => void;
 };
@@ -15,6 +18,7 @@ export function useSyncSelectedDiffPath({
   centerMode,
   gitPullRequestDiffs,
   gitCommitDiffs,
+  perFileDiffGroups,
   selectedDiffPath,
   setSelectedDiffPath,
 }: Params) {
@@ -36,6 +40,26 @@ export function useSyncSelectedDiffPath({
     centerMode,
     diffSource,
     gitPullRequestDiffs,
+    selectedDiffPath,
+    setSelectedDiffPath,
+  ]);
+
+  useEffect(() => {
+    if (diffSource !== "perFile" || centerMode !== "diff") {
+      return;
+    }
+    const perFileDiffs = perFileDiffGroups.flatMap((group) => group.edits);
+    if (!perFileDiffs.length) {
+      return;
+    }
+    if (selectedDiffPath && perFileDiffs.some((entry) => entry.id === selectedDiffPath)) {
+      return;
+    }
+    setSelectedDiffPath(perFileDiffs[0].id);
+  }, [
+    centerMode,
+    diffSource,
+    perFileDiffGroups,
     selectedDiffPath,
     setSelectedDiffPath,
   ]);
