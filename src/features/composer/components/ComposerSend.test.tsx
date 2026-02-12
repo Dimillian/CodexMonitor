@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { isMobilePlatform } from "../../../utils/platformPaths";
 import { Composer } from "./Composer";
+import type { AppOption, AppMention } from "../../../types";
 
 vi.mock("../../../services/dragDrop", () => ({
   subscribeWindowDragDrop: vi.fn(() => () => {}),
@@ -24,10 +25,11 @@ vi.mock("../../../utils/platformPaths", async () => {
 });
 
 type HarnessProps = {
-  onSend: (text: string, images: string[]) => void;
+  onSend: (text: string, images: string[], appMentions?: AppMention[]) => void;
+  apps?: AppOption[];
 };
 
-function ComposerHarness({ onSend }: HarnessProps) {
+function ComposerHarness({ onSend, apps = [] }: HarnessProps) {
   const [draftText, setDraftText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -53,7 +55,7 @@ function ComposerHarness({ onSend }: HarnessProps) {
       accessMode="current"
       onSelectAccessMode={() => {}}
       skills={[]}
-      apps={[]}
+      apps={apps}
       prompts={[]}
       files={[]}
       draftText={draftText}
@@ -108,5 +110,34 @@ describe("Composer send triggers", () => {
     expect(onSend).toHaveBeenCalledTimes(1);
     expect(onSend).toHaveBeenCalledWith("dismiss keyboard", []);
     expect(blurSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends explicit app mentions when an app autocomplete item is selected", () => {
+    const onSend = vi.fn();
+    render(
+      <ComposerHarness
+        onSend={onSend}
+        apps={[
+          {
+            id: "connector_calendar",
+            name: "Calendar App",
+            description: "Calendar integration",
+            isAccessible: true,
+          },
+        ]}
+      />,
+    );
+
+    const textarea = screen.getByRole("textbox");
+    fireEvent.change(textarea, { target: { value: "$cal" } });
+    fireEvent.keyDown(textarea, { key: "Tab" });
+    fireEvent.keyDown(textarea, { key: "Enter" });
+
+    expect(onSend).toHaveBeenCalledTimes(1);
+    expect(onSend).toHaveBeenCalledWith(
+      "$calendar-app",
+      [],
+      [{ name: "Calendar App", path: "app://connector_calendar" }],
+    );
   });
 });

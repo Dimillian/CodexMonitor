@@ -10,8 +10,8 @@ import {
   getAppsList as getAppsListService,
   listMcpServerStatus as listMcpServerStatusService,
   compactThread as compactThreadService,
-} from "../../../services/tauri";
-import type { WorkspaceInfo } from "../../../types";
+} from "@services/tauri";
+import type { WorkspaceInfo } from "@/types";
 import { useThreadMessaging } from "./useThreadMessaging";
 
 vi.mock("@sentry/react", () => ({
@@ -20,7 +20,7 @@ vi.mock("@sentry/react", () => ({
   },
 }));
 
-vi.mock("../../../services/tauri", () => ({
+vi.mock("@services/tauri", () => ({
   sendUserMessage: vi.fn(),
   steerTurn: vi.fn(),
   startReview: vi.fn(),
@@ -150,6 +150,55 @@ describe("useThreadMessaging telemetry", () => {
           has_images: "false",
           text_length: "5",
         }),
+      }),
+    );
+  });
+
+  it("forwards explicit app mentions to turn/start", async () => {
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "current",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing: vi.fn(),
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage: vi.fn(),
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendUserMessage("hello $calendar", [], [
+        { name: "Calendar App", path: "app://connector_calendar" },
+      ]);
+    });
+
+    expect(sendUserMessageService).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      "hello $calendar",
+      expect.objectContaining({
+        appMentions: [{ name: "Calendar App", path: "app://connector_calendar" }],
       }),
     );
   });

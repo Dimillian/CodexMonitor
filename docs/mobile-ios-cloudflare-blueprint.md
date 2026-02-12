@@ -237,7 +237,7 @@ Implemented in shared core + daemon/app adapters:
 - Workspace/app extras:
   - `add_clone`, `apply_worktree_changes`, `open_workspace_in`, `get_open_app_icon`
 - Utility commands:
-  - `codex_doctor`, `get_commit_message_prompt`, `generate_commit_message`, `generate_run_metadata`, `local_usage_snapshot`, `send_notification_fallback`, `is_macos_debug_build`, `menu_set_accelerators`
+  - `codex_doctor`, `generate_commit_message`, `generate_run_metadata`, `local_usage_snapshot`, `send_notification_fallback`, `is_macos_debug_build`, `menu_set_accelerators`
 
 Out of scope for this mobile phase:
 

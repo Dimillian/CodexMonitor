@@ -2,8 +2,9 @@ import type { ConversationItem } from "../types";
 
 const MAX_ITEMS_PER_THREAD = 200;
 const MAX_ITEM_TEXT = 20000;
+const MAX_LARGE_TOOL_TEXT = 200000;
 const TOOL_OUTPUT_RECENT_ITEMS = 40;
-const NO_TRUNCATE_TOOL_TYPES = new Set(["fileChange", "commandExecution"]);
+const LARGE_TOOL_TYPES = new Set(["fileChange", "commandExecution"]);
 const READ_COMMANDS = new Set(["cat", "sed", "head", "tail", "less", "more", "nl"]);
 const LIST_COMMANDS = new Set(["ls", "tree", "find", "fd"]);
 const SEARCH_COMMANDS = new Set(["rg", "grep", "ripgrep", "findstr"]);
@@ -50,6 +51,13 @@ function truncateText(text: string, maxLength = MAX_ITEM_TEXT) {
   return `${text.slice(0, sliceLength)}...`;
 }
 
+function truncateToolText(toolType: string, text: string) {
+  const maxLength = LARGE_TOOL_TYPES.has(toolType)
+    ? MAX_LARGE_TOOL_TEXT
+    : MAX_ITEM_TEXT;
+  return truncateText(text, maxLength);
+}
+
 function normalizeStringList(value: unknown) {
   if (Array.isArray(value)) {
     return value.map((entry) => asString(entry)).filter(Boolean);
@@ -94,23 +102,19 @@ export function normalizeItem(item: ConversationItem): ConversationItem {
     return { ...item, diff: truncateText(item.diff) };
   }
   if (item.kind === "tool") {
-    const isNoTruncateTool = NO_TRUNCATE_TOOL_TYPES.has(item.toolType);
     return {
       ...item,
       title: truncateText(item.title, 200),
       detail: truncateText(item.detail, 2000),
-      output: isNoTruncateTool
-        ? item.output
-        : item.output
-          ? truncateText(item.output)
-          : item.output,
+      output: item.output
+        ? truncateToolText(item.toolType, item.output)
+        : item.output,
       changes: item.changes
         ? item.changes.map((change) => ({
             ...change,
-            diff:
-              isNoTruncateTool || !change.diff
-                ? change.diff
-                : truncateText(change.diff),
+            diff: change.diff
+              ? truncateToolText(item.toolType, change.diff)
+              : change.diff,
           }))
         : item.changes,
     };

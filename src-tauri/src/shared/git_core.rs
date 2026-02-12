@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::path::PathBuf;
 
 use crate::shared::process_core::tokio_command;
@@ -131,6 +129,8 @@ pub(crate) async fn git_remote_branch_exists_live(
     Err(format_git_error(&output.stdout, &output.stderr))
 }
 
+// Used by daemon-only worktree orchestration paths.
+#[allow(dead_code)]
 pub(crate) async fn git_remote_branch_exists_local(
     repo_path: &PathBuf,
     remote: &str,
@@ -183,6 +183,8 @@ pub(crate) async fn git_find_remote_for_branch_live(
     Ok(None)
 }
 
+// Used by daemon-only worktree orchestration paths.
+#[allow(dead_code)]
 pub(crate) async fn git_find_remote_tracking_branch_local(
     repo_path: &PathBuf,
     branch: &str,

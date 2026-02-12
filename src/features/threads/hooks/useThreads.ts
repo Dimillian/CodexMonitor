@@ -1,12 +1,12 @@
-import { useCallback, useMemo, useReducer, useRef } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import * as Sentry from "@sentry/react";
 import type {
   CustomPromptOption,
   DebugEntry,
   ThreadListSortKey,
   WorkspaceInfo,
-} from "../../../types";
-import { useAppServerEvents } from "../../app/hooks/useAppServerEvents";
+} from "@/types";
+import { useAppServerEvents } from "@app/hooks/useAppServerEvents";
 import { initialState, threadReducer } from "./useThreadsReducer";
 import { useThreadStorage } from "./useThreadStorage";
 import { useThreadLinking } from "./useThreadLinking";
@@ -19,8 +19,14 @@ import { useThreadRateLimits } from "./useThreadRateLimits";
 import { useThreadSelectors } from "./useThreadSelectors";
 import { useThreadStatus } from "./useThreadStatus";
 import { useThreadUserInput } from "./useThreadUserInput";
-import { setThreadName as setThreadNameService } from "../../../services/tauri";
-import { makeCustomNameKey, saveCustomName } from "../utils/threadStorage";
+import { useThreadTitleAutogeneration } from "./useThreadTitleAutogeneration";
+import { setThreadName as setThreadNameService } from "@services/tauri";
+import {
+  loadDetachedReviewLinks,
+  makeCustomNameKey,
+  saveCustomName,
+  saveDetachedReviewLinks,
+} from "@threads/utils/threadStorage";
 
 type UseThreadsOptions = {
   activeWorkspace: WorkspaceInfo | null;
@@ -32,6 +38,7 @@ type UseThreadsOptions = {
   accessMode?: "read-only" | "current" | "full-access";
   reviewDeliveryMode?: "inline" | "detached";
   steerEnabled?: boolean;
+  threadTitleAutogenerationEnabled?: boolean;
   customPrompts?: CustomPromptOption[];
   onMessageActivity?: () => void;
   threadSortKey?: ThreadListSortKey;
@@ -47,6 +54,7 @@ export function useThreads({
   accessMode,
   reviewDeliveryMode = "inline",
   steerEnabled = false,
+  threadTitleAutogenerationEnabled = false,
   customPrompts = [],
   onMessageActivity,
   threadSortKey = "updated_at",
@@ -56,8 +64,15 @@ export function useThreads({
   const replaceOnResumeRef = useRef<Record<string, boolean>>({});
   const pendingInterruptsRef = useRef<Set<string>>(new Set());
   const planByThreadRef = useRef(state.planByThread);
-  const detachedReviewNoticeRef = useRef<Set<string>>(new Set());
+  const itemsByThreadRef = useRef(state.itemsByThread);
+  const threadsByWorkspaceRef = useRef(state.threadsByWorkspace);
+  const detachedReviewStartedNoticeRef = useRef<Set<string>>(new Set());
+  const detachedReviewCompletedNoticeRef = useRef<Set<string>>(new Set());
+  const detachedReviewParentByChildRef = useRef<Record<string, string>>({});
+  const detachedReviewLinksByWorkspaceRef = useRef(loadDetachedReviewLinks());
   planByThreadRef.current = state.planByThread;
+  itemsByThreadRef.current = state.itemsByThread;
+  threadsByWorkspaceRef.current = state.threadsByWorkspace;
   const { approvalAllowlistRef, handleApprovalDecision, handleApprovalRemember } =
     useThreadApprovals({ dispatch, onDebug });
   const { handleUserInputSubmit } = useThreadUserInput({ dispatch });
@@ -119,6 +134,28 @@ export function useThreads({
       // Ignore refresh errors to avoid breaking the UI.
     }
   }, [onMessageActivity]);
+
+  const renameThread = useCallback(
+    (workspaceId: string, threadId: string, newName: string) => {
+      saveCustomName(workspaceId, threadId, newName);
+      const key = makeCustomNameKey(workspaceId, threadId);
+      customNamesRef.current[key] = newName;
+      dispatch({ type: "setThreadName", workspaceId, threadId, name: newName });
+      void Promise.resolve(
+        setThreadNameService(workspaceId, threadId, newName),
+      ).catch((error) => {
+        onDebug?.({
+          id: `${Date.now()}-client-thread-rename-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "thread/name/set error",
+          payload: error instanceof Error ? error.message : String(error),
+        });
+      });
+    },
+    [customNamesRef, dispatch, onDebug],
+  );
+
   const { applyCollabThreadLinks, applyCollabThreadLinksFromThread, updateThreadParent } =
     useThreadLinking({
       dispatch,
@@ -148,20 +185,83 @@ export function useThreads({
     [state.hiddenThreadIdsByWorkspace],
   );
 
-  const handleReviewExited = useCallback(
-    (workspaceId: string, threadId: string) => {
-      const parentId = state.threadParentById[threadId];
-      if (!parentId || parentId === threadId) {
+  const registerDetachedReviewChild = useCallback(
+    (workspaceId: string, parentId: string, childId: string) => {
+      if (!workspaceId || !parentId || !childId || parentId === childId) {
         return;
       }
-      const parentStatus = state.threadStatusById[parentId];
-      if (!parentStatus?.isReviewing) {
-        return;
+      detachedReviewParentByChildRef.current[childId] = parentId;
+      const existingWorkspaceLinks =
+        detachedReviewLinksByWorkspaceRef.current[workspaceId] ?? {};
+      if (existingWorkspaceLinks[childId] !== parentId) {
+        const nextLinksByWorkspace = {
+          ...detachedReviewLinksByWorkspaceRef.current,
+          [workspaceId]: {
+            ...existingWorkspaceLinks,
+            [childId]: parentId,
+          },
+        };
+        detachedReviewLinksByWorkspaceRef.current = nextLinksByWorkspace;
+        saveDetachedReviewLinks(nextLinksByWorkspace);
       }
 
-      markReviewing(parentId, false);
-      markProcessing(parentId, false);
-      setActiveTurnId(parentId, null);
+      const timestamp = Date.now();
+      recordThreadActivity(workspaceId, parentId, timestamp);
+      dispatch({
+        type: "setThreadTimestamp",
+        workspaceId,
+        threadId: parentId,
+        timestamp,
+      });
+
+      const noticeKey = `${parentId}->${childId}`;
+      if (!detachedReviewStartedNoticeRef.current.has(noticeKey)) {
+        detachedReviewStartedNoticeRef.current.add(noticeKey);
+        dispatch({
+          type: "addAssistantMessage",
+          threadId: parentId,
+          text: `Detached review started. [Open review thread](/thread/${childId})`,
+        });
+      }
+
+      if (parentId !== activeThreadId) {
+        dispatch({ type: "markUnread", threadId: parentId, hasUnread: true });
+      }
+      safeMessageActivity();
+    },
+    [activeThreadId, dispatch, recordThreadActivity, safeMessageActivity],
+  );
+
+  useEffect(() => {
+    const linksByWorkspace = detachedReviewLinksByWorkspaceRef.current;
+    Object.entries(state.threadsByWorkspace).forEach(([workspaceId, threads]) => {
+      const workspaceLinks = linksByWorkspace[workspaceId];
+      if (!workspaceLinks) {
+        return;
+      }
+      const threadIds = new Set(threads.map((thread) => thread.id));
+      Object.entries(workspaceLinks).forEach(([childId, parentId]) => {
+        if (!childId || !parentId || childId === parentId) {
+          return;
+        }
+        if (!threadIds.has(childId) || !threadIds.has(parentId)) {
+          return;
+        }
+        if (state.threadParentById[childId]) {
+          return;
+        }
+        updateThreadParent(parentId, [childId]);
+      });
+    });
+  }, [state.threadParentById, state.threadsByWorkspace, updateThreadParent]);
+
+  const handleReviewExited = useCallback(
+    (workspaceId: string, threadId: string) => {
+      const parentId = detachedReviewParentByChildRef.current[threadId];
+      if (!parentId) {
+        return;
+      }
+      delete detachedReviewParentByChildRef.current[threadId];
 
       const timestamp = Date.now();
       recordThreadActivity(workspaceId, parentId, timestamp);
@@ -172,9 +272,9 @@ export function useThreads({
         timestamp,
       });
       const noticeKey = `${parentId}->${threadId}`;
-      const alreadyNotified = detachedReviewNoticeRef.current.has(noticeKey);
+      const alreadyNotified = detachedReviewCompletedNoticeRef.current.has(noticeKey);
       if (!alreadyNotified) {
-        detachedReviewNoticeRef.current.add(noticeKey);
+        detachedReviewCompletedNoticeRef.current.add(noticeKey);
         dispatch({
           type: "addAssistantMessage",
           threadId: parentId,
@@ -189,15 +289,19 @@ export function useThreads({
     [
       activeThreadId,
       dispatch,
-      markProcessing,
-      markReviewing,
       recordThreadActivity,
       safeMessageActivity,
-      setActiveTurnId,
-      state.threadParentById,
-      state.threadStatusById,
     ],
   );
+
+  const { onUserMessageCreated } = useThreadTitleAutogeneration({
+    enabled: threadTitleAutogenerationEnabled,
+    itemsByThreadRef,
+    threadsByWorkspaceRef,
+    getCustomName,
+    renameThread,
+    onDebug,
+  });
 
   const threadHandlers = useThreadEventHandlers({
     activeThreadId,
@@ -210,6 +314,7 @@ export function useThreads({
     setActiveTurnId,
     safeMessageActivity,
     recordThreadActivity,
+    onUserMessageCreated,
     pushThreadErrorMessage,
     onDebug,
     onWorkspaceConnected: handleWorkspaceConnected,
@@ -375,6 +480,7 @@ export function useThreads({
     refreshThread,
     forkThreadForWorkspace,
     updateThreadParent,
+    registerDetachedReviewChild,
   });
 
   const setActiveThreadId = useCallback(
@@ -408,27 +514,6 @@ export function useThreads({
       void archiveThread(workspaceId, threadId);
     },
     [archiveThread, unpinThread],
-  );
-
-  const renameThread = useCallback(
-    (workspaceId: string, threadId: string, newName: string) => {
-      saveCustomName(workspaceId, threadId, newName);
-      const key = makeCustomNameKey(workspaceId, threadId);
-      customNamesRef.current[key] = newName;
-      dispatch({ type: "setThreadName", workspaceId, threadId, name: newName });
-      void Promise.resolve(
-        setThreadNameService(workspaceId, threadId, newName),
-      ).catch((error) => {
-        onDebug?.({
-          id: `${Date.now()}-client-thread-rename-error`,
-          timestamp: Date.now(),
-          source: "error",
-          label: "thread/name/set error",
-          payload: error instanceof Error ? error.message : String(error),
-        });
-      });
-    },
-    [customNamesRef, dispatch, onDebug],
   );
 
   return {

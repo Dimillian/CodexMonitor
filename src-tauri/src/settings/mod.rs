@@ -4,7 +4,7 @@ use crate::shared::settings_core::{
     get_app_settings_core, get_codex_config_path_core, update_app_settings_core,
 };
 use crate::state::AppState;
-use crate::types::AppSettings;
+use crate::types::{AppSettings, BackendMode, RemoteBackendProvider};
 use crate::window;
 
 #[tauri::command]
@@ -29,6 +29,7 @@ pub(crate) async fn update_app_settings(
     if should_reset_remote_backend(&previous, &updated) {
         *state.remote_backend.lock().await = None;
     }
+    ensure_remote_runtime_for_settings(&updated, state).await;
     let _ = window::apply_window_appearance(&window, updated.theme.as_str());
     Ok(updated)
 }
@@ -54,6 +55,26 @@ fn should_reset_remote_backend(previous: &AppSettings, updated: &AppSettings) ->
         || previous.remote_backend_host != updated.remote_backend_host
         || previous.remote_backend_token != updated.remote_backend_token
         || previous.orbit_ws_url != updated.orbit_ws_url
+}
+
+async fn ensure_remote_runtime_for_settings(settings: &AppSettings, state: State<'_, AppState>) {
+    if cfg!(any(target_os = "android", target_os = "ios")) {
+        return;
+    }
+    if !matches!(settings.backend_mode, BackendMode::Remote) {
+        return;
+    }
+
+    match settings.remote_backend_provider {
+        RemoteBackendProvider::Tcp => {
+            let _ = crate::tailscale::tailscale_daemon_start(state).await;
+        }
+        RemoteBackendProvider::Orbit => {
+            if settings.orbit_auto_start_runner {
+                let _ = crate::orbit::orbit_runner_start(state).await;
+            }
+        }
+    }
 }
 
 #[cfg(test)]

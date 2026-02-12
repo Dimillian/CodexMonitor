@@ -21,6 +21,7 @@
   overflow-x: hidden;
   padding-top: calc(32px + env(safe-area-inset-top));
   padding-bottom: 16px;
+  background: var(--surface-messages);
 }
 
 .app.layout-phone .compact-topbar {
@@ -29,6 +30,10 @@
 
 .app.layout-phone .home {
   padding-top: calc(44px + env(safe-area-inset-top));
+}
+
+.app.layout-phone .debug-panel.full .debug-header {
+  padding-top: calc(10px + env(safe-area-inset-top));
 }
 
 .app.layout-phone .messages-full {
@@ -87,9 +92,11 @@ html[data-mobile-composer-focus="true"] .app.layout-phone {
   overflow: hidden;
 }
 
-.compact-git-list > .ds-panel {
+.app.layout-phone .compact-git-list > .ds-panel {
   flex: 1;
   min-height: 0;
+  border-radius: 0;
+  border: none;
 }
 
 .compact-git-viewer {
@@ -98,8 +105,10 @@ html[data-mobile-composer-focus="true"] .app.layout-phone {
   overflow: hidden;
 }
 
-.compact-git-viewer .diff-viewer {
+.app.layout-phone .compact-git-viewer .diff-viewer {
   height: 100%;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 
 .compact-git-back {
@@ -109,6 +118,10 @@ html[data-mobile-composer-focus="true"] .app.layout-phone {
   padding: 8px 12px 6px;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-topbar);
+}
+
+.app.layout-phone .compact-git-back {
+  border-bottom: none;
 }
 
 .app.layout-phone .compact-panel > .compact-git-back:first-child {

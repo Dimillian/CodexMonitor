@@ -1,5 +1,5 @@
-import type { AppSettings } from "../../../../types";
-import { fileManagerName, openInFileManagerLabel } from "../../../../utils/platformPaths";
+import type { AppSettings } from "@/types";
+import { fileManagerName, openInFileManagerLabel } from "@utils/platformPaths";
 
 type SettingsFeaturesSectionProps = {
   appSettings: AppSettings;

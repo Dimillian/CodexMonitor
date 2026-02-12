@@ -29,11 +29,6 @@ pub(crate) async fn git_remote_branch_exists(
     git_core::git_remote_branch_exists_live(repo_path, remote, branch).await
 }
 
-#[allow(dead_code)]
-pub(crate) async fn git_list_remotes(repo_path: &PathBuf) -> Result<Vec<String>, String> {
-    git_core::git_list_remotes(repo_path).await
-}
-
 pub(crate) async fn git_find_remote_for_branch(
     repo_path: &PathBuf,
     branch: &str,

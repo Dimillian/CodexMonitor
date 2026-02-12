@@ -154,6 +154,11 @@ export function buildGitNodes(options: LayoutNodesOptions): GitLayoutNodes {
       pullRequestComments={options.selectedPullRequestComments}
       pullRequestCommentsLoading={options.selectedPullRequestCommentsLoading}
       pullRequestCommentsError={options.selectedPullRequestCommentsError}
+      pullRequestReviewActions={options.pullRequestReviewActions}
+      onRunPullRequestReview={options.onRunPullRequestReview}
+      pullRequestReviewLaunching={options.pullRequestReviewLaunching}
+      pullRequestReviewThreadId={options.pullRequestReviewThreadId}
+      onCheckoutPullRequest={options.onCheckoutPullRequest}
       canRevert={options.diffSource === "local"}
       onRevertFile={options.onRevertGitFile}
       onActivePathChange={options.onDiffActivePathChange}

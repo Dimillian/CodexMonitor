@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { Dispatch } from "react";
 import type { ThreadAction } from "./useThreadsReducer";
-import { asString, normalizeStringList } from "../utils/threadNormalize";
+import { asString, normalizeStringList } from "@threads/utils/threadNormalize";
 
 type UseThreadLinkingOptions = {
   dispatch: Dispatch<ThreadAction>;

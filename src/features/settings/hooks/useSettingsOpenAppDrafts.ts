@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import type { AppSettings, OpenAppTarget } from "../../../types";
-import { DEFAULT_OPEN_APP_ID, OPEN_APP_STORAGE_KEY } from "../../app/constants";
-import type { OpenAppDraft } from "../components/settingsTypes";
+import type { AppSettings, OpenAppTarget } from "@/types";
+import { DEFAULT_OPEN_APP_ID, OPEN_APP_STORAGE_KEY } from "@app/constants";
+import type { OpenAppDraft } from "@settings/components/settingsTypes";
 import {
   buildOpenAppDrafts,
   createOpenAppId,
   isOpenAppDraftComplete,
   isOpenAppTargetComplete,
   normalizeOpenAppTargets,
-} from "../components/settingsViewHelpers";
+} from "@settings/components/settingsViewHelpers";
 
 type UseSettingsOpenAppDraftsParams = {
   appSettings: AppSettings;

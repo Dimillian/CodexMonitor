@@ -1,7 +1,7 @@
 {
   "name": "codex-monitor",
   "private": true,
-  "version": "0.7.47",
+  "version": "0.7.51",
   "type": "module",
   "scripts": {
     "sync:material-icons": "node scripts/sync-material-icons.mjs",

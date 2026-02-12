@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import type { QueuedMessage, WorkspaceInfo } from "../../../types";
+import type { AppMention, QueuedMessage, WorkspaceInfo } from "../../../types";
 import { useComposerImages } from "../../composer/hooks/useComposerImages";
 import { useQueuedSend } from "../../threads/hooks/useQueuedSend";
 
@@ -37,7 +37,11 @@ export function useComposerController({
     workspaceId: string,
     options?: { activate?: boolean },
   ) => Promise<string | null>;
-  sendUserMessage: (text: string, images?: string[]) => Promise<void>;
+  sendUserMessage: (
+    text: string,
+    images?: string[],
+    appMentions?: AppMention[],
+  ) => Promise<void>;
   sendUserMessageToThread: (
     workspace: WorkspaceInfo,
     threadId: string,
@@ -117,11 +121,11 @@ export function useComposerController({
   );
 
   const handleSendPrompt = useCallback(
-    (text: string) => {
+    (text: string, appMentions?: AppMention[]) => {
       if (!text.trim()) {
         return;
       }
-      void handleSend(text, []);
+      void handleSend(text, [], appMentions);
     },
     [handleSend],
   );

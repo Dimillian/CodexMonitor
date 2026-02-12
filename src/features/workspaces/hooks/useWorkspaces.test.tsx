@@ -1,15 +1,23 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { message } from "@tauri-apps/plugin-dialog";
 import type { WorkspaceInfo } from "../../../types";
 import {
   addWorkspace,
+  isWorkspacePathDir,
   listWorkspaces,
+  pickWorkspacePaths,
   renameWorktree,
   renameWorktreeUpstream,
   updateWorkspaceSettings,
 } from "../../../services/tauri";
 import { useWorkspaces } from "./useWorkspaces";
+
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  ask: vi.fn(),
+  message: vi.fn(),
+}));
 
 vi.mock("../../../services/tauri", () => ({
   listWorkspaces: vi.fn(),
@@ -20,12 +28,16 @@ vi.mock("../../../services/tauri", () => ({
   addWorktree: vi.fn(),
   connectWorkspace: vi.fn(),
   isWorkspacePathDir: vi.fn(),
-  pickWorkspacePath: vi.fn(),
+  pickWorkspacePaths: vi.fn(),
   removeWorkspace: vi.fn(),
   removeWorktree: vi.fn(),
   updateWorkspaceCodexBin: vi.fn(),
   updateWorkspaceSettings: vi.fn(),
 }));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 const worktree: WorkspaceInfo = {
   id: "wt-1",
@@ -246,5 +258,71 @@ describe("useWorkspaces.addWorkspaceFromPath", () => {
     expect(addWorkspaceMock).toHaveBeenCalledWith("/tmp/repo", null);
     expect(result.current.workspaces).toHaveLength(1);
     expect(result.current.activeWorkspaceId).toBe("workspace-1");
+  });
+});
+
+describe("useWorkspaces.addWorkspace (bulk)", () => {
+  it("adds multiple workspaces and activates the first", async () => {
+    const listWorkspacesMock = vi.mocked(listWorkspaces);
+    const pickWorkspacePathsMock = vi.mocked(pickWorkspacePaths);
+    const isWorkspacePathDirMock = vi.mocked(isWorkspacePathDir);
+    const addWorkspaceMock = vi.mocked(addWorkspace);
+    const messageMock = vi.mocked(message);
+
+    listWorkspacesMock.mockResolvedValue([]);
+    pickWorkspacePathsMock.mockResolvedValue(["/tmp/ws-1", "/tmp/ws-2"]);
+    isWorkspacePathDirMock.mockResolvedValue(true);
+    addWorkspaceMock
+      .mockResolvedValueOnce({ ...workspaceOne, id: "added-1", path: "/tmp/ws-1" })
+      .mockResolvedValueOnce({ ...workspaceTwo, id: "added-2", path: "/tmp/ws-2" });
+
+    const { result } = renderHook(() => useWorkspaces());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await result.current.addWorkspace();
+    });
+
+    expect(addWorkspaceMock).toHaveBeenCalledTimes(2);
+    expect(addWorkspaceMock).toHaveBeenCalledWith("/tmp/ws-1", null);
+    expect(addWorkspaceMock).toHaveBeenCalledWith("/tmp/ws-2", null);
+    expect(result.current.workspaces).toHaveLength(2);
+    expect(result.current.activeWorkspaceId).toBe("added-1");
+    expect(messageMock).not.toHaveBeenCalled();
+  });
+
+  it("shows a summary when some selections are skipped or fail", async () => {
+    const listWorkspacesMock = vi.mocked(listWorkspaces);
+    const pickWorkspacePathsMock = vi.mocked(pickWorkspacePaths);
+    const isWorkspacePathDirMock = vi.mocked(isWorkspacePathDir);
+    const addWorkspaceMock = vi.mocked(addWorkspace);
+    const messageMock = vi.mocked(message);
+
+    listWorkspacesMock.mockResolvedValue([workspaceOne]);
+    pickWorkspacePathsMock.mockResolvedValue([workspaceOne.path, workspaceTwo.path]);
+    isWorkspacePathDirMock.mockResolvedValue(true);
+    addWorkspaceMock.mockResolvedValue(workspaceTwo);
+
+    const { result } = renderHook(() => useWorkspaces());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await result.current.addWorkspace();
+    });
+
+    expect(addWorkspaceMock).toHaveBeenCalledTimes(1);
+    expect(addWorkspaceMock).toHaveBeenCalledWith(workspaceTwo.path, null);
+    expect(messageMock).toHaveBeenCalledTimes(1);
+    const [summary, options] = messageMock.mock.calls[0];
+    expect(String(summary)).toContain("Skipped 1 already added workspace");
+    expect(options).toEqual(
+      expect.objectContaining({ title: "Some workspaces were skipped", kind: "warning" }),
+    );
   });
 });

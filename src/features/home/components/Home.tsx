@@ -256,7 +256,7 @@ export function Home({
           <span className="home-icon" aria-hidden>
             +
           </span>
-          Add Workspace
+          Add Workspaces
         </button>
       </div>
       <div className="home-usage">

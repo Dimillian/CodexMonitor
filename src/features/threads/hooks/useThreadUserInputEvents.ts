@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import type { Dispatch } from "react";
-import type { RequestUserInputRequest } from "../../../types";
+import type { RequestUserInputRequest } from "@/types";
 import type { ThreadAction } from "./useThreadsReducer";
 
 type UseThreadUserInputEventsOptions = {

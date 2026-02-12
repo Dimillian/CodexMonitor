@@ -10,13 +10,27 @@ import {
 } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { AppSettings, WorkspaceInfo } from "../../../types";
+import type { AppSettings, WorkspaceInfo } from "@/types";
+import { getModelList } from "@services/tauri";
+import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
 import { SettingsView } from "./SettingsView";
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   ask: vi.fn(),
   open: vi.fn(),
 }));
+
+vi.mock("@services/tauri", async () => {
+  const actual = await vi.importActual<typeof import("@services/tauri")>(
+    "@services/tauri",
+  );
+  return {
+    ...actual,
+    getModelList: vi.fn(),
+  };
+});
+
+const getModelListMock = vi.mocked(getModelList);
 
 const baseSettings: AppSettings = {
   codexBin: null,
@@ -29,6 +43,7 @@ const baseSettings: AppSettings = {
   orbitAuthUrl: null,
   orbitRunnerName: null,
   orbitAutoStartRunner: false,
+  keepDaemonRunningAfterAppClose: false,
   orbitUseAccess: false,
   orbitAccessClientId: null,
   orbitAccessClientSecretRef: null,
@@ -58,6 +73,7 @@ const baseSettings: AppSettings = {
   theme: "system",
   usageShowRemaining: false,
   showMessageFilePath: true,
+  threadTitleAutogenerationEnabled: false,
   uiFontFamily:
     'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   codeFontFamily:
@@ -65,8 +81,10 @@ const baseSettings: AppSettings = {
   codeFontSize: 11,
   notificationSoundsEnabled: true,
   systemNotificationsEnabled: true,
+  splitChatDiffView: false,
   preloadGitDiffs: true,
   gitDiffIgnoreWhitespaceChanges: false,
+  commitMessagePrompt: DEFAULT_COMMIT_MESSAGE_PROMPT,
   experimentalCollabEnabled: false,
   collaborationModesEnabled: true,
   steerEnabled: true,
@@ -366,6 +384,29 @@ describe("SettingsView Display", () => {
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({ showMessageFilePath: false }),
+      );
+    });
+  });
+
+  it("toggles split chat and diff center panes", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    renderDisplaySection({ onUpdateAppSettings });
+
+    const row = screen
+      .getByText("Split chat and diff center panes")
+      .closest(".settings-toggle-row") as HTMLElement | null;
+    if (!row) {
+      throw new Error("Expected split center panes row");
+    }
+    const toggle = row.querySelector("button.settings-toggle") as HTMLButtonElement | null;
+    if (!toggle) {
+      throw new Error("Expected split center panes toggle");
+    }
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ splitChatDiffView: true }),
       );
     });
   });
@@ -1222,6 +1263,216 @@ describe("SettingsView Codex overrides", () => {
       expect(onUpdateAppSettings).toHaveBeenCalledTimes(2);
       expect(onUpdateAppSettings).toHaveBeenLastCalledWith(
         expect.objectContaining({ remoteBackendToken: null }),
+      );
+    });
+  });
+});
+
+describe("SettingsView Codex defaults", () => {
+  const createModelListResponse = (models: Array<Record<string, unknown>>) => ({
+    result: { data: models },
+  });
+
+  it("uses the latest model and medium effort by default (no Default option)", async () => {
+    cleanup();
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    getModelListMock.mockResolvedValue(
+      createModelListResponse([
+        {
+          id: "gpt-4.1",
+          model: "gpt-4.1",
+          displayName: "GPT-4.1",
+          description: "",
+          supportedReasoningEfforts: [
+            { reasoningEffort: "low", description: "" },
+            { reasoningEffort: "medium", description: "" },
+            { reasoningEffort: "high", description: "" },
+          ],
+          defaultReasoningEffort: "medium",
+          isDefault: false,
+        },
+        {
+          id: "gpt-5.1",
+          model: "gpt-5.1",
+          displayName: "GPT-5.1",
+          description: "",
+          supportedReasoningEfforts: [
+            { reasoningEffort: "low", description: "" },
+            { reasoningEffort: "medium", description: "" },
+            { reasoningEffort: "high", description: "" },
+          ],
+          defaultReasoningEffort: "medium",
+          isDefault: false,
+        },
+      ]),
+    );
+
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Ungrouped",
+            workspaces: [workspace({ id: "w1", name: "Workspace", connected: true })],
+          },
+        ]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={baseSettings}
+        openAppIconById={{}}
+        onUpdateAppSettings={onUpdateAppSettings}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
+        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="codex"
+      />,
+    );
+
+    const modelSelect = screen.getByLabelText("Model") as HTMLSelectElement;
+    const effortSelect = screen.getByLabelText(
+      "Reasoning effort",
+    ) as HTMLSelectElement;
+
+    await waitFor(() => {
+      expect(getModelListMock).toHaveBeenCalledWith("w1");
+      expect(modelSelect.value).toBe("gpt-5.1");
+    });
+
+    expect(within(modelSelect).queryByRole("option", { name: /default/i })).toBeNull();
+    expect(within(effortSelect).queryByRole("option", { name: /default/i })).toBeNull();
+    expect(effortSelect.value).toBe("medium");
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lastComposerModelId: "gpt-5.1",
+          lastComposerReasoningEffort: "medium",
+        }),
+      );
+    });
+  });
+
+  it("updates model and effort when the user changes the selects", async () => {
+    cleanup();
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    getModelListMock.mockResolvedValue(
+      createModelListResponse([
+        {
+          id: "gpt-4.1",
+          model: "gpt-4.1",
+          displayName: "GPT-4.1",
+          description: "",
+          supportedReasoningEfforts: [
+            { reasoningEffort: "low", description: "" },
+            { reasoningEffort: "medium", description: "" },
+            { reasoningEffort: "high", description: "" },
+          ],
+          defaultReasoningEffort: "medium",
+          isDefault: false,
+        },
+        {
+          id: "gpt-5.1",
+          model: "gpt-5.1",
+          displayName: "GPT-5.1",
+          description: "",
+          supportedReasoningEfforts: [
+            { reasoningEffort: "low", description: "" },
+            { reasoningEffort: "medium", description: "" },
+            { reasoningEffort: "high", description: "" },
+          ],
+          defaultReasoningEffort: "medium",
+          isDefault: false,
+        },
+      ]),
+    );
+
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Ungrouped",
+            workspaces: [workspace({ id: "w1", name: "Workspace", connected: true })],
+          },
+        ]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={baseSettings}
+        openAppIconById={{}}
+        onUpdateAppSettings={onUpdateAppSettings}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
+        onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="codex"
+      />,
+    );
+
+    const modelSelect = screen.getByLabelText("Model") as HTMLSelectElement;
+    const effortSelect = screen.getByLabelText(
+      "Reasoning effort",
+    ) as HTMLSelectElement;
+
+    await waitFor(() => {
+      expect(modelSelect.disabled).toBe(false);
+      expect(modelSelect.value).toBe("gpt-5.1");
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ lastComposerModelId: "gpt-5.1" }),
+      );
+    });
+
+    onUpdateAppSettings.mockClear();
+    fireEvent.change(modelSelect, { target: { value: "gpt-4.1" } });
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ lastComposerModelId: "gpt-4.1" }),
+      );
+    });
+
+    onUpdateAppSettings.mockClear();
+    fireEvent.change(effortSelect, { target: { value: "high" } });
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ lastComposerReasoningEffort: "high" }),
       );
     });
   });

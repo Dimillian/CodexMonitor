@@ -6,14 +6,14 @@ import type {
   ThreadListSortKey,
   ThreadSummary,
   WorkspaceInfo,
-} from "../../../types";
+} from "@/types";
 import {
   archiveThread as archiveThreadService,
   forkThread as forkThreadService,
   listThreads as listThreadsService,
   resumeThread as resumeThreadService,
   startThread as startThreadService,
-} from "../../../services/tauri";
+} from "@services/tauri";
 import {
   buildItemsFromThread,
   getThreadCreatedTimestamp,
@@ -21,12 +21,16 @@ import {
   isReviewingFromThread,
   mergeThreadItems,
   previewThreadName,
-} from "../../../utils/threadItems";
+} from "@utils/threadItems";
 import {
   asString,
   normalizeRootPath,
-} from "../utils/threadNormalize";
-import { saveThreadActivity } from "../utils/threadStorage";
+} from "@threads/utils/threadNormalize";
+import {
+  getParentThreadIdFromSource,
+  getResumedActiveTurnId,
+} from "@threads/utils/threadRpc";
+import { saveThreadActivity } from "@threads/utils/threadStorage";
 import type { ThreadAction, ThreadState } from "./useThreadsReducer";
 
 const THREAD_LIST_TARGET_COUNT = 20;
@@ -34,68 +38,6 @@ const THREAD_LIST_PAGE_SIZE = 100;
 const THREAD_LIST_MAX_PAGES_WITH_ACTIVITY = 8;
 const THREAD_LIST_MAX_PAGES_WITHOUT_ACTIVITY = 3;
 const THREAD_LIST_MAX_PAGES_OLDER = 6;
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-  return value as Record<string, unknown>;
-}
-
-function getParentThreadIdFromSource(source: unknown): string | null {
-  const sourceRecord = asRecord(source);
-  if (!sourceRecord) {
-    return null;
-  }
-  const subAgent = asRecord(sourceRecord.subAgent ?? sourceRecord.sub_agent);
-  if (!subAgent) {
-    return null;
-  }
-  const threadSpawn = asRecord(subAgent.thread_spawn ?? subAgent.threadSpawn);
-  if (!threadSpawn) {
-    return null;
-  }
-  const parentId = asString(
-    threadSpawn.parent_thread_id ?? threadSpawn.parentThreadId,
-  );
-  return parentId || null;
-}
-
-function normalizeTurnStatus(value: unknown): string {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_-]/g, "");
-}
-
-function getResumedActiveTurnId(thread: Record<string, unknown>): string | null {
-  const turns = Array.isArray(thread.turns)
-    ? (thread.turns as Array<Record<string, unknown>>)
-    : [];
-  for (let index = turns.length - 1; index >= 0; index -= 1) {
-    const turn = turns[index];
-    if (!turn || typeof turn !== "object") {
-      continue;
-    }
-    const status = normalizeTurnStatus(
-      turn.status ?? turn.turnStatus ?? turn.turn_status,
-    );
-    const isInProgress =
-      status === "inprogress" ||
-      status === "running" ||
-      status === "processing" ||
-      status === "pending" ||
-      status === "started";
-    if (!isInProgress) {
-      continue;
-    }
-    const turnId = asString(turn.id ?? turn.turnId ?? turn.turn_id);
-    if (turnId) {
-      return turnId;
-    }
-  }
-  return null;
-}
 
 type UseThreadActionsOptions = {
   dispatch: Dispatch<ThreadAction>;
@@ -354,10 +296,15 @@ export function useThreadActions({
   );
 
   const forkThreadForWorkspace = useCallback(
-    async (workspaceId: string, threadId: string) => {
+    async (
+      workspaceId: string,
+      threadId: string,
+      options?: { activate?: boolean },
+    ) => {
       if (!threadId) {
         return null;
       }
+      const shouldActivate = options?.activate !== false;
       onDebug?.({
         id: `${Date.now()}-client-thread-fork`,
         timestamp: Date.now(),
@@ -379,11 +326,13 @@ export function useThreadActions({
           return null;
         }
         dispatch({ type: "ensureThread", workspaceId, threadId: forkedThreadId });
-        dispatch({
-          type: "setActiveThreadId",
-          workspaceId,
-          threadId: forkedThreadId,
-        });
+        if (shouldActivate) {
+          dispatch({
+            type: "setActiveThreadId",
+            workspaceId,
+            threadId: forkedThreadId,
+          });
+        }
         loadedThreadsRef.current[forkedThreadId] = false;
         await resumeThreadForWorkspace(workspaceId, forkedThreadId, true, true);
         return forkedThreadId;
@@ -398,7 +347,13 @@ export function useThreadActions({
         return null;
       }
     },
-    [dispatch, extractThreadId, loadedThreadsRef, onDebug, resumeThreadForWorkspace],
+    [
+      dispatch,
+      extractThreadId,
+      loadedThreadsRef,
+      onDebug,
+      resumeThreadForWorkspace,
+    ],
   );
 
   const refreshThread = useCallback(

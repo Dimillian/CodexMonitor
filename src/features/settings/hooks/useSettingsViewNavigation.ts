@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import type { CodexSection } from "../components/settingsTypes";
-import { SETTINGS_MOBILE_BREAKPOINT_PX } from "../components/settingsViewConstants";
-import { isNarrowSettingsViewport } from "../components/settingsViewHelpers";
+import type { CodexSection } from "@settings/components/settingsTypes";
+import { SETTINGS_MOBILE_BREAKPOINT_PX } from "@settings/components/settingsViewConstants";
+import { isNarrowSettingsViewport } from "@settings/components/settingsViewHelpers";
 
 type UseSettingsViewNavigationParams = {
   initialSection?: CodexSection;

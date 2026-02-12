@@ -1,20 +1,20 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { TurnPlan } from "../../../types";
-import { interruptTurn } from "../../../services/tauri";
+import type { TurnPlan } from "@/types";
+import { interruptTurn } from "@services/tauri";
 import {
   normalizePlanUpdate,
   normalizeRateLimits,
   normalizeTokenUsage,
-} from "../utils/threadNormalize";
+} from "@threads/utils/threadNormalize";
 import { useThreadTurnEvents } from "./useThreadTurnEvents";
 
-vi.mock("../../../services/tauri", () => ({
+vi.mock("@services/tauri", () => ({
   interruptTurn: vi.fn(),
 }));
 
-vi.mock("../utils/threadNormalize", () => ({
+vi.mock("@threads/utils/threadNormalize", () => ({
   asString: (value: unknown) =>
     typeof value === "string" ? value : value ? String(value) : "",
   normalizePlanUpdate: vi.fn(),

@@ -1,6 +1,10 @@
+#[cfg(desktop)]
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
+#[cfg(desktop)]
+use tauri::RunEvent;
 #[cfg(target_os = "macos")]
-use tauri::{RunEvent, WindowEvent};
+use tauri::WindowEvent;
 
 mod backend;
 mod codex;
@@ -37,6 +41,29 @@ mod utils;
 mod window;
 mod workspaces;
 
+#[cfg(desktop)]
+static EXIT_CLEANUP_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+
+#[cfg(desktop)]
+fn keep_daemon_running_after_close(app_handle: &tauri::AppHandle) -> bool {
+    let state = app_handle.state::<state::AppState>();
+    tauri::async_runtime::block_on(async {
+        state
+            .app_settings
+            .lock()
+            .await
+            .keep_daemon_running_after_app_close
+    })
+}
+
+#[cfg(desktop)]
+async fn stop_managed_daemons_for_exit(app_handle: tauri::AppHandle) {
+    let state = app_handle.state::<state::AppState>();
+    let _ = orbit::orbit_runner_stop(state).await;
+    let state = app_handle.state::<state::AppState>();
+    let _ = tailscale::tailscale_daemon_stop(state).await;
+}
+
 #[tauri::command]
 fn is_mobile_runtime() -> bool {
     cfg!(any(target_os = "ios", target_os = "android"))
@@ -49,6 +76,17 @@ pub fn run() {
         // Avoid WebKit compositing issues on NVIDIA Linux setups (GBM buffer errors).
         if std::env::var_os("__NV_PRIME_RENDER_OFFLOAD").is_none() {
             std::env::set_var("__NV_PRIME_RENDER_OFFLOAD", "1");
+        }
+        let is_wayland = std::env::var("XDG_SESSION_TYPE")
+            .map(|session| session.eq_ignore_ascii_case("wayland"))
+            .unwrap_or(false)
+            || std::env::var_os("WAYLAND_DISPLAY").is_some();
+        let has_nvidia = std::path::Path::new("/proc/driver/nvidia/version").exists();
+        if is_wayland
+            && has_nvidia
+            && std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none()
+        {
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         }
         // Work around sporadic blank WebKitGTK renders on X11 by disabling compositing mode.
         if std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none() {
@@ -80,6 +118,75 @@ pub fn run() {
         .setup(|app| {
             let state = state::AppState::load(&app.handle());
             app.manage(state);
+            #[cfg(desktop)]
+            {
+                let app_handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    let state = app_handle.state::<state::AppState>();
+                    let settings = state.app_settings.lock().await.clone();
+                    if matches!(
+                        settings.remote_backend_provider,
+                        crate::types::RemoteBackendProvider::Tcp
+                    ) {
+                        if matches!(settings.backend_mode, crate::types::BackendMode::Remote) {
+                            // Remote mode: ensure daemon is up and version-current.
+                            let state = app_handle.state::<state::AppState>();
+                            let _ = tailscale::tailscale_daemon_start(state).await;
+                        } else {
+                            // Local mode: only enforce version if daemon is already running.
+                            let state = app_handle.state::<state::AppState>();
+                            if let Ok(status) = tailscale::tailscale_daemon_status(state).await {
+                                if matches!(status.state, crate::types::TcpDaemonState::Running) {
+                                    let state = app_handle.state::<state::AppState>();
+                                    let _ = tailscale::tailscale_daemon_start(state).await;
+                                }
+                            }
+                        }
+                    }
+
+                    if matches!(settings.backend_mode, crate::types::BackendMode::Remote)
+                        && matches!(
+                            settings.remote_backend_provider,
+                            crate::types::RemoteBackendProvider::Orbit
+                        )
+                    {
+                        if settings.orbit_auto_start_runner {
+                            if settings.keep_daemon_running_after_app_close {
+                                // Avoid duplicate detached Orbit runners across relaunches.
+                                // orbit_runner_start can still be called manually from Settings.
+                                let state = app_handle.state::<state::AppState>();
+                                let _ = orbit::orbit_runner_status(state).await;
+                            } else {
+                                let state = app_handle.state::<state::AppState>();
+                                let _ = orbit::orbit_runner_start(state).await;
+                            }
+                        } else {
+                            let state = app_handle.state::<state::AppState>();
+                            if let Ok(status) = orbit::orbit_runner_status(state).await {
+                                if matches!(status.state, crate::types::OrbitRunnerState::Running) {
+                                    // Enforce version for a currently running managed runner.
+                                    let state = app_handle.state::<state::AppState>();
+                                    let _ = orbit::orbit_runner_start(state).await;
+                                }
+                            }
+                        }
+                    } else if matches!(
+                        settings.remote_backend_provider,
+                        crate::types::RemoteBackendProvider::Orbit
+                    ) {
+                        // Local mode with Orbit selected: only enforce version if runner is already running.
+                        let state = app_handle.state::<state::AppState>();
+                        if let Ok(status) = orbit::orbit_runner_status(state).await {
+                            if matches!(status.state, crate::types::OrbitRunnerState::Running)
+                                && !settings.keep_daemon_running_after_app_close
+                            {
+                                let state = app_handle.state::<state::AppState>();
+                                let _ = orbit::orbit_runner_start(state).await;
+                            }
+                        }
+                    }
+                });
+            }
             #[cfg(target_os = "ios")]
             {
                 if let Some(main_webview) = app.get_webview_window("main") {
@@ -134,7 +241,6 @@ pub fn run() {
             codex::start_review,
             codex::respond_to_server_request,
             codex::remember_approval_rule,
-            codex::get_commit_message_prompt,
             codex::generate_commit_message,
             codex::generate_run_metadata,
             codex::resume_thread,
@@ -166,6 +272,7 @@ pub fn run() {
             git::get_github_pull_requests,
             git::get_github_pull_request_diff,
             git::get_github_pull_request_comments,
+            git::checkout_github_pull_request,
             workspaces::list_workspace_files,
             workspaces::read_workspace_file,
             workspaces::open_workspace_in,
@@ -231,6 +338,22 @@ pub fn run() {
         .expect("error while running tauri application");
 
     app.run(|app_handle, event| {
+        #[cfg(desktop)]
+        if let RunEvent::ExitRequested { api, .. } = event {
+            if !EXIT_CLEANUP_IN_PROGRESS.load(Ordering::SeqCst)
+                && !keep_daemon_running_after_close(app_handle)
+            {
+                api.prevent_exit();
+                EXIT_CLEANUP_IN_PROGRESS.store(true, Ordering::SeqCst);
+                let app_handle = app_handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    stop_managed_daemons_for_exit(app_handle.clone()).await;
+                    app_handle.exit(0);
+                });
+            }
+            return;
+        }
+
         #[cfg(target_os = "macos")]
         if let RunEvent::Reopen { .. } = event {
             if let Some(window) = app_handle.get_webview_window("main") {

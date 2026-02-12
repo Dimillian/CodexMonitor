@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { WorkspaceInfo } from "../../../types";
 
 type WorkspaceRefreshOptions = {
@@ -15,25 +15,38 @@ export function useWorkspaceRefreshOnFocus({
   refreshWorkspaces,
   listThreadsForWorkspace,
 }: WorkspaceRefreshOptions) {
+  const optionsRef = useRef({ workspaces, refreshWorkspaces, listThreadsForWorkspace });
   useEffect(() => {
+    optionsRef.current = { workspaces, refreshWorkspaces, listThreadsForWorkspace };
+  });
+
+  useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
     const handleFocus = () => {
-      void (async () => {
-        let latestWorkspaces = workspaces;
-        try {
-          const entries = await refreshWorkspaces();
-          if (entries) {
-            latestWorkspaces = entries;
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      debounceTimer = setTimeout(() => {
+        const { workspaces: ws, refreshWorkspaces: refresh, listThreadsForWorkspace: listThreads } = optionsRef.current;
+        void (async () => {
+          let latestWorkspaces = ws;
+          try {
+            const entries = await refresh();
+            if (entries) {
+              latestWorkspaces = entries;
+            }
+          } catch {
+            // Silent: refresh errors show in debug panel.
           }
-        } catch {
-          // Silent: refresh errors show in debug panel.
-        }
-        const connected = latestWorkspaces.filter((entry) => entry.connected);
-        await Promise.allSettled(
-          connected.map((workspace) =>
-            listThreadsForWorkspace(workspace, { preserveState: true }),
-          ),
-        );
-      })();
+          const connected = latestWorkspaces.filter((entry) => entry.connected);
+          await Promise.allSettled(
+            connected.map((workspace) =>
+              listThreads(workspace, { preserveState: true }),
+            ),
+          );
+        })();
+      }, 500);
     };
 
     const handleVisibilityChange = () => {
@@ -47,6 +60,9 @@ export function useWorkspaceRefreshOnFocus({
     return () => {
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
     };
-  }, [listThreadsForWorkspace, refreshWorkspaces, workspaces]);
+  }, []);
 }

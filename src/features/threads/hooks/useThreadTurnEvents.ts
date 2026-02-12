@@ -1,14 +1,14 @@
 import { useCallback } from "react";
 import type { Dispatch, MutableRefObject } from "react";
-import type { TurnPlan } from "../../../types";
-import { interruptTurn as interruptTurnService } from "../../../services/tauri";
-import { getThreadTimestamp } from "../../../utils/threadItems";
+import type { TurnPlan } from "@/types";
+import { interruptTurn as interruptTurnService } from "@services/tauri";
+import { getThreadTimestamp } from "@utils/threadItems";
 import {
   asString,
   normalizePlanUpdate,
   normalizeRateLimits,
   normalizeTokenUsage,
-} from "../utils/threadNormalize";
+} from "@threads/utils/threadNormalize";
 import type { ThreadAction } from "./useThreadsReducer";
 
 type UseThreadTurnEventsOptions = {
@@ -171,7 +171,11 @@ export function useThreadTurnEvents({
   );
 
   const onThreadTokenUsageUpdated = useCallback(
-    (workspaceId: string, threadId: string, tokenUsage: Record<string, unknown>) => {
+    (
+      workspaceId: string,
+      threadId: string,
+      tokenUsage: Record<string, unknown> | null,
+    ) => {
       dispatch({ type: "ensureThread", workspaceId, threadId });
       dispatch({
         type: "setThreadTokenUsage",

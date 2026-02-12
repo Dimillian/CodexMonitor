@@ -1,12 +1,12 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { AppSettings } from "../../../../types";
+import type { AppSettings } from "@/types";
 import {
   CODE_FONT_SIZE_MAX,
   CODE_FONT_SIZE_MIN,
   CODE_FONT_SIZE_DEFAULT,
   DEFAULT_CODE_FONT_FAMILY,
   DEFAULT_UI_FONT_FAMILY,
-} from "../../../../utils/fonts";
+} from "@utils/fonts";
 
 type SettingsDisplaySectionProps = {
   appSettings: AppSettings;
@@ -124,6 +124,49 @@ export function SettingsDisplaySection({
             })
           }
           aria-pressed={appSettings.showMessageFilePath}
+        >
+          <span className="settings-toggle-knob" />
+        </button>
+      </div>
+      <div className="settings-toggle-row">
+        <div>
+          <div className="settings-toggle-title">Split chat and diff center panes</div>
+          <div className="settings-toggle-subtitle">
+            Show chat and diff side by side instead of swapping between them.
+          </div>
+        </div>
+        <button
+          type="button"
+          className={`settings-toggle ${appSettings.splitChatDiffView ? "on" : ""}`}
+          onClick={() =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              splitChatDiffView: !appSettings.splitChatDiffView,
+            })
+          }
+          aria-pressed={appSettings.splitChatDiffView}
+        >
+          <span className="settings-toggle-knob" />
+        </button>
+      </div>
+      <div className="settings-toggle-row">
+        <div>
+          <div className="settings-toggle-title">Auto-generate new thread titles</div>
+          <div className="settings-toggle-subtitle">
+            Generate a short title from your first message (uses extra tokens).
+          </div>
+        </div>
+        <button
+          type="button"
+          className={`settings-toggle ${appSettings.threadTitleAutogenerationEnabled ? "on" : ""}`}
+          onClick={() =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              threadTitleAutogenerationEnabled:
+                !appSettings.threadTitleAutogenerationEnabled,
+            })
+          }
+          aria-pressed={appSettings.threadTitleAutogenerationEnabled}
         >
           <span className="settings-toggle-knob" />
         </button>

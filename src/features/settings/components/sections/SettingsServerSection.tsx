@@ -4,7 +4,7 @@ import type {
   TailscaleDaemonCommandPreview,
   TailscaleStatus,
   TcpDaemonStatus,
-} from "../../../../types";
+} from "@/types";
 
 type SettingsServerSectionProps = {
   appSettings: AppSettings;
@@ -193,6 +193,30 @@ export function SettingsServerSection({
               : "Select which remote transport configuration to maintain for mobile access and optional desktop remote-mode testing."}
           </div>
         </div>
+
+        {!isMobileSimplified && (
+          <div className="settings-toggle-row">
+            <div>
+              <div className="settings-toggle-title">Keep daemon running after app closes</div>
+              <div className="settings-toggle-subtitle">
+                If disabled, CodexMonitor stops managed TCP and Orbit daemon processes before exit.
+              </div>
+            </div>
+            <button
+              type="button"
+              className={`settings-toggle ${appSettings.keepDaemonRunningAfterAppClose ? "on" : ""}`}
+              onClick={() =>
+                void onUpdateAppSettings({
+                  ...appSettings,
+                  keepDaemonRunningAfterAppClose: !appSettings.keepDaemonRunningAfterAppClose,
+                })
+              }
+              aria-pressed={appSettings.keepDaemonRunningAfterAppClose}
+            >
+              <span className="settings-toggle-knob" />
+            </button>
+          </div>
+        )}
 
         {appSettings.remoteBackendProvider === "tcp" && (
           <>

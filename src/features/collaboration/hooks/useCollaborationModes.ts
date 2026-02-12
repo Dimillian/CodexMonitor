@@ -9,12 +9,33 @@ import { getCollaborationModes } from "../../../services/tauri";
 type UseCollaborationModesOptions = {
   activeWorkspace: WorkspaceInfo | null;
   enabled: boolean;
+  preferredModeId?: string | null;
+  selectionKey?: string | null;
   onDebug?: (entry: DebugEntry) => void;
 };
+
+function pickWorkspaceDefaultModeId(modes: CollaborationModeOption[]): string | null {
+  return (
+    modes.find(
+      (mode) =>
+        mode.id.trim().toLowerCase() === "default" ||
+        mode.mode.trim().toLowerCase() === "default",
+    )?.id ??
+    modes.find(
+      (mode) =>
+        mode.id.trim().toLowerCase() === "code" ||
+        mode.mode.trim().toLowerCase() === "code",
+    )?.id ??
+    modes[0]?.id ??
+    null
+  );
+}
 
 export function useCollaborationModes({
   activeWorkspace,
   enabled,
+  preferredModeId = null,
+  selectionKey = null,
   onDebug,
 }: UseCollaborationModesOptions) {
   const [modes, setModes] = useState<CollaborationModeOption[]>([]);
@@ -23,6 +44,8 @@ export function useCollaborationModes({
   const previousWorkspaceId = useRef<string | null>(null);
   const inFlight = useRef(false);
   const selectedModeIdRef = useRef<string | null>(null);
+  const lastSelectionKey = useRef<string | null>(null);
+  const lastEnabled = useRef(enabled);
 
   const workspaceId = activeWorkspace?.id ?? null;
   const isConnected = Boolean(activeWorkspace?.connected);
@@ -136,26 +159,14 @@ export function useCollaborationModes({
         .filter((mode): mode is CollaborationModeOption => mode !== null);
       setModes(data);
       lastFetchedWorkspaceId.current = workspaceId;
-      const preferredModeId =
-        data.find(
-          (mode) =>
-            mode.id.trim().toLowerCase() === "default" ||
-            mode.mode.trim().toLowerCase() === "default",
-        )?.id ??
-        data.find(
-          (mode) =>
-            mode.id.trim().toLowerCase() === "code" ||
-            mode.mode.trim().toLowerCase() === "code",
-        )?.id ??
-        data[0]?.id ??
-        null;
+      const workspaceDefaultModeId = pickWorkspaceDefaultModeId(data);
       setSelectedModeId((currentSelection) => {
         const selection = currentSelection ?? selectedModeIdRef.current;
         if (!selection) {
-          return preferredModeId;
+          return workspaceDefaultModeId;
         }
         if (!data.some((mode) => mode.id === selection)) {
-          return preferredModeId;
+          return workspaceDefaultModeId;
         }
         return selection;
       });
@@ -175,6 +186,33 @@ export function useCollaborationModes({
   useEffect(() => {
     selectedModeIdRef.current = selectedModeId;
   }, [selectedModeId]);
+
+  useEffect(() => {
+    const wasEnabled = lastEnabled.current;
+    lastEnabled.current = enabled;
+    if (!enabled) {
+      return;
+    }
+    const enabledJustReenabled = !wasEnabled;
+    if (!enabledJustReenabled && selectionKey === lastSelectionKey.current) {
+      return;
+    }
+    lastSelectionKey.current = selectionKey;
+    // When switching threads, prefer the per-thread override. If there is no stored override,
+    // reset to the workspace default instead of carrying over the previous thread's selection.
+    // Also validate that a stored override still exists; otherwise fall back to the workspace default
+    // so collaboration payload generation remains enabled.
+    setSelectedModeId(() => {
+      if (!modes.length) {
+        // If modes aren't loaded yet, keep the preferred ID (if any) until refresh validates it.
+        return preferredModeId;
+      }
+      if (preferredModeId && modes.some((mode) => mode.id === preferredModeId)) {
+        return preferredModeId;
+      }
+      return pickWorkspaceDefaultModeId(modes);
+    });
+  }, [enabled, modes, preferredModeId, selectionKey]);
 
   useEffect(() => {
     if (previousWorkspaceId.current !== workspaceId) {

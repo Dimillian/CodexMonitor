@@ -25,6 +25,12 @@ pub(crate) fn tokio_command(program: impl AsRef<OsStr>) -> Command {
     command
 }
 
+pub(crate) fn std_command(program: impl AsRef<OsStr>) -> std::process::Command {
+    let mut command = std::process::Command::new(program);
+    hide_console_on_windows(&mut command);
+    command
+}
+
 pub(crate) async fn kill_child_process_tree(child: &mut Child) {
     #[cfg(windows)]
     {

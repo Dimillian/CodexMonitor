@@ -26,6 +26,19 @@ use self::core as tailscale_core;
 #[cfg(any(target_os = "android", target_os = "ios"))]
 const UNSUPPORTED_MESSAGE: &str = "Tailscale integration is only available on desktop.";
 
+#[cfg(target_os = "macos")]
+fn tailscale_command(binary: &OsStr) -> tokio::process::Command {
+    let mut command = tokio_command("/bin/launchctl");
+    let uid = unsafe { libc::geteuid() };
+    command.arg("asuser").arg(uid.to_string()).arg(binary);
+    command
+}
+
+#[cfg(not(target_os = "macos"))]
+fn tailscale_command(binary: &OsStr) -> tokio::process::Command {
+    tokio_command(binary)
+}
+
 fn trim_to_non_empty(value: Option<&str>) -> Option<String> {
     value
         .map(str::trim)
@@ -79,9 +92,28 @@ fn missing_tailscale_message() -> String {
 async fn resolve_tailscale_binary() -> Result<Option<(OsString, Output)>, String> {
     let mut failures: Vec<String> = Vec::new();
     for binary in tailscale_binary_candidates() {
-        let output = tokio_command(&binary).arg("version").output().await;
+        let output = tailscale_command(binary.as_os_str())
+            .arg("version")
+            .output()
+            .await;
         match output {
-            Ok(version_output) => return Ok(Some((binary, version_output))),
+            Ok(version_output) => {
+                if version_output.status.success() {
+                    return Ok(Some((binary, version_output)));
+                }
+                let stdout = trim_to_non_empty(std::str::from_utf8(&version_output.stdout).ok());
+                let stderr = trim_to_non_empty(std::str::from_utf8(&version_output.stderr).ok());
+                let detail = match (stdout, stderr) {
+                    (Some(out), Some(err)) => format!("stdout: {out}; stderr: {err}"),
+                    (Some(out), None) => format!("stdout: {out}"),
+                    (None, Some(err)) => format!("stderr: {err}"),
+                    (None, None) => "no output".to_string(),
+                };
+                failures.push(format!(
+                    "{}: tailscale version failed ({detail})",
+                    OsStr::new(&binary).to_string_lossy()
+                ));
+            }
             Err(err) if err.kind() == ErrorKind::NotFound => continue,
             Err(err) => failures.push(format!("{}: {err}", OsStr::new(&binary).to_string_lossy())),
         }
@@ -311,7 +343,7 @@ pub(crate) async fn tailscale_status() -> Result<TailscaleStatus, String> {
     let version = trim_to_non_empty(std::str::from_utf8(&version_output.stdout).ok())
         .and_then(|raw| raw.lines().next().map(str::trim).map(str::to_string));
 
-    let status_output = tokio_command(&tailscale_binary)
+    let status_output = tailscale_command(tailscale_binary.as_os_str())
         .arg("status")
         .arg("--json")
         .output()
@@ -337,7 +369,41 @@ pub(crate) async fn tailscale_status() -> Result<TailscaleStatus, String> {
 
     let payload = std::str::from_utf8(&status_output.stdout)
         .map_err(|err| format!("Invalid UTF-8 from tailscale status: {err}"))?;
-    tailscale_core::status_from_json(version, payload)
+    let stderr_text = trim_to_non_empty(std::str::from_utf8(&status_output.stderr).ok());
+    if payload.trim().is_empty() {
+        let suffix = stderr_text
+            .as_deref()
+            .map(|value| format!(" stderr: {value}"))
+            .unwrap_or_default();
+        return Err(format!(
+            "tailscale status --json returned empty output.{suffix}"
+        ));
+    }
+    match tailscale_core::status_from_json(version, payload) {
+        Ok(status) => Ok(status),
+        Err(err) => {
+            let trimmed_payload = payload.trim();
+            let payload_preview = if trimmed_payload.is_empty() {
+                None
+            } else if trimmed_payload.len() > 200 {
+                Some(format!("{}…", &trimmed_payload[..200]))
+            } else {
+                Some(trimmed_payload.to_string())
+            };
+            let mut details = Vec::new();
+            if let Some(stderr) = stderr_text {
+                details.push(format!("stderr: {stderr}"));
+            }
+            if let Some(preview) = payload_preview {
+                details.push(format!("stdout: {preview}"));
+            }
+            if details.is_empty() {
+                Err(err)
+            } else {
+                Err(format!("{err} ({})", details.join("; ")))
+            }
+        }
+    }
 }
 
 #[cfg(test)]

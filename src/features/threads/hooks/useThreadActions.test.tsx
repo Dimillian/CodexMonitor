@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ConversationItem, WorkspaceInfo } from "../../../types";
+import type { ConversationItem, WorkspaceInfo } from "@/types";
 import {
   archiveThread,
   forkThread,
   listThreads,
   resumeThread,
   startThread,
-} from "../../../services/tauri";
+} from "@services/tauri";
 import {
   buildItemsFromThread,
   getThreadCreatedTimestamp,
@@ -16,11 +16,11 @@ import {
   isReviewingFromThread,
   mergeThreadItems,
   previewThreadName,
-} from "../../../utils/threadItems";
-import { saveThreadActivity } from "../utils/threadStorage";
+} from "@utils/threadItems";
+import { saveThreadActivity } from "@threads/utils/threadStorage";
 import { useThreadActions } from "./useThreadActions";
 
-vi.mock("../../../services/tauri", () => ({
+vi.mock("@services/tauri", () => ({
   startThread: vi.fn(),
   forkThread: vi.fn(),
   resumeThread: vi.fn(),
@@ -28,7 +28,7 @@ vi.mock("../../../services/tauri", () => ({
   archiveThread: vi.fn(),
 }));
 
-vi.mock("../../../utils/threadItems", () => ({
+vi.mock("@utils/threadItems", () => ({
   buildItemsFromThread: vi.fn(),
   getThreadCreatedTimestamp: vi.fn(),
   getThreadTimestamp: vi.fn(),
@@ -37,7 +37,7 @@ vi.mock("../../../utils/threadItems", () => ({
   previewThreadName: vi.fn(),
 }));
 
-vi.mock("../utils/threadStorage", () => ({
+vi.mock("@threads/utils/threadStorage", () => ({
   saveThreadActivity: vi.fn(),
 }));
 
@@ -149,6 +149,32 @@ describe("useThreadActions", () => {
       threadId: "thread-fork-1",
     });
     expect(loadedThreadsRef.current["thread-fork-1"]).toBe(true);
+  });
+
+  it("forks a thread without activating when requested", async () => {
+    vi.mocked(forkThread).mockResolvedValue({
+      result: { thread: { id: "thread-fork-2" } },
+    });
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.forkThreadForWorkspace("ws-1", "thread-1", {
+        activate: false,
+      });
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "ensureThread",
+      workspaceId: "ws-1",
+      threadId: "thread-fork-2",
+    });
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "setActiveThreadId",
+        threadId: "thread-fork-2",
+      }),
+    );
   });
 
   it("starts a thread without activating when requested", async () => {

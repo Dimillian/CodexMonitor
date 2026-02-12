@@ -9,6 +9,7 @@ import {
   type ClipboardEvent,
 } from "react";
 import type {
+  AppMention,
   AppOption,
   ComposerEditorSettings,
   CustomPromptOption,
@@ -22,6 +23,11 @@ import type {
 } from "../../threads/hooks/useReviewPrompt";
 import { computeDictationInsertion } from "../../../utils/dictation";
 import { isComposingEvent } from "../../../utils/keys";
+import {
+  connectorMentionSlug,
+  resolveBoundAppMentions,
+  type AppMentionBinding,
+} from "../../apps/utils/appMentions";
 import {
   getFenceTriggerLine,
   getLineIndent,
@@ -39,8 +45,8 @@ import { ComposerQueue } from "./ComposerQueue";
 import { isMobilePlatform } from "../../../utils/platformPaths";
 
 type ComposerProps = {
-  onSend: (text: string, images: string[]) => void;
-  onQueue: (text: string, images: string[]) => void;
+  onSend: (text: string, images: string[], appMentions?: AppMention[]) => void;
+  onQueue: (text: string, images: string[], appMentions?: AppMention[]) => void;
   onStop: () => void;
   canStop: boolean;
   disabled?: boolean;
@@ -120,6 +126,13 @@ type ComposerProps = {
   onReviewPromptUpdateCustomInstructions?: (value: string) => void;
   onReviewPromptConfirmCustom?: () => Promise<void>;
   onFileAutocompleteActiveChange?: (active: boolean) => void;
+  contextActions?: {
+    id: string;
+    label: string;
+    title?: string;
+    disabled?: boolean;
+    onSelect: () => void | Promise<void>;
+  }[];
 };
 
 const DEFAULT_EDITOR_SETTINGS: ComposerEditorSettings = {
@@ -210,9 +223,11 @@ export const Composer = memo(function Composer({
   onReviewPromptUpdateCustomInstructions,
   onReviewPromptConfirmCustom,
   onFileAutocompleteActiveChange,
+  contextActions = [],
 }: ComposerProps) {
   const [text, setText] = useState(draftText);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
+  const [appMentionBindings, setAppMentionBindings] = useState<AppMentionBinding[]>([]);
   const [suggestionsStyle, setSuggestionsStyle] = useState<
     CSSProperties | undefined
   >(undefined);
@@ -243,6 +258,15 @@ export const Composer = memo(function Composer({
     [onDraftChange],
   );
 
+  const bindingsFromMentions = useCallback(
+    (mentions?: AppMention[]) =>
+      (mentions ?? []).map((mention) => ({
+        slug: connectorMentionSlug(mention.name),
+        mention,
+      })),
+    [],
+  );
+
   const {
     isAutocompleteOpen,
     autocompleteMatches,
@@ -266,6 +290,32 @@ export const Composer = memo(function Composer({
     textareaRef,
     setText: setComposerText,
     setSelectionStart,
+    onItemApplied: (item, context) => {
+      if (context.triggerChar !== "$" || item.group !== "Apps" || !item.mentionPath) {
+        return;
+      }
+      const slug = context.insertedText.trim().toLowerCase();
+      if (!slug) {
+        return;
+      }
+      const nextBinding: AppMentionBinding = {
+        slug,
+        mention: {
+          name: item.label,
+          path: item.mentionPath,
+        },
+      };
+      setAppMentionBindings((prev) => {
+        const filtered = prev.filter(
+          (binding) =>
+            !(
+              binding.slug === nextBinding.slug &&
+              binding.mention.path === nextBinding.mention.path
+            ),
+        );
+        return [...filtered, nextBinding];
+      });
+    },
   });
   useEffect(() => {
     onFileAutocompleteActiveChange?.(fileTriggerActive);
@@ -340,10 +390,17 @@ export const Composer = memo(function Composer({
     if (trimmed) {
       recordHistory(trimmed);
     }
-    onSend(trimmed, attachedImages);
+    const resolvedMentions = resolveBoundAppMentions(trimmed, appMentionBindings);
+    if (resolvedMentions.length > 0) {
+      onSend(trimmed, attachedImages, resolvedMentions);
+    } else {
+      onSend(trimmed, attachedImages);
+    }
     resetHistoryNavigation();
     setComposerText("");
+    setAppMentionBindings([]);
   }, [
+    appMentionBindings,
     attachedImages,
     disabled,
     onSend,
@@ -364,10 +421,17 @@ export const Composer = memo(function Composer({
     if (trimmed) {
       recordHistory(trimmed);
     }
-    onQueue(trimmed, attachedImages);
+    const resolvedMentions = resolveBoundAppMentions(trimmed, appMentionBindings);
+    if (resolvedMentions.length > 0) {
+      onQueue(trimmed, attachedImages, resolvedMentions);
+    } else {
+      onQueue(trimmed, attachedImages);
+    }
     resetHistoryNavigation();
     setComposerText("");
+    setAppMentionBindings([]);
   }, [
+    appMentionBindings,
     attachedImages,
     disabled,
     onQueue,
@@ -378,22 +442,40 @@ export const Composer = memo(function Composer({
   ]);
 
   useEffect(() => {
+    setAppMentionBindings([]);
+  }, [historyKey]);
+
+  useEffect(() => {
     if (!prefillDraft) {
       return;
     }
     setComposerText(prefillDraft.text);
+    setAppMentionBindings(bindingsFromMentions(prefillDraft.appMentions));
     resetHistoryNavigation();
     onPrefillHandled?.(prefillDraft.id);
-  }, [onPrefillHandled, prefillDraft, resetHistoryNavigation, setComposerText]);
+  }, [
+    bindingsFromMentions,
+    onPrefillHandled,
+    prefillDraft,
+    resetHistoryNavigation,
+    setComposerText,
+  ]);
 
   useEffect(() => {
     if (!insertText) {
       return;
     }
     setComposerText(insertText.text);
+    setAppMentionBindings(bindingsFromMentions(insertText.appMentions));
     resetHistoryNavigation();
     onInsertHandled?.(insertText.id);
-  }, [insertText, onInsertHandled, resetHistoryNavigation, setComposerText]);
+  }, [
+    bindingsFromMentions,
+    insertText,
+    onInsertHandled,
+    resetHistoryNavigation,
+    setComposerText,
+  ]);
 
   useEffect(() => {
     if (!dictationTranscript) {
@@ -556,6 +638,24 @@ export const Composer = memo(function Composer({
         onEditQueued={onEditQueued}
         onDeleteQueued={onDeleteQueued}
       />
+      {contextActions.length > 0 ? (
+        <div className="composer-context-actions" role="toolbar" aria-label="PR review tools">
+          {contextActions.map((action) => (
+            <button
+              key={action.id}
+              type="button"
+              className="ghost composer-context-action"
+              title={action.title}
+              disabled={disabled || Boolean(action.disabled)}
+              onClick={() => {
+                void action.onSelect();
+              }}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <ComposerInput
         text={text}
         disabled={disabled}

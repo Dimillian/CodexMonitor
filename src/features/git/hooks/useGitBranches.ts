@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BranchInfo, DebugEntry, WorkspaceInfo } from "../../../types";
 import {
+  checkoutGitHubPullRequest,
   checkoutGitBranch,
   createGitBranch,
   listGitBranches,
@@ -102,6 +103,24 @@ export function useGitBranches({ activeWorkspace, onDebug }: UseGitBranchesOptio
     [onDebug, refreshBranches, workspaceId],
   );
 
+  const checkoutPullRequest = useCallback(
+    async (prNumber: number) => {
+      if (!workspaceId || !Number.isFinite(prNumber)) {
+        return;
+      }
+      onDebug?.({
+        id: `${Date.now()}-client-pr-checkout`,
+        timestamp: Date.now(),
+        source: "client",
+        label: "git/pr/checkout",
+        payload: { workspaceId, prNumber },
+      });
+      await checkoutGitHubPullRequest(workspaceId, prNumber);
+      void refreshBranches();
+    },
+    [onDebug, refreshBranches, workspaceId],
+  );
+
   const createBranch = useCallback(
     async (name: string) => {
       if (!workspaceId || !name) {
@@ -125,6 +144,7 @@ export function useGitBranches({ activeWorkspace, onDebug }: UseGitBranchesOptio
     error,
     refreshBranches,
     checkoutBranch,
+    checkoutPullRequest,
     createBranch,
   };
 }

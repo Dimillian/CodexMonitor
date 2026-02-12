@@ -6,7 +6,7 @@ pub(crate) fn sanitize_worktree_name(branch: &str) -> String {
     worktree_core::sanitize_worktree_name(branch)
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 pub(crate) fn sanitize_clone_dir_name(name: &str) -> String {
     worktree_core::sanitize_clone_dir_name(name)
 }

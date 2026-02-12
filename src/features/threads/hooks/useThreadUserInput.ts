@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { Dispatch } from "react";
-import type { RequestUserInputRequest, RequestUserInputResponse } from "../../../types";
-import { respondToUserInputRequest } from "../../../services/tauri";
+import type { RequestUserInputRequest, RequestUserInputResponse } from "@/types";
+import { respondToUserInputRequest } from "@services/tauri";
 import type { ThreadAction } from "./useThreadsReducer";
 
 type UseThreadUserInputOptions = {
