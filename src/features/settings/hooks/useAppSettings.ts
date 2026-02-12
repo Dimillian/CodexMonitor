@@ -22,6 +22,30 @@ import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
 const allowedThemes = new Set(["system", "light", "dark", "dim"]);
 const allowedPersonality = new Set(["friendly", "pragmatic"]);
 
+const CHAT_SCROLLBACK_DEFAULT = 200;
+const CHAT_SCROLLBACK_MIN = 50;
+const CHAT_SCROLLBACK_MAX = 5000;
+
+function normalizeChatHistoryScrollbackItems(value: unknown): number | null {
+  if (value === null) {
+    return null;
+  }
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : Number.NaN;
+  if (!Number.isFinite(parsed)) {
+    return CHAT_SCROLLBACK_DEFAULT;
+  }
+  const clamped = Math.min(
+    CHAT_SCROLLBACK_MAX,
+    Math.max(CHAT_SCROLLBACK_MIN, parsed),
+  );
+  return Math.round(clamped);
+}
+
 function buildDefaultSettings(): AppSettings {
   const isMac = isMacPlatform();
   const isMobile = isMobilePlatform();
@@ -66,6 +90,7 @@ function buildDefaultSettings(): AppSettings {
     theme: "system",
     usageShowRemaining: false,
     showMessageFilePath: true,
+    chatHistoryScrollbackItems: CHAT_SCROLLBACK_DEFAULT,
     threadTitleAutogenerationEnabled: false,
     uiFontFamily: DEFAULT_UI_FONT_FAMILY,
     codeFontFamily: DEFAULT_CODE_FONT_FAMILY,
@@ -126,6 +151,9 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     settings.commitMessagePrompt && settings.commitMessagePrompt.trim().length > 0
       ? settings.commitMessagePrompt
       : DEFAULT_COMMIT_MESSAGE_PROMPT;
+  const chatHistoryScrollbackItems = normalizeChatHistoryScrollbackItems(
+    settings.chatHistoryScrollbackItems,
+  );
   return {
     ...settings,
     codexBin: settings.codexBin?.trim() ? settings.codexBin.trim() : null,
@@ -146,6 +174,7 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
       : "friendly",
     reviewDeliveryMode:
       settings.reviewDeliveryMode === "detached" ? "detached" : "inline",
+    chatHistoryScrollbackItems,
     commitMessagePrompt,
     openAppTargets: normalizedTargets,
     selectedOpenAppId,

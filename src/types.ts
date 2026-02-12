@@ -211,6 +211,7 @@ export type AppSettings = {
   theme: ThemePreference;
   usageShowRemaining: boolean;
   showMessageFilePath: boolean;
+  chatHistoryScrollbackItems: number | null;
   threadTitleAutogenerationEnabled: boolean;
   uiFontFamily: string;
   codeFontFamily: string;
