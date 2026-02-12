@@ -571,4 +571,27 @@ describe("threadReducer", () => {
     expect(ids).toContain("thread-visible");
     expect(ids).not.toContain("thread-bg");
   });
+  it("trims existing items when maxItemsPerThread is reduced", () => {
+    const items: ConversationItem[] = Array.from({ length: 5 }, (_, index) => ({
+      id: `msg-${index}`,
+      kind: "message",
+      role: "assistant",
+      text: `message ${index}`,
+    }));
+
+    const withItems = threadReducer(initialState, {
+      type: "setThreadItems",
+      threadId: "thread-1",
+      items,
+    });
+    expect(withItems.itemsByThread["thread-1"]).toHaveLength(5);
+
+    const trimmed = threadReducer(withItems, {
+      type: "setMaxItemsPerThread",
+      maxItemsPerThread: 3,
+    });
+    expect(trimmed.itemsByThread["thread-1"]).toHaveLength(3);
+    expect(trimmed.itemsByThread["thread-1"]?.[0]?.id).toBe("msg-2");
+  });
+
 });

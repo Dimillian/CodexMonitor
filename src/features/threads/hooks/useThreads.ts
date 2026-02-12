@@ -39,6 +39,7 @@ type UseThreadsOptions = {
   reviewDeliveryMode?: "inline" | "detached";
   steerEnabled?: boolean;
   threadTitleAutogenerationEnabled?: boolean;
+  chatHistoryScrollbackItems?: number | null;
   customPrompts?: CustomPromptOption[];
   onMessageActivity?: () => void;
   threadSortKey?: ThreadListSortKey;
@@ -55,11 +56,18 @@ export function useThreads({
   reviewDeliveryMode = "inline",
   steerEnabled = false,
   threadTitleAutogenerationEnabled = false,
+  chatHistoryScrollbackItems,
   customPrompts = [],
   onMessageActivity,
   threadSortKey = "updated_at",
 }: UseThreadsOptions) {
   const [state, dispatch] = useReducer(threadReducer, initialState);
+  const maxItemsPerThread =
+    chatHistoryScrollbackItems === undefined ? 200 : chatHistoryScrollbackItems;
+
+  useEffect(() => {
+    dispatch({ type: "setMaxItemsPerThread", maxItemsPerThread });
+  }, [dispatch, maxItemsPerThread]);
   const loadedThreadsRef = useRef<Record<string, boolean>>({});
   const replaceOnResumeRef = useRef<Record<string, boolean>>({});
   const pendingInterruptsRef = useRef<Set<string>>(new Set());
