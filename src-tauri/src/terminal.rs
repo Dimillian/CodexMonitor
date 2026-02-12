@@ -59,20 +59,34 @@ fn shell_path() -> String {
     std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string())
 }
 
+#[cfg(any(target_os = "windows", test))]
+fn windows_shell_args(shell: &str) -> Vec<&'static str> {
+    let shell = shell.to_ascii_lowercase();
+    if shell.contains("powershell") || shell.ends_with("pwsh.exe") || shell.ends_with("\\pwsh") {
+        vec!["-NoLogo", "-NoExit"]
+    } else if shell.ends_with("cmd.exe") || shell.ends_with("\\cmd") {
+        vec!["/K"]
+    } else {
+        Vec::new()
+    }
+}
+
+fn unix_shell_args() -> Vec<&'static str> {
+    vec!["-i"]
+}
+
 #[cfg(target_os = "windows")]
 fn configure_shell_args(cmd: &mut CommandBuilder) {
-    let shell = shell_path().to_ascii_lowercase();
-    if shell.contains("powershell") || shell.ends_with("pwsh.exe") {
-        cmd.arg("-NoLogo");
-        cmd.arg("-NoExit");
-    } else if shell.ends_with("cmd.exe") || shell.ends_with("\\cmd") {
-        cmd.arg("/K");
+    for arg in windows_shell_args(&shell_path()) {
+        cmd.arg(arg);
     }
 }
 
 #[cfg(not(target_os = "windows"))]
 fn configure_shell_args(cmd: &mut CommandBuilder) {
-    cmd.arg("-i");
+    for arg in unix_shell_args() {
+        cmd.arg(arg);
+    }
 }
 
 fn resolve_locale() -> String {
@@ -356,4 +370,44 @@ pub(crate) async fn terminal_close(
     })
     .await;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{unix_shell_args, windows_shell_args};
+
+    #[test]
+    fn windows_shell_args_match_powershell_variants() {
+        assert_eq!(
+            windows_shell_args(r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"),
+            vec!["-NoLogo", "-NoExit"]
+        );
+        assert_eq!(
+            windows_shell_args(r"C:\Program Files\PowerShell\7\pwsh.exe"),
+            vec!["-NoLogo", "-NoExit"]
+        );
+        assert_eq!(
+            windows_shell_args(r"C:\Program Files\PowerShell\7\PwSh"),
+            vec!["-NoLogo", "-NoExit"]
+        );
+    }
+
+    #[test]
+    fn windows_shell_args_match_cmd_variants() {
+        assert_eq!(
+            windows_shell_args(r"C:\Windows\System32\cmd.exe"),
+            vec!["/K"]
+        );
+        assert_eq!(windows_shell_args(r"C:\Windows\System32\CMD"), vec!["/K"]);
+    }
+
+    #[test]
+    fn windows_shell_args_are_empty_for_other_shells() {
+        assert!(windows_shell_args("nu.exe").is_empty());
+    }
+
+    #[test]
+    fn unix_shell_args_stay_interactive() {
+        assert_eq!(unix_shell_args(), vec!["-i"]);
+    }
 }

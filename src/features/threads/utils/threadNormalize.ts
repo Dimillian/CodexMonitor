@@ -38,7 +38,7 @@ export function normalizeRootPath(value: string) {
     return "";
   }
   if (/^[A-Za-z]:\//.test(normalized)) {
-    return `${normalized.charAt(0).toLowerCase()}${normalized.slice(1)}`;
+    return normalized.toLowerCase();
   }
   if (normalized.startsWith("//")) {
     return normalized.toLowerCase();

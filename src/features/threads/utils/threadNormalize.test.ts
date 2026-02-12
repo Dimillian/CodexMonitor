@@ -36,8 +36,8 @@ describe("normalizeRootPath", () => {
   });
 
   it("normalizes Windows drive-letter paths case-insensitively", () => {
-    expect(normalizeRootPath("C:\\Dev\\Repo\\")).toBe("c:/Dev/Repo");
-    expect(normalizeRootPath("c:/Dev/Repo")).toBe("c:/Dev/Repo");
+    expect(normalizeRootPath("C:\\Dev\\Repo\\")).toBe("c:/dev/repo");
+    expect(normalizeRootPath("c:/Dev/Repo")).toBe("c:/dev/repo");
   });
 
   it("normalizes UNC paths case-insensitively", () => {
