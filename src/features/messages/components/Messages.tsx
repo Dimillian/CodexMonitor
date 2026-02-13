@@ -83,6 +83,9 @@ export const Messages = memo(function Messages({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rowNodesByKeyRef = useRef(new Map<string, HTMLDivElement>());
   const rowResizeObserversRef = useRef(new Map<Element, ResizeObserver>());
+  const rowRefCallbacksByKeyRef = useRef(
+    new Map<string, (node: HTMLDivElement | null) => void>(),
+  );
   const autoScrollRef = useRef(true);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const manuallyToggledExpandedRef = useRef<Set<string>>(new Set());
@@ -554,8 +557,19 @@ export const Messages = memo(function Messages({
   });
   const virtualRows = rowVirtualizer.getVirtualItems();
 
-  const setRowRef = useCallback(
-    (key: string) => (node: HTMLDivElement | null) => {
+  const rowVirtualizerRef = useRef(rowVirtualizer);
+  rowVirtualizerRef.current = rowVirtualizer;
+
+  const requestAutoScrollRef = useRef(requestAutoScroll);
+  requestAutoScrollRef.current = requestAutoScroll;
+
+  const getRowRefCallback = useCallback((key: string) => {
+    const cached = rowRefCallbacksByKeyRef.current.get(key);
+    if (cached) {
+      return cached;
+    }
+
+    const callback = (node: HTMLDivElement | null) => {
       const prevNode = rowNodesByKeyRef.current.get(key);
       if (prevNode && prevNode !== node) {
         const prevObserver = rowResizeObserversRef.current.get(prevNode);
@@ -566,22 +580,26 @@ export const Messages = memo(function Messages({
       }
       if (!node) {
         rowNodesByKeyRef.current.delete(key);
+        rowRefCallbacksByKeyRef.current.delete(key);
         return;
       }
       rowNodesByKeyRef.current.set(key, node);
-      rowVirtualizer.measureElement(node);
+      rowVirtualizerRef.current.measureElement(node);
       if (rowResizeObserversRef.current.has(node)) {
         return;
       }
       const observer = new ResizeObserver(() => {
-        rowVirtualizer.measureElement(node);
-        requestAutoScroll();
+        rowVirtualizerRef.current.measureElement(node);
+        requestAutoScrollRef.current();
       });
       observer.observe(node);
       rowResizeObserversRef.current.set(node, observer);
-    },
-    [requestAutoScroll, rowVirtualizer],
-  );
+    };
+
+    rowRefCallbacksByKeyRef.current.set(key, callback);
+    return callback;
+  }, []);
+
 
   useEffect(() => {
     const observers = rowResizeObserversRef.current;
@@ -615,7 +633,7 @@ export const Messages = memo(function Messages({
               key={entry.key}
               className="messages-virtual-row"
               data-index={virtualRow.index}
-              ref={setRowRef(entry.key)}
+              ref={getRowRefCallback(entry.key)}
               style={{
                 transform: `translate3d(0, ${virtualRow.start}px, 0)`,
               }}

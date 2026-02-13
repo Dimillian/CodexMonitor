@@ -1119,4 +1119,48 @@ describe("Messages", () => {
     expect(screen.getByText("Input requested")).toBeTruthy();
     expect(screen.queryByText("Plan ready")).toBeNull();
   });
+  it("does not recreate virtual row observers on rerender", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-observer-stability",
+        kind: "message",
+        role: "assistant",
+        text: "Hello",
+      },
+    ];
+
+    const observeSpy = vi.spyOn(globalThis.ResizeObserver.prototype, "observe");
+
+    try {
+      const { rerender } = render(
+        <Messages
+          items={items}
+          threadId="thread-1"
+          workspaceId="ws-1"
+          isThinking={false}
+          openTargets={[]}
+          selectedOpenAppId=""
+        />,
+      );
+
+      const initialObserveCalls = observeSpy.mock.calls.length;
+      expect(initialObserveCalls).toBeGreaterThan(0);
+
+      rerender(
+        <Messages
+          items={items}
+          threadId="thread-1"
+          workspaceId="ws-1"
+          isThinking={true}
+          openTargets={[]}
+          selectedOpenAppId=""
+        />,
+      );
+
+      expect(observeSpy.mock.calls.length).toBe(initialObserveCalls);
+    } finally {
+      observeSpy.mockRestore();
+    }
+  });
+
 });
