@@ -444,4 +444,33 @@ describe("useQueuedSend", () => {
       "img-2",
     ]);
   });
+
+  it("does not flush queued messages while response is required", async () => {
+    const options = makeOptions({ queueFlushPaused: true });
+    const { result, rerender } = renderHook((props) => useQueuedSend(props), {
+      initialProps: options,
+    });
+
+    await act(async () => {
+      await result.current.queueMessage("Held");
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(options.sendUserMessage).not.toHaveBeenCalled();
+
+    await act(async () => {
+      rerender({ ...options, queueFlushPaused: false });
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(options.sendUserMessage).toHaveBeenCalledTimes(1);
+    expect(options.sendUserMessage).toHaveBeenCalledWith("Held", []);
+  });
+
 });
