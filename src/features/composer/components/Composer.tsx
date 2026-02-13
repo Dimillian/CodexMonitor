@@ -71,6 +71,7 @@ type ComposerProps = {
   files: string[];
   contextUsage?: ThreadTokenUsage | null;
   queuedMessages?: QueuedMessage[];
+  queuePausedReason?: string | null;
   onEditQueued?: (item: QueuedMessage) => void;
   onDeleteQueued?: (id: string) => void;
   sendLabel?: string;
@@ -174,6 +175,7 @@ export const Composer = memo(function Composer({
   files,
   contextUsage = null,
   queuedMessages = [],
+  queuePausedReason = null,
   onEditQueued,
   onDeleteQueued,
   sendLabel = "Send",
@@ -635,6 +637,7 @@ export const Composer = memo(function Composer({
     <footer className={`composer${disabled ? " is-disabled" : ""}`}>
       <ComposerQueue
         queuedMessages={queuedMessages}
+        pausedReason={queuePausedReason}
         onEditQueued={onEditQueued}
         onDeleteQueued={onDeleteQueued}
       />

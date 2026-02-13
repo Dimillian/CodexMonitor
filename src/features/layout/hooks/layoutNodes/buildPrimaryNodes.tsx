@@ -126,6 +126,7 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       onFileAutocompleteActiveChange={options.onFileAutocompleteActiveChange}
       contextUsage={options.activeTokenUsage}
       queuedMessages={options.activeQueue}
+      queuePausedReason={options.queuePausedReason}
       sendLabel={
         options.composerSendLabel ??
         (options.isProcessing && !options.steerEnabled ? "Queue" : "Send")

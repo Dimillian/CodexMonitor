@@ -409,6 +409,7 @@ export type LayoutNodesOptions = {
   onReviewPromptConfirmCustom: () => Promise<void>;
   activeTokenUsage: ThreadTokenUsage | null;
   activeQueue: QueuedMessage[];
+  queuePausedReason: string | null;
   draftText: string;
   onDraftChange: (next: string) => void;
   activeImages: string[];

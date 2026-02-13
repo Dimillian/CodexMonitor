@@ -27,6 +27,12 @@
   color: var(--text-fainter);
 }
 
+.composer-queue-hint {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-faint);
+}
+
 .composer-queue-list {
   display: flex;
   flex-direction: column;

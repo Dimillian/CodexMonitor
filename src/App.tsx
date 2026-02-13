@@ -1240,6 +1240,13 @@ function MainApp() {
       (hasUserInputRequestForActiveThread || isPlanReadyAwaitingResponse),
   );
 
+  const queuePausedReason =
+    queueFlushPaused && hasUserInputRequestForActiveThread
+      ? "Paused — waiting for your answers."
+      : queueFlushPaused && isPlanReadyAwaitingResponse
+        ? "Paused — waiting for plan accept/changes."
+        : null;
+
   const {
     activeImages,
     attachImages,
@@ -2148,6 +2155,7 @@ function MainApp() {
     onReviewPromptConfirmCustom: confirmCustom,
     activeTokenUsage,
     activeQueue,
+    queuePausedReason,
     draftText: activeDraft,
     onDraftChange: handleDraftChange,
     activeImages,

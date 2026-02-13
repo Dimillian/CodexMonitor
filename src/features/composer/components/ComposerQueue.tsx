@@ -6,12 +6,14 @@ import type { QueuedMessage } from "../../../types";
 
 type ComposerQueueProps = {
   queuedMessages: QueuedMessage[];
+  pausedReason?: string | null;
   onEditQueued?: (item: QueuedMessage) => void;
   onDeleteQueued?: (id: string) => void;
 };
 
 export function ComposerQueue({
   queuedMessages,
+  pausedReason = null,
   onEditQueued,
   onDeleteQueued,
 }: ComposerQueueProps) {
@@ -43,6 +45,9 @@ export function ComposerQueue({
   return (
     <div className="composer-queue">
       <div className="composer-queue-title">Queued</div>
+      {pausedReason ? (
+        <div className="composer-queue-hint">{pausedReason}</div>
+      ) : null}
       <div className="composer-queue-list">
         {queuedMessages.map((item) => (
           <div key={item.id} className="composer-queue-item">
