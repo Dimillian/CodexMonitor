@@ -80,6 +80,7 @@ export const Messages = memo(function Messages({
   onPlanSubmitChanges,
   onOpenThreadLink,
 }: MessagesProps) {
+  const SCROLL_UP_DISABLE_AUTO_SCROLL_PX = 24;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rowNodesByKeyRef = useRef(new Map<string, HTMLDivElement>());
   const rowResizeObserversRef = useRef(new Map<Element, ResizeObserver>());
@@ -87,6 +88,8 @@ export const Messages = memo(function Messages({
     new Map<string, (node: HTMLDivElement | null) => void>(),
   );
   const autoScrollRef = useRef(true);
+  const lastScrollTopRef = useRef(0);
+  const lastScrollHeightRef = useRef(0);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const manuallyToggledExpandedRef = useRef<Set<string>>(new Set());
   const [collapsedToolGroups, setCollapsedToolGroups] = useState<Set<string>>(
@@ -116,26 +119,41 @@ export const Messages = memo(function Messages({
   );
 
   const updateAutoScroll = () => {
-    if (!containerRef.current) {
+    const container = containerRef.current;
+    if (!container) {
       return;
     }
-    autoScrollRef.current = isNearBottom(containerRef.current);
+    const scrollTop = container.scrollTop;
+    const scrollHeight = container.scrollHeight;
+    const lastScrollTop = lastScrollTopRef.current;
+    const scrollHeightChanged = scrollHeight !== lastScrollHeightRef.current;
+    const isUserScrollingUp =
+      lastScrollTop - scrollTop > SCROLL_UP_DISABLE_AUTO_SCROLL_PX;
+    if (isUserScrollingUp && !scrollHeightChanged) {
+      autoScrollRef.current = false;
+    } else if (isNearBottom(container)) {
+      autoScrollRef.current = true;
+    }
+    lastScrollTopRef.current = scrollTop;
+    lastScrollHeightRef.current = scrollHeight;
   };
 
   const requestAutoScroll = useCallback(() => {
-    const container = containerRef.current;
-    const shouldScroll =
-      autoScrollRef.current || (container ? isNearBottom(container) : true);
-    if (!shouldScroll) {
+    if (!autoScrollRef.current) {
       return;
     }
+    const container = containerRef.current;
     if (container) {
       container.scrollTop = container.scrollHeight;
+      lastScrollTopRef.current = container.scrollTop;
+      lastScrollHeightRef.current = container.scrollHeight;
     }
-  }, [isNearBottom]);
+  }, []);
 
   useLayoutEffect(() => {
     autoScrollRef.current = true;
+    lastScrollTopRef.current = containerRef.current?.scrollTop ?? 0;
+    lastScrollHeightRef.current = containerRef.current?.scrollHeight ?? 0;
   }, [threadId]);
 
   const toggleExpanded = useCallback((id: string) => {
@@ -260,16 +278,15 @@ export const Messages = memo(function Messages({
 
   useLayoutEffect(() => {
     const container = containerRef.current;
-    const shouldScroll =
-      autoScrollRef.current ||
-      (container ? isNearBottom(container) : true);
-    if (!shouldScroll) {
+    if (!autoScrollRef.current) {
       return;
     }
     if (container) {
       container.scrollTop = container.scrollHeight;
+      lastScrollTopRef.current = container.scrollTop;
+      lastScrollHeightRef.current = container.scrollHeight;
     }
-  }, [scrollKey, isThinking, isNearBottom, threadId]);
+  }, [scrollKey, isThinking, threadId]);
 
   const groupedItems = useMemo(() => buildToolGroups(visibleItems), [visibleItems]);
 
@@ -590,7 +607,9 @@ export const Messages = memo(function Messages({
       }
       const observer = new ResizeObserver(() => {
         rowVirtualizerRef.current.measureElement(node);
-        requestAutoScrollRef.current();
+        if (autoScrollRef.current) {
+          requestAutoScrollRef.current();
+        }
       });
       observer.observe(node);
       rowResizeObserversRef.current.set(node, observer);

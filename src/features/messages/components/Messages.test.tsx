@@ -827,6 +827,168 @@ describe("Messages", () => {
     expect(scrollNode.scrollTop).toBe(900);
   });
 
+  it("does not snap to bottom after user scrolls up slightly", () => {
+    const items: ConversationItem[] = [
+      { id: "msg-1", kind: "message", role: "assistant", text: "one" },
+      { id: "msg-2", kind: "message", role: "assistant", text: "two" },
+      { id: "msg-3", kind: "message", role: "assistant", text: "three" },
+    ];
+
+    const { container, rerender } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const messagesNode = container.querySelector(".messages.messages-full");
+    expect(messagesNode).toBeTruthy();
+    const scrollNode = messagesNode as HTMLDivElement;
+
+    Object.defineProperty(scrollNode, "clientHeight", {
+      configurable: true,
+      value: 200,
+    });
+    Object.defineProperty(scrollNode, "scrollHeight", {
+      configurable: true,
+      value: 1000,
+    });
+
+    scrollNode.scrollTop = 800;
+    fireEvent.scroll(scrollNode);
+
+    scrollNode.scrollTop = 750;
+    fireEvent.scroll(scrollNode);
+
+    rerender(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={true}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(scrollNode.scrollTop).toBe(750);
+  });
+
+  it("stays pinned when near-bottom drift is smaller than scroll intent threshold", () => {
+    const items: ConversationItem[] = [
+      { id: "msg-a", kind: "message", role: "assistant", text: "one" },
+      { id: "msg-b", kind: "message", role: "assistant", text: "two" },
+      { id: "msg-c", kind: "message", role: "assistant", text: "three" },
+    ];
+
+    const { container, rerender } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const messagesNode = container.querySelector(".messages.messages-full");
+    expect(messagesNode).toBeTruthy();
+    const scrollNode = messagesNode as HTMLDivElement;
+
+    Object.defineProperty(scrollNode, "clientHeight", {
+      configurable: true,
+      value: 200,
+    });
+    Object.defineProperty(scrollNode, "scrollHeight", {
+      configurable: true,
+      value: 1000,
+    });
+
+    scrollNode.scrollTop = 800;
+    fireEvent.scroll(scrollNode);
+
+    scrollNode.scrollTop = 790;
+    fireEvent.scroll(scrollNode);
+
+    Object.defineProperty(scrollNode, "scrollHeight", {
+      configurable: true,
+      value: 1200,
+    });
+
+    rerender(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={true}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(scrollNode.scrollTop).toBe(1200);
+  });
+
+  it("stays pinned when upward drift happens during scroll-height growth", () => {
+    const items: ConversationItem[] = [
+      { id: "msg-long-a", kind: "message", role: "assistant", text: "one" },
+      { id: "msg-long-b", kind: "message", role: "assistant", text: "two" },
+      { id: "msg-long-c", kind: "message", role: "assistant", text: "three" },
+    ];
+
+    const { container, rerender } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const messagesNode = container.querySelector(".messages.messages-full");
+    expect(messagesNode).toBeTruthy();
+    const scrollNode = messagesNode as HTMLDivElement;
+
+    Object.defineProperty(scrollNode, "clientHeight", {
+      configurable: true,
+      value: 200,
+    });
+    Object.defineProperty(scrollNode, "scrollHeight", {
+      configurable: true,
+      value: 1000,
+    });
+
+    scrollNode.scrollTop = 800;
+    fireEvent.scroll(scrollNode);
+
+    Object.defineProperty(scrollNode, "scrollHeight", {
+      configurable: true,
+      value: 1400,
+    });
+    scrollNode.scrollTop = 760;
+    fireEvent.scroll(scrollNode);
+
+    rerender(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={true}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(scrollNode.scrollTop).toBe(1400);
+  });
+
   it("shows a plan-ready follow-up prompt after a completed plan tool item", () => {
     const onPlanAccept = vi.fn();
     const onPlanSubmitChanges = vi.fn();
