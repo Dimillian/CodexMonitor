@@ -141,6 +141,10 @@
   color: var(--text-strong);
 }
 
+.git-root-primary-action {
+  display: flex;
+}
+
 .git-root-actions {
   display: flex;
   flex-wrap: wrap;

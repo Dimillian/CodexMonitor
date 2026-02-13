@@ -99,6 +99,8 @@ type GitDiffPanelProps = {
   onSelectGitRoot?: (path: string) => void;
   onClearGitRoot?: () => void;
   onPickGitRoot?: () => void | Promise<void>;
+  onInitGitRepo?: () => void | Promise<void>;
+  initGitRepoLoading?: boolean;
   selectedPath?: string | null;
   onSelectFile?: (path: string) => void;
   stagedFiles: {
@@ -207,6 +209,8 @@ export function GitDiffPanel({
   onSelectGitRoot,
   onClearGitRoot,
   onPickGitRoot,
+  onInitGitRepo,
+  initGitRepoLoading = false,
   commitMessage = "",
   commitMessageLoading = false,
   commitMessageError = null,
@@ -711,6 +715,8 @@ export function GitDiffPanel({
           gitRootScanDepth={gitRootScanDepth}
           onGitRootScanDepthChange={onGitRootScanDepthChange}
           onPickGitRoot={onPickGitRoot}
+          onInitGitRepo={onInitGitRepo}
+          initGitRepoLoading={initGitRepoLoading}
           hasGitRoot={hasGitRoot}
           onClearGitRoot={onClearGitRoot}
           gitRootScanError={gitRootScanError}

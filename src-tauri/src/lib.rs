@@ -252,6 +252,8 @@ pub fn run() {
             codex::collaboration_mode_list,
             workspaces::connect_workspace,
             git::get_git_status,
+            git::init_git_repo,
+            git::create_github_repo,
             git::list_git_roots,
             git::get_git_diffs,
             git::get_git_log,

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ask } from "@tauri-apps/plugin-dialog";
 import {
   applyWorktreeChanges as applyWorktreeChangesService,
+  createGitHubRepo as createGitHubRepoService,
+  initGitRepo as initGitRepoService,
   revertGitAll,
   revertGitFile as revertGitFileService,
   stageGitAll as stageGitAllService,
@@ -14,18 +16,24 @@ type UseGitActionsOptions = {
   activeWorkspace: WorkspaceInfo | null;
   onRefreshGitStatus: () => void;
   onRefreshGitDiffs: () => void;
+  onClearGitRootCandidates?: () => void;
   onError?: (error: unknown) => void;
 };
+
+export type InitGitRepoOutcome = "initialized" | "cancelled" | "failed";
 
 export function useGitActions({
   activeWorkspace,
   onRefreshGitStatus,
   onRefreshGitDiffs,
+  onClearGitRootCandidates,
   onError,
 }: UseGitActionsOptions) {
   const [worktreeApplyError, setWorktreeApplyError] = useState<string | null>(null);
   const [worktreeApplyLoading, setWorktreeApplyLoading] = useState(false);
   const [worktreeApplySuccess, setWorktreeApplySuccess] = useState(false);
+  const [initGitRepoLoading, setInitGitRepoLoading] = useState(false);
+  const [createGitHubRepoLoading, setCreateGitHubRepoLoading] = useState(false);
   const worktreeApplyTimerRef = useRef<number | null>(null);
   const workspaceIdRef = useRef<string | null>(activeWorkspace?.id ?? null);
   const workspaceId = activeWorkspace?.id ?? null;
@@ -39,6 +47,8 @@ export function useGitActions({
     setWorktreeApplyError(null);
     setWorktreeApplyLoading(false);
     setWorktreeApplySuccess(false);
+    setInitGitRepoLoading(false);
+    setCreateGitHubRepoLoading(false);
     if (worktreeApplyTimerRef.current) {
       window.clearTimeout(worktreeApplyTimerRef.current);
       worktreeApplyTimerRef.current = null;
@@ -180,8 +190,139 @@ export function useGitActions({
     }
   }, [isWorktree, workspaceId]);
 
+  const initGitRepo = useCallback(async (branch: string): Promise<InitGitRepoOutcome> => {
+    if (!workspaceId) {
+      return "failed";
+    }
+    const actionWorkspaceId = workspaceId;
+    setInitGitRepoLoading(true);
+    let shouldRefresh = false;
+    let outcome: InitGitRepoOutcome = "failed";
+    let commitError: string | null = null;
+    try {
+      const response = await initGitRepoService(actionWorkspaceId, branch, false);
+      if (workspaceIdRef.current !== actionWorkspaceId) {
+        return "cancelled";
+      }
+
+      if (response.status === "needs_confirmation") {
+        const entryCount = response.entryCount ?? 0;
+        const plural = entryCount === 1 ? "" : "s";
+        const confirmed = await ask(
+          `Initialize Git in this folder?\n\nThis will create a .git directory, set the initial branch to "${branch}", and create an initial commit.\n\nThis folder contains ${entryCount} existing item${plural}.`,
+          {
+            title: "Initialize Git",
+            kind: "warning",
+            okLabel: "Initialize",
+            cancelLabel: "Cancel",
+          },
+        );
+        if (!confirmed) {
+          return "cancelled";
+        }
+
+        if (workspaceIdRef.current !== actionWorkspaceId) {
+          return "cancelled";
+        }
+
+        const forced = await initGitRepoService(actionWorkspaceId, branch, true);
+        shouldRefresh = forced.status === "initialized" || forced.status === "already_initialized";
+        if (forced.status === "initialized") {
+          commitError = forced.commitError ?? null;
+        }
+        outcome = shouldRefresh ? "initialized" : "failed";
+      } else {
+        shouldRefresh = response.status === "initialized" || response.status === "already_initialized";
+        if (response.status === "initialized") {
+          commitError = response.commitError ?? null;
+        }
+        outcome = shouldRefresh ? "initialized" : "failed";
+      }
+
+      if (commitError) {
+        onError?.(
+          new Error(
+            `Git was initialized, but the initial commit failed.\n\n${commitError}\n\nYou may need to set git user.name and user.email, then commit manually.`,
+          ),
+        );
+      }
+    } catch (error) {
+      onError?.(error);
+      outcome = "failed";
+    } finally {
+      if (workspaceIdRef.current === actionWorkspaceId) {
+        setInitGitRepoLoading(false);
+        if (shouldRefresh) {
+          onClearGitRootCandidates?.();
+          refreshGitData();
+        }
+      }
+    }
+    return outcome;
+  }, [onClearGitRootCandidates, onError, refreshGitData, workspaceId]);
+
+  const createGitHubRepo = useCallback(
+    async (
+      repo: string,
+      visibility: "private" | "public",
+      branch: string,
+    ): Promise<{ ok: true } | { ok: false; error: string }> => {
+      if (!workspaceId) {
+        return { ok: false, error: "No active workspace." };
+      }
+
+      const actionWorkspaceId = workspaceId;
+      setCreateGitHubRepoLoading(true);
+      try {
+        const response = await createGitHubRepoService(
+          actionWorkspaceId,
+          repo,
+          visibility,
+          branch,
+        );
+        if (workspaceIdRef.current !== actionWorkspaceId) {
+          return { ok: false, error: "Workspace changed." };
+        }
+
+        if (response.status === "ok") {
+          return { ok: true };
+        }
+
+        const pushError = response.pushError?.trim() ?? "";
+        const defaultBranchError = response.defaultBranchError?.trim() ?? "";
+        const parts = [];
+        if (pushError) {
+          parts.push(`Push failed:\n${pushError}`);
+        }
+        if (defaultBranchError) {
+          parts.push(`Failed to set default branch:\n${defaultBranchError}`);
+        }
+        const errorMessage =
+          parts.length > 0 ? parts.join("\n\n") : "Remote repo was created, but setup was incomplete.";
+        return { ok: false, error: errorMessage };
+      } catch (error) {
+        if (workspaceIdRef.current !== actionWorkspaceId) {
+          return { ok: false, error: "Workspace changed." };
+        }
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      } finally {
+        if (workspaceIdRef.current === actionWorkspaceId) {
+          setCreateGitHubRepoLoading(false);
+        }
+      }
+    },
+    [workspaceId],
+  );
+
   return {
     applyWorktreeChanges,
+    createGitHubRepo,
+    createGitHubRepoLoading,
+    initGitRepo,
+    initGitRepoLoading,
     revertAllGitChanges,
     revertGitFile,
     stageGitAll,

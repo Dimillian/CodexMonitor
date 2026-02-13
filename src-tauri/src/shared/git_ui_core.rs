@@ -42,6 +42,25 @@ pub(crate) async fn get_git_status_core(
     diff::get_git_status_inner(workspaces, workspace_id).await
 }
 
+pub(crate) async fn init_git_repo_core(
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    branch: String,
+    force: bool,
+) -> Result<Value, String> {
+    commands::init_git_repo_inner(workspaces, workspace_id, branch, force).await
+}
+
+pub(crate) async fn create_github_repo_core(
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    repo: String,
+    visibility: String,
+    branch: Option<String>,
+) -> Result<Value, String> {
+    commands::create_github_repo_inner(workspaces, workspace_id, repo, visibility, branch).await
+}
+
 pub(crate) async fn list_git_roots_core(
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,

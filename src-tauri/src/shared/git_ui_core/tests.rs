@@ -71,6 +71,43 @@ fn action_paths_for_file_expands_renames() {
 }
 
 #[test]
+fn github_repo_names_match_normalizes_and_ignores_case() {
+    assert!(commands::github_repo_names_match(
+        "https://github.com/Owner/Repo.git",
+        "owner/repo"
+    ));
+    assert!(commands::github_repo_names_match("OWNER/REPO", "owner/repo"));
+}
+
+#[test]
+fn github_repo_names_match_detects_mismatch() {
+    assert!(!commands::github_repo_names_match(
+        "owner/old-repo",
+        "owner/new-repo"
+    ));
+}
+
+#[test]
+fn validate_normalized_repo_name_rejects_empty_slug_after_normalization() {
+    assert_eq!(
+        commands::validate_normalized_repo_name(".git"),
+        Err("Repository name is empty after normalization. Use 'repo' or 'owner/repo'.".to_string())
+    );
+    assert_eq!(
+        commands::validate_normalized_repo_name("git@github.com:.git"),
+        Err("Repository name is empty after normalization. Use 'repo' or 'owner/repo'.".to_string())
+    );
+}
+
+#[test]
+fn validate_normalized_repo_name_accepts_non_empty_normalized_slug() {
+    assert_eq!(
+        commands::validate_normalized_repo_name("owner/repo.git"),
+        Ok("owner/repo".to_string())
+    );
+}
+
+#[test]
 fn get_git_status_omits_global_ignored_paths() {
     let (root, repo) = create_temp_repo();
     fs::write(root.join("tracked.txt"), "tracked\n").expect("write tracked file");
