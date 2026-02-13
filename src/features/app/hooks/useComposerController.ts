@@ -10,6 +10,7 @@ export function useComposerController({
   activeWorkspace,
   isProcessing,
   isReviewing,
+  queueFlushPaused = false,
   steerEnabled,
   appsEnabled,
   connectWorkspace,
@@ -30,6 +31,7 @@ export function useComposerController({
   activeWorkspace: WorkspaceInfo | null;
   isProcessing: boolean;
   isReviewing: boolean;
+  queueFlushPaused?: boolean;
   steerEnabled: boolean;
   appsEnabled: boolean;
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
@@ -84,6 +86,7 @@ export function useComposerController({
     activeTurnId,
     isProcessing,
     isReviewing,
+    queueFlushPaused,
     steerEnabled,
     appsEnabled,
     activeWorkspace,

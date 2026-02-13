@@ -113,6 +113,7 @@ import type {
   ComposerEditorSettings,
   WorkspaceInfo,
 } from "@/types";
+import { toolStatusTone } from "@/features/messages/utils/messageRenderUtils";
 import { OPEN_APP_STORAGE_KEY } from "@app/constants";
 import { useOpenAppIcons } from "@app/hooks/useOpenAppIcons";
 import { useAccountSwitching } from "@app/hooks/useAccountSwitching";
@@ -1178,6 +1179,67 @@ function MainApp() {
   const activeTurnId = activeThreadId
     ? activeTurnIdByThread[activeThreadId] ?? null
     : null;
+  const hasUserInputRequestForActiveThread = Boolean(
+    activeThreadId &&
+      userInputRequests.some(
+        (request) =>
+          request.params.thread_id === activeThreadId &&
+          (!activeWorkspaceId || request.workspace_id === activeWorkspaceId),
+      ),
+  );
+
+  const isPlanReadyAwaitingResponse = useMemo(() => {
+    if (!activeThreadId) {
+      return false;
+    }
+
+    let planIndex = -1;
+    for (let index = activeItems.length - 1; index >= 0; index -= 1) {
+      const item = activeItems[index];
+      if (item.kind === "tool" && item.toolType === "plan") {
+        planIndex = index;
+        break;
+      }
+    }
+
+    if (planIndex < 0) {
+      return false;
+    }
+
+    const planItem = activeItems[planIndex];
+    if (planItem.kind !== "tool" || planItem.toolType !== "plan") {
+      return false;
+    }
+
+    if (!(planItem.output ?? "").trim()) {
+      return false;
+    }
+
+    const planTone = toolStatusTone(planItem, false);
+    if (planTone === "failed") {
+      return false;
+    }
+
+    if (isProcessing && planTone !== "completed") {
+      return false;
+    }
+
+    for (let index = planIndex + 1; index < activeItems.length; index += 1) {
+      const item = activeItems[index];
+      if (item.kind === "message" && item.role === "user") {
+        return false;
+      }
+    }
+
+    return true;
+  }, [activeItems, activeThreadId, isProcessing]);
+
+  const queueFlushPaused = Boolean(
+    appSettings.pauseQueuedMessagesWhenResponseRequired &&
+      activeThreadId &&
+      (hasUserInputRequestForActiveThread || isPlanReadyAwaitingResponse),
+  );
+
   const {
     activeImages,
     attachImages,
@@ -1205,6 +1267,7 @@ function MainApp() {
     activeWorkspace,
     isProcessing,
     isReviewing,
+    queueFlushPaused,
     steerEnabled: appSettings.steerEnabled,
     appsEnabled: appSettings.experimentalAppsEnabled,
     connectWorkspace,

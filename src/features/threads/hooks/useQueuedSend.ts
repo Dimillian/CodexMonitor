@@ -6,6 +6,7 @@ type UseQueuedSendOptions = {
   activeTurnId: string | null;
   isProcessing: boolean;
   isReviewing: boolean;
+  queueFlushPaused?: boolean;
   steerEnabled: boolean;
   appsEnabled: boolean;
   activeWorkspace: WorkspaceInfo | null;
@@ -94,6 +95,7 @@ export function useQueuedSend({
   activeTurnId,
   isProcessing,
   isReviewing,
+  queueFlushPaused = false,
   steerEnabled,
   appsEnabled,
   activeWorkspace,
@@ -324,7 +326,7 @@ export function useQueuedSend({
   ]);
 
   useEffect(() => {
-    if (!activeThreadId || isProcessing || isReviewing) {
+    if (!activeThreadId || isProcessing || isReviewing || queueFlushPaused) {
       return;
     }
     if (inFlightByThread[activeThreadId]) {
@@ -368,6 +370,7 @@ export function useQueuedSend({
     inFlightByThread,
     isProcessing,
     isReviewing,
+    queueFlushPaused,
     prependQueuedMessage,
     queuedByThread,
     runSlashCommand,
