@@ -113,6 +113,31 @@ export function SettingsFeaturesSection({
       </div>
       <div className="settings-toggle-row">
         <div>
+          <div className="settings-toggle-title">
+            Pause queued messages when response required
+          </div>
+          <div className="settings-toggle-subtitle">
+            Keep queued messages paused while Codex is waiting for plan approval/changes
+            or your answers.
+          </div>
+        </div>
+        <button
+          type="button"
+          className={`settings-toggle ${appSettings.pauseQueuedMessagesWhenResponseRequired ? "on" : ""}`}
+          onClick={() =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              pauseQueuedMessagesWhenResponseRequired:
+                !appSettings.pauseQueuedMessagesWhenResponseRequired,
+            })
+          }
+          aria-pressed={appSettings.pauseQueuedMessagesWhenResponseRequired}
+        >
+          <span className="settings-toggle-knob" />
+        </button>
+      </div>
+      <div className="settings-toggle-row">
+        <div>
           <div className="settings-toggle-title">Background terminal</div>
           <div className="settings-toggle-subtitle">
             Run long-running terminal commands in the background.
