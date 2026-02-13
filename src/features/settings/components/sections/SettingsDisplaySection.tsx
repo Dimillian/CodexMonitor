@@ -141,6 +141,9 @@ export function SettingsDisplaySection({
   };
 
   const selectScrollbackPreset = (rawValue: string) => {
+    if (scrollbackUnlimited) {
+      return;
+    }
     if (rawValue === "custom") {
       return;
     }
@@ -301,6 +304,7 @@ export function SettingsDisplaySection({
           className="settings-select"
           value={scrollbackPresetValue}
           onChange={(event) => selectScrollbackPreset(event.target.value)}
+          disabled={scrollbackUnlimited}
         >
           <option value="custom">Custom</option>
           {CHAT_SCROLLBACK_PRESETS.map((value) => (
@@ -338,6 +342,7 @@ export function SettingsDisplaySection({
           <button
             type="button"
             className="ghost settings-button-compact"
+            disabled={scrollbackUnlimited}
             onClick={() => {
               setScrollbackDraft(String(CHAT_SCROLLBACK_DEFAULT));
               void onUpdateAppSettings({
