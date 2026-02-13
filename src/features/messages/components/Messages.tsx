@@ -81,6 +81,7 @@ export const Messages = memo(function Messages({
   onOpenThreadLink,
 }: MessagesProps) {
   const SCROLL_UP_DISABLE_AUTO_SCROLL_PX = 24;
+  const USER_SCROLL_INPUT_TTL_MS = 450;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rowNodesByKeyRef = useRef(new Map<string, HTMLDivElement>());
   const rowResizeObserversRef = useRef(new Map<Element, ResizeObserver>());
@@ -89,7 +90,8 @@ export const Messages = memo(function Messages({
   );
   const autoScrollRef = useRef(true);
   const lastScrollTopRef = useRef(0);
-  const lastScrollHeightRef = useRef(0);
+  const userUpwardScrollDistanceRef = useRef(0);
+  const lastUserScrollInputAtRef = useRef(0);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const manuallyToggledExpandedRef = useRef<Set<string>>(new Set());
   const [collapsedToolGroups, setCollapsedToolGroups] = useState<Set<string>>(
@@ -124,18 +126,25 @@ export const Messages = memo(function Messages({
       return;
     }
     const scrollTop = container.scrollTop;
-    const scrollHeight = container.scrollHeight;
     const lastScrollTop = lastScrollTopRef.current;
-    const scrollHeightChanged = scrollHeight !== lastScrollHeightRef.current;
-    const isUserScrollingUp =
-      lastScrollTop - scrollTop > SCROLL_UP_DISABLE_AUTO_SCROLL_PX;
-    if (isUserScrollingUp && !scrollHeightChanged) {
+    const upwardDelta = Math.max(0, lastScrollTop - scrollTop);
+    const downwardDelta = Math.max(0, scrollTop - lastScrollTop);
+    const hasRecentUserScrollInput =
+      Date.now() - lastUserScrollInputAtRef.current <= USER_SCROLL_INPUT_TTL_MS;
+
+    if (hasRecentUserScrollInput && upwardDelta > 0) {
+      userUpwardScrollDistanceRef.current += upwardDelta;
+    } else if (downwardDelta > 0) {
+      userUpwardScrollDistanceRef.current = 0;
+    }
+
+    if (userUpwardScrollDistanceRef.current > SCROLL_UP_DISABLE_AUTO_SCROLL_PX) {
       autoScrollRef.current = false;
     } else if (isNearBottom(container)) {
       autoScrollRef.current = true;
     }
+
     lastScrollTopRef.current = scrollTop;
-    lastScrollHeightRef.current = scrollHeight;
   };
 
   const requestAutoScroll = useCallback(() => {
@@ -146,15 +155,19 @@ export const Messages = memo(function Messages({
     if (container) {
       container.scrollTop = container.scrollHeight;
       lastScrollTopRef.current = container.scrollTop;
-      lastScrollHeightRef.current = container.scrollHeight;
+      userUpwardScrollDistanceRef.current = 0;
     }
   }, []);
 
   useLayoutEffect(() => {
     autoScrollRef.current = true;
     lastScrollTopRef.current = containerRef.current?.scrollTop ?? 0;
-    lastScrollHeightRef.current = containerRef.current?.scrollHeight ?? 0;
+    userUpwardScrollDistanceRef.current = 0;
   }, [threadId]);
+
+  const markUserScrollInput = useCallback(() => {
+    lastUserScrollInputAtRef.current = Date.now();
+  }, []);
 
   const toggleExpanded = useCallback((id: string) => {
     manuallyToggledExpandedRef.current.add(id);
@@ -284,7 +297,7 @@ export const Messages = memo(function Messages({
     if (container) {
       container.scrollTop = container.scrollHeight;
       lastScrollTopRef.current = container.scrollTop;
-      lastScrollHeightRef.current = container.scrollHeight;
+      userUpwardScrollDistanceRef.current = 0;
     }
   }, [scrollKey, isThinking, threadId]);
 
@@ -635,6 +648,8 @@ export const Messages = memo(function Messages({
       className="messages messages-full"
       ref={containerRef}
       onScroll={updateAutoScroll}
+      onWheel={markUserScrollInput}
+      onTouchMove={markUserScrollInput}
     >
       <div
         className="messages-virtual-list"
