@@ -24,6 +24,7 @@ const baseProps = {
   threadListLoadingByWorkspace: {},
   threadListPagingByWorkspace: {},
   threadListCursorByWorkspace: {},
+  pinnedThreadsVersion: 0,
   threadListSortKey: "updated_at" as const,
   onSetThreadListSortKey: vi.fn(),
   onRefreshAllThreads: vi.fn(),
