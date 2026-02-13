@@ -61,10 +61,17 @@ export function useThreads({
   onMessageActivity,
   threadSortKey = "updated_at",
 }: UseThreadsOptions) {
-  const [state, dispatch] = useReducer(threadReducer, initialState);
   const maxItemsPerThread =
     chatHistoryScrollbackItems === undefined ? 200 : chatHistoryScrollbackItems;
 
+  const [state, dispatch] = useReducer(
+    threadReducer,
+    maxItemsPerThread,
+    (initialMaxItemsPerThread) => ({
+      ...initialState,
+      maxItemsPerThread: initialMaxItemsPerThread,
+    }),
+  );
   useEffect(() => {
     dispatch({ type: "setMaxItemsPerThread", maxItemsPerThread });
   }, [dispatch, maxItemsPerThread]);

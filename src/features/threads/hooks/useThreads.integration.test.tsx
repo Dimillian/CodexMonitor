@@ -133,6 +133,75 @@ describe("useThreads UX integration", () => {
     }
   });
 
+  it("applies scrollback limit before loading thread items", async () => {
+    const totalItems = 240;
+    const items = Array.from({ length: totalItems }, (_, index) =>
+      index % 2 === 0
+        ? {
+            type: "userMessage",
+            id: `server-user-${index}`,
+            content: [{ type: "text", text: `User ${index}` }],
+          }
+        : {
+            type: "agentMessage",
+            id: `server-assistant-${index}`,
+            text: `Assistant ${index}`,
+          },
+    );
+
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "thread-scrollback",
+          preview: "Remote preview",
+          updated_at: 9999,
+          turns: [
+            {
+              items,
+            },
+          ],
+        },
+      },
+    });
+
+    const { result, rerender } = renderHook(
+      ({ scrollbackItems }) =>
+        useThreads({
+          activeWorkspace: workspace,
+          onWorkspaceConnected: vi.fn(),
+          chatHistoryScrollbackItems: scrollbackItems,
+        }),
+      {
+        initialProps: {
+          scrollbackItems: null as number | null,
+        },
+      },
+    );
+
+    expect(handlers).not.toBeNull();
+
+    act(() => {
+      result.current.setActiveThreadId("thread-scrollback");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith(
+        "ws-1",
+        "thread-scrollback",
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeItems).toHaveLength(totalItems);
+    });
+
+    rerender({ scrollbackItems: 200 });
+
+    await waitFor(() => {
+      expect(result.current.activeItems).toHaveLength(200);
+    });
+  });
+
   it("keeps the latest plan visible when a new turn starts", () => {
     const { result } = renderHook(() =>
       useThreads({
