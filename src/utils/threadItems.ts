@@ -1,10 +1,11 @@
 import type { ConversationItem } from "../types";
+import { CHAT_SCROLLBACK_DEFAULT } from "./chatScrollback";
 
 export type PrepareThreadItemsOptions = {
   maxItemsPerThread?: number | null;
 };
 
-const DEFAULT_MAX_ITEMS_PER_THREAD = 200;
+const DEFAULT_MAX_ITEMS_PER_THREAD = CHAT_SCROLLBACK_DEFAULT;
 const MAX_ITEM_TEXT = 20000;
 const MAX_LARGE_TOOL_TEXT = 200000;
 const TOOL_OUTPUT_RECENT_ITEMS = 40;

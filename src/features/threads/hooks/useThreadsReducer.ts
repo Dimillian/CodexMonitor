@@ -9,6 +9,7 @@ import type {
   ThreadTokenUsage,
   TurnPlan,
 } from "@/types";
+import { CHAT_SCROLLBACK_DEFAULT } from "@utils/chatScrollback";
 import { reduceThreadItems } from "./threadReducer/threadItemsSlice";
 import { reduceThreadLifecycle } from "./threadReducer/threadLifecycleSlice";
 import { reduceThreadConfig } from "./threadReducer/threadConfigSlice";
@@ -169,7 +170,7 @@ const emptyItems: Record<string, ConversationItem[]> = {};
 export const initialState: ThreadState = {
   activeThreadIdByWorkspace: {},
   itemsByThread: emptyItems,
-  maxItemsPerThread: 200,
+  maxItemsPerThread: CHAT_SCROLLBACK_DEFAULT,
   threadsByWorkspace: {},
   hiddenThreadIdsByWorkspace: {},
   threadParentById: {},

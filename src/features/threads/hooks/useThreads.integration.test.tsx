@@ -133,7 +133,7 @@ describe("useThreads UX integration", () => {
     }
   });
 
-  it("applies scrollback limit before loading thread items", async () => {
+  it("defers trimming until scrollback settings hydrate", async () => {
     const totalItems = 240;
     const items = Array.from({ length: totalItems }, (_, index) =>
       index % 2 === 0

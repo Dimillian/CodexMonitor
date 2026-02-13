@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppSettings } from "@/types";
 import { getAppSettings, runCodexDoctor, updateAppSettings } from "@services/tauri";
 import { clampUiScale, UI_SCALE_DEFAULT } from "@utils/uiScale";
+import { CHAT_SCROLLBACK_DEFAULT, normalizeChatHistoryScrollbackItems } from "@utils/chatScrollback";
 import {
   DEFAULT_CODE_FONT_FAMILY,
   DEFAULT_UI_FONT_FAMILY,
@@ -22,29 +23,6 @@ import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
 const allowedThemes = new Set(["system", "light", "dark", "dim"]);
 const allowedPersonality = new Set(["friendly", "pragmatic"]);
 
-const CHAT_SCROLLBACK_DEFAULT = 200;
-const CHAT_SCROLLBACK_MIN = 50;
-const CHAT_SCROLLBACK_MAX = 5000;
-
-function normalizeChatHistoryScrollbackItems(value: unknown): number | null {
-  if (value === null) {
-    return null;
-  }
-  const parsed =
-    typeof value === "number"
-      ? value
-      : typeof value === "string"
-        ? Number(value)
-        : Number.NaN;
-  if (!Number.isFinite(parsed)) {
-    return CHAT_SCROLLBACK_DEFAULT;
-  }
-  const clamped = Math.min(
-    CHAT_SCROLLBACK_MAX,
-    Math.max(CHAT_SCROLLBACK_MIN, parsed),
-  );
-  return Math.round(clamped);
-}
 
 function buildDefaultSettings(): AppSettings {
   const isMac = isMacPlatform();

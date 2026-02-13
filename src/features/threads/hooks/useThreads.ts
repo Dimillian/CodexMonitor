@@ -6,6 +6,7 @@ import type {
   ThreadListSortKey,
   WorkspaceInfo,
 } from "@/types";
+import { CHAT_SCROLLBACK_DEFAULT } from "@utils/chatScrollback";
 import { useAppServerEvents } from "@app/hooks/useAppServerEvents";
 import { initialState, threadReducer } from "./useThreadsReducer";
 import { useThreadStorage } from "./useThreadStorage";
@@ -62,7 +63,9 @@ export function useThreads({
   threadSortKey = "updated_at",
 }: UseThreadsOptions) {
   const maxItemsPerThread =
-    chatHistoryScrollbackItems === undefined ? 200 : chatHistoryScrollbackItems;
+    chatHistoryScrollbackItems === undefined
+      ? CHAT_SCROLLBACK_DEFAULT
+      : chatHistoryScrollbackItems;
 
   const [state, dispatch] = useReducer(
     threadReducer,

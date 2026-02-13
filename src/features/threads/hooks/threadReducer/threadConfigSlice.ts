@@ -1,4 +1,4 @@
-import { prepareThreadItems } from "@utils/threadItems";
+import { CHAT_SCROLLBACK_DEFAULT } from "@utils/chatScrollback";
 import type { ThreadAction, ThreadState } from "../useThreadsReducer";
 
 function normalizeMaxItemsPerThread(value: number | null): number | null {
@@ -6,7 +6,7 @@ function normalizeMaxItemsPerThread(value: number | null): number | null {
     return null;
   }
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-    return 200;
+    return CHAT_SCROLLBACK_DEFAULT;
   }
   return Math.floor(value);
 }
@@ -19,17 +19,23 @@ export function reduceThreadConfig(state: ThreadState, action: ThreadAction): Th
         return state;
       }
 
-      const nextItemsByThread: ThreadState["itemsByThread"] = {};
-      for (const [threadId, items] of Object.entries(state.itemsByThread)) {
-        nextItemsByThread[threadId] = prepareThreadItems(items, {
-          maxItemsPerThread: normalized,
-        });
+      let itemsByThread = state.itemsByThread;
+      if (normalized !== null) {
+        for (const [threadId, items] of Object.entries(state.itemsByThread)) {
+          if (items.length <= normalized) {
+            continue;
+          }
+          if (itemsByThread === state.itemsByThread) {
+            itemsByThread = { ...state.itemsByThread };
+          }
+          itemsByThread[threadId] = items.slice(-normalized);
+        }
       }
 
       return {
         ...state,
         maxItemsPerThread: normalized,
-        itemsByThread: nextItemsByThread,
+        itemsByThread,
       };
     }
     default:
