@@ -224,6 +224,7 @@ export type AppSettings = {
   experimentalCollabEnabled: boolean;
   collaborationModesEnabled: boolean;
   steerEnabled: boolean;
+  pauseQueuedMessagesWhenResponseRequired: boolean;
   unifiedExecEnabled: boolean;
   experimentalAppsEnabled: boolean;
   personality: PersonalityPreference;
