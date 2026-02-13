@@ -8,20 +8,14 @@ import {
   DEFAULT_UI_FONT_FAMILY,
 } from "@utils/fonts";
 
-const CHAT_SCROLLBACK_DEFAULT = 200;
-const CHAT_SCROLLBACK_MIN = 50;
-const CHAT_SCROLLBACK_MAX = 5000;
-const CHAT_SCROLLBACK_PRESETS = [200, 500, 1000, 2000, 5000] as const;
-
-function clampChatScrollbackItems(value: number) {
-  return Math.min(CHAT_SCROLLBACK_MAX, Math.max(CHAT_SCROLLBACK_MIN, Math.round(value)));
-}
-
-function isChatScrollbackPreset(
-  value: number,
-): value is (typeof CHAT_SCROLLBACK_PRESETS)[number] {
-  return CHAT_SCROLLBACK_PRESETS.some((preset) => preset === value);
-}
+import {
+  CHAT_SCROLLBACK_DEFAULT,
+  CHAT_SCROLLBACK_MAX,
+  CHAT_SCROLLBACK_MIN,
+  CHAT_SCROLLBACK_PRESETS,
+  clampChatScrollbackItems,
+  isChatScrollbackPreset,
+} from "@utils/chatScrollback";
 
 type SettingsDisplaySectionProps = {
   appSettings: AppSettings;
@@ -290,6 +284,7 @@ export function SettingsDisplaySection({
           type="button"
           className={`settings-toggle ${scrollbackUnlimited ? "on" : ""}`}
           onClick={toggleUnlimitedScrollback}
+          data-scrollback-control="true"
           aria-pressed={scrollbackUnlimited}
         >
           <span className="settings-toggle-knob" />
@@ -304,6 +299,7 @@ export function SettingsDisplaySection({
           className="settings-select"
           value={scrollbackPresetValue}
           onChange={(event) => selectScrollbackPreset(event.target.value)}
+          data-scrollback-control="true"
           disabled={scrollbackUnlimited}
         >
           <option value="custom">Custom</option>
@@ -331,7 +327,16 @@ export function SettingsDisplaySection({
             value={scrollbackDraft}
             disabled={scrollbackUnlimited}
             onChange={(event) => setScrollbackDraft(event.target.value)}
-            onBlur={commitScrollback}
+            onBlur={(event) => {
+              const nextTarget = event.relatedTarget;
+              if (
+                nextTarget instanceof HTMLElement &&
+                nextTarget.dataset.scrollbackControl === "true"
+              ) {
+                return;
+              }
+              commitScrollback();
+            }}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 event.preventDefault();
@@ -342,6 +347,7 @@ export function SettingsDisplaySection({
           <button
             type="button"
             className="ghost settings-button-compact"
+            data-scrollback-control="true"
             disabled={scrollbackUnlimited}
             onClick={() => {
               setScrollbackDraft(String(CHAT_SCROLLBACK_DEFAULT));
