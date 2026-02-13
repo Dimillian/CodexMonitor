@@ -114,6 +114,65 @@ describe("SettingsDisplaySection", () => {
     );
   });
 
+  it("disables scrollback controls when unlimited chat history is enabled", () => {
+    const onUpdateAppSettings = vi.fn(async () => {});
+
+    render(
+      <SettingsDisplaySection
+        appSettings={
+          ({
+            theme: "system",
+            usageShowRemaining: false,
+            showMessageFilePath: true,
+            chatHistoryScrollbackItems: null,
+            threadTitleAutogenerationEnabled: false,
+            uiFontFamily: "",
+            codeFontFamily: "",
+            codeFontSize: 11,
+            notificationSoundsEnabled: true,
+            systemNotificationsEnabled: true,
+          } as unknown) as AppSettings
+        }
+        reduceTransparency={false}
+        scaleShortcutTitle=""
+        scaleShortcutText=""
+        scaleDraft="100%"
+        uiFontDraft=""
+        codeFontDraft=""
+        codeFontSizeDraft={11}
+        onUpdateAppSettings={onUpdateAppSettings}
+        onToggleTransparency={vi.fn()}
+        onSetScaleDraft={vi.fn() as any}
+        onCommitScale={vi.fn(async () => {})}
+        onResetScale={vi.fn(async () => {})}
+        onSetUiFontDraft={vi.fn() as any}
+        onCommitUiFont={vi.fn(async () => {})}
+        onSetCodeFontDraft={vi.fn() as any}
+        onCommitCodeFont={vi.fn(async () => {})}
+        onSetCodeFontSizeDraft={vi.fn() as any}
+        onCommitCodeFontSize={vi.fn(async () => {})}
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+      />,
+    );
+
+    const presetSelect = screen.getByLabelText("Scrollback preset");
+    expect((presetSelect as HTMLSelectElement).disabled).toBe(true);
+
+    const maxItemsInput = screen.getByLabelText("Max items per thread");
+    expect((maxItemsInput as HTMLInputElement).disabled).toBe(true);
+
+    const maxItemsRow = maxItemsInput.closest(".settings-field-row");
+    expect(maxItemsRow).toBeTruthy();
+    const resetButton = within(maxItemsRow as HTMLElement).getByRole("button", {
+      name: "Reset",
+    });
+    expect((resetButton as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.change(presetSelect, { target: { value: "1000" } });
+    expect(onUpdateAppSettings).not.toHaveBeenCalled();
+  });
+
   it("applies scrollback presets", () => {
     const onUpdateAppSettings = vi.fn(async () => {});
 
