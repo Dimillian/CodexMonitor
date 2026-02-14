@@ -25,6 +25,7 @@ use self::core as tailscale_core;
 
 #[cfg(any(target_os = "android", target_os = "ios"))]
 const UNSUPPORTED_MESSAGE: &str = "Tailscale integration is only available on desktop.";
+const TAILSCALE_COMMAND_TIMEOUT: Duration = Duration::from_secs(12);
 
 #[cfg(target_os = "macos")]
 fn tailscale_command(binary: &OsStr) -> tokio::process::Command {
@@ -52,7 +53,7 @@ fn tailscale_binary_candidates() -> Vec<OsString> {
     #[cfg(target_os = "macos")]
     {
         candidates.push(OsString::from(
-            "/Applications/Tailscale.app/Contents/MacOS/Tailscale",
+            "/Applications/Tailscale.app/Contents/MacOS/tailscale",
         ));
         candidates.push(OsString::from("/opt/homebrew/bin/tailscale"));
         candidates.push(OsString::from("/usr/local/bin/tailscale"));
@@ -81,7 +82,7 @@ fn tailscale_binary_candidates() -> Vec<OsString> {
 fn missing_tailscale_message() -> String {
     #[cfg(target_os = "macos")]
     {
-        return "Tailscale CLI not found on PATH or standard install paths (including /Applications/Tailscale.app/Contents/MacOS/Tailscale).".to_string();
+        return "Tailscale CLI not found on PATH or standard install paths (including /Applications/Tailscale.app/Contents/MacOS/tailscale).".to_string();
     }
     #[cfg(not(target_os = "macos"))]
     {
@@ -92,12 +93,15 @@ fn missing_tailscale_message() -> String {
 async fn resolve_tailscale_binary() -> Result<Option<(OsString, Output)>, String> {
     let mut failures: Vec<String> = Vec::new();
     for binary in tailscale_binary_candidates() {
-        let output = tailscale_command(binary.as_os_str())
-            .arg("version")
-            .output()
-            .await;
+        let output = timeout(TAILSCALE_COMMAND_TIMEOUT, async {
+            tailscale_command(binary.as_os_str())
+                .arg("version")
+                .output()
+                .await
+        })
+        .await;
         match output {
-            Ok(version_output) => {
+            Ok(Ok(version_output)) => {
                 if version_output.status.success() {
                     return Ok(Some((binary, version_output)));
                 }
@@ -114,8 +118,15 @@ async fn resolve_tailscale_binary() -> Result<Option<(OsString, Output)>, String
                     OsStr::new(&binary).to_string_lossy()
                 ));
             }
-            Err(err) if err.kind() == ErrorKind::NotFound => continue,
-            Err(err) => failures.push(format!("{}: {err}", OsStr::new(&binary).to_string_lossy())),
+            Ok(Err(err)) if err.kind() == ErrorKind::NotFound => continue,
+            Ok(Err(err)) => {
+                failures.push(format!("{}: {err}", OsStr::new(&binary).to_string_lossy()))
+            }
+            Err(_) => failures.push(format!(
+                "{}: tailscale version timed out after {}s",
+                OsStr::new(&binary).to_string_lossy(),
+                TAILSCALE_COMMAND_TIMEOUT.as_secs()
+            )),
         }
     }
 
@@ -343,12 +354,21 @@ pub(crate) async fn tailscale_status() -> Result<TailscaleStatus, String> {
     let version = trim_to_non_empty(std::str::from_utf8(&version_output.stdout).ok())
         .and_then(|raw| raw.lines().next().map(str::trim).map(str::to_string));
 
-    let status_output = tailscale_command(tailscale_binary.as_os_str())
-        .arg("status")
-        .arg("--json")
-        .output()
-        .await
-        .map_err(|err| format!("Failed to run tailscale status --json: {err}"))?;
+    let status_output = timeout(TAILSCALE_COMMAND_TIMEOUT, async {
+        tailscale_command(tailscale_binary.as_os_str())
+            .arg("status")
+            .arg("--json")
+            .output()
+            .await
+    })
+    .await
+    .map_err(|_| {
+        format!(
+            "tailscale status --json timed out after {}s",
+            TAILSCALE_COMMAND_TIMEOUT.as_secs()
+        )
+    })?
+    .map_err(|err| format!("Failed to run tailscale status --json: {err}"))?;
 
     if !status_output.status.success() {
         let stderr_text = trim_to_non_empty(std::str::from_utf8(&status_output.stderr).ok())
@@ -424,7 +444,7 @@ mod tests {
         {
             assert!(candidates.iter().any(|candidate| {
                 candidate.to_string_lossy()
-                    == "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+                    == "/Applications/Tailscale.app/Contents/MacOS/tailscale"
             }));
         }
     }
