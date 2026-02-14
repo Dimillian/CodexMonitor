@@ -114,10 +114,10 @@ export function SettingsFeaturesSection({
       <div className="settings-toggle-row">
         <div>
           <div className="settings-toggle-title">
-            Pause queued messages when response required
+            Pause queued messages when a response is required
           </div>
           <div className="settings-toggle-subtitle">
-            Keep queued messages paused while Codex is waiting for plan approval/changes
+            Keep queued messages paused while Codex is waiting for plan accept/changes
             or your answers.
           </div>
         </div>
