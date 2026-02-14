@@ -572,6 +572,8 @@ function MainApp() {
     updaterState,
     startUpdate,
     dismissUpdate,
+    postUpdateNotice,
+    dismissPostUpdateNotice,
     handleTestNotificationSound,
     handleTestSystemNotification,
   } = useUpdaterController({
@@ -1895,6 +1897,8 @@ function MainApp() {
     updaterState,
     onUpdate: startUpdate,
     onDismissUpdate: dismissUpdate,
+    postUpdateNotice,
+    onDismissPostUpdateNotice: dismissPostUpdateNotice,
     errorToasts,
     onDismissErrorToast: dismissErrorToast,
     latestAgentRuns,

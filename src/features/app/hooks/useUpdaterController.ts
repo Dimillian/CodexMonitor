@@ -34,7 +34,14 @@ export function useUpdaterController({
   successSoundUrl,
   errorSoundUrl,
 }: Params) {
-  const { state: updaterState, startUpdate, checkForUpdates, dismiss } = useUpdater({
+  const {
+    state: updaterState,
+    startUpdate,
+    checkForUpdates,
+    dismiss,
+    postUpdateNotice,
+    dismissPostUpdateNotice,
+  } = useUpdater({
     enabled,
     onDebug,
   });
@@ -112,6 +119,8 @@ export function useUpdaterController({
     startUpdate,
     checkForUpdates,
     dismissUpdate: dismiss,
+    postUpdateNotice,
+    dismissPostUpdateNotice,
     handleTestNotificationSound,
     handleTestSystemNotification,
   };
