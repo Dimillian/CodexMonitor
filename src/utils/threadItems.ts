@@ -1,6 +1,11 @@
 import type { ConversationItem } from "../types";
+import { CHAT_SCROLLBACK_DEFAULT } from "./chatScrollback";
 
-const MAX_ITEMS_PER_THREAD = 200;
+export type PrepareThreadItemsOptions = {
+  maxItemsPerThread?: number | null;
+};
+
+const DEFAULT_MAX_ITEMS_PER_THREAD = CHAT_SCROLLBACK_DEFAULT;
 const MAX_ITEM_TEXT = 20000;
 const MAX_LARGE_TOOL_TEXT = 200000;
 const TOOL_OUTPUT_RECENT_ITEMS = 40;
@@ -421,7 +426,7 @@ function summarizeExploration(items: ConversationItem[]) {
   return result;
 }
 
-export function prepareThreadItems(items: ConversationItem[]) {
+export function prepareThreadItems(items: ConversationItem[], options?: PrepareThreadItemsOptions) {
   const filtered: ConversationItem[] = [];
   for (const item of items) {
     const last = filtered[filtered.length - 1];
@@ -437,10 +442,21 @@ export function prepareThreadItems(items: ConversationItem[]) {
     filtered.push(item);
   }
   const normalized = filtered.map((item) => normalizeItem(item));
+  const maxItemsPerThreadRaw = options?.maxItemsPerThread;
+  const maxItemsPerThread =
+    maxItemsPerThreadRaw === null
+      ? null
+      : typeof maxItemsPerThreadRaw === "number" &&
+          Number.isFinite(maxItemsPerThreadRaw) &&
+          maxItemsPerThreadRaw > 0
+        ? Math.floor(maxItemsPerThreadRaw)
+        : DEFAULT_MAX_ITEMS_PER_THREAD;
   const limited =
-    normalized.length > MAX_ITEMS_PER_THREAD
-      ? normalized.slice(-MAX_ITEMS_PER_THREAD)
-      : normalized;
+    maxItemsPerThread === null
+      ? normalized
+      : normalized.length > maxItemsPerThread
+        ? normalized.slice(-maxItemsPerThread)
+        : normalized;
   const summarized = summarizeExploration(limited);
   const cutoff = Math.max(0, summarized.length - TOOL_OUTPUT_RECENT_ITEMS);
   return summarized.map((item, index) => {

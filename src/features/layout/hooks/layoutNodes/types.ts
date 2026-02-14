@@ -109,6 +109,7 @@ export type LayoutNodesOptions = {
   threadListLoadingByWorkspace: Record<string, boolean>;
   threadListPagingByWorkspace: Record<string, boolean>;
   threadListCursorByWorkspace: Record<string, string | null>;
+  pinnedThreadsVersion: number;
   threadListSortKey: ThreadListSortKey;
   onSetThreadListSortKey: (sortKey: ThreadListSortKey) => void;
   onRefreshAllThreads: () => void;

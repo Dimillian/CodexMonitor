@@ -121,6 +121,7 @@ import { useNewAgentDraft } from "@app/hooks/useNewAgentDraft";
 import { useSystemNotificationThreadLinks } from "@app/hooks/useSystemNotificationThreadLinks";
 import { useThreadListSortKey } from "@app/hooks/useThreadListSortKey";
 import { useThreadListActions } from "@app/hooks/useThreadListActions";
+import { useSidebarLayoutActions } from "@app/hooks/useSidebarLayoutActions";
 import { useGitRootSelection } from "@app/hooks/useGitRootSelection";
 import { useTabActivationGuard } from "@app/hooks/useTabActivationGuard";
 import { useRemoteThreadRefreshOnFocus } from "@app/hooks/useRemoteThreadRefreshOnFocus";
@@ -520,6 +521,7 @@ function MainApp() {
     accountByWorkspace,
     planByThread,
     lastAgentMessageByThread,
+    pinnedThreadsVersion,
     interruptTurn,
     removeThread,
     pinThread,
@@ -576,6 +578,9 @@ function MainApp() {
     reviewDeliveryMode: appSettings.reviewDeliveryMode,
     steerEnabled: appSettings.steerEnabled,
     threadTitleAutogenerationEnabled: appSettings.threadTitleAutogenerationEnabled,
+    chatHistoryScrollbackItems: appSettingsLoading
+      ? null
+      : appSettings.chatHistoryScrollbackItems,
     customPrompts: prompts,
     onMessageActivity: handleThreadMessageActivity,
     threadSortKey: threadListSortKey,
@@ -1706,6 +1711,45 @@ function MainApp() {
     appSettings,
   });
 
+  const {
+    onOpenSettings: handleSidebarOpenSettings,
+    onSelectHome: handleSidebarSelectHome,
+    onSelectWorkspace: handleSidebarSelectWorkspace,
+    onConnectWorkspace: handleSidebarConnectWorkspace,
+    onToggleWorkspaceCollapse: handleSidebarToggleWorkspaceCollapse,
+    onSelectThread: handleSidebarSelectThread,
+    onDeleteThread: handleSidebarDeleteThread,
+    onSyncThread: handleSidebarSyncThread,
+    onRenameThread: handleSidebarRenameThread,
+    onDeleteWorkspace: handleSidebarDeleteWorkspace,
+    onDeleteWorktree: handleSidebarDeleteWorktree,
+    onLoadOlderThreads: handleSidebarLoadOlderThreads,
+    onReloadWorkspaceThreads: handleSidebarReloadWorkspaceThreads,
+  } = useSidebarLayoutActions({
+    openSettings,
+    resetPullRequestSelection,
+    clearDraftState,
+    clearDraftStateIfDifferentWorkspace,
+    selectHome,
+    exitDiffView,
+    selectWorkspace,
+    setActiveThreadId,
+    connectWorkspace,
+    isCompact,
+    setActiveTab,
+    workspacesById,
+    updateWorkspaceSettings,
+    removeThread,
+    clearDraftForThread,
+    removeImagesForThread,
+    refreshThread,
+    handleRenameThread,
+    removeWorkspace,
+    removeWorktree,
+    loadOlderThreadsForWorkspace,
+    listThreadsForWorkspace,
+  });
+
   useArchiveShortcut({
     isEnabled: isThreadOpen,
     shortcut: appSettings.archiveThreadShortcut,
@@ -1718,6 +1762,7 @@ function MainApp() {
     threadsByWorkspace,
     getThreadRows,
     getPinTimestamp,
+    pinnedThreadsVersion,
     activeWorkspaceIdRef,
     activeThreadIdRef,
     exitDiffView,
@@ -1741,7 +1786,7 @@ function MainApp() {
     onAddCloneAgent: (workspace) => {
       void handleAddCloneAgent(workspace);
     },
-    onOpenSettings: () => openSettings(),
+    onOpenSettings: handleSidebarOpenSettings,
     onCycleAgent: handleCycleAgent,
     onCycleWorkspace: handleCycleWorkspace,
     onToggleDebug: handleDebugClick,
@@ -1790,6 +1835,7 @@ function MainApp() {
     threadListLoadingByWorkspace,
     threadListPagingByWorkspace,
     threadListCursorByWorkspace,
+    pinnedThreadsVersion,
     threadListSortKey,
     onSetThreadListSortKey: handleSetThreadListSortKey,
     onRefreshAllThreads: handleRefreshAllWorkspaceThreads,
@@ -1815,84 +1861,31 @@ function MainApp() {
     handleUserInputSubmit,
     onPlanAccept: handlePlanAccept,
     onPlanSubmitChanges: handlePlanSubmitChanges,
-    onOpenSettings: () => openSettings(),
+    onOpenSettings: handleSidebarOpenSettings,
     onOpenDictationSettings: () => openSettings("dictation"),
     onOpenDebug: handleDebugClick,
     showDebugButton,
     onAddWorkspace: handleAddWorkspace,
-    onSelectHome: () => {
-      resetPullRequestSelection();
-      clearDraftState();
-      selectHome();
-    },
-    onSelectWorkspace: (workspaceId) => {
-      exitDiffView();
-      resetPullRequestSelection();
-      clearDraftStateIfDifferentWorkspace(workspaceId);
-      selectWorkspace(workspaceId);
-      setActiveThreadId(null, workspaceId);
-    },
-    onConnectWorkspace: async (workspace) => {
-      await connectWorkspace(workspace);
-      if (isCompact) {
-        setActiveTab("codex");
-      }
-    },
+    onSelectHome: handleSidebarSelectHome,
+    onSelectWorkspace: handleSidebarSelectWorkspace,
+    onConnectWorkspace: handleSidebarConnectWorkspace,
     onAddAgent: handleAddAgent,
     onAddWorktreeAgent: handleAddWorktreeAgent,
     onAddCloneAgent: handleAddCloneAgent,
-    onToggleWorkspaceCollapse: (workspaceId, collapsed) => {
-      const target = workspacesById.get(workspaceId);
-      if (!target) {
-        return;
-      }
-      void updateWorkspaceSettings(workspaceId, {
-        sidebarCollapsed: collapsed,
-      });
-    },
-    onSelectThread: (workspaceId, threadId) => {
-      exitDiffView();
-      resetPullRequestSelection();
-      clearDraftState();
-      selectWorkspace(workspaceId);
-      setActiveThreadId(threadId, workspaceId);
-    },
+    onToggleWorkspaceCollapse: handleSidebarToggleWorkspaceCollapse,
+    onSelectThread: handleSidebarSelectThread,
     onOpenThreadLink: handleOpenThreadLink,
-    onDeleteThread: (workspaceId, threadId) => {
-      removeThread(workspaceId, threadId);
-      clearDraftForThread(threadId);
-      removeImagesForThread(threadId);
-    },
-    onSyncThread: (workspaceId, threadId) => {
-      void refreshThread(workspaceId, threadId);
-    },
+    onDeleteThread: handleSidebarDeleteThread,
+    onSyncThread: handleSidebarSyncThread,
     pinThread,
     unpinThread,
     isThreadPinned,
     getPinTimestamp,
-    onRenameThread: (workspaceId, threadId) => {
-      handleRenameThread(workspaceId, threadId);
-    },
-    onDeleteWorkspace: (workspaceId) => {
-      void removeWorkspace(workspaceId);
-    },
-    onDeleteWorktree: (workspaceId) => {
-      void removeWorktree(workspaceId);
-    },
-    onLoadOlderThreads: (workspaceId) => {
-      const workspace = workspacesById.get(workspaceId);
-      if (!workspace) {
-        return;
-      }
-      void loadOlderThreadsForWorkspace(workspace);
-    },
-    onReloadWorkspaceThreads: (workspaceId) => {
-      const workspace = workspacesById.get(workspaceId);
-      if (!workspace) {
-        return;
-      }
-      void listThreadsForWorkspace(workspace);
-    },
+    onRenameThread: handleSidebarRenameThread,
+    onDeleteWorkspace: handleSidebarDeleteWorkspace,
+    onDeleteWorktree: handleSidebarDeleteWorktree,
+    onLoadOlderThreads: handleSidebarLoadOlderThreads,
+    onReloadWorkspaceThreads: handleSidebarReloadWorkspaceThreads,
     updaterState,
     onUpdate: startUpdate,
     onDismissUpdate: dismissUpdate,

@@ -9,8 +9,10 @@ import type {
   ThreadTokenUsage,
   TurnPlan,
 } from "@/types";
+import { CHAT_SCROLLBACK_DEFAULT } from "@utils/chatScrollback";
 import { reduceThreadItems } from "./threadReducer/threadItemsSlice";
 import { reduceThreadLifecycle } from "./threadReducer/threadLifecycleSlice";
+import { reduceThreadConfig } from "./threadReducer/threadConfigSlice";
 import { reduceThreadQueue } from "./threadReducer/threadQueueSlice";
 import { reduceThreadSnapshots } from "./threadReducer/threadSnapshotSlice";
 
@@ -25,6 +27,7 @@ type ThreadActivityStatus = {
 export type ThreadState = {
   activeThreadIdByWorkspace: Record<string, string | null>;
   itemsByThread: Record<string, ConversationItem[]>;
+  maxItemsPerThread: number | null;
   threadsByWorkspace: Record<string, ThreadSummary[]>;
   hiddenThreadIdsByWorkspace: Record<string, Record<string, true>>;
   threadParentById: Record<string, string>;
@@ -47,6 +50,7 @@ export type ThreadState = {
 
 export type ThreadAction =
   | { type: "setActiveThreadId"; workspaceId: string; threadId: string | null }
+  | { type: "setMaxItemsPerThread"; maxItemsPerThread: number | null }
   | { type: "ensureThread"; workspaceId: string; threadId: string }
   | { type: "hideThread"; workspaceId: string; threadId: string }
   | { type: "removeThread"; workspaceId: string; threadId: string }
@@ -166,6 +170,7 @@ const emptyItems: Record<string, ConversationItem[]> = {};
 export const initialState: ThreadState = {
   activeThreadIdByWorkspace: {},
   itemsByThread: emptyItems,
+  maxItemsPerThread: CHAT_SCROLLBACK_DEFAULT,
   threadsByWorkspace: {},
   hiddenThreadIdsByWorkspace: {},
   threadParentById: {},
@@ -190,6 +195,7 @@ type ThreadSliceReducer = (state: ThreadState, action: ThreadAction) => ThreadSt
 
 const threadSliceReducers: ThreadSliceReducer[] = [
   reduceThreadLifecycle,
+  reduceThreadConfig,
   reduceThreadItems,
   reduceThreadQueue,
   reduceThreadSnapshots,

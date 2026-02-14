@@ -28,7 +28,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems([...list, message]),
+          [action.threadId]: prepareThreadItems([...list, message], { maxItemsPerThread: state.maxItemsPerThread }),
         },
       };
     }
@@ -49,7 +49,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
           text: action.delta,
         });
       }
-      const updatedItems = prepareThreadItems(list);
+      const updatedItems = prepareThreadItems(list, { maxItemsPerThread: state.maxItemsPerThread });
       const nextThreadsByWorkspace = maybeRenameThreadFromAgent({
         workspaceId: action.workspaceId,
         threadId: action.threadId,
@@ -84,7 +84,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
           text: action.text,
         });
       }
-      const updatedItems = prepareThreadItems(list);
+      const updatedItems = prepareThreadItems(list, { maxItemsPerThread: state.maxItemsPerThread });
       const nextThreadsByWorkspace = maybeRenameThreadFromAgent({
         workspaceId: action.workspaceId,
         threadId: action.threadId,
@@ -127,7 +127,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         }
       }
       const nextItem = ensureUniqueReviewId(list, item);
-      const updatedItems = prepareThreadItems(upsertItem(list, nextItem));
+      const updatedItems = prepareThreadItems(upsertItem(list, nextItem), { maxItemsPerThread: state.maxItemsPerThread });
       let nextThreadsByWorkspace = state.threadsByWorkspace;
       if (isUserMessage) {
         const threads = state.threadsByWorkspace[action.workspaceId] ?? [];
@@ -176,7 +176,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems(action.items),
+          [action.threadId]: prepareThreadItems(action.items, { maxItemsPerThread: state.maxItemsPerThread }),
         },
       };
     case "appendReasoningSummary": {
@@ -206,7 +206,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems(next),
+          [action.threadId]: prepareThreadItems(next, { maxItemsPerThread: state.maxItemsPerThread }),
         },
       };
     }
@@ -234,7 +234,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems(next),
+          [action.threadId]: prepareThreadItems(next, { maxItemsPerThread: state.maxItemsPerThread }),
         },
       };
     }
@@ -265,7 +265,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems(next),
+          [action.threadId]: prepareThreadItems(next, { maxItemsPerThread: state.maxItemsPerThread }),
         },
       };
     }
@@ -302,7 +302,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems(next),
+          [action.threadId]: prepareThreadItems(next, { maxItemsPerThread: state.maxItemsPerThread }),
         },
       };
     }
@@ -323,7 +323,7 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         ...state,
         itemsByThread: {
           ...state.itemsByThread,
-          [action.threadId]: prepareThreadItems(next),
+          [action.threadId]: prepareThreadItems(next, { maxItemsPerThread: state.maxItemsPerThread }),
         },
       };
     }

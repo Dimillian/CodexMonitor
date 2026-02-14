@@ -62,6 +62,7 @@ type SidebarProps = {
   threadListLoadingByWorkspace: Record<string, boolean>;
   threadListPagingByWorkspace: Record<string, boolean>;
   threadListCursorByWorkspace: Record<string, string | null>;
+  pinnedThreadsVersion: number;
   threadListSortKey: ThreadListSortKey;
   onSetThreadListSortKey: (sortKey: ThreadListSortKey) => void;
   onRefreshAllThreads: () => void;
@@ -119,6 +120,7 @@ export const Sidebar = memo(function Sidebar({
   threadListLoadingByWorkspace,
   threadListPagingByWorkspace,
   threadListCursorByWorkspace,
+  pinnedThreadsVersion,
   threadListSortKey,
   onSetThreadListSortKey,
   onRefreshAllThreads,
@@ -292,6 +294,7 @@ export const Sidebar = memo(function Sidebar({
         true,
         workspace.id,
         getPinTimestamp,
+        pinnedThreadsVersion,
       );
       if (!pinnedRows.length) {
         return;
@@ -337,6 +340,7 @@ export const Sidebar = memo(function Sidebar({
     threadsByWorkspace,
     getThreadRows,
     getPinTimestamp,
+    pinnedThreadsVersion,
     isWorkspaceMatch,
   ]);
 
@@ -537,6 +541,7 @@ export const Sidebar = memo(function Sidebar({
                     isExpanded,
                     entry.id,
                     getPinTimestamp,
+                    pinnedThreadsVersion,
                   );
                   const nextCursor =
                     threadListCursorByWorkspace[entry.id] ?? null;
@@ -657,6 +662,7 @@ export const Sidebar = memo(function Sidebar({
                           getThreadTime={getThreadTime}
                           isThreadPinned={isThreadPinned}
                           getPinTimestamp={getPinTimestamp}
+                          pinnedThreadsVersion={pinnedThreadsVersion}
                           onSelectWorkspace={onSelectWorkspace}
                           onConnectWorkspace={onConnectWorkspace}
                           onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}

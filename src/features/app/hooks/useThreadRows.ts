@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 
 import type { ThreadSummary } from "../../../types";
 
@@ -14,14 +14,42 @@ type ThreadRowResult = {
   hasMoreRoots: boolean;
 };
 
+type ThreadRowCacheEntry = {
+  pinVersion: number;
+  result: ThreadRowResult;
+};
+
 export function useThreadRows(threadParentById: Record<string, string>) {
+  const cacheRef = useRef(
+    new WeakMap<
+      ThreadSummary[],
+      Map<string, ThreadRowCacheEntry>
+    >(),
+  );
+  const cacheParentRef = useRef(threadParentById);
+  if (cacheParentRef.current !== threadParentById) {
+    cacheParentRef.current = threadParentById;
+    cacheRef.current = new WeakMap<
+      ThreadSummary[],
+      Map<string, ThreadRowCacheEntry>
+    >();
+  }
+
   const getThreadRows = useCallback(
     (
       threads: ThreadSummary[],
       isExpanded: boolean,
       workspaceId: string,
       getPinTimestamp: (workspaceId: string, threadId: string) => number | null,
+      pinVersion = 0,
     ): ThreadRowResult => {
+      const cacheKey = `${workspaceId}:${isExpanded ? "1" : "0"}`;
+      const threadCache = cacheRef.current.get(threads);
+      const cachedEntry = threadCache?.get(cacheKey);
+      if (cachedEntry && cachedEntry.pinVersion === pinVersion) {
+        return cachedEntry.result;
+      }
+
       const threadIds = new Set(threads.map((thread) => thread.id));
       const childrenByParent = new Map<string, ThreadSummary[]>();
       const roots: ThreadSummary[] = [];
@@ -51,19 +79,21 @@ export function useThreadRows(threadParentById: Record<string, string>) {
 
       const pinnedRoots: ThreadSummary[] = [];
       const unpinnedRoots: ThreadSummary[] = [];
+      const pinTimestampByThreadId = new Map<string, number>();
 
       roots.forEach((thread) => {
         const pinTime = getPinTimestamp(workspaceId, thread.id);
         if (pinTime !== null) {
           pinnedRoots.push(thread);
+          pinTimestampByThreadId.set(thread.id, pinTime);
         } else {
           unpinnedRoots.push(thread);
         }
       });
 
       pinnedRoots.sort((a, b) => {
-        const aTime = getPinTimestamp(workspaceId, a.id) ?? 0;
-        const bTime = getPinTimestamp(workspaceId, b.id) ?? 0;
+        const aTime = pinTimestampByThreadId.get(a.id) ?? 0;
+        const bTime = pinTimestampByThreadId.get(b.id) ?? 0;
         return aTime - bTime;
       });
 
@@ -86,12 +116,21 @@ export function useThreadRows(threadParentById: Record<string, string>) {
       const unpinnedRows: ThreadRow[] = [];
       visibleRoots.forEach((thread) => appendThread(thread, 0, unpinnedRows));
 
-      return {
+      const result = {
         pinnedRows,
         unpinnedRows,
         totalRoots: unpinnedRoots.length,
         hasMoreRoots: unpinnedRoots.length > visibleRootCount,
       };
+      const nextThreadCache = threadCache ?? new Map<string, ThreadRowCacheEntry>();
+      nextThreadCache.set(cacheKey, {
+        pinVersion,
+        result,
+      });
+      if (!threadCache) {
+        cacheRef.current.set(threads, nextThreadCache);
+      }
+      return result;
     },
     [threadParentById],
   );

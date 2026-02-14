@@ -6,6 +6,7 @@ import type {
   ThreadListSortKey,
   WorkspaceInfo,
 } from "@/types";
+import { CHAT_SCROLLBACK_DEFAULT } from "@utils/chatScrollback";
 import { useAppServerEvents } from "@app/hooks/useAppServerEvents";
 import { initialState, threadReducer } from "./useThreadsReducer";
 import { useThreadStorage } from "./useThreadStorage";
@@ -39,6 +40,7 @@ type UseThreadsOptions = {
   reviewDeliveryMode?: "inline" | "detached";
   steerEnabled?: boolean;
   threadTitleAutogenerationEnabled?: boolean;
+  chatHistoryScrollbackItems?: number | null;
   customPrompts?: CustomPromptOption[];
   onMessageActivity?: () => void;
   threadSortKey?: ThreadListSortKey;
@@ -55,11 +57,27 @@ export function useThreads({
   reviewDeliveryMode = "inline",
   steerEnabled = false,
   threadTitleAutogenerationEnabled = false,
+  chatHistoryScrollbackItems,
   customPrompts = [],
   onMessageActivity,
   threadSortKey = "updated_at",
 }: UseThreadsOptions) {
-  const [state, dispatch] = useReducer(threadReducer, initialState);
+  const maxItemsPerThread =
+    chatHistoryScrollbackItems === undefined
+      ? CHAT_SCROLLBACK_DEFAULT
+      : chatHistoryScrollbackItems;
+
+  const [state, dispatch] = useReducer(
+    threadReducer,
+    maxItemsPerThread,
+    (initialMaxItemsPerThread) => ({
+      ...initialState,
+      maxItemsPerThread: initialMaxItemsPerThread,
+    }),
+  );
+  useEffect(() => {
+    dispatch({ type: "setMaxItemsPerThread", maxItemsPerThread });
+  }, [dispatch, maxItemsPerThread]);
   const loadedThreadsRef = useRef<Record<string, boolean>>({});
   const replaceOnResumeRef = useRef<Record<string, boolean>>({});
   const pendingInterruptsRef = useRef<Set<string>>(new Set());
@@ -87,7 +105,6 @@ export function useThreads({
     isThreadPinned,
     getPinTimestamp,
   } = useThreadStorage();
-  void pinnedThreadsVersion;
 
   const activeWorkspaceId = activeWorkspace?.id ?? null;
   const { activeThreadId, activeItems } = useThreadSelectors({
@@ -536,6 +553,7 @@ export function useThreads({
     accountByWorkspace: state.accountByWorkspace,
     planByThread: state.planByThread,
     lastAgentMessageByThread: state.lastAgentMessageByThread,
+    pinnedThreadsVersion,
     refreshAccountRateLimits,
     refreshAccountInfo,
     interruptTurn,

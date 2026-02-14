@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppSettings } from "@/types";
 import { getAppSettings, runCodexDoctor, updateAppSettings } from "@services/tauri";
 import { clampUiScale, UI_SCALE_DEFAULT } from "@utils/uiScale";
+import { CHAT_SCROLLBACK_DEFAULT, normalizeChatHistoryScrollbackItems } from "@utils/chatScrollback";
 import {
   DEFAULT_CODE_FONT_FAMILY,
   DEFAULT_UI_FONT_FAMILY,
@@ -21,6 +22,7 @@ import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
 
 const allowedThemes = new Set(["system", "light", "dark", "dim"]);
 const allowedPersonality = new Set(["friendly", "pragmatic"]);
+
 
 function buildDefaultSettings(): AppSettings {
   const isMac = isMacPlatform();
@@ -66,6 +68,7 @@ function buildDefaultSettings(): AppSettings {
     theme: "system",
     usageShowRemaining: false,
     showMessageFilePath: true,
+    chatHistoryScrollbackItems: CHAT_SCROLLBACK_DEFAULT,
     threadTitleAutogenerationEnabled: false,
     uiFontFamily: DEFAULT_UI_FONT_FAMILY,
     codeFontFamily: DEFAULT_CODE_FONT_FAMILY,
@@ -127,6 +130,9 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     settings.commitMessagePrompt && settings.commitMessagePrompt.trim().length > 0
       ? settings.commitMessagePrompt
       : DEFAULT_COMMIT_MESSAGE_PROMPT;
+  const chatHistoryScrollbackItems = normalizeChatHistoryScrollbackItems(
+    settings.chatHistoryScrollbackItems,
+  );
   return {
     ...settings,
     codexBin: settings.codexBin?.trim() ? settings.codexBin.trim() : null,
@@ -147,6 +153,7 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
       : "friendly",
     reviewDeliveryMode:
       settings.reviewDeliveryMode === "detached" ? "detached" : "inline",
+    chatHistoryScrollbackItems,
     commitMessagePrompt,
     openAppTargets: normalizedTargets,
     selectedOpenAppId,

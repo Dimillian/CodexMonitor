@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import type { AppSettings } from "@/types";
 import {
   CODE_FONT_SIZE_MAX,
@@ -7,6 +7,15 @@ import {
   DEFAULT_CODE_FONT_FAMILY,
   DEFAULT_UI_FONT_FAMILY,
 } from "@utils/fonts";
+
+import {
+  CHAT_SCROLLBACK_DEFAULT,
+  CHAT_SCROLLBACK_MAX,
+  CHAT_SCROLLBACK_MIN,
+  CHAT_SCROLLBACK_PRESETS,
+  clampChatScrollbackItems,
+  isChatScrollbackPreset,
+} from "@utils/chatScrollback";
 
 type SettingsDisplaySectionProps = {
   appSettings: AppSettings;
@@ -55,6 +64,95 @@ export function SettingsDisplaySection({
   onTestNotificationSound,
   onTestSystemNotification,
 }: SettingsDisplaySectionProps) {
+  const scrollbackUnlimited = appSettings.chatHistoryScrollbackItems === null;
+  const [scrollbackDraft, setScrollbackDraft] = useState(() => {
+    const value = appSettings.chatHistoryScrollbackItems;
+    return typeof value === "number" && Number.isFinite(value)
+      ? String(value)
+      : String(CHAT_SCROLLBACK_DEFAULT);
+  });
+
+  useEffect(() => {
+    const value = appSettings.chatHistoryScrollbackItems;
+    if (typeof value === "number" && Number.isFinite(value)) {
+      setScrollbackDraft(String(value));
+    }
+  }, [appSettings.chatHistoryScrollbackItems]);
+
+  const scrollbackPresetValue = (() => {
+    const value = appSettings.chatHistoryScrollbackItems;
+    if (typeof value === "number" && isChatScrollbackPreset(value)) {
+      return String(value);
+    }
+    return "custom";
+  })();
+
+  const commitScrollback = () => {
+    if (scrollbackUnlimited) {
+      return;
+    }
+    const trimmed = scrollbackDraft.trim();
+    const parsed = trimmed ? Number(trimmed) : Number.NaN;
+    if (!Number.isFinite(parsed)) {
+      const current = appSettings.chatHistoryScrollbackItems;
+      const fallback =
+        typeof current === "number" && Number.isFinite(current)
+          ? current
+          : CHAT_SCROLLBACK_DEFAULT;
+      setScrollbackDraft(String(fallback));
+      return;
+    }
+    const nextValue = clampChatScrollbackItems(parsed);
+    setScrollbackDraft(String(nextValue));
+    if (appSettings.chatHistoryScrollbackItems === nextValue) {
+      return;
+    }
+    void onUpdateAppSettings({
+      ...appSettings,
+      chatHistoryScrollbackItems: nextValue,
+    });
+  };
+
+  const toggleUnlimitedScrollback = () => {
+    const nextUnlimited = !scrollbackUnlimited;
+    if (nextUnlimited) {
+      void onUpdateAppSettings({
+        ...appSettings,
+        chatHistoryScrollbackItems: null,
+      });
+      return;
+    }
+    const trimmed = scrollbackDraft.trim();
+    const parsed = trimmed ? Number(trimmed) : Number.NaN;
+    const nextValue = Number.isFinite(parsed)
+      ? clampChatScrollbackItems(parsed)
+      : CHAT_SCROLLBACK_DEFAULT;
+    setScrollbackDraft(String(nextValue));
+    void onUpdateAppSettings({
+      ...appSettings,
+      chatHistoryScrollbackItems: nextValue,
+    });
+  };
+
+  const selectScrollbackPreset = (rawValue: string) => {
+    if (scrollbackUnlimited) {
+      return;
+    }
+    if (rawValue === "custom") {
+      return;
+    }
+    const parsed = Number(rawValue);
+    if (!Number.isFinite(parsed)) {
+      return;
+    }
+    const nextValue = clampChatScrollbackItems(parsed);
+    setScrollbackDraft(String(nextValue));
+    void onUpdateAppSettings({
+      ...appSettings,
+      chatHistoryScrollbackItems: nextValue,
+    });
+  };
+
   return (
     <section className="settings-section">
       <div className="settings-section-title">Display &amp; Sound</div>
@@ -170,6 +268,102 @@ export function SettingsDisplaySection({
         >
           <span className="settings-toggle-knob" />
         </button>
+      </div>
+      <div className="settings-subsection-title">Chat</div>
+      <div className="settings-subsection-subtitle">
+        Control how much conversation history is retained per thread.
+      </div>
+      <div className="settings-toggle-row">
+        <div>
+          <div className="settings-toggle-title">Unlimited chat history</div>
+          <div className="settings-toggle-subtitle">
+            Keep full thread history in memory (may impact performance).
+          </div>
+        </div>
+        <button
+          type="button"
+          className={`settings-toggle ${scrollbackUnlimited ? "on" : ""}`}
+          onClick={toggleUnlimitedScrollback}
+          data-scrollback-control="true"
+          aria-pressed={scrollbackUnlimited}
+        >
+          <span className="settings-toggle-knob" />
+        </button>
+      </div>
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="chat-scrollback-preset">
+          Scrollback preset
+        </label>
+        <select
+          id="chat-scrollback-preset"
+          className="settings-select"
+          value={scrollbackPresetValue}
+          onChange={(event) => selectScrollbackPreset(event.target.value)}
+          data-scrollback-control="true"
+          disabled={scrollbackUnlimited}
+        >
+          <option value="custom">Custom</option>
+          {CHAT_SCROLLBACK_PRESETS.map((value) => (
+            <option key={value} value={value}>
+              {value === CHAT_SCROLLBACK_DEFAULT ? `${value} (Default)` : value}
+            </option>
+          ))}
+        </select>
+        <div className="settings-help">
+          Higher values keep more history but may increase memory usage. Use “Sync from
+          server” on a thread to re-fetch older messages.
+        </div>
+      </div>
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="chat-scrollback-items">
+          Max items per thread
+        </label>
+        <div className="settings-field-row">
+          <input
+            id="chat-scrollback-items"
+            type="text"
+            inputMode="numeric"
+            className="settings-input"
+            value={scrollbackDraft}
+            disabled={scrollbackUnlimited}
+            onChange={(event) => setScrollbackDraft(event.target.value)}
+            onBlur={(event) => {
+              const nextTarget = event.relatedTarget;
+              if (
+                nextTarget instanceof HTMLElement &&
+                nextTarget.dataset.scrollbackControl === "true"
+              ) {
+                return;
+              }
+              commitScrollback();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commitScrollback();
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="ghost settings-button-compact"
+            data-scrollback-control="true"
+            disabled={scrollbackUnlimited}
+            onClick={() => {
+              setScrollbackDraft(String(CHAT_SCROLLBACK_DEFAULT));
+              void onUpdateAppSettings({
+                ...appSettings,
+                chatHistoryScrollbackItems: CHAT_SCROLLBACK_DEFAULT,
+              });
+            }}
+          >
+            Reset
+          </button>
+        </div>
+        <div className="settings-help">
+          Range: {CHAT_SCROLLBACK_MIN}–{CHAT_SCROLLBACK_MAX}. Counts messages, tool calls,
+          and other conversation items.
+        </div>
       </div>
       <div className="settings-toggle-row">
         <div>
