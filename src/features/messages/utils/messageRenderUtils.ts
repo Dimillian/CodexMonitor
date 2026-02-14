@@ -376,6 +376,72 @@ export function toolStatusTone(
   return "processing";
 }
 
+
+export type PlanFollowupState = {
+  shouldShow: boolean;
+  planItemId: string | null;
+};
+
+export function computePlanFollowupState({
+  threadId,
+  items,
+  isThinking,
+  hasVisibleUserInputRequest,
+}: {
+  threadId: string | null;
+  items: ConversationItem[];
+  isThinking: boolean;
+  hasVisibleUserInputRequest: boolean;
+}): PlanFollowupState {
+  if (!threadId) {
+    return { shouldShow: false, planItemId: null };
+  }
+  if (hasVisibleUserInputRequest) {
+    return { shouldShow: false, planItemId: null };
+  }
+
+  let planIndex = -1;
+  let planItem: Extract<ConversationItem, { kind: "tool" }> | null = null;
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    const item = items[index];
+    if (item.kind === "tool" && item.toolType === "plan") {
+      planIndex = index;
+      planItem = item;
+      break;
+    }
+  }
+
+  if (!planItem) {
+    return { shouldShow: false, planItemId: null };
+  }
+
+  const planItemId = planItem.id;
+
+  if (!(planItem.output ?? "").trim()) {
+    return { shouldShow: false, planItemId };
+  }
+
+  const planTone = toolStatusTone(planItem, false);
+  if (planTone === "failed") {
+    return { shouldShow: false, planItemId };
+  }
+
+  // Some backends stream plan output deltas without a final status update. As
+  // soon as the turn stops thinking, treat the latest plan output as ready.
+  if (isThinking && planTone !== "completed") {
+    return { shouldShow: false, planItemId };
+  }
+
+  for (let index = planIndex + 1; index < items.length; index += 1) {
+    const item = items[index];
+    if (item.kind === "message" && item.role === "user") {
+      return { shouldShow: false, planItemId };
+    }
+  }
+
+  return { shouldShow: true, planItemId };
+}
+
 export function scrollKeyForItems(items: ConversationItem[]) {
   if (!items.length) {
     return "empty";

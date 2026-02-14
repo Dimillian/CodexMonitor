@@ -22,10 +22,10 @@ import { useFileLinkOpener } from "../hooks/useFileLinkOpener";
 import {
   SCROLL_THRESHOLD_PX,
   buildToolGroups,
+  computePlanFollowupState,
   formatCount,
   parseReasoning,
   scrollKeyForItems,
-  toolStatusTone,
 } from "../utils/messageRenderUtils";
 import {
   DiffRow,
@@ -288,51 +288,24 @@ export const Messages = memo(function Messages({
     useState<Record<string, string>>({});
 
   const planFollowup = useMemo(() => {
-    if (!threadId) {
-      return { shouldShow: false, planItemId: null as string | null };
-    }
     if (!onPlanAccept || !onPlanSubmitChanges) {
-      return { shouldShow: false, planItemId: null as string | null };
+      return { shouldShow: false, planItemId: null };
     }
-    if (hasVisibleUserInputRequest) {
-      return { shouldShow: false, planItemId: null as string | null };
-    }
-    let planIndex = -1;
-    let planItem: Extract<ConversationItem, { kind: "tool" }> | null = null;
-    for (let index = items.length - 1; index >= 0; index -= 1) {
-      const item = items[index];
-      if (item.kind === "tool" && item.toolType === "plan") {
-        planIndex = index;
-        planItem = item;
-        break;
+
+    const candidate = computePlanFollowupState({
+      threadId,
+      items,
+      isThinking,
+      hasVisibleUserInputRequest,
+    });
+
+    if (threadId && candidate.planItemId) {
+      if (dismissedPlanFollowupByThread[threadId] === candidate.planItemId) {
+        return { ...candidate, shouldShow: false };
       }
     }
-    if (!planItem) {
-      return { shouldShow: false, planItemId: null as string | null };
-    }
-    const planItemId = planItem.id;
-    if (dismissedPlanFollowupByThread[threadId] === planItemId) {
-      return { shouldShow: false, planItemId };
-    }
-    if (!(planItem.output ?? "").trim()) {
-      return { shouldShow: false, planItemId };
-    }
-    const planTone = toolStatusTone(planItem, false);
-    if (planTone === "failed") {
-      return { shouldShow: false, planItemId };
-    }
-    // Some backends stream plan output deltas without a final status update. As
-    // soon as the turn stops thinking, treat the latest plan output as ready.
-    if (isThinking && planTone !== "completed") {
-      return { shouldShow: false, planItemId };
-    }
-    for (let index = planIndex + 1; index < items.length; index += 1) {
-      const item = items[index];
-      if (item.kind === "message" && item.role === "user") {
-        return { shouldShow: false, planItemId };
-      }
-    }
-    return { shouldShow: true, planItemId };
+
+    return candidate;
   }, [
     dismissedPlanFollowupByThread,
     hasVisibleUserInputRequest,
