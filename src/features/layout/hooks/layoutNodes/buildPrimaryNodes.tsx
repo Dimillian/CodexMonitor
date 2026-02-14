@@ -45,6 +45,7 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       threadListLoadingByWorkspace={options.threadListLoadingByWorkspace}
       threadListPagingByWorkspace={options.threadListPagingByWorkspace}
       threadListCursorByWorkspace={options.threadListCursorByWorkspace}
+      pinnedThreadsVersion={options.pinnedThreadsVersion}
       threadListSortKey={options.threadListSortKey}
       onSetThreadListSortKey={options.onSetThreadListSortKey}
       onRefreshAllThreads={options.onRefreshAllThreads}

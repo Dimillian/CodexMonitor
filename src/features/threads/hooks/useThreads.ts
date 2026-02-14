@@ -105,7 +105,6 @@ export function useThreads({
     isThreadPinned,
     getPinTimestamp,
   } = useThreadStorage();
-  void pinnedThreadsVersion;
 
   const activeWorkspaceId = activeWorkspace?.id ?? null;
   const { activeThreadId, activeItems } = useThreadSelectors({
@@ -554,6 +553,7 @@ export function useThreads({
     accountByWorkspace: state.accountByWorkspace,
     planByThread: state.planByThread,
     lastAgentMessageByThread: state.lastAgentMessageByThread,
+    pinnedThreadsVersion,
     refreshAccountRateLimits,
     refreshAccountInfo,
     interruptTurn,

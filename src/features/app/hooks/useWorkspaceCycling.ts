@@ -7,6 +7,7 @@ type ThreadRowsFn = (
   includeArchived: boolean,
   workspaceId: string,
   getPinTimestamp: (workspaceId: string, threadId: string) => number | null,
+  pinVersion?: number,
 ) => {
   pinnedRows: { thread: { id: string } }[];
   unpinnedRows: { thread: { id: string } }[];
@@ -18,6 +19,7 @@ type Params = {
   threadsByWorkspace: Record<string, ThreadSummary[]>;
   getThreadRows: ThreadRowsFn;
   getPinTimestamp: (workspaceId: string, threadId: string) => number | null;
+  pinnedThreadsVersion: number;
   activeWorkspaceIdRef: MutableRefObject<string | null>;
   activeThreadIdRef: MutableRefObject<string | null>;
   exitDiffView: () => void;
@@ -32,6 +34,7 @@ export function useWorkspaceCycling({
   threadsByWorkspace,
   getThreadRows,
   getPinTimestamp,
+  pinnedThreadsVersion,
   activeWorkspaceIdRef,
   activeThreadIdRef,
   exitDiffView,
@@ -88,10 +91,11 @@ export function useWorkspaceCycling({
         true,
         workspaceId,
         getPinTimestamp,
+        pinnedThreadsVersion,
       );
       return [...pinnedRows, ...unpinnedRows].map((row) => row.thread.id);
     },
-    [getPinTimestamp, getThreadRows, threadsByWorkspace],
+    [getPinTimestamp, getThreadRows, pinnedThreadsVersion, threadsByWorkspace],
   );
 
   const handleCycleAgent = useCallback(
