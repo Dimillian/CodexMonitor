@@ -216,6 +216,8 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       state={options.updaterState}
       onUpdate={options.onUpdate}
       onDismiss={options.onDismissUpdate}
+      postUpdateNotice={options.postUpdateNotice}
+      onDismissPostUpdateNotice={options.onDismissPostUpdateNotice}
     />
   );
 

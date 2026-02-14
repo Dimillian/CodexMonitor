@@ -5,6 +5,7 @@ import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import type { DebugEntry } from "../../../types";
 import { useUpdater } from "./useUpdater";
+import { STORAGE_KEY_PENDING_POST_UPDATE_VERSION } from "../utils/postUpdateRelease";
 
 vi.mock("@tauri-apps/api/core", () => ({
   isTauri: vi.fn(() => true),
@@ -20,14 +21,19 @@ vi.mock("@tauri-apps/plugin-process", () => ({
 
 const checkMock = vi.mocked(check);
 const relaunchMock = vi.mocked(relaunch);
+const fetchMock = vi.fn();
 
 describe("useUpdater", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("sets error state when update check fails", async () => {
@@ -113,6 +119,9 @@ describe("useUpdater", () => {
     expect(result.current.state.progress?.downloadedBytes).toBe(100);
     expect(downloadAndInstall).toHaveBeenCalledTimes(1);
     expect(relaunchMock).toHaveBeenCalledTimes(1);
+    expect(
+      window.localStorage.getItem(STORAGE_KEY_PENDING_POST_UPDATE_VERSION),
+    ).toBe("1.2.3");
   });
 
   it("resets to idle and closes update on dismiss", async () => {
@@ -188,5 +197,85 @@ describe("useUpdater", () => {
 
     expect(checkMock).not.toHaveBeenCalled();
     expect(result.current.state.stage).toBe("idle");
+  });
+
+  it("loads post-update release notes after restart when marker matches current version", async () => {
+    window.localStorage.setItem(
+      STORAGE_KEY_PENDING_POST_UPDATE_VERSION,
+      __APP_VERSION__,
+    );
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        tag_name: `v${__APP_VERSION__}`,
+        html_url: `https://github.com/Dimillian/CodexMonitor/releases/tag/v${__APP_VERSION__}`,
+        body: "## New\n- Added updater notes",
+      }),
+    } as Response);
+
+    const { result } = renderHook(() => useUpdater({}));
+
+    await waitFor(() =>
+      expect(result.current.postUpdateNotice?.stage).toBe("ready"),
+    );
+
+    expect(result.current.postUpdateNotice).toMatchObject({
+      stage: "ready",
+      version: __APP_VERSION__,
+      htmlUrl: `https://github.com/Dimillian/CodexMonitor/releases/tag/v${__APP_VERSION__}`,
+      body: "## New\n- Added updater notes",
+    });
+
+    await act(async () => {
+      result.current.dismissPostUpdateNotice();
+    });
+    expect(result.current.postUpdateNotice).toBeNull();
+    expect(
+      window.localStorage.getItem(STORAGE_KEY_PENDING_POST_UPDATE_VERSION),
+    ).toBeNull();
+  });
+
+  it("shows post-update fallback when release notes fetch fails", async () => {
+    window.localStorage.setItem(
+      STORAGE_KEY_PENDING_POST_UPDATE_VERSION,
+      __APP_VERSION__,
+    );
+    fetchMock.mockRejectedValue(new Error("offline"));
+    const onDebug = vi.fn();
+    const { result } = renderHook(() => useUpdater({ onDebug }));
+
+    await waitFor(() =>
+      expect(result.current.postUpdateNotice?.stage).toBe("fallback"),
+    );
+
+    expect(result.current.postUpdateNotice).toMatchObject({
+      stage: "fallback",
+      version: __APP_VERSION__,
+      htmlUrl: `https://github.com/Dimillian/CodexMonitor/releases/tag/v${__APP_VERSION__}`,
+    });
+    expect(onDebug).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: "updater/release-notes-error",
+        source: "error",
+      }),
+    );
+  });
+
+  it("clears stale post-update marker when version does not match current app", async () => {
+    window.localStorage.setItem(
+      STORAGE_KEY_PENDING_POST_UPDATE_VERSION,
+      "0.0.1",
+    );
+
+    const { result } = renderHook(() => useUpdater({}));
+
+    await waitFor(() =>
+      expect(
+        window.localStorage.getItem(STORAGE_KEY_PENDING_POST_UPDATE_VERSION),
+      ).toBeNull(),
+    );
+    expect(result.current.postUpdateNotice).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

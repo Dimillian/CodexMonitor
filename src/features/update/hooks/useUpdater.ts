@@ -4,6 +4,14 @@ import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import type { DownloadEvent, Update } from "@tauri-apps/plugin-updater";
 import type { DebugEntry } from "../../../types";
+import {
+  buildReleaseTagUrl,
+  clearPendingPostUpdateVersion,
+  fetchReleaseNotesForVersion,
+  loadPendingPostUpdateVersion,
+  normalizeReleaseVersion,
+  savePendingPostUpdateVersion,
+} from "../utils/postUpdateRelease";
 
 type UpdateStage =
   | "idle"
@@ -27,6 +35,26 @@ export type UpdateState = {
   error?: string;
 };
 
+type PostUpdateNotice =
+  | {
+      stage: "loading";
+      version: string;
+      htmlUrl: string;
+    }
+  | {
+      stage: "ready";
+      version: string;
+      body: string;
+      htmlUrl: string;
+    }
+  | {
+      stage: "fallback";
+      version: string;
+      htmlUrl: string;
+    };
+
+export type PostUpdateNoticeState = PostUpdateNotice | null;
+
 type UseUpdaterOptions = {
   enabled?: boolean;
   onDebug?: (entry: DebugEntry) => void;
@@ -34,6 +62,9 @@ type UseUpdaterOptions = {
 
 export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
   const [state, setState] = useState<UpdateState>({ stage: "idle" });
+  const [postUpdateNotice, setPostUpdateNotice] = useState<PostUpdateNoticeState>(
+    null,
+  );
   const updateRef = useRef<Update | null>(null);
   const latestTimeoutRef = useRef<number | null>(null);
   const latestToastDurationMs = 2000;
@@ -152,6 +183,7 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
         ...prev,
         stage: "restarting",
       }));
+      savePendingPostUpdateVersion(update.version);
       await relaunch();
     } catch (error) {
       const message =
@@ -179,15 +211,94 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
   }, [checkForUpdates, enabled]);
 
   useEffect(() => {
+    if (!enabled || !isTauri()) {
+      return;
+    }
+    const pendingVersion = loadPendingPostUpdateVersion();
+    if (!pendingVersion) {
+      return;
+    }
+
+    const normalizedPendingVersion = normalizeReleaseVersion(pendingVersion);
+    const normalizedCurrentVersion = normalizeReleaseVersion(__APP_VERSION__);
+    if (
+      !normalizedPendingVersion ||
+      normalizedPendingVersion !== normalizedCurrentVersion
+    ) {
+      clearPendingPostUpdateVersion();
+      return;
+    }
+
+    const fallbackUrl = buildReleaseTagUrl(normalizedPendingVersion);
+    let cancelled = false;
+    setPostUpdateNotice({
+      stage: "loading",
+      version: normalizedPendingVersion,
+      htmlUrl: fallbackUrl,
+    });
+
+    void fetchReleaseNotesForVersion(normalizedPendingVersion)
+      .then((releaseInfo) => {
+        if (cancelled) {
+          return;
+        }
+        if (releaseInfo.body) {
+          setPostUpdateNotice({
+            stage: "ready",
+            version: normalizedPendingVersion,
+            body: releaseInfo.body,
+            htmlUrl: releaseInfo.htmlUrl,
+          });
+          return;
+        }
+        setPostUpdateNotice({
+          stage: "fallback",
+          version: normalizedPendingVersion,
+          htmlUrl: releaseInfo.htmlUrl,
+        });
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+        const message =
+          error instanceof Error ? error.message : JSON.stringify(error);
+        onDebug?.({
+          id: `${Date.now()}-client-updater-release-notes-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "updater/release-notes-error",
+          payload: message,
+        });
+        setPostUpdateNotice({
+          stage: "fallback",
+          version: normalizedPendingVersion,
+          htmlUrl: fallbackUrl,
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, onDebug]);
+
+  useEffect(() => {
     return () => {
       clearLatestTimeout();
     };
   }, [clearLatestTimeout]);
+
+  const dismissPostUpdateNotice = useCallback(() => {
+    clearPendingPostUpdateVersion();
+    setPostUpdateNotice(null);
+  }, []);
 
   return {
     state,
     startUpdate,
     checkForUpdates,
     dismiss: resetToIdle,
+    postUpdateNotice,
+    dismissPostUpdateNotice,
   };
 }
