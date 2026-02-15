@@ -1,3 +1,5 @@
+import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
+
 export type CodexArgsRecognizedSegment = {
   flag: string;
   canonicalFlag: string;
@@ -144,8 +146,7 @@ registerFlags(["--no-alt-screen"], {
 const FALLBACK_LABEL_MAX = 22;
 
 function normalizeCodexArgs(value: string | null | undefined): string | null {
-  const trimmed = (value ?? "").trim();
-  return trimmed.length > 0 ? trimmed : null;
+  return normalizeCodexArgsInput(value);
 }
 
 function stripWrappingQuotes(value: string): string {
@@ -339,7 +340,7 @@ function makeRecognizedLabel(canonicalFlag: string, value: string | null): strin
 }
 
 export function parseCodexArgsProfile(args: string | null | undefined): ParsedCodexArgsProfile {
-  const originalArgs = (args ?? "").trim();
+  const originalArgs = normalizeCodexArgsInput(args) ?? "";
   if (!originalArgs) {
     return {
       originalArgs: "",

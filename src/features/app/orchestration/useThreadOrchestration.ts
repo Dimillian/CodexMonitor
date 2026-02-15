@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { pushErrorToast } from "@/services/toasts";
 import type { AccessMode, AppMention, AppSettings } from "@/types";
+import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
 import { useThreadCodexParams } from "@threads/hooks/useThreadCodexParams";
 import { getIgnoredCodexArgsFlagsMetadata } from "@threads/utils/codexArgsProfiles";
 import {
@@ -312,7 +313,7 @@ export function useThreadSelectionHandlersOrchestration({
 
   const handleSelectCodexArgsOverride = useCallback(
     (value: string | null) => {
-      const next = typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+      const next = normalizeCodexArgsInput(value);
       if (next && getIgnoredCodexArgsFlagsMetadata(next).hasIgnoredFlags) {
         pushErrorToast({
           title: "Some codex args are ignored",

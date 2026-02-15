@@ -79,4 +79,20 @@ describe("useThreadSelectionHandlersOrchestration codex args selection", () => {
     });
     expect(pushErrorToast).not.toHaveBeenCalled();
   });
+
+  it("normalizes smart quotes/dashes before persisting selected override", () => {
+    const params = makeSelectionParams();
+    const { result } = renderHook(() => useThreadSelectionHandlersOrchestration(params));
+
+    act(() => {
+      result.current.handleSelectCodexArgsOverride("“—search —enable memory_tool”");
+    });
+
+    expect(params.persistThreadCodexParams).toHaveBeenCalledWith({
+      codexArgsOverride: "--search --enable memory_tool",
+    });
+    expect(params.setSelectedCodexArgsOverride).toHaveBeenCalledWith(
+      "--search --enable memory_tool",
+    );
+  });
 });

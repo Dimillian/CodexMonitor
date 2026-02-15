@@ -142,6 +142,7 @@ import {
   buildEffectiveCodexArgsBadgeLabel,
   buildCodexArgsOptions,
 } from "@threads/utils/codexArgsProfiles";
+import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
 import { resolveWorkspaceRuntimeCodexArgsOverride } from "@threads/utils/threadCodexParamsSeed";
 import { setWorkspaceRuntimeCodexArgs } from "@services/tauri";
 
@@ -415,7 +416,7 @@ function MainApp() {
     null,
   );
   useEffect(() => {
-    setSelectedCodexArgsOverride(preferredCodexArgsOverride ?? null);
+    setSelectedCodexArgsOverride(normalizeCodexArgsInput(preferredCodexArgsOverride));
   }, [preferredCodexArgsOverride, threadCodexSelectionKey]);
 
   const {

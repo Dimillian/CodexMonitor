@@ -8,6 +8,7 @@ import type {
   ModelOption,
   WorkspaceInfo,
 } from "@/types";
+import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
 import { FileEditorCard } from "@/features/shared/components/FileEditorCard";
 
 type SettingsCodexSectionProps = {
@@ -74,6 +75,9 @@ const normalizeOverrideValue = (value: string): string | null => {
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
 };
+
+const normalizeCodexArgsOverrideValue = (value: string): string | null =>
+  normalizeCodexArgsInput(value);
 
 const DEFAULT_REASONING_EFFORT = "medium";
 
@@ -702,7 +706,7 @@ export function SettingsCodexSection({
                     }
                     onBlur={async () => {
                       const draft = codexArgsOverrideDrafts[workspace.id] ?? "";
-                      const nextValue = normalizeOverrideValue(draft);
+                      const nextValue = normalizeCodexArgsOverrideValue(draft);
                       if (nextValue === (workspace.settings.codexArgs ?? null)) {
                         return;
                       }

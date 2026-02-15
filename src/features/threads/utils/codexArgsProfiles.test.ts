@@ -101,4 +101,10 @@ describe("codexArgsProfiles", () => {
   it("returns null effective badge for ignored-only overrides", () => {
     expect(buildEffectiveCodexArgsBadgeLabel("--model gpt-5 --sandbox workspace-write")).toBeNull();
   });
+
+  it("normalizes smart punctuation and unwraps full-string quotes", () => {
+    expect(sanitizeRuntimeCodexArgs("“—search —enable memory_tool”")).toBe(
+      "--search --enable memory_tool",
+    );
+  });
 });

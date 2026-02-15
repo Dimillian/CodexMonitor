@@ -15,6 +15,7 @@ import {
   buildEditorContentMeta,
   buildWorkspaceOverrideDrafts,
 } from "@settings/components/settingsViewHelpers";
+import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
 
 type UseSettingsCodexSectionArgs = {
   appSettings: AppSettings;
@@ -204,7 +205,7 @@ export const useSettingsCodexSection = ({
   }, [projects]);
 
   const nextCodexBin = codexPathDraft.trim() ? codexPathDraft.trim() : null;
-  const nextCodexArgs = codexArgsDraft.trim() ? codexArgsDraft.trim() : null;
+  const nextCodexArgs = normalizeCodexArgsInput(codexArgsDraft);
   const codexDirty =
     nextCodexBin !== (appSettings.codexBin ?? null) ||
     nextCodexArgs !== (appSettings.codexArgs ?? null);
