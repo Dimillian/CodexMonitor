@@ -168,6 +168,7 @@ pub(crate) async fn orbit_sign_in_start(
 #[tauri::command]
 pub(crate) async fn orbit_sign_in_poll(
     device_code: String,
+    remote_backend_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<OrbitSignInPollResult, String> {
     let auth_url = {
@@ -182,6 +183,7 @@ pub(crate) async fn orbit_sign_in_poll(
                 &state.app_settings,
                 &state.settings_path,
                 Some(token),
+                remote_backend_id.as_deref(),
             )
             .await?;
         }
@@ -192,11 +194,13 @@ pub(crate) async fn orbit_sign_in_poll(
 
 #[tauri::command]
 pub(crate) async fn orbit_sign_out(
+    remote_backend_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<OrbitSignOutResult, String> {
     let settings = state.app_settings.lock().await.clone();
     let auth_url = orbit_core::orbit_auth_url_optional(&settings);
-    let token = orbit_core::remote_backend_token_optional(&settings);
+    let token =
+        orbit_core::remote_backend_token_for_id_optional(&settings, remote_backend_id.as_deref());
 
     let mut logout_error: Option<String> = None;
     if let (Some(auth_url), Some(token)) = (auth_url.as_ref(), token.as_ref()) {
@@ -209,6 +213,7 @@ pub(crate) async fn orbit_sign_out(
         &state.app_settings,
         &state.settings_path,
         None,
+        remote_backend_id.as_deref(),
     )
     .await?;
 

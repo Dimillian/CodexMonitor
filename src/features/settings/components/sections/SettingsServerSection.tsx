@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type {
   AppSettings,
@@ -5,6 +6,7 @@ import type {
   TailscaleStatus,
   TcpDaemonStatus,
 } from "@/types";
+import { ModalShell } from "@/features/design-system/components/modal/ModalShell";
 
 type SettingsServerSectionProps = {
   appSettings: AppSettings;
@@ -13,6 +15,13 @@ type SettingsServerSectionProps = {
   mobileConnectBusy: boolean;
   mobileConnectStatusText: string | null;
   mobileConnectStatusError: boolean;
+  remoteBackends: AppSettings["remoteBackends"];
+  activeRemoteBackendId: string | null;
+  remoteStatusText: string | null;
+  remoteStatusError: boolean;
+  remoteNameError: string | null;
+  remoteHostError: string | null;
+  remoteNameDraft: string;
   remoteHostDraft: string;
   remoteTokenDraft: string;
   orbitWsUrlDraft: string;
@@ -32,6 +41,7 @@ type SettingsServerSectionProps = {
   tailscaleCommandError: string | null;
   tcpDaemonStatus: TcpDaemonStatus | null;
   tcpDaemonBusyAction: "start" | "stop" | "status" | null;
+  onSetRemoteNameDraft: Dispatch<SetStateAction<string>>;
   onSetRemoteHostDraft: Dispatch<SetStateAction<string>>;
   onSetRemoteTokenDraft: Dispatch<SetStateAction<string>>;
   onSetOrbitWsUrlDraft: Dispatch<SetStateAction<string>>;
@@ -39,8 +49,13 @@ type SettingsServerSectionProps = {
   onSetOrbitRunnerNameDraft: Dispatch<SetStateAction<string>>;
   onSetOrbitAccessClientIdDraft: Dispatch<SetStateAction<string>>;
   onSetOrbitAccessClientSecretRefDraft: Dispatch<SetStateAction<string>>;
+  onCommitRemoteName: () => Promise<void>;
   onCommitRemoteHost: () => Promise<void>;
   onCommitRemoteToken: () => Promise<void>;
+  onSelectRemoteBackend: (id: string) => Promise<void>;
+  onAddRemoteBackend: () => Promise<void>;
+  onMoveRemoteBackend: (id: string, direction: "up" | "down") => Promise<void>;
+  onDeleteRemoteBackend: (id: string) => Promise<void>;
   onChangeRemoteProvider: (provider: AppSettings["remoteBackendProvider"]) => Promise<void>;
   onRefreshTailscaleStatus: () => void;
   onRefreshTailscaleCommandPreview: () => void;
@@ -69,6 +84,13 @@ export function SettingsServerSection({
   mobileConnectBusy,
   mobileConnectStatusText,
   mobileConnectStatusError,
+  remoteBackends,
+  activeRemoteBackendId,
+  remoteStatusText,
+  remoteStatusError,
+  remoteNameError,
+  remoteHostError,
+  remoteNameDraft,
   remoteHostDraft,
   remoteTokenDraft,
   orbitWsUrlDraft,
@@ -88,6 +110,7 @@ export function SettingsServerSection({
   tailscaleCommandError,
   tcpDaemonStatus,
   tcpDaemonBusyAction,
+  onSetRemoteNameDraft,
   onSetRemoteHostDraft,
   onSetRemoteTokenDraft,
   onSetOrbitWsUrlDraft,
@@ -95,8 +118,13 @@ export function SettingsServerSection({
   onSetOrbitRunnerNameDraft,
   onSetOrbitAccessClientIdDraft,
   onSetOrbitAccessClientSecretRefDraft,
+  onCommitRemoteName,
   onCommitRemoteHost,
   onCommitRemoteToken,
+  onSelectRemoteBackend,
+  onAddRemoteBackend,
+  onMoveRemoteBackend,
+  onDeleteRemoteBackend,
   onChangeRemoteProvider,
   onRefreshTailscaleStatus,
   onRefreshTailscaleCommandPreview,
@@ -117,7 +145,17 @@ export function SettingsServerSection({
   onOrbitRunnerStatus,
   onMobileConnectTest,
 }: SettingsServerSectionProps) {
+  const [pendingDeleteRemoteId, setPendingDeleteRemoteId] = useState<string | null>(
+    null,
+  );
   const isMobileSimplified = isMobilePlatform;
+  const pendingDeleteRemote = useMemo(
+    () =>
+      pendingDeleteRemoteId == null
+        ? null
+        : remoteBackends.find((entry) => entry.id === pendingDeleteRemoteId) ?? null,
+    [pendingDeleteRemoteId, remoteBackends],
+  );
   const tcpRunnerStatusText = (() => {
     if (!tcpDaemonStatus) {
       return null;
@@ -169,6 +207,129 @@ export function SettingsServerSection({
       )}
 
       <>
+        {isMobileSimplified && (
+          <>
+            <div className="settings-field">
+              <div className="settings-field-label">Saved remotes</div>
+              <div className="settings-mobile-remotes" role="list" aria-label="Saved remotes">
+                {remoteBackends.map((entry, index) => {
+                  const isActive = entry.id === activeRemoteBackendId;
+                  return (
+                    <div
+                      className={`settings-mobile-remote${isActive ? " is-active" : ""}`}
+                      role="listitem"
+                      key={entry.id}
+                    >
+                      <div className="settings-mobile-remote-main">
+                        <div className="settings-mobile-remote-name-row">
+                          <div className="settings-mobile-remote-name">{entry.name}</div>
+                          {isActive && <span className="settings-mobile-remote-badge">Active</span>}
+                        </div>
+                        <div className="settings-mobile-remote-meta">
+                          {entry.provider.toUpperCase()} · {entry.provider === "tcp" ? entry.host : (entry.orbitWsUrl ?? "Orbit endpoint")}
+                        </div>
+                        <div className="settings-mobile-remote-last">
+                          Last connected:{" "}
+                          {typeof entry.lastConnectedAtMs === "number"
+                            ? new Date(entry.lastConnectedAtMs).toLocaleString()
+                            : "Never"}
+                        </div>
+                      </div>
+                      <div className="settings-mobile-remote-actions">
+                        <button
+                          type="button"
+                          className="ghost settings-mobile-remote-action"
+                          onClick={() => {
+                            void onSelectRemoteBackend(entry.id);
+                          }}
+                          disabled={isActive}
+                          aria-label={`Use ${entry.name} remote`}
+                        >
+                          {isActive ? "Using" : "Use"}
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost settings-mobile-remote-action"
+                          onClick={() => {
+                            void onMoveRemoteBackend(entry.id, "up");
+                          }}
+                          disabled={index === 0}
+                          aria-label={`Move ${entry.name} up`}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost settings-mobile-remote-action"
+                          onClick={() => {
+                            void onMoveRemoteBackend(entry.id, "down");
+                          }}
+                          disabled={index === remoteBackends.length - 1}
+                          aria-label={`Move ${entry.name} down`}
+                        >
+                          ↓
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost settings-mobile-remote-action settings-mobile-remote-action-danger"
+                          onClick={() => {
+                            setPendingDeleteRemoteId(entry.id);
+                          }}
+                          aria-label={`Delete ${entry.name}`}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="settings-field-row">
+                <button
+                  type="button"
+                  className="button settings-button-compact"
+                  onClick={() => {
+                    void onAddRemoteBackend();
+                  }}
+                >
+                  Add remote
+                </button>
+              </div>
+              {remoteStatusText && (
+                <div className={`settings-help${remoteStatusError ? " settings-help-error" : ""}`}>
+                  {remoteStatusText}
+                </div>
+              )}
+              <div className="settings-help">
+                Switch the active remote here. The fields below edit the active entry.
+              </div>
+            </div>
+
+            <div className="settings-field">
+              <label className="settings-field-label" htmlFor="mobile-remote-name">
+                Remote name
+              </label>
+              <input
+                id="mobile-remote-name"
+                className="settings-input settings-input--compact"
+                value={remoteNameDraft}
+                placeholder="My desktop"
+                onChange={(event) => onSetRemoteNameDraft(event.target.value)}
+                onBlur={() => {
+                  void onCommitRemoteName();
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void onCommitRemoteName();
+                  }
+                }}
+              />
+              {remoteNameError && <div className="settings-help settings-help-error">{remoteNameError}</div>}
+            </div>
+          </>
+        )}
+
         <div className="settings-field">
           <label className="settings-field-label" htmlFor="remote-provider">
             {isMobileSimplified ? "Connection type" : "Remote provider"}
@@ -178,9 +339,7 @@ export function SettingsServerSection({
             className="settings-select"
             value={appSettings.remoteBackendProvider}
             onChange={(event) => {
-              void onChangeRemoteProvider(
-                event.target.value as AppSettings["remoteBackendProvider"],
-              );
+              void onChangeRemoteProvider(event.target.value as AppSettings["remoteBackendProvider"]);
             }}
             aria-label={isMobileSimplified ? "Connection type" : "Remote provider"}
           >
@@ -257,6 +416,7 @@ export function SettingsServerSection({
                   aria-label="Remote backend token"
                 />
               </div>
+              {remoteHostError && <div className="settings-help settings-help-error">{remoteHostError}</div>}
               <div className="settings-help">
                 {isMobileSimplified
                   ? "Use the Tailscale host from your desktop CodexMonitor app (Server section), for example `macbook.your-tailnet.ts.net:4732`."
@@ -278,9 +438,7 @@ export function SettingsServerSection({
                   </button>
                 </div>
                 {mobileConnectStatusText && (
-                  <div
-                    className={`settings-help${mobileConnectStatusError ? " settings-help-error" : ""}`}
-                  >
+                  <div className={`settings-help${mobileConnectStatusError ? " settings-help-error" : ""}`}>
                     {mobileConnectStatusText}
                   </div>
                 )}
@@ -482,9 +640,7 @@ export function SettingsServerSection({
                     </button>
                   </div>
                   {mobileConnectStatusText && (
-                    <div
-                      className={`settings-help${mobileConnectStatusError ? " settings-help-error" : ""}`}
-                    >
+                    <div className={`settings-help${mobileConnectStatusError ? " settings-help-error" : ""}`}>
                       {mobileConnectStatusText}
                     </div>
                   )}
@@ -697,10 +853,7 @@ export function SettingsServerSection({
                   )}
                   {orbitVerificationUrl && (
                     <div className="settings-help">
-                      Verification URL:{" "}
-                      <a href={orbitVerificationUrl} target="_blank" rel="noreferrer">
-                        {orbitVerificationUrl}
-                      </a>
+                      Verification URL: <a href={orbitVerificationUrl} target="_blank" rel="noreferrer">{orbitVerificationUrl}</a>
                     </div>
                   )}
                 </div>
@@ -717,6 +870,39 @@ export function SettingsServerSection({
             : "Use your own infrastructure only. On iOS, use the Orbit websocket URL and token configured on your desktop CodexMonitor setup."
           : "Mobile access should stay scoped to your own infrastructure (tailnet or self-hosted Orbit). CodexMonitor does not provide hosted backend services."}
       </div>
+      {pendingDeleteRemote && (
+        <ModalShell
+          className="settings-delete-remote-overlay"
+          cardClassName="settings-delete-remote-card"
+          onBackdropClick={() => setPendingDeleteRemoteId(null)}
+          ariaLabel="Delete remote confirmation"
+        >
+          <div className="settings-delete-remote-title">Delete remote?</div>
+          <div className="settings-delete-remote-message">
+            Remove <strong>{pendingDeleteRemote.name}</strong> from saved remotes? This only
+            removes the profile from this device.
+          </div>
+          <div className="settings-delete-remote-actions">
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => setPendingDeleteRemoteId(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="button"
+              onClick={() => {
+                void onDeleteRemoteBackend(pendingDeleteRemote.id);
+                setPendingDeleteRemoteId(null);
+              }}
+            >
+              Delete remote
+            </button>
+          </div>
+        </ModalShell>
+      )}
     </section>
   );
 }

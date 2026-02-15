@@ -153,6 +153,31 @@ pub(crate) fn remote_backend_token_optional(settings: &AppSettings) -> Option<St
         .filter(|value| !value.is_empty())
 }
 
+pub(crate) fn remote_backend_token_for_id_optional(
+    settings: &AppSettings,
+    remote_backend_id: Option<&str>,
+) -> Option<String> {
+    let normalized_remote_backend_id = remote_backend_id
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+
+    if let Some(remote_backend_id) = normalized_remote_backend_id {
+        if let Some(entry) = settings
+            .remote_backends
+            .iter()
+            .find(|entry| entry.id == remote_backend_id)
+        {
+            return entry
+                .token
+                .as_ref()
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty());
+        }
+    }
+
+    remote_backend_token_optional(settings)
+}
+
 pub(crate) fn build_orbit_ws_url(ws_url: &str, auth_token: Option<&str>) -> Result<String, String> {
     let raw_url = ws_url.trim();
     if raw_url.is_empty() {
@@ -400,7 +425,11 @@ pub(crate) async fn orbit_sign_out_core(auth_url: &str, token: &str) -> Result<(
 
 #[cfg(test)]
 mod tests {
-    use super::{build_orbit_ws_url, response_body_excerpt, MAX_ERROR_BODY_BYTES};
+    use super::{
+        build_orbit_ws_url, remote_backend_token_for_id_optional, response_body_excerpt,
+        MAX_ERROR_BODY_BYTES,
+    };
+    use crate::types::{AppSettings, RemoteBackendProvider, RemoteBackendTarget};
 
     #[test]
     fn build_orbit_ws_url_converts_http_scheme() {
@@ -453,5 +482,37 @@ mod tests {
             excerpt,
             format!("{}...", "a".repeat(MAX_ERROR_BODY_BYTES - 1))
         );
+    }
+
+    #[test]
+    fn remote_backend_token_for_id_falls_back_to_legacy_token_when_remote_missing() {
+        let settings = AppSettings {
+            remote_backend_token: Some("legacy-token".to_string()),
+            remote_backends: Vec::new(),
+            ..AppSettings::default()
+        };
+
+        let token = remote_backend_token_for_id_optional(&settings, Some("remote-a"));
+        assert_eq!(token.as_deref(), Some("legacy-token"));
+    }
+
+    #[test]
+    fn remote_backend_token_for_id_prefers_matching_remote_token() {
+        let settings = AppSettings {
+            remote_backend_token: Some("legacy-token".to_string()),
+            remote_backends: vec![RemoteBackendTarget {
+                id: "remote-a".to_string(),
+                name: "Remote A".to_string(),
+                provider: RemoteBackendProvider::Orbit,
+                host: "127.0.0.1:4732".to_string(),
+                token: Some("remote-token".to_string()),
+                orbit_ws_url: None,
+                last_connected_at_ms: None,
+            }],
+            ..AppSettings::default()
+        };
+
+        let token = remote_backend_token_for_id_optional(&settings, Some("remote-a"));
+        assert_eq!(token.as_deref(), Some("remote-token"));
     }
 }

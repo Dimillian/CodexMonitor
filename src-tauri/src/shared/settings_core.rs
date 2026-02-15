@@ -63,16 +63,66 @@ pub(crate) async fn update_remote_backend_token_core(
     app_settings: &Mutex<AppSettings>,
     settings_path: &PathBuf,
     token: Option<&str>,
+    remote_backend_id: Option<&str>,
 ) -> Result<AppSettings, String> {
     let normalized_token = token
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_string);
+    let normalized_remote_backend_id = remote_backend_id
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
     let mut next_settings = app_settings.lock().await.clone();
-    if next_settings.remote_backend_token == normalized_token {
+    let mut changed = false;
+
+    if next_settings.remote_backends.is_empty() {
+        if next_settings.remote_backend_token != normalized_token {
+            next_settings.remote_backend_token = normalized_token.clone();
+            changed = true;
+        }
+    } else {
+        let active_index = next_settings
+            .active_remote_backend_id
+            .as_ref()
+            .and_then(|id| {
+                next_settings
+                    .remote_backends
+                    .iter()
+                    .position(|entry| &entry.id == id)
+            })
+            .unwrap_or(0);
+        let active_remote_id = next_settings.remote_backends[active_index].id.clone();
+        if next_settings.active_remote_backend_id.as_deref() != Some(active_remote_id.as_str()) {
+            next_settings.active_remote_backend_id = Some(active_remote_id.clone());
+            changed = true;
+        }
+
+        let target_index = if let Some(target_id) = normalized_remote_backend_id {
+            next_settings
+                .remote_backends
+                .iter()
+                .position(|entry| entry.id == target_id)
+        } else {
+            Some(active_index)
+        };
+
+        if let Some(target_index) = target_index {
+            if next_settings.remote_backends[target_index].token != normalized_token {
+                next_settings.remote_backends[target_index].token = normalized_token.clone();
+                changed = true;
+            }
+
+            if target_index == active_index
+                && next_settings.remote_backend_token != normalized_token
+            {
+                next_settings.remote_backend_token = normalized_token.clone();
+                changed = true;
+            }
+        }
+    }
+    if !changed {
         return Ok(next_settings);
     }
-    next_settings.remote_backend_token = normalized_token;
     update_app_settings_core(next_settings, app_settings, settings_path).await
 }
 

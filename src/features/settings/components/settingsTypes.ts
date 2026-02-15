@@ -67,8 +67,11 @@ export type OpenAppDraft = OpenAppTarget & { argsText: string };
 export type OrbitServiceClient = {
   orbitConnectTest: () => Promise<OrbitConnectTestResult>;
   orbitSignInStart: () => Promise<OrbitDeviceCodeStart>;
-  orbitSignInPoll: (deviceCode: string) => Promise<OrbitSignInPollResult>;
-  orbitSignOut: () => Promise<OrbitSignOutResult>;
+  orbitSignInPoll: (
+    deviceCode: string,
+    remoteBackendId?: string,
+  ) => Promise<OrbitSignInPollResult>;
+  orbitSignOut: (remoteBackendId?: string) => Promise<OrbitSignOutResult>;
   orbitRunnerStart: () => Promise<OrbitRunnerStatus>;
   orbitRunnerStop: () => Promise<OrbitRunnerStatus>;
   orbitRunnerStatus: () => Promise<OrbitRunnerStatus>;

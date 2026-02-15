@@ -41,6 +41,17 @@ const baseSettings: AppSettings = {
   remoteBackendProvider: "tcp",
   remoteBackendHost: "127.0.0.1:4732",
   remoteBackendToken: null,
+  remoteBackends: [
+    {
+      id: "remote-default",
+      name: "Primary remote",
+      provider: "tcp",
+      host: "127.0.0.1:4732",
+      token: null,
+      orbitWsUrl: null,
+    },
+  ],
+  activeRemoteBackendId: "remote-default",
   orbitWsUrl: null,
   orbitAuthUrl: null,
   orbitRunnerName: null,
@@ -986,6 +997,177 @@ describe("SettingsView Codex overrides", () => {
     }
   });
 
+  it("supports multiple saved remotes on iOS runtime", async () => {
+    cleanup();
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
+      window.navigator,
+      "platform",
+    );
+    const originalUserAgentDescriptor = Object.getOwnPropertyDescriptor(
+      window.navigator,
+      "userAgent",
+    );
+    const originalTouchPointsDescriptor = Object.getOwnPropertyDescriptor(
+      window.navigator,
+      "maxTouchPoints",
+    );
+
+    Object.defineProperty(window.navigator, "platform", {
+      configurable: true,
+      value: "iPhone",
+    });
+    Object.defineProperty(window.navigator, "userAgent", {
+      configurable: true,
+      value:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
+    });
+    Object.defineProperty(window.navigator, "maxTouchPoints", {
+      configurable: true,
+      value: 5,
+    });
+
+    try {
+      render(
+        <SettingsView
+          workspaceGroups={[]}
+          groupedWorkspaces={[]}
+          ungroupedLabel="Ungrouped"
+          onClose={vi.fn()}
+          onMoveWorkspace={vi.fn()}
+          onDeleteWorkspace={vi.fn()}
+          onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+          onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+          onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+          onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+          onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+          reduceTransparency={false}
+          onToggleTransparency={vi.fn()}
+          appSettings={{
+            ...baseSettings,
+            remoteBackendProvider: "orbit",
+            remoteBackendHost: "127.0.0.1:4732",
+            remoteBackendToken: "token-a",
+            orbitWsUrl: "wss://orbit-a.example/ws",
+            remoteBackends: [
+              {
+                id: "remote-a",
+                name: "Home Mac",
+                provider: "orbit",
+                host: "127.0.0.1:4732",
+                token: "token-a",
+                orbitWsUrl: "wss://orbit-a.example/ws",
+              },
+              {
+                id: "remote-b",
+                name: "Office Mac",
+                provider: "tcp",
+                host: "office-mac.tailnet.ts.net:4732",
+                token: "token-b",
+                orbitWsUrl: null,
+              },
+            ],
+            activeRemoteBackendId: "remote-a",
+          }}
+          openAppIconById={{}}
+          onUpdateAppSettings={onUpdateAppSettings}
+          onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+          onUpdateWorkspaceCodexBin={vi.fn().mockResolvedValue(undefined)}
+          onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+          scaleShortcutTitle="Scale shortcut"
+          scaleShortcutText="Use Command +/-"
+          onTestNotificationSound={vi.fn()}
+          onTestSystemNotification={vi.fn()}
+          dictationModelStatus={null}
+          onDownloadDictationModel={vi.fn()}
+          onCancelDictationDownload={vi.fn()}
+          onRemoveDictationModel={vi.fn()}
+          initialSection="server"
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole("list", { name: "Saved remotes" })).toBeTruthy();
+        expect(screen.getByLabelText("Remote name")).toBeTruthy();
+      });
+      expect(screen.getAllByText(/Last connected: Never/i).length).toBeGreaterThan(0);
+
+      fireEvent.click(screen.getByRole("button", { name: "Use Office Mac remote" }));
+
+      await waitFor(() => {
+        expect(onUpdateAppSettings).toHaveBeenCalledWith(
+          expect.objectContaining({
+            activeRemoteBackendId: "remote-b",
+            remoteBackendProvider: "tcp",
+            remoteBackendHost: "office-mac.tailnet.ts.net:4732",
+            remoteBackendToken: "token-b",
+          }),
+        );
+      });
+
+      onUpdateAppSettings.mockClear();
+      fireEvent.change(screen.getByLabelText("Remote name"), {
+        target: { value: "Home Mac" },
+      });
+      fireEvent.blur(screen.getByLabelText("Remote name"));
+
+      await waitFor(() => {
+        expect(
+          screen.getAllByText('A remote named "Home Mac" already exists.').length,
+        ).toBeGreaterThan(0);
+      });
+
+      onUpdateAppSettings.mockClear();
+      fireEvent.click(screen.getByRole("button", { name: "Add remote" }));
+
+      await waitFor(() => {
+        expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
+        const nextSettings = onUpdateAppSettings.mock.calls[0]?.[0] as AppSettings;
+        expect(nextSettings.remoteBackends).toHaveLength(3);
+        expect(nextSettings.activeRemoteBackendId).toBeTruthy();
+      });
+
+      onUpdateAppSettings.mockClear();
+      fireEvent.click(screen.getByRole("button", { name: "Move Home Mac down" }));
+
+      await waitFor(() => {
+        expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
+        const nextSettings = onUpdateAppSettings.mock.calls[0]?.[0] as AppSettings;
+        expect(nextSettings.remoteBackends[0]?.id).toBe("remote-b");
+      });
+
+      onUpdateAppSettings.mockClear();
+      fireEvent.click(screen.getByRole("button", { name: "Delete Office Mac" }));
+      fireEvent.click(screen.getByRole("button", { name: "Delete remote" }));
+
+      await waitFor(() => {
+        expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
+        const nextSettings = onUpdateAppSettings.mock.calls[0]?.[0] as AppSettings;
+        expect(nextSettings.remoteBackends.length).toBeGreaterThanOrEqual(1);
+      });
+    } finally {
+      if (originalPlatformDescriptor) {
+        Object.defineProperty(window.navigator, "platform", originalPlatformDescriptor);
+      } else {
+        Reflect.deleteProperty(window.navigator, "platform");
+      }
+      if (originalUserAgentDescriptor) {
+        Object.defineProperty(window.navigator, "userAgent", originalUserAgentDescriptor);
+      } else {
+        Reflect.deleteProperty(window.navigator, "userAgent");
+      }
+      if (originalTouchPointsDescriptor) {
+        Object.defineProperty(
+          window.navigator,
+          "maxTouchPoints",
+          originalTouchPointsDescriptor,
+        );
+      } else {
+        Reflect.deleteProperty(window.navigator, "maxTouchPoints");
+      }
+    }
+  });
+
   it("polls Orbit sign-in using deviceCode until authorized", async () => {
     cleanup();
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
@@ -1131,7 +1313,7 @@ describe("SettingsView Codex overrides", () => {
     await waitFor(() => {
       expect(startSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledTimes(2);
-      expect(pollSpy).toHaveBeenCalledWith("device-code-123");
+      expect(pollSpy).toHaveBeenCalledWith("device-code-123", "remote-default");
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({ remoteBackendToken: "orbit-token-1", theme: "dark" }),
       );
@@ -1143,6 +1325,7 @@ describe("SettingsView Codex overrides", () => {
   it("syncs token state after Orbit sign-out", async () => {
     cleanup();
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    const signOutSpy = vi.fn().mockResolvedValue({ success: true, message: null });
     const orbitServiceClient: NonNullable<
       ComponentProps<typeof SettingsView>["orbitServiceClient"]
     > = {
@@ -1153,7 +1336,7 @@ describe("SettingsView Codex overrides", () => {
       }),
       orbitSignInStart: vi.fn(),
       orbitSignInPoll: vi.fn(),
-      orbitSignOut: vi.fn().mockResolvedValue({ success: true, message: null }),
+      orbitSignOut: signOutSpy,
       orbitRunnerStart: vi.fn().mockResolvedValue({
         state: "running",
         pid: 123,
@@ -1221,6 +1404,7 @@ describe("SettingsView Codex overrides", () => {
     });
 
     await waitFor(() => {
+      expect(signOutSpy).toHaveBeenCalledWith("remote-default");
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({ remoteBackendToken: null }),
       );

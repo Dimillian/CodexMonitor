@@ -551,6 +551,7 @@ impl DaemonState {
     async fn orbit_sign_in_poll(
         &self,
         device_code: String,
+        remote_backend_id: Option<String>,
     ) -> Result<OrbitSignInPollResult, String> {
         let auth_url = {
             let settings = self.app_settings.lock().await.clone();
@@ -564,6 +565,7 @@ impl DaemonState {
                     &self.app_settings,
                     &self.settings_path,
                     Some(token),
+                    remote_backend_id.as_deref(),
                 )
                 .await?;
             }
@@ -572,10 +574,16 @@ impl DaemonState {
         Ok(result)
     }
 
-    async fn orbit_sign_out(&self) -> Result<OrbitSignOutResult, String> {
+    async fn orbit_sign_out(
+        &self,
+        remote_backend_id: Option<String>,
+    ) -> Result<OrbitSignOutResult, String> {
         let settings = self.app_settings.lock().await.clone();
         let auth_url = shared::orbit_core::orbit_auth_url_optional(&settings);
-        let token = shared::orbit_core::remote_backend_token_optional(&settings);
+        let token = shared::orbit_core::remote_backend_token_for_id_optional(
+            &settings,
+            remote_backend_id.as_deref(),
+        );
 
         let mut logout_error: Option<String> = None;
         if let (Some(auth_url), Some(token)) = (auth_url.as_ref(), token.as_ref()) {
@@ -588,6 +596,7 @@ impl DaemonState {
             &self.app_settings,
             &self.settings_path,
             None,
+            remote_backend_id.as_deref(),
         )
         .await?;
 

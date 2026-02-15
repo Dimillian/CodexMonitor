@@ -312,14 +312,19 @@ pub(super) async fn try_handle(
                 Ok(value) => value,
                 Err(err) => return Some(Err(err)),
             };
-            let result = match state.orbit_sign_in_poll(device_code).await {
+            let remote_backend_id = parse_optional_string(params, "remoteBackendId");
+            let result = match state
+                .orbit_sign_in_poll(device_code, remote_backend_id)
+                .await
+            {
                 Ok(value) => value,
                 Err(err) => return Some(Err(err)),
             };
             Some(serde_json::to_value(result).map_err(|err| err.to_string()))
         }
         "orbit_sign_out" => {
-            let result = match state.orbit_sign_out().await {
+            let remote_backend_id = parse_optional_string(params, "remoteBackendId");
+            let result = match state.orbit_sign_out(remote_backend_id).await {
                 Ok(value) => value,
                 Err(err) => return Some(Err(err)),
             };

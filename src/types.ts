@@ -144,6 +144,15 @@ export type PullRequestSelectionRange = {
 export type AccessMode = "read-only" | "current" | "full-access";
 export type BackendMode = "local" | "remote";
 export type RemoteBackendProvider = "tcp" | "orbit";
+export type RemoteBackendTarget = {
+  id: string;
+  name: string;
+  provider: RemoteBackendProvider;
+  host: string;
+  token: string | null;
+  orbitWsUrl: string | null;
+  lastConnectedAtMs?: number | null;
+};
 export type ThemePreference = "system" | "light" | "dark" | "dim";
 export type PersonalityPreference = "friendly" | "pragmatic";
 
@@ -177,6 +186,8 @@ export type AppSettings = {
   remoteBackendProvider: RemoteBackendProvider;
   remoteBackendHost: string;
   remoteBackendToken: string | null;
+  remoteBackends: RemoteBackendTarget[];
+  activeRemoteBackendId: string | null;
   orbitWsUrl: string | null;
   orbitAuthUrl: string | null;
   orbitRunnerName: string | null;

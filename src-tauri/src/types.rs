@@ -440,6 +440,21 @@ pub(crate) struct OpenAppTarget {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub(crate) struct RemoteBackendTarget {
+    pub(crate) id: String,
+    pub(crate) name: String,
+    pub(crate) provider: RemoteBackendProvider,
+    #[serde(default = "default_remote_backend_host")]
+    pub(crate) host: String,
+    #[serde(default)]
+    pub(crate) token: Option<String>,
+    #[serde(default, rename = "orbitWsUrl")]
+    pub(crate) orbit_ws_url: Option<String>,
+    #[serde(default, rename = "lastConnectedAtMs")]
+    pub(crate) last_connected_at_ms: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct AppSettings {
     #[serde(default, rename = "codexBin")]
     pub(crate) codex_bin: Option<String>,
@@ -453,6 +468,10 @@ pub(crate) struct AppSettings {
     pub(crate) remote_backend_host: String,
     #[serde(default, rename = "remoteBackendToken")]
     pub(crate) remote_backend_token: Option<String>,
+    #[serde(default = "default_remote_backends", rename = "remoteBackends")]
+    pub(crate) remote_backends: Vec<RemoteBackendTarget>,
+    #[serde(default, rename = "activeRemoteBackendId")]
+    pub(crate) active_remote_backend_id: Option<String>,
     #[serde(default, rename = "orbitWsUrl")]
     pub(crate) orbit_ws_url: Option<String>,
     #[serde(default, rename = "orbitAuthUrl")]
@@ -591,10 +610,7 @@ pub(crate) struct AppSettings {
         rename = "notificationSoundsEnabled"
     )]
     pub(crate) notification_sounds_enabled: bool,
-    #[serde(
-        default = "default_split_chat_diff_view",
-        rename = "splitChatDiffView"
-    )]
+    #[serde(default = "default_split_chat_diff_view", rename = "splitChatDiffView")]
     pub(crate) split_chat_diff_view: bool,
     #[serde(default = "default_preload_git_diffs", rename = "preloadGitDiffs")]
     pub(crate) preload_git_diffs: bool,
@@ -757,6 +773,10 @@ fn default_backend_mode() -> BackendMode {
 
 fn default_remote_backend_host() -> String {
     "127.0.0.1:4732".to_string()
+}
+
+fn default_remote_backends() -> Vec<RemoteBackendTarget> {
+    Vec::new()
 }
 
 fn default_ui_scale() -> f64 {
@@ -1181,6 +1201,8 @@ impl Default for AppSettings {
             remote_backend_provider: RemoteBackendProvider::Tcp,
             remote_backend_host: default_remote_backend_host(),
             remote_backend_token: None,
+            remote_backends: default_remote_backends(),
+            active_remote_backend_id: None,
             orbit_ws_url: None,
             orbit_auth_url: None,
             orbit_runner_name: None,
@@ -1282,6 +1304,8 @@ mod tests {
         ));
         assert_eq!(settings.remote_backend_host, "127.0.0.1:4732");
         assert!(settings.remote_backend_token.is_none());
+        assert!(settings.remote_backends.is_empty());
+        assert!(settings.active_remote_backend_id.is_none());
         assert!(settings.orbit_ws_url.is_none());
         assert!(settings.orbit_auth_url.is_none());
         assert!(settings.orbit_runner_name.is_none());

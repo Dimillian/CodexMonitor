@@ -325,7 +325,9 @@ describe("tauri invoke wrappers", () => {
     await orbitConnectTest();
     await orbitSignInStart();
     await orbitSignInPoll("device-code");
+    await orbitSignInPoll("device-code-2", "remote-a");
     await orbitSignOut();
+    await orbitSignOut("remote-b");
     await orbitRunnerStart();
     await orbitRunnerStop();
     await orbitRunnerStatus();
@@ -335,7 +337,14 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("orbit_sign_in_poll", {
       deviceCode: "device-code",
     });
+    expect(invokeMock).toHaveBeenCalledWith("orbit_sign_in_poll", {
+      deviceCode: "device-code-2",
+      remoteBackendId: "remote-a",
+    });
     expect(invokeMock).toHaveBeenCalledWith("orbit_sign_out");
+    expect(invokeMock).toHaveBeenCalledWith("orbit_sign_out", {
+      remoteBackendId: "remote-b",
+    });
     expect(invokeMock).toHaveBeenCalledWith("orbit_runner_start");
     expect(invokeMock).toHaveBeenCalledWith("orbit_runner_stop");
     expect(invokeMock).toHaveBeenCalledWith("orbit_runner_status");

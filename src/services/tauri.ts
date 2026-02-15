@@ -702,11 +702,23 @@ export async function orbitSignInStart(): Promise<OrbitDeviceCodeStart> {
   return invoke<OrbitDeviceCodeStart>("orbit_sign_in_start");
 }
 
-export async function orbitSignInPoll(deviceCode: string): Promise<OrbitSignInPollResult> {
+export async function orbitSignInPoll(
+  deviceCode: string,
+  remoteBackendId?: string,
+): Promise<OrbitSignInPollResult> {
+  if (remoteBackendId) {
+    return invoke<OrbitSignInPollResult>("orbit_sign_in_poll", {
+      deviceCode,
+      remoteBackendId,
+    });
+  }
   return invoke<OrbitSignInPollResult>("orbit_sign_in_poll", { deviceCode });
 }
 
-export async function orbitSignOut(): Promise<OrbitSignOutResult> {
+export async function orbitSignOut(remoteBackendId?: string): Promise<OrbitSignOutResult> {
+  if (remoteBackendId) {
+    return invoke<OrbitSignOutResult>("orbit_sign_out", { remoteBackendId });
+  }
   return invoke<OrbitSignOutResult>("orbit_sign_out");
 }
 
