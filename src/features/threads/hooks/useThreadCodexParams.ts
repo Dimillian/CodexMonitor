@@ -10,7 +10,10 @@ import {
 } from "@threads/utils/threadStorage";
 
 type ThreadCodexParamsPatch = Partial<
-  Pick<ThreadCodexParams, "modelId" | "effort" | "accessMode" | "collaborationModeId">
+  Pick<
+    ThreadCodexParams,
+    "modelId" | "effort" | "accessMode" | "collaborationModeId" | "codexArgsOverride"
+  >
 >;
 
 type UseThreadCodexParamsResult = {
@@ -29,6 +32,7 @@ const DEFAULT_ENTRY: ThreadCodexParams = {
   effort: null,
   accessMode: null,
   collaborationModeId: null,
+  codexArgsOverride: null,
   updatedAt: 0,
 };
 
@@ -52,6 +56,8 @@ function sanitizeEntry(value: unknown): ThreadCodexParams | null {
       typeof entry.collaborationModeId === "string"
         ? entry.collaborationModeId
         : null,
+    codexArgsOverride:
+      typeof entry.codexArgsOverride === "string" ? entry.codexArgsOverride : null,
     updatedAt: typeof entry.updatedAt === "number" ? entry.updatedAt : 0,
   };
 }

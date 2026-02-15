@@ -308,6 +308,13 @@ export function SettingsCodexSection({
         <div className="settings-help">
           Extra flags passed before <code>app-server</code>. Use quotes for values with spaces.
         </div>
+        <div className="settings-help">
+          Per-thread override processing ignores unsupported flags: <code>-m</code>/
+          <code>--model</code>, <code>-a</code>/<code>--ask-for-approval</code>,{" "}
+          <code>-s</code>/<code>--sandbox</code>, <code>--full-auto</code>,{" "}
+          <code>--dangerously-bypass-approvals-and-sandbox</code>, <code>--oss</code>,{" "}
+          <code>--local-provider</code>, and <code>--no-alt-screen</code>.
+        </div>
         <div className="settings-field-actions">
           {codexDirty && (
             <button

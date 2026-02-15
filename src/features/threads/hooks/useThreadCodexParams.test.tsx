@@ -18,6 +18,7 @@ describe("useThreadCodexParams", () => {
         effort: "high",
         accessMode: "full-access",
         collaborationModeId: "plan",
+        codexArgsOverride: "--profile dev",
       });
     });
 
@@ -27,6 +28,7 @@ describe("useThreadCodexParams", () => {
         effort: "high",
         accessMode: "full-access",
         collaborationModeId: "plan",
+        codexArgsOverride: "--profile dev",
       }),
     );
 
@@ -45,6 +47,7 @@ describe("useThreadCodexParams", () => {
           effort: "medium",
           accessMode: "nope",
           collaborationModeId: 99,
+          codexArgsOverride: 12,
           updatedAt: "never",
         },
       }),
@@ -57,6 +60,7 @@ describe("useThreadCodexParams", () => {
       effort: "medium",
       accessMode: null,
       collaborationModeId: null,
+      codexArgsOverride: null,
       updatedAt: 0,
     });
   });
@@ -72,6 +76,7 @@ describe("useThreadCodexParams", () => {
           effort: "low",
           accessMode: "current",
           collaborationModeId: "default",
+          codexArgsOverride: "--profile ws",
           updatedAt: 1,
         },
       }),
@@ -92,6 +97,7 @@ describe("useThreadCodexParams", () => {
       effort: "low",
       accessMode: "current",
       collaborationModeId: "default",
+      codexArgsOverride: "--profile ws",
       updatedAt: 1,
     });
   });

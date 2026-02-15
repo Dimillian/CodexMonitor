@@ -19,6 +19,7 @@ export type ThreadCodexParams = {
   effort: string | null;
   accessMode: AccessMode | null;
   collaborationModeId: string | null;
+  codexArgsOverride: string | null;
   updatedAt: number;
 };
 

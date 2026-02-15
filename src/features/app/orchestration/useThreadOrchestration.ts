@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
+import { pushErrorToast } from "@/services/toasts";
 import type { AccessMode, AppMention, AppSettings } from "@/types";
 import { useThreadCodexParams } from "@threads/hooks/useThreadCodexParams";
+import { getIgnoredCodexArgsFlagsMetadata } from "@threads/utils/codexArgsProfiles";
 import {
   buildThreadCodexSeedPatch,
   createPendingThreadSeed,
+  NO_THREAD_SCOPE_SUFFIX,
   resolveThreadCodexState,
   type PendingNewThreadSeed,
 } from "@threads/utils/threadCodexParamsSeed";
@@ -19,6 +22,7 @@ type PersistThreadCodexParams = (
     effort?: string | null;
     accessMode?: AccessMode | null;
     collaborationModeId?: string | null;
+    codexArgsOverride?: string | null;
   },
 ) => void;
 
@@ -31,6 +35,7 @@ type UseThreadSelectionHandlersOrchestrationParams = {
   setSelectedEffort: (effort: string | null) => void;
   setSelectedCollaborationModeId: (id: string | null) => void;
   setAccessMode: SetState<AccessMode>;
+  setSelectedCodexArgsOverride?: (value: string | null) => void;
   persistThreadCodexParams: PersistThreadCodexParams;
 };
 
@@ -53,12 +58,14 @@ type UseThreadCodexSyncOrchestrationParams = {
   setPreferredModelId: SetState<string | null>;
   setPreferredEffort: SetState<string | null>;
   setPreferredCollabModeId: SetState<string | null>;
+  setPreferredCodexArgsOverride?: SetState<string | null>;
   activeThreadIdRef: MutableRefObject<string | null>;
   pendingNewThreadSeedRef: MutableRefObject<PendingNewThreadSeed | null>;
   selectedModelId: string | null;
   resolvedEffort: string | null;
   accessMode: AccessMode;
   selectedCollaborationModeId: string | null;
+  selectedCodexArgsOverride?: string | null;
 };
 
 type MainTab = "home" | "projects" | "codex" | "git" | "log";
@@ -74,6 +81,7 @@ type UseThreadUiOrchestrationParams = {
   activeThreadId: string | null;
   accessMode: AccessMode;
   selectedCollaborationModeId: string | null;
+  selectedCodexArgsOverride?: string | null;
   pendingNewThreadSeedRef: MutableRefObject<PendingNewThreadSeed | null>;
   runWithDraftStart: (runner: () => Promise<void>) => Promise<void>;
   handleComposerSend: SendOrQueueHandler;
@@ -114,12 +122,14 @@ export function useThreadCodexSyncOrchestration({
   setPreferredModelId,
   setPreferredEffort,
   setPreferredCollabModeId,
+  setPreferredCodexArgsOverride,
   activeThreadIdRef,
   pendingNewThreadSeedRef,
   selectedModelId,
   resolvedEffort,
   accessMode,
   selectedCollaborationModeId,
+  selectedCodexArgsOverride,
 }: UseThreadCodexSyncOrchestrationParams) {
   useLayoutEffect(() => {
     const workspaceId = activeWorkspaceId ?? null;
@@ -130,7 +140,10 @@ export function useThreadCodexSyncOrchestration({
       return;
     }
 
-    const stored = threadId ? getThreadCodexParams(workspaceId, threadId) : null;
+    const stored = getThreadCodexParams(
+      workspaceId,
+      threadId ?? NO_THREAD_SCOPE_SUFFIX,
+    );
     const resolved = resolveThreadCodexState({
       workspaceId,
       threadId,
@@ -146,6 +159,7 @@ export function useThreadCodexSyncOrchestration({
     setPreferredModelId(resolved.preferredModelId);
     setPreferredEffort(resolved.preferredEffort);
     setPreferredCollabModeId(resolved.preferredCollabModeId);
+    setPreferredCodexArgsOverride?.(resolved.preferredCodexArgsOverride);
   }, [
     activeThreadId,
     activeWorkspaceId,
@@ -154,6 +168,7 @@ export function useThreadCodexSyncOrchestration({
     appSettings.lastComposerReasoningEffort,
     getThreadCodexParams,
     setPreferredCollabModeId,
+    setPreferredCodexArgsOverride,
     setPreferredEffort,
     setPreferredModelId,
     setThreadCodexSelectionKey,
@@ -193,6 +208,7 @@ export function useThreadCodexSyncOrchestration({
         resolvedEffort,
         accessMode,
         selectedCollaborationModeId,
+        codexArgsOverride: selectedCodexArgsOverride ?? null,
         pendingSeed,
       }),
     );
@@ -207,6 +223,7 @@ export function useThreadCodexSyncOrchestration({
     patchThreadCodexParams,
     resolvedEffort,
     selectedCollaborationModeId,
+    selectedCodexArgsOverride,
     selectedModelId,
     pendingNewThreadSeedRef,
   ]);
@@ -221,6 +238,7 @@ export function useThreadSelectionHandlersOrchestration({
   setSelectedEffort,
   setSelectedCollaborationModeId,
   setAccessMode,
+  setSelectedCodexArgsOverride,
   persistThreadCodexParams,
 }: UseThreadSelectionHandlersOrchestrationParams) {
   const handleSelectModel = useCallback(
@@ -292,11 +310,27 @@ export function useThreadSelectionHandlersOrchestration({
     [persistThreadCodexParams, setAccessMode],
   );
 
+  const handleSelectCodexArgsOverride = useCallback(
+    (value: string | null) => {
+      const next = typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+      if (next && getIgnoredCodexArgsFlagsMetadata(next).hasIgnoredFlags) {
+        pushErrorToast({
+          title: "Some codex args are ignored",
+          message: "Selected flags are ignored for per-thread overrides.",
+        });
+      }
+      setSelectedCodexArgsOverride?.(next);
+      persistThreadCodexParams({ codexArgsOverride: next });
+    },
+    [persistThreadCodexParams, setSelectedCodexArgsOverride],
+  );
+
   return {
     handleSelectModel,
     handleSelectEffort,
     handleSelectCollaborationMode,
     handleSelectAccessMode,
+    handleSelectCodexArgsOverride,
   };
 }
 
@@ -305,6 +339,7 @@ export function useThreadUiOrchestration({
   activeThreadId,
   accessMode,
   selectedCollaborationModeId,
+  selectedCodexArgsOverride,
   pendingNewThreadSeedRef,
   runWithDraftStart,
   handleComposerSend,
@@ -326,6 +361,7 @@ export function useThreadUiOrchestration({
       activeWorkspaceId: activeWorkspaceId ?? null,
       selectedCollaborationModeId,
       accessMode,
+      codexArgsOverride: selectedCodexArgsOverride ?? null,
     });
   }, [
     accessMode,
@@ -333,6 +369,7 @@ export function useThreadUiOrchestration({
     activeWorkspaceId,
     pendingNewThreadSeedRef,
     selectedCollaborationModeId,
+    selectedCodexArgsOverride,
   ]);
 
   const handleComposerSendWithDraftStart = useCallback(

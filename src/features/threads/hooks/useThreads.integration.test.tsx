@@ -10,6 +10,7 @@ import {
   resumeThread,
   sendUserMessage as sendUserMessageService,
   setThreadName,
+  startThread,
   startReview,
   steerTurn,
 } from "@services/tauri";
@@ -131,6 +132,54 @@ describe("useThreads UX integration", () => {
     if (assistantMerged?.kind === "message") {
       expect(assistantMerged.text).toBe("Hello world");
     }
+  });
+
+  it("applies runtime codex args before start and selection resume", async () => {
+    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
+    vi.mocked(startThread).mockResolvedValue({
+      result: { thread: { id: "thread-new" } },
+    } as Awaited<ReturnType<typeof startThread>>);
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "thread-2",
+          preview: "Remote preview",
+          updated_at: 9999,
+          turns: [],
+        },
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+        ensureWorkspaceRuntimeCodexArgs,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startThread();
+    });
+
+    expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", null);
+    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1");
+    const startEnsureCallOrder = ensureWorkspaceRuntimeCodexArgs.mock.invocationCallOrder[0];
+    const startThreadCallOrder = vi.mocked(startThread).mock.invocationCallOrder[0];
+    expect(startEnsureCallOrder).toBeLessThan(startThreadCallOrder);
+
+    act(() => {
+      result.current.setActiveThreadId("thread-2");
+    });
+
+    await waitFor(() => {
+      expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", "thread-2");
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-2");
+    });
+
+    const selectEnsureCallOrder = ensureWorkspaceRuntimeCodexArgs.mock.invocationCallOrder[1];
+    const resumeThreadCallOrder = vi.mocked(resumeThread).mock.invocationCallOrder[0];
+    expect(selectEnsureCallOrder).toBeLessThan(resumeThreadCallOrder);
   });
 
   it("defers trimming until scrollback settings hydrate", async () => {

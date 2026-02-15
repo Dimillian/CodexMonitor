@@ -34,6 +34,10 @@ type UseThreadsOptions = {
   activeWorkspace: WorkspaceInfo | null;
   onWorkspaceConnected: (id: string) => void;
   onDebug?: (entry: DebugEntry) => void;
+  ensureWorkspaceRuntimeCodexArgs?: (
+    workspaceId: string,
+    threadId: string | null,
+  ) => Promise<void>;
   model?: string | null;
   effort?: string | null;
   collaborationMode?: Record<string, unknown> | null;
@@ -55,6 +59,7 @@ export function useThreads({
   activeWorkspace,
   onWorkspaceConnected,
   onDebug,
+  ensureWorkspaceRuntimeCodexArgs,
   model,
   effort,
   collaborationMode,
@@ -451,8 +456,11 @@ export function useThreads({
     if (!activeWorkspaceId) {
       return null;
     }
+    if (ensureWorkspaceRuntimeCodexArgs) {
+      await ensureWorkspaceRuntimeCodexArgs(activeWorkspaceId, null);
+    }
     return startThreadForWorkspace(activeWorkspaceId);
-  }, [activeWorkspaceId, startThreadForWorkspace]);
+  }, [activeWorkspaceId, ensureWorkspaceRuntimeCodexArgs, startThreadForWorkspace]);
 
   const ensureThreadForActiveWorkspace = useCallback(async () => {
     if (!activeWorkspace) {
@@ -460,15 +468,27 @@ export function useThreads({
     }
     let threadId = activeThreadId;
     if (!threadId) {
+      if (ensureWorkspaceRuntimeCodexArgs) {
+        await ensureWorkspaceRuntimeCodexArgs(activeWorkspace.id, null);
+      }
       threadId = await startThreadForWorkspace(activeWorkspace.id);
       if (!threadId) {
         return null;
       }
     } else if (!loadedThreadsRef.current[threadId]) {
+      if (ensureWorkspaceRuntimeCodexArgs) {
+        await ensureWorkspaceRuntimeCodexArgs(activeWorkspace.id, threadId);
+      }
       await resumeThreadForWorkspace(activeWorkspace.id, threadId);
     }
     return threadId;
-  }, [activeWorkspace, activeThreadId, resumeThreadForWorkspace, startThreadForWorkspace]);
+  }, [
+    activeWorkspace,
+    activeThreadId,
+    ensureWorkspaceRuntimeCodexArgs,
+    resumeThreadForWorkspace,
+    startThreadForWorkspace,
+  ]);
 
   const ensureThreadForWorkspace = useCallback(
     async (workspaceId: string) => {
@@ -476,6 +496,9 @@ export function useThreads({
       const shouldActivate = workspaceId === activeWorkspaceId;
       let threadId = currentActiveThreadId;
       if (!threadId) {
+        if (ensureWorkspaceRuntimeCodexArgs) {
+          await ensureWorkspaceRuntimeCodexArgs(workspaceId, null);
+        }
         threadId = await startThreadForWorkspace(workspaceId, {
           activate: shouldActivate,
         });
@@ -483,6 +506,9 @@ export function useThreads({
           return null;
         }
       } else if (!loadedThreadsRef.current[threadId]) {
+        if (ensureWorkspaceRuntimeCodexArgs) {
+          await ensureWorkspaceRuntimeCodexArgs(workspaceId, threadId);
+        }
         await resumeThreadForWorkspace(workspaceId, threadId);
       }
       if (shouldActivate && currentActiveThreadId !== threadId) {
@@ -493,6 +519,7 @@ export function useThreads({
     [
       activeWorkspaceId,
       dispatch,
+      ensureWorkspaceRuntimeCodexArgs,
       loadedThreadsRef,
       resumeThreadForWorkspace,
       startThreadForWorkspace,
@@ -541,6 +568,7 @@ export function useThreads({
     reviewDeliveryMode,
     steerEnabled,
     customPrompts,
+    ensureWorkspaceRuntimeCodexArgs,
     threadStatusById: state.threadStatusById,
     activeTurnIdByThread: state.activeTurnIdByThread,
     rateLimitsByWorkspace: state.rateLimitsByWorkspace,
@@ -580,10 +608,20 @@ export function useThreads({
         });
       }
       if (threadId) {
-        void resumeThreadForWorkspace(targetId, threadId);
+        void (async () => {
+          if (ensureWorkspaceRuntimeCodexArgs) {
+            await ensureWorkspaceRuntimeCodexArgs(targetId, threadId);
+          }
+          await resumeThreadForWorkspace(targetId, threadId);
+        })();
       }
     },
-    [activeWorkspaceId, resumeThreadForWorkspace, state.activeThreadIdByWorkspace],
+    [
+      activeWorkspaceId,
+      ensureWorkspaceRuntimeCodexArgs,
+      resumeThreadForWorkspace,
+      state.activeThreadIdByWorkspace,
+    ],
   );
 
   const removeThread = useCallback(

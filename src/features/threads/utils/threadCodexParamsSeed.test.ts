@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   buildThreadCodexSeedPatch,
   createPendingThreadSeed,
+  resolveWorkspaceRuntimeCodexArgsOverride,
   resolveThreadCodexState,
 } from "./threadCodexParamsSeed";
+import type { ThreadCodexParams } from "./threadStorage";
 
 describe("threadCodexParamsSeed", () => {
   it("creates a pending seed only for first-message no-thread composer", () => {
@@ -13,6 +15,7 @@ describe("threadCodexParamsSeed", () => {
         activeWorkspaceId: "ws-1",
         selectedCollaborationModeId: "plan",
         accessMode: "full-access",
+        codexArgsOverride: "--profile dev",
       }),
     ).toBeNull();
 
@@ -22,6 +25,7 @@ describe("threadCodexParamsSeed", () => {
         activeWorkspaceId: null,
         selectedCollaborationModeId: "plan",
         accessMode: "full-access",
+        codexArgsOverride: "--profile dev",
       }),
     ).toBeNull();
 
@@ -31,11 +35,13 @@ describe("threadCodexParamsSeed", () => {
         activeWorkspaceId: "ws-1",
         selectedCollaborationModeId: "plan",
         accessMode: "full-access",
+        codexArgsOverride: "--profile dev",
       }),
     ).toEqual({
       workspaceId: "ws-1",
       collaborationModeId: "plan",
       accessMode: "full-access",
+      codexArgsOverride: "--profile dev",
     });
   });
 
@@ -51,12 +57,14 @@ describe("threadCodexParamsSeed", () => {
         effort: "low",
         accessMode: "read-only",
         collaborationModeId: "default",
+        codexArgsOverride: "--profile stored",
         updatedAt: 100,
       },
       pendingSeed: {
         workspaceId: "ws-1",
         collaborationModeId: "plan",
         accessMode: "full-access",
+        codexArgsOverride: "--profile pending",
       },
     });
 
@@ -66,6 +74,7 @@ describe("threadCodexParamsSeed", () => {
       preferredModelId: "gpt-4.1",
       preferredEffort: "low",
       preferredCollabModeId: "default",
+      preferredCodexArgsOverride: "--profile stored",
     });
 
     const seededResolved = resolveThreadCodexState({
@@ -79,6 +88,7 @@ describe("threadCodexParamsSeed", () => {
         workspaceId: "ws-1",
         collaborationModeId: "plan",
         accessMode: "full-access",
+        codexArgsOverride: "--profile pending",
       },
     });
 
@@ -88,7 +98,132 @@ describe("threadCodexParamsSeed", () => {
       preferredModelId: "gpt-5",
       preferredEffort: "medium",
       preferredCollabModeId: "plan",
+      preferredCodexArgsOverride: "--profile pending",
     });
+  });
+
+  it("resolves no-thread state from stored no-thread params before defaults", () => {
+    const resolved = resolveThreadCodexState({
+      workspaceId: "ws-1",
+      threadId: null,
+      defaultAccessMode: "current",
+      lastComposerModelId: "gpt-5",
+      lastComposerReasoningEffort: "medium",
+      stored: {
+        modelId: "gpt-4.1",
+        effort: "low",
+        accessMode: "read-only",
+        collaborationModeId: "plan",
+        codexArgsOverride: "--profile stored",
+        updatedAt: 100,
+      },
+      pendingSeed: null,
+    });
+
+    expect(resolved).toEqual({
+      scopeKey: "ws-1:__no_thread__",
+      accessMode: "read-only",
+      preferredModelId: "gpt-4.1",
+      preferredEffort: "low",
+      preferredCollabModeId: "plan",
+      preferredCodexArgsOverride: "--profile stored",
+    });
+  });
+
+  it("falls back to no-thread runtime args until thread-scoped params are seeded", () => {
+    const entry = (codexArgsOverride: string | null): ThreadCodexParams => ({
+      modelId: null,
+      effort: null,
+      accessMode: null,
+      collaborationModeId: null,
+      codexArgsOverride,
+      updatedAt: 0,
+    });
+
+    const paramsMap: Record<string, ThreadCodexParams | undefined> = {
+      "ws-1:__no_thread__": entry("--profile no-thread"),
+      "ws-1:thread-with-null": entry(null),
+      "ws-1:thread-with-ignored-only": entry("--model gpt-5 --full-auto"),
+      "ws-1:thread-with-sanitized-value": entry("--profile thread --model gpt-5"),
+    };
+
+    const getThreadCodexParams = (workspaceId: string, threadId: string) =>
+      paramsMap[`${workspaceId}:${threadId}`] ?? null;
+
+    expect(
+      resolveWorkspaceRuntimeCodexArgsOverride({
+        workspaceId: "ws-1",
+        threadId: null,
+        getThreadCodexParams,
+      }),
+    ).toBe("--profile no-thread");
+
+    expect(
+      resolveWorkspaceRuntimeCodexArgsOverride({
+        workspaceId: "ws-1",
+        threadId: "thread-missing",
+        getThreadCodexParams,
+      }),
+    ).toBe("--profile no-thread");
+
+    expect(
+      resolveWorkspaceRuntimeCodexArgsOverride({
+        workspaceId: "ws-1",
+        threadId: "thread-with-null",
+        getThreadCodexParams,
+      }),
+    ).toBeNull();
+
+    expect(
+      resolveWorkspaceRuntimeCodexArgsOverride({
+        workspaceId: "ws-1",
+        threadId: "thread-with-ignored-only",
+        getThreadCodexParams,
+      }),
+    ).toBeNull();
+
+    expect(
+      resolveWorkspaceRuntimeCodexArgsOverride({
+        workspaceId: "ws-1",
+        threadId: "thread-with-sanitized-value",
+        getThreadCodexParams,
+      }),
+    ).toBe("--profile thread");
+  });
+
+  it("returns null for no-thread ignored-only overrides and sanitized args otherwise", () => {
+    const entry = (codexArgsOverride: string | null): ThreadCodexParams => ({
+      modelId: null,
+      effort: null,
+      accessMode: null,
+      collaborationModeId: null,
+      codexArgsOverride,
+      updatedAt: 0,
+    });
+
+    const paramsMap: Record<string, ThreadCodexParams | undefined> = {
+      "ws-1:__no_thread__": entry("--model gpt-5 --sandbox workspace-write"),
+      "ws-1:thread-1": entry("--profile dev --model gpt-5"),
+    };
+
+    const getThreadCodexParams = (workspaceId: string, threadId: string) =>
+      paramsMap[`${workspaceId}:${threadId}`] ?? null;
+
+    expect(
+      resolveWorkspaceRuntimeCodexArgsOverride({
+        workspaceId: "ws-1",
+        threadId: null,
+        getThreadCodexParams,
+      }),
+    ).toBeNull();
+
+    expect(
+      resolveWorkspaceRuntimeCodexArgsOverride({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        getThreadCodexParams,
+      }),
+    ).toBe("--profile dev");
   });
 
   it("builds first-message seed patch with pending workspace snapshot", () => {
@@ -99,10 +234,12 @@ describe("threadCodexParamsSeed", () => {
         resolvedEffort: "high",
         accessMode: "current",
         selectedCollaborationModeId: "default",
+        codexArgsOverride: "--profile composer",
         pendingSeed: {
           workspaceId: "ws-1",
           collaborationModeId: "plan",
           accessMode: "full-access",
+          codexArgsOverride: "--profile pending",
         },
       }),
     ).toEqual({
@@ -110,6 +247,7 @@ describe("threadCodexParamsSeed", () => {
       effort: "high",
       accessMode: "full-access",
       collaborationModeId: "plan",
+      codexArgsOverride: "--profile pending",
     });
 
     expect(
@@ -119,10 +257,12 @@ describe("threadCodexParamsSeed", () => {
         resolvedEffort: "high",
         accessMode: "current",
         selectedCollaborationModeId: "default",
+        codexArgsOverride: "--profile composer",
         pendingSeed: {
           workspaceId: "ws-other",
           collaborationModeId: "plan",
           accessMode: "full-access",
+          codexArgsOverride: "--profile pending",
         },
       }),
     ).toEqual({
@@ -130,6 +270,7 @@ describe("threadCodexParamsSeed", () => {
       effort: "high",
       accessMode: "current",
       collaborationModeId: "default",
+      codexArgsOverride: "--profile composer",
     });
   });
 });
