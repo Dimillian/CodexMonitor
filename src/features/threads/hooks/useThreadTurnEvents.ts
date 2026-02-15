@@ -42,7 +42,6 @@ export function useThreadTurnEvents({
   recordThreadActivity,
   resolveCurrentModel,
 }: UseThreadTurnEventsOptions) {
-<<<<<<< HEAD
   const normalizeNonEmptyString = useCallback((value: string | null | undefined) => {
     if (typeof value !== "string") {
       return null;
@@ -50,50 +49,6 @@ export function useThreadTurnEvents({
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : null;
   }, []);
-=======
-  const immediateActiveTurnIdByThreadRef = useRef<Record<string, string | null>>({});
-  const lastReducerActiveTurnIdByThreadRef = useRef<Record<string, string | null>>({});
-  const hasOptimisticActiveTurnByThreadRef = useRef<Record<string, boolean>>({});
-
-  const getLatestKnownActiveTurnId = useCallback(
-    (threadId: string) => {
-      const reducerTurnId = getActiveTurnId(threadId);
-      const lastReducerTurnId = lastReducerActiveTurnIdByThreadRef.current[threadId];
-      const immediateTurnId = immediateActiveTurnIdByThreadRef.current[threadId];
-      const hasOptimisticTurn =
-        hasOptimisticActiveTurnByThreadRef.current[threadId] === true;
-
-      if (hasOptimisticTurn && immediateTurnId !== undefined) {
-        if (reducerTurnId === immediateTurnId) {
-          // Reducer caught up with our optimistic write.
-          hasOptimisticActiveTurnByThreadRef.current[threadId] = false;
-        } else if (
-          lastReducerTurnId !== undefined &&
-          reducerTurnId !== lastReducerTurnId
-        ) {
-          // Reducer changed independently (e.g. resume hydration), so adopt it.
-          hasOptimisticActiveTurnByThreadRef.current[threadId] = false;
-          immediateActiveTurnIdByThreadRef.current[threadId] = reducerTurnId;
-        } else {
-          lastReducerActiveTurnIdByThreadRef.current[threadId] = reducerTurnId;
-          return immediateTurnId;
-        }
-      }
-
-      if (lastReducerTurnId !== reducerTurnId) {
-        // Keep cache aligned with reducer when we are not in an optimistic window.
-        lastReducerActiveTurnIdByThreadRef.current[threadId] = reducerTurnId;
-        immediateActiveTurnIdByThreadRef.current[threadId] = reducerTurnId;
-      }
-
-      if (immediateTurnId !== undefined) {
-        return immediateActiveTurnIdByThreadRef.current[threadId];
-      }
-      return reducerTurnId;
-    },
-    [getActiveTurnId],
-  );
->>>>>>> origin/main
 
   const shouldClearCompletedPlan = useCallback((threadId: string, turnId: string) => {
     const plan = planByThreadRef.current[threadId];
@@ -195,7 +150,6 @@ export function useThreadTurnEvents({
         setActiveTurnId(threadId, turnId);
       }
     },
-<<<<<<< HEAD
     [
       dispatch,
       markProcessing,
@@ -204,9 +158,6 @@ export function useThreadTurnEvents({
       resolveCurrentModel,
       setActiveTurnId,
     ],
-=======
-    [dispatch, getActiveTurnId, markProcessing, pendingInterruptsRef, setActiveTurnId],
->>>>>>> origin/main
   );
 
   const onTurnCompleted = useCallback(

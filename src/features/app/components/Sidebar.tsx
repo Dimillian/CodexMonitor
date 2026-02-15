@@ -1,10 +1,5 @@
 import type {
   AccountSnapshot,
-<<<<<<< HEAD
-=======
-  RequestUserInputRequest,
-  RateLimitSnapshot,
->>>>>>> origin/main
   ThreadListSortKey,
   ThreadSummary,
   WorkspaceInfo,
@@ -330,12 +325,6 @@ type SidebarProps = {
   onRefreshAllThreads: () => void;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
-<<<<<<< HEAD
-=======
-  userInputRequests?: RequestUserInputRequest[];
-  accountRateLimits: RateLimitSnapshot | null;
-  usageShowRemaining: boolean;
->>>>>>> origin/main
   accountInfo: AccountSnapshot | null;
   onSwitchAccount: () => void;
   onCancelSwitchAccount: () => void;
@@ -398,12 +387,6 @@ export const Sidebar = memo(function Sidebar({
   onRefreshAllThreads,
   activeWorkspaceId,
   activeThreadId,
-<<<<<<< HEAD
-=======
-  userInputRequests = [],
-  accountRateLimits,
-  usageShowRemaining,
->>>>>>> origin/main
   accountInfo,
   onSwitchAccount,
   onCancelSwitchAccount,

@@ -218,7 +218,6 @@ const PullRequestSummary = memo(function PullRequestSummary({
               {pullRequest.title}
             </span>
           </div>
-<<<<<<< HEAD
           {hasDiffs && (
             <button
               type="button"
@@ -235,42 +234,6 @@ const PullRequestSummary = memo(function PullRequestSummary({
               </span>
             </button>
           )}
-=======
-          <div className="diff-viewer-pr-header-actions">
-            {hasDiffs && (
-              <button
-                type="button"
-                className="ghost diff-viewer-pr-jump"
-                onClick={onJumpToFirstFile}
-                aria-label="Jump to first file"
-              >
-                <span className="diff-viewer-pr-jump-add">
-                  +{diffStats.additions}
-                </span>
-                <span className="diff-viewer-pr-jump-sep">/</span>
-                <span className="diff-viewer-pr-jump-del">
-                  -{diffStats.deletions}
-                </span>
-              </button>
-            )}
-            {onCheckoutPullRequest ? (
-              <button
-                type="button"
-                className="ghost diff-viewer-pr-checkout"
-                aria-label={`Checkout PR #${pullRequest.number} branch`}
-                disabled={isCheckingOut}
-                onClick={() => {
-                  setIsCheckingOut(true);
-                  Promise.resolve(onCheckoutPullRequest(pullRequest)).finally(() => {
-                    setIsCheckingOut(false);
-                  });
-                }}
-              >
-                {isCheckingOut ? "Checking out..." : "Checkout Branch"}
-              </button>
-            ) : null}
-          </div>
->>>>>>> origin/main
         </div>
         <div className="diff-viewer-pr-meta">
           <span className="diff-viewer-pr-author">@{prAuthor}</span>
@@ -711,19 +674,7 @@ export function GitDiffViewer({
           </div>
         )}
         {!error && !isLoading && !diffs.length && (
-<<<<<<< HEAD
           <div className="diff-viewer-empty">未检测到改动。</div>
-=======
-          <div className="diff-viewer-empty-state" role="status" aria-live="polite">
-            <div className="diff-viewer-empty-glow" aria-hidden />
-            <span className="diff-viewer-empty-icon" aria-hidden>
-              <GitCommitHorizontal size={18} />
-            </span>
-            <h3 className="diff-viewer-empty-title">{emptyStateCopy.title}</h3>
-            <p className="diff-viewer-empty-subtitle">{emptyStateCopy.subtitle}</p>
-            <p className="diff-viewer-empty-hint">{emptyStateCopy.hint}</p>
-          </div>
->>>>>>> origin/main
         )}
         {!error && diffs.length > 0 && (
           <div className="diff-viewer-list" ref={listRef}>

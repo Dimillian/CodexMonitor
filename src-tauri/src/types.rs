@@ -579,17 +579,10 @@ pub(crate) struct AppSettings {
     )]
     pub(crate) show_message_file_path: bool,
     #[serde(
-<<<<<<< HEAD
         default = "default_thread_scroll_restore_mode",
         rename = "threadScrollRestoreMode"
     )]
     pub(crate) thread_scroll_restore_mode: String,
-=======
-        default = "default_chat_history_scrollback_items",
-        rename = "chatHistoryScrollbackItems"
-    )]
-    pub(crate) chat_history_scrollback_items: Option<u32>,
->>>>>>> origin/main
     #[serde(default, rename = "threadTitleAutogenerationEnabled")]
     pub(crate) thread_title_autogeneration_enabled: bool,
     #[serde(default = "default_ui_font_family", rename = "uiFontFamily")]
@@ -782,13 +775,8 @@ fn default_show_message_file_path() -> bool {
     true
 }
 
-<<<<<<< HEAD
 fn default_thread_scroll_restore_mode() -> String {
     "latest".to_string()
-=======
-fn default_chat_history_scrollback_items() -> Option<u32> {
-    Some(200)
->>>>>>> origin/main
 }
 
 fn default_ui_font_family() -> String {
@@ -1222,11 +1210,7 @@ impl Default for AppSettings {
             theme: default_theme(),
             usage_show_remaining: default_usage_show_remaining(),
             show_message_file_path: default_show_message_file_path(),
-<<<<<<< HEAD
             thread_scroll_restore_mode: default_thread_scroll_restore_mode(),
-=======
-            chat_history_scrollback_items: default_chat_history_scrollback_items(),
->>>>>>> origin/main
             thread_title_autogeneration_enabled: false,
             ui_font_family: default_ui_font_family(),
             code_font_family: default_code_font_family(),
@@ -1392,11 +1376,7 @@ mod tests {
         assert_eq!(settings.theme, "system");
         assert!(!settings.usage_show_remaining);
         assert!(settings.show_message_file_path);
-<<<<<<< HEAD
         assert_eq!(settings.thread_scroll_restore_mode, "latest");
-=======
-        assert_eq!(settings.chat_history_scrollback_items, Some(200));
->>>>>>> origin/main
         assert!(!settings.thread_title_autogeneration_enabled);
         assert!(settings.ui_font_family.contains("system-ui"));
         assert!(settings.code_font_family.contains("ui-monospace"));

@@ -60,12 +60,6 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       onRefreshAllThreads={options.onRefreshAllThreads}
       activeWorkspaceId={options.activeWorkspaceId}
       activeThreadId={options.activeThreadId}
-<<<<<<< HEAD
-=======
-      userInputRequests={options.userInputRequests}
-      accountRateLimits={options.activeRateLimits}
-      usageShowRemaining={options.usageShowRemaining}
->>>>>>> origin/main
       accountInfo={options.accountInfo}
       onSwitchAccount={options.onSwitchAccount}
       onCancelSwitchAccount={options.onCancelSwitchAccount}
@@ -146,12 +140,8 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       onFileAutocompleteActiveChange={options.onFileAutocompleteActiveChange}
       contextUsage={options.activeTokenUsage}
       queuedMessages={options.activeQueue}
-<<<<<<< HEAD
       queueHealthEntries={options.queueHealthEntries}
       legacyQueueMessageCount={options.legacyQueueMessageCount}
-=======
-      queuePausedReason={options.queuePausedReason}
->>>>>>> origin/main
       sendLabel={
         options.composerSendLabel ??
         (options.isProcessing ? "Queue" : "Send")

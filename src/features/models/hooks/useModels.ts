@@ -11,7 +11,6 @@ type UseModelsOptions = {
 
 const CONFIG_MODEL_DESCRIPTION = "Configured in CODEX_HOME/config.toml";
 
-<<<<<<< HEAD
 // ============================================================
 // 🔥 PREMIUM MODELS - Only show the best models
 // ============================================================
@@ -144,8 +143,6 @@ const normalizeEffort = (value: unknown): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
-=======
->>>>>>> origin/main
 const findModelByIdOrModel = (
   models: ModelOption[],
   idOrModel: string | null,
@@ -318,7 +315,6 @@ export function useModels({
         payload: response,
       });
       setConfigModel(configModelFromConfig);
-<<<<<<< HEAD
       const rawData = response?.result?.data ?? response?.data ?? [];
       const dataFromServer: ModelOption[] = rawData.map((item: any) => ({
         id: String(item.id ?? item.model ?? ""),
@@ -347,10 +343,6 @@ export function useModels({
               : null,
       }));
       const dataWithConfig = (() => {
-=======
-      const dataFromServer: ModelOption[] = parseModelListResponse(response);
-      const data = (() => {
->>>>>>> origin/main
         if (!configModelFromConfig) {
           return dataFromServer;
         }

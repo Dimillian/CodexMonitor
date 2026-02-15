@@ -177,59 +177,8 @@ export function useResizablePanels() {
       if (!resizeRef.current) {
         return;
       }
-<<<<<<< HEAD
       if (rafRef.current !== null) {
         return; // already scheduled
-=======
-      if (resizeRef.current.type === "sidebar") {
-        const delta = event.clientX - resizeRef.current.startX;
-        const next = clamp(
-          resizeRef.current.startWidth + delta,
-          MIN_SIDEBAR_WIDTH,
-          MAX_SIDEBAR_WIDTH,
-        );
-        setSidebarWidth(next);
-      } else if (resizeRef.current.type === "chat-diff-split") {
-        const pointerPercent = getContainerPointerPercent(event, resizeRef.current);
-        const next = clamp(
-          pointerPercent,
-          MIN_CHAT_DIFF_SPLIT_POSITION_PERCENT,
-          MAX_CHAT_DIFF_SPLIT_POSITION_PERCENT,
-        );
-        setChatDiffSplitPositionPercent(next);
-      } else if (resizeRef.current.type === "right-panel") {
-        const delta = event.clientX - resizeRef.current.startX;
-        const next = clamp(
-          resizeRef.current.startWidth - delta,
-          MIN_RIGHT_PANEL_WIDTH,
-          MAX_RIGHT_PANEL_WIDTH,
-        );
-        setRightPanelWidth(next);
-      } else if (resizeRef.current.type === "plan-panel") {
-        const delta = event.clientY - resizeRef.current.startY;
-        const next = clamp(
-          resizeRef.current.startHeight - delta,
-          MIN_PLAN_PANEL_HEIGHT,
-          MAX_PLAN_PANEL_HEIGHT,
-        );
-        setPlanPanelHeight(next);
-      } else if (resizeRef.current.type === "terminal-panel") {
-        const delta = event.clientY - resizeRef.current.startY;
-        const next = clamp(
-          resizeRef.current.startHeight - delta,
-          MIN_TERMINAL_PANEL_HEIGHT,
-          MAX_TERMINAL_PANEL_HEIGHT,
-        );
-        setTerminalPanelHeight(next);
-      } else {
-        const delta = event.clientY - resizeRef.current.startY;
-        const next = clamp(
-          resizeRef.current.startHeight - delta,
-          MIN_DEBUG_PANEL_HEIGHT,
-          MAX_DEBUG_PANEL_HEIGHT,
-        );
-        setDebugPanelHeight(next);
->>>>>>> origin/main
       }
       rafRef.current = requestAnimationFrame(() => {
         rafRef.current = null;

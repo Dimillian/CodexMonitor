@@ -49,58 +49,6 @@
   max-width: 480px;
 }
 
-<<<<<<< HEAD
-=======
-.workspace-home-git-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-card);
-}
-
-.workspace-home-git-banner-title {
-  font-size: 12px;
-  color: var(--text-strong);
-}
-
-.workspace-home-git-banner-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.workspace-home-git-banner-actions button {
-  padding: 8px 12px;
-  font-size: 12px;
-}
-
-.workspace-home-composer {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.workspace-home .composer {
-  border-radius: 10px;
-}
-
-.workspace-home .composer-input {
-  position: relative;
-}
-
-.workspace-home-error {
-  font-size: 12px;
-  color: var(--text-danger);
-  background: rgba(236, 72, 153, 0.08);
-  border-radius: 10px;
-  padding: 8px 10px;
-  border: 1px solid rgba(236, 72, 153, 0.2);
-}
->>>>>>> origin/main
 
 .workspace-home-section-header {
   display: flex;

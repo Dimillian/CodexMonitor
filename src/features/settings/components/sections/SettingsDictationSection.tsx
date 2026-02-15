@@ -1,11 +1,6 @@
-<<<<<<< HEAD
 import { useLayoutEffect, useRef } from "react";
 import type { AppSettings, DictationModelStatus } from "../../../../types";
 import { formatDownloadSize } from "../../../../utils/formatting";
-=======
-import type { AppSettings, DictationModelStatus } from "@/types";
-import { formatDownloadSize } from "@utils/formatting";
->>>>>>> origin/main
 
 type DictationModelOption = {
   id: string;

@@ -33,19 +33,8 @@
   --ds-popover-item-text: var(--text-muted);
   --ds-popover-item-text-active: var(--text-stronger);
 
-<<<<<<< HEAD
   --ds-diff-lib-bg-light: color-mix(in srgb, var(--surface-card-strong) 35%, transparent);
   --ds-diff-lib-bg-dark: color-mix(in srgb, var(--surface-context-core) 35%, transparent);
   --ds-diff-lib-bg-system-light: color-mix(in srgb, var(--surface-card-strong) 35%, transparent);
   --ds-diff-lib-bg-system-dark: color-mix(in srgb, var(--surface-context-core) 35%, transparent);
-=======
-  --ds-diff-lib-bg-light: rgba(255, 255, 255, 0.35);
-  --ds-diff-lib-bg-dark: rgba(10, 12, 16, 0.35);
-  --ds-diff-lib-bg-system-light: rgba(255, 255, 255, 0.35);
-  --ds-diff-lib-bg-system-dark: rgba(10, 12, 16, 0.35);
-
-  /* Global layer scale (keep numeric so it works with z-index + calc()). */
-  --ds-layer-modal: 10000;
-  --ds-layer-toast: 11000;
->>>>>>> origin/main
 }

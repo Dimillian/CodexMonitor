@@ -132,32 +132,7 @@ export function SettingsDisplaySection({
       </div>
       <div className="settings-toggle-row">
         <div>
-<<<<<<< HEAD
           <div className="settings-toggle-title">自动生成对话标题</div>
-=======
-          <div className="settings-toggle-title">Split chat and diff center panes</div>
-          <div className="settings-toggle-subtitle">
-            Show chat and diff side by side instead of swapping between them.
-          </div>
-        </div>
-        <button
-          type="button"
-          className={`settings-toggle ${appSettings.splitChatDiffView ? "on" : ""}`}
-          onClick={() =>
-            void onUpdateAppSettings({
-              ...appSettings,
-              splitChatDiffView: !appSettings.splitChatDiffView,
-            })
-          }
-          aria-pressed={appSettings.splitChatDiffView}
-        >
-          <span className="settings-toggle-knob" />
-        </button>
-      </div>
-      <div className="settings-toggle-row">
-        <div>
-          <div className="settings-toggle-title">Auto-generate new thread titles</div>
->>>>>>> origin/main
           <div className="settings-toggle-subtitle">
             根据首条消息自动生成简短标题（会额外消耗少量 token）。
           </div>

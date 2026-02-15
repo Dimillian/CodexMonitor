@@ -21,12 +21,7 @@ import { useFileLinkOpener } from "../hooks/useFileLinkOpener";
 import {
   SCROLL_THRESHOLD_PX,
   buildToolGroups,
-<<<<<<< HEAD
   formatDurationMs,
-=======
-  computePlanFollowupState,
-  formatCount,
->>>>>>> origin/main
   parseReasoning,
   scrollKeyForItems,
   toolStatusTone,

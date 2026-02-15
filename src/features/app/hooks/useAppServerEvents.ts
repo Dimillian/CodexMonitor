@@ -244,7 +244,6 @@ function extractModelHint(
 }
 
 export function useAppServerEvents(handlers: AppServerEventHandlers) {
-<<<<<<< HEAD
   const handlersRef = useRef(handlers);
   const pendingAgentDeltasRef = useRef<Map<string, AgentDelta>>(new Map());
   const pendingAgentDeltaFlushTimerRef = useRef<number | null>(null);
@@ -259,15 +258,6 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
   const lastThreadEventAtRef = useRef<Map<string, number>>(
     new Map(),
   );
-=======
-  // Use ref to keep handlers current without triggering re-subscription
-  const handlersRef = useRef(handlers);
-  
-  // Update ref on every render to always have latest handlers
-  useEffect(() => {
-    handlersRef.current = handlers;
-  });
->>>>>>> origin/main
 
   useEffect(() => {
     handlersRef.current = handlers;
@@ -488,10 +478,7 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
 
     const unlisten = subscribeAppServerEvents((payload) => {
       const currentHandlers = handlersRef.current;
-<<<<<<< HEAD
 
-=======
->>>>>>> origin/main
       currentHandlers.onAppServerEvent?.(payload);
 
       const { workspace_id } = payload;
@@ -519,7 +506,6 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
 
       if (method === "codex/connected") {
         currentHandlers.onWorkspaceConnected?.(workspace_id);
-<<<<<<< HEAD
         return;
       }
 
@@ -529,8 +515,6 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         clearPendingItemsForWorkspace(workspace_id);
         clearThreadEventsForWorkspace(workspace_id);
         currentHandlers.onWorkspaceDisconnected?.(workspace_id);
-=======
->>>>>>> origin/main
         return;
       }
 
@@ -596,7 +580,6 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       if (method === "item/agentMessage/delta") {
         const threadId = String(params.threadId ?? params.thread_id ?? "");
         const itemId = String(params.itemId ?? params.item_id ?? "");
-<<<<<<< HEAD
         const deltaTurn = params.turn as Record<string, unknown> | undefined;
         const turnId = firstNonEmptyString(
           params.turnId,
@@ -610,11 +593,6 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         const delta = String(params.delta ?? params.textDelta ?? params.text_delta ?? "");
         if (threadId && itemId && (hasDeltaField || delta.length > 0)) {
           enqueueAgentMessageDelta({
-=======
-        const delta = String(params.delta ?? "");
-        if (threadId && itemId && delta) {
-          currentHandlers.onAgentMessageDelta?.({
->>>>>>> origin/main
             workspaceId: workspace_id,
             threadId,
             itemId,
@@ -633,15 +611,11 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         const turnId = String(turn?.id ?? params.turnId ?? params.turn_id ?? "");
         const model = extractModelHint(params, turn);
         if (threadId) {
-<<<<<<< HEAD
           clearPendingItemsForThread(workspace_id, threadId);
           clearTurnCompletionFallbackForThread(workspace_id, threadId);
           currentHandlers.onTurnStarted?.(workspace_id, threadId, turnId, {
             model,
           });
-=======
-          currentHandlers.onTurnStarted?.(workspace_id, threadId, turnId);
->>>>>>> origin/main
         }
         return;
       }
@@ -700,12 +674,9 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         );
         const turnId = String(turn?.id ?? params.turnId ?? params.turn_id ?? "");
         if (threadId) {
-<<<<<<< HEAD
           clearPendingItemsForThread(workspace_id, threadId);
           clearThreadEvent(workspace_id, threadId);
           clearTurnCompletionFallbackForThread(workspace_id, threadId);
-=======
->>>>>>> origin/main
           currentHandlers.onTurnCompleted?.(workspace_id, threadId, turnId);
         }
         return;
@@ -744,14 +715,10 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
           (params.tokenUsage as Record<string, unknown> | null | undefined) ??
           (params.token_usage as Record<string, unknown> | null | undefined);
         if (threadId && tokenUsage !== undefined) {
-<<<<<<< HEAD
           currentHandlers.onThreadTokenUsageUpdated?.(workspace_id, threadId, {
             turnId,
             tokenUsage,
           });
-=======
-          currentHandlers.onThreadTokenUsageUpdated?.(workspace_id, threadId, tokenUsage);
->>>>>>> origin/main
         }
         return;
       }
@@ -841,12 +808,9 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         );
         if (threadId && item) {
           currentHandlers.onItemStarted?.(workspace_id, threadId, item);
-<<<<<<< HEAD
         }
         if (threadId && itemId) {
           trackItemStarted(workspace_id, threadId, itemId);
-=======
->>>>>>> origin/main
         }
         return;
       }

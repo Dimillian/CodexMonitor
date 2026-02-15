@@ -1,12 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
-<<<<<<< HEAD
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkspaceInfo } from "../../../types";
-=======
-import { describe, expect, it, vi } from "vitest";
-import type { WorkspaceInfo } from "@/types";
->>>>>>> origin/main
 import { useQueuedSend } from "./useQueuedSend";
 
 const QUEUED_MESSAGES_STORAGE_KEY = "codexmonitor.queuedMessagesByThread";
@@ -1265,7 +1260,6 @@ describe("useQueuedSend", () => {
     ]);
   });
 
-<<<<<<< HEAD
   it("marks processing stale entries in queue health", async () => {
     const processingStartedAt = Date.now() - 120_000;
     const options = makeOptions({
@@ -1312,31 +1306,13 @@ describe("useQueuedSend", () => {
       },
     });
 
-=======
-  it("does not flush queued messages while response is required", async () => {
-    const options = makeOptions({ queueFlushPaused: true });
->>>>>>> origin/main
     const { result, rerender } = renderHook((props) => useQueuedSend(props), {
       initialProps: options,
     });
 
     await act(async () => {
-<<<<<<< HEAD
       await result.current.queueMessage("first");
       await result.current.queueMessage("second");
-=======
-      await result.current.queueMessage("Held");
-    });
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(options.sendUserMessage).not.toHaveBeenCalled();
-
-    await act(async () => {
-      rerender({ ...options, queueFlushPaused: false });
->>>>>>> origin/main
     });
 
     await act(async () => {
@@ -1344,7 +1320,6 @@ describe("useQueuedSend", () => {
     });
 
     expect(options.sendUserMessage).toHaveBeenCalledTimes(1);
-<<<<<<< HEAD
     expect(options.sendUserMessage).toHaveBeenNthCalledWith(1, "first", []);
 
     await act(async () => {
@@ -1570,9 +1545,4 @@ describe("useQueuedSend", () => {
       result.current.queueHealthEntries.find((entry) => entry.threadId === "thread-2"),
     ).toBeUndefined();
   });
-=======
-    expect(options.sendUserMessage).toHaveBeenCalledWith("Held", []);
-  });
-
->>>>>>> origin/main
 });

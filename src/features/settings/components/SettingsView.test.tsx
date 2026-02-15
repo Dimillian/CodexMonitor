@@ -57,11 +57,7 @@ const baseSettings: AppSettings = {
   uiScale: 1,
   theme: "system",
   showMessageFilePath: true,
-<<<<<<< HEAD
   threadScrollRestoreMode: "latest",
-=======
-  chatHistoryScrollbackItems: 200,
->>>>>>> origin/main
   threadTitleAutogenerationEnabled: false,
   uiFontFamily:
     'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
@@ -1245,11 +1241,7 @@ describe("SettingsView Features", () => {
       appSettings: { steerEnabled: true },
     });
 
-<<<<<<< HEAD
     const steerTitle = screen.getByText("即时发送（Steer）");
-=======
-    const steerTitle = await screen.findByText("Steer mode");
->>>>>>> origin/main
     const steerRow = steerTitle.closest(".settings-toggle-row");
     expect(steerRow).not.toBeNull();
 
@@ -1270,11 +1262,7 @@ describe("SettingsView Features", () => {
       appSettings: { unifiedExecEnabled: true },
     });
 
-<<<<<<< HEAD
     const terminalTitle = screen.getByText("后台终端");
-=======
-    const terminalTitle = await screen.findByText("Background terminal");
->>>>>>> origin/main
     const terminalRow = terminalTitle.closest(".settings-toggle-row");
     expect(terminalRow).not.toBeNull();
 
@@ -1288,7 +1276,6 @@ describe("SettingsView Features", () => {
     });
   });
 
-<<<<<<< HEAD
   it("toggles auto-archive for sub-agent threads", async () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderFeaturesSection({
@@ -1329,29 +1316,6 @@ describe("SettingsView Features", () => {
         expect.objectContaining({ autoArchiveSubAgentThreadsMaxAgeMinutes: 240 }),
       );
     });
-=======
-  it("shows fallback description when Codex omits feature description", async () => {
-    renderFeaturesSection({
-      experimentalFeaturesResponse: {
-        data: [
-          {
-            name: "responses_websockets",
-            stage: "underDevelopment",
-            enabled: false,
-            defaultEnabled: false,
-            displayName: null,
-            description: null,
-            announcement: null,
-          },
-        ],
-        nextCursor: null,
-      },
-    });
-
-    await screen.findByText(
-      "Use Responses API WebSocket transport for OpenAI by default.",
-    );
->>>>>>> origin/main
   });
 });
 

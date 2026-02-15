@@ -225,25 +225,10 @@ export function ThreadList({
     const indentClass =
       depth > 0 ? ` thread-row-indent-${indentUnit}-${clampedDepth}` : "";
     const status = threadStatusById[thread.id];
-<<<<<<< HEAD
     const visualStatus = deriveThreadVisualStatus(status, nowMs);
     const statusClass = visualStatus;
     const statusLabel = getThreadVisualStatusLabel(visualStatus);
     const statusBadge = getThreadVisualStatusBadge(visualStatus);
-=======
-    const hasPendingUserInput = Boolean(
-      pendingUserInputKeys?.has(`${workspaceId}:${thread.id}`),
-    );
-    const statusClass = hasPendingUserInput
-      ? "unread"
-      : status?.isReviewing
-      ? "reviewing"
-      : status?.isProcessing
-        ? "processing"
-        : status?.hasUnread
-          ? "unread"
-          : "ready";
->>>>>>> origin/main
     const canPin = depth === 0;
     const isPinned = canPin && isThreadPinned(workspaceId, thread.id);
     const isReorderableRoot =

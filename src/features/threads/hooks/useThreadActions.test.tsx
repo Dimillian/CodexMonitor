@@ -1,15 +1,11 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-<<<<<<< HEAD
 import type {
   ConversationItem,
   ThreadArchiveBatchResult,
   WorkspaceInfo,
 } from "../../../types";
-=======
-import type { ConversationItem, WorkspaceInfo } from "@/types";
->>>>>>> origin/main
 import {
   archiveThread,
   archiveThreads,
@@ -751,7 +747,6 @@ describe("useThreadActions", () => {
     });
   });
 
-<<<<<<< HEAD
   it("archives threads in batch and reports partial failure summary", async () => {
     vi.mocked(archiveThreads).mockResolvedValue({
       allSucceeded: false,
@@ -759,55 +754,6 @@ describe("useThreadActions", () => {
       failed: [{ threadId: "thread-9", error: "denied" }],
       total: 2,
     });
-=======
-  it("loads older threads for Windows paths even when path casing differs", async () => {
-    const windowsWorkspace: WorkspaceInfo = {
-      ...workspace,
-      path: "C:\\Dev\\CodexMon",
-    };
-    vi.mocked(listThreads).mockResolvedValue({
-      result: {
-        data: [
-          {
-            id: "thread-win-older",
-            cwd: "c:/dev/codexmon",
-            preview: "Older windows preview",
-            updated_at: 4000,
-          },
-        ],
-        nextCursor: null,
-      },
-    });
-    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
-      const value = (thread as Record<string, unknown>).updated_at as number;
-      return value ?? 0;
-    });
-
-    const { result, dispatch } = renderActions({
-      threadsByWorkspace: {
-        "ws-1": [{ id: "thread-1", name: "Agent 1", updatedAt: 6000 }],
-      },
-      threadListCursorByWorkspace: { "ws-1": "cursor-1" },
-    });
-
-    await act(async () => {
-      await result.current.loadOlderThreadsForWorkspace(windowsWorkspace);
-    });
-
-    expect(dispatch).toHaveBeenCalledWith({
-      type: "setThreads",
-      workspaceId: "ws-1",
-      sortKey: "updated_at",
-      threads: [
-        { id: "thread-1", name: "Agent 1", updatedAt: 6000 },
-        { id: "thread-win-older", name: "Older windows preview", updatedAt: 4000 },
-      ],
-    });
-  });
-
-  it("archives threads and reports errors", async () => {
-    vi.mocked(archiveThread).mockRejectedValue(new Error("nope"));
->>>>>>> origin/main
     const onDebug = vi.fn();
     const { result } = renderActions({ onDebug });
 

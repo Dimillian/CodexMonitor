@@ -260,19 +260,11 @@ npm run test:coverage:gate
 cd src-tauri && cargo check
 ```
 
-<<<<<<< HEAD
 One-shot JavaScript quality gate:
 
 ```bash
 npm run test:repo
 ```
-=======
-## Codebase Navigation
-
-For task-oriented file lookup ("if you need X, edit Y"), use:
-
-- `docs/codebase-map.md`
->>>>>>> origin/main
 
 ## Project Structure
 

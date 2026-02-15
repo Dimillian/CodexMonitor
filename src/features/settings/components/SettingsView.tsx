@@ -46,7 +46,6 @@ import { useSettingsViewNavigation } from "../hooks/useSettingsViewNavigation";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 import { SettingsNav } from "./SettingsNav";
 import type { CodexSection, OrbitServiceClient } from "./settingsTypes";
-<<<<<<< HEAD
 import { SettingsProjectsSection } from "./sections/SettingsProjectsSection";
 import { SettingsEnvironmentsSection } from "./sections/SettingsEnvironmentsSection";
 import { SettingsDisplaySection } from "./sections/SettingsDisplaySection";
@@ -95,10 +94,6 @@ const formatErrorMessage = (error: unknown, fallback: string) => {
   }
   return fallback;
 };
-=======
-import { ORBIT_SERVICES, SETTINGS_SECTION_LABELS } from "./settingsViewConstants";
-import { SettingsSectionContainers } from "./sections/SettingsSectionContainers";
->>>>>>> origin/main
 
 export type SettingsViewProps = {
   workspaceGroups: WorkspaceGroup[];
@@ -279,7 +274,6 @@ export function SettingsView({
     appSettings,
     onUpdateAppSettings,
   });
-<<<<<<< HEAD
   const [doctorState, setDoctorState] = useState<{
     status: "idle" | "running" | "done";
     result: CodexDoctorResult | null;
@@ -1323,11 +1317,6 @@ export function SettingsView({
     }
   };
   const activeSectionGroup = getSettingsSectionGroup(activeSection);
-=======
-
-  useSettingsViewCloseShortcuts(onClose);
-
->>>>>>> origin/main
   const activeSectionLabel = SETTINGS_SECTION_LABELS[activeSection];
   const settingsBodyClassName = `settings-body${
     useMobileMasterDetail ? " settings-body-mobile-master-detail" : ""
@@ -1382,7 +1371,6 @@ export function SettingsView({
               </div>
             )}
             <div className="settings-content">
-<<<<<<< HEAD
           {activeSectionGroup.sections.length > 1 && (
             <div className="settings-group-tabs" role="tablist" aria-label={`${activeSectionGroup.label} 子分区`}>
               {activeSectionGroup.sections.map((section) => (
@@ -1645,12 +1633,6 @@ export function SettingsView({
           {activeSection === "cliproxyapi" && (
             <SettingsCLIProxyAPISection />
           )}
-=======
-              <SettingsSectionContainers
-                activeSection={activeSection}
-                orchestration={orchestration}
-              />
->>>>>>> origin/main
             </div>
           </div>
         )}

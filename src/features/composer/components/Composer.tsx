@@ -64,12 +64,8 @@ type ComposerProps = {
   files: string[];
   contextUsage?: ThreadTokenUsage | null;
   queuedMessages?: QueuedMessage[];
-<<<<<<< HEAD
   queueHealthEntries?: QueueHealthEntry[];
   legacyQueueMessageCount?: number;
-=======
-  queuePausedReason?: string | null;
->>>>>>> origin/main
   onEditQueued?: (item: QueuedMessage) => void;
   onDeleteQueued?: (id: string) => void;
   onSteerQueued?: (id: string) => Promise<boolean> | boolean;
@@ -129,22 +125,12 @@ type ComposerProps = {
   onReviewPromptUpdateCustomInstructions?: (value: string) => void;
   onReviewPromptConfirmCustom?: () => Promise<void>;
   onFileAutocompleteActiveChange?: (active: boolean) => void;
-<<<<<<< HEAD
   messageFontSize?: number;
   onMessageFontSizeChange?: (next: number) => void;
   continueModeEnabled?: boolean;
   onContinueModeEnabledChange?: (next: boolean) => void;
   continuePrompt?: string;
   onContinuePromptChange?: (next: string) => void;
-=======
-  contextActions?: {
-    id: string;
-    label: string;
-    title?: string;
-    disabled?: boolean;
-    onSelect: () => void | Promise<void>;
-  }[];
->>>>>>> origin/main
 };
 
 const DEFAULT_EDITOR_SETTINGS: ComposerEditorSettings = {
@@ -183,12 +169,8 @@ export const Composer = memo(function Composer({
   files,
   contextUsage = null,
   queuedMessages = [],
-<<<<<<< HEAD
   queueHealthEntries = [],
   legacyQueueMessageCount = 0,
-=======
-  queuePausedReason = null,
->>>>>>> origin/main
   onEditQueued,
   onDeleteQueued,
   onSteerQueued,
@@ -242,16 +224,12 @@ export const Composer = memo(function Composer({
   onReviewPromptUpdateCustomInstructions,
   onReviewPromptConfirmCustom,
   onFileAutocompleteActiveChange,
-<<<<<<< HEAD
   messageFontSize = 13,
   onMessageFontSizeChange,
   continueModeEnabled = false,
   onContinueModeEnabledChange,
   continuePrompt = "",
   onContinuePromptChange,
-=======
-  contextActions = [],
->>>>>>> origin/main
 }: ComposerProps) {
   const [text, setText] = useState(draftText);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
@@ -595,12 +573,8 @@ export const Composer = memo(function Composer({
     <footer className={`composer${disabled ? " is-disabled" : ""}`}>
       <ComposerQueue
         queuedMessages={queuedMessages}
-<<<<<<< HEAD
         queueHealthEntries={queueHealthEntries}
         legacyQueueMessageCount={legacyQueueMessageCount}
-=======
-        pausedReason={queuePausedReason}
->>>>>>> origin/main
         onEditQueued={onEditQueued}
         onDeleteQueued={onDeleteQueued}
         onSteerQueued={onSteerQueued}

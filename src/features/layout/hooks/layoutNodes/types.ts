@@ -24,13 +24,6 @@ import type {
   OpenAppTarget,
   QueueHealthEntry,
   QueuedMessage,
-<<<<<<< HEAD
-=======
-  PullRequestReviewAction,
-  PullRequestReviewIntent,
-  PullRequestSelectionRange,
-  RateLimitSnapshot,
->>>>>>> origin/main
   RequestUserInputRequest,
   RequestUserInputResponse,
   SkillOption,
@@ -111,13 +104,6 @@ export type LayoutNodesOptions = {
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   activeItems: ConversationItem[];
-<<<<<<< HEAD
-=======
-  showPollingFetchStatus?: boolean;
-  pollingIntervalMs?: number;
-  activeRateLimits: RateLimitSnapshot | null;
-  usageShowRemaining: boolean;
->>>>>>> origin/main
   accountInfo: AccountSnapshot | null;
   onSwitchAccount: () => void;
   onCancelSwitchAccount: () => void;
@@ -398,12 +384,8 @@ export type LayoutNodesOptions = {
   onReviewPromptConfirmCustom: () => Promise<void>;
   activeTokenUsage: ThreadTokenUsage | null;
   activeQueue: QueuedMessage[];
-<<<<<<< HEAD
   queueHealthEntries: QueueHealthEntry[];
   legacyQueueMessageCount: number;
-=======
-  queuePausedReason: string | null;
->>>>>>> origin/main
   draftText: string;
   onDraftChange: (next: string) => void;
   activeImages: string[];

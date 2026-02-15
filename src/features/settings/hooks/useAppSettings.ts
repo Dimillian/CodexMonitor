@@ -80,24 +80,14 @@ function buildDefaultSettings(): AppSettings {
     uiScale: UI_SCALE_DEFAULT,
     theme: "system",
     showMessageFilePath: true,
-<<<<<<< HEAD
     threadScrollRestoreMode: "latest",
-=======
-    chatHistoryScrollbackItems: CHAT_SCROLLBACK_DEFAULT,
->>>>>>> origin/main
     threadTitleAutogenerationEnabled: false,
     uiFontFamily: DEFAULT_UI_FONT_FAMILY,
     codeFontFamily: DEFAULT_CODE_FONT_FAMILY,
     codeFontSize: CODE_FONT_SIZE_DEFAULT,
     notificationSoundsEnabled: true,
     systemNotificationsEnabled: true,
-<<<<<<< HEAD
     preloadGitDiffs: false,
-=======
-    subagentSystemNotificationsEnabled: true,
-    splitChatDiffView: false,
-    preloadGitDiffs: true,
->>>>>>> origin/main
     gitDiffIgnoreWhitespaceChanges: false,
     commitMessagePrompt: DEFAULT_COMMIT_MESSAGE_PROMPT,
     experimentalCollabEnabled: false,
@@ -178,7 +168,6 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
       : "latest",
     reviewDeliveryMode:
       settings.reviewDeliveryMode === "detached" ? "detached" : "inline",
-<<<<<<< HEAD
     autoArchiveSubAgentThreadsEnabled:
       typeof settings.autoArchiveSubAgentThreadsEnabled === "boolean"
         ? settings.autoArchiveSubAgentThreadsEnabled
@@ -187,9 +176,6 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
       clampAutoArchiveSubAgentThreadsMinutes(
         settings.autoArchiveSubAgentThreadsMaxAgeMinutes,
       ),
-=======
-    chatHistoryScrollbackItems,
->>>>>>> origin/main
     commitMessagePrompt,
     openAppTargets: normalizedTargets,
     selectedOpenAppId,

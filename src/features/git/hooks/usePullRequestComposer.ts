@@ -10,14 +10,9 @@ const KNOWN_SLASH_COMMAND_REGEX = /^\/(?:apps|fork|mcp|new|resume|review|status)
 type UsePullRequestComposerOptions = {
   activeWorkspace: WorkspaceInfo | null;
   selectedPullRequest: GitHubPullRequest | null;
-<<<<<<< HEAD
   gitPullRequestDiffs: GitHubPullRequestDiff[];
   filePanelMode: "git" | "files" | "prompts" | "skills" | "mcp";
   gitPanelMode: "diff" | "log" | "issues" | "prs";
-=======
-  filePanelMode: "git" | "files" | "prompts";
-  gitPanelMode: GitPanelMode;
->>>>>>> origin/main
   centerMode: "chat" | "diff";
   isCompact: boolean;
   setSelectedPullRequest: (pullRequest: GitHubPullRequest | null) => void;

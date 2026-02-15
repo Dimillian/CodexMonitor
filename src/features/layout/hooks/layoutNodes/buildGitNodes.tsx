@@ -84,7 +84,6 @@ export function buildGitNodes(options: LayoutNodesOptions): GitLayoutNodes {
     );
   } else {
     gitDiffPanelNode = (
-<<<<<<< HEAD
       <Suspense fallback={null}>
         <GitDiffPanel
           workspaceId={options.activeWorkspace?.id ?? null}
@@ -171,104 +170,10 @@ export function buildGitNodes(options: LayoutNodesOptions): GitLayoutNodes {
           commitsAhead={options.commitsAhead}
         />
       </Suspense>
-=======
-      <GitDiffPanel
-        workspaceId={options.activeWorkspace?.id ?? null}
-        workspacePath={options.activeWorkspace?.path ?? null}
-        mode={options.gitPanelMode}
-        onModeChange={options.onGitPanelModeChange}
-        filePanelMode={options.filePanelMode}
-        onFilePanelModeChange={options.onFilePanelModeChange}
-        worktreeApplyLabel={options.worktreeApplyLabel}
-        worktreeApplyTitle={options.worktreeApplyTitle}
-        worktreeApplyLoading={options.worktreeApplyLoading}
-        worktreeApplyError={options.worktreeApplyError}
-        worktreeApplySuccess={options.worktreeApplySuccess}
-        onApplyWorktreeChanges={options.onApplyWorktreeChanges}
-        branchName={options.gitStatus.branchName || "unknown"}
-        totalAdditions={options.gitStatus.totalAdditions}
-        totalDeletions={options.gitStatus.totalDeletions}
-        fileStatus={options.fileStatus}
-        perFileDiffGroups={options.perFileDiffGroups}
-        error={options.gitStatus.error}
-        logError={options.gitLogError}
-        logLoading={options.gitLogLoading}
-        stagedFiles={options.gitStatus.stagedFiles}
-        unstagedFiles={options.gitStatus.unstagedFiles}
-        onSelectFile={
-          options.gitPanelMode === "perFile"
-            ? options.onSelectPerFileDiff
-            : options.onSelectDiff
-        }
-        selectedPath={sidebarSelectedDiffPath}
-        logEntries={options.gitLogEntries}
-        logTotal={options.gitLogTotal}
-        logAhead={options.gitLogAhead}
-        logBehind={options.gitLogBehind}
-        logAheadEntries={options.gitLogAheadEntries}
-        logBehindEntries={options.gitLogBehindEntries}
-        logUpstream={options.gitLogUpstream}
-        selectedCommitSha={options.selectedCommitSha}
-        onSelectCommit={options.onSelectCommit}
-        issues={options.gitIssues}
-        issuesTotal={options.gitIssuesTotal}
-        issuesLoading={options.gitIssuesLoading}
-        issuesError={options.gitIssuesError}
-        pullRequests={options.gitPullRequests}
-        pullRequestsTotal={options.gitPullRequestsTotal}
-        pullRequestsLoading={options.gitPullRequestsLoading}
-        pullRequestsError={options.gitPullRequestsError}
-        selectedPullRequest={options.selectedPullRequestNumber}
-        onSelectPullRequest={options.onSelectPullRequest}
-        gitRemoteUrl={options.gitRemoteUrl}
-        gitRoot={options.gitRoot}
-        gitRootCandidates={options.gitRootCandidates}
-        gitRootScanDepth={options.gitRootScanDepth}
-        gitRootScanLoading={options.gitRootScanLoading}
-        gitRootScanError={options.gitRootScanError}
-        gitRootScanHasScanned={options.gitRootScanHasScanned}
-        onGitRootScanDepthChange={options.onGitRootScanDepthChange}
-        onScanGitRoots={options.onScanGitRoots}
-        onSelectGitRoot={options.onSelectGitRoot}
-        onClearGitRoot={options.onClearGitRoot}
-        onPickGitRoot={options.onPickGitRoot}
-        onInitGitRepo={options.onInitGitRepo}
-        initGitRepoLoading={options.initGitRepoLoading}
-        onStageAllChanges={options.onStageGitAll}
-        onStageFile={options.onStageGitFile}
-        onUnstageFile={options.onUnstageGitFile}
-        onRevertFile={options.onRevertGitFile}
-        onRevertAllChanges={options.onRevertAllGitChanges}
-        commitMessage={options.commitMessage}
-        commitMessageLoading={options.commitMessageLoading}
-        commitMessageError={options.commitMessageError}
-        onCommitMessageChange={options.onCommitMessageChange}
-        onGenerateCommitMessage={options.onGenerateCommitMessage}
-        onCommit={options.onCommit}
-        onCommitAndPush={options.onCommitAndPush}
-        onCommitAndSync={options.onCommitAndSync}
-        onPull={options.onPull}
-        onFetch={options.onFetch}
-        onPush={options.onPush}
-        onSync={options.onSync}
-        commitLoading={options.commitLoading}
-        pullLoading={options.pullLoading}
-        fetchLoading={options.fetchLoading}
-        pushLoading={options.pushLoading}
-        syncLoading={options.syncLoading}
-        commitError={options.commitError}
-        pullError={options.pullError}
-        fetchError={options.fetchError}
-        pushError={options.pushError}
-        syncError={options.syncError}
-        commitsAhead={options.commitsAhead}
-      />
->>>>>>> origin/main
     );
   }
 
   const gitDiffViewerNode = (
-<<<<<<< HEAD
     <Suspense fallback={null}>
       <GitDiffViewer
         diffs={options.gitDiffs}
@@ -287,34 +192,6 @@ export function buildGitNodes(options: LayoutNodesOptions): GitLayoutNodes {
         onActivePathChange={options.onDiffActivePathChange}
       />
     </Suspense>
-=======
-    <GitDiffViewer
-      diffs={options.gitDiffs}
-      selectedPath={options.selectedDiffPath}
-      scrollRequestId={options.diffScrollRequestId}
-      isLoading={options.gitDiffLoading}
-      error={options.gitDiffError}
-      diffStyle={resolveGitDiffStyle({
-        isPhone: options.isPhone,
-        splitChatDiffView: options.splitChatDiffView,
-        centerMode: options.centerMode,
-        userPreference: options.gitDiffViewStyle,
-      })}
-      ignoreWhitespaceChanges={options.gitDiffIgnoreWhitespaceChanges}
-      pullRequest={options.selectedPullRequest}
-      pullRequestComments={options.selectedPullRequestComments}
-      pullRequestCommentsLoading={options.selectedPullRequestCommentsLoading}
-      pullRequestCommentsError={options.selectedPullRequestCommentsError}
-      pullRequestReviewActions={options.pullRequestReviewActions}
-      onRunPullRequestReview={options.onRunPullRequestReview}
-      pullRequestReviewLaunching={options.pullRequestReviewLaunching}
-      pullRequestReviewThreadId={options.pullRequestReviewThreadId}
-      onCheckoutPullRequest={options.onCheckoutPullRequest}
-      canRevert={options.diffSource === "local"}
-      onRevertFile={options.onRevertGitFile}
-      onActivePathChange={options.onDiffActivePathChange}
-    />
->>>>>>> origin/main
   );
 
   return {
