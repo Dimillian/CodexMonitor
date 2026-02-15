@@ -18,11 +18,13 @@ type UseThreadTurnEventsOptions = {
   isThreadHidden: (workspaceId: string, threadId: string) => boolean;
   markProcessing: (threadId: string, isProcessing: boolean) => void;
   markReviewing: (threadId: string, isReviewing: boolean) => void;
+  markThreadError?: (threadId: string, message: string) => void;
   setActiveTurnId: (threadId: string, turnId: string | null) => void;
   pendingInterruptsRef: MutableRefObject<Set<string>>;
   pushThreadErrorMessage: (threadId: string, message: string) => void;
   safeMessageActivity: () => void;
   recordThreadActivity: (workspaceId: string, threadId: string, timestamp?: number) => void;
+  resolveCurrentModel?: () => string | null;
 };
 
 export function useThreadTurnEvents({
@@ -32,12 +34,22 @@ export function useThreadTurnEvents({
   isThreadHidden,
   markProcessing,
   markReviewing,
+  markThreadError,
   setActiveTurnId,
   pendingInterruptsRef,
   pushThreadErrorMessage,
   safeMessageActivity,
   recordThreadActivity,
+  resolveCurrentModel,
 }: UseThreadTurnEventsOptions) {
+  const normalizeNonEmptyString = useCallback((value: string | null | undefined) => {
+    if (typeof value !== "string") {
+      return null;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }, []);
+
   const shouldClearCompletedPlan = useCallback((threadId: string, turnId: string) => {
     const plan = planByThreadRef.current[threadId];
     if (!plan || plan.steps.length === 0) {
@@ -105,12 +117,27 @@ export function useThreadTurnEvents({
   );
 
   const onTurnStarted = useCallback(
-    (workspaceId: string, threadId: string, turnId: string) => {
+    (
+      workspaceId: string,
+      threadId: string,
+      turnId: string,
+      metadata?: { model: string | null },
+    ) => {
       dispatch({
         type: "ensureThread",
         workspaceId,
         threadId,
       });
+      if (turnId) {
+        dispatch({
+          type: "setThreadTurnMeta",
+          threadId,
+          turnId,
+          model: normalizeNonEmptyString(
+            metadata?.model ?? resolveCurrentModel?.() ?? null,
+          ),
+        });
+      }
       if (pendingInterruptsRef.current.has(threadId)) {
         pendingInterruptsRef.current.delete(threadId);
         if (turnId) {
@@ -123,7 +150,14 @@ export function useThreadTurnEvents({
         setActiveTurnId(threadId, turnId);
       }
     },
-    [dispatch, markProcessing, pendingInterruptsRef, setActiveTurnId],
+    [
+      dispatch,
+      markProcessing,
+      normalizeNonEmptyString,
+      pendingInterruptsRef,
+      resolveCurrentModel,
+      setActiveTurnId,
+    ],
   );
 
   const onTurnCompleted = useCallback(
@@ -174,16 +208,29 @@ export function useThreadTurnEvents({
     (
       workspaceId: string,
       threadId: string,
-      tokenUsage: Record<string, unknown> | null,
+      payload: {
+        turnId: string | null;
+        tokenUsage: Record<string, unknown> | null;
+      },
     ) => {
+      const normalizedTokenUsage = normalizeTokenUsage(payload.tokenUsage);
       dispatch({ type: "ensureThread", workspaceId, threadId });
       dispatch({
         type: "setThreadTokenUsage",
         threadId,
-        tokenUsage: normalizeTokenUsage(tokenUsage),
+        tokenUsage: normalizedTokenUsage,
       });
+      const turnId = normalizeNonEmptyString(payload.turnId);
+      if (turnId) {
+        dispatch({
+          type: "setThreadTurnContextWindow",
+          threadId,
+          turnId,
+          contextWindow: normalizedTokenUsage.modelContextWindow ?? null,
+        });
+      }
     },
-    [dispatch],
+    [dispatch, normalizeNonEmptyString],
   );
 
   const onAccountRateLimitsUpdated = useCallback(
@@ -214,6 +261,7 @@ export function useThreadTurnEvents({
       const message = payload.message
         ? `Turn failed: ${payload.message}`
         : "Turn failed.";
+      markThreadError?.(threadId, message);
       pushThreadErrorMessage(threadId, message);
       safeMessageActivity();
     },
@@ -221,6 +269,7 @@ export function useThreadTurnEvents({
       dispatch,
       markProcessing,
       markReviewing,
+      markThreadError,
       pushThreadErrorMessage,
       safeMessageActivity,
       setActiveTurnId,

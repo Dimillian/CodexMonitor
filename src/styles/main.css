@@ -65,6 +65,18 @@
   flex-shrink: 0;
 }
 
+.main-header-actions-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.main-header-actions-group-secondary {
+  padding-left: 8px;
+  margin-left: 2px;
+  border-left: 1px solid var(--border-subtle);
+}
+
 .diff-view-toggle {
   display: inline-flex;
   align-items: center;

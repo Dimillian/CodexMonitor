@@ -21,6 +21,7 @@ import { useFileLinkOpener } from "../hooks/useFileLinkOpener";
 import {
   SCROLL_THRESHOLD_PX,
   buildToolGroups,
+  formatDurationMs,
   parseReasoning,
   scrollKeyForItems,
   toolStatusTone,
@@ -170,6 +171,29 @@ type RenderableItemEntry = {
   rowClassName: string;
 };
 
+function deriveMessageActivityPhase(
+  isThinking: boolean,
+  hasItems: boolean,
+  isStreaming: boolean,
+  elapsedMs: number,
+): "start" | "in-progress" | "done" {
+  if (!isThinking) {
+    return "done";
+  }
+  if (isStreaming) {
+    return "in-progress";
+  }
+  if (!hasItems && elapsedMs < 2000) {
+    return "start";
+  }
+  return "start";
+}
+
+const MESSAGE_PHASE_LABELS: Record<"start" | "in-progress", string> = {
+  start: "等待 Agent 响应…",
+  "in-progress": "Agent 正在输出…",
+};
+
 function rowClassNameForItem(item: ConversationItem): string {
   if (item.kind === "message") {
     return item.role === "assistant"
@@ -243,11 +267,24 @@ export const Messages = memo(function Messages({
         )?.request_id ?? null)
       : null;
   const scrollKey = `${scrollKeyForItems(items)}-${activeUserInputRequestId ?? "no-input"}`;
+  const [statusElapsedMs, setStatusElapsedMs] = useState(0);
   const { openFileLink, showFileLinkMenu } = useFileLinkOpener(
     workspacePath,
     openTargets,
     selectedOpenAppId,
   );
+
+  useEffect(() => {
+    if (!isThinking || !processingStartedAt) {
+      setStatusElapsedMs(0);
+      return undefined;
+    }
+    setStatusElapsedMs(Date.now() - processingStartedAt);
+    const interval = window.setInterval(() => {
+      setStatusElapsedMs(Date.now() - processingStartedAt);
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [isThinking, processingStartedAt]);
 
   const distanceFromBottom = useCallback(
     (node: HTMLDivElement) => node.scrollHeight - node.scrollTop - node.clientHeight,
@@ -505,6 +542,15 @@ export const Messages = memo(function Messages({
     }
     return null;
   }, [items, reasoningMetaById]);
+  const activityPhase = deriveMessageActivityPhase(
+    isThinking,
+    items.length > 0,
+    isStreaming,
+    statusElapsedMs,
+  );
+  const activityLabel =
+    latestReasoningLabel
+    || (activityPhase !== "done" ? MESSAGE_PHASE_LABELS[activityPhase] : "Agent 正在输出…");
 
   const visibleItems = useMemo(
     () =>
@@ -924,6 +970,16 @@ export const Messages = memo(function Messages({
       ref={containerRef}
       onScroll={updateAutoScroll}
     >
+      {isThinking && (
+        <div className={`messages-status-bar working-phase-${activityPhase}`} aria-live="polite">
+          <span className="working-spinner" aria-hidden />
+          <span className="messages-status-text">{activityLabel}</span>
+          <span className="messages-status-timer">{formatDurationMs(statusElapsedMs)}</span>
+          <span className="messages-status-phase-badge">
+            {activityPhase === "start" ? "等待中" : "输出中"}
+          </span>
+        </div>
+      )}
       {/* Top manual "load older" control removed.
           Upward scroll-to-top still triggers onReachTop for history loading. */}
       {renderableEntries.length > 0 && shouldVirtualize && (

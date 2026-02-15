@@ -11,8 +11,8 @@
 .panel-tab {
   display: inline-flex;
   align-items: center;
-  gap: 0;
-  padding: 6px 8px;
+  gap: 5px;
+  padding: 6px 10px;
   border-radius: 999px;
   background: transparent;
   color: var(--text-subtle);
@@ -44,4 +44,21 @@
 .panel-tab-icon svg {
   width: 12px;
   height: 12px;
+}
+
+.panel-tab-label {
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+@media (max-width: 1160px) {
+  .panel-tab {
+    padding: 6px 8px;
+    gap: 0;
+  }
+
+  .panel-tab-label {
+    display: none;
+  }
 }

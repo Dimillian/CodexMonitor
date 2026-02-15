@@ -205,7 +205,9 @@ describe("useThreadTurnEvents", () => {
     const { result, dispatch, markProcessing, setActiveTurnId } = makeOptions();
 
     act(() => {
-      result.current.onTurnStarted("ws-1", "thread-1", "turn-1");
+      result.current.onTurnStarted("ws-1", "thread-1", "turn-1", {
+        model: "gpt-5.3-codex",
+      });
     });
 
     expect(dispatch).toHaveBeenCalledWith({
@@ -215,6 +217,12 @@ describe("useThreadTurnEvents", () => {
     });
     expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
     expect(setActiveTurnId).toHaveBeenCalledWith("thread-1", "turn-1");
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreadTurnMeta",
+      threadId: "thread-1",
+      turnId: "turn-1",
+      model: "gpt-5.3-codex",
+    });
     expect(interruptTurn).not.toHaveBeenCalled();
   });
 
@@ -408,7 +416,10 @@ describe("useThreadTurnEvents", () => {
 
     act(() => {
       result.current.onThreadTokenUsageUpdated("ws-1", "thread-1", {
-        total: 123,
+        turnId: "turn-1",
+        tokenUsage: {
+          total: 123,
+        },
       });
     });
 
@@ -421,6 +432,12 @@ describe("useThreadTurnEvents", () => {
       type: "setThreadTokenUsage",
       threadId: "thread-1",
       tokenUsage: normalized,
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreadTurnContextWindow",
+      threadId: "thread-1",
+      turnId: "turn-1",
+      contextWindow: (normalized as { modelContextWindow?: number | null }).modelContextWindow ?? null,
     });
   });
 

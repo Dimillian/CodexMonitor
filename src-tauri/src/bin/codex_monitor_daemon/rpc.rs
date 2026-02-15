@@ -40,6 +40,22 @@ fn build_event_notification(event: DaemonEvent) -> Option<String> {
     serde_json::to_string(&payload).ok()
 }
 
+fn build_event_stream_lagged_notification(dropped_count: u64) -> Option<String> {
+    serde_json::to_string(&json!({
+        "method": "app-server-event",
+        "params": {
+            "workspace_id": "__daemon__",
+            "message": {
+                "method": "codex/eventStreamLagged",
+                "params": {
+                    "droppedCount": dropped_count,
+                }
+            }
+        }
+    }))
+    .ok()
+}
+
 pub(super) fn parse_auth_token(params: &Value) -> Option<String> {
     match params {
         Value::String(value) => Some(value.clone()),
@@ -751,7 +767,14 @@ pub(super) async fn forward_events(
     loop {
         let event = match rx.recv().await {
             Ok(event) => event,
-            Err(broadcast::error::RecvError::Lagged(_)) => continue,
+            Err(broadcast::error::RecvError::Lagged(dropped_count)) => {
+                if let Some(payload) = build_event_stream_lagged_notification(dropped_count) {
+                    if out_tx_events.send(payload).is_err() {
+                        break;
+                    }
+                }
+                continue;
+            }
             Err(broadcast::error::RecvError::Closed) => break,
         };
 
@@ -791,7 +814,7 @@ pub(super) fn spawn_rpc_response_task(
 
 #[cfg(test)]
 mod tests {
-    use super::parse_string_array;
+    use super::{build_event_stream_lagged_notification, parse_string_array};
     use serde_json::json;
 
     #[test]
@@ -812,5 +835,29 @@ mod tests {
 
         let err = parse_string_array(&params, "threadIds").expect_err("missing key should fail");
         assert_eq!(err, "missing `threadIds`");
+    }
+
+    #[test]
+    fn build_event_stream_lagged_notification_reports_dropped_count() {
+        let payload =
+            build_event_stream_lagged_notification(42).expect("payload should serialize");
+        let value: serde_json::Value =
+            serde_json::from_str(&payload).expect("payload should parse");
+        assert_eq!(
+            value.pointer("/method").and_then(|node| node.as_str()),
+            Some("app-server-event")
+        );
+        assert_eq!(
+            value
+                .pointer("/params/message/method")
+                .and_then(|node| node.as_str()),
+            Some("codex/eventStreamLagged")
+        );
+        assert_eq!(
+            value
+                .pointer("/params/message/params/droppedCount")
+                .and_then(|node| node.as_u64()),
+            Some(42)
+        );
     }
 }

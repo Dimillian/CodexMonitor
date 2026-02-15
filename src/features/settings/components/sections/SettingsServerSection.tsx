@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type {
   AppSettings,
@@ -117,6 +118,25 @@ export function SettingsServerSection({
   onOrbitRunnerStatus,
   onMobileConnectTest,
 }: SettingsServerSectionProps) {
+  const remoteTokenMissing = remoteTokenDraft.trim().length === 0;
+  const tailscaleFriendlyError = useMemo(() => {
+    if (!tailscaleStatusError) {
+      return null;
+    }
+    const normalized = tailscaleStatusError.toLowerCase();
+    if (
+      normalized.includes("no such file")
+      || normalized.includes("not found")
+      || normalized.includes("posix_spawn(): 2")
+    ) {
+      return "未检测到 Tailscale，请安装后重试。";
+    }
+    if (normalized.includes("permission")) {
+      return "Tailscale 检测被系统权限阻止，请检查权限后重试。";
+    }
+    return "Tailscale 检测失败，请查看详情并按提示修复。";
+  }, [tailscaleStatusError]);
+
   const isMobileSimplified = isMobilePlatform;
   const tcpRunnerStatusText = (() => {
     if (!tcpDaemonStatus) {
@@ -256,6 +276,11 @@ export function SettingsServerSection({
                   aria-label="远程后端 token"
                 />
               </div>
+              {remoteTokenMissing && (
+                <div className="settings-help settings-help-error">
+                  远程后端令牌为空，请先填写令牌再进行远程连接。
+                </div>
+              )}
               <div className="settings-help">
                 {isMobileSimplified
                   ? "使用桌面端 CodexMonitor（服务设置）中的 Tailscale 地址，例如 `macbook.your-tailnet.ts.net:4732`。"
@@ -368,7 +393,25 @@ export function SettingsServerSection({
                   </button>
                 </div>
                 {tailscaleStatusError && (
-                  <div className="settings-help settings-help-error">{tailscaleStatusError}</div>
+                  <div className="settings-error-card">
+                    <div className="settings-help settings-help-error">
+                      {tailscaleFriendlyError}
+                    </div>
+                    <a
+                      href="https://tailscale.com/download"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="settings-help-link"
+                    >
+                      安装 Tailscale
+                    </a>
+                    <details className="settings-error-details">
+                      <summary>查看详情</summary>
+                      <pre className="settings-command-preview">
+                        <code>{tailscaleStatusError}</code>
+                      </pre>
+                    </details>
+                  </div>
                 )}
                 {tailscaleStatus && (
                   <>
@@ -394,10 +437,8 @@ export function SettingsServerSection({
                   <div className="settings-help settings-help-error">{tailscaleCommandError}</div>
                 )}
                 {tailscaleCommandPreview && (
-                  <>
-                    <div className="settings-help">
-                      启动守护进程的命令模板（手动兜底）：
-                    </div>
+                  <details className="settings-advanced-disclosure">
+                    <summary>高级/调试：启动守护进程命令模板</summary>
                     <pre className="settings-command-preview">
                       <code>{tailscaleCommandPreview.command}</code>
                     </pre>
@@ -406,7 +447,7 @@ export function SettingsServerSection({
                         远程后端令牌为空。请在开放守护进程访问前设置一个。
                       </div>
                     )}
-                  </>
+                  </details>
                 )}
               </div>
             )}
@@ -462,6 +503,11 @@ export function SettingsServerSection({
                     }}
                     aria-label="远程后端 token"
                   />
+                  {remoteTokenMissing && (
+                    <div className="settings-help settings-help-error">
+                      远程后端令牌为空，请先填写令牌再进行连接测试。
+                    </div>
+                  )}
                   <div className="settings-help">
                     请使用与桌面端 Orbit 守护进程一致的令牌。
                   </div>

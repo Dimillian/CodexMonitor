@@ -91,6 +91,33 @@
   background: var(--surface-messages);
 }
 
+.settings-group-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-card);
+}
+
+.settings-group-tab {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-subtle);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.settings-group-tab.is-active {
+  color: var(--text-strong);
+  border-color: color-mix(in srgb, var(--accent-primary) 35%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+}
+
 .settings-mobile-detail-header {
   display: none;
 }
@@ -186,6 +213,39 @@
   overflow-x: auto;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.settings-error-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--status-error) 35%, var(--border-muted));
+  background: color-mix(in srgb, var(--status-error) 10%, transparent);
+}
+
+.settings-help-link {
+  font-size: 11px;
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+
+.settings-help-link:hover {
+  text-decoration: underline;
+}
+
+.settings-error-details summary,
+.settings-advanced-disclosure summary {
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-subtle);
+}
+
+.settings-advanced-disclosure {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .settings-agents-header {
@@ -299,6 +359,16 @@
 .settings-input--shortcut {
   font-family: var(--code-font-family);
   letter-spacing: 0.02em;
+}
+
+.settings-input--shortcut.is-conflict {
+  border-color: color-mix(in srgb, var(--status-error) 60%, var(--border-muted));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--status-error) 20%, transparent);
+}
+
+.settings-shortcut-warning {
+  font-size: 11px;
+  color: var(--status-error);
 }
 
 

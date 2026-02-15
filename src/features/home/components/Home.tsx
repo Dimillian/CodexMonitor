@@ -580,18 +580,25 @@ export function Home({
               </div>
               <div className="home-usage-models-list">
                 {localUsageSnapshot?.topModels?.length ? (
-                  localUsageSnapshot.topModels.map((model) => (
-                    <span
-                      className="home-usage-model-chip"
-                      key={model.model}
-                      title={`${model.model}: ${formatCount(model.tokens)} 令牌`}
-                    >
-                      {model.model}
-                      <span className="home-usage-model-share">
-                        {model.sharePercent.toFixed(1)}%
+                  localUsageSnapshot.topModels.map((model) => {
+                    const modelId = model.model.toLowerCase();
+                    const isCodex = modelId.includes("codex") || modelId.includes("gpt-5");
+                    const isClaude = modelId.includes("claude");
+                    const isGemini = modelId.includes("gemini");
+                    const providerPrefix = isCodex ? "🔵" : isClaude ? "🟠" : isGemini ? "🟢" : "";
+                    return (
+                      <span
+                        className="home-usage-model-chip"
+                        key={model.model}
+                        title={`${model.model}: ${formatCount(model.tokens)} 令牌 (${isCodex ? "Codex" : isClaude ? "Claude/Antigravity" : isGemini ? "Gemini/Antigravity" : "其他"})`}
+                      >
+                        {providerPrefix} {model.model}
+                        <span className="home-usage-model-share">
+                          {model.sharePercent.toFixed(1)}%
+                        </span>
                       </span>
-                    </span>
-                  ))
+                    );
+                  })
                 ) : (
                   <span className="home-usage-model-empty">暂无模型数据</span>
                 )}

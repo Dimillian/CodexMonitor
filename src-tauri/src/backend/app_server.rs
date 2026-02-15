@@ -334,7 +334,31 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     let event_sink_clone = event_sink.clone();
     tokio::spawn(async move {
         let mut lines = BufReader::new(stdout).lines();
-        while let Ok(Some(line)) = lines.next_line().await {
+        loop {
+            let line = match lines.next_line().await {
+                Ok(Some(line)) => line,
+                Ok(None) => break,
+                Err(error) if error.kind() == ErrorKind::Interrupted => {
+                    // Retry interrupted reads instead of treating them as hard disconnects.
+                    continue;
+                }
+                Err(error) => {
+                    let payload = AppServerEvent {
+                        workspace_id: workspace_id.clone(),
+                        message: json!({
+                            "method": "codex/stdoutReadError",
+                            "params": {
+                                "workspaceId": workspace_id.clone(),
+                                "kind": format!("{:?}", error.kind()),
+                                "error": error.to_string(),
+                            },
+                        }),
+                    };
+                    event_sink_clone.emit_app_server_event(payload);
+                    break;
+                }
+            };
+
             if line.trim().is_empty() {
                 continue;
             }

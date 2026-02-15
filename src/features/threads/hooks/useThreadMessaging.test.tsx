@@ -214,6 +214,70 @@ describe("useThreadMessaging telemetry", () => {
     expect(sendUserMessageService).not.toHaveBeenCalled();
   });
 
+  it("enforces sub-agent model inheritance in collaboration settings", async () => {
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        model: "gpt-5.3-codex",
+        effort: null,
+        collaborationMode: {
+          mode: "default",
+          settings: {
+            developer_instructions: "Keep responses concise.",
+          },
+        },
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing: vi.fn(),
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage: vi.fn(),
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendUserMessageToThread(
+        workspace,
+        "thread-1",
+        "run this",
+        [],
+      );
+    });
+
+    expect(sendUserMessageService).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      "run this",
+      expect.objectContaining({
+        model: "gpt-5.3-codex",
+        collaborationMode: expect.objectContaining({
+          settings: expect.objectContaining({
+            model: "gpt-5.3-codex",
+            developer_instructions: expect.stringContaining(
+              "[codexmonitor-subagent-model-inherit-v1]",
+            ),
+          }),
+        }),
+      }),
+    );
+  });
+
   it("falls back to turn/start when turn/steer is unsupported and remembers fallback", async () => {
     vi.mocked(steerTurnService).mockResolvedValueOnce({
       error: {

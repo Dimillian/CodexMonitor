@@ -306,7 +306,16 @@ type SidebarProps = {
   threadParentById: Record<string, string>;
   threadStatusById: Record<
     string,
-    { isProcessing: boolean; hasUnread: boolean; isReviewing: boolean }
+    {
+      isProcessing: boolean;
+      hasUnread: boolean;
+      isReviewing: boolean;
+      processingStartedAt?: number | null;
+      lastDurationMs?: number | null;
+      lastActivityAt?: number | null;
+      lastErrorAt?: number | null;
+      lastErrorMessage?: string | null;
+    }
   >;
   threadListLoadingByWorkspace: Record<string, boolean>;
   threadListPagingByWorkspace: Record<string, boolean>;

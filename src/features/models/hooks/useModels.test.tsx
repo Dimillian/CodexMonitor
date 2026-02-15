@@ -81,7 +81,8 @@ describe("useModels", () => {
 
     await waitFor(() => expect(result.current.selectedModelId).toBe("provider-id"));
 
-    expect(result.current.models).toHaveLength(1);
+    expect(result.current.models.length).toBeGreaterThanOrEqual(4);
+    expect(result.current.models[0]?.id).toBe("provider-id");
     expect(result.current.selectedModel?.id).toBe("provider-id");
     expect(result.current.reasoningSupported).toBe(true);
   });

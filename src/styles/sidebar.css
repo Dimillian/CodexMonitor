@@ -941,6 +941,20 @@
   margin-left: 4px;
 }
 
+.thread-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
 .thread-pin-icon {
   font-size: 10px;
   margin-right: 2px;
@@ -957,10 +971,56 @@
   animation: pulse 1.2s ease-in-out infinite;
 }
 
+.thread-status-badge.processing {
+  color: color-mix(in srgb, var(--status-warning) 78%, var(--text-strong));
+  border-color: color-mix(in srgb, var(--status-warning) 44%, transparent);
+  background: color-mix(in srgb, var(--status-warning) 14%, transparent);
+}
+
+.thread-status.waiting {
+  background: color-mix(in srgb, var(--status-warning) 76%, var(--text-quiet));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-warning) 24%, var(--border-subtle));
+}
+
+.thread-status-badge.waiting {
+  color: color-mix(in srgb, var(--status-warning) 72%, var(--text-strong));
+  border-color: color-mix(in srgb, var(--status-warning) 36%, transparent);
+  background: color-mix(in srgb, var(--status-warning) 12%, transparent);
+}
+
+.thread-status.stalled {
+  background: var(--status-danger);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-danger) 30%, var(--border-subtle));
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.thread-status-badge.stalled {
+  color: color-mix(in srgb, var(--status-danger) 82%, var(--text-strong));
+  border-color: color-mix(in srgb, var(--status-danger) 45%, transparent);
+  background: color-mix(in srgb, var(--status-danger) 12%, transparent);
+}
+
+.thread-status.error {
+  background: var(--status-danger);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--status-danger) 30%, var(--border-subtle));
+}
+
+.thread-status-badge.error {
+  color: color-mix(in srgb, var(--status-danger) 82%, var(--text-strong));
+  border-color: color-mix(in srgb, var(--status-danger) 45%, transparent);
+  background: color-mix(in srgb, var(--status-danger) 12%, transparent);
+}
+
 .thread-status.reviewing {
   background: var(--message-link-color);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--message-link-color) 24%, var(--border-subtle));
   animation: pulse 1.4s ease-in-out infinite;
+}
+
+.thread-status-badge.reviewing {
+  color: color-mix(in srgb, var(--message-link-color) 72%, var(--text-strong));
+  border-color: color-mix(in srgb, var(--message-link-color) 38%, transparent);
+  background: color-mix(in srgb, var(--message-link-color) 10%, transparent);
 }
 
 .thread-status.unread {

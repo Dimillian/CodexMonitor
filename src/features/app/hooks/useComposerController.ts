@@ -15,6 +15,9 @@ export function useComposerController({
   workspacesById,
   steerEnabled,
   appsEnabled,
+  activeModel,
+  activeEffort,
+  activeCollaborationMode,
   connectWorkspace,
   startThreadForWorkspace,
   sendUserMessage,
@@ -47,6 +50,9 @@ export function useComposerController({
   workspacesById: Map<string, WorkspaceInfo>;
   steerEnabled: boolean;
   appsEnabled: boolean;
+  activeModel: string | null;
+  activeEffort: string | null;
+  activeCollaborationMode: Record<string, unknown> | null;
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
   startThreadForWorkspace: (
     workspaceId: string,
@@ -55,13 +61,23 @@ export function useComposerController({
   sendUserMessage: (
     text: string,
     images?: string[],
-    options?: { forceSteer?: boolean },
+    options?: {
+      forceSteer?: boolean;
+      model?: string | null;
+      effort?: string | null;
+      collaborationMode?: Record<string, unknown> | null;
+    },
   ) => Promise<void>;
   sendUserMessageToThread: (
     workspace: WorkspaceInfo,
     threadId: string,
     text: string,
     images?: string[],
+    options?: {
+      model?: string | null;
+      effort?: string | null;
+      collaborationMode?: Record<string, unknown> | null;
+    },
   ) => Promise<void>;
   startFork: (text: string) => Promise<void>;
   startReview: (text: string) => Promise<void>;
@@ -111,6 +127,9 @@ export function useComposerController({
     workspacesById,
     steerEnabled,
     appsEnabled,
+    activeModel,
+    activeEffort,
+    activeCollaborationMode,
     activeWorkspace,
     connectWorkspace,
     startThreadForWorkspace,

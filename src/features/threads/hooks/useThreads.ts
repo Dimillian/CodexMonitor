@@ -194,7 +194,13 @@ export function useThreads({
     onDebug,
   });
 
-  const { markProcessing, markReviewing, setActiveTurnId, resetThreadRuntimeState } = useThreadStatus({
+  const {
+    markProcessing,
+    markReviewing,
+    markThreadError,
+    setActiveTurnId,
+    resetThreadRuntimeState,
+  } = useThreadStatus({
     dispatch,
   });
 
@@ -355,6 +361,14 @@ export function useThreads({
     onDebug,
   });
 
+  const resolveCurrentModel = useCallback(() => {
+    if (typeof model !== "string") {
+      return null;
+    }
+    const trimmed = model.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }, [model]);
+
   const threadHandlers = useThreadEventHandlers({
     activeThreadId,
     dispatch,
@@ -363,6 +377,7 @@ export function useThreads({
     isThreadHidden,
     markProcessing,
     markReviewing,
+    markThreadError,
     setActiveTurnId,
     safeMessageActivity,
     recordThreadActivity,
@@ -374,6 +389,7 @@ export function useThreads({
     onReviewExited: handleReviewExited,
     approvalAllowlistRef,
     pendingInterruptsRef,
+    resolveCurrentModel,
   });
 
   const handleAccountLoginCompleted = useCallback(

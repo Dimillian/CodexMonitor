@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { AppSettings } from "../../../types";
 import { buildShortcutValue } from "../../../utils/shortcuts";
@@ -97,9 +97,40 @@ export const useSettingsShortcutDrafts = ({
     void updateShortcut(key, null);
   };
 
+  const conflictsBySetting = useMemo(() => {
+    const buckets = new Map<string, ShortcutSettingKey[]>();
+    (Object.entries(SHORTCUT_DRAFT_KEY_BY_SETTING) as Array<
+      [ShortcutSettingKey, keyof typeof shortcutDrafts]
+    >).forEach(([settingKey, draftKey]) => {
+      const rawValue = shortcutDrafts[draftKey] ?? "";
+      const normalized = rawValue.trim().toLowerCase();
+      if (!normalized) {
+        return;
+      }
+      const existing = buckets.get(normalized);
+      if (existing) {
+        existing.push(settingKey);
+      } else {
+        buckets.set(normalized, [settingKey]);
+      }
+    });
+
+    const conflicts: Partial<Record<ShortcutSettingKey, ShortcutSettingKey[]>> = {};
+    buckets.forEach((settingKeys) => {
+      if (settingKeys.length <= 1) {
+        return;
+      }
+      settingKeys.forEach((settingKey) => {
+        conflicts[settingKey] = settingKeys.filter((key) => key !== settingKey);
+      });
+    });
+    return conflicts;
+  }, [shortcutDrafts]);
+
   return {
     shortcutDrafts,
     handleShortcutKeyDown,
     clearShortcut,
+    conflictsBySetting,
   };
 };

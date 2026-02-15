@@ -276,6 +276,19 @@ function buildMessagePreview(text: string): string {
   return `${text.slice(0, MESSAGE_PREVIEW_CHAR_LIMIT).trimEnd()}…`;
 }
 
+function formatTokenCount(value: number | null | undefined): string | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(2).replace(/\.?0+$/, "")}M`;
+  }
+  if (value >= 1_000) {
+    return `${(value / 1_000).toFixed(1).replace(/\.?0+$/, "")}K`;
+  }
+  return String(Math.round(value));
+}
+
 /**
  * Derive streaming phase from elapsed time, whether we have content, and
  * whether the agent is actively streaming output.
@@ -400,6 +413,21 @@ export const MessageRow = memo(function MessageRow({
   }, [isLongAssistantMessage, item.id]);
 
   const messagePreviewText = useMemo(() => buildMessagePreview(item.text), [item.text]);
+  const assistantModel = useMemo(() => {
+    if (item.role !== "assistant") {
+      return null;
+    }
+    const raw = item.model;
+    if (typeof raw !== "string") {
+      return null;
+    }
+    const trimmed = raw.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }, [item.model, item.role]);
+  const assistantContextWindow = useMemo(
+    () => formatTokenCount(item.role === "assistant" ? item.contextWindow : null),
+    [item.contextWindow, item.role],
+  );
 
   const imageItems = useMemo(() => {
     if (!item.images || item.images.length === 0) {
@@ -430,6 +458,14 @@ export const MessageRow = memo(function MessageRow({
             onOpen={setLightboxIndex}
             hasText={hasText}
           />
+        )}
+        {item.role === "assistant" && (assistantModel || assistantContextWindow) && (
+          <div className="message-assistant-meta">
+            {assistantModel ? <span>模型: {assistantModel}</span> : null}
+            {assistantContextWindow ? (
+              <span>上下文窗口: {assistantContextWindow}</span>
+            ) : null}
+          </div>
         )}
         {hasText && isLongUserMessage && isUserCollapsed && (
           <div className="message-user-collapsed">

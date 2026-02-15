@@ -69,6 +69,53 @@ type UseThreadMessagingOptions = {
   updateThreadParent: (parentId: string, childIds: string[]) => void;
 };
 
+const SUBAGENT_MODEL_POLICY_MARKER = "[codexmonitor-subagent-model-inherit-v1]";
+
+function enforceSubagentModelInheritance(
+  collaborationMode: Record<string, unknown> | null,
+  model: string | null,
+): Record<string, unknown> | null {
+  if (!collaborationMode || typeof collaborationMode !== "object") {
+    return collaborationMode;
+  }
+  const settingsRaw = (collaborationMode as Record<string, unknown>).settings;
+  if (!settingsRaw || typeof settingsRaw !== "object" || Array.isArray(settingsRaw)) {
+    return collaborationMode;
+  }
+
+  const settings = { ...(settingsRaw as Record<string, unknown>) };
+  if (model && model.trim()) {
+    settings.model = model.trim();
+  }
+
+  const existingInstructions =
+    typeof settings.developer_instructions === "string"
+      ? settings.developer_instructions
+      : "";
+  if (!existingInstructions.includes(SUBAGENT_MODEL_POLICY_MARKER)) {
+    const policyLines = [
+      SUBAGENT_MODEL_POLICY_MARKER,
+      "Sub-agent policy:",
+      "- Always inherit the parent turn model for spawn_agent.",
+      "- Omit agent_type in spawn_agent calls (default role).",
+      "- Do not use agent_type values that override model (for example explorer).",
+      "- For executable requests, start tool calls immediately and do not ask for confirmation.",
+      "- Do not end a turn with only an acknowledgement when concrete execution was requested.",
+    ];
+    if (model && model.trim()) {
+      policyLines.push(`- Parent model for this turn: ${model.trim()}.`);
+    }
+    settings.developer_instructions = existingInstructions.trim().length
+      ? `${existingInstructions.trim()}\n\n${policyLines.join("\n")}`
+      : policyLines.join("\n");
+  }
+
+  return {
+    ...collaborationMode,
+    settings,
+  };
+}
+
 function isUnsupportedTurnSteerError(message: string): boolean {
   const normalized = message.toLowerCase();
   const mentionsSteerMethod =
@@ -139,12 +186,16 @@ export function useThreadMessaging({
         options?.collaborationMode !== undefined
           ? options.collaborationMode
           : collaborationMode;
-      const sanitizedCollaborationMode =
+      const sanitizedCollaborationModeRaw =
         resolvedCollaborationMode &&
         typeof resolvedCollaborationMode === "object" &&
         "settings" in resolvedCollaborationMode
           ? resolvedCollaborationMode
           : null;
+      const sanitizedCollaborationMode = enforceSubagentModelInheritance(
+        sanitizedCollaborationModeRaw,
+        resolvedModel ?? null,
+      );
       const isProcessing = threadStatusById[threadId]?.isProcessing ?? false;
       const activeTurnId = activeTurnIdByThread[threadId] ?? null;
       const steerSupported = steerSupportedByWorkspaceRef.current[workspace.id] !== false;
@@ -368,7 +419,10 @@ export function useThreadMessaging({
     async (
       text: string,
       images: string[] = [],
-      options?: Pick<SendMessageOptions, "forceSteer">,
+      options?: Pick<
+        SendMessageOptions,
+        "forceSteer" | "model" | "effort" | "collaborationMode"
+      >,
     ) => {
       if (!activeWorkspace) {
         return;
@@ -401,6 +455,9 @@ export function useThreadMessaging({
       await sendMessageToThread(activeWorkspace, threadId, finalText, images, {
         skipPromptExpansion: true,
         forceSteer: options?.forceSteer,
+        model: options?.model,
+        effort: options?.effort,
+        collaborationMode: options?.collaborationMode,
       });
     },
     [

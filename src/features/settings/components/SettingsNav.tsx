@@ -1,16 +1,19 @@
+import type { ReactNode } from "react";
 import LayoutGrid from "lucide-react/dist/esm/icons/layout-grid";
 import SlidersHorizontal from "lucide-react/dist/esm/icons/sliders-horizontal";
-import Mic from "lucide-react/dist/esm/icons/mic";
 import Keyboard from "lucide-react/dist/esm/icons/keyboard";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
-import TerminalSquare from "lucide-react/dist/esm/icons/terminal-square";
 import FileText from "lucide-react/dist/esm/icons/file-text";
 import FlaskConical from "lucide-react/dist/esm/icons/flask-conical";
-import ExternalLink from "lucide-react/dist/esm/icons/external-link";
 import Layers from "lucide-react/dist/esm/icons/layers";
 import ServerCog from "lucide-react/dist/esm/icons/server-cog";
 import { PanelNavItem, PanelNavList } from "../../design-system/components/panel/PanelPrimitives";
 import type { CodexSection } from "./settingsTypes";
+import {
+  SETTINGS_SECTION_GROUPS,
+  type SettingsSectionGroupId,
+  getSettingsSectionGroup,
+} from "./settingsViewConstants";
 
 type SettingsNavProps = {
   activeSection: CodexSection;
@@ -23,108 +26,44 @@ export function SettingsNav({
   onSelectSection,
   showDisclosure = false,
 }: SettingsNavProps) {
+  const activeGroupId = getSettingsSectionGroup(activeSection).id;
+  const iconByGroup: Record<SettingsSectionGroupId, ReactNode> = {
+    projects: <LayoutGrid aria-hidden />,
+    environments: <Layers aria-hidden />,
+    display: <SlidersHorizontal aria-hidden />,
+    input: <FileText aria-hidden />,
+    interaction: <Keyboard aria-hidden />,
+    git: <GitBranch aria-hidden />,
+    services: <ServerCog aria-hidden />,
+    features: <FlaskConical aria-hidden />,
+  };
+
+  const handleSelectGroup = (groupId: SettingsSectionGroupId) => {
+    const group = SETTINGS_SECTION_GROUPS.find((entry) => entry.id === groupId);
+    if (!group) {
+      return;
+    }
+    const nextSection = group.sections.includes(activeSection)
+      ? activeSection
+      : group.sections[0];
+    onSelectSection(nextSection);
+  };
+
   return (
     <aside className="settings-sidebar">
       <PanelNavList className="settings-nav-list">
-        <PanelNavItem
-          className="settings-nav"
-          icon={<LayoutGrid aria-hidden />}
-          active={activeSection === "projects"}
-          showDisclosure={showDisclosure}
-          onClick={() => onSelectSection("projects")}
-        >
-          项目
-        </PanelNavItem>
-        <PanelNavItem
-          className="settings-nav"
-          icon={<Layers aria-hidden />}
-          active={activeSection === "environments"}
-          showDisclosure={showDisclosure}
-          onClick={() => onSelectSection("environments")}
-        >
-          环境
-        </PanelNavItem>
-        <PanelNavItem
-          className="settings-nav"
-          icon={<SlidersHorizontal aria-hidden />}
-          active={activeSection === "display"}
-          showDisclosure={showDisclosure}
-          onClick={() => onSelectSection("display")}
-        >
-          显示与声音
-        </PanelNavItem>
-        <PanelNavItem
-          className="settings-nav"
-          icon={<FileText aria-hidden />}
-          active={activeSection === "composer"}
-          showDisclosure={showDisclosure}
-          onClick={() => onSelectSection("composer")}
-        >
-          编辑器
-        </PanelNavItem>
-        <PanelNavItem
-          className="settings-nav"
-          icon={<Mic aria-hidden />}
-          active={activeSection === "dictation"}
-          showDisclosure={showDisclosure}
-          onClick={() => onSelectSection("dictation")}
-        >
-          听写
-        </PanelNavItem>
-        <PanelNavItem
-          className="settings-nav"
-          icon={<Keyboard aria-hidden />}
-          active={activeSection === "shortcuts"}
-          showDisclosure={showDisclosure}
-          onClick={() => onSelectSection("shortcuts")}
-        >
-          快捷键
-        </PanelNavItem>
-        <PanelNavItem
-          className="settings-nav"
-          icon={<ExternalLink aria-hidden />}
-          active={activeSection === "open-apps"}
-          showDisclosure={showDisclosure}
-          onClick={() => onSelectSection("open-apps")}
-        >
-          打开方式
-        </PanelNavItem>
-        <PanelNavItem
-          className="settings-nav"
-          icon={<GitBranch aria-hidden />}
-          active={activeSection === "git"}
-          showDisclosure={showDisclosure}
-          onClick={() => onSelectSection("git")}
-        >
-          Git
-        </PanelNavItem>
-        <PanelNavItem
-          className="settings-nav"
-          icon={<ServerCog aria-hidden />}
-          active={activeSection === "server"}
-          showDisclosure={showDisclosure}
-          onClick={() => onSelectSection("server")}
-        >
-          服务
-        </PanelNavItem>
-        <PanelNavItem
-          className="settings-nav"
-          icon={<TerminalSquare aria-hidden />}
-          active={activeSection === "codex"}
-          showDisclosure={showDisclosure}
-          onClick={() => onSelectSection("codex")}
-        >
-          Codex
-        </PanelNavItem>
-        <PanelNavItem
-          className="settings-nav"
-          icon={<FlaskConical aria-hidden />}
-          active={activeSection === "features"}
-          showDisclosure={showDisclosure}
-          onClick={() => onSelectSection("features")}
-        >
-          功能
-        </PanelNavItem>
+        {SETTINGS_SECTION_GROUPS.map((group) => (
+          <PanelNavItem
+            key={group.id}
+            className="settings-nav"
+            icon={iconByGroup[group.id]}
+            active={activeGroupId === group.id}
+            showDisclosure={showDisclosure}
+            onClick={() => handleSelectGroup(group.id)}
+          >
+            {group.label}
+          </PanelNavItem>
+        ))}
       </PanelNavList>
     </aside>
   );

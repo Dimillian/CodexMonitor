@@ -37,6 +37,19 @@ function isQueuedMessage(entry: unknown): entry is QueuedMessage {
   ) {
     return false;
   }
+  if (candidate.model !== undefined && candidate.model !== null && typeof candidate.model !== "string") {
+    return false;
+  }
+  if (candidate.effort !== undefined && candidate.effort !== null && typeof candidate.effort !== "string") {
+    return false;
+  }
+  if (
+    candidate.collaborationMode !== undefined
+    && candidate.collaborationMode !== null
+    && typeof candidate.collaborationMode !== "object"
+  ) {
+    return false;
+  }
   if (candidate.images === undefined) {
     return true;
   }
@@ -122,6 +135,9 @@ type UseQueuedSendOptions = {
   workspacesById?: Map<string, WorkspaceInfo>;
   steerEnabled: boolean;
   appsEnabled: boolean;
+  activeModel?: string | null;
+  activeEffort?: string | null;
+  activeCollaborationMode?: Record<string, unknown> | null;
   activeWorkspace: WorkspaceInfo | null;
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
   startThreadForWorkspace: (
@@ -131,13 +147,23 @@ type UseQueuedSendOptions = {
   sendUserMessage: (
     text: string,
     images?: string[],
-    options?: { forceSteer?: boolean },
+    options?: {
+      forceSteer?: boolean;
+      model?: string | null;
+      effort?: string | null;
+      collaborationMode?: Record<string, unknown> | null;
+    },
   ) => Promise<void>;
   sendUserMessageToThread: (
     workspace: WorkspaceInfo,
     threadId: string,
     text: string,
     images?: string[],
+    options?: {
+      model?: string | null;
+      effort?: string | null;
+      collaborationMode?: Record<string, unknown> | null;
+    },
   ) => Promise<void>;
   startFork: (text: string) => Promise<void>;
   startReview: (text: string) => Promise<void>;
@@ -222,6 +248,9 @@ export function useQueuedSend({
   workspacesById,
   steerEnabled,
   appsEnabled,
+  activeModel = null,
+  activeEffort = null,
+  activeCollaborationMode = null,
   activeWorkspace,
   connectWorkspace,
   startThreadForWorkspace,
@@ -700,7 +729,24 @@ export function useQueuedSend({
         const threadId = await startThreadForWorkspace(activeWorkspace.id);
         const rest = trimmed.replace(/^\/new\b/i, "").trim();
         if (threadId && rest) {
-          await sendUserMessageToThread(activeWorkspace, threadId, rest, []);
+          const nextModel = activeModel;
+          const nextEffort = activeEffort;
+          const nextCollaborationMode = activeCollaborationMode;
+          const nextOptions =
+            nextModel !== null ||
+            nextEffort !== null ||
+            nextCollaborationMode !== null
+              ? {
+                  model: nextModel,
+                  effort: nextEffort,
+                  collaborationMode: nextCollaborationMode,
+                }
+              : undefined;
+          if (nextOptions) {
+            await sendUserMessageToThread(activeWorkspace, threadId, rest, [], nextOptions);
+          } else {
+            await sendUserMessageToThread(activeWorkspace, threadId, rest, []);
+          }
         }
       }
     },
@@ -715,6 +761,9 @@ export function useQueuedSend({
       startMcp,
       startStatus,
       startThreadForWorkspace,
+      activeModel,
+      activeEffort,
+      activeCollaborationMode,
     ],
   );
 
@@ -737,6 +786,9 @@ export function useQueuedSend({
           createdAt: Date.now(),
           images: nextImages,
           workspaceId: activeWorkspace?.id,
+          model: activeModel,
+          effort: activeEffort,
+          collaborationMode: activeCollaborationMode,
         };
         enqueueMessage(activeThreadId, item);
         clearActiveImages();
@@ -750,7 +802,24 @@ export function useQueuedSend({
         clearActiveImages();
         return;
       }
-      await sendUserMessage(trimmed, nextImages);
+      const nextModel = activeModel;
+      const nextEffort = activeEffort;
+      const nextCollaborationMode = activeCollaborationMode;
+      const nextOptions =
+        nextModel !== null ||
+        nextEffort !== null ||
+        nextCollaborationMode !== null
+          ? {
+              model: nextModel,
+              effort: nextEffort,
+              collaborationMode: nextCollaborationMode,
+            }
+          : undefined;
+      if (nextOptions) {
+        await sendUserMessage(trimmed, nextImages, nextOptions);
+      } else {
+        await sendUserMessage(trimmed, nextImages);
+      }
       clearActiveImages();
     },
     [
@@ -762,6 +831,9 @@ export function useQueuedSend({
       enqueueMessage,
       isProcessing,
       isReviewing,
+      activeModel,
+      activeEffort,
+      activeCollaborationMode,
       runSlashCommand,
       sendUserMessage,
       activeTurnId,
@@ -795,6 +867,9 @@ export function useQueuedSend({
         workspaceId:
           workspaceResolution.workspaceId
           ?? (threadId === activeThreadId ? activeWorkspace?.id : undefined),
+        model: activeModel,
+        effort: activeEffort,
+        collaborationMode: activeCollaborationMode,
       };
       enqueueMessage(threadId, item);
       if (threadId === activeThreadId) {
@@ -807,6 +882,9 @@ export function useQueuedSend({
       appsEnabled,
       clearActiveImages,
       enqueueMessage,
+      activeModel,
+      activeEffort,
+      activeCollaborationMode,
       getThreadStatus,
       resolveWorkspaceForThread,
     ],
@@ -856,8 +934,20 @@ export function useQueuedSend({
         if (activeWorkspace && !activeWorkspace.connected) {
           await connectWorkspace(activeWorkspace);
         }
+        const nextModel = targetItem.model ?? activeModel;
+        const nextEffort = targetItem.effort ?? activeEffort;
+        const nextCollaborationMode =
+          targetItem.collaborationMode ?? activeCollaborationMode;
+        const steerOptions = {
+          forceSteer: true as const,
+          ...(nextModel !== null ? { model: nextModel } : {}),
+          ...(nextEffort !== null ? { effort: nextEffort } : {}),
+          ...(nextCollaborationMode !== null
+            ? { collaborationMode: nextCollaborationMode }
+            : {}),
+        };
         await sendUserMessage(targetItem.text, targetItem.images ?? [], {
-          forceSteer: true,
+          ...steerOptions,
         });
         return true;
       } catch {
@@ -874,6 +964,9 @@ export function useQueuedSend({
       queuedByThread,
       sendUserMessage,
       steerEnabled,
+      activeModel,
+      activeEffort,
+      activeCollaborationMode,
     ],
   );
 
@@ -1117,14 +1210,56 @@ export function useQueuedSend({
             setHasStartedByThread((prev) => ({ ...prev, [threadId]: true }));
           }
         } else if (threadId === activeThreadId) {
-          await sendUserMessage(nextItem.text, nextItem.images ?? []);
+          const nextModel = nextItem.model ?? activeModel;
+          const nextEffort = nextItem.effort ?? activeEffort;
+          const nextCollaborationMode =
+            nextItem.collaborationMode ?? activeCollaborationMode;
+          const nextOptions =
+            nextModel !== null ||
+            nextEffort !== null ||
+            nextCollaborationMode !== null
+              ? {
+                  model: nextModel,
+                  effort: nextEffort,
+                  collaborationMode: nextCollaborationMode,
+                }
+              : undefined;
+          if (nextOptions) {
+            await sendUserMessage(nextItem.text, nextItem.images ?? [], nextOptions);
+          } else {
+            await sendUserMessage(nextItem.text, nextItem.images ?? []);
+          }
         } else {
-          await sendUserMessageToThread(
-            targetWorkspace,
-            threadId,
-            nextItem.text,
-            nextItem.images ?? [],
-          );
+          const nextModel = nextItem.model ?? activeModel;
+          const nextEffort = nextItem.effort ?? activeEffort;
+          const nextCollaborationMode =
+            nextItem.collaborationMode ?? activeCollaborationMode;
+          const nextOptions =
+            nextModel !== null ||
+            nextEffort !== null ||
+            nextCollaborationMode !== null
+              ? {
+                  model: nextModel,
+                  effort: nextEffort,
+                  collaborationMode: nextCollaborationMode,
+                }
+              : undefined;
+          if (nextOptions) {
+            await sendUserMessageToThread(
+              targetWorkspace,
+              threadId,
+              nextItem.text,
+              nextItem.images ?? [],
+              nextOptions,
+            );
+          } else {
+            await sendUserMessageToThread(
+              targetWorkspace,
+              threadId,
+              nextItem.text,
+              nextItem.images ?? [],
+            );
+          }
         }
         setLastFailureByThread((prev) => ({ ...prev, [threadId]: null }));
         setLastFailureAtByThread((prev) => ({ ...prev, [threadId]: null }));
@@ -1165,6 +1300,9 @@ export function useQueuedSend({
     runSlashCommand,
     sendUserMessage,
     sendUserMessageToThread,
+    activeModel,
+    activeEffort,
+    activeCollaborationMode,
   ]);
 
   return {

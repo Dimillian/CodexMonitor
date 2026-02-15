@@ -11,6 +11,130 @@ type UseModelsOptions = {
 
 const CONFIG_MODEL_DESCRIPTION = "Configured in CODEX_HOME/config.toml";
 
+// ============================================================
+// 🔥 PREMIUM MODELS - Only show the best models
+// ============================================================
+
+// Aliases for strict canonical matching (no fuzzy includes).
+const MODEL_ALIASES: Record<string, string[]> = {
+  "gpt-5.3-codex": ["gpt-5.3-codex"],
+  "gemini-3.0-pro": ["gemini-3.0-pro"],
+  "gemini-claude-opus-4-6-thinking": [
+    "gemini-claude-opus-4-6-thinking",
+    "claude-opus-4-6-thinking",
+    "claude-4.6-opus-thinking",
+    "claude-opus-4-6",
+    "claude-opus-4-6-thinking-latest",
+  ],
+};
+
+// Default premium models when server doesn't return matching ones
+// Context windows based on latest model specs (2026)
+const DEFAULT_PREMIUM_MODELS: ModelOption[] = [
+  {
+    id: "gpt-5.3-codex",
+    model: "gpt-5.3-codex",
+    displayName: "GPT 5.3 Codex",
+    description: "OpenAI's most powerful coding model",
+    supportedReasoningEfforts: [
+      { reasoningEffort: "low", description: "Low reasoning" },
+      { reasoningEffort: "medium", description: "Medium reasoning" },
+      { reasoningEffort: "high", description: "High reasoning" },
+    ],
+    defaultReasoningEffort: "medium",
+    isDefault: true,
+    contextWindow: 192_000,  // 192K tokens
+  },
+  {
+    id: "gemini-3.0-pro",
+    model: "gemini-3.0-pro",
+    displayName: "Gemini 3.0 Pro",
+    description: "Google's most capable model",
+    supportedReasoningEfforts: [],
+    defaultReasoningEffort: null,
+    isDefault: false,
+    contextWindow: 1_000_000,  // 1M tokens
+  },
+  {
+    id: "gemini-claude-opus-4-6-thinking",
+    model: "gemini-claude-opus-4-6-thinking",
+    displayName: "Claude 4.6 Opus Thinking",
+    description: "Anthropic's flagship reasoning model via Antigravity",
+    supportedReasoningEfforts: [],
+    defaultReasoningEffort: null,
+    isDefault: false,
+    contextWindow: 200_000,  // 200K tokens
+  },
+];
+
+function normalizeModelKey(value: string | null | undefined) {
+  if (!value) {
+    return "";
+  }
+  return value.trim().toLowerCase();
+}
+
+function modelKeys(model: ModelOption) {
+  return [normalizeModelKey(model.id), normalizeModelKey(model.model)].filter(Boolean);
+}
+
+function matchesPremiumModel(model: ModelOption, premiumModelId: string) {
+  const aliases = MODEL_ALIASES[premiumModelId] ?? [premiumModelId];
+  const aliasSet = new Set(aliases.map((alias) => normalizeModelKey(alias)));
+  return modelKeys(model).some((key) => aliasSet.has(key));
+}
+
+/**
+ * Return curated premium models using strict alias matching.
+ * If config.toml points to a non-curated model, keep it visible as passthrough.
+ */
+function filterPremiumModels(
+  serverModels: ModelOption[],
+  configModelFromConfig: string | null,
+): ModelOption[] {
+  const curated = DEFAULT_PREMIUM_MODELS.map((defaultModel) => {
+    const serverMatch = serverModels.find((serverModel) =>
+      matchesPremiumModel(serverModel, defaultModel.id),
+    );
+    if (!serverMatch) {
+      return defaultModel;
+    }
+    return {
+      ...serverMatch,
+      displayName: serverMatch.displayName.includes("(config)")
+        ? defaultModel.displayName
+        : serverMatch.displayName,
+    };
+  });
+
+  const normalizedConfig = normalizeModelKey(configModelFromConfig);
+  if (!normalizedConfig) {
+    return curated;
+  }
+
+  const curatedContainsConfig = curated.some((model) =>
+    modelKeys(model).includes(normalizedConfig),
+  );
+  if (curatedContainsConfig) {
+    return curated;
+  }
+
+  const passthroughServerMatch =
+    serverModels.find((model) => modelKeys(model).includes(normalizedConfig)) ?? null;
+  const passthroughModel: ModelOption =
+    passthroughServerMatch ?? {
+      id: configModelFromConfig ?? normalizedConfig,
+      model: configModelFromConfig ?? normalizedConfig,
+      displayName: `${configModelFromConfig ?? normalizedConfig} (config passthrough)`,
+      description:
+        "Configured in CODEX_HOME/config.toml (not in curated premium list).",
+      supportedReasoningEfforts: [],
+      defaultReasoningEffort: null,
+      isDefault: false,
+    };
+  return [passthroughModel, ...curated];
+}
+
 const normalizeEffort = (value: unknown): string | null => {
   if (typeof value !== "string") {
     return null;
@@ -23,14 +147,11 @@ const findModelByIdOrModel = (
   models: ModelOption[],
   idOrModel: string | null,
 ): ModelOption | null => {
-  if (!idOrModel) {
+  const needle = normalizeModelKey(idOrModel);
+  if (!needle) {
     return null;
   }
-  return (
-    models.find((model) => model.id === idOrModel) ??
-    models.find((model) => model.model === idOrModel) ??
-    null
-  );
+  return models.find((model) => modelKeys(model).includes(needle)) ?? null;
 };
 
 const pickDefaultModel = (models: ModelOption[], configModel: string | null) =>
@@ -214,8 +335,14 @@ export function useModels({
           item.defaultReasoningEffort ?? item.default_reasoning_effort,
         ),
         isDefault: Boolean(item.isDefault ?? item.is_default ?? false),
+        contextWindow:
+          typeof item.contextWindow === "number"
+            ? item.contextWindow
+            : typeof item.context_window === "number"
+              ? item.context_window
+              : null,
       }));
-      const data = (() => {
+      const dataWithConfig = (() => {
         if (!configModelFromConfig) {
           return dataFromServer;
         }
@@ -236,6 +363,8 @@ export function useModels({
         };
         return [configOption, ...dataFromServer];
       })();
+      // Keep curated premium models and preserve unknown config passthrough model.
+      const data = filterPremiumModels(dataWithConfig, configModelFromConfig);
       setModels(data);
       lastFetchedWorkspaceId.current = workspaceId;
       const defaultModel = pickDefaultModel(data, configModelFromConfig);

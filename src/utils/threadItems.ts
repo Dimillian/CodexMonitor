@@ -3,6 +3,8 @@ import type { ConversationItem } from "../types";
 // 0 disables client-side item capping so full thread history remains scrollable.
 const MAX_ITEMS_PER_THREAD = 0;
 const MAX_ITEM_TEXT = 20000;
+// 0 disables message-text truncation; keep full assistant/user messages.
+const MAX_MESSAGE_TEXT = 0;
 const TOOL_OUTPUT_RECENT_ITEMS = 40;
 const NO_TRUNCATE_TOOL_TYPES = new Set(["fileChange", "commandExecution"]);
 const READ_COMMANDS = new Set(["cat", "sed", "head", "tail", "less", "more", "nl"]);
@@ -32,6 +34,42 @@ function asString(value: unknown) {
   return typeof value === "string" ? value : value ? String(value) : "";
 }
 
+function toCanonicalItemType(value: unknown) {
+  const raw = asString(value).trim();
+  if (!raw) {
+    return "";
+  }
+  const normalized = raw.toLowerCase().replace(/[_-]/g, "");
+  switch (normalized) {
+    case "agentmessage":
+      return "agentMessage";
+    case "usermessage":
+      return "userMessage";
+    case "commandexecution":
+      return "commandExecution";
+    case "filechange":
+      return "fileChange";
+    case "mcptoolcall":
+      return "mcpToolCall";
+    case "collabtoolcall":
+      return "collabToolCall";
+    case "collabagenttoolcall":
+      return "collabAgentToolCall";
+    case "websearch":
+      return "webSearch";
+    case "imageview":
+      return "imageView";
+    case "contextcompaction":
+      return "contextCompaction";
+    case "enteredreviewmode":
+      return "enteredReviewMode";
+    case "exitedreviewmode":
+      return "exitedReviewMode";
+    default:
+      return raw;
+  }
+}
+
 function asNumber(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
@@ -44,6 +82,9 @@ function asNumber(value: unknown) {
 }
 
 function truncateText(text: string, maxLength = MAX_ITEM_TEXT) {
+  if (maxLength <= 0) {
+    return text;
+  }
   if (text.length <= maxLength) {
     return text;
   }
@@ -79,7 +120,7 @@ function formatCollabAgentStates(value: unknown) {
 
 export function normalizeItem(item: ConversationItem): ConversationItem {
   if (item.kind === "message") {
-    const text = truncateText(item.text);
+    const text = truncateText(item.text, MAX_MESSAGE_TEXT);
     if (text === item.text) {
       return item;
     }
@@ -543,6 +584,12 @@ export function upsertItem(list: ConversationItem[], item: ConversationItem) {
       ...item,
       text: incomingText.length >= existingText.length ? incomingText : existingText,
       images: item.images?.length ? item.images : existing.images,
+      model: item.model ?? existing.model ?? null,
+      contextWindow:
+        typeof item.contextWindow === "number"
+          ? item.contextWindow
+          : existing.contextWindow ?? null,
+      turnId: item.turnId ?? existing.turnId ?? null,
     };
     return next;
   }
@@ -659,7 +706,7 @@ export function previewThreadName(text: string, fallback: string) {
 export function buildConversationItem(
   item: Record<string, unknown>,
 ): ConversationItem | null {
-  const type = asString(item.type);
+  const type = toCanonicalItemType(item.type);
   const id = asString(item.id);
   if (!id || !type) {
     return null;
@@ -854,6 +901,56 @@ function extractImageInputValue(input: Record<string, unknown>) {
   return value.trim();
 }
 
+function extractAgentMessageTextFromChunk(chunk: unknown): string {
+  if (typeof chunk === "string") {
+    return chunk;
+  }
+  if (!chunk || typeof chunk !== "object" || Array.isArray(chunk)) {
+    return "";
+  }
+  const record = chunk as Record<string, unknown>;
+  if (typeof record.text === "string" && record.text.length > 0) {
+    return record.text;
+  }
+  if (Array.isArray(record.text)) {
+    return record.text
+      .map((entry) => extractAgentMessageTextFromChunk(entry))
+      .filter(Boolean)
+      .join("");
+  }
+  if (Array.isArray(record.content)) {
+    return record.content
+      .map((entry) => extractAgentMessageTextFromChunk(entry))
+      .filter(Boolean)
+      .join("");
+  }
+  if (typeof record.content === "string" && record.content.length > 0) {
+    return record.content;
+  }
+  if (typeof record.value === "string" && record.value.length > 0) {
+    return record.value;
+  }
+  return "";
+}
+
+function extractAgentMessageText(item: Record<string, unknown>) {
+  const direct = asString(item.text ?? "");
+  if (direct) {
+    return direct;
+  }
+  const content = item.content;
+  if (Array.isArray(content)) {
+    const joined = content
+      .map((entry) => extractAgentMessageTextFromChunk(entry))
+      .filter(Boolean)
+      .join("");
+    if (joined) {
+      return joined;
+    }
+  }
+  return asString(content ?? "");
+}
+
 function parseUserInputs(inputs: Array<Record<string, unknown>>) {
   const textParts: string[] = [];
   const images: string[] = [];
@@ -886,7 +983,7 @@ function parseUserInputs(inputs: Array<Record<string, unknown>>) {
 export function buildConversationItemFromThreadItem(
   item: Record<string, unknown>,
 ): ConversationItem | null {
-  const type = asString(item.type);
+  const type = toCanonicalItemType(item.type);
   const id = asString(item.id);
   if (!id || !type) {
     return null;
@@ -907,7 +1004,10 @@ export function buildConversationItemFromThreadItem(
       id,
       kind: "message",
       role: "assistant",
-      text: asString(item.text),
+      text: extractAgentMessageText(item),
+      model: asString(item.model ?? item.modelId ?? item.model_id) || null,
+      contextWindow: asNumber(item.contextWindow ?? item.context_window),
+      turnId: asString(item.turnId ?? item.turn_id) || null,
     };
   }
   if (type === "reasoning") {
@@ -965,7 +1065,18 @@ function chooseRicherItem(remote: ConversationItem, local: ConversationItem) {
     return remote;
   }
   if (remote.kind === "message" && local.kind === "message") {
-    return local.text.length > remote.text.length ? local : remote;
+    const preferLocal = local.text.length > remote.text.length;
+    const primary = preferLocal ? local : remote;
+    const secondary = preferLocal ? remote : local;
+    return {
+      ...primary,
+      model: primary.model ?? secondary.model ?? null,
+      contextWindow:
+        typeof primary.contextWindow === "number"
+          ? primary.contextWindow
+          : secondary.contextWindow ?? null,
+      turnId: primary.turnId ?? secondary.turnId ?? null,
+    };
   }
   if (remote.kind === "reasoning" && local.kind === "reasoning") {
     const remoteLength = remote.summary.length + remote.content.length;

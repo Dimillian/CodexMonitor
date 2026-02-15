@@ -45,6 +45,9 @@ export type ThreadActivityStatus = {
   isReviewing: boolean;
   processingStartedAt?: number | null;
   lastDurationMs?: number | null;
+  lastActivityAt?: number | null;
+  lastErrorAt?: number | null;
+  lastErrorMessage?: string | null;
 };
 
 export type GitDiffViewerItem = {

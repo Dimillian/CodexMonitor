@@ -217,6 +217,7 @@ describe("useThreadItemEvents", () => {
       itemId: "assistant-1",
       delta: "Hello",
       hasCustomName: false,
+      turnId: null,
     });
   });
 
@@ -247,6 +248,7 @@ describe("useThreadItemEvents", () => {
       itemId: "assistant-1",
       text: "Done",
       hasCustomName: false,
+      turnId: null,
     });
     expect(dispatch).toHaveBeenCalledWith({
       type: "setThreadTimestamp",

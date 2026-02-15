@@ -120,6 +120,16 @@ type ThreadActivityStatus = {
   isReviewing: boolean;
   processingStartedAt: number | null;
   lastDurationMs: number | null;
+  lastActivityAt?: number | null;
+  lastErrorAt?: number | null;
+  lastErrorMessage?: string | null;
+};
+
+type ThreadTurnRuntimeMeta = {
+  threadId: string;
+  turnId: string;
+  model: string | null;
+  contextWindow: number | null;
 };
 
 export type ThreadState = {
@@ -139,6 +149,8 @@ export type ThreadState = {
   approvals: ApprovalRequest[];
   userInputRequests: RequestUserInputRequest[];
   tokenUsageByThread: Record<string, ThreadTokenUsage>;
+  turnMetaByThread: Record<string, ThreadTurnRuntimeMeta | null>;
+  turnMetaByTurnId: Record<string, ThreadTurnRuntimeMeta>;
   rateLimitsByWorkspace: Record<string, RateLimitSnapshot | null>;
   accountByWorkspace: Record<string, AccountSnapshot | null>;
   planByThread: Record<string, TurnPlan | null>;
@@ -159,6 +171,12 @@ export type ThreadAction =
     }
   | { type: "markReviewing"; threadId: string; isReviewing: boolean }
   | { type: "markUnread"; threadId: string; hasUnread: boolean }
+  | {
+      type: "markThreadError";
+      threadId: string;
+      timestamp: number;
+      message: string;
+    }
   | { type: "addAssistantMessage"; threadId: string; text: string }
   | { type: "setThreadName"; workspaceId: string; threadId: string; name: string }
   | {
@@ -174,6 +192,7 @@ export type ThreadAction =
       itemId: string;
       delta: string;
       hasCustomName: boolean;
+      turnId?: string | null;
     }
   | {
       type: "completeAgentMessage";
@@ -182,6 +201,7 @@ export type ThreadAction =
       itemId: string;
       text: string;
       hasCustomName: boolean;
+      turnId?: string | null;
     }
   | {
       type: "upsertItem";
@@ -241,6 +261,18 @@ export type ThreadAction =
     }
   | { type: "setThreadTokenUsage"; threadId: string; tokenUsage: ThreadTokenUsage }
   | {
+      type: "setThreadTurnMeta";
+      threadId: string;
+      turnId: string;
+      model: string | null;
+    }
+  | {
+      type: "setThreadTurnContextWindow";
+      threadId: string;
+      turnId: string;
+      contextWindow: number | null;
+    }
+  | {
       type: "setRateLimits";
       workspaceId: string;
       rateLimits: RateLimitSnapshot | null;
@@ -288,6 +320,8 @@ export const initialState: ThreadState = {
   approvals: [],
   userInputRequests: [],
   tokenUsageByThread: {},
+  turnMetaByThread: {},
+  turnMetaByTurnId: {},
   rateLimitsByWorkspace: {},
   accountByWorkspace: {},
   planByThread: {},
@@ -317,6 +351,172 @@ function mergeStreamingText(existing: string, delta: string) {
     }
   }
   return `${existing}${delta}`;
+}
+
+function normalizeNonEmptyString(value: string | null | undefined) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeContextWindow(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+  return value;
+}
+
+function resolveTurnMetaForMessage(
+  state: ThreadState,
+  threadId: string,
+  turnId?: string | null,
+): ThreadTurnRuntimeMeta | null {
+  const normalizedTurnId = normalizeNonEmptyString(turnId);
+  if (normalizedTurnId) {
+    const byTurn = state.turnMetaByTurnId[normalizedTurnId] ?? null;
+    if (byTurn && byTurn.threadId === threadId) {
+      return byTurn;
+    }
+  }
+  const byThread = state.turnMetaByThread[threadId] ?? null;
+  if (!byThread) {
+    return null;
+  }
+  if (normalizedTurnId && byThread.turnId !== normalizedTurnId) {
+    return null;
+  }
+  return byThread;
+}
+
+function applyAssistantRuntimeMeta(
+  item: Extract<ConversationItem, { kind: "message" }>,
+  meta: ThreadTurnRuntimeMeta | null,
+  turnId?: string | null,
+) {
+  if (item.role !== "assistant") {
+    return item;
+  }
+  const nextTurnId = normalizeNonEmptyString(turnId) ?? meta?.turnId ?? item.turnId ?? null;
+  const nextModel = normalizeNonEmptyString(meta?.model) ?? item.model ?? null;
+  const nextContextWindow = normalizeContextWindow(meta?.contextWindow) ?? item.contextWindow ?? null;
+  return {
+    ...item,
+    turnId: nextTurnId,
+    model: nextModel,
+    contextWindow: nextContextWindow,
+  };
+}
+
+function updateAssistantContextWindowForTurn(
+  list: ConversationItem[],
+  turnId: string,
+  contextWindow: number | null,
+) {
+  const normalizedContextWindow = normalizeContextWindow(contextWindow);
+  let didChange = false;
+  const next = [...list];
+  let hasExactTurnMatch = false;
+
+  for (let index = 0; index < next.length; index += 1) {
+    const item = next[index];
+    if (item.kind !== "message" || item.role !== "assistant") {
+      continue;
+    }
+    if (item.turnId !== turnId) {
+      continue;
+    }
+    hasExactTurnMatch = true;
+    if (item.contextWindow === normalizedContextWindow) {
+      continue;
+    }
+    next[index] = {
+      ...item,
+      contextWindow: normalizedContextWindow,
+    };
+    didChange = true;
+  }
+
+  if (hasExactTurnMatch) {
+    return didChange ? next : list;
+  }
+
+  for (let index = next.length - 1; index >= 0; index -= 1) {
+    const item = next[index];
+    if (item.kind !== "message" || item.role !== "assistant") {
+      continue;
+    }
+    if (item.turnId && item.turnId !== turnId) {
+      break;
+    }
+    if (item.contextWindow === normalizedContextWindow && item.turnId === turnId) {
+      return list;
+    }
+    next[index] = {
+      ...item,
+      turnId,
+      contextWindow: normalizedContextWindow,
+    };
+    return next;
+  }
+
+  return list;
+}
+
+function updateAssistantModelForTurn(
+  list: ConversationItem[],
+  turnId: string,
+  model: string | null,
+) {
+  const normalizedModel = normalizeNonEmptyString(model);
+  let didChange = false;
+  const next = [...list];
+  let hasExactTurnMatch = false;
+
+  for (let index = 0; index < next.length; index += 1) {
+    const item = next[index];
+    if (item.kind !== "message" || item.role !== "assistant") {
+      continue;
+    }
+    if (item.turnId !== turnId) {
+      continue;
+    }
+    hasExactTurnMatch = true;
+    if (item.model === normalizedModel) {
+      continue;
+    }
+    next[index] = {
+      ...item,
+      model: normalizedModel,
+    };
+    didChange = true;
+  }
+
+  if (hasExactTurnMatch) {
+    return didChange ? next : list;
+  }
+
+  for (let index = next.length - 1; index >= 0; index -= 1) {
+    const item = next[index];
+    if (item.kind !== "message" || item.role !== "assistant") {
+      continue;
+    }
+    if (item.turnId && item.turnId !== turnId) {
+      break;
+    }
+    if (item.turnId === turnId && item.model === normalizedModel) {
+      return list;
+    }
+    next[index] = {
+      ...item,
+      turnId,
+      model: normalizedModel,
+    };
+    return next;
+  }
+
+  return list;
 }
 
 function addSummaryBoundary(existing: string) {
@@ -417,6 +617,11 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
                   null,
                 lastDurationMs:
                   state.threadStatusById[action.threadId]?.lastDurationMs ?? null,
+                lastActivityAt:
+                  state.threadStatusById[action.threadId]?.lastActivityAt,
+                lastErrorAt: state.threadStatusById[action.threadId]?.lastErrorAt,
+                lastErrorMessage:
+                  state.threadStatusById[action.threadId]?.lastErrorMessage,
               },
             }
           : state.threadStatusById,
@@ -451,6 +656,9 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
             isReviewing: false,
             processingStartedAt: null,
             lastDurationMs: null,
+            lastActivityAt: null,
+            lastErrorAt: null,
+            lastErrorMessage: null,
           },
         },
         activeThreadIdByWorkspace: {
@@ -508,6 +716,12 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       const { [action.threadId]: ____, ...restDiffs } = state.turnDiffByThread;
       const { [action.threadId]: _____, ...restPlans } = state.planByThread;
       const { [action.threadId]: ______, ...restParents } = state.threadParentById;
+      const { [action.threadId]: _______, ...restTurnMetaByThread } = state.turnMetaByThread;
+      const restTurnMetaByTurnId = Object.fromEntries(
+        Object.entries(state.turnMetaByTurnId).filter(
+          ([, meta]) => meta.threadId !== action.threadId,
+        ),
+      );
       return {
         ...state,
         threadsByWorkspace: {
@@ -520,6 +734,8 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         turnDiffByThread: restDiffs,
         planByThread: restPlans,
         threadParentById: restParents,
+        turnMetaByThread: restTurnMetaByThread,
+        turnMetaByTurnId: restTurnMetaByTurnId,
         activeThreadIdByWorkspace: {
           ...state.activeThreadIdByWorkspace,
           [action.workspaceId]: nextActive,
@@ -548,6 +764,9 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
       const lastDurationMs = previous?.lastDurationMs ?? null;
       const hasUnread = previous?.hasUnread ?? false;
       const isReviewing = previous?.isReviewing ?? false;
+      const lastActivityAt = previous?.lastActivityAt;
+      const lastErrorAt = previous?.lastErrorAt;
+      const lastErrorMessage = previous?.lastErrorMessage;
       if (action.isProcessing) {
         const nextStartedAt =
           wasProcessing && startedAt ? startedAt : action.timestamp;
@@ -557,6 +776,10 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
           isReviewing,
           processingStartedAt: nextStartedAt,
           lastDurationMs,
+          lastActivityAt:
+            wasProcessing ? previous?.lastActivityAt : action.timestamp,
+          lastErrorAt: null,
+          lastErrorMessage: null,
         };
         if (
           previous &&
@@ -564,7 +787,10 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
           previous.hasUnread === nextStatus.hasUnread &&
           previous.isReviewing === nextStatus.isReviewing &&
           previous.processingStartedAt === nextStatus.processingStartedAt &&
-          previous.lastDurationMs === nextStatus.lastDurationMs
+          previous.lastDurationMs === nextStatus.lastDurationMs &&
+          previous.lastActivityAt === nextStatus.lastActivityAt &&
+          previous.lastErrorAt === nextStatus.lastErrorAt &&
+          previous.lastErrorMessage === nextStatus.lastErrorMessage
         ) {
           return state;
         }
@@ -586,6 +812,9 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         isReviewing,
         processingStartedAt: null,
         lastDurationMs: nextDuration,
+        lastActivityAt,
+        lastErrorAt,
+        lastErrorMessage,
       };
       if (
         previous &&
@@ -593,7 +822,10 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         previous.hasUnread === nextStatus.hasUnread &&
         previous.isReviewing === nextStatus.isReviewing &&
         previous.processingStartedAt === nextStatus.processingStartedAt &&
-        previous.lastDurationMs === nextStatus.lastDurationMs
+        previous.lastDurationMs === nextStatus.lastDurationMs &&
+        previous.lastActivityAt === nextStatus.lastActivityAt &&
+        previous.lastErrorAt === nextStatus.lastErrorAt &&
+        previous.lastErrorMessage === nextStatus.lastErrorMessage
       ) {
         return state;
       }
@@ -621,6 +853,9 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         isReviewing: action.isReviewing,
         processingStartedAt: previous?.processingStartedAt ?? null,
         lastDurationMs: previous?.lastDurationMs ?? null,
+        lastActivityAt: previous?.lastActivityAt,
+        lastErrorAt: previous?.lastErrorAt,
+        lastErrorMessage: previous?.lastErrorMessage,
       };
       if (
         previous &&
@@ -628,7 +863,10 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         previous.hasUnread === nextStatus.hasUnread &&
         previous.isReviewing === nextStatus.isReviewing &&
         previous.processingStartedAt === nextStatus.processingStartedAt &&
-        previous.lastDurationMs === nextStatus.lastDurationMs
+        previous.lastDurationMs === nextStatus.lastDurationMs &&
+        previous.lastActivityAt === nextStatus.lastActivityAt &&
+        previous.lastErrorAt === nextStatus.lastErrorAt &&
+        previous.lastErrorMessage === nextStatus.lastErrorMessage
       ) {
         return state;
       }
@@ -648,6 +886,9 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         isReviewing: previous?.isReviewing ?? false,
         processingStartedAt: previous?.processingStartedAt ?? null,
         lastDurationMs: previous?.lastDurationMs ?? null,
+        lastActivityAt: previous?.lastActivityAt,
+        lastErrorAt: previous?.lastErrorAt,
+        lastErrorMessage: previous?.lastErrorMessage,
       };
       if (
         previous &&
@@ -655,7 +896,44 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
         previous.hasUnread === nextStatus.hasUnread &&
         previous.isReviewing === nextStatus.isReviewing &&
         previous.processingStartedAt === nextStatus.processingStartedAt &&
-        previous.lastDurationMs === nextStatus.lastDurationMs
+        previous.lastDurationMs === nextStatus.lastDurationMs &&
+        previous.lastActivityAt === nextStatus.lastActivityAt &&
+        previous.lastErrorAt === nextStatus.lastErrorAt &&
+        previous.lastErrorMessage === nextStatus.lastErrorMessage
+      ) {
+        return state;
+      }
+      return {
+        ...state,
+        threadStatusById: {
+          ...state.threadStatusById,
+          [action.threadId]: nextStatus,
+        },
+      };
+    }
+    case "markThreadError": {
+      const previous = state.threadStatusById[action.threadId];
+      const normalizedMessage = action.message.trim();
+      const nextStatus: ThreadActivityStatus = {
+        isProcessing: false,
+        hasUnread: previous?.hasUnread ?? false,
+        isReviewing: false,
+        processingStartedAt: null,
+        lastDurationMs: previous?.lastDurationMs ?? null,
+        lastActivityAt: previous?.lastActivityAt,
+        lastErrorAt: action.timestamp,
+        lastErrorMessage: normalizedMessage || null,
+      };
+      if (
+        previous &&
+        previous.isProcessing === nextStatus.isProcessing &&
+        previous.hasUnread === nextStatus.hasUnread &&
+        previous.isReviewing === nextStatus.isReviewing &&
+        previous.processingStartedAt === nextStatus.processingStartedAt &&
+        previous.lastDurationMs === nextStatus.lastDurationMs &&
+        previous.lastActivityAt === nextStatus.lastActivityAt &&
+        previous.lastErrorAt === nextStatus.lastErrorAt &&
+        previous.lastErrorMessage === nextStatus.lastErrorMessage
       ) {
         return state;
       }
@@ -732,29 +1010,41 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
     }
     case "appendAgentDelta": {
       const currentList = state.itemsByThread[action.threadId] ?? [];
+      const runtimeMeta = resolveTurnMetaForMessage(
+        state,
+        action.threadId,
+        action.turnId ?? null,
+      );
       const index = currentList.findIndex((msg) => msg.id === action.itemId);
       let updatedItems: ConversationItem[];
       if (index >= 0 && currentList[index].kind === "message") {
         const existing = currentList[index];
+        const existingMessage = applyAssistantRuntimeMeta(existing, runtimeMeta, action.turnId);
         const mergedText = mergeStreamingText(existing.text, action.delta);
-        if (mergedText === existing.text) {
+        if (
+          mergedText === existing.text &&
+          existingMessage.model === existing.model &&
+          existingMessage.contextWindow === existing.contextWindow &&
+          existingMessage.turnId === existing.turnId
+        ) {
           return state;
         }
         const next = [...currentList];
         next[index] = {
-          ...existing,
+          ...existingMessage,
           text: mergedText,
         };
         updatedItems = prepareThreadItemsIncremental(next, index);
       } else {
+        const baseMessage: Extract<ConversationItem, { kind: "message" }> = {
+          id: action.itemId,
+          kind: "message",
+          role: "assistant",
+          text: action.delta,
+        };
         const next = [
           ...currentList,
-          {
-            id: action.itemId,
-            kind: "message",
-            role: "assistant",
-            text: action.delta,
-          } as ConversationItem,
+          applyAssistantRuntimeMeta(baseMessage, runtimeMeta, action.turnId),
         ];
         updatedItems = prepareThreadItemsIncremental(next, next.length - 1);
       }
@@ -777,29 +1067,44 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
     }
     case "completeAgentMessage": {
       const currentList = state.itemsByThread[action.threadId] ?? [];
+      const runtimeMeta = resolveTurnMetaForMessage(
+        state,
+        action.threadId,
+        action.turnId ?? null,
+      );
       const index = currentList.findIndex((msg) => msg.id === action.itemId);
       let updatedItems: ConversationItem[];
       if (index >= 0 && currentList[index].kind === "message") {
         const existing = currentList[index];
-        const nextText = action.text || existing.text;
-        if (nextText === existing.text) {
+        const existingMessage = applyAssistantRuntimeMeta(existing, runtimeMeta, action.turnId);
+        const incomingText = action.text ?? "";
+        const existingText = existing.text ?? "";
+        const nextText =
+          incomingText.length >= existingText.length ? incomingText : existingText;
+        if (
+          nextText === existing.text &&
+          existingMessage.model === existing.model &&
+          existingMessage.contextWindow === existing.contextWindow &&
+          existingMessage.turnId === existing.turnId
+        ) {
           return state;
         }
         const next = [...currentList];
         next[index] = {
-          ...existing,
+          ...existingMessage,
           text: nextText,
         };
         updatedItems = prepareThreadItemsIncremental(next, index);
       } else {
+        const baseMessage: Extract<ConversationItem, { kind: "message" }> = {
+          id: action.itemId,
+          kind: "message",
+          role: "assistant",
+          text: action.text,
+        };
         const next = [
           ...currentList,
-          {
-            id: action.itemId,
-            kind: "message",
-            role: "assistant",
-            text: action.text,
-          } as ConversationItem,
+          applyAssistantRuntimeMeta(baseMessage, runtimeMeta, action.turnId),
         ];
         updatedItems = prepareThreadItemsIncremental(next, next.length - 1);
       }
@@ -1209,6 +1514,91 @@ export function threadReducer(state: ThreadState, action: ThreadAction): ThreadS
           [action.threadId]: action.tokenUsage,
         },
       };
+    case "setThreadTurnMeta": {
+      const normalizedTurnId = normalizeNonEmptyString(action.turnId);
+      if (!normalizedTurnId) {
+        return state;
+      }
+      const normalizedModel = normalizeNonEmptyString(action.model);
+      const previousForThread = state.turnMetaByThread[action.threadId] ?? null;
+      const nextForThread: ThreadTurnRuntimeMeta = {
+        threadId: action.threadId,
+        turnId: normalizedTurnId,
+        model: normalizedModel,
+        contextWindow: previousForThread?.turnId === normalizedTurnId
+          ? normalizeContextWindow(previousForThread.contextWindow)
+          : null,
+      };
+      const nextTurnMetaByTurnId = { ...state.turnMetaByTurnId };
+      if (
+        previousForThread &&
+        previousForThread.turnId !== normalizedTurnId &&
+        nextTurnMetaByTurnId[previousForThread.turnId]?.threadId === action.threadId
+      ) {
+        delete nextTurnMetaByTurnId[previousForThread.turnId];
+      }
+      nextTurnMetaByTurnId[normalizedTurnId] = nextForThread;
+      const currentItems = state.itemsByThread[action.threadId] ?? [];
+      const nextItems = updateAssistantModelForTurn(
+        currentItems,
+        normalizedTurnId,
+        normalizedModel,
+      );
+      return {
+        ...state,
+        itemsByThread:
+          nextItems === currentItems
+            ? state.itemsByThread
+            : {
+                ...state.itemsByThread,
+                [action.threadId]: prepareThreadItems(nextItems),
+              },
+        turnMetaByThread: {
+          ...state.turnMetaByThread,
+          [action.threadId]: nextForThread,
+        },
+        turnMetaByTurnId: nextTurnMetaByTurnId,
+      };
+    }
+    case "setThreadTurnContextWindow": {
+      const normalizedTurnId = normalizeNonEmptyString(action.turnId);
+      if (!normalizedTurnId) {
+        return state;
+      }
+      const previousByTurn = state.turnMetaByTurnId[normalizedTurnId] ?? null;
+      const previousByThread = state.turnMetaByThread[action.threadId] ?? null;
+      const contextWindow = normalizeContextWindow(action.contextWindow);
+      const nextMeta: ThreadTurnRuntimeMeta = {
+        threadId: action.threadId,
+        turnId: normalizedTurnId,
+        model: normalizeNonEmptyString(previousByTurn?.model ?? previousByThread?.model) ?? null,
+        contextWindow,
+      };
+      const currentItems = state.itemsByThread[action.threadId] ?? [];
+      const nextItems = updateAssistantContextWindowForTurn(
+        currentItems,
+        normalizedTurnId,
+        contextWindow,
+      );
+      return {
+        ...state,
+        itemsByThread:
+          nextItems === currentItems
+            ? state.itemsByThread
+            : {
+                ...state.itemsByThread,
+                [action.threadId]: prepareThreadItems(nextItems),
+              },
+        turnMetaByThread: {
+          ...state.turnMetaByThread,
+          [action.threadId]: nextMeta,
+        },
+        turnMetaByTurnId: {
+          ...state.turnMetaByTurnId,
+          [normalizedTurnId]: nextMeta,
+        },
+      };
+    }
     case "setRateLimits":
       return {
         ...state,

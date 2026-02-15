@@ -26,6 +26,18 @@ export function useThreadStatus({ dispatch }: UseThreadStatusOptions) {
     [dispatch],
   );
 
+  const markThreadError = useCallback(
+    (threadId: string, message: string) => {
+      dispatch({
+        type: "markThreadError",
+        threadId,
+        timestamp: Date.now(),
+        message,
+      });
+    },
+    [dispatch],
+  );
+
   const setActiveTurnId = useCallback(
     (threadId: string, turnId: string | null) => {
       dispatch({ type: "setActiveTurnId", threadId, turnId });
@@ -42,5 +54,11 @@ export function useThreadStatus({ dispatch }: UseThreadStatusOptions) {
     [markProcessing, markReviewing, setActiveTurnId],
   );
 
-  return { markProcessing, markReviewing, setActiveTurnId, resetThreadRuntimeState };
+  return {
+    markProcessing,
+    markReviewing,
+    markThreadError,
+    setActiveTurnId,
+    resetThreadRuntimeState,
+  };
 }

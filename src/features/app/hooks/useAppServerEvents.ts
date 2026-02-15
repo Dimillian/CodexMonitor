@@ -19,6 +19,7 @@ type AgentDelta = {
   threadId: string;
   itemId: string;
   delta: string;
+  turnId?: string | null;
 };
 
 type AgentCompleted = {
@@ -26,7 +27,19 @@ type AgentCompleted = {
   threadId: string;
   itemId: string;
   text: string;
+  turnId?: string | null;
 };
+
+type TurnStartMetadata = {
+  model: string | null;
+};
+
+function isAgentMessageType(value: unknown): boolean {
+  if (typeof value !== "string") {
+    return false;
+  }
+  return value.toLowerCase().replace(/[_-]/g, "") === "agentmessage";
+}
 
 type AppServerEventHandlers = {
   onWorkspaceConnected?: (workspaceId: string) => void;
@@ -46,7 +59,12 @@ type AppServerEventHandlers = {
   onAgentMessageDelta?: (event: AgentDelta) => void;
   onAgentMessageCompleted?: (event: AgentCompleted) => void;
   onAppServerEvent?: (event: AppServerEvent) => void;
-  onTurnStarted?: (workspaceId: string, threadId: string, turnId: string) => void;
+  onTurnStarted?: (
+    workspaceId: string,
+    threadId: string,
+    turnId: string,
+    metadata?: TurnStartMetadata,
+  ) => void;
   onTurnCompleted?: (workspaceId: string, threadId: string, turnId: string) => void;
   onTurnError?: (
     workspaceId: string,
@@ -78,7 +96,10 @@ type AppServerEventHandlers = {
   onThreadTokenUsageUpdated?: (
     workspaceId: string,
     threadId: string,
-    tokenUsage: Record<string, unknown> | null,
+    payload: {
+      turnId: string | null;
+      tokenUsage: Record<string, unknown> | null;
+    },
   ) => void;
   onAccountRateLimitsUpdated?: (
     workspaceId: string,
@@ -121,11 +142,122 @@ export const METHODS_ROUTED_IN_USE_APP_SERVER_EVENTS = [
 ] as const satisfies readonly SupportedAppServerMethod[];
 
 const AGENT_DELTA_FLUSH_INTERVAL_MS = 16;
+const TURN_COMPLETION_FALLBACK_MS = 15_000;
+const TURN_COMPLETION_QUIET_WINDOW_MS = 2_000;
+const TURN_COMPLETION_MAX_WAIT_MS = 90_000;
+
+type TurnCompletionFallbackTimer = {
+  timerId: number;
+  startedAtMs: number;
+};
+
+function extractAgentMessageTextFromChunk(chunk: unknown): string {
+  if (typeof chunk === "string") {
+    return chunk;
+  }
+  if (!chunk || typeof chunk !== "object" || Array.isArray(chunk)) {
+    return "";
+  }
+  const record = chunk as Record<string, unknown>;
+  const directText = record.text;
+  if (typeof directText === "string" && directText.length > 0) {
+    return directText;
+  }
+  if (Array.isArray(directText)) {
+    return directText
+      .map((entry) => extractAgentMessageTextFromChunk(entry))
+      .filter(Boolean)
+      .join("");
+  }
+  const nestedContent = record.content;
+  if (Array.isArray(nestedContent)) {
+    return nestedContent
+      .map((entry) => extractAgentMessageTextFromChunk(entry))
+      .filter(Boolean)
+      .join("");
+  }
+  if (typeof nestedContent === "string" && nestedContent.length > 0) {
+    return nestedContent;
+  }
+  const value = record.value;
+  if (typeof value === "string" && value.length > 0) {
+    return value;
+  }
+  return "";
+}
+
+function extractAgentMessageText(item: Record<string, unknown>): string {
+  const direct = item.text;
+  if (typeof direct === "string" && direct.length > 0) {
+    return direct;
+  }
+  const content = item.content;
+  if (Array.isArray(content)) {
+    const joined = content
+      .map((chunk) => extractAgentMessageTextFromChunk(chunk))
+      .filter(Boolean)
+      .join("");
+    if (joined.length > 0) {
+      return joined;
+    }
+  }
+  if (typeof content === "string" && content.length > 0) {
+    return content;
+  }
+  return "";
+}
+
+function asNonEmptyString(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function firstNonEmptyString(...values: unknown[]): string | null {
+  for (const value of values) {
+    const next = asNonEmptyString(value);
+    if (next) {
+      return next;
+    }
+  }
+  return null;
+}
+
+function extractModelHint(
+  params: Record<string, unknown>,
+  turn?: Record<string, unknown>,
+): string | null {
+  return firstNonEmptyString(
+    params.model,
+    params.modelId,
+    params.model_id,
+    params.modelSlug,
+    params.model_slug,
+    turn?.model,
+    turn?.modelId,
+    turn?.model_id,
+    turn?.modelSlug,
+    turn?.model_slug,
+  );
+}
 
 export function useAppServerEvents(handlers: AppServerEventHandlers) {
   const handlersRef = useRef(handlers);
   const pendingAgentDeltasRef = useRef<Map<string, AgentDelta>>(new Map());
   const pendingAgentDeltaFlushTimerRef = useRef<number | null>(null);
+  const pendingTurnCompletionFallbackTimersRef = useRef<
+    Map<string, TurnCompletionFallbackTimer>
+  >(
+    new Map(),
+  );
+  const pendingItemIdsByThreadRef = useRef<Map<string, Set<string>>>(
+    new Map(),
+  );
+  const lastThreadEventAtRef = useRef<Map<string, number>>(
+    new Map(),
+  );
 
   useEffect(() => {
     handlersRef.current = handlers;
@@ -169,6 +301,177 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       }, AGENT_DELTA_FLUSH_INTERVAL_MS);
     };
 
+    const makeTurnCompletionFallbackKey = (
+      workspaceId: string,
+      threadId: string,
+      turnId: string | null,
+    ) => `${workspaceId}:${threadId}:${turnId ?? "__unknown__"}`;
+
+    const makeThreadKey = (workspaceId: string, threadId: string) =>
+      `${workspaceId}:${threadId}`;
+
+    const markThreadEvent = (workspaceId: string, threadId: string) => {
+      lastThreadEventAtRef.current.set(makeThreadKey(workspaceId, threadId), Date.now());
+    };
+
+    const clearThreadEvent = (workspaceId: string, threadId: string) => {
+      lastThreadEventAtRef.current.delete(makeThreadKey(workspaceId, threadId));
+    };
+
+    const clearThreadEventsForWorkspace = (workspaceId: string) => {
+      const prefix = `${workspaceId}:`;
+      for (const key of Array.from(lastThreadEventAtRef.current.keys())) {
+        if (key.startsWith(prefix)) {
+          lastThreadEventAtRef.current.delete(key);
+        }
+      }
+    };
+
+    const trackItemStarted = (workspaceId: string, threadId: string, itemId: string) => {
+      const key = makeThreadKey(workspaceId, threadId);
+      const existing = pendingItemIdsByThreadRef.current.get(key);
+      if (existing) {
+        existing.add(itemId);
+        return;
+      }
+      pendingItemIdsByThreadRef.current.set(key, new Set([itemId]));
+    };
+
+    const trackItemCompleted = (workspaceId: string, threadId: string, itemId: string) => {
+      const key = makeThreadKey(workspaceId, threadId);
+      const existing = pendingItemIdsByThreadRef.current.get(key);
+      if (!existing) {
+        return;
+      }
+      existing.delete(itemId);
+      if (existing.size === 0) {
+        pendingItemIdsByThreadRef.current.delete(key);
+      }
+    };
+
+    const clearPendingItemsForThread = (workspaceId: string, threadId: string) => {
+      pendingItemIdsByThreadRef.current.delete(makeThreadKey(workspaceId, threadId));
+    };
+
+    const clearPendingItemsForWorkspace = (workspaceId: string) => {
+      const prefix = `${workspaceId}:`;
+      for (const key of Array.from(pendingItemIdsByThreadRef.current.keys())) {
+        if (key.startsWith(prefix)) {
+          pendingItemIdsByThreadRef.current.delete(key);
+        }
+      }
+    };
+
+    const clearTurnCompletionFallbackByKey = (key: string) => {
+      const timer = pendingTurnCompletionFallbackTimersRef.current.get(key);
+      if (!timer) {
+        return;
+      }
+      window.clearTimeout(timer.timerId);
+      pendingTurnCompletionFallbackTimersRef.current.delete(key);
+    };
+
+    const clearTurnCompletionFallbackForThread = (
+      workspaceId: string,
+      threadId: string,
+    ) => {
+      const prefix = `${workspaceId}:${threadId}:`;
+      for (const key of Array.from(
+        pendingTurnCompletionFallbackTimersRef.current.keys(),
+      )) {
+        if (!key.startsWith(prefix)) {
+          continue;
+        }
+        clearTurnCompletionFallbackByKey(key);
+      }
+    };
+
+    const clearTurnCompletionFallbackForWorkspace = (workspaceId: string) => {
+      const prefix = `${workspaceId}:`;
+      for (const key of Array.from(
+        pendingTurnCompletionFallbackTimersRef.current.keys(),
+      )) {
+        if (!key.startsWith(prefix)) {
+          continue;
+        }
+        clearTurnCompletionFallbackByKey(key);
+      }
+    };
+
+    const scheduleTurnCompletionFallback = (
+      workspaceId: string,
+      threadId: string,
+      turnId: string | null,
+      itemId: string,
+    ) => {
+      const key = makeTurnCompletionFallbackKey(workspaceId, threadId, turnId);
+      const existing = pendingTurnCompletionFallbackTimersRef.current.get(key);
+      const startedAtMs = existing?.startedAtMs ?? Date.now();
+      if (existing) {
+        window.clearTimeout(existing.timerId);
+      }
+
+      const runFallbackCheck = () => {
+        const latest = pendingTurnCompletionFallbackTimersRef.current.get(key);
+        if (!latest) {
+          return;
+        }
+
+        const now = Date.now();
+        const threadKey = makeThreadKey(workspaceId, threadId);
+        const pendingItems =
+          pendingItemIdsByThreadRef.current.get(threadKey)?.size ?? 0;
+        const lastEventAt = lastThreadEventAtRef.current.get(threadKey) ?? 0;
+        const idleForMs = Math.max(0, now - lastEventAt);
+        const waitedMs = Math.max(0, now - latest.startedAtMs);
+
+        const quietEnough = idleForMs >= TURN_COMPLETION_QUIET_WINDOW_MS;
+        const noPendingItems = pendingItems === 0;
+        const maxWaitReached = waitedMs >= TURN_COMPLETION_MAX_WAIT_MS;
+
+        if ((quietEnough && noPendingItems) || maxWaitReached) {
+          pendingTurnCompletionFallbackTimersRef.current.delete(key);
+          const currentHandlers = handlersRef.current;
+          currentHandlers.onAppServerEvent?.({
+            workspace_id: workspaceId,
+            message: {
+              method: "codex/turnCompletionFallback",
+              params: {
+                threadId,
+                turnId,
+                itemId,
+                timeoutMs: TURN_COMPLETION_FALLBACK_MS,
+                quietWindowMs: TURN_COMPLETION_QUIET_WINDOW_MS,
+                pendingItems,
+                idleForMs,
+                waitedMs,
+                maxWaitReached,
+              },
+            },
+          });
+          currentHandlers.onTurnCompleted?.(workspaceId, threadId, turnId ?? "");
+          return;
+        }
+
+        const remainingQuietMs = Math.max(
+          0,
+          TURN_COMPLETION_QUIET_WINDOW_MS - idleForMs,
+        );
+        const nextCheckMs = Math.max(250, remainingQuietMs || TURN_COMPLETION_QUIET_WINDOW_MS);
+        const timerId = window.setTimeout(runFallbackCheck, nextCheckMs);
+        pendingTurnCompletionFallbackTimersRef.current.set(key, {
+          timerId,
+          startedAtMs: latest.startedAtMs,
+        });
+      };
+
+      const timerId = window.setTimeout(runFallbackCheck, TURN_COMPLETION_FALLBACK_MS);
+      pendingTurnCompletionFallbackTimersRef.current.set(key, {
+        timerId,
+        startedAtMs,
+      });
+    };
+
     const unlisten = subscribeAppServerEvents((payload) => {
       const currentHandlers = handlersRef.current;
 
@@ -184,6 +487,18 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       // the stale-processing guard to detect silent disconnects.
       currentHandlers.onIsAlive?.(workspace_id);
       const params = getAppServerParams(payload);
+      const eventTurn = params.turn as Record<string, unknown> | undefined;
+      const eventThread = params.thread as Record<string, unknown> | undefined;
+      const eventThreadId = firstNonEmptyString(
+        params.threadId,
+        params.thread_id,
+        eventTurn?.threadId,
+        eventTurn?.thread_id,
+        eventThread?.id,
+      );
+      if (eventThreadId) {
+        markThreadEvent(workspace_id, eventThreadId);
+      }
 
       if (method === "codex/connected") {
         currentHandlers.onWorkspaceConnected?.(workspace_id);
@@ -191,6 +506,10 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       }
 
       if (method === "codex/disconnected") {
+        flushAgentMessageDeltas();
+        clearTurnCompletionFallbackForWorkspace(workspace_id);
+        clearPendingItemsForWorkspace(workspace_id);
+        clearThreadEventsForWorkspace(workspace_id);
         currentHandlers.onWorkspaceDisconnected?.(workspace_id);
         return;
       }
@@ -209,6 +528,9 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       }
 
       if (!isSupportedAppServerMethod(method)) {
+        if (import.meta.env.DEV) {
+          console.debug("[useAppServerEvents] unsupported method:", method, payload);
+        }
         return;
       }
 
@@ -254,13 +576,24 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       if (method === "item/agentMessage/delta") {
         const threadId = String(params.threadId ?? params.thread_id ?? "");
         const itemId = String(params.itemId ?? params.item_id ?? "");
-        const delta = String(params.delta ?? "");
-        if (threadId && itemId && delta) {
+        const deltaTurn = params.turn as Record<string, unknown> | undefined;
+        const turnId = firstNonEmptyString(
+          params.turnId,
+          params.turn_id,
+          deltaTurn?.id,
+        );
+        const hasDeltaField =
+          Object.prototype.hasOwnProperty.call(params, "delta") ||
+          Object.prototype.hasOwnProperty.call(params, "textDelta") ||
+          Object.prototype.hasOwnProperty.call(params, "text_delta");
+        const delta = String(params.delta ?? params.textDelta ?? params.text_delta ?? "");
+        if (threadId && itemId && (hasDeltaField || delta.length > 0)) {
           enqueueAgentMessageDelta({
             workspaceId: workspace_id,
             threadId,
             itemId,
             delta,
+            turnId,
           });
         }
         return;
@@ -272,8 +605,13 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
           params.threadId ?? params.thread_id ?? turn?.threadId ?? turn?.thread_id ?? "",
         );
         const turnId = String(turn?.id ?? params.turnId ?? params.turn_id ?? "");
+        const model = extractModelHint(params, turn);
         if (threadId) {
-          currentHandlers.onTurnStarted?.(workspace_id, threadId, turnId);
+          clearPendingItemsForThread(workspace_id, threadId);
+          clearTurnCompletionFallbackForThread(workspace_id, threadId);
+          currentHandlers.onTurnStarted?.(workspace_id, threadId, turnId, {
+            model,
+          });
         }
         return;
       }
@@ -332,6 +670,9 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         );
         const turnId = String(turn?.id ?? params.turnId ?? params.turn_id ?? "");
         if (threadId) {
+          clearPendingItemsForThread(workspace_id, threadId);
+          clearThreadEvent(workspace_id, threadId);
+          clearTurnCompletionFallbackForThread(workspace_id, threadId);
           currentHandlers.onTurnCompleted?.(workspace_id, threadId, turnId);
         }
         return;
@@ -360,11 +701,20 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
 
       if (method === "thread/tokenUsage/updated") {
         const threadId = String(params.threadId ?? params.thread_id ?? "");
+        const usageTurn = params.turn as Record<string, unknown> | undefined;
+        const turnId = firstNonEmptyString(
+          params.turnId,
+          params.turn_id,
+          usageTurn?.id,
+        );
         const tokenUsage =
           (params.tokenUsage as Record<string, unknown> | null | undefined) ??
           (params.token_usage as Record<string, unknown> | null | undefined);
         if (threadId && tokenUsage !== undefined) {
-          currentHandlers.onThreadTokenUsageUpdated?.(workspace_id, threadId, tokenUsage);
+          currentHandlers.onThreadTokenUsageUpdated?.(workspace_id, threadId, {
+            turnId,
+            tokenUsage,
+          });
         }
         return;
       }
@@ -410,20 +760,35 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       if (method === "item/completed") {
         flushAgentMessageDeltas();
         const threadId = String(params.threadId ?? params.thread_id ?? "");
+        const completedTurn = params.turn as Record<string, unknown> | undefined;
+        const turnId = firstNonEmptyString(
+          params.turnId,
+          params.turn_id,
+          completedTurn?.id,
+        );
         const item = params.item as Record<string, unknown> | undefined;
+        const itemId = firstNonEmptyString(
+          params.itemId,
+          params.item_id,
+          item?.id,
+        );
         if (threadId && item) {
           currentHandlers.onItemCompleted?.(workspace_id, threadId, item);
         }
-        if (threadId && item?.type === "agentMessage") {
-          const itemId = String(item.id ?? "");
-          const text = String(item.text ?? "");
+        if (threadId && itemId) {
+          trackItemCompleted(workspace_id, threadId, itemId);
+        }
+        if (threadId && item && isAgentMessageType(item.type ?? item.itemType)) {
+          const text = extractAgentMessageText(item);
           if (itemId) {
             currentHandlers.onAgentMessageCompleted?.({
               workspaceId: workspace_id,
               threadId,
               itemId,
               text,
+              turnId,
             });
+            scheduleTurnCompletionFallback(workspace_id, threadId, turnId, itemId);
           }
         }
         return;
@@ -432,8 +797,16 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       if (method === "item/started") {
         const threadId = String(params.threadId ?? params.thread_id ?? "");
         const item = params.item as Record<string, unknown> | undefined;
+        const itemId = firstNonEmptyString(
+          params.itemId,
+          params.item_id,
+          item?.id,
+        );
         if (threadId && item) {
           currentHandlers.onItemStarted?.(workspace_id, threadId, item);
+        }
+        if (threadId && itemId) {
+          trackItemStarted(workspace_id, threadId, itemId);
         }
         return;
       }
@@ -510,6 +883,12 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
 
     return () => {
       flushAgentMessageDeltas();
+      for (const timer of pendingTurnCompletionFallbackTimersRef.current.values()) {
+        window.clearTimeout(timer.timerId);
+      }
+      pendingTurnCompletionFallbackTimersRef.current.clear();
+      pendingItemIdsByThreadRef.current.clear();
+      lastThreadEventAtRef.current.clear();
       unlisten();
     };
   }, []);

@@ -12,7 +12,7 @@ import {
 } from "./threadItems";
 
 describe("threadItems", () => {
-  it("truncates long message text in normalizeItem", () => {
+  it("keeps long message text in normalizeItem", () => {
     const text = "a".repeat(21000);
     const item: ConversationItem = {
       id: "msg-1",
@@ -23,9 +23,7 @@ describe("threadItems", () => {
     const normalized = normalizeItem(item);
     expect(normalized.kind).toBe("message");
     if (normalized.kind === "message") {
-      expect(normalized.text).not.toBe(text);
-      expect(normalized.text.endsWith("...")).toBe(true);
-      expect(normalized.text.length).toBeLessThan(text.length);
+      expect(normalized.text).toBe(text);
     }
   });
 
@@ -603,6 +601,22 @@ describe("threadItems", () => {
       expect(item.role).toBe("user");
       expect(item.text).toBe("Please $Review");
       expect(item.images).toEqual(["https://example.com/image.png"]);
+    }
+  });
+
+  it("builds agent message text from content blocks when text is empty", () => {
+    const item = buildConversationItemFromThreadItem({
+      type: "agentMessage",
+      id: "agent-1",
+      content: [
+        { type: "output_text", text: "Hello " },
+        { type: "output_text", text: "world" },
+      ],
+    });
+    expect(item).not.toBeNull();
+    if (item && item.kind === "message") {
+      expect(item.role).toBe("assistant");
+      expect(item.text).toBe("Hello world");
     }
   });
 

@@ -36,6 +36,25 @@ export const METHODS_HANDLED_OUTSIDE_USE_APP_SERVER_EVENTS = [
 ] as const satisfies readonly SupportedAppServerMethod[];
 
 const SUPPORTED_METHOD_SET = new Set<string>(SUPPORTED_APP_SERVER_METHODS);
+const SUPPORTED_METHOD_NORMALIZED_MAP = new Map<string, SupportedAppServerMethod>(
+  SUPPORTED_APP_SERVER_METHODS.map((method) => [normalizeMethodForMatch(method), method]),
+);
+
+function normalizeMethodForMatch(method: string) {
+  return method
+    .trim()
+    .split("/")
+    .map((segment) => segment.toLowerCase().replace(/[_-]/g, ""))
+    .join("/");
+}
+
+function toCanonicalSupportedMethod(method: string): SupportedAppServerMethod | null {
+  if (SUPPORTED_METHOD_SET.has(method)) {
+    return method as SupportedAppServerMethod;
+  }
+  const normalized = normalizeMethodForMatch(method);
+  return SUPPORTED_METHOD_NORMALIZED_MAP.get(normalized) ?? null;
+}
 
 function getAppServerMessageObject(
   event: AppServerEvent,
@@ -60,7 +79,11 @@ export function getAppServerRawMethod(event: AppServerEvent): string | null {
     return null;
   }
   const trimmed = method.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  if (trimmed.length === 0) {
+    return null;
+  }
+  const canonical = toCanonicalSupportedMethod(trimmed);
+  return canonical ?? trimmed;
 }
 
 export function isSupportedAppServerMethod(

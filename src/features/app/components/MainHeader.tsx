@@ -549,6 +549,7 @@ export function MainHeader({
         </div>
       </div>
       <div className="main-header-actions">
+        <div className="main-header-actions-group main-header-actions-group-primary">
         {showWorkspaceTools &&
           onRunLaunchScript &&
           onOpenLaunchScriptEditor &&
@@ -668,7 +669,12 @@ export function MainHeader({
             </div>
           )}
         </div>
-        {extraActionsNode}
+        </div>
+        {extraActionsNode ? (
+          <div className="main-header-actions-group main-header-actions-group-secondary">
+            {extraActionsNode}
+          </div>
+        ) : null}
       </div>
     </header>
   );

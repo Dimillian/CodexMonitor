@@ -43,6 +43,7 @@
 .messages-full > .item-card,
 .messages-full > .turn-complete,
 .messages-full > .working,
+.messages-full > .messages-status-bar,
 .messages-virtual-row > .message,
 .messages-virtual-row > .tool-inline,
 .messages-virtual-row > .item-card,
@@ -91,6 +92,55 @@
   color: var(--text-fainter);
   font-size: 12px;
   letter-spacing: 0.02em;
+}
+
+.messages-status-bar {
+  position: sticky;
+  top: 8px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 auto 10px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 70%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 86%, transparent);
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+}
+
+.messages-status-text {
+  color: var(--text-strong);
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.messages-status-timer {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.messages-status-phase-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-faint);
+}
+
+.working-phase-start .messages-status-phase-badge {
+  border-color: var(--border-accent-soft);
+  color: var(--text-accent);
+}
+
+.working-phase-in-progress .messages-status-phase-badge {
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
+  color: var(--accent-primary);
 }
 
 .working-spinner {
@@ -369,6 +419,25 @@
   margin-bottom: 10px;
   padding-top: 2px;
   padding-bottom: 2px;
+}
+
+.message-assistant-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 2px 0 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.message-assistant-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--surface-card) 72%, transparent);
 }
 
 .message.user .message-copy-button {

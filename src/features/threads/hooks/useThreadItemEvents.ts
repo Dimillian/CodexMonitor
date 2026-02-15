@@ -34,6 +34,7 @@ type PendingAgentDelta = {
   itemId: string;
   delta: string;
   hasCustomName: boolean;
+  turnId: string | null;
 };
 
 function deltaKey(workspaceId: string, threadId: string, itemId: string) {
@@ -70,6 +71,7 @@ export function useThreadItemEvents({
         itemId: entry.itemId,
         delta: entry.delta,
         hasCustomName: entry.hasCustomName,
+        turnId: entry.turnId,
       });
     }
   }, [dispatch]);
@@ -187,11 +189,13 @@ export function useThreadItemEvents({
       threadId,
       itemId,
       delta,
+      turnId = null,
     }: {
       workspaceId: string;
       threadId: string;
       itemId: string;
       delta: string;
+      turnId?: string | null;
     }) => {
       dispatch({ type: "ensureThread", workspaceId, threadId });
       markProcessing(threadId, true);
@@ -203,6 +207,7 @@ export function useThreadItemEvents({
           ...existing,
           delta: `${existing.delta}${delta}`,
           hasCustomName: existing.hasCustomName || hasCustomName,
+          turnId: turnId ?? existing.turnId,
         });
       } else {
         pendingAgentDeltasRef.current.set(key, {
@@ -211,6 +216,7 @@ export function useThreadItemEvents({
           itemId,
           delta,
           hasCustomName,
+          turnId,
         });
       }
       schedulePendingAgentDeltaFlush();
@@ -224,11 +230,13 @@ export function useThreadItemEvents({
       threadId,
       itemId,
       text,
+      turnId = null,
     }: {
       workspaceId: string;
       threadId: string;
       itemId: string;
       text: string;
+      turnId?: string | null;
     }) => {
       flushPendingAgentDeltas();
       const timestamp = Date.now();
@@ -241,6 +249,7 @@ export function useThreadItemEvents({
         itemId,
         text,
         hasCustomName,
+        turnId,
       });
       dispatch({
         type: "setThreadTimestamp",

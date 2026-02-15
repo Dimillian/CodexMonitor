@@ -32,6 +32,14 @@ describe("appServerEvents", () => {
     expect(getAppServerRequestId(event)).toBe(7);
   });
 
+  it("normalizes compatible method aliases to canonical methods", () => {
+    const event = makeEvent({
+      method: "item/agent_message/delta",
+      params: { thread_id: "thread-1" },
+    });
+    expect(getAppServerRawMethod(event)).toBe("item/agentMessage/delta");
+  });
+
   it("checks supported method and approval requests", () => {
     expect(isSupportedAppServerMethod("turn/started")).toBe(true);
     expect(isSupportedAppServerMethod("unknown/method")).toBe(false);

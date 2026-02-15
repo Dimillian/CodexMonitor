@@ -57,6 +57,7 @@ import { SettingsGitSection } from "./sections/SettingsGitSection";
 import { SettingsCodexSection } from "./sections/SettingsCodexSection";
 import { SettingsServerSection } from "./sections/SettingsServerSection";
 import { SettingsFeaturesSection } from "./sections/SettingsFeaturesSection";
+import { SettingsCLIProxyAPISection } from "./sections/SettingsCLIProxyAPISection";
 import {
   COMPOSER_PRESET_CONFIGS,
   COMPOSER_PRESET_LABELS,
@@ -66,6 +67,7 @@ import {
   ORBIT_MAX_INLINE_POLL_SECONDS,
   ORBIT_SERVICES,
   SETTINGS_SECTION_LABELS,
+  getSettingsSectionGroup,
 } from "./settingsViewConstants";
 import {
   buildEditorContentMeta,
@@ -307,7 +309,7 @@ export function SettingsView({
   } = useGlobalCodexConfigToml();
   const [openConfigError, setOpenConfigError] = useState<string | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
-  const { shortcutDrafts, handleShortcutKeyDown, clearShortcut } =
+  const { shortcutDrafts, handleShortcutKeyDown, clearShortcut, conflictsBySetting } =
     useSettingsShortcutDrafts({
       appSettings,
       onUpdateAppSettings,
@@ -1314,6 +1316,7 @@ export function SettingsView({
       setGroupError(error instanceof Error ? error.message : String(error));
     }
   };
+  const activeSectionGroup = getSettingsSectionGroup(activeSection);
   const activeSectionLabel = SETTINGS_SECTION_LABELS[activeSection];
   const settingsBodyClassName = `settings-body${
     useMobileMasterDetail ? " settings-body-mobile-master-detail" : ""
@@ -1368,6 +1371,22 @@ export function SettingsView({
               </div>
             )}
             <div className="settings-content">
+          {activeSectionGroup.sections.length > 1 && (
+            <div className="settings-group-tabs" role="tablist" aria-label={`${activeSectionGroup.label} 子分区`}>
+              {activeSectionGroup.sections.map((section) => (
+                <button
+                  key={section}
+                  type="button"
+                  className={`settings-group-tab${activeSection === section ? " is-active" : ""}`}
+                  onClick={() => handleSelectSection(section)}
+                  role="tab"
+                  aria-selected={activeSection === section}
+                >
+                  {SETTINGS_SECTION_LABELS[section]}
+                </button>
+              ))}
+            </div>
+          )}
           {activeSection === "projects" && (
             <SettingsProjectsSection
               workspaceGroups={workspaceGroups}
@@ -1459,6 +1478,7 @@ export function SettingsView({
               shortcutDrafts={shortcutDrafts}
               onShortcutKeyDown={handleShortcutKeyDown}
               onClearShortcut={clearShortcut}
+              conflictsBySetting={conflictsBySetting}
             />
           )}
           {activeSection === "open-apps" && (
@@ -1609,6 +1629,9 @@ export function SettingsView({
               }}
               onUpdateAppSettings={onUpdateAppSettings}
             />
+          )}
+          {activeSection === "cliproxyapi" && (
+            <SettingsCLIProxyAPISection />
           )}
             </div>
           </div>

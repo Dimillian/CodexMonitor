@@ -15,6 +15,16 @@ import type {
   ShortcutSettingKey,
 } from "./settingsTypes";
 
+export type SettingsSectionGroupId =
+  | "projects"
+  | "environments"
+  | "display"
+  | "input"
+  | "interaction"
+  | "git"
+  | "services"
+  | "features";
+
 export const DICTATION_MODELS = [
   { id: "tiny", label: "Tiny", size: "75 MB", note: "速度最快，准确率最低。" },
   { id: "base", label: "Base", size: "142 MB", note: "默认均衡。" },
@@ -111,7 +121,32 @@ export const SETTINGS_SECTION_LABELS: Record<CodexSection, string> = {
   server: "服务",
   codex: "Codex",
   features: "功能",
+  cliproxyapi: "模型代理",
 };
+
+export const SETTINGS_SECTION_GROUPS: Array<{
+  id: SettingsSectionGroupId;
+  label: string;
+  sections: CodexSection[];
+}> = [
+  { id: "projects", label: "项目", sections: ["projects"] },
+  { id: "environments", label: "环境", sections: ["environments"] },
+  { id: "display", label: "显示与声音", sections: ["display"] },
+  { id: "input", label: "输入", sections: ["composer", "dictation"] },
+  { id: "interaction", label: "交互", sections: ["shortcuts", "open-apps"] },
+  { id: "git", label: "Git", sections: ["git"] },
+  { id: "services", label: "AI 与服务", sections: ["server", "codex", "cliproxyapi"] },
+  { id: "features", label: "功能", sections: ["features"] },
+];
+
+export function getSettingsSectionGroup(
+  section: CodexSection,
+): (typeof SETTINGS_SECTION_GROUPS)[number] {
+  return (
+    SETTINGS_SECTION_GROUPS.find((group) => group.sections.includes(section)) ??
+    SETTINGS_SECTION_GROUPS[0]
+  );
+}
 
 export const SHORTCUT_DRAFT_KEY_BY_SETTING: Record<
   ShortcutSettingKey,

@@ -70,6 +70,65 @@ describe("threadReducer", () => {
     expect(next.threadsByWorkspace["ws-1"]?.[0]?.name).toBe("Assistant note");
   });
 
+  it("attaches turn-level model metadata to assistant messages", () => {
+    const withTurnMeta = threadReducer(initialState, {
+      type: "setThreadTurnMeta",
+      threadId: "thread-1",
+      turnId: "turn-1",
+      model: "gpt-5.3-codex",
+    });
+
+    const next = threadReducer(withTurnMeta, {
+      type: "appendAgentDelta",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      itemId: "assistant-1",
+      delta: "Answer",
+      hasCustomName: false,
+      turnId: "turn-1",
+    });
+
+    const item = next.itemsByThread["thread-1"]?.[0];
+    expect(item?.kind).toBe("message");
+    if (item?.kind === "message") {
+      expect(item.role).toBe("assistant");
+      expect(item.model).toBe("gpt-5.3-codex");
+      expect(item.turnId).toBe("turn-1");
+    }
+  });
+
+  it("backfills context window onto assistant messages by turn id", () => {
+    const withTurnMeta = threadReducer(initialState, {
+      type: "setThreadTurnMeta",
+      threadId: "thread-1",
+      turnId: "turn-1",
+      model: "gpt-5.3-codex",
+    });
+    const withMessage = threadReducer(withTurnMeta, {
+      type: "completeAgentMessage",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      itemId: "assistant-1",
+      text: "Final output",
+      hasCustomName: false,
+      turnId: "turn-1",
+    });
+
+    const next = threadReducer(withMessage, {
+      type: "setThreadTurnContextWindow",
+      threadId: "thread-1",
+      turnId: "turn-1",
+      contextWindow: 192000,
+    });
+
+    const item = next.itemsByThread["thread-1"]?.[0];
+    expect(item?.kind).toBe("message");
+    if (item?.kind === "message") {
+      expect(item.contextWindow).toBe(192000);
+      expect(item.turnId).toBe("turn-1");
+    }
+  });
+
   it("updates thread timestamp when newer activity arrives", () => {
     const threads: ThreadSummary[] = [
       { id: "thread-1", name: "Agent 1", updatedAt: 1000 },

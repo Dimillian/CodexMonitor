@@ -238,7 +238,7 @@
 
 .composer-queue-delete:hover {
   color: var(--text-danger-strong, #d64545);
-  border-color: color-mix(in srgb, var(--text-danger-strong, #d64545) 40%, var(--border-subtle));
+  border-color: color-mix(in srgb, var(--status-error) 40%, var(--border-subtle));
 }
 
 .composer-queue-empty {
@@ -771,6 +771,7 @@
   padding-top: 6px;
   border-top: 1px solid var(--border-subtle);
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .composer-meta {
@@ -789,8 +790,33 @@
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--surface-card);
-  margin-left: auto;
   min-width: 0;
+}
+
+.composer-context-meter-primary {
+  margin-left: auto;
+}
+
+.composer-advanced-toggle {
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  padding: 3px 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.composer-advanced-toggle.is-open {
+  border-color: color-mix(in srgb, var(--accent-primary) 32%, transparent);
+  color: var(--accent-primary);
+}
+
+.composer-advanced-controls {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 4px;
+  border-top: 1px dashed color-mix(in srgb, var(--border-subtle) 80%, transparent);
 }
 
 .composer-font-size-label {
@@ -830,6 +856,7 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+  flex: 1;
 }
 
 .composer-continue-toggle {
@@ -1147,6 +1174,11 @@
   .app.layout-phone .composer-font-size-control,
   .app.layout-phone .composer-continue-control,
   .app.layout-phone .composer-context-meter {
+    display: none;
+  }
+
+  .app.layout-phone .composer-advanced-toggle,
+  .app.layout-phone .composer-advanced-controls {
     display: none;
   }
 

@@ -1,11 +1,24 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, MouseEvent } from "react";
 
 import type { ThreadSummary } from "../../../types";
+import {
+  deriveThreadVisualStatus,
+  getThreadVisualStatusBadge,
+  getThreadVisualStatusLabel,
+} from "../../../utils/threadStatus";
 
 type ThreadStatusMap = Record<
   string,
-  { isProcessing: boolean; hasUnread: boolean; isReviewing: boolean }
+  {
+    isProcessing: boolean;
+    hasUnread: boolean;
+    isReviewing: boolean;
+    processingStartedAt?: number | null;
+    lastActivityAt?: number | null;
+    lastErrorAt?: number | null;
+    lastErrorMessage?: string | null;
+  }
 >;
 
 type PinnedThreadRow = {
@@ -53,6 +66,7 @@ export function PinnedThreadList({
   onThreadSelectionChange,
   onShowThreadMenu,
 }: PinnedThreadListProps) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const orderedThreadIdsByWorkspace = useMemo(() => {
     const map = new Map<string, string[]>();
     rows.forEach(({ workspaceId, thread }) => {
@@ -65,6 +79,22 @@ export function PinnedThreadList({
     });
     return map;
   }, [rows]);
+  const hasProcessingRows = useMemo(
+    () => rows.some(({ thread }) => threadStatusById[thread.id]?.isProcessing),
+    [rows, threadStatusById],
+  );
+
+  useEffect(() => {
+    if (!hasProcessingRows) {
+      return undefined;
+    }
+    const timer = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [hasProcessingRows]);
 
   return (
     <div className="thread-list pinned-thread-list">
@@ -75,13 +105,10 @@ export function PinnedThreadList({
             ? ({ "--thread-indent": `${depth * 14}px` } as CSSProperties)
             : undefined;
         const status = threadStatusById[thread.id];
-        const statusClass = status?.isReviewing
-          ? "reviewing"
-          : status?.isProcessing
-            ? "processing"
-            : status?.hasUnread
-              ? "unread"
-              : "ready";
+        const visualStatus = deriveThreadVisualStatus(status, nowMs);
+        const statusClass = visualStatus;
+        const statusLabel = getThreadVisualStatusLabel(visualStatus);
+        const statusBadge = getThreadVisualStatusBadge(visualStatus);
         const canPin = depth === 0;
         const isPinned = canPin && isThreadPinned(workspaceId, thread.id);
         const isSelected =
@@ -129,7 +156,14 @@ export function PinnedThreadList({
               }
             }}
           >
-            <span className={`thread-status ${statusClass}`} aria-hidden />
+            <span
+              className={`thread-status ${statusClass}`}
+              aria-label={statusLabel}
+              title={statusLabel}
+            />
+            {statusBadge ? (
+              <span className={`thread-status-badge ${statusClass}`}>{statusBadge}</span>
+            ) : null}
             {isPinned && (
               <span className="thread-pin-icon" aria-label="已置顶">
                 📌

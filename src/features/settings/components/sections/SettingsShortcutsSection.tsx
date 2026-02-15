@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from "react";
+import { useMemo, useState, type KeyboardEvent } from "react";
 import { formatShortcut, getDefaultInterruptShortcut } from "../../../../utils/shortcuts";
 import { isMacPlatform } from "../../../../utils/platformPaths";
 import type {
@@ -27,6 +27,7 @@ type SettingsShortcutsSectionProps = {
     key: ShortcutSettingKey,
   ) => void;
   onClearShortcut: (key: ShortcutSettingKey) => void;
+  conflictsBySetting?: Partial<Record<ShortcutSettingKey, ShortcutSettingKey[]>>;
 };
 
 function ShortcutField({
@@ -34,6 +35,7 @@ function ShortcutField({
   shortcutDrafts,
   onShortcutKeyDown,
   onClearShortcut,
+  conflictLabels = [],
 }: {
   item: ShortcutItem;
   shortcutDrafts: ShortcutDrafts;
@@ -42,13 +44,16 @@ function ShortcutField({
     key: ShortcutSettingKey,
   ) => void;
   onClearShortcut: (key: ShortcutSettingKey) => void;
+  conflictLabels?: string[];
 }) {
   return (
     <div className="settings-field">
       <div className="settings-field-label">{item.label}</div>
       <div className="settings-field-row">
         <input
-          className="settings-input settings-input--shortcut"
+          className={`settings-input settings-input--shortcut${
+            conflictLabels.length > 0 ? " is-conflict" : ""
+          }`}
           value={formatShortcut(shortcutDrafts[item.draftKey])}
           onKeyDown={(event) => onShortcutKeyDown(event, item.settingKey)}
           placeholder="输入快捷键"
@@ -62,6 +67,11 @@ function ShortcutField({
           清除
         </button>
       </div>
+      {conflictLabels.length > 0 && (
+        <div className="settings-shortcut-warning">
+          与以下快捷键冲突：{conflictLabels.join("、")}
+        </div>
+      )}
       <div className="settings-help">{item.help}</div>
     </div>
   );
@@ -71,10 +81,12 @@ export function SettingsShortcutsSection({
   shortcutDrafts,
   onShortcutKeyDown,
   onClearShortcut,
+  conflictsBySetting = {},
 }: SettingsShortcutsSectionProps) {
   const isMac = isMacPlatform();
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const groups: ShortcutGroup[] = [
+  const groups = useMemo<ShortcutGroup[]>(() => [
     {
       title: "文件",
       subtitle: "通过键盘创建对话和 worktree。",
@@ -201,7 +213,35 @@ export function SettingsShortcutsSection({
         },
       ],
     },
-  ];
+  ], [isMac]);
+
+  const labelBySetting = useMemo(() => {
+    const mapping: Partial<Record<ShortcutSettingKey, string>> = {};
+    groups.forEach((group) => {
+      group.items.forEach((item) => {
+        mapping[item.settingKey] = item.label;
+      });
+    });
+    return mapping;
+  }, [groups]);
+
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filteredGroups = useMemo(
+    () =>
+      groups
+        .map((group) => {
+          if (!normalizedSearch) {
+            return group;
+          }
+          const items = group.items.filter((item) => {
+            const haystack = `${group.title} ${group.subtitle} ${item.label} ${item.help}`.toLowerCase();
+            return haystack.includes(normalizedSearch);
+          });
+          return { ...group, items };
+        })
+        .filter((group) => group.items.length > 0),
+    [groups, normalizedSearch],
+  );
 
   return (
     <section className="settings-section">
@@ -209,7 +249,20 @@ export function SettingsShortcutsSection({
       <div className="settings-section-subtitle">
         自定义文件操作、编辑器、面板与导航的快捷键。
       </div>
-      {groups.map((group, index) => (
+      <div className="settings-field">
+        <input
+          className="settings-input settings-input--compact"
+          type="search"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="搜索快捷键（例如：终端 / 工作区 / 分支）"
+          aria-label="搜索快捷键"
+        />
+      </div>
+      {filteredGroups.length === 0 && (
+        <div className="settings-help">未找到匹配的快捷键项。</div>
+      )}
+      {filteredGroups.map((group, index) => (
         <div key={group.title}>
           {index > 0 && <div className="settings-divider" />}
           <div className="settings-subsection-title">{group.title}</div>
@@ -221,6 +274,9 @@ export function SettingsShortcutsSection({
               shortcutDrafts={shortcutDrafts}
               onShortcutKeyDown={onShortcutKeyDown}
               onClearShortcut={onClearShortcut}
+              conflictLabels={(conflictsBySetting[item.settingKey] ?? [])
+                .map((settingKey) => labelBySetting[settingKey] ?? settingKey)
+                .filter((label) => Boolean(label))}
             />
           ))}
         </div>

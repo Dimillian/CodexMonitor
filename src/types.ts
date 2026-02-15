@@ -79,6 +79,13 @@ export type ConversationItem =
       role: "user" | "assistant";
       text: string;
       images?: string[];
+      /**
+       * Turn-level runtime metadata for observability.
+       * Present on assistant messages when available.
+       */
+      model?: string | null;
+      contextWindow?: number | null;
+      turnId?: string | null;
     }
   | { id: string; kind: "reasoning"; summary: string; content: string }
   | { id: string; kind: "diff"; title: string; diff: string; status?: string }
@@ -563,6 +570,9 @@ export type QueuedMessage = {
   createdAt: number;
   images?: string[];
   workspaceId?: string;
+  model?: string | null;
+  effort?: string | null;
+  collaborationMode?: Record<string, unknown> | null;
 };
 
 export type QueueHealthBlockedReason =
@@ -595,6 +605,8 @@ export type ModelOption = {
   supportedReasoningEfforts: { reasoningEffort: string; description: string }[];
   defaultReasoningEffort: string | null;
   isDefault: boolean;
+  /** Default context window size in tokens (fallback when server doesn't provide) */
+  contextWindow?: number | null;
 };
 
 export type CollaborationModeOption = {

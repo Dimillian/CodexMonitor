@@ -18,7 +18,7 @@ export type SettingsSection =
   | "git"
   | "server";
 
-export type CodexSection = SettingsSection | "codex" | "features";
+export type CodexSection = SettingsSection | "codex" | "features" | "cliproxyapi";
 
 export type ShortcutSettingKey =
   | "composerModelShortcut"

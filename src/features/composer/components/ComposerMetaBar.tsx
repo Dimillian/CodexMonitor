@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { BrainCog } from "lucide-react";
 import type { ThreadTokenUsage } from "../../../types";
 
@@ -14,12 +14,27 @@ function fmtTokens(n: number): string {
   return m < 10 ? `${m.toFixed(1)}m` : `${Math.round(m)}m`;
 }
 
+/** Get model provider indicator for display */
+function getModelProviderInfo(modelId: string): { prefix: string; color: string; label: string } {
+  const id = modelId.toLowerCase();
+  if (id.includes("codex") || id.includes("gpt-5")) {
+    return { prefix: "🔵", color: "#3b82f6", label: "Codex" }; // Codex - blue
+  }
+  if (id.includes("claude")) {
+    return { prefix: "🟠", color: "#f97316", label: "Claude" }; // Claude - orange
+  }
+  if (id.includes("gemini") && !id.includes("claude")) {
+    return { prefix: "🟢", color: "#22c55e", label: "Gemini" }; // Gemini - green
+  }
+  return { prefix: "⚪", color: "inherit", label: "" };
+}
+
 type ComposerMetaBarProps = {
   disabled: boolean;
   collaborationModes: { id: string; label: string }[];
   selectedCollaborationModeId: string | null;
   onSelectCollaborationMode: (id: string | null) => void;
-  models: { id: string; displayName: string; model: string }[];
+  models: { id: string; displayName: string; model: string; contextWindow?: number | null }[];
   selectedModelId: string | null;
   onSelectModel: (id: string) => void;
   reasoningOptions: string[];
@@ -55,7 +70,10 @@ export function ComposerMetaBar({
   continuePrompt = "",
   onContinuePromptChange,
 }: ComposerMetaBarProps) {
-  const contextWindow = contextUsage?.modelContextWindow ?? null;
+  // Get selected model for fallback context window
+  const selectedModel = models.find((m) => m.id === selectedModelId) ?? null;
+  // Use server-provided context window, fallback to model's default
+  const contextWindow = contextUsage?.modelContextWindow ?? selectedModel?.contextWindow ?? null;
   const lastTurn = contextUsage?.last ?? null;
   const totalUsage = contextUsage?.total ?? null;
   const lastTokens = lastTurn?.totalTokens ?? 0;
@@ -88,6 +106,15 @@ export function ComposerMetaBar({
       (mode) => mode.id === "default" || mode.id === "plan",
     );
   const planSelected = selectedCollaborationModeId === (planMode?.id ?? "");
+  const [advancedOpen, setAdvancedOpen] = useState(
+    continueModeEnabled || continuePrompt.trim().length > 0,
+  );
+
+  useEffect(() => {
+    if (continueModeEnabled || continuePrompt.trim().length > 0) {
+      setAdvancedOpen(true);
+    }
+  }, [continueModeEnabled, continuePrompt]);
 
   return (
     <div className="composer-bar">
@@ -195,11 +222,14 @@ export function ComposerMetaBar({
             disabled={disabled}
           >
             {models.length === 0 && <option value="">无模型</option>}
-            {models.map((model) => (
-              <option key={model.id} value={model.id}>
-                {model.displayName || model.model}
-              </option>
-            ))}
+            {models.map((model) => {
+              const providerInfo = getModelProviderInfo(model.id);
+              return (
+                <option key={model.id} value={model.id}>
+                  {providerInfo.prefix} {model.displayName || model.model}
+                </option>
+              );
+            })}
           </select>
         </div>
         <div className="composer-select-wrap composer-select-wrap--effort">
@@ -223,51 +253,8 @@ export function ComposerMetaBar({
         </div>
         {/* Access mode removed — always uses config.toml setting */}
       </div>
-      <div className="composer-font-size-control">
-        <label className="composer-font-size-label" htmlFor="composer-message-font-size">
-          消息字号
-        </label>
-        <div className="composer-font-size-row">
-          <input
-            id="composer-message-font-size"
-            className="composer-font-size-slider"
-            type="range"
-            min={11}
-            max={16}
-            step={1}
-            value={messageFontSize}
-            onChange={(event) => onMessageFontSizeChange?.(Number(event.target.value))}
-            aria-label="消息字号"
-            disabled={disabled}
-          />
-          <span className="composer-font-size-value">{messageFontSize}px</span>
-        </div>
-      </div>
-      <div className="composer-continue-control">
-        <label className="composer-continue-toggle" htmlFor="composer-continue-mode">
-          <input
-            id="composer-continue-mode"
-            className="composer-continue-toggle-input"
-            type="checkbox"
-            checked={continueModeEnabled}
-            onChange={(event) => onContinueModeEnabledChange?.(event.target.checked)}
-            aria-label="Continue 模式"
-            disabled={disabled}
-          />
-          <span className="composer-continue-toggle-label">Continue</span>
-        </label>
-        <input
-          className="composer-continue-input"
-          type="text"
-          value={continuePrompt}
-          onChange={(event) => onContinuePromptChange?.(event.target.value)}
-          placeholder="请继续完成我和你讨论的Plan！"
-          aria-label="Continue 提示词"
-          disabled={disabled || !continueModeEnabled}
-        />
-      </div>
       <div
-        className="composer-context-meter"
+        className="composer-context-meter composer-context-meter-primary"
         title={
           lastTokens > 0
             ? [
@@ -302,7 +289,7 @@ export function ComposerMetaBar({
               />
             </div>
             <span className="context-meter-label">
-              {fmtTokens(usedTokens)} / {fmtTokens(contextWindow)}
+              上下文已用 {fmtTokens(usedTokens)} / {fmtTokens(contextWindow)}
             </span>
             {cacheHitPercent !== null && cacheHitPercent > 0 && (
               <span className="context-meter-cache-badge">
@@ -312,10 +299,66 @@ export function ComposerMetaBar({
           </>
         ) : (
           <span className="context-meter-label context-meter-label--empty">
-            上下文 --
+            上下文用量 --
           </span>
         )}
       </div>
+      <div className="composer-font-size-control">
+        <label className="composer-font-size-label" htmlFor="composer-message-font-size">
+          消息字号
+        </label>
+        <div className="composer-font-size-row">
+          <input
+            id="composer-message-font-size"
+            className="composer-font-size-slider"
+            type="range"
+            min={11}
+            max={16}
+            step={1}
+            value={messageFontSize}
+            onChange={(event) => onMessageFontSizeChange?.(Number(event.target.value))}
+            aria-label="消息字号"
+            disabled={disabled}
+          />
+          <span className="composer-font-size-value">{messageFontSize}px</span>
+        </div>
+      </div>
+      <button
+        type="button"
+        className={`ghost composer-advanced-toggle${advancedOpen ? " is-open" : ""}`}
+        onClick={() => setAdvancedOpen((prev) => !prev)}
+        aria-expanded={advancedOpen}
+        aria-label="显示高级设置"
+      >
+        {advancedOpen ? "收起高级" : "高级"}
+      </button>
+      {advancedOpen && (
+        <div className="composer-advanced-controls">
+          <div className="composer-continue-control">
+            <label className="composer-continue-toggle" htmlFor="composer-continue-mode">
+              <input
+                id="composer-continue-mode"
+                className="composer-continue-toggle-input"
+                type="checkbox"
+                checked={continueModeEnabled}
+                onChange={(event) => onContinueModeEnabledChange?.(event.target.checked)}
+                aria-label="Continue 模式"
+                disabled={disabled}
+              />
+              <span className="composer-continue-toggle-label">Continue</span>
+            </label>
+            <input
+              className="composer-continue-input"
+              type="text"
+              value={continuePrompt}
+              onChange={(event) => onContinuePromptChange?.(event.target.value)}
+              placeholder="例如：继续执行上一步计划，并总结本次修改"
+              aria-label="Continue 提示词"
+              disabled={disabled || !continueModeEnabled}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

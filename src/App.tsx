@@ -662,7 +662,7 @@ function MainApp() {
     onError: alertError,
   });
 
-  const resolvedModel = selectedModel?.model ?? null;
+  const resolvedModel = selectedModel?.model ?? selectedModel?.id ?? null;
   const resolvedEffort = reasoningSupported ? selectedEffort : null;
   const { activeGitRoot, handleSetGitRoot, handlePickGitRoot } = useGitRootSelection({
     activeWorkspace,
@@ -1296,6 +1296,9 @@ function MainApp() {
     workspacesById,
     steerEnabled: appSettings.steerEnabled,
     appsEnabled: appSettings.experimentalAppsEnabled,
+    activeModel: resolvedModel,
+    activeEffort: resolvedEffort,
+    activeCollaborationMode: collaborationModePayload,
     connectWorkspace,
     startThreadForWorkspace,
     sendUserMessage,
