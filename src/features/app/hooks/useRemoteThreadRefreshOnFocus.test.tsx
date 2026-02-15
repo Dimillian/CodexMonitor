@@ -74,6 +74,68 @@ describe("useRemoteThreadRefreshOnFocus", () => {
     expect(refreshThread).toHaveBeenCalledWith("ws-1", "thread-1");
   });
 
+  it("refreshes even when workspace is marked disconnected", () => {
+    const refreshThread = vi.fn().mockResolvedValue(undefined);
+
+    renderHook(() =>
+      useRemoteThreadRefreshOnFocus({
+        backendMode: "remote",
+        activeWorkspace: {
+          id: "ws-1",
+          name: "Workspace",
+          path: "/tmp/ws-1",
+          connected: false,
+          settings: { sidebarCollapsed: false },
+        },
+        activeThreadId: "thread-1",
+        refreshThread,
+      }),
+    );
+
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(refreshThread).toHaveBeenCalledWith("ws-1", "thread-1");
+  });
+
+  it("attempts reconnect before refresh when workspace is disconnected", async () => {
+    const reconnectWorkspace = vi.fn().mockResolvedValue(undefined);
+    const refreshThread = vi.fn().mockResolvedValue(undefined);
+
+    renderHook(() =>
+      useRemoteThreadRefreshOnFocus({
+        backendMode: "remote",
+        activeWorkspace: {
+          id: "ws-1",
+          name: "Workspace",
+          path: "/tmp/ws-1",
+          connected: false,
+          settings: { sidebarCollapsed: false },
+        },
+        activeThreadId: "thread-1",
+        reconnectWorkspace,
+        refreshThread,
+      }),
+    );
+
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      vi.advanceTimersByTime(500);
+      await Promise.resolve();
+    });
+
+    expect(reconnectWorkspace).toHaveBeenCalledTimes(1);
+    expect(reconnectWorkspace).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "ws-1" }),
+    );
+    expect(refreshThread).toHaveBeenCalledTimes(1);
+    expect(reconnectWorkspace.mock.invocationCallOrder[0]).toBeLessThan(
+      refreshThread.mock.invocationCallOrder[0] ?? Number.MAX_SAFE_INTEGER,
+    );
+  });
+
   it("does not drop a pending focus refresh when callback identity changes", async () => {
     const firstRefreshThread = vi.fn().mockResolvedValue(undefined);
     const secondRefreshThread = vi.fn().mockResolvedValue(undefined);

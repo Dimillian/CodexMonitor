@@ -512,6 +512,13 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     });
     try {
       await connectWorkspaceService(entry.id);
+      setWorkspaces((prev) =>
+        prev.map((workspace) =>
+          workspace.id === entry.id
+            ? { ...workspace, connected: true }
+            : workspace,
+        ),
+      );
     } catch (error) {
       onDebug?.({
         id: `${Date.now()}-client-connect-workspace-error`,

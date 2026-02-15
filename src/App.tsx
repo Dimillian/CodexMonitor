@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import "./styles/base.css";
 import "./styles/ds-tokens.css";
 import "./styles/ds-modal.css";
@@ -198,6 +199,7 @@ function MainApp() {
   const [activeTab, setActiveTab] = useState<
     "home" | "projects" | "codex" | "git" | "log"
   >("codex");
+  const [mobileThreadRefreshLoading, setMobileThreadRefreshLoading] = useState(false);
   const tabletTab =
     activeTab === "projects" || activeTab === "home" ? "codex" : activeTab;
   const {
@@ -613,6 +615,37 @@ function MainApp() {
     onMessageActivity: handleThreadMessageActivity,
     threadSortKey: threadListSortKey,
   });
+
+  const handleMobileThreadRefresh = useCallback(() => {
+    if (mobileThreadRefreshLoading || !activeWorkspace) {
+      return;
+    }
+    setMobileThreadRefreshLoading(true);
+    void (async () => {
+      let threadId = activeThreadId;
+      if (!threadId) {
+        threadId = await startThreadForWorkspace(activeWorkspace.id, {
+          activate: true,
+        });
+      }
+      if (!threadId) {
+        return;
+      }
+      await refreshThread(activeWorkspace.id, threadId);
+    })()
+      .catch(() => {
+        // Errors are surfaced through debug entries/toasts in existing thread actions.
+      })
+      .finally(() => {
+        setMobileThreadRefreshLoading(false);
+      });
+  }, [
+    activeThreadId,
+    activeWorkspace,
+    mobileThreadRefreshLoading,
+    refreshThread,
+    startThreadForWorkspace,
+  ]);
   const {
     updaterState,
     startUpdate,
@@ -1594,6 +1627,7 @@ function MainApp() {
     activeThreadIsProcessing: Boolean(
       activeThreadId && threadStatusById[activeThreadId]?.isProcessing,
     ),
+    reconnectWorkspace: connectWorkspace,
     refreshThread,
   });
 
@@ -1857,6 +1891,11 @@ function MainApp() {
   });
 
   useMenuAcceleratorController({ appSettings, onDebug: addDebugEntry });
+  const showCompactCodexThreadActions =
+    Boolean(activeWorkspace) &&
+    isCompact &&
+    ((isPhone && activeTab === "codex") || (isTablet && tabletTab === "codex"));
+
   const {
     sidebarNode,
     messagesNode,
@@ -1997,14 +2036,33 @@ function MainApp() {
     onSaveLaunchScript: launchScriptState.onSaveLaunchScript,
     launchScriptsState,
     mainHeaderActionsNode: (
-      <MainHeaderActions
-        centerMode={centerMode}
-        gitDiffViewStyle={gitDiffViewStyle}
-        onSelectDiffViewStyle={setGitDiffViewStyle}
-        isCompact={isCompact}
-        rightPanelCollapsed={rightPanelCollapsed}
-        sidebarToggleProps={sidebarToggleProps}
-      />
+      <>
+        {showCompactCodexThreadActions ? (
+          <button
+            type="button"
+            className="ghost main-header-action"
+            onClick={handleMobileThreadRefresh}
+            data-tauri-drag-region="false"
+            aria-label="Refresh current thread from server"
+            title="Refresh current thread from server"
+            disabled={mobileThreadRefreshLoading}
+          >
+            <RefreshCw
+              className={`compact-codex-refresh-icon${mobileThreadRefreshLoading ? " spinning" : ""}`}
+              size={14}
+              aria-hidden
+            />
+          </button>
+        ) : null}
+        <MainHeaderActions
+          centerMode={centerMode}
+          gitDiffViewStyle={gitDiffViewStyle}
+          onSelectDiffViewStyle={setGitDiffViewStyle}
+          isCompact={isCompact}
+          rightPanelCollapsed={rightPanelCollapsed}
+          sidebarToggleProps={sidebarToggleProps}
+        />
+      </>
     ),
     filePanelMode,
     onFilePanelModeChange: setFilePanelMode,
@@ -2355,6 +2413,16 @@ function MainApp() {
   ) : null;
 
   const mainMessagesNode = showWorkspaceHome ? workspaceHomeNode : messagesNode;
+  const codexTopbarActionsNode = showCompactCodexThreadActions ? (
+    <span
+      className={`compact-workspace-live-indicator ${
+        activeWorkspace?.connected ? "is-live" : "is-disconnected"
+      }`}
+      title={activeWorkspace?.connected ? "Connected to backend" : "Disconnected from backend"}
+    >
+      {activeWorkspace?.connected ? "Live" : "Disconnected"}
+    </span>
+  ) : null;
 
   const desktopTopbarLeftNodeWithToggle = !isCompact ? (
     <div className="topbar-leading">
@@ -2405,6 +2473,7 @@ function MainApp() {
         homeNode={homeNode}
         mainHeaderNode={mainHeaderNode}
         desktopTopbarLeftNode={desktopTopbarLeftNodeWithToggle}
+        codexTopbarActionsNode={codexTopbarActionsNode}
         tabletNavNode={tabletNavNode}
         tabBarNode={tabBarNode}
         gitDiffPanelNode={gitDiffPanelNode}

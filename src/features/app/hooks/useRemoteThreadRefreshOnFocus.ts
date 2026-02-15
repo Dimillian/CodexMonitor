@@ -7,6 +7,7 @@ type UseRemoteThreadRefreshOnFocusOptions = {
   activeWorkspace: WorkspaceInfo | null;
   activeThreadId: string | null;
   activeThreadIsProcessing?: boolean;
+  reconnectWorkspace?: (workspace: WorkspaceInfo) => Promise<unknown> | unknown;
   refreshThread: (workspaceId: string, threadId: string) => Promise<unknown> | unknown;
 };
 
@@ -15,20 +16,33 @@ export function useRemoteThreadRefreshOnFocus({
   activeWorkspace,
   activeThreadId,
   activeThreadIsProcessing = false,
+  reconnectWorkspace,
   refreshThread,
 }: UseRemoteThreadRefreshOnFocusOptions) {
   const workspaceId = activeWorkspace?.id ?? null;
-  const workspaceConnected = Boolean(activeWorkspace?.connected);
   const refreshThreadRef = useRef(refreshThread);
+  const reconnectWorkspaceRef = useRef(reconnectWorkspace);
+  const activeWorkspaceRef = useRef(activeWorkspace);
+  const workspaceConnectedRef = useRef(Boolean(activeWorkspace?.connected));
 
   useEffect(() => {
     refreshThreadRef.current = refreshThread;
   }, [refreshThread]);
 
   useEffect(() => {
+    reconnectWorkspaceRef.current = reconnectWorkspace;
+  }, [reconnectWorkspace]);
+
+  useEffect(() => {
+    activeWorkspaceRef.current = activeWorkspace;
+    workspaceConnectedRef.current = Boolean(activeWorkspace?.connected);
+  }, [activeWorkspace]);
+
+  useEffect(() => {
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let refreshInFlight = false;
+    let reconnectInFlight = false;
     let didCleanup = false;
     let windowFocused =
       typeof document === "undefined" ? true : document.visibilityState === "visible";
@@ -37,18 +51,44 @@ export function useRemoteThreadRefreshOnFocus({
 
     const canRefresh = () =>
       backendMode === "remote" &&
-      workspaceConnected &&
       Boolean(workspaceId) &&
       Boolean(activeThreadId);
+
+    const ensureWorkspaceConnected = () => {
+      if (
+        !activeWorkspaceRef.current ||
+        workspaceConnectedRef.current ||
+        reconnectInFlight ||
+        !reconnectWorkspaceRef.current
+      ) {
+        return null;
+      }
+      reconnectInFlight = true;
+      return Promise.resolve(
+        reconnectWorkspaceRef.current(activeWorkspaceRef.current),
+      )
+        .catch(() => {
+          // Ignore reconnect failures so lifecycle hooks do not surface toast noise.
+        })
+        .finally(() => {
+          reconnectInFlight = false;
+        });
+    };
 
     const runRefresh = () => {
       if (!canRefresh() || !workspaceId || !activeThreadId || refreshInFlight) {
         return;
       }
       refreshInFlight = true;
-      void Promise.resolve(
-        refreshThreadRef.current(workspaceId, activeThreadId),
-      )
+      void (async () => {
+        const reconnectPromise = ensureWorkspaceConnected();
+        if (reconnectPromise) {
+          await reconnectPromise;
+        }
+        await Promise.resolve(
+          refreshThreadRef.current(workspaceId, activeThreadId),
+        );
+      })()
         .catch(() => {
           // Ignore refresh failures so lifecycle hooks do not surface toast noise.
         })
@@ -159,7 +199,6 @@ export function useRemoteThreadRefreshOnFocus({
     activeThreadId,
     activeThreadIsProcessing,
     backendMode,
-    workspaceConnected,
     workspaceId,
   ]);
 }

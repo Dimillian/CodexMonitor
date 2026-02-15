@@ -5,6 +5,7 @@ import { message } from "@tauri-apps/plugin-dialog";
 import type { WorkspaceInfo } from "../../../types";
 import {
   addWorkspace,
+  connectWorkspace as connectWorkspaceService,
   isWorkspacePathDir,
   listWorkspaces,
   pickWorkspacePaths,
@@ -258,6 +259,39 @@ describe("useWorkspaces.addWorkspaceFromPath", () => {
     expect(addWorkspaceMock).toHaveBeenCalledWith("/tmp/repo", null);
     expect(result.current.workspaces).toHaveLength(1);
     expect(result.current.activeWorkspaceId).toBe("workspace-1");
+  });
+});
+
+describe("useWorkspaces.connectWorkspace", () => {
+  it("marks workspace as connected after a successful connect", async () => {
+    const listWorkspacesMock = vi.mocked(listWorkspaces);
+    const connectWorkspaceMock = vi.mocked(connectWorkspaceService);
+    listWorkspacesMock.mockResolvedValue([
+      {
+        ...workspaceOne,
+        connected: false,
+      },
+    ]);
+    connectWorkspaceMock.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useWorkspaces());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await result.current.connectWorkspace({
+        ...workspaceOne,
+        connected: false,
+      });
+    });
+
+    expect(connectWorkspaceMock).toHaveBeenCalledWith(workspaceOne.id);
+    expect(
+      result.current.workspaces.find((entry) => entry.id === workspaceOne.id)
+        ?.connected,
+    ).toBe(true);
   });
 });
 
