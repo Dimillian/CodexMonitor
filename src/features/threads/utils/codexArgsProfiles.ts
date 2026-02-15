@@ -228,7 +228,7 @@ function quoteTokenIfNeeded(token: string): string {
     return token;
   }
 
-  const escaped = token.replace(/\\/g, "\\\\").replace(/\"/g, "\\\"");
+  const escaped = token.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
   return `"${escaped}"`;
 }
 
