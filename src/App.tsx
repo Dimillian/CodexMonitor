@@ -138,7 +138,7 @@ import {
 } from "@app/orchestration/useWorkspaceOrchestration";
 import { useAppShellOrchestration } from "@app/orchestration/useLayoutOrchestration";
 import {
-  buildCodexArgsBadgeLabel,
+  buildEffectiveCodexArgsBadgeLabel,
   buildCodexArgsOptions,
 } from "@threads/utils/codexArgsProfiles";
 import { resolveWorkspaceRuntimeCodexArgsOverride } from "@threads/utils/threadCodexParamsSeed";
@@ -498,8 +498,9 @@ function MainApp() {
       buildCodexArgsOptions({
         appCodexArgs: appSettings.codexArgs ?? null,
         workspaceCodexArgs: workspaces.map((workspace) => workspace.settings.codexArgs),
+        additionalCodexArgs: [selectedCodexArgsOverride],
       }),
-    [appSettings.codexArgs, workspaces],
+    [appSettings.codexArgs, selectedCodexArgsOverride, workspaces],
   );
   const ensureWorkspaceRuntimeCodexArgs = useCallback(
     async (workspaceId: string, threadId: string | null) => {
@@ -515,12 +516,7 @@ function MainApp() {
   const getThreadArgsBadge = useCallback(
     (workspaceId: string, threadId: string) => {
       const stored = getThreadCodexParams(workspaceId, threadId);
-      const args = stored?.codexArgsOverride;
-      if (!args) {
-        return null;
-      }
-      const label = buildCodexArgsBadgeLabel(args).trim();
-      return label.length > 0 ? label : null;
+      return buildEffectiveCodexArgsBadgeLabel(stored?.codexArgsOverride);
     },
     [getThreadCodexParams],
   );

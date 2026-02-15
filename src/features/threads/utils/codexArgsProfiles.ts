@@ -487,9 +487,21 @@ export function labelForCodexArgs(args: string): string {
   return buildCodexArgsBadgeLabel(args);
 }
 
+export function buildEffectiveCodexArgsBadgeLabel(
+  args: string | null | undefined,
+): string | null {
+  const sanitizedArgs = sanitizeRuntimeCodexArgs(args);
+  if (!sanitizedArgs) {
+    return null;
+  }
+  const label = buildCodexArgsBadgeLabel(sanitizedArgs).trim();
+  return label.length > 0 ? label : null;
+}
+
 export function buildCodexArgsOptions(input: {
   appCodexArgs: string | null;
   workspaceCodexArgs: Array<string | null | undefined>;
+  additionalCodexArgs?: Array<string | null | undefined>;
 }): CodexArgsOption[] {
   const seen = new Set<string>();
   const options: CodexArgsOption[] = [
@@ -499,6 +511,7 @@ export function buildCodexArgsOptions(input: {
   const candidates = [
     normalizeCodexArgs(input.appCodexArgs),
     ...input.workspaceCodexArgs.map(normalizeCodexArgs),
+    ...(input.additionalCodexArgs ?? []).map(normalizeCodexArgs),
   ].filter((value): value is string => typeof value === "string" && value.length > 0);
 
   for (const args of candidates) {

@@ -610,7 +610,17 @@ export function useThreads({
       if (threadId) {
         void (async () => {
           if (ensureWorkspaceRuntimeCodexArgs) {
-            await ensureWorkspaceRuntimeCodexArgs(targetId, threadId);
+            try {
+              await ensureWorkspaceRuntimeCodexArgs(targetId, threadId);
+            } catch (error) {
+              onDebug?.({
+                id: `${Date.now()}-client-thread-runtime-codex-args-sync-error`,
+                timestamp: Date.now(),
+                source: "error",
+                label: "thread/runtime-codex-args sync error",
+                payload: error instanceof Error ? error.message : String(error),
+              });
+            }
           }
           await resumeThreadForWorkspace(targetId, threadId);
         })();
@@ -619,6 +629,7 @@ export function useThreads({
     [
       activeWorkspaceId,
       ensureWorkspaceRuntimeCodexArgs,
+      onDebug,
       resumeThreadForWorkspace,
       state.activeThreadIdByWorkspace,
     ],

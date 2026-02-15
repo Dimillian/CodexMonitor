@@ -182,6 +182,39 @@ describe("useThreads UX integration", () => {
     expect(selectEnsureCallOrder).toBeLessThan(resumeThreadCallOrder);
   });
 
+  it("still resumes selected thread when runtime codex args sync fails", async () => {
+    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => {
+      throw new Error("runtime sync failed");
+    });
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "thread-2",
+          preview: "Remote preview",
+          updated_at: 9999,
+          turns: [],
+        },
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+        ensureWorkspaceRuntimeCodexArgs,
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-2");
+    });
+
+    await waitFor(() => {
+      expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", "thread-2");
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-2");
+    });
+  });
+
   it("defers trimming until scrollback settings hydrate", async () => {
     const totalItems = 240;
     const items = Array.from({ length: totalItems }, (_, index) =>

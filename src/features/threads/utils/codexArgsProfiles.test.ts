@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCodexArgsOptions,
   buildCodexArgsBadgeLabel,
+  buildEffectiveCodexArgsBadgeLabel,
   buildCodexArgsOptionLabel,
   getIgnoredCodexArgsFlagsMetadata,
   parseCodexArgsProfile,
@@ -84,5 +86,19 @@ describe("codexArgsProfiles", () => {
     expect(
       sanitizeRuntimeCodexArgs('--config "C:\\Program Files\\Codex\\the \\"best\\" config.toml"'),
     ).toBe('--config "C:\\\\Program Files\\\\Codex\\\\the \\"best\\" config.toml"');
+  });
+
+  it("includes active override in options even when not present in app/workspace settings", () => {
+    const options = buildCodexArgsOptions({
+      appCodexArgs: null,
+      workspaceCodexArgs: [],
+      additionalCodexArgs: ["--profile thread-active"],
+    });
+
+    expect(options.map((option) => option.value)).toEqual(["", "--profile thread-active"]);
+  });
+
+  it("returns null effective badge for ignored-only overrides", () => {
+    expect(buildEffectiveCodexArgsBadgeLabel("--model gpt-5 --sandbox workspace-write")).toBeNull();
   });
 });
