@@ -66,6 +66,7 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
     null,
   );
   const updateRef = useRef<Update | null>(null);
+  const postUpdateFetchGenerationRef = useRef(0);
   const latestTimeoutRef = useRef<number | null>(null);
   const latestToastDurationMs = 2000;
 
@@ -230,6 +231,8 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
     }
 
     const fallbackUrl = buildReleaseTagUrl(normalizedPendingVersion);
+    const generation = postUpdateFetchGenerationRef.current + 1;
+    postUpdateFetchGenerationRef.current = generation;
     let cancelled = false;
     setPostUpdateNotice({
       stage: "loading",
@@ -239,7 +242,10 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
 
     void fetchReleaseNotesForVersion(normalizedPendingVersion)
       .then((releaseInfo) => {
-        if (cancelled) {
+        if (
+          cancelled ||
+          postUpdateFetchGenerationRef.current !== generation
+        ) {
           return;
         }
         if (releaseInfo.body) {
@@ -258,7 +264,10 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
         });
       })
       .catch((error) => {
-        if (cancelled) {
+        if (
+          cancelled ||
+          postUpdateFetchGenerationRef.current !== generation
+        ) {
           return;
         }
         const message =
@@ -289,6 +298,7 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
   }, [clearLatestTimeout]);
 
   const dismissPostUpdateNotice = useCallback(() => {
+    postUpdateFetchGenerationRef.current += 1;
     clearPendingPostUpdateVersion();
     setPostUpdateNotice(null);
   }, []);

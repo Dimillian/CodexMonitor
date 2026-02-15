@@ -262,6 +262,51 @@ describe("useUpdater", () => {
     );
   });
 
+  it("does not reopen post-update toast after dismissing during loading", async () => {
+    window.localStorage.setItem(
+      STORAGE_KEY_PENDING_POST_UPDATE_VERSION,
+      __APP_VERSION__,
+    );
+
+    let resolveFetch: ((value: Response) => void) | null = null;
+    fetchMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveFetch = resolve as (value: Response) => void;
+        }),
+    );
+
+    const { result } = renderHook(() => useUpdater({}));
+
+    await waitFor(() =>
+      expect(result.current.postUpdateNotice?.stage).toBe("loading"),
+    );
+
+    await act(async () => {
+      result.current.dismissPostUpdateNotice();
+    });
+
+    expect(result.current.postUpdateNotice).toBeNull();
+    expect(
+      window.localStorage.getItem(STORAGE_KEY_PENDING_POST_UPDATE_VERSION),
+    ).toBeNull();
+
+    await act(async () => {
+      resolveFetch?.({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          tag_name: `v${__APP_VERSION__}`,
+          html_url: `https://github.com/Dimillian/CodexMonitor/releases/tag/v${__APP_VERSION__}`,
+          body: "## Notes",
+        }),
+      } as Response);
+      await Promise.resolve();
+    });
+
+    expect(result.current.postUpdateNotice).toBeNull();
+  });
+
   it("clears stale post-update marker when version does not match current app", async () => {
     window.localStorage.setItem(
       STORAGE_KEY_PENDING_POST_UPDATE_VERSION,
