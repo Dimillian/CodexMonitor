@@ -17,19 +17,19 @@
 }
 
 .update-toast-title {
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .update-toast-version {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-faint);
 }
 
 .update-toast-body {
-  font-size: 13px;
-  margin-bottom: 10px;
+  font-size: 14px;
+  margin-bottom: 12px;
 }
 
 .update-toast-progress {
@@ -48,16 +48,17 @@
 .update-toast-progress-fill {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #4fb8ff, #3be082);
+  width: var(--update-toast-progress-width, 24%);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--text-accent) 72%, transparent), color-mix(in srgb, var(--status-success) 72%, transparent));
 }
 
 .update-toast-progress-meta {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-muted);
 }
 
 .update-toast-error {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .update-toast-inline {

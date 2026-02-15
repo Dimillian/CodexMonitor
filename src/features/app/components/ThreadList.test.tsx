@@ -336,7 +336,7 @@ describe("ThreadList", () => {
     if (!nestedRow) {
       throw new Error("Missing nested thread row");
     }
-    expect(nestedRow.getAttribute("style")).toContain("--thread-indent");
+    expect(nestedRow.className).toContain("thread-row-indent-10-1");
 
     fireEvent.contextMenu(nestedRow);
     expect(onShowThreadMenu).toHaveBeenCalledWith(

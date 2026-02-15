@@ -4,6 +4,6 @@
 }
 
 :root[data-theme="dim"] .ds-diff-viewer {
-  --ds-diff-lib-bg-dark: color-mix(in srgb, var(--surface-card-muted) 72%, #0a0c10);
-  --ds-diff-lib-bg-system-dark: color-mix(in srgb, var(--surface-card-muted) 72%, #0a0c10);
+  --ds-diff-lib-bg-dark: color-mix(in srgb, var(--surface-card-muted) 72%, var(--surface-context-core));
+  --ds-diff-lib-bg-system-dark: color-mix(in srgb, var(--surface-card-muted) 72%, var(--surface-context-core));
 }

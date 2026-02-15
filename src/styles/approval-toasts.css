@@ -20,18 +20,18 @@
 }
 
 .approval-toast-title {
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .approval-toast-workspace {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-faint);
 }
 
 .approval-toast-method {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   margin-bottom: 8px;
   overflow-wrap: anywhere;
@@ -41,7 +41,7 @@
 .approval-toast-details {
   display: grid;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .approval-toast-detail {
@@ -50,14 +50,14 @@
 }
 
 .approval-toast-detail-label {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-faint);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
 .approval-toast-detail-value {
-  font-size: 12px;
+  font-size: 14px;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -67,7 +67,7 @@
 }
 
 .approval-toast-detail-empty {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-muted);
 }
 

@@ -24,7 +24,7 @@
 }
 
 .app.layout-phone .compact-topbar {
-  padding-top: calc(10px + env(safe-area-inset-top));
+  padding-top: calc(12px + env(safe-area-inset-top));
 }
 
 .app.layout-phone .home {
@@ -39,7 +39,7 @@
   position: sticky;
   bottom: 0;
   z-index: 2;
-  padding: 10px 12px calc(10px + var(--phone-composer-safe-bottom, 0px));
+  padding: 12px 12px calc(12px + var(--phone-composer-safe-bottom, 0px));
   border-top: 1px solid var(--border-subtle);
   backdrop-filter: blur(18px) saturate(1.1);
 }
@@ -54,7 +54,7 @@ html[data-mobile-composer-focus="true"] .app.layout-phone {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 12px;
   color: var(--text-muted);
   text-align: center;
   padding: 0 24px;
@@ -68,7 +68,7 @@ html[data-mobile-composer-focus="true"] .app.layout-phone {
 
 .compact-empty p {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .compact-git {
@@ -119,7 +119,7 @@ html[data-mobile-composer-focus="true"] .app.layout-phone {
   border: 1px solid var(--border-subtle);
   background: var(--surface-control);
   color: var(--text-subtle);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   border-radius: 999px;
   padding: 6px 12px;
@@ -136,4 +136,14 @@ html[data-mobile-composer-focus="true"] .app.layout-phone {
 .compact-git-switch-button:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app.layout-phone,
+  .app.layout-phone *,
+  .compact-git,
+  .compact-git * {
+    animation: none;
+    transition: none;
+  }
 }

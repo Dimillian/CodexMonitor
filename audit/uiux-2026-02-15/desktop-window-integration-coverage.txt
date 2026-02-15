@@ -1,0 +1,74 @@
+src/styles/diff-viewer.css:322:  /* Replaced expensive backdrop-filter: blur() with a high-opacity solid background.
+src/styles/diff-viewer.css:323:     backdrop-filter on a sticky header inside a scrolling virtualised list
+src/App.tsx:2670:      <div className="drag-strip" id="titlebar" data-tauri-drag-region />
+src/styles/mobile-setup-wizard.css:7:  backdrop-filter: blur(14px) saturate(1.15);
+src/styles/mobile-setup-wizard.css:8:  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+src/features/home/components/Home.tsx:320:          data-tauri-drag-region="false"
+src/features/home/components/Home.tsx:330:          data-tauri-drag-region="false"
+src/styles/ds-modal.css:11:  backdrop-filter: blur(8px);
+src/styles/ds-modal.css:12:  -webkit-backdrop-filter: blur(8px);
+src/styles/ds-modal.css:16:  backdrop-filter: none;
+src/styles/ds-modal.css:17:  -webkit-backdrop-filter: none;
+src/styles/sidebar.css:5:  backdrop-filter: none;
+src/styles/sidebar.css:40:  backdrop-filter: blur(10px);
+src/styles/sidebar.css:1401:  backdrop-filter: none;
+src/styles/compact-phone.css:44:  backdrop-filter: blur(18px) saturate(1.1);
+src/features/git/components/BranchList.tsx:65:            data-tauri-drag-region={itemDataTauriDragRegion}
+src/styles/tabbar.css:8:  backdrop-filter: blur(12px) saturate(1.1);
+src/styles/tabbar.css:32:  backdrop-filter: none;
+src/features/app/components/LaunchScriptEntryButton.tsx:64:          data-tauri-drag-region="false"
+src/features/app/components/LaunchScriptEntryButton.tsx:83:            data-tauri-drag-region="false"
+src/features/app/components/LaunchScriptEntryButton.tsx:91:            data-tauri-drag-region="false"
+src/features/app/components/LaunchScriptEntryButton.tsx:99:              data-tauri-drag-region="false"
+src/features/app/components/LaunchScriptEntryButton.tsx:107:              data-tauri-drag-region="false"
+src/features/app/components/LaunchScriptEntryButton.tsx:116:              data-tauri-drag-region="false"
+src/styles/main.css:461:  backdrop-filter: none;
+src/styles/main.css:500:  backdrop-filter: none;
+src/features/app/components/MainTopbar.tsx:12:    <div className={classNames} data-tauri-drag-region>
+src/features/app/components/WorktreeCard.tsx:73:                data-tauri-drag-region="false"
+src/styles/settings.css:28:  backdrop-filter: none;
+src/features/app/components/LaunchScriptIconPicker.tsx:26:            data-tauri-drag-region="false"
+src/features/app/components/MainHeaderActions.tsx:36:            data-tauri-drag-region="false"
+src/features/app/components/MainHeaderActions.tsx:48:            data-tauri-drag-region="false"
+src/features/layout/components/SidebarToggleControls.tsx:29:      data-tauri-drag-region="false"
+src/features/layout/components/SidebarToggleControls.tsx:51:      data-tauri-drag-region="false"
+src/features/layout/components/SidebarToggleControls.tsx:78:            data-tauri-drag-region="false"
+src/features/layout/components/SidebarToggleControls.tsx:92:            data-tauri-drag-region="false"
+src/features/app/components/WorkspaceCard.tsx:157:                data-tauri-drag-region="false"
+src/features/app/components/WorkspaceCard.tsx:185:              data-tauri-drag-region="false"
+src/features/app/components/MainHeader.tsx:241:    <header className="main-header" data-tauri-drag-region>
+src/features/app/components/MainHeader.tsx:265:                data-tauri-drag-region="false"
+src/features/app/components/MainHeader.tsx:310:                          data-tauri-drag-region="false"
+src/features/app/components/MainHeader.tsx:373:                        data-tauri-drag-region="false"
+src/features/app/components/MainHeader.tsx:392:                      data-tauri-drag-region="false"
+src/features/app/components/MainHeader.tsx:408:                data-tauri-drag-region="false"
+src/features/app/components/MainHeader.tsx:419:                  data-tauri-drag-region="false"
+src/features/app/components/MainHeader.tsx:470:                        data-tauri-drag-region="false"
+src/features/app/components/MainHeader.tsx:496:                        data-tauri-drag-region="false"
+src/features/app/components/MainHeader.tsx:619:            data-tauri-drag-region="false"
+src/features/app/components/MainHeader.tsx:626:        <div className="copy-thread-group" ref={copyMenuRef} data-tauri-drag-region="false">
+src/features/app/components/SidebarHeader.tsx:62:            data-tauri-drag-region="false"
+src/features/app/components/SidebarHeader.tsx:71:            data-tauri-drag-region="false"
+src/features/app/components/SidebarHeader.tsx:83:            data-tauri-drag-region="false"
+src/features/app/components/SidebarHeader.tsx:99:                data-tauri-drag-region="false"
+src/features/app/components/SidebarHeader.tsx:110:                data-tauri-drag-region="false"
+src/features/app/components/SidebarHeader.tsx:122:          data-tauri-drag-region="false"
+src/features/app/components/SidebarHeader.tsx:137:          data-tauri-drag-region="false"
+src/features/app/components/Sidebar.tsx:1438:            data-tauri-drag-region="false"
+src/features/app/components/Sidebar.tsx:1448:            data-tauri-drag-region="false"
+src/features/app/components/OpenAppMenu.tsx:199:          data-tauri-drag-region="false"
+src/features/app/components/OpenAppMenu.tsx:217:          data-tauri-drag-region="false"
+src/features/app/components/OpenAppMenu.tsx:236:              data-tauri-drag-region="false"
+src/features/app/components/LaunchScriptButton.tsx:81:          data-tauri-drag-region="false"
+src/features/app/components/LaunchScriptButton.tsx:97:            data-tauri-drag-region="false"
+src/features/app/components/LaunchScriptButton.tsx:108:              data-tauri-drag-region="false"
+src/features/app/components/LaunchScriptButton.tsx:117:                data-tauri-drag-region="false"
+src/features/app/components/LaunchScriptButton.tsx:127:              data-tauri-drag-region="false"
+src/features/app/components/LaunchScriptButton.tsx:145:                data-tauri-drag-region="false"
+src/features/app/components/LaunchScriptButton.tsx:153:                data-tauri-drag-region="false"
+src/features/app/components/LaunchScriptButton.tsx:161:                  data-tauri-drag-region="false"
+src/features/app/components/LaunchScriptButton.tsx:170:                  data-tauri-drag-region="false"
+src/features/workspaces/components/WorkspaceHomeRunControls.tsx:98:              data-tauri-drag-region="false"
+src/features/workspaces/components/WorkspaceHomeRunControls.tsx:115:              data-tauri-drag-region="false"
+src/features/workspaces/components/WorkspaceHomeRunControls.tsx:161:            data-tauri-drag-region="false"
+src/features/workspaces/components/WorkspaceHomeRunControls.tsx:177:            data-tauri-drag-region="false"

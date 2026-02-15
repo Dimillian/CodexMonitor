@@ -1,0 +1,653 @@
+src/features/debug/components/DebugPanel.tsx:118:            <div className="debug-empty">暂无调试事件。</div>
+src/features/git/hooks/useGitStatus.test.tsx:159:  it("keeps cached branch on error", async () => {
+src/features/git/hooks/useGitStatus.test.tsx:181:    expect(result.current.status.error).toBe("boom");
+src/features/git/hooks/useGitHubIssues.test.tsx:50:    expect(result.current.error).toBeNull();
+src/features/git/hooks/useGitHubIssues.test.tsx:55:  it("handles empty issue lists", async () => {
+src/features/git/hooks/useGitHubIssues.test.tsx:69:    expect(result.current.error).toBeNull();
+src/features/git/hooks/useGitHubIssues.test.tsx:77:    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+src/features/git/hooks/useGitHubIssues.test.tsx:89:    expect(result.current.error).toBe("boom");
+src/features/git/components/GitDiffViewer.tsx:37:  error: string | null;
+src/features/git/components/GitDiffViewer.tsx:263:          <div className="diff-viewer-pr-empty">暂无描述。</div>
+src/features/git/components/GitDiffViewer.tsx:299:            <div className="diff-viewer-pr-timeline-state diff-viewer-pr-timeline-error">
+src/features/git/components/GitDiffViewer.tsx:356:  error,
+src/features/git/components/GitDiffViewer.tsx:613:        {!error && stickyEntry && (
+src/features/git/components/GitDiffViewer.tsx:648:        {error && <div className="diff-viewer-empty">{error}</div>}
+src/features/git/components/GitDiffViewer.tsx:649:        {!error && isLoading && diffs.length > 0 && (
+src/features/git/components/GitDiffViewer.tsx:650:          <div className="diff-viewer-loading diff-viewer-loading-overlay">
+src/features/git/components/GitDiffViewer.tsx:654:        {!error && !isLoading && !diffs.length && (
+src/features/git/components/GitDiffViewer.tsx:655:          <div className="diff-viewer-empty">未检测到改动。</div>
+src/features/git/components/GitDiffViewer.tsx:657:        {!error && diffs.length > 0 && (
+src/features/threads/hooks/useThreadSelectors.test.tsx:28:  it("returns null and empty items when there is no active workspace", () => {
+src/features/threads/hooks/useThreadSelectors.test.tsx:41:  it("returns empty items when the active thread has no entries", () => {
+src/features/git/components/GitDiffPanel.test.tsx:86:    expect((commitButton as HTMLButtonElement).disabled).toBe(false);
+src/features/workspaces/hooks/useWorkspaceHome.test.tsx:159:    expect(result.current.error).toBe(
+src/features/workspaces/hooks/useWorkspaceHome.test.tsx:281:    expect(result.current.error).toBe(
+src/features/notifications/components/ErrorToasts.tsx:8:} from "../../design-system/components/toast/ToastPrimitives";
+src/features/notifications/components/ErrorToasts.tsx:21:    <ToastViewport className="error-toasts" role="region" ariaLive="assertive">
+src/features/notifications/components/ErrorToasts.tsx:22:      {toasts.map((toast) => (
+src/features/notifications/components/ErrorToasts.tsx:23:        <ToastCard key={toast.id} className="error-toast" role="alert">
+src/features/notifications/components/ErrorToasts.tsx:24:          <ToastHeader className="error-toast-header">
+src/features/notifications/components/ErrorToasts.tsx:25:            <ToastTitle className="error-toast-title">{toast.title}</ToastTitle>
+src/features/notifications/components/ErrorToasts.tsx:28:              className="ghost error-toast-dismiss"
+src/features/notifications/components/ErrorToasts.tsx:29:              onClick={() => onDismiss(toast.id)}
+src/features/notifications/components/ErrorToasts.tsx:36:          <ToastBody className="error-toast-body">{toast.message}</ToastBody>
+src/features/shared/components/FileEditorCard.tsx:12:  error: string;
+src/features/shared/components/FileEditorCard.tsx:20:  error?: string | null;
+src/features/shared/components/FileEditorCard.tsx:24:  disabled?: boolean;
+src/features/shared/components/FileEditorCard.tsx:37:  error,
+src/features/shared/components/FileEditorCard.tsx:41:  disabled,
+src/features/shared/components/FileEditorCard.tsx:60:            disabled={refreshDisabled}
+src/features/shared/components/FileEditorCard.tsx:70:            disabled={saveDisabled}
+src/features/shared/components/FileEditorCard.tsx:78:      {error ? <div className={classNames.error}>{error}</div> : null}
+src/features/shared/components/FileEditorCard.tsx:85:        disabled={disabled}
+src/features/git/components/BranchSwitcherPrompt.tsx:127:        emptyClassName="branch-switcher-modal-empty"
+src/features/workspaces/components/ClonePrompt.tsx:9:  error?: string | null;
+src/features/workspaces/components/ClonePrompt.tsx:24:  error = null,
+src/features/workspaces/components/ClonePrompt.tsx:116:          disabled={isBusy}
+src/features/workspaces/components/ClonePrompt.tsx:124:          disabled={isBusy || copiesFolder.trim().length === 0}
+src/features/workspaces/components/ClonePrompt.tsx:162:              disabled={isBusy || !suggestedCopiesFolder}
+src/features/workspaces/components/ClonePrompt.tsx:170:              disabled={isBusy}
+src/features/workspaces/components/ClonePrompt.tsx:177:      {error && <div className="ds-modal-error clone-modal-error">{error}</div>}
+src/features/workspaces/components/ClonePrompt.tsx:183:          disabled={isBusy}
+src/features/workspaces/components/ClonePrompt.tsx:191:          disabled={isBusy || !canCreate}
+src/features/skills/components/SkillsPanel.tsx:68:          <div className="skills-panel-empty">
+src/features/threads/hooks/useQueuedSend.test.tsx:316:  it("does not steer queued message when steer mode is disabled", async () => {
+src/features/threads/hooks/useQueuedSend.test.tsx:1050:  it("treats /apps as plain text when apps feature is disabled", async () => {
+src/features/threads/hooks/useQueuedSend.test.tsx:1460:      await result.current.queueMessage("retry me");
+src/App.tsx:5:import "./styles/ds-toast.css";
+src/App.tsx:16:import "./styles/error-toasts.css";
+src/App.tsx:39:import successSoundUrl from "./assets/success-notification.mp3";
+src/App.tsx:40:import errorSoundUrl from "./assets/error-notification.mp3";
+src/App.tsx:530:    error: gitRootScanError,
+src/App.tsx:645:  const alertError = useCallback((error: unknown) => {
+src/App.tsx:646:    alert(error instanceof Error ? error.message : String(error));
+src/App.tsx:674:    gitStatus.error
+src/App.tsx:1057:        id: `${Date.now()}-client-add-worktree-error`,
+src/App.tsx:1059:        source: "error",
+src/App.tsx:1060:        label: "worktree/add error",
+src/App.tsx:1132:        id: `${Date.now()}-client-add-clone-error`,
+src/App.tsx:1134:        source: "error",
+src/App.tsx:1135:        label: "clone/add error",
+src/App.tsx:1244:    error: localUsageError,
+src/App.tsx:1433:            // Continue mode adopts "retry once" and then waits for next completion.
+src/App.tsx:1511:    error: agentMdError,
+src/App.tsx:1584:      } catch (error) {
+src/App.tsx:1585:        alertError(error);
+src/App.tsx:1601:      } catch (error) {
+src/App.tsx:1602:        alertError(error);
+src/App.tsx:1612:      } catch (error) {
+src/App.tsx:1613:        alertError(error);
+src/App.tsx:1623:      } catch (error) {
+src/App.tsx:1624:        alertError(error);
+src/App.tsx:1634:    } catch (error) {
+src/App.tsx:1635:      alertError(error);
+src/App.tsx:1646:    } catch (error) {
+src/App.tsx:1647:      alertError(error);
+src/App.tsx:1666:          error: activeRenamePrompt?.error ?? null,
+src/App.tsx:1678:                  error: renameWorktreeUpstreamPrompt.error,
+src/App.tsx:2317:    launchScriptError: launchScriptState.error,
+src/features/workspaces/hooks/useWorkspaces.test.tsx:64:  it("optimistically updates and reconciles on success", async () => {
+src/features/workspaces/hooks/useWorkspaces.test.tsx:111:    let rejectRename: (error: Error) => void = () => {};
+src/features/messages/components/Messages.tsx:928:          Upward scroll-to-top still triggers onReachTop for history loading. */}
+src/features/messages/components/Messages.tsx:979:        <div className="empty messages-empty">
+src/features/messages/components/Messages.tsx:984:        <div className="empty messages-empty">
+src/features/messages/components/Messages.tsx:985:          <div className="messages-loading-indicator" role="status" aria-live="polite">
+src/features/messages/components/Messages.tsx:986:            <span className="working-spinner" aria-hidden />
+src/features/messages/components/Messages.tsx:987:            <span className="messages-loading-label">正在加载对话记录…</span>
+src/features/git/components/GitDiffPanel.tsx:68:  error?: string | null;
+src/features/git/components/GitDiffPanel.tsx:164:  error,
+src/features/git/components/GitDiffPanel.tsx:298:      disabled: _syncLoading,
+src/features/git/components/GitDiffPanel.tsx:299:      loading: _syncLoading,
+src/features/git/components/GitDiffPanel.tsx:560:    isMissingRepo(error) ||
+src/features/git/components/GitDiffPanel.tsx:587:            { key: "git", message: error },
+src/features/git/components/GitDiffPanel.tsx:607:    error,
+src/features/git/components/GitDiffPanel.tsx:675:              disabled={worktreeApplyLoading || worktreeApplySuccess}
+src/features/git/components/GitDiffPanel.tsx:679:              <WorktreeApplyIcon success={worktreeApplySuccess} />
+src/features/git/components/GitDiffPanel.tsx:714:          error={error}
+src/features/workspaces/components/WorktreePrompt.tsx:17:  error?: string | null;
+src/features/workspaces/components/WorktreePrompt.tsx:37:  error = null,
+src/features/workspaces/components/WorktreePrompt.tsx:218:            emptyClassName="worktree-modal-branch-empty"
+src/features/workspaces/components/WorktreePrompt.tsx:236:          disabled={isBusy}
+src/features/workspaces/components/WorktreePrompt.tsx:255:        disabled={isBusy || isSavingScript}
+src/features/workspaces/components/WorktreePrompt.tsx:257:      {scriptError && <div className="ds-modal-error worktree-modal-error">{scriptError}</div>}
+src/features/workspaces/components/WorktreePrompt.tsx:258:      {error && <div className="ds-modal-error worktree-modal-error">{error}</div>}
+src/features/workspaces/components/WorktreePrompt.tsx:264:          disabled={isBusy}
+src/features/workspaces/components/WorktreePrompt.tsx:272:          disabled={isBusy || branch.trim().length === 0}
+src/features/collaboration/hooks/useCollaborationModes.test.tsx:80:  it("resets the selection when the feature is disabled", async () => {
+src/features/notifications/components/ErrorToasts.test.tsx:12:          { id: "toast-1", title: "Error title", message: "Something failed" },
+src/features/notifications/components/ErrorToasts.test.tsx:23:    expect(onDismiss).toHaveBeenCalledWith("toast-1");
+src/features/threads/hooks/useThreadTurnEvents.test.tsx:444:  it("handles turn errors when retries are disabled", () => {
+src/features/threads/hooks/useThreadTurnEvents.test.tsx:477:  it("ignores turn errors that will retry", () => {
+src/features/mcp/components/McpStatusPanel.tsx:15:  error?: string | null;
+src/features/mcp/components/McpStatusPanel.tsx:30:  const [loading, setLoading] = useState(false);
+src/features/mcp/components/McpStatusPanel.tsx:31:  const [error, setError] = useState<string | null>(null);
+src/features/mcp/components/McpStatusPanel.tsx:47:          error: s.error ? String(s.error) : null,
+src/features/mcp/components/McpStatusPanel.tsx:73:          disabled={loading}
+src/features/mcp/components/McpStatusPanel.tsx:77:          <RefreshCw size={12} className={loading ? "spin" : ""} aria-hidden />
+src/features/mcp/components/McpStatusPanel.tsx:81:        {error ? (
+src/features/mcp/components/McpStatusPanel.tsx:82:          <div className="mcp-panel-error">{error}</div>
+src/features/mcp/components/McpStatusPanel.tsx:84:          <div className="mcp-panel-empty">
+src/features/mcp/components/McpStatusPanel.tsx:85:            {loading ? "正在加载 MCP 服务状态…" : "当前工作区暂无 MCP 服务"}
+src/features/mcp/components/McpStatusPanel.tsx:100:              {server.error ? (
+src/features/mcp/components/McpStatusPanel.tsx:101:                <div className="mcp-panel-item-error">{server.error}</div>
+src/features/workspaces/components/WorkspaceHome.tsx:113:          error={agentMdError}
+src/features/workspaces/components/WorkspaceHome.tsx:116:          disabled={agentMdLoading}
+src/features/workspaces/components/WorkspaceHome.tsx:130:            error: "workspace-home-error",
+src/features/messages/components/MessageRows.tsx:104:          <img src={image.src} alt={image.label} loading="lazy" />
+src/features/messages/components/MessageRows.tsx:215:      ? "success"
+src/features/messages/components/MessageRows.tsx:342:          <span className="working-spinner" aria-hidden />
+src/features/automations/components/AutomationsPanel.tsx:16:        <div className="automations-panel-empty">
+src/features/automations/components/AutomationsPanel.tsx:17:          <p className="automations-panel-empty-title">暂无自动化任务</p>
+src/features/automations/components/AutomationsPanel.tsx:18:          <p className="automations-panel-empty-hint">
+src/features/workspaces/components/WorkspaceHomeHistory.tsx:101:          <div className="workspace-home-empty">
+src/features/workspaces/components/WorkspaceHomeHistory.tsx:124:                  {run.error && <div className="workspace-home-run-error">{run.error}</div>}
+src/features/workspaces/components/WorkspaceHomeHistory.tsx:126:                    <div className="workspace-home-run-error-list">
+src/features/workspaces/components/WorkspaceHomeHistory.tsx:128:                        <div className="workspace-home-run-error-item" key={index}>
+src/features/workspaces/components/WorkspaceHomeHistory.tsx:133:                        <div className="workspace-home-run-error-item">
+src/features/workspaces/components/WorkspaceHomeHistory.tsx:148:                    <div className="workspace-home-empty">
+src/features/workspaces/components/WorkspaceHomeHistory.tsx:152:                    <div className="workspace-home-empty workspace-home-pending">
+src/features/workspaces/components/WorkspaceHomeHistory.tsx:153:                      <span className="working-spinner" aria-hidden />
+src/features/workspaces/components/WorkspaceHomeHistory.tsx:171:          <div className="workspace-home-empty">
+src/features/workspaces/hooks/useRenameWorktreePrompt.test.tsx:91:    expect(result.current.renamePrompt?.error).toBe("rename failed");
+src/features/git/components/GitDiffPanelModeContent.tsx:71:          {issuesLoading && <span className="git-panel-spinner" aria-hidden />}
+src/features/git/components/GitDiffPanelModeContent.tsx:84:        {pullRequestsLoading && <span className="git-panel-spinner" aria-hidden />}
+src/features/git/components/GitDiffPanelModeContent.tsx:112:        disabled={!onFetch || fetchLoading}
+src/features/git/components/GitDiffPanelModeContent.tsx:117:          <span className="git-panel-spinner" aria-hidden />
+src/features/git/components/GitDiffPanelModeContent.tsx:156:          disabled={gitRootScanLoading}
+src/features/git/components/GitDiffPanelModeContent.tsx:167:  error: string | null | undefined;
+src/features/git/components/GitDiffPanelModeContent.tsx:223:  error,
+src/features/git/components/GitDiffPanelModeContent.tsx:293:              disabled={!onScanGitRoots || gitRootScanLoading}
+src/features/git/components/GitDiffPanelModeContent.tsx:308:                disabled={gitRootScanLoading}
+src/features/git/components/GitDiffPanelModeContent.tsx:324:                disabled={gitRootScanLoading}
+src/features/git/components/GitDiffPanelModeContent.tsx:334:                disabled={gitRootScanLoading}
+src/features/git/components/GitDiffPanelModeContent.tsx:340:          {gitRootScanLoading && <div className="diff-empty">正在扫描仓库...</div>}
+src/features/git/components/GitDiffPanelModeContent.tsx:344:            gitRootCandidates.length === 0 && <div className="diff-empty">未找到仓库。</div>}
+src/features/git/components/GitDiffPanelModeContent.tsx:403:              disabled={commitMessageLoading}
+src/features/git/components/GitDiffPanelModeContent.tsx:415:              disabled={commitMessageLoading || !canGenerateCommitMessage}
+src/features/git/components/GitDiffPanelModeContent.tsx:485:                disabled={!onPull || pullLoading || syncLoading}
+src/features/git/components/GitDiffPanelModeContent.tsx:489:                  <span className="commit-button-spinner" aria-hidden />
+src/features/git/components/GitDiffPanelModeContent.tsx:502:                disabled={!onPush || pushLoading || commitsBehind > 0}
+src/features/git/components/GitDiffPanelModeContent.tsx:510:                  <span className="commit-button-spinner" aria-hidden />
+src/features/git/components/GitDiffPanelModeContent.tsx:524:              disabled={!onSync || syncLoading || pullLoading}
+src/features/git/components/GitDiffPanelModeContent.tsx:528:                <span className="commit-button-spinner" aria-hidden />
+src/features/git/components/GitDiffPanelModeContent.tsx:537:      {!error &&
+src/features/git/components/GitDiffPanelModeContent.tsx:541:          <div className="diff-empty">{hasAnyFiles ? emptyScopeLabel : "未检测到更改。"}</div>
+src/features/git/components/GitDiffPanelModeContent.tsx:609:      {!logError && logLoading && <div className="diff-viewer-loading">正在加载提交...</div>}
+src/features/git/components/GitDiffPanelModeContent.tsx:614:        !showBehindSection && <div className="diff-empty">暂无提交。</div>}
+src/features/git/components/GitDiffPanelModeContent.tsx:692:        <div className="diff-empty">暂无未关闭 Issue。</div>
+src/features/git/components/GitDiffPanelModeContent.tsx:742:        <div className="diff-empty">暂无未关闭 PR。</div>
+src/features/threads/hooks/useThreads.integration.test.tsx:254:  it("clears empty plan updates to null", () => {
+src/features/threads/hooks/useThreads.integration.test.tsx:533:  it("stops parent review spinner and pings parent when detached child exits", async () => {
+src/features/threads/hooks/useThreads.integration.test.tsx:713:  it("does not auto archive when sub-agent auto-archive is disabled", async () => {
+src/features/threads/hooks/useThreads.integration.test.tsx:857:      failed: [{ threadId: "thread-b", error: "locked" }],
+src/features/threads/hooks/useThreads.integration.test.tsx:892:        source: "error",
+src/features/threads/hooks/useThreads.integration.test.tsx:896:          failed: [{ threadId: "thread-b", error: "locked" }],
+src/features/threads/hooks/useThreads.integration.test.tsx:982:      failed: [{ threadId: "thread-a", error: "denied" }],
+src/features/git/components/GitHubPanelData.tsx:18:  error: string | null;
+src/features/git/components/GitHubPanelData.tsx:25:  error: string | null;
+src/features/git/components/GitHubPanelData.tsx:31:  error: string | null;
+src/features/git/components/GitHubPanelData.tsx:37:  error: string | null;
+src/features/git/components/GitHubPanelData.tsx:73:    error: issuesError,
+src/features/git/components/GitHubPanelData.tsx:80:    error: pullRequestsError,
+src/features/git/components/GitHubPanelData.tsx:86:    error: pullRequestDiffsError,
+src/features/git/components/GitHubPanelData.tsx:96:    error: pullRequestCommentsError,
+src/features/git/components/GitHubPanelData.tsx:108:      error: issuesError,
+src/features/git/components/GitHubPanelData.tsx:117:      error: pullRequestsError,
+src/features/git/components/GitHubPanelData.tsx:131:      error: pullRequestDiffsError,
+src/features/git/components/GitHubPanelData.tsx:144:      error: pullRequestCommentsError,
+src/features/design-system/components/toast/ToastPrimitives.test.tsx:17:      <ToastViewport className="custom-toast" role="region" ariaLive="assertive">
+src/features/design-system/components/toast/ToastPrimitives.test.tsx:23:    expect(region.className).toContain("ds-toast-viewport");
+src/features/design-system/components/toast/ToastPrimitives.test.tsx:24:    expect(region.className).toContain("custom-toast");
+src/features/design-system/components/toast/ToastPrimitives.test.tsx:35:        <ToastError className="custom-error">Failure</ToastError>
+src/features/design-system/components/toast/ToastPrimitives.test.tsx:43:    expect(card.className).toContain("ds-toast-card");
+src/features/design-system/components/toast/ToastPrimitives.test.tsx:45:    expect(container.querySelector(".ds-toast-header.custom-header")).toBeTruthy();
+src/features/design-system/components/toast/ToastPrimitives.test.tsx:46:    expect(container.querySelector(".ds-toast-title.custom-title")).toBeTruthy();
+src/features/design-system/components/toast/ToastPrimitives.test.tsx:47:    expect(container.querySelector(".ds-toast-body.custom-body")).toBeTruthy();
+src/features/design-system/components/toast/ToastPrimitives.test.tsx:48:    expect(container.querySelector(".ds-toast-error.custom-error")).toBeTruthy();
+src/features/design-system/components/toast/ToastPrimitives.test.tsx:49:    expect(container.querySelector(".ds-toast-actions.custom-actions")).toBeTruthy();
+src/features/threads/hooks/useThreadMessaging.test.tsx:219:      error: {
+src/features/settings/components/SettingsView.tsx:80:const formatErrorMessage = (error: unknown, fallback: string) => {
+src/features/settings/components/SettingsView.tsx:81:  if (error instanceof Error) {
+src/features/settings/components/SettingsView.tsx:82:    return error.message;
+src/features/settings/components/SettingsView.tsx:84:  if (typeof error === "string") {
+src/features/settings/components/SettingsView.tsx:85:    return error;
+src/features/settings/components/SettingsView.tsx:87:  if (error && typeof error === "object" && "message" in error) {
+src/features/settings/components/SettingsView.tsx:88:    const message = (error as { message?: unknown }).message;
+src/features/settings/components/SettingsView.tsx:290:    error: globalAgentsError,
+src/features/settings/components/SettingsView.tsx:302:    error: globalConfigError,
+src/features/settings/components/SettingsView.tsx:452:    } catch (error) {
+src/features/settings/components/SettingsView.tsx:454:        error instanceof Error ? error.message : "无法打开配置文件。",
+src/features/settings/components/SettingsView.tsx:695:      } catch (error) {
+src/features/settings/components/SettingsView.tsx:698:          error instanceof Error ? error.message : "无法连接远程后端。",
+src/features/settings/components/SettingsView.tsx:738:      } catch (error) {
+src/features/settings/components/SettingsView.tsx:740:          formatErrorMessage(error, "无法获取 Tailscale 状态。"),
+src/features/settings/components/SettingsView.tsx:755:      } catch (error) {
+src/features/settings/components/SettingsView.tsx:757:          formatErrorMessage(error, "无法生成 Tailscale 守护进程命令。"),
+src/features/settings/components/SettingsView.tsx:782:      } catch (error) {
+src/features/settings/components/SettingsView.tsx:784:          error instanceof Error
+src/features/settings/components/SettingsView.tsx:785:            ? error.message
+src/features/settings/components/SettingsView.tsx:786:            : typeof error === "string"
+src/features/settings/components/SettingsView.tsx:787:              ? error
+src/features/settings/components/SettingsView.tsx:790:          state: "error",
+src/features/settings/components/SettingsView.tsx:883:    } catch (error) {
+src/features/settings/components/SettingsView.tsx:884:      const message = error instanceof Error ? error.message : "未知 Orbit 错误";
+src/features/settings/components/SettingsView.tsx:971:      } catch (error) {
+src/features/settings/components/SettingsView.tsx:972:        const message = error instanceof Error ? error.message : "未知 Orbit 错误";
+src/features/settings/components/SettingsView.tsx:993:        } catch (error) {
+src/features/settings/components/SettingsView.tsx:994:          const message = error instanceof Error ? error.message : "未知 Orbit 错误";
+src/features/settings/components/SettingsView.tsx:1145:    } catch (error) {
+src/features/settings/components/SettingsView.tsx:1153:          details: error instanceof Error ? error.message : String(error),
+src/features/settings/components/SettingsView.tsx:1185:    } catch (error) {
+src/features/settings/components/SettingsView.tsx:1196:          details: error instanceof Error ? error.message : String(error),
+src/features/settings/components/SettingsView.tsx:1215:    } catch (error) {
+src/features/settings/components/SettingsView.tsx:1216:      setEnvironmentError(error instanceof Error ? error.message : String(error));
+src/features/settings/components/SettingsView.tsx:1232:    } catch (error) {
+src/features/settings/components/SettingsView.tsx:1233:      setGroupError(error instanceof Error ? error.message : String(error));
+src/features/settings/components/SettingsView.tsx:1250:    } catch (error) {
+src/features/settings/components/SettingsView.tsx:1251:      setGroupError(error instanceof Error ? error.message : String(error));
+src/features/settings/components/SettingsView.tsx:1271:    } catch (error) {
+src/features/settings/components/SettingsView.tsx:1272:      setGroupError(error instanceof Error ? error.message : String(error));
+src/features/settings/components/SettingsView.tsx:1313:    } catch (error) {
+src/features/settings/components/SettingsView.tsx:1314:      setGroupError(error instanceof Error ? error.message : String(error));
+src/features/messages/components/Messages.test.tsx:797:  it("hides file parent paths when message file path display is disabled", () => {
+src/features/messages/components/Messages.test.tsx:1181:  it("uses content for the reasoning title when summary is empty", () => {
+src/features/messages/components/Messages.test.tsx:1654:  it("pins to bottom after thread messages finish loading", () => {
+src/features/messages/components/Messages.test.tsx:1658:        threadId="thread-loading"
+src/features/messages/components/Messages.test.tsx:1691:        threadId="thread-loading"
+src/features/messages/components/Messages.test.tsx:2299:    expect((sendChangesButton as HTMLButtonElement).disabled).toBe(true);
+src/features/messages/components/Messages.test.tsx:2304:    fireEvent.change(textarea, { target: { value: "Add error handling" } });
+src/features/messages/components/Messages.test.tsx:2306:    expect((sendChangesButton as HTMLButtonElement).disabled).toBe(false);
+src/features/messages/components/Messages.test.tsx:2308:    expect(onPlanSubmitChanges).toHaveBeenCalledWith("Add error handling");
+src/features/design-system/components/toast/ToastPrimitives.tsx:20:      className={joinClassNames("ds-toast-viewport", className)}
+src/features/design-system/components/toast/ToastPrimitives.tsx:38:    <div className={joinClassNames("ds-toast-card", className)} role={role} {...props}>
+src/features/design-system/components/toast/ToastPrimitives.tsx:47:  return <div className={joinClassNames("ds-toast-title", className)} {...props} />;
+src/features/design-system/components/toast/ToastPrimitives.tsx:51:  return <div className={joinClassNames("ds-toast-body", className)} {...props} />;
+src/features/design-system/components/toast/ToastPrimitives.tsx:57:  return <div className={joinClassNames("ds-toast-header", className)} {...props} />;
+src/features/design-system/components/toast/ToastPrimitives.tsx:61:  return <div className={joinClassNames("ds-toast-actions", className)} {...props} />;
+src/features/design-system/components/toast/ToastPrimitives.tsx:67:  return <pre className={joinClassNames("ds-toast-error", className)} {...props} />;
+src/features/home/components/Home.tsx:247:            disabled={!latestRun}
+src/features/home/components/Home.tsx:295:          <div className="home-latest-grid home-latest-grid-loading" aria-label="正在加载对话">
+src/features/home/components/Home.tsx:297:              <div className="home-latest-card home-latest-card-skeleton" key={index}>
+src/features/home/components/Home.tsx:299:                  <span className="home-latest-skeleton home-latest-skeleton-title" />
+src/features/home/components/Home.tsx:300:                  <span className="home-latest-skeleton home-latest-skeleton-time" />
+src/features/home/components/Home.tsx:302:                <span className="home-latest-skeleton home-latest-skeleton-line" />
+src/features/home/components/Home.tsx:303:                <span className="home-latest-skeleton home-latest-skeleton-line short" />
+src/features/home/components/Home.tsx:308:          <div className="home-latest-empty">
+src/features/home/components/Home.tsx:309:            <div className="home-latest-empty-title">暂无对话记录</div>
+src/features/home/components/Home.tsx:310:            <div className="home-latest-empty-subtitle">
+src/features/home/components/Home.tsx:347:                  ? "home-usage-refresh is-loading"
+src/features/home/components/Home.tsx:351:              disabled={isLoadingLocalUsage}
+src/features/home/components/Home.tsx:376:                disabled={usageWorkspaceOptions.length === 0}
+src/features/home/components/Home.tsx:418:          <div className="home-usage-skeleton">
+src/features/home/components/Home.tsx:422:                  <span className="home-latest-skeleton home-usage-skeleton-label" />
+src/features/home/components/Home.tsx:423:                  <span className="home-latest-skeleton home-usage-skeleton-value" />
+src/features/home/components/Home.tsx:428:              <span className="home-latest-skeleton home-usage-skeleton-chart" />
+src/features/home/components/Home.tsx:432:          <div className="home-usage-empty">
+src/features/home/components/Home.tsx:433:            <div className="home-usage-empty-title">暂无使用数据</div>
+src/features/home/components/Home.tsx:434:            <div className="home-usage-empty-subtitle">
+src/features/home/components/Home.tsx:438:              <div className="home-usage-error">{localUsageError}</div>
+src/features/home/components/Home.tsx:596:                  <span className="home-usage-model-empty">暂无模型数据</span>
+src/features/home/components/Home.tsx:600:                <div className="home-usage-error">{localUsageError}</div>
+src/features/threads/hooks/useThreadActions.test.tsx:494:  it("keeps resume loading true until overlapping resumes finish", async () => {
+src/features/threads/hooks/useThreadActions.test.tsx:754:      failed: [{ threadId: "thread-9", error: "denied" }],
+src/features/threads/hooks/useThreadActions.test.tsx:771:      failed: [{ threadId: "thread-9", error: "denied" }],
+src/features/threads/hooks/useThreadActions.test.tsx:780:        source: "error",
+src/features/threads/hooks/useThreadActions.test.tsx:784:          failed: [{ threadId: "thread-9", error: "denied" }],
+src/features/threads/hooks/useThreadActions.test.tsx:807:        { threadId: "thread-9", error: "nope" },
+src/features/threads/hooks/useThreadActions.test.tsx:808:        { threadId: "thread-10", error: "nope" },
+src/features/threads/hooks/useThreadActions.test.tsx:814:        source: "error",
+src/features/threads/hooks/useThreadActions.test.tsx:815:        label: "thread/archive batch error",
+src/features/threads/hooks/useThreadActions.test.tsx:862:      failed: [{ threadId: "thread-22", error: "denied" }],
+src/features/workspaces/components/WorkspaceHomeRunControls.tsx:188:              <div className="workspace-home-empty">
+src/features/workspaces/components/WorkspaceHomeRunControls.tsx:267:              disabled={isSubmitting}
+src/features/workspaces/components/WorkspaceHomeRunControls.tsx:313:            disabled={isSubmitting || !reasoningSupported}
+src/features/git/components/GitDiffPanelShared.tsx:130:  disabled?: boolean;
+src/features/git/components/GitDiffPanelShared.tsx:131:  loading?: boolean;
+src/features/git/components/GitDiffPanelShared.tsx:165:        disabled={!canCommit}
+src/features/git/components/GitDiffPanelShared.tsx:177:          <span className="commit-button-spinner" aria-hidden />
+src/features/git/components/GitDiffPanelShared.tsx:213:    <div className={`sidebar-error sidebar-error-${variant}`}>
+src/features/git/components/GitDiffPanelShared.tsx:214:      <div className="sidebar-error-body">
+src/features/git/components/GitDiffPanelShared.tsx:215:        <div className={variant === "commit" ? "commit-message-error" : "diff-error"}>
+src/features/git/components/GitDiffPanelShared.tsx:221:            className="ghost sidebar-error-action"
+src/features/git/components/GitDiffPanelShared.tsx:223:            disabled={action.disabled || action.loading}
+src/features/git/components/GitDiffPanelShared.tsx:225:            {action.loading && <span className="commit-button-spinner" aria-hidden />}
+src/features/git/components/GitDiffPanelShared.tsx:232:        className="ghost icon-button sidebar-error-dismiss"
+src/features/git/components/GitDiffPanelShared.tsx:684:export function WorktreeApplyIcon({ success }: { success: boolean }) {
+src/features/git/components/GitDiffPanelShared.tsx:685:  if (success) {
+src/features/threads/components/RenameThreadPrompt.tsx:66:          disabled={name.trim().length === 0}
+src/features/files/components/FileTreePanel.tsx:402:      .catch((error) => {
+src/features/files/components/FileTreePanel.tsx:406:        setPreviewError(error instanceof Error ? error.message : String(error));
+src/features/files/components/FileTreePanel.tsx:619:                loading="lazy"
+src/features/files/components/FileTreePanel.tsx:639:            disabled={!canInsertText}
+src/features/files/components/FileTreePanel.tsx:712:          <div className="file-tree-skeleton">
+src/features/files/components/FileTreePanel.tsx:715:                className="file-tree-skeleton-row"
+src/features/files/components/FileTreePanel.tsx:716:                key={`file-tree-skeleton-${index}`}
+src/features/files/components/FileTreePanel.tsx:722:          <div className="file-tree-empty">
+src/features/files/components/FileTreePanel.tsx:793:              error={previewError}
+src/features/plan/components/PlanPanel.tsx:43:        <div className="plan-empty">{emptyLabel}</div>
+src/features/threads/hooks/useThreadRateLimits.test.tsx:120:        source: "error",
+src/features/threads/hooks/useThreadRateLimits.test.tsx:121:        label: "account/rateLimits/read error",
+src/features/home/components/Home.test.tsx:58:  it("shows the empty state when there are no latest runs", () => {
+src/features/messages/components/Markdown.tsx:542:      .catch((error) => {
+src/features/messages/components/Markdown.tsx:546:        setPreviewError(error instanceof Error ? error.message : String(error));
+src/features/messages/components/Markdown.tsx:611:                <div className="message-file-link-preview-status message-file-link-preview-error">
+src/features/composer/hooks/usePromptHistory.test.tsx:45:          disabled: false,
+src/features/composer/hooks/usePromptHistory.test.tsx:110:          disabled: false,
+src/features/threads/hooks/useThreadTitleAutogeneration.test.tsx:80:  it("does nothing when disabled", async () => {
+src/features/plan/components/PlanPanel.test.tsx:13:  it("shows an empty label when idle without a plan", () => {
+src/features/settings/components/sections/SettingsCodexSection.tsx:182:              disabled={isSavingSettings}
+src/features/settings/components/sections/SettingsCodexSection.tsx:193:            disabled={doctorState.status === "running"}
+src/features/settings/components/sections/SettingsCodexSection.tsx:204:            disabled={codexUpdateState.status === "running"}
+src/features/settings/components/sections/SettingsCodexSection.tsx:213:          <div className={`settings-doctor ${doctorState.result.ok ? "ok" : "error"}`}>
+src/features/settings/components/sections/SettingsCodexSection.tsx:237:            className={`settings-doctor ${codexUpdateState.result.ok ? "ok" : "error"}`}
+src/features/settings/components/sections/SettingsCodexSection.tsx:302:        error={globalAgentsError}
+src/features/settings/components/sections/SettingsCodexSection.tsx:305:        disabled={globalAgentsLoading}
+src/features/settings/components/sections/SettingsCodexSection.tsx:324:          error: "settings-agents-error",
+src/features/settings/components/sections/SettingsCodexSection.tsx:333:        error={globalConfigError}
+src/features/settings/components/sections/SettingsCodexSection.tsx:336:        disabled={globalConfigLoading}
+src/features/settings/components/sections/SettingsCodexSection.tsx:355:          error: "settings-agents-error",
+src/features/settings/components/sections/SettingsCodexSection.tsx:487:          {projects.length === 0 && <div className="settings-empty">暂无项目。</div>}
+src/features/composer/components/Composer.tsx:47:  disabled?: boolean;
+src/features/composer/components/Composer.tsx:153:  disabled = false,
+src/features/composer/components/Composer.tsx:280:    disabled,
+src/features/composer/components/Composer.tsx:337:    disabled,
+src/features/composer/components/Composer.tsx:353:    if (disabled) {
+src/features/composer/components/Composer.tsx:368:    disabled,
+src/features/composer/components/Composer.tsx:377:    if (disabled) {
+src/features/composer/components/Composer.tsx:392:    disabled,
+src/features/composer/components/Composer.tsx:476:      if (disabled) {
+src/features/composer/components/Composer.tsx:528:      disabled,
+src/features/composer/components/Composer.tsx:573:    <footer className={`composer${disabled ? " is-disabled" : ""}`}>
+src/features/composer/components/Composer.tsx:587:        disabled={disabled}
+src/features/composer/components/Composer.tsx:743:        disabled={disabled}
+src/features/files/components/FilePreviewPopover.test.tsx:109:    expect(addButton.hasAttribute("disabled")).toBe(true);
+src/features/composer/hooks/useComposerAutocompleteState.test.tsx:22:        disabled: false,
+src/features/composer/hooks/useComposerAutocompleteState.test.tsx:54:        disabled: false,
+src/features/composer/hooks/useComposerAutocompleteState.test.tsx:87:        disabled: false,
+src/features/composer/hooks/useComposerAutocompleteState.test.tsx:124:  it("hides /apps when apps are disabled", () => {
+src/features/composer/hooks/useComposerAutocompleteState.test.tsx:137:        disabled: false,
+src/features/composer/hooks/useComposerAutocompleteState.test.tsx:169:        disabled: false,
+src/features/files/components/FilePreviewPopover.tsx:32:  error?: string | null;
+src/features/files/components/FilePreviewPopover.tsx:58:  error = null,
+src/features/files/components/FilePreviewPopover.tsx:103:      ) : error ? (
+src/features/files/components/FilePreviewPopover.tsx:104:        <div className="file-preview-status file-preview-error">{error}</div>
+src/features/files/components/FilePreviewPopover.tsx:124:            <div className="file-preview-status file-preview-error">
+src/features/files/components/FilePreviewPopover.tsx:156:                disabled={!selection}
+src/features/files/components/FilePreviewPopover.tsx:164:                disabled={!selection || !canInsertText}
+src/features/composer/components/ComposerAttachments.tsx:7:  disabled: boolean;
+src/features/composer/components/ComposerAttachments.tsx:39:  disabled,
+src/features/composer/components/ComposerAttachments.tsx:78:              disabled={disabled}
+src/features/settings/components/sections/SettingsDictationSection.tsx:178:            {dictationModelStatus.state === "error" &&
+src/features/settings/components/sections/SettingsDictationSection.tsx:179:              (dictationModelStatus.error ?? "下载失败。")}
+src/features/settings/components/sections/SettingsDictationSection.tsx:207:                disabled={!onDownloadDictationModel}
+src/features/settings/components/sections/SettingsDictationSection.tsx:217:                disabled={!onCancelDictationDownload}
+src/features/settings/components/sections/SettingsDictationSection.tsx:227:                disabled={!onRemoveDictationModel}
+src/features/composer/components/ComposerMetaBar.tsx:18:  disabled: boolean;
+src/features/composer/components/ComposerMetaBar.tsx:39:  disabled,
+src/features/composer/components/ComposerMetaBar.tsx:103:                  disabled={disabled}
+src/features/composer/components/ComposerMetaBar.tsx:148:                disabled={disabled}
+src/features/composer/components/ComposerMetaBar.tsx:195:            disabled={disabled}
+src/features/composer/components/ComposerMetaBar.tsx:214:            disabled={disabled || !reasoningSupported}
+src/features/composer/components/ComposerMetaBar.tsx:241:            disabled={disabled}
+src/features/composer/components/ComposerMetaBar.tsx:255:            disabled={disabled}
+src/features/composer/components/ComposerMetaBar.tsx:266:          disabled={disabled || !continueModeEnabled}
+src/features/composer/components/ComposerMetaBar.tsx:314:          <span className="context-meter-label context-meter-label--empty">
+src/features/prompts/components/PromptPanel.tsx:99:  const showError = (error: unknown) => {
+src/features/prompts/components/PromptPanel.tsx:100:    window.alert(error instanceof Error ? error.message : String(error));
+src/features/prompts/components/PromptPanel.tsx:146:    if (expansion && "error" in expansion) {
+src/features/prompts/components/PromptPanel.tsx:147:      showError(expansion.error);
+src/features/prompts/components/PromptPanel.tsx:251:    } catch (error) {
+src/features/prompts/components/PromptPanel.tsx:252:      setEditorError(error instanceof Error ? error.message : String(error));
+src/features/prompts/components/PromptPanel.tsx:274:    } catch (error) {
+src/features/prompts/components/PromptPanel.tsx:275:      showError(error);
+src/features/prompts/components/PromptPanel.tsx:286:    } catch (error) {
+src/features/prompts/components/PromptPanel.tsx:287:      showError(error);
+src/features/prompts/components/PromptPanel.tsx:449:                  disabled={editor.mode === "edit"}
+src/features/prompts/components/PromptPanel.tsx:488:            {editorError && <div className="prompt-editor-error">{editorError}</div>}
+src/features/prompts/components/PromptPanel.tsx:494:                disabled={isSaving}
+src/features/prompts/components/PromptPanel.tsx:502:                disabled={isSaving}
+src/features/prompts/components/PromptPanel.tsx:527:            <div className="prompt-empty-card">
+src/features/prompts/components/PromptPanel.tsx:528:              <ScrollText className="prompt-empty-icon" aria-hidden />
+src/features/prompts/components/PromptPanel.tsx:529:              <div className="prompt-empty-text">
+src/features/prompts/components/PromptPanel.tsx:530:                <div className="prompt-empty-title">暂无工作区提示词</div>
+src/features/prompts/components/PromptPanel.tsx:531:                <div className="prompt-empty-subtitle">
+src/features/prompts/components/PromptPanel.tsx:536:                      className="prompt-empty-link"
+src/features/prompts/components/PromptPanel.tsx:542:                    <span className="prompt-empty-link is-disabled">
+src/features/prompts/components/PromptPanel.tsx:570:            <div className="prompt-empty-card">
+src/features/prompts/components/PromptPanel.tsx:571:              <ScrollText className="prompt-empty-icon" aria-hidden />
+src/features/prompts/components/PromptPanel.tsx:572:              <div className="prompt-empty-text">
+src/features/prompts/components/PromptPanel.tsx:573:                <div className="prompt-empty-title">暂无通用提示词</div>
+src/features/prompts/components/PromptPanel.tsx:574:                <div className="prompt-empty-subtitle">
+src/features/prompts/components/PromptPanel.tsx:579:                      className="prompt-empty-link"
+src/features/prompts/components/PromptPanel.tsx:585:                    <span className="prompt-empty-link is-disabled">
+src/features/settings/components/sections/SettingsFeaturesSection.tsx:193:          disabled={!appSettings.autoArchiveSubAgentThreadsEnabled}
+src/features/settings/components/SettingsView.test.tsx:914:      orbitSignOut: vi.fn().mockResolvedValue({ success: true, message: null }),
+src/features/settings/components/SettingsView.test.tsx:1046:      orbitSignOut: vi.fn().mockResolvedValue({ success: true, message: null }),
+src/features/settings/components/SettingsView.test.tsx:1136:      orbitSignOut: vi.fn().mockResolvedValue({ success: true, message: null }),
+src/features/update/components/UpdateToast.tsx:10:} from "../../design-system/components/toast/ToastPrimitives";
+src/features/update/components/UpdateToast.tsx:46:      <ToastCard className="update-toast" role="status">
+src/features/update/components/UpdateToast.tsx:47:        <ToastHeader className="update-toast-header">
+src/features/update/components/UpdateToast.tsx:48:          <ToastTitle className="update-toast-title">更新</ToastTitle>
+src/features/update/components/UpdateToast.tsx:50:            <div className="update-toast-version">v{state.version}</div>
+src/features/update/components/UpdateToast.tsx:54:          <ToastBody className="update-toast-body">正在检查更新...</ToastBody>
+src/features/update/components/UpdateToast.tsx:58:            <ToastBody className="update-toast-body">
+src/features/update/components/UpdateToast.tsx:61:            <ToastActions className="update-toast-actions">
+src/features/update/components/UpdateToast.tsx:72:          <div className="update-toast-inline">
+src/features/update/components/UpdateToast.tsx:73:            <ToastBody className="update-toast-body update-toast-body-inline">
+src/features/update/components/UpdateToast.tsx:83:            <ToastBody className="update-toast-body">
+src/features/update/components/UpdateToast.tsx:86:            <div className="update-toast-progress">
+src/features/update/components/UpdateToast.tsx:87:              <div className="update-toast-progress-bar">
+src/features/update/components/UpdateToast.tsx:89:                  className="update-toast-progress-fill"
+src/features/update/components/UpdateToast.tsx:93:              <div className="update-toast-progress-meta">
+src/features/update/components/UpdateToast.tsx:102:          <ToastBody className="update-toast-body">正在安装更新…</ToastBody>
+src/features/update/components/UpdateToast.tsx:105:          <ToastBody className="update-toast-body">正在重启…</ToastBody>
+src/features/update/components/UpdateToast.tsx:107:        {state.stage === "error" && (
+src/features/update/components/UpdateToast.tsx:109:            <ToastBody className="update-toast-body">更新失败。</ToastBody>
+src/features/update/components/UpdateToast.tsx:110:            {state.error ? (
+src/features/update/components/UpdateToast.tsx:111:              <ToastError className="update-toast-error">{state.error}</ToastError>
+src/features/update/components/UpdateToast.tsx:113:            <ToastActions className="update-toast-actions">
+src/features/settings/components/sections/SettingsGitSection.tsx:80:          disabled={commitMessagePromptSaving}
+src/features/settings/components/sections/SettingsGitSection.tsx:89:            disabled={commitMessagePromptSaving || !commitMessagePromptDirty}
+src/features/settings/components/sections/SettingsGitSection.tsx:99:            disabled={commitMessagePromptSaving || !commitMessagePromptDirty}
+src/features/settings/components/sections/SettingsProjectsSection.tsx:86:            disabled={!canCreateGroup}
+src/features/settings/components/sections/SettingsProjectsSection.tsx:91:        {groupError && <div className="settings-group-error">{groupError}</div>}
+src/features/settings/components/sections/SettingsProjectsSection.tsx:120:                        className={`settings-group-copies-path${group.copiesFolder ? "" : " empty"}`}
+src/features/settings/components/sections/SettingsProjectsSection.tsx:140:                        disabled={!group.copiesFolder}
+src/features/settings/components/sections/SettingsProjectsSection.tsx:154:                    disabled={index === 0}
+src/features/settings/components/sections/SettingsProjectsSection.tsx:165:                    disabled={index === workspaceGroups.length - 1}
+src/features/settings/components/sections/SettingsProjectsSection.tsx:185:          <div className="settings-empty">暂无分组。</div>
+src/features/settings/components/sections/SettingsProjectsSection.tsx:228:                      disabled={index === 0}
+src/features/settings/components/sections/SettingsProjectsSection.tsx:237:                      disabled={index === group.workspaces.length - 1}
+src/features/settings/components/sections/SettingsProjectsSection.tsx:256:        {projects.length === 0 && <div className="settings-empty">暂无项目。</div>}
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:181:                    disabled={!isComplete}
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:190:                    disabled={index === 0}
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:199:                    disabled={index === openAppDrafts.length - 1}
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:209:                  disabled={openAppDrafts.length <= 1}
+src/features/composer/components/ComposerInput.tsx:38:  disabled: boolean;
+src/features/composer/components/ComposerInput.tsx:141:  disabled,
+src/features/composer/components/ComposerInput.tsx:210:    disabled,
+src/features/composer/components/ComposerInput.tsx:323:    if (disabled && mobileActionsOpen) {
+src/features/composer/components/ComposerInput.tsx:326:  }, [disabled, mobileActionsOpen]);
+src/features/composer/components/ComposerInput.tsx:340:    onOpenDictationSettings && !dictationEnabled && !disabled,
+src/features/composer/components/ComposerInput.tsx:343:    disabled || dictationState === "processing" || !dictationEnabled || !onToggleDictation;
+src/features/composer/components/ComposerInput.tsx:399:    if (disabled || !onAddAttachment) {
+src/features/composer/components/ComposerInput.tsx:404:  }, [disabled, onAddAttachment]);
+src/features/composer/components/ComposerInput.tsx:407:    if (disabled || !onToggleExpand) {
+src/features/composer/components/ComposerInput.tsx:412:  }, [disabled, onToggleExpand]);
+src/features/composer/components/ComposerInput.tsx:431:          disabled={disabled}
+src/features/composer/components/ComposerInput.tsx:439:            disabled={disabled || !onAddAttachment}
+src/features/composer/components/ComposerInput.tsx:453:              disabled={disabled}
+src/features/composer/components/ComposerInput.tsx:465:                  disabled={disabled || !onAddAttachment}
+src/features/composer/components/ComposerInput.tsx:473:                    disabled={disabled}
+src/features/composer/components/ComposerInput.tsx:488:                    disabled={
+src/features/composer/components/ComposerInput.tsx:489:                      disabled ||
+src/features/composer/components/ComposerInput.tsx:504:              disabled
+src/features/composer/components/ComposerInput.tsx:511:            disabled={disabled}
+src/features/composer/components/ComposerInput.tsx:528:          <div className="composer-dictation-error" role="status">
+src/features/composer/components/ComposerInput.tsx:532:              className="ghost composer-dictation-error-dismiss"
+src/features/composer/components/ComposerInput.tsx:545:                className="ghost composer-dictation-error-dismiss"
+src/features/composer/components/ComposerInput.tsx:641:                                  loading="lazy"
+src/features/composer/components/ComposerInput.tsx:682:          disabled={disabled}
+src/features/composer/components/ComposerInput.tsx:693:          micDisabled ? " is-disabled" : ""
+src/features/composer/components/ComposerInput.tsx:696:        disabled={
+src/features/composer/components/ComposerInput.tsx:697:          disabled ||
+src/features/composer/components/ComposerInput.tsx:708:          isStopAction && isProcessing ? " is-loading" : ""
+src/features/composer/components/ComposerInput.tsx:711:        disabled={disabled || isDictationBusy || (isStopAction ? false : !canSend)}
+src/features/composer/components/ComposerInput.tsx:718:              <span className="composer-action-spinner" aria-hidden />
+src/features/settings/components/sections/SettingsEnvironmentsSection.tsx:37:        <div className="settings-empty">暂无项目。</div>
+src/features/settings/components/sections/SettingsEnvironmentsSection.tsx:49:              disabled={environmentSaving}
+src/features/settings/components/sections/SettingsEnvironmentsSection.tsx:68:              <div className="settings-agents-error">{environmentError}</div>
+src/features/settings/components/sections/SettingsEnvironmentsSection.tsx:76:              disabled={environmentSaving}
+src/features/settings/components/sections/SettingsEnvironmentsSection.tsx:101:                disabled={environmentSaving || environmentDraftScript.length === 0}
+src/features/settings/components/sections/SettingsEnvironmentsSection.tsx:109:                disabled={environmentSaving || !environmentDirty}
+src/features/settings/components/sections/SettingsEnvironmentsSection.tsx:119:                disabled={environmentSaving || !environmentDirty}
+src/features/settings/components/sections/SettingsServerSection.tsx:130:    if (tcpDaemonStatus.state === "error") {
+src/features/settings/components/sections/SettingsServerSection.tsx:274:                    disabled={mobileConnectBusy}
+src/features/settings/components/sections/SettingsServerSection.tsx:281:                    className={`settings-help${mobileConnectStatusError ? " settings-help-error" : ""}`}
+src/features/settings/components/sections/SettingsServerSection.tsx:302:                    disabled={tcpDaemonBusyAction !== null}
+src/features/settings/components/sections/SettingsServerSection.tsx:312:                    disabled={tcpDaemonBusyAction !== null}
+src/features/settings/components/sections/SettingsServerSection.tsx:322:                    disabled={tcpDaemonBusyAction !== null}
+src/features/settings/components/sections/SettingsServerSection.tsx:347:                    disabled={tailscaleStatusBusy}
+src/features/settings/components/sections/SettingsServerSection.tsx:355:                    disabled={tailscaleCommandBusy}
+src/features/settings/components/sections/SettingsServerSection.tsx:362:                    disabled={!tailscaleStatus?.suggestedRemoteHost}
+src/features/settings/components/sections/SettingsServerSection.tsx:371:                  <div className="settings-help settings-help-error">{tailscaleStatusError}</div>
+src/features/settings/components/sections/SettingsServerSection.tsx:394:                  <div className="settings-help settings-help-error">{tailscaleCommandError}</div>
+src/features/settings/components/sections/SettingsServerSection.tsx:405:                      <div className="settings-help settings-help-error">
+src/features/settings/components/sections/SettingsServerSection.tsx:476:                      disabled={mobileConnectBusy}
+src/features/settings/components/sections/SettingsServerSection.tsx:483:                      className={`settings-help${mobileConnectStatusError ? " settings-help-error" : ""}`}
+src/features/settings/components/sections/SettingsServerSection.tsx:596:                    disabled={!appSettings.orbitUseAccess}
+src/features/settings/components/sections/SettingsServerSection.tsx:620:                    disabled={!appSettings.orbitUseAccess}
+src/features/settings/components/sections/SettingsServerSection.tsx:642:                      disabled={orbitBusyAction !== null}
+src/features/settings/components/sections/SettingsServerSection.tsx:650:                      disabled={orbitBusyAction !== null}
+src/features/settings/components/sections/SettingsServerSection.tsx:658:                      disabled={orbitBusyAction !== null}
+src/features/settings/components/sections/SettingsServerSection.tsx:668:                      disabled={orbitBusyAction !== null}
+src/features/settings/components/sections/SettingsServerSection.tsx:676:                      disabled={orbitBusyAction !== null}
+src/features/settings/components/sections/SettingsServerSection.tsx:684:                      disabled={orbitBusyAction !== null}
+src/features/layout/hooks/layoutNodes/buildSecondaryNodes.tsx:68:    <div className="compact-empty">
+src/features/layout/hooks/layoutNodes/buildSecondaryNodes.tsx:78:    <div className="compact-empty">
+src/features/layout/hooks/layoutNodes/buildSecondaryNodes.tsx:102:        disabled={!options.selectedDiffPath}
+src/features/mobile/components/MobileServerSetupWizard.tsx:62:          disabled={busy || checking}
+src/features/mobile/components/MobileServerSetupWizard.tsx:79:              disabled={busy || checking}
+src/features/mobile/components/MobileServerSetupWizard.tsx:95:              disabled={busy || checking}
+src/features/mobile/components/MobileServerSetupWizard.tsx:110:          disabled={busy || checking}
+src/features/mobile/components/MobileServerSetupWizard.tsx:117:          disabled={busy || checking}
+src/features/mobile/components/MobileServerSetupWizard.tsx:125:              statusError ? " mobile-setup-wizard-status-error" : ""
+src/features/app/hooks/useComposerInsert.test.tsx:32:  it("does nothing when disabled", () => {
+src/features/app/hooks/useAccountSwitching.test.tsx:108:          params: { loginId: "login-1", success: true, error: null },
+src/features/app/hooks/useAccountSwitching.test.tsx:159:          params: { loginId: "login-2", success: false, error: "boom" },
+src/features/app/hooks/useAccountSwitching.test.tsx:221:  it("resets switching state when login fails with a cancellation-shaped error", async () => {
+src/features/app/hooks/useAccountSwitching.test.tsx:287:          params: { loginId: "login-ws-1", success: true, error: null },
+src/features/composer/components/ComposerInput.attachments.test.tsx:19:  disabled?: boolean;
+src/features/composer/components/ComposerInput.attachments.test.tsx:25:  disabled = false,
+src/features/composer/components/ComposerInput.attachments.test.tsx:37:        disabled={disabled}
+src/features/layout/hooks/layoutNodes/buildGitNodes.tsx:105:          error={options.gitStatus.error}
+src/features/layout/hooks/layoutNodes/buildGitNodes.tsx:183:        error={options.gitDiffError}
+src/features/composer/components/ComposerQueue.tsx:226:                      disabled={
+src/features/composer/components/ComposerQueue.tsx:249:                      disabled={!onEditQueued}
+src/features/composer/components/ComposerQueue.tsx:258:            <div className="composer-queue-empty">当前队列为空</div>
+src/features/app/components/AppModals.tsx:131:            error={worktreePrompt.error}
+src/features/app/components/AppModals.tsx:150:            error={clonePrompt.error}
+src/features/app/hooks/useWorkspaceLaunchScripts.test.tsx:45:  it("opens the editor when script is empty", () => {
+src/features/app/components/LaunchScriptEntryButton.tsx:15:  error: string | null;
+src/features/app/components/LaunchScriptEntryButton.tsx:33:  error,
+src/features/app/components/LaunchScriptEntryButton.tsx:93:          {error && <div className="launch-script-error">{error}</div>}
+src/features/app/components/LaunchScriptEntryButton.tsx:115:              disabled={isSaving}
+src/features/layout/hooks/layoutNodes/buildPrimaryNodes.tsx:137:      disabled={options.isReviewing}
+src/features/app/hooks/useAppServerEvents.test.tsx:323:          params: { loginId: "login-1", success: true, error: null },
+src/features/app/hooks/useAppServerEvents.test.tsx:329:      success: true,
+src/features/app/hooks/useAppServerEvents.test.tsx:330:      error: null,
+src/features/app/components/ThreadLoading.tsx:8:      className={`thread-loading${nested ? " thread-loading-nested" : ""}`}
+src/features/app/components/ThreadLoading.tsx:11:      <span className="thread-skeleton thread-skeleton-wide" />
+src/features/app/components/ThreadLoading.tsx:12:      <span className="thread-skeleton" />
+src/features/app/components/ThreadLoading.tsx:13:      <span className="thread-skeleton thread-skeleton-short" />
+src/features/app/hooks/useGitPanelController.test.tsx:76:    error: null,
+src/features/app/hooks/useGitPanelController.test.tsx:88:    error: null,
+src/features/app/hooks/useGitPanelController.test.tsx:94:    error: null,
+src/features/app/hooks/useGitPanelController.test.tsx:100:  it("does not preload diffs when disabled and panel is hidden", () => {
+src/features/app/hooks/useGitPanelController.test.tsx:114:  it("does not load diffs when the panel becomes visible if preload is disabled", () => {
+src/features/app/hooks/useGitPanelController.test.tsx:132:  it("loads diffs after selecting a file when preload is disabled", () => {
+src/features/composer/components/ComposerQueue.test.tsx:28:  it("renders nothing when queue is empty and no legacy item exists", () => {
+src/features/composer/components/ComposerQueue.test.tsx:116:  it("disables steer button when steer is disabled", () => {
+src/features/composer/components/ComposerQueue.test.tsx:130:    expect((button as HTMLButtonElement).disabled).toBe(true);
+src/features/update/components/UpdateToast.test.tsx:43:    const fill = container.querySelector(".update-toast-progress-fill");
+src/features/update/components/UpdateToast.test.tsx:51:  it("renders error state and lets you dismiss or retry", () => {
+src/features/update/components/UpdateToast.test.tsx:55:      stage: "error",
+src/features/update/components/UpdateToast.test.tsx:56:      error: "Network error",
+src/features/update/components/UpdateToast.test.tsx:64:    expect(screen.getByText("Network error")).toBeTruthy();
+src/features/composer/components/ReviewInlinePrompt.tsx:52:        disabled={isSubmitting}
+src/features/composer/components/ReviewInlinePrompt.tsx:62:        disabled={isSubmitting}
+src/features/composer/components/ReviewInlinePrompt.tsx:71:        disabled={isSubmitting}
+src/features/composer/components/ReviewInlinePrompt.tsx:80:        disabled={isSubmitting}
+src/features/composer/components/ReviewInlinePrompt.tsx:113:          disabled={reviewPrompt.isSubmitting}
+src/features/composer/components/ReviewInlinePrompt.tsx:121:          disabled={reviewPrompt.isSubmitting || !reviewPrompt.selectedBranch.trim()}
+src/features/composer/components/ReviewInlinePrompt.tsx:129:          <div className="review-inline-empty">加载分支中…</div>
+src/features/composer/components/ReviewInlinePrompt.tsx:131:          <div className="review-inline-empty">未找到分支。</div>
+src/features/composer/components/ReviewInlinePrompt.tsx:147:                disabled={reviewPrompt.isSubmitting}
+src/features/composer/components/ReviewInlinePrompt.tsx:184:          disabled={reviewPrompt.isSubmitting}
+src/features/composer/components/ReviewInlinePrompt.tsx:192:          disabled={reviewPrompt.isSubmitting || !reviewPrompt.selectedCommitSha}
+src/features/composer/components/ReviewInlinePrompt.tsx:200:          <div className="review-inline-empty">加载提交记录中…</div>
+src/features/composer/components/ReviewInlinePrompt.tsx:202:          <div className="review-inline-empty">未找到提交记录。</div>
+src/features/composer/components/ReviewInlinePrompt.tsx:221:                disabled={reviewPrompt.isSubmitting}
+src/features/composer/components/ReviewInlinePrompt.tsx:253:          disabled={reviewPrompt.isSubmitting}
+src/features/composer/components/ReviewInlinePrompt.tsx:261:          disabled={reviewPrompt.isSubmitting || !canSubmit}
+src/features/composer/components/ReviewInlinePrompt.tsx:302:  const { step, error, isSubmitting } = reviewPrompt;
+src/features/composer/components/ReviewInlinePrompt.tsx:361:      {error && <div className="review-inline-error">{error}</div>}
+src/features/app/components/Sidebar.tsx:956:        ).catch((error) => {
+src/features/app/components/Sidebar.tsx:957:          console.error("Failed to persist workspace reorder", error);
+src/features/app/components/Sidebar.tsx:1734:            <div className="empty">
+src/features/app/components/LaunchScriptButton.tsx:14:  error: string | null;
+src/features/app/components/LaunchScriptButton.tsx:39:  error,
+src/features/app/components/LaunchScriptButton.tsx:99:          {error && <div className="launch-script-error">{error}</div>}
+src/features/app/components/LaunchScriptButton.tsx:126:              disabled={isSaving}
+src/features/app/components/LaunchScriptButton.tsx:155:              {newError && <div className="launch-script-error">{newError}</div>}
+src/features/app/components/LaunchScriptButton.tsx:169:                  disabled={isSaving}
+src/features/app/components/SidebarCornerActions.tsx:73:                  disabled={accountDisabled}
+src/features/app/components/SidebarCornerActions.tsx:78:                      <span className="sidebar-account-spinner" aria-hidden />
+src/features/app/components/SidebarCornerActions.tsx:88:                    disabled={accountCancelDisabled}
+src/features/app/components/SidebarHeader.tsx:126:          disabled={refreshDisabled}
+src/features/app/components/RequestUserInputMessage.tsx:186:            <div className="request-user-input-empty">
+src/features/app/components/WorktreeCard.tsx:37:        aria-disabled={isDeleting}
+src/features/app/components/WorktreeCard.tsx:62:              <span className="worktree-deleting-spinner" aria-hidden />
+src/features/app/components/MainHeader.tsx:58:    error: string | null;
+src/features/app/components/MainHeader.tsx:65:      error: string | null;
+src/features/app/components/MainHeader.tsx:117:  const [error, setError] = useState<string | null>(null);
+src/features/app/components/MainHeader.tsx:311:                          disabled={worktreeRename.isSubmitting}
+src/features/app/components/MainHeader.tsx:318:                          disabled={
+src/features/app/components/MainHeader.tsx:327:                      {worktreeRename.error && (
+src/features/app/components/MainHeader.tsx:328:                        <div className="worktree-info-error">{worktreeRename.error}</div>
+src/features/app/components/MainHeader.tsx:345:                            disabled={worktreeRename.upstream.isSubmitting}
+src/features/app/components/MainHeader.tsx:349:                          {worktreeRename.upstream.error && (
+src/features/app/components/MainHeader.tsx:350:                            <div className="worktree-info-error">
+src/features/app/components/MainHeader.tsx:351:                              {worktreeRename.upstream.error}
+src/features/app/components/MainHeader.tsx:476:                        disabled={!canCreate || Boolean(branchValidationMessage)}
+src/features/app/components/MainHeader.tsx:502:                      <div className="branch-error">{branchValidationMessage}</div>
+src/features/app/components/MainHeader.tsx:519:                    emptyClassName="branch-empty"
+src/features/app/components/MainHeader.tsx:535:                  {error && <div className="branch-error">{error}</div>}
+src/features/app/components/MainHeader.tsx:564:                error={launchScriptError}
+src/features/app/components/MainHeader.tsx:592:                  error={launchScriptsState.errorById[entry.id] ?? null}
+src/features/app/components/MainHeader.tsx:631:            disabled={!canCopyThread || !onCopyThread}
+src/features/app/components/MainHeader.tsx:644:            disabled={!canCopyThread || !onCopyThread}
+src/features/app/components/ApprovalToasts.tsx:12:} from "../../design-system/components/toast/ToastPrimitives";
+src/features/app/components/ApprovalToasts.tsx:102:            className="approval-toast"
+src/features/app/components/ApprovalToasts.tsx:105:            <ToastHeader className="approval-toast-header">
+src/features/app/components/ApprovalToasts.tsx:106:              <ToastTitle className="approval-toast-title">需要审批</ToastTitle>
+src/features/app/components/ApprovalToasts.tsx:108:                <div className="approval-toast-workspace">{workspaceName}</div>
+src/features/app/components/ApprovalToasts.tsx:111:            <div className="approval-toast-method">{methodLabel(request.method)}</div>
+src/features/app/components/ApprovalToasts.tsx:112:            <div className="approval-toast-details">
+src/features/app/components/ApprovalToasts.tsx:117:                    <div key={key} className="approval-toast-detail">
+src/features/app/components/ApprovalToasts.tsx:118:                      <div className="approval-toast-detail-label">
+src/features/app/components/ApprovalToasts.tsx:122:                        <ToastError className="approval-toast-detail-code">
+src/features/app/components/ApprovalToasts.tsx:126:                        <ToastBody className="approval-toast-detail-value">
+src/features/app/components/ApprovalToasts.tsx:134:                <div className="approval-toast-detail approval-toast-detail-empty">
+src/features/app/components/ApprovalToasts.tsx:139:            <ToastActions className="approval-toast-actions">
+src/features/app/components/ApprovalToasts.tsx:148:                  className="ghost approval-toast-remember"
+src/features/app/components/CommandPalette.tsx:161:            <div className="command-palette-empty">未找到匹配命令</div>
+src/features/app/components/OpenAppMenu.tsx:92:  const reportOpenError = (error: unknown, target: OpenTarget) => {
+src/features/app/components/OpenAppMenu.tsx:93:    const message = error instanceof Error ? error.message : String(error);
+src/features/app/components/OpenAppMenu.tsx:94:    Sentry.captureException(error instanceof Error ? error : new Error(message), {
+src/features/app/components/OpenAppMenu.tsx:162:    } catch (error) {
+src/features/app/components/OpenAppMenu.tsx:163:      reportOpenError(error, target);
+src/features/app/components/OpenAppMenu.tsx:198:          disabled={!selectedCanOpen}
+src/features/app/components/OpenAppMenu.tsx:234:              disabled={!canOpenTarget(target)}
+src/features/app/components/ThreadList.tsx:301:          disabled={isPaging}
+src/features/app/components/PlanReadyFollowupMessage.tsx:50:            disabled={!trimmed}

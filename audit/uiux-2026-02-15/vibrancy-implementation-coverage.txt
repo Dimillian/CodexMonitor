@@ -1,0 +1,5 @@
+src/styles/main.css:12:  /* Opaque white background prevents macOS vibrancy/liquid-glass gray from
+src/styles/main.css:963:  /* Opaque white background so vibrancy doesn't leak into message area */
+src/styles/home.css:19:  /* Opaque white prevents macOS vibrancy gray from bleeding through */
+src-tauri/Cargo.lock:4656: "window-vibrancy",
+src-tauri/Cargo.lock:5885:name = "window-vibrancy"

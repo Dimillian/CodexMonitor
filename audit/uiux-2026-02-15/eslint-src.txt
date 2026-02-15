@@ -1,0 +1,8 @@
+
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/app/hooks/useAppServerEvents.ts
+  886:66  warning  The ref value 'pendingTurnCompletionFallbackTimersRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'pendingTurnCompletionFallbackTimersRef.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+  890:33  warning  The ref value 'pendingItemIdsByThreadRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'pendingItemIdsByThreadRef.current' to a variable inside the effect, and use that variable in the cleanup function                            react-hooks/exhaustive-deps
+  891:28  warning  The ref value 'lastThreadEventAtRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'lastThreadEventAtRef.current' to a variable inside the effect, and use that variable in the cleanup function                                      react-hooks/exhaustive-deps
+
+✖ 3 problems (0 errors, 3 warnings)
+

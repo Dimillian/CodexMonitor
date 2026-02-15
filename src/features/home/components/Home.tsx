@@ -218,7 +218,7 @@ export function Home({
             className="home-suggestions-explore"
             onClick={handleExploreMore}
           >
-            Explore more
+            探索更多
           </button>
         </div>
         <div className="home-suggestions-grid">
@@ -271,22 +271,22 @@ export function Home({
                 onClick={() => onSelectThread(run.workspaceId, run.threadId)}
                 type="button"
               >
-                <div className="home-latest-card-header">
-                  <div className="home-latest-project">
+                <span className="home-latest-card-header">
+                  <span className="home-latest-project">
                     <span className="home-latest-project-name">{run.projectName}</span>
                     {run.groupName && (
                       <span className="home-latest-group">{run.groupName}</span>
                     )}
-                  </div>
-                  <div className="home-latest-time">
+                  </span>
+                  <span className="home-latest-time">
                     {formatRelativeTime(run.timestamp)}
-                  </div>
-                </div>
-                <div className="home-latest-message">
+                  </span>
+                </span>
+                <span className="home-latest-message">
                   {run.message.trim() || "Agent 已回复。"}
-                </div>
+                </span>
                 {run.isProcessing && (
-                  <div className="home-latest-status">运行中</div>
+                  <span className="home-latest-status">运行中</span>
                 )}
               </button>
             ))}
@@ -369,6 +369,7 @@ export function Home({
             <div className="home-usage-select-wrap">
               <select
                 className="home-usage-select"
+                aria-label="选择工作区"
                 value={usageWorkspaceId ?? ""}
                 onChange={(event) =>
                   onUsageWorkspaceChange(event.target.value || null)
@@ -561,7 +562,14 @@ export function Home({
                     >
                       <span
                         className="home-usage-bar-fill"
-                        style={{ height: `${height}%` }}
+                        ref={(node) => {
+                          if (node) {
+                            node.style.setProperty(
+                              "--home-usage-bar-fill-height",
+                              `${height}%`,
+                            );
+                          }
+                        }}
                       />
                       <span className="home-usage-bar-label">
                         {formatDayLabel(day.day)}

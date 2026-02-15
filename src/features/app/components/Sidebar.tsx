@@ -5,7 +5,7 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import { createPortal } from "react-dom";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { FolderOpen } from "lucide-react";
 import Copy from "lucide-react/dist/esm/icons/copy";
@@ -1155,10 +1155,12 @@ export const Sidebar = memo(function Sidebar({
         return;
       }
       const targetElement = event.target as HTMLElement | null;
+      const interactiveElement = targetElement?.closest(
+        "button, input, textarea, select, a, [contenteditable='true'], .connect",
+      );
       if (
-        targetElement?.closest(
-          "button, input, textarea, select, a, [contenteditable='true'], .connect",
-        )
+        interactiveElement &&
+        !interactiveElement.classList.contains("workspace-row-main")
       ) {
         return;
       }
@@ -1338,6 +1340,24 @@ export const Sidebar = memo(function Sidebar({
     return () => {
       window.removeEventListener("scroll", handleScroll, true);
     };
+  }, [addMenuAnchor]);
+
+  useLayoutEffect(() => {
+    if (!addMenuAnchor || !addMenuRef.current) {
+      return;
+    }
+    addMenuRef.current.style.setProperty(
+      "--workspace-add-menu-top",
+      `${addMenuAnchor.top}px`,
+    );
+    addMenuRef.current.style.setProperty(
+      "--workspace-add-menu-left",
+      `${addMenuAnchor.left}px`,
+    );
+    addMenuRef.current.style.setProperty(
+      "--workspace-add-menu-width",
+      `${addMenuAnchor.width}px`,
+    );
   }, [addMenuAnchor]);
 
   useEffect(() => {
@@ -1618,11 +1638,6 @@ export const Sidebar = memo(function Sidebar({
                           <PopoverSurface
                             className="workspace-add-menu"
                             ref={addMenuRef}
-                            style={{
-                              top: addMenuAnchor.top,
-                              left: addMenuAnchor.left,
-                              width: addMenuAnchor.width,
-                            }}
                           >
                             <PopoverMenuItem
                               className="workspace-add-option"
@@ -1661,23 +1676,16 @@ export const Sidebar = memo(function Sidebar({
                           document.body,
                         )}
                       {isDraftNewAgent && (
-                        <div
+                        <button
+                          type="button"
                           className={`thread-row thread-row-draft${
                             isDraftRowActive ? " active" : ""
                           }`}
                           onClick={() => onSelectWorkspace(entry.id)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              onSelectWorkspace(entry.id);
-                            }
-                          }}
                         >
                           <span className={`thread-status ${draftStatusClass}`} aria-hidden />
                           <span className="thread-name">新建对话</span>
-                        </div>
+                        </button>
                       )}
                       {worktrees.length > 0 && (
                         <WorktreeSection

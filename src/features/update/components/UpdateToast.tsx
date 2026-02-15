@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import type { UpdateState } from "../hooks/useUpdater";
 import {
   ToastActions,
@@ -30,16 +31,28 @@ function formatBytes(value: number) {
 }
 
 export function UpdateToast({ state, onUpdate, onDismiss }: UpdateToastProps) {
-  if (state.stage === "idle") {
-    return null;
-  }
-
   const totalBytes = state.progress?.totalBytes;
   const downloadedBytes = state.progress?.downloadedBytes ?? 0;
   const percent =
     totalBytes && totalBytes > 0
       ? Math.min(100, (downloadedBytes / totalBytes) * 100)
       : null;
+  const progressPercent = percent ?? 24;
+  const progressFillRef = useRef<HTMLSpanElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!progressFillRef.current) {
+      return;
+    }
+    progressFillRef.current.style.setProperty(
+      "--update-toast-progress-width",
+      `${progressPercent}%`,
+    );
+  }, [progressPercent]);
+
+  if (state.stage === "idle") {
+    return null;
+  }
 
   return (
     <ToastViewport className="update-toasts" role="region" ariaLive="polite">
@@ -85,10 +98,7 @@ export function UpdateToast({ state, onUpdate, onDismiss }: UpdateToastProps) {
             </ToastBody>
             <div className="update-toast-progress">
               <div className="update-toast-progress-bar">
-                <span
-                  className="update-toast-progress-fill"
-                  style={{ width: percent ? `${percent}%` : "24%" }}
-                />
+                <span className="update-toast-progress-fill" ref={progressFillRef} />
               </div>
               <div className="update-toast-progress-meta">
                 {totalBytes

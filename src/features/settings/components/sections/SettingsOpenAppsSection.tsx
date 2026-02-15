@@ -8,6 +8,7 @@ import {
 } from "../../../../utils/platformPaths";
 import {
   GENERIC_APP_ICON,
+  getKnownOpenAppIconAsset,
   getKnownOpenAppIcon,
 } from "../../../app/utils/openAppIcons";
 import type { OpenAppDraft } from "../settingsTypes";
@@ -47,8 +48,19 @@ export function SettingsOpenAppsSection({
       </div>
       <div className="settings-open-apps">
         {openAppDrafts.map((target, index) => {
-          const iconSrc =
-            getKnownOpenAppIcon(target.id) ?? openAppIconById[target.id] ?? GENERIC_APP_ICON;
+          const knownIconAsset = getKnownOpenAppIconAsset(target.id, 18);
+          const fallbackKnownIcon = getKnownOpenAppIcon(target.id) ?? GENERIC_APP_ICON;
+          const iconAsset =
+            knownIconAsset ??
+            (openAppIconById[target.id]
+              ? {
+                  src: openAppIconById[target.id],
+                  srcSet: `${openAppIconById[target.id]} 1x, ${openAppIconById[target.id]} 2x`,
+                }
+              : {
+                  src: fallbackKnownIcon,
+                  srcSet: `${fallbackKnownIcon} 1x, ${fallbackKnownIcon} 2x`,
+                });
           const labelValid = isOpenAppLabelValid(target.label);
           const appNameValid = target.kind !== "app" || Boolean(target.appName?.trim());
           const commandValid =
@@ -70,10 +82,14 @@ export function SettingsOpenAppsSection({
               <div className="settings-open-app-icon-wrap" aria-hidden>
                 <img
                   className="settings-open-app-icon"
-                  src={iconSrc}
+                  src={iconAsset.src}
+                  srcSet={iconAsset.srcSet}
                   alt=""
                   width={18}
                   height={18}
+                  sizes="18px"
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
               <div className="settings-open-app-fields">

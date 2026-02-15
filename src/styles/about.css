@@ -16,14 +16,14 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 28px 28px 16px;
+  padding: 24px 24px 16px;
   text-align: center;
 }
 
 .about-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .about-icon {
@@ -41,12 +41,12 @@
 }
 
 .about-version {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-faint);
 }
 
 .about-tagline {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-muted);
   max-width: 260px;
 }
@@ -62,12 +62,12 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .about-footer {
   margin-top: 8px;
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-faint);
 }
 
@@ -76,7 +76,7 @@
   background: transparent;
   color: var(--text-emphasis);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
   padding: 0;
 }
 
@@ -94,7 +94,7 @@
   }
 
   .about-card {
-    padding: 22px 20px 12px;
+    padding: 24px 24px 12px;
   }
 
   .about-icon {

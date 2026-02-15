@@ -49,7 +49,7 @@ export function TabletLayout({
         aria-label="调整项目面板大小"
         onMouseDown={onSidebarResizeStart}
       />
-      <section className="tablet-main">
+      <main className="tablet-main" aria-label="主内容">
         {approvalToastsNode}
         {updateToastNode}
         {errorToastsNode}
@@ -72,7 +72,7 @@ export function TabletLayout({
             {tabletTab === "log" && debugPanelNode}
           </>
         )}
-      </section>
+      </main>
     </>
   );
 }

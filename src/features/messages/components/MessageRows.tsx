@@ -99,9 +99,18 @@ const MessageImageGrid = memo(function MessageImageGrid({
           type="button"
           className="message-image-thumb"
           onClick={() => onOpen(index)}
-          aria-label={`Open image ${index + 1}`}
+          aria-label={`打开图片 ${index + 1}`}
         >
-          <img src={image.src} alt={image.label} loading="lazy" />
+          <img
+            src={image.src}
+            srcSet={`${image.src} 1x, ${image.src} 2x`}
+            alt={image.label}
+            loading="lazy"
+            decoding="async"
+            width={88}
+            height={88}
+            sizes="88px"
+          />
         </button>
       ))}
     </div>
@@ -118,6 +127,10 @@ const ImageLightbox = memo(function ImageLightbox({
   onClose: () => void;
 }) {
   const activeImage = images[activeIndex];
+  const [activeImageDimensions, setActiveImageDimensions] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -138,6 +151,34 @@ const ImageLightbox = memo(function ImageLightbox({
       document.body.style.overflow = previous;
     };
   }, []);
+
+  useEffect(() => {
+    if (!activeImage?.src) {
+      setActiveImageDimensions(null);
+      return;
+    }
+    let canceled = false;
+    const probe = new Image();
+    probe.decoding = "async";
+    probe.onload = () => {
+      if (canceled) {
+        return;
+      }
+      setActiveImageDimensions({
+        width: probe.naturalWidth || 1,
+        height: probe.naturalHeight || 1,
+      });
+    };
+    probe.onerror = () => {
+      if (!canceled) {
+        setActiveImageDimensions(null);
+      }
+    };
+    probe.src = activeImage.src;
+    return () => {
+      canceled = true;
+    };
+  }, [activeImage?.src]);
 
   if (!activeImage) {
     return null;
@@ -162,7 +203,16 @@ const ImageLightbox = memo(function ImageLightbox({
         >
           <X size={16} aria-hidden />
         </button>
-        <img src={activeImage.src} alt={activeImage.label} />
+        <img
+          src={activeImage.src}
+          srcSet={`${activeImage.src} 1x, ${activeImage.src} 2x`}
+          alt={activeImage.label}
+          loading="eager"
+          width={activeImageDimensions?.width}
+          height={activeImageDimensions?.height}
+          sizes="90vw"
+          decoding="async"
+        />
       </div>
     </div>,
     document.body,

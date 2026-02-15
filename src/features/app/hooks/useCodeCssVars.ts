@@ -1,8 +1,8 @@
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 import type { AppSettings } from "../../../types";
 
 export function useCodeCssVars(appSettings: AppSettings) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof document === "undefined") {
       return;
     }
@@ -11,4 +11,3 @@ export function useCodeCssVars(appSettings: AppSettings) {
     root.style.setProperty("--code-font-size", `${appSettings.codeFontSize}px`);
   }, [appSettings.codeFontFamily, appSettings.codeFontSize]);
 }
-

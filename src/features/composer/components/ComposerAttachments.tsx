@@ -13,7 +13,7 @@ function fileTitle(path: string) {
     return "粘贴的图片";
   }
   if (path.startsWith("http://") || path.startsWith("https://")) {
-    return "Image";
+    return "图片";
   }
   const normalized = path.replace(/\\/g, "/");
   const parts = normalized.split("/").filter(Boolean);
@@ -57,12 +57,30 @@ export function ComposerAttachments({
           >
             {previewSrc && (
               <span className="composer-attachment-preview" aria-hidden>
-                <img src={previewSrc} alt="" />
+                <img
+                  src={previewSrc}
+                  srcSet={`${previewSrc} 1x, ${previewSrc} 2x`}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  width={240}
+                  height={180}
+                  sizes="240px"
+                />
               </span>
             )}
             {previewSrc ? (
               <span className="composer-attachment-thumb" aria-hidden>
-                <img src={previewSrc} alt="" />
+                <img
+                  src={previewSrc}
+                  srcSet={`${previewSrc} 1x, ${previewSrc} 2x`}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  width={20}
+                  height={20}
+                  sizes="20px"
+                />
               </span>
             ) : (
               <span className="composer-icon" aria-hidden>
@@ -74,7 +92,7 @@ export function ComposerAttachments({
               type="button"
               className="composer-attachment-remove"
               onClick={() => onRemoveAttachment?.(path)}
-              aria-label={`Remove ${title}`}
+              aria-label={`移除 ${title}`}
               disabled={disabled}
             >
               <X size={12} aria-hidden />

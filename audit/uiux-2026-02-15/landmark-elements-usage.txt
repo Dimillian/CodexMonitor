@@ -1,0 +1,24 @@
+src/features/debug/components/DebugPanel.tsx:92:    <section
+src/features/plan/components/PlanPanel.tsx:34:    <aside className="plan-panel">
+src/features/settings/components/SettingsNav.tsx:27:    <aside className="settings-sidebar">
+src/features/terminal/components/TerminalDock.tsx:30:    <section className="terminal-panel">
+src/features/layout/components/TabletLayout.tsx:52:      <section className="tablet-main">
+src/features/layout/components/DesktopLayout.tsx:97:      <section className="main">
+src/features/settings/components/sections/SettingsCodexSection.tsx:117:    <section className="settings-section">
+src/features/git/components/GitDiffViewer.tsx:213:    <section className="diff-viewer-pr" aria-label="拉取请求摘要">
+src/features/settings/components/sections/SettingsFeaturesSection.tsx:36:    <section className="settings-section">
+src/features/settings/components/sections/SettingsComposerSection.tsx:21:    <section className="settings-section">
+src/features/settings/components/sections/SettingsProjectsSection.tsx:57:    <section className="settings-section">
+src/features/settings/components/sections/SettingsShortcutsSection.tsx:207:    <section className="settings-section">
+src/features/settings/components/sections/SettingsEnvironmentsSection.tsx:31:    <section className="settings-section">
+src/features/app/components/TabletNav.tsx:21:    <nav className="tablet-nav" aria-label="工作区导航">
+src/features/app/components/PlanReadyFollowupMessage.tsx:26:          <section className="request-user-input-question">
+src/features/settings/components/sections/SettingsServerSection.tsx:137:    <section className="settings-section">
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:43:    <section className="settings-section">
+src/features/design-system/components/panel/PanelPrimitives.tsx:11:  return <aside className={joinClassNames("ds-panel", className)}>{children}</aside>;
+src/features/settings/components/sections/SettingsDisplaySection.tsx:59:    <section className="settings-section">
+src/features/app/components/RequestUserInputMessage.tsx:141:                <section key={questionId} className="request-user-input-question">
+src/features/settings/components/sections/SettingsGitSection.tsx:25:    <section className="settings-section">
+src/features/app/components/TabBar.tsx:25:    <nav className="tabbar" aria-label="主导航">
+src/features/settings/components/sections/SettingsDictationSection.tsx:41:    <section className="settings-section">
+src/features/app/components/Sidebar.tsx:1411:    <aside

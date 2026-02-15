@@ -1,0 +1,104 @@
+src-tauri/tauri.conf.json:13:    "macOSPrivateApi": true,
+src-tauri/tauri.conf.json:22:        "titleBarStyle": "Overlay",
+src-tauri/tauri.conf.json:23:        "hiddenTitle": true,
+src-tauri/tauri.conf.json:24:        "transparent": true,
+src-tauri/tauri.conf.json:55:    "macOS": {
+src-tauri/src/lib.rs:6:#[cfg(target_os = "macos")]
+src-tauri/src/lib.rs:87:        .enable_macos_default_menu(false)
+src-tauri/src/lib.rs:100:            #[cfg(target_os = "macos")]
+src-tauri/src/lib.rs:298:            notifications::is_macos_debug_build,
+src-tauri/src/lib.rs:334:        #[cfg(target_os = "macos")]
+src-tauri/src/bin/codex_monitor_daemon.rs:33:#[path = "../workspaces/macos.rs"]
+src-tauri/src/bin/codex_monitor_daemon.rs:34:mod workspace_macos;
+src-tauri/src/bin/codex_monitor_daemon.rs:878:        #[cfg(target_os = "macos")]
+src-tauri/src/bin/codex_monitor_daemon.rs:881:                workspace_macos::get_open_app_icon_inner(name)
+src-tauri/src/bin/codex_monitor_daemon.rs:886:        #[cfg(not(target_os = "macos"))]
+src-tauri/src/bin/codex_monitor_daemon.rs:1164:    async fn is_macos_debug_build(&self) -> bool {
+src-tauri/src/bin/codex_monitor_daemon.rs:1165:        cfg!(all(target_os = "macos", debug_assertions))
+src-tauri/src/bin/codex_monitor_daemon.rs:1205:    #[cfg(all(target_os = "macos", debug_assertions))]
+src-tauri/src/bin/codex_monitor_daemon.rs:1226:    #[cfg(not(all(target_os = "macos", debug_assertions)))]
+src-tauri/src/bin/codex_monitor_daemon.rs:1229:        Err("Notification fallback is only available on macOS debug builds.".to_string())
+src-tauri/src/tailscale/mod.rs:29:#[cfg(target_os = "macos")]
+src-tauri/src/tailscale/mod.rs:37:#[cfg(not(target_os = "macos"))]
+src-tauri/src/tailscale/mod.rs:52:    #[cfg(target_os = "macos")]
+src-tauri/src/tailscale/mod.rs:82:    #[cfg(target_os = "macos")]
+src-tauri/src/tailscale/mod.rs:86:    #[cfg(not(target_os = "macos"))]
+src-tauri/src/tailscale/mod.rs:423:        #[cfg(target_os = "macos")]
+src-tauri/src/workspaces/mod.rs:4:mod macos;
+src-tauri/src/workspaces/macos.rs:1:#[cfg(target_os = "macos")]
+src-tauri/src/workspaces/macos.rs:3:#[cfg(target_os = "macos")]
+src-tauri/src/workspaces/macos.rs:5:#[cfg(target_os = "macos")]
+src-tauri/src/workspaces/macos.rs:7:#[cfg(target_os = "macos")]
+src-tauri/src/workspaces/macos.rs:10:#[cfg(target_os = "macos")]
+src-tauri/src/workspaces/macos.rs:23:#[cfg(target_os = "macos")]
+src-tauri/src/workspaces/macos.rs:33:#[cfg(target_os = "macos")]
+src-tauri/src/workspaces/macos.rs:64:#[cfg(target_os = "macos")]
+src-tauri/src/workspaces/macos.rs:83:#[cfg(target_os = "macos")]
+src-tauri/src/workspaces/macos.rs:96:#[cfg(target_os = "macos")]
+src-tauri/src/workspaces/macos.rs:148:#[cfg(target_os = "macos")]
+src-tauri/src/workspaces/macos.rs:161:#[cfg(target_os = "macos")]
+src-tauri/src/workspaces/macos.rs:188:#[cfg(target_os = "macos")]
+src-tauri/tests/tauri_config.rs:7:fn macos_private_api_feature_matches_config() {
+src-tauri/tests/tauri_config.rs:14:    let macos_private_api = config
+src-tauri/tests/tauri_config.rs:16:        .and_then(|app| app.get("macOSPrivateApi"))
+src-tauri/tests/tauri_config.rs:20:    if macos_private_api {
+src-tauri/tests/tauri_config.rs:36:            if trimmed.starts_with("tauri") && trimmed.contains("macos-private-api") {
+src-tauri/tests/tauri_config.rs:44:            "Cargo.toml [dependencies] must enable macos-private-api when app.macOSPrivateApi is true"
+src-tauri/src/workspaces/commands.rs:13:#[cfg(target_os = "macos")]
+src-tauri/src/workspaces/commands.rs:14:use super::macos::get_open_app_icon_inner;
+src-tauri/src/workspaces/commands.rs:566:    #[cfg(target_os = "macos")]
+src-tauri/src/workspaces/commands.rs:574:    #[cfg(not(target_os = "macos"))]
+src-tauri/src/bin/codex_monitor_daemon/rpc.rs:733:        "is_macos_debug_build" => {
+src-tauri/src/bin/codex_monitor_daemon/rpc.rs:734:            let is_debug = state.is_macos_debug_build().await;
+src-tauri/src/window.rs:16:#[cfg(target_os = "macos")]
+src-tauri/src/window.rs:17:fn apply_macos_window_appearance(window: &Window, theme: &str) -> Result<(), String> {
+src-tauri/src/window.rs:65:    #[cfg(target_os = "macos")]
+src-tauri/src/window.rs:71:                let _ = apply_macos_window_appearance(&window_handle, theme_value.as_str());
+src-tauri/src/shared/workspaces_core.rs:611:        #[cfg(target_os = "macos")]
+src-tauri/src/shared/workspaces_core.rs:621:        #[cfg(not(target_os = "macos"))]
+src-tauri/src/shared/workspaces_core.rs:664:#[cfg(target_os = "macos")]
+src-tauri/src/shared/workspaces_core.rs:682:#[cfg(not(target_os = "macos"))]
+src-tauri/src/dictation/real.rs:19:#[cfg(target_os = "macos")]
+src-tauri/src/dictation/real.rs:25:#[cfg(target_os = "macos")]
+src-tauri/src/dictation/real.rs:28:/// Checks microphone authorization status on macOS.
+src-tauri/src/dictation/real.rs:29:#[cfg(target_os = "macos")]
+src-tauri/src/dictation/real.rs:36:/// Requests microphone permission on macOS.
+src-tauri/src/dictation/real.rs:39:#[cfg(target_os = "macos")]
+src-tauri/src/dictation/real.rs:46:            // Some macOS versions report Denied before the first prompt; try once per process.
+src-tauri/src/dictation/real.rs:59:#[cfg(target_os = "macos")]
+src-tauri/src/dictation/real.rs:87:#[cfg(target_os = "macos")]
+src-tauri/src/dictation/real.rs:107:#[cfg(not(target_os = "macos"))]
+src-tauri/src/dictation/real.rs:109:    // On non-macOS platforms, assume permission is granted
+src-tauri/src/types.rs:795:    let value = if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:804:    let value = if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:813:    let value = if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:822:    let value = if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:835:    let value = if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:844:    let value = if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:853:    let value = if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:862:    let value = if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:871:    let value = if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:880:    let value = if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:889:    let value = if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:898:    let value = if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:907:    let value = if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:916:    let value = if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:925:    let value = if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:934:    let value = if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:1052:    if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:1290:        let expected_primary = if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:1316:        let expected_interrupt = if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:1327:            Some(if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:1343:            Some(if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:1351:            Some(if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:1359:            Some(if cfg!(target_os = "macos") {
+src-tauri/src/types.rs:1367:            Some(if cfg!(target_os = "macos") {
+src-tauri/src/notifications.rs:1:#[cfg(all(target_os = "macos", debug_assertions))]
+src-tauri/src/notifications.rs:5:pub(crate) async fn is_macos_debug_build() -> bool {
+src-tauri/src/notifications.rs:6:    cfg!(all(target_os = "macos", debug_assertions))
+src-tauri/src/notifications.rs:9:/// macOS dev-mode fallback for system notifications.
+src-tauri/src/notifications.rs:12:/// bare binary instead of a bundled `.app`. macOS notifications can silently
+src-tauri/src/notifications.rs:20:    #[cfg(all(target_os = "macos", debug_assertions))]
+src-tauri/src/notifications.rs:42:    #[cfg(not(all(target_os = "macos", debug_assertions)))]
+src-tauri/src/notifications.rs:45:        Err("Notification fallback is only available on macOS debug builds.".to_string())
+src-tauri/src/menu.rs:137:            #[cfg(not(target_os = "macos"))]

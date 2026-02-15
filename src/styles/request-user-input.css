@@ -8,7 +8,7 @@
   background: var(--surface-card-strong);
   border: 1px solid var(--border-stronger);
   border-radius: 16px;
-  padding: 10px 12px;
+  padding: 12px 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -22,18 +22,18 @@
 }
 
 .request-user-input-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-strong);
 }
 
 .request-user-input-workspace {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-faint);
 }
 
 .request-user-input-queue {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-subtle);
 }
 
@@ -55,7 +55,7 @@
 }
 
 .request-user-input-question-text {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text);
 }
 
@@ -71,23 +71,23 @@
   background: var(--surface-card-muted);
   text-align: left;
   display: grid;
-  gap: 2px;
+  gap: 4px;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .request-user-input-option.is-selected {
-  border-color: rgba(77, 163, 255, 0.7);
-  background: rgba(77, 163, 255, 0.12);
+  border-color: color-mix(in srgb, var(--text-accent) 70%, transparent);
+  background: color-mix(in srgb, var(--text-accent) 12%, transparent);
 }
 
 .request-user-input-option-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-strong);
 }
 
 .request-user-input-option-description {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-subtle);
 }
 
@@ -97,13 +97,13 @@
   background: var(--surface-card-muted);
   color: var(--text-strong);
   padding: 6px 8px;
-  font-size: 12px;
-  line-height: 1.35;
+  font-size: 14px;
+  line-height: 1.5;
   resize: vertical;
 }
 
 .request-user-input-notes:focus {
-  outline: 2px solid rgba(77, 163, 255, 0.35);
+  outline: 2px solid color-mix(in srgb, var(--text-accent) 35%, transparent);
   outline-offset: 1px;
 }
 
@@ -114,18 +114,26 @@
 }
 
 .request-user-input-empty {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-muted);
 }
 
 .plan-ready-followup-change {
-  background: #0b0f1a;
-  color: #ffffff;
+  background: var(--surface-context-core);
+  color: var(--text-strong);
   border: 1px solid var(--border-strong);
 }
 
 @media (max-width: 960px) {
   .request-user-input-card {
     width: min(100%, 520px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class^="request-user-input"],
+  [class*=" request-user-input"] {
+    animation: none;
+    transition: none;
   }
 }

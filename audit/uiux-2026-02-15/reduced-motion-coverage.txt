@@ -1,0 +1,1 @@
+src/styles/prompts.css:283:@media (prefers-reduced-motion: reduce) {

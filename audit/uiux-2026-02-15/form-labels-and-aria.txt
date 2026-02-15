@@ -1,0 +1,215 @@
+src/features/debug/components/DebugPanel.tsx:100:          aria-label="调整调试面板大小"
+src/features/git/components/GitDiffViewer.tsx:138:            aria-label="丢弃该文件更改"
+src/features/git/components/GitDiffViewer.tsx:213:    <section className="diff-viewer-pr" aria-label="拉取请求摘要">
+src/features/git/components/GitDiffViewer.tsx:227:              aria-label="跳转到首个文件"
+src/features/git/components/GitDiffViewer.tsx:635:                  aria-label="丢弃该文件更改"
+src/features/git/components/GitDiffPanel.tsx:651:        <div className="git-panel-actions" role="group" aria-label="Git 面板">
+src/features/git/components/GitDiffPanel.tsx:660:              aria-label="Git 面板视图"
+src/features/git/components/GitDiffPanel.tsx:677:              aria-label="应用工作树更改"
+src/features/git/components/GitDiffPanelModeContent.tsx:114:        aria-label={fetchLoading ? "正在获取远端" : "获取远端"}
+src/features/git/components/GitDiffPanelModeContent.tsx:297:            <label className="git-root-depth">
+src/features/git/components/GitDiffPanelModeContent.tsx:366:      <div className="diff-review-scope" role="group" aria-label="变更文件">
+src/features/git/components/GitDiffPanelModeContent.tsx:421:              aria-label="生成提交信息"
+src/features/git/components/GitDiffPanelShared.tsx:234:        aria-label="关闭错误提示"
+src/features/git/components/GitDiffPanelShared.tsx:303:        <span className="diff-counts-inline" aria-label={`+${file.additions} -${file.deletions}`}>
+src/features/git/components/GitDiffPanelShared.tsx:308:        <div className="diff-row-actions" role="group" aria-label="文件操作">
+src/features/git/components/GitDiffPanelShared.tsx:318:              aria-label="暂存文件"
+src/features/git/components/GitDiffPanelShared.tsx:332:              aria-label="取消暂存文件"
+src/features/git/components/GitDiffPanelShared.tsx:346:              aria-label="丢弃改动"
+src/features/git/components/GitDiffPanelShared.tsx:564:          <div className="diff-section-actions" role="group" aria-label={`${title} 操作`}>
+src/features/git/components/GitDiffPanelShared.tsx:581:                aria-label="暂存全部改动"
+src/features/git/components/GitDiffPanelShared.tsx:598:                aria-label="取消暂存全部改动"
+src/features/git/components/GitDiffPanelShared.tsx:611:                aria-label="丢弃全部改动"
+src/features/git/components/ImageDiffCard.tsx:108:            aria-label="丢弃该文件更改"
+src/features/notifications/components/ErrorToasts.tsx:30:              aria-label="关闭错误"
+src/features/design-system/components/modal/ModalShell.tsx:28:      aria-label={ariaLabel}
+src/features/mcp/components/McpStatusPanel.tsx:74:          aria-label="刷新"
+src/features/mcp/components/McpStatusPanel.tsx:93:                  aria-label={server.status}
+src/features/home/components/Home.tsx:206:        <div className="home-hero-shortcuts" aria-label="快捷入口">
+src/features/home/components/Home.tsx:295:          <div className="home-latest-grid home-latest-grid-loading" aria-label="正在加载对话">
+src/features/home/components/Home.tsx:352:              aria-label="刷新用量"
+src/features/home/components/Home.tsx:389:            <div className="home-usage-toggle" role="group" aria-label="用量视图">
+src/features/prompts/components/PromptPanel.tsx:344:              aria-label={`Arguments for ${prompt.name}`}
+src/features/prompts/components/PromptPanel.tsx:379:            aria-label="提示词操作"
+src/features/prompts/components/PromptPanel.tsx:422:        aria-label="筛选提示词"
+src/features/prompts/components/PromptPanel.tsx:429:              <label className="prompt-editor-label">
+src/features/prompts/components/PromptPanel.tsx:439:              <label className="prompt-editor-label">
+src/features/prompts/components/PromptPanel.tsx:457:              <label className="prompt-editor-label">
+src/features/prompts/components/PromptPanel.tsx:467:              <label className="prompt-editor-label">
+src/features/prompts/components/PromptPanel.tsx:478:            <label className="prompt-editor-label">
+src/features/prompts/components/PromptPanel.tsx:516:              aria-label="添加工作区提示词"
+src/features/prompts/components/PromptPanel.tsx:559:              aria-label="添加通用提示词"
+src/features/files/components/FileTreePanel.tsx:640:            aria-label={`提及 ${node.name}`}
+src/features/files/components/FileTreePanel.tsx:673:              aria-label={allVisibleExpanded ? "折叠全部文件夹" : "展开全部文件夹"}
+src/features/files/components/FileTreePanel.tsx:687:        aria-label="筛选文件和文件夹"
+src/features/files/components/FileTreePanel.tsx:697:            aria-label={
+src/features/messages/components/MessageRows.tsx:102:          aria-label={`Open image ${index + 1}`}
+src/features/messages/components/MessageRows.tsx:161:          aria-label="关闭图片预览"
+src/features/messages/components/MessageRows.tsx:349:          <span className="working-phase-badge" aria-label={`阶段：${phase}`}>
+src/features/messages/components/MessageRows.tsx:503:          aria-label="复制消息"
+src/features/messages/components/MessageRows.tsx:538:          aria-label="切换推理详情"
+src/features/messages/components/MessageRows.tsx:673:          aria-label="切换工具详情"
+src/features/terminal/components/TerminalDock.tsx:36:          aria-label="调整终端面板大小"
+src/features/terminal/components/TerminalDock.tsx:41:        <div className="terminal-tabs" role="tablist" aria-label="终端标签">
+src/features/terminal/components/TerminalDock.tsx:57:                aria-label={`Close ${tab.title}`}
+src/features/terminal/components/TerminalDock.tsx:71:            aria-label="新建终端"
+src/features/files/components/FilePreviewPopover.tsx:95:          aria-label="关闭预览"
+src/features/files/components/FilePreviewPopover.tsx:135:                <div className="file-preview-hints" aria-label="选择提示">
+src/features/app/components/LaunchScriptEntryButton.tsx:65:          aria-label={entry.label?.trim() || iconLabel}
+src/features/app/components/LaunchScriptButton.tsx:82:          aria-label={hasLaunchScript ? "运行启动脚本" : "设置启动脚本"}
+src/features/settings/components/SettingsView.tsx:1337:          aria-label="关闭设置"
+src/features/settings/components/SettingsView.tsx:1360:                  aria-label="返回设置分区"
+src/features/workspaces/components/ClonePrompt.tsx:58:      <label className="ds-modal-label clone-modal-label" htmlFor="clone-copy-name">
+src/features/workspaces/components/ClonePrompt.tsx:80:      <label className="ds-modal-label clone-modal-label" htmlFor="clone-copies-folder">
+src/features/workspaces/components/ClonePrompt.tsx:139:              aria-label="建议的副本文件夹"
+src/features/messages/components/Messages.test.tsx:1098:            aria-label="Draft"
+src/features/app/components/TabletNav.tsx:21:    <nav className="tablet-nav" aria-label="工作区导航">
+src/features/app/components/PlanReadyFollowupMessage.tsx:20:        aria-label="方案就绪"
+src/features/mobile/components/MobileServerSetupWizard.tsx:52:        <label className="mobile-setup-wizard-label" htmlFor="mobile-setup-provider">
+src/features/mobile/components/MobileServerSetupWizard.tsx:70:            <label className="mobile-setup-wizard-label" htmlFor="mobile-setup-host">
+src/features/mobile/components/MobileServerSetupWizard.tsx:86:            <label className="mobile-setup-wizard-label" htmlFor="mobile-setup-orbit-url">
+src/features/mobile/components/MobileServerSetupWizard.tsx:100:        <label className="mobile-setup-wizard-label" htmlFor="mobile-setup-token">
+src/features/composer/hooks/useComposerShortcuts.test.tsx:32:  return <textarea ref={textareaRef} aria-label="prompt" />;
+src/features/messages/components/Markdown.tsx:583:              aria-label={`${fileName} 预览`}
+src/features/messages/components/Markdown.tsx:595:                  aria-label="打开完整文件"
+src/features/messages/components/Markdown.tsx:678:          aria-label="复制代码块"
+src/features/layout/hooks/layoutNodes/buildPrimaryNodes.tsx:311:          aria-label="返回聊天"
+src/features/shared/components/FileEditorCard.tsx:61:            aria-label={`Refresh ${title}`}
+src/features/shared/components/FileEditorCard.tsx:71:            aria-label={saveLabel === "创建" ? `创建 ${title}` : `保存 ${title}`}
+src/features/workspaces/components/WorkspaceHomeRunControls.tsx:97:              aria-label="选择运行模式"
+src/features/workspaces/components/WorkspaceHomeRunControls.tsx:114:              aria-label="切换运行模式菜单"
+src/features/workspaces/components/WorkspaceHomeRunControls.tsx:160:            aria-label="选择模型"
+src/features/workspaces/components/WorkspaceHomeRunControls.tsx:176:            aria-label="切换模型菜单"
+src/features/workspaces/components/WorkspaceHomeRunControls.tsx:264:              aria-label="协作模式"
+src/features/workspaces/components/WorkspaceHomeRunControls.tsx:310:            aria-label="思考模式"
+src/features/threads/components/RenameThreadPrompt.tsx:34:      <label className="ds-modal-label worktree-modal-label" htmlFor="thread-rename">
+src/features/app/components/LaunchScriptIconPicker.tsx:24:            aria-label={option.label}
+src/features/settings/components/sections/SettingsCodexSection.tsx:123:        <label className="settings-field-label" htmlFor="codex-path">
+src/features/settings/components/sections/SettingsCodexSection.tsx:152:        <label className="settings-field-label" htmlFor="codex-args">
+src/features/settings/components/sections/SettingsCodexSection.tsx:277:        <label className="settings-field-label" htmlFor="review-delivery">
+src/features/settings/components/sections/SettingsCodexSection.tsx:390:                    aria-label={`${workspace.name} 的 Codex 可执行文件覆盖`}
+src/features/settings/components/sections/SettingsCodexSection.tsx:427:                    aria-label={`${workspace.name} 的 CODEX_HOME 覆盖`}
+src/features/settings/components/sections/SettingsCodexSection.tsx:466:                    aria-label={`${workspace.name} 的 Codex 参数覆盖`}
+src/features/app/components/Sidebar.tsx:1437:            aria-label="搜索项目"
+src/features/app/components/Sidebar.tsx:1447:            aria-label="清除搜索"
+src/features/app/components/WorktreeCard.tsx:74:                aria-label={worktreeCollapsed ? "显示对话" : "隐藏对话"}
+src/features/app/components/MainHeaderActions.tsx:27:        <div className="diff-view-toggle" role="group" aria-label="差异视图">
+src/features/settings/components/sections/SettingsFeaturesSection.tsx:100:          aria-label="回复风格"
+src/features/settings/components/sections/SettingsFeaturesSection.tsx:194:          aria-label="自动归档分钟数"
+src/features/app/components/OpenAppMenu.tsx:200:          aria-label={`在 ${selectedOpenTarget.label} 中打开`}
+src/features/app/components/OpenAppMenu.tsx:220:          aria-label="选择编辑器"
+src/features/app/components/ThreadLoading.tsx:9:      aria-label="加载对话中"
+src/features/workspaces/components/WorktreePrompt.tsx:119:      <label className="ds-modal-label worktree-modal-label" htmlFor="worktree-name">
+src/features/workspaces/components/WorktreePrompt.tsx:142:      <label className="ds-modal-label worktree-modal-label" htmlFor="worktree-branch">
+src/features/workspaces/components/WorktreePrompt.tsx:239:        <label className="worktree-modal-checkbox-label" htmlFor="worktree-copy-agents">
+src/features/layout/components/PanelTabs.tsx:73:    <div className="panel-tabs" role="tablist" aria-label="面板" aria-orientation="horizontal">
+src/features/layout/components/PanelTabs.tsx:89:            aria-label={tab.label}
+src/features/app/components/PinnedThreadList.tsx:134:              <span className="thread-pin-icon" aria-label="已置顶">
+src/features/settings/components/sections/SettingsServerSection.tsx:147:          <label className="settings-field-label" htmlFor="backend-mode">
+src/features/settings/components/sections/SettingsServerSection.tsx:172:          <label className="settings-field-label" htmlFor="remote-provider">
+src/features/settings/components/sections/SettingsServerSection.tsx:184:            aria-label={isMobileSimplified ? "连接类型" : "远程提供方"}
+src/features/settings/components/sections/SettingsServerSection.tsx:239:                  aria-label="远程后端 host"
+src/features/settings/components/sections/SettingsServerSection.tsx:256:                  aria-label="远程后端 token"
+src/features/settings/components/sections/SettingsServerSection.tsx:419:              <label className="settings-field-label" htmlFor="orbit-ws-url">
+src/features/settings/components/sections/SettingsServerSection.tsx:437:                aria-label="Orbit WebSocket 地址"
+src/features/settings/components/sections/SettingsServerSection.tsx:444:                  <label className="settings-field-label" htmlFor="orbit-token-mobile">
+src/features/settings/components/sections/SettingsServerSection.tsx:463:                    aria-label="远程后端 token"
+src/features/settings/components/sections/SettingsServerSection.tsx:498:                  <label className="settings-field-label" htmlFor="orbit-auth-url">
+src/features/settings/components/sections/SettingsServerSection.tsx:516:                    aria-label="Orbit 认证 URL"
+src/features/settings/components/sections/SettingsServerSection.tsx:521:                  <label className="settings-field-label" htmlFor="orbit-runner-name">
+src/features/settings/components/sections/SettingsServerSection.tsx:539:                    aria-label="Orbit Runner 名称"
+src/features/settings/components/sections/SettingsServerSection.tsx:588:                  <label className="settings-field-label" htmlFor="orbit-access-client-id">
+src/features/settings/components/sections/SettingsServerSection.tsx:607:                    aria-label="Orbit Access 客户端 ID"
+src/features/settings/components/sections/SettingsServerSection.tsx:612:                  <label className="settings-field-label" htmlFor="orbit-access-client-secret-ref">
+src/features/settings/components/sections/SettingsServerSection.tsx:631:                    aria-label="Orbit Access 客户端密钥引用"
+src/features/app/components/TabBar.tsx:25:    <nav className="tabbar" aria-label="主导航">
+src/features/settings/components/sections/SettingsDictationSection.tsx:83:        <label className="settings-field-label" htmlFor="dictation-model">
+src/features/settings/components/sections/SettingsDictationSection.tsx:108:        <label className="settings-field-label" htmlFor="dictation-language">
+src/features/settings/components/sections/SettingsDictationSection.tsx:147:        <label className="settings-field-label" htmlFor="dictation-hold-key">
+src/features/layout/components/SidebarToggleControls.tsx:30:      aria-label="隐藏对话侧栏"
+src/features/layout/components/SidebarToggleControls.tsx:52:      aria-label="隐藏 Git 侧栏"
+src/features/layout/components/SidebarToggleControls.tsx:79:            aria-label="显示对话侧栏"
+src/features/layout/components/SidebarToggleControls.tsx:93:            aria-label="显示 Git 侧栏"
+src/features/app/components/SidebarCornerActions.tsx:59:            aria-label="账户"
+src/features/app/components/SidebarCornerActions.tsx:89:                    aria-label="取消切换账户"
+src/features/app/components/SidebarCornerActions.tsx:104:        aria-label="打开设置"
+src/features/app/components/SidebarCornerActions.tsx:114:          aria-label="打开调试日志"
+src/features/composer/components/ComposerQueue.tsx:163:              aria-label="一键迁移旧队列"
+src/features/composer/components/ComposerQueue.tsx:171:            aria-label={isQueueCollapsed ? "展开队列" : "收起队列"}
+src/features/composer/components/ComposerQueue.tsx:198:                aria-label="恢复阻塞"
+src/features/composer/components/ComposerQueue.tsx:231:                      aria-label="Steer"
+src/features/composer/components/ComposerQueue.tsx:239:                      aria-label="删除队列项"
+src/features/composer/components/ComposerQueue.tsx:248:                      aria-label="队列项菜单"
+src/features/app/components/CommandPalette.tsx:143:        aria-label="命令菜单"
+src/features/app/components/WorkspaceGroup.tsx:42:          aria-label={isToggleable ? `${isCollapsed ? "展开" : "折叠"}分组` : undefined}
+src/features/app/components/WorkspaceGroup.tsx:57:              aria-label={isCollapsed ? "展开分组" : "折叠分组"}
+src/features/settings/components/sections/SettingsProjectsSection.tsx:155:                    aria-label="上移分组"
+src/features/settings/components/sections/SettingsProjectsSection.tsx:166:                    aria-label="下移分组"
+src/features/settings/components/sections/SettingsProjectsSection.tsx:176:                    aria-label="删除分组"
+src/features/settings/components/sections/SettingsProjectsSection.tsx:229:                      aria-label="上移项目"
+src/features/settings/components/sections/SettingsProjectsSection.tsx:238:                      aria-label="下移项目"
+src/features/settings/components/sections/SettingsProjectsSection.tsx:246:                      aria-label="删除项目"
+src/features/layout/components/TabletLayout.tsx:49:        aria-label="调整项目面板大小"
+src/features/settings/components/sections/SettingsDisplaySection.tsx:69:        <label className="settings-field-label" htmlFor="theme-select">
+src/features/settings/components/sections/SettingsDisplaySection.tsx:111:        <label className="settings-field-label" htmlFor="thread-scroll-restore-mode">
+src/features/settings/components/sections/SettingsDisplaySection.tsx:183:            aria-label="界面缩放"
+src/features/settings/components/sections/SettingsDisplaySection.tsx:207:        <label className="settings-field-label" htmlFor="ui-font-family">
+src/features/settings/components/sections/SettingsDisplaySection.tsx:246:        <label className="settings-field-label" htmlFor="code-font-family">
+src/features/settings/components/sections/SettingsDisplaySection.tsx:283:        <label className="settings-field-label" htmlFor="code-font-size">
+src/features/composer/components/ReviewInlinePrompt.tsx:127:      <div className="review-inline-list" role="listbox" aria-label="基础分支">
+src/features/composer/components/ReviewInlinePrompt.tsx:198:      <div className="review-inline-list" role="listbox" aria-label="提交记录">
+src/features/composer/components/ReviewInlinePrompt.tsx:266:      <label className="review-inline-label" htmlFor="review-inline-custom-instructions">
+src/features/composer/components/ReviewInlinePrompt.tsx:319:    <div className="review-inline" role="dialog" aria-label={title}>
+src/features/app/components/ThreadList.tsx:264:        {isPinned && <span className="thread-pin-icon" aria-label="已置顶">📌</span>}
+src/features/settings/components/sections/SettingsComposerSection.tsx:31:        <label className="settings-field-label" htmlFor="composer-preset">
+src/features/app/components/MainHeader.tsx:321:                          aria-label="确认重命名"
+src/features/app/components/MainHeader.tsx:374:                        aria-label="复制命令"
+src/features/app/components/MainHeader.tsx:471:                        aria-label="搜索分支"
+src/features/app/components/MainHeader.tsx:541:        <div className="status-rail" aria-label="状态栏">
+src/features/app/components/MainHeader.tsx:620:            aria-label="切换终端面板"
+src/features/app/components/MainHeader.tsx:632:            aria-label="复制对话"
+src/features/app/components/MainHeader.tsx:645:            aria-label="复制选项"
+src/features/app/components/WorkspaceCard.tsx:135:                  aria-label="工作区自定义名称"
+src/features/app/components/WorkspaceCard.tsx:158:                aria-label={isCollapsed ? "显示对话" : "隐藏对话"}
+src/features/app/components/WorkspaceCard.tsx:186:              aria-label="添加对话选项"
+src/features/layout/components/DesktopLayout.tsx:93:        aria-label="调整侧栏大小"
+src/features/layout/components/DesktopLayout.tsx:127:              aria-label="调整右侧面板大小"
+src/features/layout/components/DesktopLayout.tsx:136:                aria-label="调整方案面板大小"
+src/features/app/components/RequestUserInputMessage.tsx:119:        aria-label="需要用户输入"
+src/features/composer/components/ComposerAttachments.tsx:77:              aria-label={`Remove ${title}`}
+src/features/settings/components/sections/SettingsEnvironmentsSection.tsx:41:            <label className="settings-field-label" htmlFor="settings-environment-project">
+src/features/app/components/SidebarHeader.tsx:63:            aria-label="添加工作区"
+src/features/app/components/SidebarHeader.tsx:72:            aria-label="打开首页"
+src/features/app/components/SidebarHeader.tsx:84:            aria-label="排序对话"
+src/features/app/components/SidebarHeader.tsx:123:          aria-label="刷新全部工作区对话"
+src/features/app/components/SidebarHeader.tsx:138:          aria-label="切换搜索"
+src/features/composer/components/ComposerInput.tsx:440:            aria-label="添加图片"
+src/features/composer/components/ComposerInput.tsx:456:              aria-label="更多操作"
+src/features/composer/components/ComposerInput.tsx:683:          aria-label={isExpanded ? "收起输入框" : "展开输入框"}
+src/features/composer/components/ComposerInput.tsx:701:        aria-label={micAriaLabel}
+src/features/composer/components/ComposerInput.tsx:712:        aria-label={isStopAction ? "停止" : sendLabel}
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:80:                <label className="settings-open-app-field settings-open-app-field--label">
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:92:                    aria-label={`打开方式标签 ${index + 1}`}
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:96:                <label className="settings-open-app-field settings-open-app-field--type">
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:104:                    aria-label={`打开方式类型 ${index + 1}`}
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:112:                  <label className="settings-open-app-field settings-open-app-field--appname">
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:124:                      aria-label={`应用名 ${index + 1}`}
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:130:                  <label className="settings-open-app-field settings-open-app-field--command">
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:142:                      aria-label={`命令 ${index + 1}`}
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:148:                  <label className="settings-open-app-field settings-open-app-field--args">
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:160:                      aria-label={`参数 ${index + 1}`}
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:170:                    aria-label={incompleteHint}
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:175:                <label className="settings-open-app-default">
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:191:                    aria-label="上移"
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:200:                    aria-label="下移"
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:210:                  aria-label="移除应用"
+src/features/composer/components/ComposerMetaBar.tsx:98:              <label className="composer-plan-toggle" aria-label="方案模式">
+src/features/composer/components/ComposerMetaBar.tsx:143:                aria-label="协作模式"
+src/features/composer/components/ComposerMetaBar.tsx:192:            aria-label="模型"
+src/features/composer/components/ComposerMetaBar.tsx:211:            aria-label="思考模式"
+src/features/composer/components/ComposerMetaBar.tsx:227:        <label className="composer-font-size-label" htmlFor="composer-message-font-size">
+src/features/composer/components/ComposerMetaBar.tsx:240:            aria-label="消息字号"
+src/features/composer/components/ComposerMetaBar.tsx:247:        <label className="composer-continue-toggle" htmlFor="composer-continue-mode">
+src/features/composer/components/ComposerMetaBar.tsx:254:            aria-label="Continue 模式"
+src/features/composer/components/ComposerMetaBar.tsx:265:          aria-label="Continue 提示词"
+src/features/composer/components/ComposerMetaBar.tsx:291:              aria-label={`上下文已用 ${Math.round(usedPercent)}%`}

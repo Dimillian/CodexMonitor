@@ -12,14 +12,14 @@
   --ds-text-subtle: var(--text-subtle);
   --ds-text-faint: var(--text-faint);
 
-  --ds-modal-backdrop: rgba(6, 8, 12, 0.55);
+  --ds-modal-backdrop: color-mix(in srgb, var(--surface-context-core) 55%, transparent);
   --ds-modal-card-bg: var(--ds-surface-card);
   --ds-modal-card-border: var(--ds-border-strong);
   --ds-modal-focus-ring: color-mix(in srgb, var(--border-accent) 70%, transparent);
 
   --ds-toast-bg: var(--ds-surface-overlay);
   --ds-toast-border: var(--ds-border-subtle);
-  --ds-toast-shadow: 0 16px 32px rgba(0, 0, 0, 0.25);
+  --ds-toast-shadow: 0 16px 32px color-mix(in srgb, var(--surface-context-core) 42%, transparent);
   --ds-toast-title: var(--ds-text-subtle);
   --ds-toast-body: var(--text);
 
@@ -29,12 +29,12 @@
 
   --ds-popover-bg: var(--surface-popover);
   --ds-popover-border: var(--border-muted);
-  --ds-popover-shadow: 0 14px 34px rgba(0, 0, 0, 0.3);
+  --ds-popover-shadow: 0 14px 34px color-mix(in srgb, var(--surface-context-core) 48%, transparent);
   --ds-popover-item-text: var(--text-muted);
   --ds-popover-item-text-active: var(--text-stronger);
 
-  --ds-diff-lib-bg-light: rgba(255, 255, 255, 0.35);
-  --ds-diff-lib-bg-dark: rgba(10, 12, 16, 0.35);
-  --ds-diff-lib-bg-system-light: rgba(255, 255, 255, 0.35);
-  --ds-diff-lib-bg-system-dark: rgba(10, 12, 16, 0.35);
+  --ds-diff-lib-bg-light: color-mix(in srgb, var(--surface-card-strong) 35%, transparent);
+  --ds-diff-lib-bg-dark: color-mix(in srgb, var(--surface-context-core) 35%, transparent);
+  --ds-diff-lib-bg-system-light: color-mix(in srgb, var(--surface-card-strong) 35%, transparent);
+  --ds-diff-lib-bg-system-dark: color-mix(in srgb, var(--surface-context-core) 35%, transparent);
 }

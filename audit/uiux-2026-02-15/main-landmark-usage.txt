@@ -1,0 +1,2 @@
+src/features/layout/components/TabletLayout.tsx:52:      <main className="tablet-main" aria-label="主内容">
+src/features/layout/components/DesktopLayout.tsx:97:      <main className="main" aria-label="主内容">

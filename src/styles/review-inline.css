@@ -4,19 +4,19 @@
   padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .review-inline {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .review-inline-header {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .review-inline-title {
@@ -26,7 +26,7 @@
 }
 
 .review-inline-subtitle {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-subtle);
 }
 
@@ -41,12 +41,12 @@
   border: 1px solid var(--border-subtle);
   background: var(--surface-card-muted);
   color: var(--text-strong);
-  padding: 10px 12px;
-  font-size: 13px;
+  padding: 12px 12px;
+  font-size: 14px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
+  gap: 4px;
   text-align: left;
 }
 
@@ -61,7 +61,7 @@
 
 .review-inline-option.is-selected {
   border-color: var(--border-accent);
-  box-shadow: 0 0 0 1px rgba(77, 163, 255, 0.25);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-accent) 25%, transparent);
 }
 
 .review-inline-option-title {
@@ -69,7 +69,7 @@
 }
 
 .review-inline-option-subtitle {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-faint);
 }
 
@@ -81,7 +81,7 @@
 }
 
 .review-inline-label {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-faint);
 }
 
@@ -91,13 +91,13 @@
   border: 1px solid var(--border-subtle);
   background: var(--surface-card-muted);
   color: var(--text-strong);
-  padding: 9px 11px;
-  font-size: 13px;
+  padding: 8px 12px;
+  font-size: 14px;
 }
 
 .review-inline-input:focus,
 .review-inline-textarea:focus {
-  outline: 2px solid rgba(77, 163, 255, 0.35);
+  outline: 2px solid color-mix(in srgb, var(--text-accent) 35%, transparent);
   outline-offset: 1px;
 }
 
@@ -107,7 +107,7 @@
 }
 
 .review-inline-hint {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-subtle);
 }
 
@@ -117,7 +117,7 @@
   gap: 6px;
   max-height: 200px;
   overflow: auto;
-  padding-right: 2px;
+  padding-right: 4px;
 }
 
 .review-inline-list-item {
@@ -125,8 +125,8 @@
   border: 1px solid var(--border-subtle);
   background: var(--surface-card-muted);
   color: var(--text-strong);
-  padding: 8px 10px;
-  font-size: 13px;
+  padding: 8px 12px;
+  font-size: 14px;
   text-align: left;
 }
 
@@ -137,13 +137,13 @@
 
 .review-inline-list-item.is-selected {
   border-color: var(--border-accent);
-  box-shadow: 0 0 0 1px rgba(77, 163, 255, 0.25);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-accent) 25%, transparent);
 }
 
 .review-inline-commit {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .review-inline-commit-title {
@@ -151,22 +151,22 @@
 }
 
 .review-inline-commit-meta {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-faint);
 }
 
 .review-inline-empty {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-subtle);
-  padding: 4px 2px;
+  padding: 4px 4px;
 }
 
 .review-inline-error {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--accent-danger);
-  background: rgba(255, 100, 100, 0.08);
-  border: 1px solid rgba(255, 100, 100, 0.2);
-  padding: 7px 9px;
+  background: color-mix(in srgb, var(--status-error) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-error) 20%, transparent);
+  padding: 8px 8px;
   border-radius: 9px;
 }
 

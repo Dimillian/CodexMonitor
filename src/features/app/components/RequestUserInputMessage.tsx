@@ -158,13 +158,13 @@ export function RequestUserInputMessage({
                           }`}
                           onClick={() => handleSelect(questionId, optionIndex)}
                         >
-                          <div className="request-user-input-option-label">
+                          <span className="request-user-input-option-label">
                             {option.label}
-                          </div>
+                          </span>
                           {option.description ? (
-                            <div className="request-user-input-option-description">
+                            <span className="request-user-input-option-description">
                               {option.description}
-                            </div>
+                            </span>
                           ) : null}
                         </button>
                       ))}

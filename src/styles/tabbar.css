@@ -38,7 +38,7 @@ html[data-mobile-composer-focus="true"] .app.layout-phone .tabbar {
   color: var(--text-subtle);
   padding: 8px 6px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.01em;
   display: flex;
@@ -59,7 +59,7 @@ html[data-mobile-composer-focus="true"] .app.layout-phone .tabbar {
   color: var(--text-strong);
   background: var(--surface-control-hover);
   border-color: var(--border-accent-soft);
-  box-shadow: 0 0 0 1px rgba(100, 200, 255, 0.2);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-accent) 20%, transparent);
 }
 
 .tabbar-label {
@@ -71,4 +71,12 @@ html[data-mobile-composer-focus="true"] .app.layout-phone .tabbar {
 .tabbar-icon {
   width: 18px;
   height: 18px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class^="tabbar"],
+  [class*=" tabbar"] {
+    animation: none;
+    transition: none;
+  }
 }

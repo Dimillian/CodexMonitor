@@ -207,12 +207,12 @@ type GitDiffModeContentProps = {
   selectedPath: string | null;
   onSelectFile?: (path: string) => void;
   onFileClick: (
-    event: ReactMouseEvent<HTMLDivElement>,
+    event: ReactMouseEvent<HTMLElement>,
     path: string,
     section: "staged" | "unstaged",
   ) => void;
   onShowFileMenu: (
-    event: ReactMouseEvent<HTMLDivElement>,
+    event: ReactMouseEvent<HTMLElement>,
     path: string,
     section: "staged" | "unstaged",
   ) => void;
@@ -281,7 +281,7 @@ export function GitDiffModeContent({
         : "当前审查范围无改动。";
 
   return (
-    <div className="diff-list" onClick={onDiffListClick}>
+    <div className="diff-list" onMouseDown={onDiffListClick}>
       {showGitRootPanel && (
         <div className="git-root-panel">
           <div className="git-root-title">为当前工作区选择仓库。</div>
@@ -589,7 +589,7 @@ type GitLogModeContentProps = {
   logBehindEntries: GitLogEntry[];
   selectedCommitSha: string | null;
   onSelectCommit?: (entry: GitLogEntry) => void;
-  onShowLogMenu: (event: ReactMouseEvent<HTMLDivElement>, entry: GitLogEntry) => void;
+  onShowLogMenu: (event: ReactMouseEvent<HTMLElement>, entry: GitLogEntry) => void;
 };
 
 export function GitLogModeContent({
@@ -723,7 +723,7 @@ type GitPullRequestsModeContentProps = {
   selectedPullRequest: number | null;
   onSelectPullRequest?: (pullRequest: GitHubPullRequest) => void;
   onShowPullRequestMenu: (
-    event: ReactMouseEvent<HTMLDivElement>,
+    event: ReactMouseEvent<HTMLElement>,
     pullRequest: GitHubPullRequest,
   ) => void;
 };
@@ -747,21 +747,14 @@ export function GitPullRequestsModeContent({
         const isSelected = selectedPullRequest === pullRequest.number;
 
         return (
-          <div
+          <button
+            type="button"
             key={pullRequest.number}
             className={`git-pr-entry ${isSelected ? "active" : ""}`}
             onClick={() => onSelectPullRequest?.(pullRequest)}
             onContextMenu={(event) => onShowPullRequestMenu(event, pullRequest)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onSelectPullRequest?.(pullRequest);
-              }
-            }}
           >
-            <div className="git-pr-header">
+            <span className="git-pr-header">
               <span className="git-pr-title">
                 <span className="git-pr-number">#{pullRequest.number}</span>
                 <span className="git-pr-title-text">
@@ -769,11 +762,11 @@ export function GitPullRequestsModeContent({
                 </span>
               </span>
               <span className="git-pr-time">{relativeTime}</span>
-            </div>
-            <div className="git-pr-meta">
+            </span>
+            <span className="git-pr-meta">
               {pullRequest.isDraft && <span className="git-pr-pill git-pr-draft">草稿</span>}
-            </div>
-          </div>
+            </span>
+          </button>
         );
       })}
     </div>

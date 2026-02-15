@@ -303,7 +303,7 @@ export function GitDiffPanel({
   const githubBaseUrl = useMemo(() => getGitHubBaseUrl(gitRemoteUrl), [gitRemoteUrl]);
 
   const showLogMenu = useCallback(
-    async (event: ReactMouseEvent<HTMLDivElement>, entry: GitLogEntry) => {
+    async (event: ReactMouseEvent<HTMLElement>, entry: GitLogEntry) => {
       event.preventDefault();
       event.stopPropagation();
 
@@ -334,7 +334,7 @@ export function GitDiffPanel({
   );
 
   const showPullRequestMenu = useCallback(
-    async (event: ReactMouseEvent<HTMLDivElement>, pullRequest: GitHubPullRequest) => {
+    async (event: ReactMouseEvent<HTMLElement>, pullRequest: GitHubPullRequest) => {
       event.preventDefault();
       event.stopPropagation();
 
@@ -390,7 +390,7 @@ export function GitDiffPanel({
 
   const showFileMenu = useCallback(
     async (
-      event: ReactMouseEvent<HTMLDivElement>,
+      event: ReactMouseEvent<HTMLElement>,
       path: string,
       _section: "staged" | "unstaged",
     ) => {

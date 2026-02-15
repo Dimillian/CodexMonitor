@@ -38,8 +38,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 20px;
-  font-size: 12px;
+  padding: 6px 24px;
+  font-size: 14px;
   gap: 12px;
 }
 
@@ -114,12 +114,12 @@
   padding: 8px 16px 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   min-height: 0;
 }
 
 .debug-empty {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-faint);
 }
 
@@ -131,8 +131,8 @@
 
 .debug-meta {
   display: flex;
-  gap: 10px;
-  font-size: 11px;
+  gap: 12px;
+  font-size: 14px;
   color: var(--text-muted);
   align-items: center;
 }
@@ -140,8 +140,8 @@
 .debug-source {
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-size: 10px;
-  padding: 2px 6px;
+  font-size: 14px;
+  padding: 4px 6px;
   border-radius: 999px;
   background: var(--surface-control);
 }
@@ -172,19 +172,19 @@
 }
 
 .debug-source.error {
-  background: rgba(255, 107, 107, 0.2);
-  color: #ff9b9b;
+  background: color-mix(in srgb, var(--status-error) 20%, transparent);
+  color: var(--status-error);
 }
 
 .debug-source.stderr {
-  background: rgba(255, 196, 96, 0.2);
-  color: #ffcf80;
+  background: color-mix(in srgb, var(--status-warning) 20%, transparent);
+  color: var(--status-warning);
 }
 
 .debug-payload {
   margin: 0;
-  font-size: 11px;
-  line-height: 1.4;
+  font-size: 14px;
+  line-height: 1.5;
   color: var(--text-stronger);
   white-space: pre-wrap;
   word-break: break-word;

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type MouseEvent, type ClipboardEvent } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type MouseEvent, type ClipboardEvent } from "react";
 import { createPortal } from "react-dom";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -457,6 +457,7 @@ function FileReferenceLink({
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewState, setPreviewState] = useState<FileLinkPreviewState | null>(null);
   const closeTimerRef = useRef<number | null>(null);
+  const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const previewPath = resolveWorkspacePreviewPath(rawPath, workspacePath);
 
   const clearCloseTimer = () => {
@@ -556,6 +557,20 @@ function FileReferenceLink({
     };
   }, [isPreviewOpen, previewPath, rawPath, workspaceId]);
 
+  useLayoutEffect(() => {
+    if (!previewAnchor || !previewContainerRef.current) {
+      return;
+    }
+    previewContainerRef.current.style.setProperty(
+      "--message-file-preview-top",
+      `${previewAnchor.top}px`,
+    );
+    previewContainerRef.current.style.setProperty(
+      "--message-file-preview-left",
+      `${previewAnchor.left}px`,
+    );
+  }, [previewAnchor]);
+
   return (
     <>
       <a
@@ -576,7 +591,7 @@ function FileReferenceLink({
         ? createPortal(
             <div
               className="message-file-link-preview"
-              style={{ top: previewAnchor.top, left: previewAnchor.left }}
+              ref={previewContainerRef}
               onMouseEnter={clearCloseTimer}
               onMouseLeave={scheduleClose}
               role="dialog"

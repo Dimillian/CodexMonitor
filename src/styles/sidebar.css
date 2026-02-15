@@ -1,5 +1,5 @@
 .sidebar {
-  --sidebar-padding: 20px;
+  --sidebar-padding: 24px;
   padding: 36px var(--sidebar-padding) 56px;
   background: var(--surface-sidebar);
   backdrop-filter: none;
@@ -36,7 +36,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(10, 12, 16, 0.4);
+  background: color-mix(in srgb, var(--surface-context-core) 40%, transparent);
   backdrop-filter: blur(10px);
   opacity: 0;
   pointer-events: none;
@@ -54,7 +54,7 @@
   color: var(--text-strong);
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .workspace-drop-overlay-icon {
@@ -67,9 +67,9 @@
   color: transparent;
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.25),
-    rgba(255, 255, 255, 0.85),
-    rgba(255, 255, 255, 0.25)
+    color-mix(in srgb, var(--text-strong) 25%, transparent),
+    color-mix(in srgb, var(--text-strong) 85%, transparent),
+    color-mix(in srgb, var(--text-strong) 25%, transparent)
   );
   background-size: 200% 100%;
   background-clip: text;
@@ -205,7 +205,7 @@
   justify-content: flex-start;
   gap: 8px;
   padding: 6px 8px;
-  font-size: 12px;
+  font-size: 14px;
   text-align: left;
 }
 
@@ -298,7 +298,7 @@
   position: sticky;
   top: 0;
   z-index: 4;
-  padding: 6px 4px 10px;
+  padding: 6px 4px 12px;
 }
 
 .sidebar.search-open .sidebar-header {
@@ -321,12 +321,12 @@
 
 .sidebar-search-input {
   width: 100%;
-  padding: 8px 28px 8px 12px;
+  padding: 8px 24px 8px 12px;
   border-radius: 10px;
   border: 1px solid var(--border-quiet);
   color: var(--text-strong);
-  font-size: 13px;
-  outline: none;
+  font-size: 14px;
+  outline: 2px solid transparent;
 }
 
 .sidebar-search-input::placeholder {
@@ -371,8 +371,8 @@
 .sidebar-search-clear,
 .sidebar-search-clear:hover,
 .sidebar-search-clear:active {
-  transform: translateY(-50%) !important;
-  box-shadow: none !important;
+  transform: translateY(-50%);
+  box-shadow: none;
 }
 
 .sidebar-search-clear:focus-visible {
@@ -391,7 +391,7 @@
 
 .sidebar-header .subtitle {
   margin-top: 0;
-  line-height: 1.1;
+  line-height: 1.5;
 }
 
 .subtitle-button {
@@ -428,15 +428,15 @@
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0,
-    #000 16px,
-    #000 calc(100% - 16px),
+    black 16px,
+    black calc(100% - 16px),
     transparent 100%
   );
   mask-image: linear-gradient(
     to bottom,
     transparent 0,
-    #000 16px,
-    #000 calc(100% - 16px),
+    black 16px,
+    black calc(100% - 16px),
     transparent 100%
   );
 }
@@ -445,28 +445,28 @@
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0,
-    #000 16px,
-    #000 100%
+    black 16px,
+    black 100%
   );
   mask-image: linear-gradient(
     to bottom,
     transparent 0,
-    #000 16px,
-    #000 100%
+    black 16px,
+    black 100%
   );
 }
 
 .sidebar-body.fade-bottom:not(.fade-top) {
   -webkit-mask-image: linear-gradient(
     to bottom,
-    #000 0,
-    #000 calc(100% - 16px),
+    black 0,
+    black calc(100% - 16px),
     transparent 100%
   );
   mask-image: linear-gradient(
     to bottom,
-    #000 0,
-    #000 calc(100% - 16px),
+    black 0,
+    black calc(100% - 16px),
     transparent 100%
   );
 }
@@ -474,7 +474,7 @@
 .workspace-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   -webkit-app-region: no-drag;
 }
 
@@ -508,7 +508,7 @@
 
 .workspace-group-label {
   text-transform: uppercase;
-  font-size: 10px;
+  font-size: 14px;
   letter-spacing: 0.08em;
   color: var(--text-faint);
   padding-left: 4px;
@@ -530,7 +530,7 @@
 .workspace-group-content {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   overflow: hidden;
   min-height: 0;
 }
@@ -549,9 +549,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1;
-  padding: 0 2px;
+  padding: 0 4px;
   -webkit-app-region: no-drag;
   opacity: 0;
   pointer-events: none;
@@ -626,6 +626,32 @@
   overflow-x: hidden;
   position: relative;
   isolation: isolate;
+}
+
+.workspace-row-main {
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.workspace-row-main--editing {
+  cursor: default;
+}
+
+.workspace-row-main:focus-visible {
+  outline: 2px solid var(--border-accent-soft);
+  outline-offset: 1px;
+}
+
+.workspace-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .workspace-row::before {
@@ -721,13 +747,13 @@
   border-radius: 6px;
   background: var(--surface-card-strong);
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
-  padding: 2px 6px;
+  padding: 4px 6px;
 }
 
 .workspace-alias-input:focus {
-  outline: none;
+  outline: 2px solid transparent;
   box-shadow: 0 0 0 2px var(--border-accent-soft);
 }
 
@@ -735,19 +761,27 @@
   color: var(--text-strong);
   background: var(--border-accent-soft);
   border-radius: 4px;
-  padding: 0 2px;
+  padding: 0 4px;
 }
 
 
 .connect {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-muted);
   align-self: center;
   flex-shrink: 0;
-  padding: 2px 8px;
+  padding: 4px 8px;
   border-radius: 999px;
   border: 1px solid var(--border-quiet);
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
   -webkit-app-region: no-drag;
+}
+
+.connect:focus-visible {
+  outline: 2px solid var(--border-accent-soft);
+  outline-offset: 1px;
 }
 
 .workspace-add {
@@ -812,9 +846,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1;
-  padding: 0 2px;
+  padding: 0 4px;
   -webkit-app-region: no-drag;
   opacity: 0;
   pointer-events: none;
@@ -842,6 +876,9 @@
 
 .workspace-add-menu {
   position: fixed;
+  top: var(--workspace-add-menu-top, 0px);
+  left: var(--workspace-add-menu-left, 0px);
+  width: var(--workspace-add-menu-width, 160px);
   isolation: isolate;
   border-radius: 10px;
   padding: 6px;
@@ -856,7 +893,7 @@
   border: none;
   background: transparent;
   color: var(--text-strong);
-  font-size: 12px;
+  font-size: 14px;
   text-align: left;
   padding: 6px 8px;
   border-radius: 6px;
@@ -922,15 +959,66 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px 4px calc(6px + var(--thread-indent, 0px));
+  width: 100%;
+  padding: 4px 12px 4px calc(6px + var(--thread-indent, 0px));
   border-radius: 6px;
+  border: none;
+  background: transparent;
   color: var(--text-quiet);
-  font-size: 13px;
+  font-size: 14px;
+  font-family: inherit;
   text-align: left;
   cursor: pointer;
   -webkit-app-region: no-drag;
   min-width: 0;
   position: relative;
+}
+
+.thread-row-indent-10-1 { --thread-indent: 10px; }
+.thread-row-indent-10-2 { --thread-indent: 20px; }
+.thread-row-indent-10-3 { --thread-indent: 30px; }
+.thread-row-indent-10-4 { --thread-indent: 40px; }
+.thread-row-indent-10-5 { --thread-indent: 50px; }
+.thread-row-indent-10-6 { --thread-indent: 60px; }
+.thread-row-indent-10-7 { --thread-indent: 70px; }
+.thread-row-indent-10-8 { --thread-indent: 80px; }
+.thread-row-indent-10-9 { --thread-indent: 90px; }
+.thread-row-indent-10-10 { --thread-indent: 100px; }
+.thread-row-indent-10-11 { --thread-indent: 110px; }
+.thread-row-indent-10-12 { --thread-indent: 120px; }
+.thread-row-indent-10-13 { --thread-indent: 130px; }
+.thread-row-indent-10-14 { --thread-indent: 140px; }
+.thread-row-indent-10-15 { --thread-indent: 150px; }
+.thread-row-indent-10-16 { --thread-indent: 160px; }
+.thread-row-indent-10-17 { --thread-indent: 170px; }
+.thread-row-indent-10-18 { --thread-indent: 180px; }
+.thread-row-indent-10-19 { --thread-indent: 190px; }
+.thread-row-indent-10-20 { --thread-indent: 200px; }
+
+.thread-row-indent-14-1 { --thread-indent: 14px; }
+.thread-row-indent-14-2 { --thread-indent: 28px; }
+.thread-row-indent-14-3 { --thread-indent: 42px; }
+.thread-row-indent-14-4 { --thread-indent: 56px; }
+.thread-row-indent-14-5 { --thread-indent: 70px; }
+.thread-row-indent-14-6 { --thread-indent: 84px; }
+.thread-row-indent-14-7 { --thread-indent: 98px; }
+.thread-row-indent-14-8 { --thread-indent: 112px; }
+.thread-row-indent-14-9 { --thread-indent: 126px; }
+.thread-row-indent-14-10 { --thread-indent: 140px; }
+.thread-row-indent-14-11 { --thread-indent: 154px; }
+.thread-row-indent-14-12 { --thread-indent: 168px; }
+.thread-row-indent-14-13 { --thread-indent: 182px; }
+.thread-row-indent-14-14 { --thread-indent: 196px; }
+.thread-row-indent-14-15 { --thread-indent: 210px; }
+.thread-row-indent-14-16 { --thread-indent: 224px; }
+.thread-row-indent-14-17 { --thread-indent: 238px; }
+.thread-row-indent-14-18 { --thread-indent: 252px; }
+.thread-row-indent-14-19 { --thread-indent: 266px; }
+.thread-row-indent-14-20 { --thread-indent: 280px; }
+
+.thread-row:focus-visible {
+  outline: 2px solid var(--border-accent-soft);
+  outline-offset: 1px;
 }
 
 .thread-status {
@@ -956,8 +1044,8 @@
 }
 
 .thread-pin-icon {
-  font-size: 10px;
-  margin-right: 2px;
+  font-size: 14px;
+  margin-right: 4px;
   opacity: 0.7;
 }
 
@@ -1088,7 +1176,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
 }
 
@@ -1101,7 +1189,7 @@
 
 .thread-time {
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: 14px;
   white-space: nowrap;
 }
 
@@ -1113,8 +1201,8 @@
   border: none;
   background: transparent;
   color: var(--text-faint);
-  font-size: 11px;
-  padding: 2px 2px;
+  font-size: 14px;
+  padding: 4px 4px;
   cursor: pointer;
   -webkit-app-region: no-drag;
   opacity: 0;
@@ -1135,9 +1223,9 @@
   border: none;
   background: transparent;
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: 14px;
   text-align: left;
-  padding: 2px 6px 2px 16px;
+  padding: 4px 6px 4px 16px;
   cursor: pointer;
   -webkit-app-region: no-drag;
 }
@@ -1148,7 +1236,7 @@
 
 .thread-list-separator {
   height: 1px;
-  margin: 6px 16px 6px 10px;
+  margin: 6px 16px 6px 12px;
   background: linear-gradient(
     90deg,
     var(--border-subtle) 0%,
@@ -1167,7 +1255,7 @@
 
 .worktree-header {
   text-transform: uppercase;
-  font-size: 10px;
+  font-size: 14px;
   letter-spacing: 0.08em;
   color: var(--text-faint);
   padding-left: 4px;
@@ -1228,7 +1316,7 @@
 .worktree-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
+  gap: 12px;
   padding: 6px 4px;
   border-radius: 6px;
   background: var(--surface-card-muted);
@@ -1238,6 +1326,26 @@
   transition: all 0.2s ease;
   -webkit-app-region: no-drag;
   overflow-x: hidden;
+}
+
+.worktree-row-main {
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.worktree-row-main:focus-visible {
+  outline: 2px solid var(--border-accent-soft);
+  outline-offset: 1px;
+}
+
+.worktree-row-main:disabled {
+  cursor: default;
 }
 
 .worktree-row.active {
@@ -1259,7 +1367,7 @@
 }
 
 .worktree-label {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-stronger);
   white-space: nowrap;
   overflow: hidden;
@@ -1280,7 +1388,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-faint);
 }
 
@@ -1304,9 +1412,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1;
-  padding: 0 2px;
+  padding: 0 4px;
   -webkit-app-region: no-drag;
   opacity: 0;
   pointer-events: none;
@@ -1341,7 +1449,7 @@
   left: 0;
   bottom: 42px;
   min-width: 220px;
-  padding: 10px 12px;
+  padding: 12px;
   display: grid;
   gap: 8px;
   z-index: 10;
@@ -1349,7 +1457,7 @@
 
 .sidebar-account-title {
   color: var(--text-subtle);
-  font-size: 10px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -1357,7 +1465,7 @@
 .sidebar-account-value {
   color: var(--text-stronger);
   font-weight: 600;
-  font-size: 12px;
+  font-size: 14px;
   max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1373,7 +1481,7 @@
 .sidebar-account-action {
   width: 100%;
   justify-content: center;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .sidebar-account-action[aria-busy="true"]:disabled {
@@ -1391,8 +1499,8 @@
   width: 12px;
   height: 12px;
   border-radius: 999px;
-  border: 2px solid rgba(11, 15, 26, 0.22);
-  border-top-color: rgba(11, 15, 26, 0.8);
+  border: 2px solid color-mix(in srgb, var(--surface-context-core) 22%, transparent);
+  border-top-color: color-mix(in srgb, var(--surface-context-core) 80%, transparent);
   animation: sidebar-account-spin 0.8s linear infinite;
 }
 
@@ -1470,4 +1578,18 @@
 .app.sidebar-collapsed .sidebar-resizer {
   opacity: 0;
   pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class^="sidebar-"],
+  [class*=" sidebar-"],
+  [class^="workspace-"],
+  [class*=" workspace-"],
+  [class^="thread-"],
+  [class*=" thread-"],
+  [class^="worktree-"],
+  [class*=" worktree-"] {
+    animation: none;
+    transition: none;
+  }
 }

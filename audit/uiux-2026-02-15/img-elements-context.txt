@@ -1,0 +1,124 @@
+src/features/about/components/AboutView.tsx-42-      <div className="about-card">
+src/features/about/components/AboutView.tsx-43-        <div className="about-header">
+src/features/about/components/AboutView.tsx:44:          <img
+src/features/about/components/AboutView.tsx-45-            className="about-icon"
+src/features/about/components/AboutView.tsx-46-            src="/app-icon.png"
+src/features/about/components/AboutView.tsx-47-            alt="Codex Monitor 图标"
+src/features/about/components/AboutView.tsx-48-          />
+--
+src/features/git/components/ImageDiffCard.tsx-122-            <div className="image-diff-pane image-diff-pane-old">
+src/features/git/components/ImageDiffCard.tsx-123-              {oldDataUri ? (
+src/features/git/components/ImageDiffCard.tsx:124:                <img
+src/features/git/components/ImageDiffCard.tsx-125-                  src={oldDataUri}
+src/features/git/components/ImageDiffCard.tsx-126-                  alt="旧版本"
+src/features/git/components/ImageDiffCard.tsx-127-                  className="image-diff-preview"
+src/features/git/components/ImageDiffCard.tsx-128-                />
+--
+src/features/git/components/ImageDiffCard.tsx-134-            <div className="image-diff-pane image-diff-pane-new">
+src/features/git/components/ImageDiffCard.tsx-135-              {newDataUri ? (
+src/features/git/components/ImageDiffCard.tsx:136:                <img
+src/features/git/components/ImageDiffCard.tsx-137-                  src={newDataUri}
+src/features/git/components/ImageDiffCard.tsx-138-                  alt="当前版本"
+src/features/git/components/ImageDiffCard.tsx-139-                  className="image-diff-preview"
+src/features/git/components/ImageDiffCard.tsx-140-                />
+--
+src/features/git/components/ImageDiffCard.tsx-150-            <div className="image-diff-pane image-diff-pane-new">
+src/features/git/components/ImageDiffCard.tsx-151-              {newDataUri ? (
+src/features/git/components/ImageDiffCard.tsx:152:                <img
+src/features/git/components/ImageDiffCard.tsx-153-                  src={newDataUri}
+src/features/git/components/ImageDiffCard.tsx-154-                  alt="新图片"
+src/features/git/components/ImageDiffCard.tsx-155-                  className="image-diff-preview"
+src/features/git/components/ImageDiffCard.tsx-156-                />
+--
+src/features/git/components/ImageDiffCard.tsx-166-            <div className="image-diff-pane image-diff-pane-old">
+src/features/git/components/ImageDiffCard.tsx-167-              {oldDataUri ? (
+src/features/git/components/ImageDiffCard.tsx:168:                <img
+src/features/git/components/ImageDiffCard.tsx-169-                  src={oldDataUri}
+src/features/git/components/ImageDiffCard.tsx-170-                  alt="已删除图片"
+src/features/git/components/ImageDiffCard.tsx-171-                  className="image-diff-preview"
+src/features/git/components/ImageDiffCard.tsx-172-                />
+--
+src/features/workspaces/components/WorkspaceHome.tsx-87-      <div className="workspace-home-hero">
+src/features/workspaces/components/WorkspaceHome.tsx-88-        {showIcon && (
+src/features/workspaces/components/WorkspaceHome.tsx:89:          <img
+src/features/workspaces/components/WorkspaceHome.tsx-90-            className="workspace-home-icon"
+src/features/workspaces/components/WorkspaceHome.tsx-91-            src={iconSrc}
+src/features/workspaces/components/WorkspaceHome.tsx-92-            alt=""
+src/features/workspaces/components/WorkspaceHome.tsx-93-            onError={() => setShowIcon(false)}
+--
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx-69-            >
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx-70-              <div className="settings-open-app-icon-wrap" aria-hidden>
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:71:                <img
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx-72-                  className="settings-open-app-icon"
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx-73-                  src={iconSrc}
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx-74-                  alt=""
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx-75-                  width={18}
+--
+src/features/messages/components/MessageRows.tsx-102-          aria-label={`Open image ${index + 1}`}
+src/features/messages/components/MessageRows.tsx-103-        >
+src/features/messages/components/MessageRows.tsx:104:          <img src={image.src} alt={image.label} loading="lazy" />
+src/features/messages/components/MessageRows.tsx-105-        </button>
+src/features/messages/components/MessageRows.tsx-106-      ))}
+src/features/messages/components/MessageRows.tsx-107-    </div>
+src/features/messages/components/MessageRows.tsx-108-  );
+--
+src/features/messages/components/MessageRows.tsx-163-          <X size={16} aria-hidden />
+src/features/messages/components/MessageRows.tsx-164-        </button>
+src/features/messages/components/MessageRows.tsx:165:        <img src={activeImage.src} alt={activeImage.label} />
+src/features/messages/components/MessageRows.tsx-166-      </div>
+src/features/messages/components/MessageRows.tsx-167-    </div>,
+src/features/messages/components/MessageRows.tsx-168-    document.body,
+src/features/messages/components/MessageRows.tsx-169-  );
+--
+src/features/composer/components/ComposerAttachments.tsx-58-            {previewSrc && (
+src/features/composer/components/ComposerAttachments.tsx-59-              <span className="composer-attachment-preview" aria-hidden>
+src/features/composer/components/ComposerAttachments.tsx:60:                <img src={previewSrc} alt="" />
+src/features/composer/components/ComposerAttachments.tsx-61-              </span>
+src/features/composer/components/ComposerAttachments.tsx-62-            )}
+src/features/composer/components/ComposerAttachments.tsx-63-            {previewSrc ? (
+src/features/composer/components/ComposerAttachments.tsx-64-              <span className="composer-attachment-thumb" aria-hidden>
+src/features/composer/components/ComposerAttachments.tsx:65:                <img src={previewSrc} alt="" />
+src/features/composer/components/ComposerAttachments.tsx-66-              </span>
+src/features/composer/components/ComposerAttachments.tsx-67-            ) : (
+src/features/composer/components/ComposerAttachments.tsx-68-              <span className="composer-icon" aria-hidden>
+src/features/composer/components/ComposerAttachments.tsx-69-                <Image size={14} />
+--
+src/features/composer/components/ComposerInput.tsx-635-                            <span className="composer-suggestion-icon" aria-hidden>
+src/features/composer/components/ComposerInput.tsx-636-                              {fileTypeIconUrl ? (
+src/features/composer/components/ComposerInput.tsx:637:                                <img
+src/features/composer/components/ComposerInput.tsx-638-                                  className="composer-suggestion-icon-image"
+src/features/composer/components/ComposerInput.tsx-639-                                  src={fileTypeIconUrl}
+src/features/composer/components/ComposerInput.tsx-640-                                  alt=""
+src/features/composer/components/ComposerInput.tsx-641-                                  loading="lazy"
+--
+src/features/app/components/OpenAppMenu.tsx-202-        >
+src/features/app/components/OpenAppMenu.tsx-203-          <span className="open-app-label">
+src/features/app/components/OpenAppMenu.tsx:204:            <img
+src/features/app/components/OpenAppMenu.tsx-205-              className="open-app-icon"
+src/features/app/components/OpenAppMenu.tsx-206-              src={selectedOpenTarget.icon}
+src/features/app/components/OpenAppMenu.tsx-207-              alt=""
+src/features/app/components/OpenAppMenu.tsx-208-              aria-hidden
+--
+src/features/app/components/OpenAppMenu.tsx-235-              role="menuitem"
+src/features/app/components/OpenAppMenu.tsx-236-              data-tauri-drag-region="false"
+src/features/app/components/OpenAppMenu.tsx:237:              icon={<img className="open-app-icon" src={target.icon} alt="" aria-hidden />}
+src/features/app/components/OpenAppMenu.tsx-238-              active={target.id === resolvedOpenAppId}
+src/features/app/components/OpenAppMenu.tsx-239-            >
+src/features/app/components/OpenAppMenu.tsx-240-              {target.label}
+src/features/app/components/OpenAppMenu.tsx-241-            </PopoverMenuItem>
+--
+src/features/files/components/FilePreviewPopover.tsx-119-          {imageSrc ? (
+src/features/files/components/FilePreviewPopover.tsx-120-            <div className="file-preview-image">
+src/features/files/components/FilePreviewPopover.tsx:121:              <img src={imageSrc} alt={path} />
+src/features/files/components/FilePreviewPopover.tsx-122-            </div>
+src/features/files/components/FilePreviewPopover.tsx-123-          ) : (
+src/features/files/components/FilePreviewPopover.tsx-124-            <div className="file-preview-status file-preview-error">
+src/features/files/components/FilePreviewPopover.tsx-125-              图片预览不可用。
+--
+src/features/files/components/FileTreePanel.tsx-613-              <Folder size={12} />
+src/features/files/components/FileTreePanel.tsx-614-            ) : fileTypeIconUrl ? (
+src/features/files/components/FileTreePanel.tsx:615:              <img
+src/features/files/components/FileTreePanel.tsx-616-                className="file-tree-icon-image"
+src/features/files/components/FileTreePanel.tsx-617-                src={fileTypeIconUrl}
+src/features/files/components/FileTreePanel.tsx-618-                alt=""
+src/features/files/components/FileTreePanel.tsx-619-                loading="lazy"

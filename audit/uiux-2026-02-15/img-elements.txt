@@ -1,0 +1,16 @@
+src/features/about/components/AboutView.tsx:44:          <img
+src/features/app/components/OpenAppMenu.tsx:204:            <img
+src/features/app/components/OpenAppMenu.tsx:237:              icon={<img className="open-app-icon" src={target.icon} alt="" aria-hidden />}
+src/features/composer/components/ComposerAttachments.tsx:60:                <img src={previewSrc} alt="" />
+src/features/composer/components/ComposerAttachments.tsx:65:                <img src={previewSrc} alt="" />
+src/features/composer/components/ComposerInput.tsx:637:                                <img
+src/features/files/components/FilePreviewPopover.tsx:121:              <img src={imageSrc} alt={path} />
+src/features/files/components/FileTreePanel.tsx:615:              <img
+src/features/git/components/ImageDiffCard.tsx:124:                <img
+src/features/git/components/ImageDiffCard.tsx:136:                <img
+src/features/git/components/ImageDiffCard.tsx:152:                <img
+src/features/git/components/ImageDiffCard.tsx:168:                <img
+src/features/messages/components/MessageRows.tsx:104:          <img src={image.src} alt={image.label} loading="lazy" />
+src/features/messages/components/MessageRows.tsx:165:        <img src={activeImage.src} alt={activeImage.label} />
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:71:                <img
+src/features/workspaces/components/WorkspaceHome.tsx:89:          <img

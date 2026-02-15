@@ -40,7 +40,7 @@
 
 .ds-toast-error {
   font-family: var(--code-font-family);
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-muted);
   white-space: pre-wrap;
   max-height: 120px;
@@ -61,5 +61,13 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class^="ds-toast"],
+  [class*=" ds-toast"] {
+    animation: none;
+    transition: none;
   }
 }

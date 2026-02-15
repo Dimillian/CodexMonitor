@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { FileDiff, WorkerPoolContextProvider } from "@pierre/diffs/react";
@@ -151,7 +151,6 @@ const DiffCard = memo(function DiffCard({
           <FileDiff
             fileDiff={fileDiff}
             options={diffOptions}
-            style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
           />
         </div>
       ) : (
@@ -392,6 +391,7 @@ export function GitDiffViewer({
     overscan: 6,
   });
   const virtualItems = rowVirtualizer.getVirtualItems();
+  const totalVirtualHeight = rowVirtualizer.getTotalSize();
   const setRowRef = useCallback(
     (path: string) => (node: HTMLDivElement | null) => {
       const prevNode = rowNodesByPathRef.current.get(path);
@@ -486,6 +486,28 @@ export function GitDiffViewer({
   useEffect(() => {
     activePathRef.current = selectedPath;
   }, [selectedPath]);
+
+  useLayoutEffect(() => {
+    const listNode = listRef.current;
+    if (!listNode) {
+      return;
+    }
+    listNode.style.setProperty("--diff-viewer-list-height", `${totalVirtualHeight}px`);
+  }, [totalVirtualHeight]);
+
+  useLayoutEffect(() => {
+    for (const virtualRow of virtualItems) {
+      const path = diffs[virtualRow.index]?.path;
+      if (!path) {
+        continue;
+      }
+      const rowNode = rowNodesByPathRef.current.get(path);
+      if (!rowNode) {
+        continue;
+      }
+      rowNode.style.setProperty("--diff-viewer-row-offset", `${virtualRow.start}px`);
+    }
+  }, [diffs, virtualItems]);
 
   useEffect(() => {
     onActivePathChangeRef.current = onActivePathChange;
@@ -655,13 +677,7 @@ export function GitDiffViewer({
           <div className="diff-viewer-empty">未检测到改动。</div>
         )}
         {!error && diffs.length > 0 && (
-          <div
-            className="diff-viewer-list"
-            ref={listRef}
-            style={{
-              height: rowVirtualizer.getTotalSize(),
-            }}
-          >
+          <div className="diff-viewer-list" ref={listRef}>
             {virtualItems.map((virtualRow) => {
               const entry = diffs[virtualRow.index];
               return (
@@ -670,9 +686,6 @@ export function GitDiffViewer({
                   className="diff-viewer-row"
                   data-index={virtualRow.index}
                   ref={setRowRef(entry.path)}
-                  style={{
-                    transform: `translate3d(0, ${virtualRow.start}px, 0)`,
-                  }}
                 >
                   {entry.isImage ? (
                     <ImageDiffCard

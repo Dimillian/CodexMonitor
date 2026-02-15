@@ -232,6 +232,24 @@ export function ComposerInput({
   }, [highlightIndex, suggestionsOpen, suggestions.length]);
 
   useEffect(() => {
+    const list = suggestionListRef.current;
+    if (!list) {
+      return;
+    }
+    const applyValue = (name: string, value: string | number | undefined) => {
+      if (value === undefined) {
+        list.style.removeProperty(name);
+        return;
+      }
+      list.style.setProperty(name, typeof value === "number" ? `${value}px` : value);
+    };
+    applyValue("left", suggestionsStyle?.left as string | number | undefined);
+    applyValue("right", suggestionsStyle?.right as string | number | undefined);
+    applyValue("top", suggestionsStyle?.top as string | number | undefined);
+    applyValue("bottom", suggestionsStyle?.bottom as string | number | undefined);
+  }, [suggestionsStyle]);
+
+  useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) {
       return;
@@ -557,7 +575,6 @@ export function ComposerInput({
             }`}
             role="listbox"
             ref={suggestionListRef}
-            style={suggestionsStyle}
           >
             {reviewPromptOpen &&
             reviewPrompt &&
@@ -637,7 +654,11 @@ export function ComposerInput({
                                 <img
                                   className="composer-suggestion-icon-image"
                                   src={fileTypeIconUrl}
+                                  srcSet={`${fileTypeIconUrl} 1x, ${fileTypeIconUrl} 2x`}
                                   alt=""
+                                  width={14}
+                                  height={14}
+                                  sizes="14px"
                                   loading="lazy"
                                   decoding="async"
                                 />

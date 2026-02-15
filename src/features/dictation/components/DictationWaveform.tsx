@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 type DictationWaveformProps = {
   active: boolean;
@@ -25,6 +25,7 @@ export function DictationWaveform({
     () => new Array(MAX_BARS).fill(0),
   );
   const normalized = normalizeLevel(level);
+  const barRefs = useRef<Array<HTMLSpanElement | null>>([]);
 
   useEffect(() => {
     if (!active) {
@@ -45,17 +46,28 @@ export function DictationWaveform({
     [bars],
   );
 
+  useLayoutEffect(() => {
+    barHeights.forEach((height, index) => {
+      const bar = barRefs.current[index];
+      if (bar) {
+        bar.style.setProperty("--composer-waveform-height", height);
+      }
+    });
+  }, [barHeights]);
+
   return (
     <div
       className={`composer-waveform${processing ? " is-processing" : ""}`}
       aria-hidden
     >
       {processing && <span className="composer-waveform-label">Processing...</span>}
-      {barHeights.map((height, index) => (
+      {barHeights.map((_, index) => (
         <span
           key={index}
           className="composer-waveform-bar"
-          style={{ height }}
+          ref={(node) => {
+            barRefs.current[index] = node;
+          }}
         />
       ))}
     </div>

@@ -5,7 +5,7 @@ type ModalShellProps = {
   children: ReactNode;
   className?: string;
   cardClassName?: string;
-  onBackdropClick?: MouseEventHandler<HTMLDivElement>;
+  onBackdropClick?: MouseEventHandler<HTMLElement>;
   ariaLabel?: string;
   ariaLabelledBy?: string;
   ariaDescribedBy?: string;
@@ -29,7 +29,13 @@ export function ModalShell({
       aria-labelledby={ariaLabelledBy}
       aria-describedby={ariaDescribedBy}
     >
-      <div className="ds-modal-backdrop" onClick={onBackdropClick} />
+      <button
+        type="button"
+        className="ds-modal-backdrop"
+        onClick={onBackdropClick}
+        aria-label="关闭弹窗"
+        tabIndex={-1}
+      />
       <div className={joinClassNames("ds-modal-card", cardClassName)}>{children}</div>
     </div>
   );

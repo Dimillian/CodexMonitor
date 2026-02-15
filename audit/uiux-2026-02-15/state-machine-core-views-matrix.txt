@@ -1,0 +1,9 @@
+file|loading|error|empty|disabled|success
+src/features/messages/components/Messages.tsx|1|1|1|0|0
+src/features/files/components/FileTreePanel.tsx|1|1|1|1|0
+src/features/git/components/GitDiffPanel.tsx|1|1|1|1|1
+src/features/home/components/Home.tsx|1|1|1|1|1
+src/features/workspaces/components/WorkspaceHome.tsx|1|1|1|1|1
+src/features/settings/components/SettingsView.tsx|1|1|0|1|1
+src/features/skills/components/SkillsPanel.tsx|0|0|1|0|0
+src/features/mcp/components/McpStatusPanel.tsx|1|1|1|1|0

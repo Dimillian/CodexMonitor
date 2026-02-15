@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import type { CSSProperties, MouseEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { MouseEvent } from "react";
 import X from "lucide-react/dist/esm/icons/x";
 import { highlightLine, languageFromPath } from "../../../utils/syntax";
 import { OpenAppMenu } from "../../app/components/OpenAppMenu";
@@ -27,7 +27,13 @@ type FilePreviewPopoverProps = {
   canInsertText?: boolean;
   onClose: () => void;
   selectionHints?: string[];
-  style?: CSSProperties;
+  anchor?: {
+    top: number;
+    left: number;
+    width: number;
+    maxHeight: number;
+    arrowTop: number;
+  } | null;
   isLoading?: boolean;
   error?: string | null;
 };
@@ -53,10 +59,15 @@ export function FilePreviewPopover({
   canInsertText = true,
   onClose,
   selectionHints = [],
-  style,
+  anchor = null,
   isLoading = false,
   error = null,
 }: FilePreviewPopoverProps) {
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const [imageDimensions, setImageDimensions] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
   const isImagePreview = previewKind === "image";
   const lines = useMemo(
     () => (isImagePreview ? [] : content.split("\n")),
@@ -79,8 +90,53 @@ export function FilePreviewPopover({
     [lines, language, isImagePreview],
   );
 
+  useLayoutEffect(() => {
+    if (!popoverRef.current || !anchor) {
+      return;
+    }
+    popoverRef.current.style.setProperty("--file-preview-top", `${anchor.top}px`);
+    popoverRef.current.style.setProperty("--file-preview-left", `${anchor.left}px`);
+    popoverRef.current.style.setProperty("--file-preview-width", `${anchor.width}px`);
+    popoverRef.current.style.setProperty(
+      "--file-preview-max-height",
+      `${anchor.maxHeight}px`,
+    );
+    popoverRef.current.style.setProperty(
+      "--file-preview-arrow-top",
+      `${anchor.arrowTop}px`,
+    );
+  }, [anchor]);
+
+  useEffect(() => {
+    if (!imageSrc) {
+      setImageDimensions(null);
+      return;
+    }
+    let canceled = false;
+    const probe = new Image();
+    probe.decoding = "async";
+    probe.onload = () => {
+      if (canceled) {
+        return;
+      }
+      setImageDimensions({
+        width: probe.naturalWidth || 1,
+        height: probe.naturalHeight || 1,
+      });
+    };
+    probe.onerror = () => {
+      if (!canceled) {
+        setImageDimensions(null);
+      }
+    };
+    probe.src = imageSrc;
+    return () => {
+      canceled = true;
+    };
+  }, [imageSrc]);
+
   return (
-    <PopoverSurface className="file-preview-popover" style={style}>
+    <PopoverSurface className="file-preview-popover" ref={popoverRef}>
       <div className="file-preview-header">
         <div className="file-preview-title">
           <span className="file-preview-path">{path}</span>
@@ -118,7 +174,16 @@ export function FilePreviewPopover({
           </div>
           {imageSrc ? (
             <div className="file-preview-image">
-              <img src={imageSrc} alt={path} />
+              <img
+                src={imageSrc}
+                srcSet={`${imageSrc} 1x, ${imageSrc} 2x`}
+                alt={path}
+                loading="eager"
+                width={imageDimensions?.width}
+                height={imageDimensions?.height}
+                sizes="(max-width: 768px) 100vw, 640px"
+                decoding="async"
+              />
             </div>
           ) : (
             <div className="file-preview-status file-preview-error">

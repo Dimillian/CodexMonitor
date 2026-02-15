@@ -1,0 +1,102 @@
+src/styles/diff-viewer.css:406:  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+src/styles/worktree-modal.css:47:  transition: background 0.1s ease;
+src/styles/base.css:60:  transition: grid-template-columns 220ms ease;
+src/styles/base.css:67:  transition: none !important;
+src/styles/base.css:95:  transition: opacity 160ms ease;
+src/styles/base.css:115:  transition: opacity 160ms ease;
+src/styles/base.css:127:  transition: opacity 0.15s ease;
+src/styles/composer.css:278:  transition:
+src/styles/composer.css:375:  transition:
+src/styles/composer.css:526:  transition: height 0.12s ease;
+src/styles/composer.css:608:  animation: composer-action-spin 0.8s linear infinite;
+src/styles/composer.css:893:  transition: width 0.3s ease, background 0.3s ease;
+src/styles/buttons.css:13:  transition:
+src/styles/messages.css:102:  animation: working-spin 1s linear infinite;
+src/styles/messages.css:126:  animation: working-shimmer 2.2s ease-in-out infinite;
+src/styles/messages.css:262:  transition: opacity 160ms ease, transform 160ms ease;
+src/styles/messages.css:285:  transition: opacity 160ms ease, transform 160ms ease, filter 160ms ease;
+src/styles/messages.css:600:  transition: transform 0.2s ease;
+src/styles/messages.css:1296:  transition: background 0.15s, color 0.15s, border-color 0.15s;
+src/styles/ecosystem-panels.css:85:  transition: background 0.1s;
+src/styles/ecosystem-panels.css:191:  animation: working-spin 800ms linear infinite;
+src/styles/ecosystem-panels.css:215:  transition: background 0.1s;
+src/styles/ds-toast.css:14:  animation: ds-toast-in var(--ds-toast-enter-duration, 0.2s) ease-out;
+src/styles/diff.css:391:  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+src/styles/diff.css:432:  transition: max-width 180ms ease, opacity 140ms ease, transform 140ms ease,
+src/styles/diff.css:458:  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+src/styles/diff.css:523:  transition: opacity 150ms ease, transform 150ms ease;
+src/styles/diff.css:811:  transition: none;
+src/styles/diff.css:956:  animation: spin 0.9s linear infinite;
+src/styles/diff.css:1007:  transition: border-color 160ms ease, color 160ms ease;
+src/styles/diff.css:1039:  transition: background 160ms ease, color 160ms ease;
+src/styles/diff.css:1061:  animation: spin 1s linear infinite;
+src/styles/diff.css:1089:  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+src/styles/diff.css:1109:  animation: spin 0.9s linear infinite;
+src/styles/diff.css:1152:  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+src/styles/diff.css:1179:  transition: background 160ms ease, border-color 160ms ease;
+src/styles/diff.css:1235:  transition: background 0.1s ease;
+src/styles/tabbar.css:12:  transition:
+src/styles/tabbar.css:50:  transition: all 0.15s ease;
+src/styles/settings.css:777:  transition: all 0.2s ease;
+src/styles/panel-tabs.css:20:  transition: background 160ms ease, color 160ms ease;
+src/styles/sidebar.css:14:  transition: opacity 200ms ease, transform 200ms ease;
+src/styles/sidebar.css:43:  transition: opacity 0.2s ease;
+src/styles/sidebar.css:77:  animation: drop-text-shimmer 1.2s ease-in-out infinite;
+src/styles/sidebar.css:130:  transition: color 0.15s ease;
+src/styles/sidebar.css:257:  animation: sidebar-refresh-spin 0.8s linear infinite;
+src/styles/sidebar.css:360:  transition: none;
+src/styles/sidebar.css:523:  transition:
+src/styles/sidebar.css:558:  transition: opacity 0.15s ease, color 0.15s ease;
+src/styles/sidebar.css:573:  transition: transform 0.15s ease;
+src/styles/sidebar.css:592:  transition:
+src/styles/sidebar.css:624:  transition: all 0.2s ease;
+src/styles/sidebar.css:637:  transition: background 0.2s ease;
+src/styles/sidebar.css:768:  transition: opacity 0.15s ease;
+src/styles/sidebar.css:821:  transition: opacity 0.15s ease, color 0.15s ease;
+src/styles/sidebar.css:830:  transition: transform 0.15s ease;
+src/styles/sidebar.css:910:  animation: shimmer 1.4s ease-in-out infinite;
+src/styles/sidebar.css:957:  animation: pulse 1.2s ease-in-out infinite;
+src/styles/sidebar.css:963:  animation: pulse 1.4s ease-in-out infinite;
+src/styles/sidebar.css:1062:  transition: opacity 0.15s ease;
+src/styles/sidebar.css:1142:  transition:
+src/styles/sidebar.css:1178:  transition: all 0.2s ease;
+src/styles/sidebar.css:1233:  animation: spin 0.9s linear infinite;
+src/styles/sidebar.css:1253:  transition: opacity 0.15s ease, color 0.15s ease;
+src/styles/sidebar.css:1262:  transition: transform 0.15s ease;
+src/styles/sidebar.css:1336:  animation: sidebar-account-spin 0.8s linear infinite;
+src/styles/branch-switcher-modal.css:50:  transition: background 0.1s ease;
+src/styles/file-tree.css:75:  animation: shimmer 1.4s ease-in-out infinite;
+src/styles/file-tree.css:122:  transition: transform 140ms ease;
+src/styles/file-tree.css:360:  transition: none;
+src/styles/workspace-home.css:233:  transition: opacity 120ms ease, transform 120ms ease;
+src/styles/workspace-home.css:364:  animation: workspace-home-instance-pulse 1.6s ease-in-out infinite;
+src/styles/workspace-home.css:370:  animation: workspace-home-instance-pulse 1.6s ease-in-out infinite;
+src/styles/workspace-home.css:429:  animation: workspace-home-pulse 1.4s ease-in-out infinite;
+src/styles/compact-phone.css:127:  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+src/styles/home.css:284:  transition: background 0.15s ease, color 0.15s ease;
+src/styles/home.css:310:  transition: color 120ms ease, transform 120ms ease, opacity 120ms ease;
+src/styles/home.css:336:  animation: home-spin 0.8s linear infinite;
+src/styles/home.css:448:  transition: opacity 120ms ease;
+src/styles/home.css:599:  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+src/styles/home.css:629:  animation: shimmer 1.4s ease-in-out infinite;
+src/styles/request-user-input.css:75:  transition: border-color 0.15s ease, background 0.15s ease;
+src/styles/compact-tablet.css:41:  transition: all 0.15s ease;
+src/styles/compact-tablet.css:144:  transition: opacity 0.15s ease;
+src/styles/prompts.css:44:  transition:
+src/styles/prompts.css:114:  animation: prompt-fade-in 180ms ease-out;
+src/styles/prompts.css:122:  animation: prompt-row-flash 650ms ease-out;
+src/styles/prompts.css:134:  animation: prompt-fade-in 220ms ease-out;
+src/styles/prompts.css:184:  animation: prompt-editor-in 240ms ease-out;
+src/styles/prompts.css:287:    animation: none;
+src/styles/prompts.css:288:    transition: none;
+src/styles/main.css:17:  transition: grid-template-columns 220ms ease;
+src/styles/main.css:22:  transition: none !important;
+src/styles/main.css:315:  transition: opacity 160ms ease, transform 160ms ease, filter 160ms ease;
+src/styles/main.css:376:  animation: copy-menu-in 0.12s ease-out;
+src/styles/main.css:401:  transition: background 0.1s ease;
+src/styles/main.css:1009:  transition: opacity 200ms ease, transform 200ms ease;
+src/styles/main.css:1079:  transition: opacity 160ms ease;
+src/styles/main.css:1091:  transition: opacity 0.15s ease;
+src/styles/main.css:1125:  animation: cmd-overlay-in 120ms ease;
+src/styles/main.css:1142:  animation: cmd-palette-in 160ms cubic-bezier(0.16, 1, 0.3, 1);
+src/styles/main.css:1218:  transition: background 0.1s;

@@ -11,10 +11,10 @@
 .error-toast {
   min-width: 320px;
   max-width: min(560px, calc(100vw - 32px));
-  background: color-mix(in srgb, var(--ds-toast-bg) 90%, var(--status-error, #ff4d4f) 10%);
+  background: color-mix(in srgb, var(--ds-toast-bg) 90%, var(--status-error) 10%);
   border-color: color-mix(
     in srgb,
-    var(--status-error, #ff4d4f) 42%,
+    var(--status-error) 42%,
     var(--ds-toast-border)
   );
   --ds-toast-enter-duration: 0.18s;
@@ -22,7 +22,7 @@
 
 .error-toast-title {
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .error-toast-dismiss {
@@ -33,7 +33,7 @@
 
 .error-toast-body {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 14px;
   opacity: 0.95;
 }
 

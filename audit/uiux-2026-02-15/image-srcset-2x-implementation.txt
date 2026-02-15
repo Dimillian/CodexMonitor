@@ -1,0 +1,20 @@
+src/features/about/components/AboutView.tsx:47:            srcSet="/assets/app-icon-44.png 1x, /assets/app-icon-88.png 2x"
+src/features/app/components/OpenAppMenu.tsx:69:                srcSet: `${iconById[target.id]} 1x, ${iconById[target.id]} 2x`,
+src/features/app/components/OpenAppMenu.tsx:73:                srcSet: `${GENERIC_APP_ICON} 1x, ${GENERIC_APP_ICON} 2x`,
+src/features/app/components/OpenAppMenu.tsx:91:        srcSet: `${defaultKnownIcon} 1x, ${defaultKnownIcon} 2x`,
+src/features/app/utils/openAppIcons.ts:48:  srcSet: `${oneX} 1x, ${twoX} 2x`,
+src/features/app/utils/openAppIcons.ts:53:  srcSet: `${GENERIC_FOLDER_ICON} 1x, ${GENERIC_FOLDER_ICON} 2x`,
+src/features/composer/components/ComposerAttachments.tsx:62:                  srcSet={`${previewSrc} 1x, ${previewSrc} 2x`}
+src/features/composer/components/ComposerAttachments.tsx:76:                  srcSet={`${previewSrc} 1x, ${previewSrc} 2x`}
+src/features/composer/components/ComposerInput.tsx:657:                                  srcSet={`${fileTypeIconUrl} 1x, ${fileTypeIconUrl} 2x`}
+src/features/files/components/FilePreviewPopover.tsx:179:                srcSet={`${imageSrc} 1x, ${imageSrc} 2x`}
+src/features/files/components/FileTreePanel.tsx:644:                srcSet={`${fileTypeIconUrl} 1x, ${fileTypeIconUrl} 2x`}
+src/features/git/components/ImageDiffCard.tsx:164:                  srcSet={`${oldDataUri} 1x, ${oldDataUri} 2x`}
+src/features/git/components/ImageDiffCard.tsx:182:                  srcSet={`${newDataUri} 1x, ${newDataUri} 2x`}
+src/features/git/components/ImageDiffCard.tsx:204:                  srcSet={`${newDataUri} 1x, ${newDataUri} 2x`}
+src/features/git/components/ImageDiffCard.tsx:226:                  srcSet={`${oldDataUri} 1x, ${oldDataUri} 2x`}
+src/features/messages/components/MessageRows.tsx:106:            srcSet={`${image.src} 1x, ${image.src} 2x`}
+src/features/messages/components/MessageRows.tsx:208:          srcSet={`${activeImage.src} 1x, ${activeImage.src} 2x`}
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:58:                  srcSet: `${openAppIconById[target.id]} 1x, ${openAppIconById[target.id]} 2x`,
+src/features/settings/components/sections/SettingsOpenAppsSection.tsx:62:                  srcSet: `${fallbackKnownIcon} 1x, ${fallbackKnownIcon} 2x`,
+src/features/workspaces/components/WorkspaceHome.tsx:92:            srcSet={`${iconSrc} 1x, ${iconSrc} 2x`}

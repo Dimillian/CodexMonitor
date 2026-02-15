@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import type { AppSettings, DictationModelStatus } from "../../../../types";
 import { formatDownloadSize } from "../../../../utils/formatting";
 
@@ -36,6 +37,24 @@ export function SettingsDictationSection({
   onRemoveDictationModel,
 }: SettingsDictationSectionProps) {
   const dictationProgress = dictationModelStatus?.progress ?? null;
+  const progressFillRef = useRef<HTMLDivElement | null>(null);
+  const progressPercent =
+    dictationProgress?.totalBytes && dictationProgress.totalBytes > 0
+      ? Math.min(
+          100,
+          (dictationProgress.downloadedBytes / dictationProgress.totalBytes) * 100,
+        )
+      : 0;
+
+  useLayoutEffect(() => {
+    if (!progressFillRef.current) {
+      return;
+    }
+    progressFillRef.current.style.setProperty(
+      "--settings-download-progress-width",
+      `${progressPercent}%`,
+    );
+  }, [progressPercent]);
 
   return (
     <section className="settings-section">
@@ -181,17 +200,7 @@ export function SettingsDictationSection({
           {dictationProgress && (
             <div className="settings-download-progress">
               <div className="settings-download-bar">
-                <div
-                  className="settings-download-fill"
-                  style={{
-                    width: dictationProgress.totalBytes
-                      ? `${Math.min(
-                          100,
-                          (dictationProgress.downloadedBytes / dictationProgress.totalBytes) * 100,
-                        )}%`
-                      : "0%",
-                  }}
-                />
+                <div className="settings-download-fill" ref={progressFillRef} />
               </div>
               <div className="settings-download-meta">
                 {formatDownloadSize(dictationProgress.downloadedBytes)}

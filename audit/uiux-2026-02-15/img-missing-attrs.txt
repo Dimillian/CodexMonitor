@@ -1,0 +1,1 @@
+OK: all <img> tags include srcSet,loading,width,height,sizes attributes

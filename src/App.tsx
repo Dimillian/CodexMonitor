@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import "./styles/base.css";
 import "./styles/ds-tokens.css";
 import "./styles/ds-modal.css";
@@ -404,6 +404,7 @@ function MainApp() {
     closeSettings,
   } = useSettingsModalState();
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const appRootRef = useRef<HTMLDivElement | null>(null);
 
   const getWorkspaceName = useCallback(
     (workspaceId: string) => workspacesById.get(workspaceId)?.name,
@@ -2648,28 +2649,50 @@ function MainApp() {
   ], [appSettings, activeWorkspace, handleAddAgent, handleAddWorktreeAgent, handleToggleTerminal, sidebarCollapsed, sidebarToggleProps, openSettings]);
 
   const cmdPalette = useCommandPalette(commandItems);
+  const appCssVars = useMemo(
+    () => ({
+      "--sidebar-width": `${isCompact ? sidebarWidth : sidebarCollapsed ? 0 : sidebarWidth}px`,
+      "--right-panel-width": `${isCompact ? rightPanelWidth : rightPanelCollapsed ? 0 : rightPanelWidth}px`,
+      "--plan-panel-height": `${planPanelHeight}px`,
+      "--terminal-panel-height": `${terminalPanelHeight}px`,
+      "--debug-panel-height": `${debugPanelHeight}px`,
+      "--ui-font-family": appSettings.uiFontFamily,
+      "--code-font-family": appSettings.codeFontFamily,
+      "--code-font-size": `${appSettings.codeFontSize}px`,
+      "--message-font-size": `${messageFontSize}px`,
+    }),
+    [
+      appSettings.codeFontFamily,
+      appSettings.codeFontSize,
+      appSettings.uiFontFamily,
+      debugPanelHeight,
+      isCompact,
+      messageFontSize,
+      planPanelHeight,
+      rightPanelCollapsed,
+      rightPanelWidth,
+      sidebarCollapsed,
+      sidebarWidth,
+      terminalPanelHeight,
+    ],
+  );
+
+  useLayoutEffect(() => {
+    const appRoot = appRootRef.current;
+    if (!appRoot) {
+      return;
+    }
+    Object.entries(appCssVars).forEach(([key, value]) => {
+      appRoot.style.setProperty(key, value);
+    });
+  }, [appCssVars]);
 
   return (
     <div
+      ref={appRootRef}
       className={appClassName}
-      style={
-        {
-          "--sidebar-width": `${
-            isCompact ? sidebarWidth : sidebarCollapsed ? 0 : sidebarWidth
-          }px`,
-          "--right-panel-width": `${
-            isCompact ? rightPanelWidth : rightPanelCollapsed ? 0 : rightPanelWidth
-          }px`,
-          "--plan-panel-height": `${planPanelHeight}px`,
-          "--terminal-panel-height": `${terminalPanelHeight}px`,
-          "--debug-panel-height": `${debugPanelHeight}px`,
-          "--ui-font-family": appSettings.uiFontFamily,
-          "--code-font-family": appSettings.codeFontFamily,
-          "--code-font-size": `${appSettings.codeFontSize}px`,
-          "--message-font-size": `${messageFontSize}px`
-        } as React.CSSProperties
-      }
     >
+      <h1 className="sr-only">Codex Monitor</h1>
       <div className="drag-strip" id="titlebar" data-tauri-drag-region />
       <TitlebarExpandControls {...sidebarToggleProps} />
       <CommandPalette commands={cmdPalette.commands} open={cmdPalette.open} onClose={cmdPalette.close} />

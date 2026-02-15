@@ -3,7 +3,7 @@
   max-height: calc(100vh - 64px);
   overflow: auto;
   border-radius: 16px;
-  padding: 18px 20px;
+  padding: 16px 24px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -28,7 +28,7 @@
   padding: 12px;
   text-align: center;
   color: var(--ds-text-faint);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .worktree-modal-branch-item {
@@ -36,11 +36,11 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 8px 10px;
+  padding: 8px 12px;
   border: none;
   background: transparent;
   color: var(--ds-text-strong);
-  font-size: 13px;
+  font-size: 14px;
   text-align: left;
   border-radius: 8px;
   cursor: pointer;
@@ -63,13 +63,13 @@
 .worktree-modal-checkbox-row {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  font-size: 12px;
+  gap: 12px;
+  font-size: 14px;
   color: var(--ds-text-subtle);
 }
 
 .worktree-modal-checkbox-input {
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 .worktree-modal-checkbox-label code {
@@ -78,12 +78,20 @@
 }
 
 .worktree-modal-section-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--ds-text-strong);
 }
 
 .worktree-modal-hint {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ds-text-subtle);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class^="worktree-modal"],
+  [class*=" worktree-modal"] {
+    animation: none;
+    transition: none;
+  }
 }

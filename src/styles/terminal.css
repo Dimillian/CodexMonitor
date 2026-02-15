@@ -10,7 +10,7 @@
   --terminal-background: var(--surface-debug);
   --terminal-foreground: var(--text-stronger);
   --terminal-cursor: var(--text-stronger);
-  --terminal-selection: rgba(100, 200, 255, 0.25);
+  --terminal-selection: color-mix(in srgb, var(--text-accent) 25%, transparent);
   --terminal-font-family: var(--code-font-family);
   contain: layout style;
 }
@@ -42,7 +42,7 @@
   align-items: center;
   gap: 12px;
   padding: 6px 12px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .terminal-tabs {
@@ -52,7 +52,7 @@
   flex: 1;
   min-width: 0;
   overflow-x: auto;
-  padding: 2px 0;
+  padding: 4px 0;
 }
 
 .terminal-tab {
@@ -64,7 +64,7 @@
   color: var(--text-muted);
   padding: 4px 12px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
@@ -74,7 +74,7 @@
 .terminal-tab.active {
   color: var(--text-stronger);
   border-color: var(--border-strong);
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--text-strong) 6%, transparent);
 }
 
 .terminal-tab-label {
@@ -84,8 +84,19 @@
 }
 
 .terminal-tab-close {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-faint);
+  border: none;
+  background: transparent;
+  padding: 0;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.terminal-tab-close:focus-visible {
+  outline: 2px solid var(--border-accent-soft);
+  outline-offset: 2px;
 }
 
 .terminal-tab-add {
@@ -94,7 +105,7 @@
   color: var(--text-muted);
   padding: 4px 12px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
 }
 
@@ -127,14 +138,14 @@
   border-radius: 0;
   overflow: hidden;
   background: var(--terminal-background);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid color-mix(in srgb, var(--text-strong) 8%, transparent);
   box-sizing: border-box;
 }
 
 .terminal-surface .xterm,
 .terminal-surface .xterm-screen,
 .terminal-surface .xterm-viewport {
-  background: var(--terminal-background) !important;
+  background: var(--terminal-background);
 }
 
 .terminal-surface .xterm {
@@ -145,7 +156,7 @@
 }
 
 .terminal-surface .xterm-viewport {
-  height: 100% !important;
+  height: 100%;
 }
 
 .terminal-surface .composition-view {
@@ -163,7 +174,7 @@
   color: var(--text-muted);
   pointer-events: none;
   text-align: center;
-  font-size: 12px;
+  font-size: 14px;
   padding: 16px;
 }
 

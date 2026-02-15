@@ -32,30 +32,23 @@ export function WorktreeCard({
     <div className={`worktree-card${isDeleting ? " deleting" : ""}`}>
       <div
         className={`worktree-row ${isActive ? "active" : ""}${isDeleting ? " deleting" : ""}`}
-        role="button"
-        tabIndex={isDeleting ? -1 : 0}
-        aria-disabled={isDeleting}
-        onClick={() => {
-          if (!isDeleting) {
-            onSelectWorkspace(worktree.id);
-          }
-        }}
         onContextMenu={(event) => {
           if (!isDeleting) {
             onShowWorktreeMenu(event, worktree);
           }
         }}
-        onKeyDown={(event) => {
-          if (isDeleting) {
-            return;
-          }
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onSelectWorkspace(worktree.id);
-          }
-        }}
       >
-        <div className="worktree-label">{worktreeLabel}</div>
+        <button
+          type="button"
+          className="worktree-row-main"
+          disabled={isDeleting}
+          onClick={() => {
+            onSelectWorkspace(worktree.id);
+          }}
+          aria-label={`切换到工作树 ${worktreeLabel}`}
+        >
+          <span className="worktree-label">{worktreeLabel}</span>
+        </button>
         <div className="worktree-actions">
           {isDeleting ? (
             <div className="worktree-deleting" role="status" aria-live="polite">
@@ -77,7 +70,8 @@ export function WorktreeCard({
                 <span className="worktree-toggle-icon">›</span>
               </button>
               {!worktree.connected && (
-                <span
+                <button
+                  type="button"
                   className="connect"
                   onClick={(event) => {
                     event.stopPropagation();
@@ -85,7 +79,7 @@ export function WorktreeCard({
                   }}
                 >
                   连接
-                </span>
+                </button>
               )}
             </>
           )}

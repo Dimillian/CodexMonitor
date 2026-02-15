@@ -1,0 +1,137 @@
+src/App.tsx:102:import { useInterruptShortcut } from "./features/app/hooks/useInterruptShortcut";
+src/App.tsx:1247:  const canInterrupt = activeThreadId
+src/App.tsx:1788:  useInterruptShortcut({
+src/App.tsx:1789:    isEnabled: canInterrupt,
+src/App.tsx:2465:    canStop: canInterrupt,
+src/App.tsx:2663:          "--ui-font-family": appSettings.uiFontFamily,
+src/App.tsx:2664:          "--code-font-family": appSettings.codeFontFamily,
+src/features/settings/components/SettingsView.tsx:939:        let pollIntervalSeconds = Math.max(
+src/features/settings/components/SettingsView.tsx:945:          await delay(pollIntervalSeconds * 1000);
+src/features/settings/components/SettingsView.tsx:955:              pollIntervalSeconds = Math.max(1, pollResult.intervalSeconds);
+src/features/messages/components/MessageRows.tsx:330:    const interval = window.setInterval(() => {
+src/features/messages/components/MessageRows.tsx:333:    return () => window.clearInterval(interval);
+src/features/settings/components/SettingsView.test.tsx:63:    'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+src/features/settings/components/sections/SettingsShortcutsSection.tsx:2:import { formatShortcut, getDefaultInterruptShortcut } from "../../../../utils/shortcuts";
+src/features/settings/components/sections/SettingsShortcutsSection.tsx:134:          help: `默认： ${formatShortcut(getDefaultInterruptShortcut())}`,
+src/features/threads/hooks/useThreadTurnEvents.test.tsx:26:  pendingInterrupts?: string[];
+src/features/threads/hooks/useThreadTurnEvents.test.tsx:40:  const pendingInterruptsRef = {
+src/features/threads/hooks/useThreadTurnEvents.test.tsx:41:    current: new Set(overrides.pendingInterrupts ?? []),
+src/features/threads/hooks/useThreadTurnEvents.test.tsx:56:      pendingInterruptsRef,
+src/features/threads/hooks/useThreadTurnEvents.test.tsx:74:    pendingInterruptsRef,
+src/features/threads/hooks/useThreadTurnEvents.test.tsx:222:    const { result, markProcessing, setActiveTurnId, pendingInterruptsRef } =
+src/features/threads/hooks/useThreadTurnEvents.test.tsx:223:      makeOptions({ pendingInterrupts: ["thread-1"] });
+src/features/threads/hooks/useThreadTurnEvents.test.tsx:230:    expect(pendingInterruptsRef.current.has("thread-1")).toBe(false);
+src/features/threads/hooks/useThreadTurnEvents.test.tsx:237:    const { result, markProcessing, setActiveTurnId, pendingInterruptsRef } =
+src/features/threads/hooks/useThreadTurnEvents.test.tsx:238:      makeOptions({ pendingInterrupts: ["thread-1"] });
+src/features/threads/hooks/useThreadTurnEvents.test.tsx:246:    expect(pendingInterruptsRef.current.has("thread-1")).toBe(false);
+src/features/threads/hooks/useThreadTurnEvents.test.tsx:325:    const pendingInterruptsRef = { current: new Set<string>() };
+src/features/threads/hooks/useThreadTurnEvents.test.tsx:339:        pendingInterruptsRef,
+src/features/app/hooks/useCodeCssVars.ts:10:    root.style.setProperty("--code-font-family", appSettings.codeFontFamily);
+src/features/git/hooks/useGitStatus.test.tsx:39:    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+src/features/threads/hooks/useThreadMessaging.test.tsx:114:        pendingInterruptsRef: { current: new Set<string>() },
+src/features/threads/hooks/useThreadMessaging.test.tsx:180:        pendingInterruptsRef: { current: new Set<string>() },
+src/features/threads/hooks/useThreadMessaging.test.tsx:248:        pendingInterruptsRef: { current: new Set<string>() },
+src/features/threads/hooks/useThreadMessaging.test.tsx:329:        pendingInterruptsRef: { current: new Set<string>() },
+src/features/home/hooks/useLocalUsage.ts:64:    const interval = window.setInterval(() => {
+src/features/home/hooks/useLocalUsage.ts:68:      window.clearInterval(interval);
+src/features/terminal/hooks/useTerminalSession.ts:98:    styles.getPropertyValue("--terminal-font-family").trim() ||
+src/features/terminal/hooks/useTerminalSession.ts:99:    styles.getPropertyValue("--code-font-family").trim() ||
+src/features/app/hooks/useAppServerEvents.ts:70:  onTerminalInteraction?: (
+src/features/app/hooks/useAppServerEvents.ts:105:  "item/commandExecution/terminalInteraction",
+src/features/app/hooks/useAppServerEvents.ts:490:      if (method === "item/commandExecution/terminalInteraction") {
+src/features/app/hooks/useAppServerEvents.ts:495:          currentHandlers.onTerminalInteraction?.(workspace_id, threadId, itemId, stdin);
+src/features/threads/hooks/useThreadItemEvents.ts:172:  const handleTerminalInteraction = useCallback(
+src/features/threads/hooks/useThreadItemEvents.ts:322:  const onTerminalInteraction = useCallback(
+src/features/threads/hooks/useThreadItemEvents.ts:324:      handleTerminalInteraction(threadId, itemId, stdin);
+src/features/threads/hooks/useThreadItemEvents.ts:326:    [handleTerminalInteraction],
+src/features/threads/hooks/useThreadItemEvents.ts:346:    onTerminalInteraction,
+src/features/app/hooks/useInterruptShortcut.ts:4:type UseInterruptShortcutOptions = {
+src/features/app/hooks/useInterruptShortcut.ts:24:export function useInterruptShortcut({
+src/features/app/hooks/useInterruptShortcut.ts:28:}: UseInterruptShortcutOptions) {
+src/features/threads/hooks/useThreads.ts:88:  const pendingInterruptsRef = useRef<Set<string>>(new Set());
+src/features/threads/hooks/useThreads.ts:376:    pendingInterruptsRef,
+src/features/threads/hooks/useThreads.ts:452:    pendingInterruptsRef.current.delete(threadId);
+src/features/threads/hooks/useThreads.ts:572:    const timer = window.setInterval(
+src/features/threads/hooks/useThreads.ts:576:    return () => window.clearInterval(timer);
+src/features/threads/hooks/useThreads.ts:700:    pendingInterruptsRef,
+src/features/threads/hooks/useThreadEventHandlers.ts:40:  pendingInterruptsRef: MutableRefObject<Set<string>>;
+src/features/threads/hooks/useThreadEventHandlers.ts:61:  pendingInterruptsRef,
+src/features/threads/hooks/useThreadEventHandlers.ts:79:    onTerminalInteraction,
+src/features/threads/hooks/useThreadEventHandlers.ts:112:    pendingInterruptsRef,
+src/features/threads/hooks/useThreadEventHandlers.ts:159:      onTerminalInteraction,
+src/features/threads/hooks/useThreadEventHandlers.ts:186:      onTerminalInteraction,
+src/utils/appServerEvents.ts:14:  "item/commandExecution/terminalInteraction",
+src/styles/diff-viewer.css:102:  font-family: var(--code-font-family);
+src/styles/diff-viewer.css:436:  font-family: var(--code-font-family);
+src/styles/diff-viewer.css:445:  --diffs-font-family: var(--code-font-family);
+src/utils/fonts.ts:2:  'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+src/features/threads/hooks/useThreadStaleGuard.ts:94:    const interval = window.setInterval(() => {
+src/features/threads/hooks/useThreadStaleGuard.ts:124:    return () => window.clearInterval(interval);
+src/features/git/hooks/useGitStatus.ts:113:    const interval = window.setInterval(fetchStatus, REFRESH_INTERVAL_MS);
+src/features/git/hooks/useGitStatus.ts:116:      window.clearInterval(interval);
+src/styles/worktree-modal.css:60:  font-family: var(--code-font-family, Menlo, Monaco, "Courier New", monospace);
+src/styles/worktree-modal.css:76:  font-family: var(--code-font-family, Menlo, Monaco, "Courier New", monospace);
+src/utils/shortcuts.ts:201:export function getDefaultInterruptShortcut(): string {
+src/styles/base.css:61:  font-family: var(--ui-font-family);
+src/features/threads/hooks/useThreadMessaging.ts:51:  pendingInterruptsRef: MutableRefObject<Set<string>>;
+src/features/threads/hooks/useThreadMessaging.ts:94:  pendingInterruptsRef,
+src/features/threads/hooks/useThreadMessaging.ts:445:      pendingInterruptsRef.current.add(activeThreadId);
+src/features/threads/hooks/useThreadMessaging.ts:488:    pendingInterruptsRef,
+src/styles/branch-switcher-modal.css:63:  font-family: var(--code-font-family, Menlo, Monaco, "Courier New", monospace);
+src/styles/themes.dark.css:2:  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+src/styles/themes.dark.css:9:  --ui-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+src/styles/themes.dark.css:11:  --code-font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Menlo,
+src/test/vitest.setup.ts:37:if (!("IntersectionObserver" in globalThis)) {
+src/test/vitest.setup.ts:38:  class IntersectionObserverMock {
+src/test/vitest.setup.ts:46:  Object.defineProperty(globalThis, "IntersectionObserver", {
+src/test/vitest.setup.ts:47:    value: IntersectionObserverMock,
+src/features/workspaces/hooks/useWorkspaceFiles.ts:117:    const refreshInterval =
+src/features/workspaces/hooks/useWorkspaceFiles.ts:120:    const interval = window.setInterval(() => {
+src/features/workspaces/hooks/useWorkspaceFiles.ts:122:    }, refreshInterval);
+src/features/workspaces/hooks/useWorkspaceFiles.ts:125:      window.clearInterval(interval);
+src/features/git/hooks/useGitLog.ts:103:    const interval = window.setInterval(() => {
+src/features/git/hooks/useGitLog.ts:107:      window.clearInterval(interval);
+src/styles/main.css:1172:  font-family: inherit;
+src/styles/main.css:1240:  font-family: var(--code-font-family);
+src/features/settings/hooks/useAppSettings.ts:18:import { getDefaultInterruptShortcut, isMacPlatform } from "../../../utils/shortcuts";
+src/features/settings/hooks/useAppSettings.ts:64:    interruptShortcut: getDefaultInterruptShortcut(),
+src/styles/ds-modal.css:70:  font-family: var(--code-font-family, Menlo, Monaco, "Courier New", monospace);
+src/features/threads/hooks/useThreadTurnEvents.ts:22:  pendingInterruptsRef: MutableRefObject<Set<string>>;
+src/features/threads/hooks/useThreadTurnEvents.ts:36:  pendingInterruptsRef,
+src/features/threads/hooks/useThreadTurnEvents.ts:114:      if (pendingInterruptsRef.current.has(threadId)) {
+src/features/threads/hooks/useThreadTurnEvents.ts:115:        pendingInterruptsRef.current.delete(threadId);
+src/features/threads/hooks/useThreadTurnEvents.ts:126:    [dispatch, markProcessing, pendingInterruptsRef, setActiveTurnId],
+src/features/threads/hooks/useThreadTurnEvents.ts:133:      pendingInterruptsRef.current.delete(threadId);
+src/features/threads/hooks/useThreadTurnEvents.ts:141:      pendingInterruptsRef,
+src/styles/terminal.css:14:  --terminal-font-family: var(--code-font-family);
+src/styles/diff.css:679:  font-family: var(--code-font-family);
+src/styles/diff.css:869:  font-family: var(--code-font-family);
+src/styles/diff.css:914:  font-family: var(--code-font-family);
+src/styles/diff.css:974:  font-family: var(--code-font-family);
+src/styles/diff.css:996:  font-family: var(--code-font-family);
+src/styles/diff.css:1219:  font-family: var(--code-font-family);
+src/styles/diff.css:1271:  font-family: var(--code-font-family);
+src/styles/messages.css:781:  font-family: inherit;
+src/styles/messages.css:949:  font-family: var(--code-font-family);
+src/styles/messages.css:959:  font-family: var(--ui-font-family);
+src/styles/messages.css:996:  font-family: var(--ui-font-family);
+src/styles/messages.css:1169:  font-family: var(--code-font-family);
+src/styles/messages.css:1213:  font-family: inherit;
+src/styles/messages.css:1312:  font-family: var(--code-font-family);
+src/styles/messages.css:1339:  font-family: var(--code-font-family);
+src/styles/messages.css:1423:  font-family: var(--code-font-family);
+src/styles/messages.css:1439:  font-family: var(--code-font-family);
+src/styles/messages.css:1450:  font-family: var(--code-font-family);
+src/styles/ds-toast.css:42:  font-family: var(--code-font-family);
+src/styles/workspace-home.css:118:  font-family: var(--ui-font-family);
+src/styles/file-tree.css:339:  font-family: var(--code-font-family);
+src/styles/file-tree.css:364:  font-family: var(--code-font-family);
+src/styles/plan.css:63:  font-family: var(--code-font-family);
+src/features/settings/components/sections/SettingsDisplaySection.tsx:207:        <label className="settings-field-label" htmlFor="ui-font-family">
+src/features/settings/components/sections/SettingsDisplaySection.tsx:212:            id="ui-font-family"
+src/features/settings/components/sections/SettingsDisplaySection.tsx:246:        <label className="settings-field-label" htmlFor="code-font-family">
+src/features/settings/components/sections/SettingsDisplaySection.tsx:251:            id="code-font-family"
+src/styles/ecosystem-panels.css:55:  font-family: inherit;
+src/styles/settings.css:183:  font-family: var(--code-font-family);
+src/styles/settings.css:227:  font-family: var(--code-font-family);
+src/styles/settings.css:300:  font-family: var(--code-font-family);

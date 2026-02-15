@@ -1,0 +1,16 @@
+src/features/messages/components/Messages.tsx:985:          <div className="messages-loading-indicator" role="status" aria-live="polite">
+src/features/messages/components/MessageRows.tsx:225:    <div className="tool-inline-terminal" role="log" aria-live="polite">
+src/features/messages/components/MessageRows.tsx:341:        <div className={`working working-phase-${phase}`} aria-live="polite">
+src/features/messages/components/MessageRows.tsx:355:        <div className="turn-complete working-phase-done" aria-live="polite">
+src/features/composer/components/ComposerQueue.tsx:185:          <div className="composer-queue-summary" role="status" aria-live="polite">
+src/features/update/components/UpdateToast.test.tsx:18:    expect(region.getAttribute("aria-live")).toBe("polite");
+src/features/app/components/ApprovalToasts.tsx:103:            role="alert"
+src/features/app/components/WorktreeCard.tsx:61:            <div className="worktree-deleting" role="status" aria-live="polite">
+src/features/app/components/ApprovalToasts.test.tsx:40:    expect(region.getAttribute("aria-live")).toBe("assertive");
+src/features/mobile/components/MobileServerSetupWizard.tsx:128:            aria-live="polite"
+src/features/notifications/components/ErrorToasts.tsx:23:        <ToastCard key={toast.id} className="error-toast" role="alert">
+src/features/notifications/components/ErrorToasts.test.tsx:19:    expect(region.getAttribute("aria-live")).toBe("assertive");
+src/features/design-system/components/toast/ToastPrimitives.test.tsx:15:  it("renders viewport role and aria-live semantics", () => {
+src/features/design-system/components/toast/ToastPrimitives.test.tsx:25:    expect(region.getAttribute("aria-live")).toBe("assertive");
+src/features/design-system/components/toast/ToastPrimitives.test.tsx:30:      <ToastCard className="custom-card" role="alert">
+src/features/design-system/components/toast/ToastPrimitives.tsx:22:      aria-live={ariaLive}

@@ -3,20 +3,20 @@ export const DIFF_VIEWER_SCROLL_CSS = `
 [data-buffer],
 [data-separator-wrapper],
 [data-annotation-content] {
-  position: static !important;
+  position: static;
 }
 
 [data-buffer] {
-  background-image: none !important;
+  background-image: none;
 }
 
 diffs-container,
 [data-diffs],
 [data-diffs-header],
 [data-error-wrapper] {
-  position: relative !important;
-  contain: layout style !important;
-  isolation: isolate !important;
+  position: relative;
+  contain: layout style;
+  isolation: isolate;
 }
 
 [data-diffs-header],

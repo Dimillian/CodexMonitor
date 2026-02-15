@@ -1,13 +1,13 @@
 .empty {
   color: var(--text-faint);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 button {
   border: 1px solid transparent;
   border-radius: 10px;
-  padding: 8px 14px;
-  font-size: 13px;
+  padding: 8px 16px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition:
@@ -25,7 +25,7 @@ button:disabled {
 .primary {
   background: var(--accent-primary);
   border-color: var(--accent-primary);
-  color: #ffffff;
+  color: var(--text-on-accent);
 }
 
 .primary:hover:not(:disabled) {
@@ -66,4 +66,15 @@ button:disabled {
 .icon-button svg {
   width: 16px;
   height: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  .primary,
+  .secondary,
+  .ghost,
+  .icon-button {
+    animation: none;
+    transition: none;
+  }
 }

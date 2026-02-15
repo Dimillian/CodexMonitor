@@ -40,29 +40,36 @@ export function TerminalDock({
       <div className="terminal-header">
         <div className="terminal-tabs" role="tablist" aria-label="终端标签">
           {terminals.map((tab) => (
-            <button
+            <div
               key={tab.id}
               className={`terminal-tab${
                 tab.id === activeTerminalId ? " active" : ""
               }`}
-              type="button"
               role="tab"
               aria-selected={tab.id === activeTerminalId}
+              tabIndex={tab.id === activeTerminalId ? 0 : -1}
               onClick={() => onSelectTerminal(tab.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelectTerminal(tab.id);
+                }
+              }}
             >
               <span className="terminal-tab-label">{tab.title}</span>
-              <span
+              <button
+                type="button"
                 className="terminal-tab-close"
-                role="button"
-                aria-label={`Close ${tab.title}`}
+                aria-label={`关闭 ${tab.title}`}
+                title={`关闭 ${tab.title}`}
                 onClick={(event) => {
                   event.stopPropagation();
                   onCloseTerminal(tab.id);
                 }}
               >
-                ×
-              </span>
-            </button>
+                <span aria-hidden>×</span>
+              </button>
+            </div>
           ))}
           <button
             className="terminal-tab-add"

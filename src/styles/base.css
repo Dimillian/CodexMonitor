@@ -1,30 +1,29 @@
 @import "./themes.css";
 
 .app.reduced-transparency {
-  --surface-sidebar: rgba(18, 18, 18, 0.92);
-  --surface-sidebar-opaque: rgb(18, 18, 18);
-  --surface-topbar: rgba(10, 14, 20, 0.94);
-  --surface-right-panel: rgba(9, 12, 20, 0.92);
-  --surface-composer: rgba(10, 14, 20, 0.94);
-  --surface-messages: rgba(8, 10, 16, 0.94);
-  --surface-card: rgba(30, 32, 40, 0.94);
-  --surface-card-strong: rgba(38, 40, 48, 0.96);
-  --surface-card-muted: rgba(24, 26, 34, 0.9);
-  --surface-item: rgba(28, 30, 38, 0.88);
-  --surface-control: rgba(40, 44, 55, 0.7);
-  --surface-control-hover: rgba(54, 60, 72, 0.8);
-  --surface-control-disabled: rgba(40, 44, 55, 0.5);
-  --surface-hover: rgba(46, 50, 62, 0.7);
-  --surface-active: rgba(100, 200, 255, 0.18);
-  --surface-approval: rgba(12, 16, 26, 0.92);
-  --surface-debug: rgba(12, 16, 26, 0.92);
-  --surface-command: rgba(12, 14, 20, 0.95);
-  --surface-diff-card: rgba(14, 18, 28, 0.9);
-  --surface-bubble: rgba(42, 46, 58, 0.9);
-  --surface-bubble-user: rgba(77, 153, 255, 0.55);
-  --surface-bubble-assistant: rgba(42, 46, 58, 0.65);
-  --surface-context-core: rgba(16, 20, 30, 0.96);
-  --surface-popover: rgba(16, 20, 30, 0.995);
+  --surface-sidebar: var(--surface-sidebar-opaque);
+  --surface-topbar: var(--surface-quiet);
+  --surface-right-panel: var(--surface-quiet);
+  --surface-composer: var(--surface-quiet);
+  --surface-messages: var(--surface-quiet);
+  --surface-card: var(--surface-quiet);
+  --surface-card-strong: color-mix(in srgb, var(--surface-quiet) 90%, var(--text-strong) 10%);
+  --surface-card-muted: color-mix(in srgb, var(--surface-quiet) 94%, var(--text-strong) 6%);
+  --surface-item: color-mix(in srgb, var(--surface-quiet) 92%, var(--text-strong) 8%);
+  --surface-control: color-mix(in srgb, var(--surface-quiet) 86%, var(--text-strong) 14%);
+  --surface-control-hover: color-mix(in srgb, var(--surface-quiet) 80%, var(--text-strong) 20%);
+  --surface-control-disabled: color-mix(in srgb, var(--surface-quiet) 90%, var(--text-strong) 10%);
+  --surface-hover: color-mix(in srgb, var(--surface-quiet) 82%, var(--text-strong) 18%);
+  --surface-active: color-mix(in srgb, var(--text-accent) 18%, transparent);
+  --surface-approval: var(--surface-quiet);
+  --surface-debug: var(--surface-quiet);
+  --surface-command: var(--surface-quiet);
+  --surface-diff-card: var(--surface-quiet);
+  --surface-bubble: var(--surface-item);
+  --surface-bubble-user: color-mix(in srgb, var(--text-accent) 55%, transparent);
+  --surface-bubble-assistant: color-mix(in srgb, var(--surface-item) 72%, var(--surface-card));
+  --surface-context-core: var(--surface-quiet);
+  --surface-popover: var(--surface-context-core);
 }
 
 * {
@@ -46,6 +45,22 @@ body {
   overflow: hidden;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -4px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.lucide {
+  stroke-width: 1.5;
+}
+
 .app {
   height: var(--app-height, 100dvh);
   min-height: var(--app-height, 100dvh);
@@ -64,7 +79,7 @@ body {
 /* Disable all transitions during active panel resize to prevent lag */
 .app.is-resizing,
 .app.is-resizing * {
-  transition: none !important;
+  transition: none;
 }
 
 .drag-strip {
@@ -149,5 +164,21 @@ body {
 
   .sidebar-resizer {
     display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  .app,
+  .app *,
+  .titlebar-controls,
+  .titlebar-controls *,
+  .sidebar-resizer,
+  .sidebar-resizer * {
+    animation: none;
+    transition: none;
   }
 }

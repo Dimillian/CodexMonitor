@@ -14,13 +14,18 @@ import {
   PopoverMenuItem,
   PopoverSurface,
 } from "../../design-system/components/popover/PopoverPrimitives";
-import { GENERIC_APP_ICON, getKnownOpenAppIcon } from "../utils/openAppIcons";
+import {
+  GENERIC_APP_ICON,
+  getKnownOpenAppIcon,
+  getKnownOpenAppIconAsset,
+  type OpenAppIconAsset,
+} from "../utils/openAppIcons";
 import { useDismissibleMenu } from "../hooks/useDismissibleMenu";
 
 type OpenTarget = {
   id: string;
   label: string;
-  icon: string;
+  icon: OpenAppIconAsset;
   target: OpenAppTarget;
 };
 
@@ -57,14 +62,22 @@ export function OpenAppMenu({
         id: target.id,
         label: target.label,
         icon:
-          getKnownOpenAppIcon(target.id) ??
-          iconById[target.id] ??
-          GENERIC_APP_ICON,
+          getKnownOpenAppIconAsset(target.id, 14) ??
+          (iconById[target.id]
+            ? {
+                src: iconById[target.id],
+                srcSet: `${iconById[target.id]} 1x, ${iconById[target.id]} 2x`,
+              }
+            : {
+                src: GENERIC_APP_ICON,
+                srcSet: `${GENERIC_APP_ICON} 1x, ${GENERIC_APP_ICON} 2x`,
+              }),
         target,
       })),
     [availableTargets, iconById],
   );
 
+  const defaultKnownIcon = getKnownOpenAppIcon(DEFAULT_OPEN_APP_ID) ?? GENERIC_APP_ICON;
   const fallbackTarget: OpenTarget = {
     id: DEFAULT_OPEN_APP_ID,
     label:
@@ -72,7 +85,11 @@ export function OpenAppMenu({
         ?.label ??
       DEFAULT_OPEN_APP_TARGETS[0]?.label ??
       "打开",
-    icon: getKnownOpenAppIcon(DEFAULT_OPEN_APP_ID) ?? GENERIC_APP_ICON,
+    icon:
+      getKnownOpenAppIconAsset(DEFAULT_OPEN_APP_ID, 14) ?? {
+        src: defaultKnownIcon,
+        srcSet: `${defaultKnownIcon} 1x, ${defaultKnownIcon} 2x`,
+      },
     target:
       DEFAULT_OPEN_APP_TARGETS.find((target) => target.id === DEFAULT_OPEN_APP_ID) ??
       DEFAULT_OPEN_APP_TARGETS[0] ?? {
@@ -203,9 +220,15 @@ export function OpenAppMenu({
           <span className="open-app-label">
             <img
               className="open-app-icon"
-              src={selectedOpenTarget.icon}
+              src={selectedOpenTarget.icon.src}
+              srcSet={selectedOpenTarget.icon.srcSet}
               alt=""
               aria-hidden
+              width={14}
+              height={14}
+              sizes="14px"
+              loading="eager"
+              decoding="async"
             />
             {selectedOpenTarget.label}
           </span>
@@ -234,7 +257,20 @@ export function OpenAppMenu({
               disabled={!canOpenTarget(target)}
               role="menuitem"
               data-tauri-drag-region="false"
-              icon={<img className="open-app-icon" src={target.icon} alt="" aria-hidden />}
+              icon={
+                <img
+                  className="open-app-icon"
+                  src={target.icon.src}
+                  srcSet={target.icon.srcSet}
+                  alt=""
+                  aria-hidden
+                  width={14}
+                  height={14}
+                  sizes="14px"
+                  loading="eager"
+                  decoding="async"
+                />
+              }
               active={target.id === resolvedOpenAppId}
             >
               {target.label}

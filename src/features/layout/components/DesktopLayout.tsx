@@ -94,7 +94,7 @@ export function DesktopLayout({
         onMouseDown={onSidebarResizeStart}
       />
 
-      <section className="main">
+      <main className="main" aria-label="主内容">
         {updateToastNode}
         {errorToastsNode}
         {showHome && homeNode}
@@ -144,7 +144,7 @@ export function DesktopLayout({
             {debugPanelNode}
           </>
         )}
-      </section>
+      </main>
     </>
   );
 }

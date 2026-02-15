@@ -1,0 +1,3 @@
+src/features/debug/components/DebugPanel.tsx:4:import { UI_LOCALE } from "../../../i18n/locale";
+src/features/home/components/Home.tsx:5:import { UI_LOCALE } from "../../../i18n/locale";
+src/utils/time.ts:1:import { UI_LOCALE } from "../i18n/locale";

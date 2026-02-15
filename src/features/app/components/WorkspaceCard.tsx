@@ -91,9 +91,6 @@ export function WorkspaceCard({
         }`}
         data-workspace-id={workspace.id}
         data-workspace-group-key={workspaceGroupKey}
-        role="button"
-        tabIndex={0}
-        onClick={() => onSelectWorkspace(workspace.id)}
         onContextMenu={(event) => onShowWorkspaceMenu(event, workspace.id)}
         draggable={isDraggable}
         onDragStart={onDragStart}
@@ -102,18 +99,12 @@ export function WorkspaceCard({
         onDragOver={onDragOver}
         onDrop={onDrop}
         onDragEnd={onDragEnd}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onSelectWorkspace(workspace.id);
-          }
-        }}
       >
-        <div>
-          <div className="workspace-name-row">
-            <div className="workspace-title">
-              <Folder className="workspace-icon" size={14} aria-hidden />
-              {isAliasEditing ? (
+        {isAliasEditing ? (
+          <div className="workspace-row-main workspace-row-main--editing">
+            <div className="workspace-name-row">
+              <div className="workspace-title">
+                <Folder className="workspace-icon" size={14} aria-hidden />
                 <input
                   className="workspace-alias-input"
                   value={aliasDraft}
@@ -135,7 +126,19 @@ export function WorkspaceCard({
                   aria-label="工作区自定义名称"
                   autoFocus
                 />
-              ) : (
+              </div>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="workspace-row-main"
+            onClick={() => onSelectWorkspace(workspace.id)}
+            aria-label={`切换到工作区 ${workspace.name}`}
+          >
+            <span className="workspace-name-row">
+              <span className="workspace-title">
+                <Folder className="workspace-icon" size={14} aria-hidden />
                 <span
                   className="workspace-name"
                   onDoubleClick={(event) => {
@@ -147,60 +150,63 @@ export function WorkspaceCard({
                 >
                   {workspaceName ?? workspace.name}
                 </span>
-              )}
-              <button
-                className={`workspace-toggle ${isCollapsed ? "" : "expanded"}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onToggleWorkspaceCollapse(workspace.id, !isCollapsed);
-                }}
-                data-tauri-drag-region="false"
-                aria-label={isCollapsed ? "显示对话" : "隐藏对话"}
-                aria-expanded={!isCollapsed}
-              >
-                <span className="workspace-toggle-icon">›</span>
-              </button>
-            </div>
-            <button
-              className="ghost workspace-add"
-              onClick={(event) => {
-                event.stopPropagation();
-                const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-                const left = Math.min(
-                  Math.max(rect.left, 12),
-                  window.innerWidth - addMenuWidth - 12,
-                );
-                const top = rect.bottom + 8;
-                onToggleAddMenu(
-                  addMenuOpen
-                    ? null
-                    : {
-                        workspaceId: workspace.id,
-                        top,
-                        left,
-                        width: addMenuWidth,
-                      },
-                );
-              }}
-              data-tauri-drag-region="false"
-              aria-label="添加对话选项"
-              aria-expanded={addMenuOpen}
-            >
-              +
-            </button>
-          </div>
-        </div>
-        {!workspace.connected && (
-          <span
-            className="connect"
+              </span>
+            </span>
+          </button>
+        )}
+        <div className="workspace-row-actions">
+          <button
+            className={`workspace-toggle ${isCollapsed ? "" : "expanded"}`}
             onClick={(event) => {
               event.stopPropagation();
-              onConnectWorkspace(workspace);
+              onToggleWorkspaceCollapse(workspace.id, !isCollapsed);
             }}
+            data-tauri-drag-region="false"
+            aria-label={isCollapsed ? "显示对话" : "隐藏对话"}
+            aria-expanded={!isCollapsed}
           >
-            连接
-          </span>
-        )}
+            <span className="workspace-toggle-icon">›</span>
+          </button>
+          <button
+            className="ghost workspace-add"
+            onClick={(event) => {
+              event.stopPropagation();
+              const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+              const left = Math.min(
+                Math.max(rect.left, 12),
+                window.innerWidth - addMenuWidth - 12,
+              );
+              const top = rect.bottom + 8;
+              onToggleAddMenu(
+                addMenuOpen
+                  ? null
+                  : {
+                      workspaceId: workspace.id,
+                      top,
+                      left,
+                      width: addMenuWidth,
+                    },
+              );
+            }}
+            data-tauri-drag-region="false"
+            aria-label="添加对话选项"
+            aria-expanded={addMenuOpen}
+          >
+            +
+          </button>
+          {!workspace.connected && (
+            <button
+              type="button"
+              className="connect"
+              onClick={(event) => {
+                event.stopPropagation();
+                onConnectWorkspace(workspace);
+              }}
+            >
+              连接
+            </button>
+          )}
+        </div>
       </div>
       <div
         className={`workspace-card-content${contentCollapsedClass}`}

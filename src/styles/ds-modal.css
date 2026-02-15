@@ -7,6 +7,9 @@
 .ds-modal-backdrop {
   position: absolute;
   inset: 0;
+  width: 100%;
+  border: none;
+  padding: 0;
   background: var(--ds-modal-backdrop);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -22,7 +25,7 @@
   background: var(--ds-modal-card-bg);
   border: 1px solid var(--ds-modal-card-border);
   color: var(--ds-text-strong);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--surface-context-core) 58%, transparent);
 }
 
 .ds-modal-card {
@@ -44,12 +47,12 @@
 }
 
 .ds-modal-subtitle {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--ds-text-subtle);
 }
 
 .ds-modal-label {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ds-text-faint);
 }
 
@@ -59,8 +62,8 @@
   border: 1px solid var(--ds-border-subtle);
   background: var(--ds-surface-muted);
   color: var(--ds-text-strong);
-  padding: 10px 12px;
-  font-size: 13px;
+  padding: 12px 12px;
+  font-size: 14px;
   width: 100%;
 }
 
@@ -73,7 +76,7 @@
 .ds-modal-divider {
   height: 1px;
   background: var(--ds-border-subtle);
-  margin: 4px 0 2px;
+  margin: 4px 0 4px;
 }
 
 .ds-modal-actions {
@@ -85,11 +88,11 @@
 }
 
 .ds-modal-error {
-  font-size: 12px;
-  color: #ff8f8f;
-  background: rgba(255, 79, 79, 0.12);
-  border: 1px solid rgba(255, 79, 79, 0.4);
-  padding: 8px 10px;
+  font-size: 14px;
+  color: color-mix(in srgb, var(--status-error) 78%, var(--text-strong));
+  background: color-mix(in srgb, var(--status-error) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-error) 40%, transparent);
+  padding: 8px 12px;
   border-radius: 10px;
 }
 

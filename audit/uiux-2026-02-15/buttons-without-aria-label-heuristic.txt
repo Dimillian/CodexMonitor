@@ -1,0 +1,17 @@
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/debug/components/DebugPanel.tsx:278:          <button className="ghost" onClick={onCopy}>
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/debug/components/DebugPanel.tsx:281:          <button className="ghost" onClick={onClear}>
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/update/components/UpdateToast.tsx:62:              <button className="secondary" onClick={onDismiss}>
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/update/components/UpdateToast.tsx:65:              <button className="primary" onClick={onUpdate}>
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/update/components/UpdateToast.tsx:76:            <button className="secondary" onClick={onDismiss}>
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/update/components/UpdateToast.tsx:114:              <button className="secondary" onClick={onDismiss}>
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/update/components/UpdateToast.tsx:117:              <button className="primary" onClick={onUpdate}>
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/composer/components/ReviewInlinePrompt.tsx:364:        <button type="button" className="ghost review-inline-button" onClick={onClose}>
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/design-system/components/toast/ToastPrimitives.test.tsx:37:          <button type="button">Action</button>
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/app/components/PlanReadyFollowupMessage.tsx:54:          <button type="button" className="primary" onClick={onAccept}>
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/app/components/RequestUserInputMessage.tsx:192:          <button className="primary" onClick={handleSubmit}>
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/layout/hooks/layoutNodes/buildSecondaryNodes.tsx:71:      <button className="ghost" onClick={options.onGoProjects}>
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/layout/hooks/layoutNodes/buildSecondaryNodes.tsx:81:      <button className="ghost" onClick={options.onGoProjects}>
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/home/components/Home.tsx:225:          <button className="home-suggestion-card" type="button" onClick={onOpenProject}>
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/home/components/Home.tsx:234:          <button className="home-suggestion-card" type="button" onClick={onAddWorkspace}>
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/settings/components/sections/SettingsFeaturesSection.tsx:53:        <button type="button" className="ghost" onClick={onOpenConfig}>
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/settings/components/sections/SettingsOpenAppsSection.tsx:221:        <button type="button" className="ghost" onClick={onAddOpenApp}>

@@ -1,0 +1,9 @@
+src/styles/diff-viewer.css:670:  max-height: 300px;
+src/styles/messages.css:625:  max-width: 360px;
+src/styles/workspace-home.css:10:  max-width: 860px;
+src/styles/workspace-home.css:49:  max-width: 480px;
+src/styles/error-toasts.css:12:  min-width: 320px;
+src/styles/branch-switcher-modal.css:27:  max-height: 320px;
+src/styles/home.css:13:  max-width: 760px;
+src/styles/main.css:808:  max-width: 320px;
+src/styles/main.css:1050:  max-height: 420px;

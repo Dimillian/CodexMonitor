@@ -1,0 +1,132 @@
+## src/features/messages/components/Messages.tsx
+576:        // No-op: clipboard errors can occur in restricted contexts.
+928:          Upward scroll-to-top still triggers onReachTop for history loading. */}
+979:        <div className="empty messages-empty">
+984:        <div className="empty messages-empty">
+985:          <div className="messages-loading-indicator" role="status" aria-live="polite">
+986:            <span className="working-spinner" aria-hidden />
+987:            <span className="messages-loading-label">正在加载对话记录…</span>
+
+## src/features/files/components/FileTreePanel.tsx
+402:      .catch((error) => {
+406:        setPreviewError(error instanceof Error ? error.message : String(error));
+619:                loading="lazy"
+639:            disabled={!canInsertText}
+712:          <div className="file-tree-skeleton">
+715:                className="file-tree-skeleton-row"
+716:                key={`file-tree-skeleton-${index}`}
+722:          <div className="file-tree-empty">
+793:              error={previewError}
+
+## src/features/git/components/GitDiffPanel.tsx
+18:import { pushErrorToast } from "../../../services/toasts";
+68:  error?: string | null;
+164:  error,
+298:      disabled: _syncLoading,
+299:      loading: _syncLoading,
+560:    isMissingRepo(error) ||
+566:  const errorScope = `${workspaceId ?? "no-workspace"}:${normalizedGitRoot || "no-git-root"}:${mode}`;
+587:            { key: "git", message: error },
+601:        signature: `${errorScope}:${entry.key}:${entry.message}`,
+607:    error,
+618:    errorScope,
+675:              disabled={worktreeApplyLoading || worktreeApplySuccess}
+679:              <WorktreeApplyIcon success={worktreeApplySuccess} />
+714:          error={error}
+
+## src/features/home/components/Home.tsx
+247:            disabled={!latestRun}
+295:          <div className="home-latest-grid home-latest-grid-loading" aria-label="正在加载对话">
+297:              <div className="home-latest-card home-latest-card-skeleton" key={index}>
+299:                  <span className="home-latest-skeleton home-latest-skeleton-title" />
+300:                  <span className="home-latest-skeleton home-latest-skeleton-time" />
+302:                <span className="home-latest-skeleton home-latest-skeleton-line" />
+303:                <span className="home-latest-skeleton home-latest-skeleton-line short" />
+308:          <div className="home-latest-empty">
+309:            <div className="home-latest-empty-title">暂无对话记录</div>
+310:            <div className="home-latest-empty-subtitle">
+347:                  ? "home-usage-refresh is-loading"
+351:              disabled={isLoadingLocalUsage}
+376:                disabled={usageWorkspaceOptions.length === 0}
+418:          <div className="home-usage-skeleton">
+422:                  <span className="home-latest-skeleton home-usage-skeleton-label" />
+423:                  <span className="home-latest-skeleton home-usage-skeleton-value" />
+428:              <span className="home-latest-skeleton home-usage-skeleton-chart" />
+432:          <div className="home-usage-empty">
+433:            <div className="home-usage-empty-title">暂无使用数据</div>
+434:            <div className="home-usage-empty-subtitle">
+438:              <div className="home-usage-error">{localUsageError}</div>
+596:                  <span className="home-usage-model-empty">暂无模型数据</span>
+600:                <div className="home-usage-error">{localUsageError}</div>
+
+## src/features/workspaces/components/WorkspaceHome.tsx
+113:          error={agentMdError}
+116:          disabled={agentMdLoading}
+130:            error: "workspace-home-error",
+
+## src/features/settings/components/SettingsView.tsx
+80:const formatErrorMessage = (error: unknown, fallback: string) => {
+81:  if (error instanceof Error) {
+82:    return error.message;
+84:  if (typeof error === "string") {
+85:    return error;
+87:  if (error && typeof error === "object" && "message" in error) {
+88:    const message = (error as { message?: unknown }).message;
+290:    error: globalAgentsError,
+302:    error: globalConfigError,
+452:    } catch (error) {
+454:        error instanceof Error ? error.message : "无法打开配置文件。",
+695:      } catch (error) {
+698:          error instanceof Error ? error.message : "无法连接远程后端。",
+738:      } catch (error) {
+740:          formatErrorMessage(error, "无法获取 Tailscale 状态。"),
+755:      } catch (error) {
+757:          formatErrorMessage(error, "无法生成 Tailscale 守护进程命令。"),
+782:      } catch (error) {
+783:        const errorMessage =
+784:          error instanceof Error
+785:            ? error.message
+786:            : typeof error === "string"
+787:              ? error
+790:          state: "error",
+793:          lastError: errorMessage,
+875:    successFallback: string,
+881:      setOrbitStatusText(getOrbitStatusText(result, successFallback));
+883:    } catch (error) {
+884:      const message = error instanceof Error ? error.message : "未知 Orbit 错误";
+971:      } catch (error) {
+972:        const message = error instanceof Error ? error.message : "未知 Orbit 错误";
+993:        } catch (error) {
+994:          const message = error instanceof Error ? error.message : "未知 Orbit 错误";
+1145:    } catch (error) {
+1153:          details: error instanceof Error ? error.message : String(error),
+1185:    } catch (error) {
+1196:          details: error instanceof Error ? error.message : String(error),
+1215:    } catch (error) {
+1216:      setEnvironmentError(error instanceof Error ? error.message : String(error));
+1232:    } catch (error) {
+1233:      setGroupError(error instanceof Error ? error.message : String(error));
+1250:    } catch (error) {
+1251:      setGroupError(error instanceof Error ? error.message : String(error));
+1271:    } catch (error) {
+1272:      setGroupError(error instanceof Error ? error.message : String(error));
+1313:    } catch (error) {
+1314:      setGroupError(error instanceof Error ? error.message : String(error));
+
+## src/features/skills/components/SkillsPanel.tsx
+68:          <div className="skills-panel-empty">
+
+## src/features/mcp/components/McpStatusPanel.tsx
+15:  error?: string | null;
+30:  const [loading, setLoading] = useState(false);
+31:  const [error, setError] = useState<string | null>(null);
+47:          error: s.error ? String(s.error) : null,
+73:          disabled={loading}
+77:          <RefreshCw size={12} className={loading ? "spin" : ""} aria-hidden />
+81:        {error ? (
+82:          <div className="mcp-panel-error">{error}</div>
+84:          <div className="mcp-panel-empty">
+85:            {loading ? "正在加载 MCP 服务状态…" : "当前工作区暂无 MCP 服务"}
+100:              {server.error ? (
+101:                <div className="mcp-panel-item-error">{server.error}</div>
+

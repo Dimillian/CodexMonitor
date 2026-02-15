@@ -1,0 +1,13 @@
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/git/components/GitDiffPanelModeContent.tsx:284:    <div className="diff-list" onClick={onDiffListClick}>
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/git/components/GitDiffPanelModeContent.tsx:755:            role="button"
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/git/components/GitDiffPanelShared.tsx:279:      role="button"
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/git/components/GitDiffPanelShared.tsx:428:        role="button"
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/git/components/GitDiffPanelShared.tsx:663:      role="button"
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/design-system/components/modal/ModalShell.tsx:32:      <div className="ds-modal-backdrop" onClick={onBackdropClick} />
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/terminal/components/TerminalDock.tsx:56:                role="button"
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/app/components/ThreadList.tsx:274:        role="button"
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/app/components/WorkspaceCard.tsx:94:        role="button"
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/app/components/WorktreeCard.tsx:35:        role="button"
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/app/components/PinnedThreadList.tsx:142:            role="button"
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/app/components/CommandPalette.tsx:138:    <div className="command-palette-overlay" onClick={onClose}>
+/Users/yuyifeng/Documents/VS Code/1_Personal_Project/[UIUX]CodexMonitor/CodexMonitor/src/features/app/components/Sidebar.tsx:1669:                          role="button"

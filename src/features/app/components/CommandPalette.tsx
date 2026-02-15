@@ -135,10 +135,10 @@ export function CommandPalette({
   let globalIndex = 0;
 
   return createPortal(
-    <div className="command-palette-overlay" onClick={onClose}>
+    <div className="command-palette-overlay" onMouseDown={onClose}>
       <div
         className="command-palette"
-        onClick={(event) => event.stopPropagation()}
+        onMouseDown={(event) => event.stopPropagation()}
         role="dialog"
         aria-label="命令菜单"
       >

@@ -43,8 +43,14 @@ export function AboutView() {
         <div className="about-header">
           <img
             className="about-icon"
-            src="/app-icon.png"
+            src="/assets/app-icon-44.png"
+            srcSet="/assets/app-icon-44.png 1x, /assets/app-icon-88.png 2x"
             alt="Codex Monitor 图标"
+            width={44}
+            height={44}
+            sizes="44px"
+            loading="eager"
+            decoding="async"
           />
           <div className="about-title">Codex Monitor</div>
         </div>

@@ -88,7 +88,7 @@ describe("Messages", () => {
     if (grid && markdown) {
       expect(bubble?.firstChild).toBe(grid);
     }
-    const openButton = screen.getByRole("button", { name: "Open image 1" });
+    const openButton = screen.getByRole("button", { name: "打开图片 1" });
     fireEvent.click(openButton);
     expect(screen.getByRole("dialog")).toBeTruthy();
   });

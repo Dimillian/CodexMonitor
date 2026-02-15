@@ -1,0 +1,4 @@
+src/features/layout/hooks/layoutNodes/buildSecondaryNodes.tsx:69:      <h3>未选择工作区</h3>
+src/features/layout/hooks/layoutNodes/buildSecondaryNodes.tsx:79:      <h3>未选择工作区</h3>
+src/features/mobile/components/MobileServerSetupWizard.tsx:44:        <h2 className="mobile-setup-wizard-title">连接到桌面后端</h2>
+src/features/design-system/components/modal/ModalShell.test.tsx:37:        <h2 id="dialog-title">Dialog title</h2>

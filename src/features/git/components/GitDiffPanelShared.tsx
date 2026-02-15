@@ -245,9 +245,8 @@ type DiffFileRowProps = {
   isSelected: boolean;
   isActive: boolean;
   section: "staged" | "unstaged";
-  onClick: (event: ReactMouseEvent<HTMLDivElement>) => void;
-  onKeySelect: () => void;
-  onContextMenu: (event: ReactMouseEvent<HTMLDivElement>) => void;
+  onClick: (event: ReactMouseEvent<HTMLElement>) => void;
+  onContextMenu: (event: ReactMouseEvent<HTMLElement>) => void;
   onStageFile?: (path: string) => Promise<void> | void;
   onUnstageFile?: (path: string) => Promise<void> | void;
   onDiscardFile?: (path: string) => Promise<void> | void;
@@ -259,7 +258,6 @@ function DiffFileRow({
   isActive,
   section,
   onClick,
-  onKeySelect,
   onContextMenu,
   onStageFile,
   onUnstageFile,
@@ -276,29 +274,22 @@ function DiffFileRow({
   return (
     <div
       className={`diff-row ${isActive ? "active" : ""} ${isSelected ? "selected" : ""}`}
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onKeySelect();
-        }
-      }}
       onContextMenu={onContextMenu}
     >
-      <span className={`diff-icon ${statusClass}`} aria-hidden>
-        {statusSymbol}
-      </span>
-      <div className="diff-file">
-        <div className="diff-path">
-          <span className="diff-name">
-            <span className="diff-name-base">{base}</span>
-            {extension && <span className="diff-name-ext">.{extension}</span>}
+      <button type="button" className="diff-row-main" onClick={onClick}>
+        <span className={`diff-icon ${statusClass}`} aria-hidden>
+          {statusSymbol}
+        </span>
+        <span className="diff-file">
+          <span className="diff-path">
+            <span className="diff-name">
+              <span className="diff-name-base">{base}</span>
+              {extension && <span className="diff-name-ext">.{extension}</span>}
+            </span>
           </span>
-        </div>
-        {dir && <div className="diff-dir">{dir}</div>}
-      </div>
+          {dir && <span className="diff-dir">{dir}</span>}
+        </span>
+      </button>
       <div className="diff-row-meta">
         <span className="diff-counts-inline" aria-label={`+${file.additions} -${file.deletions}`}>
           <span className="diff-add">+{file.additions}</span>
@@ -366,12 +357,12 @@ type DiffTreeRowProps = {
   onToggleDir: (path: string) => void;
   onSelectFile?: (path: string) => void;
   onFileClick: (
-    event: ReactMouseEvent<HTMLDivElement>,
+    event: ReactMouseEvent<HTMLElement>,
     path: string,
     section: "staged" | "unstaged",
   ) => void;
   onShowFileMenu: (
-    event: ReactMouseEvent<HTMLDivElement>,
+    event: ReactMouseEvent<HTMLElement>,
     path: string,
     section: "staged" | "unstaged",
   ) => void;
@@ -395,18 +386,18 @@ const DiffTreeRow = memo(function DiffTreeRow({
   onUnstageFile,
   onDiscardFile,
 }: DiffTreeRowProps) {
+  const depthClass = `diff-tree-depth-${Math.min(depth, 20)}`;
   if (node.type === "file" && node.file) {
     const isSelected = selectedFiles.size > 1 && selectedFiles.has(node.file.path);
     const isActive = selectedPath === node.file.path;
     return (
-      <div style={{ paddingLeft: `${depth * 16}px` }}>
+      <div className={`diff-tree-file-row-wrap ${depthClass}`}>
         <DiffFileRow
           file={node.file}
           isSelected={isSelected}
           isActive={isActive}
           section={section}
           onClick={(event) => onFileClick(event, node.file!.path, section)}
-          onKeySelect={() => onSelectFile?.(node.file!.path)}
           onContextMenu={(event) => onShowFileMenu(event, node.file!.path, section)}
           onStageFile={onStageFile}
           onUnstageFile={onUnstageFile}
@@ -422,18 +413,10 @@ const DiffTreeRow = memo(function DiffTreeRow({
 
   return (
     <div className="diff-tree-folder">
-      <div
-        className="diff-tree-folder-row"
-        style={{ paddingLeft: `${depth * 16}px` }}
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
+        className={`diff-tree-folder-row ${depthClass}`}
         onClick={() => onToggleDir(node.path)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onToggleDir(node.path);
-          }
-        }}
         aria-expanded={isExpanded}
       >
         <span className="diff-tree-chevron" aria-hidden>
@@ -450,7 +433,7 @@ const DiffTreeRow = memo(function DiffTreeRow({
           <span className="diff-sep">/</span>
           <span className="diff-del">-{node.stats.deletions}</span>
         </span>
-      </div>
+      </button>
       {isExpanded && (
         <div className="diff-tree-folder-children">
           {node.children.map((child) => (
@@ -490,12 +473,12 @@ type DiffSectionProps = {
   onDiscardFile?: (path: string) => Promise<void> | void;
   onDiscardFiles?: (paths: string[]) => Promise<void> | void;
   onFileClick: (
-    event: ReactMouseEvent<HTMLDivElement>,
+    event: ReactMouseEvent<HTMLElement>,
     path: string,
     section: "staged" | "unstaged",
   ) => void;
   onShowFileMenu: (
-    event: ReactMouseEvent<HTMLDivElement>,
+    event: ReactMouseEvent<HTMLElement>,
     path: string,
     section: "staged" | "unstaged",
   ) => void;
@@ -645,7 +628,7 @@ type GitLogEntryRowProps = {
   isSelected: boolean;
   compact?: boolean;
   onSelect?: (entry: GitLogEntry) => void;
-  onContextMenu: (event: ReactMouseEvent<HTMLDivElement>) => void;
+  onContextMenu: (event: ReactMouseEvent<HTMLElement>) => void;
 };
 
 export function GitLogEntryRow({
@@ -656,28 +639,21 @@ export function GitLogEntryRow({
   onContextMenu,
 }: GitLogEntryRowProps) {
   return (
-    <div
+    <button
+      type="button"
       className={`git-log-entry ${compact ? "git-log-entry-compact" : ""} ${isSelected ? "active" : ""}`}
       onClick={() => onSelect?.(entry)}
       onContextMenu={onContextMenu}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onSelect?.(entry);
-        }
-      }}
     >
-      <div className="git-log-summary">{entry.summary || "无提交信息"}</div>
-      <div className="git-log-meta">
+      <span className="git-log-summary">{entry.summary || "无提交信息"}</span>
+      <span className="git-log-meta">
         <span className="git-log-sha">{entry.sha.slice(0, 7)}</span>
         <span className="git-log-sep">·</span>
         <span className="git-log-author">{entry.author || "未知作者"}</span>
         <span className="git-log-sep">·</span>
         <span className="git-log-date">{formatRelativeTime(entry.timestamp * 1000)}</span>
-      </div>
-    </div>
+      </span>
+    </button>
   );
 }
 

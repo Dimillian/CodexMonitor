@@ -692,6 +692,7 @@ export const Messages = memo(function Messages({
   }, [groupedItems]);
 
   const shouldVirtualize = renderableEntries.length >= VIRTUAL_ENABLE_MIN_ROWS;
+  const virtualContentRef = useRef<HTMLDivElement | null>(null);
 
   const rowVirtualizer = useVirtualizer({
     count: renderableEntries.length,
@@ -701,7 +702,32 @@ export const Messages = memo(function Messages({
     overscan: VIRTUAL_OVERSCAN_ROWS,
     enabled: shouldVirtualize,
   });
-  const virtualRows = shouldVirtualize ? rowVirtualizer.getVirtualItems() : [];
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const totalVirtualHeight = rowVirtualizer.getTotalSize();
+
+  useLayoutEffect(() => {
+    const virtualContent = virtualContentRef.current;
+    if (!virtualContent || !shouldVirtualize) {
+      return;
+    }
+    virtualContent.style.setProperty("--messages-virtual-height", `${totalVirtualHeight}px`);
+  }, [shouldVirtualize, totalVirtualHeight]);
+
+  useLayoutEffect(() => {
+    const virtualContent = virtualContentRef.current;
+    if (!virtualContent || !shouldVirtualize) {
+      return;
+    }
+    for (const virtualRow of virtualRows) {
+      const rowElement = virtualContent.querySelector<HTMLElement>(
+        `[data-index="${virtualRow.index}"]`,
+      );
+      if (!rowElement) {
+        continue;
+      }
+      rowElement.style.setProperty("--messages-virtual-row-offset", `${virtualRow.start}px`);
+    }
+  }, [shouldVirtualize, virtualRows]);
 
   useLayoutEffect(() => {
     if (!threadId || pendingThreadPinRef.current !== threadId) {
@@ -983,10 +1009,7 @@ export const Messages = memo(function Messages({
       {/* Top manual "load older" control removed.
           Upward scroll-to-top still triggers onReachTop for history loading. */}
       {renderableEntries.length > 0 && shouldVirtualize && (
-        <div
-          className="messages-virtual-content"
-          style={{ height: rowVirtualizer.getTotalSize() }}
-        >
+        <div className="messages-virtual-content is-virtualized" ref={virtualContentRef}>
           {virtualRows.map((virtualRow) => {
             const entry = renderableEntries[virtualRow.index];
             if (!entry) {
@@ -997,14 +1020,7 @@ export const Messages = memo(function Messages({
                 key={entry.key}
                 data-index={virtualRow.index}
                 ref={rowVirtualizer.measureElement}
-                className={`messages-virtual-row ${entry.rowClassName}`}
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  transform: `translate3d(0, ${virtualRow.start}px, 0)`,
-                }}
+                className={`messages-virtual-row is-virtualized ${entry.rowClassName}`}
               >
                 {renderItem(entry.item)}
               </div>

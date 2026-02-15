@@ -1,0 +1,3 @@
+22:        "titleBarStyle": "Overlay",
+23:        "hiddenTitle": true,
+24:        "transparent": true,

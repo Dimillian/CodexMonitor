@@ -78,14 +78,14 @@ export function SkillsPanel({
               onClick={() => onInvokeSkill?.(skill)}
               title={skill.path}
             >
-              <div className="skills-panel-item-header">
+              <span className="skills-panel-item-header">
                 <span className="skills-panel-item-name">{skill.name}</span>
                 <span className="skills-panel-item-source">
                   {skillSourceLabel(skill.path)}
                 </span>
-              </div>
+              </span>
               {skill.description ? (
-                <div className="skills-panel-item-desc">{skill.description}</div>
+                <span className="skills-panel-item-desc">{skill.description}</span>
               ) : null}
             </button>
           ))

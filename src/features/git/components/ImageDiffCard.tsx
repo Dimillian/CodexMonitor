@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import ImageOff from "lucide-react/dist/esm/icons/image-off";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import { splitPath } from "./GitDiffPanel.utils";
@@ -31,6 +31,42 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function useIntrinsicImageDimensions(src: string | null) {
+  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!src) {
+      setDimensions(null);
+      return;
+    }
+    let canceled = false;
+    const probe = new Image();
+    probe.decoding = "async";
+    probe.onload = () => {
+      if (canceled) {
+        return;
+      }
+      setDimensions({
+        width: probe.naturalWidth || 1,
+        height: probe.naturalHeight || 1,
+      });
+    };
+    probe.onerror = () => {
+      if (!canceled) {
+        setDimensions(null);
+      }
+    };
+    probe.src = src;
+    return () => {
+      canceled = true;
+    };
+  }, [src]);
+
+  return dimensions;
 }
 
 export const ImageDiffCard = memo(function ImageDiffCard({
@@ -75,6 +111,8 @@ export const ImageDiffCard = memo(function ImageDiffCard({
     const bytes = Math.ceil((newImageData.length * 3) / 4);
     return formatFileSize(bytes);
   }, [newImageData]);
+  const oldImageDimensions = useIntrinsicImageDimensions(oldDataUri);
+  const newImageDimensions = useIntrinsicImageDimensions(newDataUri);
 
   const isAdded = status === "A";
   const isDeleted = status === "D";
@@ -123,8 +161,14 @@ export const ImageDiffCard = memo(function ImageDiffCard({
               {oldDataUri ? (
                 <img
                   src={oldDataUri}
+                  srcSet={`${oldDataUri} 1x, ${oldDataUri} 2x`}
                   alt="旧版本"
                   className="image-diff-preview"
+                  loading="lazy"
+                  width={oldImageDimensions?.width}
+                  height={oldImageDimensions?.height}
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  decoding="async"
                 />
               ) : (
                 renderPlaceholder()
@@ -135,8 +179,14 @@ export const ImageDiffCard = memo(function ImageDiffCard({
               {newDataUri ? (
                 <img
                   src={newDataUri}
+                  srcSet={`${newDataUri} 1x, ${newDataUri} 2x`}
                   alt="当前版本"
                   className="image-diff-preview"
+                  loading="lazy"
+                  width={newImageDimensions?.width}
+                  height={newImageDimensions?.height}
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  decoding="async"
                 />
               ) : (
                 renderPlaceholder()
@@ -151,8 +201,14 @@ export const ImageDiffCard = memo(function ImageDiffCard({
               {newDataUri ? (
                 <img
                   src={newDataUri}
+                  srcSet={`${newDataUri} 1x, ${newDataUri} 2x`}
                   alt="新图片"
                   className="image-diff-preview"
+                  loading="lazy"
+                  width={newImageDimensions?.width}
+                  height={newImageDimensions?.height}
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  decoding="async"
                 />
               ) : (
                 renderPlaceholder()
@@ -167,8 +223,14 @@ export const ImageDiffCard = memo(function ImageDiffCard({
               {oldDataUri ? (
                 <img
                   src={oldDataUri}
+                  srcSet={`${oldDataUri} 1x, ${oldDataUri} 2x`}
                   alt="已删除图片"
                   className="image-diff-preview"
+                  loading="lazy"
+                  width={oldImageDimensions?.width}
+                  height={oldImageDimensions?.height}
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  decoding="async"
                 />
               ) : (
                 renderPlaceholder()

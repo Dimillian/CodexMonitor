@@ -64,9 +64,9 @@ export function WorkspaceHome({
   }, [workspace.id]);
 
   const agentMdStatus = agentMdLoading
-    ? "Loading…"
+    ? "加载中…"
     : agentMdSaving
-      ? "Saving…"
+      ? "保存中…"
       : agentMdExists
         ? ""
         : "未找到";
@@ -89,7 +89,13 @@ export function WorkspaceHome({
           <img
             className="workspace-home-icon"
             src={iconSrc}
+            srcSet={`${iconSrc} 1x, ${iconSrc} 2x`}
             alt=""
+            width={40}
+            height={40}
+            sizes="40px"
+            loading="lazy"
+            decoding="async"
             onError={() => setShowIcon(false)}
           />
         )}

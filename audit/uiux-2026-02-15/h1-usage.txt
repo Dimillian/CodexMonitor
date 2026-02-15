@@ -1,0 +1,1 @@
+src/App.tsx:2670:      <h1 className="sr-only">Codex Monitor</h1>

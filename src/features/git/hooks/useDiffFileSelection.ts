@@ -39,7 +39,7 @@ export function useDiffFileSelection({
 
   const handleFileClick = useCallback(
     (
-      event: ReactMouseEvent<HTMLDivElement>,
+      event: ReactMouseEvent<HTMLElement>,
       path: string,
       _section: "staged" | "unstaged",
     ) => {
@@ -99,7 +99,7 @@ export function useDiffFileSelection({
   }, [clearSelection, filesKey]);
 
   const handleDiffListClick = useCallback(
-    (event: ReactMouseEvent<HTMLDivElement>) => {
+    (event: ReactMouseEvent<HTMLElement>) => {
       const target = event.target as HTMLElement | null;
       if (target?.closest(".diff-row")) {
         return;

@@ -1,7 +1,7 @@
 .clone-modal .ds-modal-card {
   width: min(520px, calc(100vw - 48px));
   border-radius: 16px;
-  padding: 18px 20px;
+  padding: 16px 24px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -33,7 +33,7 @@
 }
 
 .clone-modal-suggested-label {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--ds-text-faint);
 }
 
@@ -47,7 +47,7 @@
   flex: 1;
   min-width: 0;
   color: var(--ds-text-subtle);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .clone-modal-button {

@@ -9,7 +9,7 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 10px;
+  gap: 12px;
   padding: 36px 8px 16px;
   background: var(--surface-topbar);
   border-right: 1px solid var(--border-subtle);
@@ -20,7 +20,7 @@
 .tablet-nav-group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .tablet-nav-item {
@@ -28,8 +28,8 @@
   background: transparent;
   color: var(--text-subtle);
   border-radius: 12px;
-  padding: 10px 6px;
-  font-size: 11px;
+  padding: 12px 6px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -88,7 +88,7 @@
 }
 
 .tablet-topbar {
-  padding: 10px 20px 8px;
+  padding: 12px 24px 8px;
 }
 
 .tablet-content {
@@ -97,11 +97,11 @@
 }
 
 .app.layout-tablet .messages-full {
-  padding: 12px 20px 16px;
+  padding: 12px 24px 16px;
 }
 
 .app.layout-tablet .composer {
-  padding: 12px 20px 18px;
+  padding: 12px 24px 16px;
 }
 
 .tablet-git {
@@ -146,4 +146,14 @@
 
 .projects-resizer:hover::after {
   opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app.layout-tablet,
+  .app.layout-tablet *,
+  .tablet-nav,
+  .tablet-nav * {
+    animation: none;
+    transition: none;
+  }
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -436,6 +436,32 @@ export function FileTreePanel({
     overscan: 8,
   });
   const virtualRows = rowVirtualizer.getVirtualItems();
+  const totalVirtualHeight = rowVirtualizer.getTotalSize();
+  const virtualContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    const container = virtualContainerRef.current;
+    if (!container) {
+      return;
+    }
+    container.style.setProperty("--file-tree-total-height", `${totalVirtualHeight}px`);
+  }, [totalVirtualHeight]);
+
+  useLayoutEffect(() => {
+    const container = virtualContainerRef.current;
+    if (!container) {
+      return;
+    }
+    for (const virtualRow of virtualRows) {
+      const rowElement = container.querySelector<HTMLElement>(
+        `[data-index="${virtualRow.index}"]`,
+      );
+      if (!rowElement) {
+        continue;
+      }
+      rowElement.style.setProperty("--file-tree-row-offset", `${virtualRow.start}px`);
+    }
+  }, [virtualRows]);
 
   useEffect(() => {
     if (!isDragSelecting) {
@@ -584,12 +610,12 @@ export function FileTreePanel({
   const renderRow = (entry: FileTreeRowEntry) => {
     const { node, depth, isFolder, isExpanded } = entry;
     const fileTypeIconUrl = isFolder ? null : getFileTypeIconUrl(node.path);
+    const depthClass = `file-tree-depth-${Math.min(depth, 20)}`;
     return (
       <div className="file-tree-row-wrap">
         <button
           type="button"
-          className={`file-tree-row${isFolder ? " is-folder" : " is-file"}`}
-          style={{ paddingLeft: `${depth * 10}px` }}
+          className={`file-tree-row ${depthClass}${isFolder ? " is-folder" : " is-file"}`}
           onClick={(event) => {
             if (isFolder) {
               toggleFolder(node.path);
@@ -615,7 +641,11 @@ export function FileTreePanel({
               <img
                 className="file-tree-icon-image"
                 src={fileTypeIconUrl}
+                srcSet={`${fileTypeIconUrl} 1x, ${fileTypeIconUrl} 2x`}
                 alt=""
+                width={12}
+                height={12}
+                sizes="12px"
                 loading="lazy"
                 decoding="async"
               />
@@ -703,18 +733,13 @@ export function FileTreePanel({
           </button>
         }
       />
-      <div
-        className="file-tree-list"
-        ref={listRef}
-        style={{ ["--file-tree-row-height" as string]: `${FILE_TREE_ROW_HEIGHT}px` }}
-      >
+      <div className="file-tree-list" ref={listRef}>
         {showLoading ? (
           <div className="file-tree-skeleton">
             {Array.from({ length: 8 }).map((_, index) => (
               <div
-                className="file-tree-skeleton-row"
+                className={`file-tree-skeleton-row file-tree-skeleton-row-${index}`}
                 key={`file-tree-skeleton-${index}`}
-                style={{ width: `${68 + index * 3}%` }}
               />
             ))}
           </div>
@@ -729,10 +754,7 @@ export function FileTreePanel({
                 : "暂无可用文件。"}
           </div>
         ) : (
-          <div
-            className="file-tree-virtual"
-            style={{ height: rowVirtualizer.getTotalSize() }}
-          >
+          <div className="file-tree-virtual" ref={virtualContainerRef}>
             {virtualRows.map((virtualRow) => {
               const entry = flatNodes[virtualRow.index];
               if (!entry) {
@@ -741,15 +763,9 @@ export function FileTreePanel({
               return (
                 <div
                   key={virtualRow.key}
+                  className="file-tree-virtual-row"
                   data-index={virtualRow.index}
                   ref={rowVirtualizer.measureElement}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    transform: `translateY(${virtualRow.start}px)`,
-                  }}
                 >
                   {renderRow(entry)}
                 </div>
@@ -781,13 +797,12 @@ export function FileTreePanel({
               canInsertText={canInsertText}
               onClose={closePreview}
               selectionHints={selectionHints}
-              style={{
-                position: "fixed",
+              anchor={{
                 top: previewAnchor.top,
                 left: previewAnchor.left,
                 width: 640,
                 maxHeight: previewAnchor.height,
-                ["--file-preview-arrow-top" as string]: `${previewAnchor.arrowTop}px`,
+                arrowTop: previewAnchor.arrowTop,
               }}
               isLoading={previewLoading}
               error={previewError}

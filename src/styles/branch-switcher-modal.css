@@ -12,7 +12,7 @@
   border-bottom: 1px solid var(--ds-border-subtle);
   background: transparent;
   color: var(--ds-text-strong);
-  padding: 14px 16px;
+  padding: 16px 16px;
   font-size: 14px;
 }
 
@@ -31,7 +31,7 @@
   padding: 16px;
   text-align: center;
   color: var(--ds-text-faint);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .branch-switcher-modal-item {
@@ -39,11 +39,11 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 8px 10px;
+  padding: 8px 12px;
   border: none;
   background: transparent;
   color: var(--ds-text-strong);
-  font-size: 13px;
+  font-size: 14px;
   text-align: left;
   border-radius: 6px;
   cursor: pointer;
@@ -71,17 +71,25 @@
 }
 
 .branch-switcher-modal-item-current {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--ds-text-faint);
   background: var(--surface-secondary);
-  padding: 2px 6px;
+  padding: 4px 6px;
   border-radius: 4px;
 }
 
 .branch-switcher-modal-item-worktree {
-  font-size: 11px;
-  color: #7dd3fc;
-  background: rgba(125, 211, 252, 0.15);
-  padding: 2px 6px;
+  font-size: 14px;
+  color: var(--text-accent);
+  background: color-mix(in srgb, var(--text-accent) 15%, transparent);
+  padding: 4px 6px;
   border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .branch-switcher-modal,
+  .branch-switcher-modal * {
+    animation: none;
+    transition: none;
+  }
 }

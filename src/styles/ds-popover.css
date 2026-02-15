@@ -1,7 +1,7 @@
 .ds-popover {
   background: var(--ds-popover-bg, var(--surface-popover));
   border: 1px solid var(--ds-popover-border, var(--border-muted));
-  box-shadow: var(--ds-popover-shadow, 0 14px 34px rgba(0, 0, 0, 0.3));
+  box-shadow: var(--ds-popover-shadow);
   border-radius: 10px;
 }
 
@@ -16,7 +16,7 @@
   gap: 8px;
   padding: 6px 8px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 14px;
   text-align: left;
   cursor: pointer;
 }

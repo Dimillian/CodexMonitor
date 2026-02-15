@@ -1,0 +1,68 @@
+src/features/git/components/GitDiffViewer.tsx:145:            <RotateCcw size={14} aria-hidden />
+src/features/git/components/GitDiffViewer.tsx:642:                  <RotateCcw size={14} aria-hidden />
+src/features/git/components/GitDiffPanelModeContent.tsx:119:          <RotateCw size={12} aria-hidden />
+src/features/git/components/GitDiffPanelModeContent.tsx:491:                  <Download size={14} aria-hidden />
+src/features/git/components/GitDiffPanelModeContent.tsx:512:                  <Upload size={14} aria-hidden />
+src/features/git/components/GitDiffPanelModeContent.tsx:530:                <RotateCcw size={14} aria-hidden />
+src/features/git/components/GitDiffPanelShared.tsx:237:        <X size={12} aria-hidden />
+src/features/git/components/GitDiffPanelShared.tsx:320:              <Plus size={12} aria-hidden />
+src/features/git/components/GitDiffPanelShared.tsx:334:              <Minus size={12} aria-hidden />
+src/features/git/components/GitDiffPanelShared.tsx:348:              <RotateCcw size={12} aria-hidden />
+src/features/git/components/GitDiffPanelShared.tsx:440:          <ChevronIcon size={12} />
+src/features/git/components/GitDiffPanelShared.tsx:443:          <FolderIcon size={13} />
+src/features/git/components/GitDiffPanelShared.tsx:583:                <Plus size={12} aria-hidden />
+src/features/git/components/GitDiffPanelShared.tsx:600:                <Minus size={12} aria-hidden />
+src/features/git/components/GitDiffPanelShared.tsx:613:                <RotateCcw size={12} aria-hidden />
+src/features/git/components/GitDiffPanelShared.tsx:686:    return <Check size={12} aria-hidden />;
+src/features/git/components/GitDiffPanelShared.tsx:688:  return <Upload size={12} aria-hidden />;
+src/features/git/components/ImageDiffCard.tsx:115:            <RotateCcw size={14} aria-hidden />
+src/features/mcp/components/McpStatusPanel.tsx:67:        <Server size={14} aria-hidden />
+src/features/mcp/components/McpStatusPanel.tsx:77:          <RefreshCw size={12} className={loading ? "spin" : ""} aria-hidden />
+src/features/files/components/FileTreePanel.tsx:613:              <Folder size={12} />
+src/features/files/components/FileTreePanel.tsx:623:              <File size={12} />
+src/features/files/components/FileTreePanel.tsx:643:            <Plus size={10} aria-hidden />
+src/features/files/components/FileTreePanel.tsx:702:            <GitBranch size={14} aria-hidden />
+src/features/messages/components/MessageRows.tsx:163:          <X size={16} aria-hidden />
+src/features/messages/components/MessageRows.tsx:507:            <Copy className="message-copy-icon-copy" size={14} />
+src/features/messages/components/MessageRows.tsx:508:            <Check className="message-copy-icon-check" size={14} />
+src/features/skills/components/SkillsPanel.tsx:51:        <Zap size={14} aria-hidden />
+src/features/skills/components/SkillsPanel.tsx:56:        <Search size={12} className="skills-panel-search-icon" aria-hidden />
+src/features/files/components/FilePreviewPopover.tsx:98:          <X size={14} aria-hidden />
+src/features/automations/components/AutomationsPanel.tsx:12:        <Play size={14} aria-hidden />
+src/features/workspaces/components/WorkspaceHomeRunControls.tsx:117:              <ChevronDown size={14} aria-hidden />
+src/features/workspaces/components/WorkspaceHomeRunControls.tsx:179:            <ChevronDown size={14} aria-hidden />
+src/features/workspaces/components/WorkspaceHomeRunControls.tsx:222:                        <ChevronRight size={14} />
+src/features/home/components/Home.tsx:199:          <Sparkles size={18} />
+src/features/home/components/Home.tsx:323:            <FolderOpen size={16} />
+src/features/messages/components/Markdown.tsx:601:                  <ExternalLink size={12} aria-hidden />
+src/features/composer/components/ComposerAttachments.tsx:69:                <Image size={14} />
+src/features/composer/components/ComposerAttachments.tsx:80:              <X size={12} aria-hidden />
+src/features/composer/components/ComposerMetaBar.tsx:207:            <BrainCog size={14} strokeWidth={1.8} />
+src/features/composer/components/ComposerInput.tsx:443:            <ImagePlus size={14} aria-hidden />
+src/features/composer/components/ComposerInput.tsx:459:              <Plus size={14} aria-hidden />
+src/features/composer/components/ComposerInput.tsx:466:                  icon={<ImagePlus size={14} />}
+src/features/composer/components/ComposerInput.tsx:476:                        <ChevronDown size={14} />
+src/features/composer/components/ComposerInput.tsx:478:                        <ChevronUp size={14} />
+src/features/composer/components/ComposerInput.tsx:493:                    icon={isDictating ? <Square size={14} /> : <Mic size={14} />}
+src/features/composer/components/ComposerInput.tsx:645:                                <Icon size={14} />
+src/features/app/components/LaunchScriptIconPicker.tsx:28:            <Icon size={14} aria-hidden />
+src/features/app/components/LaunchScriptButton.tsx:85:          <Play size={14} aria-hidden />
+src/features/layout/components/SidebarToggleControls.tsx:33:      <PanelLeftClose size={14} aria-hidden />
+src/features/layout/components/SidebarToggleControls.tsx:55:      <PanelRightClose size={14} aria-hidden />
+src/features/layout/components/SidebarToggleControls.tsx:82:            <PanelLeftOpen size={14} aria-hidden />
+src/features/layout/components/SidebarToggleControls.tsx:96:            <PanelRightOpen size={14} aria-hidden />
+src/features/app/components/LaunchScriptEntryButton.tsx:68:          <Icon size={14} aria-hidden />
+src/features/app/components/SidebarCornerActions.tsx:62:            <User size={14} aria-hidden />
+src/features/app/components/SidebarCornerActions.tsx:92:                    <X size={12} aria-hidden />
+src/features/app/components/SidebarCornerActions.tsx:107:        <Settings size={14} aria-hidden />
+src/features/app/components/SidebarCornerActions.tsx:117:          <ScrollText size={14} aria-hidden />
+src/features/app/components/CommandPalette.tsx:146:          <Search size={14} className="command-palette-search-icon" aria-hidden />
+src/features/app/components/OpenAppMenu.tsx:223:          <ChevronDown size={14} aria-hidden />
+src/features/app/components/MainHeaderActions.tsx:38:            <Columns2 size={14} aria-hidden />
+src/features/app/components/MainHeaderActions.tsx:50:            <AlignLeft size={14} aria-hidden />
+src/features/app/components/Sidebar.tsx:1450:            <X size={12} aria-hidden />
+src/features/app/components/MainHeader.tsx:623:            <Terminal size={14} aria-hidden />
+src/features/app/components/MainHeader.tsx:636:              <Copy className="main-header-icon-copy" size={14} />
+src/features/app/components/MainHeader.tsx:637:              <Check className="main-header-icon-check" size={14} />
+src/features/app/components/MainHeader.tsx:648:            <ChevronDown size={10} aria-hidden />
+src/features/app/components/WorkspaceCard.tsx:115:              <Folder className="workspace-icon" size={14} aria-hidden />

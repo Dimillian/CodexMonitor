@@ -73,8 +73,8 @@ function getTerminalAppearance(container: HTMLElement | null): TerminalAppearanc
     return {
       theme: {
         background: "transparent",
-        foreground: "#d9dee7",
-        cursor: "#d9dee7",
+        foreground: "white",
+        cursor: "white",
       },
       fontFamily: "Menlo, Monaco, \"Courier New\", monospace",
     };
@@ -86,11 +86,11 @@ function getTerminalAppearance(container: HTMLElement | null): TerminalAppearanc
     styles.getPropertyValue("--terminal-background").trim() ||
     styles.getPropertyValue("--surface-debug").trim() ||
     styles.getPropertyValue("--surface-panel").trim() ||
-    "#11151b";
+    "black";
   const foreground =
     styles.getPropertyValue("--terminal-foreground").trim() ||
     styles.getPropertyValue("--text-stronger").trim() ||
-    "#d9dee7";
+    "white";
   const cursor =
     styles.getPropertyValue("--terminal-cursor").trim() || foreground;
   const selection = styles.getPropertyValue("--terminal-selection").trim();

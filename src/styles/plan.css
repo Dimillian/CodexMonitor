@@ -16,26 +16,26 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-subtle);
 }
 
 .plan-progress {
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.02em;
   color: var(--text-faint);
 }
 
 .plan-explanation {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-muted);
   white-space: pre-wrap;
 }
 
 .plan-empty {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-faint);
 }
 
@@ -45,7 +45,7 @@
   gap: 6px;
   overflow-y: auto;
   min-height: 0;
-  padding-right: 2px;
+  padding-right: 4px;
   margin: 0;
   padding-left: 0;
   list-style: none;
@@ -55,23 +55,23 @@
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-emphasis);
 }
 
 .plan-step-status {
   font-family: var(--code-font-family);
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-faint);
   flex: 0 0 auto;
 }
 
 .plan-step.inProgress .plan-step-status {
-  color: #86b7ff;
+  color: var(--text-accent);
 }
 
 .plan-step.completed .plan-step-status {
-  color: #47d488;
+  color: var(--status-success);
 }
 
 .plan-step-text {
