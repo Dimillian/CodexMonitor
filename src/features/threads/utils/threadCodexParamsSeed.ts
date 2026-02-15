@@ -45,20 +45,22 @@ export function resolveWorkspaceRuntimeCodexArgsOverride(options: {
   getThreadCodexParams: (workspaceId: string, threadId: string) => ThreadCodexParams | null;
 }): string | null {
   const { workspaceId, threadId, getThreadCodexParams } = options;
+  const getNoThreadArgs = () =>
+    getThreadCodexParams(workspaceId, NO_THREAD_SCOPE_SUFFIX)?.codexArgsOverride ?? null;
+
   if (!threadId) {
-    const noThreadArgs =
-      getThreadCodexParams(workspaceId, NO_THREAD_SCOPE_SUFFIX)?.codexArgsOverride ?? null;
-    return sanitizeRuntimeCodexArgs(noThreadArgs);
+    return sanitizeRuntimeCodexArgs(getNoThreadArgs());
   }
 
   const threadScoped = getThreadCodexParams(workspaceId, threadId);
   if (threadScoped) {
-    return sanitizeRuntimeCodexArgs(threadScoped.codexArgsOverride ?? null);
+    if (threadScoped.codexArgsOverride !== undefined) {
+      return sanitizeRuntimeCodexArgs(threadScoped.codexArgsOverride);
+    }
+    return sanitizeRuntimeCodexArgs(getNoThreadArgs());
   }
 
-  const noThreadArgs =
-    getThreadCodexParams(workspaceId, NO_THREAD_SCOPE_SUFFIX)?.codexArgsOverride ?? null;
-  return sanitizeRuntimeCodexArgs(noThreadArgs);
+  return sanitizeRuntimeCodexArgs(getNoThreadArgs());
 }
 
 export function createPendingThreadSeed(options: {
@@ -127,7 +129,10 @@ export function resolveThreadCodexState(
     preferredModelId: stored?.modelId ?? lastComposerModelId ?? null,
     preferredEffort: stored?.effort ?? lastComposerReasoningEffort ?? null,
     preferredCollabModeId: stored?.collaborationModeId ?? pendingCollabModeId ?? null,
-    preferredCodexArgsOverride: stored?.codexArgsOverride ?? pendingCodexArgsOverride ?? null,
+    preferredCodexArgsOverride:
+      stored && stored.codexArgsOverride !== undefined
+        ? stored.codexArgsOverride
+        : pendingCodexArgsOverride ?? null,
   };
 }
 

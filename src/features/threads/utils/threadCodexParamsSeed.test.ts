@@ -100,6 +100,54 @@ describe("threadCodexParamsSeed", () => {
       preferredCollabModeId: "plan",
       preferredCodexArgsOverride: "--profile pending",
     });
+
+    const explicitDefaultResolved = resolveThreadCodexState({
+      workspaceId: "ws-1",
+      threadId: "thread-3",
+      defaultAccessMode: "current",
+      lastComposerModelId: "gpt-5",
+      lastComposerReasoningEffort: "medium",
+      stored: {
+        modelId: null,
+        effort: null,
+        accessMode: null,
+        collaborationModeId: null,
+        codexArgsOverride: null,
+        updatedAt: 100,
+      },
+      pendingSeed: {
+        workspaceId: "ws-1",
+        collaborationModeId: "plan",
+        accessMode: "full-access",
+        codexArgsOverride: "--profile pending",
+      },
+    });
+
+    expect(explicitDefaultResolved.preferredCodexArgsOverride).toBeNull();
+
+    const legacyMissingResolved = resolveThreadCodexState({
+      workspaceId: "ws-1",
+      threadId: "thread-4",
+      defaultAccessMode: "current",
+      lastComposerModelId: "gpt-5",
+      lastComposerReasoningEffort: "medium",
+      stored: {
+        modelId: null,
+        effort: null,
+        accessMode: null,
+        collaborationModeId: null,
+        codexArgsOverride: undefined,
+        updatedAt: 100,
+      },
+      pendingSeed: {
+        workspaceId: "ws-1",
+        collaborationModeId: "plan",
+        accessMode: "full-access",
+        codexArgsOverride: "--profile pending",
+      },
+    });
+
+    expect(legacyMissingResolved.preferredCodexArgsOverride).toBe("--profile pending");
   });
 
   it("resolves no-thread state from stored no-thread params before defaults", () => {
@@ -131,7 +179,9 @@ describe("threadCodexParamsSeed", () => {
   });
 
   it("falls back to no-thread runtime args until thread-scoped params are seeded", () => {
-    const entry = (codexArgsOverride: string | null): ThreadCodexParams => ({
+    const entry = (
+      codexArgsOverride: string | null | undefined,
+    ): ThreadCodexParams => ({
       modelId: null,
       effort: null,
       accessMode: null,
@@ -143,6 +193,7 @@ describe("threadCodexParamsSeed", () => {
     const paramsMap: Record<string, ThreadCodexParams | undefined> = {
       "ws-1:__no_thread__": entry("--profile no-thread"),
       "ws-1:thread-with-null": entry(null),
+      "ws-1:thread-with-legacy-missing": entry(undefined),
       "ws-1:thread-with-ignored-only": entry("--model gpt-5 --full-auto"),
       "ws-1:thread-with-sanitized-value": entry("--profile thread --model gpt-5"),
     };
@@ -177,6 +228,14 @@ describe("threadCodexParamsSeed", () => {
     expect(
       resolveWorkspaceRuntimeCodexArgsOverride({
         workspaceId: "ws-1",
+        threadId: "thread-with-legacy-missing",
+        getThreadCodexParams,
+      }),
+    ).toBe("--profile no-thread");
+
+    expect(
+      resolveWorkspaceRuntimeCodexArgsOverride({
+        workspaceId: "ws-1",
         threadId: "thread-with-ignored-only",
         getThreadCodexParams,
       }),
@@ -192,7 +251,9 @@ describe("threadCodexParamsSeed", () => {
   });
 
   it("returns null for no-thread ignored-only overrides and sanitized args otherwise", () => {
-    const entry = (codexArgsOverride: string | null): ThreadCodexParams => ({
+    const entry = (
+      codexArgsOverride: string | null | undefined,
+    ): ThreadCodexParams => ({
       modelId: null,
       effort: null,
       accessMode: null,

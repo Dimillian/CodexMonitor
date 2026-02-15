@@ -48,6 +48,15 @@ function sanitizeEntry(value: unknown): ThreadCodexParams | null {
     return null;
   }
   const entry = value as Record<string, unknown>;
+  const hasCodexArgsOverrideField = Object.prototype.hasOwnProperty.call(
+    entry,
+    "codexArgsOverride",
+  );
+  const codexArgsOverride = hasCodexArgsOverrideField
+    ? typeof entry.codexArgsOverride === "string"
+      ? entry.codexArgsOverride
+      : null
+    : undefined;
   return {
     modelId: typeof entry.modelId === "string" ? entry.modelId : null,
     effort: typeof entry.effort === "string" ? entry.effort : null,
@@ -56,8 +65,7 @@ function sanitizeEntry(value: unknown): ThreadCodexParams | null {
       typeof entry.collaborationModeId === "string"
         ? entry.collaborationModeId
         : null,
-    codexArgsOverride:
-      typeof entry.codexArgsOverride === "string" ? entry.codexArgsOverride : null,
+    codexArgsOverride,
     updatedAt: typeof entry.updatedAt === "number" ? entry.updatedAt : 0,
   };
 }

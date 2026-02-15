@@ -65,6 +65,34 @@ describe("useThreadCodexParams", () => {
     });
   });
 
+  it("preserves missing codexArgsOverride for legacy persisted entries", () => {
+    window.localStorage.setItem(
+      STORAGE_KEY_THREAD_CODEX_PARAMS,
+      JSON.stringify({
+        "ws-1:thread-legacy": {
+          modelId: "gpt-4.1",
+          effort: "medium",
+          accessMode: "current",
+          collaborationModeId: "default",
+          updatedAt: 123,
+        },
+      }),
+    );
+
+    const { result } = renderHook(() => useThreadCodexParams());
+    const legacy = result.current.getThreadCodexParams("ws-1", "thread-legacy");
+    expect(legacy).toEqual(
+      expect.objectContaining({
+        modelId: "gpt-4.1",
+        effort: "medium",
+        accessMode: "current",
+        collaborationModeId: "default",
+        updatedAt: 123,
+      }),
+    );
+    expect(legacy?.codexArgsOverride).toBeUndefined();
+  });
+
   it("syncs from storage events", async () => {
     const { result } = renderHook(() => useThreadCodexParams());
 
