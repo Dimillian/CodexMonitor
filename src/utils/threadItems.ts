@@ -1,10 +1,20 @@
 import type { ConversationItem } from "../types";
 
+<<<<<<< HEAD
 // 0 disables client-side item capping so full thread history remains scrollable.
 const MAX_ITEMS_PER_THREAD = 0;
 const MAX_ITEM_TEXT = 20000;
 // 0 disables message-text truncation; keep full assistant/user messages.
 const MAX_MESSAGE_TEXT = 0;
+=======
+export type PrepareThreadItemsOptions = {
+  maxItemsPerThread?: number | null;
+};
+
+const DEFAULT_MAX_ITEMS_PER_THREAD = CHAT_SCROLLBACK_DEFAULT;
+const MAX_ITEM_TEXT = 20000;
+const MAX_LARGE_TOOL_TEXT = 200000;
+>>>>>>> origin/main
 const TOOL_OUTPUT_RECENT_ITEMS = 40;
 const NO_TRUNCATE_TOOL_TYPES = new Set(["fileChange", "commandExecution"]);
 const READ_COMMANDS = new Set(["cat", "sed", "head", "tail", "less", "more", "nl"]);
@@ -149,6 +159,7 @@ export function normalizeItem(item: ConversationItem): ConversationItem {
     return { ...item, diff };
   }
   if (item.kind === "tool") {
+<<<<<<< HEAD
     const isNoTruncateTool = NO_TRUNCATE_TOOL_TYPES.has(item.toolType);
     const title = truncateText(item.title, 200);
     const detail = truncateText(item.detail, 2000);
@@ -189,6 +200,23 @@ export function normalizeItem(item: ConversationItem): ConversationItem {
       detail,
       output,
       changes,
+=======
+    return {
+      ...item,
+      title: truncateText(item.title, 200),
+      detail: truncateText(item.detail, 2000),
+      output: item.output
+        ? truncateToolText(item.toolType, item.output)
+        : item.output,
+      changes: item.changes
+        ? item.changes.map((change) => ({
+            ...change,
+            diff: change.diff
+              ? truncateToolText(item.toolType, change.diff)
+              : change.diff,
+          }))
+        : item.changes,
+>>>>>>> origin/main
     };
   }
   return item;
@@ -540,9 +568,17 @@ export function prepareThreadItems(items: ConversationItem[]) {
   }
   const normalized = filtered.map((item) => normalizeItem(item));
   const limited =
+<<<<<<< HEAD
     MAX_ITEMS_PER_THREAD > 0 && normalized.length > MAX_ITEMS_PER_THREAD
       ? normalized.slice(-MAX_ITEMS_PER_THREAD)
       : normalized;
+=======
+    maxItemsPerThread === null
+      ? normalized
+      : normalized.length > maxItemsPerThread
+        ? normalized.slice(-maxItemsPerThread)
+        : normalized;
+>>>>>>> origin/main
   const summarized = summarizeExploration(limited);
   const cutoff = Math.max(0, summarized.length - TOOL_OUTPUT_RECENT_ITEMS);
   return summarized.map((item, index) => {

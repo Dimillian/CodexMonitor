@@ -6,8 +6,12 @@ import type { QueueHealthEntry, QueuedMessage } from "../../../types";
 
 type ComposerQueueProps = {
   queuedMessages: QueuedMessage[];
+<<<<<<< HEAD
   queueHealthEntries?: QueueHealthEntry[];
   legacyQueueMessageCount?: number;
+=======
+  pausedReason?: string | null;
+>>>>>>> origin/main
   onEditQueued?: (item: QueuedMessage) => void;
   onDeleteQueued?: (id: string) => void;
   onSteerQueued?: (id: string) => Promise<boolean> | boolean;
@@ -72,8 +76,12 @@ function queuePreviewText(item: QueuedMessage): string {
 
 export function ComposerQueue({
   queuedMessages,
+<<<<<<< HEAD
   queueHealthEntries = [],
   legacyQueueMessageCount = 0,
+=======
+  pausedReason = null,
+>>>>>>> origin/main
   onEditQueued,
   onDeleteQueued,
   onSteerQueued,
@@ -152,10 +160,31 @@ export function ComposerQueue({
 
   return (
     <div className="composer-queue">
+<<<<<<< HEAD
       <div className="composer-queue-header">
         <div className="composer-queue-title">队列</div>
         <div className="composer-queue-header-actions">
           {onMigrateLegacyQueue && legacyQueueMessageCount > 0 ? (
+=======
+      <div className="composer-queue-title">Queued</div>
+      {pausedReason ? (
+        <div className="composer-queue-hint">{pausedReason}</div>
+      ) : null}
+      <div className="composer-queue-list">
+        {queuedMessages.map((item) => (
+          <div key={item.id} className="composer-queue-item">
+            <span className="composer-queue-text">
+              {item.text ||
+                (item.images?.length
+                  ? item.images.length === 1
+                    ? "Image"
+                    : "Images"
+                  : "")}
+              {item.images?.length
+                ? ` · ${item.images.length} image${item.images.length === 1 ? "" : "s"}`
+                : ""}
+            </span>
+>>>>>>> origin/main
             <button
               type="button"
               className="composer-queue-migrate"

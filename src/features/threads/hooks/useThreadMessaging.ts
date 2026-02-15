@@ -2,6 +2,11 @@ import { useCallback, useRef } from "react";
 import type { Dispatch, MutableRefObject } from "react";
 import * as Sentry from "@sentry/react";
 import type {
+<<<<<<< HEAD
+=======
+  AccessMode,
+  AppMention,
+>>>>>>> origin/main
   RateLimitSnapshot,
   CustomPromptOption,
   DebugEntry,
@@ -33,7 +38,12 @@ type SendMessageOptions = {
   model?: string | null;
   effort?: string | null;
   collaborationMode?: Record<string, unknown> | null;
+<<<<<<< HEAD
   forceSteer?: boolean;
+=======
+  accessMode?: AccessMode;
+  appMentions?: AppMention[];
+>>>>>>> origin/main
 };
 
 type UseThreadMessagingOptions = {
@@ -69,6 +79,7 @@ type UseThreadMessagingOptions = {
   updateThreadParent: (parentId: string, childIds: string[]) => void;
 };
 
+<<<<<<< HEAD
 const SUBAGENT_MODEL_POLICY_MARKER = "[codexmonitor-subagent-model-inherit-v1]";
 
 function enforceSubagentModelInheritance(
@@ -126,6 +137,8 @@ function isUnsupportedTurnSteerError(message: string): boolean {
     || (normalized.includes("unknown method") && mentionsSteerMethod);
 }
 
+=======
+>>>>>>> origin/main
 export function useThreadMessaging({
   activeWorkspace,
   activeThreadId,
@@ -192,6 +205,7 @@ export function useThreadMessaging({
         "settings" in resolvedCollaborationMode
           ? resolvedCollaborationMode
           : null;
+<<<<<<< HEAD
       const sanitizedCollaborationMode = enforceSubagentModelInheritance(
         sanitizedCollaborationModeRaw,
         resolvedModel ?? null,
@@ -222,6 +236,16 @@ export function useThreadMessaging({
           });
         }
       }
+=======
+      const resolvedAccessMode =
+        options?.accessMode !== undefined ? options.accessMode : accessMode;
+      const appMentions = options?.appMentions ?? [];
+
+      const isProcessing = threadStatusById[threadId]?.isProcessing ?? false;
+      const activeTurnId = activeTurnIdByThread[threadId] ?? null;
+      const shouldSteer =
+        isProcessing && steerEnabled && Boolean(activeTurnId);
+>>>>>>> origin/main
       Sentry.metrics.count("prompt_sent", 1, {
         attributes: {
           workspace_id: workspace.id,
@@ -261,6 +285,7 @@ export function useThreadMessaging({
       });
       let requestMode: "start" | "steer" = shouldSteer ? "steer" : "start";
       try {
+<<<<<<< HEAD
         if (options?.forceSteer && isProcessing && !activeTurnId) {
           try {
             await interruptTurnService(workspace.id, threadId, "pending");
@@ -274,6 +299,17 @@ export function useThreadMessaging({
           threadId,
           finalText,
           {
+=======
+        const startTurn = () => {
+          const payload: {
+            model?: string | null;
+            effort?: string | null;
+            collaborationMode?: Record<string, unknown> | null;
+            accessMode?: AccessMode;
+            images?: string[];
+            appMentions?: AppMention[];
+          } = {
+>>>>>>> origin/main
             model: resolvedModel,
             effort: resolvedEffort,
             collaborationMode: sanitizedCollaborationMode,
@@ -419,10 +455,14 @@ export function useThreadMessaging({
     async (
       text: string,
       images: string[] = [],
+<<<<<<< HEAD
       options?: Pick<
         SendMessageOptions,
         "forceSteer" | "model" | "effort" | "collaborationMode"
       >,
+=======
+      appMentions: AppMention[] = [],
+>>>>>>> origin/main
     ) => {
       if (!activeWorkspace) {
         return;
@@ -454,10 +494,14 @@ export function useThreadMessaging({
       }
       await sendMessageToThread(activeWorkspace, threadId, finalText, images, {
         skipPromptExpansion: true,
+<<<<<<< HEAD
         forceSteer: options?.forceSteer,
         model: options?.model,
         effort: options?.effort,
         collaborationMode: options?.collaborationMode,
+=======
+        appMentions,
+>>>>>>> origin/main
       });
     },
     [

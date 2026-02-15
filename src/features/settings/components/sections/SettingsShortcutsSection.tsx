@@ -1,6 +1,11 @@
 import { useMemo, useState, type KeyboardEvent } from "react";
+<<<<<<< HEAD
 import { formatShortcut, getDefaultInterruptShortcut } from "../../../../utils/shortcuts";
 import { isMacPlatform } from "../../../../utils/platformPaths";
+=======
+import { formatShortcut, getDefaultInterruptShortcut } from "@utils/shortcuts";
+import { isMacPlatform } from "@utils/platformPaths";
+>>>>>>> origin/main
 import type {
   ShortcutDraftKey,
   ShortcutDrafts,
@@ -86,6 +91,7 @@ export function SettingsShortcutsSection({
   const isMac = isMacPlatform();
   const [searchQuery, setSearchQuery] = useState("");
 
+<<<<<<< HEAD
   const groups = useMemo<ShortcutGroup[]>(() => [
     {
       title: "文件",
@@ -242,6 +248,161 @@ export function SettingsShortcutsSection({
         .filter((group) => group.items.length > 0),
     [groups, normalizedSearch],
   );
+=======
+  const groups = useMemo<ShortcutGroup[]>(
+    () => [
+      {
+        title: "File",
+        subtitle: "Create agents and worktrees from the keyboard.",
+        items: [
+          {
+            label: "New Agent",
+            draftKey: "newAgent",
+            settingKey: "newAgentShortcut",
+            help: `Default: ${formatShortcut("cmd+n")}`,
+          },
+          {
+            label: "New Worktree Agent",
+            draftKey: "newWorktreeAgent",
+            settingKey: "newWorktreeAgentShortcut",
+            help: `Default: ${formatShortcut("cmd+shift+n")}`,
+          },
+          {
+            label: "New Clone Agent",
+            draftKey: "newCloneAgent",
+            settingKey: "newCloneAgentShortcut",
+            help: `Default: ${formatShortcut("cmd+alt+n")}`,
+          },
+          {
+            label: "Archive active thread",
+            draftKey: "archiveThread",
+            settingKey: "archiveThreadShortcut",
+            help: `Default: ${formatShortcut(isMac ? "cmd+ctrl+a" : "ctrl+alt+a")}`,
+          },
+        ],
+      },
+      {
+        title: "Composer",
+        subtitle: "Cycle between model, access, reasoning, and collaboration modes.",
+        items: [
+          {
+            label: "Cycle model",
+            draftKey: "model",
+            settingKey: "composerModelShortcut",
+            help: `Press a new shortcut while focused. Default: ${formatShortcut("cmd+shift+m")}`,
+          },
+          {
+            label: "Cycle access mode",
+            draftKey: "access",
+            settingKey: "composerAccessShortcut",
+            help: `Default: ${formatShortcut("cmd+shift+a")}`,
+          },
+          {
+            label: "Cycle reasoning mode",
+            draftKey: "reasoning",
+            settingKey: "composerReasoningShortcut",
+            help: `Default: ${formatShortcut("cmd+shift+r")}`,
+          },
+          {
+            label: "Cycle collaboration mode",
+            draftKey: "collaboration",
+            settingKey: "composerCollaborationShortcut",
+            help: `Default: ${formatShortcut("shift+tab")}`,
+          },
+          {
+            label: "Stop active run",
+            draftKey: "interrupt",
+            settingKey: "interruptShortcut",
+            help: `Default: ${formatShortcut(getDefaultInterruptShortcut())}`,
+          },
+        ],
+      },
+      {
+        title: "Panels",
+        subtitle: "Toggle sidebars and panels.",
+        items: [
+          {
+            label: "Toggle projects sidebar",
+            draftKey: "projectsSidebar",
+            settingKey: "toggleProjectsSidebarShortcut",
+            help: `Default: ${formatShortcut("cmd+shift+p")}`,
+          },
+          {
+            label: "Toggle git sidebar",
+            draftKey: "gitSidebar",
+            settingKey: "toggleGitSidebarShortcut",
+            help: `Default: ${formatShortcut("cmd+shift+g")}`,
+          },
+          {
+            label: "Branch switcher",
+            draftKey: "branchSwitcher",
+            settingKey: "branchSwitcherShortcut",
+            help: `Default: ${formatShortcut("cmd+b")}`,
+          },
+          {
+            label: "Toggle debug panel",
+            draftKey: "debugPanel",
+            settingKey: "toggleDebugPanelShortcut",
+            help: `Default: ${formatShortcut("cmd+shift+d")}`,
+          },
+          {
+            label: "Toggle terminal panel",
+            draftKey: "terminal",
+            settingKey: "toggleTerminalShortcut",
+            help: `Default: ${formatShortcut("cmd+shift+t")}`,
+          },
+        ],
+      },
+      {
+        title: "Navigation",
+        subtitle: "Cycle between agents and workspaces.",
+        items: [
+          {
+            label: "Next agent",
+            draftKey: "cycleAgentNext",
+            settingKey: "cycleAgentNextShortcut",
+            help: `Default: ${formatShortcut(isMac ? "cmd+ctrl+down" : "ctrl+alt+down")}`,
+          },
+          {
+            label: "Previous agent",
+            draftKey: "cycleAgentPrev",
+            settingKey: "cycleAgentPrevShortcut",
+            help: `Default: ${formatShortcut(isMac ? "cmd+ctrl+up" : "ctrl+alt+up")}`,
+          },
+          {
+            label: "Next workspace",
+            draftKey: "cycleWorkspaceNext",
+            settingKey: "cycleWorkspaceNextShortcut",
+            help: `Default: ${formatShortcut(isMac ? "cmd+shift+down" : "ctrl+alt+shift+down")}`,
+          },
+          {
+            label: "Previous workspace",
+            draftKey: "cycleWorkspacePrev",
+            settingKey: "cycleWorkspacePrevShortcut",
+            help: `Default: ${formatShortcut(isMac ? "cmd+shift+up" : "ctrl+alt+shift+up")}`,
+          },
+        ],
+      },
+    ],
+    [isMac],
+  );
+
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const filteredGroups = useMemo(() => {
+    if (!normalizedSearchQuery) {
+      return groups;
+    }
+    return groups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => {
+          const searchValue = `${group.title} ${group.subtitle} ${item.label} ${item.help}`.toLowerCase();
+          return searchValue.includes(normalizedSearchQuery);
+        }),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [groups, normalizedSearchQuery]);
+>>>>>>> origin/main
 
   return (
     <section className="settings-section">
@@ -249,6 +410,7 @@ export function SettingsShortcutsSection({
       <div className="settings-section-subtitle">
         自定义文件操作、编辑器、面板与导航的快捷键。
       </div>
+<<<<<<< HEAD
       <div className="settings-field">
         <input
           className="settings-input settings-input--compact"
@@ -262,6 +424,32 @@ export function SettingsShortcutsSection({
       {filteredGroups.length === 0 && (
         <div className="settings-help">未找到匹配的快捷键项。</div>
       )}
+=======
+      <div className="settings-field settings-shortcuts-search">
+        <label className="settings-field-label" htmlFor="settings-shortcuts-search">
+          Search shortcuts
+        </label>
+        <div className="settings-field-row">
+          <input
+            id="settings-shortcuts-search"
+            className="settings-input"
+            placeholder="Search shortcuts"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              className="ghost settings-button-compact"
+              onClick={() => setSearchQuery("")}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        <div className="settings-help">Filter by section name, action, or default shortcut.</div>
+      </div>
+>>>>>>> origin/main
       {filteredGroups.map((group, index) => (
         <div key={group.title}>
           {index > 0 && <div className="settings-divider" />}

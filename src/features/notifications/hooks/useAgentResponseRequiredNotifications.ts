@@ -66,7 +66,12 @@ type ResponseRequiredNotificationOptions = {
   isWindowFocused: boolean;
   approvals: ApprovalRequest[];
   userInputRequests: RequestUserInputRequest[];
+<<<<<<< HEAD
   isSubAgentThread?: (workspaceId: string, threadId: string) => boolean;
+=======
+  subagentNotificationsEnabled?: boolean;
+  isSubagentThread?: (workspaceId: string, threadId: string) => boolean;
+>>>>>>> origin/main
   getWorkspaceName?: (workspaceId: string) => string | undefined;
   onDebug?: (entry: DebugEntry) => void;
 };
@@ -82,7 +87,12 @@ export function useAgentResponseRequiredNotifications({
   isWindowFocused,
   approvals,
   userInputRequests,
+<<<<<<< HEAD
   isSubAgentThread,
+=======
+  subagentNotificationsEnabled = true,
+  isSubagentThread,
+>>>>>>> origin/main
   getWorkspaceName,
   onDebug,
 }: ResponseRequiredNotificationOptions) {
@@ -337,7 +347,11 @@ export function useAgentResponseRequiredNotifications({
 
   const onItemCompleted = useCallback(
     (workspaceId: string, threadId: string, item: Record<string, unknown>) => {
+<<<<<<< HEAD
       if (isSubAgentThread?.(workspaceId, threadId)) {
+=======
+      if (shouldMuteSubagentThread(workspaceId, threadId)) {
+>>>>>>> origin/main
         return;
       }
       const type = String(item.type ?? "");
@@ -381,7 +395,11 @@ export function useAgentResponseRequiredNotifications({
 
       void notify(title, body, extra);
     },
+<<<<<<< HEAD
     [canNotifyNow, getWorkspaceName, isSubAgentThread, notify, scheduleRetry],
+=======
+    [canNotifyNow, getWorkspaceName, notify, scheduleRetry, shouldMuteSubagentThread],
+>>>>>>> origin/main
   );
 
   useAppServerEvents(

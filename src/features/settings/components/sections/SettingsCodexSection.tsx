@@ -266,12 +266,123 @@ export function SettingsCodexSection({
         )}
       </div>
 
+<<<<<<< HEAD
       <div className="settings-field">
         <div className="settings-field-label">访问模式</div>
         <div className="settings-help">
           权限由 <code>~/.codex/config.toml</code> 中的 <code>sandbox</code> 配置决定，CodexMonitor 完全尊重该设置，不做任何覆盖。
           如需修改，请直接编辑下方的全局 config.toml。
         </div>
+=======
+      <div className="settings-divider" />
+      <div className="settings-field-label settings-field-label--section">
+        Default parameters
+      </div>
+
+      <div className="settings-toggle-row">
+        <div>
+          <label className="settings-toggle-title" htmlFor="default-model">
+            Model
+          </label>
+          <div className="settings-toggle-subtitle">
+            {defaultModelsConnectedWorkspaceCount === 0
+              ? "Connect a project to load available models."
+              : defaultModelsLoading
+                ? "Loading models…"
+                : defaultModelsError
+                  ? `Couldn’t load models: ${defaultModelsError}`
+                  : "Used when there is no thread-specific override."}
+          </div>
+        </div>
+        <div className="settings-field-row">
+          <select
+            id="default-model"
+            className="settings-select"
+            value={selectedModelSlug}
+            disabled={!defaultModels.length || defaultModelsLoading}
+            onChange={(event) =>
+              void onUpdateAppSettings({
+                ...appSettings,
+                lastComposerModelId: event.target.value,
+              })
+            }
+            aria-label="Model"
+          >
+            {defaultModels.map((model) => (
+              <option key={model.model} value={model.model}>
+                {model.displayName?.trim() || model.model}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="ghost"
+            onClick={onRefreshDefaultModels}
+            disabled={defaultModelsLoading || defaultModelsConnectedWorkspaceCount === 0}
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-toggle-row">
+        <div>
+          <label className="settings-toggle-title" htmlFor="default-effort">
+            Reasoning effort
+          </label>
+          <div className="settings-toggle-subtitle">
+            {reasoningSupported
+              ? "Available options depend on the selected model."
+              : "The selected model does not expose reasoning effort options."}
+          </div>
+        </div>
+        <select
+          id="default-effort"
+          className="settings-select"
+          value={selectedEffort}
+          onChange={(event) =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              lastComposerReasoningEffort: event.target.value,
+            })
+          }
+          aria-label="Reasoning effort"
+          disabled={!reasoningSupported}
+        >
+          {!reasoningSupported && <option value="">not supported</option>}
+          {reasoningOptions.map((effort) => (
+            <option key={effort} value={effort}>
+              {effort}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="settings-toggle-row">
+        <div>
+          <label className="settings-toggle-title" htmlFor="default-access">
+            Access mode
+          </label>
+          <div className="settings-toggle-subtitle">
+            Used when there is no thread-specific override.
+          </div>
+        </div>
+        <select
+          id="default-access"
+          className="settings-select"
+          value={appSettings.defaultAccessMode}
+          onChange={(event) =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              defaultAccessMode: event.target.value as AppSettings["defaultAccessMode"],
+            })
+          }
+        >
+          <option value="read-only">Read only</option>
+          <option value="current">On-request</option>
+          <option value="full-access">Full access</option>
+        </select>
+>>>>>>> origin/main
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="review-delivery">

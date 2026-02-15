@@ -134,8 +134,40 @@ export type ReviewTarget =
   | { type: "commit"; sha: string; title?: string }
   | { type: "custom"; instructions: string };
 
+<<<<<<< HEAD
 /** @deprecated Access mode is now always determined by config.toml. Kept for backward compatibility. */
 export type AccessMode = "current";
+=======
+export type PullRequestReviewIntent =
+  | "full"
+  | "risks"
+  | "tests"
+  | "summary"
+  | "question";
+
+export type PullRequestReviewAction = {
+  id: string;
+  label: string;
+  intent: PullRequestReviewIntent;
+};
+
+export type PullRequestSelectionLine = {
+  type: "add" | "del" | "context";
+  oldLine: number | null;
+  newLine: number | null;
+  text: string;
+};
+
+export type PullRequestSelectionRange = {
+  path: string;
+  status: string;
+  start: number;
+  end: number;
+  lines: PullRequestSelectionLine[];
+};
+
+export type AccessMode = "read-only" | "current" | "full-access";
+>>>>>>> origin/main
 export type BackendMode = "local" | "remote";
 export type RemoteBackendProvider = "tcp" | "orbit";
 export type ThemePreference = "system" | "light" | "dark" | "dim";
@@ -203,7 +235,11 @@ export type AppSettings = {
   uiScale: number;
   theme: ThemePreference;
   showMessageFilePath: boolean;
+<<<<<<< HEAD
   threadScrollRestoreMode: ThreadScrollRestoreMode;
+=======
+  chatHistoryScrollbackItems: number | null;
+>>>>>>> origin/main
   threadTitleAutogenerationEnabled: boolean;
   uiFontFamily: string;
   codeFontFamily: string;
@@ -569,6 +605,7 @@ export type QueuedMessage = {
   text: string;
   createdAt: number;
   images?: string[];
+<<<<<<< HEAD
   workspaceId?: string;
   model?: string | null;
   effort?: string | null;
@@ -595,6 +632,14 @@ export type QueueHealthEntry = {
   lastFailureAt?: number | null;
   workspaceId?: string | null;
   workspaceResolved?: boolean;
+=======
+  appMentions?: AppMention[];
+};
+
+export type AppMention = {
+  name: string;
+  path: string;
+>>>>>>> origin/main
 };
 
 export type ModelOption = {

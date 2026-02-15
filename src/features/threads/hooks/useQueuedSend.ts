@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { QueueHealthEntry, QueuedMessage, WorkspaceInfo } from "../../../types";
 
@@ -116,12 +117,17 @@ function persistQueuedMessagesByThread(
     // Best-effort persistence.
   }
 }
+=======
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { AppMention, QueuedMessage, WorkspaceInfo } from "@/types";
+>>>>>>> origin/main
 
 type UseQueuedSendOptions = {
   activeThreadId: string | null;
   activeTurnId: string | null;
   isProcessing: boolean;
   isReviewing: boolean;
+<<<<<<< HEAD
   threadStatusById?: Record<
     string,
     {
@@ -133,6 +139,9 @@ type UseQueuedSendOptions = {
   >;
   threadWorkspaceById?: Record<string, string>;
   workspacesById?: Map<string, WorkspaceInfo>;
+=======
+  queueFlushPaused?: boolean;
+>>>>>>> origin/main
   steerEnabled: boolean;
   appsEnabled: boolean;
   activeModel?: string | null;
@@ -147,12 +156,16 @@ type UseQueuedSendOptions = {
   sendUserMessage: (
     text: string,
     images?: string[],
+<<<<<<< HEAD
     options?: {
       forceSteer?: boolean;
       model?: string | null;
       effort?: string | null;
       collaborationMode?: Record<string, unknown> | null;
     },
+=======
+    appMentions?: AppMention[],
+>>>>>>> origin/main
   ) => Promise<void>;
   sendUserMessageToThread: (
     workspace: WorkspaceInfo,
@@ -184,6 +197,7 @@ type QueueMigrationResult = {
 type UseQueuedSendResult = {
   queuedByThread: Record<string, QueuedMessage[]>;
   activeQueue: QueuedMessage[];
+<<<<<<< HEAD
   legacyQueueMessageCount: number;
   queueHealthEntries: QueueHealthEntry[];
   handleSend: (text: string, images?: string[]) => Promise<void>;
@@ -192,6 +206,17 @@ type UseQueuedSendResult = {
     threadId: string,
     text: string,
     images?: string[],
+=======
+  handleSend: (
+    text: string,
+    images?: string[],
+    appMentions?: AppMention[],
+  ) => Promise<void>;
+  queueMessage: (
+    text: string,
+    images?: string[],
+    appMentions?: AppMention[],
+>>>>>>> origin/main
   ) => Promise<void>;
   removeQueuedMessage: (threadId: string, messageId: string) => void;
   steerQueuedMessage: (threadId: string, messageId: string) => Promise<boolean>;
@@ -243,9 +268,13 @@ export function useQueuedSend({
   activeTurnId,
   isProcessing,
   isReviewing,
+<<<<<<< HEAD
   threadStatusById,
   threadWorkspaceById,
   workspacesById,
+=======
+  queueFlushPaused = false,
+>>>>>>> origin/main
   steerEnabled,
   appsEnabled,
   activeModel = null,
@@ -785,10 +814,14 @@ export function useQueuedSend({
           text: trimmed,
           createdAt: Date.now(),
           images: nextImages,
+<<<<<<< HEAD
           workspaceId: activeWorkspace?.id,
           model: activeModel,
           effort: activeEffort,
           collaborationMode: activeCollaborationMode,
+=======
+          ...(nextMentions.length > 0 ? { appMentions: nextMentions } : {}),
+>>>>>>> origin/main
         };
         enqueueMessage(activeThreadId, item);
         clearActiveImages();
@@ -802,6 +835,7 @@ export function useQueuedSend({
         clearActiveImages();
         return;
       }
+<<<<<<< HEAD
       const nextModel = activeModel;
       const nextEffort = activeEffort;
       const nextCollaborationMode = activeCollaborationMode;
@@ -817,6 +851,10 @@ export function useQueuedSend({
           : undefined;
       if (nextOptions) {
         await sendUserMessage(trimmed, nextImages, nextOptions);
+=======
+      if (nextMentions.length > 0) {
+        await sendUserMessage(trimmed, nextImages, nextMentions);
+>>>>>>> origin/main
       } else {
         await sendUserMessage(trimmed, nextImages);
       }
@@ -840,8 +878,17 @@ export function useQueuedSend({
     ],
   );
 
+<<<<<<< HEAD
   const queueMessageForThread = useCallback(
     async (threadId: string, text: string, images: string[] = []) => {
+=======
+  const queueMessage = useCallback(
+    async (
+      text: string,
+      images: string[] = [],
+      appMentions: AppMention[] = [],
+    ) => {
+>>>>>>> origin/main
       const trimmed = text.trim();
       const command = parseSlashCommand(trimmed, appsEnabled);
       const nextImages = command ? [] : images;
@@ -864,12 +911,16 @@ export function useQueuedSend({
         text: trimmed,
         createdAt: Date.now(),
         images: nextImages,
+<<<<<<< HEAD
         workspaceId:
           workspaceResolution.workspaceId
           ?? (threadId === activeThreadId ? activeWorkspace?.id : undefined),
         model: activeModel,
         effort: activeEffort,
         collaborationMode: activeCollaborationMode,
+=======
+        ...(nextMentions.length > 0 ? { appMentions: nextMentions } : {}),
+>>>>>>> origin/main
       };
       enqueueMessage(threadId, item);
       if (threadId === activeThreadId) {
@@ -1096,10 +1147,14 @@ export function useQueuedSend({
   ]);
 
   useEffect(() => {
+<<<<<<< HEAD
     const queuedThreadIds = Object.entries(queuedByThread)
       .filter(([, queue]) => queue.length > 0)
       .map(([threadId]) => threadId);
     if (queuedThreadIds.length === 0) {
+=======
+    if (!activeThreadId || isProcessing || isReviewing || queueFlushPaused) {
+>>>>>>> origin/main
       return;
     }
 
@@ -1230,6 +1285,7 @@ export function useQueuedSend({
             await sendUserMessage(nextItem.text, nextItem.images ?? []);
           }
         } else {
+<<<<<<< HEAD
           const nextModel = nextItem.model ?? activeModel;
           const nextEffort = nextItem.effort ?? activeEffort;
           const nextCollaborationMode =
@@ -1259,6 +1315,13 @@ export function useQueuedSend({
               nextItem.text,
               nextItem.images ?? [],
             );
+=======
+          const queuedMentions = nextItem.appMentions ?? [];
+          if (queuedMentions.length > 0) {
+            await sendUserMessage(nextItem.text, nextItem.images ?? [], queuedMentions);
+          } else {
+            await sendUserMessage(nextItem.text, nextItem.images ?? []);
+>>>>>>> origin/main
           }
         }
         setLastFailureByThread((prev) => ({ ...prev, [threadId]: null }));
@@ -1294,6 +1357,12 @@ export function useQueuedSend({
     getThreadStatus,
     globallyBlockedThreadIds,
     inFlightByThread,
+<<<<<<< HEAD
+=======
+    isProcessing,
+    isReviewing,
+    queueFlushPaused,
+>>>>>>> origin/main
     prependQueuedMessage,
     queuedByThread,
     resolveWorkspaceForThread,

@@ -20,6 +20,7 @@ import { useThreadSelectors } from "./useThreadSelectors";
 import { useThreadStatus } from "./useThreadStatus";
 import { useThreadUserInput } from "./useThreadUserInput";
 import { useThreadTitleAutogeneration } from "./useThreadTitleAutogeneration";
+<<<<<<< HEAD
 import { useThreadStaleGuard } from "./useThreadStaleGuard";
 import { setThreadName as setThreadNameService } from "../../../services/tauri";
 import { pushErrorToast } from "../../../services/toasts";
@@ -39,6 +40,16 @@ function clampSubAgentAutoArchiveMinutes(value: number): number {
     Math.max(SUB_AGENT_AUTO_ARCHIVE_MIN_AGE_MINUTES, Math.round(value)),
   );
 }
+=======
+import { setThreadName as setThreadNameService } from "@services/tauri";
+import {
+  loadDetachedReviewLinks,
+  makeCustomNameKey,
+  saveCustomName,
+  saveDetachedReviewLinks,
+} from "@threads/utils/threadStorage";
+import { getParentThreadIdFromSource } from "@threads/utils/threadRpc";
+>>>>>>> origin/main
 
 type UseThreadsOptions = {
   workspaces?: WorkspaceInfo[];
@@ -89,10 +100,19 @@ export function useThreads({
   const planByThreadRef = useRef(state.planByThread);
   const itemsByThreadRef = useRef(state.itemsByThread);
   const threadsByWorkspaceRef = useRef(state.threadsByWorkspace);
+<<<<<<< HEAD
   const detachedReviewNoticeRef = useRef<Set<string>>(new Set());
   const subAgentThreadIdsRef = useRef<Record<string, true>>({});
   const threadCreatedAtByIdRef = useRef<Record<string, number>>({});
   const autoArchiveInFlightRef = useRef<Set<string>>(new Set());
+=======
+  const activeTurnIdByThreadRef = useRef(state.activeTurnIdByThread);
+  const detachedReviewStartedNoticeRef = useRef<Set<string>>(new Set());
+  const detachedReviewCompletedNoticeRef = useRef<Set<string>>(new Set());
+  const detachedReviewParentByChildRef = useRef<Record<string, string>>({});
+  const subagentThreadByWorkspaceThreadRef = useRef<Record<string, true>>({});
+  const detachedReviewLinksByWorkspaceRef = useRef(loadDetachedReviewLinks());
+>>>>>>> origin/main
   planByThreadRef.current = state.planByThread;
   itemsByThreadRef.current = state.itemsByThread;
   threadsByWorkspaceRef.current = state.threadsByWorkspace;
@@ -407,7 +427,16 @@ export function useThreads({
       onWorkspaceDisconnected: handleDisconnected,
       onIsAlive: recordAlive,
     }),
+<<<<<<< HEAD
     [threadHandlers, handleAccountUpdated, handleAccountLoginCompleted, handleDisconnected, recordAlive],
+=======
+    [
+      threadHandlers,
+      handleThreadStarted,
+      handleAccountUpdated,
+      handleAccountLoginCompleted,
+    ],
+>>>>>>> origin/main
   );
 
   useAppServerEvents(handlers);
@@ -456,8 +485,12 @@ export function useThreads({
     replaceOnResumeRef,
     applyCollabThreadLinksFromThread,
     updateThreadParent,
+<<<<<<< HEAD
     markSubAgentThread,
     recordThreadCreatedAt,
+=======
+    onSubagentThreadDetected,
+>>>>>>> origin/main
   });
 
   const cleanupThreadRefs = useCallback((threadId: string) => {

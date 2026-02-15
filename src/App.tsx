@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+=======
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
+>>>>>>> origin/main
 import "./styles/base.css";
 import "./styles/ds-tokens.css";
 import "./styles/ds-modal.css";
@@ -36,6 +40,7 @@ import "./styles/settings.css";
 import "./styles/compact-base.css";
 import "./styles/compact-phone.css";
 import "./styles/compact-tablet.css";
+<<<<<<< HEAD
 import "./styles/ecosystem-panels.css";
 import successSoundUrl from "./assets/success-notification.mp3";
 import errorSoundUrl from "./assets/error-notification.mp3";
@@ -69,6 +74,41 @@ import { useWorkspaceRestore } from "./features/workspaces/hooks/useWorkspaceRes
 import { useRenameWorktreePrompt } from "./features/workspaces/hooks/useRenameWorktreePrompt";
 import { useLayoutController } from "./features/app/hooks/useLayoutController";
 import { useWindowLabel } from "./features/layout/hooks/useWindowLabel";
+=======
+import successSoundUrl from "@/assets/success-notification.mp3";
+import errorSoundUrl from "@/assets/error-notification.mp3";
+import { AppLayout } from "@app/components/AppLayout";
+import { AppModals } from "@app/components/AppModals";
+import { MainHeaderActions } from "@app/components/MainHeaderActions";
+import { useLayoutNodes } from "@/features/layout/hooks/useLayoutNodes";
+import { useWorkspaceDropZone } from "@/features/workspaces/hooks/useWorkspaceDropZone";
+import { useThreads } from "@threads/hooks/useThreads";
+import { useWindowDrag } from "@/features/layout/hooks/useWindowDrag";
+import { useGitPanelController } from "@app/hooks/useGitPanelController";
+import { useGitRemote } from "@/features/git/hooks/useGitRemote";
+import { useGitRepoScan } from "@/features/git/hooks/useGitRepoScan";
+import { usePullRequestComposer } from "@/features/git/hooks/usePullRequestComposer";
+import { usePullRequestReviewActions } from "@/features/git/hooks/usePullRequestReviewActions";
+import { useGitActions } from "@/features/git/hooks/useGitActions";
+import { useAutoExitEmptyDiff } from "@/features/git/hooks/useAutoExitEmptyDiff";
+import { isMissingRepo } from "@/features/git/utils/repoErrors";
+import { useInitGitRepoPrompt } from "@/features/git/hooks/useInitGitRepoPrompt";
+import { useModels } from "@/features/models/hooks/useModels";
+import { useCollaborationModes } from "@/features/collaboration/hooks/useCollaborationModes";
+import { useCollaborationModeSelection } from "@/features/collaboration/hooks/useCollaborationModeSelection";
+import { useSkills } from "@/features/skills/hooks/useSkills";
+import { useApps } from "@/features/apps/hooks/useApps";
+import { useCustomPrompts } from "@/features/prompts/hooks/useCustomPrompts";
+import { useWorkspaceFileListing } from "@app/hooks/useWorkspaceFileListing";
+import { useGitBranches } from "@/features/git/hooks/useGitBranches";
+import { useBranchSwitcher } from "@/features/git/hooks/useBranchSwitcher";
+import { useBranchSwitcherShortcut } from "@/features/git/hooks/useBranchSwitcherShortcut";
+import { useWorkspaceRefreshOnFocus } from "@/features/workspaces/hooks/useWorkspaceRefreshOnFocus";
+import { useWorkspaceRestore } from "@/features/workspaces/hooks/useWorkspaceRestore";
+import { useRenameWorktreePrompt } from "@/features/workspaces/hooks/useRenameWorktreePrompt";
+import { useLayoutController } from "@app/hooks/useLayoutController";
+import { useWindowLabel } from "@/features/layout/hooks/useWindowLabel";
+>>>>>>> origin/main
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
   SidebarCollapseButton,
@@ -224,9 +264,14 @@ function MainApp() {
     addDebugEntry,
     handleCopyDebug,
     clearDebugEntries,
+<<<<<<< HEAD
   } = useDebugLog();
   const shouldReduceTransparency = reduceTransparency || isMobilePlatform();
   useLiquidGlassEffect({ reduceTransparency: shouldReduceTransparency, onDebug: addDebugEntry });
+=======
+    shouldReduceTransparency,
+  } = useAppBootstrapOrchestration();
+>>>>>>> origin/main
   const { threadListSortKey, setThreadListSortKey } = useThreadListSortKey();
   const [messageFontSize, setMessageFontSize] = useState<number>(() => loadMessageFontSize());
   const [continueConfigByThread, setContinueConfigByThread] = useState<
@@ -421,6 +466,7 @@ function MainApp() {
     (workspaceId: string, threadId: string) => void
   >(() => {});
 
+<<<<<<< HEAD
   const {
     updaterState,
     startUpdate,
@@ -441,8 +487,15 @@ function MainApp() {
     errorSoundUrl,
   });
 
+=======
+>>>>>>> origin/main
   const { errorToasts, dismissErrorToast } = useErrorToasts();
 
+<<<<<<< HEAD
+=======
+  // Access mode is thread-scoped (best-effort persisted) and falls back to the app default.
+
+>>>>>>> origin/main
   const {
     gitIssues,
     gitIssuesTotal,
@@ -579,7 +632,13 @@ function MainApp() {
     selectedModelId,
     onSelectModel: setSelectedModelId,
     selectedCollaborationModeId,
+<<<<<<< HEAD
     onSelectCollaborationMode: setSelectedCollaborationModeId,
+=======
+    onSelectCollaborationMode: handleSelectCollaborationMode,
+    accessMode,
+    onSelectAccessMode: handleSelectAccessMode,
+>>>>>>> origin/main
     reasoningOptions,
     selectedEffort,
     onSelectEffort: setSelectedEffort,
@@ -597,7 +656,13 @@ function MainApp() {
     onSelectModel: setSelectedModelId,
     collaborationModes,
     selectedCollaborationModeId,
+<<<<<<< HEAD
     onSelectCollaborationMode: setSelectedCollaborationModeId,
+=======
+    onSelectCollaborationMode: handleSelectCollaborationMode,
+    accessMode,
+    onSelectAccessMode: handleSelectAccessMode,
+>>>>>>> origin/main
     reasoningOptions,
     selectedEffort,
     onSelectEffort: setSelectedEffort,
@@ -619,6 +684,7 @@ function MainApp() {
     getWorkspacePromptsDir,
     getGlobalPromptsDir,
   } = useCustomPrompts({ activeWorkspace, onDebug: addDebugEntry });
+<<<<<<< HEAD
   const { branches, checkoutBranch, createBranch } = useGitBranches({
     activeWorkspace,
     onDebug: addDebugEntry
@@ -727,6 +793,10 @@ function MainApp() {
     selectedDiffPath,
     setSelectedDiffPath,
   });
+=======
+  const resolvedModel = selectedModel?.model ?? null;
+  const resolvedEffort = reasoningSupported ? selectedEffort : null;
+>>>>>>> origin/main
 
   const { collaborationModePayload } = useCollaborationModeSelection({
     selectedCollaborationMode,
@@ -1343,9 +1413,13 @@ function MainApp() {
     activeWorkspace,
     isProcessing,
     isReviewing,
+<<<<<<< HEAD
     threadStatusById,
     threadWorkspaceById,
     workspacesById,
+=======
+    queueFlushPaused,
+>>>>>>> origin/main
     steerEnabled: appSettings.steerEnabled,
     appsEnabled: appSettings.experimentalAppsEnabled,
     activeModel: resolvedModel,
@@ -1827,6 +1901,7 @@ function MainApp() {
     onDropPaths: handleDropWorkspacePaths,
   });
 
+<<<<<<< HEAD
   const handleArchiveActiveThread = useCallback(() => {
     if (!activeWorkspaceId || !activeThreadId) {
       return;
@@ -1845,6 +1920,8 @@ function MainApp() {
     removeImagesForThread,
   ]);
 
+=======
+>>>>>>> origin/main
   useInterruptShortcut({
     isEnabled: canInterrupt,
     shortcut: appSettings.interruptShortcut,
@@ -1897,6 +1974,7 @@ function MainApp() {
     [activeThreadId, handleComposerQueue, handleComposerSend, runWithDraftStart],
   );
 
+<<<<<<< HEAD
   const handleSelectWorkspaceInstance = useCallback(
     (workspaceId: string, threadId: string) => {
       exitDiffView();
@@ -1937,6 +2015,34 @@ function MainApp() {
       setActiveThreadId,
     ],
   );
+=======
+  const {
+    handleComposerSendWithDraftStart,
+    handleComposerQueueWithDraftStart,
+    handleSelectWorkspaceInstance,
+    handleOpenThreadLink,
+    handleArchiveActiveThread,
+  } = useThreadUiOrchestration({
+    activeWorkspaceId,
+    activeThreadId,
+    accessMode,
+    selectedCollaborationModeId,
+    pendingNewThreadSeedRef,
+    runWithDraftStart,
+    handleComposerSend,
+    handleComposerQueue,
+    clearDraftState,
+    exitDiffView,
+    resetPullRequestSelection,
+    selectWorkspace,
+    setActiveThreadId,
+    setActiveTab,
+    isCompact,
+    removeThread,
+    clearDraftForThread,
+    removeImagesForThread,
+  });
+>>>>>>> origin/main
 
   const { handlePlanAccept, handlePlanSubmitChanges } = usePlanReadyActions({
     activeWorkspace,
@@ -1954,6 +2060,7 @@ function MainApp() {
       ? entry.settings.sortOrder
       : Number.MAX_SAFE_INTEGER;
 
+<<<<<<< HEAD
   const persistWorkspaceOrder = useCallback(
     async (orderedWorkspaces: WorkspaceInfo[], groupId: string | null) => {
       if (orderedWorkspaces.length <= 1) {
@@ -2118,6 +2225,74 @@ function MainApp() {
   const showGitDetail =
     Boolean(selectedDiffPath) && isPhone && centerMode === "diff";
   const isThreadOpen = Boolean(activeThreadId && showComposer);
+=======
+  const {
+    showGitDetail,
+    isThreadOpen,
+    dropOverlayActive,
+    dropOverlayText,
+    appClassName,
+    appStyle,
+  } = useAppShellOrchestration({
+    isCompact,
+    isPhone,
+    isTablet,
+    sidebarCollapsed,
+    rightPanelCollapsed,
+    shouldReduceTransparency,
+    isWorkspaceDropActive,
+    centerMode,
+    selectedDiffPath,
+    showComposer,
+    activeThreadId,
+    sidebarWidth,
+    chatDiffSplitPositionPercent,
+    rightPanelWidth,
+    planPanelHeight,
+    terminalPanelHeight,
+    debugPanelHeight,
+    appSettings,
+  });
+
+  const {
+    onOpenSettings: handleSidebarOpenSettings,
+    onSelectHome: handleSidebarSelectHome,
+    onSelectWorkspace: handleSidebarSelectWorkspace,
+    onConnectWorkspace: handleSidebarConnectWorkspace,
+    onToggleWorkspaceCollapse: handleSidebarToggleWorkspaceCollapse,
+    onSelectThread: handleSidebarSelectThread,
+    onDeleteThread: handleSidebarDeleteThread,
+    onSyncThread: handleSidebarSyncThread,
+    onRenameThread: handleSidebarRenameThread,
+    onDeleteWorkspace: handleSidebarDeleteWorkspace,
+    onDeleteWorktree: handleSidebarDeleteWorktree,
+    onLoadOlderThreads: handleSidebarLoadOlderThreads,
+    onReloadWorkspaceThreads: handleSidebarReloadWorkspaceThreads,
+  } = useSidebarLayoutActions({
+    openSettings,
+    resetPullRequestSelection,
+    clearDraftState,
+    clearDraftStateIfDifferentWorkspace,
+    selectHome,
+    exitDiffView,
+    selectWorkspace,
+    setActiveThreadId,
+    connectWorkspace,
+    isCompact,
+    setActiveTab,
+    workspacesById,
+    updateWorkspaceSettings,
+    removeThread,
+    clearDraftForThread,
+    removeImagesForThread,
+    refreshThread,
+    handleRenameThread,
+    removeWorkspace,
+    removeWorktree,
+    loadOlderThreadsForWorkspace,
+    listThreadsForWorkspace,
+  });
+>>>>>>> origin/main
 
   useArchiveShortcut({
     isEnabled: isThreadOpen,
@@ -2168,6 +2343,7 @@ function MainApp() {
   });
 
   useMenuAcceleratorController({ appSettings, onDebug: addDebugEntry });
+<<<<<<< HEAD
   const dropOverlayActive = isWorkspaceDropActive;
   const dropOverlayText = "将项目拖放到此处";
   const appClassName = `app ${isCompact ? "layout-compact" : "layout-desktop"}${
@@ -2177,6 +2353,7 @@ function MainApp() {
   }${!isCompact && sidebarCollapsed ? " sidebar-collapsed" : ""}${
     !isCompact && rightPanelCollapsed ? " right-panel-collapsed" : ""
   }`;
+=======
   const showCompactCodexThreadActions =
     Boolean(activeWorkspace) &&
     isCompact &&
@@ -2186,6 +2363,8 @@ function MainApp() {
     Boolean(activeWorkspace?.connected) &&
     appSettings.backendMode === "remote" &&
     remoteThreadConnectionState === "polling";
+
+>>>>>>> origin/main
   const {
     sidebarNode,
     messagesNode,
@@ -2227,8 +2406,13 @@ function MainApp() {
     activeWorkspaceId,
     activeThreadId,
     activeItems,
+<<<<<<< HEAD
+=======
     showPollingFetchStatus: showMobilePollingFetchStatus,
     pollingIntervalMs: REMOTE_THREAD_POLL_INTERVAL_MS,
+    activeRateLimits,
+    usageShowRemaining: appSettings.usageShowRemaining,
+>>>>>>> origin/main
     accountInfo: activeAccount,
     onSwitchAccount: handleSwitchAccount,
     onCancelSwitchAccount: handleCancelSwitchAccount,
@@ -2249,12 +2433,17 @@ function MainApp() {
     handleUserInputSubmit,
     onPlanAccept: handlePlanAccept,
     onPlanSubmitChanges: handlePlanSubmitChanges,
+<<<<<<< HEAD
     onReachMessagesTop: handleReachMessagesTop,
     onOpenSettings: () => openSettings(),
+=======
+    onOpenSettings: handleSidebarOpenSettings,
+>>>>>>> origin/main
     onOpenDictationSettings: () => openSettings("dictation"),
     onOpenDebug: handleDebugClick,
     showDebugButton,
     onAddWorkspace: handleAddWorkspace,
+<<<<<<< HEAD
     onSelectHome: () => {
       resetPullRequestSelection();
       clearDraftStateOnNavigation();
@@ -2312,6 +2501,19 @@ function MainApp() {
         });
       });
     },
+=======
+    onSelectHome: handleSidebarSelectHome,
+    onSelectWorkspace: handleSidebarSelectWorkspace,
+    onConnectWorkspace: handleSidebarConnectWorkspace,
+    onAddAgent: handleAddAgent,
+    onAddWorktreeAgent: handleAddWorktreeAgent,
+    onAddCloneAgent: handleAddCloneAgent,
+    onToggleWorkspaceCollapse: handleSidebarToggleWorkspaceCollapse,
+    onSelectThread: handleSidebarSelectThread,
+    onOpenThreadLink: handleOpenThreadLink,
+    onDeleteThread: handleSidebarDeleteThread,
+    onSyncThread: handleSidebarSyncThread,
+>>>>>>> origin/main
     pinThread,
     unpinThread,
     isThreadPinned,
@@ -2578,8 +2780,12 @@ function MainApp() {
     onReviewPromptConfirmCustom: confirmCustom,
     activeTokenUsage,
     activeQueue,
+<<<<<<< HEAD
     queueHealthEntries: activeQueueHealthEntries,
     legacyQueueMessageCount,
+=======
+    queuePausedReason,
+>>>>>>> origin/main
     draftText: activeDraft,
     onDraftChange: handleDraftChange,
     activeImages,
@@ -2616,11 +2822,16 @@ function MainApp() {
     selectedEffort,
     onSelectEffort: setSelectedEffort,
     reasoningSupported,
+<<<<<<< HEAD
     continueModeEnabled: Boolean(activeThreadId) && activeContinueEnabled,
     onContinueModeEnabledChange: handleContinueModeEnabledChange,
     continuePrompt: activeContinuePrompt,
     onContinuePromptChange: handleContinuePromptChange,
     backendMode: appSettings.backendMode,
+=======
+    accessMode,
+    onSelectAccessMode: handleSelectAccessMode,
+>>>>>>> origin/main
     skills,
     appsEnabled: appSettings.experimentalAppsEnabled,
     apps,
@@ -2806,11 +3017,15 @@ function MainApp() {
   }, [appCssVars]);
 
   return (
+<<<<<<< HEAD
     <div
       ref={appRootRef}
       className={appClassName}
     >
       <h1 className="sr-only">Codex Monitor</h1>
+=======
+    <div className={appClassName} style={appStyle}>
+>>>>>>> origin/main
       <div className="drag-strip" id="titlebar" data-tauri-drag-region />
       <TitlebarExpandControls {...sidebarToggleProps} />
       <CommandPalette commands={cmdPalette.commands} open={cmdPalette.open} onClose={cmdPalette.close} />

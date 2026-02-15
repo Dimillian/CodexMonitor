@@ -315,6 +315,7 @@ export function Home({
       </div>
       <div className="home-actions">
         <button
+<<<<<<< HEAD
           className="home-button secondary"
           onClick={onOpenProject}
           data-tauri-drag-region="false"
@@ -326,13 +327,30 @@ export function Home({
         </button>
         <button
           className="home-button secondary"
+=======
+          className="home-button primary"
+>>>>>>> origin/main
           onClick={onAddWorkspace}
           data-tauri-drag-region="false"
         >
           <span className="home-icon" aria-hidden>
             +
           </span>
+<<<<<<< HEAD
           添加工作区
+=======
+          Add Workspaces
+        </button>
+        <button
+          className="home-button secondary"
+          onClick={onOpenSettings}
+          data-tauri-drag-region="false"
+        >
+          <span className="home-icon" aria-hidden>
+            <Settings size={18} />
+          </span>
+          Settings
+>>>>>>> origin/main
         </button>
       </div>
       <div className="home-usage">

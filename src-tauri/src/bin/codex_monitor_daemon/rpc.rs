@@ -165,6 +165,7 @@ pub(super) async fn handle_rpc_request(
     params: Value,
     client_version: String,
 ) -> Result<Value, String> {
+<<<<<<< HEAD
     match method {
         "ping" => Ok(json!({ "ok": true })),
         "daemon_info" => Ok(state.daemon_info()),
@@ -768,6 +769,9 @@ pub(super) async fn handle_rpc_request(
         }
         _ => Err(format!("unknown method: {method}")),
     }
+=======
+    dispatcher::dispatch_rpc_request(state, method, &params, &client_version).await
+>>>>>>> origin/main
 }
 
 pub(super) async fn forward_events(

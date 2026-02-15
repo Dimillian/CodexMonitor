@@ -37,6 +37,7 @@ const THREAD_LIST_MAX_PAGES_WITH_ACTIVITY = 8;
 const THREAD_LIST_MAX_PAGES_WITHOUT_ACTIVITY = 3;
 const THREAD_LIST_MAX_PAGES_OLDER = 6;
 
+<<<<<<< HEAD
 function resolveThreadDisplayName(
   thread: Record<string, unknown>,
   index: number,
@@ -213,6 +214,8 @@ function shouldFallbackToSingleArchive(errorMessage: string): boolean {
   return methodUnsupported || threadIdsMismatch;
 }
 
+=======
+>>>>>>> origin/main
 type UseThreadActionsOptions = {
   dispatch: Dispatch<ThreadAction>;
   itemsByThread: ThreadState["itemsByThread"];
@@ -235,8 +238,12 @@ type UseThreadActionsOptions = {
     thread: Record<string, unknown>,
   ) => void;
   updateThreadParent: (parentId: string, childIds: string[]) => void;
+<<<<<<< HEAD
   markSubAgentThread?: (threadId: string) => void;
   recordThreadCreatedAt?: (threadId: string, createdAt: number) => void;
+=======
+  onSubagentThreadDetected: (workspaceId: string, threadId: string) => void;
+>>>>>>> origin/main
 };
 
 export function useThreadActions({
@@ -255,8 +262,12 @@ export function useThreadActions({
   replaceOnResumeRef,
   applyCollabThreadLinksFromThread,
   updateThreadParent,
+<<<<<<< HEAD
   markSubAgentThread,
   recordThreadCreatedAt,
+=======
+  onSubagentThreadDetected,
+>>>>>>> origin/main
 }: UseThreadActionsOptions) {
   const resumeInFlightByThreadRef = useRef<Record<string, number>>({});
 
@@ -370,7 +381,11 @@ export function useThreadActions({
           const sourceParentId = getParentThreadIdFromSource(thread.source);
           if (sourceParentId) {
             updateThreadParent(sourceParentId, [threadId]);
+<<<<<<< HEAD
             markSubAgentThread?.(threadId);
+=======
+            onSubagentThreadDetected(workspaceId, threadId);
+>>>>>>> origin/main
           }
           recordThreadCreatedAt?.(threadId, getThreadCreatedTimestamp(thread));
           const items = buildItemsFromThread(thread);
@@ -665,7 +680,11 @@ export function useThreadActions({
           const sourceParentId = getParentThreadIdFromSource(thread.source);
           if (sourceParentId) {
             updateThreadParent(sourceParentId, [threadId]);
+<<<<<<< HEAD
             markSubAgentThread?.(threadId);
+=======
+            onSubagentThreadDetected(workspace.id, threadId);
+>>>>>>> origin/main
           }
           recordThreadCreatedAt?.(threadId, getThreadCreatedTimestamp(thread));
           const timestamp = getThreadTimestamp(thread);
@@ -783,8 +802,12 @@ export function useThreadActions({
       threadActivityRef,
       threadSortKey,
       updateThreadParent,
+<<<<<<< HEAD
       markSubAgentThread,
       recordThreadCreatedAt,
+=======
+      onSubagentThreadDetected,
+>>>>>>> origin/main
     ],
   );
 

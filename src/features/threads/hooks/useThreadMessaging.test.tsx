@@ -214,6 +214,7 @@ describe("useThreadMessaging telemetry", () => {
     expect(sendUserMessageService).not.toHaveBeenCalled();
   });
 
+<<<<<<< HEAD
   it("enforces sub-agent model inheritance in collaboration settings", async () => {
     const { result } = renderHook(() =>
       useThreadMessaging({
@@ -279,6 +280,10 @@ describe("useThreadMessaging telemetry", () => {
   });
 
   it("falls back to turn/start when turn/steer is unsupported and remembers fallback", async () => {
+=======
+  it("does not fall back to turn/start when turn/steer fails", async () => {
+    const pushThreadErrorMessage = vi.fn();
+>>>>>>> origin/main
     vi.mocked(steerTurnService).mockResolvedValueOnce({
       error: {
         message:
@@ -350,6 +355,7 @@ describe("useThreadMessaging telemetry", () => {
       1,
       "ws-1",
       "thread-1",
+<<<<<<< HEAD
       "fallback once",
       expect.any(Object),
     );
@@ -424,6 +430,9 @@ describe("useThreadMessaging telemetry", () => {
       "thread-1",
       "fallback remote method",
       expect.any(Object),
+=======
+      "Turn steer failed: no active turn to steer",
+>>>>>>> origin/main
     );
   });
 });

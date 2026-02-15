@@ -19,6 +19,7 @@ use crate::types::{
 };
 use crate::utils::{git_env_path, normalize_git_path, resolve_git_binary};
 
+<<<<<<< HEAD
 const INDEX_SKIP_WORKTREE_FLAG: u16 = 0x4000;
 const MAX_IMAGE_BYTES: usize = 10 * 1024 * 1024;
 const MAX_TEXT_DIFF_BYTES: usize = 2 * 1024 * 1024;
@@ -1409,6 +1410,22 @@ async fn create_git_branch_inner(
         .map_err(|e| e.to_string())?;
     checkout_branch(&repo, &name).map_err(|e| e.to_string())
 }
+=======
+#[path = "git_ui_core/commands.rs"]
+mod commands;
+#[path = "git_ui_core/context.rs"]
+mod context;
+#[path = "git_ui_core/diff.rs"]
+mod diff;
+#[path = "git_ui_core/github.rs"]
+mod github;
+#[path = "git_ui_core/log.rs"]
+mod log;
+
+#[cfg(test)]
+#[path = "git_ui_core/tests.rs"]
+mod tests;
+>>>>>>> origin/main
 
 pub(crate) async fn resolve_repo_root_for_workspace_core(
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,

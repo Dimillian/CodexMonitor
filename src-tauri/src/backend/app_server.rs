@@ -431,6 +431,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
             }
         }
 
+<<<<<<< HEAD
         // Stdout reading loop exited — the codex app-server process has
         // disconnected or crashed.  Notify the frontend so it can reset any
         // processing state that would otherwise spin forever.
@@ -442,6 +443,10 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
             }),
         };
         event_sink_clone.emit_app_server_event(payload);
+=======
+        // Ensure pending foreground requests cannot accumulate after process output ends.
+        session_clone.pending.lock().await.clear();
+>>>>>>> origin/main
     });
 
     let workspace_id = entry.id.clone();

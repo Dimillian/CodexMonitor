@@ -659,10 +659,18 @@ export function GitDiffPanel({
               onChange={(event) => onModeChange(event.target.value as GitDiffPanelProps["mode"])}
               aria-label="Git 面板视图"
             >
+<<<<<<< HEAD
               <option value="diff">差异</option>
               <option value="log">日志</option>
               <option value="issues">Issue</option>
               <option value="prs">PR</option>
+=======
+              <option value="diff">Diff</option>
+              <option value="perFile">Agent edits</option>
+              <option value="log">Log</option>
+              <option value="issues">Issues</option>
+              <option value="prs">PRs</option>
+>>>>>>> origin/main
             </select>
           </div>
           {showApplyWorktree && (

@@ -239,6 +239,7 @@ describe("GitDiffPanel", () => {
     expect(clipboardWriteText).toHaveBeenCalledWith("src/sample.ts");
   });
 
+<<<<<<< HEAD
   it("switches review scope between uncommitted, staged and unstaged", () => {
     const { container } = render(
       <GitDiffPanel
@@ -248,10 +249,43 @@ describe("GitDiffPanel", () => {
         ]}
         unstagedFiles={[
           { path: "src/unstaged.ts", status: "M", additions: 3, deletions: 0 },
+=======
+  it("shows Agent edits option in mode selector", () => {
+    render(<GitDiffPanel {...baseProps} />);
+    const options = screen.getAllByRole("option", { name: "Agent edits" });
+    expect(options.length).toBeGreaterThan(0);
+  });
+
+  it("renders per-file groups and edit rows", () => {
+    const onSelectFile = vi.fn();
+    const { container } = render(
+      <GitDiffPanel
+        {...baseProps}
+        mode="perFile"
+        onSelectFile={onSelectFile}
+        selectedPath={null}
+        perFileDiffGroups={[
+          {
+            path: "src/main.ts",
+            edits: [
+              {
+                id: "src/main.ts@@item-change-1@@change-0",
+                path: "src/main.ts",
+                label: "Edit 1",
+                status: "M",
+                diff: "diff --git a/src/main.ts b/src/main.ts",
+                sourceItemId: "change-1",
+                additions: 1,
+                deletions: 0,
+              },
+            ],
+          },
+>>>>>>> origin/main
         ]}
       />,
     );
 
+<<<<<<< HEAD
     const scope = container.querySelector(".diff-review-scope");
     expect(scope).not.toBeNull();
 
@@ -268,6 +302,17 @@ describe("GitDiffPanel", () => {
     fireEvent.click(scopeQuery.getByRole("button", { name: "Unstaged" }));
     expect(panelQuery.queryAllByText("已暂存 (1)").length).toBe(0);
     expect(panelQuery.queryAllByText("未暂存 (1)").length).toBeGreaterThan(0);
+=======
+    expect(screen.getByRole("button", { name: /main\.ts/i })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /src\/main\.ts/i })).toBeNull();
+    expect(
+      (container.querySelector(".per-file-edit-stat-add") as HTMLElement | null)?.textContent,
+    ).toBe("+1");
+    fireEvent.click(screen.getByRole("button", { name: /Edit 1/i }));
+    expect(onSelectFile).toHaveBeenCalledWith(
+      "src/main.ts@@item-change-1@@change-0",
+    );
+>>>>>>> origin/main
   });
 
 });
