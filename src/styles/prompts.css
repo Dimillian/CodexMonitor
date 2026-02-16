@@ -222,6 +222,11 @@
   padding: 6px 8px;
 }
 
+.prompt-scope-select option {
+  background-color: var(--surface-popover);
+  color: var(--text-strong);
+}
+
 .prompt-editor-actions {
   display: flex;
   gap: 8px;
