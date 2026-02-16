@@ -69,16 +69,11 @@ use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
 
-use futures_util::{SinkExt, StreamExt};
 use ignore::WalkBuilder;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{broadcast, mpsc, Mutex, Semaphore};
-use tokio::time::sleep;
-use tokio_tungstenite::connect_async;
-use tokio_tungstenite::tungstenite::Message;
 
 use backend::app_server::{spawn_workspace_session, WorkspaceSession};
 use backend::events::{AppServerEvent, EventSink, TerminalExit, TerminalOutput};
@@ -92,8 +87,7 @@ use storage::{read_settings, read_workspaces};
 use types::{
     AppSettings, GitCommitDiff, GitFileDiff, GitHubIssuesResponse, GitHubPullRequestComment,
     GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse, LocalUsageSnapshot,
-    OrbitConnectTestResult, OrbitDeviceCodeStart, OrbitSignInPollResult, OrbitSignInStatus,
-    OrbitSignOutResult, WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorktreeSetupStatus,
+    WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorktreeSetupStatus,
 };
 use workspace_settings::apply_workspace_settings_update;
 
@@ -151,10 +145,6 @@ struct DaemonConfig {
     listen: SocketAddr,
     token: Option<String>,
     data_dir: PathBuf,
-    orbit_url: Option<String>,
-    orbit_token: Option<String>,
-    orbit_auth_url: Option<String>,
-    orbit_runner_name: Option<String>,
 }
 
 struct DaemonState {
@@ -166,7 +156,6 @@ struct DaemonState {
     app_settings: Mutex<AppSettings>,
     event_sink: DaemonEventSink,
     codex_login_cancels: Mutex<HashMap<String, CodexLoginCancelState>>,
-    daemon_mode: String,
     daemon_binary_path: Option<String>,
 }
 
@@ -182,11 +171,6 @@ impl DaemonState {
         let settings_path = config.data_dir.join("settings.json");
         let workspaces = read_workspaces(&storage_path).unwrap_or_default();
         let app_settings = read_settings(&settings_path).unwrap_or_default();
-        let daemon_mode = if config.orbit_url.is_some() {
-            "orbit".to_string()
-        } else {
-            "tcp".to_string()
-        };
         let daemon_binary_path = std::env::current_exe()
             .ok()
             .and_then(|path| path.to_str().map(str::to_string));
@@ -199,7 +183,6 @@ impl DaemonState {
             app_settings: Mutex::new(app_settings),
             event_sink,
             codex_login_cancels: Mutex::new(HashMap::new()),
-            daemon_mode,
             daemon_binary_path,
         }
     }
@@ -209,7 +192,7 @@ impl DaemonState {
             "name": DAEMON_NAME,
             "version": env!("CARGO_PKG_VERSION"),
             "pid": std::process::id(),
-            "mode": self.daemon_mode,
+            "mode": "tcp",
             "binaryPath": self.daemon_binary_path,
         })
     }
@@ -528,75 +511,6 @@ impl DaemonState {
         codex_config::write_feature_enabled(feature_key.as_str(), enabled)
     }
 
-    async fn orbit_connect_test(&self) -> Result<OrbitConnectTestResult, String> {
-        let settings = self.app_settings.lock().await.clone();
-        let ws_url = shared::orbit_core::orbit_ws_url_from_settings(&settings)?;
-        shared::orbit_core::orbit_connect_test_core(
-            &ws_url,
-            settings.remote_backend_token.as_deref(),
-        )
-        .await
-    }
-
-    async fn orbit_sign_in_start(&self) -> Result<OrbitDeviceCodeStart, String> {
-        let settings = self.app_settings.lock().await.clone();
-        let auth_url = shared::orbit_core::orbit_auth_url_from_settings(&settings)?;
-        shared::orbit_core::orbit_sign_in_start_core(
-            &auth_url,
-            settings.orbit_runner_name.as_deref(),
-        )
-        .await
-    }
-
-    async fn orbit_sign_in_poll(
-        &self,
-        device_code: String,
-    ) -> Result<OrbitSignInPollResult, String> {
-        let auth_url = {
-            let settings = self.app_settings.lock().await.clone();
-            shared::orbit_core::orbit_auth_url_from_settings(&settings)?
-        };
-        let result = shared::orbit_core::orbit_sign_in_poll_core(&auth_url, &device_code).await?;
-
-        if matches!(result.status, OrbitSignInStatus::Authorized) {
-            if let Some(token) = result.token.as_ref() {
-                let _ = settings_core::update_remote_backend_token_core(
-                    &self.app_settings,
-                    &self.settings_path,
-                    Some(token),
-                )
-                .await?;
-            }
-        }
-
-        Ok(result)
-    }
-
-    async fn orbit_sign_out(&self) -> Result<OrbitSignOutResult, String> {
-        let settings = self.app_settings.lock().await.clone();
-        let auth_url = shared::orbit_core::orbit_auth_url_optional(&settings);
-        let token = shared::orbit_core::remote_backend_token_optional(&settings);
-
-        let mut logout_error: Option<String> = None;
-        if let (Some(auth_url), Some(token)) = (auth_url.as_ref(), token.as_ref()) {
-            if let Err(err) = shared::orbit_core::orbit_sign_out_core(auth_url, token).await {
-                logout_error = Some(err);
-            }
-        }
-
-        let _ = settings_core::update_remote_backend_token_core(
-            &self.app_settings,
-            &self.settings_path,
-            None,
-        )
-        .await?;
-
-        Ok(OrbitSignOutResult {
-            success: logout_error.is_none(),
-            message: logout_error,
-        })
-    }
-
     async fn list_workspace_files(&self, workspace_id: String) -> Result<Vec<String>, String> {
         workspaces_core::list_workspace_files_core(&self.workspaces, &workspace_id, |root| {
             list_workspace_files_inner(root, 20000)
@@ -647,6 +561,60 @@ impl DaemonState {
         thread_id: String,
     ) -> Result<Value, String> {
         codex_core::resume_thread_core(&self.sessions, workspace_id, thread_id).await
+    }
+
+    async fn thread_live_subscribe(
+        &self,
+        workspace_id: String,
+        thread_id: String,
+    ) -> Result<Value, String> {
+        codex_core::thread_live_subscribe_core(
+            &self.sessions,
+            workspace_id.clone(),
+            thread_id.clone(),
+        )
+        .await?;
+        let subscription_id = format!("{}:{}", workspace_id, thread_id);
+        self.event_sink.emit_app_server_event(AppServerEvent {
+            workspace_id: workspace_id.clone(),
+            message: json!({
+                "method": "thread/live_attached",
+                "params": {
+                    "workspaceId": workspace_id,
+                    "threadId": thread_id,
+                    "subscriptionId": subscription_id,
+                }
+            }),
+        });
+        Ok(json!({
+            "subscriptionId": subscription_id,
+            "state": "live",
+        }))
+    }
+
+    async fn thread_live_unsubscribe(
+        &self,
+        workspace_id: String,
+        thread_id: String,
+    ) -> Result<Value, String> {
+        codex_core::thread_live_unsubscribe_core(
+            &self.sessions,
+            workspace_id.clone(),
+            thread_id.clone(),
+        )
+        .await?;
+        self.event_sink.emit_app_server_event(AppServerEvent {
+            workspace_id: workspace_id.clone(),
+            message: json!({
+                "method": "thread/live_detached",
+                "params": {
+                    "workspaceId": workspace_id,
+                    "threadId": thread_id,
+                    "reason": "manual",
+                }
+            }),
+        });
+        Ok(json!({ "ok": true }))
     }
 
     async fn fork_thread(&self, workspace_id: String, thread_id: String) -> Result<Value, String> {
@@ -1364,8 +1332,8 @@ fn default_data_dir() -> PathBuf {
 fn usage() -> String {
     format!(
         "\
-USAGE:\n  codex-monitor-daemon [--listen <addr>] [--data-dir <path>] [--token <token> | --insecure-no-auth]\n  codex-monitor-daemon --orbit-url <ws-url> [--orbit-token <token>] [--orbit-auth-url <url>] [--orbit-runner-name <name>] [--data-dir <path>]\n\n\
-OPTIONS:\n  --listen <addr>          Bind address (default: {DEFAULT_LISTEN_ADDR})\n  --data-dir <path>        Data dir holding workspaces.json/settings.json\n  --token <token>          Shared token required by TCP clients\n  --insecure-no-auth       Disable TCP auth (dev only)\n  --orbit-url <ws-url>     Run in Orbit runner mode and connect outbound to this WS URL\n  --orbit-token <token>    Orbit auth token (optional if URL already includes token)\n  --orbit-auth-url <url>   Orbit auth base URL (metadata only, optional)\n  --orbit-runner-name <n>  Runner display name (metadata only, optional)\n  -h, --help               Show this help\n"
+USAGE:\n  codex-monitor-daemon [--listen <addr>] [--data-dir <path>] [--token <token> | --insecure-no-auth]\n\n\
+OPTIONS:\n  --listen <addr>          Bind address (default: {DEFAULT_LISTEN_ADDR})\n  --data-dir <path>        Data dir holding workspaces.json/settings.json\n  --token <token>          Shared token required by TCP clients\n  --insecure-no-auth       Disable TCP auth (dev only)\n  -h, --help               Show this help\n"
     )
 }
 
@@ -1379,19 +1347,6 @@ fn parse_args() -> Result<DaemonConfig, String> {
         .filter(|value| !value.is_empty());
     let mut insecure_no_auth = false;
     let mut data_dir: Option<PathBuf> = None;
-    let mut orbit_url: Option<String> = None;
-    let mut orbit_token: Option<String> = env::var("CODEX_MONITOR_ORBIT_TOKEN")
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty());
-    let mut orbit_auth_url: Option<String> = env::var("CODEX_MONITOR_ORBIT_AUTH_URL")
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty());
-    let mut orbit_runner_name: Option<String> = env::var("CODEX_MONITOR_ORBIT_RUNNER_NAME")
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty());
 
     let mut args = env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -1424,44 +1379,11 @@ fn parse_args() -> Result<DaemonConfig, String> {
                 insecure_no_auth = true;
                 token = None;
             }
-            "--orbit-url" => {
-                let value = args.next().ok_or("--orbit-url requires a value")?;
-                let trimmed = value.trim();
-                if trimmed.is_empty() {
-                    return Err("--orbit-url requires a non-empty value".to_string());
-                }
-                orbit_url = Some(trimmed.to_string());
-            }
-            "--orbit-token" => {
-                let value = args.next().ok_or("--orbit-token requires a value")?;
-                let trimmed = value.trim();
-                if trimmed.is_empty() {
-                    return Err("--orbit-token requires a non-empty value".to_string());
-                }
-                orbit_token = Some(trimmed.to_string());
-            }
-            "--orbit-auth-url" => {
-                let value = args.next().ok_or("--orbit-auth-url requires a value")?;
-                let trimmed = value.trim();
-                if trimmed.is_empty() {
-                    return Err("--orbit-auth-url requires a non-empty value".to_string());
-                }
-                orbit_auth_url = Some(trimmed.to_string());
-            }
-            "--orbit-runner-name" => {
-                let value = args.next().ok_or("--orbit-runner-name requires a value")?;
-                let trimmed = value.trim();
-                if trimmed.is_empty() {
-                    return Err("--orbit-runner-name requires a non-empty value".to_string());
-                }
-                orbit_runner_name = Some(trimmed.to_string());
-            }
             _ => return Err(format!("Unknown argument: {arg}")),
         }
     }
 
-    let is_orbit_mode = orbit_url.is_some();
-    if !is_orbit_mode && token.is_none() && !insecure_no_auth {
+    if token.is_none() && !insecure_no_auth {
         return Err(
             "Missing --token (or set CODEX_MONITOR_DAEMON_TOKEN). Use --insecure-no-auth for local dev only."
                 .to_string(),
@@ -1472,10 +1394,6 @@ fn parse_args() -> Result<DaemonConfig, String> {
         listen,
         token,
         data_dir: data_dir.unwrap_or_else(default_data_dir),
-        orbit_url,
-        orbit_token,
-        orbit_auth_url,
-        orbit_runner_name,
     })
 }
 
@@ -1523,7 +1441,6 @@ mod tests {
             app_settings: Mutex::new(AppSettings::default()),
             event_sink: DaemonEventSink { tx },
             codex_login_cancels: Mutex::new(HashMap::new()),
-            daemon_mode: "tcp".to_string(),
             daemon_binary_path: Some("/tmp/codex-monitor-daemon".to_string()),
         }
     }
@@ -1682,19 +1599,6 @@ fn main() {
         };
         let state = Arc::new(DaemonState::load(&config, event_sink));
         let config = Arc::new(config);
-
-        if config.orbit_url.is_some() {
-            eprintln!(
-                "codex-monitor-daemon orbit mode (data dir: {})",
-                state
-                    .storage_path
-                    .parent()
-                    .unwrap_or(&state.storage_path)
-                    .display()
-            );
-            transport::run_orbit_mode(config, state, events_tx).await;
-            return;
-        }
 
         let listener = match TcpListener::bind(config.listen).await {
             Ok(listener) => listener,

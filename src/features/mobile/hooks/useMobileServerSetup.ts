@@ -19,21 +19,45 @@ type UseMobileServerSetupResult = {
 };
 
 function isRemoteServerConfigured(settings: AppSettings): boolean {
-  const tokenConfigured = Boolean(settings.remoteBackendToken?.trim());
-  if (!tokenConfigured) {
-    return false;
-  }
-  if (settings.remoteBackendProvider === "orbit") {
-    return Boolean(settings.orbitWsUrl?.trim());
-  }
-  return Boolean(settings.remoteBackendHost.trim());
+  return Boolean(settings.remoteBackendToken?.trim()) && Boolean(settings.remoteBackendHost.trim());
 }
 
-function defaultMobileSetupMessage(provider: AppSettings["remoteBackendProvider"]): string {
-  if (provider === "orbit") {
-    return "Enter your Orbit websocket URL and token, then run Connect & test.";
-  }
+function defaultMobileSetupMessage(): string {
   return "Enter your desktop Tailscale host and token, then run Connect & test.";
+}
+
+function markActiveRemoteBackendConnected(settings: AppSettings, connectedAtMs: number): AppSettings {
+  const existingBackends: AppSettings["remoteBackends"] =
+    settings.remoteBackends.length > 0
+      ? [...settings.remoteBackends]
+      : [
+          {
+            id: settings.activeRemoteBackendId ?? "remote-default",
+            name: "Primary remote",
+            provider: "tcp" as const,
+            host: settings.remoteBackendHost,
+            token: settings.remoteBackendToken,
+            lastConnectedAtMs: null,
+          },
+        ];
+  const activeIndexById =
+    settings.activeRemoteBackendId == null
+      ? -1
+      : existingBackends.findIndex((entry) => entry.id === settings.activeRemoteBackendId);
+  const activeIndex = activeIndexById >= 0 ? activeIndexById : 0;
+  const active = existingBackends[activeIndex];
+  existingBackends[activeIndex] = {
+    ...active,
+    provider: "tcp",
+    host: settings.remoteBackendHost,
+    token: settings.remoteBackendToken,
+    lastConnectedAtMs: connectedAtMs,
+  };
+  return {
+    ...settings,
+    remoteBackends: existingBackends,
+    activeRemoteBackendId: existingBackends[activeIndex]?.id ?? settings.activeRemoteBackendId,
+  };
 }
 
 export function useMobileServerSetup({
@@ -44,30 +68,23 @@ export function useMobileServerSetup({
 }: UseMobileServerSetupParams): UseMobileServerSetupResult {
   const isMobileRuntime = useMemo(() => isMobilePlatform(), []);
 
-  const [providerDraft, setProviderDraft] = useState<AppSettings["remoteBackendProvider"]>(
-    appSettings.remoteBackendProvider,
-  );
   const [remoteHostDraft, setRemoteHostDraft] = useState(appSettings.remoteBackendHost);
-  const [orbitWsUrlDraft, setOrbitWsUrlDraft] = useState(appSettings.orbitWsUrl ?? "");
   const [remoteTokenDraft, setRemoteTokenDraft] = useState(appSettings.remoteBackendToken ?? "");
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusError, setStatusError] = useState(false);
   const [mobileServerReady, setMobileServerReady] = useState(!isMobileRuntime);
+  const [setupWizardDismissed, setSetupWizardDismissed] = useState(false);
 
   useEffect(() => {
     if (!isMobileRuntime) {
       return;
     }
-    setProviderDraft(appSettings.remoteBackendProvider);
     setRemoteHostDraft(appSettings.remoteBackendHost);
-    setOrbitWsUrlDraft(appSettings.orbitWsUrl ?? "");
     setRemoteTokenDraft(appSettings.remoteBackendToken ?? "");
   }, [
-    appSettings.orbitWsUrl,
     appSettings.remoteBackendHost,
-    appSettings.remoteBackendProvider,
     appSettings.remoteBackendToken,
     isMobileRuntime,
   ]);
@@ -112,32 +129,32 @@ export function useMobileServerSetup({
         return;
       }
 
-      const nextProvider = providerDraft;
       const nextHost = remoteHostDraft.trim();
       const nextToken = remoteTokenDraft.trim() ? remoteTokenDraft.trim() : null;
-      const nextOrbitWsUrl = orbitWsUrlDraft.trim() ? orbitWsUrlDraft.trim() : null;
-      const missingEndpoint = nextProvider === "orbit" ? !nextOrbitWsUrl : !nextHost.trim();
 
-      if (missingEndpoint || !nextToken) {
+      if (!nextHost || !nextToken) {
         setMobileServerReady(false);
         setStatusError(true);
-        setStatusMessage(defaultMobileSetupMessage(nextProvider));
+        setStatusMessage(defaultMobileSetupMessage());
         return;
       }
 
       setBusy(true);
+      setSetupWizardDismissed(false);
       setStatusError(false);
       setStatusMessage(null);
       try {
-        await queueSaveSettings({
+        const saved = await queueSaveSettings({
           ...appSettings,
           backendMode: "remote",
-          remoteBackendProvider: nextProvider,
+          remoteBackendProvider: "tcp",
           remoteBackendHost: nextHost,
           remoteBackendToken: nextToken,
-          orbitWsUrl: nextOrbitWsUrl,
         });
-        await runConnectivityCheck({ announceSuccess: true });
+        const connected = await runConnectivityCheck({ announceSuccess: true });
+        if (connected) {
+          await queueSaveSettings(markActiveRemoteBackendConnected(saved, Date.now()));
+        }
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Unable to save remote backend settings.";
@@ -152,8 +169,6 @@ export function useMobileServerSetup({
     appSettings,
     busy,
     isMobileRuntime,
-    orbitWsUrlDraft,
-    providerDraft,
     queueSaveSettings,
     remoteHostDraft,
     remoteTokenDraft,
@@ -168,7 +183,7 @@ export function useMobileServerSetup({
       setMobileServerReady(false);
       setChecking(false);
       setStatusError(true);
-      setStatusMessage(defaultMobileSetupMessage(appSettings.remoteBackendProvider));
+      setStatusMessage(defaultMobileSetupMessage());
       return;
     }
 
@@ -203,6 +218,7 @@ export function useMobileServerSetup({
     setStatusError(false);
     setStatusMessage(null);
     setMobileServerReady(true);
+    setSetupWizardDismissed(false);
     try {
       await refreshWorkspaces();
     } catch {
@@ -212,19 +228,19 @@ export function useMobileServerSetup({
 
   return {
     isMobileRuntime,
-    showMobileSetupWizard: isMobileRuntime && !appSettingsLoading && !mobileServerReady,
+    showMobileSetupWizard:
+      isMobileRuntime && !appSettingsLoading && !mobileServerReady && !setupWizardDismissed,
     mobileSetupWizardProps: {
-      provider: providerDraft,
       remoteHostDraft,
-      orbitWsUrlDraft,
       remoteTokenDraft,
       busy,
       checking,
       statusMessage,
       statusError,
-      onProviderChange: setProviderDraft,
+      onClose: () => {
+        setSetupWizardDismissed(true);
+      },
       onRemoteHostChange: setRemoteHostDraft,
-      onOrbitWsUrlChange: setOrbitWsUrlDraft,
       onRemoteTokenChange: setRemoteTokenDraft,
       onConnectTest,
     },

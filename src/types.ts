@@ -143,7 +143,15 @@ export type PullRequestSelectionRange = {
 
 export type AccessMode = "read-only" | "current" | "full-access";
 export type BackendMode = "local" | "remote";
-export type RemoteBackendProvider = "tcp" | "orbit";
+export type RemoteBackendProvider = "tcp";
+export type RemoteBackendTarget = {
+  id: string;
+  name: string;
+  provider: RemoteBackendProvider;
+  host: string;
+  token: string | null;
+  lastConnectedAtMs?: number | null;
+};
 export type ThemePreference = "system" | "light" | "dark" | "dim";
 export type PersonalityPreference = "friendly" | "pragmatic";
 
@@ -177,14 +185,9 @@ export type AppSettings = {
   remoteBackendProvider: RemoteBackendProvider;
   remoteBackendHost: string;
   remoteBackendToken: string | null;
-  orbitWsUrl: string | null;
-  orbitAuthUrl: string | null;
-  orbitRunnerName: string | null;
-  orbitAutoStartRunner: boolean;
+  remoteBackends: RemoteBackendTarget[];
+  activeRemoteBackendId: string | null;
   keepDaemonRunningAfterAppClose: boolean;
-  orbitUseAccess: boolean;
-  orbitAccessClientId: string | null;
-  orbitAccessClientSecretRef: string | null;
   defaultAccessMode: AccessMode;
   reviewDeliveryMode: "inline" | "detached";
   composerModelShortcut: string | null;
@@ -248,13 +251,6 @@ export type AppSettings = {
   selectedOpenAppId: string;
 };
 
-export type OrbitConnectTestResult = {
-  ok: boolean;
-  latencyMs: number | null;
-  message: string;
-  details?: string | null;
-};
-
 export type CodexFeatureStage =
   | "under_development"
   | "beta"
@@ -270,44 +266,6 @@ export type CodexFeature = {
   displayName: string | null;
   description: string | null;
   announcement: string | null;
-};
-
-export type OrbitDeviceCodeStart = {
-  deviceCode: string;
-  userCode: string | null;
-  verificationUri: string;
-  verificationUriComplete: string | null;
-  intervalSeconds: number;
-  expiresInSeconds: number;
-};
-
-export type OrbitSignInStatus =
-  | "pending"
-  | "authorized"
-  | "denied"
-  | "expired"
-  | "error";
-
-export type OrbitSignInPollResult = {
-  status: OrbitSignInStatus;
-  token: string | null;
-  message: string | null;
-  intervalSeconds: number | null;
-};
-
-export type OrbitSignOutResult = {
-  success: boolean;
-  message: string | null;
-};
-
-export type OrbitRunnerState = "stopped" | "running" | "error";
-
-export type OrbitRunnerStatus = {
-  state: OrbitRunnerState;
-  pid: number | null;
-  startedAtMs: number | null;
-  lastError: string | null;
-  orbitUrl: string | null;
 };
 
 export type TcpDaemonState = "stopped" | "running" | "error";

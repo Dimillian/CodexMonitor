@@ -1,19 +1,5 @@
 import type { AppSettings } from "@/types";
-import {
-  orbitConnectTest,
-  orbitRunnerStart,
-  orbitRunnerStatus,
-  orbitRunnerStop,
-  orbitSignInPoll,
-  orbitSignInStart,
-  orbitSignOut,
-} from "@services/tauri";
-import type {
-  CodexSection,
-  OrbitServiceClient,
-  ShortcutDraftKey,
-  ShortcutSettingKey,
-} from "./settingsTypes";
+import type { CodexSection, ShortcutDraftKey, ShortcutSettingKey } from "./settingsTypes";
 
 export const DICTATION_MODELS = [
   { id: "tiny", label: "Tiny", size: "75 MB", note: "Fastest, least accurate." },
@@ -84,18 +70,6 @@ export const COMPOSER_PRESET_CONFIGS: Record<
   },
 };
 
-export const ORBIT_SERVICES: OrbitServiceClient = {
-  orbitConnectTest,
-  orbitSignInStart,
-  orbitSignInPoll,
-  orbitSignOut,
-  orbitRunnerStart,
-  orbitRunnerStop,
-  orbitRunnerStatus,
-};
-
-export const ORBIT_DEFAULT_POLL_INTERVAL_SECONDS = 5;
-export const ORBIT_MAX_INLINE_POLL_SECONDS = 180;
 export const SETTINGS_MOBILE_BREAKPOINT_PX = 720;
 export const DEFAULT_REMOTE_HOST = "127.0.0.1:4732";
 

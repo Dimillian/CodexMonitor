@@ -14,8 +14,8 @@ import { useSettingsViewNavigation } from "@settings/hooks/useSettingsViewNaviga
 import { useSettingsViewOrchestration } from "@settings/hooks/useSettingsViewOrchestration";
 import { ModalShell } from "@/features/design-system/components/modal/ModalShell";
 import { SettingsNav } from "./SettingsNav";
-import type { CodexSection, OrbitServiceClient } from "./settingsTypes";
-import { ORBIT_SERVICES, SETTINGS_SECTION_LABELS } from "./settingsViewConstants";
+import type { CodexSection } from "./settingsTypes";
+import { SETTINGS_SECTION_LABELS } from "./settingsViewConstants";
 import { SettingsSectionContainers } from "./sections/SettingsSectionContainers";
 
 export type SettingsViewProps = {
@@ -65,7 +65,6 @@ export type SettingsViewProps = {
   onCancelDictationDownload?: () => void;
   onRemoveDictationModel?: () => void;
   initialSection?: CodexSection;
-  orbitServiceClient?: OrbitServiceClient;
 };
 
 export function SettingsView({
@@ -99,7 +98,6 @@ export function SettingsView({
   onCancelDictationDownload,
   onRemoveDictationModel,
   initialSection,
-  orbitServiceClient = ORBIT_SERVICES,
 }: SettingsViewProps) {
   const {
     activeSection,
@@ -138,7 +136,6 @@ export function SettingsView({
     onDownloadDictationModel,
     onCancelDictationDownload,
     onRemoveDictationModel,
-    orbitServiceClient,
   });
 
   useSettingsViewCloseShortcuts(onClose);

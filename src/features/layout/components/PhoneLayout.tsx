@@ -15,6 +15,7 @@ type PhoneLayoutProps = {
   compactEmptyGitNode: ReactNode;
   compactGitBackNode: ReactNode;
   topbarLeftNode: ReactNode;
+  codexTopbarActionsNode?: ReactNode;
   messagesNode: ReactNode;
   composerNode: ReactNode;
   gitDiffPanelNode: ReactNode;
@@ -36,6 +37,7 @@ export function PhoneLayout({
   compactEmptyGitNode,
   compactGitBackNode,
   topbarLeftNode,
+  codexTopbarActionsNode,
   messagesNode,
   composerNode,
   gitDiffPanelNode,
@@ -53,7 +55,11 @@ export function PhoneLayout({
         <div className="compact-panel">
           {activeWorkspace ? (
             <>
-              <MainTopbar leftNode={topbarLeftNode} className="compact-topbar" />
+              <MainTopbar
+                leftNode={topbarLeftNode}
+                actionsNode={codexTopbarActionsNode}
+                className="compact-topbar"
+              />
               <div className="content compact-content">{messagesNode}</div>
               {composerNode}
             </>

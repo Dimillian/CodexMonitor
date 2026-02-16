@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::types::{AppSettings, WorkspaceEntry};
+use serde_json::Value;
 
 pub(crate) fn read_workspaces(path: &PathBuf) -> Result<HashMap<String, WorkspaceEntry>, String> {
     if !path.exists() {
@@ -28,7 +29,14 @@ pub(crate) fn read_settings(path: &PathBuf) -> Result<AppSettings, String> {
         return Ok(AppSettings::default());
     }
     let data = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&data).map_err(|e| e.to_string())
+    match serde_json::from_str(&data) {
+        Ok(settings) => Ok(settings),
+        Err(_) => {
+            let mut value: Value = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+            sanitize_remote_settings_for_tcp_only(&mut value);
+            serde_json::from_value(value).map_err(|e| e.to_string())
+        }
+    }
 }
 
 pub(crate) fn write_settings(path: &PathBuf, settings: &AppSettings) -> Result<(), String> {
@@ -39,9 +47,34 @@ pub(crate) fn write_settings(path: &PathBuf, settings: &AppSettings) -> Result<(
     std::fs::write(path, data).map_err(|e| e.to_string())
 }
 
+fn sanitize_remote_settings_for_tcp_only(value: &mut Value) {
+    let Value::Object(root) = value else {
+        return;
+    };
+    root.insert(
+        "remoteBackendProvider".to_string(),
+        Value::String("tcp".to_string()),
+    );
+    if let Some(Value::Array(remote_backends)) = root.get_mut("remoteBackends") {
+        for entry in remote_backends {
+            let Value::Object(entry_obj) = entry else {
+                continue;
+            };
+            entry_obj.insert("provider".to_string(), Value::String("tcp".to_string()));
+            entry_obj.retain(|key, _| {
+                matches!(
+                    key.as_str(),
+                    "id" | "name" | "provider" | "host" | "token" | "lastConnectedAtMs"
+                )
+            });
+        }
+    }
+    root.retain(|key, _| !key.to_ascii_lowercase().starts_with("orb"));
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{read_workspaces, write_workspaces};
+    use super::{read_settings, read_workspaces, write_workspaces};
     use crate::types::{WorkspaceEntry, WorkspaceKind, WorkspaceSettings};
     use uuid::Uuid;
 
@@ -80,5 +113,45 @@ mod tests {
             stored.settings.codex_args.as_deref(),
             Some("--profile personal")
         );
+    }
+
+    #[test]
+    fn read_settings_sanitizes_non_tcp_remote_provider() {
+        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+        let path = temp_dir.join("settings.json");
+
+        std::fs::write(
+            &path,
+            r#"{
+  "remoteBackendProvider": "legacy-provider",
+  "remoteBackendHost": "example:4732",
+  "remoteBackendToken": "token-1",
+  "remoteBackends": [
+    {
+      "id": "remote-a",
+      "name": "Remote A",
+      "provider": "legacy-provider",
+      "host": "example:4732",
+      "token": "token-1",
+      "legacyWsUrl": "wss://example/ws"
+    }
+  ],
+  "theme": "dark"
+}"#,
+        )
+        .expect("write settings");
+
+        let settings = read_settings(&path).expect("read settings");
+        assert!(matches!(
+            settings.remote_backend_provider,
+            crate::types::RemoteBackendProvider::Tcp
+        ));
+        assert_eq!(settings.remote_backends.len(), 1);
+        assert!(matches!(
+            settings.remote_backends[0].provider,
+            crate::types::RemoteBackendProvider::Tcp
+        ));
+        assert_eq!(settings.theme, "dark");
     }
 }

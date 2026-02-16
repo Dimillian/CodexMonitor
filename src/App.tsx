@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import "./styles/base.css";
 import "./styles/ds-tokens.css";
 import "./styles/ds-modal.css";
@@ -124,7 +125,11 @@ import { useThreadListActions } from "@app/hooks/useThreadListActions";
 import { useSidebarLayoutActions } from "@app/hooks/useSidebarLayoutActions";
 import { useGitRootSelection } from "@app/hooks/useGitRootSelection";
 import { useTabActivationGuard } from "@app/hooks/useTabActivationGuard";
-import { useRemoteThreadRefreshOnFocus } from "@app/hooks/useRemoteThreadRefreshOnFocus";
+import {
+  REMOTE_THREAD_POLL_INTERVAL_MS,
+  useRemoteThreadRefreshOnFocus,
+} from "@app/hooks/useRemoteThreadRefreshOnFocus";
+import { useRemoteThreadLiveConnection } from "@app/hooks/useRemoteThreadLiveConnection";
 import { useAppBootstrapOrchestration } from "@app/bootstrap/useAppBootstrapOrchestration";
 import {
   useThreadCodexBootstrapOrchestration,
@@ -192,6 +197,7 @@ function MainApp() {
   const [activeTab, setActiveTab] = useState<
     "home" | "projects" | "codex" | "git" | "log"
   >("codex");
+  const [mobileThreadRefreshLoading, setMobileThreadRefreshLoading] = useState(false);
   const tabletTab =
     activeTab === "projects" || activeTab === "home" ? "codex" : activeTab;
   const {
@@ -568,6 +574,50 @@ function MainApp() {
     onMessageActivity: handleThreadMessageActivity,
     threadSortKey: threadListSortKey,
   });
+  const { connectionState: remoteThreadConnectionState, reconnectLive } =
+    useRemoteThreadLiveConnection({
+      backendMode: appSettings.backendMode,
+      activeWorkspace,
+      activeThreadId,
+      activeThreadIsProcessing: Boolean(
+        activeThreadId && threadStatusById[activeThreadId]?.isProcessing,
+      ),
+      refreshThread,
+      reconnectWorkspace: connectWorkspace,
+    });
+
+  const handleMobileThreadRefresh = useCallback(() => {
+    if (mobileThreadRefreshLoading || !activeWorkspace) {
+      return;
+    }
+    setMobileThreadRefreshLoading(true);
+    void (async () => {
+      let threadId = activeThreadId;
+      if (!threadId) {
+        threadId = await startThreadForWorkspace(activeWorkspace.id, {
+          activate: true,
+        });
+      }
+      if (!threadId) {
+        return;
+      }
+      await refreshThread(activeWorkspace.id, threadId);
+      await reconnectLive(activeWorkspace.id, threadId, { runResume: false });
+    })()
+      .catch(() => {
+        // Errors are surfaced through debug entries/toasts in existing thread actions.
+      })
+      .finally(() => {
+        setMobileThreadRefreshLoading(false);
+      });
+  }, [
+    activeThreadId,
+    activeWorkspace,
+    mobileThreadRefreshLoading,
+    refreshThread,
+    reconnectLive,
+    startThreadForWorkspace,
+  ]);
   const {
     updaterState,
     startUpdate,
@@ -1546,6 +1596,13 @@ function MainApp() {
     backendMode: appSettings.backendMode,
     activeWorkspace,
     activeThreadId,
+    activeThreadIsProcessing: Boolean(
+      activeThreadId && threadStatusById[activeThreadId]?.isProcessing,
+    ),
+    suspendPolling:
+      appSettings.backendMode === "remote" &&
+      remoteThreadConnectionState === "live",
+    reconnectWorkspace: connectWorkspace,
     refreshThread,
   });
 
@@ -1808,6 +1865,16 @@ function MainApp() {
   });
 
   useMenuAcceleratorController({ appSettings, onDebug: addDebugEntry });
+  const showCompactCodexThreadActions =
+    Boolean(activeWorkspace) &&
+    isCompact &&
+    ((isPhone && activeTab === "codex") || (isTablet && tabletTab === "codex"));
+  const showMobilePollingFetchStatus =
+    showCompactCodexThreadActions &&
+    Boolean(activeWorkspace?.connected) &&
+    appSettings.backendMode === "remote" &&
+    remoteThreadConnectionState === "polling";
+
   const {
     sidebarNode,
     messagesNode,
@@ -1850,6 +1917,8 @@ function MainApp() {
     activeWorkspaceId,
     activeThreadId,
     activeItems,
+    showPollingFetchStatus: showMobilePollingFetchStatus,
+    pollingIntervalMs: REMOTE_THREAD_POLL_INTERVAL_MS,
     activeRateLimits,
     usageShowRemaining: appSettings.usageShowRemaining,
     accountInfo: activeAccount,
@@ -1950,14 +2019,33 @@ function MainApp() {
     onSaveLaunchScript: launchScriptState.onSaveLaunchScript,
     launchScriptsState,
     mainHeaderActionsNode: (
-      <MainHeaderActions
-        centerMode={centerMode}
-        gitDiffViewStyle={gitDiffViewStyle}
-        onSelectDiffViewStyle={setGitDiffViewStyle}
-        isCompact={isCompact}
-        rightPanelCollapsed={rightPanelCollapsed}
-        sidebarToggleProps={sidebarToggleProps}
-      />
+      <>
+        {showCompactCodexThreadActions ? (
+          <button
+            type="button"
+            className="ghost main-header-action"
+            onClick={handleMobileThreadRefresh}
+            data-tauri-drag-region="false"
+            aria-label="Refresh current thread from server"
+            title="Refresh current thread from server"
+            disabled={mobileThreadRefreshLoading}
+          >
+            <RefreshCw
+              className={`compact-codex-refresh-icon${mobileThreadRefreshLoading ? " spinning" : ""}`}
+              size={14}
+              aria-hidden
+            />
+          </button>
+        ) : null}
+        <MainHeaderActions
+          centerMode={centerMode}
+          gitDiffViewStyle={gitDiffViewStyle}
+          onSelectDiffViewStyle={setGitDiffViewStyle}
+          isCompact={isCompact}
+          rightPanelCollapsed={rightPanelCollapsed}
+          sidebarToggleProps={sidebarToggleProps}
+        />
+      </>
     ),
     filePanelMode,
     onFilePanelModeChange: setFilePanelMode,
@@ -2304,6 +2392,38 @@ function MainApp() {
   ) : null;
 
   const mainMessagesNode = showWorkspaceHome ? workspaceHomeNode : messagesNode;
+  const showCompactThreadConnectionIndicator =
+    showCompactCodexThreadActions && Boolean(activeThreadId) && activeItems.length > 0;
+  const compactThreadConnectionState: "live" | "polling" | "disconnected" =
+    !activeWorkspace?.connected
+      ? "disconnected"
+      : appSettings.backendMode === "remote"
+        ? remoteThreadConnectionState
+        : "live";
+  const codexTopbarActionsNode = showCompactThreadConnectionIndicator ? (
+    <span
+      className={`compact-workspace-live-indicator ${
+        compactThreadConnectionState === "live"
+          ? "is-live"
+          : compactThreadConnectionState === "polling"
+            ? "is-polling"
+            : "is-disconnected"
+      }`}
+      title={
+        compactThreadConnectionState === "live"
+          ? "Receiving live thread events"
+          : compactThreadConnectionState === "polling"
+            ? "Connected, syncing thread state by polling"
+            : "Disconnected from backend"
+      }
+    >
+      {compactThreadConnectionState === "live"
+        ? "Live"
+        : compactThreadConnectionState === "polling"
+          ? "Polling"
+          : "Disconnected"}
+    </span>
+  ) : null;
 
   const desktopTopbarLeftNodeWithToggle = !isCompact ? (
     <div className="topbar-leading">
@@ -2354,6 +2474,7 @@ function MainApp() {
         homeNode={homeNode}
         mainHeaderNode={mainHeaderNode}
         desktopTopbarLeftNode={desktopTopbarLeftNodeWithToggle}
+        codexTopbarActionsNode={codexTopbarActionsNode}
         tabletNavNode={tabletNavNode}
         tabBarNode={tabBarNode}
         gitDiffPanelNode={gitDiffPanelNode}

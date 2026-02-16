@@ -1,10 +1,19 @@
+import { useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
+import X from "lucide-react/dist/esm/icons/x";
 import type {
   AppSettings,
   TailscaleDaemonCommandPreview,
   TailscaleStatus,
   TcpDaemonStatus,
 } from "@/types";
+import { ModalShell } from "@/features/design-system/components/modal/ModalShell";
+
+type AddRemoteBackendDraft = {
+  name: string;
+  host: string;
+  token: string;
+};
 
 type SettingsServerSectionProps = {
   appSettings: AppSettings;
@@ -13,17 +22,16 @@ type SettingsServerSectionProps = {
   mobileConnectBusy: boolean;
   mobileConnectStatusText: string | null;
   mobileConnectStatusError: boolean;
+  remoteBackends: AppSettings["remoteBackends"];
+  activeRemoteBackendId: string | null;
+  remoteStatusText: string | null;
+  remoteStatusError: boolean;
+  remoteNameError: string | null;
+  remoteHostError: string | null;
+  remoteNameDraft: string;
   remoteHostDraft: string;
   remoteTokenDraft: string;
-  orbitWsUrlDraft: string;
-  orbitAuthUrlDraft: string;
-  orbitRunnerNameDraft: string;
-  orbitAccessClientIdDraft: string;
-  orbitAccessClientSecretRefDraft: string;
-  orbitStatusText: string | null;
-  orbitAuthCode: string | null;
-  orbitVerificationUrl: string | null;
-  orbitBusyAction: string | null;
+  nextRemoteNameSuggestion: string;
   tailscaleStatus: TailscaleStatus | null;
   tailscaleStatusBusy: boolean;
   tailscaleStatusError: string | null;
@@ -32,33 +40,22 @@ type SettingsServerSectionProps = {
   tailscaleCommandError: string | null;
   tcpDaemonStatus: TcpDaemonStatus | null;
   tcpDaemonBusyAction: "start" | "stop" | "status" | null;
+  onSetRemoteNameDraft: Dispatch<SetStateAction<string>>;
   onSetRemoteHostDraft: Dispatch<SetStateAction<string>>;
   onSetRemoteTokenDraft: Dispatch<SetStateAction<string>>;
-  onSetOrbitWsUrlDraft: Dispatch<SetStateAction<string>>;
-  onSetOrbitAuthUrlDraft: Dispatch<SetStateAction<string>>;
-  onSetOrbitRunnerNameDraft: Dispatch<SetStateAction<string>>;
-  onSetOrbitAccessClientIdDraft: Dispatch<SetStateAction<string>>;
-  onSetOrbitAccessClientSecretRefDraft: Dispatch<SetStateAction<string>>;
+  onCommitRemoteName: () => Promise<void>;
   onCommitRemoteHost: () => Promise<void>;
   onCommitRemoteToken: () => Promise<void>;
-  onChangeRemoteProvider: (provider: AppSettings["remoteBackendProvider"]) => Promise<void>;
+  onSelectRemoteBackend: (id: string) => Promise<void>;
+  onAddRemoteBackend: (draft: AddRemoteBackendDraft) => Promise<void>;
+  onMoveRemoteBackend: (id: string, direction: "up" | "down") => Promise<void>;
+  onDeleteRemoteBackend: (id: string) => Promise<void>;
   onRefreshTailscaleStatus: () => void;
   onRefreshTailscaleCommandPreview: () => void;
   onUseSuggestedTailscaleHost: () => Promise<void>;
   onTcpDaemonStart: () => Promise<void>;
   onTcpDaemonStop: () => Promise<void>;
   onTcpDaemonStatus: () => Promise<void>;
-  onCommitOrbitWsUrl: () => Promise<void>;
-  onCommitOrbitAuthUrl: () => Promise<void>;
-  onCommitOrbitRunnerName: () => Promise<void>;
-  onCommitOrbitAccessClientId: () => Promise<void>;
-  onCommitOrbitAccessClientSecretRef: () => Promise<void>;
-  onOrbitConnectTest: () => void;
-  onOrbitSignIn: () => void;
-  onOrbitSignOut: () => void;
-  onOrbitRunnerStart: () => void;
-  onOrbitRunnerStop: () => void;
-  onOrbitRunnerStatus: () => void;
   onMobileConnectTest: () => void;
 };
 
@@ -69,17 +66,16 @@ export function SettingsServerSection({
   mobileConnectBusy,
   mobileConnectStatusText,
   mobileConnectStatusError,
+  remoteBackends,
+  activeRemoteBackendId,
+  remoteStatusText,
+  remoteStatusError,
+  remoteNameError,
+  remoteHostError,
+  remoteNameDraft,
   remoteHostDraft,
   remoteTokenDraft,
-  orbitWsUrlDraft,
-  orbitAuthUrlDraft,
-  orbitRunnerNameDraft,
-  orbitAccessClientIdDraft,
-  orbitAccessClientSecretRefDraft,
-  orbitStatusText,
-  orbitAuthCode,
-  orbitVerificationUrl,
-  orbitBusyAction,
+  nextRemoteNameSuggestion,
   tailscaleStatus,
   tailscaleStatusBusy,
   tailscaleStatusError,
@@ -88,36 +84,41 @@ export function SettingsServerSection({
   tailscaleCommandError,
   tcpDaemonStatus,
   tcpDaemonBusyAction,
+  onSetRemoteNameDraft,
   onSetRemoteHostDraft,
   onSetRemoteTokenDraft,
-  onSetOrbitWsUrlDraft,
-  onSetOrbitAuthUrlDraft,
-  onSetOrbitRunnerNameDraft,
-  onSetOrbitAccessClientIdDraft,
-  onSetOrbitAccessClientSecretRefDraft,
+  onCommitRemoteName,
   onCommitRemoteHost,
   onCommitRemoteToken,
-  onChangeRemoteProvider,
+  onSelectRemoteBackend,
+  onAddRemoteBackend,
+  onMoveRemoteBackend,
+  onDeleteRemoteBackend,
   onRefreshTailscaleStatus,
   onRefreshTailscaleCommandPreview,
   onUseSuggestedTailscaleHost,
   onTcpDaemonStart,
   onTcpDaemonStop,
   onTcpDaemonStatus,
-  onCommitOrbitWsUrl,
-  onCommitOrbitAuthUrl,
-  onCommitOrbitRunnerName,
-  onCommitOrbitAccessClientId,
-  onCommitOrbitAccessClientSecretRef,
-  onOrbitConnectTest,
-  onOrbitSignIn,
-  onOrbitSignOut,
-  onOrbitRunnerStart,
-  onOrbitRunnerStop,
-  onOrbitRunnerStatus,
   onMobileConnectTest,
 }: SettingsServerSectionProps) {
+  const [pendingDeleteRemoteId, setPendingDeleteRemoteId] = useState<string | null>(
+    null,
+  );
+  const [addRemoteOpen, setAddRemoteOpen] = useState(false);
+  const [addRemoteBusy, setAddRemoteBusy] = useState(false);
+  const [addRemoteError, setAddRemoteError] = useState<string | null>(null);
+  const [addRemoteNameDraft, setAddRemoteNameDraft] = useState("");
+  const [addRemoteHostDraft, setAddRemoteHostDraft] = useState("");
+  const [addRemoteTokenDraft, setAddRemoteTokenDraft] = useState("");
   const isMobileSimplified = isMobilePlatform;
+  const pendingDeleteRemote = useMemo(
+    () =>
+      pendingDeleteRemoteId == null
+        ? null
+        : remoteBackends.find((entry) => entry.id === pendingDeleteRemoteId) ?? null,
+    [pendingDeleteRemoteId, remoteBackends],
+  );
   const tcpRunnerStatusText = (() => {
     if (!tcpDaemonStatus) {
       return null;
@@ -133,13 +134,51 @@ export function SettingsServerSection({
     return `Mobile daemon is stopped${tcpDaemonStatus.listenAddr ? ` (${tcpDaemonStatus.listenAddr})` : ""}.`;
   })();
 
+  const openAddRemoteModal = () => {
+    setAddRemoteError(null);
+    setAddRemoteNameDraft(nextRemoteNameSuggestion);
+    setAddRemoteHostDraft(remoteHostDraft);
+    setAddRemoteTokenDraft("");
+    setAddRemoteOpen(true);
+  };
+
+  const closeAddRemoteModal = () => {
+    if (addRemoteBusy) {
+      return;
+    }
+    setAddRemoteOpen(false);
+    setAddRemoteError(null);
+  };
+
+  const handleAddRemoteConfirm = () => {
+    void (async () => {
+      if (addRemoteBusy) {
+        return;
+      }
+      setAddRemoteBusy(true);
+      setAddRemoteError(null);
+      try {
+        await onAddRemoteBackend({
+          name: addRemoteNameDraft,
+          host: addRemoteHostDraft,
+          token: addRemoteTokenDraft,
+        });
+        setAddRemoteOpen(false);
+      } catch (error) {
+        setAddRemoteError(error instanceof Error ? error.message : "Unable to add remote.");
+      } finally {
+        setAddRemoteBusy(false);
+      }
+    })();
+  };
+
   return (
     <section className="settings-section">
       <div className="settings-section-title">Server</div>
       <div className="settings-section-subtitle">
         {isMobileSimplified
-          ? "Choose TCP or Orbit, fill in the connection endpoint and token from your desktop setup, then run a connection test."
-          : "Configure how CodexMonitor exposes backend access for mobile and remote clients. Desktop usage remains local unless you explicitly connect through remote mode."}
+          ? "Configure TCP host/token from your desktop setup, then run a connection test."
+          : "Configure how CodexMonitor exposes TCP backend access for mobile and remote clients. Desktop usage remains local unless you explicitly connect through remote mode."}
       </div>
 
       {!isMobileSimplified && (
@@ -163,43 +202,137 @@ export function SettingsServerSection({
           </select>
           <div className="settings-help">
             Local keeps desktop requests in-process. Remote routes desktop requests through the same
-            network transport path used by mobile clients.
+            TCP transport path used by mobile clients.
           </div>
         </div>
       )}
 
       <>
-        <div className="settings-field">
-          <label className="settings-field-label" htmlFor="remote-provider">
-            {isMobileSimplified ? "Connection type" : "Remote provider"}
-          </label>
-          <select
-            id="remote-provider"
-            className="settings-select"
-            value={appSettings.remoteBackendProvider}
-            onChange={(event) => {
-              void onChangeRemoteProvider(
-                event.target.value as AppSettings["remoteBackendProvider"],
-              );
-            }}
-            aria-label={isMobileSimplified ? "Connection type" : "Remote provider"}
-          >
-            <option value="tcp">{isMobileSimplified ? "TCP" : "TCP (wip)"}</option>
-            <option value="orbit">{isMobileSimplified ? "Orbit" : "Orbit (wip)"}</option>
-          </select>
-          <div className="settings-help">
-            {isMobileSimplified
-              ? "TCP uses your desktop daemon Tailscale address. Orbit uses your Orbit websocket endpoint."
-              : "Select which remote transport configuration to maintain for mobile access and optional desktop remote-mode testing."}
-          </div>
-        </div>
+        {isMobileSimplified && (
+          <>
+            <div className="settings-field">
+              <div className="settings-field-label">Saved remotes</div>
+              <div className="settings-mobile-remotes" role="list" aria-label="Saved remotes">
+                {remoteBackends.map((entry, index) => {
+                  const isActive = entry.id === activeRemoteBackendId;
+                  return (
+                    <div
+                      className={`settings-mobile-remote${isActive ? " is-active" : ""}`}
+                      role="listitem"
+                      key={entry.id}
+                    >
+                      <div className="settings-mobile-remote-main">
+                        <div className="settings-mobile-remote-name-row">
+                          <div className="settings-mobile-remote-name">{entry.name}</div>
+                          {isActive && <span className="settings-mobile-remote-badge">Active</span>}
+                        </div>
+                        <div className="settings-mobile-remote-meta">TCP · {entry.host}</div>
+                        <div className="settings-mobile-remote-last">
+                          Last connected:{" "}
+                          {typeof entry.lastConnectedAtMs === "number"
+                            ? new Date(entry.lastConnectedAtMs).toLocaleString()
+                            : "Never"}
+                        </div>
+                      </div>
+                      <div className="settings-mobile-remote-actions">
+                        <button
+                          type="button"
+                          className="ghost settings-mobile-remote-action"
+                          onClick={() => {
+                            void onSelectRemoteBackend(entry.id);
+                          }}
+                          disabled={isActive}
+                          aria-label={`Use ${entry.name} remote`}
+                        >
+                          {isActive ? "Using" : "Use"}
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost settings-mobile-remote-action"
+                          onClick={() => {
+                            void onMoveRemoteBackend(entry.id, "up");
+                          }}
+                          disabled={index === 0}
+                          aria-label={`Move ${entry.name} up`}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost settings-mobile-remote-action"
+                          onClick={() => {
+                            void onMoveRemoteBackend(entry.id, "down");
+                          }}
+                          disabled={index === remoteBackends.length - 1}
+                          aria-label={`Move ${entry.name} down`}
+                        >
+                          ↓
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost settings-mobile-remote-action settings-mobile-remote-action-danger"
+                          onClick={() => {
+                            setPendingDeleteRemoteId(entry.id);
+                          }}
+                          aria-label={`Delete ${entry.name}`}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="settings-field-row">
+                <button
+                  type="button"
+                  className="button settings-button-compact"
+                  onClick={openAddRemoteModal}
+                >
+                  Add remote
+                </button>
+              </div>
+              {remoteStatusText && (
+                <div className={`settings-help${remoteStatusError ? " settings-help-error" : ""}`}>
+                  {remoteStatusText}
+                </div>
+              )}
+              <div className="settings-help">
+                Switch the active remote here. The fields below edit the active entry.
+              </div>
+            </div>
+
+            <div className="settings-field">
+              <label className="settings-field-label" htmlFor="mobile-remote-name">
+                Remote name
+              </label>
+              <input
+                id="mobile-remote-name"
+                className="settings-input settings-input--compact"
+                value={remoteNameDraft}
+                placeholder="My desktop"
+                onChange={(event) => onSetRemoteNameDraft(event.target.value)}
+                onBlur={() => {
+                  void onCommitRemoteName();
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void onCommitRemoteName();
+                  }
+                }}
+              />
+              {remoteNameError && <div className="settings-help settings-help-error">{remoteNameError}</div>}
+            </div>
+          </>
+        )}
 
         {!isMobileSimplified && (
           <div className="settings-toggle-row">
             <div>
               <div className="settings-toggle-title">Keep daemon running after app closes</div>
               <div className="settings-toggle-subtitle">
-                If disabled, CodexMonitor stops managed TCP and Orbit daemon processes before exit.
+                If disabled, CodexMonitor stops managed TCP daemon processes before exit.
               </div>
             </div>
             <button
@@ -218,505 +351,318 @@ export function SettingsServerSection({
           </div>
         )}
 
-        {appSettings.remoteBackendProvider === "tcp" && (
-          <>
-            <div className="settings-field">
-              <div className="settings-field-label">Remote backend</div>
-              <div className="settings-field-row">
-                <input
-                  className="settings-input settings-input--compact"
-                  value={remoteHostDraft}
-                  placeholder="127.0.0.1:4732"
-                  onChange={(event) => onSetRemoteHostDraft(event.target.value)}
-                  onBlur={() => {
-                    void onCommitRemoteHost();
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      void onCommitRemoteHost();
-                    }
-                  }}
-                  aria-label="Remote backend host"
-                />
-                <input
-                  type="password"
-                  className="settings-input settings-input--compact"
-                  value={remoteTokenDraft}
-                  placeholder="Token (required)"
-                  onChange={(event) => onSetRemoteTokenDraft(event.target.value)}
-                  onBlur={() => {
-                    void onCommitRemoteToken();
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      void onCommitRemoteToken();
-                    }
-                  }}
-                  aria-label="Remote backend token"
-                />
-              </div>
-              <div className="settings-help">
-                {isMobileSimplified
-                  ? "Use the Tailscale host from your desktop CodexMonitor app (Server section), for example `macbook.your-tailnet.ts.net:4732`."
-                  : "This host/token is used by mobile clients and desktop remote-mode testing."}
-              </div>
+        <div className="settings-field">
+          <div className="settings-field-label">Remote backend</div>
+          <div className="settings-field-row">
+            <input
+              className="settings-input settings-input--compact"
+              value={remoteHostDraft}
+              placeholder="127.0.0.1:4732"
+              onChange={(event) => onSetRemoteHostDraft(event.target.value)}
+              onBlur={() => {
+                void onCommitRemoteHost();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void onCommitRemoteHost();
+                }
+              }}
+              aria-label="Remote backend host"
+            />
+            <input
+              type="password"
+              className="settings-input settings-input--compact"
+              value={remoteTokenDraft}
+              placeholder="Token (required)"
+              onChange={(event) => onSetRemoteTokenDraft(event.target.value)}
+              onBlur={() => {
+                void onCommitRemoteToken();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void onCommitRemoteToken();
+                }
+              }}
+              aria-label="Remote backend token"
+            />
+          </div>
+          {remoteHostError && <div className="settings-help settings-help-error">{remoteHostError}</div>}
+          <div className="settings-help">
+            {isMobileSimplified
+              ? "Use the Tailscale host from your desktop CodexMonitor app (Server section), for example `macbook.your-tailnet.ts.net:4732`."
+              : "This host/token is used by mobile clients and desktop remote-mode testing."}
+          </div>
+        </div>
+
+        {isMobileSimplified && (
+          <div className="settings-field">
+            <div className="settings-field-label">Connection test</div>
+            <div className="settings-field-row">
+              <button
+                type="button"
+                className="button settings-button-compact"
+                onClick={onMobileConnectTest}
+                disabled={mobileConnectBusy}
+              >
+                {mobileConnectBusy ? "Connecting..." : "Connect & test"}
+              </button>
             </div>
-
-            {isMobileSimplified && (
-              <div className="settings-field">
-                <div className="settings-field-label">Connection test</div>
-                <div className="settings-field-row">
-                  <button
-                    type="button"
-                    className="button settings-button-compact"
-                    onClick={onMobileConnectTest}
-                    disabled={mobileConnectBusy}
-                  >
-                    {mobileConnectBusy ? "Connecting..." : "Connect & test"}
-                  </button>
-                </div>
-                {mobileConnectStatusText && (
-                  <div
-                    className={`settings-help${mobileConnectStatusError ? " settings-help-error" : ""}`}
-                  >
-                    {mobileConnectStatusText}
-                  </div>
-                )}
-                <div className="settings-help">
-                  Make sure your desktop app daemon is running and reachable on Tailscale, then
-                  retry this test.
-                </div>
+            {mobileConnectStatusText && (
+              <div className={`settings-help${mobileConnectStatusError ? " settings-help-error" : ""}`}>
+                {mobileConnectStatusText}
               </div>
             )}
-
-            {!isMobileSimplified && (
-              <div className="settings-field">
-                <div className="settings-field-label">Mobile access daemon</div>
-                <div className="settings-field-row">
-                  <button
-                    type="button"
-                    className="button settings-button-compact"
-                    onClick={() => {
-                      void onTcpDaemonStart();
-                    }}
-                    disabled={tcpDaemonBusyAction !== null}
-                  >
-                    {tcpDaemonBusyAction === "start" ? "Starting..." : "Start daemon"}
-                  </button>
-                  <button
-                    type="button"
-                    className="button settings-button-compact"
-                    onClick={() => {
-                      void onTcpDaemonStop();
-                    }}
-                    disabled={tcpDaemonBusyAction !== null}
-                  >
-                    {tcpDaemonBusyAction === "stop" ? "Stopping..." : "Stop daemon"}
-                  </button>
-                  <button
-                    type="button"
-                    className="button settings-button-compact"
-                    onClick={() => {
-                      void onTcpDaemonStatus();
-                    }}
-                    disabled={tcpDaemonBusyAction !== null}
-                  >
-                    {tcpDaemonBusyAction === "status" ? "Refreshing..." : "Refresh status"}
-                  </button>
-                </div>
-                {tcpRunnerStatusText && <div className="settings-help">{tcpRunnerStatusText}</div>}
-                {tcpDaemonStatus?.startedAtMs && (
-                  <div className="settings-help">
-                    Started at: {new Date(tcpDaemonStatus.startedAtMs).toLocaleString()}
-                  </div>
-                )}
-                <div className="settings-help">
-                  Start this daemon before connecting from iOS. It uses your current token and
-                  listens on <code>0.0.0.0:&lt;port&gt;</code>, matching your configured host port.
-                </div>
-              </div>
-            )}
-
-            {!isMobileSimplified && (
-              <div className="settings-field">
-                <div className="settings-field-label">Tailscale helper</div>
-                <div className="settings-field-row">
-                  <button
-                    type="button"
-                    className="button settings-button-compact"
-                    onClick={onRefreshTailscaleStatus}
-                    disabled={tailscaleStatusBusy}
-                  >
-                    {tailscaleStatusBusy ? "Checking..." : "Detect Tailscale"}
-                  </button>
-                  <button
-                    type="button"
-                    className="button settings-button-compact"
-                    onClick={onRefreshTailscaleCommandPreview}
-                    disabled={tailscaleCommandBusy}
-                  >
-                    {tailscaleCommandBusy ? "Refreshing..." : "Refresh daemon command"}
-                  </button>
-                  <button
-                    type="button"
-                    className="button settings-button-compact"
-                    disabled={!tailscaleStatus?.suggestedRemoteHost}
-                    onClick={() => {
-                      void onUseSuggestedTailscaleHost();
-                    }}
-                  >
-                    Use suggested host
-                  </button>
-                </div>
-                {tailscaleStatusError && (
-                  <div className="settings-help settings-help-error">{tailscaleStatusError}</div>
-                )}
-                {tailscaleStatus && (
-                  <>
-                    <div className="settings-help">{tailscaleStatus.message}</div>
-                    <div className="settings-help">
-                      {tailscaleStatus.installed
-                        ? `Version: ${tailscaleStatus.version ?? "unknown"}`
-                        : "Install Tailscale on both desktop and iOS to continue."}
-                    </div>
-                    {tailscaleStatus.suggestedRemoteHost && (
-                      <div className="settings-help">
-                        Suggested remote host: <code>{tailscaleStatus.suggestedRemoteHost}</code>
-                      </div>
-                    )}
-                    {tailscaleStatus.tailnetName && (
-                      <div className="settings-help">
-                        Tailnet: <code>{tailscaleStatus.tailnetName}</code>
-                      </div>
-                    )}
-                  </>
-                )}
-                {tailscaleCommandError && (
-                  <div className="settings-help settings-help-error">{tailscaleCommandError}</div>
-                )}
-                {tailscaleCommandPreview && (
-                  <>
-                    <div className="settings-help">
-                      Command template (manual fallback) for starting the daemon:
-                    </div>
-                    <pre className="settings-command-preview">
-                      <code>{tailscaleCommandPreview.command}</code>
-                    </pre>
-                    {!tailscaleCommandPreview.tokenConfigured && (
-                      <div className="settings-help settings-help-error">
-                        Remote backend token is empty. Set one before exposing daemon access.
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </>
+            <div className="settings-help">
+              Make sure your desktop app daemon is running and reachable on Tailscale, then retry
+              this test.
+            </div>
+          </div>
         )}
 
-        {appSettings.remoteBackendProvider === "orbit" && (
-          <>
-            <div className="settings-field">
-              <label className="settings-field-label" htmlFor="orbit-ws-url">
-                Orbit websocket URL
-              </label>
-              <input
-                id="orbit-ws-url"
-                className="settings-input settings-input--compact"
-                value={orbitWsUrlDraft}
-                placeholder="wss://..."
-                onChange={(event) => onSetOrbitWsUrlDraft(event.target.value)}
-                onBlur={() => {
-                  void onCommitOrbitWsUrl();
+        {!isMobileSimplified && (
+          <div className="settings-field">
+            <div className="settings-field-label">Mobile access daemon</div>
+            <div className="settings-field-row">
+              <button
+                type="button"
+                className="button settings-button-compact"
+                onClick={() => {
+                  void onTcpDaemonStart();
                 }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    void onCommitOrbitWsUrl();
-                  }
+                disabled={tcpDaemonBusyAction !== null}
+              >
+                {tcpDaemonBusyAction === "start" ? "Starting..." : "Start daemon"}
+              </button>
+              <button
+                type="button"
+                className="button settings-button-compact"
+                onClick={() => {
+                  void onTcpDaemonStop();
                 }}
-                aria-label="Orbit websocket URL"
-              />
+                disabled={tcpDaemonBusyAction !== null}
+              >
+                {tcpDaemonBusyAction === "stop" ? "Stopping..." : "Stop daemon"}
+              </button>
+              <button
+                type="button"
+                className="button settings-button-compact"
+                onClick={() => {
+                  void onTcpDaemonStatus();
+                }}
+                disabled={tcpDaemonBusyAction !== null}
+              >
+                {tcpDaemonBusyAction === "status" ? "Refreshing..." : "Refresh status"}
+              </button>
             </div>
+            {tcpRunnerStatusText && <div className="settings-help">{tcpRunnerStatusText}</div>}
+            {tcpDaemonStatus?.startedAtMs && (
+              <div className="settings-help">
+                Started at: {new Date(tcpDaemonStatus.startedAtMs).toLocaleString()}
+              </div>
+            )}
+            <div className="settings-help">
+              Start this daemon before connecting from iOS. It uses your current token and listens
+              on <code>0.0.0.0:&lt;port&gt;</code>, matching your configured host port.
+            </div>
+          </div>
+        )}
 
-            {isMobileSimplified && (
+        {!isMobileSimplified && (
+          <div className="settings-field">
+            <div className="settings-field-label">Tailscale helper</div>
+            <div className="settings-field-row">
+              <button
+                type="button"
+                className="button settings-button-compact"
+                onClick={onRefreshTailscaleStatus}
+                disabled={tailscaleStatusBusy}
+              >
+                {tailscaleStatusBusy ? "Checking..." : "Detect Tailscale"}
+              </button>
+              <button
+                type="button"
+                className="button settings-button-compact"
+                onClick={onRefreshTailscaleCommandPreview}
+                disabled={tailscaleCommandBusy}
+              >
+                {tailscaleCommandBusy ? "Refreshing..." : "Refresh daemon command"}
+              </button>
+              <button
+                type="button"
+                className="button settings-button-compact"
+                disabled={!tailscaleStatus?.suggestedRemoteHost}
+                onClick={() => {
+                  void onUseSuggestedTailscaleHost();
+                }}
+              >
+                Use suggested host
+              </button>
+            </div>
+            {tailscaleStatusError && (
+              <div className="settings-help settings-help-error">{tailscaleStatusError}</div>
+            )}
+            {tailscaleStatus && (
               <>
-                <div className="settings-field">
-                  <label className="settings-field-label" htmlFor="orbit-token-mobile">
-                    Remote backend token
-                  </label>
-                  <input
-                    id="orbit-token-mobile"
-                    type="password"
-                    className="settings-input settings-input--compact"
-                    value={remoteTokenDraft}
-                    placeholder="Token (required)"
-                    onChange={(event) => onSetRemoteTokenDraft(event.target.value)}
-                    onBlur={() => {
-                      void onCommitRemoteToken();
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        void onCommitRemoteToken();
-                      }
-                    }}
-                    aria-label="Remote backend token"
-                  />
-                  <div className="settings-help">
-                    Use the same token configured on your desktop Orbit daemon setup.
-                  </div>
+                <div className="settings-help">{tailscaleStatus.message}</div>
+                <div className="settings-help">
+                  {tailscaleStatus.installed
+                    ? `Version: ${tailscaleStatus.version ?? "unknown"}`
+                    : "Install Tailscale on both desktop and iOS to continue."}
                 </div>
-                <div className="settings-field">
-                  <div className="settings-field-label">Connection test</div>
-                  <div className="settings-field-row">
-                    <button
-                      type="button"
-                      className="button settings-button-compact"
-                      onClick={onMobileConnectTest}
-                      disabled={mobileConnectBusy}
-                    >
-                      {mobileConnectBusy ? "Connecting..." : "Connect & test"}
-                    </button>
-                  </div>
-                  {mobileConnectStatusText && (
-                    <div
-                      className={`settings-help${mobileConnectStatusError ? " settings-help-error" : ""}`}
-                    >
-                      {mobileConnectStatusText}
-                    </div>
-                  )}
+                {tailscaleStatus.suggestedRemoteHost && (
                   <div className="settings-help">
-                    Make sure the Orbit endpoint and token match your desktop setup, then retry.
+                    Suggested remote host: <code>{tailscaleStatus.suggestedRemoteHost}</code>
                   </div>
-                </div>
+                )}
+                {tailscaleStatus.tailnetName && (
+                  <div className="settings-help">
+                    Tailnet: <code>{tailscaleStatus.tailnetName}</code>
+                  </div>
+                )}
               </>
             )}
-
-            {!isMobileSimplified && (
+            {tailscaleCommandError && (
+              <div className="settings-help settings-help-error">{tailscaleCommandError}</div>
+            )}
+            {tailscaleCommandPreview && (
               <>
-                <div className="settings-field">
-                  <label className="settings-field-label" htmlFor="orbit-auth-url">
-                    Orbit auth URL
-                  </label>
-                  <input
-                    id="orbit-auth-url"
-                    className="settings-input settings-input--compact"
-                    value={orbitAuthUrlDraft}
-                    placeholder="https://..."
-                    onChange={(event) => onSetOrbitAuthUrlDraft(event.target.value)}
-                    onBlur={() => {
-                      void onCommitOrbitAuthUrl();
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        void onCommitOrbitAuthUrl();
-                      }
-                    }}
-                    aria-label="Orbit auth URL"
-                  />
+                <div className="settings-help">
+                  Command template (manual fallback) for starting the daemon:
                 </div>
-
-                <div className="settings-field">
-                  <label className="settings-field-label" htmlFor="orbit-runner-name">
-                    Orbit runner name
-                  </label>
-                  <input
-                    id="orbit-runner-name"
-                    className="settings-input settings-input--compact"
-                    value={orbitRunnerNameDraft}
-                    placeholder="codex-monitor"
-                    onChange={(event) => onSetOrbitRunnerNameDraft(event.target.value)}
-                    onBlur={() => {
-                      void onCommitOrbitRunnerName();
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        void onCommitOrbitRunnerName();
-                      }
-                    }}
-                    aria-label="Orbit runner name"
-                  />
-                </div>
-
-                <div className="settings-toggle-row">
-                  <div>
-                    <div className="settings-toggle-title">Auto start runner</div>
-                    <div className="settings-toggle-subtitle">
-                      Start the Orbit runner automatically when remote mode activates.
-                    </div>
+                <pre className="settings-command-preview">
+                  <code>{tailscaleCommandPreview.command}</code>
+                </pre>
+                {!tailscaleCommandPreview.tokenConfigured && (
+                  <div className="settings-help settings-help-error">
+                    Remote backend token is empty. Set one before exposing daemon access.
                   </div>
-                  <button
-                    type="button"
-                    className={`settings-toggle ${appSettings.orbitAutoStartRunner ? "on" : ""}`}
-                    onClick={() =>
-                      void onUpdateAppSettings({
-                        ...appSettings,
-                        orbitAutoStartRunner: !appSettings.orbitAutoStartRunner,
-                      })
-                    }
-                    aria-pressed={appSettings.orbitAutoStartRunner}
-                  >
-                    <span className="settings-toggle-knob" />
-                  </button>
-                </div>
-
-                <div className="settings-toggle-row">
-                  <div>
-                    <div className="settings-toggle-title">Use Orbit Access</div>
-                    <div className="settings-toggle-subtitle">
-                      Enable OAuth client credentials for Orbit Access.
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className={`settings-toggle ${appSettings.orbitUseAccess ? "on" : ""}`}
-                    onClick={() =>
-                      void onUpdateAppSettings({
-                        ...appSettings,
-                        orbitUseAccess: !appSettings.orbitUseAccess,
-                      })
-                    }
-                    aria-pressed={appSettings.orbitUseAccess}
-                  >
-                    <span className="settings-toggle-knob" />
-                  </button>
-                </div>
-
-                <div className="settings-field">
-                  <label className="settings-field-label" htmlFor="orbit-access-client-id">
-                    Orbit access client ID
-                  </label>
-                  <input
-                    id="orbit-access-client-id"
-                    className="settings-input settings-input--compact"
-                    value={orbitAccessClientIdDraft}
-                    placeholder="client-id"
-                    disabled={!appSettings.orbitUseAccess}
-                    onChange={(event) => onSetOrbitAccessClientIdDraft(event.target.value)}
-                    onBlur={() => {
-                      void onCommitOrbitAccessClientId();
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        void onCommitOrbitAccessClientId();
-                      }
-                    }}
-                    aria-label="Orbit access client ID"
-                  />
-                </div>
-
-                <div className="settings-field">
-                  <label className="settings-field-label" htmlFor="orbit-access-client-secret-ref">
-                    Orbit access client secret ref
-                  </label>
-                  <input
-                    id="orbit-access-client-secret-ref"
-                    className="settings-input settings-input--compact"
-                    value={orbitAccessClientSecretRefDraft}
-                    placeholder="secret-ref"
-                    disabled={!appSettings.orbitUseAccess}
-                    onChange={(event) => onSetOrbitAccessClientSecretRefDraft(event.target.value)}
-                    onBlur={() => {
-                      void onCommitOrbitAccessClientSecretRef();
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        void onCommitOrbitAccessClientSecretRef();
-                      }
-                    }}
-                    aria-label="Orbit access client secret ref"
-                  />
-                </div>
-
-                <div className="settings-field">
-                  <div className="settings-field-label">Orbit actions</div>
-                  <div className="settings-field-row">
-                    <button
-                      type="button"
-                      className="button settings-button-compact"
-                      onClick={onOrbitConnectTest}
-                      disabled={orbitBusyAction !== null}
-                    >
-                      {orbitBusyAction === "connect-test" ? "Testing..." : "Connect test"}
-                    </button>
-                    <button
-                      type="button"
-                      className="button settings-button-compact"
-                      onClick={onOrbitSignIn}
-                      disabled={orbitBusyAction !== null}
-                    >
-                      {orbitBusyAction === "sign-in" ? "Signing In..." : "Sign In"}
-                    </button>
-                    <button
-                      type="button"
-                      className="button settings-button-compact"
-                      onClick={onOrbitSignOut}
-                      disabled={orbitBusyAction !== null}
-                    >
-                      {orbitBusyAction === "sign-out" ? "Signing Out..." : "Sign Out"}
-                    </button>
-                  </div>
-                  <div className="settings-field-row">
-                    <button
-                      type="button"
-                      className="button settings-button-compact"
-                      onClick={onOrbitRunnerStart}
-                      disabled={orbitBusyAction !== null}
-                    >
-                      {orbitBusyAction === "runner-start" ? "Starting..." : "Start Runner"}
-                    </button>
-                    <button
-                      type="button"
-                      className="button settings-button-compact"
-                      onClick={onOrbitRunnerStop}
-                      disabled={orbitBusyAction !== null}
-                    >
-                      {orbitBusyAction === "runner-stop" ? "Stopping..." : "Stop Runner"}
-                    </button>
-                    <button
-                      type="button"
-                      className="button settings-button-compact"
-                      onClick={onOrbitRunnerStatus}
-                      disabled={orbitBusyAction !== null}
-                    >
-                      {orbitBusyAction === "runner-status" ? "Refreshing..." : "Refresh Status"}
-                    </button>
-                  </div>
-                  {orbitStatusText && <div className="settings-help">{orbitStatusText}</div>}
-                  {orbitAuthCode && (
-                    <div className="settings-help">
-                      Auth code: <code>{orbitAuthCode}</code>
-                    </div>
-                  )}
-                  {orbitVerificationUrl && (
-                    <div className="settings-help">
-                      Verification URL:{" "}
-                      <a href={orbitVerificationUrl} target="_blank" rel="noreferrer">
-                        {orbitVerificationUrl}
-                      </a>
-                    </div>
-                  )}
-                </div>
+                )}
               </>
             )}
-          </>
+          </div>
         )}
       </>
 
       <div className="settings-help">
         {isMobileSimplified
-          ? appSettings.remoteBackendProvider === "tcp"
-            ? "Use your own infrastructure only. On iOS, get the Tailscale hostname and token from your desktop CodexMonitor setup."
-            : "Use your own infrastructure only. On iOS, use the Orbit websocket URL and token configured on your desktop CodexMonitor setup."
-          : "Mobile access should stay scoped to your own infrastructure (tailnet or self-hosted Orbit). CodexMonitor does not provide hosted backend services."}
+          ? "Use your own infrastructure only. On iOS, get the Tailscale hostname and token from your desktop CodexMonitor setup."
+          : "Mobile access should stay scoped to your own infrastructure (tailnet). CodexMonitor does not provide hosted backend services."}
       </div>
+      {addRemoteOpen && (
+        <ModalShell
+          className="settings-add-remote-overlay"
+          cardClassName="settings-add-remote-card"
+          onBackdropClick={closeAddRemoteModal}
+          ariaLabel="Add remote"
+        >
+          <div className="settings-add-remote-header">
+            <div className="settings-add-remote-title">Add remote</div>
+            <button
+              type="button"
+              className="ghost icon-button settings-add-remote-close"
+              onClick={closeAddRemoteModal}
+              aria-label="Close add remote modal"
+              disabled={addRemoteBusy}
+            >
+              <X aria-hidden />
+            </button>
+          </div>
+          <div className="settings-field">
+            <label className="settings-field-label" htmlFor="settings-add-remote-name">
+              New remote name
+            </label>
+            <input
+              id="settings-add-remote-name"
+              className="settings-input settings-input--compact"
+              value={addRemoteNameDraft}
+              onChange={(event) => setAddRemoteNameDraft(event.target.value)}
+              disabled={addRemoteBusy}
+            />
+          </div>
+          <div className="settings-field">
+            <label className="settings-field-label" htmlFor="settings-add-remote-host">
+              New remote host
+            </label>
+            <input
+              id="settings-add-remote-host"
+              className="settings-input settings-input--compact"
+              value={addRemoteHostDraft}
+              placeholder="macbook.your-tailnet.ts.net:4732"
+              onChange={(event) => setAddRemoteHostDraft(event.target.value)}
+              disabled={addRemoteBusy}
+            />
+          </div>
+          <div className="settings-field">
+            <label className="settings-field-label" htmlFor="settings-add-remote-token">
+              New remote token
+            </label>
+            <input
+              id="settings-add-remote-token"
+              type="password"
+              className="settings-input settings-input--compact"
+              value={addRemoteTokenDraft}
+              placeholder="Token"
+              onChange={(event) => setAddRemoteTokenDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  handleAddRemoteConfirm();
+                }
+              }}
+              disabled={addRemoteBusy}
+            />
+          </div>
+          {addRemoteError && <div className="settings-help settings-help-error">{addRemoteError}</div>}
+          <div className="settings-add-remote-actions">
+            <button type="button" className="ghost" onClick={closeAddRemoteModal} disabled={addRemoteBusy}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="button"
+              onClick={handleAddRemoteConfirm}
+              disabled={addRemoteBusy}
+            >
+              {addRemoteBusy ? "Connecting..." : "Connect & add"}
+            </button>
+          </div>
+        </ModalShell>
+      )}
+      {pendingDeleteRemote && (
+        <ModalShell
+          className="settings-delete-remote-overlay"
+          cardClassName="settings-delete-remote-card"
+          onBackdropClick={() => setPendingDeleteRemoteId(null)}
+          ariaLabel="Delete remote confirmation"
+        >
+          <div className="settings-delete-remote-title">Delete remote?</div>
+          <div className="settings-delete-remote-message">
+            Remove <strong>{pendingDeleteRemote.name}</strong> from saved remotes? This only
+            removes the profile from this device.
+          </div>
+          <div className="settings-delete-remote-actions">
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => setPendingDeleteRemoteId(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="button"
+              onClick={() => {
+                void onDeleteRemoteBackend(pendingDeleteRemote.id);
+                setPendingDeleteRemoteId(null);
+              }}
+            >
+              Delete remote
+            </button>
+          </div>
+        </ModalShell>
+      )}
     </section>
   );
 }

@@ -89,6 +89,7 @@ export function useThreads({
   const planByThreadRef = useRef(state.planByThread);
   const itemsByThreadRef = useRef(state.itemsByThread);
   const threadsByWorkspaceRef = useRef(state.threadsByWorkspace);
+  const activeTurnIdByThreadRef = useRef(state.activeTurnIdByThread);
   const detachedReviewStartedNoticeRef = useRef<Set<string>>(new Set());
   const detachedReviewCompletedNoticeRef = useRef<Set<string>>(new Set());
   const detachedReviewParentByChildRef = useRef<Record<string, string>>({});
@@ -97,6 +98,7 @@ export function useThreads({
   planByThreadRef.current = state.planByThread;
   itemsByThreadRef.current = state.itemsByThread;
   threadsByWorkspaceRef.current = state.threadsByWorkspace;
+  activeTurnIdByThreadRef.current = state.activeTurnIdByThread;
   const { approvalAllowlistRef, handleApprovalDecision, handleApprovalRemember } =
     useThreadApprovals({ dispatch, onDebug });
   const { handleUserInputSubmit } = useThreadUserInput({ dispatch });
@@ -231,6 +233,11 @@ export function useThreads({
     [state.hiddenThreadIdsByWorkspace],
   );
 
+  const getActiveTurnId = useCallback(
+    (threadId: string) => activeTurnIdByThreadRef.current[threadId] ?? null,
+    [],
+  );
+
   const registerDetachedReviewChild = useCallback(
     (workspaceId: string, parentId: string, childId: string) => {
       if (!workspaceId || !parentId || !childId || parentId === childId) {
@@ -358,6 +365,7 @@ export function useThreads({
     markProcessing,
     markReviewing,
     setActiveTurnId,
+    getActiveTurnId,
     safeMessageActivity,
     recordThreadActivity,
     onUserMessageCreated,
@@ -425,6 +433,7 @@ export function useThreads({
     itemsByThread: state.itemsByThread,
     threadsByWorkspace: state.threadsByWorkspace,
     activeThreadIdByWorkspace: state.activeThreadIdByWorkspace,
+    activeTurnIdByThread: state.activeTurnIdByThread,
     threadListCursorByWorkspace: state.threadListCursorByWorkspace,
     threadStatusById: state.threadStatusById,
     threadSortKey,

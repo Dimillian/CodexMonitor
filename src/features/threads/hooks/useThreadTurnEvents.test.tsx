@@ -25,6 +25,7 @@ vi.mock("@threads/utils/threadNormalize", () => ({
 type SetupOverrides = {
   pendingInterrupts?: string[];
   planByThread?: Record<string, TurnPlan | null>;
+  activeTurnByThread?: Record<string, string | null>;
 };
 
 const makeOptions = (overrides: SetupOverrides = {}) => {
@@ -34,6 +35,9 @@ const makeOptions = (overrides: SetupOverrides = {}) => {
   const markProcessing = vi.fn();
   const markReviewing = vi.fn();
   const setActiveTurnId = vi.fn();
+  const getActiveTurnId = vi.fn(
+    (threadId: string) => overrides.activeTurnByThread?.[threadId] ?? null,
+  );
   const pushThreadErrorMessage = vi.fn();
   const safeMessageActivity = vi.fn();
   const recordThreadActivity = vi.fn();
@@ -53,6 +57,7 @@ const makeOptions = (overrides: SetupOverrides = {}) => {
       markProcessing,
       markReviewing,
       setActiveTurnId,
+      getActiveTurnId,
       pendingInterruptsRef,
       pushThreadErrorMessage,
       safeMessageActivity,
@@ -68,6 +73,7 @@ const makeOptions = (overrides: SetupOverrides = {}) => {
     markProcessing,
     markReviewing,
     setActiveTurnId,
+    getActiveTurnId,
     pushThreadErrorMessage,
     safeMessageActivity,
     recordThreadActivity,
@@ -246,6 +252,62 @@ describe("useThreadTurnEvents", () => {
     expect(pendingInterruptsRef.current.has("thread-1")).toBe(false);
   });
 
+  it("ignores turn completed events for stale turns", () => {
+    const { result, markProcessing, setActiveTurnId } = makeOptions({
+      activeTurnByThread: {
+        "thread-1": "turn-active",
+      },
+    });
+
+    act(() => {
+      result.current.onTurnCompleted("ws-1", "thread-1", "turn-stale");
+    });
+
+    expect(markProcessing).not.toHaveBeenCalled();
+    expect(setActiveTurnId).not.toHaveBeenCalled();
+  });
+
+  it("accepts completion for a newly started turn before state rerender", () => {
+    const { result, markProcessing, setActiveTurnId } = makeOptions({
+      activeTurnByThread: {
+        "thread-1": "turn-old",
+      },
+    });
+
+    act(() => {
+      result.current.onTurnStarted("ws-1", "thread-1", "turn-new");
+      result.current.onTurnCompleted("ws-1", "thread-1", "turn-new");
+    });
+
+    expect(markProcessing).toHaveBeenNthCalledWith(1, "thread-1", true);
+    expect(markProcessing).toHaveBeenNthCalledWith(2, "thread-1", false);
+    expect(setActiveTurnId).toHaveBeenNthCalledWith(1, "thread-1", "turn-new");
+    expect(setActiveTurnId).toHaveBeenNthCalledWith(2, "thread-1", null);
+  });
+
+  it("accepts completion after reducer active turn changes externally", () => {
+    const activeTurnByThread: Record<string, string | null> = {
+      "thread-1": "turn-old",
+    };
+    const { result, markProcessing, setActiveTurnId } = makeOptions({
+      activeTurnByThread,
+    });
+
+    act(() => {
+      result.current.onTurnStarted("ws-1", "thread-1", "turn-local");
+    });
+    activeTurnByThread["thread-1"] = "turn-resumed";
+
+    act(() => {
+      result.current.onTurnCompleted("ws-1", "thread-1", "turn-resumed");
+    });
+
+    expect(markProcessing).toHaveBeenNthCalledWith(1, "thread-1", true);
+    expect(markProcessing).toHaveBeenNthCalledWith(2, "thread-1", false);
+    expect(setActiveTurnId).toHaveBeenNthCalledWith(1, "thread-1", "turn-local");
+    expect(setActiveTurnId).toHaveBeenNthCalledWith(2, "thread-1", null);
+  });
+
   it("clears the active plan when all plan steps are completed", () => {
     const { result, dispatch } = makeOptions({
       planByThread: {
@@ -319,6 +381,7 @@ describe("useThreadTurnEvents", () => {
     const markProcessing = vi.fn();
     const markReviewing = vi.fn();
     const setActiveTurnId = vi.fn();
+    const getActiveTurnId = vi.fn(() => null);
     const pushThreadErrorMessage = vi.fn();
     const safeMessageActivity = vi.fn();
     const recordThreadActivity = vi.fn();
@@ -336,6 +399,7 @@ describe("useThreadTurnEvents", () => {
         markProcessing,
         markReviewing,
         setActiveTurnId,
+        getActiveTurnId,
         pendingInterruptsRef,
         pushThreadErrorMessage,
         safeMessageActivity,
@@ -472,6 +536,101 @@ describe("useThreadTurnEvents", () => {
       "Turn failed: boom",
     );
     expect(safeMessageActivity).toHaveBeenCalled();
+  });
+
+  it("ignores stale turn errors for non-active turns", () => {
+    const {
+      result,
+      dispatch,
+      markProcessing,
+      markReviewing,
+      setActiveTurnId,
+      pushThreadErrorMessage,
+    } = makeOptions({
+      activeTurnByThread: {
+        "thread-1": "turn-active",
+      },
+    });
+
+    act(() => {
+      result.current.onTurnError("ws-1", "thread-1", "turn-stale", {
+        message: "boom",
+        willRetry: false,
+      });
+    });
+
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(markProcessing).not.toHaveBeenCalled();
+    expect(markReviewing).not.toHaveBeenCalled();
+    expect(setActiveTurnId).not.toHaveBeenCalled();
+    expect(pushThreadErrorMessage).not.toHaveBeenCalled();
+  });
+
+  it("handles new-turn errors even when reducer active turn id is stale", () => {
+    const {
+      result,
+      dispatch,
+      markProcessing,
+      markReviewing,
+      setActiveTurnId,
+      pushThreadErrorMessage,
+    } = makeOptions({
+      activeTurnByThread: {
+        "thread-1": "turn-old",
+      },
+    });
+
+    act(() => {
+      result.current.onTurnStarted("ws-1", "thread-1", "turn-new");
+      result.current.onTurnError("ws-1", "thread-1", "turn-new", {
+        message: "boom",
+        willRetry: false,
+      });
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "ensureThread",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+    });
+    expect(markProcessing).toHaveBeenLastCalledWith("thread-1", false);
+    expect(markReviewing).toHaveBeenCalledWith("thread-1", false);
+    expect(setActiveTurnId).toHaveBeenLastCalledWith("thread-1", null);
+    expect(pushThreadErrorMessage).toHaveBeenCalledWith("thread-1", "Turn failed: boom");
+  });
+
+  it("handles errors after reducer active turn changes externally", () => {
+    const activeTurnByThread: Record<string, string | null> = {
+      "thread-1": "turn-old",
+    };
+    const {
+      result,
+      markProcessing,
+      markReviewing,
+      setActiveTurnId,
+      pushThreadErrorMessage,
+    } = makeOptions({
+      activeTurnByThread,
+    });
+
+    act(() => {
+      result.current.onTurnStarted("ws-1", "thread-1", "turn-local");
+    });
+    activeTurnByThread["thread-1"] = "turn-resumed";
+
+    act(() => {
+      result.current.onTurnError("ws-1", "thread-1", "turn-resumed", {
+        message: "boom",
+        willRetry: false,
+      });
+    });
+
+    expect(markProcessing).toHaveBeenNthCalledWith(1, "thread-1", true);
+    expect(markProcessing).toHaveBeenNthCalledWith(2, "thread-1", false);
+    expect(markReviewing).toHaveBeenCalledWith("thread-1", false);
+    expect(setActiveTurnId).toHaveBeenNthCalledWith(1, "thread-1", "turn-local");
+    expect(setActiveTurnId).toHaveBeenNthCalledWith(2, "thread-1", null);
+    expect(pushThreadErrorMessage).toHaveBeenCalledWith("thread-1", "Turn failed: boom");
   });
 
   it("ignores turn errors that will retry", () => {

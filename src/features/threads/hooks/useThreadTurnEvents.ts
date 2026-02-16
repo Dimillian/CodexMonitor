@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import type { Dispatch, MutableRefObject } from "react";
 import type { TurnPlan } from "@/types";
 import { interruptTurn as interruptTurnService } from "@services/tauri";
@@ -19,6 +19,7 @@ type UseThreadTurnEventsOptions = {
   markProcessing: (threadId: string, isProcessing: boolean) => void;
   markReviewing: (threadId: string, isReviewing: boolean) => void;
   setActiveTurnId: (threadId: string, turnId: string | null) => void;
+  getActiveTurnId: (threadId: string) => string | null;
   pendingInterruptsRef: MutableRefObject<Set<string>>;
   pushThreadErrorMessage: (threadId: string, message: string) => void;
   safeMessageActivity: () => void;
@@ -33,11 +34,55 @@ export function useThreadTurnEvents({
   markProcessing,
   markReviewing,
   setActiveTurnId,
+  getActiveTurnId,
   pendingInterruptsRef,
   pushThreadErrorMessage,
   safeMessageActivity,
   recordThreadActivity,
 }: UseThreadTurnEventsOptions) {
+  const immediateActiveTurnIdByThreadRef = useRef<Record<string, string | null>>({});
+  const lastReducerActiveTurnIdByThreadRef = useRef<Record<string, string | null>>({});
+  const hasOptimisticActiveTurnByThreadRef = useRef<Record<string, boolean>>({});
+
+  const getLatestKnownActiveTurnId = useCallback(
+    (threadId: string) => {
+      const reducerTurnId = getActiveTurnId(threadId);
+      const lastReducerTurnId = lastReducerActiveTurnIdByThreadRef.current[threadId];
+      const immediateTurnId = immediateActiveTurnIdByThreadRef.current[threadId];
+      const hasOptimisticTurn =
+        hasOptimisticActiveTurnByThreadRef.current[threadId] === true;
+
+      if (hasOptimisticTurn && immediateTurnId !== undefined) {
+        if (reducerTurnId === immediateTurnId) {
+          // Reducer caught up with our optimistic write.
+          hasOptimisticActiveTurnByThreadRef.current[threadId] = false;
+        } else if (
+          lastReducerTurnId !== undefined &&
+          reducerTurnId !== lastReducerTurnId
+        ) {
+          // Reducer changed independently (e.g. resume hydration), so adopt it.
+          hasOptimisticActiveTurnByThreadRef.current[threadId] = false;
+          immediateActiveTurnIdByThreadRef.current[threadId] = reducerTurnId;
+        } else {
+          lastReducerActiveTurnIdByThreadRef.current[threadId] = reducerTurnId;
+          return immediateTurnId;
+        }
+      }
+
+      if (lastReducerTurnId !== reducerTurnId) {
+        // Keep cache aligned with reducer when we are not in an optimistic window.
+        lastReducerActiveTurnIdByThreadRef.current[threadId] = reducerTurnId;
+        immediateActiveTurnIdByThreadRef.current[threadId] = reducerTurnId;
+      }
+
+      if (immediateTurnId !== undefined) {
+        return immediateActiveTurnIdByThreadRef.current[threadId];
+      }
+      return reducerTurnId;
+    },
+    [getActiveTurnId],
+  );
+
   const shouldClearCompletedPlan = useCallback((threadId: string, turnId: string) => {
     const plan = planByThreadRef.current[threadId];
     if (!plan || plan.steps.length === 0) {
@@ -120,15 +165,25 @@ export function useThreadTurnEvents({
       }
       markProcessing(threadId, true);
       if (turnId) {
+        lastReducerActiveTurnIdByThreadRef.current[threadId] =
+          getActiveTurnId(threadId);
+        hasOptimisticActiveTurnByThreadRef.current[threadId] = true;
+        immediateActiveTurnIdByThreadRef.current[threadId] = turnId;
         setActiveTurnId(threadId, turnId);
       }
     },
-    [dispatch, markProcessing, pendingInterruptsRef, setActiveTurnId],
+    [dispatch, getActiveTurnId, markProcessing, pendingInterruptsRef, setActiveTurnId],
   );
 
   const onTurnCompleted = useCallback(
     (_workspaceId: string, threadId: string, turnId: string) => {
+      const activeTurnId = getLatestKnownActiveTurnId(threadId);
+      if (turnId && activeTurnId && turnId !== activeTurnId) {
+        return;
+      }
       markProcessing(threadId, false);
+      hasOptimisticActiveTurnByThreadRef.current[threadId] = false;
+      immediateActiveTurnIdByThreadRef.current[threadId] = null;
       setActiveTurnId(threadId, null);
       pendingInterruptsRef.current.delete(threadId);
       if (shouldClearCompletedPlan(threadId, turnId)) {
@@ -137,6 +192,7 @@ export function useThreadTurnEvents({
     },
     [
       dispatch,
+      getLatestKnownActiveTurnId,
       markProcessing,
       pendingInterruptsRef,
       setActiveTurnId,
@@ -201,15 +257,21 @@ export function useThreadTurnEvents({
     (
       workspaceId: string,
       threadId: string,
-      _turnId: string,
+      turnId: string,
       payload: { message: string; willRetry: boolean },
     ) => {
       if (payload.willRetry) {
         return;
       }
+      const activeTurnId = getLatestKnownActiveTurnId(threadId);
+      if (turnId && activeTurnId && turnId !== activeTurnId) {
+        return;
+      }
       dispatch({ type: "ensureThread", workspaceId, threadId });
       markProcessing(threadId, false);
       markReviewing(threadId, false);
+      hasOptimisticActiveTurnByThreadRef.current[threadId] = false;
+      immediateActiveTurnIdByThreadRef.current[threadId] = null;
       setActiveTurnId(threadId, null);
       const message = payload.message
         ? `Turn failed: ${payload.message}`
@@ -219,6 +281,7 @@ export function useThreadTurnEvents({
     },
     [
       dispatch,
+      getLatestKnownActiveTurnId,
       markProcessing,
       markReviewing,
       pushThreadErrorMessage,

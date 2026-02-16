@@ -293,38 +293,6 @@ pub(super) async fn try_handle(
             };
             Some(serde_json::to_value(updated).map_err(|err| err.to_string()))
         }
-        "orbit_connect_test" => {
-            let result = match state.orbit_connect_test().await {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(result).map_err(|err| err.to_string()))
-        }
-        "orbit_sign_in_start" => {
-            let result = match state.orbit_sign_in_start().await {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(result).map_err(|err| err.to_string()))
-        }
-        "orbit_sign_in_poll" => {
-            let device_code = match parse_string(params, "deviceCode") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let result = match state.orbit_sign_in_poll(device_code).await {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(result).map_err(|err| err.to_string()))
-        }
-        "orbit_sign_out" => {
-            let result = match state.orbit_sign_out().await {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(result).map_err(|err| err.to_string()))
-        }
         "add_clone" => {
             let source_workspace_id = match parse_string(params, "sourceWorkspaceId") {
                 Ok(value) => value,

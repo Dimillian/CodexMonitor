@@ -22,26 +22,126 @@ import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
 
 const allowedThemes = new Set(["system", "light", "dark", "dim"]);
 const allowedPersonality = new Set(["friendly", "pragmatic"]);
+const DEFAULT_REMOTE_BACKEND_HOST = "127.0.0.1:4732";
+const DEFAULT_REMOTE_BACKEND_ID = "remote-default";
+const DEFAULT_REMOTE_BACKEND_NAME = "Primary remote";
+const DEFAULT_REMOTE_PROVIDER: AppSettings["remoteBackendProvider"] = "tcp";
 
+type RemoteBackendTarget = AppSettings["remoteBackends"][number];
+
+function normalizeRemoteProvider(value: unknown): AppSettings["remoteBackendProvider"] {
+  void value;
+  return "tcp";
+}
+
+function normalizeRemoteToken(value: string | null | undefined): string | null {
+  return value?.trim() ? value.trim() : null;
+}
+
+function normalizeRemoteHost(value: string | null | undefined): string {
+  return value?.trim() ? value.trim() : DEFAULT_REMOTE_BACKEND_HOST;
+}
+
+function normalizeRemoteName(value: string | null | undefined, fallback: string): string {
+  return value?.trim() ? value.trim() : fallback;
+}
+
+function normalizeRemoteBackends(settings: AppSettings): {
+  remoteBackends: RemoteBackendTarget[];
+  activeRemoteBackendId: string | null;
+  remoteBackendProvider: AppSettings["remoteBackendProvider"];
+  remoteBackendHost: string;
+  remoteBackendToken: string | null;
+} {
+  const legacyProvider = normalizeRemoteProvider(settings.remoteBackendProvider);
+  const legacyHost = normalizeRemoteHost(settings.remoteBackendHost);
+  const legacyToken = normalizeRemoteToken(settings.remoteBackendToken);
+  const usedIds = new Set<string>();
+
+  const normalized = (settings.remoteBackends ?? []).map((entry, index) => {
+    const baseId = entry.id?.trim() || `remote-${index + 1}`;
+    let id = baseId;
+    let suffix = 2;
+    while (usedIds.has(id)) {
+      id = `${baseId}-${suffix}`;
+      suffix += 1;
+    }
+    usedIds.add(id);
+    return {
+      id,
+      name: normalizeRemoteName(entry.name, `Remote ${index + 1}`),
+      provider: normalizeRemoteProvider(entry.provider),
+      host: normalizeRemoteHost(entry.host),
+      token: normalizeRemoteToken(entry.token),
+      lastConnectedAtMs:
+        typeof entry.lastConnectedAtMs === "number" && Number.isFinite(entry.lastConnectedAtMs)
+          ? entry.lastConnectedAtMs
+          : null,
+    };
+  });
+
+  if (normalized.length === 0) {
+    const fallback: RemoteBackendTarget = {
+      id: DEFAULT_REMOTE_BACKEND_ID,
+      name: DEFAULT_REMOTE_BACKEND_NAME,
+      provider: legacyProvider,
+      host: legacyHost,
+      token: legacyToken,
+      lastConnectedAtMs: null,
+    };
+    return {
+      remoteBackends: [fallback],
+      activeRemoteBackendId: fallback.id,
+      remoteBackendProvider: fallback.provider,
+      remoteBackendHost: fallback.host,
+      remoteBackendToken: fallback.token,
+    };
+  }
+
+  const activeIndexById =
+    settings.activeRemoteBackendId == null
+      ? -1
+      : normalized.findIndex((entry) => entry.id === settings.activeRemoteBackendId);
+  const activeIndex = activeIndexById >= 0 ? activeIndexById : 0;
+  const active = normalized[activeIndex];
+  const syncedActive = {
+    ...active,
+    provider: legacyProvider,
+    host: legacyHost,
+    token: legacyToken,
+  };
+  const remoteBackends = [...normalized];
+  remoteBackends[activeIndex] = syncedActive;
+  return {
+    remoteBackends,
+    activeRemoteBackendId: syncedActive.id,
+    remoteBackendProvider: syncedActive.provider,
+    remoteBackendHost: syncedActive.host,
+    remoteBackendToken: syncedActive.token,
+  };
+}
 
 function buildDefaultSettings(): AppSettings {
   const isMac = isMacPlatform();
   const isMobile = isMobilePlatform();
+  const defaultRemote: RemoteBackendTarget = {
+    id: DEFAULT_REMOTE_BACKEND_ID,
+    name: DEFAULT_REMOTE_BACKEND_NAME,
+    provider: DEFAULT_REMOTE_PROVIDER,
+    host: DEFAULT_REMOTE_BACKEND_HOST,
+    token: null,
+    lastConnectedAtMs: null,
+  };
   return {
     codexBin: null,
     codexArgs: null,
     backendMode: isMobile ? "remote" : "local",
-    remoteBackendProvider: "tcp",
-    remoteBackendHost: "127.0.0.1:4732",
+    remoteBackendProvider: defaultRemote.provider,
+    remoteBackendHost: defaultRemote.host,
     remoteBackendToken: null,
-    orbitWsUrl: null,
-    orbitAuthUrl: null,
-    orbitRunnerName: null,
-    orbitAutoStartRunner: false,
+    remoteBackends: [defaultRemote],
+    activeRemoteBackendId: defaultRemote.id,
     keepDaemonRunningAfterAppClose: false,
-    orbitUseAccess: false,
-    orbitAccessClientId: null,
-    orbitAccessClientSecretRef: null,
     defaultAccessMode: "current",
     reviewDeliveryMode: "inline",
     composerModelShortcut: isMac ? "cmd+shift+m" : "ctrl+shift+m",
@@ -107,6 +207,7 @@ function buildDefaultSettings(): AppSettings {
 }
 
 function normalizeAppSettings(settings: AppSettings): AppSettings {
+  const remoteBackendSettings = normalizeRemoteBackends(settings);
   const normalizedTargets =
     settings.openAppTargets && settings.openAppTargets.length
       ? normalizeOpenAppTargets(settings.openAppTargets)
@@ -136,6 +237,7 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
   );
   return {
     ...settings,
+    ...remoteBackendSettings,
     codexBin: settings.codexBin?.trim() ? settings.codexBin.trim() : null,
     codexArgs: settings.codexArgs?.trim() ? settings.codexArgs.trim() : null,
     uiScale: clampUiScale(settings.uiScale),

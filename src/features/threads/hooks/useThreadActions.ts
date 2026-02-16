@@ -28,7 +28,7 @@ import {
 } from "@threads/utils/threadNormalize";
 import {
   getParentThreadIdFromSource,
-  getResumedActiveTurnId,
+  getResumedTurnState,
 } from "@threads/utils/threadRpc";
 import { saveThreadActivity } from "@threads/utils/threadStorage";
 import type { ThreadAction, ThreadState } from "./useThreadsReducer";
@@ -44,6 +44,7 @@ type UseThreadActionsOptions = {
   itemsByThread: ThreadState["itemsByThread"];
   threadsByWorkspace: ThreadState["threadsByWorkspace"];
   activeThreadIdByWorkspace: ThreadState["activeThreadIdByWorkspace"];
+  activeTurnIdByThread: ThreadState["activeTurnIdByThread"];
   threadListCursorByWorkspace: ThreadState["threadListCursorByWorkspace"];
   threadStatusById: ThreadState["threadStatusById"];
   threadSortKey: ThreadListSortKey;
@@ -66,6 +67,7 @@ export function useThreadActions({
   itemsByThread,
   threadsByWorkspace,
   activeThreadIdByWorkspace,
+  activeTurnIdByThread,
   threadListCursorByWorkspace,
   threadStatusById,
   threadSortKey,
@@ -79,6 +81,10 @@ export function useThreadActions({
   onSubagentThreadDetected,
 }: UseThreadActionsOptions) {
   const resumeInFlightByThreadRef = useRef<Record<string, number>>({});
+  const threadStatusByIdRef = useRef(threadStatusById);
+  const activeTurnIdByThreadRef = useRef(activeTurnIdByThread);
+  threadStatusByIdRef.current = threadStatusById;
+  activeTurnIdByThreadRef.current = activeTurnIdByThread;
 
   const extractThreadId = useCallback((response: Record<string, any>) => {
     const thread = response.result?.thread ?? response.thread ?? null;
@@ -141,7 +147,7 @@ export function useThreadActions({
       if (!force && loadedThreadsRef.current[threadId]) {
         return threadId;
       }
-      const status = threadStatusById[threadId];
+      const status = threadStatusByIdRef.current[threadId];
       if (status?.isProcessing && loadedThreadsRef.current[threadId] && !force) {
         onDebug?.({
           id: `${Date.now()}-client-thread-resume-skipped`,
@@ -202,12 +208,34 @@ export function useThreadActions({
             loadedThreadsRef.current[threadId] = true;
             return threadId;
           }
-          const resumedActiveTurnId = getResumedActiveTurnId(thread);
+          const resumedTurnState = getResumedTurnState(thread);
+          const localStatus = threadStatusByIdRef.current[threadId];
+          const localActiveTurnId =
+            activeTurnIdByThreadRef.current[threadId] ?? null;
+          const keepLocalProcessing =
+            (localStatus?.isProcessing ?? false) &&
+            !resumedTurnState.activeTurnId &&
+            !resumedTurnState.confidentNoActiveTurn;
+          const resumedActiveTurnId = keepLocalProcessing
+            ? localActiveTurnId
+            : resumedTurnState.activeTurnId;
+          const shouldMarkProcessing = keepLocalProcessing || Boolean(resumedActiveTurnId);
+          const processingTimestamp =
+            resumedTurnState.activeTurnStartedAtMs ?? Date.now();
+          if (keepLocalProcessing) {
+            onDebug?.({
+              id: `${Date.now()}-client-thread-resume-keep-processing`,
+              timestamp: Date.now(),
+              source: "client",
+              label: "thread/resume keep-processing",
+              payload: { workspaceId, threadId },
+            });
+          }
           dispatch({
             type: "markProcessing",
             threadId,
-            isProcessing: Boolean(resumedActiveTurnId),
-            timestamp: Date.now(),
+            isProcessing: shouldMarkProcessing,
+            timestamp: processingTimestamp,
           });
           dispatch({
             type: "setActiveTurnId",
@@ -295,7 +323,6 @@ export function useThreadActions({
       onDebug,
       onSubagentThreadDetected,
       replaceOnResumeRef,
-      threadStatusById,
       updateThreadParent,
     ],
   );

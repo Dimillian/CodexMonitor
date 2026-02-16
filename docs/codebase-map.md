@@ -2,6 +2,11 @@
 
 Canonical navigation guide for CodexMonitor. Use this as: "if you need X, edit Y".
 
+Related docs:
+
+- Setup/build/release: `README.md`
+- iOS remote over Tailscale (TCP): `docs/mobile-ios-tailscale-blueprint.md`
+
 ## Start Here: How Changes Flow
 
 For backend behavior, follow this path in order:
@@ -118,7 +123,6 @@ All cross-runtime domain behavior belongs in `src-tauri/src/shared/*`:
 - Git and GitHub logic: `src-tauri/src/shared/git_core.rs`, `src-tauri/src/shared/git_ui_core.rs`, `src-tauri/src/shared/git_ui_core/*`
 - Prompts CRUD/listing: `src-tauri/src/shared/prompts_core.rs`
 - Usage snapshot and aggregation: `src-tauri/src/shared/local_usage_core.rs`
-- Orbit connectivity/auth helpers: `src-tauri/src/shared/orbit_core.rs`
 - Process helpers: `src-tauri/src/shared/process_core.rs`
 
 ## Events Map (Backend -> Frontend)

@@ -46,6 +46,8 @@ type WorkingIndicatorProps = {
   lastDurationMs?: number | null;
   hasItems: boolean;
   reasoningLabel?: string | null;
+  showPollingFetchStatus?: boolean;
+  pollingIntervalMs?: number;
 };
 
 type MessageRowProps = MarkdownFileLinkProps & {
@@ -277,8 +279,13 @@ export const WorkingIndicator = memo(function WorkingIndicator({
   lastDurationMs = null,
   hasItems,
   reasoningLabel = null,
+  showPollingFetchStatus = false,
+  pollingIntervalMs = 12000,
 }: WorkingIndicatorProps) {
   const [elapsedMs, setElapsedMs] = useState(0);
+  const [pollCountdownSeconds, setPollCountdownSeconds] = useState(() =>
+    Math.max(1, Math.ceil(pollingIntervalMs / 1000)),
+  );
 
   useEffect(() => {
     if (!isThinking || !processingStartedAt) {
@@ -291,6 +298,22 @@ export const WorkingIndicator = memo(function WorkingIndicator({
     }, 1000);
     return () => window.clearInterval(interval);
   }, [isThinking, processingStartedAt]);
+
+  useEffect(() => {
+    if (!showPollingFetchStatus || isThinking) {
+      return undefined;
+    }
+    const intervalSeconds = Math.max(1, Math.ceil(pollingIntervalMs / 1000));
+    setPollCountdownSeconds(intervalSeconds);
+    const timer = window.setInterval(() => {
+      setPollCountdownSeconds((previous) =>
+        previous <= 1 ? intervalSeconds : previous - 1,
+      );
+    }, 1000);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [isThinking, pollingIntervalMs, showPollingFetchStatus]);
 
   return (
     <>
@@ -307,7 +330,9 @@ export const WorkingIndicator = memo(function WorkingIndicator({
         <div className="turn-complete" aria-live="polite">
           <span className="turn-complete-line" aria-hidden />
           <span className="turn-complete-label">
-            Done in {formatDurationMs(lastDurationMs)}
+            {showPollingFetchStatus
+              ? `New message will be fetched in ${pollCountdownSeconds} seconds`
+              : `Done in ${formatDurationMs(lastDurationMs)}`}
           </span>
           <span className="turn-complete-line" aria-hidden />
         </div>
