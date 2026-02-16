@@ -20,9 +20,9 @@ describe("ModalShell", () => {
     const modal = container.querySelector(".ds-modal.custom-modal");
     const card = container.querySelector(".ds-modal-card.custom-card");
     const backdrop = container.querySelector(".ds-modal-backdrop");
-    expect(modal).toBeTruthy();
-    expect(card).toBeTruthy();
-    expect(backdrop).toBeTruthy();
+    expect(modal).not.toBeNull();
+    expect(card).not.toBeNull();
+    expect(backdrop).not.toBeNull();
     if (!backdrop) {
       throw new Error("Expected modal backdrop");
     }

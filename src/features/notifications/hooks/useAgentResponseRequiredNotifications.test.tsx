@@ -18,6 +18,11 @@ vi.mock("../../app/hooks/useAppServerEvents", () => ({
   useAppServerEvents: (handlers: unknown) => useAppServerEventsMock(handlers),
 }));
 
+const flushMicrotaskQueue = () =>
+  new Promise<void>((resolve) => {
+    queueMicrotask(resolve);
+  });
+
 describe("useAgentResponseRequiredNotifications", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -71,7 +76,7 @@ describe("useAgentResponseRequiredNotifications", () => {
     );
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
     expect(sendNotification).toHaveBeenCalledTimes(1);
 
@@ -80,7 +85,7 @@ describe("useAgentResponseRequiredNotifications", () => {
     });
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
     expect(sendNotification).toHaveBeenCalledTimes(2);
     expect(vi.mocked(sendNotification).mock.calls[1]?.[2]).toMatchObject({
@@ -114,7 +119,7 @@ describe("useAgentResponseRequiredNotifications", () => {
     );
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
     expect(sendNotification).toHaveBeenCalledTimes(1);
     expect(vi.mocked(sendNotification).mock.calls[0]?.[2]).toMatchObject({
@@ -126,7 +131,7 @@ describe("useAgentResponseRequiredNotifications", () => {
     });
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
     expect(sendNotification).toHaveBeenCalledTimes(2);
     expect(vi.mocked(sendNotification).mock.calls[1]?.[2]).toMatchObject({
@@ -168,7 +173,7 @@ describe("useAgentResponseRequiredNotifications", () => {
     );
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
     expect(sendNotification).toHaveBeenCalledTimes(1);
     expect(vi.mocked(sendNotification).mock.calls[0]?.[2]).toMatchObject({
@@ -180,7 +185,7 @@ describe("useAgentResponseRequiredNotifications", () => {
     });
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
     expect(sendNotification).toHaveBeenCalledTimes(2);
     expect(vi.mocked(sendNotification).mock.calls[1]?.[2]).toMatchObject({
@@ -226,7 +231,7 @@ describe("useAgentResponseRequiredNotifications", () => {
     });
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
     expect(sendNotification).toHaveBeenCalledTimes(1);
     expect(vi.mocked(sendNotification).mock.calls[0]?.[2]).toMatchObject({
@@ -238,7 +243,7 @@ describe("useAgentResponseRequiredNotifications", () => {
     });
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
     expect(sendNotification).toHaveBeenCalledTimes(2);
     expect(vi.mocked(sendNotification).mock.calls[1]?.[2]).toMatchObject({
@@ -269,7 +274,7 @@ describe("useAgentResponseRequiredNotifications", () => {
     );
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
     expect(sendNotification).not.toHaveBeenCalled();
 
@@ -294,7 +299,7 @@ describe("useAgentResponseRequiredNotifications", () => {
     });
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
     expect(sendNotification).not.toHaveBeenCalled();
   });
@@ -319,13 +324,13 @@ describe("useAgentResponseRequiredNotifications", () => {
     );
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
     expect(sendNotification).toHaveBeenCalledTimes(1);
 
     rerender({ approvals: [] as ApprovalRequest[] });
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     const reusedApproval: ApprovalRequest = {
@@ -339,7 +344,7 @@ describe("useAgentResponseRequiredNotifications", () => {
     });
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
     expect(sendNotification).toHaveBeenCalledTimes(2);
     expect(vi.mocked(sendNotification).mock.calls[1]?.[2]).toMatchObject({
@@ -375,13 +380,13 @@ describe("useAgentResponseRequiredNotifications", () => {
     );
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
     expect(sendNotification).toHaveBeenCalledTimes(1);
 
     rerender({ userInputRequests: [] as RequestUserInputRequest[] });
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     const reusedQuestion: RequestUserInputRequest = {
@@ -399,7 +404,7 @@ describe("useAgentResponseRequiredNotifications", () => {
     });
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
     expect(sendNotification).toHaveBeenCalledTimes(2);
     expect(vi.mocked(sendNotification).mock.calls[1]?.[2]).toMatchObject({

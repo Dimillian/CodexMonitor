@@ -43,7 +43,7 @@ fn emit_thread_live_event(
     method: &str,
     params: Value,
 ) {
-    let _ = app.emit(
+    if let Err(err) = app.emit(
         "app-server-event",
         AppServerEvent {
             workspace_id: workspace_id.to_string(),
@@ -52,7 +52,9 @@ fn emit_thread_live_event(
                 "params": params,
             }),
         },
-    );
+    ) {
+        eprintln!("failed to emit thread live event {method}: {err}");
+    }
 }
 
 #[tauri::command]
@@ -718,7 +720,7 @@ pub(crate) async fn generate_commit_message(
         &diff,
         &commit_message_prompt,
         |workspace_id, thread_id| {
-            let _ = app.emit(
+            if let Err(err) = app.emit(
                 "app-server-event",
                 AppServerEvent {
                     workspace_id: workspace_id.to_string(),
@@ -730,7 +732,9 @@ pub(crate) async fn generate_commit_message(
                         }
                     }),
                 },
-            );
+            ) {
+                eprintln!("failed to emit codex/backgroundThread hide event: {err}");
+            }
         },
     )
     .await
@@ -758,7 +762,7 @@ pub(crate) async fn generate_run_metadata(
         workspace_id,
         &prompt,
         |workspace_id, thread_id| {
-            let _ = app.emit(
+            if let Err(err) = app.emit(
                 "app-server-event",
                 AppServerEvent {
                     workspace_id: workspace_id.to_string(),
@@ -770,7 +774,9 @@ pub(crate) async fn generate_run_metadata(
                         }
                     }),
                 },
-            );
+            ) {
+                eprintln!("failed to emit codex/backgroundThread hide event: {err}");
+            }
         },
     )
     .await

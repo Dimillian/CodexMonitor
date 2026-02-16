@@ -42,14 +42,14 @@ describe("ComposerQueue", () => {
       />,
     );
 
-    expect(screen.getByText("queued message 1")).toBeTruthy();
+    expect(screen.getByText("queued message 1")).not.toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "收起队列" }));
     expect(screen.queryByText("queued message 1")).toBeNull();
-    expect(screen.getByText(/已收起 · 待发送: 1/)).toBeTruthy();
+    expect(screen.getByText(/已收起 · 待发送: 1/)).not.toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "展开队列" }));
-    expect(screen.getByText("queued message 1")).toBeTruthy();
+    expect(screen.getByText("queued message 1")).not.toBeNull();
   });
 
   it("shows blocked recovery action and retries all blocked threads", () => {
@@ -106,7 +106,7 @@ describe("ComposerQueue", () => {
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Steer" }));
-      await Promise.resolve();
+      await new Promise<void>((resolve) => { queueMicrotask(resolve); });
     });
 
     expect(onSteerQueued).toHaveBeenCalledTimes(1);
@@ -168,7 +168,7 @@ describe("ComposerQueue", () => {
       />,
     );
 
-    expect(screen.getByText("线程处理中")).toBeTruthy();
-    expect(screen.getByText(/待发送: 1/)).toBeTruthy();
+    expect(screen.getByText("线程处理中")).not.toBeNull();
+    expect(screen.getByText(/待发送: 1/)).not.toBeNull();
   });
 });

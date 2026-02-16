@@ -48,7 +48,7 @@ describe("useSystemNotificationThreadLinks", () => {
 
     await act(async () => {
       window.dispatchEvent(new Event("focus"));
-      await Promise.resolve();
+      await new Promise<void>((resolve) => { queueMicrotask(resolve); });
     });
 
     expect(setCenterMode).toHaveBeenCalledWith("chat");
@@ -92,7 +92,7 @@ describe("useSystemNotificationThreadLinks", () => {
 
     await act(async () => {
       window.dispatchEvent(new Event("focus"));
-      await Promise.resolve();
+      await new Promise<void>((resolve) => { queueMicrotask(resolve); });
     });
 
     expect(connectWorkspace).toHaveBeenCalledTimes(1);

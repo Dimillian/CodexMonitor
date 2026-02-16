@@ -30,7 +30,7 @@ describe("useNewAgentDraft", () => {
 
     await act(async () => {
       await result.current.runWithDraftStart(async () => {
-        await Promise.resolve();
+        await new Promise<void>((resolve) => { queueMicrotask(resolve); });
       });
     });
 
@@ -72,7 +72,7 @@ describe("useNewAgentDraft", () => {
     });
 
     await act(async () => {
-      await Promise.resolve();
+      await new Promise<void>((resolve) => { queueMicrotask(resolve); });
     });
     expect(runner).toHaveBeenCalledTimes(1);
     if (!firstPromise || !secondPromise) {

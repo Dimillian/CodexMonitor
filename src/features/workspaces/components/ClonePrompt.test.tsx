@@ -28,7 +28,7 @@ describe("ClonePrompt", () => {
     );
 
     const backdrop = container.querySelector(".ds-modal-backdrop");
-    expect(backdrop).toBeTruthy();
+    expect(backdrop).not.toBeNull();
     if (!backdrop) {
       throw new Error("Expected clone prompt backdrop");
     }

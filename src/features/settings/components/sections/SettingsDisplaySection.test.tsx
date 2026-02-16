@@ -49,7 +49,7 @@ describe("SettingsDisplaySection", () => {
     const row = screen
       .getByText("自动生成对话标题")
       .closest(".settings-toggle-row");
-    expect(row).toBeTruthy();
+    expect(row).not.toBeNull();
     const button = within(row as HTMLElement).getByRole("button");
 
     fireEvent.click(button);

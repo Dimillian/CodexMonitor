@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppSettings } from "../../../types";
 import { getAppSettings, runCodexDoctor, updateAppSettings } from "../../../services/tauri";
 import { clampUiScale, UI_SCALE_DEFAULT } from "../../../utils/uiScale";
@@ -37,6 +37,41 @@ function clampAutoArchiveSubAgentThreadsMinutes(value: number): number {
       Math.round(value),
     ),
   );
+}
+
+function areSettingsValuesEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) {
+    return true;
+  }
+  if (
+    typeof left !== "object"
+    || left === null
+    || typeof right !== "object"
+    || right === null
+  ) {
+    return false;
+  }
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+}
+
+function mergeChangedSettings(
+  base: AppSettings,
+  current: AppSettings,
+  next: AppSettings,
+): AppSettings {
+  const merged: AppSettings = { ...base };
+  const mutableMerged = merged as Record<string, unknown>;
+  (Object.keys(next) as Array<keyof AppSettings>).forEach((key) => {
+    if (areSettingsValuesEqual(current[key], next[key])) {
+      return;
+    }
+    mutableMerged[key] = next[key];
+  });
+  return merged;
 }
 
 function buildDefaultSettings(): AppSettings {
@@ -79,6 +114,7 @@ function buildDefaultSettings(): AppSettings {
     lastComposerReasoningEffort: null,
     uiScale: UI_SCALE_DEFAULT,
     theme: "system",
+    usageShowRemaining: false,
     showMessageFilePath: true,
     threadScrollRestoreMode: "latest",
     threadTitleAutogenerationEnabled: false,
@@ -87,7 +123,7 @@ function buildDefaultSettings(): AppSettings {
     codeFontSize: CODE_FONT_SIZE_DEFAULT,
     notificationSoundsEnabled: true,
     systemNotificationsEnabled: true,
-    preloadGitDiffs: false,
+    preloadGitDiffs: true,
     gitDiffIgnoreWhitespaceChanges: false,
     commitMessagePrompt: DEFAULT_COMMIT_MESSAGE_PROMPT,
     experimentalCollabEnabled: false,
@@ -158,6 +194,7 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
       DEFAULT_CODE_FONT_FAMILY,
     ),
     codeFontSize: clampCodeFontSize(settings.codeFontSize),
+    usageShowRemaining: Boolean(settings.usageShowRemaining),
     personality: allowedPersonality.has(settings.personality)
       ? settings.personality
       : "friendly",
@@ -186,6 +223,12 @@ export function useAppSettings() {
   const defaultSettings = useMemo(() => buildDefaultSettings(), []);
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
+  const settingsRef = useRef(settings);
+  const initialLoadFailedRef = useRef(false);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
 
   useEffect(() => {
     let active = true;
@@ -199,8 +242,11 @@ export function useAppSettings() {
               ...response,
             }),
           );
+          initialLoadFailedRef.current = false;
         }
-      } catch {
+      } catch (error) {
+        initialLoadFailedRef.current = true;
+        console.error("Failed to load app settings", error);
         // Defaults stay in place if loading settings fails.
       } finally {
         if (active) {
@@ -215,7 +261,23 @@ export function useAppSettings() {
 
   const saveSettings = useCallback(async (next: AppSettings) => {
     const normalized = normalizeAppSettings(next);
-    const saved = await updateAppSettings(normalized);
+    let requestPayload = normalized;
+    if (initialLoadFailedRef.current) {
+      const latest = await getAppSettings();
+      const normalizedLatest = normalizeAppSettings({
+        ...defaultSettings,
+        ...latest,
+      });
+      requestPayload = normalizeAppSettings(
+        mergeChangedSettings(
+          normalizedLatest,
+          settingsRef.current,
+          normalized,
+        ),
+      );
+    }
+    const saved = await updateAppSettings(requestPayload);
+    initialLoadFailedRef.current = false;
     setSettings(
       normalizeAppSettings({
         ...defaultSettings,

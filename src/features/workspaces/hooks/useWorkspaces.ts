@@ -23,6 +23,7 @@ import {
   updateWorkspaceCodexBin as updateWorkspaceCodexBinService,
   updateWorkspaceSettings as updateWorkspaceSettingsService,
 } from "../../../services/tauri";
+import { pushErrorToast } from "../../../services/toasts";
 
 const GROUP_ID_RANDOM_MODULUS = 1_000_000;
 const RESERVED_GROUP_NAME = "未分组";
@@ -82,6 +83,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     () => new Set(),
   );
   const workspaceSettingsRef = useRef<Map<string, WorkspaceSettings>>(new Map());
+  const lastRefreshErrorRef = useRef<string | null>(null);
   const { onDebug, defaultCodexBin, appSettings, onUpdateAppSettings } = options;
 
   const refreshWorkspaces = useCallback(async () => {
@@ -95,9 +97,18 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
         return entries.some((entry) => entry.id === prev) ? prev : null;
       });
       setHasLoaded(true);
+      lastRefreshErrorRef.current = null;
       return entries;
     } catch (err) {
       console.error("Failed to load workspaces", err);
+      const message = err instanceof Error ? err.message : String(err);
+      if (lastRefreshErrorRef.current !== message) {
+        lastRefreshErrorRef.current = message;
+        pushErrorToast({
+          title: "加载工作区失败",
+          message,
+        });
+      }
       setHasLoaded(true);
       return undefined;
     }

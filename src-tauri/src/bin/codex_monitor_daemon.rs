@@ -135,15 +135,21 @@ enum DaemonEvent {
 
 impl EventSink for DaemonEventSink {
     fn emit_app_server_event(&self, event: AppServerEvent) {
-        let _ = self.tx.send(DaemonEvent::AppServer(event));
+        if let Err(err) = self.tx.send(DaemonEvent::AppServer(event)) {
+            eprintln!("[daemon] failed to broadcast app-server event: {err}");
+        }
     }
 
     fn emit_terminal_output(&self, event: TerminalOutput) {
-        let _ = self.tx.send(DaemonEvent::TerminalOutput(event));
+        if let Err(err) = self.tx.send(DaemonEvent::TerminalOutput(event)) {
+            eprintln!("[daemon] failed to broadcast terminal-output event: {err}");
+        }
     }
 
     fn emit_terminal_exit(&self, event: TerminalExit) {
-        let _ = self.tx.send(DaemonEvent::TerminalExit(event));
+        if let Err(err) = self.tx.send(DaemonEvent::TerminalExit(event)) {
+            eprintln!("[daemon] failed to broadcast terminal-exit event: {err}");
+        }
     }
 }
 
@@ -1161,6 +1167,19 @@ impl DaemonState {
         codex_args: Option<String>,
     ) -> Result<Value, String> {
         codex_aux_core::codex_doctor_core(&self.app_settings, codex_bin, codex_args).await
+    }
+
+    async fn codex_update(
+        &self,
+        codex_bin: Option<String>,
+        codex_args: Option<String>,
+    ) -> Result<Value, String> {
+        crate::shared::codex_update_core::codex_update_core(
+            &self.app_settings,
+            codex_bin,
+            codex_args,
+        )
+        .await
     }
 
     async fn generate_commit_message(&self, workspace_id: String) -> Result<String, String> {

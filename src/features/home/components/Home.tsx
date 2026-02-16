@@ -189,7 +189,13 @@ export function Home({
     if (!(usageSection instanceof HTMLElement)) {
       return;
     }
-    usageSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    usageSection.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "start",
+    });
   };
 
   return (
@@ -542,7 +548,7 @@ export function Home({
               )}
             </div>
             <div className="home-usage-chart-card">
-              <div className="home-usage-chart">
+              <div className="home-usage-chart" role="list" aria-label="近7天用量趋势">
                 {last7Days.map((day) => {
                   const value =
                     usageMetric === "tokens" ? day.totalTokens : day.agentTimeMs ?? 0;
@@ -559,6 +565,10 @@ export function Home({
                       className="home-usage-bar"
                       key={day.day}
                       data-value={tooltip}
+                      title={tooltip}
+                      role="listitem"
+                      aria-label={tooltip}
+                      tabIndex={0}
                     >
                       <span
                         className="home-usage-bar-fill"

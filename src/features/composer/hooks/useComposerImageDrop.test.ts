@@ -190,7 +190,7 @@ describe("useComposerImageDrop", () => {
     });
 
     await act(async () => {
-      await Promise.resolve();
+      await new Promise<void>((resolve) => { queueMicrotask(resolve); });
     });
 
     if (!mockOnDragDropEvent) {

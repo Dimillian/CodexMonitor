@@ -48,6 +48,11 @@ const workspace: WorkspaceInfo = {
   settings: { sidebarCollapsed: false },
 };
 
+const flushMacrotask = () =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, 0);
+  });
+
 describe("useThreads UX integration", () => {
   let now: number;
   let nowSpy: ReturnType<typeof vi.spyOn>;
@@ -129,7 +134,7 @@ describe("useThreads UX integration", () => {
     }
   });
 
-  it("keeps the latest plan visible when a new turn starts", () => {
+  it("keeps the latest plan visible when a new turn starts", async () => {
     const { result } = renderHook(() =>
       useThreads({
         activeWorkspace: workspace,
@@ -137,11 +142,12 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnPlanUpdated?.("ws-1", "thread-1", "turn-1", {
         explanation: " Plan note ",
         plan: [{ step: "Do it", status: "in_progress" }],
       });
+      await flushMacrotask();
     });
 
     expect(result.current.planByThread["thread-1"]).toEqual({
@@ -150,8 +156,9 @@ describe("useThreads UX integration", () => {
       steps: [{ step: "Do it", status: "inProgress" }],
     });
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnStarted?.("ws-1", "thread-1", "turn-2");
+      await flushMacrotask();
     });
 
     expect(result.current.planByThread["thread-1"]).toEqual({
@@ -161,7 +168,7 @@ describe("useThreads UX integration", () => {
     });
   });
 
-  it("stores turn diff updates from app-server events", () => {
+  it("stores turn diff updates from app-server events", async () => {
     const { result } = renderHook(() =>
       useThreads({
         activeWorkspace: workspace,
@@ -169,12 +176,13 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnDiffUpdated?.(
         "ws-1",
         "thread-1",
         "diff --git a/src/a.ts b/src/a.ts",
       );
+      await flushMacrotask();
     });
 
     expect(result.current.turnDiffByThread["thread-1"]).toBe(
@@ -251,7 +259,7 @@ describe("useThreads UX integration", () => {
     });
   });
 
-  it("clears empty plan updates to null", () => {
+  it("clears empty plan updates to null", async () => {
     const { result } = renderHook(() =>
       useThreads({
         activeWorkspace: workspace,
@@ -259,17 +267,18 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnPlanUpdated?.("ws-1", "thread-1", "turn-1", {
         explanation: "   ",
         plan: [],
       });
+      await flushMacrotask();
     });
 
     expect(result.current.planByThread["thread-1"]).toBeNull();
   });
 
-  it("normalizes plan step status values", () => {
+  it("normalizes plan step status values", async () => {
     const { result } = renderHook(() =>
       useThreads({
         activeWorkspace: workspace,
@@ -277,7 +286,7 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnPlanUpdated?.("ws-1", "thread-1", "turn-1", {
         explanation: "",
         plan: [
@@ -288,6 +297,7 @@ describe("useThreads UX integration", () => {
           { step: "Step 5", status: "unknown" },
         ],
       });
+      await flushMacrotask();
     });
 
     expect(result.current.planByThread["thread-1"]).toEqual({
@@ -303,7 +313,7 @@ describe("useThreads UX integration", () => {
     });
   });
 
-  it("replaces the plan when a new turn updates it", () => {
+  it("replaces the plan when a new turn updates it", async () => {
     const { result } = renderHook(() =>
       useThreads({
         activeWorkspace: workspace,
@@ -311,7 +321,7 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnPlanUpdated?.("ws-1", "thread-1", "turn-1", {
         explanation: "First plan",
         plan: [{ step: "Step 1", status: "pending" }],
@@ -320,6 +330,7 @@ describe("useThreads UX integration", () => {
         explanation: "Next plan",
         plan: [{ step: "Step 2", status: "completed" }],
       });
+      await flushMacrotask();
     });
 
     expect(result.current.planByThread["thread-1"]).toEqual({
@@ -329,7 +340,7 @@ describe("useThreads UX integration", () => {
     });
   });
 
-  it("keeps plans isolated per thread", () => {
+  it("keeps plans isolated per thread", async () => {
     const { result } = renderHook(() =>
       useThreads({
         activeWorkspace: workspace,
@@ -337,7 +348,7 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnPlanUpdated?.("ws-1", "thread-1", "turn-1", {
         explanation: "Thread 1 plan",
         plan: [{ step: "Step 1", status: "pending" }],
@@ -346,6 +357,7 @@ describe("useThreads UX integration", () => {
         explanation: "Thread 2 plan",
         plan: [{ step: "Step 2", status: "completed" }],
       });
+      await flushMacrotask();
     });
 
     expect(result.current.planByThread["thread-1"]).toEqual({
@@ -360,7 +372,7 @@ describe("useThreads UX integration", () => {
     });
   });
 
-  it("clears completed plans when a turn finishes", () => {
+  it("clears completed plans when a turn finishes", async () => {
     const { result } = renderHook(() =>
       useThreads({
         activeWorkspace: workspace,
@@ -368,11 +380,12 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnPlanUpdated?.("ws-1", "thread-1", "turn-1", {
         explanation: "All done",
         plan: [{ step: "Step 1", status: "completed" }],
       });
+      await flushMacrotask();
     });
 
     expect(result.current.planByThread["thread-1"]).toEqual({
@@ -381,14 +394,15 @@ describe("useThreads UX integration", () => {
       steps: [{ step: "Step 1", status: "completed" }],
     });
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnCompleted?.("ws-1", "thread-1", "turn-1");
+      await flushMacrotask();
     });
 
     expect(result.current.planByThread["thread-1"]).toBeNull();
   });
 
-  it("keeps plans visible on turn completion when steps remain", () => {
+  it("keeps plans visible on turn completion when steps remain", async () => {
     const { result } = renderHook(() =>
       useThreads({
         activeWorkspace: workspace,
@@ -396,15 +410,17 @@ describe("useThreads UX integration", () => {
       }),
     );
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnPlanUpdated?.("ws-1", "thread-1", "turn-1", {
         explanation: "Still in progress",
         plan: [{ step: "Step 1", status: "in_progress" }],
       });
+      await flushMacrotask();
     });
 
-    act(() => {
+    await act(async () => {
       handlers?.onTurnCompleted?.("ws-1", "thread-1", "turn-1");
+      await flushMacrotask();
     });
 
     expect(result.current.planByThread["thread-1"]).toEqual({
@@ -761,7 +777,7 @@ describe("useThreads UX integration", () => {
       await result.current.listThreadsForWorkspace(workspace);
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushMacrotask();
     });
 
     expect(vi.mocked(archiveThreads)).not.toHaveBeenCalled();
@@ -819,7 +835,7 @@ describe("useThreads UX integration", () => {
       await result.current.listThreadsForWorkspace(workspace);
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushMacrotask();
     });
 
     expect(vi.mocked(archiveThreads)).not.toHaveBeenCalled();

@@ -7,7 +7,9 @@ export const SUPPORTED_APP_SERVER_METHODS = [
   "codex/backgroundThread",
   "codex/connected",
   "codex/disconnected",
+  "codex/event/exec_command_end",
   "codex/event/skills_update_available",
+  "codex/stderr",
   "error",
   "item/agentMessage/delta",
   "item/commandExecution/outputDelta",
@@ -35,7 +37,9 @@ export const SUPPORTED_APP_SERVER_METHODS = [
 export type SupportedAppServerMethod = (typeof SUPPORTED_APP_SERVER_METHODS)[number];
 
 export const METHODS_HANDLED_OUTSIDE_USE_APP_SERVER_EVENTS = [
+  "codex/event/exec_command_end",
   "codex/event/skills_update_available",
+  "codex/stderr",
   "thread/live_attached",
   "thread/live_detached",
   "thread/live_heartbeat",
@@ -45,6 +49,17 @@ const SUPPORTED_METHOD_SET = new Set<string>(SUPPORTED_APP_SERVER_METHODS);
 const SUPPORTED_METHOD_NORMALIZED_MAP = new Map<string, SupportedAppServerMethod>(
   SUPPORTED_APP_SERVER_METHODS.map((method) => [normalizeMethodForMatch(method), method]),
 );
+const COMPAT_PASSTHROUGH_METHOD_PREFIXES = ["codex/event/"] as const;
+const COMPAT_PASSTHROUGH_METHODS = new Set<string>([
+  normalizeMethodForMatch("codex/stderr"),
+]);
+const LEGACY_METHOD_ALIAS_MAP = new Map<string, SupportedAppServerMethod>([
+  // Legacy codex/event names emitted by older app-server builds.
+  ["codex/event/agentmessagecontentdelta", "item/agentMessage/delta"],
+  ["codex/event/agentreasoningsectionbreak", "item/reasoning/summaryPartAdded"],
+  ["codex/event/itemstarted", "item/started"],
+  ["codex/event/tokencount", "thread/tokenUsage/updated"],
+]);
 
 function normalizeMethodForMatch(method: string) {
   return method
@@ -59,6 +74,10 @@ function toCanonicalSupportedMethod(method: string): SupportedAppServerMethod | 
     return method as SupportedAppServerMethod;
   }
   const normalized = normalizeMethodForMatch(method);
+  const legacyAlias = LEGACY_METHOD_ALIAS_MAP.get(normalized);
+  if (legacyAlias) {
+    return legacyAlias;
+  }
   return SUPPORTED_METHOD_NORMALIZED_MAP.get(normalized) ?? null;
 }
 
@@ -96,6 +115,16 @@ export function isSupportedAppServerMethod(
   method: string,
 ): method is SupportedAppServerMethod {
   return SUPPORTED_METHOD_SET.has(method);
+}
+
+export function isCompatPassthroughAppServerMethod(method: string): boolean {
+  const normalized = normalizeMethodForMatch(method);
+  if (COMPAT_PASSTHROUGH_METHODS.has(normalized)) {
+    return true;
+  }
+  return COMPAT_PASSTHROUGH_METHOD_PREFIXES.some((prefix) =>
+    normalized.startsWith(prefix),
+  );
 }
 
 export function getAppServerParams(event: AppServerEvent): Record<string, unknown> {

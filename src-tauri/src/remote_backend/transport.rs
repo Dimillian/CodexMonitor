@@ -134,20 +134,32 @@ pub(crate) async fn dispatch_incoming_line(
         IncomingMessage::Response { id, payload } => {
             let sender = pending.lock().await.remove(&id);
             if let Some(sender) = sender {
-                let _ = sender.send(payload);
+                if sender.send(payload).is_err() {
+                    eprintln!(
+                        "remote backend response receiver dropped before payload delivery: id={id}"
+                    );
+                }
             }
         }
         IncomingMessage::Notification { method, params } => match method.as_str() {
             "app-server-event" => {
-                let _ = app.emit("app-server-event", params);
+                if let Err(err) = app.emit("app-server-event", params) {
+                    eprintln!("failed to emit app-server-event from remote backend: {err}");
+                }
             }
             "terminal-output" => {
-                let _ = app.emit("terminal-output", params);
+                if let Err(err) = app.emit("terminal-output", params) {
+                    eprintln!("failed to emit terminal-output from remote backend: {err}");
+                }
             }
             "terminal-exit" => {
-                let _ = app.emit("terminal-exit", params);
+                if let Err(err) = app.emit("terminal-exit", params) {
+                    eprintln!("failed to emit terminal-exit from remote backend: {err}");
+                }
             }
-            _ => {}
+            _ => {
+                eprintln!("ignoring unsupported remote notification method: {method}");
+            }
         },
     }
 }
@@ -158,7 +170,14 @@ pub(crate) async fn mark_disconnected(
 ) {
     connected.store(false, Ordering::SeqCst);
     let mut pending = pending.lock().await;
-    for (_, sender) in pending.drain() {
-        let _ = sender.send(Err(DISCONNECTED_MESSAGE.to_string()));
+    for (id, sender) in pending.drain() {
+        if sender
+            .send(Err(DISCONNECTED_MESSAGE.to_string()))
+            .is_err()
+        {
+            eprintln!(
+                "remote backend pending receiver already dropped during disconnect: id={id}"
+            );
+        }
     }
 }

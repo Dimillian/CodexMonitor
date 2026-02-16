@@ -88,7 +88,7 @@ describe("useWorkspaceLaunchScript", () => {
 
     await act(async () => {
       result.current.onRunLaunchScript();
-      await Promise.resolve();
+      await new Promise<void>((resolve) => { queueMicrotask(resolve); });
     });
 
     expect(openTerminal).toHaveBeenCalled();

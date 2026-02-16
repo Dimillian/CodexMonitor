@@ -111,7 +111,7 @@ describe("GitDiffPanel", () => {
       (item: { text: string }) => item.text === `在 ${fileManagerName()} 中显示`,
     );
 
-    expect(revealItem).toBeDefined();
+    expect(revealItem).not.toBeUndefined();
     await revealItem.action();
     expect(revealItemInDir).toHaveBeenCalledWith("/tmp/repo/src/sample.ts");
   });
@@ -142,8 +142,8 @@ describe("GitDiffPanel", () => {
       (item: { text: string }) => item.text === "复制文件路径",
     );
 
-    expect(copyNameItem).toBeDefined();
-    expect(copyPathItem).toBeDefined();
+    expect(copyNameItem).not.toBeUndefined();
+    expect(copyPathItem).not.toBeUndefined();
 
     await copyNameItem.action();
     await copyPathItem.action();
@@ -176,7 +176,7 @@ describe("GitDiffPanel", () => {
       (item: { text: string }) => item.text === `在 ${fileManagerName()} 中显示`,
     );
 
-    expect(revealItem).toBeDefined();
+    expect(revealItem).not.toBeUndefined();
     await revealItem.action();
     expect(revealItemInDir).toHaveBeenCalledWith("/tmp/repo/apps/src/sample.ts");
   });
@@ -204,7 +204,7 @@ describe("GitDiffPanel", () => {
       (item: { text: string }) => item.text === "复制文件路径",
     );
 
-    expect(copyPathItem).toBeDefined();
+    expect(copyPathItem).not.toBeUndefined();
     await copyPathItem.action();
 
     expect(clipboardWriteText).toHaveBeenCalledWith("apps/src/sample.ts");
@@ -233,7 +233,7 @@ describe("GitDiffPanel", () => {
       (item: { text: string }) => item.text === "复制文件路径",
     );
 
-    expect(copyPathItem).toBeDefined();
+    expect(copyPathItem).not.toBeUndefined();
     await copyPathItem.action();
 
     expect(clipboardWriteText).toHaveBeenCalledWith("src/sample.ts");

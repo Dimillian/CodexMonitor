@@ -34,8 +34,8 @@ describe("FilePreviewPopover", () => {
       />,
     );
 
-    expect(screen.getByText("Shift + click or drag + click")).toBeTruthy();
-    expect(screen.getByText("for multi-line selection")).toBeTruthy();
+    expect(screen.getByText("Shift + click or drag + click")).not.toBeNull();
+    expect(screen.getByText("for multi-line selection")).not.toBeNull();
   });
 
   it("wires drag selection mouse events to line handlers", () => {

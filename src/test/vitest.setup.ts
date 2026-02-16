@@ -1,5 +1,34 @@
 import { vi } from "vitest";
 
+const reactActWarningPatterns = [
+  /inside a test was not wrapped in act/i,
+  /not wrapped in act\(\)/i,
+  /testing environment is not configured to support act/i,
+];
+
+function stringifyConsoleArg(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value instanceof Error) {
+    return value.stack ?? value.message;
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+const originalConsoleError = console.error.bind(console);
+console.error = (...args: unknown[]) => {
+  const message = args.map((arg) => stringifyConsoleArg(arg)).join(" ");
+  if (reactActWarningPatterns.some((pattern) => pattern.test(message))) {
+    throw new Error(`React act warning detected: ${message}`);
+  }
+  originalConsoleError(...args);
+};
+
 if (!("IS_REACT_ACT_ENVIRONMENT" in globalThis)) {
   Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
     value: true,

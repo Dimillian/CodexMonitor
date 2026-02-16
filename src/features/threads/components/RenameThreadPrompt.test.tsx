@@ -24,7 +24,7 @@ describe("RenameThreadPrompt", () => {
     expect(onConfirm).toHaveBeenCalledTimes(1);
 
     const backdrop = container.querySelector(".ds-modal-backdrop");
-    expect(backdrop).toBeTruthy();
+    expect(backdrop).not.toBeNull();
     if (!backdrop) {
       throw new Error("Expected rename thread backdrop");
     }

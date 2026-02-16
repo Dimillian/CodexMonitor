@@ -16,10 +16,10 @@ describe("UpdateToast", () => {
 
     const region = screen.getByRole("region");
     expect(region.getAttribute("aria-live")).toBe("polite");
-    expect(screen.getByRole("status")).toBeTruthy();
+    expect(screen.getByRole("status")).not.toBeNull();
     expect(screen.getAllByText("更新")).toHaveLength(2);
-    expect(screen.getByText("v1.2.3")).toBeTruthy();
-    expect(screen.getByText("检测到新版本可用。")).toBeTruthy();
+    expect(screen.getByText("v1.2.3")).not.toBeNull();
+    expect(screen.getByText("检测到新版本可用。")).not.toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "稍后" }));
     fireEvent.click(screen.getByRole("button", { name: "更新" }));
@@ -38,10 +38,10 @@ describe("UpdateToast", () => {
       <UpdateToast state={state} onUpdate={vi.fn()} onDismiss={vi.fn()} />,
     );
 
-    expect(screen.getByText(/正在下载更新/)).toBeTruthy();
-    expect(screen.getByText("500 B / 1000 B")).toBeTruthy();
+    expect(screen.getByText(/正在下载更新/)).not.toBeNull();
+    expect(screen.getByText("500 B / 1000 B")).not.toBeNull();
     const fill = container.querySelector(".update-toast-progress-fill");
-    expect(fill).toBeTruthy();
+    expect(fill).not.toBeNull();
     if (!fill) {
       throw new Error("Expected progress fill element");
     }
@@ -60,8 +60,8 @@ describe("UpdateToast", () => {
       <UpdateToast state={state} onUpdate={onUpdate} onDismiss={onDismiss} />,
     );
 
-    expect(screen.getByText("更新失败。")).toBeTruthy();
-    expect(screen.getByText("Network error")).toBeTruthy();
+    expect(screen.getByText("更新失败。")).not.toBeNull();
+    expect(screen.getByText("Network error")).not.toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "关闭" }));
     fireEvent.click(screen.getByRole("button", { name: "重试" }));
@@ -79,7 +79,7 @@ describe("UpdateToast", () => {
     );
     const scoped = within(container);
 
-    expect(scoped.getByText("当前已是最新版本。")).toBeTruthy();
+    expect(scoped.getByText("当前已是最新版本。")).not.toBeNull();
     fireEvent.click(scoped.getByRole("button", { name: "关闭" }));
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });

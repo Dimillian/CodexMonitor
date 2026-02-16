@@ -169,7 +169,7 @@ export function SettingsDictationSection({
         <select
           id="dictation-hold-key"
           className="settings-select"
-          value={appSettings.dictationHoldKey ?? ""}
+          value={appSettings.dictationHoldKey}
           onChange={(event) =>
             void onUpdateAppSettings({
               ...appSettings,

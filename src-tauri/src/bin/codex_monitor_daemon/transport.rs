@@ -58,7 +58,10 @@ pub(super) async fn handle_client(
         if !authenticated {
             if method != "auth" {
                 if let Some(response) = build_error_response(id, "unauthorized") {
-                    let _ = out_tx.send(response);
+                    if out_tx.send(response).is_err() {
+                        eprintln!("[daemon] failed to send unauthorized response");
+                        break;
+                    }
                 }
                 continue;
             }
@@ -67,14 +70,20 @@ pub(super) async fn handle_client(
             let provided = parse_auth_token(&params).unwrap_or_default();
             if expected != provided {
                 if let Some(response) = build_error_response(id, "invalid token") {
-                    let _ = out_tx.send(response);
+                    if out_tx.send(response).is_err() {
+                        eprintln!("[daemon] failed to send invalid-token response");
+                        break;
+                    }
                 }
                 continue;
             }
 
             authenticated = true;
             if let Some(response) = build_result_response(id, json!({ "ok": true })) {
-                let _ = out_tx.send(response);
+                if out_tx.send(response).is_err() {
+                    eprintln!("[daemon] failed to send auth success response");
+                    break;
+                }
             }
 
             let rx = events.subscribe();
@@ -116,7 +125,9 @@ fn handle_orbit_line(
 
     if let Some(message_type) = message.get("type").and_then(Value::as_str) {
         if message_type.eq_ignore_ascii_case("ping") {
-            let _ = out_tx.send(json!({ "type": "pong" }).to_string());
+            if out_tx.send(json!({ "type": "pong" }).to_string()).is_err() {
+                eprintln!("[daemon] failed to send orbit pong message");
+            }
         }
         return;
     }
@@ -134,7 +145,9 @@ fn handle_orbit_line(
 
     if method == "auth" {
         if let Some(response) = build_result_response(id, json!({ "ok": true })) {
-            let _ = out_tx.send(response);
+            if out_tx.send(response).is_err() {
+                eprintln!("[daemon] failed to send orbit auth response");
+            }
         }
         return;
     }
@@ -210,15 +223,20 @@ pub(super) async fn run_orbit_mode(
             tokio::spawn(forward_events(rx, out_tx_events))
         };
 
-        let _ = out_tx.send(
-            json!({
-                "type": "anchor.hello",
-                "name": runner_name.clone(),
-                "platform": std::env::consts::OS,
-                "authUrl": config.orbit_auth_url.clone(),
-            })
-            .to_string(),
-        );
+        if out_tx
+            .send(
+                json!({
+                    "type": "anchor.hello",
+                    "name": runner_name.clone(),
+                    "platform": std::env::consts::OS,
+                    "authUrl": config.orbit_auth_url.clone(),
+                })
+                .to_string(),
+            )
+            .is_err()
+        {
+            eprintln!("[daemon] failed to send orbit anchor.hello message");
+        }
 
         let client_version = format!("daemon-{}", env!("CARGO_PKG_VERSION"));
         let request_limiter = Arc::new(Semaphore::new(MAX_IN_FLIGHT_RPC_PER_CONNECTION));

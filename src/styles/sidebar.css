@@ -1,6 +1,6 @@
 .sidebar {
   --sidebar-padding: 24px;
-  padding: 36px var(--sidebar-padding) 56px;
+  padding: 32px var(--sidebar-padding) 64px;
   background: var(--surface-sidebar);
   backdrop-filter: none;
   border-right: 1px solid var(--border-subtle);
@@ -621,7 +621,7 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
   -webkit-app-region: no-drag;
   overflow-x: hidden;
   position: relative;
@@ -1034,13 +1034,14 @@
   align-items: center;
   justify-content: center;
   min-width: 28px;
-  padding: 0 5px;
+  padding: 4px 8px;
   border-radius: 999px;
   border: 1px solid transparent;
-  font-size: 10px;
-  line-height: 14px;
+  font-size: 12px;
+  line-height: 1.5;
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .thread-pin-icon {
@@ -1323,7 +1324,11 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    opacity 0.2s ease,
+    transform 0.2s ease;
   -webkit-app-region: no-drag;
   overflow-x: hidden;
 }

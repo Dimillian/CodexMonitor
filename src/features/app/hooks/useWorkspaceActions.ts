@@ -2,6 +2,7 @@ import type { RefObject } from "react";
 import { useCallback } from "react";
 import * as Sentry from "@sentry/react";
 import type { DebugEntry, WorkspaceInfo } from "../../../types";
+import { pushErrorToast } from "../../../services/toasts";
 
 type Params = {
   isCompact: boolean;
@@ -57,7 +58,10 @@ export function useWorkspaceActions({
         label: "workspace/add error",
         payload: message,
       });
-      alert(`添加工作区失败。\n\n${message}`);
+      pushErrorToast({
+        title: "添加工作区失败",
+        message,
+      });
     }
   }, [addWorkspace, handleWorkspaceAdded, onDebug]);
 
@@ -77,7 +81,10 @@ export function useWorkspaceActions({
           label: "workspace/add error",
           payload: message,
         });
-        alert(`添加工作区失败。\n\n${message}`);
+        pushErrorToast({
+          title: "添加工作区失败",
+          message,
+        });
       }
     },
     [addWorkspaceFromPath, handleWorkspaceAdded, onDebug],

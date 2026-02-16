@@ -129,6 +129,20 @@ pub(crate) fn read_config_model(codex_home: Option<PathBuf>) -> Result<Option<St
     read_config_model_from_root(&root)
 }
 
+pub(crate) fn read_execution_policy(
+    codex_home: Option<PathBuf>,
+) -> Result<(Option<String>, Option<String>), String> {
+    let root = codex_home.or_else(resolve_default_codex_home);
+    let Some(root) = root else {
+        return Ok((None, None));
+    };
+    let contents = read_config_contents_from_root(&root)?;
+    Ok(contents
+        .as_deref()
+        .map(parse_execution_policy_from_toml)
+        .unwrap_or((None, None)))
+}
+
 fn resolve_default_codex_home() -> Option<PathBuf> {
     crate::codex::home::resolve_default_codex_home()
 }
@@ -174,6 +188,26 @@ fn parse_personality_from_toml(contents: &str) -> Option<&'static str> {
     let parsed: TomlValue = toml::from_str(contents).ok()?;
     let value = parsed.get("personality")?.as_str()?;
     normalize_personality_value(value)
+}
+
+fn parse_execution_policy_from_toml(contents: &str) -> (Option<String>, Option<String>) {
+    let parsed: TomlValue = match toml::from_str(contents) {
+        Ok(value) => value,
+        Err(_) => return (None, None),
+    };
+    let sandbox_mode = parsed
+        .get("sandbox_mode")
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string);
+    let approval_policy = parsed
+        .get("approval_policy")
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string);
+    (sandbox_mode, approval_policy)
 }
 
 fn normalize_personality_value(value: &str) -> Option<&'static str> {
@@ -342,7 +376,10 @@ impl<T> RetainWithIndex<T> for Vec<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_personality_from_toml, remove_top_level_key, upsert_top_level_string_key};
+    use super::{
+        parse_execution_policy_from_toml, parse_personality_from_toml, remove_top_level_key,
+        upsert_top_level_string_key,
+    };
 
     #[test]
     fn parse_personality_reads_supported_values() {
@@ -385,5 +422,22 @@ mod tests {
         let input = "personality = \"friendly\"\nmodel = \"gpt-5\"\n[features]\nsteer = true\n";
         let updated = remove_top_level_key(input, "personality");
         assert_eq!(updated, "model = \"gpt-5\"\n[features]\nsteer = true\n");
+    }
+
+    #[test]
+    fn parse_execution_policy_reads_top_level_settings() {
+        let input =
+            "model = \"gpt-5.3-codex\"\napproval_policy = \"never\"\nsandbox_mode = \"danger-full-access\"\n";
+        let (sandbox_mode, approval_policy) = parse_execution_policy_from_toml(input);
+        assert_eq!(sandbox_mode.as_deref(), Some("danger-full-access"));
+        assert_eq!(approval_policy.as_deref(), Some("never"));
+    }
+
+    #[test]
+    fn parse_execution_policy_ignores_empty_values() {
+        let input = "approval_policy = \"\"\nsandbox_mode = \"   \"\n";
+        let (sandbox_mode, approval_policy) = parse_execution_policy_from_toml(input);
+        assert_eq!(sandbox_mode, None);
+        assert_eq!(approval_policy, None);
     }
 }

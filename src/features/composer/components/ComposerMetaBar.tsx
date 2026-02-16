@@ -15,18 +15,18 @@ function fmtTokens(n: number): string {
 }
 
 /** Get model provider indicator for display */
-function getModelProviderInfo(modelId: string): { prefix: string; color: string; label: string } {
+function getModelProviderInfo(modelId: string): { label: string } {
   const id = modelId.toLowerCase();
   if (id.includes("codex") || id.includes("gpt-5")) {
-    return { prefix: "🔵", color: "#3b82f6", label: "Codex" }; // Codex - blue
+    return { label: "Codex" };
   }
   if (id.includes("claude")) {
-    return { prefix: "🟠", color: "#f97316", label: "Claude" }; // Claude - orange
+    return { label: "Claude" };
   }
   if (id.includes("gemini") && !id.includes("claude")) {
-    return { prefix: "🟢", color: "#22c55e", label: "Gemini" }; // Gemini - green
+    return { label: "Gemini" };
   }
-  return { prefix: "⚪", color: "inherit", label: "" };
+  return { label: "Other" };
 }
 
 type ComposerMetaBarProps = {
@@ -224,12 +224,12 @@ export function ComposerMetaBar({
             {models.length === 0 && <option value="">无模型</option>}
             {models.map((model) => {
               const providerInfo = getModelProviderInfo(model.id);
-              return (
-                <option key={model.id} value={model.id}>
-                  {providerInfo.prefix} {model.displayName || model.model}
-                </option>
-              );
-            })}
+                return (
+                  <option key={model.id} value={model.id}>
+                    [{providerInfo.label}] {model.displayName || model.model}
+                  </option>
+                );
+              })}
           </select>
         </div>
         <div className="composer-select-wrap composer-select-wrap--effort">

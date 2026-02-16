@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  getCLIProxyAPIConfig,
-  saveCLIProxyAPIConfig,
-  fetchCLIProxyAPIModels,
-  testCLIProxyAPIConnection,
   categorizeModels,
+  fetchCLIProxyAPIModels,
+  getCLIProxyAPIConfig,
   getModelDisplayName,
+  saveCLIProxyAPIConfig,
+  testCLIProxyAPIConnection,
   type CLIProxyAPIConfig,
   type CLIProxyAPIModel,
   type ModelCategory,
@@ -14,31 +14,36 @@ import {
   readGlobalCodexConfigToml,
   writeGlobalCodexConfigToml,
 } from "../../../../services/tauri";
+import { pushErrorToast } from "../../../../services/toasts";
 
 type SettingsCLIProxyAPISectionProps = {
   onModelChange?: (modelId: string) => void;
 };
 
-// 从 TOML 内容中提取 model 配置
 function parseModelFromToml(tomlContent: string): string | null {
   const match = tomlContent.match(/^\s*model\s*=\s*["']([^"']+)["']/m);
   return match ? match[1] : null;
 }
 
-// 从 TOML 内容中提取 base_url 配置
 function parseBaseUrlFromToml(tomlContent: string): string | null {
   const match = tomlContent.match(/^\s*base_url\s*=\s*["']([^"']+)["']/m);
   return match ? match[1] : null;
 }
 
-// 更新或添加 TOML 中的 model 配置
 function updateModelInToml(tomlContent: string, newModel: string): string {
   const modelRegex = /^(\s*model\s*=\s*["'])([^"']+)(["'])/m;
   if (modelRegex.test(tomlContent)) {
     return tomlContent.replace(modelRegex, `$1${newModel}$3`);
   }
-  // 如果没有 model 字段，在文件开头添加
   return `model = "${newModel}"\n${tomlContent}`;
+}
+
+function updateBaseUrlInToml(tomlContent: string, newBaseUrl: string): string {
+  const baseUrlRegex = /^(\s*base_url\s*=\s*["'])([^"']*)(["'])/m;
+  if (baseUrlRegex.test(tomlContent)) {
+    return tomlContent.replace(baseUrlRegex, `$1${newBaseUrl}$3`);
+  }
+  return `base_url = "${newBaseUrl}"\n${tomlContent}`;
 }
 
 export function SettingsCLIProxyAPISection({
@@ -65,76 +70,146 @@ export function SettingsCLIProxyAPISection({
   } | null>(null);
   const [configDirty, setConfigDirty] = useState(false);
 
-  // 从 config.toml 读取当前配置
-  const loadConfiguredModel = useCallback(async () => {
+  const loadConfiguredModel = useCallback(async (): Promise<CLIProxyAPIConfig> => {
+    const runtimeConfig = getCLIProxyAPIConfig();
+    let resolvedBaseUrl = runtimeConfig.baseUrl;
     try {
       const result = await readGlobalCodexConfigToml();
       if (result.exists && result.content) {
         const model = parseModelFromToml(result.content);
         const baseUrl = parseBaseUrlFromToml(result.content);
         setConfiguredModel(model);
-        setConfiguredBaseUrl(baseUrl);
+        setConfiguredBaseUrl(baseUrl ?? runtimeConfig.baseUrl);
         if (model) {
           setSelectedModel(model);
+        }
+        if (baseUrl?.trim()) {
+          resolvedBaseUrl = baseUrl.trim();
         }
       }
     } catch (error) {
       console.error("Failed to load config.toml:", error);
+      pushErrorToast({
+        title: "读取配置失败",
+        message: "无法读取 ~/.codex/config.toml，请检查文件权限或路径。",
+      });
     }
+    setBaseUrlDraft(resolvedBaseUrl);
+    setConfig((current) => ({ ...current, baseUrl: resolvedBaseUrl }));
+    saveCLIProxyAPIConfig({
+      baseUrl: resolvedBaseUrl,
+      apiKey: runtimeConfig.apiKey,
+    });
+    return { baseUrl: resolvedBaseUrl, apiKey: runtimeConfig.apiKey };
   }, []);
 
-  // 加载模型列表
-  const loadModels = useCallback(async () => {
+  const loadModels = useCallback(async (nextConfig?: CLIProxyAPIConfig) => {
+    const effectiveConfig = nextConfig ?? getCLIProxyAPIConfig();
     setIsLoading(true);
     try {
-      const modelList = await fetchCLIProxyAPIModels();
+      const modelList = await fetchCLIProxyAPIModels(effectiveConfig);
       setModels(modelList);
       setCategories(categorizeModels(modelList));
     } catch (error) {
       console.error("Failed to load models:", error);
+      pushErrorToast({
+        title: "加载模型失败",
+        message: "无法获取模型列表，请检查 CLIProxyAPI 配置与网络连接。",
+      });
+      setModels([]);
+      setCategories([]);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // 测试连接
+  const persistBaseUrlToConfigToml = useCallback(async (baseUrl: string) => {
+    const normalizedBaseUrl = baseUrl.trim();
+    if (!normalizedBaseUrl) {
+      return;
+    }
+    const result = await readGlobalCodexConfigToml();
+    const currentContent = result.exists ? result.content : "";
+    const updatedContent = updateBaseUrlInToml(currentContent, normalizedBaseUrl);
+    if (updatedContent !== currentContent) {
+      await writeGlobalCodexConfigToml(updatedContent);
+    }
+    setConfiguredBaseUrl(normalizedBaseUrl);
+  }, []);
+
   const handleTestConnection = useCallback(async () => {
+    const nextConfig = {
+      baseUrl: baseUrlDraft.trim() || config.baseUrl,
+      apiKey: apiKeyDraft,
+    };
     setIsTesting(true);
     setTestResult(null);
     try {
-      const result = await testCLIProxyAPIConnection({
-        baseUrl: baseUrlDraft,
-        apiKey: apiKeyDraft,
-      });
-      setTestResult({
-        success: result.success,
-        message: result.success
-          ? `✅ 连接成功！发现 ${result.modelCount} 个可用模型`
-          : `❌ 连接失败: ${result.error}`,
-      });
-      if (result.success) {
-        // 保存配置并刷新模型列表
-        const newConfig = { baseUrl: baseUrlDraft, apiKey: apiKeyDraft };
-        saveCLIProxyAPIConfig(newConfig);
-        setConfig(newConfig);
-        setConfigDirty(false);
-        await loadModels();
+      const result = await testCLIProxyAPIConnection(nextConfig);
+      if (!result.success) {
+        setTestResult({
+          success: false,
+          message: `连接失败: ${result.error ?? "未知错误"}`,
+        });
+        return;
       }
+
+      setTestResult({
+        success: true,
+        message: `连接成功！发现 ${result.modelCount} 个可用模型`,
+      });
+      saveCLIProxyAPIConfig(nextConfig);
+      setConfig(nextConfig);
+      setConfigDirty(false);
+      await persistBaseUrlToConfigToml(nextConfig.baseUrl);
+      await loadModels(nextConfig);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setTestResult({
+        success: false,
+        message: `连接失败: ${message}`,
+      });
+      pushErrorToast({
+        title: "连接测试失败",
+        message: `CLIProxyAPI 连接测试失败：${message}`,
+      });
     } finally {
       setIsTesting(false);
     }
-  }, [baseUrlDraft, apiKeyDraft, loadModels]);
+  }, [
+    apiKeyDraft,
+    baseUrlDraft,
+    config.baseUrl,
+    loadModels,
+    persistBaseUrlToConfigToml,
+  ]);
 
-  // 保存配置
-  const handleSaveConfig = useCallback(() => {
-    const newConfig = { baseUrl: baseUrlDraft, apiKey: apiKeyDraft };
+  const handleSaveConfig = useCallback(async () => {
+    const newConfig = {
+      baseUrl: baseUrlDraft.trim() || config.baseUrl,
+      apiKey: apiKeyDraft,
+    };
     saveCLIProxyAPIConfig(newConfig);
     setConfig(newConfig);
     setConfigDirty(false);
-    loadModels();
-  }, [baseUrlDraft, apiKeyDraft, loadModels]);
+    try {
+      await persistBaseUrlToConfigToml(newConfig.baseUrl);
+      await loadModels(newConfig);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      pushErrorToast({
+        title: "保存配置后刷新失败",
+        message,
+      });
+    }
+  }, [
+    apiKeyDraft,
+    baseUrlDraft,
+    config.baseUrl,
+    loadModels,
+    persistBaseUrlToConfigToml,
+  ]);
 
-  // 选择模型
   const handleSelectModel = useCallback(
     (modelId: string) => {
       setSelectedModel(modelId);
@@ -144,47 +219,55 @@ export function SettingsCLIProxyAPISection({
     [onModelChange],
   );
 
-  // 保存选中的模型到 config.toml
   const handleSaveModelToConfig = useCallback(async () => {
-    if (!selectedModel) return;
-    
+    if (!selectedModel) {
+      return;
+    }
+
     setIsSavingModel(true);
     setSaveModelResult(null);
-    
+
     try {
       const result = await readGlobalCodexConfigToml();
       const currentContent = result.exists ? result.content : "";
-      const updatedContent = updateModelInToml(currentContent, selectedModel);
-      
+      let updatedContent = updateModelInToml(currentContent, selectedModel);
+      const normalizedBaseUrl = baseUrlDraft.trim();
+      if (normalizedBaseUrl) {
+        updatedContent = updateBaseUrlInToml(updatedContent, normalizedBaseUrl);
+      }
+
       await writeGlobalCodexConfigToml(updatedContent);
       setConfiguredModel(selectedModel);
-      
+      if (normalizedBaseUrl) {
+        setConfiguredBaseUrl(normalizedBaseUrl);
+      }
+
       setSaveModelResult({
         success: true,
-        message: `✅ 已将默认模型设置为 ${selectedModel}`,
+        message: `已将默认模型设置为 ${selectedModel}`,
       });
     } catch (error) {
       setSaveModelResult({
         success: false,
-        message: `❌ 保存失败: ${error instanceof Error ? error.message : String(error)}`,
+        message: `保存失败: ${error instanceof Error ? error.message : String(error)}`,
       });
     } finally {
       setIsSavingModel(false);
     }
-  }, [selectedModel]);
+  }, [baseUrlDraft, selectedModel]);
 
-  // 初始加载
   useEffect(() => {
-    loadModels();
-    loadConfiguredModel();
-  }, [loadModels, loadConfiguredModel]);
+    void (async () => {
+      const initialConfig = await loadConfiguredModel();
+      await loadModels(initialConfig);
+    })();
+  }, [loadConfiguredModel, loadModels]);
 
-  // 检测配置变更
   useEffect(() => {
     setConfigDirty(
       baseUrlDraft !== config.baseUrl || apiKeyDraft !== config.apiKey,
     );
-  }, [baseUrlDraft, apiKeyDraft, config]);
+  }, [apiKeyDraft, baseUrlDraft, config]);
 
   return (
     <section className="settings-section">
@@ -194,7 +277,6 @@ export function SettingsCLIProxyAPISection({
         等多种模型。
       </div>
 
-      {/* 连接配置 */}
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="cliproxy-baseurl">
           API 地址
@@ -204,7 +286,7 @@ export function SettingsCLIProxyAPISection({
           type="text"
           className="settings-input"
           value={baseUrlDraft}
-          onChange={(e) => setBaseUrlDraft(e.target.value)}
+          onChange={(event) => setBaseUrlDraft(event.target.value)}
           placeholder="http://all.local:18317"
         />
       </div>
@@ -218,7 +300,7 @@ export function SettingsCLIProxyAPISection({
           type="password"
           className="settings-input"
           value={apiKeyDraft}
-          onChange={(e) => setApiKeyDraft(e.target.value)}
+          onChange={(event) => setApiKeyDraft(event.target.value)}
           placeholder="quotio-local-..."
         />
       </div>
@@ -227,7 +309,9 @@ export function SettingsCLIProxyAPISection({
         <button
           type="button"
           className="ghost settings-button-compact"
-          onClick={handleTestConnection}
+          onClick={() => {
+            void handleTestConnection();
+          }}
           disabled={isTesting}
         >
           {isTesting ? "测试中..." : "测试连接"}
@@ -235,7 +319,9 @@ export function SettingsCLIProxyAPISection({
         <button
           type="button"
           className="primary settings-button-compact"
-          onClick={handleSaveConfig}
+          onClick={() => {
+            void handleSaveConfig();
+          }}
           disabled={!configDirty}
         >
           保存配置
@@ -243,148 +329,72 @@ export function SettingsCLIProxyAPISection({
       </div>
 
       {testResult && (
-        <div
-          className={`settings-status ${testResult.success ? "success" : "error"}`}
-          style={{
-            padding: "8px 12px",
-            borderRadius: "6px",
-            marginTop: "8px",
-            backgroundColor: testResult.success
-              ? "rgba(34, 197, 94, 0.1)"
-              : "rgba(239, 68, 68, 0.1)",
-            color: testResult.success ? "#22c55e" : "#ef4444",
-          }}
-        >
+        <div className={`settings-status ${testResult.success ? "success" : "error"}`}>
           {testResult.message}
         </div>
       )}
 
-      {/* 当前配置状态 */}
-      <div
-        style={{
-          marginTop: "24px",
-          padding: "16px",
-          backgroundColor: "var(--bg-secondary)",
-          borderRadius: "8px",
-          border: "1px solid var(--border)",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "13px",
-            fontWeight: 600,
-            marginBottom: "12px",
-            color: "var(--text-primary)",
-          }}
-        >
-          📊 当前 Codex CLI 配置
-        </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "12px",
-            fontSize: "12px",
-          }}
-        >
-          <div>
-            <div style={{ color: "var(--text-tertiary)", marginBottom: "4px" }}>
-              默认模型
-            </div>
-            <div
-              style={{
-                color: "var(--text-primary)",
-                fontFamily: "monospace",
-                fontWeight: 500,
-              }}
-            >
+      <div className="settings-cliproxy-summary-card">
+        <div className="settings-cliproxy-summary-title">当前 Codex CLI 配置</div>
+        <div className="settings-cliproxy-summary-grid">
+          <div className="settings-cliproxy-summary-item">
+            <div className="settings-cliproxy-summary-label">默认模型</div>
+            <div className="settings-cliproxy-summary-value">
               {configuredModel || "未配置"}
             </div>
           </div>
-          <div>
-            <div style={{ color: "var(--text-tertiary)", marginBottom: "4px" }}>
-              API 端点
-            </div>
-            <div
-              style={{
-                color: "var(--text-primary)",
-                fontFamily: "monospace",
-                fontWeight: 500,
-              }}
-            >
+          <div className="settings-cliproxy-summary-item">
+            <div className="settings-cliproxy-summary-label">API 端点</div>
+            <div className="settings-cliproxy-summary-value">
               {configuredBaseUrl || "未配置"}
             </div>
           </div>
         </div>
         {selectedModel && selectedModel !== configuredModel && (
-          <div style={{ marginTop: "12px" }}>
+          <div className="settings-cliproxy-save-default-wrap">
             <button
               type="button"
-              className="primary settings-button-compact"
-              onClick={handleSaveModelToConfig}
+              className="primary settings-button-compact settings-cliproxy-save-default-button"
+              onClick={() => {
+                void handleSaveModelToConfig();
+              }}
               disabled={isSavingModel}
-              style={{ width: "100%" }}
             >
-              {isSavingModel ? "保存中..." : `将 ${getModelDisplayName(selectedModel)} 设为默认模型`}
+              {isSavingModel
+                ? "保存中..."
+                : `将 ${getModelDisplayName(selectedModel)} 设为默认模型`}
             </button>
           </div>
         )}
         {saveModelResult && (
           <div
-            style={{
-              marginTop: "8px",
-              padding: "8px 12px",
-              borderRadius: "6px",
-              fontSize: "12px",
-              backgroundColor: saveModelResult.success
-                ? "rgba(34, 197, 94, 0.1)"
-                : "rgba(239, 68, 68, 0.1)",
-              color: saveModelResult.success ? "#22c55e" : "#ef4444",
-            }}
+            className={`settings-status settings-status--compact ${
+              saveModelResult.success ? "success" : "error"
+            }`}
           >
             {saveModelResult.message}
           </div>
         )}
       </div>
 
-      {/* 模型列表 */}
-      <div className="settings-field" style={{ marginTop: "24px" }}>
+      <div className="settings-field settings-cliproxy-model-list">
         <div className="settings-field-label">可用模型</div>
         <div className="settings-help">
           点击选择模型，然后点击上方的按钮将其设为 Codex CLI 的默认模型。
         </div>
 
         {isLoading ? (
-          <div style={{ padding: "16px", textAlign: "center", opacity: 0.6 }}>
-            加载模型列表中...
-          </div>
+          <div className="settings-cliproxy-loading-state">加载模型列表中...</div>
         ) : models.length === 0 ? (
-          <div style={{ padding: "16px", textAlign: "center", opacity: 0.6 }}>
+          <div className="settings-cliproxy-loading-state">
             暂无可用模型，请检查 CLIProxyAPI 连接配置
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div className="settings-cliproxy-categories">
             {categories.map((category) => (
               <div key={category.id}>
-                <div
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "var(--text-secondary)",
-                    marginBottom: "8px",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                  }}
-                >
-                  {category.label}
-                </div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                    gap: "8px",
-                  }}
-                >
+                <div className="settings-cliproxy-category-title">{category.label}</div>
+                <div className="settings-cliproxy-model-grid">
                   {category.models.map((model) => {
                     const isConfigured = model.id === configuredModel;
                     const isSelected = model.id === selectedModel;
@@ -393,62 +403,25 @@ export function SettingsCLIProxyAPISection({
                         key={model.id}
                         type="button"
                         onClick={() => handleSelectModel(model.id)}
-                        style={{
-                          padding: "10px 14px",
-                          borderRadius: "8px",
-                          border: isSelected
-                            ? "2px solid var(--accent)"
+                        className={`settings-cliproxy-model-card ${
+                          isSelected
+                            ? "is-selected"
                             : isConfigured
-                            ? "2px solid #22c55e"
-                            : "1px solid var(--border)",
-                          backgroundColor: isSelected
-                            ? "rgba(var(--accent-rgb), 0.1)"
-                            : isConfigured
-                            ? "rgba(34, 197, 94, 0.08)"
-                            : "var(--bg-secondary)",
-                          cursor: "pointer",
-                          textAlign: "left",
-                          transition: "all 0.15s ease",
-                          position: "relative",
-                        }}
+                              ? "is-configured"
+                              : ""
+                        }`}
                       >
                         {isConfigured && (
-                          <div
-                            style={{
-                              position: "absolute",
-                              top: "6px",
-                              right: "8px",
-                              fontSize: "10px",
-                              fontWeight: 600,
-                              color: "#22c55e",
-                              backgroundColor: "rgba(34, 197, 94, 0.15)",
-                              padding: "2px 6px",
-                              borderRadius: "4px",
-                            }}
-                          >
-                            默认
-                          </div>
+                          <div className="settings-cliproxy-model-badge">默认</div>
                         )}
                         <div
-                          style={{
-                            fontSize: "13px",
-                            fontWeight: 500,
-                            color: "var(--text-primary)",
-                            paddingRight: isConfigured ? "48px" : 0,
-                          }}
+                          className={`settings-cliproxy-model-name ${
+                            isConfigured ? "has-badge" : ""
+                          }`}
                         >
                           {getModelDisplayName(model.id)}
                         </div>
-                        <div
-                          style={{
-                            fontSize: "11px",
-                            color: "var(--text-tertiary)",
-                            marginTop: "2px",
-                            fontFamily: "monospace",
-                          }}
-                        >
-                          {model.id}
-                        </div>
+                        <div className="settings-cliproxy-model-id">{model.id}</div>
                       </button>
                     );
                   })}
@@ -459,31 +432,22 @@ export function SettingsCLIProxyAPISection({
         )}
       </div>
 
-      {/* 刷新按钮 */}
-      <div style={{ marginTop: "16px" }}>
+      <div className="settings-cliproxy-refresh">
         <button
           type="button"
           className="ghost settings-button-compact"
-          onClick={loadModels}
+          onClick={() => {
+            void loadModels();
+          }}
           disabled={isLoading}
         >
           {isLoading ? "刷新中..." : "刷新模型列表"}
         </button>
       </div>
 
-      {/* 快速操作说明 */}
-      <div
-        style={{
-          marginTop: "24px",
-          padding: "12px 16px",
-          backgroundColor: "var(--bg-tertiary)",
-          borderRadius: "8px",
-          fontSize: "12px",
-          color: "var(--text-secondary)",
-        }}
-      >
-        <div style={{ fontWeight: 600, marginBottom: "8px" }}>💡 使用说明</div>
-        <ul style={{ margin: 0, paddingLeft: "16px", lineHeight: 1.6 }}>
+      <div className="settings-cliproxy-help-card">
+        <div className="settings-cliproxy-help-title">使用说明</div>
+        <ul className="settings-cliproxy-help-list">
           <li>
             选择一个模型后，点击「设为默认模型」按钮即可自动更新{" "}
             <code>~/.codex/config.toml</code>
@@ -492,12 +456,14 @@ export function SettingsCLIProxyAPISection({
             在终端使用 <code>codex --model MODEL_ID</code> 可临时切换模型
           </li>
           <li>
-            带有<span style={{ color: "#22c55e", fontWeight: 600 }}>「默认」</span>
+            带有<span className="settings-cliproxy-default-chip">「默认」</span>
             标签的模型是当前配置的默认模型
           </li>
         </ul>
-        <div style={{ marginTop: "12px", fontWeight: 600 }}>📦 模型来源</div>
-        <ul style={{ margin: 0, paddingLeft: "16px", lineHeight: 1.6, marginTop: "8px" }}>
+        <div className="settings-cliproxy-help-title settings-cliproxy-help-title--spaced">
+          模型来源
+        </div>
+        <ul className="settings-cliproxy-help-list">
           <li>
             <strong>Codex 模型</strong>：由 Codex 账号池提供（gpt-5.3-codex 等）
           </li>

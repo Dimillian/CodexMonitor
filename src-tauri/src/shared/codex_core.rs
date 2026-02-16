@@ -62,18 +62,32 @@ async fn resolve_codex_home_for_workspace_core(
         .ok_or_else(|| "Unable to resolve CODEX_HOME".to_string())
 }
 
+fn apply_execution_policy_from_config(params: &mut Map<String, Value>) {
+    let Ok((sandbox_mode, approval_policy)) = codex_config::read_execution_policy(None) else {
+        return;
+    };
+    if let Some(policy) = approval_policy {
+        params.insert("approvalPolicy".to_string(), json!(policy));
+    }
+    if let Some(policy) = sandbox_mode {
+        params.insert("sandboxPolicy".to_string(), json!(policy));
+    }
+}
+
 pub(crate) async fn start_thread_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspace_id: String,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    // Do not hardcode approvalPolicy here — let the app-server derive it
-    // from the user's config.toml setting.  Previously this was hardcoded to
-    // "on-request" which conflicted with danger-full-access configs.
-    let params = json!({
-        "cwd": session.entry.path
-    });
-    session.send_request("thread/start", params).await
+    let mut params = Map::new();
+    params.insert("cwd".to_string(), json!(session.entry.path));
+    // Compatibility path: read policies from ~/.codex/config.toml and pass
+    // them explicitly for app-server builds that don't reliably derive policy
+    // from config in all event/approval flows.
+    apply_execution_policy_from_config(&mut params);
+    session
+        .send_request("thread/start", Value::Object(params))
+        .await
 }
 
 pub(crate) async fn resume_thread_core(
@@ -302,11 +316,10 @@ pub(crate) async fn send_user_message_core(
     params.insert("input".to_string(), json!(input));
     params.insert("cwd".to_string(), json!(session.entry.path));
 
-    // Never override sandboxPolicy or approvalPolicy here.  The app-server
-    // reads these from the user's config.toml (e.g. danger-full-access /
-    // sandbox: none).  This matches the official Codex CLI which never sends
-    // per-turn policy overrides.  The _access_mode parameter is kept in the
-    // signature for backward-compatibility but is intentionally ignored.
+    // Keep _access_mode ignored for backward compatibility, but explicitly pass
+    // policy values from ~/.codex/config.toml to avoid policy drift across
+    // mixed app-server versions.
+    apply_execution_policy_from_config(&mut params);
 
     params.insert("model".to_string(), json!(model));
     params.insert("effort".to_string(), json!(effort));

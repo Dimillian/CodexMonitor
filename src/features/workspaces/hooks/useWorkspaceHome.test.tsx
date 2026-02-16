@@ -239,7 +239,7 @@ describe("useWorkspaceHome", () => {
 
     await act(async () => {
       resolveMetadata({ title: "Meta title", worktreeName: "feat/meta" });
-      await Promise.resolve();
+      await new Promise<void>((resolve) => { queueMicrotask(resolve); });
     });
 
     expect(result.current.runs[0].title).toBe("Meta title");

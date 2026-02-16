@@ -19,6 +19,11 @@ const workspace: WorkspaceInfo = {
   settings: { sidebarCollapsed: false },
 };
 
+const flushMicrotaskQueue = () =>
+  new Promise<void>((resolve) => {
+    queueMicrotask(resolve);
+  });
+
 describe("useApps", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -67,7 +72,7 @@ describe("useApps", () => {
       resolveFirst?.({
         data: [{ id: "old", name: "Old App", isAccessible: true }],
       });
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     await waitFor(() => {
@@ -80,7 +85,7 @@ describe("useApps", () => {
       resolveSecond?.({
         data: [{ id: "new", name: "New App", isAccessible: true }],
       });
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     await waitFor(() => {
@@ -106,13 +111,13 @@ describe("useApps", () => {
     );
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
     expect(getAppsListMock).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1500);
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     expect(getAppsListMock).toHaveBeenCalledTimes(2);

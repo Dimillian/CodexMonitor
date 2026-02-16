@@ -5,11 +5,13 @@ import type {
   RequestUserInputRequest,
 } from "../../../types";
 import { subscribeAppServerEvents } from "../../../services/events";
+import { pushErrorToast } from "../../../services/toasts";
 import {
   getAppServerParams,
   getAppServerRawMethod,
   getAppServerRequestId,
   isApprovalRequestMethod,
+  isCompatPassthroughAppServerMethod,
   isSupportedAppServerMethod,
 } from "../../../utils/appServerEvents";
 import type { SupportedAppServerMethod } from "../../../utils/appServerEvents";
@@ -145,6 +147,7 @@ const AGENT_DELTA_FLUSH_INTERVAL_MS = 16;
 const TURN_COMPLETION_FALLBACK_MS = 15_000;
 const TURN_COMPLETION_QUIET_WINDOW_MS = 2_000;
 const TURN_COMPLETION_MAX_WAIT_MS = 90_000;
+const UNSUPPORTED_METHOD_TOAST_INTERVAL_MS = 30_000;
 
 type TurnCompletionFallbackTimer = {
   timerId: number;
@@ -225,6 +228,23 @@ function firstNonEmptyString(...values: unknown[]): string | null {
   return null;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function getExplicitField<T>(
+  record: Record<string, unknown> | null | undefined,
+  key: string,
+): T | undefined {
+  if (!record || !Object.prototype.hasOwnProperty.call(record, key)) {
+    return undefined;
+  }
+  return record[key] as T;
+}
+
 function extractModelHint(
   params: Record<string, unknown>,
   turn?: Record<string, unknown>,
@@ -258,6 +278,7 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
   const lastThreadEventAtRef = useRef<Map<string, number>>(
     new Map(),
   );
+  const lastUnsupportedMethodToastAtRef = useRef(0);
 
   useEffect(() => {
     handlersRef.current = handlers;
@@ -532,8 +553,20 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       }
 
       if (!isSupportedAppServerMethod(method)) {
-        if (import.meta.env.DEV) {
-          console.debug("[useAppServerEvents] unsupported method:", method, payload);
+        if (isCompatPassthroughAppServerMethod(method)) {
+          return;
+        }
+        console.warn("[useAppServerEvents] unsupported method:", method, payload);
+        const now = Date.now();
+        if (
+          now - lastUnsupportedMethodToastAtRef.current
+          >= UNSUPPORTED_METHOD_TOAST_INTERVAL_MS
+        ) {
+          lastUnsupportedMethodToastAtRef.current = now;
+          pushErrorToast({
+            title: "协议事件不兼容",
+            message: `收到未支持的事件方法：${method}。请同步前后端版本。`,
+          });
         }
         return;
       }
@@ -589,8 +622,17 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         const hasDeltaField =
           Object.prototype.hasOwnProperty.call(params, "delta") ||
           Object.prototype.hasOwnProperty.call(params, "textDelta") ||
-          Object.prototype.hasOwnProperty.call(params, "text_delta");
-        const delta = String(params.delta ?? params.textDelta ?? params.text_delta ?? "");
+          Object.prototype.hasOwnProperty.call(params, "text_delta") ||
+          Object.prototype.hasOwnProperty.call(params, "contentDelta") ||
+          Object.prototype.hasOwnProperty.call(params, "content_delta");
+        const delta = String(
+          params.delta
+          ?? params.textDelta
+          ?? params.text_delta
+          ?? params.contentDelta
+          ?? params.content_delta
+          ?? "",
+        );
         if (threadId && itemId && (hasDeltaField || delta.length > 0)) {
           enqueueAgentMessageDelta({
             workspaceId: workspace_id,
@@ -704,16 +746,58 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       }
 
       if (method === "thread/tokenUsage/updated") {
-        const threadId = String(params.threadId ?? params.thread_id ?? "");
-        const usageTurn = params.turn as Record<string, unknown> | undefined;
+        const payloadParams = asRecord(params.payload);
+        const payloadThread = asRecord(payloadParams?.thread);
+        const usageTurn =
+          (asRecord(params.turn) ?? asRecord(payloadParams?.turn)) ?? undefined;
+        const threadId = String(
+          params.threadId
+          ?? params.thread_id
+          ?? payloadParams?.threadId
+          ?? payloadParams?.thread_id
+          ?? payloadThread?.id
+          ?? "",
+        );
         const turnId = firstNonEmptyString(
           params.turnId,
           params.turn_id,
+          payloadParams?.turnId,
+          payloadParams?.turn_id,
           usageTurn?.id,
         );
-        const tokenUsage =
-          (params.tokenUsage as Record<string, unknown> | null | undefined) ??
-          (params.token_usage as Record<string, unknown> | null | undefined);
+        const info = (asRecord(params.info) ?? asRecord(payloadParams?.info)) ?? undefined;
+        const tokenUsageFromInfo = info
+          ? (asRecord(
+            info.total_token_usage
+            ?? info.totalTokenUsage
+            ?? info.last_token_usage
+            ?? info.lastTokenUsage,
+          ) ?? undefined)
+          : undefined;
+        let tokenUsage: Record<string, unknown> | null | undefined;
+        if (Object.prototype.hasOwnProperty.call(params, "tokenUsage")) {
+          tokenUsage = getExplicitField<Record<string, unknown> | null>(
+            params,
+            "tokenUsage",
+          );
+        } else if (Object.prototype.hasOwnProperty.call(params, "token_usage")) {
+          tokenUsage = getExplicitField<Record<string, unknown> | null>(
+            params,
+            "token_usage",
+          );
+        } else if (payloadParams && Object.prototype.hasOwnProperty.call(payloadParams, "tokenUsage")) {
+          tokenUsage = getExplicitField<Record<string, unknown> | null>(
+            payloadParams,
+            "tokenUsage",
+          );
+        } else if (payloadParams && Object.prototype.hasOwnProperty.call(payloadParams, "token_usage")) {
+          tokenUsage = getExplicitField<Record<string, unknown> | null>(
+            payloadParams,
+            "token_usage",
+          );
+        } else {
+          tokenUsage = tokenUsageFromInfo;
+        }
         if (threadId && tokenUsage !== undefined) {
           currentHandlers.onThreadTokenUsageUpdated?.(workspace_id, threadId, {
             turnId,
@@ -799,11 +883,23 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       }
 
       if (method === "item/started") {
-        const threadId = String(params.threadId ?? params.thread_id ?? "");
-        const item = params.item as Record<string, unknown> | undefined;
+        const payloadParams = asRecord(params.payload);
+        const payloadThread = asRecord(payloadParams?.thread);
+        const payloadItem = asRecord(payloadParams?.item);
+        const item = (asRecord(params.item) ?? payloadItem) ?? undefined;
+        const threadId = String(
+          params.threadId
+          ?? params.thread_id
+          ?? payloadParams?.threadId
+          ?? payloadParams?.thread_id
+          ?? payloadThread?.id
+          ?? "",
+        );
         const itemId = firstNonEmptyString(
           params.itemId,
           params.item_id,
+          payloadParams?.itemId,
+          payloadParams?.item_id,
           item?.id,
         );
         if (threadId && item) {

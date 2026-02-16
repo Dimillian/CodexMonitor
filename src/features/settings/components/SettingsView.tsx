@@ -1479,6 +1479,7 @@ export function SettingsView({
               onShortcutKeyDown={handleShortcutKeyDown}
               onClearShortcut={clearShortcut}
               conflictsBySetting={conflictsBySetting}
+              isMobilePlatform={mobilePlatform}
             />
           )}
           {activeSection === "open-apps" && (

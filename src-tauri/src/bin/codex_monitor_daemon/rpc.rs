@@ -726,6 +726,11 @@ pub(super) async fn handle_rpc_request(
             let codex_args = parse_optional_string(&params, "codexArgs");
             state.codex_doctor(codex_bin, codex_args).await
         }
+        "codex_update" => {
+            let codex_bin = parse_optional_string(&params, "codexBin");
+            let codex_args = parse_optional_string(&params, "codexArgs");
+            state.codex_update(codex_bin, codex_args).await
+        }
         "generate_commit_message" => {
             let workspace_id = parse_string(&params, "workspaceId")?;
             let message = state.generate_commit_message(workspace_id).await?;
@@ -817,7 +822,9 @@ pub(super) fn spawn_rpc_response_task(
             Err(message) => build_error_response(id, &message),
         };
         if let Some(response) = response {
-            let _ = out_tx.send(response);
+            if out_tx.send(response).is_err() {
+                eprintln!("[daemon] failed to send rpc response for method={method}");
+            }
         }
     });
 }

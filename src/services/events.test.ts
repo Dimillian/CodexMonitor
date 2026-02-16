@@ -7,8 +7,14 @@ import {
   subscribeMenuCycleCollaborationMode,
   subscribeMenuCycleModel,
   subscribeMenuNewAgent,
+  subscribeMenuOpenBranchSwitcher,
   subscribeTerminalOutput,
 } from "./events";
+
+const flushMicrotaskQueue = () =>
+  new Promise<void>((resolve) => {
+    queueMicrotask(resolve);
+  });
 
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn(),
@@ -44,7 +50,7 @@ describe("events subscriptions", () => {
     expect(onEvent).toHaveBeenCalledWith(payload);
 
     cleanup();
-    await Promise.resolve();
+    await flushMicrotaskQueue();
     expect(unlisten).toHaveBeenCalledTimes(1);
   });
 
@@ -63,7 +69,7 @@ describe("events subscriptions", () => {
     cleanup();
 
     resolveListener(unlisten);
-    await Promise.resolve();
+    await flushMicrotaskQueue();
     expect(unlisten).toHaveBeenCalledTimes(1);
   });
 
@@ -113,6 +119,29 @@ describe("events subscriptions", () => {
     cleanup();
   });
 
+  it("delivers branch switcher menu events to subscribers", async () => {
+    let listener: EventCallback<void> = () => {};
+    const unlisten = vi.fn();
+
+    vi.mocked(listen).mockImplementation((_event, handler) => {
+      listener = handler as EventCallback<void>;
+      return Promise.resolve(unlisten);
+    });
+
+    const onEvent = vi.fn();
+    const cleanup = subscribeMenuOpenBranchSwitcher(onEvent);
+
+    const event: Event<void> = {
+      event: "menu-open-branch-switcher",
+      id: 1,
+      payload: undefined,
+    };
+    listener(event);
+    expect(onEvent).toHaveBeenCalledTimes(1);
+
+    cleanup();
+  });
+
   it("reports listen errors through options", async () => {
     const error = new Error("nope");
     vi.mocked(listen).mockRejectedValueOnce(error);
@@ -120,8 +149,8 @@ describe("events subscriptions", () => {
     const onError = vi.fn();
     const cleanup = subscribeTerminalOutput(() => {}, { onError });
 
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushMicrotaskQueue();
+    await flushMicrotaskQueue();
     expect(onError).toHaveBeenCalledWith(error);
 
     cleanup();

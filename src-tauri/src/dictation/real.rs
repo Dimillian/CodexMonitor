@@ -64,7 +64,12 @@ fn trigger_microphone_permission_request(tx: oneshot::Sender<Result<bool, String
     let media_type = match unsafe { AVMediaTypeAudio } {
         Some(media_type) => media_type,
         None => {
-            let _ = tx.send(Err("Failed to get audio media type".to_string()));
+            if tx
+                .send(Err("Failed to get audio media type".to_string()))
+                .is_err()
+            {
+                eprintln!("[dictation] failed to notify microphone permission media type error");
+            }
             return;
         }
     };
@@ -74,7 +79,9 @@ fn trigger_microphone_permission_request(tx: oneshot::Sender<Result<bool, String
     let block = RcBlock::new(move |granted: Bool| {
         if let Ok(mut guard) = tx_clone.lock() {
             if let Some(sender) = guard.take() {
-                let _ = sender.send(Ok(granted.as_bool()));
+                if sender.send(Ok(granted.as_bool())).is_err() {
+                    eprintln!("[dictation] failed to notify microphone permission result");
+                }
             }
         }
     });
@@ -279,11 +286,15 @@ fn ready_status(model_id: &str, path: &PathBuf) -> DictationModelStatus {
 }
 
 fn emit_status(app: &AppHandle, status: &DictationModelStatus) {
-    let _ = app.emit("dictation-download", status);
+    if let Err(err) = app.emit("dictation-download", status) {
+        eprintln!("[dictation] failed to emit dictation-download: {err}");
+    }
 }
 
 fn emit_event(app: &AppHandle, event: DictationEvent) {
-    let _ = app.emit("dictation-event", event);
+    if let Err(err) = app.emit("dictation-event", event) {
+        eprintln!("[dictation] failed to emit dictation-event: {err}");
+    }
 }
 
 async fn clear_processing_cancel(app: &AppHandle, cancel_flag: &Arc<AtomicBool>) -> bool {
@@ -907,8 +918,12 @@ pub(crate) async fn dictation_stop(
     );
 
     let app_handle = app.clone();
-    let _ = stop_tx.send(());
-    let _ = stopped.await;
+    if stop_tx.send(()).is_err() {
+        eprintln!("[dictation] stop signal receiver dropped while stopping session");
+    }
+    if stopped.await.is_err() {
+        eprintln!("[dictation] stop completion sender dropped while stopping session");
+    }
     tokio::spawn(async move {
         let samples = {
             let mut guard = audio.lock().unwrap();
@@ -1090,8 +1105,12 @@ pub(crate) async fn dictation_cancel(
         (session.audio, session.stopped, session.stop)
     };
 
-    let _ = stop_tx.send(());
-    let _ = stopped.await;
+    if stop_tx.send(()).is_err() {
+        eprintln!("[dictation] stop signal receiver dropped while canceling session");
+    }
+    if stopped.await.is_err() {
+        eprintln!("[dictation] stop completion sender dropped while canceling session");
+    }
     {
         let mut guard = audio.lock().unwrap();
         guard.clear();
@@ -1128,8 +1147,12 @@ fn start_capture_thread(
     let device = match device {
         Ok(device) => device,
         Err(error) => {
-            let _ = ready_tx.send(Err(error));
-            let _ = stopped_tx.send(());
+            if ready_tx.send(Err(error)).is_err() {
+                eprintln!("[dictation] ready signal receiver dropped on missing input device");
+            }
+            if stopped_tx.send(()).is_err() {
+                eprintln!("[dictation] stopped signal receiver dropped on missing input device");
+            }
             return;
         }
     };
@@ -1139,8 +1162,12 @@ fn start_capture_thread(
     let config = match config {
         Ok(config) => config,
         Err(error) => {
-            let _ = ready_tx.send(Err(error));
-            let _ = stopped_tx.send(());
+            if ready_tx.send(Err(error)).is_err() {
+                eprintln!("[dictation] ready signal receiver dropped on input config error");
+            }
+            if stopped_tx.send(()).is_err() {
+                eprintln!("[dictation] stopped signal receiver dropped on input config error");
+            }
             return;
         }
     };
@@ -1162,7 +1189,9 @@ fn start_capture_thread(
                 message: format!("Microphone error: {error}"),
             },
         );
-        let _ = stop_on_error.send(());
+        if stop_on_error.send(()).is_err() {
+            eprintln!("[dictation] stop signal receiver dropped after microphone error");
+        }
         let state_app = app_handle.clone();
         tauri::async_runtime::spawn(async move {
             let state_handle = state_app.state::<AppState>();
@@ -1218,8 +1247,19 @@ fn start_capture_thread(
             err_fn,
         ),
         _ => {
-            let _ = ready_tx.send(Err("Unsupported microphone sample format.".to_string()));
-            let _ = stopped_tx.send(());
+            if ready_tx
+                .send(Err("Unsupported microphone sample format.".to_string()))
+                .is_err()
+            {
+                eprintln!(
+                    "[dictation] ready signal receiver dropped on unsupported sample format"
+                );
+            }
+            if stopped_tx.send(()).is_err() {
+                eprintln!(
+                    "[dictation] stopped signal receiver dropped on unsupported sample format"
+                );
+            }
             return;
         }
     };
@@ -1227,14 +1267,25 @@ fn start_capture_thread(
     let stream = match stream {
         Ok(stream) => stream,
         Err(error) => {
-            let _ = ready_tx.send(Err(error));
-            let _ = stopped_tx.send(());
+            if ready_tx.send(Err(error)).is_err() {
+                eprintln!("[dictation] ready signal receiver dropped on stream build error");
+            }
+            if stopped_tx.send(()).is_err() {
+                eprintln!("[dictation] stopped signal receiver dropped on stream build error");
+            }
             return;
         }
     };
     if let Err(error) = stream.play() {
-        let _ = ready_tx.send(Err(format!("Failed to start microphone: {error}")));
-        let _ = stopped_tx.send(());
+        if ready_tx
+            .send(Err(format!("Failed to start microphone: {error}")))
+            .is_err()
+        {
+            eprintln!("[dictation] ready signal receiver dropped on stream start failure");
+        }
+        if stopped_tx.send(()).is_err() {
+            eprintln!("[dictation] stopped signal receiver dropped on stream start failure");
+        }
         return;
     }
 
@@ -1254,11 +1305,17 @@ fn start_capture_thread(
         "dictation: capture started (rate={}Hz, channels={}, format={:?})",
         sample_rate, channels, sample_format
     );
-    let _ = ready_tx.send(Ok(sample_rate));
-    let _ = stop_rx.recv();
+    if ready_tx.send(Ok(sample_rate)).is_err() {
+        eprintln!("[dictation] ready signal receiver dropped after capture start");
+    }
+    if stop_rx.recv().is_err() {
+        eprintln!("[dictation] stop signal sender dropped before capture shutdown");
+    }
     running.store(false, Ordering::Relaxed);
     drop(stream);
-    let _ = stopped_tx.send(());
+    if stopped_tx.send(()).is_err() {
+        eprintln!("[dictation] stopped signal receiver dropped after capture shutdown");
+    }
 }
 
 fn build_stream<T>(

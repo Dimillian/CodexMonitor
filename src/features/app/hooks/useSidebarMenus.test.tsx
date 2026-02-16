@@ -87,7 +87,7 @@ describe("useSidebarMenus", () => {
       (item: { text: string }) => item.text === "自定义名称",
     );
 
-    expect(renameItem).toBeDefined();
+    expect(renameItem).not.toBeUndefined();
     await renameItem.action();
     expect(onRenameWorkspaceAlias).toHaveBeenCalledWith("ws-1");
   });
@@ -145,7 +145,7 @@ describe("useSidebarMenus", () => {
       (item: { text: string }) => item.text === `在${fileManagerName()}中显示`,
     );
 
-    expect(revealItem).toBeDefined();
+    expect(revealItem).not.toBeUndefined();
     await revealItem.action();
     expect(revealItemInDir).toHaveBeenCalledWith("/tmp/worktree-1");
   });
@@ -182,7 +182,7 @@ describe("useSidebarMenus", () => {
     const archiveItem = menuArgs.items.find(
       (item: { text: string }) => item.text === "归档所选 (2)",
     );
-    expect(archiveItem).toBeDefined();
+    expect(archiveItem).not.toBeUndefined();
 
     await archiveItem.action();
     expect(onDeleteThreads).toHaveBeenCalledWith("ws-1", ["thread-1", "thread-2"]);
@@ -221,7 +221,7 @@ describe("useSidebarMenus", () => {
     const archiveItem = menuArgs.items.find(
       (item: { text: string }) => item.text === "归档",
     );
-    expect(archiveItem).toBeDefined();
+    expect(archiveItem).not.toBeUndefined();
 
     await archiveItem.action();
     expect(onDeleteThread).toHaveBeenCalledWith("ws-1", "thread-3");

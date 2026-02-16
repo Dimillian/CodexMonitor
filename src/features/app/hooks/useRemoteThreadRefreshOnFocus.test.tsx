@@ -47,7 +47,7 @@ describe("useRemoteThreadRefreshOnFocus", () => {
 
     await act(async () => {
       vi.advanceTimersByTime(REMOTE_THREAD_POLL_INTERVAL_MS + 1);
-      await Promise.resolve();
+      await new Promise<void>((resolve) => { queueMicrotask(resolve); });
     });
 
     expect(refreshThread).toHaveBeenCalledWith("ws-1", "thread-1");
@@ -75,7 +75,7 @@ describe("useRemoteThreadRefreshOnFocus", () => {
 
     await act(async () => {
       vi.advanceTimersByTime(REMOTE_THREAD_POLL_INTERVAL_MS + 1);
-      await Promise.resolve();
+      await new Promise<void>((resolve) => { queueMicrotask(resolve); });
     });
 
     expect(reconnectWorkspace).toHaveBeenCalled();

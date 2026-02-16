@@ -474,8 +474,6 @@ pub(crate) struct AppSettings {
     pub(crate) orbit_access_client_id: Option<String>,
     #[serde(default, rename = "orbitAccessClientSecretRef")]
     pub(crate) orbit_access_client_secret_ref: Option<String>,
-    #[serde(default = "default_access_mode", rename = "defaultAccessMode")]
-    pub(crate) default_access_mode: String,
     #[serde(
         default = "default_review_delivery_mode",
         rename = "reviewDeliveryMode"
@@ -486,11 +484,6 @@ pub(crate) struct AppSettings {
         rename = "composerModelShortcut"
     )]
     pub(crate) composer_model_shortcut: Option<String>,
-    #[serde(
-        default = "default_composer_access_shortcut",
-        rename = "composerAccessShortcut"
-    )]
-    pub(crate) composer_access_shortcut: Option<String>,
     #[serde(
         default = "default_composer_reasoning_shortcut",
         rename = "composerReasoningShortcut"
@@ -530,6 +523,11 @@ pub(crate) struct AppSettings {
         rename = "toggleGitSidebarShortcut"
     )]
     pub(crate) toggle_git_sidebar_shortcut: Option<String>,
+    #[serde(
+        default = "default_branch_switcher_shortcut",
+        rename = "branchSwitcherShortcut"
+    )]
+    pub(crate) branch_switcher_shortcut: Option<String>,
     #[serde(
         default = "default_toggle_debug_panel_shortcut",
         rename = "toggleDebugPanelShortcut"
@@ -739,10 +737,6 @@ impl Default for RemoteBackendProvider {
     }
 }
 
-fn default_access_mode() -> String {
-    "current".to_string()
-}
-
 fn default_review_delivery_mode() -> String {
     "inline".to_string()
 }
@@ -796,15 +790,6 @@ fn default_composer_model_shortcut() -> Option<String> {
         "cmd+shift+m"
     } else {
         "ctrl+shift+m"
-    };
-    Some(value.to_string())
-}
-
-fn default_composer_access_shortcut() -> Option<String> {
-    let value = if cfg!(target_os = "macos") {
-        "cmd+shift+a"
-    } else {
-        "ctrl+shift+a"
     };
     Some(value.to_string())
 }
@@ -881,6 +866,15 @@ fn default_toggle_git_sidebar_shortcut() -> Option<String> {
         "cmd+shift+g"
     } else {
         "ctrl+shift+g"
+    };
+    Some(value.to_string())
+}
+
+fn default_branch_switcher_shortcut() -> Option<String> {
+    let value = if cfg!(target_os = "macos") {
+        "cmd+b"
+    } else {
+        "ctrl+b"
     };
     Some(value.to_string())
 }
@@ -1185,10 +1179,8 @@ impl Default for AppSettings {
             orbit_use_access: false,
             orbit_access_client_id: None,
             orbit_access_client_secret_ref: None,
-            default_access_mode: "current".to_string(),
             review_delivery_mode: default_review_delivery_mode(),
             composer_model_shortcut: default_composer_model_shortcut(),
-            composer_access_shortcut: default_composer_access_shortcut(),
             composer_reasoning_shortcut: default_composer_reasoning_shortcut(),
             interrupt_shortcut: default_interrupt_shortcut(),
             composer_collaboration_shortcut: default_composer_collaboration_shortcut(),
@@ -1198,6 +1190,7 @@ impl Default for AppSettings {
             archive_thread_shortcut: default_archive_thread_shortcut(),
             toggle_projects_sidebar_shortcut: default_toggle_projects_sidebar_shortcut(),
             toggle_git_sidebar_shortcut: default_toggle_git_sidebar_shortcut(),
+            branch_switcher_shortcut: default_branch_switcher_shortcut(),
             toggle_debug_panel_shortcut: default_toggle_debug_panel_shortcut(),
             toggle_terminal_shortcut: default_toggle_terminal_shortcut(),
             cycle_agent_next_shortcut: default_cycle_agent_next_shortcut(),
@@ -1285,7 +1278,6 @@ mod tests {
         assert!(!settings.orbit_use_access);
         assert!(settings.orbit_access_client_id.is_none());
         assert!(settings.orbit_access_client_secret_ref.is_none());
-        assert_eq!(settings.default_access_mode, "current");
         assert_eq!(settings.review_delivery_mode, "inline");
         let expected_primary = if cfg!(target_os = "macos") {
             "cmd"
@@ -1293,17 +1285,12 @@ mod tests {
             "ctrl"
         };
         let expected_model = format!("{expected_primary}+shift+m");
-        let expected_access = format!("{expected_primary}+shift+a");
         let expected_reasoning = format!("{expected_primary}+shift+r");
         let expected_toggle_debug = format!("{expected_primary}+shift+d");
         let expected_toggle_terminal = format!("{expected_primary}+shift+t");
         assert_eq!(
             settings.composer_model_shortcut.as_deref(),
             Some(expected_model.as_str())
-        );
-        assert_eq!(
-            settings.composer_access_shortcut.as_deref(),
-            Some(expected_access.as_str())
         );
         assert_eq!(
             settings.composer_reasoning_shortcut.as_deref(),
@@ -1328,6 +1315,14 @@ mod tests {
                 "cmd+ctrl+a"
             } else {
                 "ctrl+alt+a"
+            })
+        );
+        assert_eq!(
+            settings.branch_switcher_shortcut.as_deref(),
+            Some(if cfg!(target_os = "macos") {
+                "cmd+b"
+            } else {
+                "ctrl+b"
             })
         );
         assert_eq!(

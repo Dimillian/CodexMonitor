@@ -3,17 +3,23 @@ import type { ThreadState } from "./useThreadsReducer";
 
 /**
  * Maximum time (ms) an active thread can stay in `isProcessing` without
- * receiving any app-server event before we consider it stale and auto-reset.
- *
- * 120 seconds balances giving slow agents enough time while avoiding the UI
- * spinning forever after a silent disconnect.
+ * hitting stale detection.
  */
-const ACTIVE_THREAD_STALE_MS = 120_000;
+const ACTIVE_THREAD_STALE_MS = 3 * 60_000;
+
+/**
+ * Maximum silence window (ms) from the last workspace event before we treat a
+ * processing thread as stalled.
+ */
+const WORKSPACE_SILENCE_STALE_MS = 90_000;
 
 /**
  * How often (ms) we check for staleness.
  */
 const CHECK_INTERVAL_MS = 10_000;
+
+const STALE_RECOVERY_MESSAGE =
+  "检测到会话长时间无事件，已尝试自动恢复。若任务仍在执行，可稍后刷新线程状态。";
 
 type UseThreadStaleGuardOptions = {
   activeWorkspaceId: string | null;
@@ -87,9 +93,9 @@ export function useThreadStaleGuard({
     ],
   );
 
-  // Periodic check: if the active thread has been processing for longer than
-  // ACTIVE_THREAD_STALE_MS **and** we haven't received any event from the
-  // workspace in that time, auto-recover.
+  // Periodic check: only auto-recover when BOTH conditions are met:
+  // 1) processing duration >= ACTIVE_THREAD_STALE_MS
+  // 2) event silence      >= WORKSPACE_SILENCE_STALE_MS
   useEffect(() => {
     const interval = window.setInterval(() => {
       if (!activeThreadId || !activeWorkspaceId) {
@@ -106,11 +112,9 @@ export function useThreadStaleGuard({
       }
       // Check if we received any event recently.
       const lastAlive = lastAliveByWorkspaceRef.current[activeWorkspaceId] ?? 0;
-      const silenceMs = now - lastAlive;
-      // If we received an event within the last 30 seconds, the agent is
-      // probably still alive (e.g. doing slow reasoning).  Only reset if
-      // there's been extended silence.
-      if (silenceMs < 30_000 && lastAlive > 0) {
+      const hasAliveSignal = lastAlive > 0;
+      const silenceMs = hasAliveSignal ? Math.max(0, now - lastAlive) : processingAge;
+      if (silenceMs < WORKSPACE_SILENCE_STALE_MS) {
         return;
       }
       markProcessing(activeThreadId, false);
@@ -118,7 +122,7 @@ export function useThreadStaleGuard({
       setActiveTurnId(activeThreadId, null);
       pushThreadErrorMessage(
         activeThreadId,
-        "Agent 长时间无响应，会话已自动重置。你可以重新发送消息。",
+        STALE_RECOVERY_MESSAGE,
       );
     }, CHECK_INTERVAL_MS);
     return () => window.clearInterval(interval);

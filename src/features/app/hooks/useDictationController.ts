@@ -38,7 +38,7 @@ export function useDictationController(appSettings: AppSettings): DictationContr
     clearHint: clearDictationHint,
   } = useDictation();
   const dictationReady = dictationModel.status?.state === "ready";
-  const holdDictationKey = (appSettings.dictationHoldKey ?? "").toLowerCase();
+  const holdDictationKey = appSettings.dictationHoldKey.toLowerCase();
   const permissionRequestPendingRef = useRef(false);
   const permissionRequestedRef = useRef(false);
 

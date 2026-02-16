@@ -426,4 +426,91 @@ describe("useThreadMessaging telemetry", () => {
       expect.any(Object),
     );
   });
+
+  it("retries turn/steer with server-reported active turn id when ids drift", async () => {
+    vi.mocked(steerTurnService)
+      .mockResolvedValueOnce({
+        error: {
+          message: "expected active turn id turn-1 but found turn-2",
+        },
+      } as unknown as Awaited<ReturnType<typeof steerTurnService>>)
+      .mockResolvedValueOnce({
+        result: {
+          turnId: "turn-2",
+        },
+      } as unknown as Awaited<ReturnType<typeof steerTurnService>>);
+
+    const setActiveTurnId = vi.fn();
+    const pushThreadErrorMessage = vi.fn();
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: true,
+        customPrompts: [],
+        threadStatusById: {
+          "thread-1": {
+            isProcessing: true,
+            isReviewing: false,
+            hasUnread: false,
+            processingStartedAt: 0,
+            lastDurationMs: null,
+          },
+        },
+        activeTurnIdByThread: {
+          "thread-1": "turn-1",
+        },
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing: vi.fn(),
+        markReviewing: vi.fn(),
+        setActiveTurnId,
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage,
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendUserMessageToThread(
+        workspace,
+        "thread-1",
+        "steer drift",
+        [],
+      );
+    });
+
+    expect(steerTurnService).toHaveBeenCalledTimes(2);
+    expect(steerTurnService).toHaveBeenNthCalledWith(
+      1,
+      "ws-1",
+      "thread-1",
+      "turn-1",
+      "steer drift",
+      [],
+    );
+    expect(steerTurnService).toHaveBeenNthCalledWith(
+      2,
+      "ws-1",
+      "thread-1",
+      "turn-2",
+      "steer drift",
+      [],
+    );
+    expect(setActiveTurnId).toHaveBeenCalledWith("thread-1", "turn-2");
+    expect(pushThreadErrorMessage).not.toHaveBeenCalled();
+    expect(sendUserMessageService).not.toHaveBeenCalled();
+  });
 });

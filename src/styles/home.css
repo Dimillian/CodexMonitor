@@ -13,7 +13,7 @@
   max-width: 760px;
   margin: 0 auto;
   text-align: left;
-  padding: 40px 32px 24px;
+  padding: 48px 32px 24px;
   overflow-y: auto;
   overflow-x: hidden;
   /* Opaque white prevents macOS vibrancy gray from bleeding through */
@@ -49,7 +49,7 @@
 
 .home-title {
   font-size: 40px;
-  line-height: 1.5;
+  line-height: 1.2;
   font-weight: 620;
   letter-spacing: -0.02em;
   color: var(--text-strong);
@@ -110,6 +110,11 @@
   background: var(--surface-hover);
 }
 
+.home-suggestions-explore:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+}
+
 .home-suggestions-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -135,6 +140,11 @@
   border-color: var(--border-strong);
   background: var(--surface-item);
   box-shadow: 0 2px 6px color-mix(in srgb, var(--surface-context-core) 24%, transparent);
+}
+
+.home-suggestion-card:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
 }
 
 .home-suggestion-card:disabled {
@@ -185,6 +195,7 @@
 
 .home-section-title {
   font-size: 14px;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-subtle);
@@ -261,6 +272,11 @@
   opacity: 0.6;
 }
 
+.home-usage-select:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+}
+
 .home-usage-toggle {
   display: inline-flex;
   align-items: center;
@@ -289,6 +305,11 @@
   background: var(--surface-hover);
 }
 
+.home-usage-toggle-button:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 1px;
+}
+
 .home-usage-toggle-button.is-active {
   background: var(--surface-card-strong);
   color: var(--text-stronger);
@@ -315,6 +336,11 @@
 .home-usage-refresh:hover {
   color: var(--text-stronger);
   transform: translateY(-1px);
+}
+
+.home-usage-refresh:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
 }
 
 .home-usage-refresh.is-loading {
@@ -454,6 +480,15 @@
   opacity: 1;
 }
 
+.home-usage-bar:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+}
+
+.home-usage-bar:focus-visible::after {
+  opacity: 1;
+}
+
 .home-usage-bar-label {
   font-size: 14px;
   color: var(--text-faint);
@@ -493,9 +528,10 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 12px;
+  padding: 4px 8px;
   border-radius: 999px;
-  font-size: 14px;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--text-stronger);
   background: color-mix(in srgb, var(--surface-card-strong) 35%, transparent);
   border: 1px solid var(--border-subtle);
@@ -657,7 +693,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 8px;
   margin-bottom: 12px;
   flex-direction: column;
   align-items: flex-start;
@@ -689,13 +725,13 @@
 }
 
 .home-latest-group {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-faint);
   border: 1px solid var(--border-subtle);
-  padding: 4px 6px;
+  padding: 4px 8px;
   border-radius: 999px;
 }
 

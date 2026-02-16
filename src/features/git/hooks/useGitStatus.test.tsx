@@ -34,6 +34,11 @@ const makeStatus = (branchName: string, additions = 0, deletions = 0) => ({
   totalDeletions: deletions,
 });
 
+const flushMicrotaskQueue = () =>
+  new Promise<void>((resolve) => {
+    queueMicrotask(resolve);
+  });
+
 describe("useGitStatus", () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
@@ -55,7 +60,7 @@ describe("useGitStatus", () => {
       { initialProps: { active: workspace } },
     );
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     expect(getGitStatusMock).toHaveBeenCalledTimes(1);
@@ -66,7 +71,7 @@ describe("useGitStatus", () => {
       vi.advanceTimersByTime(3000);
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     expect(getGitStatusMock).toHaveBeenCalledTimes(2);
@@ -87,7 +92,7 @@ describe("useGitStatus", () => {
       { initialProps: { active: workspace } },
     );
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     expect(result.current.status.branchName).toBe("main");
@@ -127,13 +132,13 @@ describe("useGitStatus", () => {
     );
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     rerender({ active: secondaryWorkspace });
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     expect(getGitStatusMock).toHaveBeenCalledWith("workspace-1");
@@ -141,14 +146,14 @@ describe("useGitStatus", () => {
 
     await act(async () => {
       resolveSecond(makeStatus("secondary", 4, 0));
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     expect(result.current.status.branchName).toBe("secondary");
 
     await act(async () => {
       resolveFirst(makeStatus("primary", 1, 1));
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     expect(result.current.status.branchName).toBe("secondary");
@@ -168,7 +173,7 @@ describe("useGitStatus", () => {
     );
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     expect(result.current.status.branchName).toBe("main");

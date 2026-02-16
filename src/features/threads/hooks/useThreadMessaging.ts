@@ -126,6 +126,31 @@ function isUnsupportedTurnSteerError(message: string): boolean {
     || (normalized.includes("unknown method") && mentionsSteerMethod);
 }
 
+function isTurnSteerActiveTurnMismatchError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes("expected active turn id")
+    && normalized.includes("but found");
+}
+
+function extractFoundActiveTurnIdFromSteerMismatch(message: string): string | null {
+  const match =
+    message.match(
+      /expected\s+active\s+turn\s+id\s+([^\s,;]+)\s+but\s+found\s+([^\s,;]+)/i,
+    );
+  const foundRaw = match?.[2]?.trim() ?? "";
+  if (!foundRaw) {
+    return null;
+  }
+  const found = foundRaw.replace(/^[`"']+|[`"']+$/g, "");
+  if (!found) {
+    return null;
+  }
+  if (found.toLowerCase() === "null" || found.toLowerCase() === "none") {
+    return null;
+  }
+  return found;
+}
+
 export function useThreadMessaging({
   activeWorkspace,
   activeThreadId,
@@ -293,12 +318,28 @@ export function useThreadMessaging({
             )) as Record<string, unknown>;
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            if (!isUnsupportedTurnSteerError(message)) {
+            if (isTurnSteerActiveTurnMismatchError(message)) {
+              const retryTurnId = extractFoundActiveTurnIdFromSteerMismatch(message);
+              if (retryTurnId) {
+                setActiveTurnId(threadId, retryTurnId);
+                response = (await steerTurnService(
+                  workspace.id,
+                  threadId,
+                  retryTurnId,
+                  finalText,
+                  images,
+                )) as Record<string, unknown>;
+              } else {
+                requestMode = "start";
+                response = (await startTurn()) as Record<string, unknown>;
+              }
+            } else if (!isUnsupportedTurnSteerError(message)) {
               throw error;
+            } else {
+              steerSupportedByWorkspaceRef.current[workspace.id] = false;
+              requestMode = "start";
+              response = (await startTurn()) as Record<string, unknown>;
             }
-            steerSupportedByWorkspaceRef.current[workspace.id] = false;
-            requestMode = "start";
-            response = (await startTurn()) as Record<string, unknown>;
           }
         } else {
           response = (await startTurn()) as Record<string, unknown>;
@@ -314,6 +355,28 @@ export function useThreadMessaging({
           requestMode = "start";
           response = (await startTurn()) as Record<string, unknown>;
           rpcError = extractRpcErrorMessage(response);
+        }
+        if (
+          rpcError
+          && requestMode === "steer"
+          && isTurnSteerActiveTurnMismatchError(rpcError)
+        ) {
+          const retryTurnId = extractFoundActiveTurnIdFromSteerMismatch(rpcError);
+          if (retryTurnId) {
+            setActiveTurnId(threadId, retryTurnId);
+            response = (await steerTurnService(
+              workspace.id,
+              threadId,
+              retryTurnId,
+              finalText,
+              images,
+            )) as Record<string, unknown>;
+            rpcError = extractRpcErrorMessage(response);
+          } else {
+            requestMode = "start";
+            response = (await startTurn()) as Record<string, unknown>;
+            rpcError = extractRpcErrorMessage(response);
+          }
         }
 
         // When turn/start fails with "not found", force-refresh the thread

@@ -202,6 +202,7 @@ export type AppSettings = {
   lastComposerReasoningEffort: string | null;
   uiScale: number;
   theme: ThemePreference;
+  usageShowRemaining: boolean;
   showMessageFilePath: boolean;
   threadScrollRestoreMode: ThreadScrollRestoreMode;
   threadTitleAutogenerationEnabled: boolean;
@@ -224,7 +225,7 @@ export type AppSettings = {
   dictationEnabled: boolean;
   dictationModelId: string;
   dictationPreferredLanguage: string | null;
-  dictationHoldKey: string | null;
+  dictationHoldKey: string;
   composerEditorPreset: ComposerEditorPreset;
   composerFenceExpandOnSpace: boolean;
   composerFenceExpandOnEnter: boolean;

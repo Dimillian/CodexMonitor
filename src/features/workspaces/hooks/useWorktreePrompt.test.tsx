@@ -114,7 +114,8 @@ describe("useWorktreePrompt", () => {
     });
 
     const branch = result.current.worktreePrompt?.branch;
-    expect(branch).toBeTruthy();
+    expect(branch).toEqual(expect.any(String));
+    expect(branch?.length ?? 0).toBeGreaterThan(0);
 
     act(() => {
       result.current.updateCopyAgentsMd(false);

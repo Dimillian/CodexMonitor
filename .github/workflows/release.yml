@@ -8,9 +8,40 @@ permissions:
   pull-requests: write
 
 jobs:
+  quality_gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit and integration tests
+        run: npm run test
+      - name: Coverage gate
+        run: npm run test:coverage:gate
+      - name: Install Playwright browser
+        run: npm run test:e2e:install
+      - name: E2E smoke
+        run: npm run test:e2e:smoke
+      - name: Rust tests
+        run: cargo test
+        working-directory: src-tauri
+
   build_macos:
     runs-on: macos-latest
     environment: release
+    needs: [quality_gate]
     env:
       CODESIGN_IDENTITY: ${{ vars.CODESIGN_IDENTITY }}
       NOTARY_PROFILE_NAME: ${{ vars.NOTARY_PROFILE_NAME }}
@@ -164,6 +195,7 @@ jobs:
     name: linux bundles (${{ matrix.arch }})
     runs-on: ${{ matrix.platform }}
     environment: release
+    needs: [quality_gate]
     env:
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
       TAURI_SIGNING_PRIVATE_KEY_B64: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_B64 }}
@@ -238,6 +270,7 @@ jobs:
   build_windows:
     runs-on: windows-latest
     environment: release
+    needs: [quality_gate]
     env:
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
       TAURI_SIGNING_PRIVATE_KEY_B64: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_B64 }}

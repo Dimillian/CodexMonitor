@@ -204,7 +204,7 @@ describe("useAccountSwitching", () => {
 
     await act(async () => {
       resolveLogin?.({ loginId: "login-pending", authUrl: "https://example.com/pending" });
-      await Promise.resolve();
+      await new Promise<void>((resolve) => { queueMicrotask(resolve); });
     });
 
     expect(openUrl).not.toHaveBeenCalled();

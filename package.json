@@ -33,6 +33,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:coverage:gate": "node scripts/coverage-gate.mjs",
+    "test:e2e:smoke": "playwright test e2e/smoke.spec.ts",
+    "test:e2e:install": "playwright install --with-deps chromium",
     "test:repo": "npm run lint && npm run typecheck && npm run test && npm run test:coverage:gate",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
@@ -68,6 +70,7 @@
     "vscode-material-icons": "^0.1.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@tauri-apps/cli": "^2.9.6",
     "@testing-library/react": "^16.3.2",
     "@types/prismjs": "^1.26.5",

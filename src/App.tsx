@@ -62,7 +62,6 @@ import { useCustomPrompts } from "./features/prompts/hooks/useCustomPrompts";
 import { useWorkspaceFileListing } from "./features/app/hooks/useWorkspaceFileListing";
 import { useGitBranches } from "./features/git/hooks/useGitBranches";
 import { useBranchSwitcher } from "./features/git/hooks/useBranchSwitcher";
-import { useBranchSwitcherShortcut } from "./features/git/hooks/useBranchSwitcherShortcut";
 import { useDebugLog } from "./features/debug/hooks/useDebugLog";
 import { useWorkspaceRefreshOnFocus } from "./features/workspaces/hooks/useWorkspaceRefreshOnFocus";
 import { useWorkspaceRestore } from "./features/workspaces/hooks/useWorkspaceRestore";
@@ -128,6 +127,7 @@ import { useSystemNotificationThreadLinks } from "./features/app/hooks/useSystem
 import { useThreadListSortKey } from "./features/app/hooks/useThreadListSortKey";
 import { useThreadListActions } from "./features/app/hooks/useThreadListActions";
 import { useGitRootSelection } from "./features/app/hooks/useGitRootSelection";
+import { pushErrorToast } from "./services/toasts";
 import { useTabActivationGuard } from "./features/app/hooks/useTabActivationGuard";
 import { useRemoteThreadLiveConnection } from "./features/app/hooks/useRemoteThreadLiveConnection";
 import {
@@ -644,13 +644,11 @@ function MainApp() {
   });
   const isBranchSwitcherEnabled =
     Boolean(activeWorkspace?.connected) && activeWorkspace?.kind !== "worktree";
-  useBranchSwitcherShortcut({
-    shortcut: appSettings.branchSwitcherShortcut,
-    isEnabled: isBranchSwitcherEnabled,
-    onTrigger: openBranchSwitcher,
-  });
   const alertError = useCallback((error: unknown) => {
-    alert(error instanceof Error ? error.message : String(error));
+    pushErrorToast({
+      title: "操作失败",
+      message: error instanceof Error ? error.message : String(error),
+    });
   }, []);
   const {
     applyWorktreeChanges: handleApplyWorktreeChanges,
@@ -2157,6 +2155,11 @@ function MainApp() {
     onOpenSettings: () => openSettings(),
     onCycleAgent: handleCycleAgent,
     onCycleWorkspace: handleCycleWorkspace,
+    onOpenBranchSwitcher: () => {
+      if (isBranchSwitcherEnabled) {
+        openBranchSwitcher();
+      }
+    },
     onToggleDebug: handleDebugClick,
     onToggleTerminal: handleToggleTerminal,
     sidebarCollapsed,

@@ -12,6 +12,7 @@ import {
   subscribeMenuNextWorkspace,
   subscribeMenuToggleDebugPanel,
   subscribeMenuToggleGitSidebar,
+  subscribeMenuOpenBranchSwitcher,
   subscribeMenuToggleProjectsSidebar,
   subscribeMenuToggleTerminal,
 } from "../../../services/events";
@@ -27,6 +28,7 @@ type Params = {
   onOpenSettings: () => void;
   onCycleAgent: (direction: "next" | "prev") => void;
   onCycleWorkspace: (direction: "next" | "prev") => void;
+  onOpenBranchSwitcher: () => void;
   onToggleDebug: () => void;
   onToggleTerminal: () => void;
   sidebarCollapsed: boolean;
@@ -47,6 +49,7 @@ export function useAppMenuEvents({
   onOpenSettings,
   onCycleAgent,
   onCycleWorkspace,
+  onOpenBranchSwitcher,
   onToggleDebug,
   onToggleTerminal,
   sidebarCollapsed,
@@ -99,6 +102,10 @@ export function useAppMenuEvents({
 
   useTauriEvent(subscribeMenuPrevWorkspace, () => {
     onCycleWorkspace("prev");
+  });
+
+  useTauriEvent(subscribeMenuOpenBranchSwitcher, () => {
+    onOpenBranchSwitcher();
   });
 
   useTauriEvent(subscribeMenuToggleDebugPanel, () => {

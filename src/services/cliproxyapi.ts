@@ -22,67 +22,90 @@ export interface CLIProxyAPIConfig {
   apiKey: string;
 }
 
-// 默认配置 - 基于用户的 CLIProxyAPI 设置
 const DEFAULT_CONFIG: CLIProxyAPIConfig = {
   baseUrl: "http://all.local:18317",
-  apiKey: "quotio-local-2EB4C0A8-C0A5-4514-8B3A-9882F8EB267C",
+  apiKey: "",
 };
 
-/**
- * 获取 CLIProxyAPI 配置
- * 优先从 localStorage 读取，否则使用默认配置
- */
-export function getCLIProxyAPIConfig(): CLIProxyAPIConfig {
+const CONFIG_BASE_URL_STORAGE_KEY = "cliproxyapi_base_url";
+const LEGACY_CONFIG_STORAGE_KEY = "cliproxyapi_config";
+let runtimeConfig: CLIProxyAPIConfig = { ...DEFAULT_CONFIG };
+
+function normalizeBaseUrl(value: string | null | undefined): string {
+  const trimmed = (value ?? "").trim();
+  return trimmed.length > 0 ? trimmed : DEFAULT_CONFIG.baseUrl;
+}
+
+function readPersistedBaseUrl(): string {
   if (typeof window === "undefined") {
-    return DEFAULT_CONFIG;
+    return runtimeConfig.baseUrl;
   }
-  
-  const stored = window.localStorage.getItem("cliproxyapi_config");
-  if (stored) {
-    try {
-      return JSON.parse(stored) as CLIProxyAPIConfig;
-    } catch {
-      return DEFAULT_CONFIG;
-    }
+  const nextStorageValue = window.localStorage.getItem(CONFIG_BASE_URL_STORAGE_KEY);
+  if (nextStorageValue) {
+    return normalizeBaseUrl(nextStorageValue);
   }
-  return DEFAULT_CONFIG;
+  const legacy = window.localStorage.getItem(LEGACY_CONFIG_STORAGE_KEY);
+  if (!legacy) {
+    return runtimeConfig.baseUrl;
+  }
+  try {
+    const parsed = JSON.parse(legacy) as Partial<CLIProxyAPIConfig>;
+    return normalizeBaseUrl(parsed.baseUrl);
+  } catch {
+    return runtimeConfig.baseUrl;
+  }
 }
 
 /**
- * 保存 CLIProxyAPI 配置到 localStorage
+ * 获取 CLIProxyAPI 配置
+ * 仅持久化 baseUrl；apiKey 仅保留在内存中，避免落盘。
+ */
+export function getCLIProxyAPIConfig(): CLIProxyAPIConfig {
+  runtimeConfig = {
+    ...runtimeConfig,
+    baseUrl: readPersistedBaseUrl(),
+  };
+  return { ...runtimeConfig };
+}
+
+/**
+ * 保存 CLIProxyAPI 配置。
+ * - baseUrl: 可持久化
+ * - apiKey: 仅内存保留，不写入 localStorage
  */
 export function saveCLIProxyAPIConfig(config: CLIProxyAPIConfig): void {
+  runtimeConfig = {
+    baseUrl: normalizeBaseUrl(config.baseUrl),
+    apiKey: config.apiKey,
+  };
   if (typeof window === "undefined") {
     return;
   }
-  window.localStorage.setItem("cliproxyapi_config", JSON.stringify(config));
+  window.localStorage.setItem(CONFIG_BASE_URL_STORAGE_KEY, runtimeConfig.baseUrl);
+  window.localStorage.removeItem(LEGACY_CONFIG_STORAGE_KEY);
 }
 
 /**
  * 从 CLIProxyAPI 获取可用模型列表
  */
-export async function fetchCLIProxyAPIModels(): Promise<CLIProxyAPIModel[]> {
-  const config = getCLIProxyAPIConfig();
-  
-  try {
-    const response = await fetch(`${config.baseUrl}/v1/models`, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${config.apiKey}`,
-        "Content-Type": "application/json",
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    const data: CLIProxyAPIModelsResponse = await response.json();
-    return data.data || [];
-  } catch (error) {
-    console.error("Failed to fetch CLIProxyAPI models:", error);
-    return [];
+export async function fetchCLIProxyAPIModels(
+  config?: CLIProxyAPIConfig,
+): Promise<CLIProxyAPIModel[]> {
+  const resolvedConfig = config ?? getCLIProxyAPIConfig();
+  const response = await fetch(`${resolvedConfig.baseUrl}/v1/models`, {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${resolvedConfig.apiKey}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
+
+  const data: CLIProxyAPIModelsResponse = await response.json();
+  return Array.isArray(data.data) ? data.data : [];
 }
 
 /**

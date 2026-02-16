@@ -17,7 +17,7 @@ describe("ErrorToasts", () => {
 
     const region = screen.getByRole("region");
     expect(region.getAttribute("aria-live")).toBe("assertive");
-    expect(screen.getByRole("alert")).toBeTruthy();
+    expect(screen.getByRole("alert")).not.toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "关闭错误" }));
     expect(onDismiss).toHaveBeenCalledWith("toast-1");

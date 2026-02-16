@@ -8,6 +8,7 @@ import {
   getAppServerRawMethod,
   getAppServerRequestId,
   isApprovalRequestMethod,
+  isCompatPassthroughAppServerMethod,
   isSkillsUpdateAvailableEvent,
   isSupportedAppServerMethod,
 } from "./appServerEvents";
@@ -38,11 +39,36 @@ describe("appServerEvents", () => {
       params: { thread_id: "thread-1" },
     });
     expect(getAppServerRawMethod(event)).toBe("item/agentMessage/delta");
+
+    const legacyAgentDelta = makeEvent({
+      method: "codex/event/agent_message_content_delta",
+      params: {},
+    });
+    const legacyReasoningBreak = makeEvent({
+      method: "codex/event/agent_reasoning_section_break",
+      params: {},
+    });
+    const legacyItemStarted = makeEvent({
+      method: "codex/event/item_started",
+      params: {},
+    });
+    const legacyTokenCount = makeEvent({
+      method: "codex/event/token_count",
+      params: {},
+    });
+
+    expect(getAppServerRawMethod(legacyAgentDelta)).toBe("item/agentMessage/delta");
+    expect(getAppServerRawMethod(legacyReasoningBreak)).toBe("item/reasoning/summaryPartAdded");
+    expect(getAppServerRawMethod(legacyItemStarted)).toBe("item/started");
+    expect(getAppServerRawMethod(legacyTokenCount)).toBe("thread/tokenUsage/updated");
   });
 
   it("checks supported method and approval requests", () => {
     expect(isSupportedAppServerMethod("turn/started")).toBe(true);
     expect(isSupportedAppServerMethod("unknown/method")).toBe(false);
+    expect(isCompatPassthroughAppServerMethod("codex/stderr")).toBe(true);
+    expect(isCompatPassthroughAppServerMethod("codex/event/mcp_startup_update")).toBe(true);
+    expect(isCompatPassthroughAppServerMethod("turn/unknownFutureMethod")).toBe(false);
     expect(isApprovalRequestMethod("workspace/requestApproval")).toBe(true);
     expect(isApprovalRequestMethod("workspace/request")).toBe(false);
   });

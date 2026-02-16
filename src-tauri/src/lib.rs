@@ -56,6 +56,12 @@ fn keep_daemon_running_after_close(app_handle: &tauri::AppHandle) -> bool {
 }
 
 #[cfg(desktop)]
+fn has_active_codex_sessions(app_handle: &tauri::AppHandle) -> bool {
+    let state = app_handle.state::<state::AppState>();
+    tauri::async_runtime::block_on(async { !state.sessions.lock().await.is_empty() })
+}
+
+#[cfg(desktop)]
 async fn stop_managed_daemons_for_exit(app_handle: tauri::AppHandle) {
     let state = app_handle.state::<state::AppState>();
     let _ = orbit::orbit_runner_stop(state).await;
@@ -319,6 +325,13 @@ pub fn run() {
     app.run(|app_handle, event| {
         #[cfg(desktop)]
         if let RunEvent::ExitRequested { api, .. } = event {
+            if has_active_codex_sessions(app_handle) {
+                api.prevent_exit();
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    let _ = window.hide();
+                }
+                return;
+            }
             if !EXIT_CLEANUP_IN_PROGRESS.load(Ordering::SeqCst)
                 && !keep_daemon_running_after_close(app_handle)
             {

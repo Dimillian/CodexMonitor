@@ -60,7 +60,7 @@ describe("ThreadList", () => {
     );
 
     const row = screen.getByText("Alpha").closest(".thread-row");
-    expect(row).toBeTruthy();
+    expect(row).not.toBeNull();
     if (!row) {
       throw new Error("Missing thread row");
     }
@@ -148,7 +148,7 @@ describe("ThreadList", () => {
     );
 
     const betaRow = screen.getByText("Beta").closest(".thread-row");
-    expect(betaRow).toBeTruthy();
+    expect(betaRow).not.toBeNull();
     if (!betaRow) {
       throw new Error("Missing selected row");
     }
@@ -332,7 +332,7 @@ describe("ThreadList", () => {
     );
 
     const nestedRow = screen.getByText("Nested Agent").closest(".thread-row");
-    expect(nestedRow).toBeTruthy();
+    expect(nestedRow).not.toBeNull();
     if (!nestedRow) {
       throw new Error("Missing nested thread row");
     }

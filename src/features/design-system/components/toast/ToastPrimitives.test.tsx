@@ -42,10 +42,10 @@ describe("ToastPrimitives", () => {
     const card = screen.getByRole("alert");
     expect(card.className).toContain("ds-toast-card");
     expect(card.className).toContain("custom-card");
-    expect(container.querySelector(".ds-toast-header.custom-header")).toBeTruthy();
-    expect(container.querySelector(".ds-toast-title.custom-title")).toBeTruthy();
-    expect(container.querySelector(".ds-toast-body.custom-body")).toBeTruthy();
-    expect(container.querySelector(".ds-toast-error.custom-error")).toBeTruthy();
-    expect(container.querySelector(".ds-toast-actions.custom-actions")).toBeTruthy();
+    expect(container.querySelector(".ds-toast-header.custom-header")).not.toBeNull();
+    expect(container.querySelector(".ds-toast-title.custom-title")).not.toBeNull();
+    expect(container.querySelector(".ds-toast-body.custom-body")).not.toBeNull();
+    expect(container.querySelector(".ds-toast-error.custom-error")).not.toBeNull();
+    expect(container.querySelector(".ds-toast-actions.custom-actions")).not.toBeNull();
   });
 });

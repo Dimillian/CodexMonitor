@@ -387,7 +387,11 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
             if let Some(id) = maybe_id {
                 if has_result_or_error {
                     if let Some(tx) = session_clone.pending.lock().await.remove(&id) {
-                        let _ = tx.send(value);
+                        if tx.send(value).is_err() {
+                            eprintln!(
+                                "failed to deliver pending app-server response: workspace_id={workspace_id}, id={id}"
+                            );
+                        }
                     }
                 } else if has_method {
                     // Check for background thread callback
@@ -395,7 +399,11 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                     if let Some(ref tid) = thread_id {
                         let callbacks = session_clone.background_thread_callbacks.lock().await;
                         if let Some(tx) = callbacks.get(tid) {
-                            let _ = tx.send(value.clone());
+                            if tx.send(value.clone()).is_err() {
+                                eprintln!(
+                                    "failed to deliver background thread callback: workspace_id={workspace_id}, thread_id={tid}, id={id}"
+                                );
+                            }
                             sent_to_background = true;
                         }
                     }
@@ -408,7 +416,11 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                         event_sink_clone.emit_app_server_event(payload);
                     }
                 } else if let Some(tx) = session_clone.pending.lock().await.remove(&id) {
-                    let _ = tx.send(value);
+                    if tx.send(value).is_err() {
+                        eprintln!(
+                            "failed to deliver fallback app-server response: workspace_id={workspace_id}, id={id}"
+                        );
+                    }
                 }
             } else if has_method {
                 // Check for background thread callback
@@ -416,7 +428,11 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                 if let Some(ref tid) = thread_id {
                     let callbacks = session_clone.background_thread_callbacks.lock().await;
                     if let Some(tx) = callbacks.get(tid) {
-                        let _ = tx.send(value.clone());
+                        if tx.send(value.clone()).is_err() {
+                            eprintln!(
+                                "failed to deliver background thread callback notification: workspace_id={workspace_id}, thread_id={tid}"
+                            );
+                        }
                         sent_to_background = true;
                     }
                 }

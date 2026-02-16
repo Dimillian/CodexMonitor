@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import type { AppSettings } from "../../../types";
+import { pushErrorToast } from "../../../services/toasts";
 import { clampUiScale, UI_SCALE_STEP } from "../../../utils/uiScale";
 import { isMacPlatform } from "../../../utils/shortcuts";
 
@@ -46,17 +47,40 @@ export function useUiScaleShortcuts({
   const scaleShortcutText = `快捷键：${scaleShortcutLabel}+ 和 ${scaleShortcutLabel}-，${scaleShortcutLabel}+0 重置。`;
 
   const saveQueueRef = useRef(Promise.resolve());
+  const lastSaveErrorRef = useRef<{ message: string; atMs: number } | null>(null);
+  const reportSaveSettingsError = useCallback((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    const now = Date.now();
+    const previous = lastSaveErrorRef.current;
+    if (
+      previous
+      && previous.message === message
+      && now - previous.atMs < 3000
+    ) {
+      return;
+    }
+    lastSaveErrorRef.current = { message, atMs: now };
+    pushErrorToast({
+      title: "保存设置失败",
+      message,
+    });
+  }, []);
   const queueSaveSettings = useCallback(
     (next: AppSettings) => {
       const task = () => saveSettings(next);
-      const queued = saveQueueRef.current.then(task, task);
+      const queued = saveQueueRef.current
+        .then(task, task)
+        .catch((error) => {
+          reportSaveSettingsError(error);
+          throw error;
+        });
       saveQueueRef.current = queued.then(
         () => undefined,
         () => undefined,
       );
       return queued;
     },
-    [saveSettings],
+    [reportSaveSettingsError, saveSettings],
   );
 
   const handleScaleDelta = useCallback(

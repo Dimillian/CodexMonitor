@@ -56,6 +56,18 @@
   border-color: var(--border-strong);
 }
 
+.composer-queue-migrate:focus-visible,
+.composer-queue-toggle:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+}
+
+.composer-queue-migrate:disabled,
+.composer-queue-toggle:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .composer-queue-collapsed-meta {
   font-size: 14px;
   color: var(--text-muted);
@@ -131,6 +143,16 @@
   border-color: var(--border-strong);
 }
 
+.composer-queue-recover:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+}
+
+.composer-queue-recover:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .composer-queue-list {
   display: flex;
   flex-direction: column;
@@ -196,6 +218,11 @@
   border-color: var(--border-strong);
 }
 
+.composer-queue-menu:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+}
+
 .composer-queue-menu:disabled {
   opacity: 0.5;
   cursor: default;
@@ -215,6 +242,11 @@
 .composer-queue-steer:hover {
   color: var(--text-stronger);
   border-color: var(--border-strong);
+}
+
+.composer-queue-steer:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
 }
 
 .composer-queue-steer:disabled {
@@ -239,6 +271,11 @@
 .composer-queue-delete:hover {
   color: var(--status-error);
   border-color: color-mix(in srgb, var(--status-error) 40%, var(--border-subtle));
+}
+
+.composer-queue-delete:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
 }
 
 .composer-queue-empty {
@@ -321,6 +358,11 @@
 .composer-attach:hover {
   background: var(--surface-control-hover);
   color: var(--text-strong);
+}
+
+.composer-attach:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
 }
 
 .composer-attach:disabled {
@@ -431,6 +473,12 @@
 
 .composer-attachment-remove:hover {
   color: var(--text-stronger);
+}
+
+.composer-attachment-remove:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 .composer-attachment-remove:disabled {
@@ -582,6 +630,11 @@
   color: var(--text-stronger);
 }
 
+.composer-action:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+}
+
 .composer-action.is-stop:hover {
   background: color-mix(in srgb, var(--status-error) 20%, transparent);
 }
@@ -700,6 +753,13 @@
 
 .composer-suggestion:hover,
 .composer-suggestion.is-active {
+  background: var(--surface-item);
+  border-color: var(--border-muted);
+}
+
+.composer-suggestion:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
   background: var(--surface-item);
   border-color: var(--border-muted);
 }
@@ -917,11 +977,13 @@
 
 /* Cache hit badge: "缓存 96%" */
 .context-meter-cache-badge {
-  font-size: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
   color: var(--status-warning);
-  padding: 4px 6px;
-  border-radius: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
   background: color-mix(in srgb, var(--status-warning) 10%, transparent);
   white-space: nowrap;
 }
@@ -931,7 +993,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 6px;
+  padding: 4px 8px;
   border-radius: 999px;
   background: var(--surface-card);
   width: max-content;

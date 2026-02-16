@@ -29,7 +29,7 @@ describe("WorktreePrompt", () => {
     );
 
     let backdrop = container.querySelector(".ds-modal-backdrop");
-    expect(backdrop).toBeTruthy();
+    expect(backdrop).not.toBeNull();
     if (!backdrop) {
       throw new Error("Expected worktree prompt backdrop");
     }

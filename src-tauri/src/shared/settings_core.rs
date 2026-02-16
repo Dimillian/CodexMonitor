@@ -14,6 +14,22 @@ fn normalize_personality(value: &str) -> Option<&'static str> {
     }
 }
 
+fn sync_codex_config_from_settings(settings: &AppSettings) -> Result<(), String> {
+    codex_config::write_collab_enabled(settings.experimental_collab_enabled)
+        .map_err(|error| format!("failed to sync codex experimental_collab_enabled: {error}"))?;
+    codex_config::write_collaboration_modes_enabled(settings.collaboration_modes_enabled)
+        .map_err(|error| format!("failed to sync codex collaboration_modes_enabled: {error}"))?;
+    codex_config::write_steer_enabled(settings.steer_enabled)
+        .map_err(|error| format!("failed to sync codex steer_enabled: {error}"))?;
+    codex_config::write_unified_exec_enabled(settings.unified_exec_enabled)
+        .map_err(|error| format!("failed to sync codex unified_exec_enabled: {error}"))?;
+    codex_config::write_apps_enabled(settings.experimental_apps_enabled)
+        .map_err(|error| format!("failed to sync codex experimental_apps_enabled: {error}"))?;
+    codex_config::write_personality(settings.personality.as_str())
+        .map_err(|error| format!("failed to sync codex personality: {error}"))?;
+    Ok(())
+}
+
 pub(crate) async fn get_app_settings_core(app_settings: &Mutex<AppSettings>) -> AppSettings {
     let mut settings = app_settings.lock().await.clone();
     if let Ok(Some(collab_enabled)) = codex_config::read_collab_enabled() {
@@ -47,12 +63,7 @@ pub(crate) async fn update_app_settings_core(
     app_settings: &Mutex<AppSettings>,
     settings_path: &PathBuf,
 ) -> Result<AppSettings, String> {
-    let _ = codex_config::write_collab_enabled(settings.experimental_collab_enabled);
-    let _ = codex_config::write_collaboration_modes_enabled(settings.collaboration_modes_enabled);
-    let _ = codex_config::write_steer_enabled(settings.steer_enabled);
-    let _ = codex_config::write_unified_exec_enabled(settings.unified_exec_enabled);
-    let _ = codex_config::write_apps_enabled(settings.experimental_apps_enabled);
-    let _ = codex_config::write_personality(settings.personality.as_str());
+    sync_codex_config_from_settings(&settings)?;
     write_settings(settings_path, &settings)?;
     let mut current = app_settings.lock().await;
     *current = settings.clone();

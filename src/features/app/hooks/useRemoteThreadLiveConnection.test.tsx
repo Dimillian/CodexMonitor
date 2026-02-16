@@ -62,7 +62,7 @@ describe("useRemoteThreadLiveConnection", () => {
     );
 
     await act(async () => {
-      await Promise.resolve();
+      await new Promise<void>((resolve) => { queueMicrotask(resolve); });
     });
 
     expect(refreshThread).toHaveBeenCalledWith("ws-1", "thread-1");
@@ -71,7 +71,7 @@ describe("useRemoteThreadLiveConnection", () => {
 
     await act(async () => {
       window.dispatchEvent(new Event("blur"));
-      await Promise.resolve();
+      await new Promise<void>((resolve) => { queueMicrotask(resolve); });
     });
 
     expect(threadLiveUnsubscribeMock).toHaveBeenCalledWith("ws-1", "thread-1");

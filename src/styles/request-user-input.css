@@ -48,7 +48,7 @@
 }
 
 .request-user-input-question-header {
-  font-size: 10.5px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-faint);

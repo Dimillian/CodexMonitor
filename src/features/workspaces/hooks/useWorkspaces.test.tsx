@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkspaceInfo } from "../../../types";
 import {
   addWorkspace,
@@ -10,6 +10,8 @@ import {
   updateWorkspaceSettings,
 } from "../../../services/tauri";
 import { useWorkspaces } from "./useWorkspaces";
+
+const pushErrorToastMock = vi.fn();
 
 vi.mock("../../../services/tauri", () => ({
   listWorkspaces: vi.fn(),
@@ -25,6 +27,10 @@ vi.mock("../../../services/tauri", () => ({
   removeWorktree: vi.fn(),
   updateWorkspaceCodexBin: vi.fn(),
   updateWorkspaceSettings: vi.fn(),
+}));
+
+vi.mock("../../../services/toasts", () => ({
+  pushErrorToast: (...args: unknown[]) => pushErrorToastMock(...args),
 }));
 
 const worktree: WorkspaceInfo = {
@@ -60,7 +66,15 @@ const workspaceTwo: WorkspaceInfo = {
   settings: { sidebarCollapsed: false, groupId: null },
 };
 
+const flushMicrotaskQueue = () =>
+  new Promise<void>((resolve) => {
+    queueMicrotask(resolve);
+  });
+
 describe("useWorkspaces.renameWorktree", () => {
+  beforeEach(() => {
+    pushErrorToastMock.mockReset();
+  });
   it("optimistically updates and reconciles on success", async () => {
     const listWorkspacesMock = vi.mocked(listWorkspaces);
     const renameWorktreeMock = vi.mocked(renameWorktree);
@@ -75,7 +89,7 @@ describe("useWorkspaces.renameWorktree", () => {
     const { result } = renderHook(() => useWorkspaces());
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     let renameCall: Promise<WorkspaceInfo>;
@@ -84,7 +98,7 @@ describe("useWorkspaces.renameWorktree", () => {
     });
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     expect(result.current.workspaces[0].name).toBe("feature/new");
@@ -117,7 +131,7 @@ describe("useWorkspaces.renameWorktree", () => {
     const { result } = renderHook(() => useWorkspaces());
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     let renameCall: Promise<WorkspaceInfo>;
@@ -126,7 +140,7 @@ describe("useWorkspaces.renameWorktree", () => {
     });
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     expect(result.current.workspaces[0].name).toBe("feature/new");
@@ -154,7 +168,7 @@ describe("useWorkspaces.renameWorktree", () => {
     const { result } = renderHook(() => useWorkspaces());
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     await act(async () => {
@@ -186,7 +200,7 @@ describe("useWorkspaces.updateWorkspaceSettings", () => {
     const { result } = renderHook(() => useWorkspaces());
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     let updatePromise: Promise<WorkspaceInfo[]>;
@@ -236,7 +250,7 @@ describe("useWorkspaces.addWorkspaceFromPath", () => {
     const { result } = renderHook(() => useWorkspaces());
 
     await act(async () => {
-      await Promise.resolve();
+      await flushMicrotaskQueue();
     });
 
     await act(async () => {
@@ -246,5 +260,24 @@ describe("useWorkspaces.addWorkspaceFromPath", () => {
     expect(addWorkspaceMock).toHaveBeenCalledWith("/tmp/repo", null);
     expect(result.current.workspaces).toHaveLength(1);
     expect(result.current.activeWorkspaceId).toBe("workspace-1");
+  });
+});
+
+describe("useWorkspaces.loading", () => {
+  it("surfaces bridge/runtime failures as visible errors instead of empty state", async () => {
+    const listWorkspacesMock = vi.mocked(listWorkspaces);
+    listWorkspacesMock.mockRejectedValueOnce(new Error("bridge unavailable"));
+
+    const { result } = renderHook(() => useWorkspaces());
+
+    await act(async () => {
+      await flushMicrotaskQueue();
+    });
+
+    expect(result.current.hasLoaded).toBe(true);
+    expect(pushErrorToastMock).toHaveBeenCalledWith({
+      title: "加载工作区失败",
+      message: "bridge unavailable",
+    });
   });
 });

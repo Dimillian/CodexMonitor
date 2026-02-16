@@ -40,6 +40,15 @@ function isMissingTauriInvokeError(error: unknown) {
   );
 }
 
+export class TauriInvokeBridgeUnavailableError extends Error {
+  constructor() {
+    super(
+      "Tauri invoke bridge unavailable; workspace list cannot be loaded in this runtime.",
+    );
+    this.name = "TauriInvokeBridgeUnavailableError";
+  }
+}
+
 export async function pickWorkspacePath(): Promise<string | null> {
   const selection = await open({ directory: true, multiple: false });
   if (!selection || Array.isArray(selection)) {
@@ -69,10 +78,7 @@ export async function listWorkspaces(): Promise<WorkspaceInfo[]> {
     return await invoke<WorkspaceInfo[]>("list_workspaces");
   } catch (error) {
     if (isMissingTauriInvokeError(error)) {
-      // In non-Tauri environments (e.g., Electron/web previews), the invoke
-      // bridge may be missing. Treat this as "no workspaces" instead of crashing.
-      console.warn("Tauri invoke bridge unavailable; returning empty workspaces list.");
-      return [];
+      throw new TauriInvokeBridgeUnavailableError();
     }
     throw error;
   }

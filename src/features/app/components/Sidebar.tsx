@@ -1366,6 +1366,18 @@ export const Sidebar = memo(function Sidebar({
     }
   }, [isSearchOpen, searchQuery]);
 
+  const handleSearchInputKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      event.preventDefault();
+      setSearchQuery("");
+      setIsSearchOpen(false);
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!editingWorkspaceAliasId) {
       return;
@@ -1456,14 +1468,19 @@ export const Sidebar = memo(function Sidebar({
         refreshDisabled={refreshDisabled || refreshInProgress}
         refreshInProgress={refreshInProgress}
       />
-      <div className={`sidebar-search${isSearchOpen ? " is-open" : ""}`}>
+      <div
+        className={`sidebar-search${isSearchOpen ? " is-open" : ""}`}
+        role="search"
+        aria-label="侧边栏搜索区域"
+      >
         {isSearchOpen && (
           <input
             className="sidebar-search-input"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="搜索项目"
-            aria-label="搜索项目"
+            onKeyDown={handleSearchInputKeyDown}
+            placeholder="搜索工作区和对话"
+            aria-label="搜索工作区和对话"
             data-tauri-drag-region="false"
             autoFocus
           />

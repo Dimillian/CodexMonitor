@@ -50,10 +50,20 @@ pub fn menu_set_accelerators<R: Runtime>(
     updates: Vec<MenuAcceleratorUpdate>,
 ) -> Result<(), String> {
     let registry = app.state::<MenuItemRegistry<R>>();
+    let mut missing_ids: Vec<String> = Vec::new();
     for update in updates {
-        registry
+        let updated = registry
             .set_accelerator(&update.id, update.accelerator.as_deref())
             .map_err(|error| error.to_string())?;
+        if !updated {
+            missing_ids.push(update.id);
+        }
+    }
+    if !missing_ids.is_empty() {
+        return Err(format!(
+            "menu accelerator ids not found: {}",
+            missing_ids.join(", ")
+        ));
     }
     Ok(())
 }
@@ -157,9 +167,6 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
     let cycle_model_item = MenuItemBuilder::with_id("composer_cycle_model", "切换模型")
         .accelerator("CmdOrCtrl+Shift+M")
         .build(handle)?;
-    let cycle_access_item = MenuItemBuilder::with_id("composer_cycle_access", "切换访问模式")
-        .accelerator("CmdOrCtrl+Shift+A")
-        .build(handle)?;
     let cycle_reasoning_item =
         MenuItemBuilder::with_id("composer_cycle_reasoning", "切换推理模式")
             .accelerator("CmdOrCtrl+Shift+R")
@@ -169,7 +176,6 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
             .accelerator("Shift+Tab")
             .build(handle)?;
     registry.register("composer_cycle_model", &cycle_model_item);
-    registry.register("composer_cycle_access", &cycle_access_item);
     registry.register("composer_cycle_reasoning", &cycle_reasoning_item);
     registry.register("composer_cycle_collaboration", &cycle_collaboration_item);
 
@@ -179,7 +185,6 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
         true,
         &[
             &cycle_model_item,
-            &cycle_access_item,
             &cycle_reasoning_item,
             &cycle_collaboration_item,
         ],
@@ -190,6 +195,8 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
             .build(handle)?;
     let toggle_git_sidebar_item =
         MenuItemBuilder::with_id("view_toggle_git_sidebar", "切换 Git 侧栏").build(handle)?;
+    let branch_switcher_item =
+        MenuItemBuilder::with_id("view_branch_switcher", "分支切换器").build(handle)?;
     let toggle_debug_panel_item =
         MenuItemBuilder::with_id("view_toggle_debug_panel", "切换调试面板")
             .accelerator("CmdOrCtrl+Shift+D")
@@ -210,6 +217,7 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
         &toggle_projects_sidebar_item,
     );
     registry.register("view_toggle_git_sidebar", &toggle_git_sidebar_item);
+    registry.register("view_branch_switcher", &branch_switcher_item);
     registry.register("view_toggle_debug_panel", &toggle_debug_panel_item);
     registry.register("view_toggle_terminal", &toggle_terminal_item);
     registry.register("view_next_agent", &next_agent_item);
@@ -228,6 +236,7 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
             &[
                 &toggle_projects_sidebar_item,
                 &toggle_git_sidebar_item,
+                &branch_switcher_item,
                 &PredefinedMenuItem::separator(handle)?,
                 &toggle_debug_panel_item,
                 &toggle_terminal_item,
@@ -246,12 +255,13 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
         handle,
         "显示",
         true,
-        &[
-            &toggle_projects_sidebar_item,
-            &toggle_git_sidebar_item,
-            &PredefinedMenuItem::separator(handle)?,
-            &toggle_debug_panel_item,
-            &toggle_terminal_item,
+            &[
+                &toggle_projects_sidebar_item,
+                &toggle_git_sidebar_item,
+                &branch_switcher_item,
+                &PredefinedMenuItem::separator(handle)?,
+                &toggle_debug_panel_item,
+                &toggle_terminal_item,
             &PredefinedMenuItem::separator(handle)?,
             &next_agent_item,
             &prev_agent_item,
@@ -324,19 +334,29 @@ pub(crate) fn handle_menu_event<R: tauri::Runtime>(
     match event.id().as_ref() {
         "about" | "help_about" => {
             if let Some(window) = app.get_webview_window("about") {
-                let _ = window.show();
-                let _ = window.set_focus();
+                if let Err(err) = window.show() {
+                    eprintln!("failed to show about window: {err}");
+                }
+                if let Err(err) = window.set_focus() {
+                    eprintln!("failed to focus about window: {err}");
+                }
                 return;
             }
-            let _ = WebviewWindowBuilder::new(app, "about", WebviewUrl::App("index.html".into()))
+            if let Err(err) =
+                WebviewWindowBuilder::new(app, "about", WebviewUrl::App("index.html".into()))
                 .title("关于 Codex Monitor")
                 .resizable(false)
                 .inner_size(360.0, 240.0)
                 .center()
-                .build();
+                .build()
+            {
+                eprintln!("failed to create about window: {err}");
+            }
         }
         "check_for_updates" => {
-            let _ = app.emit("updater-check", ());
+            if let Err(err) = app.emit("updater-check", ()) {
+                eprintln!("failed to emit updater-check event: {err}");
+            }
         }
         "file_new_agent" => emit_menu_event(app, "menu-new-agent"),
         "file_new_worktree_agent" => emit_menu_event(app, "menu-new-worktree-agent"),
@@ -345,7 +365,9 @@ pub(crate) fn handle_menu_event<R: tauri::Runtime>(
         "file_open_settings" => emit_menu_event(app, "menu-open-settings"),
         "file_close_window" | "window_close" => {
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.close();
+                if let Err(err) = window.close() {
+                    eprintln!("failed to close main window: {err}");
+                }
             }
         }
         "file_quit" => {
@@ -354,11 +376,14 @@ pub(crate) fn handle_menu_event<R: tauri::Runtime>(
         "view_fullscreen" => {
             if let Some(window) = app.get_webview_window("main") {
                 let is_fullscreen = window.is_fullscreen().unwrap_or(false);
-                let _ = window.set_fullscreen(!is_fullscreen);
+                if let Err(err) = window.set_fullscreen(!is_fullscreen) {
+                    eprintln!("failed to toggle fullscreen: {err}");
+                }
             }
         }
         "view_toggle_projects_sidebar" => emit_menu_event(app, "menu-toggle-projects-sidebar"),
         "view_toggle_git_sidebar" => emit_menu_event(app, "menu-toggle-git-sidebar"),
+        "view_branch_switcher" => emit_menu_event(app, "menu-open-branch-switcher"),
         "view_toggle_debug_panel" => emit_menu_event(app, "menu-toggle-debug-panel"),
         "view_toggle_terminal" => emit_menu_event(app, "menu-toggle-terminal"),
         "view_next_agent" => emit_menu_event(app, "menu-next-agent"),
@@ -366,17 +391,20 @@ pub(crate) fn handle_menu_event<R: tauri::Runtime>(
         "view_next_workspace" => emit_menu_event(app, "menu-next-workspace"),
         "view_prev_workspace" => emit_menu_event(app, "menu-prev-workspace"),
         "composer_cycle_model" => emit_menu_event(app, "menu-composer-cycle-model"),
-        "composer_cycle_access" => emit_menu_event(app, "menu-composer-cycle-access"),
         "composer_cycle_reasoning" => emit_menu_event(app, "menu-composer-cycle-reasoning"),
         "composer_cycle_collaboration" => emit_menu_event(app, "menu-composer-cycle-collaboration"),
         "window_minimize" => {
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.minimize();
+                if let Err(err) = window.minimize() {
+                    eprintln!("failed to minimize main window: {err}");
+                }
             }
         }
         "window_maximize" => {
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.maximize();
+                if let Err(err) = window.maximize() {
+                    eprintln!("failed to maximize main window: {err}");
+                }
             }
         }
         _ => {}
@@ -385,10 +413,18 @@ pub(crate) fn handle_menu_event<R: tauri::Runtime>(
 
 fn emit_menu_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: &str) {
     if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show();
-        let _ = window.set_focus();
-        let _ = window.emit(event, ());
+        if let Err(err) = window.show() {
+            eprintln!("failed to show main window for menu event {event}: {err}");
+        }
+        if let Err(err) = window.set_focus() {
+            eprintln!("failed to focus main window for menu event {event}: {err}");
+        }
+        if let Err(err) = window.emit(event, ()) {
+            eprintln!("failed to emit menu event {event} to main window: {err}");
+        }
     } else {
-        let _ = app.emit(event, ());
+        if let Err(err) = app.emit(event, ()) {
+            eprintln!("failed to emit menu event {event} via app handle: {err}");
+        }
     }
 }

@@ -299,7 +299,7 @@
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  padding: 4px 6px 4px;
+  padding: 4px 8px;
   font-weight: 600;
 }
 
@@ -782,6 +782,7 @@
 
 .git-log-section-title {
   font-size: 14px;
+  font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-faint);
@@ -961,7 +962,7 @@
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .git-pr-time {
@@ -1037,7 +1038,7 @@
   background: transparent;
   border: 1px solid var(--border-strong);
   border-radius: 6px;
-  padding: 8px 36px 8px 12px;
+  padding: 8px 32px 8px 12px;
   resize: vertical;
   min-height: 48px;
   max-height: 120px;

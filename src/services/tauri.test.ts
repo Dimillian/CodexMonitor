@@ -14,6 +14,7 @@ import {
   readGlobalAgentsMd,
   readGlobalCodexConfigToml,
   listWorkspaces,
+  TauriInvokeBridgeUnavailableError,
   orbitConnectTest,
   orbitRunnerStart,
   orbitRunnerStatus,
@@ -106,13 +107,15 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
-  it("returns an empty list when the Tauri invoke bridge is missing", async () => {
+  it("throws explicit bridge-unavailable error when the Tauri invoke bridge is missing", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockRejectedValueOnce(
       new TypeError("Cannot read properties of undefined (reading 'invoke')"),
     );
 
-    await expect(listWorkspaces()).resolves.toEqual([]);
+    await expect(listWorkspaces()).rejects.toBeInstanceOf(
+      TauriInvokeBridgeUnavailableError,
+    );
     expect(invokeMock).toHaveBeenCalledWith("list_workspaces");
   });
 

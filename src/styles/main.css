@@ -107,6 +107,11 @@
   color: var(--text-stronger);
 }
 
+.diff-view-toggle-button:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: -2px;
+}
+
 .diff-view-toggle-button.is-active {
   background: var(--surface-active);
   color: var(--text-stronger);
@@ -147,6 +152,12 @@
   box-shadow: none;
 }
 
+.open-app-button .open-app-action:focus-visible,
+.open-app-button .open-app-toggle:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: -2px;
+}
+
 .open-app-label {
   display: inline-flex;
   align-items: center;
@@ -184,6 +195,11 @@
 .open-app-option:hover,
 .open-app-option.is-active {
   color: var(--text-stronger);
+}
+
+.open-app-option:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
 }
 
 .launch-script-menu {
@@ -261,6 +277,11 @@
 
 .launch-script-delete:hover:not(:disabled) {
   background: color-mix(in srgb, var(--text-danger) 14%, transparent);
+}
+
+.launch-script-delete:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
 }
 
 .launch-script-icon-picker {
@@ -417,6 +438,11 @@
   background: var(--surface-hover);
 }
 
+.copy-thread-menu-item:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+}
+
 .copy-thread-menu-label {
   font-size: 14px;
   font-weight: 500;
@@ -439,9 +465,10 @@
 }
 
 .status-rail-badge {
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   padding: 4px 8px;
   border-radius: 999px;
   border: 1px solid var(--border-subtle);
@@ -625,6 +652,11 @@
   background: var(--surface-control-hover);
 }
 
+.workspace-branch-static-button:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+}
+
 .worktree-info-popover {
   position: absolute;
   top: calc(100% + 8px);
@@ -696,6 +728,11 @@
   border-color: var(--border-strong);
 }
 
+.worktree-info-copy:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+}
+
 .worktree-info-copy svg {
   width: 14px;
   height: 14px;
@@ -721,6 +758,11 @@
 
 .worktree-info-reveal:hover {
   border-color: var(--border-strong);
+}
+
+.worktree-info-reveal:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
 }
 
 .worktree-info-rename {
@@ -756,6 +798,11 @@
 
 .worktree-info-confirm:hover:not(:disabled) {
   border-color: var(--border-strong);
+}
+
+.worktree-info-confirm:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
 }
 
 .worktree-info-error {
@@ -800,6 +847,11 @@
 .workspace-branch-button:hover {
   background: var(--surface-control-hover);
   color: var(--text-stronger);
+}
+
+.workspace-branch-button:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
 }
 
 .workspace-branch-caret {
@@ -861,6 +913,11 @@
   color: var(--text-stronger);
 }
 
+.branch-action:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+}
+
 .branch-action-icon {
   display: inline-flex;
   align-items: center;
@@ -906,6 +963,11 @@
   background: var(--surface-control-hover);
 }
 
+.branch-create-button:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+}
+
 .branch-create-button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
@@ -943,6 +1005,11 @@
   color: var(--text-stronger);
 }
 
+.branch-item:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
+}
+
 .branch-empty {
   font-size: 14px;
   color: var(--text-faint);
@@ -966,11 +1033,11 @@
 .compact-workspace-live-indicator {
   display: inline-flex;
   align-items: center;
-  margin-left: 10px;
+  margin-left: 12px;
   border-radius: 999px;
   border: 1px solid var(--border-subtle);
-  padding: 3px 8px;
-  font-size: 11px;
+  padding: 4px 8px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
@@ -1255,7 +1322,7 @@
   font-size: 14px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: var(--text-faint);
   padding: 6px 12px 4px;
 }
@@ -1282,6 +1349,11 @@
 
 .command-palette-item:hover {
   background: var(--surface-hover);
+}
+
+.command-palette-item:focus-visible {
+  outline: 2px solid var(--border-accent);
+  outline-offset: 2px;
 }
 
 .command-palette-item-label {

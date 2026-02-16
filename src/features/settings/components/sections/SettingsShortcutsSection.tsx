@@ -28,6 +28,7 @@ type SettingsShortcutsSectionProps = {
   ) => void;
   onClearShortcut: (key: ShortcutSettingKey) => void;
   conflictsBySetting?: Partial<Record<ShortcutSettingKey, ShortcutSettingKey[]>>;
+  isMobilePlatform?: boolean;
 };
 
 function ShortcutField({
@@ -36,6 +37,7 @@ function ShortcutField({
   onShortcutKeyDown,
   onClearShortcut,
   conflictLabels = [],
+  disabled = false,
 }: {
   item: ShortcutItem;
   shortcutDrafts: ShortcutDrafts;
@@ -45,6 +47,7 @@ function ShortcutField({
   ) => void;
   onClearShortcut: (key: ShortcutSettingKey) => void;
   conflictLabels?: string[];
+  disabled?: boolean;
 }) {
   return (
     <div className="settings-field">
@@ -55,14 +58,21 @@ function ShortcutField({
             conflictLabels.length > 0 ? " is-conflict" : ""
           }`}
           value={formatShortcut(shortcutDrafts[item.draftKey])}
-          onKeyDown={(event) => onShortcutKeyDown(event, item.settingKey)}
+          onKeyDown={(event) => {
+            if (disabled) {
+              return;
+            }
+            onShortcutKeyDown(event, item.settingKey);
+          }}
           placeholder="输入快捷键"
           readOnly
+          disabled={disabled}
         />
         <button
           type="button"
           className="ghost settings-button-compact"
           onClick={() => onClearShortcut(item.settingKey)}
+          disabled={disabled}
         >
           清除
         </button>
@@ -82,9 +92,11 @@ export function SettingsShortcutsSection({
   onShortcutKeyDown,
   onClearShortcut,
   conflictsBySetting = {},
+  isMobilePlatform = false,
 }: SettingsShortcutsSectionProps) {
   const isMac = isMacPlatform();
   const [searchQuery, setSearchQuery] = useState("");
+  const shortcutEditingDisabled = isMobilePlatform;
 
   const groups = useMemo<ShortcutGroup[]>(() => [
     {
@@ -119,7 +131,7 @@ export function SettingsShortcutsSection({
     },
     {
       title: "编辑器",
-      subtitle: "循环切换模型、权限、推理和协作模式。",
+      subtitle: "循环切换模型、推理和协作模式。",
       items: [
         {
           label: "切换模型",
@@ -249,6 +261,11 @@ export function SettingsShortcutsSection({
       <div className="settings-section-subtitle">
         自定义文件操作、编辑器、面板与导航的快捷键。
       </div>
+      {shortcutEditingDisabled && (
+        <div className="settings-status">
+          移动端暂不支持全局菜单快捷键修改，当前仅展示桌面端快捷键映射。
+        </div>
+      )}
       <div className="settings-field">
         <input
           className="settings-input settings-input--compact"
@@ -257,6 +274,7 @@ export function SettingsShortcutsSection({
           onChange={(event) => setSearchQuery(event.target.value)}
           placeholder="搜索快捷键（例如：终端 / 工作区 / 分支）"
           aria-label="搜索快捷键"
+          disabled={shortcutEditingDisabled}
         />
       </div>
       {filteredGroups.length === 0 && (
@@ -277,6 +295,7 @@ export function SettingsShortcutsSection({
               conflictLabels={(conflictsBySetting[item.settingKey] ?? [])
                 .map((settingKey) => labelBySetting[settingKey] ?? settingKey)
                 .filter((label) => Boolean(label))}
+              disabled={shortcutEditingDisabled}
             />
           ))}
         </div>

@@ -76,7 +76,43 @@ describe("useAppSettings", () => {
     expect(result.current.settings.codeFontFamily).toContain("ui-monospace");
     expect(result.current.settings.backendMode).toBe("local");
     expect(result.current.settings.dictationModelId).toBe("base");
-    expect(result.current.settings.interruptShortcut).toBeTruthy();
+    expect(result.current.settings.interruptShortcut).toEqual(expect.any(String));
+    expect(result.current.settings.interruptShortcut?.length ?? 0).toBeGreaterThan(0);
+  });
+
+  it("merges user changes with latest backend settings when initial load failed", async () => {
+    getAppSettingsMock
+      .mockRejectedValueOnce(new Error("load failed"))
+      .mockResolvedValueOnce(({
+        codexBin: "/usr/bin/codex",
+        codexArgs: "--remote-profile",
+        preloadGitDiffs: true,
+      } as unknown) as AppSettings);
+    updateAppSettingsMock.mockImplementation(async (next) => next);
+
+    const { result } = renderHook(() => useAppSettings());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const next: AppSettings = {
+      ...result.current.settings,
+      theme: "dark",
+    };
+
+    await act(async () => {
+      await result.current.saveSettings(next);
+    });
+
+    expect(getAppSettingsMock).toHaveBeenCalledTimes(2);
+    expect(updateAppSettingsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        theme: "dark",
+        codexBin: "/usr/bin/codex",
+        codexArgs: "--remote-profile",
+        preloadGitDiffs: true,
+      }),
+    );
+    expect(result.current.settings.theme).toBe("dark");
+    expect(result.current.settings.codexArgs).toBe("--remote-profile");
   });
 
   it("persists settings via updateAppSettings and updates local state", async () => {
