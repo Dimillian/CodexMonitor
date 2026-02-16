@@ -273,6 +273,8 @@ function MainApp() {
     activeWorkspaceId,
   });
   const {
+    appRef,
+    isResizing,
     sidebarWidth,
     chatDiffSplitPositionPercent,
     rightPanelWidth,
@@ -2435,7 +2437,7 @@ function MainApp() {
   );
 
   return (
-    <div className={appClassName} style={appStyle}>
+    <div className={`${appClassName}${isResizing ? " is-resizing" : ""}`} style={appStyle} ref={appRef}>
       <div className="drag-strip" id="titlebar" data-tauri-drag-region />
       <TitlebarExpandControls {...sidebarToggleProps} />
       {shouldLoadGitHubPanelData ? (

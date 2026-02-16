@@ -60,6 +60,11 @@ body {
   font-family: var(--ui-font-family);
 }
 
+.app.is-resizing,
+.app.is-resizing .main {
+  transition: none;
+}
+
 .drag-strip {
   position: absolute;
   top: 0;
