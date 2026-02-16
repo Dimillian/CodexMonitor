@@ -1,11 +1,4 @@
-import type {
-  OpenAppTarget,
-  OrbitConnectTestResult,
-  OrbitDeviceCodeStart,
-  OrbitRunnerStatus,
-  OrbitSignInPollResult,
-  OrbitSignOutResult,
-} from "@/types";
+import type { OpenAppTarget } from "@/types";
 
 type SettingsSection =
   | "projects"
@@ -63,13 +56,3 @@ export type ShortcutDraftKey =
 export type ShortcutDrafts = Record<ShortcutDraftKey, string>;
 
 export type OpenAppDraft = OpenAppTarget & { argsText: string };
-
-export type OrbitServiceClient = {
-  orbitConnectTest: () => Promise<OrbitConnectTestResult>;
-  orbitSignInStart: () => Promise<OrbitDeviceCodeStart>;
-  orbitSignInPoll: (deviceCode: string) => Promise<OrbitSignInPollResult>;
-  orbitSignOut: () => Promise<OrbitSignOutResult>;
-  orbitRunnerStart: () => Promise<OrbitRunnerStatus>;
-  orbitRunnerStop: () => Promise<OrbitRunnerStatus>;
-  orbitRunnerStatus: () => Promise<OrbitRunnerStatus>;
-};

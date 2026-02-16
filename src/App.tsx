@@ -125,7 +125,11 @@ import { useThreadListActions } from "@app/hooks/useThreadListActions";
 import { useSidebarLayoutActions } from "@app/hooks/useSidebarLayoutActions";
 import { useGitRootSelection } from "@app/hooks/useGitRootSelection";
 import { useTabActivationGuard } from "@app/hooks/useTabActivationGuard";
-import { useRemoteThreadRefreshOnFocus } from "@app/hooks/useRemoteThreadRefreshOnFocus";
+import {
+  REMOTE_THREAD_POLL_INTERVAL_MS,
+  useRemoteThreadRefreshOnFocus,
+} from "@app/hooks/useRemoteThreadRefreshOnFocus";
+import { useRemoteThreadLiveConnection } from "@app/hooks/useRemoteThreadLiveConnection";
 import { useAppBootstrapOrchestration } from "@app/bootstrap/useAppBootstrapOrchestration";
 import {
   useThreadCodexBootstrapOrchestration,
@@ -616,6 +620,17 @@ function MainApp() {
     onMessageActivity: handleThreadMessageActivity,
     threadSortKey: threadListSortKey,
   });
+  const { connectionState: remoteThreadConnectionState, reconnectLive } =
+    useRemoteThreadLiveConnection({
+      backendMode: appSettings.backendMode,
+      activeWorkspace,
+      activeThreadId,
+      activeThreadIsProcessing: Boolean(
+        activeThreadId && threadStatusById[activeThreadId]?.isProcessing,
+      ),
+      refreshThread,
+      reconnectWorkspace: connectWorkspace,
+    });
 
   const handleMobileThreadRefresh = useCallback(() => {
     if (mobileThreadRefreshLoading || !activeWorkspace) {
@@ -633,6 +648,7 @@ function MainApp() {
         return;
       }
       await refreshThread(activeWorkspace.id, threadId);
+      await reconnectLive(activeWorkspace.id, threadId, { runResume: false });
     })()
       .catch(() => {
         // Errors are surfaced through debug entries/toasts in existing thread actions.
@@ -645,12 +661,15 @@ function MainApp() {
     activeWorkspace,
     mobileThreadRefreshLoading,
     refreshThread,
+    reconnectLive,
     startThreadForWorkspace,
   ]);
   const {
     updaterState,
     startUpdate,
     dismissUpdate,
+    postUpdateNotice,
+    dismissPostUpdateNotice,
     handleTestNotificationSound,
     handleTestSystemNotification,
   } = useUpdaterController({
@@ -1628,6 +1647,9 @@ function MainApp() {
     activeThreadIsProcessing: Boolean(
       activeThreadId && threadStatusById[activeThreadId]?.isProcessing,
     ),
+    suspendPolling:
+      appSettings.backendMode === "remote" &&
+      remoteThreadConnectionState === "live",
     reconnectWorkspace: connectWorkspace,
     refreshThread,
   });
@@ -1896,6 +1918,11 @@ function MainApp() {
     Boolean(activeWorkspace) &&
     isCompact &&
     ((isPhone && activeTab === "codex") || (isTablet && tabletTab === "codex"));
+  const showMobilePollingFetchStatus =
+    showCompactCodexThreadActions &&
+    Boolean(activeWorkspace?.connected) &&
+    appSettings.backendMode === "remote" &&
+    remoteThreadConnectionState === "polling";
 
   const {
     sidebarNode,
@@ -1939,6 +1966,8 @@ function MainApp() {
     activeWorkspaceId,
     activeThreadId,
     activeItems,
+    showPollingFetchStatus: showMobilePollingFetchStatus,
+    pollingIntervalMs: REMOTE_THREAD_POLL_INTERVAL_MS,
     activeRateLimits,
     usageShowRemaining: appSettings.usageShowRemaining,
     accountInfo: activeAccount,
@@ -1986,6 +2015,8 @@ function MainApp() {
     updaterState,
     onUpdate: startUpdate,
     onDismissUpdate: dismissUpdate,
+    postUpdateNotice,
+    onDismissPostUpdateNotice: dismissPostUpdateNotice,
     errorToasts,
     onDismissErrorToast: dismissErrorToast,
     latestAgentRuns,
@@ -2414,14 +2445,36 @@ function MainApp() {
   ) : null;
 
   const mainMessagesNode = showWorkspaceHome ? workspaceHomeNode : messagesNode;
-  const codexTopbarActionsNode = showCompactCodexThreadActions ? (
+  const showCompactThreadConnectionIndicator =
+    showCompactCodexThreadActions && Boolean(activeThreadId) && activeItems.length > 0;
+  const compactThreadConnectionState: "live" | "polling" | "disconnected" =
+    !activeWorkspace?.connected
+      ? "disconnected"
+      : appSettings.backendMode === "remote"
+        ? remoteThreadConnectionState
+        : "live";
+  const codexTopbarActionsNode = showCompactThreadConnectionIndicator ? (
     <span
       className={`compact-workspace-live-indicator ${
-        activeWorkspace?.connected ? "is-live" : "is-disconnected"
+        compactThreadConnectionState === "live"
+          ? "is-live"
+          : compactThreadConnectionState === "polling"
+            ? "is-polling"
+            : "is-disconnected"
       }`}
-      title={activeWorkspace?.connected ? "Connected to backend" : "Disconnected from backend"}
+      title={
+        compactThreadConnectionState === "live"
+          ? "Receiving live thread events"
+          : compactThreadConnectionState === "polling"
+            ? "Connected, syncing thread state by polling"
+            : "Disconnected from backend"
+      }
     >
-      {activeWorkspace?.connected ? "Live" : "Disconnected"}
+      {compactThreadConnectionState === "live"
+        ? "Live"
+        : compactThreadConnectionState === "polling"
+          ? "Polling"
+          : "Disconnected"}
     </span>
   ) : null;
 

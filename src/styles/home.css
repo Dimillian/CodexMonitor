@@ -134,6 +134,11 @@
   opacity: 0.6;
 }
 
+.home-usage-select option {
+  background-color: var(--surface-popover);
+  color: var(--text-strong);
+}
+
 .home-usage-toggle {
   display: inline-flex;
   align-items: center;

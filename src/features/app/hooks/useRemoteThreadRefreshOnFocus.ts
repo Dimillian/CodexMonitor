@@ -2,11 +2,14 @@ import { useEffect, useRef } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { WorkspaceInfo } from "../../../types";
 
+export const REMOTE_THREAD_POLL_INTERVAL_MS = 12000;
+
 type UseRemoteThreadRefreshOnFocusOptions = {
   backendMode: string;
   activeWorkspace: WorkspaceInfo | null;
   activeThreadId: string | null;
   activeThreadIsProcessing?: boolean;
+  suspendPolling?: boolean;
   reconnectWorkspace?: (workspace: WorkspaceInfo) => Promise<unknown> | unknown;
   refreshThread: (workspaceId: string, threadId: string) => Promise<unknown> | unknown;
 };
@@ -16,6 +19,7 @@ export function useRemoteThreadRefreshOnFocus({
   activeWorkspace,
   activeThreadId,
   activeThreadIsProcessing = false,
+  suspendPolling = false,
   reconnectWorkspace,
   refreshThread,
 }: UseRemoteThreadRefreshOnFocusOptions) {
@@ -113,13 +117,14 @@ export function useRemoteThreadRefreshOnFocus({
       }
       if (
         !canRefresh() ||
+        suspendPolling ||
         activeThreadIsProcessing ||
         !windowFocused ||
         document.visibilityState !== "visible"
       ) {
         return;
       }
-      const pollIntervalMs = 12000;
+      const pollIntervalMs = REMOTE_THREAD_POLL_INTERVAL_MS;
       pollTimer = setInterval(() => {
         runRefresh();
       }, pollIntervalMs);
@@ -127,7 +132,9 @@ export function useRemoteThreadRefreshOnFocus({
 
     const handleFocus = () => {
       windowFocused = true;
-      refreshActiveThread();
+      if (!suspendPolling) {
+        refreshActiveThread();
+      }
       updatePolling();
     };
 
@@ -139,7 +146,9 @@ export function useRemoteThreadRefreshOnFocus({
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         windowFocused = true;
-        refreshActiveThread();
+        if (!suspendPolling) {
+          refreshActiveThread();
+        }
       }
       updatePolling();
     };
@@ -199,6 +208,7 @@ export function useRemoteThreadRefreshOnFocus({
     activeThreadId,
     activeThreadIsProcessing,
     backendMode,
+    suspendPolling,
     workspaceId,
   ]);
 }

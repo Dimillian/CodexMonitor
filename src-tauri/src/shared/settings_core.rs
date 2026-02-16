@@ -59,23 +59,6 @@ pub(crate) async fn update_app_settings_core(
     Ok(settings)
 }
 
-pub(crate) async fn update_remote_backend_token_core(
-    app_settings: &Mutex<AppSettings>,
-    settings_path: &PathBuf,
-    token: Option<&str>,
-) -> Result<AppSettings, String> {
-    let normalized_token = token
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string);
-    let mut next_settings = app_settings.lock().await.clone();
-    if next_settings.remote_backend_token == normalized_token {
-        return Ok(next_settings);
-    }
-    next_settings.remote_backend_token = normalized_token;
-    update_app_settings_core(next_settings, app_settings, settings_path).await
-}
-
 pub(crate) fn get_codex_config_path_core() -> Result<String, String> {
     codex_config::config_toml_path()
         .ok_or_else(|| "Unable to resolve CODEX_HOME".to_string())

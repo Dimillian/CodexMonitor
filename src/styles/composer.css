@@ -816,6 +816,11 @@
   color: var(--text-strong);
 }
 
+.composer-select option {
+  background-color: var(--surface-popover);
+  color: var(--text-strong);
+}
+
 @media (max-width: 720px) {
   .app.layout-phone .composer-input {
     grid-template-columns: minmax(0, 1fr) auto;

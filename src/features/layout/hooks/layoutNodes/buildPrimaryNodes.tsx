@@ -115,6 +115,8 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       }
       processingStartedAt={activeThreadStatus?.processingStartedAt ?? null}
       lastDurationMs={activeThreadStatus?.lastDurationMs ?? null}
+      showPollingFetchStatus={options.showPollingFetchStatus}
+      pollingIntervalMs={options.pollingIntervalMs}
     />
   );
 
@@ -220,6 +222,8 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       state={options.updaterState}
       onUpdate={options.onUpdate}
       onDismiss={options.onDismissUpdate}
+      postUpdateNotice={options.postUpdateNotice}
+      onDismissPostUpdateNotice={options.onDismissPostUpdateNotice}
     />
   );
 

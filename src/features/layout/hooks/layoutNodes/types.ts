@@ -37,7 +37,10 @@ import type {
   TurnPlan,
   WorkspaceInfo,
 } from "../../../../types";
-import type { UpdateState } from "../../../update/hooks/useUpdater";
+import type {
+  PostUpdateNoticeState,
+  UpdateState,
+} from "../../../update/hooks/useUpdater";
 import type { TerminalSessionState } from "../../../terminal/hooks/useTerminalSession";
 import type { TerminalTab } from "../../../terminal/hooks/useTerminalTabs";
 import type { ErrorToast } from "../../../../services/toasts";
@@ -117,6 +120,8 @@ export type LayoutNodesOptions = {
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   activeItems: ConversationItem[];
+  showPollingFetchStatus?: boolean;
+  pollingIntervalMs?: number;
   activeRateLimits: RateLimitSnapshot | null;
   usageShowRemaining: boolean;
   accountInfo: AccountSnapshot | null;
@@ -181,6 +186,8 @@ export type LayoutNodesOptions = {
   updaterState: UpdateState;
   onUpdate: () => void;
   onDismissUpdate: () => void;
+  postUpdateNotice: PostUpdateNoticeState;
+  onDismissPostUpdateNotice: () => void;
   errorToasts: ErrorToast[];
   onDismissErrorToast: (id: string) => void;
   latestAgentRuns: Array<{

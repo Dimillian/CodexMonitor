@@ -44,6 +44,11 @@
   background-repeat: no-repeat;
 }
 
+.git-panel-select-input option {
+  background-color: var(--surface-popover);
+  color: var(--text-strong);
+}
+
 .git-panel-select-icon {
   display: inline-flex;
   align-items: center;

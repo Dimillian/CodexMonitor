@@ -4,7 +4,7 @@ use crate::shared::settings_core::{
     get_app_settings_core, get_codex_config_path_core, update_app_settings_core,
 };
 use crate::state::AppState;
-use crate::types::{AppSettings, BackendMode, RemoteBackendProvider};
+use crate::types::{AppSettings, BackendMode};
 use crate::window;
 
 #[tauri::command]
@@ -54,7 +54,6 @@ fn should_reset_remote_backend(previous: &AppSettings, updated: &AppSettings) ->
         || previous.remote_backend_provider != updated.remote_backend_provider
         || previous.remote_backend_host != updated.remote_backend_host
         || previous.remote_backend_token != updated.remote_backend_token
-        || previous.orbit_ws_url != updated.orbit_ws_url
 }
 
 async fn ensure_remote_runtime_for_settings(settings: &AppSettings, state: State<'_, AppState>) {
@@ -65,28 +64,20 @@ async fn ensure_remote_runtime_for_settings(settings: &AppSettings, state: State
         return;
     }
 
-    match settings.remote_backend_provider {
-        RemoteBackendProvider::Tcp => {
-            let _ = crate::tailscale::tailscale_daemon_start(state).await;
-        }
-        RemoteBackendProvider::Orbit => {
-            if settings.orbit_auto_start_runner {
-                let _ = crate::orbit::orbit_runner_start(state).await;
-            }
-        }
-    }
+    let _ = crate::tailscale::tailscale_daemon_start(state).await;
 }
 
 #[cfg(test)]
 mod tests {
     use super::should_reset_remote_backend;
-    use crate::types::{AppSettings, BackendMode, RemoteBackendProvider};
+    use crate::types::{AppSettings, BackendMode};
 
     #[test]
     fn should_reset_remote_backend_when_provider_changes() {
         let previous = AppSettings::default();
         let mut updated = previous.clone();
-        updated.remote_backend_provider = RemoteBackendProvider::Orbit;
+        updated.remote_backend_provider = crate::types::RemoteBackendProvider::Tcp;
+        updated.remote_backend_host = "remote.example:4732".to_string();
         assert!(should_reset_remote_backend(&previous, &updated));
     }
 

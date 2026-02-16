@@ -18,7 +18,6 @@ import { useSettingsGitSection } from "./useSettingsGitSection";
 import { useSettingsProjectsSection } from "./useSettingsProjectsSection";
 import { useSettingsServerSection } from "./useSettingsServerSection";
 import type { GroupedWorkspaces } from "./settingsSectionTypes";
-import type { OrbitServiceClient } from "@settings/components/settingsTypes";
 import {
   COMPOSER_PRESET_CONFIGS,
   COMPOSER_PRESET_LABELS,
@@ -66,7 +65,6 @@ type UseSettingsViewOrchestrationArgs = {
   onDownloadDictationModel?: () => void;
   onCancelDictationDownload?: () => void;
   onRemoveDictationModel?: () => void;
-  orbitServiceClient: OrbitServiceClient;
 };
 
 export function useSettingsViewOrchestration({
@@ -98,7 +96,6 @@ export function useSettingsViewOrchestration({
   onDownloadDictationModel,
   onCancelDictationDownload,
   onRemoveDictationModel,
-  orbitServiceClient,
 }: UseSettingsViewOrchestrationArgs) {
   const projects = useMemo(
     () => groupedWorkspaces.flatMap((group) => group.workspaces),
@@ -196,7 +193,6 @@ export function useSettingsViewOrchestration({
     appSettings,
     onUpdateAppSettings,
     onMobileConnectSuccess,
-    orbitServiceClient,
   });
 
   const codexSectionProps = useSettingsCodexSection({

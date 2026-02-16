@@ -859,6 +859,12 @@
   background: color-mix(in srgb, var(--status-success) 12%, transparent);
 }
 
+.compact-workspace-live-indicator.is-polling {
+  color: var(--status-warning);
+  border-color: color-mix(in srgb, var(--status-warning) 38%, transparent);
+  background: color-mix(in srgb, var(--status-warning) 12%, transparent);
+}
+
 .compact-workspace-live-indicator.is-disconnected {
   color: var(--status-error);
   border-color: color-mix(in srgb, var(--status-error) 42%, transparent);

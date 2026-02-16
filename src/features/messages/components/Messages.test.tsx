@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { useCallback, useState } from "react";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationItem } from "../../../types";
 import { Messages } from "./Messages";
@@ -487,6 +487,71 @@ describe("Messages", () => {
     const workingText = container.querySelector(".working-text");
     expect(workingText?.textContent ?? "").toContain("Indexing workspace");
     expect(container.querySelector(".reasoning-inline")).toBeNull();
+  });
+
+  it("shows polling fetch countdown text instead of done duration when requested", () => {
+    vi.useFakeTimers();
+    try {
+      const items: ConversationItem[] = [
+        {
+          id: "assistant-msg-done",
+          kind: "message",
+          role: "assistant",
+          text: "Completed response",
+        },
+      ];
+
+      render(
+        <Messages
+          items={items}
+          threadId="thread-1"
+          workspaceId="ws-1"
+          isThinking={false}
+          lastDurationMs={4_000}
+          showPollingFetchStatus
+          pollingIntervalMs={12_000}
+          openTargets={[]}
+          selectedOpenAppId=""
+        />,
+      );
+
+      expect(
+        screen.getByText("New message will be fetched in 12 seconds"),
+      ).toBeTruthy();
+      act(() => {
+        vi.advanceTimersByTime(1_000);
+      });
+      expect(
+        screen.getByText("New message will be fetched in 11 seconds"),
+      ).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps done duration text when polling fetch countdown is not requested", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "assistant-msg-done-default",
+        kind: "message",
+        role: "assistant",
+        text: "Completed response",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        lastDurationMs={4_000}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(screen.getByText("Done in 0:04")).toBeTruthy();
   });
 
   it("merges consecutive explore items under a single explored block", async () => {

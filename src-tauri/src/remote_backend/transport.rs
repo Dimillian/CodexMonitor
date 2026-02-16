@@ -20,30 +20,23 @@ pub(crate) enum RemoteTransportConfig {
         host: String,
         auth_token: Option<String>,
     },
-    OrbitWs {
-        ws_url: String,
-        auth_token: Option<String>,
-    },
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum RemoteTransportKind {
     Tcp,
-    OrbitWs,
 }
 
 impl RemoteTransportConfig {
     pub(crate) fn kind(&self) -> RemoteTransportKind {
         match self {
             RemoteTransportConfig::Tcp { .. } => RemoteTransportKind::Tcp,
-            RemoteTransportConfig::OrbitWs { .. } => RemoteTransportKind::OrbitWs,
         }
     }
 
     pub(crate) fn auth_token(&self) -> Option<&str> {
         match self {
             RemoteTransportConfig::Tcp { auth_token, .. } => auth_token.as_deref(),
-            RemoteTransportConfig::OrbitWs { auth_token, .. } => auth_token.as_deref(),
         }
     }
 }

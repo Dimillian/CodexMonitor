@@ -1,10 +1,6 @@
 import type {
   AppSettings,
   OpenAppTarget,
-  OrbitConnectTestResult,
-  OrbitRunnerStatus,
-  OrbitSignInPollResult,
-  OrbitSignOutResult,
   WorkspaceInfo,
 } from "@/types";
 import type { OpenAppDraft, ShortcutDrafts } from "./settingsTypes";
@@ -40,72 +36,6 @@ export const isNarrowSettingsViewport = (): boolean => {
     return false;
   }
   return window.matchMedia(`(max-width: ${SETTINGS_MOBILE_BREAKPOINT_PX}px)`).matches;
-};
-
-export const delay = (durationMs: number): Promise<void> =>
-  new Promise((resolve) => {
-    window.setTimeout(resolve, durationMs);
-  });
-
-export type OrbitActionResult =
-  | OrbitConnectTestResult
-  | OrbitSignInPollResult
-  | OrbitSignOutResult
-  | OrbitRunnerStatus;
-
-export const getOrbitStatusText = (
-  value: OrbitActionResult,
-  fallback: string,
-): string => {
-  if ("ok" in value) {
-    if (!value.ok) {
-      return value.message || fallback;
-    }
-    if (value.message.trim()) {
-      return value.message;
-    }
-    if (typeof value.latencyMs === "number") {
-      return `Connected to Orbit relay in ${value.latencyMs}ms.`;
-    }
-    return fallback;
-  }
-
-  if ("status" in value) {
-    if (value.message && value.message.trim()) {
-      return value.message;
-    }
-    switch (value.status) {
-      case "pending":
-        return "Waiting for Orbit sign-in authorization.";
-      case "authorized":
-        return "Orbit sign in complete.";
-      case "denied":
-        return "Orbit sign in denied.";
-      case "expired":
-        return "Orbit sign in code expired.";
-      case "error":
-        return "Orbit sign in failed.";
-      default:
-        return fallback;
-    }
-  }
-
-  if ("success" in value) {
-    if (!value.success && value.message && value.message.trim()) {
-      return value.message;
-    }
-    return value.success ? "Signed out from Orbit." : fallback;
-  }
-
-  if (value.state === "running") {
-    return value.pid
-      ? `Orbit runner is running (pid ${value.pid}).`
-      : "Orbit runner is running.";
-  }
-  if (value.state === "error") {
-    return value.lastError?.trim() || "Orbit runner is in error state.";
-  }
-  return "Orbit runner is stopped.";
 };
 
 export const buildOpenAppDrafts = (targets: OpenAppTarget[]): OpenAppDraft[] =>

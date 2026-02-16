@@ -65,7 +65,6 @@
 		9D954D38686C4132856A59E4 /* tcp_transport.rs */ = {isa = PBXFileReference; path = tcp_transport.rs; sourceTree = "<group>"; };
 		9E58DB47DA7B47D628EADE5D /* args.rs */ = {isa = PBXFileReference; path = args.rs; sourceTree = "<group>"; };
 		9E5C2A555AC05BDC3564838B /* local_usage_core.rs */ = {isa = PBXFileReference; path = local_usage_core.rs; sourceTree = "<group>"; };
-		A07E819E1F8FC4710E1E5DAC /* orbit_core.rs */ = {isa = PBXFileReference; path = orbit_core.rs; sourceTree = "<group>"; };
 		A35E6BC600DBB2FF9C6EABCD /* codex_monitor_daemon.rs */ = {isa = PBXFileReference; path = codex_monitor_daemon.rs; sourceTree = "<group>"; };
 		A677124A2706E5BF201E0FEB /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		AA0D64CE30289CCE13E59F0F /* worktree_core.rs */ = {isa = PBXFileReference; path = worktree_core.rs; sourceTree = "<group>"; };
@@ -83,7 +82,6 @@
 		D05DC45BD60F3A9C1A3B0663 /* policy.rs */ = {isa = PBXFileReference; path = policy.rs; sourceTree = "<group>"; };
 		D3469462193DAA7437CF3971 /* state.rs */ = {isa = PBXFileReference; path = state.rs; sourceTree = "<group>"; };
 		D5066E0D8C3EBB3BF6522255 /* codex_core.rs */ = {isa = PBXFileReference; path = codex_core.rs; sourceTree = "<group>"; };
-		D94AE32B1D64069E94AFEDC9 /* orbit_ws_transport.rs */ = {isa = PBXFileReference; path = orbit_ws_transport.rs; sourceTree = "<group>"; };
 		DA6F8CA66C86156DDE024DBD /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		DA7D0B551D09725FFEF6A5F7 /* git.rs */ = {isa = PBXFileReference; path = git.rs; sourceTree = "<group>"; };
 		DBB890CC58633E8FD68707DF /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
@@ -183,7 +181,6 @@
 			isa = PBXGroup;
 			children = (
 				08DA73A3B0441143BDAB249C /* mod.rs */,
-				D94AE32B1D64069E94AFEDC9 /* orbit_ws_transport.rs */,
 				90D7D2BB5D2B32D2D5E7FC74 /* protocol.rs */,
 				9D954D38686C4132856A59E4 /* tcp_transport.rs */,
 				6946AB1AF1A3D2A8B15D1851 /* transport.rs */,
@@ -211,7 +208,6 @@
 				80C8B0127080EFDC77615869 /* git_ui_core.rs */,
 				9E5C2A555AC05BDC3564838B /* local_usage_core.rs */,
 				94AD322F1E988800DBA78639 /* mod.rs */,
-				A07E819E1F8FC4710E1E5DAC /* orbit_core.rs */,
 				3694556D879AB22D60B3C7BE /* process_core.rs */,
 				86C83692DBFF6EB1642C8EDC /* prompts_core.rs */,
 				94D1E1436404E5CF32E1EC97 /* settings_core.rs */,
@@ -279,7 +275,6 @@
 				8A851D3110FA91F307B978D2 /* dictation */,
 				00C678587D406CBBBC7DB473 /* files */,
 				41BDAF45DFACDE58DB7F6CF9 /* git */,
-				EBFD460F3E3882D288DB1857 /* orbit */,
 				2D83F316741CCD9EEFB040D4 /* remote_backend */,
 				BBC110A6B11308FA59CC6023 /* settings */,
 				3F64BF5418976E7EC8C3D35E /* shared */,
@@ -356,14 +351,6 @@
 				022C9B9709B6E33626712962 /* codex-monitor_iOS.app */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		EBFD460F3E3882D288DB1857 /* orbit */ = {
-			isa = PBXGroup;
-			children = (
-				B8230BF8F554EC5F090CD80F /* mod.rs */,
-			);
-			path = orbit;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

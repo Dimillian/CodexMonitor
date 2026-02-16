@@ -18,13 +18,6 @@ import {
   readGlobalAgentsMd,
   readGlobalCodexConfigToml,
   listWorkspaces,
-  orbitConnectTest,
-  orbitRunnerStart,
-  orbitRunnerStatus,
-  orbitRunnerStop,
-  orbitSignInPoll,
-  orbitSignInStart,
-  orbitSignOut,
   openWorkspaceIn,
   readAgentMd,
   stageGitAll,
@@ -316,29 +309,6 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("get_open_app_icon", {
       appName: "Xcode",
     });
-  });
-
-  it("invokes orbit remote auth/runner wrappers", async () => {
-    const invokeMock = vi.mocked(invoke);
-    invokeMock.mockResolvedValue(undefined);
-
-    await orbitConnectTest();
-    await orbitSignInStart();
-    await orbitSignInPoll("device-code");
-    await orbitSignOut();
-    await orbitRunnerStart();
-    await orbitRunnerStop();
-    await orbitRunnerStatus();
-
-    expect(invokeMock).toHaveBeenCalledWith("orbit_connect_test");
-    expect(invokeMock).toHaveBeenCalledWith("orbit_sign_in_start");
-    expect(invokeMock).toHaveBeenCalledWith("orbit_sign_in_poll", {
-      deviceCode: "device-code",
-    });
-    expect(invokeMock).toHaveBeenCalledWith("orbit_sign_out");
-    expect(invokeMock).toHaveBeenCalledWith("orbit_runner_start");
-    expect(invokeMock).toHaveBeenCalledWith("orbit_runner_stop");
-    expect(invokeMock).toHaveBeenCalledWith("orbit_runner_status");
   });
 
   it("invokes tailscale wrappers", async () => {

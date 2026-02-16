@@ -1,4 +1,3 @@
-mod orbit_ws_transport;
 mod protocol;
 mod tcp_transport;
 mod transport;
@@ -13,9 +12,8 @@ use tokio::sync::Mutex;
 use tokio::time::timeout;
 
 use crate::state::AppState;
-use crate::types::{BackendMode, RemoteBackendProvider};
+use crate::types::BackendMode;
 
-use self::orbit_ws_transport::OrbitWsTransport;
 use self::protocol::{build_request_line, DEFAULT_REMOTE_HOST, DISCONNECTED_MESSAGE};
 use self::tcp_transport::TcpTransport;
 use self::transport::{PendingMap, RemoteTransport, RemoteTransportConfig, RemoteTransportKind};
@@ -176,6 +174,8 @@ fn can_retry_after_disconnect(method: &str) -> bool {
             | "model_list"
             | "read_workspace_file"
             | "resume_thread"
+            | "thread_live_subscribe"
+            | "thread_live_unsubscribe"
             | "skills_list"
             | "worktree_setup_status"
     )
@@ -198,7 +198,6 @@ async fn ensure_remote_backend(state: &AppState, app: AppHandle) -> Result<Remot
 
     let transport: Box<dyn RemoteTransport> = match transport_config.kind() {
         RemoteTransportKind::Tcp => Box::new(TcpTransport),
-        RemoteTransportKind::OrbitWs => Box::new(OrbitWsTransport),
     };
     let connection = transport.connect(app, transport_config).await?;
 
@@ -231,50 +230,33 @@ async fn ensure_remote_backend(state: &AppState, app: AppHandle) -> Result<Remot
 fn resolve_transport_config(
     settings: &crate::types::AppSettings,
 ) -> Result<RemoteTransportConfig, String> {
-    match settings.remote_backend_provider {
-        RemoteBackendProvider::Tcp => {
-            let host = if settings.remote_backend_host.trim().is_empty() {
-                DEFAULT_REMOTE_HOST.to_string()
-            } else {
-                settings.remote_backend_host.clone()
-            };
-            Ok(RemoteTransportConfig::Tcp {
-                host,
-                auth_token: settings.remote_backend_token.clone(),
-            })
-        }
-        RemoteBackendProvider::Orbit => {
-            let ws_url = settings
-                .orbit_ws_url
-                .as_ref()
-                .map(|value| value.trim().to_string())
-                .filter(|value| !value.is_empty())
-                .ok_or_else(|| "Orbit provider requires orbitWsUrl in app settings.".to_string())?;
-            Ok(RemoteTransportConfig::OrbitWs {
-                ws_url,
-                auth_token: settings.remote_backend_token.clone(),
-            })
-        }
-    }
+    let host = if settings.remote_backend_host.trim().is_empty() {
+        DEFAULT_REMOTE_HOST.to_string()
+    } else {
+        settings.remote_backend_host.clone()
+    };
+    Ok(RemoteTransportConfig::Tcp {
+        host,
+        auth_token: settings.remote_backend_token.clone(),
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::{can_retry_after_disconnect, resolve_transport_config};
     use crate::remote_backend::transport::RemoteTransportConfig;
-    use crate::types::{AppSettings, RemoteBackendProvider};
+    use crate::types::AppSettings;
 
     #[test]
-    fn resolve_orbit_transport_uses_orbit_ws_url() {
+    fn resolve_tcp_transport_uses_remote_host() {
         let mut settings = AppSettings::default();
-        settings.remote_backend_provider = RemoteBackendProvider::Orbit;
-        settings.orbit_ws_url = Some("https://orbit.example/ws/live".to_string());
+        settings.remote_backend_host = "tcp.example:4732".to_string();
 
         let config = resolve_transport_config(&settings).expect("transport config");
-        let RemoteTransportConfig::OrbitWs { ws_url, .. } = config else {
-            panic!("expected orbit transport config");
+        let RemoteTransportConfig::Tcp { host, .. } = config else {
+            panic!("expected tcp transport config");
         };
-        assert_eq!(ws_url, "https://orbit.example/ws/live");
+        assert_eq!(host, "tcp.example:4732");
     }
 
     #[test]

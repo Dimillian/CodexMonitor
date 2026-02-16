@@ -10,9 +10,7 @@ pub(crate) struct TcpTransport;
 impl RemoteTransport for TcpTransport {
     fn connect(&self, app: AppHandle, config: RemoteTransportConfig) -> TransportFuture {
         Box::pin(async move {
-            let RemoteTransportConfig::Tcp { host, .. } = config else {
-                return Err("invalid transport config for tcp transport".to_string());
-            };
+            let RemoteTransportConfig::Tcp { host, .. } = config;
 
             let stream = TcpStream::connect(host.clone())
                 .await

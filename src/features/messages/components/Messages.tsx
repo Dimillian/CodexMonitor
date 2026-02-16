@@ -45,6 +45,8 @@ type MessagesProps = {
   isLoadingMessages?: boolean;
   processingStartedAt?: number | null;
   lastDurationMs?: number | null;
+  showPollingFetchStatus?: boolean;
+  pollingIntervalMs?: number;
   workspacePath?: string | null;
   openTargets: OpenAppTarget[];
   selectedOpenAppId: string;
@@ -68,6 +70,8 @@ export const Messages = memo(function Messages({
   isLoadingMessages = false,
   processingStartedAt = null,
   lastDurationMs = null,
+  showPollingFetchStatus = false,
+  pollingIntervalMs = 12000,
   workspacePath = null,
   openTargets,
   selectedOpenAppId,
@@ -472,6 +476,8 @@ export const Messages = memo(function Messages({
         lastDurationMs={lastDurationMs}
         hasItems={items.length > 0}
         reasoningLabel={latestReasoningLabel}
+        showPollingFetchStatus={showPollingFetchStatus}
+        pollingIntervalMs={pollingIntervalMs}
       />
       {!items.length && !userInputNode && !isThinking && !isLoadingMessages && (
         <div className="empty messages-empty">

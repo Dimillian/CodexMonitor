@@ -84,6 +84,30 @@ pub(crate) async fn resume_thread_core(
     session.send_request("thread/resume", params).await
 }
 
+pub(crate) async fn thread_live_subscribe_core(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspace_id: String,
+    thread_id: String,
+) -> Result<(), String> {
+    if thread_id.trim().is_empty() {
+        return Err("threadId is required".to_string());
+    }
+    let _ = get_session_clone(sessions, &workspace_id).await?;
+    Ok(())
+}
+
+pub(crate) async fn thread_live_unsubscribe_core(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspace_id: String,
+    thread_id: String,
+) -> Result<(), String> {
+    if thread_id.trim().is_empty() {
+        return Err("threadId is required".to_string());
+    }
+    let _ = get_session_clone(sessions, &workspace_id).await?;
+    Ok(())
+}
+
 pub(crate) async fn fork_thread_core(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspace_id: String,

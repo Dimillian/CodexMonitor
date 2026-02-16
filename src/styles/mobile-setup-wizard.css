@@ -25,7 +25,25 @@
 }
 
 .mobile-setup-wizard-header {
+  position: relative;
   padding: 20px 22px 12px;
+}
+
+.mobile-setup-wizard-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-setup-wizard-close svg {
+  width: 14px;
+  height: 14px;
 }
 
 .mobile-setup-wizard-kicker {

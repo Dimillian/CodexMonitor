@@ -38,6 +38,28 @@ pub(super) async fn try_handle(
             };
             Some(state.resume_thread(workspace_id, thread_id).await)
         }
+        "thread_live_subscribe" => {
+            let workspace_id = match parse_string(params, "workspaceId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let thread_id = match parse_string(params, "threadId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            Some(state.thread_live_subscribe(workspace_id, thread_id).await)
+        }
+        "thread_live_unsubscribe" => {
+            let workspace_id = match parse_string(params, "workspaceId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let thread_id = match parse_string(params, "threadId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            Some(state.thread_live_unsubscribe(workspace_id, thread_id).await)
+        }
         "fork_thread" => {
             let workspace_id = match parse_string(params, "workspaceId") {
                 Ok(value) => value,
