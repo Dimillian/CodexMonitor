@@ -400,3 +400,12 @@ At the end of a task:
   - Hook: `src/features/notifications/hooks/useErrorToasts.ts`
   - UI: `src/features/notifications/components/ErrorToasts.tsx`
   - Styles: `src/styles/error-toasts.css`
+
+## Documentation Canonical Map
+
+- AI contract: `docs/ai/agent-contract.md`
+- Codebase map: `docs/codebase-map.md`
+- Testing strategy: `docs/testing/testing-strategy.md`
+- CI/CD reference: `docs/ci-cd/pipeline-reference.md`
+- Debug runbook: `docs/debug/logging-and-troubleshooting.md`
+- UI/UX contract: `docs/ui-ux/design-system-contract.md`

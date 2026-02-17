@@ -1,0 +1,14 @@
+# Core docs and agent contracts
+/AGENTS.md @yuyifeng
+/CLAUDE.md @yuyifeng
+/docs/ @yuyifeng
+
+# CI/CD and release
+/.github/workflows/ @yuyifeng
+
+# Frontend
+/src/ @yuyifeng
+
+# Backend
+/src-tauri/ @yuyifeng
+

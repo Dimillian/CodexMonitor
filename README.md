@@ -88,6 +88,31 @@ npm run shortcut:desktop
 
 You can then double-click the shortcut to launch CodexMonitor in dev mode.
 
+## Documentation Map
+
+### Agent and Architecture
+
+- `AGENTS.md`
+- `CLAUDE.md`
+- `docs/ai/agent-contract.md`
+- `docs/codebase-map.md`
+
+### Quality and Delivery
+
+- `docs/testing/testing-strategy.md`
+- `docs/testing/e2e-smoke-runbook.md`
+- `docs/ci-cd/pipeline-reference.md`
+- `docs/ci-cd/release-runbook.md`
+- `docs/debug/logging-and-troubleshooting.md`
+- `docs/ui-ux/design-system-contract.md`
+
+### Collaboration and Governance
+
+- `CONTRIBUTING.md`
+- `SECURITY.md`
+- `SUPPORT.md`
+- `.github/CODEOWNERS`
+
 ## Cursor Agent Control Plane (No IDE)
 
 This repository now includes a practical control-plane workflow for running multiple Cursor Agent sessions without opening multiple IDE windows.

@@ -31,6 +31,23 @@ jobs:
         run: npm ci
       - name: Typecheck
         run: npm run typecheck
+
+  doc-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Doc drift gate
+        run: bash scripts/check-doc-drift.sh
+
+  docs-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docs integrity
+        run: bash scripts/check-doc-integrity.sh
+
   test-js:
     runs-on: ubuntu-latest
     steps:
@@ -160,6 +177,8 @@ jobs:
     needs:
       - lint
       - typecheck
+      - doc-drift
+      - docs-integrity
       - test-js
       - coverage-js
       - e2e-smoke
