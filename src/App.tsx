@@ -107,6 +107,7 @@ import { useWorkspaceLaunchScript } from "@app/hooks/useWorkspaceLaunchScript";
 import { useWorkspaceLaunchScripts } from "@app/hooks/useWorkspaceLaunchScripts";
 import { useWorktreeSetupScript } from "@app/hooks/useWorktreeSetupScript";
 import { useGitCommitController } from "@app/hooks/useGitCommitController";
+import { useCommitMessageModelSelection } from "@app/hooks/useCommitMessageModelSelection";
 import { WorkspaceHome } from "@/features/workspaces/components/WorkspaceHome";
 import { MobileServerSetupWizard } from "@/features/mobile/components/MobileServerSetupWizard";
 import { useMobileServerSetup } from "@/features/mobile/hooks/useMobileServerSetup";
@@ -427,6 +428,15 @@ function MainApp() {
     setSelectedCollaborationModeId,
     setAccessMode,
     persistThreadCodexParams,
+  });
+  const {
+    resolvedCommitMessageModelId,
+    onCommitMessageModelChange,
+  } = useCommitMessageModelSelection({
+    models,
+    commitMessageModelId: appSettings.commitMessageModelId,
+    setAppSettings,
+    queueSaveSettings,
   });
 
   const composerShortcuts = {
@@ -1448,6 +1458,7 @@ function MainApp() {
     activeWorkspace,
     activeWorkspaceId,
     activeWorkspaceIdRef,
+    commitMessageModelId: resolvedCommitMessageModelId,
     gitStatus,
     refreshGitStatus,
     refreshGitLog,
@@ -2186,6 +2197,8 @@ function MainApp() {
     commitMessageError,
     onCommitMessageChange: handleCommitMessageChange,
     onGenerateCommitMessage: handleGenerateCommitMessage,
+    commitMessageModelId: resolvedCommitMessageModelId,
+    onCommitMessageModelChange,
     onCommit: handleCommit,
     onCommitAndPush: handleCommitAndPush,
     onCommitAndSync: handleCommitAndSync,
