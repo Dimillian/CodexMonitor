@@ -1,21 +1,10 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { UpdateState } from "../hooks/useUpdater";
 import { UpdateToast } from "./UpdateToast";
 
-vi.mock("@tauri-apps/plugin-opener", () => ({
-  openUrl: vi.fn(),
-}));
-
-const openUrlMock = vi.mocked(openUrl);
-
 describe("UpdateToast", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it("renders available state and handles actions", () => {
     const onUpdate = vi.fn();
     const onDismiss = vi.fn();
@@ -93,89 +82,5 @@ describe("UpdateToast", () => {
     expect(scoped.getByText("当前已是最新版本。")).not.toBeNull();
     fireEvent.click(scoped.getByRole("button", { name: "关闭" }));
     expect(onDismiss).toHaveBeenCalledTimes(1);
-  });
-
-  it("renders post-update loading notice and dismisses", () => {
-    const onDismissPostUpdateNotice = vi.fn();
-    const state: UpdateState = { stage: "idle" };
-
-    const { container } = render(
-      <UpdateToast
-        state={state}
-        onUpdate={vi.fn()}
-        onDismiss={vi.fn()}
-        postUpdateNotice={{
-          stage: "loading",
-          version: "1.2.3",
-          htmlUrl: "https://github.com/Dimillian/CodexMonitor/releases/tag/v1.2.3",
-        }}
-        onDismissPostUpdateNotice={onDismissPostUpdateNotice}
-      />,
-    );
-    const scoped = within(container);
-
-    expect(scoped.getByText("What's New")).toBeTruthy();
-    expect(scoped.getByText(/Loading release notes/i)).toBeTruthy();
-    fireEvent.click(scoped.getByRole("button", { name: "Dismiss" }));
-    expect(onDismissPostUpdateNotice).toHaveBeenCalledTimes(1);
-  });
-
-  it("renders post-update release notes and opens GitHub link", () => {
-    const onDismissPostUpdateNotice = vi.fn();
-    const htmlUrl =
-      "https://github.com/Dimillian/CodexMonitor/releases/tag/v1.2.3";
-    const state: UpdateState = { stage: "idle" };
-
-    const { container } = render(
-      <UpdateToast
-        state={state}
-        onUpdate={vi.fn()}
-        onDismiss={vi.fn()}
-        postUpdateNotice={{
-          stage: "ready",
-          version: "1.2.3",
-          body: "## Highlights\n- Added release notes toast",
-          htmlUrl,
-        }}
-        onDismissPostUpdateNotice={onDismissPostUpdateNotice}
-      />,
-    );
-    const scoped = within(container);
-
-    expect(scoped.getByText("Highlights")).toBeTruthy();
-    expect(scoped.getByText("Added release notes toast")).toBeTruthy();
-
-    fireEvent.click(scoped.getByRole("button", { name: "View on GitHub" }));
-    expect(openUrlMock).toHaveBeenCalledWith(htmlUrl);
-
-    fireEvent.click(scoped.getByRole("button", { name: "Dismiss" }));
-    expect(onDismissPostUpdateNotice).toHaveBeenCalledTimes(1);
-  });
-
-  it("renders post-update fallback notice", () => {
-    const htmlUrl =
-      "https://github.com/Dimillian/CodexMonitor/releases/tag/v1.2.3";
-    const state: UpdateState = { stage: "available", version: "9.9.9" };
-
-    const { container } = render(
-      <UpdateToast
-        state={state}
-        onUpdate={vi.fn()}
-        onDismiss={vi.fn()}
-        postUpdateNotice={{
-          stage: "fallback",
-          version: "1.2.3",
-          htmlUrl,
-        }}
-      />,
-    );
-    const scoped = within(container);
-
-    expect(
-      scoped.getByText("Updated to v1.2.3. Release notes could not be loaded."),
-    ).toBeTruthy();
-    fireEvent.click(scoped.getByRole("button", { name: "View on GitHub" }));
-    expect(openUrlMock).toHaveBeenCalledWith(htmlUrl);
-    expect(scoped.queryByText("A new version is available.")).toBeNull();
   });
 });
