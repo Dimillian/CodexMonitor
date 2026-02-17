@@ -617,6 +617,7 @@ export function useThreadActions({
               cursor,
               THREAD_LIST_PAGE_SIZE,
               requestedSortKey,
+              workspace.path,
             )) as Record<string, unknown>;
           onDebug?.({
             id: `${Date.now()}-server-thread-list`,
@@ -822,6 +823,7 @@ export function useThreadActions({
               cursor,
               THREAD_LIST_PAGE_SIZE,
               requestedSortKey,
+              workspace.path,
             )) as Record<string, unknown>;
           onDebug?.({
             id: `${Date.now()}-server-thread-list-older`,
