@@ -1,10 +1,13 @@
 import type {
+  GitSelectionApplyResult,
+  GitSelectionLine,
   GitHubPullRequest,
   GitHubPullRequestComment,
   PullRequestReviewAction,
   PullRequestReviewIntent,
   PullRequestSelectionRange,
 } from "../../../types";
+import type { GitDiffSource } from "../types";
 
 export type GitDiffViewerItem = {
   path: string;
@@ -31,6 +34,7 @@ export type GitDiffViewerProps = {
   scrollRequestId?: number;
   isLoading: boolean;
   error: string | null;
+  diffSource?: GitDiffSource;
   diffStyle?: "split" | "unified";
   ignoreWhitespaceChanges?: boolean;
   pullRequest?: GitHubPullRequest | null;
@@ -51,6 +55,14 @@ export type GitDiffViewerProps = {
   ) => Promise<void> | void;
   canRevert?: boolean;
   onRevertFile?: (path: string) => Promise<void> | void;
+  stagedPaths?: string[];
+  unstagedPaths?: string[];
+  onStageSelection?: (options: {
+    path: string;
+    op: "stage" | "unstage";
+    source: "unstaged" | "staged";
+    lines: GitSelectionLine[];
+  }) => Promise<GitSelectionApplyResult | null>;
   onActivePathChange?: (path: string) => void;
   onInsertComposerText?: (text: string) => void;
 };

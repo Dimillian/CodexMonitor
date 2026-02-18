@@ -8,6 +8,7 @@ import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import type { ParsedDiffLine } from "../../../utils/diff";
 import { workerFactory } from "../../../utils/diffsWorker";
 import type {
+  GitSelectionLine,
   PullRequestReviewIntent,
   PullRequestSelectionRange,
 } from "../../../types";
@@ -124,12 +125,19 @@ function buildSelectionRangeFromLineSelection({
   };
 }
 
+type LocalLineAction = {
+  op: "stage" | "unstage";
+  source: "unstaged" | "staged";
+  disabledReason?: string;
+};
+
 export function GitDiffViewer({
   diffs,
   selectedPath,
   scrollRequestId,
   isLoading,
   error,
+  diffSource = "local",
   diffStyle = "split",
   ignoreWhitespaceChanges = false,
   pullRequest,
@@ -143,6 +151,9 @@ export function GitDiffViewer({
   onCheckoutPullRequest,
   canRevert = false,
   onRevertFile,
+  stagedPaths = [],
+  unstagedPaths = [],
+  onStageSelection,
   onActivePathChange,
   onInsertComposerText,
 }: GitDiffViewerProps) {
@@ -166,6 +177,7 @@ export function GitDiffViewer({
     path: string;
     range: SelectedLineRange;
   } | null>(null);
+  const [lineActionBusy, setLineActionBusy] = useState(false);
 
   const clearSelection = useCallback(() => {
     setLineSelection(null);
@@ -201,6 +213,8 @@ export function GitDiffViewer({
     () => DIFF_VIEWER_HIGHLIGHTER_OPTIONS,
     [],
   );
+  const stagedPathSet = useMemo(() => new Set(stagedPaths), [stagedPaths]);
+  const unstagedPathSet = useMemo(() => new Set(unstagedPaths), [unstagedPaths]);
 
   const indexByPath = useMemo(() => {
     const map = new Map<string, number>();
@@ -270,6 +284,82 @@ export function GitDiffViewer({
   }, [stickyEntry]);
 
   const showRevert = canRevert && Boolean(onRevertFile);
+
+  const resolveLocalLineAction = useCallback(
+    (entry: GitDiffViewerItem): LocalLineAction | null => {
+      if (diffSource !== "local" || !onStageSelection) {
+        return null;
+      }
+      if (entry.status === "R") {
+        return {
+          op: "stage",
+          source: "unstaged",
+          disabledReason: "Line-level stage/unstage is not supported for renamed files.",
+        };
+      }
+      const path = entry.path;
+      const hasStaged = stagedPathSet.has(path);
+      const hasUnstaged = unstagedPathSet.has(path);
+      if (!hasStaged && !hasUnstaged) {
+        return null;
+      }
+      if (hasStaged && hasUnstaged) {
+        return {
+          op: "stage",
+          source: "unstaged",
+          disabledReason:
+            "Line-level stage/unstage is unavailable when a file has both staged and unstaged edits.",
+        };
+      }
+      if (hasUnstaged) {
+        return {
+          op: "stage",
+          source: "unstaged",
+        };
+      }
+      return {
+        op: "unstage",
+        source: "staged",
+      };
+    },
+    [diffSource, onStageSelection, stagedPathSet, unstagedPathSet],
+  );
+
+  const handleApplyLineAction = useCallback(
+    async (path: string, action: LocalLineAction, line: ParsedDiffLine) => {
+      if (!onStageSelection || action.disabledReason || lineActionBusy) {
+        return;
+      }
+      if (line.type !== "add" && line.type !== "del") {
+        return;
+      }
+      if (
+        (line.type === "add" && line.newLine === null) ||
+        (line.type === "del" && line.oldLine === null)
+      ) {
+        return;
+      }
+      setLineActionBusy(true);
+      try {
+        await onStageSelection({
+          path,
+          op: action.op,
+          source: action.source,
+          lines: [
+            {
+              type: line.type,
+              oldLine: line.oldLine,
+              newLine: line.newLine,
+              text: line.text,
+            } satisfies GitSelectionLine,
+          ],
+        });
+      } finally {
+        setLineActionBusy(false);
+      }
+    },
+    [lineActionBusy, onStageSelection],
+  );
 
   const handleInsertLineReference = useCallback(
     (entry: GitDiffViewerItem, line: ParsedDiffLine, index: number) => {
@@ -554,6 +644,9 @@ export function GitDiffViewer({
           >
             {virtualItems.map((virtualRow) => {
               const entry = diffs[virtualRow.index];
+              const localLineAction = resolveLocalLineAction(entry);
+              const shouldHandleStageSelection =
+                Boolean(localLineAction) && !localLineAction?.disabledReason;
               return (
                 <div
                   key={entry.path}
@@ -591,11 +684,18 @@ export function GitDiffViewer({
                         setSelectedLinesForPath(entry.path, range);
                       }}
                       onLineAction={
-                        onInsertComposerText
-                          ? (line, index) => {
-                              handleInsertLineReference(entry, line, index);
+                        shouldHandleStageSelection
+                          ? (line) => {
+                              if (!localLineAction) {
+                                return;
+                              }
+                              void handleApplyLineAction(entry.path, localLineAction, line);
                             }
-                          : undefined
+                          : onInsertComposerText
+                            ? (line, index) => {
+                                handleInsertLineReference(entry, line, index);
+                              }
+                            : undefined
                       }
                       reviewActions={pullRequestReviewActions}
                       onRunReviewAction={(intent, parsedLines, selectedLines) => {
