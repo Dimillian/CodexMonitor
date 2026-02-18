@@ -172,6 +172,7 @@ describe("GitDiffViewer", () => {
   });
 
   it("disables line-level actions when file has both staged and unstaged changes", () => {
+    const onStageSelection = vi.fn();
     render(
       <GitDiffViewer
         diffs={[
@@ -188,12 +189,13 @@ describe("GitDiffViewer", () => {
         diffSource="local"
         stagedPaths={["src/main.ts"]}
         unstagedPaths={["src/main.ts"]}
-        onStageSelection={vi.fn()}
+        onStageSelection={onStageSelection}
       />,
     );
 
     expect(
       screen.queryByRole("button", { name: "Ask for changes on hovered line" }),
     ).toBeNull();
+    expect(onStageSelection).not.toHaveBeenCalled();
   });
 });
