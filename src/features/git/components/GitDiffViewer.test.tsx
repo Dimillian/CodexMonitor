@@ -129,4 +129,71 @@ describe("GitDiffViewer", () => {
     expect(rawLines[1]?.className).toContain("diff-viewer-raw-line-add");
     expect(rawLines[2]?.className).toContain("diff-viewer-raw-line-del");
   });
+
+  it("invokes line-level stage action for local unstaged diffs", () => {
+    const onStageSelection = vi.fn();
+    render(
+      <GitDiffViewer
+        diffs={[
+          {
+            path: "src/main.ts",
+            status: "M",
+            diff: "@@ -1,1 +1,2 @@\n line one\n+new line",
+          },
+        ]}
+        selectedPath="src/main.ts"
+        isLoading={false}
+        error={null}
+        diffStyle="unified"
+        diffSource="local"
+        unstagedPaths={["src/main.ts"]}
+        onStageSelection={onStageSelection}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ask for changes on hovered line" }),
+    );
+
+    expect(onStageSelection).toHaveBeenCalledTimes(1);
+    expect(onStageSelection).toHaveBeenCalledWith({
+      path: "src/main.ts",
+      op: "stage",
+      source: "unstaged",
+      lines: [
+        {
+          type: "add",
+          oldLine: null,
+          newLine: 2,
+          text: "new line",
+        },
+      ],
+    });
+  });
+
+  it("disables line-level actions when file has both staged and unstaged changes", () => {
+    render(
+      <GitDiffViewer
+        diffs={[
+          {
+            path: "src/main.ts",
+            status: "M",
+            diff: "@@ -1,1 +1,2 @@\n line one\n+new line",
+          },
+        ]}
+        selectedPath="src/main.ts"
+        isLoading={false}
+        error={null}
+        diffStyle="unified"
+        diffSource="local"
+        stagedPaths={["src/main.ts"]}
+        unstagedPaths={["src/main.ts"]}
+        onStageSelection={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Ask for changes on hovered line" }),
+    ).toBeNull();
+  });
 });
