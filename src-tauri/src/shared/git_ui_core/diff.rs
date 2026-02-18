@@ -123,6 +123,21 @@ fn status_for_delta(status: git2::Delta) -> &'static str {
     }
 }
 
+fn has_unstaged_diff_with_git(repo_root: &Path, path: &str) -> Option<bool> {
+    let git_bin = resolve_git_binary().ok()?;
+    let output = std_command(git_bin)
+        .args(["diff", "--no-color", "-U0", "--", path])
+        .current_dir(repo_root)
+        .env("PATH", git_env_path())
+        .output()
+        .ok()?;
+    if !(output.status.success() || output.status.code() == Some(1)) {
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    Some(!stdout.trim().is_empty())
+}
+
 fn has_ignored_parent_directory(repo: &Repository, path: &Path) -> bool {
     let mut current = path.parent();
     while let Some(parent) = current {
@@ -395,13 +410,25 @@ pub(super) async fn get_git_status_inner(
                 | Status::INDEX_RENAMED
                 | Status::INDEX_TYPECHANGE,
         );
-        let include_workdir = status.intersects(
+        let mut include_workdir = status.intersects(
             Status::WT_NEW
                 | Status::WT_MODIFIED
                 | Status::WT_DELETED
                 | Status::WT_RENAMED
                 | Status::WT_TYPECHANGE,
         );
+
+        // When the index is updated externally (for example via line-level staging),
+        // libgit2 can briefly report both staged and workdir status for a path.
+        // Verify actual unstaged diff content before keeping the workdir bucket.
+        if include_index && include_workdir {
+            if matches!(
+                has_unstaged_diff_with_git(&repo_root, normalized_path.as_str()),
+                Some(false)
+            ) {
+                include_workdir = false;
+            }
+        }
         let mut combined_additions = 0i64;
         let mut combined_deletions = 0i64;
 
