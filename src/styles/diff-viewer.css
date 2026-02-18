@@ -823,6 +823,9 @@
   top: 2px;
   right: 6px;
   z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 46px;
   height: 20px;
   border-radius: 999px;
@@ -870,7 +873,9 @@
 }
 
 .diff-line:hover .diff-line-action,
-.diff-line:focus-within .diff-line-action {
+.diff-line:focus-within .diff-line-action,
+.diff-viewer-line-action-section:hover .diff-line-action,
+.diff-viewer-line-action-section:focus-within .diff-line-action {
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
