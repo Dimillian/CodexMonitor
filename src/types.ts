@@ -448,6 +448,8 @@ export type GitSelectionApplyResult = {
 export type GitFileDiff = {
   path: string;
   diff: string;
+  stagedDiff?: string | null;
+  unstagedDiff?: string | null;
   oldLines?: string[];
   newLines?: string[];
   isBinary?: boolean;

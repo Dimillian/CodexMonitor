@@ -33,6 +33,10 @@ pub(crate) struct GitSelectionApplyResult {
 pub(crate) struct GitFileDiff {
     pub(crate) path: String,
     pub(crate) diff: String,
+    #[serde(default, rename = "stagedDiff")]
+    pub(crate) staged_diff: Option<String>,
+    #[serde(default, rename = "unstagedDiff")]
+    pub(crate) unstaged_diff: Option<String>,
     #[serde(default, rename = "oldLines")]
     pub(crate) old_lines: Option<Vec<String>>,
     #[serde(default, rename = "newLines")]

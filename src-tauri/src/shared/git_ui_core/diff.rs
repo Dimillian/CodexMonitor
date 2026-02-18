@@ -138,6 +138,37 @@ fn has_unstaged_diff_with_git(repo_root: &Path, path: &str) -> Option<bool> {
     Some(!stdout.trim().is_empty())
 }
 
+fn source_diff_for_path(
+    repo_root: &Path,
+    path: &str,
+    cached: bool,
+    ignore_whitespace_changes: bool,
+) -> Option<String> {
+    let git_bin = resolve_git_binary().ok()?;
+    let mut args = vec!["diff"];
+    if cached {
+        args.push("--cached");
+    }
+    args.push("--no-color");
+    if ignore_whitespace_changes {
+        args.push("-w");
+    }
+    args.push("--");
+    args.push(path);
+
+    let output = std_command(git_bin)
+        .args(args)
+        .current_dir(repo_root)
+        .env("PATH", git_env_path())
+        .output()
+        .ok()?;
+    if !(output.status.success() || output.status.code() == Some(1)) {
+        return None;
+    }
+
+    Some(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
 fn has_ignored_parent_directory(repo: &Repository, path: &Path) -> bool {
     let mut current = path.parent();
     while let Some(parent) = current {
@@ -547,6 +578,29 @@ pub(super) async fn get_git_diffs_inner(
             let is_image = old_image_mime.is_some() || new_image_mime.is_some();
             let is_deleted = delta.status() == git2::Delta::Deleted;
             let is_added = delta.status() == git2::Delta::Added;
+            let path_status = repo.status_file(display_path).unwrap_or(Status::empty());
+            let has_staged =
+                path_status.intersects(Status::INDEX_NEW | Status::INDEX_MODIFIED | Status::INDEX_DELETED | Status::INDEX_RENAMED | Status::INDEX_TYPECHANGE);
+            let has_unstaged =
+                path_status.intersects(Status::WT_NEW | Status::WT_MODIFIED | Status::WT_DELETED | Status::WT_RENAMED | Status::WT_TYPECHANGE);
+            let (staged_diff, unstaged_diff) = if has_staged && has_unstaged {
+                (
+                    source_diff_for_path(
+                        &repo_root,
+                        normalized_path.as_str(),
+                        true,
+                        ignore_whitespace_changes,
+                    ),
+                    source_diff_for_path(
+                        &repo_root,
+                        normalized_path.as_str(),
+                        false,
+                        ignore_whitespace_changes,
+                    ),
+                )
+            } else {
+                (None, None)
+            };
 
             let old_lines = if !is_added {
                 head_tree
@@ -596,6 +650,8 @@ pub(super) async fn get_git_diffs_inner(
                 results.push(GitFileDiff {
                     path: normalized_path,
                     diff: String::new(),
+                    staged_diff,
+                    unstaged_diff,
                     old_lines: None,
                     new_lines: None,
                     is_binary: true,
@@ -625,6 +681,8 @@ pub(super) async fn get_git_diffs_inner(
             results.push(GitFileDiff {
                 path: normalized_path,
                 diff: content,
+                staged_diff,
+                unstaged_diff,
                 old_lines,
                 new_lines,
                 is_binary: false,
