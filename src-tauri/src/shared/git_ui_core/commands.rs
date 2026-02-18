@@ -1,16 +1,19 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Stdio;
 
 use git2::{BranchType, Repository, Status, StatusOptions};
 use serde_json::{json, Value};
+use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 
 use crate::git_utils::{
     checkout_branch, list_git_roots as scan_git_roots, parse_github_repo, resolve_git_root,
 };
+use crate::shared::git_core;
 use crate::shared::process_core::tokio_command;
-use crate::types::{BranchInfo, WorkspaceEntry};
+use crate::types::{BranchInfo, GitSelectionApplyResult, GitSelectionLine, WorkspaceEntry};
 use crate::utils::{git_env_path, normalize_git_path, resolve_git_binary};
 
 use super::context::workspace_entry_for_id;
@@ -395,6 +398,339 @@ async fn pull_with_default_strategy(repo_root: &Path) -> Result<(), String> {
             }
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum SelectionLineType {
+    Add,
+    Del,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct SelectionLineKey {
+    line_type: SelectionLineType,
+    old_line: Option<usize>,
+    new_line: Option<usize>,
+    text: String,
+}
+
+impl TryFrom<&GitSelectionLine> for SelectionLineKey {
+    type Error = String;
+
+    fn try_from(value: &GitSelectionLine) -> Result<Self, Self::Error> {
+        let line_type = match value.line_type.as_str() {
+            "add" => SelectionLineType::Add,
+            "del" => SelectionLineType::Del,
+            _ => {
+                return Err(format!(
+                    "Unsupported selection line type `{}`. Expected `add` or `del`.",
+                    value.line_type
+                ));
+            }
+        };
+        if line_type == SelectionLineType::Add && value.new_line.is_none() {
+            return Err("Selected `add` line is missing `newLine`.".to_string());
+        }
+        if line_type == SelectionLineType::Del && value.old_line.is_none() {
+            return Err("Selected `del` line is missing `oldLine`.".to_string());
+        }
+        Ok(Self {
+            line_type,
+            old_line: value.old_line,
+            new_line: value.new_line,
+            text: value.text.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ParsedPatchLine {
+    line_type: SelectionLineType,
+    old_line: Option<usize>,
+    new_line: Option<usize>,
+    old_anchor: usize,
+    new_anchor: usize,
+    text: String,
+}
+
+#[derive(Debug, Clone)]
+struct ParsedPatchHunk {
+    lines: Vec<ParsedPatchLine>,
+}
+
+#[derive(Debug, Clone)]
+struct ParsedPatch {
+    headers: Vec<String>,
+    hunks: Vec<ParsedPatchHunk>,
+}
+
+fn parse_hunk_range(raw: &str) -> Option<(usize, usize)> {
+    if let Some((start, count)) = raw.split_once(',') {
+        Some((start.parse().ok()?, count.parse().ok()?))
+    } else {
+        Some((raw.parse().ok()?, 1))
+    }
+}
+
+fn parse_hunk_header(line: &str) -> Option<(usize, usize, usize, usize)> {
+    let suffix = line.strip_prefix("@@ -")?;
+    let (old_range_raw, rest) = suffix.split_once(" +")?;
+    let marker_index = rest.find(" @@")?;
+    let new_range_raw = &rest[..marker_index];
+    let (old_start, old_count) = parse_hunk_range(old_range_raw)?;
+    let (new_start, new_count) = parse_hunk_range(new_range_raw)?;
+    Some((old_start, old_count, new_start, new_count))
+}
+
+fn parse_zero_context_patch(diff_patch: &str) -> Result<ParsedPatch, String> {
+    let lines: Vec<&str> = diff_patch.lines().collect();
+    if lines.is_empty() {
+        return Err("No patch content to apply.".to_string());
+    }
+
+    let mut headers = Vec::new();
+    let mut hunks = Vec::new();
+    let mut index = 0usize;
+
+    while index < lines.len() {
+        let line = lines[index];
+        if let Some((old_start, _old_count, new_start, _new_count)) = parse_hunk_header(line) {
+            let mut old_cursor = old_start;
+            let mut new_cursor = new_start;
+            let mut parsed_lines = Vec::new();
+            let mut inner_index = index + 1;
+            while inner_index < lines.len() {
+                let body_line = lines[inner_index];
+                if parse_hunk_header(body_line).is_some() || body_line.starts_with("diff --git ") {
+                    break;
+                }
+
+                if let Some(text) = body_line.strip_prefix('+') {
+                    if !body_line.starts_with("+++") {
+                        parsed_lines.push(ParsedPatchLine {
+                            line_type: SelectionLineType::Add,
+                            old_line: None,
+                            new_line: Some(new_cursor),
+                            old_anchor: old_cursor,
+                            new_anchor: new_cursor,
+                            text: text.to_string(),
+                        });
+                        new_cursor += 1;
+                    }
+                } else if let Some(text) = body_line.strip_prefix('-') {
+                    if !body_line.starts_with("---") {
+                        parsed_lines.push(ParsedPatchLine {
+                            line_type: SelectionLineType::Del,
+                            old_line: Some(old_cursor),
+                            new_line: None,
+                            old_anchor: old_cursor,
+                            new_anchor: new_cursor,
+                            text: text.to_string(),
+                        });
+                        old_cursor += 1;
+                    }
+                } else if body_line.starts_with(' ') {
+                    old_cursor += 1;
+                    new_cursor += 1;
+                }
+                inner_index += 1;
+            }
+            if !parsed_lines.is_empty() {
+                hunks.push(ParsedPatchHunk { lines: parsed_lines });
+            }
+            index = inner_index;
+            continue;
+        }
+
+        if hunks.is_empty() {
+            headers.push(line.to_string());
+        }
+        index += 1;
+    }
+
+    if headers.is_empty() || hunks.is_empty() {
+        return Err("Could not parse diff hunks for line selection.".to_string());
+    }
+
+    Ok(ParsedPatch { headers, hunks })
+}
+
+fn build_selected_patch(
+    diff_patch: &str,
+    selected_lines: &HashSet<SelectionLineKey>,
+) -> Result<(String, usize), String> {
+    let parsed = parse_zero_context_patch(diff_patch)?;
+    let mut output = parsed.headers.clone();
+    let mut applied_line_count = 0usize;
+
+    for hunk in &parsed.hunks {
+        let mut group: Vec<&ParsedPatchLine> = Vec::new();
+        let flush_group = |group: &mut Vec<&ParsedPatchLine>, output: &mut Vec<String>| {
+            if group.is_empty() {
+                return;
+            }
+            let first = group[0];
+            let old_count = group
+                .iter()
+                .filter(|line| line.line_type == SelectionLineType::Del)
+                .count();
+            let new_count = group
+                .iter()
+                .filter(|line| line.line_type == SelectionLineType::Add)
+                .count();
+            output.push(format!(
+                "@@ -{},{} +{},{} @@",
+                first.old_anchor, old_count, first.new_anchor, new_count
+            ));
+            for line in group.iter() {
+                let prefix = if line.line_type == SelectionLineType::Add {
+                    '+'
+                } else {
+                    '-'
+                };
+                output.push(format!("{prefix}{}", line.text));
+            }
+            group.clear();
+        };
+
+        for line in &hunk.lines {
+            let key = SelectionLineKey {
+                line_type: line.line_type,
+                old_line: line.old_line,
+                new_line: line.new_line,
+                text: line.text.clone(),
+            };
+            if selected_lines.contains(&key) {
+                group.push(line);
+                applied_line_count += 1;
+            } else {
+                flush_group(&mut group, &mut output);
+            }
+        }
+        flush_group(&mut group, &mut output);
+    }
+
+    if applied_line_count == 0 {
+        return Err("Selected lines do not match the current diff. Refresh and try again.".to_string());
+    }
+
+    let mut patch = output.join("\n");
+    if !patch.ends_with('\n') {
+        patch.push('\n');
+    }
+    Ok((patch, applied_line_count))
+}
+
+async fn apply_cached_patch(repo_root: &Path, patch: &str, reverse: bool) -> Result<(), String> {
+    let git_bin = resolve_git_binary().map_err(|e| format!("Failed to run git: {e}"))?;
+    let mut args = vec![
+        "apply",
+        "--cached",
+        "--unidiff-zero",
+        "--whitespace=nowarn",
+    ];
+    if reverse {
+        args.push("--reverse");
+    }
+    args.push("-");
+
+    let mut child = tokio_command(git_bin)
+        .args(args)
+        .current_dir(repo_root)
+        .env("PATH", git_env_path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to run git: {e}"))?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(patch.as_bytes())
+            .await
+            .map_err(|e| format!("Failed to write git apply input: {e}"))?;
+    }
+
+    let output = child
+        .wait_with_output()
+        .await
+        .map_err(|e| format!("Failed to run git: {e}"))?;
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let detail = if stderr.trim().is_empty() {
+        stdout.trim()
+    } else {
+        stderr.trim()
+    };
+    if detail.is_empty() {
+        return Err("Git apply failed.".to_string());
+    }
+    Err(detail.to_string())
+}
+
+pub(super) async fn stage_git_selection_inner(
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    path: String,
+    op: String,
+    source: String,
+    lines: Vec<GitSelectionLine>,
+) -> Result<GitSelectionApplyResult, String> {
+    if lines.is_empty() {
+        return Err("No selected lines provided.".to_string());
+    }
+
+    let entry = workspace_entry_for_id(workspaces, &workspace_id).await?;
+    let repo_root = resolve_git_root(&entry)?;
+    let action_paths = action_paths_for_file(&repo_root, &path);
+    if action_paths.len() != 1 {
+        return Err("Line-level stage/unstage for renamed paths is not supported yet.".to_string());
+    }
+    let action_path = action_paths[0].clone();
+
+    let (diff_args, reverse_apply): (&[&str], bool) = match (op.as_str(), source.as_str()) {
+        ("stage", "unstaged") => (&["diff", "--no-color", "-U0", "--"], false),
+        ("unstage", "staged") => (&["diff", "--cached", "--no-color", "-U0", "--"], true),
+        ("stage", "staged") => {
+            return Err("Staging selected lines requires source `unstaged`.".to_string());
+        }
+        ("unstage", "unstaged") => {
+            return Err("Unstaging selected lines requires source `staged`.".to_string());
+        }
+        _ => {
+            return Err("Invalid stage selection request. Expected op/source to be stage+unstaged or unstage+staged.".to_string());
+        }
+    };
+
+    let mut args = diff_args.to_vec();
+    args.push(action_path.as_str());
+    let source_patch = String::from_utf8_lossy(&git_core::run_git_diff(
+        &repo_root.to_path_buf(),
+        &args,
+    )
+    .await?)
+    .to_string();
+    if source_patch.trim().is_empty() {
+        return Err("No changes available for the requested selection source.".to_string());
+    }
+
+    let mut selected_lines = HashSet::new();
+    for line in &lines {
+        selected_lines.insert(SelectionLineKey::try_from(line)?);
+    }
+
+    let (selected_patch, applied_line_count) = build_selected_patch(&source_patch, &selected_lines)?;
+    apply_cached_patch(&repo_root, &selected_patch, reverse_apply).await?;
+
+    Ok(GitSelectionApplyResult {
+        applied: true,
+        applied_line_count,
+        warning: None,
+    })
 }
 
 pub(super) async fn stage_git_file_inner(

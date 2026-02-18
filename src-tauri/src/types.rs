@@ -9,6 +9,27 @@ pub(crate) struct GitFileStatus {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GitSelectionLine {
+    #[serde(rename = "type")]
+    pub(crate) line_type: String,
+    #[serde(default, rename = "oldLine")]
+    pub(crate) old_line: Option<usize>,
+    #[serde(default, rename = "newLine")]
+    pub(crate) new_line: Option<usize>,
+    pub(crate) text: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GitSelectionApplyResult {
+    pub(crate) applied: bool,
+    pub(crate) applied_line_count: usize,
+    #[serde(default)]
+    pub(crate) warning: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct GitFileDiff {
     pub(crate) path: String,
     pub(crate) diff: String,

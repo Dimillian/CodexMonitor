@@ -6,7 +6,8 @@ use tokio::sync::Mutex;
 
 use crate::types::{
     AppSettings, GitCommitDiff, GitFileDiff, GitHubIssuesResponse, GitHubPullRequestComment,
-    GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse, WorkspaceEntry,
+    GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse, GitSelectionApplyResult,
+    GitSelectionLine, WorkspaceEntry,
 };
 
 #[path = "git_ui_core/commands.rs"]
@@ -114,6 +115,17 @@ pub(crate) async fn stage_git_all_core(
     workspace_id: String,
 ) -> Result<(), String> {
     commands::stage_git_all_inner(workspaces, workspace_id).await
+}
+
+pub(crate) async fn stage_git_selection_core(
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    path: String,
+    op: String,
+    source: String,
+    lines: Vec<GitSelectionLine>,
+) -> Result<GitSelectionApplyResult, String> {
+    commands::stage_git_selection_inner(workspaces, workspace_id, path, op, source, lines).await
 }
 
 pub(crate) async fn unstage_git_file_core(

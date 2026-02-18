@@ -1,5 +1,6 @@
 use super::*;
 use crate::shared::git_rpc;
+use crate::types::GitSelectionLine;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::future::Future;
@@ -101,6 +102,37 @@ pub(super) async fn try_handle(
         git_rpc::METHOD_STAGE_GIT_ALL => {
             let request = parse_request_or_err!(params, git_rpc::WorkspaceIdRequest);
             Some(serialize_ok(state.stage_git_all(request.workspace_id)).await)
+        }
+        "stage_git_selection" => {
+            let workspace_id = match parse_string(params, "workspaceId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let path = match parse_string(params, "path") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let op = match parse_string(params, "op") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let source = match parse_string(params, "source") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let lines = match parse_optional_value(params, "lines")
+                .map(serde_json::from_value::<Vec<GitSelectionLine>>)
+                .transpose()
+            {
+                Ok(value) => value.unwrap_or_default(),
+                Err(err) => return Some(Err(format!("invalid `lines`: {err}"))),
+            };
+            Some(
+                state
+                    .stage_git_selection(workspace_id, path, op, source, lines)
+                    .await
+                    .and_then(|result| serde_json::to_value(result).map_err(|err| err.to_string())),
+            )
         }
         git_rpc::METHOD_UNSTAGE_GIT_FILE => {
             let request = parse_request_or_err!(params, git_rpc::WorkspacePathRequest);
