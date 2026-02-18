@@ -161,6 +161,21 @@ export function SettingsAgentsSection({
     }
   };
 
+  const currentMaxThreads = settings
+    ? (parseMaxThreads(maxThreadsDraft) ?? settings.maxThreads)
+    : 1;
+
+  const handleMaxThreadsStep = async (delta: number) => {
+    if (!settings || isUpdatingCore) {
+      return;
+    }
+    const nextValue = Math.min(12, Math.max(1, currentMaxThreads + delta));
+    if (nextValue === currentMaxThreads) {
+      return;
+    }
+    await handleMaxThreadsChange(String(nextValue));
+  };
+
   const handleCreateAgent = async () => {
     const name = createName.trim();
     if (!name) {
@@ -257,7 +272,7 @@ export function SettingsAgentsSection({
       <div className="settings-section-subtitle">
         Configure multi-agent mode, thread limits, and custom agent roles.
       </div>
-      <div className="settings-help">
+      <div className="settings-help settings-agents-builtins-help">
         Built-in roles from Codex are still available: <code>default</code>, <code>explorer</code>,
         and <code>worker</code>.
       </div>
@@ -309,18 +324,33 @@ export function SettingsAgentsSection({
             Maximum open agent threads. Valid range: <code>1-12</code>. Changes save immediately.
           </div>
         </div>
-        <input
-          type="number"
-          min={1}
-          max={12}
-          className="settings-input settings-input--compact settings-agents-number-input"
-          value={maxThreadsDraft}
-          onChange={(event) => {
-            void handleMaxThreadsChange(event.target.value);
-          }}
-          aria-label="Maximum agent threads"
-          disabled={!settings || isUpdatingCore}
-        />
+        <div className="settings-agents-stepper" role="group" aria-label="Maximum agent threads">
+          <button
+            type="button"
+            className="ghost settings-agents-stepper-button"
+            onClick={() => {
+              void handleMaxThreadsStep(-1);
+            }}
+            disabled={!settings || isUpdatingCore || currentMaxThreads <= 1}
+            aria-label="Decrease max threads"
+          >
+            ▼
+          </button>
+          <div className="settings-agents-stepper-value" aria-live="polite" aria-atomic="true">
+            {currentMaxThreads}
+          </div>
+          <button
+            type="button"
+            className="ghost settings-agents-stepper-button"
+            onClick={() => {
+              void handleMaxThreadsStep(1);
+            }}
+            disabled={!settings || isUpdatingCore || currentMaxThreads >= 12}
+            aria-label="Increase max threads"
+          >
+            ▲
+          </button>
+        </div>
       </div>
 
       <div className="settings-subsection-title">Create Agent</div>
@@ -350,39 +380,46 @@ export function SettingsAgentsSection({
           placeholder="Research-focused role."
           disabled={creatingAgent}
         />
-        <label className="settings-label" htmlFor="settings-agent-create-model">
-          Model
-        </label>
-        <select
-          id="settings-agent-create-model"
-          className="settings-select"
-          value={createModel}
-          onChange={(event) => setCreateModel(event.target.value)}
-          disabled={creatingAgent}
-        >
-          {effectiveModelOptions.map((option) => (
-            <option key={option.model} value={option.model}>
-              {option.model}
-            </option>
-          ))}
-        </select>
-        <label className="settings-label" htmlFor="settings-agent-create-effort">
-          Reasoning effort
-        </label>
-        <select
-          id="settings-agent-create-effort"
-          className="settings-select"
-          value={createReasoningEffort}
-          onChange={(event) => setCreateReasoningEffort(event.target.value)}
-          disabled={creatingAgent || createReasoningOptions.length === 0}
-        >
-          {createReasoningOptions.length === 0 && <option value="">not supported</option>}
-          {createReasoningOptions.map((effort) => (
-            <option key={effort} value={effort}>
-              {effort}
-            </option>
-          ))}
-        </select>
+        <div className="settings-agents-model-row">
+          <div className="settings-agents-model-field settings-agents-model-field--model">
+            <span className="settings-agents-inline-label">model:</span>
+            <select
+              id="settings-agent-create-model"
+              className="settings-select settings-select--compact"
+              value={createModel}
+              onChange={(event) => setCreateModel(event.target.value)}
+              disabled={creatingAgent}
+              aria-label="Agent model"
+            >
+              {effectiveModelOptions.map((option) => (
+                <option key={option.model} value={option.model}>
+                  {option.model}
+                </option>
+              ))}
+            </select>
+          </div>
+          <span className="settings-agents-inline-separator" aria-hidden>
+            |
+          </span>
+          <div className="settings-agents-model-field settings-agents-model-field--effort">
+            <span className="settings-agents-inline-label">reasoning:</span>
+            <select
+              id="settings-agent-create-effort"
+              className="settings-select settings-select--compact"
+              value={createReasoningEffort}
+              onChange={(event) => setCreateReasoningEffort(event.target.value)}
+              disabled={creatingAgent || createReasoningOptions.length === 0}
+              aria-label="Agent reasoning effort"
+            >
+              {createReasoningOptions.length === 0 && <option value="">not supported</option>}
+              {createReasoningOptions.map((effort) => (
+                <option key={effort} value={effort}>
+                  {effort}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
         <div className="settings-agents-actions">
           <button type="button" className="ghost" onClick={() => void handleCreateAgent()}>
             {creatingAgent ? "Creating..." : "Create Agent"}

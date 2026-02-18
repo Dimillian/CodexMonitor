@@ -416,6 +416,10 @@
   gap: 6px;
 }
 
+.settings-agents-builtins-help {
+  margin-bottom: 8px;
+}
+
 .settings-icon-button {
   width: 28px;
   height: 28px;
@@ -460,9 +464,34 @@
   border: 1px solid rgba(236, 72, 153, 0.2);
 }
 
-.settings-agents-number-input {
-  width: 92px;
-  text-align: right;
+.settings-agents-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-control);
+}
+
+.settings-agents-stepper-value {
+  min-width: 2ch;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.settings-agents-stepper-button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  line-height: 1;
+  font-size: 14px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .settings-agents-form,
@@ -472,6 +501,59 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.settings-agents-model-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.settings-agents-model-field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-agents-model-field--model {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.settings-agents-model-field--effort {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.settings-agents-inline-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+  text-transform: lowercase;
+}
+
+.settings-agents-inline-separator {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+.settings-agents-model-field--model .settings-select {
+  width: 220px;
+}
+
+.settings-agents-model-field--effort .settings-select {
+  min-width: 120px;
+}
+
+@media (max-width: 720px) {
+  .settings-agents-inline-separator {
+    display: none;
+  }
 }
 
 .settings-agent-card + .settings-agent-card {
