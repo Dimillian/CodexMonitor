@@ -8,9 +8,14 @@ import {
   revertGitFile as revertGitFileService,
   stageGitAll as stageGitAllService,
   stageGitFile as stageGitFileService,
+  stageGitSelection as stageGitSelectionService,
   unstageGitFile as unstageGitFileService,
 } from "../../../services/tauri";
-import type { WorkspaceInfo } from "../../../types";
+import type {
+  GitSelectionApplyResult,
+  GitSelectionLine,
+  WorkspaceInfo,
+} from "../../../types";
 
 type UseGitActionsOptions = {
   activeWorkspace: WorkspaceInfo | null;
@@ -94,6 +99,37 @@ export function useGitActions({
       }
     }
   }, [onError, refreshGitData, workspaceId]);
+
+  const stageGitSelection = useCallback(
+    async (options: {
+      path: string;
+      op: "stage" | "unstage";
+      source: "unstaged" | "staged";
+      lines: GitSelectionLine[];
+    }): Promise<GitSelectionApplyResult | null> => {
+      if (!workspaceId) {
+        return null;
+      }
+      const actionWorkspaceId = workspaceId;
+      try {
+        return await stageGitSelectionService(
+          actionWorkspaceId,
+          options.path,
+          options.op,
+          options.source,
+          options.lines,
+        );
+      } catch (error) {
+        onError?.(error);
+        return null;
+      } finally {
+        if (workspaceIdRef.current === actionWorkspaceId) {
+          refreshGitData();
+        }
+      }
+    },
+    [onError, refreshGitData, workspaceId],
+  );
 
   const unstageGitFile = useCallback(
     async (path: string) => {
@@ -327,6 +363,7 @@ export function useGitActions({
     revertGitFile,
     stageGitAll,
     stageGitFile,
+    stageGitSelection,
     unstageGitFile,
     worktreeApplyError,
     worktreeApplyLoading,
