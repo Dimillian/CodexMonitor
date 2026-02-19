@@ -130,7 +130,6 @@ export function useThreadCodexSyncOrchestration({
   resolvedEffort,
   accessMode,
   selectedCollaborationModeId,
-  selectedCodexArgsOverride,
 }: UseThreadCodexSyncOrchestrationParams) {
   useLayoutEffect(() => {
     const workspaceId = activeWorkspaceId ?? null;
@@ -200,6 +199,15 @@ export function useThreadCodexSyncOrchestration({
 
     seededThreadParamsRef.current.add(key);
     const pendingSeed = pendingNewThreadSeedRef.current;
+    const resolvedSeedState = resolveThreadCodexState({
+      workspaceId,
+      threadId,
+      defaultAccessMode: appSettings.defaultAccessMode,
+      lastComposerModelId: appSettings.lastComposerModelId,
+      lastComposerReasoningEffort: appSettings.lastComposerReasoningEffort,
+      stored: null,
+      pendingSeed,
+    });
     patchThreadCodexParams(
       workspaceId,
       threadId,
@@ -209,7 +217,7 @@ export function useThreadCodexSyncOrchestration({
         resolvedEffort,
         accessMode,
         selectedCollaborationModeId,
-        codexArgsOverride: selectedCodexArgsOverride ?? null,
+        codexArgsOverride: resolvedSeedState.preferredCodexArgsOverride,
         pendingSeed,
       }),
     );
@@ -220,11 +228,13 @@ export function useThreadCodexSyncOrchestration({
     activeThreadId,
     activeWorkspaceId,
     accessMode,
+    appSettings.defaultAccessMode,
+    appSettings.lastComposerModelId,
+    appSettings.lastComposerReasoningEffort,
     getThreadCodexParams,
     patchThreadCodexParams,
     resolvedEffort,
     selectedCollaborationModeId,
-    selectedCodexArgsOverride,
     selectedModelId,
     pendingNewThreadSeedRef,
   ]);

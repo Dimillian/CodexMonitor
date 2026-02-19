@@ -17,4 +17,10 @@ describe("normalizeCodexArgsInput", () => {
       '--profile dev --config "path with spaces.toml"',
     );
   });
+
+  it("preserves long-flag equals forms when normalizing smart dashes", () => {
+    expect(normalizeCodexArgsInput("—profile=dev —enable=memory_tool —x=1")).toBe(
+      "--profile=dev --enable=memory_tool -x=1",
+    );
+  });
 });

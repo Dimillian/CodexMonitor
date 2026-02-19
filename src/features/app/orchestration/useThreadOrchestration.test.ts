@@ -1,16 +1,21 @@
 // @vitest-environment jsdom
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { pushErrorToast } from "@/services/toasts";
 import type { AccessMode, AppSettings } from "@/types";
-import { useThreadSelectionHandlersOrchestration } from "./useThreadOrchestration";
+import type { PendingNewThreadSeed } from "@threads/utils/threadCodexParamsSeed";
+import {
+  useThreadCodexSyncOrchestration,
+  useThreadSelectionHandlersOrchestration,
+} from "./useThreadOrchestration";
 
 vi.mock("@/services/toasts", () => ({
   pushErrorToast: vi.fn(),
 }));
 
 type SelectionParams = Parameters<typeof useThreadSelectionHandlersOrchestration>[0];
+type SyncParams = Parameters<typeof useThreadCodexSyncOrchestration>[0];
 
 function makeSelectionParams(): SelectionParams & {
   persistThreadCodexParams: ReturnType<typeof vi.fn>;
@@ -33,6 +38,51 @@ function makeSelectionParams(): SelectionParams & {
     setAccessMode,
     setSelectedCodexArgsOverride,
     persistThreadCodexParams,
+  };
+}
+
+function makeSyncParams(
+  overrides: Partial<Omit<SyncParams, "getThreadCodexParams" | "patchThreadCodexParams">> = {},
+): SyncParams & {
+  getThreadCodexParams: ReturnType<typeof vi.fn>;
+  patchThreadCodexParams: ReturnType<typeof vi.fn>;
+} {
+  const getThreadCodexParams = vi.fn(() => null);
+  const patchThreadCodexParams = vi.fn();
+
+  return {
+    activeWorkspaceId: "ws-1",
+    activeThreadId: "thread-2",
+    appSettings: {
+      defaultAccessMode: "current",
+      lastComposerModelId: "gpt-5",
+      lastComposerReasoningEffort: "medium",
+    },
+    threadCodexParamsVersion: 0,
+    getThreadCodexParams,
+    patchThreadCodexParams,
+    setThreadCodexSelectionKey: vi.fn() as unknown as Dispatch<
+      SetStateAction<string | null>
+    >,
+    setAccessMode: vi.fn() as unknown as Dispatch<SetStateAction<AccessMode>>,
+    setPreferredModelId: vi.fn() as unknown as Dispatch<SetStateAction<string | null>>,
+    setPreferredEffort: vi.fn() as unknown as Dispatch<SetStateAction<string | null>>,
+    setPreferredCollabModeId: vi.fn() as unknown as Dispatch<
+      SetStateAction<string | null>
+    >,
+    setPreferredCodexArgsOverride: vi.fn() as unknown as Dispatch<
+      SetStateAction<string | null>
+    >,
+    activeThreadIdRef: { current: null } as MutableRefObject<string | null>,
+    pendingNewThreadSeedRef: {
+      current: null,
+    } as MutableRefObject<PendingNewThreadSeed | null>,
+    selectedModelId: "gpt-5",
+    resolvedEffort: "high",
+    accessMode: "full-access",
+    selectedCollaborationModeId: "default",
+    selectedCodexArgsOverride: "--profile stale",
+    ...overrides,
   };
 }
 
@@ -93,6 +143,56 @@ describe("useThreadSelectionHandlersOrchestration codex args selection", () => {
     });
     expect(params.setSelectedCodexArgsOverride).toHaveBeenCalledWith(
       "--search --enable memory_tool",
+    );
+  });
+});
+
+describe("useThreadCodexSyncOrchestration seed behavior", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("does not seed stale selected codex args into unseeded thread scope", async () => {
+    const params = makeSyncParams({
+      selectedCodexArgsOverride: "--profile stale",
+    });
+
+    renderHook(() => useThreadCodexSyncOrchestration(params));
+
+    await waitFor(() => {
+      expect(params.patchThreadCodexParams).toHaveBeenCalledTimes(1);
+    });
+
+    expect(params.patchThreadCodexParams).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-2",
+      expect.objectContaining({ codexArgsOverride: null }),
+    );
+  });
+
+  it("seeds codex args from pending thread seed when available", async () => {
+    const params = makeSyncParams({
+      pendingNewThreadSeedRef: {
+        current: {
+          workspaceId: "ws-1",
+          collaborationModeId: "plan",
+          accessMode: "read-only",
+          codexArgsOverride: "--profile pending",
+        },
+      } as MutableRefObject<PendingNewThreadSeed | null>,
+      selectedCodexArgsOverride: "--profile stale",
+    });
+
+    renderHook(() => useThreadCodexSyncOrchestration(params));
+
+    await waitFor(() => {
+      expect(params.patchThreadCodexParams).toHaveBeenCalledTimes(1);
+    });
+
+    expect(params.patchThreadCodexParams).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-2",
+      expect.objectContaining({ codexArgsOverride: "--profile pending" }),
     );
   });
 });

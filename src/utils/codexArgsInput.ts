@@ -31,8 +31,12 @@ export function normalizeCodexArgsInput(value: string | null | undefined): strin
   normalized = normalized.replace(
     DASH_LIKE_TOKEN_PREFIX_PATTERN,
     (_match, prefix: string, token: string) => {
-      if (/^[A-Za-z][A-Za-z0-9-]*$/.test(token)) {
-        return `${prefix}${token.length === 1 ? "-" : "--"}${token}`;
+      const equalsIndex = token.indexOf("=");
+      const flagToken = equalsIndex >= 0 ? token.slice(0, equalsIndex) : token;
+      const suffix = equalsIndex >= 0 ? token.slice(equalsIndex) : "";
+
+      if (/^[A-Za-z][A-Za-z0-9-]*$/.test(flagToken)) {
+        return `${prefix}${flagToken.length === 1 ? "-" : "--"}${flagToken}${suffix}`;
       }
       return `${prefix}-${token}`;
     },

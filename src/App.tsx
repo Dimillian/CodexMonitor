@@ -913,7 +913,6 @@ function MainApp() {
     resolvedEffort,
     accessMode,
     selectedCollaborationModeId,
-    selectedCodexArgsOverride,
   });
 
   const { handleSetThreadListSortKey, handleRefreshAllWorkspaceThreads } =
