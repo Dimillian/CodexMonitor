@@ -22,6 +22,7 @@ import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
 
 const allowedThemes = new Set(["system", "light", "dark", "dim"]);
 const allowedPersonality = new Set(["friendly", "pragmatic"]);
+const allowedFollowUpMessageBehavior = new Set(["queue", "steer"]);
 const DEFAULT_REMOTE_BACKEND_HOST = "127.0.0.1:4732";
 const DEFAULT_REMOTE_BACKEND_ID = "remote-default";
 const DEFAULT_REMOTE_BACKEND_NAME = "Primary remote";
@@ -182,6 +183,7 @@ function buildDefaultSettings(): AppSettings {
     commitMessagePrompt: DEFAULT_COMMIT_MESSAGE_PROMPT,
     collaborationModesEnabled: true,
     steerEnabled: true,
+    followUpMessageBehavior: "queue",
     pauseQueuedMessagesWhenResponseRequired: true,
     unifiedExecEnabled: true,
     experimentalAppsEnabled: false,
@@ -253,6 +255,13 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     personality: allowedPersonality.has(settings.personality)
       ? settings.personality
       : "friendly",
+    followUpMessageBehavior: allowedFollowUpMessageBehavior.has(
+      settings.followUpMessageBehavior,
+    )
+      ? settings.followUpMessageBehavior
+      : settings.steerEnabled
+        ? "steer"
+        : "queue",
     reviewDeliveryMode:
       settings.reviewDeliveryMode === "detached" ? "detached" : "inline",
     chatHistoryScrollbackItems,

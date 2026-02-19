@@ -118,6 +118,7 @@ const baseSettings: AppSettings = {
   commitMessagePrompt: DEFAULT_COMMIT_MESSAGE_PROMPT,
   collaborationModesEnabled: true,
   steerEnabled: true,
+  followUpMessageBehavior: "queue",
   pauseQueuedMessagesWhenResponseRequired: true,
   unifiedExecEnabled: true,
   experimentalAppsEnabled: false,
