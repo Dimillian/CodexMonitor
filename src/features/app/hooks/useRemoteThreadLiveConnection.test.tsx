@@ -372,4 +372,52 @@ describe("useRemoteThreadLiveConnection", () => {
 
     expect(threadLiveUnsubscribeMock).toHaveBeenCalledWith("ws-1", "thread-1");
   });
+
+  it("does not reconnect when workspace object identity changes but key is unchanged", async () => {
+    const refreshThread = vi.fn().mockResolvedValue(undefined);
+    const firstWorkspace = {
+      id: "ws-1",
+      name: "Workspace",
+      path: "/tmp/ws-1",
+      connected: true,
+      settings: { sidebarCollapsed: false },
+    };
+
+    const { rerender } = renderHook(
+      ({ workspace }) =>
+        useRemoteThreadLiveConnection({
+          backendMode: "remote",
+          activeWorkspace: workspace,
+          activeThreadId: "thread-1",
+          refreshThread,
+        }),
+      {
+        initialProps: { workspace: firstWorkspace },
+      },
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(threadLiveSubscribeMock).toHaveBeenCalledTimes(1);
+    expect(refreshThread).toHaveBeenCalledTimes(1);
+
+    const secondWorkspace = {
+      id: "ws-1",
+      name: "Workspace (renamed)",
+      path: "/tmp/ws-1",
+      connected: true,
+      settings: { sidebarCollapsed: false },
+    };
+
+    await act(async () => {
+      rerender({ workspace: secondWorkspace });
+      await Promise.resolve();
+    });
+
+    expect(threadLiveSubscribeMock).toHaveBeenCalledTimes(1);
+    expect(threadLiveUnsubscribeMock).toHaveBeenCalledTimes(0);
+    expect(refreshThread).toHaveBeenCalledTimes(1);
+  });
 });

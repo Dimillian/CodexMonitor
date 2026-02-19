@@ -83,6 +83,8 @@ export function useRemoteThreadLiveConnection({
   refreshThread,
   reconnectWorkspace,
 }: UseRemoteThreadLiveConnectionOptions) {
+  const activeWorkspaceId = activeWorkspace?.id ?? null;
+  const activeWorkspaceConnected = activeWorkspace?.connected ?? false;
   const [connectionState, setConnectionState] =
     useState<RemoteThreadConnectionState>(() => {
       if (backendMode !== "remote") {
@@ -232,10 +234,9 @@ export function useRemoteThreadLiveConnection({
   );
 
   useEffect(() => {
-    const workspace = activeWorkspace;
     const nextKey =
-      backendMode === "remote" && workspace?.id && activeThreadId
-        ? keyForThread(workspace.id, activeThreadId)
+      backendMode === "remote" && activeWorkspaceId && activeThreadId
+        ? keyForThread(activeWorkspaceId, activeThreadId)
         : null;
     desiredSubscriptionKeyRef.current = nextKey;
     const previousKey = activeSubscriptionKeyRef.current;
@@ -258,10 +259,18 @@ export function useRemoteThreadLiveConnection({
       reconcileDisconnectedState();
       return;
     }
+    if (
+      activeSubscriptionKeyRef.current === nextKey &&
+      connectionStateRef.current !== "disconnected" &&
+      activeWorkspaceConnected
+    ) {
+      return;
+    }
     void reconnectLive(parsed.workspaceId, parsed.threadId, { runResume: true });
   }, [
     activeThreadId,
-    activeWorkspace,
+    activeWorkspaceConnected,
+    activeWorkspaceId,
     backendMode,
     reconcileDisconnectedState,
     reconnectLive,
