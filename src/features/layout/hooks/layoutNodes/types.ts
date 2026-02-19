@@ -336,8 +336,6 @@ export type LayoutNodesOptions = {
   commitMessageError: string | null;
   onCommitMessageChange: (value: string) => void;
   onGenerateCommitMessage: () => void | Promise<void>;
-  commitMessageModelId: string | null;
-  onCommitMessageModelChange: (id: string | null) => void;
   onCommit?: () => void | Promise<void>;
   onCommitAndPush?: () => void | Promise<void>;
   onCommitAndSync?: () => void | Promise<void>;

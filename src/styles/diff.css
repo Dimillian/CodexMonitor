@@ -1179,36 +1179,6 @@
   padding: 2px 0;
 }
 
-/* Commit message model picker */
-.commit-model-menu {
-  align-self: flex-start;
-}
-
-.commit-model-menu .open-app-button {
-  font-size: 11px;
-}
-
-.commit-model-menu .open-app-action {
-  padding: 4px 8px;
-}
-
-.commit-model-menu .open-app-toggle {
-  padding: 4px 6px;
-}
-
-.commit-model-menu .open-app-action:disabled,
-.commit-model-menu .open-app-toggle:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.commit-model-dropdown {
-  left: 0;
-  right: auto;
-  min-width: 190px;
-  padding: 6px;
-}
-
 /* Commit button */
 .commit-button-container {
   margin-top: 4px;

@@ -1,4 +1,4 @@
-import type { GitHubIssue, GitHubPullRequest, GitLogEntry, ModelOption } from "../../../types";
+import type { GitHubIssue, GitHubPullRequest, GitLogEntry } from "../../../types";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
@@ -127,9 +127,6 @@ type GitDiffPanelProps = {
   commitMessageError?: string | null;
   onCommitMessageChange?: (value: string) => void;
   onGenerateCommitMessage?: () => void | Promise<void>;
-  models?: ModelOption[];
-  commitMessageModelId?: string | null;
-  onCommitMessageModelChange?: (id: string | null) => void;
   // Git operations
   onCommit?: () => void | Promise<void>;
   onCommitAndPush?: () => void | Promise<void>;
@@ -219,9 +216,6 @@ export function GitDiffPanel({
   commitMessageError = null,
   onCommitMessageChange,
   onGenerateCommitMessage,
-  models = [],
-  commitMessageModelId = null,
-  onCommitMessageModelChange,
   onCommit,
   onCommitAndPush: _onCommitAndPush,
   onCommitAndSync: _onCommitAndSync,
@@ -736,9 +730,6 @@ export function GitDiffPanel({
           commitMessageLoading={commitMessageLoading}
           canGenerateCommitMessage={canGenerateCommitMessage}
           onGenerateCommitMessage={onGenerateCommitMessage}
-          models={models}
-          commitMessageModelId={commitMessageModelId}
-          onCommitMessageModelChange={onCommitMessageModelChange}
           stagedFiles={stagedFiles}
           unstagedFiles={unstagedFiles}
           commitLoading={commitLoading}

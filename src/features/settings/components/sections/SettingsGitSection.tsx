@@ -1,8 +1,9 @@
-import type { AppSettings } from "@/types";
+import type { AppSettings, ModelOption } from "@/types";
 
 type SettingsGitSectionProps = {
   appSettings: AppSettings;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
+  models: ModelOption[];
   commitMessagePromptDraft: string;
   commitMessagePromptDirty: boolean;
   commitMessagePromptSaving: boolean;
@@ -14,6 +15,7 @@ type SettingsGitSectionProps = {
 export function SettingsGitSection({
   appSettings,
   onUpdateAppSettings,
+  models,
   commitMessagePromptDraft,
   commitMessagePromptDirty,
   commitMessagePromptSaving,
@@ -103,6 +105,36 @@ export function SettingsGitSection({
           </button>
         </div>
       </div>
+      {models.length > 0 && (
+        <div className="settings-field">
+          <label className="settings-field-label" htmlFor="commit-message-model-select">
+            Commit message model
+          </label>
+          <div className="settings-help">
+            The model used when generating commit messages. Leave on default to use the
+            workspace model.
+          </div>
+          <select
+            id="commit-message-model-select"
+            className="settings-select"
+            value={appSettings.commitMessageModelId ?? ""}
+            onChange={(event) => {
+              const value = event.target.value || null;
+              void onUpdateAppSettings({
+                ...appSettings,
+                commitMessageModelId: value,
+              });
+            }}
+          >
+            <option value="">Default</option>
+            {models.map((model) => (
+              <option key={model.id} value={model.model}>
+                {model.displayName?.trim() || model.model}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
     </section>
   );
 }

@@ -107,7 +107,7 @@ import { useWorkspaceLaunchScript } from "@app/hooks/useWorkspaceLaunchScript";
 import { useWorkspaceLaunchScripts } from "@app/hooks/useWorkspaceLaunchScripts";
 import { useWorktreeSetupScript } from "@app/hooks/useWorktreeSetupScript";
 import { useGitCommitController } from "@app/hooks/useGitCommitController";
-import { useCommitMessageModelSelection } from "@app/hooks/useCommitMessageModelSelection";
+import { effectiveCommitMessageModelId } from "@/features/git/utils/commitMessageModelSelection";
 import { WorkspaceHome } from "@/features/workspaces/components/WorkspaceHome";
 import { MobileServerSetupWizard } from "@/features/mobile/components/MobileServerSetupWizard";
 import { useMobileServerSetup } from "@/features/mobile/hooks/useMobileServerSetup";
@@ -429,15 +429,10 @@ function MainApp() {
     setAccessMode,
     persistThreadCodexParams,
   });
-  const {
-    resolvedCommitMessageModelId,
-    onCommitMessageModelChange,
-  } = useCommitMessageModelSelection({
-    models,
-    commitMessageModelId: appSettings.commitMessageModelId,
-    setAppSettings,
-    queueSaveSettings,
-  });
+  const commitMessageModelId = useMemo(
+    () => effectiveCommitMessageModelId(models, appSettings.commitMessageModelId),
+    [models, appSettings.commitMessageModelId],
+  );
 
   const composerShortcuts = {
     modelShortcut: appSettings.composerModelShortcut,
@@ -1458,7 +1453,7 @@ function MainApp() {
     activeWorkspace,
     activeWorkspaceId,
     activeWorkspaceIdRef,
-    commitMessageModelId: resolvedCommitMessageModelId,
+    commitMessageModelId,
     gitStatus,
     refreshGitStatus,
     refreshGitLog,
@@ -2197,8 +2192,6 @@ function MainApp() {
     commitMessageError,
     onCommitMessageChange: handleCommitMessageChange,
     onGenerateCommitMessage: handleGenerateCommitMessage,
-    commitMessageModelId: resolvedCommitMessageModelId,
-    onCommitMessageModelChange,
     onCommit: handleCommit,
     onCommitAndPush: handleCommitAndPush,
     onCommitAndSync: handleCommitAndSync,

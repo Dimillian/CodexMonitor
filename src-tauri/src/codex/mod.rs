@@ -880,12 +880,6 @@ pub(crate) async fn generate_commit_message(
     app: AppHandle,
 ) -> Result<String, String> {
     if remote_backend::is_remote_mode(&*state).await {
-        let commit_message_model_id = if commit_message_model_id.is_some() {
-            commit_message_model_id
-        } else {
-            let settings = state.app_settings.lock().await;
-            settings.commit_message_model_id.clone()
-        };
         let value = remote_backend::call_remote(
             &*state,
             app,
@@ -901,14 +895,10 @@ pub(crate) async fn generate_commit_message(
 
     let diff = crate::git::get_workspace_diff(&workspace_id, &state).await?;
 
-    let (commit_message_prompt, default_commit_message_model_id) = {
+    let commit_message_prompt = {
         let settings = state.app_settings.lock().await;
-        (
-            settings.commit_message_prompt.clone(),
-            settings.commit_message_model_id.clone(),
-        )
+        settings.commit_message_prompt.clone()
     };
-    let commit_message_model_id = commit_message_model_id.or(default_commit_message_model_id);
     crate::shared::codex_aux_core::generate_commit_message_core(
         &state.sessions,
         workspace_id,

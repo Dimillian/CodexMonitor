@@ -1,11 +1,10 @@
-import type { GitHubIssue, GitHubPullRequest, GitLogEntry, ModelOption } from "../../../types";
+import type { GitHubIssue, GitHubPullRequest, GitLogEntry } from "../../../types";
 import type { MouseEvent as ReactMouseEvent } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import ArrowLeftRight from "lucide-react/dist/esm/icons/arrow-left-right";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
-import Cpu from "lucide-react/dist/esm/icons/cpu";
 import Download from "lucide-react/dist/esm/icons/download";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import RotateCw from "lucide-react/dist/esm/icons/rotate-cw";
@@ -15,11 +14,6 @@ import {
   MagicSparkleIcon,
   MagicSparkleLoaderIcon,
 } from "@/features/shared/components/MagicSparkleIcon";
-import {
-  PopoverMenuItem,
-  PopoverSurface,
-} from "../../design-system/components/popover/PopoverPrimitives";
-import { useDismissibleMenu } from "../../app/hooks/useDismissibleMenu";
 import type { GitPanelMode } from "../types";
 import type { PerFileDiffGroup } from "../utils/perFileThreadDiffs";
 import {
@@ -330,9 +324,6 @@ type GitDiffModeContentProps = {
     commitMessageLoading: boolean;
     canGenerateCommitMessage: boolean;
     onGenerateCommitMessage?: () => void | Promise<void>;
-    models: ModelOption[];
-    commitMessageModelId: string | null;
-    onCommitMessageModelChange?: (id: string | null) => void;
     stagedFiles: DiffFile[];
     unstagedFiles: DiffFile[];
     commitLoading: boolean;
@@ -389,9 +380,6 @@ export function GitDiffModeContent({
     commitMessageLoading,
     canGenerateCommitMessage,
     onGenerateCommitMessage,
-    models,
-    commitMessageModelId,
-    onCommitMessageModelChange,
     stagedFiles,
     unstagedFiles,
     commitLoading,
@@ -416,20 +404,6 @@ export function GitDiffModeContent({
     onShowFileMenu,
     onDiffListClick,
 }: GitDiffModeContentProps) {
-    const [commitModelOpen, setCommitModelOpen] = useState(false);
-    const commitModelRef = useRef<HTMLDivElement | null>(null);
-    useDismissibleMenu({
-        isOpen: commitModelOpen,
-        containerRef: commitModelRef,
-        onClose: () => setCommitModelOpen(false),
-    });
-    const selectedCommitModel = commitMessageModelId
-        ? models.find((m) => m.model === commitMessageModelId) ?? null
-        : models.find((m) => m.isDefault) ?? models[0] ?? null;
-    const commitModelLabel = selectedCommitModel?.displayName?.trim()
-        || selectedCommitModel?.model?.trim()
-        || "Model";
-
     const normalizedGitRoot = normalizeRootPath(gitRoot);
     const missingRepo = isMissingRepo(error);
     const gitRootNotFound = isGitRootNotFound(error);
@@ -572,61 +546,6 @@ export function GitDiffModeContent({
                             )}
                         </button>
                     </div>
-                    {models.length > 0 && (
-                        <div className="open-app-menu commit-model-menu" ref={commitModelRef}>
-                            <div className="open-app-button">
-                                <button
-                                    type="button"
-                                    className="ghost open-app-action"
-                                    onClick={() => setCommitModelOpen((prev) => !prev)}
-                                    disabled={commitMessageLoading}
-                                    aria-label="Select model for commit message"
-                                >
-                                    <span className="open-app-label">
-                                        <Cpu size={14} aria-hidden />
-                                        {commitModelLabel}
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className="ghost open-app-toggle"
-                                    onClick={() => setCommitModelOpen((prev) => !prev)}
-                                    disabled={commitMessageLoading}
-                                    aria-haspopup="menu"
-                                    aria-expanded={commitModelOpen}
-                                    aria-label="Toggle model menu"
-                                >
-                                    <ChevronDown size={14} aria-hidden />
-                                </button>
-                            </div>
-                            {commitModelOpen && (
-                                <PopoverSurface
-                                    className="open-app-dropdown commit-model-dropdown"
-                                    role="menu"
-                                >
-                                    {models.map((m) => {
-                                        const isActive = commitMessageModelId
-                                            ? m.model === commitMessageModelId
-                                            : m === selectedCommitModel;
-                                        return (
-                                            <PopoverMenuItem
-                                                key={m.id}
-                                                className="open-app-option"
-                                                onClick={() => {
-                                                    onCommitMessageModelChange?.(m.model);
-                                                    setCommitModelOpen(false);
-                                                }}
-                                                icon={<Cpu size={14} aria-hidden />}
-                                                active={isActive}
-                                            >
-                                                {m.displayName?.trim() || m.model}
-                                            </PopoverMenuItem>
-                                        );
-                                    })}
-                                </PopoverSurface>
-                            )}
-                        </div>
-                    )}
                     <CommitButton
                         commitMessage={commitMessage}
                         hasStagedFiles={stagedFiles.length > 0}

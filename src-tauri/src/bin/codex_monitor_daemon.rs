@@ -1216,14 +1216,10 @@ impl DaemonState {
         )
         .await?;
         let diff = git_ui_core::collect_workspace_diff_core(&repo_root)?;
-        let (commit_message_prompt, default_commit_message_model_id) = {
+        let commit_message_prompt = {
             let settings = self.app_settings.lock().await;
-            (
-                settings.commit_message_prompt.clone(),
-                settings.commit_message_model_id.clone(),
-            )
+            settings.commit_message_prompt.clone()
         };
-        let commit_message_model_id = commit_message_model_id.or(default_commit_message_model_id);
         codex_aux_core::generate_commit_message_core(
             &self.sessions,
             workspace_id,

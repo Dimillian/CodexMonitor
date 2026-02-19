@@ -142,9 +142,6 @@ export function buildGitNodes(options: LayoutNodesOptions): GitLayoutNodes {
         commitMessageError={options.commitMessageError}
         onCommitMessageChange={options.onCommitMessageChange}
         onGenerateCommitMessage={options.onGenerateCommitMessage}
-        models={options.models}
-        commitMessageModelId={options.commitMessageModelId}
-        onCommitMessageModelChange={options.onCommitMessageModelChange}
         onCommit={options.onCommit}
         onCommitAndPush={options.onCommitAndPush}
         onCommitAndSync={options.onCommitAndSync}

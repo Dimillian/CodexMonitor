@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ModelOption } from "@/types";
-import { resolveCommitMessageModelSelection } from "./commitMessageModelSelection";
+import { effectiveCommitMessageModelId } from "./commitMessageModelSelection";
 
 const MODELS: ModelOption[] = [
   {
@@ -23,45 +23,20 @@ const MODELS: ModelOption[] = [
   },
 ];
 
-describe("resolveCommitMessageModelSelection", () => {
-  it("keeps null selection unchanged", () => {
-    expect(resolveCommitMessageModelSelection(MODELS, null)).toEqual({
-      resolvedModelId: null,
-      normalizedModelId: null,
-      shouldNormalize: false,
-    });
+describe("effectiveCommitMessageModelId", () => {
+  it("passes through null when no model is saved", () => {
+    expect(effectiveCommitMessageModelId(MODELS, null)).toBeNull();
   });
 
-  it("keeps explicit selection when it still exists", () => {
-    expect(resolveCommitMessageModelSelection(MODELS, "gpt-5.1")).toEqual({
-      resolvedModelId: "gpt-5.1",
-      normalizedModelId: "gpt-5.1",
-      shouldNormalize: false,
-    });
+  it("returns the saved model when it exists in the workspace", () => {
+    expect(effectiveCommitMessageModelId(MODELS, "gpt-5.1")).toBe("gpt-5.1");
   });
 
-  it("falls back to the default model when selected model disappears", () => {
-    expect(resolveCommitMessageModelSelection(MODELS, "gpt-4.1")).toEqual({
-      resolvedModelId: "gpt-5.2",
-      normalizedModelId: "gpt-5.2",
-      shouldNormalize: true,
-    });
+  it("falls back to null when saved model is unavailable in the workspace", () => {
+    expect(effectiveCommitMessageModelId(MODELS, "gpt-4.1")).toBeNull();
   });
 
-  it("falls back to first model when no default exists", () => {
-    const noDefault = MODELS.map((model) => ({ ...model, isDefault: false }));
-    expect(resolveCommitMessageModelSelection(noDefault, "gpt-4.1")).toEqual({
-      resolvedModelId: "gpt-5.1",
-      normalizedModelId: "gpt-5.1",
-      shouldNormalize: true,
-    });
-  });
-
-  it("normalizes to null when no models are available", () => {
-    expect(resolveCommitMessageModelSelection([], "gpt-4.1")).toEqual({
-      resolvedModelId: null,
-      normalizedModelId: null,
-      shouldNormalize: true,
-    });
+  it("falls back to null when no models are available", () => {
+    expect(effectiveCommitMessageModelId([], "gpt-5.1")).toBeNull();
   });
 });

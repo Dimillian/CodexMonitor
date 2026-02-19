@@ -616,6 +616,7 @@ where
         sessions,
         workspace_id,
         prompt,
+        None,
         on_hide_thread,
         "Timeout waiting for agent configuration generation",
         "Unknown error during agent configuration generation",
