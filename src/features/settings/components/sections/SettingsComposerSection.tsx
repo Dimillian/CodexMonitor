@@ -5,6 +5,7 @@ type ComposerPreset = AppSettings["composerEditorPreset"];
 type SettingsComposerSectionProps = {
   appSettings: AppSettings;
   optionKeyLabel: string;
+  followUpShortcutLabel: string;
   composerPresetLabels: Record<ComposerPreset, string>;
   onComposerPresetChange: (preset: ComposerPreset) => void;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
@@ -13,16 +14,67 @@ type SettingsComposerSectionProps = {
 export function SettingsComposerSection({
   appSettings,
   optionKeyLabel,
+  followUpShortcutLabel,
   composerPresetLabels,
   onComposerPresetChange,
   onUpdateAppSettings,
 }: SettingsComposerSectionProps) {
+  const steerUnavailable = !appSettings.steerEnabled;
   return (
     <section className="settings-section">
       <div className="settings-section-title">Composer</div>
       <div className="settings-section-subtitle">
         Control helpers and formatting behavior inside the message editor.
       </div>
+      <div className="settings-field">
+        <div className="settings-field-label">Follow-up behavior</div>
+        <div className="settings-segmented" role="radiogroup" aria-label="Follow-up behavior">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={appSettings.followUpMessageBehavior === "queue"}
+            className={`settings-segmented-option${
+              appSettings.followUpMessageBehavior === "queue" ? " is-active" : ""
+            }`}
+            onClick={() =>
+              void onUpdateAppSettings({
+                ...appSettings,
+                followUpMessageBehavior: "queue",
+              })
+            }
+          >
+            Queue
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={appSettings.followUpMessageBehavior === "steer"}
+            className={`settings-segmented-option${
+              appSettings.followUpMessageBehavior === "steer" ? " is-active" : ""
+            }`}
+            disabled={steerUnavailable}
+            title={steerUnavailable ? "Steer is unavailable in the current Codex config." : ""}
+            onClick={() =>
+              void onUpdateAppSettings({
+                ...appSettings,
+                followUpMessageBehavior: "steer",
+              })
+            }
+          >
+            Steer
+          </button>
+        </div>
+        <div className="settings-help">
+          Choose the default while a run is active. Press {followUpShortcutLabel} to send the
+          opposite behavior for one message.
+        </div>
+        {steerUnavailable && (
+          <div className="settings-help">
+            Steer is unavailable in the current Codex config. Follow-ups will queue.
+          </div>
+        )}
+      </div>
+      <div className="settings-divider" />
       <div className="settings-subsection-title">Presets</div>
       <div className="settings-subsection-subtitle">
         Choose a starting point and fine-tune the toggles below.
