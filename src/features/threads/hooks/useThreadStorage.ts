@@ -2,22 +2,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
 import {
   MAX_PINS_SOFT_LIMIT,
-  STORAGE_KEY_CUSTOM_NAMES,
   STORAGE_KEY_PINNED_THREADS,
-  type CustomNamesMap,
   type PinnedThreadsMap,
   type ThreadActivityMap,
-  loadCustomNames,
   loadPinnedThreads,
   loadThreadActivity,
-  makeCustomNameKey,
   makePinKey,
   savePinnedThreads,
   saveThreadActivity,
 } from "@threads/utils/threadStorage";
 
 type UseThreadStorageResult = {
-  customNamesRef: MutableRefObject<CustomNamesMap>;
   pinnedThreadsRef: MutableRefObject<PinnedThreadsMap>;
   threadActivityRef: MutableRefObject<ThreadActivityMap>;
   pinnedThreadsVersion: number;
@@ -37,26 +32,7 @@ export function useThreadStorage(): UseThreadStorageResult {
   const threadActivityRef = useRef<ThreadActivityMap>(loadThreadActivity());
   const pinnedThreadsRef = useRef<PinnedThreadsMap>(loadPinnedThreads());
   const [pinnedThreadsVersion, setPinnedThreadsVersion] = useState(0);
-  const customNamesRef = useRef<CustomNamesMap>({});
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return undefined;
-    }
-    customNamesRef.current = loadCustomNames();
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === STORAGE_KEY_CUSTOM_NAMES) {
-        customNamesRef.current = loadCustomNames();
-      }
-    };
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
-
-  const getCustomName = useCallback((workspaceId: string, threadId: string) => {
-    const key = makeCustomNameKey(workspaceId, threadId);
-    return customNamesRef.current[key];
-  }, []);
+  const getCustomName = useCallback((_workspaceId: string, _threadId: string) => undefined, []);
 
   const recordThreadActivity = useCallback(
     (workspaceId: string, threadId: string, timestamp = Date.now()) => {
@@ -138,7 +114,6 @@ export function useThreadStorage(): UseThreadStorageResult {
   );
 
   return {
-    customNamesRef,
     pinnedThreadsRef,
     threadActivityRef,
     pinnedThreadsVersion,

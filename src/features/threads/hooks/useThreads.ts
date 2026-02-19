@@ -24,8 +24,6 @@ import { useThreadTitleAutogeneration } from "./useThreadTitleAutogeneration";
 import { setThreadName as setThreadNameService } from "@services/tauri";
 import {
   loadDetachedReviewLinks,
-  makeCustomNameKey,
-  saveCustomName,
   saveDetachedReviewLinks,
 } from "@threads/utils/threadStorage";
 import { getParentThreadIdFromSource } from "@threads/utils/threadRpc";
@@ -103,7 +101,6 @@ export function useThreads({
     useThreadApprovals({ dispatch, onDebug });
   const { handleUserInputSubmit } = useThreadUserInput({ dispatch });
   const {
-    customNamesRef,
     threadActivityRef,
     pinnedThreadsVersion,
     getCustomName,
@@ -162,9 +159,6 @@ export function useThreads({
 
   const renameThread = useCallback(
     (workspaceId: string, threadId: string, newName: string) => {
-      saveCustomName(workspaceId, threadId, newName);
-      const key = makeCustomNameKey(workspaceId, threadId);
-      customNamesRef.current[key] = newName;
       dispatch({ type: "setThreadName", workspaceId, threadId, name: newName });
       void Promise.resolve(
         setThreadNameService(workspaceId, threadId, newName),
@@ -178,7 +172,7 @@ export function useThreads({
         });
       });
     },
-    [customNamesRef, dispatch, onDebug],
+    [dispatch, onDebug],
   );
 
   const onSubagentThreadDetected = useCallback(

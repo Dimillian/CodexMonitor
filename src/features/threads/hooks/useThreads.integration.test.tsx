@@ -1114,33 +1114,59 @@ describe("useThreads UX integration", () => {
     expect(localStorage.getItem(STORAGE_KEY_DETACHED_REVIEW_LINKS)).toBeNull();
   });
 
-  it("orders thread lists, applies custom names, and keeps pin ordering stable", async () => {
+  it("orders thread lists, reflects codex thread names, and keeps pin ordering stable", async () => {
     const listThreadsMock = vi.mocked(listThreads);
-    listThreadsMock.mockResolvedValue({
-      result: {
-        data: [
-          {
-            id: "thread-a",
-            preview: "Alpha",
-            updated_at: 1000,
-            cwd: workspace.path,
-          },
-          {
-            id: "thread-b",
-            preview: "Beta",
-            updated_at: 3000,
-            cwd: workspace.path,
-          },
-          {
-            id: "thread-c",
-            preview: "Gamma",
-            updated_at: 2000,
-            cwd: workspace.path,
-          },
-        ],
-        nextCursor: null,
-      },
-    });
+    listThreadsMock
+      .mockResolvedValueOnce({
+        result: {
+          data: [
+            {
+              id: "thread-a",
+              preview: "Alpha",
+              updated_at: 1000,
+              cwd: workspace.path,
+            },
+            {
+              id: "thread-b",
+              preview: "Beta",
+              updated_at: 3000,
+              cwd: workspace.path,
+            },
+            {
+              id: "thread-c",
+              preview: "Gamma",
+              updated_at: 2000,
+              cwd: workspace.path,
+            },
+          ],
+          nextCursor: null,
+        },
+      })
+      .mockResolvedValueOnce({
+        result: {
+          data: [
+            {
+              id: "thread-a",
+              preview: "Alpha",
+              updated_at: 1000,
+              cwd: workspace.path,
+            },
+            {
+              id: "thread-b",
+              preview: "Custom Beta",
+              updated_at: 3000,
+              cwd: workspace.path,
+            },
+            {
+              id: "thread-c",
+              preview: "Gamma",
+              updated_at: 2000,
+              cwd: workspace.path,
+            },
+          ],
+          nextCursor: null,
+        },
+      });
 
     const { result } = renderHook(() =>
       useThreads({
