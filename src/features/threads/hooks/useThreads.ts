@@ -21,7 +21,10 @@ import { useThreadSelectors } from "./useThreadSelectors";
 import { useThreadStatus } from "./useThreadStatus";
 import { useThreadUserInput } from "./useThreadUserInput";
 import { useThreadTitleAutogeneration } from "./useThreadTitleAutogeneration";
-import { setThreadName as setThreadNameService } from "@services/tauri";
+import {
+  archiveThread as archiveThreadService,
+  setThreadName as setThreadNameService,
+} from "@services/tauri";
 import {
   loadDetachedReviewLinks,
   makeCustomNameKey,
@@ -29,6 +32,7 @@ import {
   saveDetachedReviewLinks,
 } from "@threads/utils/threadStorage";
 import { getParentThreadIdFromSource } from "@threads/utils/threadRpc";
+import { getSubagentDescendantThreadIds } from "@threads/utils/subagentTree";
 
 type UseThreadsOptions = {
   activeWorkspace: WorkspaceInfo | null;
@@ -50,6 +54,8 @@ type UseThreadsOptions = {
 function buildWorkspaceThreadKey(workspaceId: string, threadId: string) {
   return `${workspaceId}:${threadId}`;
 }
+
+const CASCADE_ARCHIVE_SKIP_TTL_MS = 120_000;
 
 export function useThreads({
   activeWorkspace,
@@ -94,11 +100,14 @@ export function useThreads({
   const detachedReviewCompletedNoticeRef = useRef<Set<string>>(new Set());
   const detachedReviewParentByChildRef = useRef<Record<string, string>>({});
   const subagentThreadByWorkspaceThreadRef = useRef<Record<string, true>>({});
+  const threadParentByIdRef = useRef(state.threadParentById);
+  const cascadeArchiveSkipRef = useRef<Record<string, number>>({});
   const detachedReviewLinksByWorkspaceRef = useRef(loadDetachedReviewLinks());
   planByThreadRef.current = state.planByThread;
   itemsByThreadRef.current = state.itemsByThread;
   threadsByWorkspaceRef.current = state.threadsByWorkspace;
   activeTurnIdByThreadRef.current = state.activeTurnIdByThread;
+  threadParentByIdRef.current = state.threadParentById;
   const { approvalAllowlistRef, handleApprovalDecision, handleApprovalRemember } =
     useThreadApprovals({ dispatch, onDebug });
   const { handleUserInputSubmit } = useThreadUserInput({ dispatch });
@@ -404,10 +413,75 @@ export function useThreads({
 
   const handleThreadArchived = useCallback(
     (workspaceId: string, threadId: string) => {
+      if (!workspaceId || !threadId) {
+        return;
+      }
       threadHandlers.onThreadArchived?.(workspaceId, threadId);
       unpinThread(workspaceId, threadId);
+
+      const skipKey = buildWorkspaceThreadKey(workspaceId, threadId);
+      const skipAt = cascadeArchiveSkipRef.current[skipKey] ?? null;
+      if (skipAt !== null) {
+        delete cascadeArchiveSkipRef.current[skipKey];
+        if (
+          skipAt > 0 &&
+          Date.now() - skipAt >= 0 &&
+          Date.now() - skipAt < CASCADE_ARCHIVE_SKIP_TTL_MS
+        ) {
+          return;
+        }
+      }
+
+      const descendants = getSubagentDescendantThreadIds({
+        rootThreadId: threadId,
+        threadParentById: threadParentByIdRef.current,
+        isSubagentThread: (candidateId) =>
+          isSubagentThread(workspaceId, candidateId),
+      });
+      if (descendants.length === 0) {
+        return;
+      }
+
+      onDebug?.({
+        id: `${Date.now()}-client-thread-archive-cascade`,
+        timestamp: Date.now(),
+        source: "client",
+        label: "thread/archive cascade",
+        payload: { workspaceId, rootThreadId: threadId, descendantCount: descendants.length },
+      });
+
+      const now = Date.now();
+      Object.entries(cascadeArchiveSkipRef.current).forEach(([key, timestamp]) => {
+        if (now - timestamp >= CASCADE_ARCHIVE_SKIP_TTL_MS) {
+          delete cascadeArchiveSkipRef.current[key];
+        }
+      });
+
+      void (async () => {
+        for (const descendantId of descendants) {
+          const descendantKey = buildWorkspaceThreadKey(workspaceId, descendantId);
+          cascadeArchiveSkipRef.current[descendantKey] = Date.now();
+          try {
+            await archiveThreadService(workspaceId, descendantId);
+          } catch (error) {
+            delete cascadeArchiveSkipRef.current[descendantKey];
+            onDebug?.({
+              id: `${Date.now()}-client-thread-archive-cascade-error`,
+              timestamp: Date.now(),
+              source: "error",
+              label: "thread/archive cascade error",
+              payload: {
+                workspaceId,
+                rootThreadId: threadId,
+                threadId: descendantId,
+                error: error instanceof Error ? error.message : String(error),
+              },
+            });
+          }
+        }
+      })();
     },
-    [threadHandlers, unpinThread],
+    [isSubagentThread, onDebug, threadHandlers, unpinThread],
   );
 
   const handleThreadUnarchived = useCallback(

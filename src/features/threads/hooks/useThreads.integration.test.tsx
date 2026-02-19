@@ -5,6 +5,7 @@ import type { WorkspaceInfo } from "@/types";
 import type { useAppServerEvents } from "@app/hooks/useAppServerEvents";
 import { useThreadRows } from "@app/hooks/useThreadRows";
 import {
+  archiveThread,
   interruptTurn,
   listThreads,
   resumeThread,
@@ -831,6 +832,169 @@ describe("useThreads UX integration", () => {
       "thread-parent-live",
     );
     expect(result.current.isSubagentThread("ws-1", "thread-child-live-collab")).toBe(true);
+  });
+
+  it("cascades archive to subagent descendants when parent archived", async () => {
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      handlers?.onThreadStarted?.("ws-1", { id: "thread-parent", preview: "Parent" });
+      handlers?.onThreadStarted?.("ws-1", {
+        id: "thread-child",
+        preview: "Child",
+        source: {
+          subAgent: {
+            thread_spawn: { parent_thread_id: "thread-parent", depth: 1 },
+          },
+        },
+      });
+      handlers?.onThreadStarted?.("ws-1", {
+        id: "thread-grandchild",
+        preview: "Grandchild",
+        source: {
+          subAgent: {
+            thread_spawn: { parent_thread_id: "thread-child", depth: 2 },
+          },
+        },
+      });
+    });
+
+    expect(result.current.threadParentById["thread-child"]).toBe("thread-parent");
+    expect(result.current.threadParentById["thread-grandchild"]).toBe("thread-child");
+    expect(result.current.isSubagentThread("ws-1", "thread-child")).toBe(true);
+    expect(result.current.isSubagentThread("ws-1", "thread-grandchild")).toBe(true);
+
+    act(() => {
+      handlers?.onThreadArchived?.("ws-1", "thread-parent");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(archiveThread)).toHaveBeenCalledWith("ws-1", "thread-child");
+      expect(vi.mocked(archiveThread)).toHaveBeenCalledWith(
+        "ws-1",
+        "thread-grandchild",
+      );
+    });
+    expect(vi.mocked(archiveThread)).not.toHaveBeenCalledWith("ws-1", "thread-parent");
+    expect(vi.mocked(archiveThread)).toHaveBeenCalledTimes(2);
+
+    vi.mocked(archiveThread).mockClear();
+
+    act(() => {
+      handlers?.onThreadArchived?.("ws-1", "thread-child");
+    });
+
+    expect(vi.mocked(archiveThread)).not.toHaveBeenCalled();
+  });
+
+  it("does not archive detached review children when parent archived", async () => {
+    vi.mocked(startReview).mockResolvedValue({
+      result: { reviewThreadId: "thread-review-1" },
+    });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+        reviewDeliveryMode: "detached",
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-parent");
+    });
+
+    await act(async () => {
+      await result.current.startReview("/review check this");
+    });
+
+    await waitFor(() => {
+      expect(result.current.threadParentById["thread-review-1"]).toBe("thread-parent");
+    });
+    expect(result.current.isSubagentThread("ws-1", "thread-review-1")).toBe(false);
+
+    act(() => {
+      handlers?.onThreadStarted?.("ws-1", {
+        id: "thread-child",
+        preview: "Child",
+        source: {
+          subAgent: {
+            thread_spawn: { parent_thread_id: "thread-parent", depth: 1 },
+          },
+        },
+      });
+    });
+
+    vi.mocked(archiveThread).mockClear();
+
+    act(() => {
+      handlers?.onThreadArchived?.("ws-1", "thread-parent");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(archiveThread)).toHaveBeenCalledWith("ws-1", "thread-child");
+    });
+    expect(vi.mocked(archiveThread)).not.toHaveBeenCalledWith("ws-1", "thread-review-1");
+  });
+
+  it("archives subagent descendants spawned from detached review threads when parent archived", async () => {
+    vi.mocked(startReview).mockResolvedValue({
+      result: { reviewThreadId: "thread-review-1" },
+    });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+        reviewDeliveryMode: "detached",
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-parent");
+    });
+
+    await act(async () => {
+      await result.current.startReview("/review check this");
+    });
+
+    await waitFor(() => {
+      expect(result.current.threadParentById["thread-review-1"]).toBe("thread-parent");
+    });
+
+    act(() => {
+      handlers?.onThreadStarted?.("ws-1", {
+        id: "thread-review-subagent",
+        preview: "Review subagent",
+        source: {
+          subAgent: {
+            thread_spawn: { parent_thread_id: "thread-review-1", depth: 1 },
+          },
+        },
+      });
+    });
+
+    expect(result.current.isSubagentThread("ws-1", "thread-review-subagent")).toBe(true);
+    expect(result.current.threadParentById["thread-review-subagent"]).toBe("thread-review-1");
+
+    vi.mocked(archiveThread).mockClear();
+
+    act(() => {
+      handlers?.onThreadArchived?.("ws-1", "thread-parent");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(archiveThread)).toHaveBeenCalledWith(
+        "ws-1",
+        "thread-review-subagent",
+      );
+    });
+    expect(vi.mocked(archiveThread)).not.toHaveBeenCalledWith("ws-1", "thread-review-1");
   });
 
   it("keeps parent unlocked and pings parent when detached child exits", async () => {
