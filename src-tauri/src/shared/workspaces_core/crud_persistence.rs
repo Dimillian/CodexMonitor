@@ -305,7 +305,6 @@ where
         if !is_empty {
             return Err("Destination path already exists and is not empty.".to_string());
         }
-        return Err("Destination path already exists.".to_string());
     }
 
     let clone_path_string = clone_path.to_string_lossy().to_string();
