@@ -1010,6 +1010,7 @@ function MainApp() {
     terminalState,
     ensureTerminalWithTitle,
     restartTerminalSession,
+    requestTerminalFocus,
   } = useTerminalController({
     activeWorkspaceId,
     activeWorkspace,
@@ -1023,10 +1024,33 @@ function MainApp() {
     [ensureTerminalWithTitle],
   );
 
+  const openTerminalWithFocus = useCallback(() => {
+    if (!activeWorkspaceId) {
+      return;
+    }
+    requestTerminalFocus();
+    openTerminal();
+  }, [activeWorkspaceId, openTerminal, requestTerminalFocus]);
+
+  const handleToggleTerminalWithFocus = useCallback(() => {
+    if (!activeWorkspaceId) {
+      return;
+    }
+    if (!terminalOpen) {
+      requestTerminalFocus();
+    }
+    handleToggleTerminal();
+  }, [
+    activeWorkspaceId,
+    handleToggleTerminal,
+    requestTerminalFocus,
+    terminalOpen,
+  ]);
+
   const launchScriptState = useWorkspaceLaunchScript({
     activeWorkspace,
     updateWorkspaceSettings,
-    openTerminal,
+    openTerminal: openTerminalWithFocus,
     ensureLaunchTerminal,
     restartLaunchSession: restartTerminalSession,
     terminalState,
@@ -1036,7 +1060,7 @@ function MainApp() {
   const launchScriptsState = useWorkspaceLaunchScripts({
     activeWorkspace,
     updateWorkspaceSettings,
-    openTerminal,
+    openTerminal: openTerminalWithFocus,
     ensureLaunchTerminal: (workspaceId, entry, title) => {
       const label = entry.label?.trim() || entry.icon;
       return ensureTerminalWithTitle(
@@ -1857,7 +1881,7 @@ function MainApp() {
     onCycleAgent: handleCycleAgent,
     onCycleWorkspace: handleCycleWorkspace,
     onToggleDebug: handleDebugClick,
-    onToggleTerminal: handleToggleTerminal,
+    onToggleTerminal: handleToggleTerminalWithFocus,
     sidebarCollapsed,
     rightPanelCollapsed,
     onExpandSidebar: expandSidebar,
@@ -2006,7 +2030,7 @@ function MainApp() {
       handleCheckoutPullRequest(pullRequest.number),
     onCreateBranch: handleCreateBranch,
     onCopyThread: handleCopyThread,
-    onToggleTerminal: handleToggleTerminal,
+    onToggleTerminal: handleToggleTerminalWithFocus,
     showTerminalButton: !isCompact,
     showWorkspaceTools: !isCompact,
     launchScript: launchScriptState.launchScript,
