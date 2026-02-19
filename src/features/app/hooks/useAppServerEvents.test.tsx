@@ -49,6 +49,7 @@ describe("useAppServerEvents", () => {
       onWorkspaceConnected: vi.fn(),
       onThreadStarted: vi.fn(),
       onThreadNameUpdated: vi.fn(),
+      onThreadStatusChanged: vi.fn(),
       onThreadArchived: vi.fn(),
       onThreadUnarchived: vi.fn(),
       onBackgroundThreadAction: vi.fn(),
@@ -145,6 +146,21 @@ describe("useAppServerEvents", () => {
       threadId: "thread-2",
       threadName: "Renamed from server",
     });
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "thread/status/changed",
+          params: { threadId: "thread-2", status: { type: "active" } },
+        },
+      });
+    });
+    expect(handlers.onThreadStatusChanged).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-2",
+      { type: "active" },
+    );
 
     act(() => {
       listener?.({
@@ -407,6 +423,33 @@ describe("useAppServerEvents", () => {
     });
 
     expect(handlers.onAgentMessageDelta).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("coerces string thread status payloads to object form", async () => {
+    const handlers: Handlers = {
+      onThreadStatusChanged: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "thread/status/changed",
+          params: { thread_id: "thread-1", status: "idle" },
+        },
+      });
+    });
+
+    expect(handlers.onThreadStatusChanged).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      { type: "idle" },
+    );
 
     await act(async () => {
       root.unmount();

@@ -62,6 +62,7 @@ routed in `useAppServerEvents.ts` or handled in feature-specific subscriptions.
 - `thread/started`
 - `thread/archived`
 - `thread/name/updated`
+- `thread/status/changed`
 - `thread/unarchived`
 - `codex/backgroundThread`
 - `error`
@@ -107,7 +108,6 @@ events are currently not routed:
 - `mcpServer/oauthLogin/completed`
 - `model/rerouted`
 - `thread/compacted` (deprecated; intentionally not routed)
-- `thread/status/changed`
 - `deprecationNotice`
 - `configWarning`
 - `windows/worldWritableWarning`

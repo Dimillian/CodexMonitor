@@ -26,6 +26,17 @@ type UseThreadTurnEventsOptions = {
   recordThreadActivity: (workspaceId: string, threadId: string, timestamp?: number) => void;
 };
 
+function normalizeThreadStatusType(status: Record<string, unknown>): string {
+  const typeRaw = status.type ?? status.statusType ?? status.status_type;
+  if (typeof typeRaw !== "string") {
+    return "";
+  }
+  return typeRaw
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]/g, "");
+}
+
 export function useThreadTurnEvents({
   dispatch,
   planByThreadRef,
@@ -238,6 +249,31 @@ export function useThreadTurnEvents({
     ],
   );
 
+  const onThreadStatusChanged = useCallback(
+    (_workspaceId: string, threadId: string, status: Record<string, unknown>) => {
+      const statusType = normalizeThreadStatusType(status);
+      if (!statusType) {
+        return;
+      }
+      if (statusType === "active") {
+        markProcessing(threadId, true);
+        return;
+      }
+      if (
+        statusType === "idle" ||
+        statusType === "notloaded" ||
+        statusType === "systemerror"
+      ) {
+        markProcessing(threadId, false);
+        hasOptimisticActiveTurnByThreadRef.current[threadId] = false;
+        immediateActiveTurnIdByThreadRef.current[threadId] = null;
+        setActiveTurnId(threadId, null);
+        pendingInterruptsRef.current.delete(threadId);
+      }
+    },
+    [markProcessing, pendingInterruptsRef, setActiveTurnId],
+  );
+
   const onTurnPlanUpdated = useCallback(
     (
       workspaceId: string,
@@ -335,6 +371,7 @@ export function useThreadTurnEvents({
     onThreadUnarchived,
     onTurnStarted,
     onTurnCompleted,
+    onThreadStatusChanged,
     onTurnPlanUpdated,
     onTurnDiffUpdated,
     onThreadTokenUsageUpdated,

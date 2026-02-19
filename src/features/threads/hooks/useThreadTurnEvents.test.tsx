@@ -350,6 +350,32 @@ describe("useThreadTurnEvents", () => {
     expect(setActiveTurnId).toHaveBeenNthCalledWith(2, "thread-1", null);
   });
 
+  it("marks processing when thread status changes to active", () => {
+    const { result, markProcessing, setActiveTurnId } = makeOptions();
+
+    act(() => {
+      result.current.onThreadStatusChanged("ws-1", "thread-1", { type: "active" });
+    });
+
+    expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+    expect(setActiveTurnId).not.toHaveBeenCalled();
+  });
+
+  it("clears processing, active turn, and pending interrupt for non-active thread status", () => {
+    const { result, markProcessing, setActiveTurnId, pendingInterruptsRef } =
+      makeOptions({ pendingInterrupts: ["thread-1"] });
+
+    act(() => {
+      result.current.onThreadStatusChanged("ws-1", "thread-1", {
+        status_type: "system_error",
+      });
+    });
+
+    expect(markProcessing).toHaveBeenCalledWith("thread-1", false);
+    expect(setActiveTurnId).toHaveBeenCalledWith("thread-1", null);
+    expect(pendingInterruptsRef.current.has("thread-1")).toBe(false);
+  });
+
   it("clears the active plan when all plan steps are completed", () => {
     const { result, dispatch } = makeOptions({
       planByThread: {
