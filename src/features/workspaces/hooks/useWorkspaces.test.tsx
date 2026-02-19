@@ -5,6 +5,7 @@ import { message } from "@tauri-apps/plugin-dialog";
 import type { WorkspaceInfo } from "../../../types";
 import {
   addWorkspace,
+  addWorkspaceFromGitUrl,
   connectWorkspace as connectWorkspaceService,
   isWorkspacePathDir,
   listWorkspaces,
@@ -26,6 +27,7 @@ vi.mock("../../../services/tauri", () => ({
   renameWorktreeUpstream: vi.fn(),
   addClone: vi.fn(),
   addWorkspace: vi.fn(),
+  addWorkspaceFromGitUrl: vi.fn(),
   addWorktree: vi.fn(),
   connectWorkspace: vi.fn(),
   isWorkspacePathDir: vi.fn(),
@@ -358,5 +360,36 @@ describe("useWorkspaces.addWorkspace (bulk)", () => {
     expect(options).toEqual(
       expect.objectContaining({ title: "Some workspaces were skipped", kind: "warning" }),
     );
+  });
+});
+
+
+describe("useWorkspaces.addWorkspaceFromGitUrl", () => {
+  it("invokes service and activates workspace", async () => {
+    vi.mocked(listWorkspaces).mockResolvedValue([]);
+    const added = { ...workspaceOne, id: "from-url", path: "/tmp/from-url" };
+    vi.mocked(addWorkspaceFromGitUrl).mockResolvedValue(added);
+
+    const { result } = renderHook(() => useWorkspaces());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await result.current.addWorkspaceFromGitUrl(
+        "https://github.com/org/repo.git",
+        "/tmp",
+        "repo",
+      );
+    });
+
+    expect(addWorkspaceFromGitUrl).toHaveBeenCalledWith(
+      "https://github.com/org/repo.git",
+      "/tmp",
+      "repo",
+      null,
+    );
+    expect(result.current.activeWorkspace?.id).toBe("from-url");
   });
 });

@@ -7,6 +7,11 @@ type Params = {
   isCompact: boolean;
   addWorkspace: () => Promise<WorkspaceInfo | null>;
   addWorkspaceFromPath: (path: string) => Promise<WorkspaceInfo | null>;
+  addWorkspaceFromGitUrl: (
+    url: string,
+    destinationPath: string,
+    targetFolderName?: string | null,
+  ) => Promise<WorkspaceInfo | null>;
   addWorkspacesFromPaths: (paths: string[]) => Promise<WorkspaceInfo | null>;
   setActiveThreadId: (threadId: string | null, workspaceId: string) => void;
   setActiveTab: (tab: "home" | "projects" | "codex" | "git" | "log") => void;
@@ -23,6 +28,7 @@ export function useWorkspaceActions({
   isCompact,
   addWorkspace,
   addWorkspaceFromPath,
+  addWorkspaceFromGitUrl,
   addWorkspacesFromPaths,
   setActiveThreadId,
   setActiveTab,
@@ -107,6 +113,32 @@ export function useWorkspaceActions({
     [addWorkspaceFromPath, handleWorkspaceAdded, onDebug],
   );
 
+
+  const handleAddWorkspaceFromGitUrl = useCallback(
+    async (url: string, destinationPath: string, targetFolderName?: string | null) => {
+      try {
+        const workspace = await addWorkspaceFromGitUrl(url, destinationPath, targetFolderName);
+        if (workspace) {
+          handleWorkspaceAdded(workspace);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        onDebug({
+          id: `${Date.now()}-client-add-workspace-from-url-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "workspace/add-from-url error",
+          payload: message,
+        });
+        alert(`Failed to import workspace from URL.
+
+${message}`);
+        throw error;
+      }
+    },
+    [addWorkspaceFromGitUrl, handleWorkspaceAdded, onDebug],
+  );
+
   const handleAddAgent = useCallback(
     async (workspace: WorkspaceInfo) => {
       exitDiffView();
@@ -155,6 +187,7 @@ export function useWorkspaceActions({
     handleAddWorkspace,
     handleAddWorkspacesFromPaths,
     handleAddWorkspaceFromPath,
+    handleAddWorkspaceFromGitUrl,
     handleAddAgent,
     handleAddWorktreeAgent,
     handleAddCloneAgent,

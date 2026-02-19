@@ -130,6 +130,49 @@ pub(crate) async fn add_workspace(
 }
 
 #[tauri::command]
+pub(crate) async fn add_workspace_from_git_url(
+    url: String,
+    destination_path: String,
+    target_folder_name: Option<String>,
+    codex_bin: Option<String>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<WorkspaceInfo, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let destination_path = remote_backend::normalize_path_for_remote(destination_path);
+        let codex_bin = codex_bin.map(remote_backend::normalize_path_for_remote);
+        let response = remote_backend::call_remote(
+            &*state,
+            app,
+            "add_workspace_from_git_url",
+            json!({
+                "url": url,
+                "destination_path": destination_path,
+                "target_folder_name": target_folder_name,
+                "codex_bin": codex_bin
+            }),
+        )
+        .await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
+    workspaces_core::add_workspace_from_git_url_core(
+        url,
+        destination_path,
+        target_folder_name,
+        codex_bin,
+        &state.workspaces,
+        &state.sessions,
+        &state.app_settings,
+        &state.storage_path,
+        |entry, default_bin, codex_args, codex_home| {
+            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+        },
+    )
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn add_clone(
     source_workspace_id: String,
     copy_name: String,

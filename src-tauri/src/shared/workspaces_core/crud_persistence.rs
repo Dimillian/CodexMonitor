@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::future::Future;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
 use tokio::sync::Mutex;
@@ -204,6 +204,162 @@ where
         let mut child = session.child.lock().await;
         kill_child_process_tree(&mut child).await;
         let _ = tokio::fs::remove_dir_all(&destination_path).await;
+        return Err(error);
+    }
+
+    sessions.lock().await.insert(entry.id.clone(), session);
+
+    Ok(WorkspaceInfo {
+        id: entry.id,
+        name: entry.name,
+        path: entry.path,
+        codex_bin: entry.codex_bin,
+        connected: true,
+        kind: entry.kind,
+        parent_id: entry.parent_id,
+        worktree: entry.worktree,
+        settings: entry.settings,
+    })
+}
+
+fn default_repo_name_from_url(url: &str) -> Option<String> {
+    let trimmed = url.trim().trim_end_matches('/');
+    let tail = trimmed.rsplit('/').next()?.trim();
+    if tail.is_empty() {
+        return None;
+    }
+    let without_git_suffix = tail.strip_suffix(".git").unwrap_or(tail);
+    if without_git_suffix.is_empty() {
+        None
+    } else {
+        Some(without_git_suffix.to_string())
+    }
+}
+
+fn validate_target_folder_name(value: &str) -> Result<String, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err("Target folder name is required.".to_string());
+    }
+
+    if trimmed.contains('/') || trimmed.contains('\\') {
+        return Err(
+            "Target folder name must be a single relative folder name without separators or traversal."
+                .to_string(),
+        );
+    }
+
+    let path = Path::new(trimmed);
+    match (path.components().next(), path.components().nth(1)) {
+        (Some(Component::Normal(_)), None) => Ok(trimmed.to_string()),
+        _ => Err(
+            "Target folder name must be a single relative folder name without separators or traversal."
+                .to_string(),
+        ),
+    }
+}
+
+pub(crate) async fn add_workspace_from_git_url_core<F, Fut>(
+    url: String,
+    destination_path: String,
+    target_folder_name: Option<String>,
+    codex_bin: Option<String>,
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    app_settings: &Mutex<AppSettings>,
+    storage_path: &PathBuf,
+    spawn_session: F,
+) -> Result<WorkspaceInfo, String>
+where
+    F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
+    Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
+{
+    let url = url.trim().to_string();
+    if url.is_empty() {
+        return Err("Remote Git URL is required.".to_string());
+    }
+    let destination_path = destination_path.trim().to_string();
+    if destination_path.is_empty() {
+        return Err("Destination folder is required.".to_string());
+    }
+    let destination_parent = PathBuf::from(&destination_path);
+    if !destination_parent.is_dir() {
+        return Err("Destination folder must be an existing directory.".to_string());
+    }
+
+    let folder_name = target_folder_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .or_else(|| default_repo_name_from_url(&url))
+        .ok_or_else(|| "Could not determine target folder name from URL.".to_string())?;
+    let folder_name = validate_target_folder_name(&folder_name)?;
+
+    let clone_path = destination_parent.join(folder_name);
+    if clone_path.exists() {
+        let is_empty = std::fs::read_dir(&clone_path)
+            .map_err(|err| format!("Failed to inspect destination path: {err}"))?
+            .next()
+            .is_none();
+        if !is_empty {
+            return Err("Destination path already exists and is not empty.".to_string());
+        }
+    }
+
+    let clone_path_string = clone_path.to_string_lossy().to_string();
+    if let Err(error) =
+        git_core::run_git_command(&destination_parent, &["clone", &url, &clone_path_string]).await
+    {
+        let _ = tokio::fs::remove_dir_all(&clone_path).await;
+        return Err(error);
+    }
+
+    let workspace_name = clone_path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("Workspace")
+        .to_string();
+    let entry = WorkspaceEntry {
+        id: Uuid::new_v4().to_string(),
+        name: workspace_name,
+        path: clone_path_string,
+        codex_bin,
+        kind: WorkspaceKind::Main,
+        parent_id: None,
+        worktree: None,
+        settings: WorkspaceSettings::default(),
+    };
+
+    let (default_bin, codex_args) = {
+        let settings = app_settings.lock().await;
+        (
+            settings.codex_bin.clone(),
+            resolve_workspace_codex_args(&entry, None, Some(&settings)),
+        )
+    };
+    let codex_home = resolve_workspace_codex_home(&entry, None);
+    let session = match spawn_session(entry.clone(), default_bin, codex_args, codex_home).await {
+        Ok(session) => session,
+        Err(error) => {
+            let _ = tokio::fs::remove_dir_all(&clone_path).await;
+            return Err(error);
+        }
+    };
+
+    if let Err(error) = {
+        let mut workspaces = workspaces.lock().await;
+        workspaces.insert(entry.id.clone(), entry.clone());
+        let list: Vec<_> = workspaces.values().cloned().collect();
+        write_workspaces(storage_path, &list)
+    } {
+        {
+            let mut workspaces = workspaces.lock().await;
+            workspaces.remove(&entry.id);
+        }
+        let mut child = session.child.lock().await;
+        kill_child_process_tree(&mut child).await;
+        let _ = tokio::fs::remove_dir_all(&clone_path).await;
         return Err(error);
     }
 
@@ -549,4 +705,46 @@ pub(crate) async fn update_workspace_codex_bin_core(
         worktree: entry_snapshot.worktree,
         settings: entry_snapshot.settings,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{default_repo_name_from_url, validate_target_folder_name};
+
+    #[test]
+    fn derives_repo_name_from_https_url() {
+        assert_eq!(
+            default_repo_name_from_url("https://github.com/org/repo.git"),
+            Some("repo".to_string())
+        );
+    }
+
+    #[test]
+    fn derives_repo_name_from_ssh_url() {
+        assert_eq!(
+            default_repo_name_from_url("git@github.com:org/repo.git"),
+            Some("repo".to_string())
+        );
+    }
+
+    #[test]
+    fn accepts_single_relative_target_folder_name() {
+        assert_eq!(
+            validate_target_folder_name("my-project"),
+            Ok("my-project".to_string())
+        );
+    }
+
+    #[test]
+    fn rejects_target_folder_name_with_separators() {
+        let err =
+            validate_target_folder_name("nested/project").expect_err("name should be rejected");
+        assert!(err.contains("without separators"));
+    }
+
+    #[test]
+    fn rejects_target_folder_name_with_traversal() {
+        let err = validate_target_folder_name("../project").expect_err("name should be rejected");
+        assert!(err.contains("without separators or traversal"));
+    }
 }
