@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::future::Future;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
 use tokio::sync::Mutex;
@@ -236,6 +236,29 @@ fn default_repo_name_from_url(url: &str) -> Option<String> {
     }
 }
 
+fn validate_target_folder_name(value: &str) -> Result<String, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err("Target folder name is required.".to_string());
+    }
+
+    if trimmed.contains('/') || trimmed.contains('\\') {
+        return Err(
+            "Target folder name must be a single relative folder name without separators."
+                .to_string(),
+        );
+    }
+
+    let path = Path::new(trimmed);
+    match (path.components().next(), path.components().nth(1)) {
+        (Some(Component::Normal(_)), None) => Ok(trimmed.to_string()),
+        _ => Err(
+            "Target folder name must be a single relative folder name without traversal."
+                .to_string(),
+        ),
+    }
+}
+
 pub(crate) async fn add_workspace_from_git_url_core<F, Fut>(
     url: String,
     destination_path: String,
@@ -271,6 +294,7 @@ where
         .map(str::to_string)
         .or_else(|| default_repo_name_from_url(&url))
         .ok_or_else(|| "Could not determine target folder name from URL.".to_string())?;
+    let folder_name = validate_target_folder_name(&folder_name)?;
 
     let clone_path = destination_parent.join(folder_name);
     if clone_path.exists() {
@@ -681,7 +705,7 @@ pub(crate) async fn update_workspace_codex_bin_core(
 
 #[cfg(test)]
 mod tests {
-    use super::default_repo_name_from_url;
+    use super::{default_repo_name_from_url, validate_target_folder_name};
 
     #[test]
     fn derives_repo_name_from_https_url() {
@@ -697,5 +721,26 @@ mod tests {
             default_repo_name_from_url("git@github.com:org/repo.git"),
             Some("repo".to_string())
         );
+    }
+
+    #[test]
+    fn accepts_single_relative_target_folder_name() {
+        assert_eq!(
+            validate_target_folder_name("my-project"),
+            Ok("my-project".to_string())
+        );
+    }
+
+    #[test]
+    fn rejects_target_folder_name_with_separators() {
+        let err =
+            validate_target_folder_name("nested/project").expect_err("name should be rejected");
+        assert!(err.contains("without separators"));
+    }
+
+    #[test]
+    fn rejects_target_folder_name_with_traversal() {
+        let err = validate_target_folder_name("../project").expect_err("name should be rejected");
+        assert!(err.contains("without traversal"));
     }
 }

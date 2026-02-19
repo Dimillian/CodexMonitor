@@ -229,8 +229,8 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
 
   const homeNode = (
     <Home
-      onOpenSettings={options.onOpenSettings}
       onAddWorkspace={options.onAddWorkspace}
+      onAddWorkspaceFromUrl={options.onAddWorkspaceFromUrl}
       latestAgentRuns={options.latestAgentRuns}
       isLoadingLatestAgents={options.isLoadingLatestAgents}
       localUsageSnapshot={options.localUsageSnapshot}

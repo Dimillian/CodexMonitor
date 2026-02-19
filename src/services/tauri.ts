@@ -249,15 +249,15 @@ export async function addWorkspace(
 
 export async function addWorkspaceFromGitUrl(
   url: string,
-  destination_path: string,
-  target_folder_name: string | null,
-  codex_bin: string | null,
+  destinationPath: string,
+  targetFolderName: string | null,
+  codexBin: string | null,
 ): Promise<WorkspaceInfo> {
   return invoke<WorkspaceInfo>("add_workspace_from_git_url", {
     url,
-    destination_path,
-    target_folder_name,
-    codex_bin,
+    destinationPath,
+    targetFolderName,
+    codexBin,
   });
 }
 
