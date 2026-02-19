@@ -282,7 +282,7 @@ describe("useRemoteThreadLiveConnection", () => {
     expect(threadLiveUnsubscribeMock).toHaveBeenCalledWith("ws-1", "thread-1");
   });
 
-  it("does not unsubscribe active thread when stale reconnect resolves late", async () => {
+  it("coalesces same-key reconnect while subscribe is in flight", async () => {
     let resolveFirstSubscribe: (() => void) | null = null;
     const firstSubscribe = new Promise<void>((resolve) => {
       resolveFirstSubscribe = resolve;
@@ -308,6 +308,7 @@ describe("useRemoteThreadLiveConnection", () => {
     );
 
     let firstReconnectPromise: Promise<boolean> = Promise.resolve(false);
+    let secondReconnectPromise: Promise<boolean> = Promise.resolve(false);
     await act(async () => {
       firstReconnectPromise = result.current.reconnectLive("ws-1", "thread-1", {
         runResume: false,
@@ -316,16 +317,17 @@ describe("useRemoteThreadLiveConnection", () => {
     });
 
     await act(async () => {
-      const secondReconnect = result.current.reconnectLive("ws-1", "thread-1", {
+      secondReconnectPromise = result.current.reconnectLive("ws-1", "thread-1", {
         runResume: false,
       });
       await Promise.resolve();
-      await secondReconnect;
     });
+    expect(threadLiveSubscribeMock).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       resolveFirstSubscribe?.();
       await firstReconnectPromise;
+      await secondReconnectPromise;
       await Promise.resolve();
     });
 
@@ -418,6 +420,52 @@ describe("useRemoteThreadLiveConnection", () => {
 
     expect(threadLiveSubscribeMock).toHaveBeenCalledTimes(1);
     expect(threadLiveUnsubscribeMock).toHaveBeenCalledTimes(0);
+    expect(refreshThread).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores self-triggered detached event during dedupe reconnect", async () => {
+    const refreshThread = vi.fn().mockResolvedValue(undefined);
+    const workspace = {
+      id: "ws-1",
+      name: "Workspace",
+      path: "/tmp/ws-1",
+      connected: true,
+      settings: { sidebarCollapsed: false },
+    };
+
+    const { result } = renderHook(() =>
+      useRemoteThreadLiveConnection({
+        backendMode: "remote",
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        refreshThread,
+      }),
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(threadLiveSubscribeMock).toHaveBeenCalledTimes(1);
+    expect(refreshThread).toHaveBeenCalledTimes(1);
+
+    threadLiveUnsubscribeMock.mockImplementationOnce(async (workspaceId, threadId) => {
+      for (const listener of appServerListeners) {
+        listener({
+          workspace_id: workspaceId,
+          method: "thread/live_detached",
+          params: { threadId },
+        });
+      }
+    });
+
+    await act(async () => {
+      await result.current.reconnectLive("ws-1", "thread-1", { runResume: false });
+      await Promise.resolve();
+    });
+
+    expect(threadLiveUnsubscribeMock).toHaveBeenCalledTimes(1);
+    expect(threadLiveSubscribeMock).toHaveBeenCalledTimes(2);
     expect(refreshThread).toHaveBeenCalledTimes(1);
   });
 });

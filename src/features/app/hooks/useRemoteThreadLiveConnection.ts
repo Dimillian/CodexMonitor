@@ -14,6 +14,7 @@ export type RemoteThreadConnectionState = "live" | "polling" | "disconnected";
 export const REMOTE_LIVE_STALE_TIMEOUT_MS = 20_000;
 export const REMOTE_LIVE_RECONNECT_INTERVAL_MS = 5_000;
 const REMOTE_RECOVERY_TOAST_COOLDOWN_MS = 30_000;
+const SELF_DETACH_IGNORE_WINDOW_MS = 10_000;
 
 type ReconnectOptions = {
   runResume?: boolean;
@@ -105,6 +106,10 @@ export function useRemoteThreadLiveConnection({
   const connectionStateRef = useRef(connectionState);
   const activeSubscriptionKeyRef = useRef<string | null>(null);
   const desiredSubscriptionKeyRef = useRef<string | null>(null);
+  const ignoreDetachedEventsUntilRef = useRef<Map<string, number>>(new Map());
+  const inFlightReconnectRef = useRef<{ key: string; promise: Promise<boolean> } | null>(
+    null,
+  );
   const reconnectSequenceRef = useRef(0);
   const lastThreadEventAtRef = useRef<number>(0);
   const lastRecoveryToastAtRef = useRef<number>(0);
@@ -179,56 +184,78 @@ export function useRemoteThreadLiveConnection({
         return false;
       }
 
-      const sequence = reconnectSequenceRef.current + 1;
-      reconnectSequenceRef.current = sequence;
-      setState(activeWorkspaceRef.current.connected ? "polling" : "disconnected");
+      const targetKey = keyForThread(workspaceId, threadId);
+      desiredSubscriptionKeyRef.current = targetKey;
+      if (inFlightReconnectRef.current?.key === targetKey) {
+        return inFlightReconnectRef.current.promise;
+      }
 
-      try {
-        const targetKey = keyForThread(workspaceId, threadId);
-        desiredSubscriptionKeyRef.current = targetKey;
-        if (
-          !activeWorkspaceRef.current.connected &&
-          reconnectWorkspaceRef.current &&
-          activeWorkspaceRef.current.id === workspaceId
-        ) {
-          await Promise.resolve(reconnectWorkspaceRef.current(activeWorkspaceRef.current));
-        }
-        if (sequence !== reconnectSequenceRef.current) {
-          return false;
-        }
+      const reconnectPromise = (async (): Promise<boolean> => {
+        const sequence = reconnectSequenceRef.current + 1;
+        reconnectSequenceRef.current = sequence;
+        const workspaceAtStart = activeWorkspaceRef.current;
+        setState(workspaceAtStart?.connected ? "polling" : "disconnected");
 
-        if (options?.runResume !== false) {
-          await Promise.resolve(refreshThreadRef.current(workspaceId, threadId));
-        }
-        if (sequence !== reconnectSequenceRef.current) {
-          return false;
-        }
+        try {
+          desiredSubscriptionKeyRef.current = targetKey;
+          const workspaceEntry = activeWorkspaceRef.current;
+          if (
+            workspaceEntry &&
+            !workspaceEntry.connected &&
+            reconnectWorkspaceRef.current &&
+            workspaceEntry.id === workspaceId
+          ) {
+            await Promise.resolve(reconnectWorkspaceRef.current(workspaceEntry));
+          }
+          if (sequence !== reconnectSequenceRef.current) {
+            return false;
+          }
 
-        if (activeSubscriptionKeyRef.current === targetKey) {
-          await threadLiveUnsubscribe(workspaceId, threadId).catch(() => {
-            // Best-effort dedupe: ignore unsubscribe failures before reattach.
-          });
-          activeSubscriptionKeyRef.current = null;
-        }
-        await threadLiveSubscribe(workspaceId, threadId);
-        if (sequence !== reconnectSequenceRef.current) {
-          if (desiredSubscriptionKeyRef.current !== targetKey) {
+          if (options?.runResume !== false) {
+            await Promise.resolve(refreshThreadRef.current(workspaceId, threadId));
+          }
+          if (sequence !== reconnectSequenceRef.current) {
+            return false;
+          }
+
+          if (activeSubscriptionKeyRef.current === targetKey) {
+            ignoreDetachedEventsUntilRef.current.set(
+              targetKey,
+              Date.now() + SELF_DETACH_IGNORE_WINDOW_MS,
+            );
             await threadLiveUnsubscribe(workspaceId, threadId).catch(() => {
-              // Best-effort cleanup for stale reconnect attempts.
+              // Best-effort dedupe: ignore unsubscribe failures before reattach.
             });
+            activeSubscriptionKeyRef.current = null;
+          }
+          await threadLiveSubscribe(workspaceId, threadId);
+          if (sequence !== reconnectSequenceRef.current) {
+            if (desiredSubscriptionKeyRef.current !== targetKey) {
+              await threadLiveUnsubscribe(workspaceId, threadId).catch(() => {
+                // Best-effort cleanup for stale reconnect attempts.
+              });
+            }
+            return false;
+          }
+
+          activeSubscriptionKeyRef.current = targetKey;
+          setState("polling");
+          return true;
+        } catch {
+          if (sequence === reconnectSequenceRef.current) {
+            reconcileDisconnectedState();
           }
           return false;
         }
+      })();
 
-        activeSubscriptionKeyRef.current = targetKey;
-        setState("polling");
-        return true;
-      } catch {
-        if (sequence === reconnectSequenceRef.current) {
-          reconcileDisconnectedState();
+      inFlightReconnectRef.current = { key: targetKey, promise: reconnectPromise };
+      reconnectPromise.finally(() => {
+        if (inFlightReconnectRef.current?.promise === reconnectPromise) {
+          inFlightReconnectRef.current = null;
         }
-        return false;
-      }
+      });
+      return reconnectPromise;
     },
     [reconcileDisconnectedState, setState],
   );
@@ -311,6 +338,16 @@ export function useRemoteThreadLiveConnection({
       if (method === "thread/live_detached") {
         const threadId = extractThreadId(method, params);
         if (threadId === selectedThreadId) {
+          const threadKey = keyForThread(activeWorkspaceId, threadId);
+          const ignoreDetachedUntil =
+            ignoreDetachedEventsUntilRef.current.get(threadKey) ?? 0;
+          if (ignoreDetachedUntil > 0 && ignoreDetachedUntil >= Date.now()) {
+            ignoreDetachedEventsUntilRef.current.delete(threadKey);
+            return;
+          }
+          if (ignoreDetachedUntil > 0) {
+            ignoreDetachedEventsUntilRef.current.delete(threadKey);
+          }
           activeSubscriptionKeyRef.current = null;
           reconcileDisconnectedState();
           if (isDocumentVisible() && isWindowFocused()) {
@@ -482,6 +519,7 @@ export function useRemoteThreadLiveConnection({
       window.removeEventListener("blur", handleBlur);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       desiredSubscriptionKeyRef.current = null;
+      ignoreDetachedEventsUntilRef.current.clear();
       const currentKey = activeSubscriptionKeyRef.current;
       if (currentKey) {
         activeSubscriptionKeyRef.current = null;
