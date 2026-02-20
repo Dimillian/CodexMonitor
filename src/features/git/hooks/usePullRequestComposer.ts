@@ -50,12 +50,6 @@ type UsePullRequestComposerOptions = {
     appMentions?: AppMention[],
     submitIntent?: ComposerSendIntent,
   ) => Promise<void>;
-  queueMessage: (
-    text: string,
-    images: string[],
-    appMentions?: AppMention[],
-    submitIntent?: ComposerSendIntent,
-  ) => Promise<void>;
 };
 
 export function usePullRequestComposer({
@@ -77,7 +71,6 @@ export function usePullRequestComposer({
   runPullRequestReview,
   clearActiveImages,
   handleSend,
-  queueMessage,
 }: UsePullRequestComposerOptions) {
   const isPullRequestComposer = useMemo(
     () =>
@@ -212,9 +205,6 @@ export function usePullRequestComposer({
   const handleComposerSend = isPullRequestComposer
     ? handleSendPullRequestQuestion
     : handleSend;
-  const handleComposerQueue = isPullRequestComposer
-    ? handleSendPullRequestQuestion
-    : queueMessage;
 
   return {
     handleSelectPullRequest,
@@ -223,6 +213,5 @@ export function usePullRequestComposer({
     composerContextActions,
     composerSendLabel,
     handleComposerSend,
-    handleComposerQueue,
   };
 }

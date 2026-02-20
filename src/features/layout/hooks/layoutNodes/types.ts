@@ -383,11 +383,6 @@ export type LayoutNodesOptions = {
     appMentions?: AppMention[],
     submitIntent?: ComposerSendIntent,
   ) => void | Promise<void>;
-  onQueue: (
-    text: string,
-    images: string[],
-    appMentions?: AppMention[],
-  ) => void | Promise<void>;
   onStop: () => void;
   canStop: boolean;
   onFileAutocompleteActiveChange?: (active: boolean) => void;

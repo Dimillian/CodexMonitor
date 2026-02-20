@@ -25,7 +25,6 @@ function ComposerHarness({ initialText = "", editorSettings }: HarnessProps) {
   return (
     <Composer
       onSend={() => {}}
-      onQueue={() => {}}
       onStop={() => {}}
       canStop={false}
       isProcessing={false}

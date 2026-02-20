@@ -1310,7 +1310,6 @@ function MainApp() {
     removeImagesForThread,
     activeQueue,
     handleSend,
-    queueMessage,
     prefillDraft,
     setPrefillDraft,
     composerInsert,
@@ -1707,7 +1706,6 @@ function MainApp() {
     composerContextActions,
     composerSendLabel,
     handleComposerSend,
-    handleComposerQueue,
   } = usePullRequestComposer({
     activeWorkspace,
     selectedPullRequest,
@@ -1727,12 +1725,10 @@ function MainApp() {
     runPullRequestReview,
     clearActiveImages,
     handleSend,
-    queueMessage,
   });
 
   const {
     handleComposerSendWithDraftStart,
-    handleComposerQueueWithDraftStart,
     handleSelectWorkspaceInstance,
     handleOpenThreadLink,
     handleArchiveActiveThread,
@@ -1744,7 +1740,6 @@ function MainApp() {
     pendingNewThreadSeedRef,
     runWithDraftStart,
     handleComposerSend,
-    handleComposerQueue,
     clearDraftState,
     exitDiffView,
     resetPullRequestSelection,
@@ -2216,7 +2211,6 @@ function MainApp() {
     onRevealGeneralPrompts: handleRevealGeneralPrompts,
     canRevealGeneralPrompts: Boolean(activeWorkspace),
     onSend: handleComposerSendWithDraftStart,
-    onQueue: handleComposerQueueWithDraftStart,
     onStop: interruptTurn,
     canStop: canInterrupt,
     onFileAutocompleteActiveChange: setFileAutocompleteActive,

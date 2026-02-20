@@ -122,7 +122,6 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
   const composerNode = options.showComposer ? (
     <Composer
       onSend={options.onSend}
-      onQueue={options.onQueue}
       onStop={options.onStop}
       canStop={options.canStop}
       disabled={options.isReviewing}

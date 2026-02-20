@@ -53,7 +53,6 @@ type ComposerProps = {
     appMentions?: AppMention[],
     submitIntent?: ComposerSendIntent,
   ) => void;
-  onQueue?: (text: string, images: string[], appMentions?: AppMention[]) => void;
   onStop: () => void;
   canStop: boolean;
   disabled?: boolean;
@@ -158,7 +157,6 @@ const CARET_ANCHOR_GAP = 8;
 
 export const Composer = memo(function Composer({
   onSend,
-  onQueue,
   onStop,
   canStop,
   disabled = false,
@@ -236,7 +234,6 @@ export const Composer = memo(function Composer({
   onFileAutocompleteActiveChange,
   contextActions = [],
 }: ComposerProps) {
-  void onQueue;
   const [text, setText] = useState(draftText);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const [appMentionBindings, setAppMentionBindings] = useState<AppMentionBinding[]>([]);
@@ -645,8 +642,8 @@ export const Composer = memo(function Composer({
           <div className="composer-followup-copy">
             {oppositeFallsBackToQueue ? (
               <>
-                Default: Queue (Steer unavailable). Press {followUpShortcutLabel} to queue this
-                message.
+                Default: Queue (Steer unavailable). Both Enter and {followUpShortcutLabel} will
+                queue this message.
               </>
             ) : (
               <>

@@ -55,7 +55,6 @@ function ComposerHarness({
   return (
     <Composer
       onSend={onSend}
-      onQueue={() => {}}
       onStop={() => {}}
       canStop={false}
       isProcessing={isProcessing}
@@ -220,6 +219,11 @@ describe("Composer send triggers", () => {
     fireEvent.change(textarea, { target: { value: "queue fallback" } });
     fireEvent.keyDown(textarea, { key: "Enter" });
 
+    expect(
+      screen.getByText(
+        "Default: Queue (Steer unavailable). Both Enter and Shift+Ctrl+Enter will queue this message.",
+      ),
+    ).toBeTruthy();
     expect(onSend).toHaveBeenCalledTimes(1);
     expect(onSend).toHaveBeenCalledWith("queue fallback", [], undefined, "queue");
   });

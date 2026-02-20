@@ -83,7 +83,6 @@ type UseThreadUiOrchestrationParams = {
   pendingNewThreadSeedRef: MutableRefObject<PendingNewThreadSeed | null>;
   runWithDraftStart: (runner: () => Promise<void>) => Promise<void>;
   handleComposerSend: SendOrQueueHandler;
-  handleComposerQueue: SendOrQueueHandler;
   clearDraftState: () => void;
   exitDiffView: () => void;
   resetPullRequestSelection: () => void;
@@ -314,7 +313,6 @@ export function useThreadUiOrchestration({
   pendingNewThreadSeedRef,
   runWithDraftStart,
   handleComposerSend,
-  handleComposerQueue,
   clearDraftState,
   exitDiffView,
   resetPullRequestSelection,
@@ -356,37 +354,6 @@ export function useThreadUiOrchestration({
       );
     },
     [handleComposerSend, rememberPendingNewThreadSeed, runWithDraftStart],
-  );
-
-  const handleComposerQueueWithDraftStart = useCallback(
-    (
-      text: string,
-      images: string[],
-      appMentions?: AppMention[],
-      submitIntent?: ComposerSendIntent,
-    ) => {
-      const runner = activeThreadId
-        ? () =>
-            appMentions && appMentions.length > 0
-              ? handleComposerQueue(text, images, appMentions, submitIntent)
-              : handleComposerQueue(text, images, undefined, submitIntent)
-        : () =>
-            appMentions && appMentions.length > 0
-              ? handleComposerSend(text, images, appMentions, submitIntent)
-              : handleComposerSend(text, images, undefined, submitIntent);
-
-      if (!activeThreadId) {
-        rememberPendingNewThreadSeed();
-      }
-      return runWithDraftStart(runner);
-    },
-    [
-      activeThreadId,
-      handleComposerQueue,
-      handleComposerSend,
-      rememberPendingNewThreadSeed,
-      runWithDraftStart,
-    ],
   );
 
   const handleSelectWorkspaceInstance = useCallback(
@@ -447,7 +414,6 @@ export function useThreadUiOrchestration({
 
   return {
     handleComposerSendWithDraftStart,
-    handleComposerQueueWithDraftStart,
     handleSelectWorkspaceInstance,
     handleOpenThreadLink,
     handleArchiveActiveThread,
