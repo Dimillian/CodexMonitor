@@ -125,7 +125,7 @@ These are v2 request methods CodexMonitor currently sends to Codex app-server:
 - `thread/compact/start`
 - `thread/name/set`
 - `turn/start`
-- `turn/steer` (best-effort; falls back to `turn/start` when unsupported)
+- `turn/steer` (used for explicit steer follow-ups while a turn is active)
 - `turn/interrupt`
 - `review/start`
 - `model/list`
@@ -253,9 +253,8 @@ Use this when the method list is unchanged but behavior looks off.
   - Stored in `useThreadsReducer.ts` (`turnDiffByThread`)
   - Exposed by `useThreads.ts` for UI consumers
 - Steering behavior while a turn is processing:
-  - CodexMonitor attempts `turn/steer` when steering is enabled and an active turn exists.
-  - If the server/daemon reports unknown `turn/steer`/`turn_steer`, CodexMonitor
-    degrades to `turn/start` and caches that workspace as steer-unsupported.
+  - CodexMonitor attempts `turn/steer` only when steer capability is enabled, the thread is processing, and an active turn id exists.
+  - If `turn/steer` fails, CodexMonitor does not fall back to `turn/start`; it clears stale processing/turn state, surfaces an error, and queues the follow-up message locally.
 - Feature toggles in Settings:
   - `experimentalFeature/list` is an app-server request.
   - Toggle writes use local/daemon command surfaces (`set_codex_feature_flag` and app settings update),
