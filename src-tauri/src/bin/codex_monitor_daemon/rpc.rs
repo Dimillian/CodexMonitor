@@ -85,16 +85,22 @@ pub(super) fn parse_optional_string(value: &Value, key: &str) -> Option<String> 
     }
 }
 
-pub(super) fn parse_optional_u32(value: &Value, key: &str) -> Option<u32> {
+pub(super) fn parse_optional_u32(value: &Value, key: &str) -> Result<Option<u32>, String> {
     match value {
-        Value::Object(map) => map.get(key).and_then(|value| value.as_u64()).and_then(|v| {
-            if v > u32::MAX as u64 {
-                None
-            } else {
-                Some(v as u32)
+        Value::Object(map) => match map.get(key) {
+            None => Ok(None),
+            Some(value) => {
+                let raw = value
+                    .as_u64()
+                    .filter(|value| *value <= u32::MAX as u64)
+                    .map(|value| value as u32);
+                match raw {
+                    Some(value) => Ok(Some(value)),
+                    None => Err(format!("invalid `{key}`")),
+                }
             }
-        }),
-        _ => None,
+        },
+        _ => Err(format!("invalid `{key}`")),
     }
 }
 
@@ -105,23 +111,33 @@ pub(super) fn parse_optional_bool(value: &Value, key: &str) -> Option<bool> {
     }
 }
 
-pub(super) fn parse_optional_string_array(value: &Value, key: &str) -> Option<Vec<String>> {
+pub(super) fn parse_optional_string_array(
+    value: &Value,
+    key: &str,
+) -> Result<Option<Vec<String>>, String> {
     match value {
-        Value::Object(map) => map
-            .get(key)
-            .and_then(|value| value.as_array())
-            .map(|items| {
-                items
+        Value::Object(map) => match map.get(key) {
+            None => Ok(None),
+            Some(value) => {
+                let Some(items) = value.as_array() else {
+                    return Err(format!("invalid `{key}`"));
+                };
+                let parsed_items = items
                     .iter()
-                    .filter_map(|item| item.as_str().map(|value| value.to_string()))
-                    .collect::<Vec<_>>()
-            }),
-        _ => None,
+                    .map(|item| item.as_str().map(|value| value.to_string()))
+                    .collect::<Option<Vec<_>>>();
+                match parsed_items {
+                    Some(items) => Ok(Some(items)),
+                    None => Err(format!("invalid `{key}`")),
+                }
+            }
+        },
+        _ => Err(format!("invalid `{key}`")),
     }
 }
 
 pub(super) fn parse_string_array(value: &Value, key: &str) -> Result<Vec<String>, String> {
-    parse_optional_string_array(value, key).ok_or_else(|| format!("missing `{key}`"))
+    parse_optional_string_array(value, key)?.ok_or_else(|| format!("missing `{key}`"))
 }
 
 pub(super) fn parse_optional_value(value: &Value, key: &str) -> Option<Value> {
@@ -183,4 +199,52 @@ pub(super) fn spawn_rpc_response_task(
             let _ = out_tx.send(response);
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    #[test]
+    fn parse_optional_u32_rejects_non_numeric_values() {
+        let err = super::parse_optional_u32(&json!({ "limit": "20" }), "limit")
+            .expect_err("limit should be invalid");
+        assert_eq!(err, "invalid `limit`");
+    }
+
+    #[test]
+    fn parse_optional_u32_rejects_overflow_values() {
+        let err = super::parse_optional_u32(&json!({ "limit": 4294967296u64 }), "limit")
+            .expect_err("limit should overflow u32");
+        assert_eq!(err, "invalid `limit`");
+    }
+
+    #[test]
+    fn parse_optional_u32_allows_missing_value() {
+        let value = super::parse_optional_u32(&json!({ "depth": 5 }), "limit")
+            .expect("parse should succeed");
+        assert!(value.is_none());
+    }
+
+    #[test]
+    fn parse_optional_string_array_rejects_non_array_values() {
+        let err = super::parse_optional_string_array(&json!({ "images": "banner.png" }), "images")
+            .expect_err("images should be an array");
+        assert_eq!(err, "invalid `images`");
+    }
+
+    #[test]
+    fn parse_optional_string_array_rejects_mixed_type_items() {
+        let err =
+            super::parse_optional_string_array(&json!({ "images": ["image.png", 5] }), "images")
+                .expect_err("images should only contain strings");
+        assert_eq!(err, "invalid `images`");
+    }
+
+    #[test]
+    fn parse_optional_string_array_allows_missing_value() {
+        let value = super::parse_optional_string_array(&json!({ "images": ["image.png"] }), "args")
+            .expect("parse should succeed");
+        assert!(value.is_none());
+    }
 }

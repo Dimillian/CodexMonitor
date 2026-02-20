@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as invokeInTauri } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import type { Options as NotificationOptions } from "@tauri-apps/plugin-notification";
 import type {
@@ -33,6 +33,39 @@ function isMissingTauriInvokeError(error: unknown) {
     (error.message.includes("reading 'invoke'") ||
       error.message.includes("reading \"invoke\""))
   );
+}
+
+const MISSING_TAURI_INVOKE_ERROR =
+  "Tauri invoke bridge is unavailable. Open this page in the Tauri app.";
+
+async function invokeCommand<T>(command: string, params?: Record<string, unknown>): Promise<T> {
+  try {
+    return await invokeInTauri<T>(command, params);
+  } catch (error) {
+    if (isMissingTauriInvokeError(error)) {
+      throw new Error(MISSING_TAURI_INVOKE_ERROR);
+    }
+    throw error;
+  }
+}
+
+async function invokeCommandWithFallback<T>(
+  command: string,
+  params: Record<string, unknown> | undefined,
+  fallback: T,
+): Promise<T> {
+  try {
+    return await invokeCommand(command, params);
+  } catch (error) {
+    if (error instanceof Error && error.message === MISSING_TAURI_INVOKE_ERROR) {
+      console.warn(
+        "Tauri invoke bridge unavailable; returning a fallback value for",
+        command,
+      );
+      return fallback;
+    }
+    throw error;
+  }
 }
 
 export async function pickWorkspacePath(): Promise<string | null> {
@@ -84,26 +117,16 @@ export async function exportMarkdownFile(
   if (!selection) {
     return null;
   }
-  await invoke("write_text_file", { path: selection, content });
+  await invokeCommand("write_text_file", { path: selection, content });
   return selection;
 }
 
 export async function listWorkspaces(): Promise<WorkspaceInfo[]> {
-  try {
-    return await invoke<WorkspaceInfo[]>("list_workspaces");
-  } catch (error) {
-    if (isMissingTauriInvokeError(error)) {
-      // In non-Tauri environments (e.g., Electron/web previews), the invoke
-      // bridge may be missing. Treat this as "no workspaces" instead of crashing.
-      console.warn("Tauri invoke bridge unavailable; returning empty workspaces list.");
-      return [];
-    }
-    throw error;
-  }
+  return invokeCommandWithFallback("list_workspaces", undefined, []);
 }
 
 export async function getCodexConfigPath(): Promise<string> {
-  return invoke<string>("get_codex_config_path");
+  return invokeCommand<string>("get_codex_config_path");
 }
 
 export type TextFileResponse = {
@@ -167,7 +190,7 @@ async function fileRead(
   kind: FileKind,
   workspaceId?: string,
 ): Promise<TextFileResponse> {
-  return invoke<TextFileResponse>("file_read", { scope, kind, workspaceId });
+  return invokeCommand<TextFileResponse>("file_read", { scope, kind, workspaceId });
 }
 
 async function fileWrite(
@@ -176,7 +199,7 @@ async function fileWrite(
   content: string,
   workspaceId?: string,
 ): Promise<void> {
-  return invoke("file_write", { scope, kind, workspaceId, content });
+  return invokeCommand("file_write", { scope, kind, workspaceId, content });
 }
 
 export async function readGlobalAgentsMd(): Promise<GlobalAgentsResponse> {
@@ -196,40 +219,40 @@ export async function writeGlobalCodexConfigToml(content: string): Promise<void>
 }
 
 export async function getAgentsSettings(): Promise<AgentsSettings> {
-  return invoke<AgentsSettings>("get_agents_settings");
+  return invokeCommand<AgentsSettings>("get_agents_settings");
 }
 
 export async function setAgentsCoreSettings(
   input: SetAgentsCoreInput,
 ): Promise<AgentsSettings> {
-  return invoke<AgentsSettings>("set_agents_core_settings", { input });
+  return invokeCommand<AgentsSettings>("set_agents_core_settings", { input });
 }
 
 export async function createAgent(input: CreateAgentInput): Promise<AgentsSettings> {
-  return invoke<AgentsSettings>("create_agent", { input });
+  return invokeCommand<AgentsSettings>("create_agent", { input });
 }
 
 export async function updateAgent(input: UpdateAgentInput): Promise<AgentsSettings> {
-  return invoke<AgentsSettings>("update_agent", { input });
+  return invokeCommand<AgentsSettings>("update_agent", { input });
 }
 
 export async function deleteAgent(input: DeleteAgentInput): Promise<AgentsSettings> {
-  return invoke<AgentsSettings>("delete_agent", { input });
+  return invokeCommand<AgentsSettings>("delete_agent", { input });
 }
 
 export async function readAgentConfigToml(agentName: string): Promise<string> {
-  return invoke<string>("read_agent_config_toml", { agentName });
+  return invokeCommand<string>("read_agent_config_toml", { agentName });
 }
 
 export async function writeAgentConfigToml(
   agentName: string,
   content: string,
 ): Promise<void> {
-  return invoke("write_agent_config_toml", { agentName, content });
+  return invokeCommand("write_agent_config_toml", { agentName, content });
 }
 
 export async function getConfigModel(workspaceId: string): Promise<string | null> {
-  const response = await invoke<{ model?: string | null }>("get_config_model", {
+  const response = await invokeCommand<{ model?: string | null }>("get_config_model", {
     workspaceId,
   });
   const model = response?.model;
@@ -244,7 +267,7 @@ export async function addWorkspace(
   path: string,
   codex_bin: string | null,
 ): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("add_workspace", { path, codex_bin });
+  return invokeCommand<WorkspaceInfo>("add_workspace", { path, codex_bin });
 }
 
 export async function addWorkspaceFromGitUrl(
@@ -253,7 +276,7 @@ export async function addWorkspaceFromGitUrl(
   targetFolderName: string | null,
   codexBin: string | null,
 ): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("add_workspace_from_git_url", {
+  return invokeCommand<WorkspaceInfo>("add_workspace_from_git_url", {
     url,
     destinationPath,
     targetFolderName,
@@ -262,7 +285,7 @@ export async function addWorkspaceFromGitUrl(
 }
 
 export async function isWorkspacePathDir(path: string): Promise<boolean> {
-  return invoke<boolean>("is_workspace_path_dir", { path });
+  return invokeCommand<boolean>("is_workspace_path_dir", { path });
 }
 
 export async function addClone(
@@ -270,7 +293,7 @@ export async function addClone(
   copiesFolder: string,
   copyName: string,
 ): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("add_clone", {
+  return invokeCommand<WorkspaceInfo>("add_clone", {
     sourceWorkspaceId,
     copiesFolder,
     copyName,
@@ -283,7 +306,7 @@ export async function addWorktree(
   name: string | null,
   copyAgentsMd = true,
 ): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("add_worktree", { parentId, branch, name, copyAgentsMd });
+  return invokeCommand<WorkspaceInfo>("add_worktree", { parentId, branch, name, copyAgentsMd });
 }
 
 export type WorktreeSetupStatus = {
@@ -294,40 +317,40 @@ export type WorktreeSetupStatus = {
 export async function getWorktreeSetupStatus(
   workspaceId: string,
 ): Promise<WorktreeSetupStatus> {
-  return invoke<WorktreeSetupStatus>("worktree_setup_status", { workspaceId });
+  return invokeCommand<WorktreeSetupStatus>("worktree_setup_status", { workspaceId });
 }
 
 export async function markWorktreeSetupRan(workspaceId: string): Promise<void> {
-  return invoke("worktree_setup_mark_ran", { workspaceId });
+  return invokeCommand("worktree_setup_mark_ran", { workspaceId });
 }
 
 export async function updateWorkspaceSettings(
   id: string,
   settings: WorkspaceSettings,
 ): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("update_workspace_settings", { id, settings });
+  return invokeCommand<WorkspaceInfo>("update_workspace_settings", { id, settings });
 }
 
 export async function updateWorkspaceCodexBin(
   id: string,
   codex_bin: string | null,
 ): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("update_workspace_codex_bin", { id, codex_bin });
+  return invokeCommand<WorkspaceInfo>("update_workspace_codex_bin", { id, codex_bin });
 }
 
 export async function removeWorkspace(id: string): Promise<void> {
-  return invoke("remove_workspace", { id });
+  return invokeCommand("remove_workspace", { id });
 }
 
 export async function removeWorktree(id: string): Promise<void> {
-  return invoke("remove_worktree", { id });
+  return invokeCommand("remove_worktree", { id });
 }
 
 export async function renameWorktree(
   id: string,
   branch: string,
 ): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("rename_worktree", { id, branch });
+  return invokeCommand<WorkspaceInfo>("rename_worktree", { id, branch });
 }
 
 export async function renameWorktreeUpstream(
@@ -335,11 +358,11 @@ export async function renameWorktreeUpstream(
   oldBranch: string,
   newBranch: string,
 ): Promise<void> {
-  return invoke("rename_worktree_upstream", { id, oldBranch, newBranch });
+  return invokeCommand("rename_worktree_upstream", { id, oldBranch, newBranch });
 }
 
 export async function applyWorktreeChanges(workspaceId: string): Promise<void> {
-  return invoke("apply_worktree_changes", { workspaceId });
+  return invokeCommand("apply_worktree_changes", { workspaceId });
 }
 
 export async function openWorkspaceIn(
@@ -350,7 +373,7 @@ export async function openWorkspaceIn(
     args?: string[];
   },
 ): Promise<void> {
-  return invoke("open_workspace_in", {
+  return invokeCommand("open_workspace_in", {
     path,
     app: options.appName ?? null,
     command: options.command ?? null,
@@ -359,23 +382,23 @@ export async function openWorkspaceIn(
 }
 
 export async function getOpenAppIcon(appName: string): Promise<string | null> {
-  return invoke<string | null>("get_open_app_icon", { appName });
+  return invokeCommand<string | null>("get_open_app_icon", { appName });
 }
 
 export async function connectWorkspace(id: string): Promise<void> {
-  return invoke("connect_workspace", { id });
+  return invokeCommand("connect_workspace", { id });
 }
 
 export async function startThread(workspaceId: string) {
-  return invoke<any>("start_thread", { workspaceId });
+  return invokeCommand<any>("start_thread", { workspaceId });
 }
 
 export async function forkThread(workspaceId: string, threadId: string) {
-  return invoke<any>("fork_thread", { workspaceId, threadId });
+  return invokeCommand<any>("fork_thread", { workspaceId, threadId });
 }
 
 export async function compactThread(workspaceId: string, threadId: string) {
-  return invoke<any>("compact_thread", { workspaceId, threadId });
+  return invokeCommand<any>("compact_thread", { workspaceId, threadId });
 }
 
 export async function sendUserMessage(
@@ -406,7 +429,7 @@ export async function sendUserMessage(
   if (options?.appMentions && options.appMentions.length > 0) {
     payload.appMentions = options.appMentions;
   }
-  return invoke("send_user_message", payload);
+  return invokeCommand("send_user_message", payload);
 }
 
 export async function interruptTurn(
@@ -414,7 +437,7 @@ export async function interruptTurn(
   threadId: string,
   turnId: string,
 ) {
-  return invoke("turn_interrupt", { workspaceId, threadId, turnId });
+  return invokeCommand("turn_interrupt", { workspaceId, threadId, turnId });
 }
 
 export async function steerTurn(
@@ -435,7 +458,7 @@ export async function steerTurn(
   if (appMentions && appMentions.length > 0) {
     payload.appMentions = appMentions;
   }
-  return invoke("turn_steer", payload);
+  return invokeCommand("turn_steer", payload);
 }
 
 export async function startReview(
@@ -448,7 +471,7 @@ export async function startReview(
   if (delivery) {
     payload.delivery = delivery;
   }
-  return invoke("start_review", payload);
+  return invokeCommand("start_review", payload);
 }
 
 export async function respondToServerRequest(
@@ -456,7 +479,7 @@ export async function respondToServerRequest(
   requestId: number | string,
   decision: "accept" | "decline",
 ) {
-  return invoke("respond_to_server_request", {
+  return invokeCommand("respond_to_server_request", {
     workspaceId,
     requestId,
     result: { decision },
@@ -468,7 +491,7 @@ export async function respondToUserInputRequest(
   requestId: number | string,
   answers: Record<string, { answers: string[] }>,
 ) {
-  return invoke("respond_to_server_request", {
+  return invokeCommand("respond_to_server_request", {
     workspaceId,
     requestId,
     result: { answers },
@@ -479,7 +502,7 @@ export async function rememberApprovalRule(
   workspaceId: string,
   command: string[],
 ) {
-  return invoke("remember_approval_rule", { workspaceId, command });
+  return invokeCommand("remember_approval_rule", { workspaceId, command });
 }
 
 export async function getGitStatus(workspace_id: string): Promise<{
@@ -490,7 +513,7 @@ export async function getGitStatus(workspace_id: string): Promise<{
   totalAdditions: number;
   totalDeletions: number;
 }> {
-  return invoke("get_git_status", { workspaceId: workspace_id });
+  return invokeCommand("get_git_status", { workspaceId: workspace_id });
 }
 
 export type InitGitRepoResponse =
@@ -503,7 +526,7 @@ export async function initGitRepo(
   branch: string,
   force = false,
 ): Promise<InitGitRepoResponse> {
-  return invoke<InitGitRepoResponse>("init_git_repo", { workspaceId, branch, force });
+  return invokeCommand<InitGitRepoResponse>("init_git_repo", { workspaceId, branch, force });
 }
 
 export type CreateGitHubRepoResponse =
@@ -522,7 +545,7 @@ export async function createGitHubRepo(
   visibility: "private" | "public",
   branch?: string | null,
 ): Promise<CreateGitHubRepoResponse> {
-  return invoke<CreateGitHubRepoResponse>("create_github_repo", {
+  return invokeCommand<CreateGitHubRepoResponse>("create_github_repo", {
     workspaceId,
     repo,
     visibility,
@@ -534,93 +557,93 @@ export async function listGitRoots(
   workspace_id: string,
   depth: number,
 ): Promise<string[]> {
-  return invoke("list_git_roots", { workspaceId: workspace_id, depth });
+  return invokeCommand("list_git_roots", { workspaceId: workspace_id, depth });
 }
 
 export async function getGitDiffs(
   workspace_id: string,
 ): Promise<GitFileDiff[]> {
-  return invoke("get_git_diffs", { workspaceId: workspace_id });
+  return invokeCommand("get_git_diffs", { workspaceId: workspace_id });
 }
 
 export async function getGitLog(
   workspace_id: string,
   limit = 40,
 ): Promise<GitLogResponse> {
-  return invoke("get_git_log", { workspaceId: workspace_id, limit });
+  return invokeCommand("get_git_log", { workspaceId: workspace_id, limit });
 }
 
 export async function getGitCommitDiff(
   workspace_id: string,
   sha: string,
 ): Promise<GitCommitDiff[]> {
-  return invoke("get_git_commit_diff", { workspaceId: workspace_id, sha });
+  return invokeCommand("get_git_commit_diff", { workspaceId: workspace_id, sha });
 }
 
 export async function getGitRemote(workspace_id: string): Promise<string | null> {
-  return invoke("get_git_remote", { workspaceId: workspace_id });
+  return invokeCommand("get_git_remote", { workspaceId: workspace_id });
 }
 
 export async function stageGitFile(workspaceId: string, path: string) {
-  return invoke("stage_git_file", { workspaceId, path });
+  return invokeCommand("stage_git_file", { workspaceId, path });
 }
 
 export async function stageGitAll(workspaceId: string): Promise<void> {
-  return invoke("stage_git_all", { workspaceId });
+  return invokeCommand("stage_git_all", { workspaceId });
 }
 
 export async function unstageGitFile(workspaceId: string, path: string) {
-  return invoke("unstage_git_file", { workspaceId, path });
+  return invokeCommand("unstage_git_file", { workspaceId, path });
 }
 
 export async function revertGitFile(workspaceId: string, path: string) {
-  return invoke("revert_git_file", { workspaceId, path });
+  return invokeCommand("revert_git_file", { workspaceId, path });
 }
 
 export async function revertGitAll(workspaceId: string) {
-  return invoke("revert_git_all", { workspaceId });
+  return invokeCommand("revert_git_all", { workspaceId });
 }
 
 export async function commitGit(
   workspaceId: string,
   message: string,
 ): Promise<void> {
-  return invoke("commit_git", { workspaceId, message });
+  return invokeCommand("commit_git", { workspaceId, message });
 }
 
 export async function pushGit(workspaceId: string): Promise<void> {
-  return invoke("push_git", { workspaceId });
+  return invokeCommand("push_git", { workspaceId });
 }
 
 export async function pullGit(workspaceId: string): Promise<void> {
-  return invoke("pull_git", { workspaceId });
+  return invokeCommand("pull_git", { workspaceId });
 }
 
 export async function fetchGit(workspaceId: string): Promise<void> {
-  return invoke("fetch_git", { workspaceId });
+  return invokeCommand("fetch_git", { workspaceId });
 }
 
 export async function syncGit(workspaceId: string): Promise<void> {
-  return invoke("sync_git", { workspaceId });
+  return invokeCommand("sync_git", { workspaceId });
 }
 
 export async function getGitHubIssues(
   workspace_id: string,
 ): Promise<GitHubIssuesResponse> {
-  return invoke("get_github_issues", { workspaceId: workspace_id });
+  return invokeCommand("get_github_issues", { workspaceId: workspace_id });
 }
 
 export async function getGitHubPullRequests(
   workspace_id: string,
 ): Promise<GitHubPullRequestsResponse> {
-  return invoke("get_github_pull_requests", { workspaceId: workspace_id });
+  return invokeCommand("get_github_pull_requests", { workspaceId: workspace_id });
 }
 
 export async function getGitHubPullRequestDiff(
   workspace_id: string,
   prNumber: number,
 ): Promise<GitHubPullRequestDiff[]> {
-  return invoke("get_github_pull_request_diff", {
+  return invokeCommand("get_github_pull_request_diff", {
     workspaceId: workspace_id,
     prNumber,
   });
@@ -630,7 +653,7 @@ export async function getGitHubPullRequestComments(
   workspace_id: string,
   prNumber: number,
 ): Promise<GitHubPullRequestComment[]> {
-  return invoke("get_github_pull_request_comments", {
+  return invokeCommand("get_github_pull_request_comments", {
     workspaceId: workspace_id,
     prNumber,
   });
@@ -640,7 +663,7 @@ export async function checkoutGitHubPullRequest(
   workspace_id: string,
   prNumber: number,
 ): Promise<void> {
-  return invoke("checkout_github_pull_request", {
+  return invokeCommand("checkout_github_pull_request", {
     workspaceId: workspace_id,
     prNumber,
   });
@@ -654,11 +677,11 @@ export async function localUsageSnapshot(
   if (workspacePath) {
     payload.workspacePath = workspacePath;
   }
-  return invoke("local_usage_snapshot", payload);
+  return invokeCommand("local_usage_snapshot", payload);
 }
 
 export async function getModelList(workspaceId: string) {
-  return invoke<any>("model_list", { workspaceId });
+  return invokeCommand<any>("model_list", { workspaceId });
 }
 
 export async function getExperimentalFeatureList(
@@ -666,50 +689,50 @@ export async function getExperimentalFeatureList(
   cursor?: string | null,
   limit?: number | null,
 ) {
-  return invoke<any>("experimental_feature_list", { workspaceId, cursor, limit });
+  return invokeCommand<any>("experimental_feature_list", { workspaceId, cursor, limit });
 }
 
 export async function setCodexFeatureFlag(
   featureKey: string,
   enabled: boolean,
 ): Promise<void> {
-  return invoke("set_codex_feature_flag", { featureKey, enabled });
+  return invokeCommand("set_codex_feature_flag", { featureKey, enabled });
 }
 
 export async function generateRunMetadata(workspaceId: string, prompt: string) {
-  return invoke<{ title: string; worktreeName: string }>("generate_run_metadata", {
+  return invokeCommand<{ title: string; worktreeName: string }>("generate_run_metadata", {
     workspaceId,
     prompt,
   });
 }
 
 export async function getCollaborationModes(workspaceId: string) {
-  return invoke<any>("collaboration_mode_list", { workspaceId });
+  return invokeCommand<any>("collaboration_mode_list", { workspaceId });
 }
 
 export async function getAccountRateLimits(workspaceId: string) {
-  return invoke<any>("account_rate_limits", { workspaceId });
+  return invokeCommand<any>("account_rate_limits", { workspaceId });
 }
 
 export async function getAccountInfo(workspaceId: string) {
-  return invoke<any>("account_read", { workspaceId });
+  return invokeCommand<any>("account_read", { workspaceId });
 }
 
 export async function runCodexLogin(workspaceId: string) {
-  return invoke<{ loginId: string; authUrl: string; raw?: unknown }>("codex_login", {
+  return invokeCommand<{ loginId: string; authUrl: string; raw?: unknown }>("codex_login", {
     workspaceId,
   });
 }
 
 export async function cancelCodexLogin(workspaceId: string) {
-  return invoke<{ canceled: boolean; status?: string; raw?: unknown }>(
+  return invokeCommand<{ canceled: boolean; status?: string; raw?: unknown }>(
     "codex_login_cancel",
     { workspaceId },
   );
 }
 
 export async function getSkillsList(workspaceId: string) {
-  return invoke<any>("skills_list", { workspaceId });
+  return invokeCommand<any>("skills_list", { workspaceId });
 }
 
 export async function getAppsList(
@@ -718,19 +741,19 @@ export async function getAppsList(
   limit?: number | null,
   threadId?: string | null,
 ) {
-  return invoke<any>("apps_list", { workspaceId, cursor, limit, threadId });
+  return invokeCommand<any>("apps_list", { workspaceId, cursor, limit, threadId });
 }
 
 export async function getPromptsList(workspaceId: string) {
-  return invoke<any>("prompts_list", { workspaceId });
+  return invokeCommand<any>("prompts_list", { workspaceId });
 }
 
 export async function getWorkspacePromptsDir(workspaceId: string) {
-  return invoke<string>("prompts_workspace_dir", { workspaceId });
+  return invokeCommand<string>("prompts_workspace_dir", { workspaceId });
 }
 
 export async function getGlobalPromptsDir(workspaceId: string) {
-  return invoke<string>("prompts_global_dir", { workspaceId });
+  return invokeCommand<string>("prompts_global_dir", { workspaceId });
 }
 
 export async function createPrompt(
@@ -743,7 +766,7 @@ export async function createPrompt(
     content: string;
   },
 ) {
-  return invoke<any>("prompts_create", {
+  return invokeCommand<any>("prompts_create", {
     workspaceId,
     scope: data.scope,
     name: data.name,
@@ -763,7 +786,7 @@ export async function updatePrompt(
     content: string;
   },
 ) {
-  return invoke<any>("prompts_update", {
+  return invokeCommand<any>("prompts_update", {
     workspaceId,
     path: data.path,
     name: data.name,
@@ -774,14 +797,14 @@ export async function updatePrompt(
 }
 
 export async function deletePrompt(workspaceId: string, path: string) {
-  return invoke<any>("prompts_delete", { workspaceId, path });
+  return invokeCommand<any>("prompts_delete", { workspaceId, path });
 }
 
 export async function movePrompt(
   workspaceId: string,
   data: { path: string; scope: "workspace" | "global" },
 ) {
-  return invoke<any>("prompts_move", {
+  return invokeCommand<any>("prompts_move", {
     workspaceId,
     path: data.path,
     scope: data.scope,
@@ -789,35 +812,35 @@ export async function movePrompt(
 }
 
 export async function getAppSettings(): Promise<AppSettings> {
-  return invoke<AppSettings>("get_app_settings");
+  return invokeCommand<AppSettings>("get_app_settings");
 }
 
 export async function isMobileRuntime(): Promise<boolean> {
-  return invoke<boolean>("is_mobile_runtime");
+  return invokeCommand<boolean>("is_mobile_runtime");
 }
 
 export async function updateAppSettings(settings: AppSettings): Promise<AppSettings> {
-  return invoke<AppSettings>("update_app_settings", { settings });
+  return invokeCommand<AppSettings>("update_app_settings", { settings });
 }
 
 export async function tailscaleStatus(): Promise<TailscaleStatus> {
-  return invoke<TailscaleStatus>("tailscale_status");
+  return invokeCommand<TailscaleStatus>("tailscale_status");
 }
 
 export async function tailscaleDaemonCommandPreview(): Promise<TailscaleDaemonCommandPreview> {
-  return invoke<TailscaleDaemonCommandPreview>("tailscale_daemon_command_preview");
+  return invokeCommand<TailscaleDaemonCommandPreview>("tailscale_daemon_command_preview");
 }
 
 export async function tailscaleDaemonStart(): Promise<TcpDaemonStatus> {
-  return invoke<TcpDaemonStatus>("tailscale_daemon_start");
+  return invokeCommand<TcpDaemonStatus>("tailscale_daemon_start");
 }
 
 export async function tailscaleDaemonStop(): Promise<TcpDaemonStatus> {
-  return invoke<TcpDaemonStatus>("tailscale_daemon_stop");
+  return invokeCommand<TcpDaemonStatus>("tailscale_daemon_stop");
 }
 
 export async function tailscaleDaemonStatus(): Promise<TcpDaemonStatus> {
-  return invoke<TcpDaemonStatus>("tailscale_daemon_status");
+  return invokeCommand<TcpDaemonStatus>("tailscale_daemon_status");
 }
 
 type MenuAcceleratorUpdate = {
@@ -828,32 +851,32 @@ type MenuAcceleratorUpdate = {
 export async function setMenuAccelerators(
   updates: MenuAcceleratorUpdate[],
 ): Promise<void> {
-  return invoke("menu_set_accelerators", { updates });
+  return invokeCommand("menu_set_accelerators", { updates });
 }
 
 export async function runCodexDoctor(
   codexBin: string | null,
   codexArgs: string | null,
 ): Promise<CodexDoctorResult> {
-  return invoke<CodexDoctorResult>("codex_doctor", { codexBin, codexArgs });
+  return invokeCommand<CodexDoctorResult>("codex_doctor", { codexBin, codexArgs });
 }
 
 export async function runCodexUpdate(
   codexBin: string | null,
   codexArgs: string | null,
 ): Promise<CodexUpdateResult> {
-  return invoke<CodexUpdateResult>("codex_update", { codexBin, codexArgs });
+  return invokeCommand<CodexUpdateResult>("codex_update", { codexBin, codexArgs });
 }
 
 export async function getWorkspaceFiles(workspaceId: string) {
-  return invoke<string[]>("list_workspace_files", { workspaceId });
+  return invokeCommand<string[]>("list_workspace_files", { workspaceId });
 }
 
 export async function readWorkspaceFile(
   workspaceId: string,
   path: string,
 ): Promise<{ content: string; truncated: boolean }> {
-  return invoke<{ content: string; truncated: boolean }>("read_workspace_file", {
+  return invokeCommand<{ content: string; truncated: boolean }>("read_workspace_file", {
     workspaceId,
     path,
   });
@@ -868,15 +891,15 @@ export async function writeAgentMd(workspaceId: string, content: string): Promis
 }
 
 export async function listGitBranches(workspaceId: string) {
-  return invoke<any>("list_git_branches", { workspaceId });
+  return invokeCommand<any>("list_git_branches", { workspaceId });
 }
 
 export async function checkoutGitBranch(workspaceId: string, name: string) {
-  return invoke("checkout_git_branch", { workspaceId, name });
+  return invokeCommand("checkout_git_branch", { workspaceId, name });
 }
 
 export async function createGitBranch(workspaceId: string, name: string) {
-  return invoke("create_git_branch", { workspaceId, name });
+  return invokeCommand("create_git_branch", { workspaceId, name });
 }
 
 function withModelId(modelId?: string | null) {
@@ -886,7 +909,7 @@ function withModelId(modelId?: string | null) {
 export async function getDictationModelStatus(
   modelId?: string | null,
 ): Promise<DictationModelStatus> {
-  return invoke<DictationModelStatus>(
+  return invokeCommand<DictationModelStatus>(
     "dictation_model_status",
     withModelId(modelId),
   );
@@ -895,7 +918,7 @@ export async function getDictationModelStatus(
 export async function downloadDictationModel(
   modelId?: string | null,
 ): Promise<DictationModelStatus> {
-  return invoke<DictationModelStatus>(
+  return invokeCommand<DictationModelStatus>(
     "dictation_download_model",
     withModelId(modelId),
   );
@@ -904,7 +927,7 @@ export async function downloadDictationModel(
 export async function cancelDictationDownload(
   modelId?: string | null,
 ): Promise<DictationModelStatus> {
-  return invoke<DictationModelStatus>(
+  return invokeCommand<DictationModelStatus>(
     "dictation_cancel_download",
     withModelId(modelId),
   );
@@ -913,7 +936,7 @@ export async function cancelDictationDownload(
 export async function removeDictationModel(
   modelId?: string | null,
 ): Promise<DictationModelStatus> {
-  return invoke<DictationModelStatus>(
+  return invokeCommand<DictationModelStatus>(
     "dictation_remove_model",
     withModelId(modelId),
   );
@@ -922,19 +945,19 @@ export async function removeDictationModel(
 export async function startDictation(
   preferredLanguage: string | null,
 ): Promise<DictationSessionState> {
-  return invoke("dictation_start", { preferredLanguage });
+  return invokeCommand("dictation_start", { preferredLanguage });
 }
 
 export async function requestDictationPermission(): Promise<boolean> {
-  return invoke("dictation_request_permission");
+  return invokeCommand("dictation_request_permission");
 }
 
 export async function stopDictation(): Promise<DictationSessionState> {
-  return invoke("dictation_stop");
+  return invokeCommand("dictation_stop");
 }
 
 export async function cancelDictation(): Promise<DictationSessionState> {
-  return invoke("dictation_cancel");
+  return invokeCommand("dictation_cancel");
 }
 
 export async function openTerminalSession(
@@ -943,7 +966,7 @@ export async function openTerminalSession(
   cols: number,
   rows: number,
 ): Promise<{ id: string }> {
-  return invoke("terminal_open", { workspaceId, terminalId, cols, rows });
+  return invokeCommand("terminal_open", { workspaceId, terminalId, cols, rows });
 }
 
 export async function writeTerminalSession(
@@ -951,7 +974,7 @@ export async function writeTerminalSession(
   terminalId: string,
   data: string,
 ): Promise<void> {
-  return invoke("terminal_write", { workspaceId, terminalId, data });
+  return invokeCommand("terminal_write", { workspaceId, terminalId, data });
 }
 
 export async function resizeTerminalSession(
@@ -960,14 +983,14 @@ export async function resizeTerminalSession(
   cols: number,
   rows: number,
 ): Promise<void> {
-  return invoke("terminal_resize", { workspaceId, terminalId, cols, rows });
+  return invokeCommand("terminal_resize", { workspaceId, terminalId, cols, rows });
 }
 
 export async function closeTerminalSession(
   workspaceId: string,
   terminalId: string,
 ): Promise<void> {
-  return invoke("terminal_close", { workspaceId, terminalId });
+  return invokeCommand("terminal_close", { workspaceId, terminalId });
 }
 
 export async function listThreads(
@@ -977,7 +1000,7 @@ export async function listThreads(
   sortKey?: "created_at" | "updated_at" | null,
   cwd?: string | null,
 ) {
-  return invoke<any>("list_threads", { workspaceId, cursor, limit, sortKey, cwd });
+  return invokeCommand<any>("list_threads", { workspaceId, cursor, limit, sortKey, cwd });
 }
 
 export async function listMcpServerStatus(
@@ -985,23 +1008,23 @@ export async function listMcpServerStatus(
   cursor?: string | null,
   limit?: number | null,
 ) {
-  return invoke<any>("list_mcp_server_status", { workspaceId, cursor, limit });
+  return invokeCommand<any>("list_mcp_server_status", { workspaceId, cursor, limit });
 }
 
 export async function resumeThread(workspaceId: string, threadId: string) {
-  return invoke<any>("resume_thread", { workspaceId, threadId });
+  return invokeCommand<any>("resume_thread", { workspaceId, threadId });
 }
 
 export async function threadLiveSubscribe(workspaceId: string, threadId: string) {
-  return invoke<any>("thread_live_subscribe", { workspaceId, threadId });
+  return invokeCommand<any>("thread_live_subscribe", { workspaceId, threadId });
 }
 
 export async function threadLiveUnsubscribe(workspaceId: string, threadId: string) {
-  return invoke<any>("thread_live_unsubscribe", { workspaceId, threadId });
+  return invokeCommand<any>("thread_live_unsubscribe", { workspaceId, threadId });
 }
 
 export async function archiveThread(workspaceId: string, threadId: string) {
-  return invoke<any>("archive_thread", { workspaceId, threadId });
+  return invokeCommand<any>("archive_thread", { workspaceId, threadId });
 }
 
 export async function setThreadName(
@@ -1009,13 +1032,13 @@ export async function setThreadName(
   threadId: string,
   name: string,
 ) {
-  return invoke<any>("set_thread_name", { workspaceId, threadId, name });
+  return invokeCommand<any>("set_thread_name", { workspaceId, threadId, name });
 }
 
 export async function generateCommitMessage(
   workspaceId: string,
 ): Promise<string> {
-  return invoke("generate_commit_message", { workspaceId });
+  return invokeCommand("generate_commit_message", { workspaceId });
 }
 
 export type GeneratedAgentConfiguration = {
@@ -1027,7 +1050,7 @@ export async function generateAgentDescription(
   workspaceId: string,
   description: string,
 ): Promise<GeneratedAgentConfiguration> {
-  return invoke("generate_agent_description", { workspaceId, description });
+  return invokeCommand("generate_agent_description", { workspaceId, description });
 }
 
 export async function sendNotification(
@@ -1042,12 +1065,12 @@ export async function sendNotification(
     extra?: Record<string, unknown>;
   },
 ): Promise<void> {
-  const macosDebugBuild = await invoke<boolean>("is_macos_debug_build").catch(
+  const macosDebugBuild = await invokeCommand<boolean>("is_macos_debug_build").catch(
     () => false,
   );
   const attemptFallback = async () => {
     try {
-      await invoke("send_notification_fallback", { title, body });
+      await invokeCommand("send_notification_fallback", { title, body });
       return true;
     } catch (error) {
       console.warn("Notification fallback failed.", { error });

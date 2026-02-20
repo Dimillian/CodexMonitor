@@ -365,7 +365,10 @@ pub(super) async fn try_handle(
             };
             let app = parse_optional_string(params, "app");
             let command = parse_optional_string(params, "command");
-            let args = parse_optional_string_array(params, "args").unwrap_or_default();
+            let args = match parse_optional_string_array(params, "args") {
+                Ok(value) => value.unwrap_or_default(),
+                Err(err) => return Some(Err(err)),
+            };
             Some(
                 state
                     .open_workspace_in(path, app, args, command)
@@ -385,7 +388,10 @@ pub(super) async fn try_handle(
             Some(serde_json::to_value(icon).map_err(|err| err.to_string()))
         }
         "local_usage_snapshot" => {
-            let days = parse_optional_u32(params, "days");
+            let days = match parse_optional_u32(params, "days") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
             let workspace_path = parse_optional_string(params, "workspacePath");
             let snapshot = match state.local_usage_snapshot(days, workspace_path).await {
                 Ok(value) => value,

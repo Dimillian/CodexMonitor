@@ -27,13 +27,13 @@ export function useWorkspaceRestore({
       if (restoredWorkspaces.current.has(workspace.id)) {
         return;
       }
-      restoredWorkspaces.current.add(workspace.id);
       void (async () => {
         try {
           if (!workspace.connected) {
             await connectWorkspace(workspace);
           }
           await listThreadsForWorkspace(workspace);
+          restoredWorkspaces.current.add(workspace.id);
         } catch {
           // Silent: connection errors show in debug panel.
         }

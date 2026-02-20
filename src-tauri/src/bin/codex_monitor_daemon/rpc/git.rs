@@ -50,7 +50,10 @@ pub(super) async fn try_handle(
                 Ok(value) => value,
                 Err(err) => return Some(Err(err)),
             };
-            let depth = parse_optional_u32(params, "depth").map(|value| value as usize);
+            let depth = match parse_optional_u32(params, "depth") {
+                Ok(value) => value.map(|value| value as usize),
+                Err(err) => return Some(Err(err)),
+            };
             let roots = match state.list_git_roots(workspace_id, depth).await {
                 Ok(value) => value,
                 Err(err) => return Some(Err(err)),
@@ -73,7 +76,10 @@ pub(super) async fn try_handle(
                 Ok(value) => value,
                 Err(err) => return Some(Err(err)),
             };
-            let limit = parse_optional_u32(params, "limit").map(|value| value as usize);
+            let limit = match parse_optional_u32(params, "limit") {
+                Ok(value) => value.map(|value| value as usize),
+                Err(err) => return Some(Err(err)),
+            };
             let log = match state.get_git_log(workspace_id, limit).await {
                 Ok(value) => value,
                 Err(err) => return Some(Err(err)),

@@ -87,7 +87,10 @@ pub(super) async fn try_handle(
                 Err(err) => return Some(Err(err)),
             };
             let cursor = parse_optional_string(params, "cursor");
-            let limit = parse_optional_u32(params, "limit");
+            let limit = match parse_optional_u32(params, "limit") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
             let sort_key = parse_optional_string(params, "sortKey");
             let cwd = parse_optional_string(params, "cwd");
             Some(
@@ -102,7 +105,10 @@ pub(super) async fn try_handle(
                 Err(err) => return Some(Err(err)),
             };
             let cursor = parse_optional_string(params, "cursor");
-            let limit = parse_optional_u32(params, "limit");
+            let limit = match parse_optional_u32(params, "limit") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
             Some(
                 state
                     .list_mcp_server_status(workspace_id, cursor, limit)
@@ -162,7 +168,10 @@ pub(super) async fn try_handle(
             let model = parse_optional_string(params, "model");
             let effort = parse_optional_string(params, "effort");
             let access_mode = parse_optional_string(params, "accessMode");
-            let images = parse_optional_string_array(params, "images");
+            let images = match parse_optional_string_array(params, "images") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
             let app_mentions = parse_optional_value(params, "appMentions")
                 .and_then(|value| value.as_array().cloned());
             let collaboration_mode = parse_optional_value(params, "collaborationMode");
@@ -214,7 +223,10 @@ pub(super) async fn try_handle(
                 Ok(value) => value,
                 Err(err) => return Some(Err(err)),
             };
-            let images = parse_optional_string_array(params, "images");
+            let images = match parse_optional_string_array(params, "images") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
             let app_mentions = parse_optional_value(params, "appMentions")
                 .and_then(|value| value.as_array().cloned());
             Some(
@@ -261,8 +273,15 @@ pub(super) async fn try_handle(
                 Err(err) => return Some(Err(err)),
             };
             let cursor = parse_optional_string(params, "cursor");
-            let limit = parse_optional_u32(params, "limit");
-            Some(state.experimental_feature_list(workspace_id, cursor, limit).await)
+            let limit = match parse_optional_u32(params, "limit") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            Some(
+                state
+                    .experimental_feature_list(workspace_id, cursor, limit)
+                    .await,
+            )
         }
         "collaboration_mode_list" => {
             let workspace_id = match parse_string(params, "workspaceId") {
@@ -410,7 +429,10 @@ pub(super) async fn try_handle(
                 Err(err) => return Some(Err(err)),
             };
             let cursor = parse_optional_string(params, "cursor");
-            let limit = parse_optional_u32(params, "limit");
+            let limit = match parse_optional_u32(params, "limit") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
             let thread_id = parse_optional_string(params, "threadId");
             Some(
                 state

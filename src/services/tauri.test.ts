@@ -5,6 +5,7 @@ import * as notification from "@tauri-apps/plugin-notification";
 import {
   exportMarkdownFile,
   addWorkspace,
+  connectWorkspace,
   compactThread,
   createGitHubRepo,
   fetchGit,
@@ -190,7 +191,20 @@ describe("tauri invoke wrappers", () => {
     );
 
     await expect(listWorkspaces()).resolves.toEqual([]);
-    expect(invokeMock).toHaveBeenCalledWith("list_workspaces");
+    expect(invokeMock).toHaveBeenCalledWith("list_workspaces", undefined);
+  });
+
+  it("throws a clearer error for non-Tauri environments", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockRejectedValueOnce(
+      new TypeError("Cannot read properties of undefined (reading 'invoke')"),
+    );
+
+    await expect(connectWorkspace("ws-1")).rejects.toThrowError(
+      "Tauri invoke bridge is unavailable. Open this page in the Tauri app.",
+    );
+
+    expect(invokeMock).toHaveBeenCalledWith("connect_workspace", { id: "ws-1" });
   });
 
   it("applies default limit for git log", async () => {
@@ -377,11 +391,14 @@ describe("tauri invoke wrappers", () => {
     await tailscaleDaemonStop();
     await tailscaleDaemonStatus();
 
-    expect(invokeMock).toHaveBeenCalledWith("tailscale_status");
-    expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_command_preview");
-    expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_start");
-    expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_stop");
-    expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_status");
+    expect(invokeMock).toHaveBeenCalledWith("tailscale_status", undefined);
+    expect(invokeMock).toHaveBeenCalledWith(
+      "tailscale_daemon_command_preview",
+      undefined,
+    );
+    expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_start", undefined);
+    expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_stop", undefined);
+    expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_status", undefined);
   });
 
   it("reads agent.md for a workspace", async () => {
@@ -476,7 +493,7 @@ describe("tauri invoke wrappers", () => {
 
     await getAgentsSettings();
 
-    expect(invokeMock).toHaveBeenCalledWith("get_agents_settings");
+    expect(invokeMock).toHaveBeenCalledWith("get_agents_settings", undefined);
   });
 
   it("updates core agents settings", async () => {
@@ -824,7 +841,7 @@ describe("tauri invoke wrappers", () => {
 
     await sendNotification("Dev", "Fallback");
 
-    expect(invokeMock).toHaveBeenCalledWith("is_macos_debug_build");
+    expect(invokeMock).toHaveBeenCalledWith("is_macos_debug_build", undefined);
     expect(invokeMock).toHaveBeenCalledWith("send_notification_fallback", {
       title: "Dev",
       body: "Fallback",

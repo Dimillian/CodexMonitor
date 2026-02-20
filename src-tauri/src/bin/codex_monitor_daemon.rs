@@ -1655,6 +1655,52 @@ mod tests {
     }
 
     #[test]
+    fn rpc_open_workspace_in_invalid_args_is_rejected() {
+        run_async_test(async {
+            let tmp = make_temp_dir("rpc-open-workspace-in-invalid-args");
+            let state = test_state(&tmp);
+
+            let err = rpc::handle_rpc_request(
+                &state,
+                "open_workspace_in",
+                json!({
+                    "path": "/tmp/repo",
+                    "args": [1, 2],
+                }),
+                "daemon-test".to_string(),
+            )
+            .await
+            .expect_err("invalid args should be rejected");
+
+            assert_eq!(err, "invalid `args`");
+            let _ = std::fs::remove_dir_all(&tmp);
+        });
+    }
+
+    #[test]
+    fn rpc_list_git_roots_invalid_depth_is_rejected() {
+        run_async_test(async {
+            let tmp = make_temp_dir("rpc-list-git-roots-invalid-depth");
+            let state = test_state(&tmp);
+
+            let err = rpc::handle_rpc_request(
+                &state,
+                "list_git_roots",
+                json!({
+                    "workspaceId": "ws-invalid-depth",
+                    "depth": "10",
+                }),
+                "daemon-test".to_string(),
+            )
+            .await
+            .expect_err("invalid depth should be rejected");
+
+            assert_eq!(err, "invalid `depth`");
+            let _ = std::fs::remove_dir_all(&tmp);
+        });
+    }
+
+    #[test]
     fn rpc_daemon_info_reports_identity() {
         run_async_test(async {
             let tmp = make_temp_dir("rpc-daemon-info");

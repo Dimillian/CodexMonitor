@@ -24,6 +24,13 @@ where
     F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
+    {
+        let sessions = sessions.lock().await;
+        if sessions.contains_key(&workspace_id) {
+            return Ok(());
+        }
+    }
+
     let (entry, parent_entry) = resolve_entry_and_parent(workspaces, &workspace_id).await?;
     let (default_bin, codex_args) = {
         let settings = app_settings.lock().await;
@@ -34,7 +41,15 @@ where
     };
     let codex_home = resolve_workspace_codex_home(&entry, parent_entry.as_ref());
     let session = spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?;
-    sessions.lock().await.insert(entry.id, session);
+    {
+        let mut sessions = sessions.lock().await;
+        if sessions.contains_key(&entry.id) {
+            let mut child = session.child.lock().await;
+            kill_child_process_tree(&mut child).await;
+            return Ok(());
+        }
+        sessions.insert(entry.id, session);
+    }
     Ok(())
 }
 
