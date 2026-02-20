@@ -66,7 +66,10 @@ import { useWorkspaceFileListing } from "@app/hooks/useWorkspaceFileListing";
 import { useGitBranches } from "@/features/git/hooks/useGitBranches";
 import { useBranchSwitcher } from "@/features/git/hooks/useBranchSwitcher";
 import { useBranchSwitcherShortcut } from "@/features/git/hooks/useBranchSwitcherShortcut";
-import { useWorkspaceRefreshOnFocus } from "@/features/workspaces/hooks/useWorkspaceRefreshOnFocus";
+import {
+  REMOTE_WORKSPACE_REFRESH_INTERVAL_MS,
+  useWorkspaceRefreshOnFocus,
+} from "@/features/workspaces/hooks/useWorkspaceRefreshOnFocus";
 import { useWorkspaceRestore } from "@/features/workspaces/hooks/useWorkspaceRestore";
 import { useRenameWorktreePrompt } from "@/features/workspaces/hooks/useRenameWorktreePrompt";
 import { useLayoutController } from "@app/hooks/useLayoutController";
@@ -107,6 +110,7 @@ import { useWorkspaceLaunchScript } from "@app/hooks/useWorkspaceLaunchScript";
 import { useWorkspaceLaunchScripts } from "@app/hooks/useWorkspaceLaunchScripts";
 import { useWorktreeSetupScript } from "@app/hooks/useWorktreeSetupScript";
 import { useGitCommitController } from "@app/hooks/useGitCommitController";
+import { effectiveCommitMessageModelId } from "@/features/git/utils/commitMessageModelSelection";
 import { WorkspaceHome } from "@/features/workspaces/components/WorkspaceHome";
 import { MobileServerSetupWizard } from "@/features/mobile/components/MobileServerSetupWizard";
 import { useMobileServerSetup } from "@/features/mobile/hooks/useMobileServerSetup";
@@ -144,6 +148,13 @@ import {
   useWorkspaceOrderingOrchestration,
 } from "@app/orchestration/useWorkspaceOrchestration";
 import { useAppShellOrchestration } from "@app/orchestration/useLayoutOrchestration";
+import { buildCodexArgsOptions } from "@threads/utils/codexArgsProfiles";
+import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
+import {
+  resolveWorkspaceRuntimeCodexArgsBadgeLabel,
+  resolveWorkspaceRuntimeCodexArgsOverride,
+} from "@threads/utils/threadCodexParamsSeed";
+import { setWorkspaceRuntimeCodexArgs } from "@services/tauri";
 
 const AboutView = lazy(() =>
   import("@/features/about/components/AboutView").then((module) => ({
@@ -267,6 +278,8 @@ function MainApp() {
     setPreferredEffort,
     preferredCollabModeId,
     setPreferredCollabModeId,
+    preferredCodexArgsOverride,
+    setPreferredCodexArgsOverride,
     threadCodexSelectionKey,
     setThreadCodexSelectionKey,
     activeThreadIdRef,
@@ -412,11 +425,19 @@ function MainApp() {
     onDebug: addDebugEntry,
   });
 
+  const [selectedCodexArgsOverride, setSelectedCodexArgsOverride] = useState<string | null>(
+    null,
+  );
+  useEffect(() => {
+    setSelectedCodexArgsOverride(normalizeCodexArgsInput(preferredCodexArgsOverride));
+  }, [preferredCodexArgsOverride, threadCodexSelectionKey]);
+
   const {
     handleSelectModel,
     handleSelectEffort,
     handleSelectCollaborationMode,
     handleSelectAccessMode,
+    handleSelectCodexArgsOverride,
   } = useThreadSelectionHandlersOrchestration({
     appSettingsLoading,
     setAppSettings,
@@ -426,8 +447,13 @@ function MainApp() {
     setSelectedEffort,
     setSelectedCollaborationModeId,
     setAccessMode,
+    setSelectedCodexArgsOverride,
     persistThreadCodexParams,
   });
+  const commitMessageModelId = useMemo(
+    () => effectiveCommitMessageModelId(models, appSettings.commitMessageModelId),
+    [models, appSettings.commitMessageModelId],
+  );
 
   const composerShortcuts = {
     modelShortcut: appSettings.composerModelShortcut,
@@ -487,6 +513,35 @@ function MainApp() {
   } = useCustomPrompts({ activeWorkspace, onDebug: addDebugEntry });
   const resolvedModel = selectedModel?.model ?? null;
   const resolvedEffort = reasoningSupported ? selectedEffort : null;
+  const codexArgsOptions = useMemo(
+    () =>
+      buildCodexArgsOptions({
+        appCodexArgs: appSettings.codexArgs ?? null,
+        workspaceCodexArgs: workspaces.map((workspace) => workspace.settings.codexArgs),
+        additionalCodexArgs: [selectedCodexArgsOverride],
+      }),
+    [appSettings.codexArgs, selectedCodexArgsOverride, workspaces],
+  );
+  const ensureWorkspaceRuntimeCodexArgs = useCallback(
+    async (workspaceId: string, threadId: string | null) => {
+      const sanitizedCodexArgsOverride = resolveWorkspaceRuntimeCodexArgsOverride({
+        workspaceId,
+        threadId,
+        getThreadCodexParams,
+      });
+      await setWorkspaceRuntimeCodexArgs(workspaceId, sanitizedCodexArgsOverride);
+    },
+    [getThreadCodexParams],
+  );
+  const getThreadArgsBadge = useCallback(
+    (workspaceId: string, threadId: string) =>
+      resolveWorkspaceRuntimeCodexArgsBadgeLabel({
+        workspaceId,
+        threadId,
+        getThreadCodexParams,
+      }),
+    [getThreadCodexParams],
+  );
 
   const { collaborationModePayload } = useCollaborationModeSelection({
     selectedCollaborationMode,
@@ -569,6 +624,7 @@ function MainApp() {
     effort: resolvedEffort,
     collaborationMode: collaborationModePayload,
     accessMode,
+    ensureWorkspaceRuntimeCodexArgs,
     reviewDeliveryMode: appSettings.reviewDeliveryMode,
     steerEnabled: appSettings.steerEnabled,
     threadTitleAutogenerationEnabled: appSettings.threadTitleAutogenerationEnabled,
@@ -865,12 +921,14 @@ function MainApp() {
     setPreferredModelId,
     setPreferredEffort,
     setPreferredCollabModeId,
+    setPreferredCodexArgsOverride,
     activeThreadIdRef,
     pendingNewThreadSeedRef,
     selectedModelId,
     resolvedEffort,
     accessMode,
     selectedCollaborationModeId,
+    selectedCodexArgsOverride,
   });
 
   const { handleSetThreadListSortKey, handleRefreshAllWorkspaceThreads } =
@@ -1013,6 +1071,7 @@ function MainApp() {
     terminalState,
     ensureTerminalWithTitle,
     restartTerminalSession,
+    requestTerminalFocus,
   } = useTerminalController({
     activeWorkspaceId,
     activeWorkspace,
@@ -1026,10 +1085,33 @@ function MainApp() {
     [ensureTerminalWithTitle],
   );
 
+  const openTerminalWithFocus = useCallback(() => {
+    if (!activeWorkspaceId) {
+      return;
+    }
+    requestTerminalFocus();
+    openTerminal();
+  }, [activeWorkspaceId, openTerminal, requestTerminalFocus]);
+
+  const handleToggleTerminalWithFocus = useCallback(() => {
+    if (!activeWorkspaceId) {
+      return;
+    }
+    if (!terminalOpen) {
+      requestTerminalFocus();
+    }
+    handleToggleTerminal();
+  }, [
+    activeWorkspaceId,
+    handleToggleTerminal,
+    requestTerminalFocus,
+    terminalOpen,
+  ]);
+
   const launchScriptState = useWorkspaceLaunchScript({
     activeWorkspace,
     updateWorkspaceSettings,
-    openTerminal,
+    openTerminal: openTerminalWithFocus,
     ensureLaunchTerminal,
     restartLaunchSession: restartTerminalSession,
     terminalState,
@@ -1039,7 +1121,7 @@ function MainApp() {
   const launchScriptsState = useWorkspaceLaunchScripts({
     activeWorkspace,
     updateWorkspaceSettings,
-    openTerminal,
+    openTerminal: openTerminalWithFocus,
     ensureLaunchTerminal: (workspaceId, entry, title) => {
       const label = entry.label?.trim() || entry.icon;
       return ensureTerminalWithTitle(
@@ -1448,6 +1530,7 @@ function MainApp() {
     activeWorkspace,
     activeWorkspaceId,
     activeWorkspaceIdRef,
+    commitMessageModelId,
     gitStatus,
     refreshGitStatus,
     refreshGitLog,
@@ -1611,7 +1694,9 @@ function MainApp() {
   useWorkspaceRefreshOnFocus({
     workspaces,
     refreshWorkspaces,
-    listThreadsForWorkspace
+    listThreadsForWorkspace,
+    backendMode: appSettings.backendMode,
+    pollIntervalMs: REMOTE_WORKSPACE_REFRESH_INTERVAL_MS,
   });
 
   useRemoteThreadRefreshOnFocus({
@@ -1739,6 +1824,7 @@ function MainApp() {
     activeThreadId,
     accessMode,
     selectedCollaborationModeId,
+    selectedCodexArgsOverride,
     pendingNewThreadSeedRef,
     runWithDraftStart,
     handleComposerSend,
@@ -1883,7 +1969,7 @@ function MainApp() {
     onCycleAgent: handleCycleAgent,
     onCycleWorkspace: handleCycleWorkspace,
     onToggleDebug: handleDebugClick,
-    onToggleTerminal: handleToggleTerminal,
+    onToggleTerminal: handleToggleTerminalWithFocus,
     sidebarCollapsed,
     rightPanelCollapsed,
     onExpandSidebar: expandSidebar,
@@ -2033,7 +2119,7 @@ function MainApp() {
       handleCheckoutPullRequest(pullRequest.number),
     onCreateBranch: handleCreateBranch,
     onCopyThread: handleCopyThread,
-    onToggleTerminal: handleToggleTerminal,
+    onToggleTerminal: handleToggleTerminalWithFocus,
     showTerminalButton: !isCompact,
     showWorkspaceTools: !isCompact,
     launchScript: launchScriptState.launchScript,
@@ -2267,6 +2353,9 @@ function MainApp() {
     collaborationModes,
     selectedCollaborationModeId,
     onSelectCollaborationMode: handleSelectCollaborationMode,
+    codexArgsOptions,
+    selectedCodexArgsOverride,
+    onSelectCodexArgsOverride: handleSelectCodexArgsOverride,
     models,
     selectedModelId,
     onSelectModel: handleSelectModel,
@@ -2344,6 +2433,7 @@ function MainApp() {
     onWorkspaceDragEnter: handleWorkspaceDragEnter,
     onWorkspaceDragLeave: handleWorkspaceDragLeave,
     onWorkspaceDrop: handleWorkspaceDrop,
+    getThreadArgsBadge,
   });
 
   const gitRootOverride = activeWorkspace?.settings.gitRoot;

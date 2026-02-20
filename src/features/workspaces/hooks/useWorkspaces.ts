@@ -8,6 +8,7 @@ import type {
   WorkspaceSettings,
 } from "../../../types";
 import { ask, message } from "@tauri-apps/plugin-dialog";
+import { isMobilePlatform } from "../../../utils/platformPaths";
 import {
   addClone as addCloneService,
   addWorkspace as addWorkspaceService,
@@ -77,6 +78,26 @@ function createGroupId() {
 
 function normalizeWorkspacePathKey(value: string) {
   return value.trim().replace(/\\/g, "/").replace(/\/+$/, "");
+}
+
+function parseWorkspacePathInput(value: string) {
+  return value
+    .split(/\r?\n|,|;/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function promptWorkspacePathsForMobileRemote(): string[] {
+  if (typeof window === "undefined" || typeof window.prompt !== "function") {
+    return [];
+  }
+  const input = window.prompt(
+    "Enter one or more project paths on the connected server.\nUse one path per line (or comma-separated).",
+  );
+  if (!input) {
+    return [];
+  }
+  return parseWorkspacePathInput(input);
 }
 
 export function useWorkspaces(options: UseWorkspacesOptions = {}) {
@@ -433,12 +454,20 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
   );
 
   const addWorkspace = useCallback(async () => {
+    if (isMobilePlatform() && appSettings?.backendMode === "remote") {
+      const manualPaths = promptWorkspacePathsForMobileRemote();
+      if (manualPaths.length === 0) {
+        return null;
+      }
+      return addWorkspacesFromPaths(manualPaths);
+    }
+
     const selection = await pickWorkspacePaths();
     if (selection.length === 0) {
       return null;
     }
     return addWorkspacesFromPaths(selection);
-  }, [addWorkspacesFromPaths]);
+  }, [addWorkspacesFromPaths, appSettings?.backendMode]);
 
   const filterWorkspacePaths = useCallback(async (paths: string[]) => {
     const trimmed = paths.map((path) => path.trim()).filter(Boolean);

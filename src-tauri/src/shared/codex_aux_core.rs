@@ -395,6 +395,7 @@ pub(crate) async fn run_background_prompt_core<F>(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     workspace_id: String,
     prompt: String,
+    model: Option<&str>,
     on_hide_thread: F,
     timeout_error: &str,
     turn_error_fallback: &str,
@@ -452,13 +453,16 @@ where
         callbacks.insert(thread_id.clone(), tx);
     }
 
-    let turn_params = json!({
+    let mut turn_params = json!({
         "threadId": thread_id,
         "input": [{ "type": "text", "text": prompt }],
         "cwd": session.entry.path,
         "approvalPolicy": "never",
         "sandboxPolicy": { "type": "readOnly" },
     });
+    if let Some(model_id) = model {
+        turn_params["model"] = json!(model_id);
+    }
     let turn_result = session.send_request("turn/start", turn_params).await;
     let turn_result = match turn_result {
         Ok(result) => result,
@@ -545,6 +549,7 @@ pub(crate) async fn generate_commit_message_core<F>(
     workspace_id: String,
     diff: &str,
     template: &str,
+    model: Option<&str>,
     on_hide_thread: F,
 ) -> Result<String, String>
 where
@@ -555,6 +560,7 @@ where
         sessions,
         workspace_id,
         prompt,
+        model,
         on_hide_thread,
         "Timeout waiting for commit message generation",
         "Unknown error during commit message generation",
@@ -581,6 +587,7 @@ where
         sessions,
         workspace_id,
         metadata_prompt,
+        None,
         on_hide_thread,
         "Timeout waiting for metadata generation",
         "Unknown error during metadata generation",
@@ -609,6 +616,7 @@ where
         sessions,
         workspace_id,
         prompt,
+        None,
         on_hide_thread,
         "Timeout waiting for agent configuration generation",
         "Unknown error during agent configuration generation",

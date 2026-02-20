@@ -10,7 +10,10 @@ import {
 } from "@threads/utils/threadStorage";
 
 type ThreadCodexParamsPatch = Partial<
-  Pick<ThreadCodexParams, "modelId" | "effort" | "accessMode" | "collaborationModeId">
+  Pick<
+    ThreadCodexParams,
+    "modelId" | "effort" | "accessMode" | "collaborationModeId" | "codexArgsOverride"
+  >
 >;
 
 type UseThreadCodexParamsResult = {
@@ -29,6 +32,7 @@ const DEFAULT_ENTRY: ThreadCodexParams = {
   effort: null,
   accessMode: null,
   collaborationModeId: null,
+  codexArgsOverride: null,
   updatedAt: 0,
 };
 
@@ -44,6 +48,17 @@ function sanitizeEntry(value: unknown): ThreadCodexParams | null {
     return null;
   }
   const entry = value as Record<string, unknown>;
+  const hasCodexArgsOverrideField = Object.prototype.hasOwnProperty.call(
+    entry,
+    "codexArgsOverride",
+  );
+  const codexArgsOverride = hasCodexArgsOverrideField
+    ? entry.codexArgsOverride === undefined
+      ? undefined
+      : typeof entry.codexArgsOverride === "string" || entry.codexArgsOverride === null
+        ? entry.codexArgsOverride
+        : null
+    : undefined;
   return {
     modelId: typeof entry.modelId === "string" ? entry.modelId : null,
     effort: typeof entry.effort === "string" ? entry.effort : null,
@@ -52,6 +67,7 @@ function sanitizeEntry(value: unknown): ThreadCodexParams | null {
       typeof entry.collaborationModeId === "string"
         ? entry.collaborationModeId
         : null,
+    codexArgsOverride,
     updatedAt: typeof entry.updatedAt === "number" ? entry.updatedAt : 0,
   };
 }

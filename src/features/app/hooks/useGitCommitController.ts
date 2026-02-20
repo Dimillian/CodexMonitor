@@ -18,6 +18,7 @@ type GitCommitControllerOptions = {
   activeWorkspace: WorkspaceInfo | null;
   activeWorkspaceId: string | null;
   activeWorkspaceIdRef: RefObject<string | null>;
+  commitMessageModelId: string | null;
   gitStatus: GitStatusState;
   refreshGitStatus: () => void;
   refreshGitLog?: () => void;
@@ -53,6 +54,7 @@ export function useGitCommitController({
   activeWorkspace,
   activeWorkspaceId,
   activeWorkspaceIdRef,
+  commitMessageModelId,
   gitStatus,
   refreshGitStatus,
   refreshGitLog,
@@ -100,7 +102,7 @@ export function useGitCommitController({
     setCommitMessageLoading(true);
     setCommitMessageError(null);
     try {
-      const message = await generateCommitMessage(workspaceId);
+      const message = await generateCommitMessage(workspaceId, commitMessageModelId);
       if (!shouldApplyCommitMessage(activeWorkspaceIdRef.current, workspaceId)) {
         return;
       }
@@ -117,7 +119,7 @@ export function useGitCommitController({
         setCommitMessageLoading(false);
       }
     }
-  }, [activeWorkspace, commitMessageLoading, activeWorkspaceIdRef]);
+  }, [activeWorkspace, commitMessageLoading, activeWorkspaceIdRef, commitMessageModelId]);
 
   useEffect(() => {
     setCommitMessage("");
