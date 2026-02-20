@@ -185,6 +185,29 @@ export function SettingsFeaturesSection({
       <div className="settings-subsection-subtitle">
         Preview and under-development features.
       </div>
+      <div className="settings-toggle-row">
+        <div>
+          <div className="settings-toggle-title">
+            Prompt suggestions after agent turns
+          </div>
+          <div className="settings-toggle-subtitle">
+            Show a ghost-text follow-up suggestion when an agent response completes.
+          </div>
+        </div>
+        <button
+          type="button"
+          className={`settings-toggle ${appSettings.promptSuggestionsEnabled ? "on" : ""}`}
+          onClick={() =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              promptSuggestionsEnabled: !appSettings.promptSuggestionsEnabled,
+            })
+          }
+          aria-pressed={appSettings.promptSuggestionsEnabled}
+        >
+          <span className="settings-toggle-knob" />
+        </button>
+      </div>
       {experimentalFeatures.map((feature) => (
         <div className="settings-toggle-row" key={feature.name}>
           <div>

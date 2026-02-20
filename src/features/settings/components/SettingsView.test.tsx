@@ -125,6 +125,7 @@ const baseSettings: AppSettings = {
   pauseQueuedMessagesWhenResponseRequired: true,
   unifiedExecEnabled: true,
   experimentalAppsEnabled: false,
+  promptSuggestionsEnabled: false,
   personality: "friendly",
   dictationEnabled: false,
   dictationModelId: "base",
@@ -1423,6 +1424,29 @@ describe("SettingsView Features", () => {
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({ unifiedExecEnabled: false }),
+      );
+    });
+  });
+
+  it("toggles prompt suggestions in experimental features", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    renderFeaturesSection({
+      onUpdateAppSettings,
+      appSettings: { promptSuggestionsEnabled: false },
+    });
+
+    const promptSuggestionsTitle = screen.getByText(
+      "Prompt suggestions after agent turns",
+    );
+    const promptSuggestionsRow = promptSuggestionsTitle.closest(".settings-toggle-row");
+    expect(promptSuggestionsRow).not.toBeNull();
+
+    const toggle = within(promptSuggestionsRow as HTMLElement).getByRole("button");
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ promptSuggestionsEnabled: true }),
       );
     });
   });

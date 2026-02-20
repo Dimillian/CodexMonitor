@@ -1317,6 +1317,24 @@ impl DaemonState {
         .await
     }
 
+    async fn predict_response(
+        &self,
+        workspace_id: String,
+        context: String,
+        model: Option<String>,
+    ) -> Result<String, String> {
+        codex_aux_core::predict_response_core(
+            &self.sessions,
+            workspace_id,
+            &context,
+            model,
+            |workspace_id, thread_id| {
+                emit_background_thread_hide(&self.event_sink, workspace_id, thread_id);
+            },
+        )
+        .await
+    }
+
     async fn local_usage_snapshot(
         &self,
         days: Option<u32>,

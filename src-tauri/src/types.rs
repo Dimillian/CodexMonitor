@@ -578,6 +578,11 @@ pub(crate) struct AppSettings {
         rename = "experimentalAppsEnabled"
     )]
     pub(crate) experimental_apps_enabled: bool,
+    #[serde(
+        default = "default_prompt_suggestions_enabled",
+        rename = "promptSuggestionsEnabled"
+    )]
+    pub(crate) prompt_suggestions_enabled: bool,
     #[serde(default = "default_personality", rename = "personality")]
     pub(crate) personality: String,
     #[serde(default = "default_dictation_enabled", rename = "dictationEnabled")]
@@ -931,6 +936,10 @@ fn default_experimental_apps_enabled() -> bool {
     false
 }
 
+fn default_prompt_suggestions_enabled() -> bool {
+    false
+}
+
 fn default_personality() -> String {
     "friendly".to_string()
 }
@@ -1165,6 +1174,7 @@ impl Default for AppSettings {
                 default_pause_queued_messages_when_response_required(),
             unified_exec_enabled: true,
             experimental_apps_enabled: false,
+            prompt_suggestions_enabled: false,
             personality: default_personality(),
             dictation_enabled: false,
             dictation_model_id: default_dictation_model_id(),
@@ -1327,6 +1337,7 @@ mod tests {
         assert!(settings.pause_queued_messages_when_response_required);
         assert!(settings.unified_exec_enabled);
         assert!(!settings.experimental_apps_enabled);
+        assert!(!settings.prompt_suggestions_enabled);
         assert_eq!(settings.personality, "friendly");
         assert!(!settings.dictation_enabled);
         assert_eq!(settings.dictation_model_id, "base");

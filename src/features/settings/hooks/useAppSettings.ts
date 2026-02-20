@@ -189,6 +189,7 @@ function buildDefaultSettings(): AppSettings {
     pauseQueuedMessagesWhenResponseRequired: true,
     unifiedExecEnabled: true,
     experimentalAppsEnabled: false,
+    promptSuggestionsEnabled: false,
     personality: "friendly",
     dictationEnabled: false,
     dictationModelId: "base",
