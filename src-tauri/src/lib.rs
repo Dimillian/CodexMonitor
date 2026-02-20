@@ -78,9 +78,7 @@ pub fn run() {
             .unwrap_or(false)
             || std::env::var_os("WAYLAND_DISPLAY").is_some();
         let has_nvidia = std::path::Path::new("/proc/driver/nvidia/version").exists();
-        if is_wayland
-            && has_nvidia
-            && std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none()
+        if is_wayland && has_nvidia && std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none()
         {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         }
@@ -170,6 +168,7 @@ pub fn run() {
             settings::get_codex_config_path,
             files::file_read,
             files::file_write,
+            files::write_text_file,
             codex::get_config_model,
             menu::menu_set_accelerators,
             codex::codex_doctor,
@@ -177,6 +176,7 @@ pub fn run() {
             workspaces::list_workspaces,
             workspaces::is_workspace_path_dir,
             workspaces::add_workspace,
+            workspaces::add_workspace_from_git_url,
             workspaces::add_clone,
             workspaces::add_worktree,
             workspaces::worktree_setup_status,
@@ -198,6 +198,7 @@ pub fn run() {
             codex::remember_approval_rule,
             codex::generate_commit_message,
             codex::generate_run_metadata,
+            codex::generate_agent_description,
             codex::resume_thread,
             codex::thread_live_subscribe,
             codex::thread_live_unsubscribe,
@@ -242,6 +243,13 @@ pub fn run() {
             codex::model_list,
             codex::experimental_feature_list,
             codex::set_codex_feature_flag,
+            codex::get_agents_settings,
+            codex::set_agents_core_settings,
+            codex::create_agent,
+            codex::update_agent,
+            codex::delete_agent,
+            codex::read_agent_config_toml,
+            codex::write_agent_config_toml,
             codex::account_rate_limits,
             codex::account_read,
             codex::codex_login,

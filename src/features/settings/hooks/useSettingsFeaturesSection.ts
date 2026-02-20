@@ -14,7 +14,7 @@ type UseSettingsFeaturesSectionArgs = {
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
 };
 
-const HIDDEN_DYNAMIC_FEATURE_KEYS = new Set<string>(["personality"]);
+const HIDDEN_DYNAMIC_FEATURE_KEYS = new Set<string>(["personality", "collab"]);
 
 export type SettingsFeaturesSectionProps = {
   appSettings: AppSettings;
@@ -120,9 +120,6 @@ function mapFeatureToAppSettings(
   featureKey: string,
   enabled: boolean,
 ): AppSettings | null {
-  if (featureKey === "collab") {
-    return { ...appSettings, experimentalCollabEnabled: enabled };
-  }
   if (featureKey === "apps") {
     return { ...appSettings, experimentalAppsEnabled: enabled };
   }

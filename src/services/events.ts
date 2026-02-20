@@ -91,6 +91,7 @@ const menuNewAgentHub = createEventHub<void>("menu-new-agent");
 const menuNewWorktreeAgentHub = createEventHub<void>("menu-new-worktree-agent");
 const menuNewCloneAgentHub = createEventHub<void>("menu-new-clone-agent");
 const menuAddWorkspaceHub = createEventHub<void>("menu-add-workspace");
+const menuAddWorkspaceFromUrlHub = createEventHub<void>("menu-add-workspace-from-url");
 const menuOpenSettingsHub = createEventHub<void>("menu-open-settings");
 const menuToggleProjectsSidebarHub = createEventHub<void>("menu-toggle-projects-sidebar");
 const menuToggleGitSidebarHub = createEventHub<void>("menu-toggle-git-sidebar");
@@ -178,6 +179,15 @@ export function subscribeMenuNewCloneAgent(
   options?: SubscriptionOptions,
 ): Unsubscribe {
   return menuNewCloneAgentHub.subscribe(() => {
+    onEvent();
+  }, options);
+}
+
+export function subscribeMenuAddWorkspaceFromUrl(
+  onEvent: () => void,
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return menuAddWorkspaceFromUrlHub.subscribe(() => {
     onEvent();
   }, options);
 }

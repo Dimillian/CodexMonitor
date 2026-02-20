@@ -18,6 +18,8 @@ export function useLayoutController({
   toggleTerminalShortcut: string | null;
 }) {
   const {
+    appRef,
+    isResizing,
     sidebarWidth,
     rightPanelWidth,
     chatDiffSplitPositionPercent,
@@ -67,6 +69,8 @@ export function useLayoutController({
   });
 
   return {
+    appRef,
+    isResizing,
     layoutMode,
     isCompact,
     isTablet,

@@ -13,6 +13,9 @@ const useFileLinkOpenerMock = vi.fn(
 );
 const openFileLinkMock = vi.fn();
 const showFileLinkMenuMock = vi.fn();
+const { exportMarkdownFileMock } = vi.hoisted(() => ({
+  exportMarkdownFileMock: vi.fn(),
+}));
 
 vi.mock("../hooks/useFileLinkOpener", () => ({
   useFileLinkOpener: (
@@ -21,6 +24,16 @@ vi.mock("../hooks/useFileLinkOpener", () => ({
     selectedOpenAppId: string,
   ) => useFileLinkOpenerMock(workspacePath, openTargets, selectedOpenAppId),
 }));
+
+vi.mock("@services/tauri", async () => {
+  const actual = await vi.importActual<typeof import("@services/tauri")>(
+    "@services/tauri",
+  );
+  return {
+    ...actual,
+    exportMarkdownFile: exportMarkdownFileMock,
+  };
+});
 
 describe("Messages", () => {
   beforeAll(() => {
@@ -37,6 +50,7 @@ describe("Messages", () => {
     useFileLinkOpenerMock.mockClear();
     openFileLinkMock.mockReset();
     showFileLinkMenuMock.mockReset();
+    exportMarkdownFileMock.mockReset();
   });
 
   it("renders image grid above message text and opens lightbox", () => {
@@ -902,6 +916,44 @@ describe("Messages", () => {
     expect(
       screen.getByRole("button", { name: "Implement this plan" }),
     ).toBeTruthy();
+  });
+
+  it("exports plan tool-call output from the conversation view", async () => {
+    exportMarkdownFileMock.mockResolvedValueOnce("/tmp/plan-7.md");
+    const items: ConversationItem[] = [
+      {
+        id: "plan-7",
+        kind: "tool",
+        toolType: "plan",
+        title: "Plan",
+        detail: "completed",
+        status: "completed",
+        output: "## Steps\n- Step 1",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const exportButton = await screen.findByRole("button", {
+      name: "Export .md",
+    });
+    fireEvent.click(exportButton);
+
+    await waitFor(() =>
+      expect(exportMarkdownFileMock).toHaveBeenCalledWith(
+        "## Steps\n- Step 1",
+        "plan-7.md",
+      ),
+    );
   });
 
   it("hides the plan-ready follow-up once the user has replied after the plan", () => {

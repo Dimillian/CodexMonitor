@@ -64,7 +64,7 @@ export function useThreadItemEvents({
         }
       }
       const itemForDisplay =
-        itemType === "contextCompaction"
+        itemType === "contextCompaction" || itemType === "webSearch"
           ? ({
               ...item,
               status: shouldMarkProcessing ? "inProgress" : "completed",

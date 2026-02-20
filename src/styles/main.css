@@ -355,6 +355,7 @@
   padding-left: calc(
     var(--main-panel-padding)
     + var(--titlebar-inset-left, 0px)
+    + var(--titlebar-collapsed-left-extra, 0px)
     + var(--titlebar-toggle-size, 28px)
     + var(--titlebar-toggle-title-offset, -6px)
   );
@@ -364,6 +365,7 @@
   padding-left: calc(
     var(--topbar-compact-padding, 16px)
     + var(--titlebar-inset-left, 0px)
+    + var(--titlebar-collapsed-left-extra, 0px)
     + var(--titlebar-toggle-size, 28px)
     + var(--titlebar-toggle-title-offset, -6px)
   );

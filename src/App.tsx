@@ -31,6 +31,7 @@ import "./styles/about.css";
 import "./styles/tabbar.css";
 import "./styles/worktree-modal.css";
 import "./styles/clone-modal.css";
+import "./styles/workspace-from-url-modal.css";
 import "./styles/branch-switcher-modal.css";
 import "./styles/git-init-modal.css";
 import "./styles/settings.css";
@@ -86,6 +87,7 @@ import { useComposerInsert } from "@app/hooks/useComposerInsert";
 import { useRenameThreadPrompt } from "@threads/hooks/useRenameThreadPrompt";
 import { useWorktreePrompt } from "@/features/workspaces/hooks/useWorktreePrompt";
 import { useClonePrompt } from "@/features/workspaces/hooks/useClonePrompt";
+import { useWorkspaceFromUrlPrompt } from "@/features/workspaces/hooks/useWorkspaceFromUrlPrompt";
 import { useWorkspaceController } from "@app/hooks/useWorkspaceController";
 import { useWorkspaceSelection } from "@/features/workspaces/hooks/useWorkspaceSelection";
 import { useGitHubPanelController } from "@app/hooks/useGitHubPanelController";
@@ -218,6 +220,7 @@ function MainApp() {
     setActiveWorkspaceId,
     addWorkspace,
     addWorkspaceFromPath,
+    addWorkspaceFromGitUrl,
     addWorkspacesFromPaths,
     addCloneAgent,
     addWorktreeAgent,
@@ -282,6 +285,8 @@ function MainApp() {
     activeWorkspaceId,
   });
   const {
+    appRef,
+    isResizing,
     sidebarWidth,
     chatDiffSplitPositionPercent,
     rightPanelWidth,
@@ -1058,6 +1063,7 @@ function MainApp() {
     terminalState,
     ensureTerminalWithTitle,
     restartTerminalSession,
+    requestTerminalFocus,
   } = useTerminalController({
     activeWorkspaceId,
     activeWorkspace,
@@ -1071,10 +1077,33 @@ function MainApp() {
     [ensureTerminalWithTitle],
   );
 
+  const openTerminalWithFocus = useCallback(() => {
+    if (!activeWorkspaceId) {
+      return;
+    }
+    requestTerminalFocus();
+    openTerminal();
+  }, [activeWorkspaceId, openTerminal, requestTerminalFocus]);
+
+  const handleToggleTerminalWithFocus = useCallback(() => {
+    if (!activeWorkspaceId) {
+      return;
+    }
+    if (!terminalOpen) {
+      requestTerminalFocus();
+    }
+    handleToggleTerminal();
+  }, [
+    activeWorkspaceId,
+    handleToggleTerminal,
+    requestTerminalFocus,
+    terminalOpen,
+  ]);
+
   const launchScriptState = useWorkspaceLaunchScript({
     activeWorkspace,
     updateWorkspaceSettings,
-    openTerminal,
+    openTerminal: openTerminalWithFocus,
     ensureLaunchTerminal,
     restartLaunchSession: restartTerminalSession,
     terminalState,
@@ -1084,7 +1113,7 @@ function MainApp() {
   const launchScriptsState = useWorkspaceLaunchScripts({
     activeWorkspace,
     updateWorkspaceSettings,
-    openTerminal,
+    openTerminal: openTerminalWithFocus,
     ensureLaunchTerminal: (workspaceId, entry, title) => {
       const label = entry.label?.trim() || entry.icon;
       return ensureTerminalWithTitle(
@@ -1221,6 +1250,23 @@ function MainApp() {
         label: "clone/add error",
         payload: message,
       });
+    },
+  });
+
+
+  const {
+    workspaceFromUrlPrompt,
+    openWorkspaceFromUrlPrompt,
+    closeWorkspaceFromUrlPrompt,
+    chooseWorkspaceFromUrlDestinationPath,
+    submitWorkspaceFromUrlPrompt,
+    updateWorkspaceFromUrlUrl,
+    updateWorkspaceFromUrlTargetFolderName,
+    clearWorkspaceFromUrlDestinationPath,
+    canSubmitWorkspaceFromUrlPrompt,
+  } = useWorkspaceFromUrlPrompt({
+    onSubmit: async (url, destinationPath, targetFolderName) => {
+      await handleAddWorkspaceFromGitUrl(url, destinationPath, targetFolderName);
     },
   });
 
@@ -1659,6 +1705,7 @@ function MainApp() {
   const {
     handleAddWorkspace,
     handleAddWorkspacesFromPaths,
+    handleAddWorkspaceFromGitUrl,
     handleAddAgent,
     handleAddWorktreeAgent,
     handleAddCloneAgent,
@@ -1666,6 +1713,7 @@ function MainApp() {
     isCompact,
     addWorkspace,
     addWorkspaceFromPath,
+    addWorkspaceFromGitUrl,
     addWorkspacesFromPaths,
     setActiveThreadId,
     setActiveTab,
@@ -1893,6 +1941,9 @@ function MainApp() {
     onAddWorkspace: () => {
       void handleAddWorkspace();
     },
+    onAddWorkspaceFromUrl: () => {
+      openWorkspaceFromUrlPrompt();
+    },
     onAddAgent: (workspace) => {
       void handleAddAgent(workspace);
     },
@@ -1906,7 +1957,7 @@ function MainApp() {
     onCycleAgent: handleCycleAgent,
     onCycleWorkspace: handleCycleWorkspace,
     onToggleDebug: handleDebugClick,
-    onToggleTerminal: handleToggleTerminal,
+    onToggleTerminal: handleToggleTerminalWithFocus,
     sidebarCollapsed,
     rightPanelCollapsed,
     onExpandSidebar: expandSidebar,
@@ -1994,6 +2045,7 @@ function MainApp() {
     onOpenDebug: handleDebugClick,
     showDebugButton,
     onAddWorkspace: handleAddWorkspace,
+    onAddWorkspaceFromUrl: openWorkspaceFromUrlPrompt,
     onSelectHome: handleSidebarSelectHome,
     onSelectWorkspace: handleSidebarSelectWorkspace,
     onConnectWorkspace: handleSidebarConnectWorkspace,
@@ -2055,7 +2107,7 @@ function MainApp() {
       handleCheckoutPullRequest(pullRequest.number),
     onCreateBranch: handleCreateBranch,
     onCopyThread: handleCopyThread,
-    onToggleTerminal: handleToggleTerminal,
+    onToggleTerminal: handleToggleTerminalWithFocus,
     showTerminalButton: !isCompact,
     showWorkspaceTools: !isCompact,
     launchScript: launchScriptState.launchScript,
@@ -2490,7 +2542,7 @@ function MainApp() {
   );
 
   return (
-    <div className={appClassName} style={appStyle}>
+    <div className={`${appClassName}${isResizing ? " is-resizing" : ""}`} style={appStyle} ref={appRef}>
       <div className="drag-strip" id="titlebar" data-tauri-drag-region />
       <TitlebarExpandControls {...sidebarToggleProps} />
       {shouldLoadGitHubPanelData ? (
@@ -2573,6 +2625,14 @@ function MainApp() {
         onClonePromptClearCopiesFolder={clearCloneCopiesFolder}
         onClonePromptCancel={cancelClonePrompt}
         onClonePromptConfirm={confirmClonePrompt}
+        workspaceFromUrlPrompt={workspaceFromUrlPrompt}
+        workspaceFromUrlCanSubmit={canSubmitWorkspaceFromUrlPrompt}
+        onWorkspaceFromUrlPromptUrlChange={updateWorkspaceFromUrlUrl}
+        onWorkspaceFromUrlPromptTargetFolderNameChange={updateWorkspaceFromUrlTargetFolderName}
+        onWorkspaceFromUrlPromptChooseDestinationPath={chooseWorkspaceFromUrlDestinationPath}
+        onWorkspaceFromUrlPromptClearDestinationPath={clearWorkspaceFromUrlDestinationPath}
+        onWorkspaceFromUrlPromptCancel={closeWorkspaceFromUrlPrompt}
+        onWorkspaceFromUrlPromptConfirm={submitWorkspaceFromUrlPrompt}
         branchSwitcher={branchSwitcher}
         branches={branches}
         workspaces={workspaces}

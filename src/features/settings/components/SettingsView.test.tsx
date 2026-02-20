@@ -11,7 +11,14 @@ import {
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { AppSettings, WorkspaceInfo } from "@/types";
-import { getExperimentalFeatureList, getModelList, listWorkspaces } from "@services/tauri";
+import {
+  connectWorkspace,
+  getAgentsSettings,
+  getConfigModel,
+  getExperimentalFeatureList,
+  getModelList,
+  listWorkspaces,
+} from "@services/tauri";
 import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
 import { SettingsView } from "./SettingsView";
 
@@ -26,16 +33,30 @@ vi.mock("@services/tauri", async () => {
   );
   return {
     ...actual,
+    connectWorkspace: vi.fn(),
     getModelList: vi.fn(),
+    getConfigModel: vi.fn(),
     getExperimentalFeatureList: vi.fn(),
+    getAgentsSettings: vi.fn(),
     listWorkspaces: vi.fn(),
   };
 });
 
+const connectWorkspaceMock = vi.mocked(connectWorkspace);
+const getConfigModelMock = vi.mocked(getConfigModel);
 const getModelListMock = vi.mocked(getModelList);
 const getExperimentalFeatureListMock = vi.mocked(getExperimentalFeatureList);
+const getAgentsSettingsMock = vi.mocked(getAgentsSettings);
 const listWorkspacesMock = vi.mocked(listWorkspaces);
+connectWorkspaceMock.mockResolvedValue(undefined);
+getConfigModelMock.mockResolvedValue(null);
 listWorkspacesMock.mockResolvedValue([]);
+getAgentsSettingsMock.mockResolvedValue({
+  configPath: "/Users/me/.codex/config.toml",
+  multiAgentEnabled: false,
+  maxThreads: 6,
+  agents: [],
+});
 
 const baseSettings: AppSettings = {
   codexBin: null,
@@ -95,7 +116,6 @@ const baseSettings: AppSettings = {
   preloadGitDiffs: true,
   gitDiffIgnoreWhitespaceChanges: false,
   commitMessagePrompt: DEFAULT_COMMIT_MESSAGE_PROMPT,
-  experimentalCollabEnabled: false,
   collaborationModesEnabled: true,
   steerEnabled: true,
   pauseQueuedMessagesWhenResponseRequired: true,

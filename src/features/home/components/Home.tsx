@@ -1,4 +1,3 @@
-import Settings from "lucide-react/dist/esm/icons/settings";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import type { LocalUsageSnapshot } from "../../../types";
 import { formatRelativeTime } from "../../../utils/time";
@@ -21,8 +20,8 @@ type UsageWorkspaceOption = {
 };
 
 type HomeProps = {
-  onOpenSettings: () => void;
   onAddWorkspace: () => void;
+  onAddWorkspaceFromUrl: () => void;
   latestAgentRuns: LatestAgentRun[];
   isLoadingLatestAgents: boolean;
   localUsageSnapshot: LocalUsageSnapshot | null;
@@ -38,8 +37,8 @@ type HomeProps = {
 };
 
 export function Home({
-  onOpenSettings,
   onAddWorkspace,
+  onAddWorkspaceFromUrl,
   latestAgentRuns,
   isLoadingLatestAgents,
   localUsageSnapshot,
@@ -250,13 +249,13 @@ export function Home({
         </button>
         <button
           className="home-button secondary"
-          onClick={onOpenSettings}
+          onClick={onAddWorkspaceFromUrl}
           data-tauri-drag-region="false"
         >
           <span className="home-icon" aria-hidden>
-            <Settings size={18} />
+            ⤓
           </span>
-          Settings
+          Add Workspace from URL
         </button>
       </div>
       <div className="home-usage">

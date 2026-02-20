@@ -124,12 +124,14 @@ pub(crate) async fn list_threads_core(
     cursor: Option<String>,
     limit: Option<u32>,
     sort_key: Option<String>,
+    cwd: Option<String>,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
     let params = json!({
         "cursor": cursor,
         "limit": limit,
         "sortKey": sort_key,
+        "cwd": cwd,
         // Keep spawned sub-agent sessions visible in thread/list so UI refreshes
         // do not drop parent -> child sidebar relationships.
         "sourceKinds": ["cli", "vscode", "subAgentThreadSpawn"]

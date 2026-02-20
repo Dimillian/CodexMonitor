@@ -35,6 +35,13 @@ type AppServerEventHandlers = {
     workspaceId: string,
     payload: { threadId: string; threadName: string | null },
   ) => void;
+  onThreadStatusChanged?: (
+    workspaceId: string,
+    threadId: string,
+    status: Record<string, unknown>,
+  ) => void;
+  onThreadArchived?: (workspaceId: string, threadId: string) => void;
+  onThreadUnarchived?: (workspaceId: string, threadId: string) => void;
   onBackgroundThreadAction?: (
     workspaceId: string,
     threadId: string,
@@ -108,9 +115,12 @@ export const METHODS_ROUTED_IN_USE_APP_SERVER_EVENTS = [
   "item/reasoning/textDelta",
   "item/started",
   "item/tool/requestUserInput",
+  "thread/archived",
   "thread/name/updated",
+  "thread/status/changed",
   "thread/started",
   "thread/tokenUsage/updated",
+  "thread/unarchived",
   "turn/completed",
   "turn/diff/updated",
   "turn/plan/updated",
@@ -244,6 +254,44 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
             : null;
         if (threadId) {
           currentHandlers.onThreadNameUpdated?.(workspace_id, { threadId, threadName });
+        }
+        return;
+      }
+
+      if (method === "thread/status/changed") {
+        const threadId = String(params.threadId ?? params.thread_id ?? "").trim();
+        if (!threadId) {
+          return;
+        }
+        const statusRaw = params.status;
+        if (statusRaw && typeof statusRaw === "object" && !Array.isArray(statusRaw)) {
+          currentHandlers.onThreadStatusChanged?.(
+            workspace_id,
+            threadId,
+            statusRaw as Record<string, unknown>,
+          );
+          return;
+        }
+        if (typeof statusRaw === "string" && statusRaw.trim().length > 0) {
+          currentHandlers.onThreadStatusChanged?.(workspace_id, threadId, {
+            type: statusRaw.trim(),
+          });
+        }
+        return;
+      }
+
+      if (method === "thread/archived") {
+        const threadId = String(params.threadId ?? params.thread_id ?? "").trim();
+        if (threadId) {
+          currentHandlers.onThreadArchived?.(workspace_id, threadId);
+        }
+        return;
+      }
+
+      if (method === "thread/unarchived") {
+        const threadId = String(params.threadId ?? params.thread_id ?? "").trim();
+        if (threadId) {
+          currentHandlers.onThreadUnarchived?.(workspace_id, threadId);
         }
         return;
       }

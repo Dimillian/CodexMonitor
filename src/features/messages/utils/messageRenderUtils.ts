@@ -289,8 +289,8 @@ export function buildToolSummary(
 
   if (item.toolType === "webSearch") {
     return {
-      label: "searched",
-      value: item.detail || "",
+      label: statusToneFromText(item.status) === "processing" ? "searching" : "searched",
+      value: item.detail || "the web",
     };
   }
 
@@ -307,7 +307,7 @@ export function buildToolSummary(
     const args = parseToolArgs(item.detail);
     if (toolName.toLowerCase().includes("search")) {
       return {
-        label: "searched",
+        label: statusToneFromText(item.status) === "processing" ? "searching" : "searched",
         value:
           firstStringField(args, ["query", "pattern", "text"]) || item.detail,
       };
@@ -353,7 +353,7 @@ export function statusToneFromText(status?: string): StatusTone {
   if (/(fail|error)/.test(normalized)) {
     return "failed";
   }
-  if (/(pending|running|processing|started|in_progress)/.test(normalized)) {
+  if (/(pending|running|processing|started|in[_\s-]?progress)/.test(normalized)) {
     return "processing";
   }
   if (/(complete|completed|success|done)/.test(normalized)) {

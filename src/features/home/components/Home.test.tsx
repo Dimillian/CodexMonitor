@@ -6,6 +6,7 @@ import { Home } from "./Home";
 const baseProps = {
   onOpenSettings: vi.fn(),
   onAddWorkspace: vi.fn(),
+  onAddWorkspaceFromUrl: vi.fn(),
   latestAgentRuns: [],
   isLoadingLatestAgents: false,
   localUsageSnapshot: null,

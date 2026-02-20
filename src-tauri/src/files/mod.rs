@@ -1,4 +1,5 @@
 use serde_json::json;
+use std::path::PathBuf;
 use tauri::{AppHandle, State};
 
 use self::io::TextFileResponse;
@@ -80,4 +81,19 @@ pub(crate) async fn file_write(
     app: AppHandle,
 ) -> Result<(), String> {
     file_write_impl(scope, kind, workspace_id, content, &*state, &app).await
+}
+
+#[tauri::command]
+pub(crate) fn write_text_file(path: String, content: String) -> Result<(), String> {
+    let target = PathBuf::from(path.trim());
+    if target.as_os_str().is_empty() {
+        return Err("Path is required".to_string());
+    }
+    if let Some(parent) = target.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)
+                .map_err(|err| format!("Failed to create export directory: {err}"))?;
+        }
+    }
+    std::fs::write(&target, content).map_err(|err| format!("Failed to write export file: {err}"))
 }

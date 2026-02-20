@@ -66,6 +66,7 @@
   --titlebar-height: 24px;
   --titlebar-toggle-size: 28px;
   --titlebar-toggle-offset: 4px;
+  --titlebar-collapsed-left-extra: 14px;
   --titlebar-toggle-title-offset: -6px;
   --titlebar-toggle-side-gap: 12px;
   --topbar-compact-padding: 16px;

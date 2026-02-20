@@ -88,11 +88,15 @@ describe("useResizablePanels", () => {
 
   it("persists sidebar width changes and clamps max", () => {
     const hook = renderResizablePanels();
+    const appEl = document.createElement("div");
+    document.body.appendChild(appEl);
+    hook.result.appRef.current = appEl;
 
     act(() => {
       hook.result.onSidebarResizeStart({
         clientX: 0,
         clientY: 0,
+        preventDefault() {},
       } as React.MouseEvent);
     });
 
@@ -102,27 +106,32 @@ describe("useResizablePanels", () => {
       );
     });
 
+    act(() => {
+      window.dispatchEvent(new MouseEvent("mouseup"));
+    });
+
     expect(hook.result.sidebarWidth).toBe(420);
     expect(window.localStorage.getItem("codexmonitor.sidebarWidth")).toBe(
       "420",
     );
 
-    act(() => {
-      window.dispatchEvent(new MouseEvent("mouseup"));
-    });
-
     hook.unmount();
+    appEl.remove();
   });
 
   it("moves split position right when dragging the splitter right", () => {
     const hook = renderResizablePanels();
     const { split, resizer } = buildSplitDom();
+    const appEl = document.createElement("div");
+    document.body.appendChild(appEl);
+    hook.result.appRef.current = appEl;
 
     act(() => {
       hook.result.onChatDiffSplitPositionResizeStart({
         clientX: 500,
         clientY: 0,
         currentTarget: resizer,
+        preventDefault() {},
       } as unknown as React.MouseEvent);
     });
 
@@ -132,25 +141,30 @@ describe("useResizablePanels", () => {
       );
     });
 
-    expect(hook.result.chatDiffSplitPositionPercent).toBe(75);
-
     act(() => {
       window.dispatchEvent(new MouseEvent("mouseup"));
     });
 
+    expect(hook.result.chatDiffSplitPositionPercent).toBe(75);
+
     hook.unmount();
     split.remove();
+    appEl.remove();
   });
 
   it("moves split position left when dragging the splitter left", () => {
     const hook = renderResizablePanels();
     const { split, resizer } = buildSplitDom();
+    const appEl = document.createElement("div");
+    document.body.appendChild(appEl);
+    hook.result.appRef.current = appEl;
 
     act(() => {
       hook.result.onChatDiffSplitPositionResizeStart({
         clientX: 500,
         clientY: 0,
         currentTarget: resizer,
+        preventDefault() {},
       } as unknown as React.MouseEvent);
     });
 
@@ -160,13 +174,14 @@ describe("useResizablePanels", () => {
       );
     });
 
-    expect(hook.result.chatDiffSplitPositionPercent).toBe(25);
-
     act(() => {
       window.dispatchEvent(new MouseEvent("mouseup"));
     });
 
+    expect(hook.result.chatDiffSplitPositionPercent).toBe(25);
+
     hook.unmount();
     split.remove();
+    appEl.remove();
   });
 });

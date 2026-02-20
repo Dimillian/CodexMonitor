@@ -458,6 +458,20 @@ describe("threadItems", () => {
     }
   });
 
+  it("defaults web search items to completed status", () => {
+    const item = buildConversationItem({
+      type: "webSearch",
+      id: "web-1",
+      query: "codex monitor",
+    });
+    expect(item).not.toBeNull();
+    if (item && item.kind === "tool") {
+      expect(item.toolType).toBe("webSearch");
+      expect(item.status).toBe("completed");
+      expect(item.detail).toBe("codex monitor");
+    }
+  });
+
   it("merges thread items preferring non-empty remote tool output", () => {
     const remote: ConversationItem = {
       id: "tool-2",
@@ -508,6 +522,33 @@ describe("threadItems", () => {
     expect(merged[0].kind).toBe("tool");
     if (merged[0].kind === "tool") {
       expect(merged[0].output).toBe("streamed output");
+      expect(merged[0].status).toBe("completed");
+    }
+  });
+
+  it("keeps local tool status when remote status is empty", () => {
+    const remote: ConversationItem = {
+      id: "tool-remote-status",
+      kind: "tool",
+      toolType: "webSearch",
+      title: "Web search",
+      detail: "query",
+      status: "",
+      output: "",
+    };
+    const local: ConversationItem = {
+      id: "tool-remote-status",
+      kind: "tool",
+      toolType: "webSearch",
+      title: "Web search",
+      detail: "query",
+      status: "completed",
+      output: "",
+    };
+    const merged = mergeThreadItems([remote], [local]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].kind).toBe("tool");
+    if (merged[0].kind === "tool") {
       expect(merged[0].status).toBe("completed");
     }
   });

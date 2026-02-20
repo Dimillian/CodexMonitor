@@ -164,6 +164,33 @@ describe("useThreadItemEvents", () => {
     );
   });
 
+  it("adds lifecycle status for web search items", () => {
+    const { result } = makeOptions();
+    const item: ItemPayload = { type: "webSearch", id: "search-1", query: "codex monitor" };
+
+    act(() => {
+      result.current.onItemStarted("ws-1", "thread-1", item);
+    });
+    expect(buildConversationItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "webSearch",
+        id: "search-1",
+        status: "inProgress",
+      }),
+    );
+
+    act(() => {
+      result.current.onItemCompleted("ws-1", "thread-1", item);
+    });
+    expect(buildConversationItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "webSearch",
+        id: "search-1",
+        status: "completed",
+      }),
+    );
+  });
+
   it("notifies when a user message is created", () => {
     const onUserMessageCreated = vi.fn();
     vi.mocked(buildConversationItem).mockReturnValue({

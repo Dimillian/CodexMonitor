@@ -711,7 +711,13 @@ describe("useThreadActions", () => {
       await result.current.listThreadsForWorkspace(workspace);
     });
 
-    expect(listThreads).toHaveBeenCalled();
+    expect(listThreads).toHaveBeenCalledWith(
+      "ws-1",
+      null,
+      100,
+      "updated_at",
+      "/tmp/codex",
+    );
     expect(dispatch).toHaveBeenCalledWith({
       type: "setThreadListLoading",
       workspaceId: "ws-1",
@@ -786,7 +792,7 @@ describe("useThreadActions", () => {
     expect(onSubagentThreadDetected).toHaveBeenCalledWith("ws-1", "child-thread");
   });
 
-  it("matches thread cwd on Windows paths even when path casing differs", async () => {
+  it("passes windows cwd to server-side thread list filtering", async () => {
     const windowsWorkspace: WorkspaceInfo = {
       ...workspace,
       path: "C:\\Dev\\CodexMon",
@@ -812,6 +818,13 @@ describe("useThreadActions", () => {
       await result.current.listThreadsForWorkspace(windowsWorkspace);
     });
 
+    expect(listThreads).toHaveBeenCalledWith(
+      "ws-1",
+      null,
+      100,
+      "updated_at",
+      "C:\\Dev\\CodexMon",
+    );
     expect(dispatch).toHaveBeenCalledWith({
       type: "setThreads",
       workspaceId: "ws-1",
@@ -863,7 +876,13 @@ describe("useThreadActions", () => {
       await result.current.listThreadsForWorkspace(workspace);
     });
 
-    expect(listThreads).toHaveBeenCalledWith("ws-1", null, 100, "created_at");
+    expect(listThreads).toHaveBeenCalledWith(
+      "ws-1",
+      null,
+      100,
+      "created_at",
+      "/tmp/codex",
+    );
   });
 
   it("loads older threads when a cursor is available", async () => {
@@ -917,7 +936,7 @@ describe("useThreadActions", () => {
     });
   });
 
-  it("loads older threads for Windows paths even when path casing differs", async () => {
+  it("passes windows cwd when loading older threads", async () => {
     const windowsWorkspace: WorkspaceInfo = {
       ...workspace,
       path: "C:\\Dev\\CodexMon",
@@ -951,6 +970,13 @@ describe("useThreadActions", () => {
       await result.current.loadOlderThreadsForWorkspace(windowsWorkspace);
     });
 
+    expect(listThreads).toHaveBeenCalledWith(
+      "ws-1",
+      "cursor-1",
+      100,
+      "updated_at",
+      "C:\\Dev\\CodexMon",
+    );
     expect(dispatch).toHaveBeenCalledWith({
       type: "setThreads",
       workspaceId: "ws-1",

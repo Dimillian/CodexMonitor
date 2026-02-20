@@ -27,7 +27,6 @@ const FEATURE_DESCRIPTION_FALLBACKS: Record<string, string> = {
   powershell_utf8: "Enforce UTF-8 output in PowerShell.",
   enable_request_compression:
     "Compress streaming request bodies sent to codex-backend.",
-  collab: "Enable sub-agent collaboration tools.",
   apps: "Enable ChatGPT Apps integration.",
   apps_mcp_gateway: "Route Apps MCP calls through the configured gateway.",
   skill_mcp_dependency_install:

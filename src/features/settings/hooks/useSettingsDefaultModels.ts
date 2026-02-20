@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ModelOption, WorkspaceInfo } from "@/types";
-import { getModelList } from "@services/tauri";
+import { connectWorkspace, getConfigModel, getModelList } from "@services/tauri";
 import { parseModelListResponse } from "@/features/models/utils/modelListResponse";
 
 type SettingsDefaultModelsState = {
@@ -16,6 +16,8 @@ const EMPTY_STATE: SettingsDefaultModelsState = {
   error: null,
   connectedWorkspaceCount: 0,
 };
+
+const CONFIG_MODEL_DESCRIPTION = "Configured in CODEX_HOME/config.toml";
 
 const parseGptVersionScore = (slug: string): number | null => {
   const match = /^gpt-(\d+)(?:\.(\d+))?(?:\.(\d+))?/i.exec(slug.trim());
@@ -60,17 +62,14 @@ function compareModelsByLatest(a: ModelOption, b: ModelOption): number {
 export function useSettingsDefaultModels(projects: WorkspaceInfo[]) {
   const [state, setState] = useState<SettingsDefaultModelsState>(EMPTY_STATE);
   const requestIdRef = useRef(0);
-
-  const connectedWorkspaces = useMemo(
-    () => projects.filter((workspace) => workspace.connected),
-    [projects],
-  );
+  const sourceWorkspaceId = projects[0]?.id ?? null;
+  const sourceWorkspaceName = projects[0]?.name ?? null;
+  const sourceWorkspaceConnected = projects[0]?.connected ?? false;
 
   const refresh = useCallback(async () => {
-    const connected = connectedWorkspaces;
     requestIdRef.current += 1;
     const requestId = requestIdRef.current;
-    if (connected.length === 0) {
+    if (!sourceWorkspaceId || !sourceWorkspaceName) {
       setState(EMPTY_STATE);
       return;
     }
@@ -78,57 +77,81 @@ export function useSettingsDefaultModels(projects: WorkspaceInfo[]) {
       ...prev,
       isLoading: true,
       error: null,
-      connectedWorkspaceCount: connected.length,
+      connectedWorkspaceCount: 1,
     }));
 
     try {
-      const results = await Promise.allSettled(
-        connected.map((workspace) => getModelList(workspace.id)),
-      );
+      const errors: string[] = [];
+      let canReadModelList = sourceWorkspaceConnected;
+      if (!canReadModelList) {
+        try {
+          await connectWorkspace(sourceWorkspaceId);
+          canReadModelList = true;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          errors.push(`${sourceWorkspaceName}: ${message}`);
+        }
+      }
+
       if (requestId !== requestIdRef.current) {
         return;
       }
 
-      const modelBySlug = new Map<string, ModelOption>();
-      const errors: string[] = [];
+      const [modelListResult, configModelResult] = await Promise.allSettled([
+        canReadModelList ? getModelList(sourceWorkspaceId) : Promise.resolve(null),
+        getConfigModel(sourceWorkspaceId),
+      ]);
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
 
-      results.forEach((result, index) => {
-        if (result.status === "rejected") {
-          const message =
-            result.reason instanceof Error
-              ? result.reason.message
-              : String(result.reason);
-          const workspaceName = connected[index]?.name ?? `workspace-${index + 1}`;
-          errors.push(`${workspaceName}: ${message}`);
-          return;
-        }
-        parseModelListResponse(result.value).forEach((model) => {
-          const slug = model.model;
-          if (!slug) {
-            return;
-          }
-          const existing = modelBySlug.get(slug);
-          if (!existing) {
-            modelBySlug.set(slug, model);
-            return;
-          }
-          // Prefer the entry that includes more metadata (e.g., reasoning efforts).
-          const existingEfforts = existing.supportedReasoningEfforts.length;
-          const nextEfforts = model.supportedReasoningEfforts.length;
-          const preferNext =
-            (model.isDefault && !existing.isDefault) || nextEfforts > existingEfforts;
-          if (preferNext) {
-            modelBySlug.set(slug, model);
-          }
-        });
-      });
+      if (modelListResult.status === "rejected") {
+        const message =
+          modelListResult.reason instanceof Error
+            ? modelListResult.reason.message
+            : String(modelListResult.reason);
+        errors.push(`${sourceWorkspaceName}: ${message}`);
+      }
+      if (configModelResult.status === "rejected") {
+        const message =
+          configModelResult.reason instanceof Error
+            ? configModelResult.reason.message
+            : String(configModelResult.reason);
+        errors.push(`${sourceWorkspaceName}: ${message}`);
+      }
 
-      const models = Array.from(modelBySlug.values()).sort(compareModelsByLatest);
+      const modelsFromList = parseModelListResponse(
+        modelListResult.status === "fulfilled" ? modelListResult.value : null,
+      );
+      const configModel =
+        configModelResult.status === "fulfilled" ? configModelResult.value : null;
+      const hasConfigModel = Boolean(
+        configModel &&
+          modelsFromList.some(
+            (model) => model.model === configModel || model.id === configModel,
+          ),
+      );
+      const models = (
+        hasConfigModel || !configModel
+          ? modelsFromList
+          : [
+              {
+                id: configModel,
+                model: configModel,
+                displayName: `${configModel} (config)`,
+                description: CONFIG_MODEL_DESCRIPTION,
+                supportedReasoningEfforts: [],
+                defaultReasoningEffort: null,
+                isDefault: false,
+              },
+              ...modelsFromList,
+            ]
+      ).sort(compareModelsByLatest);
       setState({
         models,
         isLoading: false,
         error: errors.length ? errors.join(" | ") : null,
-        connectedWorkspaceCount: connected.length,
+        connectedWorkspaceCount: 1,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -137,11 +160,11 @@ export function useSettingsDefaultModels(projects: WorkspaceInfo[]) {
           models: [],
           isLoading: false,
           error: message,
-          connectedWorkspaceCount: connected.length,
+          connectedWorkspaceCount: sourceWorkspaceId ? 1 : 0,
         });
       }
     }
-  }, [connectedWorkspaces]);
+  }, [sourceWorkspaceConnected, sourceWorkspaceId, sourceWorkspaceName]);
 
   useEffect(() => {
     void refresh();

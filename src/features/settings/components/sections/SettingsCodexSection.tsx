@@ -426,12 +426,12 @@ export function SettingsCodexSection({
           </label>
           <div className="settings-toggle-subtitle">
             {defaultModelsConnectedWorkspaceCount === 0
-              ? "Connect a project to load available models."
+              ? "Add a workspace to load available models."
               : defaultModelsLoading
-                ? "Loading models…"
+                ? "Loading models from the first workspace…"
                 : defaultModelsError
                   ? `Couldn’t load models: ${defaultModelsError}`
-                  : "Used when there is no thread-specific override."}
+                  : "Sourced from the first workspace and used when there is no thread-specific override."}
           </div>
         </div>
         <div className="settings-field-row">

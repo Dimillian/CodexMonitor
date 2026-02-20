@@ -544,11 +544,6 @@ pub(crate) struct AppSettings {
     )]
     pub(crate) subagent_system_notifications_enabled: bool,
     #[serde(
-        default = "default_experimental_collab_enabled",
-        rename = "experimentalCollabEnabled"
-    )]
-    pub(crate) experimental_collab_enabled: bool,
-    #[serde(
         default = "default_collaboration_modes_enabled",
         rename = "collaborationModesEnabled"
     )]
@@ -900,10 +895,6 @@ Changes:\n{diff}"
         .to_string()
 }
 
-fn default_experimental_collab_enabled() -> bool {
-    false
-}
-
 fn default_collaboration_modes_enabled() -> bool {
     true
 }
@@ -1149,7 +1140,6 @@ impl Default for AppSettings {
             preload_git_diffs: default_preload_git_diffs(),
             git_diff_ignore_whitespace_changes: default_git_diff_ignore_whitespace_changes(),
             commit_message_prompt: default_commit_message_prompt(),
-            experimental_collab_enabled: false,
             collaboration_modes_enabled: true,
             steer_enabled: true,
             pause_queued_messages_when_response_required:

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import type { Options as NotificationOptions } from "@tauri-apps/plugin-notification";
 import type {
   AppSettings,
@@ -67,6 +67,27 @@ export async function pickImageFiles(): Promise<string[]> {
   return Array.isArray(selection) ? selection : [selection];
 }
 
+export async function exportMarkdownFile(
+  content: string,
+  defaultFileName = "plan.md",
+): Promise<string | null> {
+  const selection = await save({
+    title: "Export plan as Markdown",
+    defaultPath: defaultFileName,
+    filters: [
+      {
+        name: "Markdown",
+        extensions: ["md"],
+      },
+    ],
+  });
+  if (!selection) {
+    return null;
+  }
+  await invoke("write_text_file", { path: selection, content });
+  return selection;
+}
+
 export async function listWorkspaces(): Promise<WorkspaceInfo[]> {
   try {
     return await invoke<WorkspaceInfo[]>("list_workspaces");
@@ -94,6 +115,49 @@ export type TextFileResponse = {
 export type GlobalAgentsResponse = TextFileResponse;
 export type GlobalCodexConfigResponse = TextFileResponse;
 export type AgentMdResponse = TextFileResponse;
+export type AgentSummary = {
+  name: string;
+  description: string | null;
+  developerInstructions: string | null;
+  configFile: string;
+  resolvedPath: string;
+  managedByApp: boolean;
+  fileExists: boolean;
+};
+
+export type AgentsSettings = {
+  configPath: string;
+  multiAgentEnabled: boolean;
+  maxThreads: number;
+  agents: AgentSummary[];
+};
+
+export type SetAgentsCoreInput = {
+  multiAgentEnabled: boolean;
+  maxThreads: number;
+};
+
+export type CreateAgentInput = {
+  name: string;
+  description?: string | null;
+  developerInstructions?: string | null;
+  template?: "blank" | string | null;
+  model?: string | null;
+  reasoningEffort?: string | null;
+};
+
+export type UpdateAgentInput = {
+  originalName: string;
+  name: string;
+  description?: string | null;
+  developerInstructions?: string | null;
+  renameManagedFile?: boolean;
+};
+
+export type DeleteAgentInput = {
+  name: string;
+  deleteManagedFile?: boolean;
+};
 
 type FileScope = "workspace" | "global";
 type FileKind = "agents" | "config";
@@ -131,6 +195,39 @@ export async function writeGlobalCodexConfigToml(content: string): Promise<void>
   return fileWrite("global", "config", content);
 }
 
+export async function getAgentsSettings(): Promise<AgentsSettings> {
+  return invoke<AgentsSettings>("get_agents_settings");
+}
+
+export async function setAgentsCoreSettings(
+  input: SetAgentsCoreInput,
+): Promise<AgentsSettings> {
+  return invoke<AgentsSettings>("set_agents_core_settings", { input });
+}
+
+export async function createAgent(input: CreateAgentInput): Promise<AgentsSettings> {
+  return invoke<AgentsSettings>("create_agent", { input });
+}
+
+export async function updateAgent(input: UpdateAgentInput): Promise<AgentsSettings> {
+  return invoke<AgentsSettings>("update_agent", { input });
+}
+
+export async function deleteAgent(input: DeleteAgentInput): Promise<AgentsSettings> {
+  return invoke<AgentsSettings>("delete_agent", { input });
+}
+
+export async function readAgentConfigToml(agentName: string): Promise<string> {
+  return invoke<string>("read_agent_config_toml", { agentName });
+}
+
+export async function writeAgentConfigToml(
+  agentName: string,
+  content: string,
+): Promise<void> {
+  return invoke("write_agent_config_toml", { agentName, content });
+}
+
 export async function getConfigModel(workspaceId: string): Promise<string | null> {
   const response = await invoke<{ model?: string | null }>("get_config_model", {
     workspaceId,
@@ -148,6 +245,20 @@ export async function addWorkspace(
   codex_bin: string | null,
 ): Promise<WorkspaceInfo> {
   return invoke<WorkspaceInfo>("add_workspace", { path, codex_bin });
+}
+
+export async function addWorkspaceFromGitUrl(
+  url: string,
+  destinationPath: string,
+  targetFolderName: string | null,
+  codexBin: string | null,
+): Promise<WorkspaceInfo> {
+  return invoke<WorkspaceInfo>("add_workspace_from_git_url", {
+    url,
+    destinationPath,
+    targetFolderName,
+    codexBin,
+  });
 }
 
 export async function isWorkspacePathDir(path: string): Promise<boolean> {
@@ -874,8 +985,9 @@ export async function listThreads(
   cursor?: string | null,
   limit?: number | null,
   sortKey?: "created_at" | "updated_at" | null,
+  cwd?: string | null,
 ) {
-  return invoke<any>("list_threads", { workspaceId, cursor, limit, sortKey });
+  return invoke<any>("list_threads", { workspaceId, cursor, limit, sortKey, cwd });
 }
 
 export async function listMcpServerStatus(
@@ -914,6 +1026,18 @@ export async function generateCommitMessage(
   workspaceId: string,
 ): Promise<string> {
   return invoke("generate_commit_message", { workspaceId });
+}
+
+export type GeneratedAgentConfiguration = {
+  description: string;
+  developerInstructions: string;
+};
+
+export async function generateAgentDescription(
+  workspaceId: string,
+  description: string,
+): Promise<GeneratedAgentConfiguration> {
+  return invoke("generate_agent_description", { workspaceId, description });
 }
 
 export async function sendNotification(

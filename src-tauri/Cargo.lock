@@ -599,7 +599,7 @@ dependencies = [
 
 [[package]]
 name = "codex-monitor"
-version = "0.7.55"
+version = "0.7.56"
 dependencies = [
  "base64 0.22.1",
  "block2",
@@ -631,7 +631,7 @@ dependencies = [
  "tauri-plugin-window-state",
  "tokio",
  "tokio-tungstenite",
- "toml 0.8.2",
+ "toml_edit 0.20.2",
  "uuid",
  "whisper-rs",
 ]

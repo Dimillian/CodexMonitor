@@ -95,6 +95,9 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
         MenuItemBuilder::with_id("file_new_clone_agent", "New Clone Agent").build(handle)?;
     let add_workspace_item =
         MenuItemBuilder::with_id("file_add_workspace", "Add Workspaces...").build(handle)?;
+    let add_workspace_from_url_item =
+        MenuItemBuilder::with_id("file_add_workspace_from_url", "Add Workspace from URL...")
+            .build(handle)?;
 
     registry.register("file_new_agent", &new_agent_item);
     registry.register("file_new_worktree_agent", &new_worktree_agent_item);
@@ -115,6 +118,7 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
                 &new_clone_agent_item,
                 &PredefinedMenuItem::separator(handle)?,
                 &add_workspace_item,
+                &add_workspace_from_url_item,
                 &PredefinedMenuItem::separator(handle)?,
                 &close_window_item,
                 &quit_item,
@@ -132,6 +136,7 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
             &new_clone_agent_item,
             &PredefinedMenuItem::separator(handle)?,
             &add_workspace_item,
+            &add_workspace_from_url_item,
             &PredefinedMenuItem::separator(handle)?,
             &PredefinedMenuItem::close_window(handle, None)?,
             #[cfg(not(target_os = "macos"))]
@@ -342,6 +347,7 @@ pub(crate) fn handle_menu_event<R: tauri::Runtime>(
         "file_new_worktree_agent" => emit_menu_event(app, "menu-new-worktree-agent"),
         "file_new_clone_agent" => emit_menu_event(app, "menu-new-clone-agent"),
         "file_add_workspace" => emit_menu_event(app, "menu-add-workspace"),
+        "file_add_workspace_from_url" => emit_menu_event(app, "menu-add-workspace-from-url"),
         "file_open_settings" => emit_menu_event(app, "menu-open-settings"),
         "file_close_window" | "window_close" => {
             if let Some(window) = app.get_webview_window("main") {

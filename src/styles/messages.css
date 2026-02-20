@@ -724,6 +724,17 @@
   color: var(--text-quiet);
 }
 
+.tool-inline-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tool-inline-action {
+  font-size: 11px;
+  line-height: 1.2;
+  padding: 4px 8px;
+}
+
 .tool-inline-terminal {
   background: var(--surface-command);
   border-radius: 10px;

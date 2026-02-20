@@ -755,13 +755,14 @@ export function buildConversationItem(
     };
   }
   if (type === "webSearch") {
+    const status = asString(item.status ?? "").trim();
     return {
       id,
       kind: "tool",
       toolType: type,
       title: "Web search",
       detail: asString(item.query ?? ""),
-      status: "",
+      status: status || "completed",
       output: "",
     };
   }
@@ -931,19 +932,21 @@ function chooseRicherItem(remote: ConversationItem, local: ConversationItem) {
     const remoteOutput = remote.output ?? "";
     const localOutput = local.output ?? "";
     const hasRemoteOutput = remoteOutput.trim().length > 0;
+    const remoteStatus = remote.status?.trim();
     return {
       ...remote,
-      status: remote.status ?? local.status,
+      status: remoteStatus ? remote.status : local.status,
       output: hasRemoteOutput ? remoteOutput : localOutput,
       changes: remote.changes ?? local.changes,
     };
   }
   if (remote.kind === "diff" && local.kind === "diff") {
     const useLocal = local.diff.length > remote.diff.length;
+    const remoteStatus = remote.status?.trim();
     return {
       ...remote,
       diff: useLocal ? local.diff : remote.diff,
-      status: remote.status ?? local.status,
+      status: remoteStatus ? remote.status : local.status,
     };
   }
   return remote;

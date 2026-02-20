@@ -60,6 +60,11 @@ body {
   font-family: var(--ui-font-family);
 }
 
+.app.is-resizing,
+.app.is-resizing .main {
+  transition: none;
+}
+
 .drag-strip {
   position: absolute;
   top: 0;
@@ -91,6 +96,14 @@ body {
 
 .titlebar-toggle-left {
   left: calc(10px + var(--titlebar-inset-left, 0px));
+}
+
+.app.sidebar-collapsed .titlebar-toggle-left {
+  left: calc(
+    10px
+    + var(--titlebar-inset-left, 0px)
+    + var(--titlebar-collapsed-left-extra, 0px)
+  );
 }
 
 .titlebar-toggle-right {

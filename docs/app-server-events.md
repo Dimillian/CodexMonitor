@@ -1,4 +1,4 @@
-# App-Server Events Reference (Codex `abeafbdca17f6102099ac5b792761b6883c52d35`)
+# App-Server Events Reference (Codex `227352257c9cfb0f509b01dc1a30057c874bb93f`)
 
 This document helps agents quickly answer:
 - Which app-server events CodexMonitor supports right now.
@@ -29,6 +29,7 @@ Thread/turn/item handlers:
 - `src/features/threads/hooks/useThreadItemEvents.ts`
 - `src/features/threads/hooks/useThreadApprovalEvents.ts`
 - `src/features/threads/hooks/useThreadUserInputEvents.ts`
+- `src/features/skills/hooks/useSkills.ts`
 
 State updates:
 - `src/features/threads/hooks/useThreadsReducer.ts`
@@ -59,7 +60,10 @@ routed in `useAppServerEvents.ts` or handled in feature-specific subscriptions.
 - `item/agentMessage/delta`
 - `turn/started`
 - `thread/started`
+- `thread/archived`
 - `thread/name/updated`
+- `thread/status/changed`
+- `thread/unarchived`
 - `codex/backgroundThread`
 - `error`
 - `turn/completed`
@@ -102,10 +106,12 @@ events are currently not routed:
 - `rawResponseItem/completed`
 - `item/mcpToolCall/progress`
 - `mcpServer/oauthLogin/completed`
+- `model/rerouted`
 - `thread/compacted` (deprecated; intentionally not routed)
 - `deprecationNotice`
 - `configWarning`
 - `windows/worldWritableWarning`
+- `windowsSandbox/setupCompleted`
 
 ## Supported Requests (CodexMonitor -> App-Server, v2)
 
@@ -142,9 +148,9 @@ Compared against Codex v2 request methods, CodexMonitor currently does not send:
 - `thread/backgroundTerminals/clean`
 - `thread/loaded/list`
 - `thread/read`
-- `skills/remote/read`
-- `skills/remote/write`
 - `skills/config/write`
+- `skills/remote/export`
+- `skills/remote/list`
 - `mock/experimentalMethod`
 - `mcpServer/oauth/login`
 - `config/mcpServer/reload`
@@ -155,6 +161,7 @@ Compared against Codex v2 request methods, CodexMonitor currently does not send:
 - `config/value/write`
 - `config/batchWrite`
 - `configRequirements/read`
+- `windowsSandbox/setupStart`
 
 ## Server Requests (App-Server -> CodexMonitor, v2)
 

@@ -11,6 +11,7 @@ import { ask, message } from "@tauri-apps/plugin-dialog";
 import {
   addClone as addCloneService,
   addWorkspace as addWorkspaceService,
+  addWorkspaceFromGitUrl as addWorkspaceFromGitUrlService,
   addWorktree as addWorktreeService,
   connectWorkspace as connectWorkspaceService,
   isWorkspacePathDir as isWorkspacePathDirService,
@@ -256,6 +257,61 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
           timestamp: Date.now(),
           source: "error",
           label: "workspace/add error",
+          payload: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
+    },
+    [defaultCodexBin, onDebug],
+  );
+
+
+  const addWorkspaceFromGitUrl = useCallback(
+    async (
+      url: string,
+      destinationPath: string,
+      targetFolderName?: string | null,
+      options?: { activate?: boolean },
+    ) => {
+      const trimmedUrl = url.trim();
+      const trimmedDestination = destinationPath.trim();
+      const trimmedFolderName = targetFolderName?.trim() || null;
+      if (!trimmedUrl) {
+        throw new Error("Remote Git URL is required.");
+      }
+      if (!trimmedDestination) {
+        throw new Error("Destination folder is required.");
+      }
+      const shouldActivate = options?.activate !== false;
+      onDebug?.({
+        id: `${Date.now()}-client-add-workspace-from-url`,
+        timestamp: Date.now(),
+        source: "client",
+        label: "workspace/add-from-url",
+        payload: {
+          url: trimmedUrl,
+          destinationPath: trimmedDestination,
+          targetFolderName: trimmedFolderName,
+        },
+      });
+      try {
+        const workspace = await addWorkspaceFromGitUrlService(
+          trimmedUrl,
+          trimmedDestination,
+          trimmedFolderName,
+          defaultCodexBin ?? null,
+        );
+        setWorkspaces((prev) => [...prev, workspace]);
+        if (shouldActivate) {
+          setActiveWorkspaceId(workspace.id);
+        }
+        return workspace;
+      } catch (error) {
+        onDebug?.({
+          id: `${Date.now()}-client-add-workspace-from-url-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "workspace/add-from-url error",
           payload: error instanceof Error ? error.message : String(error),
         });
         throw error;
@@ -993,6 +1049,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     setActiveWorkspaceId,
     addWorkspace,
     addWorkspaceFromPath,
+    addWorkspaceFromGitUrl,
     addWorkspacesFromPaths,
     filterWorkspacePaths,
     addCloneAgent,
