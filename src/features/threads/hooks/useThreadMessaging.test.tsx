@@ -269,7 +269,7 @@ describe("useThreadMessaging telemetry", () => {
     );
   });
 
-  it("does not fall back to turn/start when turn/steer fails", async () => {
+  it("resets stale processing state when turn/steer reports no active turn", async () => {
     const pushThreadErrorMessage = vi.fn();
     const markProcessing = vi.fn();
     const setActiveTurnId = vi.fn();
@@ -332,11 +332,82 @@ describe("useThreadMessaging telemetry", () => {
     expect(steerTurnService).toHaveBeenCalledTimes(1);
     expect(sendUserMessageService).not.toHaveBeenCalled();
     expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+    expect(markProcessing).toHaveBeenCalledWith("thread-1", false);
+    expect(setActiveTurnId).toHaveBeenCalledWith("thread-1", null);
+    expect(pushThreadErrorMessage).toHaveBeenCalledWith(
+      "thread-1",
+      "Turn steer failed: no active turn to steer. Message queued.",
+    );
+  });
+
+  it("keeps processing state for non-stale turn/steer rpc errors", async () => {
+    const pushThreadErrorMessage = vi.fn();
+    const markProcessing = vi.fn();
+    const setActiveTurnId = vi.fn();
+    vi.mocked(steerTurnService).mockResolvedValueOnce({
+      error: { message: "steer request timed out" },
+    } as unknown as Awaited<ReturnType<typeof steerTurnService>>);
+
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "current",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: true,
+        customPrompts: [],
+        threadStatusById: {
+          "thread-1": {
+            isProcessing: true,
+            isReviewing: false,
+            hasUnread: false,
+            processingStartedAt: 0,
+            lastDurationMs: null,
+          },
+        },
+        activeTurnIdByThread: {
+          "thread-1": "turn-1",
+        },
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing,
+        markReviewing: vi.fn(),
+        setActiveTurnId,
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage,
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      const sendResult = await result.current.sendUserMessageToThread(
+        workspace,
+        "thread-1",
+        "steer timeout",
+        [],
+      );
+      expect(sendResult).toEqual({ status: "steer_failed" });
+    });
+
+    expect(steerTurnService).toHaveBeenCalledTimes(1);
+    expect(sendUserMessageService).not.toHaveBeenCalled();
+    expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
     expect(markProcessing).not.toHaveBeenCalledWith("thread-1", false);
     expect(setActiveTurnId).not.toHaveBeenCalledWith("thread-1", null);
     expect(pushThreadErrorMessage).toHaveBeenCalledWith(
       "thread-1",
-      "Turn steer failed: no active turn to steer. Message queued.",
+      "Turn steer failed: steer request timed out. Message queued.",
     );
   });
 

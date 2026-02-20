@@ -85,6 +85,17 @@ type UseThreadMessagingOptions = {
   ) => void;
 };
 
+function isStaleSteerTurnError(message: string): boolean {
+  const normalized = message.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+  if (normalized.includes("no active turn")) {
+    return true;
+  }
+  return normalized.includes("active turn") && normalized.includes("not found");
+}
+
 export function useThreadMessaging({
   activeWorkspace,
   activeThreadId,
@@ -271,6 +282,10 @@ export function useThreadMessaging({
             safeMessageActivity();
             return { status: "blocked" };
           }
+          if (isStaleSteerTurnError(rpcError)) {
+            markProcessing(threadId, false);
+            setActiveTurnId(threadId, null);
+          }
           pushThreadErrorMessage(
             threadId,
             `Turn steer failed: ${rpcError}. Message queued.`,
@@ -301,7 +316,11 @@ export function useThreadMessaging({
         setActiveTurnId(threadId, turnId);
         return { status: "sent" };
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
         if (requestMode !== "steer") {
+          markProcessing(threadId, false);
+          setActiveTurnId(threadId, null);
+        } else if (isStaleSteerTurnError(errorMessage)) {
           markProcessing(threadId, false);
           setActiveTurnId(threadId, null);
         }
@@ -310,17 +329,13 @@ export function useThreadMessaging({
           timestamp: Date.now(),
           source: "error",
           label: requestMode === "steer" ? "turn/steer error" : "turn/start error",
-          payload: error instanceof Error ? error.message : String(error),
+          payload: errorMessage,
         });
         pushThreadErrorMessage(
           threadId,
           requestMode === "steer"
-            ? `Turn steer failed: ${
-              error instanceof Error ? error.message : String(error)
-            }. Message queued.`
-            : error instanceof Error
-              ? error.message
-              : String(error),
+            ? `Turn steer failed: ${errorMessage}. Message queued.`
+            : errorMessage,
         );
         safeMessageActivity();
         return { status: requestMode === "steer" ? "steer_failed" : "blocked" };

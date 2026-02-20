@@ -154,13 +154,17 @@ describe("useQueuedSend", () => {
   });
 
   it("queues the message when a forced steer attempt fails", async () => {
+    const sendUserMessage = vi
+      .fn()
+      .mockResolvedValueOnce({ status: "steer_failed" })
+      .mockResolvedValueOnce({ status: "sent" });
     const options = makeOptions({
       isProcessing: true,
       steerEnabled: true,
       followUpMessageBehavior: "steer",
-      sendUserMessage: vi.fn().mockResolvedValue({ status: "steer_failed" }),
+      sendUserMessage,
     });
-    const { result } = renderHook((props) => useQueuedSend(props), {
+    const { result, rerender } = renderHook((props) => useQueuedSend(props), {
       initialProps: options,
     });
 
@@ -176,6 +180,24 @@ describe("useQueuedSend", () => {
     );
     expect(result.current.activeQueue).toHaveLength(1);
     expect(result.current.activeQueue[0]?.text).toBe("Fallback to queue");
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(options.sendUserMessage).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      rerender({ ...options, isProcessing: false, sendUserMessage });
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(options.sendUserMessage).toHaveBeenCalledTimes(2);
+    expect(options.sendUserMessage).toHaveBeenLastCalledWith(
+      "Fallback to queue",
+      [],
+    );
   });
 
   it("retries queued send after failure", async () => {
