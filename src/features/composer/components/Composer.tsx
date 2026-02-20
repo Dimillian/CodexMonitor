@@ -43,6 +43,7 @@ import { ComposerInput } from "./ComposerInput";
 import { ComposerMetaBar } from "./ComposerMetaBar";
 import { ComposerQueue } from "./ComposerQueue";
 import { isMobilePlatform } from "../../../utils/platformPaths";
+import type { CodexArgsOption } from "../../threads/utils/codexArgsProfiles";
 
 type ComposerProps = {
   onSend: (text: string, images: string[], appMentions?: AppMention[]) => void;
@@ -63,6 +64,9 @@ type ComposerProps = {
   selectedEffort: string | null;
   onSelectEffort: (effort: string) => void;
   reasoningSupported: boolean;
+  codexArgsOptions?: CodexArgsOption[];
+  selectedCodexArgsOverride?: string | null;
+  onSelectCodexArgsOverride?: (value: string | null) => void;
   accessMode: "read-only" | "current" | "full-access";
   onSelectAccessMode: (mode: "read-only" | "current" | "full-access") => void;
   skills: { name: string; description?: string }[];
@@ -167,6 +171,9 @@ export const Composer = memo(function Composer({
   selectedEffort,
   onSelectEffort,
   reasoningSupported,
+  codexArgsOptions = [],
+  selectedCodexArgsOverride = null,
+  onSelectCodexArgsOverride,
   accessMode,
   onSelectAccessMode,
   skills,
@@ -828,6 +835,9 @@ export const Composer = memo(function Composer({
         selectedEffort={selectedEffort}
         onSelectEffort={onSelectEffort}
         reasoningSupported={reasoningSupported}
+        codexArgsOptions={codexArgsOptions}
+        selectedCodexArgsOverride={selectedCodexArgsOverride}
+        onSelectCodexArgsOverride={onSelectCodexArgsOverride}
         accessMode={accessMode}
         onSelectAccessMode={onSelectAccessMode}
         contextUsage={contextUsage}

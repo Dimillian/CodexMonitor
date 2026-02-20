@@ -49,6 +49,14 @@ type UseThreadMessagingOptions = {
   reviewDeliveryMode?: "inline" | "detached";
   steerEnabled: boolean;
   customPrompts: CustomPromptOption[];
+  ensureWorkspaceRuntimeCodexArgs?: (
+    workspaceId: string,
+    threadId: string | null,
+  ) => Promise<void>;
+  shouldPreflightRuntimeCodexArgsForSend?: (
+    workspaceId: string,
+    threadId: string,
+  ) => boolean;
   threadStatusById: ThreadState["threadStatusById"];
   activeTurnIdByThread: ThreadState["activeTurnIdByThread"];
   rateLimitsByWorkspace: Record<string, RateLimitSnapshot | null>;
@@ -92,12 +100,14 @@ export function useThreadMessaging({
   reviewDeliveryMode = "inline",
   steerEnabled,
   customPrompts,
+  ensureWorkspaceRuntimeCodexArgs,
+  shouldPreflightRuntimeCodexArgsForSend,
   threadStatusById,
   activeTurnIdByThread,
   rateLimitsByWorkspace,
   pendingInterruptsRef,
   dispatch,
-  getCustomName,
+  getCustomName: _getCustomName,
   markProcessing,
   markReviewing,
   setActiveTurnId,
@@ -195,6 +205,15 @@ export function useThreadMessaging({
       });
       const requestMode: "start" | "steer" = shouldSteer ? "steer" : "start";
       try {
+        const shouldPreflightRuntimeCodexArgs =
+          shouldPreflightRuntimeCodexArgsForSend?.(workspace.id, threadId) ?? true;
+        if (
+          !shouldSteer &&
+          shouldPreflightRuntimeCodexArgs &&
+          ensureWorkspaceRuntimeCodexArgs
+        ) {
+          await ensureWorkspaceRuntimeCodexArgs(workspace.id, threadId);
+        }
         const startTurn = () => {
           const payload: {
             model?: string | null;
@@ -313,8 +332,9 @@ export function useThreadMessaging({
       customPrompts,
       dispatch,
       effort,
+      ensureWorkspaceRuntimeCodexArgs,
+      shouldPreflightRuntimeCodexArgsForSend,
       activeTurnIdByThread,
-      getCustomName,
       markProcessing,
       model,
       onDebug,

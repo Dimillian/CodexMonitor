@@ -533,6 +533,8 @@ pub(crate) struct AppSettings {
         rename = "commitMessagePrompt"
     )]
     pub(crate) commit_message_prompt: String,
+    #[serde(default, rename = "commitMessageModelId")]
+    pub(crate) commit_message_model_id: Option<String>,
     #[serde(
         default = "default_system_notifications_enabled",
         rename = "systemNotificationsEnabled"
@@ -1140,6 +1142,7 @@ impl Default for AppSettings {
             preload_git_diffs: default_preload_git_diffs(),
             git_diff_ignore_whitespace_changes: default_git_diff_ignore_whitespace_changes(),
             commit_message_prompt: default_commit_message_prompt(),
+            commit_message_model_id: None,
             collaboration_modes_enabled: true,
             steer_enabled: true,
             pause_queued_messages_when_response_required:

@@ -76,6 +76,7 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       unpinThread={options.unpinThread}
       isThreadPinned={options.isThreadPinned}
       getPinTimestamp={options.getPinTimestamp}
+      getThreadArgsBadge={options.getThreadArgsBadge}
       onRenameThread={options.onRenameThread}
       onDeleteWorkspace={options.onDeleteWorkspace}
       onDeleteWorktree={options.onDeleteWorktree}
@@ -158,6 +159,9 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       selectedEffort={options.selectedEffort}
       onSelectEffort={options.onSelectEffort}
       reasoningSupported={options.reasoningSupported}
+      codexArgsOptions={options.codexArgsOptions}
+      selectedCodexArgsOverride={options.selectedCodexArgsOverride}
+      onSelectCodexArgsOverride={options.onSelectCodexArgsOverride}
       accessMode={options.accessMode}
       onSelectAccessMode={options.onSelectAccessMode}
       skills={options.skills}

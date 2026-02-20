@@ -530,6 +530,32 @@ impl DaemonState {
         .await
     }
 
+    async fn set_workspace_runtime_codex_args(
+        &self,
+        workspace_id: String,
+        codex_args: Option<String>,
+        client_version: String,
+    ) -> Result<workspaces_core::WorkspaceRuntimeCodexArgsResult, String> {
+        workspaces_core::set_workspace_runtime_codex_args_core(
+            workspace_id,
+            codex_args,
+            &self.workspaces,
+            &self.sessions,
+            &self.app_settings,
+            move |entry, default_bin, next_args, codex_home| {
+                spawn_with_client(
+                    self.event_sink.clone(),
+                    client_version.clone(),
+                    entry,
+                    default_bin,
+                    next_args,
+                    codex_home,
+                )
+            },
+        )
+        .await
+    }
+
     async fn get_app_settings(&self) -> AppSettings {
         settings_core::get_app_settings_core(&self.app_settings).await
     }
@@ -1205,7 +1231,11 @@ impl DaemonState {
         codex_aux_core::codex_doctor_core(&self.app_settings, codex_bin, codex_args).await
     }
 
-    async fn generate_commit_message(&self, workspace_id: String) -> Result<String, String> {
+    async fn generate_commit_message(
+        &self,
+        workspace_id: String,
+        commit_message_model_id: Option<String>,
+    ) -> Result<String, String> {
         let repo_root = git_ui_core::resolve_repo_root_for_workspace_core(
             &self.workspaces,
             workspace_id.clone(),
@@ -1221,6 +1251,7 @@ impl DaemonState {
             workspace_id,
             &diff,
             &commit_message_prompt,
+            commit_message_model_id.as_deref(),
             |workspace_id, thread_id| {
                 emit_background_thread_hide(&self.event_sink, workspace_id, thread_id);
             },

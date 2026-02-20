@@ -151,6 +151,7 @@ fn can_retry_after_disconnect(method: &str) -> bool {
             | "collaboration_mode_list"
             | "connect_workspace"
             | "experimental_feature_list"
+            | "set_workspace_runtime_codex_args"
             | "file_read"
             | "get_agents_settings"
             | "get_config_model"

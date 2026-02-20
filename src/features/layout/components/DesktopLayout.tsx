@@ -133,7 +133,7 @@ export function DesktopLayout({
     ) {
       activeElement.blur();
     }
-  }, [centerMode, splitChatDiffView]);
+  }, [chatLayerActive, diffLayerActive, splitChatDiffView]);
 
   return (
     <>
