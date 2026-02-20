@@ -277,6 +277,73 @@ async fn find_listener_pid(port: u16) -> Option<u32> {
         .find_map(|line| line.trim().parse::<u32>().ok())
 }
 
+#[cfg(any(target_os = "windows", test))]
+fn parse_windows_netstat_listener_pid(output: &str, port: u16) -> Option<u32> {
+    let port_suffix = format!(":{port}");
+    output.lines().find_map(|line| {
+        let columns: Vec<&str> = line.split_whitespace().collect();
+        if columns.len() < 5 {
+            return None;
+        }
+        if !columns[0].eq_ignore_ascii_case("tcp") {
+            return None;
+        }
+        if !columns[1].ends_with(&port_suffix) {
+            return None;
+        }
+        if !columns[3].eq_ignore_ascii_case("listening") {
+            return None;
+        }
+        columns[4].parse::<u32>().ok()
+    })
+}
+
+#[cfg(target_os = "windows")]
+fn taskkill_indicates_missing_pid(output: &Output) -> bool {
+    if output.status.code() == Some(128) {
+        return true;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout).to_ascii_lowercase();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_ascii_lowercase();
+    stdout.contains("not found")
+        || stderr.contains("not found")
+        || stdout.contains("no running instance")
+        || stderr.contains("no running instance")
+}
+
+#[cfg(target_os = "windows")]
+fn taskkill_failure_detail(output: &Output) -> String {
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = stdout.trim();
+    let stderr = stderr.trim();
+    match (stdout.is_empty(), stderr.is_empty()) {
+        (false, false) => format!("stdout: {stdout}; stderr: {stderr}"),
+        (false, true) => format!("stdout: {stdout}"),
+        (true, false) => format!("stderr: {stderr}"),
+        (true, true) => format!("exit status: {}", output.status),
+    }
+}
+
+#[cfg(any(target_os = "windows", test))]
+fn tasklist_output_contains_pid(output: &str, pid: u32) -> bool {
+    output.lines().any(|line| {
+        let line = line.trim();
+        if line.is_empty() {
+            return false;
+        }
+        if line.to_ascii_lowercase().contains("no tasks are running") {
+            return false;
+        }
+        let normalized = line.trim_matches('"');
+        let columns: Vec<&str> = normalized.split("\",\"").collect();
+        if columns.len() < 2 {
+            return false;
+        }
+        columns[1].trim().parse::<u32>() == Ok(pid)
+    })
+}
+
 #[cfg(unix)]
 async fn kill_pid_gracefully(pid: u32) -> Result<(), String> {
     let term_result = unsafe { libc::kill(pid as i32, libc::SIGTERM) };
@@ -313,12 +380,111 @@ async fn kill_pid_gracefully(pid: u32) -> Result<(), String> {
     Err(format!("Daemon process {pid} is still running."))
 }
 
-#[cfg(not(unix))]
+#[cfg(target_os = "windows")]
+async fn find_listener_pid(port: u16) -> Option<u32> {
+    let powershell_script = format!(
+        "$conn = Get-NetTCPConnection -State Listen -LocalPort {port} -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess; if ($null -ne $conn) {{ $conn }}"
+    );
+    let powershell_output = tokio_command("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command"])
+        .arg(&powershell_script)
+        .output()
+        .await;
+    if let Ok(output) = powershell_output {
+        if output.status.success() {
+            if let Ok(pid) = String::from_utf8_lossy(&output.stdout)
+                .trim()
+                .parse::<u32>()
+            {
+                return Some(pid);
+            }
+        }
+    }
+
+    let netstat_output = tokio_command("netstat")
+        .args(["-ano", "-p", "tcp"])
+        .output()
+        .await
+        .ok()?;
+    if !netstat_output.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&netstat_output.stdout);
+    parse_windows_netstat_listener_pid(&stdout, port)
+}
+
+#[cfg(target_os = "windows")]
+async fn is_pid_running_windows(pid: u32) -> bool {
+    let tasklist_output = match tokio_command("tasklist")
+        .args(["/FO", "CSV", "/NH", "/FI"])
+        .arg(format!("PID eq {pid}"))
+        .output()
+        .await
+    {
+        Ok(output) => output,
+        Err(_) => return false,
+    };
+    if !tasklist_output.status.success() {
+        return false;
+    }
+    let stdout = String::from_utf8_lossy(&tasklist_output.stdout);
+    tasklist_output_contains_pid(&stdout, pid)
+}
+
+#[cfg(target_os = "windows")]
+async fn kill_pid_gracefully(pid: u32) -> Result<(), String> {
+    let terminate_output = tokio_command("taskkill")
+        .arg("/PID")
+        .arg(pid.to_string())
+        .arg("/T")
+        .output()
+        .await
+        .map_err(|err| format!("Failed to stop daemon process {pid}: {err}"))?;
+    if !terminate_output.status.success() && !taskkill_indicates_missing_pid(&terminate_output) {
+        return Err(format!(
+            "Failed to stop daemon process {pid}: {}",
+            taskkill_failure_detail(&terminate_output)
+        ));
+    }
+
+    for _ in 0..12 {
+        if !is_pid_running_windows(pid).await {
+            return Ok(());
+        }
+        sleep(Duration::from_millis(100)).await;
+    }
+
+    let force_output = tokio_command("taskkill")
+        .arg("/PID")
+        .arg(pid.to_string())
+        .arg("/T")
+        .arg("/F")
+        .output()
+        .await
+        .map_err(|err| format!("Failed to force-stop daemon process {pid}: {err}"))?;
+    if !force_output.status.success() && !taskkill_indicates_missing_pid(&force_output) {
+        return Err(format!(
+            "Failed to force-stop daemon process {pid}: {}",
+            taskkill_failure_detail(&force_output)
+        ));
+    }
+
+    for _ in 0..8 {
+        if !is_pid_running_windows(pid).await {
+            return Ok(());
+        }
+        sleep(Duration::from_millis(100)).await;
+    }
+
+    Err(format!("Daemon process {pid} is still running."))
+}
+
+#[cfg(all(not(unix), not(target_os = "windows")))]
 async fn find_listener_pid(_port: u16) -> Option<u32> {
     None
 }
 
-#[cfg(not(unix))]
+#[cfg(all(not(unix), not(target_os = "windows")))]
 async fn kill_pid_gracefully(_pid: u32) -> Result<(), String> {
     Err("Stopping external daemon by pid is not supported on this platform.".to_string())
 }
@@ -410,7 +576,8 @@ pub(crate) async fn tailscale_status() -> Result<TailscaleStatus, String> {
 mod tests {
     use super::{
         daemon_listen_addr, ensure_listen_addr_available, parse_port_from_remote_host,
-        sync_tcp_daemon_listen_addr, tailscale_binary_candidates,
+        parse_windows_netstat_listener_pid, sync_tcp_daemon_listen_addr,
+        tailscale_binary_candidates, tasklist_output_contains_pid,
     };
     use crate::types::{TcpDaemonState, TcpDaemonStatus};
 
@@ -497,6 +664,30 @@ mod tests {
                 .expect_err("expected occupied port error");
             assert!(error.contains("unavailable"));
         });
+    }
+
+    #[test]
+    fn parses_listener_pid_from_windows_netstat_output() {
+        let sample = r#"
+  TCP    0.0.0.0:4732           0.0.0.0:0              LISTENING       12345
+  TCP    [::]:4732              [::]:0                 LISTENING       67890
+"#;
+        assert_eq!(
+            parse_windows_netstat_listener_pid(sample, 4732),
+            Some(12345)
+        );
+        assert_eq!(parse_windows_netstat_listener_pid(sample, 9999), None);
+    }
+
+    #[test]
+    fn detects_pid_in_windows_tasklist_csv_output() {
+        let sample = "\"codex-monitor-daemon.exe\",\"12345\",\"Console\",\"1\",\"12,000 K\"";
+        assert!(tasklist_output_contains_pid(sample, 12345));
+        assert!(!tasklist_output_contains_pid(sample, 22222));
+        assert!(!tasklist_output_contains_pid(
+            "INFO: No tasks are running which match the specified criteria.",
+            12345
+        ));
     }
 }
 
