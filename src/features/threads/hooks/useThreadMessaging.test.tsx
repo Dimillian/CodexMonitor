@@ -336,7 +336,7 @@ describe("useThreadMessaging telemetry", () => {
     expect(setActiveTurnId).toHaveBeenCalledWith("thread-1", null);
     expect(pushThreadErrorMessage).toHaveBeenCalledWith(
       "thread-1",
-      "Turn steer failed: no active turn to steer. Message queued.",
+      "Turn steer failed: no active turn to steer",
     );
   });
 
@@ -407,7 +407,7 @@ describe("useThreadMessaging telemetry", () => {
     expect(setActiveTurnId).not.toHaveBeenCalledWith("thread-1", null);
     expect(pushThreadErrorMessage).toHaveBeenCalledWith(
       "thread-1",
-      "Turn steer failed: steer request timed out. Message queued.",
+      "Turn steer failed: steer request timed out",
     );
   });
 
@@ -477,7 +477,7 @@ describe("useThreadMessaging telemetry", () => {
     expect(setActiveTurnId).not.toHaveBeenCalledWith("thread-1", null);
     expect(pushThreadErrorMessage).toHaveBeenCalledWith(
       "thread-1",
-      "Turn steer failed: steer network failure. Message queued.",
+      "Turn steer failed: steer network failure",
     );
   });
 });

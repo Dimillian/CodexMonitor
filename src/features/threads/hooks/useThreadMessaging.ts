@@ -288,7 +288,7 @@ export function useThreadMessaging({
           }
           pushThreadErrorMessage(
             threadId,
-            `Turn steer failed: ${rpcError}. Message queued.`,
+            `Turn steer failed: ${rpcError}`,
           );
           safeMessageActivity();
           return { status: "steer_failed" };
@@ -334,7 +334,7 @@ export function useThreadMessaging({
         pushThreadErrorMessage(
           threadId,
           requestMode === "steer"
-            ? `Turn steer failed: ${errorMessage}. Message queued.`
+            ? `Turn steer failed: ${errorMessage}`
             : errorMessage,
         );
         safeMessageActivity();
