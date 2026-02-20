@@ -36,7 +36,7 @@ type ThreadCodexSeedPatch = {
   effort: string | null;
   accessMode: AccessMode;
   collaborationModeId: string | null;
-  codexArgsOverride: string | null;
+  codexArgsOverride: string | null | undefined;
 };
 
 export function resolveWorkspaceRuntimeCodexArgsOverride(options: {
@@ -142,7 +142,7 @@ export function buildThreadCodexSeedPatch(options: {
   resolvedEffort: string | null;
   accessMode: AccessMode;
   selectedCollaborationModeId: string | null;
-  codexArgsOverride?: string | null;
+  codexArgsOverride?: string | null | undefined;
   pendingSeed: PendingNewThreadSeed | null;
 }): ThreadCodexSeedPatch {
   const {
@@ -151,7 +151,7 @@ export function buildThreadCodexSeedPatch(options: {
     resolvedEffort,
     accessMode,
     selectedCollaborationModeId,
-    codexArgsOverride = null,
+    codexArgsOverride,
     pendingSeed,
   } = options;
 

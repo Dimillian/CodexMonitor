@@ -333,5 +333,22 @@ describe("threadCodexParamsSeed", () => {
       collaborationModeId: "default",
       codexArgsOverride: "--profile composer",
     });
+
+    expect(
+      buildThreadCodexSeedPatch({
+        workspaceId: "ws-1",
+        selectedModelId: "gpt-5",
+        resolvedEffort: "high",
+        accessMode: "current",
+        selectedCollaborationModeId: "default",
+        pendingSeed: null,
+      }),
+    ).toEqual({
+      modelId: "gpt-5",
+      effort: "high",
+      accessMode: "current",
+      collaborationModeId: "default",
+      codexArgsOverride: undefined,
+    });
   });
 });

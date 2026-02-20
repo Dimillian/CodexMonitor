@@ -81,7 +81,6 @@ function makeSyncParams(
     resolvedEffort: "high",
     accessMode: "full-access",
     selectedCollaborationModeId: "default",
-    selectedCodexArgsOverride: "--profile stale",
     ...overrides,
   };
 }
@@ -152,10 +151,8 @@ describe("useThreadCodexSyncOrchestration seed behavior", () => {
     vi.clearAllMocks();
   });
 
-  it("does not seed stale selected codex args into unseeded thread scope", async () => {
-    const params = makeSyncParams({
-      selectedCodexArgsOverride: "--profile stale",
-    });
+  it("preserves inherit semantics when seeding unseeded thread scope", async () => {
+    const params = makeSyncParams();
 
     renderHook(() => useThreadCodexSyncOrchestration(params));
 
@@ -166,7 +163,7 @@ describe("useThreadCodexSyncOrchestration seed behavior", () => {
     expect(params.patchThreadCodexParams).toHaveBeenCalledWith(
       "ws-1",
       "thread-2",
-      expect.objectContaining({ codexArgsOverride: null }),
+      expect.objectContaining({ codexArgsOverride: undefined }),
     );
   });
 
@@ -180,7 +177,6 @@ describe("useThreadCodexSyncOrchestration seed behavior", () => {
           codexArgsOverride: "--profile pending",
         },
       } as MutableRefObject<PendingNewThreadSeed | null>,
-      selectedCodexArgsOverride: "--profile stale",
     });
 
     renderHook(() => useThreadCodexSyncOrchestration(params));

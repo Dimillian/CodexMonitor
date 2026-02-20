@@ -66,7 +66,6 @@ type UseThreadCodexSyncOrchestrationParams = {
   resolvedEffort: string | null;
   accessMode: AccessMode;
   selectedCollaborationModeId: string | null;
-  selectedCodexArgsOverride?: string | null;
 };
 
 type MainTab = "home" | "projects" | "codex" | "git" | "log";
@@ -199,15 +198,6 @@ export function useThreadCodexSyncOrchestration({
 
     seededThreadParamsRef.current.add(key);
     const pendingSeed = pendingNewThreadSeedRef.current;
-    const resolvedSeedState = resolveThreadCodexState({
-      workspaceId,
-      threadId,
-      defaultAccessMode: appSettings.defaultAccessMode,
-      lastComposerModelId: appSettings.lastComposerModelId,
-      lastComposerReasoningEffort: appSettings.lastComposerReasoningEffort,
-      stored: null,
-      pendingSeed,
-    });
     patchThreadCodexParams(
       workspaceId,
       threadId,
@@ -217,7 +207,6 @@ export function useThreadCodexSyncOrchestration({
         resolvedEffort,
         accessMode,
         selectedCollaborationModeId,
-        codexArgsOverride: resolvedSeedState.preferredCodexArgsOverride,
         pendingSeed,
       }),
     );
@@ -228,9 +217,6 @@ export function useThreadCodexSyncOrchestration({
     activeThreadId,
     activeWorkspaceId,
     accessMode,
-    appSettings.defaultAccessMode,
-    appSettings.lastComposerModelId,
-    appSettings.lastComposerReasoningEffort,
     getThreadCodexParams,
     patchThreadCodexParams,
     resolvedEffort,
