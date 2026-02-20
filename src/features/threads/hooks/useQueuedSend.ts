@@ -4,6 +4,7 @@ import type {
   ComposerSendIntent,
   FollowUpMessageBehavior,
   QueuedMessage,
+  SendMessageResult,
   WorkspaceInfo,
 } from "@/types";
 
@@ -27,13 +28,13 @@ type UseQueuedSendOptions = {
     images?: string[],
     appMentions?: AppMention[],
     options?: { sendIntent?: ComposerSendIntent },
-  ) => Promise<{ status: "sent" | "blocked" | "steer_failed" }>;
+  ) => Promise<SendMessageResult>;
   sendUserMessageToThread: (
     workspace: WorkspaceInfo,
     threadId: string,
     text: string,
     images?: string[],
-  ) => Promise<unknown>;
+  ) => Promise<void | SendMessageResult>;
   startFork: (text: string) => Promise<void>;
   startReview: (text: string) => Promise<void>;
   startResume: (text: string) => Promise<void>;

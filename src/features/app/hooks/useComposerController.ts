@@ -4,6 +4,7 @@ import type {
   ComposerSendIntent,
   FollowUpMessageBehavior,
   QueuedMessage,
+  SendMessageResult,
   WorkspaceInfo,
 } from "../../../types";
 import { useComposerImages } from "../../composer/hooks/useComposerImages";
@@ -58,7 +59,7 @@ export function useComposerController({
     threadId: string,
     text: string,
     images?: string[],
-  ) => Promise<unknown>;
+  ) => Promise<void | SendMessageResult>;
   startFork: (text: string) => Promise<void>;
   startReview: (text: string) => Promise<void>;
   startResume: (text: string) => Promise<void>;

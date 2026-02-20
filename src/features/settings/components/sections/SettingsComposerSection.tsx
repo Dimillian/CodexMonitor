@@ -28,41 +28,52 @@ export function SettingsComposerSection({
       </div>
       <div className="settings-field">
         <div className="settings-field-label">Follow-up behavior</div>
-        <div className="settings-segmented" role="radiogroup" aria-label="Follow-up behavior">
-          <button
-            type="button"
-            role="radio"
-            aria-checked={appSettings.followUpMessageBehavior === "queue"}
+        <div className="settings-segmented" aria-label="Follow-up behavior">
+          <label
             className={`settings-segmented-option${
               appSettings.followUpMessageBehavior === "queue" ? " is-active" : ""
             }`}
-            onClick={() =>
-              void onUpdateAppSettings({
-                ...appSettings,
-                followUpMessageBehavior: "queue",
-              })
-            }
           >
-            Queue
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={appSettings.followUpMessageBehavior === "steer"}
+            <input
+              className="settings-segmented-input"
+              type="radio"
+              name="follow-up-behavior"
+              value="queue"
+              checked={appSettings.followUpMessageBehavior === "queue"}
+              onChange={() =>
+                void onUpdateAppSettings({
+                  ...appSettings,
+                  followUpMessageBehavior: "queue",
+                })
+              }
+            />
+            <span className="settings-segmented-option-label">Queue</span>
+          </label>
+          <label
             className={`settings-segmented-option${
               appSettings.followUpMessageBehavior === "steer" ? " is-active" : ""
-            }`}
-            disabled={steerUnavailable}
+            }${steerUnavailable ? " is-disabled" : ""}`}
             title={steerUnavailable ? "Steer is unavailable in the current Codex config." : ""}
-            onClick={() =>
-              void onUpdateAppSettings({
-                ...appSettings,
-                followUpMessageBehavior: "steer",
-              })
-            }
           >
-            Steer
-          </button>
+            <input
+              className="settings-segmented-input"
+              type="radio"
+              name="follow-up-behavior"
+              value="steer"
+              checked={appSettings.followUpMessageBehavior === "steer"}
+              disabled={steerUnavailable}
+              onChange={() => {
+                if (steerUnavailable) {
+                  return;
+                }
+                void onUpdateAppSettings({
+                  ...appSettings,
+                  followUpMessageBehavior: "steer",
+                });
+              }}
+            />
+            <span className="settings-segmented-option-label">Steer</span>
+          </label>
         </div>
         <div className="settings-help">
           Choose the default while a run is active. Press {followUpShortcutLabel} to send the

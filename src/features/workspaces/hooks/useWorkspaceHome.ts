@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ModelOption, WorkspaceInfo } from "../../../types";
+import type { ModelOption, SendMessageResult, WorkspaceInfo } from "../../../types";
 import { generateRunMetadata } from "../../../services/tauri";
 
 export type WorkspaceRunMode = "local" | "worktree";
@@ -52,7 +52,7 @@ type UseWorkspaceHomeOptions = {
       effort?: string | null;
       collaborationMode?: Record<string, unknown> | null;
     },
-  ) => Promise<unknown>;
+  ) => Promise<void | SendMessageResult>;
   onWorktreeCreated?: (worktree: WorkspaceInfo, parent: WorkspaceInfo) => Promise<void> | void;
 };
 

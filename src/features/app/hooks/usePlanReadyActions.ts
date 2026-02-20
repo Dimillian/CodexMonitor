@@ -1,5 +1,9 @@
 import { useCallback } from "react";
-import type { CollaborationModeOption, WorkspaceInfo } from "../../../types";
+import type {
+  CollaborationModeOption,
+  SendMessageResult,
+  WorkspaceInfo,
+} from "../../../types";
 import {
   makePlanReadyAcceptMessage,
   makePlanReadyChangesMessage,
@@ -15,7 +19,7 @@ type SendUserMessageToThread = (
   message: string,
   imageIds: string[],
   options?: SendUserMessageOptions,
-) => Promise<unknown>;
+) => Promise<void | SendMessageResult>;
 
 type UsePlanReadyActionsOptions = {
   activeWorkspace: WorkspaceInfo | null;
