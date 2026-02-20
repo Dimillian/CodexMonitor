@@ -25,7 +25,8 @@ type UsePlanReadyActionsOptions = {
   resolvedEffort: string | null;
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
   sendUserMessageToThread: SendUserMessageToThread;
-  setSelectedCollaborationModeId: (modeId: string) => void;
+  setSelectedCollaborationModeId: (modeId: string | null) => void;
+  persistThreadCodexParams: (patch: { collaborationModeId?: string | null }) => void;
 };
 
 export function usePlanReadyActions({
@@ -37,6 +38,7 @@ export function usePlanReadyActions({
   connectWorkspace,
   sendUserMessageToThread,
   setSelectedCollaborationModeId,
+  persistThreadCodexParams,
 }: UsePlanReadyActionsOptions) {
   const findCollaborationMode = useCallback(
     (wanted: string) => {
@@ -56,6 +58,28 @@ export function usePlanReadyActions({
     },
     [collaborationModes],
   );
+
+  const isPlanMode = useCallback((mode: CollaborationModeOption | null) => {
+    if (!mode) {
+      return false;
+    }
+    const modeValue = (mode.mode || mode.id).trim().toLowerCase();
+    return modeValue === "plan";
+  }, []);
+
+  const findImplementationMode = useCallback(() => {
+    const defaultMode = findCollaborationMode("default");
+    if (defaultMode && !isPlanMode(defaultMode)) {
+      return defaultMode;
+    }
+
+    const codeMode = findCollaborationMode("code");
+    if (codeMode && !isPlanMode(codeMode)) {
+      return codeMode;
+    }
+
+    return collaborationModes.find((mode) => !isPlanMode(mode)) ?? null;
+  }, [collaborationModes, findCollaborationMode, isPlanMode]);
 
   const buildCollaborationModePayloadFor = useCallback(
     (mode: CollaborationModeOption | null) => {
@@ -93,31 +117,28 @@ export function usePlanReadyActions({
       await connectWorkspace(activeWorkspace);
     }
 
-    const defaultMode =
-      findCollaborationMode("default") ??
-      findCollaborationMode("code") ??
-      collaborationModes[0] ??
-      null;
+    const implementationMode = findImplementationMode();
+    const implementationModeId = implementationMode?.id ?? null;
+    setSelectedCollaborationModeId(implementationModeId);
+    persistThreadCodexParams({
+      collaborationModeId: implementationModeId,
+    });
 
-    if (defaultMode?.id) {
-      setSelectedCollaborationModeId(defaultMode.id);
-    }
-
-    const collaborationMode = buildCollaborationModePayloadFor(defaultMode);
+    const collaborationMode = buildCollaborationModePayloadFor(implementationMode);
     await sendUserMessageToThread(
       activeWorkspace,
       activeThreadId,
       makePlanReadyAcceptMessage(),
       [],
-      collaborationMode ? { collaborationMode } : undefined,
+      { collaborationMode: collaborationMode ?? null },
     );
   }, [
     activeThreadId,
     activeWorkspace,
     buildCollaborationModePayloadFor,
-    collaborationModes,
     connectWorkspace,
-    findCollaborationMode,
+    findImplementationMode,
+    persistThreadCodexParams,
     sendUserMessageToThread,
     setSelectedCollaborationModeId,
   ]);
@@ -136,6 +157,9 @@ export function usePlanReadyActions({
       const planMode = findCollaborationMode("plan");
       if (planMode?.id) {
         setSelectedCollaborationModeId(planMode.id);
+        persistThreadCodexParams({
+          collaborationModeId: planMode.id,
+        });
       }
       const collaborationMode = buildCollaborationModePayloadFor(planMode);
       const message = makePlanReadyChangesMessage(trimmed);
@@ -144,7 +168,7 @@ export function usePlanReadyActions({
         activeThreadId,
         message,
         [],
-        collaborationMode ? { collaborationMode } : undefined,
+        { collaborationMode: collaborationMode ?? null },
       );
     },
     [
@@ -153,6 +177,7 @@ export function usePlanReadyActions({
       buildCollaborationModePayloadFor,
       connectWorkspace,
       findCollaborationMode,
+      persistThreadCodexParams,
       sendUserMessageToThread,
       setSelectedCollaborationModeId,
     ],

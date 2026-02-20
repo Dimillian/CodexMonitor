@@ -242,4 +242,51 @@ describe("Sidebar", () => {
     fireEvent.click(draftRow);
     expect(onSelectWorkspace).toHaveBeenCalledWith("ws-1");
   });
+
+  it("does not show a workspace activity indicator when a thread is processing", () => {
+    render(
+      <Sidebar
+        {...baseProps}
+        workspaces={[
+          {
+            id: "ws-1",
+            name: "Workspace",
+            path: "/tmp/workspace",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-1",
+                name: "Workspace",
+                path: "/tmp/workspace",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+            ],
+          },
+        ]}
+        threadsByWorkspace={{
+          "ws-1": [
+            {
+              id: "thread-1",
+              name: "Thread 1",
+              updated_at: new Date().toISOString(),
+            } as never,
+          ],
+        }}
+        threadStatusById={{
+          "thread-1": { isProcessing: true, hasUnread: false, isReviewing: false },
+        }}
+      />,
+    );
+
+    const indicator = screen.queryByTitle("Streaming updates in progress");
+    expect(indicator).toBeNull();
+  });
 });

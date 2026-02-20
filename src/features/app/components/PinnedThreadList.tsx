@@ -20,6 +20,7 @@ type PinnedThreadListProps = {
   threadStatusById: ThreadStatusMap;
   pendingUserInputKeys?: Set<string>;
   getThreadTime: (thread: ThreadSummary) => string | null;
+  getThreadArgsBadge?: (workspaceId: string, threadId: string) => string | null;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
   onSelectThread: (workspaceId: string, threadId: string) => void;
   onShowThreadMenu: (
@@ -37,6 +38,7 @@ export function PinnedThreadList({
   threadStatusById,
   pendingUserInputKeys,
   getThreadTime,
+  getThreadArgsBadge,
   isThreadPinned,
   onSelectThread,
   onShowThreadMenu,
@@ -45,6 +47,7 @@ export function PinnedThreadList({
     <div className="thread-list pinned-thread-list">
       {rows.map(({ thread, depth, workspaceId }) => {
         const relativeTime = getThreadTime(thread);
+        const badge = getThreadArgsBadge?.(workspaceId, thread.id) ?? null;
         const indentStyle =
           depth > 0
             ? ({ "--thread-indent": `${depth * 14}px` } as CSSProperties)
@@ -95,6 +98,7 @@ export function PinnedThreadList({
             )}
             <span className="thread-name">{thread.name}</span>
             <div className="thread-meta">
+              {badge && <span className="thread-args-badge">{badge}</span>}
               {relativeTime && <span className="thread-time">{relativeTime}</span>}
               <div className="thread-menu">
                 <div className="thread-menu-trigger" aria-hidden="true" />

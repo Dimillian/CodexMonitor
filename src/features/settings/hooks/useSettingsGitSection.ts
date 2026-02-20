@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
-import type { AppSettings } from "@/types";
+import type { AppSettings, ModelOption } from "@/types";
 import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
 
 type UseSettingsGitSectionArgs = {
   appSettings: AppSettings;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
+  models: ModelOption[];
 };
 
 export type SettingsGitSectionProps = {
   appSettings: AppSettings;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
+  models: ModelOption[];
   commitMessagePromptDraft: string;
   commitMessagePromptDirty: boolean;
   commitMessagePromptSaving: boolean;
@@ -21,6 +23,7 @@ export type SettingsGitSectionProps = {
 export const useSettingsGitSection = ({
   appSettings,
   onUpdateAppSettings,
+  models,
 }: UseSettingsGitSectionArgs): SettingsGitSectionProps => {
   const [commitMessagePromptDraft, setCommitMessagePromptDraft] = useState(
     appSettings.commitMessagePrompt,
@@ -74,6 +77,7 @@ export const useSettingsGitSection = ({
   return {
     appSettings,
     onUpdateAppSettings,
+    models,
     commitMessagePromptDraft,
     commitMessagePromptDirty,
     commitMessagePromptSaving,

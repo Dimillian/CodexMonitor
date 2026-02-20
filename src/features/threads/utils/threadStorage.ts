@@ -19,6 +19,10 @@ export type ThreadCodexParams = {
   effort: string | null;
   accessMode: AccessMode | null;
   collaborationModeId: string | null;
+  // string => explicit per-thread override
+  // null => explicit "Default" (no override)
+  // undefined => legacy/unset thread value that should inherit no-thread scope
+  codexArgsOverride: string | null | undefined;
   updatedAt: number;
 };
 

@@ -146,6 +146,23 @@ pub(super) async fn try_handle(
                     .map(|_| json!({ "ok": true })),
             )
         }
+        "set_workspace_runtime_codex_args" => {
+            let workspace_id = match parse_string(params, "workspaceId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let codex_args = parse_optional_string(params, "codexArgs");
+            Some(
+                state
+                    .set_workspace_runtime_codex_args(
+                        workspace_id,
+                        codex_args,
+                        client_version.to_string(),
+                    )
+                    .await
+                    .and_then(|value| serde_json::to_value(value).map_err(|e| e.to_string())),
+            )
+        }
         "remove_workspace" => {
             let id = match parse_string(params, "id") {
                 Ok(value) => value,

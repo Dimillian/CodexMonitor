@@ -46,6 +46,7 @@ import type { TerminalTab } from "../../../terminal/hooks/useTerminalTabs";
 import type { ErrorToast } from "../../../../services/toasts";
 import type { GitDiffSource, GitPanelMode } from "../../../git/types";
 import type { PerFileDiffGroup } from "../../../git/utils/perFileThreadDiffs";
+import type { CodexArgsOption } from "@threads/utils/codexArgsProfiles";
 
 export type ThreadActivityStatus = {
   isProcessing: boolean;
@@ -170,6 +171,7 @@ export type LayoutNodesOptions = {
   unpinThread: (workspaceId: string, threadId: string) => void;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
   getPinTimestamp: (workspaceId: string, threadId: string) => number | null;
+  getThreadArgsBadge?: (workspaceId: string, threadId: string) => string | null;
   onRenameThread: (workspaceId: string, threadId: string) => void;
   onDeleteWorkspace: (workspaceId: string) => void;
   onDeleteWorktree: (workspaceId: string) => void;
@@ -441,6 +443,9 @@ export type LayoutNodesOptions = {
   selectedEffort: string | null;
   onSelectEffort: (effort: string | null) => void;
   reasoningSupported: boolean;
+  codexArgsOptions: CodexArgsOption[];
+  selectedCodexArgsOverride: string | null;
+  onSelectCodexArgsOverride: (value: string | null) => void;
   accessMode: AccessMode;
   onSelectAccessMode: (mode: AccessMode) => void;
   skills: SkillOption[];

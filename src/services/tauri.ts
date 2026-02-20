@@ -389,6 +389,16 @@ export async function connectWorkspace(id: string): Promise<void> {
   return invokeCommand("connect_workspace", { id });
 }
 
+export async function setWorkspaceRuntimeCodexArgs(
+  workspaceId: string,
+  codexArgs: string | null,
+): Promise<{ appliedCodexArgs: string | null; respawned: boolean }> {
+  return invokeCommand("set_workspace_runtime_codex_args", {
+    workspaceId,
+    codexArgs,
+  });
+}
+
 export async function startThread(workspaceId: string) {
   return invokeCommand<any>("start_thread", { workspaceId });
 }
@@ -1037,8 +1047,9 @@ export async function setThreadName(
 
 export async function generateCommitMessage(
   workspaceId: string,
+  commitMessageModelId: string | null,
 ): Promise<string> {
-  return invokeCommand("generate_commit_message", { workspaceId });
+  return invokeCommand("generate_commit_message", { workspaceId, commitMessageModelId });
 }
 
 export type GeneratedAgentConfiguration = {

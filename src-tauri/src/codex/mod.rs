@@ -875,6 +875,7 @@ pub(crate) async fn get_config_model(
 #[tauri::command]
 pub(crate) async fn generate_commit_message(
     workspace_id: String,
+    commit_message_model_id: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<String, String> {
@@ -883,7 +884,10 @@ pub(crate) async fn generate_commit_message(
             &*state,
             app,
             "generate_commit_message",
-            json!({ "workspaceId": workspace_id }),
+            json!({
+                "workspaceId": workspace_id,
+                "commitMessageModelId": commit_message_model_id,
+            }),
         )
         .await?;
         return serde_json::from_value(value).map_err(|err| err.to_string());
@@ -900,6 +904,7 @@ pub(crate) async fn generate_commit_message(
         workspace_id,
         &diff,
         &commit_message_prompt,
+        commit_message_model_id.as_deref(),
         |workspace_id, thread_id| {
             let _ = app.emit(
                 "app-server-event",
