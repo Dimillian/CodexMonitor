@@ -332,15 +332,15 @@ describe("useThreadMessaging telemetry", () => {
     expect(steerTurnService).toHaveBeenCalledTimes(1);
     expect(sendUserMessageService).not.toHaveBeenCalled();
     expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
-    expect(markProcessing).toHaveBeenCalledWith("thread-1", false);
-    expect(setActiveTurnId).toHaveBeenCalledWith("thread-1", null);
+    expect(markProcessing).not.toHaveBeenCalledWith("thread-1", false);
+    expect(setActiveTurnId).not.toHaveBeenCalledWith("thread-1", null);
     expect(pushThreadErrorMessage).toHaveBeenCalledWith(
       "thread-1",
       "Turn steer failed: no active turn to steer. Message queued.",
     );
   });
 
-  it("returns steer_failed and clears stale state when turn/steer throws", async () => {
+  it("returns steer_failed and keeps processing state when turn/steer throws", async () => {
     const pushThreadErrorMessage = vi.fn();
     const markProcessing = vi.fn();
     const setActiveTurnId = vi.fn();
@@ -402,8 +402,8 @@ describe("useThreadMessaging telemetry", () => {
 
     expect(sendUserMessageService).not.toHaveBeenCalled();
     expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
-    expect(markProcessing).toHaveBeenCalledWith("thread-1", false);
-    expect(setActiveTurnId).toHaveBeenCalledWith("thread-1", null);
+    expect(markProcessing).not.toHaveBeenCalledWith("thread-1", false);
+    expect(setActiveTurnId).not.toHaveBeenCalledWith("thread-1", null);
     expect(pushThreadErrorMessage).toHaveBeenCalledWith(
       "thread-1",
       "Turn steer failed: steer network failure. Message queued.",

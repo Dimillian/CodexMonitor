@@ -5,6 +5,7 @@ import type {
   AccessMode,
   AppMention,
   ComposerSendIntent,
+  SendMessageResult,
   RateLimitSnapshot,
   CustomPromptOption,
   DebugEntry,
@@ -39,10 +40,6 @@ type SendMessageOptions = {
   accessMode?: AccessMode;
   appMentions?: AppMention[];
   sendIntent?: ComposerSendIntent;
-};
-
-type SendMessageResult = {
-  status: "sent" | "blocked" | "steer_failed";
 };
 
 type UseThreadMessagingOptions = {
@@ -103,7 +100,7 @@ export function useThreadMessaging({
   rateLimitsByWorkspace,
   pendingInterruptsRef,
   dispatch,
-  getCustomName: _getCustomName,
+  getCustomName,
   markProcessing,
   markReviewing,
   setActiveTurnId,
@@ -182,6 +179,7 @@ export function useThreadMessaging({
         },
       });
       const timestamp = Date.now();
+      const customThreadName = getCustomName(workspace.id, threadId) ?? null;
       recordThreadActivity(workspace.id, threadId, timestamp);
       dispatch({
         type: "setThreadTimestamp",
@@ -206,6 +204,7 @@ export function useThreadMessaging({
           effort: resolvedEffort,
           collaborationMode: sanitizedCollaborationMode,
           sendIntent,
+          threadCustomName: customThreadName,
         },
       });
       const requestMode: "start" | "steer" = shouldSteer ? "steer" : "start";
@@ -272,8 +271,6 @@ export function useThreadMessaging({
             safeMessageActivity();
             return { status: "blocked" };
           }
-          markProcessing(threadId, false);
-          setActiveTurnId(threadId, null);
           pushThreadErrorMessage(
             threadId,
             `Turn steer failed: ${rpcError}. Message queued.`,
@@ -304,8 +301,10 @@ export function useThreadMessaging({
         setActiveTurnId(threadId, turnId);
         return { status: "sent" };
       } catch (error) {
-        markProcessing(threadId, false);
-        setActiveTurnId(threadId, null);
+        if (requestMode !== "steer") {
+          markProcessing(threadId, false);
+          setActiveTurnId(threadId, null);
+        }
         onDebug?.({
           id: `${Date.now()}-${requestMode === "steer" ? "client-turn-steer-error" : "client-turn-start-error"}`,
           timestamp: Date.now(),
@@ -334,6 +333,7 @@ export function useThreadMessaging({
       dispatch,
       effort,
       activeTurnIdByThread,
+      getCustomName,
       markProcessing,
       model,
       onDebug,
