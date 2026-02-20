@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { CollaborationModeOption, WorkspaceInfo } from "../../../types";
-import { usePlanReadyActions } from "./usePlanReadyActions";
+import type { CollaborationModeOption, WorkspaceInfo } from "@/types";
+import { usePlanReadyActions } from "@app/hooks/usePlanReadyActions";
 
 function makeMode(id: string): CollaborationModeOption {
   return {
