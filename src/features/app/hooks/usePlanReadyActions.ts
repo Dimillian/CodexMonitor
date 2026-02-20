@@ -155,11 +155,12 @@ export function usePlanReadyActions({
       }
 
       const planMode = findCollaborationMode("plan");
-      const planModeId = planMode?.id ?? null;
-      setSelectedCollaborationModeId(planModeId);
-      persistThreadCodexParams({
-        collaborationModeId: planModeId,
-      });
+      if (planMode?.id) {
+        setSelectedCollaborationModeId(planMode.id);
+        persistThreadCodexParams({
+          collaborationModeId: planMode.id,
+        });
+      }
       const collaborationMode = buildCollaborationModePayloadFor(planMode);
       const message = makePlanReadyChangesMessage(trimmed);
       await sendUserMessageToThread(

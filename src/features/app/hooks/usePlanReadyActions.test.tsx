@@ -156,6 +156,33 @@ describe("usePlanReadyActions", () => {
     );
   });
 
+  it("forces neutral mode override when no collaboration modes are available", async () => {
+    const {
+      result,
+      setSelectedCollaborationModeId,
+      persistThreadCodexParams,
+      sendUserMessageToThread,
+    } = renderPlanReadyActions({
+      collaborationModes: [],
+    });
+
+    await act(async () => {
+      await result.current.handlePlanAccept();
+    });
+
+    expect(setSelectedCollaborationModeId).toHaveBeenCalledWith(null);
+    expect(persistThreadCodexParams).toHaveBeenCalledWith({
+      collaborationModeId: null,
+    });
+    expect(sendUserMessageToThread).toHaveBeenCalledWith(
+      connectedWorkspace,
+      "thread-1",
+      "[[cm_plan_ready:accept]] Implement this plan.",
+      [],
+      { collaborationMode: null },
+    );
+  });
+
   it("connects workspace before sending plan accept message", async () => {
     const { result, connectWorkspace, sendUserMessageToThread } =
       renderPlanReadyActions({
@@ -203,6 +230,31 @@ describe("usePlanReadyActions", () => {
           },
         },
       },
+    );
+  });
+
+  it("uses neutral mode override for plan-change follow-up when plan mode is unavailable", async () => {
+    const {
+      result,
+      setSelectedCollaborationModeId,
+      persistThreadCodexParams,
+      sendUserMessageToThread,
+    } = renderPlanReadyActions({
+      collaborationModes: [makeMode("default")],
+    });
+
+    await act(async () => {
+      await result.current.handlePlanSubmitChanges("  Add tests  ");
+    });
+
+    expect(setSelectedCollaborationModeId).not.toHaveBeenCalled();
+    expect(persistThreadCodexParams).not.toHaveBeenCalled();
+    expect(sendUserMessageToThread).toHaveBeenCalledWith(
+      connectedWorkspace,
+      "thread-1",
+      "[[cm_plan_ready:changes]] Update the plan with these changes:\n\nAdd tests",
+      [],
+      { collaborationMode: null },
     );
   });
 });
