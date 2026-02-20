@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildThreadCodexSeedPatch,
   createPendingThreadSeed,
+  resolveWorkspaceRuntimeCodexArgsBadgeLabel,
   resolveWorkspaceRuntimeCodexArgsOverride,
   resolveThreadCodexState,
 } from "./threadCodexParamsSeed";
@@ -285,6 +286,44 @@ describe("threadCodexParamsSeed", () => {
         getThreadCodexParams,
       }),
     ).toBe("--profile dev");
+  });
+
+  it("builds badges from effective runtime codex args, including no-thread fallback", () => {
+    const entry = (
+      codexArgsOverride: string | null | undefined,
+    ): ThreadCodexParams => ({
+      modelId: null,
+      effort: null,
+      accessMode: null,
+      collaborationModeId: null,
+      codexArgsOverride,
+      updatedAt: 0,
+    });
+
+    const paramsMap: Record<string, ThreadCodexParams | undefined> = {
+      "ws-1:__no_thread__": entry("--profile inherited"),
+      "ws-1:thread-legacy-inherit": entry(undefined),
+      "ws-1:thread-explicit-default": entry(null),
+    };
+
+    const getThreadCodexParams = (workspaceId: string, threadId: string) =>
+      paramsMap[`${workspaceId}:${threadId}`] ?? null;
+
+    expect(
+      resolveWorkspaceRuntimeCodexArgsBadgeLabel({
+        workspaceId: "ws-1",
+        threadId: "thread-legacy-inherit",
+        getThreadCodexParams,
+      }),
+    ).toBe("profile:inherited");
+
+    expect(
+      resolveWorkspaceRuntimeCodexArgsBadgeLabel({
+        workspaceId: "ws-1",
+        threadId: "thread-explicit-default",
+        getThreadCodexParams,
+      }),
+    ).toBeNull();
   });
 
   it("builds first-message seed patch with pending workspace snapshot", () => {

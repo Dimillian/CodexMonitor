@@ -182,6 +182,32 @@ describe("useThreads UX integration", () => {
     expect(selectEnsureCallOrder).toBeLessThan(resumeThreadCallOrder);
   });
 
+  it("applies runtime codex args before direct startThreadForWorkspace calls", async () => {
+    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
+    vi.mocked(startThread).mockResolvedValue({
+      result: { thread: { id: "thread-direct-new" } },
+    } as Awaited<ReturnType<typeof startThread>>);
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+        ensureWorkspaceRuntimeCodexArgs,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startThreadForWorkspace("ws-1", { activate: false });
+    });
+
+    expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", null);
+    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1");
+
+    const ensureCallOrder = ensureWorkspaceRuntimeCodexArgs.mock.invocationCallOrder[0];
+    const startThreadCallOrder = vi.mocked(startThread).mock.invocationCallOrder[0];
+    expect(ensureCallOrder).toBeLessThan(startThreadCallOrder);
+  });
+
   it("still resumes selected thread when runtime codex args sync fails", async () => {
     const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => {
       throw new Error("runtime sync failed");

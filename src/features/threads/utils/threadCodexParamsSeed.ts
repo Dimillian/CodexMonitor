@@ -1,5 +1,8 @@
 import type { AccessMode } from "@/types";
-import { sanitizeRuntimeCodexArgs } from "./codexArgsProfiles";
+import {
+  buildEffectiveCodexArgsBadgeLabel,
+  sanitizeRuntimeCodexArgs,
+} from "./codexArgsProfiles";
 import type { ThreadCodexParams } from "./threadStorage";
 import { makeThreadCodexParamsKey } from "./threadStorage";
 
@@ -61,6 +64,19 @@ export function resolveWorkspaceRuntimeCodexArgsOverride(options: {
   }
 
   return sanitizeRuntimeCodexArgs(getNoThreadArgs());
+}
+
+export function resolveWorkspaceRuntimeCodexArgsBadgeLabel(options: {
+  workspaceId: string;
+  threadId: string;
+  getThreadCodexParams: (workspaceId: string, threadId: string) => ThreadCodexParams | null;
+}): string | null {
+  const effectiveArgs = resolveWorkspaceRuntimeCodexArgsOverride({
+    workspaceId: options.workspaceId,
+    threadId: options.threadId,
+    getThreadCodexParams: options.getThreadCodexParams,
+  });
+  return buildEffectiveCodexArgsBadgeLabel(effectiveArgs);
 }
 
 export function createPendingThreadSeed(options: {

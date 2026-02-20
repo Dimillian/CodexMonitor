@@ -425,7 +425,7 @@ export function useThreads({
   useAppServerEvents(handlers);
 
   const {
-    startThreadForWorkspace,
+    startThreadForWorkspace: startThreadForWorkspaceInternal,
     forkThreadForWorkspace,
     resumeThreadForWorkspace,
     refreshThread,
@@ -473,13 +473,20 @@ export function useThreads({
     [ensureWorkspaceRuntimeCodexArgs, onDebug],
   );
 
+  const startThreadForWorkspace = useCallback(
+    async (workspaceId: string, options?: { activate?: boolean }) => {
+      await ensureWorkspaceRuntimeCodexArgsBestEffort(workspaceId, null, "start");
+      return startThreadForWorkspaceInternal(workspaceId, options);
+    },
+    [ensureWorkspaceRuntimeCodexArgsBestEffort, startThreadForWorkspaceInternal],
+  );
+
   const startThread = useCallback(async () => {
     if (!activeWorkspaceId) {
       return null;
     }
-    await ensureWorkspaceRuntimeCodexArgsBestEffort(activeWorkspaceId, null, "start");
     return startThreadForWorkspace(activeWorkspaceId);
-  }, [activeWorkspaceId, ensureWorkspaceRuntimeCodexArgsBestEffort, startThreadForWorkspace]);
+  }, [activeWorkspaceId, startThreadForWorkspace]);
 
   const ensureThreadForActiveWorkspace = useCallback(async () => {
     if (!activeWorkspace) {
@@ -487,7 +494,6 @@ export function useThreads({
     }
     let threadId = activeThreadId;
     if (!threadId) {
-      await ensureWorkspaceRuntimeCodexArgsBestEffort(activeWorkspace.id, null, "start");
       threadId = await startThreadForWorkspace(activeWorkspace.id);
       if (!threadId) {
         return null;
@@ -515,7 +521,6 @@ export function useThreads({
       const shouldActivate = workspaceId === activeWorkspaceId;
       let threadId = currentActiveThreadId;
       if (!threadId) {
-        await ensureWorkspaceRuntimeCodexArgsBestEffort(workspaceId, null, "start");
         threadId = await startThreadForWorkspace(workspaceId, {
           activate: shouldActivate,
         });

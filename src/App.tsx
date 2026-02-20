@@ -142,12 +142,12 @@ import {
   useWorkspaceOrderingOrchestration,
 } from "@app/orchestration/useWorkspaceOrchestration";
 import { useAppShellOrchestration } from "@app/orchestration/useLayoutOrchestration";
-import {
-  buildEffectiveCodexArgsBadgeLabel,
-  buildCodexArgsOptions,
-} from "@threads/utils/codexArgsProfiles";
+import { buildCodexArgsOptions } from "@threads/utils/codexArgsProfiles";
 import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
-import { resolveWorkspaceRuntimeCodexArgsOverride } from "@threads/utils/threadCodexParamsSeed";
+import {
+  resolveWorkspaceRuntimeCodexArgsBadgeLabel,
+  resolveWorkspaceRuntimeCodexArgsOverride,
+} from "@threads/utils/threadCodexParamsSeed";
 import { setWorkspaceRuntimeCodexArgs } from "@services/tauri";
 
 const AboutView = lazy(() =>
@@ -521,10 +521,12 @@ function MainApp() {
     [getThreadCodexParams],
   );
   const getThreadArgsBadge = useCallback(
-    (workspaceId: string, threadId: string) => {
-      const stored = getThreadCodexParams(workspaceId, threadId);
-      return buildEffectiveCodexArgsBadgeLabel(stored?.codexArgsOverride);
-    },
+    (workspaceId: string, threadId: string) =>
+      resolveWorkspaceRuntimeCodexArgsBadgeLabel({
+        workspaceId,
+        threadId,
+        getThreadCodexParams,
+      }),
     [getThreadCodexParams],
   );
 
