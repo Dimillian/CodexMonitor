@@ -241,6 +241,98 @@ describe("useThreads UX integration", () => {
     });
   });
 
+  it("does not preflight runtime codex args on selection while a workspace thread is processing", async () => {
+    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
+    vi.mocked(resumeThread).mockImplementation(async (_workspaceId, threadId) => ({
+      result: {
+        thread: {
+          id: threadId,
+          preview: `Thread ${threadId}`,
+          updated_at: 9999,
+          turns: [],
+        },
+      },
+    }));
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+        ensureWorkspaceRuntimeCodexArgs,
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-1");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-1");
+    });
+
+    vi.mocked(resumeThread).mockClear();
+    ensureWorkspaceRuntimeCodexArgs.mockClear();
+
+    act(() => {
+      handlers?.onTurnStarted?.("ws-1", "thread-1", "turn-1");
+    });
+
+    await waitFor(() => {
+      expect(result.current.threadStatusById["thread-1"]?.isProcessing).toBe(true);
+    });
+
+    act(() => {
+      result.current.setActiveThreadId("thread-2");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-2");
+    });
+
+    expect(ensureWorkspaceRuntimeCodexArgs).not.toHaveBeenCalled();
+  });
+
+  it("does not preflight runtime codex args on selection when a hidden thread is processing", async () => {
+    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
+    vi.mocked(resumeThread).mockImplementation(async (_workspaceId, threadId) => ({
+      result: {
+        thread: {
+          id: threadId,
+          preview: `Thread ${threadId}`,
+          updated_at: 9999,
+          turns: [],
+        },
+      },
+    }));
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+        ensureWorkspaceRuntimeCodexArgs,
+      }),
+    );
+
+    act(() => {
+      handlers?.onTurnStarted?.("ws-1", "thread-hidden", "turn-hidden-1");
+      handlers?.onBackgroundThreadAction?.("ws-1", "thread-hidden", "hide");
+    });
+
+    await waitFor(() => {
+      expect(result.current.threadStatusById["thread-hidden"]?.isProcessing).toBe(true);
+    });
+
+    act(() => {
+      result.current.setActiveThreadId("thread-2");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-2");
+    });
+
+    expect(ensureWorkspaceRuntimeCodexArgs).not.toHaveBeenCalled();
+  });
+
   it("still starts thread when runtime codex args sync fails", async () => {
     const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => {
       throw new Error("runtime sync failed");

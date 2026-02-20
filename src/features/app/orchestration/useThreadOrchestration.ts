@@ -66,6 +66,7 @@ type UseThreadCodexSyncOrchestrationParams = {
   resolvedEffort: string | null;
   accessMode: AccessMode;
   selectedCollaborationModeId: string | null;
+  selectedCodexArgsOverride?: string | null;
 };
 
 type MainTab = "home" | "projects" | "codex" | "git" | "log";
@@ -129,6 +130,7 @@ export function useThreadCodexSyncOrchestration({
   resolvedEffort,
   accessMode,
   selectedCollaborationModeId,
+  selectedCodexArgsOverride,
 }: UseThreadCodexSyncOrchestrationParams) {
   useLayoutEffect(() => {
     const workspaceId = activeWorkspaceId ?? null;
@@ -209,6 +211,10 @@ export function useThreadCodexSyncOrchestration({
         resolvedEffort,
         accessMode,
         selectedCollaborationModeId,
+        codexArgsOverride:
+          selectedCodexArgsOverride === undefined
+            ? undefined
+            : selectedCodexArgsOverride,
         pendingSeed,
       }),
     );
@@ -223,6 +229,7 @@ export function useThreadCodexSyncOrchestration({
     patchThreadCodexParams,
     resolvedEffort,
     selectedCollaborationModeId,
+    selectedCodexArgsOverride,
     selectedModelId,
     pendingNewThreadSeedRef,
   ]);

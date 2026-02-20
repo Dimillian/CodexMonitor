@@ -192,6 +192,42 @@ describe("useThreadCodexSyncOrchestration seed behavior", () => {
     );
   });
 
+  it("seeds selected codex args override when creating thread outside pending flow", async () => {
+    const params = makeSyncParams({
+      selectedCodexArgsOverride: "--profile selected",
+    });
+
+    renderHook(() => useThreadCodexSyncOrchestration(params));
+
+    await waitFor(() => {
+      expect(params.patchThreadCodexParams).toHaveBeenCalledTimes(1);
+    });
+
+    expect(params.patchThreadCodexParams).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-2",
+      expect.objectContaining({ codexArgsOverride: "--profile selected" }),
+    );
+  });
+
+  it("preserves explicit default codex args selection when creating thread outside pending flow", async () => {
+    const params = makeSyncParams({
+      selectedCodexArgsOverride: null,
+    });
+
+    renderHook(() => useThreadCodexSyncOrchestration(params));
+
+    await waitFor(() => {
+      expect(params.patchThreadCodexParams).toHaveBeenCalledTimes(1);
+    });
+
+    expect(params.patchThreadCodexParams).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-2",
+      expect.objectContaining({ codexArgsOverride: null }),
+    );
+  });
+
   it("syncs selected codex args from no-thread fallback when thread scope is inherit", async () => {
     const params = makeSyncParams();
     params.getThreadCodexParams.mockImplementation(

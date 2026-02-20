@@ -629,7 +629,20 @@ export function useThreads({
       }
       if (threadId) {
         void (async () => {
-          await ensureWorkspaceRuntimeCodexArgsBestEffort(targetId, threadId, "resume");
+          const visibleThreadIds = (state.threadsByWorkspace[targetId] ?? [])
+            .map((thread) => String(thread.id ?? "").trim())
+            .filter((id) => id.length > 0);
+          const hiddenThreadIds = Object.keys(
+            state.hiddenThreadIdsByWorkspace[targetId] ?? {},
+          );
+          const hasActiveTurnInWorkspace = Array.from(
+            new Set([...visibleThreadIds, ...hiddenThreadIds]),
+          ).some((candidateThreadId) =>
+            Boolean(state.threadStatusById[candidateThreadId]?.isProcessing),
+          );
+          if (!hasActiveTurnInWorkspace) {
+            await ensureWorkspaceRuntimeCodexArgsBestEffort(targetId, threadId, "resume");
+          }
           await resumeThreadForWorkspace(targetId, threadId);
         })();
       }
@@ -639,6 +652,9 @@ export function useThreads({
       ensureWorkspaceRuntimeCodexArgsBestEffort,
       resumeThreadForWorkspace,
       state.activeThreadIdByWorkspace,
+      state.hiddenThreadIdsByWorkspace,
+      state.threadStatusById,
+      state.threadsByWorkspace,
     ],
   );
 
