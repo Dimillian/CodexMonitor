@@ -1264,6 +1264,7 @@ function MainApp() {
   const activeTurnId = activeThreadId
     ? activeTurnIdByThread[activeThreadId] ?? null
     : null;
+  const steerAvailable = appSettings.steerEnabled && Boolean(activeTurnId);
   const hasUserInputRequestForActiveThread = Boolean(
     activeThreadId &&
       userInputRequests.some(
@@ -1329,6 +1330,7 @@ function MainApp() {
     isReviewing,
     queueFlushPaused,
     steerEnabled: appSettings.steerEnabled,
+    followUpMessageBehavior: appSettings.followUpMessageBehavior,
     appsEnabled: appSettings.experimentalAppsEnabled,
     connectWorkspace,
     startThreadForWorkspace,
@@ -2220,7 +2222,8 @@ function MainApp() {
     onFileAutocompleteActiveChange: setFileAutocompleteActive,
     isReviewing,
     isProcessing,
-    steerEnabled: appSettings.steerEnabled,
+    steerAvailable,
+    followUpMessageBehavior: appSettings.followUpMessageBehavior,
     reviewPrompt,
     onReviewPromptClose: closeReviewPrompt,
     onReviewPromptShowPreset: showPresetStep,

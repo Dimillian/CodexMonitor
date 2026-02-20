@@ -1443,6 +1443,40 @@ describe("SettingsView Features", () => {
     expect(screen.queryByText("Steer mode")).toBeNull();
   });
 
+  it("hides steer mode when returned as an experimental feature", async () => {
+    renderFeaturesSection({
+      appSettings: { steerEnabled: true },
+      experimentalFeaturesResponse: {
+        data: [
+          {
+            name: "steer",
+            stage: "underDevelopment",
+            enabled: true,
+            defaultEnabled: true,
+            displayName: "Steer mode",
+            description: "Legacy steer feature row.",
+            announcement: null,
+          },
+          {
+            name: "responses_websockets",
+            stage: "underDevelopment",
+            enabled: false,
+            defaultEnabled: false,
+            displayName: null,
+            description: null,
+            announcement: null,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+
+    await screen.findByText(
+      "Use Responses API WebSocket transport for OpenAI by default.",
+    );
+    expect(screen.queryByText("Steer mode")).toBeNull();
+  });
+
   it("toggles background terminal in stable features", async () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderFeaturesSection({

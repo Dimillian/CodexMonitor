@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
-import type { AccessMode, AppMention, AppSettings } from "@/types";
+import type {
+  AccessMode,
+  AppMention,
+  AppSettings,
+  ComposerSendIntent,
+} from "@/types";
 import { useThreadCodexParams } from "@threads/hooks/useThreadCodexParams";
 import {
   buildThreadCodexSeedPatch,
@@ -67,6 +72,7 @@ type SendOrQueueHandler = (
   text: string,
   images: string[],
   appMentions?: AppMention[],
+  submitIntent?: ComposerSendIntent,
 ) => Promise<void>;
 
 type UseThreadUiOrchestrationParams = {
@@ -336,28 +342,38 @@ export function useThreadUiOrchestration({
   ]);
 
   const handleComposerSendWithDraftStart = useCallback(
-    (text: string, images: string[], appMentions?: AppMention[]) => {
+    (
+      text: string,
+      images: string[],
+      appMentions?: AppMention[],
+      submitIntent?: ComposerSendIntent,
+    ) => {
       rememberPendingNewThreadSeed();
       return runWithDraftStart(() =>
         appMentions && appMentions.length > 0
-          ? handleComposerSend(text, images, appMentions)
-          : handleComposerSend(text, images),
+          ? handleComposerSend(text, images, appMentions, submitIntent)
+          : handleComposerSend(text, images, undefined, submitIntent),
       );
     },
     [handleComposerSend, rememberPendingNewThreadSeed, runWithDraftStart],
   );
 
   const handleComposerQueueWithDraftStart = useCallback(
-    (text: string, images: string[], appMentions?: AppMention[]) => {
+    (
+      text: string,
+      images: string[],
+      appMentions?: AppMention[],
+      submitIntent?: ComposerSendIntent,
+    ) => {
       const runner = activeThreadId
         ? () =>
             appMentions && appMentions.length > 0
-              ? handleComposerQueue(text, images, appMentions)
-              : handleComposerQueue(text, images)
+              ? handleComposerQueue(text, images, appMentions, submitIntent)
+              : handleComposerQueue(text, images, undefined, submitIntent)
         : () =>
             appMentions && appMentions.length > 0
-              ? handleComposerSend(text, images, appMentions)
-              : handleComposerSend(text, images);
+              ? handleComposerSend(text, images, appMentions, submitIntent)
+              : handleComposerSend(text, images, undefined, submitIntent);
 
       if (!activeThreadId) {
         rememberPendingNewThreadSeed();

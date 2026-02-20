@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { AppMention, QueuedMessage, WorkspaceInfo } from "@/types";
+import type {
+  AppMention,
+  ComposerSendIntent,
+  FollowUpMessageBehavior,
+  QueuedMessage,
+  WorkspaceInfo,
+} from "@/types";
 
 type UseQueuedSendOptions = {
   activeThreadId: string | null;
@@ -8,6 +14,7 @@ type UseQueuedSendOptions = {
   isReviewing: boolean;
   queueFlushPaused?: boolean;
   steerEnabled: boolean;
+  followUpMessageBehavior: FollowUpMessageBehavior;
   appsEnabled: boolean;
   activeWorkspace: WorkspaceInfo | null;
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
@@ -19,13 +26,14 @@ type UseQueuedSendOptions = {
     text: string,
     images?: string[],
     appMentions?: AppMention[],
-  ) => Promise<void>;
+    options?: { sendIntent?: ComposerSendIntent },
+  ) => Promise<{ status: "sent" | "blocked" | "steer_failed" }>;
   sendUserMessageToThread: (
     workspace: WorkspaceInfo,
     threadId: string,
     text: string,
     images?: string[],
-  ) => Promise<void>;
+  ) => Promise<unknown>;
   startFork: (text: string) => Promise<void>;
   startReview: (text: string) => Promise<void>;
   startResume: (text: string) => Promise<void>;
@@ -43,6 +51,7 @@ type UseQueuedSendResult = {
     text: string,
     images?: string[],
     appMentions?: AppMention[],
+    submitIntent?: ComposerSendIntent,
   ) => Promise<void>;
   queueMessage: (
     text: string,
@@ -97,6 +106,7 @@ export function useQueuedSend({
   isReviewing,
   queueFlushPaused = false,
   steerEnabled,
+  followUpMessageBehavior,
   appsEnabled,
   activeWorkspace,
   connectWorkspace,
@@ -152,6 +162,17 @@ export function useQueuedSend({
       [threadId]: [item, ...(prev[threadId] ?? [])],
     }));
   }, []);
+
+  const createQueuedItem = useCallback(
+    (text: string, images: string[], appMentions: AppMention[]): QueuedMessage => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      text,
+      createdAt: Date.now(),
+      images,
+      ...(appMentions.length > 0 ? { appMentions } : {}),
+    }),
+    [],
+  );
 
   const runSlashCommand = useCallback(
     async (command: SlashCommandKind, trimmed: string) => {
@@ -210,25 +231,33 @@ export function useQueuedSend({
       text: string,
       images: string[] = [],
       appMentions: AppMention[] = [],
+      submitIntent: ComposerSendIntent = "default",
     ) => {
       const trimmed = text.trim();
       const command = parseSlashCommand(trimmed, appsEnabled);
       const nextImages = command ? [] : images;
       const nextMentions = command ? [] : appMentions;
+      const canSteerCurrentTurn =
+        isProcessing && steerEnabled && Boolean(activeTurnId);
+      const effectiveIntent: ComposerSendIntent = !isProcessing
+        ? "default"
+        : submitIntent === "queue"
+          ? "queue"
+          : submitIntent === "steer"
+            ? canSteerCurrentTurn
+              ? "steer"
+              : "queue"
+            : followUpMessageBehavior === "steer" && canSteerCurrentTurn
+              ? "steer"
+              : "queue";
       if (!trimmed && nextImages.length === 0) {
         return;
       }
       if (activeThreadId && isReviewing) {
         return;
       }
-      if (isProcessing && activeThreadId && (!steerEnabled || !activeTurnId)) {
-        const item: QueuedMessage = {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          text: trimmed,
-          createdAt: Date.now(),
-          images: nextImages,
-          ...(nextMentions.length > 0 ? { appMentions: nextMentions } : {}),
-        };
+      if (isProcessing && activeThreadId && effectiveIntent === "queue") {
+        const item = createQueuedItem(trimmed, nextImages, nextMentions);
         enqueueMessage(activeThreadId, item);
         clearActiveImages();
         return;
@@ -241,10 +270,20 @@ export function useQueuedSend({
         clearActiveImages();
         return;
       }
-      if (nextMentions.length > 0) {
-        await sendUserMessage(trimmed, nextImages, nextMentions);
-      } else {
-        await sendUserMessage(trimmed, nextImages);
+      const sendResult =
+        nextMentions.length > 0
+          ? await sendUserMessage(trimmed, nextImages, nextMentions, {
+            sendIntent: effectiveIntent,
+          })
+          : await sendUserMessage(trimmed, nextImages, undefined, {
+          sendIntent: effectiveIntent,
+          });
+      if (
+        sendResult.status === "steer_failed" &&
+        activeThreadId &&
+        isProcessing
+      ) {
+        enqueueMessage(activeThreadId, createQueuedItem(trimmed, nextImages, nextMentions));
       }
       clearActiveImages();
     },
@@ -254,8 +293,10 @@ export function useQueuedSend({
       activeWorkspace,
       clearActiveImages,
       connectWorkspace,
+      createQueuedItem,
       enqueueMessage,
       activeTurnId,
+      followUpMessageBehavior,
       isProcessing,
       isReviewing,
       steerEnabled,
@@ -283,17 +324,18 @@ export function useQueuedSend({
       if (!activeThreadId) {
         return;
       }
-      const item: QueuedMessage = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        text: trimmed,
-        createdAt: Date.now(),
-        images: nextImages,
-        ...(nextMentions.length > 0 ? { appMentions: nextMentions } : {}),
-      };
+      const item = createQueuedItem(trimmed, nextImages, nextMentions);
       enqueueMessage(activeThreadId, item);
       clearActiveImages();
     },
-    [activeThreadId, appsEnabled, clearActiveImages, enqueueMessage, isReviewing],
+    [
+      activeThreadId,
+      appsEnabled,
+      clearActiveImages,
+      createQueuedItem,
+      enqueueMessage,
+      isReviewing,
+    ],
   );
 
   useEffect(() => {

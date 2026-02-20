@@ -155,6 +155,7 @@ export type RemoteBackendTarget = {
 export type ThemePreference = "system" | "light" | "dark" | "dim";
 export type PersonalityPreference = "friendly" | "pragmatic";
 export type FollowUpMessageBehavior = "queue" | "steer";
+export type ComposerSendIntent = "default" | "queue" | "steer";
 
 export type ComposerEditorPreset = "default" | "helpful" | "smart";
 

@@ -151,7 +151,12 @@ describe("usePullRequestComposer", () => {
       await result.current.handleComposerSend("/apps", []);
     });
 
-    expect(options.handleSend).toHaveBeenCalledWith("/apps", []);
+    expect(options.handleSend).toHaveBeenCalledWith(
+      "/apps",
+      [],
+      undefined,
+      undefined,
+    );
     expect(options.runPullRequestReview).not.toHaveBeenCalled();
   });
 

@@ -20,11 +20,12 @@ const makeOptions = (
   isProcessing: false,
   isReviewing: false,
   steerEnabled: false,
+  followUpMessageBehavior: "queue" as const,
   appsEnabled: true,
   activeWorkspace: workspace,
   connectWorkspace: vi.fn().mockResolvedValue(undefined),
   startThreadForWorkspace: vi.fn().mockResolvedValue("thread-1"),
-  sendUserMessage: vi.fn().mockResolvedValue(undefined),
+  sendUserMessage: vi.fn().mockResolvedValue({ status: "sent" }),
   sendUserMessageToThread: vi.fn().mockResolvedValue(undefined),
   startFork: vi.fn().mockResolvedValue(undefined),
   startReview: vi.fn().mockResolvedValue(undefined),
@@ -109,7 +110,11 @@ describe("useQueuedSend", () => {
   });
 
   it("sends immediately while processing when steer is enabled", async () => {
-    const options = makeOptions({ isProcessing: true, steerEnabled: true });
+    const options = makeOptions({
+      isProcessing: true,
+      steerEnabled: true,
+      followUpMessageBehavior: "steer",
+    });
     const { result } = renderHook((props) => useQueuedSend(props), {
       initialProps: options,
     });
@@ -119,7 +124,12 @@ describe("useQueuedSend", () => {
     });
 
     expect(options.sendUserMessage).toHaveBeenCalledTimes(1);
-    expect(options.sendUserMessage).toHaveBeenCalledWith("Steer", []);
+    expect(options.sendUserMessage).toHaveBeenCalledWith(
+      "Steer",
+      [],
+      undefined,
+      { sendIntent: "steer" },
+    );
     expect(result.current.activeQueue).toHaveLength(0);
   });
 
@@ -127,6 +137,7 @@ describe("useQueuedSend", () => {
     const options = makeOptions({
       isProcessing: true,
       steerEnabled: true,
+      followUpMessageBehavior: "steer",
       activeTurnId: null,
     });
     const { result } = renderHook((props) => useQueuedSend(props), {
@@ -142,12 +153,37 @@ describe("useQueuedSend", () => {
     expect(result.current.activeQueue[0]?.text).toBe("Wait for turn");
   });
 
+  it("queues the message when a forced steer attempt fails", async () => {
+    const options = makeOptions({
+      isProcessing: true,
+      steerEnabled: true,
+      followUpMessageBehavior: "steer",
+      sendUserMessage: vi.fn().mockResolvedValue({ status: "steer_failed" }),
+    });
+    const { result } = renderHook((props) => useQueuedSend(props), {
+      initialProps: options,
+    });
+
+    await act(async () => {
+      await result.current.handleSend("Fallback to queue");
+    });
+
+    expect(options.sendUserMessage).toHaveBeenCalledWith(
+      "Fallback to queue",
+      [],
+      undefined,
+      { sendIntent: "steer" },
+    );
+    expect(result.current.activeQueue).toHaveLength(1);
+    expect(result.current.activeQueue[0]?.text).toBe("Fallback to queue");
+  });
+
   it("retries queued send after failure", async () => {
     const options = makeOptions({
       sendUserMessage: vi
         .fn()
         .mockRejectedValueOnce(new Error("boom"))
-        .mockResolvedValueOnce(undefined),
+        .mockResolvedValueOnce({ status: "sent" }),
     });
     const { result } = renderHook((props) => useQueuedSend(props), {
       initialProps: options,
@@ -217,7 +253,12 @@ describe("useQueuedSend", () => {
       ...workspace,
       connected: false,
     });
-    expect(options.sendUserMessage).toHaveBeenCalledWith("Connect", []);
+    expect(options.sendUserMessage).toHaveBeenCalledWith(
+      "Connect",
+      [],
+      undefined,
+      { sendIntent: "default" },
+    );
   });
 
   it("ignores images for queued review messages and blocks while reviewing", async () => {
@@ -359,7 +400,12 @@ describe("useQueuedSend", () => {
     });
 
     expect(startApps).not.toHaveBeenCalled();
-    expect(options.sendUserMessage).toHaveBeenCalledWith("/apps now", ["img-1"]);
+    expect(options.sendUserMessage).toHaveBeenCalledWith(
+      "/apps now",
+      ["img-1"],
+      undefined,
+      { sendIntent: "default" },
+    );
   });
 
   it("routes /resume to the resume handler", async () => {

@@ -52,7 +52,7 @@ type UseWorkspaceHomeOptions = {
       effort?: string | null;
       collaborationMode?: Record<string, unknown> | null;
     },
-  ) => Promise<void>;
+  ) => Promise<unknown>;
   onWorktreeCreated?: (worktree: WorkspaceInfo, parent: WorkspaceInfo) => Promise<void> | void;
 };
 

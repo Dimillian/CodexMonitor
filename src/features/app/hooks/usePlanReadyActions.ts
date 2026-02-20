@@ -15,7 +15,7 @@ type SendUserMessageToThread = (
   message: string,
   imageIds: string[],
   options?: SendUserMessageOptions,
-) => Promise<void>;
+) => Promise<unknown>;
 
 type UsePlanReadyActionsOptions = {
   activeWorkspace: WorkspaceInfo | null;

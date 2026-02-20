@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/react";
 import type {
   AccessMode,
   AppMention,
+  ComposerSendIntent,
   RateLimitSnapshot,
   CustomPromptOption,
   DebugEntry,
@@ -37,6 +38,11 @@ type SendMessageOptions = {
   collaborationMode?: Record<string, unknown> | null;
   accessMode?: AccessMode;
   appMentions?: AppMention[];
+  sendIntent?: ComposerSendIntent;
+};
+
+type SendMessageResult = {
+  status: "sent" | "blocked" | "steer_failed";
 };
 
 type UseThreadMessagingOptions = {
@@ -119,10 +125,10 @@ export function useThreadMessaging({
       text: string,
       images: string[] = [],
       options?: SendMessageOptions,
-    ) => {
+    ): Promise<SendMessageResult> => {
       const messageText = text.trim();
       if (!messageText && images.length === 0) {
-        return;
+        return { status: "blocked" };
       }
       let finalText = messageText;
       if (!options?.skipPromptExpansion) {
@@ -130,7 +136,7 @@ export function useThreadMessaging({
         if (promptExpansion && "error" in promptExpansion) {
           pushThreadErrorMessage(threadId, promptExpansion.error);
           safeMessageActivity();
-          return;
+          return { status: "blocked" };
         }
         finalText = promptExpansion?.expanded ?? messageText;
       }
@@ -151,11 +157,18 @@ export function useThreadMessaging({
       const resolvedAccessMode =
         options?.accessMode !== undefined ? options.accessMode : accessMode;
       const appMentions = options?.appMentions ?? [];
+      const sendIntent = options?.sendIntent ?? "default";
 
       const isProcessing = threadStatusById[threadId]?.isProcessing ?? false;
       const activeTurnId = activeTurnIdByThread[threadId] ?? null;
-      const shouldSteer =
+      const canSteerCurrentTurn =
         isProcessing && steerEnabled && Boolean(activeTurnId);
+      const shouldSteer =
+        sendIntent === "steer"
+          ? canSteerCurrentTurn
+          : sendIntent === "queue"
+            ? false
+            : canSteerCurrentTurn;
       Sentry.metrics.count("prompt_sent", 1, {
         attributes: {
           workspace_id: workspace.id,
@@ -165,6 +178,7 @@ export function useThreadMessaging({
           model: resolvedModel ?? "unknown",
           effort: resolvedEffort ?? "unknown",
           collaboration_mode: sanitizedCollaborationMode ?? "unknown",
+          send_intent: sendIntent,
         },
       });
       const timestamp = Date.now();
@@ -191,6 +205,7 @@ export function useThreadMessaging({
           model: resolvedModel,
           effort: resolvedEffort,
           collaborationMode: sanitizedCollaborationMode,
+          sendIntent,
         },
       });
       const requestMode: "start" | "steer" = shouldSteer ? "steer" : "start";
@@ -253,15 +268,18 @@ export function useThreadMessaging({
           if (requestMode !== "steer") {
             markProcessing(threadId, false);
             setActiveTurnId(threadId, null);
+            pushThreadErrorMessage(threadId, `Turn failed to start: ${rpcError}`);
+            safeMessageActivity();
+            return { status: "blocked" };
           }
+          markProcessing(threadId, false);
+          setActiveTurnId(threadId, null);
           pushThreadErrorMessage(
             threadId,
-            requestMode === "steer"
-              ? `Turn steer failed: ${rpcError}`
-              : `Turn failed to start: ${rpcError}`,
+            `Turn steer failed: ${rpcError}. Message queued.`,
           );
           safeMessageActivity();
-          return;
+          return { status: "steer_failed" };
         }
         if (requestMode === "steer") {
           const result = (response?.result ?? response) as Record<string, unknown>;
@@ -269,7 +287,7 @@ export function useThreadMessaging({
           if (steeredTurnId) {
             setActiveTurnId(threadId, steeredTurnId);
           }
-          return;
+          return { status: "sent" };
         }
         const result = (response?.result ?? response) as Record<string, unknown>;
         const turn = (result?.turn ?? response?.turn ?? null) as
@@ -281,14 +299,13 @@ export function useThreadMessaging({
           setActiveTurnId(threadId, null);
           pushThreadErrorMessage(threadId, "Turn failed to start.");
           safeMessageActivity();
-          return;
+          return { status: "blocked" };
         }
         setActiveTurnId(threadId, turnId);
+        return { status: "sent" };
       } catch (error) {
-        if (requestMode !== "steer") {
-          markProcessing(threadId, false);
-          setActiveTurnId(threadId, null);
-        }
+        markProcessing(threadId, false);
+        setActiveTurnId(threadId, null);
         onDebug?.({
           id: `${Date.now()}-${requestMode === "steer" ? "client-turn-steer-error" : "client-turn-start-error"}`,
           timestamp: Date.now(),
@@ -299,12 +316,15 @@ export function useThreadMessaging({
         pushThreadErrorMessage(
           threadId,
           requestMode === "steer"
-            ? `Turn steer failed: ${error instanceof Error ? error.message : String(error)}`
+            ? `Turn steer failed: ${
+              error instanceof Error ? error.message : String(error)
+            }. Message queued.`
             : error instanceof Error
               ? error.message
               : String(error),
         );
         safeMessageActivity();
+        return { status: requestMode === "steer" ? "steer_failed" : "blocked" };
       }
     },
     [
@@ -332,13 +352,14 @@ export function useThreadMessaging({
       text: string,
       images: string[] = [],
       appMentions: AppMention[] = [],
-    ) => {
+      options?: { sendIntent?: ComposerSendIntent },
+    ): Promise<SendMessageResult> => {
       if (!activeWorkspace) {
-        return;
+        return { status: "blocked" };
       }
       const messageText = text.trim();
       if (!messageText && images.length === 0) {
-        return;
+        return { status: "blocked" };
       }
       const promptExpansion = expandCustomPromptText(messageText, customPrompts);
       if (promptExpansion && "error" in promptExpansion) {
@@ -354,16 +375,17 @@ export function useThreadMessaging({
             payload: promptExpansion.error,
           });
         }
-        return;
+        return { status: "blocked" };
       }
       const finalText = promptExpansion?.expanded ?? messageText;
       const threadId = await ensureThreadForActiveWorkspace();
       if (!threadId) {
-        return;
+        return { status: "blocked" };
       }
-      await sendMessageToThread(activeWorkspace, threadId, finalText, images, {
+      return sendMessageToThread(activeWorkspace, threadId, finalText, images, {
         skipPromptExpansion: true,
         appMentions,
+        sendIntent: options?.sendIntent,
       });
     },
     [
@@ -385,8 +407,8 @@ export function useThreadMessaging({
       text: string,
       images: string[] = [],
       options?: SendMessageOptions,
-    ) => {
-      await sendMessageToThread(workspace, threadId, text, images, options);
+    ): Promise<SendMessageResult> => {
+      return sendMessageToThread(workspace, threadId, text, images, options);
     },
     [sendMessageToThread],
   );

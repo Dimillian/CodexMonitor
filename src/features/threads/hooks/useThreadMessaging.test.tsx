@@ -271,6 +271,8 @@ describe("useThreadMessaging telemetry", () => {
 
   it("does not fall back to turn/start when turn/steer fails", async () => {
     const pushThreadErrorMessage = vi.fn();
+    const markProcessing = vi.fn();
+    const setActiveTurnId = vi.fn();
     vi.mocked(steerTurnService).mockResolvedValueOnce({
       error: { message: "no active turn to steer" },
     } as unknown as Awaited<ReturnType<typeof steerTurnService>>);
@@ -302,9 +304,9 @@ describe("useThreadMessaging telemetry", () => {
         pendingInterruptsRef: { current: new Set<string>() },
         dispatch: vi.fn(),
         getCustomName: vi.fn(() => undefined),
-        markProcessing: vi.fn(),
+        markProcessing,
         markReviewing: vi.fn(),
-        setActiveTurnId: vi.fn(),
+        setActiveTurnId,
         recordThreadActivity: vi.fn(),
         safeMessageActivity: vi.fn(),
         onDebug: vi.fn(),
@@ -318,19 +320,93 @@ describe("useThreadMessaging telemetry", () => {
     );
 
     await act(async () => {
-      await result.current.sendUserMessageToThread(
+      const sendResult = await result.current.sendUserMessageToThread(
         workspace,
         "thread-1",
         "steer should fail",
         [],
       );
+      expect(sendResult).toEqual({ status: "steer_failed" });
     });
 
     expect(steerTurnService).toHaveBeenCalledTimes(1);
     expect(sendUserMessageService).not.toHaveBeenCalled();
+    expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+    expect(markProcessing).toHaveBeenCalledWith("thread-1", false);
+    expect(setActiveTurnId).toHaveBeenCalledWith("thread-1", null);
     expect(pushThreadErrorMessage).toHaveBeenCalledWith(
       "thread-1",
-      "Turn steer failed: no active turn to steer",
+      "Turn steer failed: no active turn to steer. Message queued.",
+    );
+  });
+
+  it("returns steer_failed and clears stale state when turn/steer throws", async () => {
+    const pushThreadErrorMessage = vi.fn();
+    const markProcessing = vi.fn();
+    const setActiveTurnId = vi.fn();
+    vi.mocked(steerTurnService).mockRejectedValueOnce(
+      new Error("steer network failure"),
+    );
+
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "current",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: true,
+        customPrompts: [],
+        threadStatusById: {
+          "thread-1": {
+            isProcessing: true,
+            isReviewing: false,
+            hasUnread: false,
+            processingStartedAt: 0,
+            lastDurationMs: null,
+          },
+        },
+        activeTurnIdByThread: {
+          "thread-1": "turn-1",
+        },
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing,
+        markReviewing: vi.fn(),
+        setActiveTurnId,
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage,
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      const sendResult = await result.current.sendUserMessageToThread(
+        workspace,
+        "thread-1",
+        "steer exception",
+        [],
+      );
+      expect(sendResult).toEqual({ status: "steer_failed" });
+    });
+
+    expect(sendUserMessageService).not.toHaveBeenCalled();
+    expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+    expect(markProcessing).toHaveBeenCalledWith("thread-1", false);
+    expect(setActiveTurnId).toHaveBeenCalledWith("thread-1", null);
+    expect(pushThreadErrorMessage).toHaveBeenCalledWith(
+      "thread-1",
+      "Turn steer failed: steer network failure. Message queued.",
     );
   });
 });

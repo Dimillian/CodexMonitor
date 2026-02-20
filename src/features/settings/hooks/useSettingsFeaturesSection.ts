@@ -240,7 +240,8 @@ export const useSettingsFeaturesSection = ({
     () =>
       features.filter(
         (feature) =>
-          feature.stage === "beta" || feature.stage === "under_development",
+          (feature.stage === "beta" || feature.stage === "under_development") &&
+          !HIDDEN_DYNAMIC_FEATURE_KEYS.has(feature.name),
       ),
     [features],
   );

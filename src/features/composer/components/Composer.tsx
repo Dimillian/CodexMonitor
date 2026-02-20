@@ -11,9 +11,11 @@ import {
 import type {
   AppMention,
   AppOption,
+  ComposerSendIntent,
   ComposerEditorSettings,
   CustomPromptOption,
   DictationTranscript,
+  FollowUpMessageBehavior,
   QueuedMessage,
   ThreadTokenUsage,
 } from "../../../types";
@@ -42,17 +44,23 @@ import { usePromptHistory } from "../hooks/usePromptHistory";
 import { ComposerInput } from "./ComposerInput";
 import { ComposerMetaBar } from "./ComposerMetaBar";
 import { ComposerQueue } from "./ComposerQueue";
-import { isMobilePlatform } from "../../../utils/platformPaths";
+import { isMacPlatform, isMobilePlatform } from "../../../utils/platformPaths";
 
 type ComposerProps = {
-  onSend: (text: string, images: string[], appMentions?: AppMention[]) => void;
-  onQueue: (text: string, images: string[], appMentions?: AppMention[]) => void;
+  onSend: (
+    text: string,
+    images: string[],
+    appMentions?: AppMention[],
+    submitIntent?: ComposerSendIntent,
+  ) => void;
+  onQueue?: (text: string, images: string[], appMentions?: AppMention[]) => void;
   onStop: () => void;
   canStop: boolean;
   disabled?: boolean;
   appsEnabled: boolean;
   isProcessing: boolean;
-  steerEnabled: boolean;
+  steerAvailable: boolean;
+  followUpMessageBehavior: FollowUpMessageBehavior;
   collaborationModes: { id: string; label: string }[];
   selectedCollaborationModeId: string | null;
   onSelectCollaborationMode: (id: string | null) => void;
@@ -156,7 +164,8 @@ export const Composer = memo(function Composer({
   disabled = false,
   appsEnabled,
   isProcessing,
-  steerEnabled,
+  steerAvailable,
+  followUpMessageBehavior,
   collaborationModes,
   selectedCollaborationModeId,
   onSelectCollaborationMode,
@@ -227,6 +236,7 @@ export const Composer = memo(function Composer({
   onFileAutocompleteActiveChange,
   contextActions = [],
 }: ComposerProps) {
+  void onQueue;
   const [text, setText] = useState(draftText);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const [appMentionBindings, setAppMentionBindings] = useState<AppMentionBinding[]>([]);
@@ -238,6 +248,25 @@ export const Composer = memo(function Composer({
   const editorSettings = editorSettingsProp ?? DEFAULT_EDITOR_SETTINGS;
   const isDictationBusy = dictationState !== "idle";
   const canSend = text.trim().length > 0 || attachedImages.length > 0;
+  const isMac = isMacPlatform();
+  const followUpShortcutLabel = isMac ? "Shift+Cmd+Enter" : "Shift+Ctrl+Enter";
+  const effectiveFollowUpBehavior: FollowUpMessageBehavior =
+    followUpMessageBehavior === "steer" && steerAvailable ? "steer" : "queue";
+  const oppositeFollowUpIntent: ComposerSendIntent =
+    effectiveFollowUpBehavior === "queue" ? "steer" : "queue";
+  const oppositeFallsBackToQueue =
+    oppositeFollowUpIntent === "steer" && !steerAvailable;
+  const defaultSubmitIntent: ComposerSendIntent = isProcessing
+    ? effectiveFollowUpBehavior
+    : "default";
+  const oppositeSubmitIntent: ComposerSendIntent = isProcessing
+    ? oppositeFollowUpIntent
+    : "default";
+  const effectiveSendLabel = isProcessing
+    ? effectiveFollowUpBehavior === "steer"
+      ? "Steer"
+      : "Queue"
+    : sendLabel;
   const {
     expandFenceOnSpace,
     expandFenceOnEnter,
@@ -381,7 +410,7 @@ export const Composer = memo(function Composer({
     [handleHistoryTextChange, handleTextChange],
   );
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback((submitIntent: ComposerSendIntent = "default") => {
     if (disabled) {
       return;
     }
@@ -394,9 +423,9 @@ export const Composer = memo(function Composer({
     }
     const resolvedMentions = resolveBoundAppMentions(trimmed, appMentionBindings);
     if (resolvedMentions.length > 0) {
-      onSend(trimmed, attachedImages, resolvedMentions);
+      onSend(trimmed, attachedImages, resolvedMentions, submitIntent);
     } else {
-      onSend(trimmed, attachedImages);
+      onSend(trimmed, attachedImages, undefined, submitIntent);
     }
     resetHistoryNavigation();
     setComposerText("");
@@ -406,37 +435,6 @@ export const Composer = memo(function Composer({
     attachedImages,
     disabled,
     onSend,
-    recordHistory,
-    resetHistoryNavigation,
-    setComposerText,
-    text,
-  ]);
-
-  const handleQueue = useCallback(() => {
-    if (disabled) {
-      return;
-    }
-    const trimmed = text.trim();
-    if (!trimmed && attachedImages.length === 0) {
-      return;
-    }
-    if (trimmed) {
-      recordHistory(trimmed);
-    }
-    const resolvedMentions = resolveBoundAppMentions(trimmed, appMentionBindings);
-    if (resolvedMentions.length > 0) {
-      onQueue(trimmed, attachedImages, resolvedMentions);
-    } else {
-      onQueue(trimmed, attachedImages);
-    }
-    resetHistoryNavigation();
-    setComposerText("");
-    setAppMentionBindings([]);
-  }, [
-    appMentionBindings,
-    attachedImages,
-    disabled,
-    onQueue,
     recordHistory,
     resetHistoryNavigation,
     setComposerText,
@@ -641,6 +639,25 @@ export const Composer = memo(function Composer({
         onEditQueued={onEditQueued}
         onDeleteQueued={onDeleteQueued}
       />
+      {isProcessing && (
+        <div className="composer-followup-hint" role="status" aria-live="polite">
+          <div className="composer-followup-title">Follow-up behavior</div>
+          <div className="composer-followup-copy">
+            {oppositeFallsBackToQueue ? (
+              <>
+                Default: Queue (Steer unavailable). Press {followUpShortcutLabel} to queue this
+                message.
+              </>
+            ) : (
+              <>
+                Default: {effectiveFollowUpBehavior === "steer" ? "Steer" : "Queue"}. Press{" "}
+                {followUpShortcutLabel} to{" "}
+                {oppositeFollowUpIntent === "steer" ? "steer" : "queue"} this message.
+              </>
+            )}
+          </div>
+        </div>
+      )}
       {contextActions.length > 0 ? (
         <div className="composer-context-actions" role="toolbar" aria-label="PR review tools">
           {contextActions.map((action) => (
@@ -662,12 +679,12 @@ export const Composer = memo(function Composer({
       <ComposerInput
         text={text}
         disabled={disabled}
-        sendLabel={sendLabel}
+        sendLabel={effectiveSendLabel}
         canStop={canStop}
         canSend={canSend}
         isProcessing={isProcessing}
         onStop={onStop}
-        onSend={handleSend}
+        onSend={() => handleSend(defaultSubmitIntent)}
         dictationEnabled={dictationEnabled}
         dictationState={dictationState}
         dictationLevel={dictationLevel}
@@ -694,6 +711,23 @@ export const Composer = memo(function Composer({
           if (event.defaultPrevented) {
             return;
           }
+          const isOppositeFollowUpShortcut =
+            event.key === "Enter" &&
+            event.shiftKey &&
+            (isMac ? event.metaKey : event.ctrlKey);
+          if (isOppositeFollowUpShortcut && !suggestionsOpen) {
+            if (isDictationBusy) {
+              event.preventDefault();
+              return;
+            }
+            event.preventDefault();
+            const dismissKeyboardAfterSend = canSend && isMobilePlatform();
+            handleSend(oppositeSubmitIntent);
+            if (dismissKeyboardAfterSend) {
+              textareaRef.current?.blur();
+            }
+            return;
+          }
           if (
             expandFenceOnSpace &&
             event.key === " " &&
@@ -713,7 +747,13 @@ export const Composer = memo(function Composer({
               return;
             }
           }
-          if (event.key === "Enter" && event.shiftKey) {
+          if (
+            event.key === "Enter" &&
+            event.shiftKey &&
+            !event.metaKey &&
+            !event.ctrlKey &&
+            !event.altKey
+          ) {
             if (continueListOnShiftEnter && !suggestionsOpen) {
               const textarea = textareaRef.current;
               if (textarea) {
@@ -745,17 +785,6 @@ export const Composer = memo(function Composer({
             applyTextInsertion(nextText, nextCursor);
             return;
           }
-          if (
-            event.key === "Tab" &&
-            !event.shiftKey &&
-            steerEnabled &&
-            isProcessing &&
-            !suggestionsOpen
-          ) {
-            event.preventDefault();
-            handleQueue();
-            return;
-          }
           if (reviewPromptOpen && onReviewPromptKeyDown) {
             const handled = onReviewPromptKeyDown(event);
             if (handled) {
@@ -784,7 +813,7 @@ export const Composer = memo(function Composer({
             }
             event.preventDefault();
             const dismissKeyboardAfterSend = canSend && isMobilePlatform();
-            handleSend();
+            handleSend(defaultSubmitIntent);
             if (dismissKeyboardAfterSend) {
               textareaRef.current?.blur();
             }

@@ -6,6 +6,7 @@ import type {
   ApprovalRequest,
   BranchInfo,
   CollaborationModeOption,
+  ComposerSendIntent,
   ConversationItem,
   ComposerEditorSettings,
   CustomPromptOption,
@@ -24,6 +25,7 @@ import type {
   ModelOption,
   OpenAppTarget,
   QueuedMessage,
+  FollowUpMessageBehavior,
   PullRequestReviewAction,
   PullRequestReviewIntent,
   PullRequestSelectionRange,
@@ -379,6 +381,7 @@ export type LayoutNodesOptions = {
     text: string,
     images: string[],
     appMentions?: AppMention[],
+    submitIntent?: ComposerSendIntent,
   ) => void | Promise<void>;
   onQueue: (
     text: string,
@@ -390,7 +393,8 @@ export type LayoutNodesOptions = {
   onFileAutocompleteActiveChange?: (active: boolean) => void;
   isReviewing: boolean;
   isProcessing: boolean;
-  steerEnabled: boolean;
+  steerAvailable: boolean;
+  followUpMessageBehavior: FollowUpMessageBehavior;
   reviewPrompt: ReviewPromptState;
   onReviewPromptClose: () => void;
   onReviewPromptShowPreset: () => void;

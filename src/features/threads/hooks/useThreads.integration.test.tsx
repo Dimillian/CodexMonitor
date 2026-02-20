@@ -543,6 +543,7 @@ describe("useThreads UX integration", () => {
         isProcessing: status?.isProcessing ?? false,
         isReviewing: status?.isReviewing ?? false,
         steerEnabled: false,
+        followUpMessageBehavior: "queue",
         appsEnabled: true,
         activeWorkspace: workspace,
         connectWorkspace,
