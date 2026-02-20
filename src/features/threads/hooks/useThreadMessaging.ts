@@ -53,6 +53,10 @@ type UseThreadMessagingOptions = {
     workspaceId: string,
     threadId: string | null,
   ) => Promise<void>;
+  shouldPreflightRuntimeCodexArgsForSend?: (
+    workspaceId: string,
+    threadId: string,
+  ) => boolean;
   threadStatusById: ThreadState["threadStatusById"];
   activeTurnIdByThread: ThreadState["activeTurnIdByThread"];
   rateLimitsByWorkspace: Record<string, RateLimitSnapshot | null>;
@@ -97,6 +101,7 @@ export function useThreadMessaging({
   steerEnabled,
   customPrompts,
   ensureWorkspaceRuntimeCodexArgs,
+  shouldPreflightRuntimeCodexArgsForSend,
   threadStatusById,
   activeTurnIdByThread,
   rateLimitsByWorkspace,
@@ -200,7 +205,13 @@ export function useThreadMessaging({
       });
       const requestMode: "start" | "steer" = shouldSteer ? "steer" : "start";
       try {
-        if (!shouldSteer && ensureWorkspaceRuntimeCodexArgs) {
+        const shouldPreflightRuntimeCodexArgs =
+          shouldPreflightRuntimeCodexArgsForSend?.(workspace.id, threadId) ?? true;
+        if (
+          !shouldSteer &&
+          shouldPreflightRuntimeCodexArgs &&
+          ensureWorkspaceRuntimeCodexArgs
+        ) {
           await ensureWorkspaceRuntimeCodexArgs(workspace.id, threadId);
         }
         const startTurn = () => {
@@ -322,6 +333,7 @@ export function useThreadMessaging({
       dispatch,
       effort,
       ensureWorkspaceRuntimeCodexArgs,
+      shouldPreflightRuntimeCodexArgsForSend,
       activeTurnIdByThread,
       markProcessing,
       model,

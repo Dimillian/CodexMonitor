@@ -473,6 +473,48 @@ export function useThreads({
     [ensureWorkspaceRuntimeCodexArgs, onDebug],
   );
 
+  const getWorkspaceThreadIds = useCallback(
+    (workspaceId: string, includeThreadId?: string) => {
+      const visibleThreadIds = (state.threadsByWorkspace[workspaceId] ?? [])
+        .map((thread) => String(thread.id ?? "").trim())
+        .filter((threadId) => threadId.length > 0);
+      const hiddenThreadIds = Object.keys(
+        state.hiddenThreadIdsByWorkspace[workspaceId] ?? {},
+      );
+      const activeThreadIdForWorkspace =
+        state.activeThreadIdByWorkspace[workspaceId] ?? null;
+      const threadIds = new Set([...visibleThreadIds, ...hiddenThreadIds]);
+      if (activeThreadIdForWorkspace) {
+        threadIds.add(activeThreadIdForWorkspace);
+      }
+      if (includeThreadId) {
+        threadIds.add(includeThreadId);
+      }
+      return Array.from(threadIds);
+    },
+    [
+      state.activeThreadIdByWorkspace,
+      state.hiddenThreadIdsByWorkspace,
+      state.threadsByWorkspace,
+    ],
+  );
+
+  const hasProcessingThreadInWorkspace = useCallback(
+    (workspaceId: string, excludedThreadId?: string) =>
+      getWorkspaceThreadIds(workspaceId, excludedThreadId).some(
+        (candidateThreadId) =>
+          candidateThreadId !== excludedThreadId &&
+          Boolean(state.threadStatusById[candidateThreadId]?.isProcessing),
+      ),
+    [getWorkspaceThreadIds, state.threadStatusById],
+  );
+
+  const shouldPreflightRuntimeCodexArgsForSend = useCallback(
+    (workspaceId: string, threadId: string) =>
+      !hasProcessingThreadInWorkspace(workspaceId, threadId),
+    [hasProcessingThreadInWorkspace],
+  );
+
   const startThreadForWorkspace = useCallback(
     async (workspaceId: string, options?: { activate?: boolean }) => {
       await ensureWorkspaceRuntimeCodexArgsBestEffort(workspaceId, null, "start");
@@ -589,6 +631,7 @@ export function useThreads({
     steerEnabled,
     customPrompts,
     ensureWorkspaceRuntimeCodexArgs,
+    shouldPreflightRuntimeCodexArgsForSend,
     threadStatusById: state.threadStatusById,
     activeTurnIdByThread: state.activeTurnIdByThread,
     rateLimitsByWorkspace: state.rateLimitsByWorkspace,
@@ -629,17 +672,7 @@ export function useThreads({
       }
       if (threadId) {
         void (async () => {
-          const visibleThreadIds = (state.threadsByWorkspace[targetId] ?? [])
-            .map((thread) => String(thread.id ?? "").trim())
-            .filter((id) => id.length > 0);
-          const hiddenThreadIds = Object.keys(
-            state.hiddenThreadIdsByWorkspace[targetId] ?? {},
-          );
-          const hasActiveTurnInWorkspace = Array.from(
-            new Set([...visibleThreadIds, ...hiddenThreadIds]),
-          ).some((candidateThreadId) =>
-            Boolean(state.threadStatusById[candidateThreadId]?.isProcessing),
-          );
+          const hasActiveTurnInWorkspace = hasProcessingThreadInWorkspace(targetId);
           if (!hasActiveTurnInWorkspace) {
             await ensureWorkspaceRuntimeCodexArgsBestEffort(targetId, threadId, "resume");
           }
@@ -650,11 +683,9 @@ export function useThreads({
     [
       activeWorkspaceId,
       ensureWorkspaceRuntimeCodexArgsBestEffort,
+      hasProcessingThreadInWorkspace,
       resumeThreadForWorkspace,
       state.activeThreadIdByWorkspace,
-      state.hiddenThreadIdsByWorkspace,
-      state.threadStatusById,
-      state.threadsByWorkspace,
     ],
   );
 

@@ -333,6 +333,64 @@ describe("useThreads UX integration", () => {
     expect(ensureWorkspaceRuntimeCodexArgs).not.toHaveBeenCalled();
   });
 
+  it("does not preflight runtime codex args on send when another workspace thread is processing", async () => {
+    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
+    vi.mocked(resumeThread).mockImplementation(async (_workspaceId, threadId) => ({
+      result: {
+        thread: {
+          id: threadId,
+          preview: `Thread ${threadId}`,
+          updated_at: 9999,
+          turns: [],
+        },
+      },
+    }));
+    vi.mocked(sendUserMessageService).mockResolvedValue({
+      result: { turn: { id: "turn-target-1" } },
+    } as Awaited<ReturnType<typeof sendUserMessageService>>);
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+        ensureWorkspaceRuntimeCodexArgs,
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-busy");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-busy");
+    });
+
+    act(() => {
+      handlers?.onTurnStarted?.("ws-1", "thread-busy", "turn-busy-1");
+    });
+
+    await waitFor(() => {
+      expect(result.current.threadStatusById["thread-busy"]?.isProcessing).toBe(true);
+    });
+
+    ensureWorkspaceRuntimeCodexArgs.mockClear();
+
+    await act(async () => {
+      await result.current.sendUserMessageToThread(
+        workspace,
+        "thread-target",
+        "hello target",
+      );
+    });
+
+    expect(ensureWorkspaceRuntimeCodexArgs).not.toHaveBeenCalled();
+    const sendCalls = vi.mocked(sendUserMessageService).mock.calls;
+    const sendCall = sendCalls[sendCalls.length - 1];
+    expect(sendCall?.[0]).toBe("ws-1");
+    expect(sendCall?.[1]).toBe("thread-target");
+    expect(sendCall?.[2]).toBe("hello target");
+  });
+
   it("still starts thread when runtime codex args sync fails", async () => {
     const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => {
       throw new Error("runtime sync failed");
