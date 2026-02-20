@@ -530,6 +530,32 @@ impl DaemonState {
         .await
     }
 
+    async fn set_workspace_runtime_codex_args(
+        &self,
+        workspace_id: String,
+        codex_args: Option<String>,
+        client_version: String,
+    ) -> Result<workspaces_core::WorkspaceRuntimeCodexArgsResult, String> {
+        workspaces_core::set_workspace_runtime_codex_args_core(
+            workspace_id,
+            codex_args,
+            &self.workspaces,
+            &self.sessions,
+            &self.app_settings,
+            move |entry, default_bin, next_args, codex_home| {
+                spawn_with_client(
+                    self.event_sink.clone(),
+                    client_version.clone(),
+                    entry,
+                    default_bin,
+                    next_args,
+                    codex_home,
+                )
+            },
+        )
+        .await
+    }
+
     async fn get_app_settings(&self) -> AppSettings {
         settings_core::get_app_settings_core(&self.app_settings).await
     }

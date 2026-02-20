@@ -8,6 +8,7 @@ import type {
   ModelOption,
   WorkspaceInfo,
 } from "@/types";
+import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
 import { FileEditorCard } from "@/features/shared/components/FileEditorCard";
 
 type SettingsCodexSectionProps = {
@@ -74,6 +75,9 @@ const normalizeOverrideValue = (value: string): string | null => {
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
 };
+
+const normalizeCodexArgsOverrideValue = (value: string): string | null =>
+  normalizeCodexArgsInput(value);
 
 const DEFAULT_REASONING_EFFORT = "medium";
 
@@ -307,6 +311,13 @@ export function SettingsCodexSection({
         </div>
         <div className="settings-help">
           Extra flags passed before <code>app-server</code>. Use quotes for values with spaces.
+        </div>
+        <div className="settings-help">
+          Per-thread override processing ignores unsupported flags: <code>-m</code>/
+          <code>--model</code>, <code>-a</code>/<code>--ask-for-approval</code>,{" "}
+          <code>-s</code>/<code>--sandbox</code>, <code>--full-auto</code>,{" "}
+          <code>--dangerously-bypass-approvals-and-sandbox</code>, <code>--oss</code>,{" "}
+          <code>--local-provider</code>, and <code>--no-alt-screen</code>.
         </div>
         <div className="settings-field-actions">
           {codexDirty && (
@@ -695,7 +706,7 @@ export function SettingsCodexSection({
                     }
                     onBlur={async () => {
                       const draft = codexArgsOverrideDrafts[workspace.id] ?? "";
-                      const nextValue = normalizeOverrideValue(draft);
+                      const nextValue = normalizeCodexArgsOverrideValue(draft);
                       if (nextValue === (workspace.settings.codexArgs ?? null)) {
                         return;
                       }

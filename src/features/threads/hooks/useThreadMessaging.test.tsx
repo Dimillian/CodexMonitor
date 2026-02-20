@@ -98,6 +98,7 @@ describe("useThreadMessaging telemetry", () => {
   });
 
   it("records prompt_sent once for one message send", async () => {
+    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
     const { result } = renderHook(() =>
       useThreadMessaging({
         activeWorkspace: workspace,
@@ -109,6 +110,7 @@ describe("useThreadMessaging telemetry", () => {
         reviewDeliveryMode: "inline",
         steerEnabled: false,
         customPrompts: [],
+        ensureWorkspaceRuntimeCodexArgs,
         threadStatusById: {},
         activeTurnIdByThread: {},
         rateLimitsByWorkspace: {},
@@ -152,6 +154,8 @@ describe("useThreadMessaging telemetry", () => {
         }),
       }),
     );
+    expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledTimes(1);
+    expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", "thread-1");
   });
 
   it("forwards explicit app mentions to turn/start", async () => {
@@ -205,6 +209,7 @@ describe("useThreadMessaging telemetry", () => {
 
   it("uses turn/steer when steer mode is enabled and an active turn is present", async () => {
     const dispatch = vi.fn();
+    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
     const { result } = renderHook(() =>
       useThreadMessaging({
         activeWorkspace: workspace,
@@ -216,6 +221,7 @@ describe("useThreadMessaging telemetry", () => {
         reviewDeliveryMode: "inline",
         steerEnabled: true,
         customPrompts: [],
+        ensureWorkspaceRuntimeCodexArgs,
         threadStatusById: {
           "thread-1": {
             isProcessing: true,
@@ -264,6 +270,7 @@ describe("useThreadMessaging telemetry", () => {
       [],
     );
     expect(sendUserMessageService).not.toHaveBeenCalled();
+    expect(ensureWorkspaceRuntimeCodexArgs).not.toHaveBeenCalled();
     expect(dispatch).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: "upsertItem" }),
     );

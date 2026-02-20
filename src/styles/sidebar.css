@@ -932,6 +932,20 @@
   gap: 6px;
 }
 
+.thread-args-badge {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface-hover);
+  color: var(--text-faint);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
 .thread-time {
   color: var(--text-faint);
   font-size: 11px;

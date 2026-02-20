@@ -18,6 +18,7 @@ describe("useThreadCodexParams", () => {
         effort: "high",
         accessMode: "full-access",
         collaborationModeId: "plan",
+        codexArgsOverride: "--profile dev",
       });
     });
 
@@ -27,6 +28,7 @@ describe("useThreadCodexParams", () => {
         effort: "high",
         accessMode: "full-access",
         collaborationModeId: "plan",
+        codexArgsOverride: "--profile dev",
       }),
     );
 
@@ -45,6 +47,7 @@ describe("useThreadCodexParams", () => {
           effort: "medium",
           accessMode: "nope",
           collaborationModeId: 99,
+          codexArgsOverride: 12,
           updatedAt: "never",
         },
       }),
@@ -57,8 +60,37 @@ describe("useThreadCodexParams", () => {
       effort: "medium",
       accessMode: null,
       collaborationModeId: null,
+      codexArgsOverride: null,
       updatedAt: 0,
     });
+  });
+
+  it("preserves missing codexArgsOverride for legacy persisted entries", () => {
+    window.localStorage.setItem(
+      STORAGE_KEY_THREAD_CODEX_PARAMS,
+      JSON.stringify({
+        "ws-1:thread-legacy": {
+          modelId: "gpt-4.1",
+          effort: "medium",
+          accessMode: "current",
+          collaborationModeId: "default",
+          updatedAt: 123,
+        },
+      }),
+    );
+
+    const { result } = renderHook(() => useThreadCodexParams());
+    const legacy = result.current.getThreadCodexParams("ws-1", "thread-legacy");
+    expect(legacy).toEqual(
+      expect.objectContaining({
+        modelId: "gpt-4.1",
+        effort: "medium",
+        accessMode: "current",
+        collaborationModeId: "default",
+        updatedAt: 123,
+      }),
+    );
+    expect(legacy?.codexArgsOverride).toBeUndefined();
   });
 
   it("syncs from storage events", async () => {
@@ -72,6 +104,7 @@ describe("useThreadCodexParams", () => {
           effort: "low",
           accessMode: "current",
           collaborationModeId: "default",
+          codexArgsOverride: "--profile ws",
           updatedAt: 1,
         },
       }),
@@ -92,6 +125,7 @@ describe("useThreadCodexParams", () => {
       effort: "low",
       accessMode: "current",
       collaborationModeId: "default",
+      codexArgsOverride: "--profile ws",
       updatedAt: 1,
     });
   });
@@ -111,5 +145,25 @@ describe("useThreadCodexParams", () => {
     });
 
     expect(result.current.getThreadCodexParams("ws-1", "thread-3")).toBeNull();
+  });
+
+  it("keeps explicit undefined codexArgsOverride as inherit in memory", () => {
+    const { result } = renderHook(() => useThreadCodexParams());
+
+    act(() => {
+      result.current.patchThreadCodexParams("ws-1", "thread-4", {
+        modelId: "gpt-5",
+        codexArgsOverride: undefined,
+      });
+    });
+
+    expect(result.current.getThreadCodexParams("ws-1", "thread-4")).toEqual(
+      expect.objectContaining({
+        modelId: "gpt-5",
+      }),
+    );
+    expect(
+      result.current.getThreadCodexParams("ws-1", "thread-4")?.codexArgsOverride,
+    ).toBeUndefined();
   });
 });
