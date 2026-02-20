@@ -143,6 +143,7 @@ export function useThreadCodexSyncOrchestration({
       workspaceId,
       threadId ?? NO_THREAD_SCOPE_SUFFIX,
     );
+    const noThreadStored = getThreadCodexParams(workspaceId, NO_THREAD_SCOPE_SUFFIX);
     const resolved = resolveThreadCodexState({
       workspaceId,
       threadId,
@@ -150,6 +151,7 @@ export function useThreadCodexSyncOrchestration({
       lastComposerModelId: appSettings.lastComposerModelId,
       lastComposerReasoningEffort: appSettings.lastComposerReasoningEffort,
       stored,
+      noThreadStored,
       pendingSeed: pendingNewThreadSeedRef.current,
     });
 

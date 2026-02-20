@@ -191,4 +191,43 @@ describe("useThreadCodexSyncOrchestration seed behavior", () => {
       expect.objectContaining({ codexArgsOverride: "--profile pending" }),
     );
   });
+
+  it("syncs selected codex args from no-thread fallback when thread scope is inherit", async () => {
+    const params = makeSyncParams();
+    params.getThreadCodexParams.mockImplementation(
+      (_workspaceId: string, threadId: string) => {
+        if (threadId === "thread-2") {
+          return {
+            modelId: null,
+            effort: null,
+            accessMode: null,
+            collaborationModeId: null,
+            codexArgsOverride: undefined,
+            updatedAt: 1,
+          };
+        }
+        if (threadId === "__no_thread__") {
+          return {
+            modelId: null,
+            effort: null,
+            accessMode: null,
+            collaborationModeId: null,
+            codexArgsOverride: "--profile inherited",
+            updatedAt: 2,
+          };
+        }
+        return null;
+      },
+    );
+
+    renderHook(() => useThreadCodexSyncOrchestration(params));
+
+    await waitFor(() => {
+      expect(params.setPreferredCodexArgsOverride).toHaveBeenCalledWith(
+        "--profile inherited",
+      );
+    });
+
+    expect(params.patchThreadCodexParams).not.toHaveBeenCalled();
+  });
 });

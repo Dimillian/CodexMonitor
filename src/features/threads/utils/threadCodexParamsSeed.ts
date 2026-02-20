@@ -22,6 +22,7 @@ type ResolveThreadCodexStateInput = {
   lastComposerModelId: string | null;
   lastComposerReasoningEffort: string | null;
   stored: ThreadCodexParams | null;
+  noThreadStored: ThreadCodexParams | null;
   pendingSeed: PendingNewThreadSeed | null;
 };
 
@@ -114,6 +115,7 @@ export function resolveThreadCodexState(
     lastComposerModelId,
     lastComposerReasoningEffort,
     stored,
+    noThreadStored,
     pendingSeed,
   } = input;
 
@@ -128,27 +130,25 @@ export function resolveThreadCodexState(
     };
   }
 
-  const pendingAccessMode =
-    pendingSeed && pendingSeed.workspaceId === workspaceId
-      ? pendingSeed.accessMode
-      : null;
-  const pendingCollabModeId =
-    pendingSeed && pendingSeed.workspaceId === workspaceId
-      ? pendingSeed.collaborationModeId
-      : null;
-  const pendingCodexArgsOverride =
-    pendingSeed && pendingSeed.workspaceId === workspaceId ? pendingSeed.codexArgsOverride : null;
+  const pendingForWorkspace =
+    pendingSeed && pendingSeed.workspaceId === workspaceId ? pendingSeed : null;
 
   return {
     scopeKey: makeThreadCodexParamsKey(workspaceId, threadId),
-    accessMode: stored?.accessMode ?? pendingAccessMode ?? defaultAccessMode,
+    accessMode: stored?.accessMode ?? pendingForWorkspace?.accessMode ?? defaultAccessMode,
     preferredModelId: stored?.modelId ?? lastComposerModelId ?? null,
     preferredEffort: stored?.effort ?? lastComposerReasoningEffort ?? null,
-    preferredCollabModeId: stored?.collaborationModeId ?? pendingCollabModeId ?? null,
+    preferredCollabModeId:
+      stored?.collaborationModeId ??
+      (pendingForWorkspace
+        ? pendingForWorkspace.collaborationModeId
+        : null),
     preferredCodexArgsOverride:
       stored && stored.codexArgsOverride !== undefined
         ? stored.codexArgsOverride
-        : pendingCodexArgsOverride ?? null,
+        : pendingForWorkspace
+          ? pendingForWorkspace.codexArgsOverride
+          : noThreadStored?.codexArgsOverride ?? null,
   };
 }
 
@@ -178,8 +178,11 @@ export function buildThreadCodexSeedPatch(options: {
     modelId: selectedModelId,
     effort: resolvedEffort,
     accessMode: pendingForWorkspace?.accessMode ?? accessMode,
-    collaborationModeId:
-      pendingForWorkspace?.collaborationModeId ?? selectedCollaborationModeId,
-    codexArgsOverride: pendingForWorkspace?.codexArgsOverride ?? codexArgsOverride,
+    collaborationModeId: pendingForWorkspace
+      ? pendingForWorkspace.collaborationModeId
+      : selectedCollaborationModeId,
+    codexArgsOverride: pendingForWorkspace
+      ? pendingForWorkspace.codexArgsOverride
+      : codexArgsOverride,
   };
 }
