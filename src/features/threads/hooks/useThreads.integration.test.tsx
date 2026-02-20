@@ -215,6 +215,32 @@ describe("useThreads UX integration", () => {
     });
   });
 
+  it("still starts thread when runtime codex args sync fails", async () => {
+    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => {
+      throw new Error("runtime sync failed");
+    });
+    vi.mocked(startThread).mockResolvedValue({
+      result: { thread: { id: "thread-new" } },
+    } as Awaited<ReturnType<typeof startThread>>);
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+        ensureWorkspaceRuntimeCodexArgs,
+      }),
+    );
+
+    let threadId: string | null = null;
+    await act(async () => {
+      threadId = await result.current.startThread();
+    });
+
+    expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", null);
+    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1");
+    expect(threadId).toBe("thread-new");
+  });
+
   it("defers trimming until scrollback settings hydrate", async () => {
     const totalItems = 240;
     const items = Array.from({ length: totalItems }, (_, index) =>

@@ -146,4 +146,24 @@ describe("useThreadCodexParams", () => {
 
     expect(result.current.getThreadCodexParams("ws-1", "thread-3")).toBeNull();
   });
+
+  it("keeps explicit undefined codexArgsOverride as inherit in memory", () => {
+    const { result } = renderHook(() => useThreadCodexParams());
+
+    act(() => {
+      result.current.patchThreadCodexParams("ws-1", "thread-4", {
+        modelId: "gpt-5",
+        codexArgsOverride: undefined,
+      });
+    });
+
+    expect(result.current.getThreadCodexParams("ws-1", "thread-4")).toEqual(
+      expect.objectContaining({
+        modelId: "gpt-5",
+      }),
+    );
+    expect(
+      result.current.getThreadCodexParams("ws-1", "thread-4")?.codexArgsOverride,
+    ).toBeUndefined();
+  });
 });

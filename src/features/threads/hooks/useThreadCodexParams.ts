@@ -53,9 +53,11 @@ function sanitizeEntry(value: unknown): ThreadCodexParams | null {
     "codexArgsOverride",
   );
   const codexArgsOverride = hasCodexArgsOverrideField
-    ? typeof entry.codexArgsOverride === "string"
-      ? entry.codexArgsOverride
-      : null
+    ? entry.codexArgsOverride === undefined
+      ? undefined
+      : typeof entry.codexArgsOverride === "string" || entry.codexArgsOverride === null
+        ? entry.codexArgsOverride
+        : null
     : undefined;
   return {
     modelId: typeof entry.modelId === "string" ? entry.modelId : null,

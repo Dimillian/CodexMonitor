@@ -452,15 +452,34 @@ export function useThreads({
     onSubagentThreadDetected,
   });
 
+  const ensureWorkspaceRuntimeCodexArgsBestEffort = useCallback(
+    async (workspaceId: string, threadId: string | null, phase: string) => {
+      if (!ensureWorkspaceRuntimeCodexArgs) {
+        return;
+      }
+      try {
+        await ensureWorkspaceRuntimeCodexArgs(workspaceId, threadId);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        onDebug?.({
+          id: `${Date.now()}-client-thread-runtime-codex-args-sync-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "thread/runtime-codex-args sync error",
+          payload: `${phase}: ${detail}`,
+        });
+      }
+    },
+    [ensureWorkspaceRuntimeCodexArgs, onDebug],
+  );
+
   const startThread = useCallback(async () => {
     if (!activeWorkspaceId) {
       return null;
     }
-    if (ensureWorkspaceRuntimeCodexArgs) {
-      await ensureWorkspaceRuntimeCodexArgs(activeWorkspaceId, null);
-    }
+    await ensureWorkspaceRuntimeCodexArgsBestEffort(activeWorkspaceId, null, "start");
     return startThreadForWorkspace(activeWorkspaceId);
-  }, [activeWorkspaceId, ensureWorkspaceRuntimeCodexArgs, startThreadForWorkspace]);
+  }, [activeWorkspaceId, ensureWorkspaceRuntimeCodexArgsBestEffort, startThreadForWorkspace]);
 
   const ensureThreadForActiveWorkspace = useCallback(async () => {
     if (!activeWorkspace) {
@@ -468,24 +487,24 @@ export function useThreads({
     }
     let threadId = activeThreadId;
     if (!threadId) {
-      if (ensureWorkspaceRuntimeCodexArgs) {
-        await ensureWorkspaceRuntimeCodexArgs(activeWorkspace.id, null);
-      }
+      await ensureWorkspaceRuntimeCodexArgsBestEffort(activeWorkspace.id, null, "start");
       threadId = await startThreadForWorkspace(activeWorkspace.id);
       if (!threadId) {
         return null;
       }
     } else if (!loadedThreadsRef.current[threadId]) {
-      if (ensureWorkspaceRuntimeCodexArgs) {
-        await ensureWorkspaceRuntimeCodexArgs(activeWorkspace.id, threadId);
-      }
+      await ensureWorkspaceRuntimeCodexArgsBestEffort(
+        activeWorkspace.id,
+        threadId,
+        "resume",
+      );
       await resumeThreadForWorkspace(activeWorkspace.id, threadId);
     }
     return threadId;
   }, [
     activeWorkspace,
     activeThreadId,
-    ensureWorkspaceRuntimeCodexArgs,
+    ensureWorkspaceRuntimeCodexArgsBestEffort,
     resumeThreadForWorkspace,
     startThreadForWorkspace,
   ]);
@@ -496,9 +515,7 @@ export function useThreads({
       const shouldActivate = workspaceId === activeWorkspaceId;
       let threadId = currentActiveThreadId;
       if (!threadId) {
-        if (ensureWorkspaceRuntimeCodexArgs) {
-          await ensureWorkspaceRuntimeCodexArgs(workspaceId, null);
-        }
+        await ensureWorkspaceRuntimeCodexArgsBestEffort(workspaceId, null, "start");
         threadId = await startThreadForWorkspace(workspaceId, {
           activate: shouldActivate,
         });
@@ -506,9 +523,7 @@ export function useThreads({
           return null;
         }
       } else if (!loadedThreadsRef.current[threadId]) {
-        if (ensureWorkspaceRuntimeCodexArgs) {
-          await ensureWorkspaceRuntimeCodexArgs(workspaceId, threadId);
-        }
+        await ensureWorkspaceRuntimeCodexArgsBestEffort(workspaceId, threadId, "resume");
         await resumeThreadForWorkspace(workspaceId, threadId);
       }
       if (shouldActivate && currentActiveThreadId !== threadId) {
@@ -519,7 +534,7 @@ export function useThreads({
     [
       activeWorkspaceId,
       dispatch,
-      ensureWorkspaceRuntimeCodexArgs,
+      ensureWorkspaceRuntimeCodexArgsBestEffort,
       loadedThreadsRef,
       resumeThreadForWorkspace,
       startThreadForWorkspace,
@@ -609,27 +624,14 @@ export function useThreads({
       }
       if (threadId) {
         void (async () => {
-          if (ensureWorkspaceRuntimeCodexArgs) {
-            try {
-              await ensureWorkspaceRuntimeCodexArgs(targetId, threadId);
-            } catch (error) {
-              onDebug?.({
-                id: `${Date.now()}-client-thread-runtime-codex-args-sync-error`,
-                timestamp: Date.now(),
-                source: "error",
-                label: "thread/runtime-codex-args sync error",
-                payload: error instanceof Error ? error.message : String(error),
-              });
-            }
-          }
+          await ensureWorkspaceRuntimeCodexArgsBestEffort(targetId, threadId, "resume");
           await resumeThreadForWorkspace(targetId, threadId);
         })();
       }
     },
     [
       activeWorkspaceId,
-      ensureWorkspaceRuntimeCodexArgs,
-      onDebug,
+      ensureWorkspaceRuntimeCodexArgsBestEffort,
       resumeThreadForWorkspace,
       state.activeThreadIdByWorkspace,
     ],
