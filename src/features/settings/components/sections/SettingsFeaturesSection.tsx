@@ -33,7 +33,7 @@ const FEATURE_DESCRIPTION_FALLBACKS: Record<string, string> = {
     "Allow prompting and installing missing MCP dependencies.",
   skill_env_var_dependency_prompt:
     "Prompt for missing skill environment variable dependencies.",
-  steer: "Enter submits immediately instead of queueing.",
+  steer: "Enable turn steering capability when supported by Codex.",
   collaboration_modes: "Enable collaboration mode presets.",
   personality: "Enable personality selection.",
   responses_websockets:

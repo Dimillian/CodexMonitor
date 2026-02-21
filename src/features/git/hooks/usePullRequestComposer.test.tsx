@@ -58,7 +58,6 @@ const makeOptions = (overrides: Partial<Parameters<typeof usePullRequestComposer
   runPullRequestReview: vi.fn().mockResolvedValue("thread-review-1"),
   clearActiveImages: vi.fn(),
   handleSend: vi.fn().mockResolvedValue(undefined),
-  queueMessage: vi.fn().mockResolvedValue(undefined),
   ...overrides,
 });
 
@@ -151,7 +150,12 @@ describe("usePullRequestComposer", () => {
       await result.current.handleComposerSend("/apps", []);
     });
 
-    expect(options.handleSend).toHaveBeenCalledWith("/apps", []);
+    expect(options.handleSend).toHaveBeenCalledWith(
+      "/apps",
+      [],
+      undefined,
+      undefined,
+    );
     expect(options.runPullRequestReview).not.toHaveBeenCalled();
   });
 

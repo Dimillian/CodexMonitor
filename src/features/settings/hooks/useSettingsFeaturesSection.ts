@@ -14,7 +14,11 @@ type UseSettingsFeaturesSectionArgs = {
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
 };
 
-const HIDDEN_DYNAMIC_FEATURE_KEYS = new Set<string>(["personality", "collab"]);
+const HIDDEN_DYNAMIC_FEATURE_KEYS = new Set<string>([
+  "personality",
+  "collab",
+  "steer",
+]);
 
 export type SettingsFeaturesSectionProps = {
   appSettings: AppSettings;
@@ -236,7 +240,8 @@ export const useSettingsFeaturesSection = ({
     () =>
       features.filter(
         (feature) =>
-          feature.stage === "beta" || feature.stage === "under_development",
+          (feature.stage === "beta" || feature.stage === "under_development") &&
+          !HIDDEN_DYNAMIC_FEATURE_KEYS.has(feature.name),
       ),
     [features],
   );

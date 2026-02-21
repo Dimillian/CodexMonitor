@@ -29,11 +29,13 @@ pub(crate) fn read_settings(path: &PathBuf) -> Result<AppSettings, String> {
         return Ok(AppSettings::default());
     }
     let data = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-    match serde_json::from_str(&data) {
+    let mut value: Value = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+    migrate_follow_up_message_behavior(&mut value);
+    match serde_json::from_value(value.clone()) {
         Ok(settings) => Ok(settings),
         Err(_) => {
-            let mut value: Value = serde_json::from_str(&data).map_err(|e| e.to_string())?;
             sanitize_remote_settings_for_tcp_only(&mut value);
+            migrate_follow_up_message_behavior(&mut value);
             serde_json::from_value(value).map_err(|e| e.to_string())
         }
     }
@@ -70,6 +72,24 @@ fn sanitize_remote_settings_for_tcp_only(value: &mut Value) {
         }
     }
     root.retain(|key, _| !key.to_ascii_lowercase().starts_with("orb"));
+}
+
+fn migrate_follow_up_message_behavior(value: &mut Value) {
+    let Value::Object(root) = value else {
+        return;
+    };
+    if root.contains_key("followUpMessageBehavior") {
+        return;
+    }
+    let steer_enabled = root
+        .get("steerEnabled")
+        .or_else(|| root.get("experimentalSteerEnabled"))
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    root.insert(
+        "followUpMessageBehavior".to_string(),
+        Value::String(if steer_enabled { "steer" } else { "queue" }.to_string()),
+    );
 }
 
 #[cfg(test)]
@@ -153,5 +173,65 @@ mod tests {
             crate::types::RemoteBackendProvider::Tcp
         ));
         assert_eq!(settings.theme, "dark");
+    }
+
+    #[test]
+    fn read_settings_migrates_follow_up_behavior_from_legacy_steer_enabled_true() {
+        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+        let path = temp_dir.join("settings.json");
+
+        std::fs::write(
+            &path,
+            r#"{
+  "steerEnabled": true,
+  "theme": "dark"
+}"#,
+        )
+        .expect("write settings");
+
+        let settings = read_settings(&path).expect("read settings");
+        assert!(settings.steer_enabled);
+        assert_eq!(settings.follow_up_message_behavior, "steer");
+    }
+
+    #[test]
+    fn read_settings_migrates_follow_up_behavior_from_legacy_steer_enabled_false() {
+        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+        let path = temp_dir.join("settings.json");
+
+        std::fs::write(
+            &path,
+            r#"{
+  "steerEnabled": false,
+  "theme": "dark"
+}"#,
+        )
+        .expect("write settings");
+
+        let settings = read_settings(&path).expect("read settings");
+        assert!(!settings.steer_enabled);
+        assert_eq!(settings.follow_up_message_behavior, "queue");
+    }
+
+    #[test]
+    fn read_settings_keeps_existing_follow_up_behavior() {
+        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+        let path = temp_dir.join("settings.json");
+
+        std::fs::write(
+            &path,
+            r#"{
+  "steerEnabled": true,
+  "followUpMessageBehavior": "queue",
+  "theme": "dark"
+}"#,
+        )
+        .expect("write settings");
+
+        let settings = read_settings(&path).expect("read settings");
+        assert_eq!(settings.follow_up_message_behavior, "queue");
     }
 }

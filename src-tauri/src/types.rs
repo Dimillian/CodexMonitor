@@ -557,6 +557,11 @@ pub(crate) struct AppSettings {
     )]
     pub(crate) steer_enabled: bool,
     #[serde(
+        default = "default_follow_up_message_behavior",
+        rename = "followUpMessageBehavior"
+    )]
+    pub(crate) follow_up_message_behavior: String,
+    #[serde(
         default = "default_pause_queued_messages_when_response_required",
         rename = "pauseQueuedMessagesWhenResponseRequired"
     )]
@@ -905,6 +910,10 @@ fn default_steer_enabled() -> bool {
     true
 }
 
+fn default_follow_up_message_behavior() -> String {
+    "queue".to_string()
+}
+
 fn default_pause_queued_messages_when_response_required() -> bool {
     true
 }
@@ -1145,6 +1154,7 @@ impl Default for AppSettings {
             commit_message_model_id: None,
             collaboration_modes_enabled: true,
             steer_enabled: true,
+            follow_up_message_behavior: default_follow_up_message_behavior(),
             pause_queued_messages_when_response_required:
                 default_pause_queued_messages_when_response_required(),
             unified_exec_enabled: true,
@@ -1306,6 +1316,7 @@ mod tests {
         assert!(settings.commit_message_prompt.contains("{diff}"));
         assert!(settings.collaboration_modes_enabled);
         assert!(settings.steer_enabled);
+        assert_eq!(settings.follow_up_message_behavior, "queue");
         assert!(settings.pause_queued_messages_when_response_required);
         assert!(settings.unified_exec_enabled);
         assert!(!settings.experimental_apps_enabled);

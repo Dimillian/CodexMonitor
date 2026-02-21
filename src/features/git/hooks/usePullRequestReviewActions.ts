@@ -6,6 +6,7 @@ import type {
   PullRequestReviewAction,
   PullRequestReviewIntent,
   PullRequestSelectionRange,
+  SendMessageResult,
   WorkspaceInfo,
 } from "@/types";
 import { pushErrorToast } from "@services/toasts";
@@ -33,7 +34,7 @@ type UsePullRequestReviewActionsOptions = {
     threadId: string,
     text: string,
     images?: string[],
-  ) => Promise<void>;
+  ) => Promise<void | SendMessageResult>;
 };
 
 type RunPullRequestReviewOptions = {

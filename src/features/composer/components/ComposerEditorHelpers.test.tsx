@@ -25,12 +25,12 @@ function ComposerHarness({ initialText = "", editorSettings }: HarnessProps) {
   return (
     <Composer
       onSend={() => {}}
-      onQueue={() => {}}
       onStop={() => {}}
       canStop={false}
       isProcessing={false}
       appsEnabled={true}
-      steerEnabled={false}
+      steerAvailable={false}
+      followUpMessageBehavior="queue"
       collaborationModes={[]}
       selectedCollaborationModeId={null}
       onSelectCollaborationMode={() => {}}

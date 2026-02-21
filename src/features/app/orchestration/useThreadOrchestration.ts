@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { pushErrorToast } from "@/services/toasts";
-import type { AccessMode, AppMention, AppSettings } from "@/types";
+import type {
+  AccessMode,
+  AppMention,
+  AppSettings,
+  ComposerSendIntent,
+} from "@/types";
 import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
 import { useThreadCodexParams } from "@threads/hooks/useThreadCodexParams";
 import { getIgnoredCodexArgsFlagsMetadata } from "@threads/utils/codexArgsProfiles";
@@ -75,6 +80,7 @@ type SendOrQueueHandler = (
   text: string,
   images: string[],
   appMentions?: AppMention[],
+  submitIntent?: ComposerSendIntent,
 ) => Promise<void>;
 
 type UseThreadUiOrchestrationParams = {
@@ -86,7 +92,6 @@ type UseThreadUiOrchestrationParams = {
   pendingNewThreadSeedRef: MutableRefObject<PendingNewThreadSeed | null>;
   runWithDraftStart: (runner: () => Promise<void>) => Promise<void>;
   handleComposerSend: SendOrQueueHandler;
-  handleComposerQueue: SendOrQueueHandler;
   clearDraftState: () => void;
   exitDiffView: () => void;
   resetPullRequestSelection: () => void;
@@ -349,7 +354,6 @@ export function useThreadUiOrchestration({
   pendingNewThreadSeedRef,
   runWithDraftStart,
   handleComposerSend,
-  handleComposerQueue,
   clearDraftState,
   exitDiffView,
   resetPullRequestSelection,
@@ -379,41 +383,20 @@ export function useThreadUiOrchestration({
   ]);
 
   const handleComposerSendWithDraftStart = useCallback(
-    (text: string, images: string[], appMentions?: AppMention[]) => {
+    (
+      text: string,
+      images: string[],
+      appMentions?: AppMention[],
+      submitIntent?: ComposerSendIntent,
+    ) => {
       rememberPendingNewThreadSeed();
       return runWithDraftStart(() =>
         appMentions && appMentions.length > 0
-          ? handleComposerSend(text, images, appMentions)
-          : handleComposerSend(text, images),
+          ? handleComposerSend(text, images, appMentions, submitIntent)
+          : handleComposerSend(text, images, undefined, submitIntent),
       );
     },
     [handleComposerSend, rememberPendingNewThreadSeed, runWithDraftStart],
-  );
-
-  const handleComposerQueueWithDraftStart = useCallback(
-    (text: string, images: string[], appMentions?: AppMention[]) => {
-      const runner = activeThreadId
-        ? () =>
-            appMentions && appMentions.length > 0
-              ? handleComposerQueue(text, images, appMentions)
-              : handleComposerQueue(text, images)
-        : () =>
-            appMentions && appMentions.length > 0
-              ? handleComposerSend(text, images, appMentions)
-              : handleComposerSend(text, images);
-
-      if (!activeThreadId) {
-        rememberPendingNewThreadSeed();
-      }
-      return runWithDraftStart(runner);
-    },
-    [
-      activeThreadId,
-      handleComposerQueue,
-      handleComposerSend,
-      rememberPendingNewThreadSeed,
-      runWithDraftStart,
-    ],
   );
 
   const handleSelectWorkspaceInstance = useCallback(
@@ -474,7 +457,6 @@ export function useThreadUiOrchestration({
 
   return {
     handleComposerSendWithDraftStart,
-    handleComposerQueueWithDraftStart,
     handleSelectWorkspaceInstance,
     handleOpenThreadLink,
     handleArchiveActiveThread,

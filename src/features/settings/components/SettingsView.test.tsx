@@ -119,6 +119,7 @@ const baseSettings: AppSettings = {
   commitMessageModelId: null,
   collaborationModesEnabled: true,
   steerEnabled: true,
+  followUpMessageBehavior: "queue",
   pauseQueuedMessagesWhenResponseRequired: true,
   unifiedExecEnabled: true,
   experimentalAppsEnabled: false,
@@ -219,6 +220,50 @@ const renderDisplaySection = (
   fireEvent.click(screen.getByRole("button", { name: "Display & Sound" }));
 
   return { onUpdateAppSettings, onToggleTransparency };
+};
+
+const renderComposerSection = (
+  options: {
+    appSettings?: Partial<AppSettings>;
+    onUpdateAppSettings?: ComponentProps<typeof SettingsView>["onUpdateAppSettings"];
+  } = {},
+) => {
+  cleanup();
+  const onUpdateAppSettings =
+    options.onUpdateAppSettings ?? vi.fn().mockResolvedValue(undefined);
+  const props: ComponentProps<typeof SettingsView> = {
+    reduceTransparency: false,
+    onToggleTransparency: vi.fn(),
+    appSettings: { ...baseSettings, ...options.appSettings },
+    openAppIconById: {},
+    onUpdateAppSettings,
+    workspaceGroups: [],
+    groupedWorkspaces: [],
+    ungroupedLabel: "Ungrouped",
+    onClose: vi.fn(),
+    onMoveWorkspace: vi.fn(),
+    onDeleteWorkspace: vi.fn(),
+    onCreateWorkspaceGroup: vi.fn().mockResolvedValue(null),
+    onRenameWorkspaceGroup: vi.fn().mockResolvedValue(null),
+    onMoveWorkspaceGroup: vi.fn().mockResolvedValue(null),
+    onDeleteWorkspaceGroup: vi.fn().mockResolvedValue(null),
+    onAssignWorkspaceGroup: vi.fn().mockResolvedValue(null),
+    onRunDoctor: vi.fn().mockResolvedValue(createDoctorResult()),
+    onUpdateWorkspaceCodexBin: vi.fn().mockResolvedValue(undefined),
+    onUpdateWorkspaceSettings: vi.fn().mockResolvedValue(undefined),
+    scaleShortcutTitle: "Scale shortcut",
+    scaleShortcutText: "Use Command +/-",
+    onTestNotificationSound: vi.fn(),
+    onTestSystemNotification: vi.fn(),
+    dictationModelStatus: null,
+    onDownloadDictationModel: vi.fn(),
+    onCancelDictationDownload: vi.fn(),
+    onRemoveDictationModel: vi.fn(),
+    initialSection: "composer",
+  };
+
+  render(<SettingsView {...props} />);
+  return { onUpdateAppSettings };
 };
 
 const renderFeaturesSection = (
@@ -1390,25 +1435,47 @@ describe("SettingsView Features", () => {
     });
   });
 
-  it("toggles steer mode in stable features", async () => {
-    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+  it("hides steer mode dynamic feature row", async () => {
     renderFeaturesSection({
-      onUpdateAppSettings,
       appSettings: { steerEnabled: true },
     });
 
-    const steerTitle = await screen.findByText("Steer mode");
-    const steerRow = steerTitle.closest(".settings-toggle-row");
-    expect(steerRow).not.toBeNull();
+    await screen.findByText("Background terminal");
+    expect(screen.queryByText("Steer mode")).toBeNull();
+  });
 
-    const toggle = within(steerRow as HTMLElement).getByRole("button");
-    fireEvent.click(toggle);
-
-    await waitFor(() => {
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ steerEnabled: false }),
-      );
+  it("hides steer mode when returned as an experimental feature", async () => {
+    renderFeaturesSection({
+      appSettings: { steerEnabled: true },
+      experimentalFeaturesResponse: {
+        data: [
+          {
+            name: "steer",
+            stage: "underDevelopment",
+            enabled: true,
+            defaultEnabled: true,
+            displayName: "Steer mode",
+            description: "Legacy steer feature row.",
+            announcement: null,
+          },
+          {
+            name: "responses_websockets",
+            stage: "underDevelopment",
+            enabled: false,
+            defaultEnabled: false,
+            displayName: null,
+            description: null,
+            announcement: null,
+          },
+        ],
+        nextCursor: null,
+      },
     });
+
+    await screen.findByText(
+      "Use Responses API WebSocket transport for OpenAI by default.",
+    );
+    expect(screen.queryByText("Steer mode")).toBeNull();
   });
 
   it("toggles background terminal in stable features", async () => {
@@ -1453,6 +1520,51 @@ describe("SettingsView Features", () => {
     await screen.findByText(
       "Use Responses API WebSocket transport for OpenAI by default.",
     );
+  });
+});
+
+describe("SettingsView Composer", () => {
+  it("updates follow-up behavior from queue to steer", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    renderComposerSection({
+      onUpdateAppSettings,
+      appSettings: {
+        steerEnabled: true,
+        followUpMessageBehavior: "queue",
+      },
+    });
+
+    fireEvent.click(screen.getByRole("radio", { name: "Steer" }));
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ followUpMessageBehavior: "steer" }),
+      );
+    });
+  });
+
+  it("disables steer follow-up behavior when steer is unavailable", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    renderComposerSection({
+      onUpdateAppSettings,
+      appSettings: {
+        steerEnabled: false,
+        followUpMessageBehavior: "queue",
+      },
+    });
+
+    const steerOption = screen.getByRole("radio", { name: "Steer" });
+    expect(steerOption.hasAttribute("disabled")).toBe(true);
+    expect(
+      screen.getByText(
+        "Steer is unavailable in the current Codex config. Follow-ups will queue.",
+      ),
+    ).not.toBeNull();
+
+    fireEvent.click(steerOption);
+    await waitFor(() => {
+      expect(onUpdateAppSettings).not.toHaveBeenCalled();
+    });
   });
 });
 
