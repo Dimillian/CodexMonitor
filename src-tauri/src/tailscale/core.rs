@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use serde::Deserialize;
 use serde_json::Value;
 
 use crate::types::{TailscaleDaemonCommandPreview, TailscaleStatus};
@@ -22,12 +23,129 @@ pub(crate) fn unavailable_status(version: Option<String>, message: String) -> Ta
     }
 }
 
+fn parse_status_json(payload: &str) -> Result<Value, String> {
+    fn tailscale_status_score(value: &Value) -> u8 {
+        let backend_state_score = value
+            .get("BackendState")
+            .is_some_and(|backend_state| backend_state.is_string()) as u8;
+
+        let self_score = value
+            .get("Self")
+            .and_then(Value::as_object)
+            .map(|self_node| {
+                let mut score = 3u8;
+                if self_node
+                    .get("DNSName")
+                    .is_some_and(|dns_name| dns_name.is_string())
+                {
+                    score += 1;
+                }
+                if self_node
+                    .get("TailscaleIPs")
+                    .is_some_and(|tailscale_ips| tailscale_ips.is_array())
+                {
+                    score += 1;
+                }
+                score
+            })
+            .unwrap_or(0);
+
+        let tailnet_score = value
+            .get("CurrentTailnet")
+            .and_then(Value::as_object)
+            .map(|tailnet| {
+                let mut score = 2u8;
+                if tailnet
+                    .get("Name")
+                    .is_some_and(|tailnet_name| tailnet_name.is_string())
+                {
+                    score += 1;
+                }
+                score
+            })
+            .unwrap_or(0);
+
+        backend_state_score + self_score + tailnet_score
+    }
+
+    fn candidate_start_offsets(payload: &str) -> Vec<usize> {
+        let mut line_start_offsets = Vec::new();
+        let mut marker_offsets = Vec::new();
+        let mut line_head = 0usize;
+
+        for (index, ch) in payload.char_indices() {
+            if matches!(ch, '\n' | '\r') {
+                line_head = index + ch.len_utf8();
+                continue;
+            }
+            if !matches!(ch, '{' | '[') {
+                continue;
+            }
+            marker_offsets.push(index);
+            if payload[line_head..index].trim().is_empty() {
+                line_start_offsets.push(index);
+            }
+        }
+
+        for marker in marker_offsets {
+            if !line_start_offsets.contains(&marker) {
+                line_start_offsets.push(marker);
+            }
+        }
+        line_start_offsets
+    }
+
+    let trimmed = payload.trim_matches(|ch: char| ch.is_whitespace() || ch == '\u{feff}');
+    if trimmed.is_empty() {
+        return Err("Invalid tailscale status JSON: empty payload".to_string());
+    }
+
+    let mut best_candidate: Option<(u8, Value)> = None;
+    let mut last_error = match serde_json::from_str::<Value>(trimmed) {
+        Ok(parsed) => {
+            let score = tailscale_status_score(&parsed);
+            if score > 0 {
+                return Ok(parsed);
+            }
+            "JSON payload is missing expected Tailscale status fields".to_string()
+        }
+        Err(err) => err.to_string(),
+    };
+
+    for start_offset in candidate_start_offsets(trimmed) {
+        let candidate = &trimmed[start_offset..];
+        let mut deserializer = serde_json::Deserializer::from_str(candidate);
+        match Value::deserialize(&mut deserializer) {
+            Ok(value) => {
+                let score = tailscale_status_score(&value);
+                if score > 0 {
+                    match best_candidate.as_ref() {
+                        Some((best_score, _)) if *best_score >= score => {}
+                        _ => best_candidate = Some((score, value)),
+                    }
+                } else {
+                    last_error =
+                        "JSON payload is missing expected Tailscale status fields".to_string();
+                }
+            }
+            Err(err) => {
+                last_error = err.to_string();
+            }
+        }
+    }
+
+    if let Some((_, value)) = best_candidate {
+        return Ok(value);
+    }
+
+    Err(format!("Invalid tailscale status JSON: {last_error}"))
+}
+
 pub(crate) fn status_from_json(
     version: Option<String>,
     payload: &str,
 ) -> Result<TailscaleStatus, String> {
-    let json: Value = serde_json::from_str(payload)
-        .map_err(|err| format!("Invalid tailscale status JSON: {err}"))?;
+    let json = parse_status_json(payload)?;
     let backend_state = json
         .get("BackendState")
         .and_then(Value::as_str)
@@ -201,6 +319,102 @@ mod tests {
             status.suggested_remote_host.as_deref(),
             Some("macbook.example.ts.net:4732")
         );
+    }
+
+    #[test]
+    fn status_from_json_accepts_backend_state_only_payload() {
+        let payload = r#"{"BackendState":"NeedsLogin"}"#;
+
+        let status = status_from_json(None, payload).expect("status");
+        assert!(!status.running);
+        assert!(status.message.contains("NeedsLogin"));
+    }
+
+    #[test]
+    fn status_from_json_tolerates_prefix_before_json() {
+        let payload = r#"warning: client/server version mismatch
+{
+  "BackendState": "Running",
+  "Self": {
+    "DNSName": "host.example.ts.net.",
+    "TailscaleIPs": ["100.64.0.1"]
+  }
+}"#;
+
+        let status = status_from_json(None, payload).expect("status");
+        assert!(status.running);
+        assert_eq!(status.dns_name.as_deref(), Some("host.example.ts.net"));
+    }
+
+    #[test]
+    fn status_from_json_ignores_braces_in_prefix_text() {
+        let payload = r#"warning {mismatch} reported by daemon
+{
+  "BackendState": "Running",
+  "Self": {
+    "DNSName": "host.example.ts.net.",
+    "TailscaleIPs": ["100.64.0.1"]
+  }
+}"#;
+
+        let status = status_from_json(None, payload).expect("status");
+        assert!(status.running);
+        assert_eq!(status.dns_name.as_deref(), Some("host.example.ts.net"));
+    }
+
+    #[test]
+    fn status_from_json_prefers_tailscale_object_after_json_prefix() {
+        let payload = r#"{"level":"warn","msg":"diagnostic"}
+{"BackendState":"Running","Self":{"DNSName":"host.example.ts.net.","TailscaleIPs":["100.64.0.1"]}}"#;
+
+        let status = status_from_json(None, payload).expect("status");
+        assert!(status.running);
+        assert_eq!(status.dns_name.as_deref(), Some("host.example.ts.net"));
+    }
+
+    #[test]
+    fn status_from_json_prefers_tailscale_object_in_same_line_noise() {
+        let payload = r#"warning {"level":"warn"} {"BackendState":"Running","Self":{"DNSName":"host.example.ts.net.","TailscaleIPs":["100.64.0.1"]}}"#;
+
+        let status = status_from_json(None, payload).expect("status");
+        assert!(status.running);
+        assert_eq!(status.dns_name.as_deref(), Some("host.example.ts.net"));
+    }
+
+    #[test]
+    fn status_from_json_ignores_false_positive_keys_with_wrong_types() {
+        let payload = r#"{"Self":"diagnostic"}
+{"BackendState":"Running","Self":{"DNSName":"host.example.ts.net.","TailscaleIPs":["100.64.0.1"]}}"#;
+
+        let status = status_from_json(None, payload).expect("status");
+        assert!(status.running);
+        assert_eq!(status.dns_name.as_deref(), Some("host.example.ts.net"));
+    }
+
+    #[test]
+    fn status_from_json_ignores_backend_state_only_prefix_object() {
+        let payload = r#"{"BackendState":"warn"}
+{"BackendState":"Running","Self":{"DNSName":"host.example.ts.net.","TailscaleIPs":["100.64.0.1"]}}"#;
+
+        let status = status_from_json(None, payload).expect("status");
+        assert!(status.running);
+        assert_eq!(status.dns_name.as_deref(), Some("host.example.ts.net"));
+    }
+
+    #[test]
+    fn status_from_json_tolerates_trailing_lines_after_json() {
+        let payload = r#"{
+  "BackendState": "Running",
+  "Self": {
+    "DNSName": "host.example.ts.net.",
+    "TailscaleIPs": ["100.64.0.1"]
+  }
+}
+extra diagnostics line"#;
+
+        let status = status_from_json(None, payload).expect("status");
+        assert!(status.running);
+        assert_eq!(status.dns_name.as_deref(), Some("host.example.ts.net"));
     }
 
     #[test]

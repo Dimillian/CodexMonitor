@@ -56,6 +56,7 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(300);
 
 pub(crate) struct WorkspaceSession {
     pub(crate) entry: WorkspaceEntry,
+    pub(crate) codex_args: Option<String>,
     pub(crate) child: Mutex<Child>,
     pub(crate) stdin: Mutex<ChildStdin>,
     pub(crate) pending: Mutex<HashMap<u64, oneshot::Sender<Value>>>,
@@ -339,6 +340,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 
     let session = Arc::new(WorkspaceSession {
         entry: entry.clone(),
+        codex_args,
         child: Mutex::new(child),
         stdin: Mutex::new(stdin),
         pending: Mutex::new(HashMap::new()),

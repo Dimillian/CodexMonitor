@@ -1,5 +1,30 @@
 import type { ModelOption } from "../../../types";
 
+const UPPERCASE_SEGMENTS = new Set(["gpt"]);
+
+/**
+ * Formats a model slug like "gpt-5.3-codex" into "GPT-5.3-Codex".
+ * Known acronyms are uppercased, version-like segments are left as-is,
+ * and everything else is capitalized.
+ */
+export function formatModelSlug(slug: unknown): string {
+  if (typeof slug !== "string" || !slug.trim()) {
+    return "";
+  }
+  return slug
+    .split("-")
+    .map((segment) => {
+      if (UPPERCASE_SEGMENTS.has(segment.toLowerCase())) {
+        return segment.toUpperCase();
+      }
+      if (/^\d/.test(segment)) {
+        return segment;
+      }
+      return segment.charAt(0).toUpperCase() + segment.slice(1);
+    })
+    .join("-");
+}
+
 export function normalizeEffortValue(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
@@ -81,10 +106,13 @@ export function parseModelListResponse(response: unknown): ModelOption[] {
         return null;
       }
       const record = item as Record<string, unknown>;
+      const modelSlug = String(record.model ?? record.id ?? "");
+      const rawDisplayName = String(record.displayName || record.display_name || "");
+      const hasCustomDisplayName = rawDisplayName !== "" && rawDisplayName !== modelSlug;
       return {
         id: String(record.id ?? record.model ?? ""),
-        model: String(record.model ?? record.id ?? ""),
-        displayName: String(record.displayName ?? record.display_name ?? record.model ?? ""),
+        model: modelSlug,
+        displayName: hasCustomDisplayName ? rawDisplayName : (formatModelSlug(modelSlug) || modelSlug),
         description: String(record.description ?? ""),
         supportedReasoningEfforts: parseReasoningEfforts(record),
         defaultReasoningEffort: normalizeEffortValue(

@@ -188,11 +188,6 @@ export function useSettingsViewOrchestration({
     onTestSystemNotification,
   });
 
-  const gitSectionProps = useSettingsGitSection({
-    appSettings,
-    onUpdateAppSettings,
-  });
-
   const serverSectionProps = useSettingsServerSection({
     appSettings,
     onUpdateAppSettings,
@@ -207,6 +202,12 @@ export function useSettingsViewOrchestration({
     onRunCodexUpdate,
     onUpdateWorkspaceCodexBin,
     onUpdateWorkspaceSettings,
+  });
+
+  const gitSectionProps = useSettingsGitSection({
+    appSettings,
+    onUpdateAppSettings,
+    models: codexSectionProps.defaultModels,
   });
 
   const featuresSectionProps = useSettingsFeaturesSection({

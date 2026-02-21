@@ -38,6 +38,7 @@ type WorktreeSectionProps = {
     pinVersion?: number,
   ) => ThreadRowsResult;
   getThreadTime: (thread: ThreadSummary) => string | null;
+  getThreadArgsBadge?: (workspaceId: string, threadId: string) => string | null;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
   getPinTimestamp: (workspaceId: string, threadId: string) => number | null;
   pinnedThreadsVersion: number;
@@ -70,6 +71,7 @@ export function WorktreeSection({
   pendingUserInputKeys,
   getThreadRows,
   getThreadTime,
+  getThreadArgsBadge,
   isThreadPinned,
   getPinTimestamp,
   pinnedThreadsVersion,
@@ -144,6 +146,7 @@ export function WorktreeSection({
                   threadStatusById={threadStatusById}
                   pendingUserInputKeys={pendingUserInputKeys}
                   getThreadTime={getThreadTime}
+                  getThreadArgsBadge={getThreadArgsBadge}
                   isThreadPinned={isThreadPinned}
                   onToggleExpanded={onToggleExpanded}
                   onLoadOlderThreads={onLoadOlderThreads}

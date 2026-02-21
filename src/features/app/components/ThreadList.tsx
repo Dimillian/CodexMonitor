@@ -27,6 +27,7 @@ type ThreadListProps = {
   threadStatusById: ThreadStatusMap;
   pendingUserInputKeys?: Set<string>;
   getThreadTime: (thread: ThreadSummary) => string | null;
+  getThreadArgsBadge?: (workspaceId: string, threadId: string) => string | null;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
   onToggleExpanded: (workspaceId: string) => void;
   onLoadOlderThreads: (workspaceId: string) => void;
@@ -54,6 +55,7 @@ export function ThreadList({
   threadStatusById,
   pendingUserInputKeys,
   getThreadTime,
+  getThreadArgsBadge,
   isThreadPinned,
   onToggleExpanded,
   onLoadOlderThreads,
@@ -63,6 +65,7 @@ export function ThreadList({
   const indentUnit = nested ? 10 : 14;
   const renderThreadRow = ({ thread, depth }: ThreadRow) => {
     const relativeTime = getThreadTime(thread);
+    const badge = getThreadArgsBadge?.(workspaceId, thread.id) ?? null;
     const indentStyle =
       depth > 0
         ? ({ "--thread-indent": `${depth * indentUnit}px` } as CSSProperties)
@@ -109,6 +112,7 @@ export function ThreadList({
         {isPinned && <span className="thread-pin-icon" aria-label="Pinned">📌</span>}
         <span className="thread-name">{thread.name}</span>
         <div className="thread-meta">
+          {badge && <span className="thread-args-badge">{badge}</span>}
           {relativeTime && <span className="thread-time">{relativeTime}</span>}
           <div className="thread-menu">
             <div className="thread-menu-trigger" aria-hidden="true" />

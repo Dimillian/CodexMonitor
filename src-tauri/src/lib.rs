@@ -188,6 +188,7 @@ pub fn run() {
             workspaces::apply_worktree_changes,
             workspaces::update_workspace_settings,
             workspaces::update_workspace_codex_bin,
+            workspaces::set_workspace_runtime_codex_args,
             codex::start_thread,
             codex::send_user_message,
             codex::turn_steer,

@@ -366,7 +366,11 @@ pub(super) async fn try_handle(
                 Ok(value) => value,
                 Err(err) => return Some(Err(err)),
             };
-            let message = match state.generate_commit_message(workspace_id).await {
+            let commit_message_model_id = parse_optional_string(params, "commitMessageModelId");
+            let message = match state
+                .generate_commit_message(workspace_id, commit_message_model_id)
+                .await
+            {
                 Ok(value) => value,
                 Err(err) => return Some(Err(err)),
             };

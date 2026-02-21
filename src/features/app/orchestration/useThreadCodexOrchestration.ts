@@ -4,6 +4,7 @@ import type { AccessMode } from "@/types";
 import { useThreadCodexParams } from "@threads/hooks/useThreadCodexParams";
 import {
   type PendingNewThreadSeed,
+  NO_THREAD_SCOPE_SUFFIX,
 } from "@threads/utils/threadCodexParamsSeed";
 
 type ThreadCodexOrchestration = {
@@ -15,6 +16,8 @@ type ThreadCodexOrchestration = {
   setPreferredEffort: Dispatch<SetStateAction<string | null>>;
   preferredCollabModeId: string | null;
   setPreferredCollabModeId: Dispatch<SetStateAction<string | null>>;
+  preferredCodexArgsOverride: string | null;
+  setPreferredCodexArgsOverride: Dispatch<SetStateAction<string | null>>;
   threadCodexSelectionKey: string | null;
   setThreadCodexSelectionKey: Dispatch<SetStateAction<string | null>>;
   threadCodexParamsVersion: number;
@@ -25,6 +28,7 @@ type ThreadCodexOrchestration = {
     effort?: string | null;
     accessMode?: AccessMode | null;
     collaborationModeId?: string | null;
+    codexArgsOverride?: string | null;
   }) => void;
   activeThreadIdRef: MutableRefObject<string | null>;
   pendingNewThreadSeedRef: MutableRefObject<PendingNewThreadSeed | null>;
@@ -48,6 +52,9 @@ export function useThreadCodexOrchestration({
   const [preferredCollabModeId, setPreferredCollabModeId] = useState<string | null>(
     null,
   );
+  const [preferredCodexArgsOverride, setPreferredCodexArgsOverride] = useState<string | null>(
+    null,
+  );
   const [threadCodexSelectionKey, setThreadCodexSelectionKey] = useState<string | null>(
     null,
   );
@@ -60,10 +67,11 @@ export function useThreadCodexOrchestration({
       effort?: string | null;
       accessMode?: AccessMode | null;
       collaborationModeId?: string | null;
+      codexArgsOverride?: string | null;
     }) => {
       const workspaceId = activeWorkspaceIdForParamsRef.current;
-      const threadId = activeThreadIdRef.current;
-      if (!workspaceId || !threadId) {
+      const threadId = activeThreadIdRef.current ?? NO_THREAD_SCOPE_SUFFIX;
+      if (!workspaceId) {
         return;
       }
       patchThreadCodexParams(workspaceId, threadId, patch);
@@ -81,6 +89,8 @@ export function useThreadCodexOrchestration({
       setPreferredEffort,
       preferredCollabModeId,
       setPreferredCollabModeId,
+      preferredCodexArgsOverride,
+      setPreferredCodexArgsOverride,
       threadCodexSelectionKey,
       setThreadCodexSelectionKey,
       threadCodexParamsVersion,
@@ -93,10 +103,12 @@ export function useThreadCodexOrchestration({
     [
       accessMode,
       preferredCollabModeId,
+      preferredCodexArgsOverride,
       preferredEffort,
       preferredModelId,
       threadCodexSelectionKey,
       threadCodexParamsVersion,
+      setPreferredCodexArgsOverride,
       getThreadCodexParams,
       patchThreadCodexParams,
       persistThreadCodexParams,
