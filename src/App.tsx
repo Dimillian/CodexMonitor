@@ -87,6 +87,7 @@ import { useComposerMenuActions } from "@/features/composer/hooks/useComposerMen
 import { useComposerEditorState } from "@/features/composer/hooks/useComposerEditorState";
 import { useComposerController } from "@app/hooks/useComposerController";
 import { useComposerInsert } from "@app/hooks/useComposerInsert";
+import { usePredictedResponse } from "@/features/composer/hooks/usePredictedResponse";
 import { useRenameThreadPrompt } from "@threads/hooks/useRenameThreadPrompt";
 import { useWorktreePrompt } from "@/features/workspaces/hooks/useWorktreePrompt";
 import { useClonePrompt } from "@/features/workspaces/hooks/useClonePrompt";
@@ -1459,6 +1460,16 @@ function MainApp() {
     onDraftChange: showWorkspaceHome ? setWorkspacePrompt : handleDraftChange,
     textareaRef: showWorkspaceHome ? workspaceHomeTextareaRef : composerInputRef,
   });
+  const { ghostText, acceptPrediction } = usePredictedResponse({
+    workspaceId: activeWorkspaceId,
+    threadId: activeThreadId,
+    composerText: activeDraft,
+    disabled: isReviewing,
+    isProcessing,
+    items: activeItems,
+    models,
+  });
+
   const RECENT_THREAD_LIMIT = 8;
   const { recentThreadInstances, recentThreadsUpdatedAt } = useMemo(() => {
     if (!activeWorkspaceId) {
@@ -2389,6 +2400,8 @@ function MainApp() {
     dictationHint,
     onDismissDictationHint: clearDictationHint,
     composerContextActions,
+    ghostText,
+    onAcceptGhostText: acceptPrediction,
     composerSendLabel,
     showComposer,
     plan: activePlan,

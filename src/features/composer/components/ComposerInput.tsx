@@ -35,6 +35,7 @@ import { getFileTypeIconUrl } from "../../../utils/fileTypeIcons";
 
 type ComposerInputProps = {
   text: string;
+  ghostText?: string | null;
   disabled: boolean;
   sendLabel: string;
   canStop: boolean;
@@ -137,6 +138,7 @@ const fileTitle = (path: string) => {
 
 export function ComposerInput({
   text,
+  ghostText = null,
   disabled,
   sendLabel,
   canStop,
@@ -494,24 +496,41 @@ export function ComposerInput({
               </PopoverSurface>
             )}
           </div>
-          <textarea
-            ref={textareaRef}
-            placeholder={
-              disabled
-                ? "Review in progress. Chat will re-enable when it completes."
-                : "Ask Codex to do something..."
-            }
-            value={text}
-            onChange={handleTextareaChange}
-            onSelect={handleTextareaSelect}
-            disabled={disabled}
-            onKeyDown={onKeyDown}
-            onDragOver={handleDragOver}
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onPaste={handleTextareaPaste}
-          />
+          <div className="composer-textarea-wrapper">
+            <textarea
+              ref={textareaRef}
+              aria-label="Ask Codex to do something"
+              value={text}
+              onChange={handleTextareaChange}
+              onSelect={handleTextareaSelect}
+              disabled={disabled}
+              onKeyDown={onKeyDown}
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onPaste={handleTextareaPaste}
+            />
+            {!text && (
+              <div
+                className={`composer-placeholder ${ghostText ? "composer-placeholder-hidden" : ""}`}
+                aria-hidden
+              >
+                {disabled
+                  ? "Review in progress. Chat will re-enable when it completes."
+                  : "Ask Codex to do something..."}
+              </div>
+            )}
+            {!text && (
+              <div
+                className={`composer-ghost-text ${ghostText ? "composer-ghost-text-visible" : ""}`}
+                aria-hidden
+              >
+                {ghostText}
+                {ghostText && <span className="composer-ghost-text-hint">Tab</span>}
+              </div>
+            )}
+          </div>
         </div>
         {isDictationBusy && (
           <DictationWaveform

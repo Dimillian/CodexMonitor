@@ -1041,6 +1041,14 @@ export async function generateAgentDescription(
   return invoke("generate_agent_description", { workspaceId, description });
 }
 
+export async function predictResponse(
+  workspaceId: string,
+  context: string,
+  model?: string,
+): Promise<string> {
+  return invoke<string>("predict_response", { workspaceId, context, model });
+}
+
 export async function sendNotification(
   title: string,
   body: string,
