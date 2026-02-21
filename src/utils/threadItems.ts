@@ -1,4 +1,8 @@
-import type { ConversationItem } from "../types";
+import type {
+  CollabAgentRef,
+  CollabAgentStatus,
+  ConversationItem,
+} from "../types";
 import { CHAT_SCROLLBACK_DEFAULT } from "./chatScrollback";
 
 export type PrepareThreadItemsOptions = {
@@ -71,22 +75,202 @@ function normalizeStringList(value: unknown) {
   return single ? [single] : [];
 }
 
-function formatCollabAgentStates(value: unknown) {
+function buildCollabAgentRef(
+  threadIdValue: unknown,
+  nicknameValue?: unknown,
+  roleValue?: unknown,
+): CollabAgentRef | null {
+  const threadId = asString(threadIdValue).trim();
+  if (!threadId) {
+    return null;
+  }
+  const nickname = asString(nicknameValue ?? "").trim() || undefined;
+  const role = asString(roleValue ?? "").trim() || undefined;
+  return { threadId, nickname, role };
+}
+
+function parseCollabAgentRef(value: unknown): CollabAgentRef | null {
   if (!value || typeof value !== "object") {
-    return "";
+    return null;
   }
-  const entries = Object.entries(value as Record<string, unknown>)
-    .map(([id, state]) => {
-      const status = asString(
-        (state as Record<string, unknown>)?.status ?? state ?? "",
+  const record = value as Record<string, unknown>;
+  return buildCollabAgentRef(
+    record.threadId ?? record.thread_id ?? record.id,
+    record.agentNickname ?? record.agent_nickname ?? record.nickname,
+    record.agentRole ??
+      record.agent_role ??
+      record.agentType ??
+      record.agent_type ??
+      record.role,
+  );
+}
+
+function parseCollabAgentRefs(value: unknown) {
+  if (!value) {
+    return [];
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => parseCollabAgentRef(entry))
+      .filter((entry): entry is CollabAgentRef => Boolean(entry));
+  }
+  const single = parseCollabAgentRef(value);
+  return single ? [single] : [];
+}
+
+function mergeCollabAgentRefs(...lists: CollabAgentRef[][]) {
+  const byThreadId = new Map<string, CollabAgentRef>();
+  lists.forEach((list) => {
+    list.forEach((entry) => {
+      const existing = byThreadId.get(entry.threadId);
+      if (!existing) {
+        byThreadId.set(entry.threadId, { ...entry });
+        return;
+      }
+      byThreadId.set(entry.threadId, {
+        threadId: existing.threadId,
+        nickname: existing.nickname ?? entry.nickname,
+        role: existing.role ?? entry.role,
+      });
+    });
+  });
+  return Array.from(byThreadId.values());
+}
+
+function parseCollabAgentStatusesFromMap(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return [];
+  }
+  return Object.entries(value as Record<string, unknown>)
+    .map(([threadId, state]) => {
+      const stateRecord =
+        state && typeof state === "object"
+          ? (state as Record<string, unknown>)
+          : null;
+      const status = asString(stateRecord?.status ?? state ?? "").trim();
+      if (!status || !threadId) {
+        return null;
+      }
+      return buildCollabAgentStatus(
+        threadId,
+        status,
+        stateRecord?.agentNickname ??
+          stateRecord?.agent_nickname ??
+          stateRecord?.nickname,
+        stateRecord?.agentRole ??
+          stateRecord?.agent_role ??
+          stateRecord?.agentType ??
+          stateRecord?.agent_type ??
+          stateRecord?.role,
       );
-      return status ? `${id}: ${status}` : id;
     })
-    .filter(Boolean);
-  if (entries.length === 0) {
+    .filter((entry): entry is CollabAgentStatus => Boolean(entry));
+}
+
+function buildCollabAgentStatus(
+  threadIdValue: unknown,
+  statusValue: unknown,
+  nicknameValue?: unknown,
+  roleValue?: unknown,
+): CollabAgentStatus | null {
+  const status = asString(statusValue).trim();
+  if (!status) {
+    return null;
+  }
+  const base = buildCollabAgentRef(threadIdValue, nicknameValue, roleValue);
+  if (!base) {
+    return null;
+  }
+  return { ...base, status };
+}
+
+function parseCollabAgentStatuses(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+      const record = entry as Record<string, unknown>;
+      return buildCollabAgentStatus(
+        record.threadId ?? record.thread_id ?? record.id,
+        record.status,
+        record.agentNickname ?? record.agent_nickname ?? record.nickname,
+        record.agentRole ??
+          record.agent_role ??
+          record.agentType ??
+          record.agent_type ??
+          record.role,
+      );
+    })
+    .filter((entry): entry is CollabAgentStatus => Boolean(entry));
+}
+
+function mergeCollabAgentStatuses(...lists: CollabAgentStatus[][]) {
+  const byThreadId = new Map<string, CollabAgentStatus>();
+  lists.forEach((list) => {
+    list.forEach((entry) => {
+      const existing = byThreadId.get(entry.threadId);
+      if (!existing) {
+        byThreadId.set(entry.threadId, { ...entry });
+        return;
+      }
+      byThreadId.set(entry.threadId, {
+        threadId: existing.threadId,
+        status: existing.status || entry.status,
+        nickname: existing.nickname ?? entry.nickname,
+        role: existing.role ?? entry.role,
+      });
+    });
+  });
+  return Array.from(byThreadId.values());
+}
+
+function withCollabAgentMetadata(
+  statuses: CollabAgentStatus[],
+  agents: CollabAgentRef[],
+) {
+  if (statuses.length === 0 || agents.length === 0) {
+    return statuses;
+  }
+  const byThreadId = new Map(agents.map((agent) => [agent.threadId, agent]));
+  return statuses.map((entry) => {
+    const metadata = byThreadId.get(entry.threadId);
+    if (!metadata) {
+      return entry;
+    }
+    return {
+      ...entry,
+      nickname: entry.nickname ?? metadata.nickname,
+      role: entry.role ?? metadata.role,
+    };
+  });
+}
+
+function formatCollabAgentLabel(agent: CollabAgentRef) {
+  const nickname = agent.nickname?.trim();
+  const role = agent.role?.trim();
+  if (nickname && role) {
+    return `${nickname} [${role}]`;
+  }
+  if (nickname) {
+    return nickname;
+  }
+  if (role) {
+    return `${agent.threadId} [${role}]`;
+  }
+  return agent.threadId;
+}
+
+function formatCollabAgentStatuses(value: CollabAgentStatus[]) {
+  if (value.length === 0) {
     return "";
   }
-  return entries.join("\n");
+  return value
+    .map((entry) => `${formatCollabAgentLabel(entry)}: ${entry.status}`)
+    .join("\n");
 }
 
 export function normalizeItem(item: ConversationItem): ConversationItem {
@@ -730,20 +914,67 @@ export function buildConversationItem(
   if (type === "collabToolCall" || type === "collabAgentToolCall") {
     const tool = asString(item.tool ?? "");
     const status = asString(item.status ?? "");
-    const sender = asString(item.senderThreadId ?? item.sender_thread_id ?? "");
-    const receivers = [
+    const senderThreadId = asString(item.senderThreadId ?? item.sender_thread_id ?? "");
+    const sender = buildCollabAgentRef(
+      senderThreadId,
+      item.senderAgentNickname ??
+        item.sender_agent_nickname ??
+        item.agentNickname ??
+        item.agent_nickname,
+      item.senderAgentRole ??
+        item.sender_agent_role ??
+        item.agentRole ??
+        item.agent_role ??
+        item.agentType ??
+        item.agent_type,
+    );
+    const receiverFromInteraction = buildCollabAgentRef(
+      item.receiverThreadId ?? item.receiver_thread_id,
+      item.receiverAgentNickname ?? item.receiver_agent_nickname,
+      item.receiverAgentRole ??
+        item.receiver_agent_role ??
+        item.receiverAgentType ??
+        item.receiver_agent_type,
+    );
+    const receiverFromSpawn = buildCollabAgentRef(
+      item.newThreadId ?? item.new_thread_id,
+      item.newAgentNickname ?? item.new_agent_nickname,
+      item.newAgentRole ?? item.new_agent_role ?? item.newAgentType ?? item.new_agent_type,
+    );
+    const receiverIds = [
       ...normalizeStringList(item.receiverThreadId ?? item.receiver_thread_id),
       ...normalizeStringList(item.receiverThreadIds ?? item.receiver_thread_ids),
       ...normalizeStringList(item.newThreadId ?? item.new_thread_id),
-    ];
-    const prompt = asString(item.prompt ?? "");
-    const agentsState = formatCollabAgentStates(
-      item.agentStatus ?? item.agentsStates ?? item.agents_states,
+    ]
+      .map((entry) => buildCollabAgentRef(entry))
+      .filter((entry): entry is CollabAgentRef => Boolean(entry));
+    const receiverAgents = mergeCollabAgentRefs(
+      receiverIds,
+      parseCollabAgentRefs(item.receiverAgents ?? item.receiver_agents),
+      receiverFromInteraction ? [receiverFromInteraction] : [],
+      receiverFromSpawn ? [receiverFromSpawn] : [],
     );
-    const detailParts = [sender ? `From ${sender}` : ""]
-      .concat(receivers.length > 0 ? `→ ${receivers.join(", ")}` : "")
+    const collabStatuses = withCollabAgentMetadata(
+      mergeCollabAgentStatuses(
+        parseCollabAgentStatuses(item.agentStatuses ?? item.agent_statuses),
+        parseCollabAgentStatusesFromMap(item.statuses),
+        parseCollabAgentStatusesFromMap(
+          item.agentStatus ?? item.agentsStates ?? item.agents_states,
+        ),
+      ),
+      receiverAgents,
+    );
+    const prompt = asString(item.prompt ?? "");
+    const agentsState = formatCollabAgentStatuses(collabStatuses);
+    const detailParts = [sender ? `From ${formatCollabAgentLabel(sender)}` : ""]
+      .concat(
+        receiverAgents.length > 0
+          ? `→ ${receiverAgents.map((entry) => formatCollabAgentLabel(entry)).join(", ")}`
+          : "",
+      )
       .filter(Boolean);
     const outputParts = [prompt, agentsState].filter(Boolean);
+    const primaryReceiver = receiverFromInteraction ?? receiverFromSpawn ?? receiverAgents[0];
     return {
       id,
       kind: "tool",
@@ -752,6 +983,10 @@ export function buildConversationItem(
       detail: detailParts.join(" "),
       status,
       output: outputParts.join("\n\n"),
+      collabSender: sender ?? undefined,
+      collabReceiver: primaryReceiver ?? undefined,
+      collabReceivers: receiverAgents.length > 0 ? receiverAgents : undefined,
+      collabStatuses: collabStatuses.length > 0 ? collabStatuses : undefined,
     };
   }
   if (type === "webSearch") {
@@ -938,6 +1173,16 @@ function chooseRicherItem(remote: ConversationItem, local: ConversationItem) {
       status: remoteStatus ? remote.status : local.status,
       output: hasRemoteOutput ? remoteOutput : localOutput,
       changes: remote.changes ?? local.changes,
+      collabSender: remote.collabSender ?? local.collabSender,
+      collabReceiver: remote.collabReceiver ?? local.collabReceiver,
+      collabReceivers:
+        (remote.collabReceivers?.length ?? 0) > 0
+          ? remote.collabReceivers
+          : local.collabReceivers,
+      collabStatuses:
+        (remote.collabStatuses?.length ?? 0) > 0
+          ? remote.collabStatuses
+          : local.collabStatuses,
     };
   }
   if (remote.kind === "diff" && local.kind === "diff") {

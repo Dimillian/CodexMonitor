@@ -41,4 +41,27 @@ describe("messageRenderUtils", () => {
   it("classifies camelCase inProgress as processing", () => {
     expect(statusToneFromText("inProgress")).toBe("processing");
   });
+
+  it("renders collab tool calls with nickname and role", () => {
+    const summary = buildToolSummary(
+      makeToolItem({
+        toolType: "collabToolCall",
+        title: "Collab: wait",
+        detail: "From thread-parent → thread-child",
+        status: "completed",
+        output: "Robie [explorer]: completed",
+        collabReceivers: [
+          {
+            threadId: "thread-child",
+            nickname: "Robie",
+            role: "explorer",
+          },
+        ],
+      }),
+      "",
+    );
+    expect(summary.label).toBe("waited for");
+    expect(summary.value).toBe("Robie [explorer]");
+    expect(summary.output).toContain("Robie [explorer]: completed");
+  });
 });
