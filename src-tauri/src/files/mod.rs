@@ -5,6 +5,7 @@ use tauri::{AppHandle, State};
 use self::io::TextFileResponse;
 use self::policy::{FileKind, FileScope};
 use crate::remote_backend;
+use crate::shared::codex_core;
 use crate::shared::files_core::{file_read_core, file_write_core};
 use crate::state::AppState;
 
@@ -81,6 +82,32 @@ pub(crate) async fn file_write(
     app: AppHandle,
 ) -> Result<(), String> {
     file_write_impl(scope, kind, workspace_id, content, &*state, &app).await
+}
+
+#[tauri::command]
+pub(crate) async fn read_image_as_data_url(
+    path: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<String, String> {
+    let trimmed_path = path.trim();
+    if trimmed_path.is_empty() {
+        return Err("Image path is required".to_string());
+    }
+
+    let mobile_runtime = cfg!(any(target_os = "ios", target_os = "android"));
+    let remote_mode = remote_backend::is_remote_mode(&*state).await;
+    if !mobile_runtime && !remote_mode {
+        return Err("Image conversion is only supported in remote backend mode or on mobile runtimes".to_string());
+    }
+
+    let normalized = codex_core::normalize_file_path(trimmed_path);
+    if normalized.is_empty() {
+        return Err("Image path is required".to_string());
+    }
+
+    let _ = app;
+    codex_core::read_image_as_data_url_core(&normalized)
 }
 
 #[tauri::command]
