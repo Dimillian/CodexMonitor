@@ -9,6 +9,7 @@ const baseProps = (): SettingsAgentsSectionProps => ({
     configPath: "/Users/me/.codex/config.toml",
     multiAgentEnabled: false,
     maxThreads: 6,
+    maxDepth: 1,
     agents: [
       {
         name: "researcher",
@@ -34,6 +35,7 @@ const baseProps = (): SettingsAgentsSectionProps => ({
   onRefresh: vi.fn(),
   onSetMultiAgentEnabled: vi.fn(async () => true),
   onSetMaxThreads: vi.fn(async () => true),
+  onSetMaxDepth: vi.fn(async () => true),
   onCreateAgent: vi.fn(async () => true),
   onUpdateAgent: vi.fn(async () => true),
   onDeleteAgent: vi.fn(async () => true),
@@ -138,5 +140,34 @@ describe("SettingsAgentsSection", () => {
       renameManagedFile: true,
     });
     expect(payload).not.toHaveProperty("developerInstructions");
+  });
+
+  it("updates max depth from stepper control", async () => {
+    const props = baseProps();
+    const onSetMaxDepth = vi.fn(async () => true);
+    render(<SettingsAgentsSection {...props} onSetMaxDepth={onSetMaxDepth} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Increase max depth" }));
+
+    await waitFor(() => {
+      expect(onSetMaxDepth).toHaveBeenCalledWith(2);
+    });
+  });
+
+  it("does not increase max depth beyond 4", () => {
+    const props = baseProps();
+    const onSetMaxDepth = vi.fn(async () => true);
+    render(
+      <SettingsAgentsSection
+        {...props}
+        settings={{ ...props.settings!, maxDepth: 4 }}
+        onSetMaxDepth={onSetMaxDepth}
+      />,
+    );
+
+    const increaseDepthButton = screen.getByRole("button", { name: "Increase max depth" });
+    expect((increaseDepthButton as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(increaseDepthButton);
+    expect(onSetMaxDepth).not.toHaveBeenCalled();
   });
 });

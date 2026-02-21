@@ -129,12 +129,14 @@ export type AgentsSettings = {
   configPath: string;
   multiAgentEnabled: boolean;
   maxThreads: number;
+  maxDepth: number;
   agents: AgentSummary[];
 };
 
 export type SetAgentsCoreInput = {
   multiAgentEnabled: boolean;
   maxThreads: number;
+  maxDepth: number;
 };
 
 export type CreateAgentInput = {

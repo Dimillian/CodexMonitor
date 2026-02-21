@@ -24,6 +24,11 @@ const FALLBACK_AGENT_MODELS: ModelOption[] = [
   },
 ];
 
+const MIN_MAX_THREADS = 1;
+const MAX_MAX_THREADS = 12;
+const MIN_MAX_DEPTH = 1;
+const MAX_MAX_DEPTH = 4;
+
 export function SettingsAgentsSection({
   settings,
   isLoading,
@@ -39,6 +44,7 @@ export function SettingsAgentsSection({
   onRefresh,
   onSetMultiAgentEnabled,
   onSetMaxThreads,
+  onSetMaxDepth,
   onCreateAgent,
   onUpdateAgent,
   onDeleteAgent,
@@ -52,6 +58,7 @@ export function SettingsAgentsSection({
 }: SettingsAgentsSectionProps) {
   const [openPathError, setOpenPathError] = useState<string | null>(null);
   const [maxThreadsDraft, setMaxThreadsDraft] = useState("6");
+  const [maxDepthDraft, setMaxDepthDraft] = useState("1");
 
   const [createName, setCreateName] = useState("");
   const [createDescription, setCreateDescription] = useState("");
@@ -79,11 +86,20 @@ export function SettingsAgentsSection({
       return;
     }
     setMaxThreadsDraft(String(settings.maxThreads));
+    setMaxDepthDraft(String(settings.maxDepth));
   }, [settings]);
 
   const parseMaxThreads = (rawValue: string): number | null => {
     const value = Number.parseInt(rawValue.trim(), 10);
-    if (!Number.isFinite(value) || value < 1 || value > 12) {
+    if (!Number.isFinite(value) || value < MIN_MAX_THREADS || value > MAX_MAX_THREADS) {
+      return null;
+    }
+    return value;
+  };
+
+  const parseMaxDepth = (rawValue: string): number | null => {
+    const value = Number.parseInt(rawValue.trim(), 10);
+    if (!Number.isFinite(value) || value < MIN_MAX_DEPTH || value > MAX_MAX_DEPTH) {
       return null;
     }
     return value;
@@ -158,7 +174,9 @@ export function SettingsAgentsSection({
     if (parsed == null) {
       setCreateError(null);
       setEditError(null);
-      setOpenPathError("Max threads must be an integer between 1 and 12.");
+      setOpenPathError(
+        `Max threads must be an integer between ${MIN_MAX_THREADS} and ${MAX_MAX_THREADS}.`,
+      );
       return;
     }
     setOpenPathError(null);
@@ -169,17 +187,55 @@ export function SettingsAgentsSection({
 
   const currentMaxThreads = settings
     ? (parseMaxThreads(maxThreadsDraft) ?? settings.maxThreads)
-    : 1;
+    : MIN_MAX_THREADS;
 
   const handleMaxThreadsStep = async (delta: number) => {
     if (!settings || isUpdatingCore) {
       return;
     }
-    const nextValue = Math.min(12, Math.max(1, currentMaxThreads + delta));
+    const nextValue = Math.min(
+      MAX_MAX_THREADS,
+      Math.max(MIN_MAX_THREADS, currentMaxThreads + delta),
+    );
     if (nextValue === currentMaxThreads) {
       return;
     }
     await handleMaxThreadsChange(String(nextValue));
+  };
+
+  const handleMaxDepthChange = async (rawValue: string) => {
+    setMaxDepthDraft(rawValue);
+    const parsed = parseMaxDepth(rawValue);
+    if (parsed == null) {
+      setCreateError(null);
+      setEditError(null);
+      setOpenPathError(
+        `Max depth must be an integer between ${MIN_MAX_DEPTH} and ${MAX_MAX_DEPTH}.`,
+      );
+      return;
+    }
+    setOpenPathError(null);
+    if (settings && parsed !== settings.maxDepth) {
+      await onSetMaxDepth(parsed);
+    }
+  };
+
+  const currentMaxDepth = settings
+    ? (parseMaxDepth(maxDepthDraft) ?? settings.maxDepth)
+    : MIN_MAX_DEPTH;
+
+  const handleMaxDepthStep = async (delta: number) => {
+    if (!settings || isUpdatingCore) {
+      return;
+    }
+    const nextValue = Math.min(
+      MAX_MAX_DEPTH,
+      Math.max(MIN_MAX_DEPTH, currentMaxDepth + delta),
+    );
+    if (nextValue === currentMaxDepth) {
+      return;
+    }
+    await handleMaxDepthChange(String(nextValue));
   };
 
   const handleCreateAgent = async () => {
@@ -291,7 +347,7 @@ export function SettingsAgentsSection({
     <section className="settings-section">
       <div className="settings-section-title">Agents</div>
       <div className="settings-section-subtitle">
-        Configure multi-agent mode, thread limits, and custom agent roles.
+        Configure multi-agent mode, limits, and custom agent roles.
       </div>
       <div className="settings-help settings-agents-builtins-help">
         Built-in roles from Codex are still available: <code>default</code>, <code>explorer</code>,
@@ -352,7 +408,7 @@ export function SettingsAgentsSection({
             onClick={() => {
               void handleMaxThreadsStep(-1);
             }}
-            disabled={!settings || isUpdatingCore || currentMaxThreads <= 1}
+            disabled={!settings || isUpdatingCore || currentMaxThreads <= MIN_MAX_THREADS}
             aria-label="Decrease max threads"
           >
             ▼
@@ -366,8 +422,44 @@ export function SettingsAgentsSection({
             onClick={() => {
               void handleMaxThreadsStep(1);
             }}
-            disabled={!settings || isUpdatingCore || currentMaxThreads >= 12}
+            disabled={!settings || isUpdatingCore || currentMaxThreads >= MAX_MAX_THREADS}
             aria-label="Increase max threads"
+          >
+            ▲
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-toggle-row">
+        <div>
+          <div className="settings-toggle-title">Max Depth</div>
+          <div className="settings-toggle-subtitle">
+            Maximum nested spawn depth. Valid range: <code>1-4</code>. Changes save immediately.
+          </div>
+        </div>
+        <div className="settings-agents-stepper" role="group" aria-label="Maximum agent depth">
+          <button
+            type="button"
+            className="ghost settings-agents-stepper-button"
+            onClick={() => {
+              void handleMaxDepthStep(-1);
+            }}
+            disabled={!settings || isUpdatingCore || currentMaxDepth <= MIN_MAX_DEPTH}
+            aria-label="Decrease max depth"
+          >
+            ▼
+          </button>
+          <div className="settings-agents-stepper-value" aria-live="polite" aria-atomic="true">
+            {currentMaxDepth}
+          </div>
+          <button
+            type="button"
+            className="ghost settings-agents-stepper-button"
+            onClick={() => {
+              void handleMaxDepthStep(1);
+            }}
+            disabled={!settings || isUpdatingCore || currentMaxDepth >= MAX_MAX_DEPTH}
+            aria-label="Increase max depth"
           >
             ▲
           </button>
