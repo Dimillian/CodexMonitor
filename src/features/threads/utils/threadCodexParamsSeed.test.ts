@@ -400,8 +400,8 @@ describe("threadCodexParamsSeed", () => {
         },
       }),
     ).toEqual({
-      modelId: "gpt-5",
-      effort: "high",
+      modelId: null,
+      effort: null,
       accessMode: "current",
       collaborationModeId: "default",
       codexArgsOverride: "--profile composer",
@@ -417,8 +417,8 @@ describe("threadCodexParamsSeed", () => {
         pendingSeed: null,
       }),
     ).toEqual({
-      modelId: "gpt-5",
-      effort: "high",
+      modelId: null,
+      effort: null,
       accessMode: "current",
       collaborationModeId: "default",
       codexArgsOverride: undefined,

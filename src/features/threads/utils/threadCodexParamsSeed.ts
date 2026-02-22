@@ -173,10 +173,11 @@ export function buildThreadCodexSeedPatch(options: {
 
   const pendingForWorkspace =
     pendingSeed && pendingSeed.workspaceId === workspaceId ? pendingSeed : null;
+  const shouldSeedModelAndEffort = Boolean(pendingForWorkspace);
 
   return {
-    modelId: selectedModelId,
-    effort: resolvedEffort,
+    modelId: shouldSeedModelAndEffort ? selectedModelId : null,
+    effort: shouldSeedModelAndEffort ? resolvedEffort : null,
     accessMode: pendingForWorkspace?.accessMode ?? accessMode,
     collaborationModeId: pendingForWorkspace
       ? pendingForWorkspace.collaborationModeId
