@@ -159,9 +159,7 @@ async fn resolve_tailscale_binary() -> Result<Option<(OsString, Output)>, String
                 let stdout = trim_to_non_empty(std::str::from_utf8(&version_output.stdout).ok());
                 let stderr = trim_to_non_empty(std::str::from_utf8(&version_output.stderr).ok());
                 if version_output.status.success()
-                    && stdout
-                        .as_deref()
-                        .is_some_and(looks_like_tailscale_version)
+                    && stdout.as_deref().is_some_and(looks_like_tailscale_version)
                 {
                     return Ok(Some((binary, version_output)));
                 }
@@ -426,17 +424,16 @@ pub(crate) async fn tailscale_status() -> Result<TailscaleStatus, String> {
     let version = trim_to_non_empty(std::str::from_utf8(&version_output.stdout).ok())
         .and_then(|raw| raw.lines().next().map(str::trim).map(str::to_string));
 
-    let status_output = match tailscale_output(tailscale_binary.as_os_str(), &["status", "--json"])
-        .await
-    {
-        Ok(output) => output,
-        Err(err) => {
-            return Ok(degraded_tailscale_status(
-                version,
-                format!("Failed to run tailscale status --json: {err}"),
-            ));
-        }
-    };
+    let status_output =
+        match tailscale_output(tailscale_binary.as_os_str(), &["status", "--json"]).await {
+            Ok(output) => output,
+            Err(err) => {
+                return Ok(degraded_tailscale_status(
+                    version,
+                    format!("Failed to run tailscale status --json: {err}"),
+                ));
+            }
+        };
 
     if !status_output.status.success() {
         let stderr_text = trim_to_non_empty(std::str::from_utf8(&status_output.stderr).ok())
@@ -506,8 +503,8 @@ pub(crate) async fn tailscale_status() -> Result<TailscaleStatus, String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        daemon_listen_addr, ensure_listen_addr_available, parse_port_from_remote_host,
-        looks_like_tailscale_version, sync_tcp_daemon_listen_addr, tailscale_binary_candidates,
+        daemon_listen_addr, ensure_listen_addr_available, looks_like_tailscale_version,
+        parse_port_from_remote_host, sync_tcp_daemon_listen_addr, tailscale_binary_candidates,
         truncate_preview,
     };
     use crate::types::{TcpDaemonState, TcpDaemonStatus};
@@ -526,7 +523,9 @@ mod tests {
                 .expect("usr/local tailscale candidate missing");
             let app_bundle_index = candidates
                 .iter()
-                .position(|candidate| candidate == "/Applications/Tailscale.app/Contents/MacOS/Tailscale")
+                .position(|candidate| {
+                    candidate == "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+                })
                 .expect("app bundle tailscale candidate missing");
             assert!(usr_local_index < app_bundle_index);
 
@@ -538,9 +537,9 @@ mod tests {
                 candidate.to_string_lossy()
                     == "/Applications/Tailscale.app/Contents/MacOS/tailscale"
             }));
-            assert!(candidates.iter().any(|candidate| {
-                candidate.to_string_lossy() == "/usr/local/bin/Tailscale"
-            }));
+            assert!(candidates
+                .iter()
+                .any(|candidate| { candidate.to_string_lossy() == "/usr/local/bin/Tailscale" }));
         }
     }
 

@@ -27,7 +27,8 @@ fn parse_status_json(payload: &str) -> Result<Value, String> {
     fn tailscale_status_score(value: &Value) -> u8 {
         let backend_state_score = value
             .get("BackendState")
-            .is_some_and(|backend_state| backend_state.is_string()) as u8;
+            .is_some_and(|backend_state| backend_state.is_string())
+            as u8;
 
         let self_score = value
             .get("Self")

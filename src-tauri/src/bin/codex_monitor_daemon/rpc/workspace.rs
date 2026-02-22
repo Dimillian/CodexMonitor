@@ -70,9 +70,10 @@ pub(super) async fn try_handle(
     match method {
         "list_workspaces" => Some(serialize_value(state.list_workspaces().await)),
         "is_workspace_path_dir" => {
-            let request =
-                parse_request_or_err!(params, workspace_rpc::IsWorkspacePathDirRequest);
-            Some(serialize_value(state.is_workspace_path_dir(request.path).await))
+            let request = parse_request_or_err!(params, workspace_rpc::IsWorkspacePathDirRequest);
+            Some(serialize_value(
+                state.is_workspace_path_dir(request.path).await,
+            ))
         }
         "add_workspace" => {
             let request = parse_request_or_err!(params, workspace_rpc::AddWorkspaceRequest);
@@ -123,10 +124,7 @@ pub(super) async fn try_handle(
         "connect_workspace" => {
             let request = parse_request_or_err!(params, workspace_rpc::IdRequest);
             Some(
-                serialize_ok(
-                    state.connect_workspace(request.id, client_version.to_string()),
-                )
-                .await,
+                serialize_ok(state.connect_workspace(request.id, client_version.to_string())).await,
             )
         }
         "set_workspace_runtime_codex_args" => {
@@ -188,11 +186,8 @@ pub(super) async fn try_handle(
             let request =
                 parse_request_or_err!(params, workspace_rpc::UpdateWorkspaceCodexBinRequest);
             Some(
-                serialize_result(state.update_workspace_codex_bin(
-                    request.id,
-                    request.codex_bin,
-                ))
-                .await,
+                serialize_result(state.update_workspace_codex_bin(request.id, request.codex_bin))
+                    .await,
             )
         }
         "list_workspace_files" => {
@@ -224,8 +219,12 @@ pub(super) async fn try_handle(
                 Err(err) => return Some(Err(err)),
             };
             Some(
-                serialize_result(state.file_read(request.scope, request.kind, request.workspace_id))
-                    .await,
+                serialize_result(state.file_read(
+                    request.scope,
+                    request.kind,
+                    request.workspace_id,
+                ))
+                .await,
             )
         }
         "file_write" => {

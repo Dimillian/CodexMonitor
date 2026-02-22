@@ -82,8 +82,12 @@ fn count_effective_dir_entries(root: &Path) -> Result<usize, String> {
     let entries = fs::read_dir(root).map_err(|err| format!("Failed to read directory: {err}"))?;
     let mut count = 0usize;
     for entry in entries {
-        let entry =
-            entry.map_err(|err| format!("Failed to read directory entry in {}: {err}", root.display()))?;
+        let entry = entry.map_err(|err| {
+            format!(
+                "Failed to read directory entry in {}: {err}",
+                root.display()
+            )
+        })?;
         let name = entry.file_name();
         let name = name.to_string_lossy();
         if name == ".git" || name == ".DS_Store" || name == "Thumbs.db" {
@@ -169,8 +173,7 @@ pub(super) fn validate_normalized_repo_name(value: &str) -> Result<String, Strin
     let normalized = normalize_repo_full_name(value);
     if normalized.is_empty() {
         return Err(
-            "Repository name is empty after normalization. Use 'repo' or 'owner/repo'."
-                .to_string(),
+            "Repository name is empty after normalization. Use 'repo' or 'owner/repo'.".to_string(),
         );
     }
     Ok(normalized)
