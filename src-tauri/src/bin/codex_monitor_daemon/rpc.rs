@@ -1,5 +1,7 @@
 use super::*;
 
+use std::sync::atomic::Ordering;
+
 #[path = "rpc/codex.rs"]
 mod codex;
 #[path = "rpc/daemon.rs"]
@@ -169,12 +171,25 @@ pub(super) fn spawn_rpc_response_task(
     params: Value,
     client_version: String,
     request_limiter: Arc<Semaphore>,
+    peer: String,
+    conn_ctx: Arc<std::sync::RwLock<super::transport::ConnectionContext>>,
 ) {
     tokio::spawn(async move {
         let Ok(_permit) = request_limiter.acquire_owned().await else {
             return;
         };
         let result = handle_rpc_request(&state, &method, params, client_version).await;
+        if let Err(ref message) = result {
+            conn_ctx
+                .read()
+                .ok()
+                .map(|c| c.rpc_errors.fetch_add(1, Ordering::Relaxed));
+            state.log.log(
+                super::logger::LogLevel::Error,
+                "rpc_failed",
+                &[("peer", &peer), ("method", &method), ("msg", message)],
+            );
+        }
         let response = match result {
             Ok(result) => build_result_response(id, result),
             Err(message) => build_error_response(id, &message),
