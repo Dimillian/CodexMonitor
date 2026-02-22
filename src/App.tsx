@@ -32,6 +32,7 @@ import "./styles/tabbar.css";
 import "./styles/worktree-modal.css";
 import "./styles/clone-modal.css";
 import "./styles/workspace-from-url-modal.css";
+import "./styles/mobile-remote-workspace-modal.css";
 import "./styles/branch-switcher-modal.css";
 import "./styles/git-init-modal.css";
 import "./styles/settings.css";
@@ -226,6 +227,10 @@ function MainApp() {
     addWorkspaceFromPath,
     addWorkspaceFromGitUrl,
     addWorkspacesFromPaths,
+    mobileRemoteWorkspacePathPrompt,
+    updateMobileRemoteWorkspacePathInput,
+    cancelMobileRemoteWorkspacePathPrompt,
+    submitMobileRemoteWorkspacePathPrompt,
     addCloneAgent,
     addWorktreeAgent,
     connectWorkspace,
@@ -2646,6 +2651,10 @@ function MainApp() {
         onWorkspaceFromUrlPromptClearDestinationPath={clearWorkspaceFromUrlDestinationPath}
         onWorkspaceFromUrlPromptCancel={closeWorkspaceFromUrlPrompt}
         onWorkspaceFromUrlPromptConfirm={submitWorkspaceFromUrlPrompt}
+        mobileRemoteWorkspacePathPrompt={mobileRemoteWorkspacePathPrompt}
+        onMobileRemoteWorkspacePathPromptChange={updateMobileRemoteWorkspacePathInput}
+        onMobileRemoteWorkspacePathPromptCancel={cancelMobileRemoteWorkspacePathPrompt}
+        onMobileRemoteWorkspacePathPromptConfirm={submitMobileRemoteWorkspacePathPrompt}
         branchSwitcher={branchSwitcher}
         branches={branches}
         workspaces={workspaces}

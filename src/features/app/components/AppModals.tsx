@@ -29,6 +29,11 @@ const WorkspaceFromUrlPrompt = lazy(() =>
     default: module.WorkspaceFromUrlPrompt,
   })),
 );
+const MobileRemoteWorkspacePrompt = lazy(() =>
+  import("../../workspaces/components/MobileRemoteWorkspacePrompt").then((module) => ({
+    default: module.MobileRemoteWorkspacePrompt,
+  })),
+);
 const BranchSwitcherPrompt = lazy(() =>
   import("../../git/components/BranchSwitcherPrompt").then((module) => ({
     default: module.BranchSwitcherPrompt,
@@ -48,6 +53,10 @@ type ClonePromptState = ReturnType<typeof useClonePrompt>["clonePrompt"];
 type WorkspaceFromUrlPromptState = ReturnType<
   typeof useWorkspaceFromUrlPrompt
 >["workspaceFromUrlPrompt"];
+type MobileRemoteWorkspacePathPromptState = {
+  value: string;
+  error: string | null;
+} | null;
 
 type AppModalsProps = {
   renamePrompt: RenamePromptState;
@@ -91,6 +100,10 @@ type AppModalsProps = {
   onWorkspaceFromUrlPromptClearDestinationPath: () => void;
   onWorkspaceFromUrlPromptCancel: () => void;
   onWorkspaceFromUrlPromptConfirm: () => void;
+  mobileRemoteWorkspacePathPrompt: MobileRemoteWorkspacePathPromptState;
+  onMobileRemoteWorkspacePathPromptChange: (value: string) => void;
+  onMobileRemoteWorkspacePathPromptCancel: () => void;
+  onMobileRemoteWorkspacePathPromptConfirm: () => void;
   branchSwitcher: BranchSwitcherState;
   branches: BranchInfo[];
   workspaces: WorkspaceInfo[];
@@ -140,6 +153,10 @@ export const AppModals = memo(function AppModals({
   onWorkspaceFromUrlPromptClearDestinationPath,
   onWorkspaceFromUrlPromptCancel,
   onWorkspaceFromUrlPromptConfirm,
+  mobileRemoteWorkspacePathPrompt,
+  onMobileRemoteWorkspacePathPromptChange,
+  onMobileRemoteWorkspacePathPromptCancel,
+  onMobileRemoteWorkspacePathPromptConfirm,
   branchSwitcher,
   branches,
   workspaces,
@@ -245,6 +262,17 @@ export const AppModals = memo(function AppModals({
             onClearDestinationPath={onWorkspaceFromUrlPromptClearDestinationPath}
             onCancel={onWorkspaceFromUrlPromptCancel}
             onConfirm={onWorkspaceFromUrlPromptConfirm}
+          />
+        </Suspense>
+      )}
+      {mobileRemoteWorkspacePathPrompt && (
+        <Suspense fallback={null}>
+          <MobileRemoteWorkspacePrompt
+            value={mobileRemoteWorkspacePathPrompt.value}
+            error={mobileRemoteWorkspacePathPrompt.error}
+            onChange={onMobileRemoteWorkspacePathPromptChange}
+            onCancel={onMobileRemoteWorkspacePathPromptCancel}
+            onConfirm={onMobileRemoteWorkspacePathPromptConfirm}
           />
         </Suspense>
       )}
