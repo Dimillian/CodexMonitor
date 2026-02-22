@@ -985,6 +985,7 @@ function MainApp() {
       threadListSortKey,
       setThreadListSortKey,
       workspaces,
+      refreshWorkspaces,
       listThreadsForWorkspace,
       resetWorkspaceThreads,
     });
