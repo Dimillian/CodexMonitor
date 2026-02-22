@@ -83,7 +83,9 @@ use shared::{
     agents_config_core, codex_aux_core, codex_core, files_core, git_core, git_ui_core,
     local_usage_core, settings_core, thread_codex_metadata, workspaces_core, worktree_core,
 };
-use storage::{read_settings, read_workspaces};
+use storage::{
+    read_settings, read_thread_codex_metadata, read_workspaces, write_thread_codex_metadata,
+};
 use types::{
     AppSettings, GitCommitDiff, GitFileDiff, GitHubIssuesResponse, GitHubPullRequestComment,
     GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse, LocalUsageSnapshot,
@@ -153,6 +155,7 @@ struct DaemonState {
     sessions: Mutex<HashMap<String, Arc<WorkspaceSession>>>,
     storage_path: PathBuf,
     settings_path: PathBuf,
+    thread_codex_metadata_path: PathBuf,
     app_settings: Mutex<AppSettings>,
     event_sink: DaemonEventSink,
     codex_login_cancels: Mutex<HashMap<String, CodexLoginCancelState>>,
@@ -170,8 +173,11 @@ impl DaemonState {
     fn load(config: &DaemonConfig, event_sink: DaemonEventSink) -> Self {
         let storage_path = config.data_dir.join("workspaces.json");
         let settings_path = config.data_dir.join("settings.json");
+        let thread_codex_metadata_path = config.data_dir.join("thread-codex-metadata.json");
         let workspaces = read_workspaces(&storage_path).unwrap_or_default();
         let app_settings = read_settings(&settings_path).unwrap_or_default();
+        let thread_codex_metadata =
+            read_thread_codex_metadata(&thread_codex_metadata_path).unwrap_or_default();
         let daemon_binary_path = std::env::current_exe()
             .ok()
             .and_then(|path| path.to_str().map(str::to_string));
@@ -181,10 +187,11 @@ impl DaemonState {
             sessions: Mutex::new(HashMap::new()),
             storage_path,
             settings_path,
+            thread_codex_metadata_path,
             app_settings: Mutex::new(app_settings),
             event_sink,
             codex_login_cancels: Mutex::new(HashMap::new()),
-            thread_codex_metadata: Mutex::new(HashMap::new()),
+            thread_codex_metadata: Mutex::new(thread_codex_metadata),
             daemon_binary_path,
         }
     }
@@ -663,13 +670,11 @@ impl DaemonState {
         codex_core::start_thread_core(&self.sessions, workspace_id).await
     }
 
-    fn thread_metadata_key(workspace_id: &str, thread_id: &str) -> Option<String> {
-        let workspace = workspace_id.trim();
-        let thread = thread_id.trim();
-        if workspace.is_empty() || thread.is_empty() {
-            return None;
-        }
-        Some(format!("{workspace}:{thread}"))
+    fn persist_thread_codex_metadata(
+        &self,
+        metadata: &HashMap<String, thread_codex_metadata::ThreadCodexMetadata>,
+    ) {
+        let _ = write_thread_codex_metadata(&self.thread_codex_metadata_path, metadata);
     }
 
     async fn remember_thread_codex_metadata(
@@ -679,70 +684,73 @@ impl DaemonState {
         model_id: Option<String>,
         effort: Option<String>,
     ) {
-        let Some(key) = Self::thread_metadata_key(workspace_id, thread_id) else {
-            return;
+        let snapshot = {
+            let mut metadata = self.thread_codex_metadata.lock().await;
+            if thread_codex_metadata::remember_thread_codex_metadata(
+                &mut metadata,
+                workspace_id,
+                thread_id,
+                model_id,
+                effort,
+            ) {
+                Some(metadata.clone())
+            } else {
+                None
+            }
         };
-        if model_id.is_none() && effort.is_none() {
-            return;
-        }
-        let mut metadata = self.thread_codex_metadata.lock().await;
-        let entry = metadata
-            .entry(key)
-            .or_insert_with(thread_codex_metadata::ThreadCodexMetadata::default);
-        if let Some(model_id) = model_id {
-            entry.model_id = Some(model_id);
-        }
-        if let Some(effort) = effort {
-            entry.effort = Some(effort);
+        if let Some(metadata) = snapshot {
+            self.persist_thread_codex_metadata(&metadata);
         }
     }
 
+    #[cfg(test)]
     async fn metadata_for_thread(
         &self,
         workspace_id: &str,
         thread_id: &str,
     ) -> Option<thread_codex_metadata::ThreadCodexMetadata> {
-        let key = Self::thread_metadata_key(workspace_id, thread_id)?;
         let metadata = self.thread_codex_metadata.lock().await;
-        metadata.get(&key).cloned()
+        thread_codex_metadata::metadata_for_thread(&metadata, workspace_id, thread_id)
     }
 
     async fn enrich_thread_with_codex_metadata(&self, workspace_id: &str, thread: &mut Value) {
-        let extracted = thread_codex_metadata::extract_thread_codex_metadata(thread);
-        let thread_id = thread_codex_metadata::thread_id_from_value(thread);
-        let stored = if let Some(thread_id) = thread_id.as_ref() {
-            self.metadata_for_thread(workspace_id, thread_id).await
-        } else {
-            None
-        };
-        let merged = thread_codex_metadata::ThreadCodexMetadata {
-            model_id: extracted
-                .model_id
-                .clone()
-                .or_else(|| {
-                    stored
-                        .as_ref()
-                        .and_then(|item| item.model_id.clone())
-                }),
-            effort: extracted
-                .effort
-                .clone()
-                .or_else(|| {
-                    stored
-                        .as_ref()
-                        .and_then(|item| item.effort.clone())
-                }),
-        };
-        if let Some(thread_id) = thread_id {
-            self.remember_thread_codex_metadata(
+        let snapshot = {
+            let mut metadata = self.thread_codex_metadata.lock().await;
+            if thread_codex_metadata::enrich_thread_with_codex_metadata(
+                &mut metadata,
                 workspace_id,
-                &thread_id,
-                merged.model_id.clone(),
-                merged.effort.clone(),
-            )
-            .await;
+                thread,
+            ) {
+                Some(metadata.clone())
+            } else {
+                None
+            }
+        };
+        if let Some(metadata) = snapshot {
+            self.persist_thread_codex_metadata(&metadata);
         }
-        thread_codex_metadata::apply_metadata_to_thread(thread, &merged);
+    }
+
+    async fn enrich_threads_with_codex_metadata(&self, workspace_id: &str, threads: &mut [Value]) {
+        let snapshot = {
+            let mut metadata = self.thread_codex_metadata.lock().await;
+            let mut changed = false;
+            for thread in threads.iter_mut() {
+                changed |= thread_codex_metadata::enrich_thread_with_codex_metadata(
+                    &mut metadata,
+                    workspace_id,
+                    thread,
+                );
+            }
+            if changed {
+                Some(metadata.clone())
+            } else {
+                None
+            }
+        };
+        if let Some(metadata) = snapshot {
+            self.persist_thread_codex_metadata(&metadata);
+        }
     }
 
     async fn resume_thread(
@@ -831,18 +839,22 @@ impl DaemonState {
         sort_key: Option<String>,
         cwd: Option<String>,
     ) -> Result<Value, String> {
-        let mut response =
-            codex_core::list_threads_core(&self.sessions, workspace_id.clone(), cursor, limit, sort_key, cwd)
-                .await?;
+        let mut response = codex_core::list_threads_core(
+            &self.sessions,
+            workspace_id.clone(),
+            cursor,
+            limit,
+            sort_key,
+            cwd,
+        )
+        .await?;
         if let Some(items) = response
             .get_mut("result")
             .and_then(|result| result.get_mut("data"))
             .and_then(Value::as_array_mut)
         {
-            for thread in items.iter_mut() {
-                self.enrich_thread_with_codex_metadata(&workspace_id, thread)
-                    .await;
-            }
+            self.enrich_threads_with_codex_metadata(&workspace_id, items)
+                .await;
         }
         Ok(response)
     }
@@ -1678,6 +1690,7 @@ mod tests {
             sessions: Mutex::new(HashMap::new()),
             storage_path: data_dir.join("workspaces.json"),
             settings_path: data_dir.join("settings.json"),
+            thread_codex_metadata_path: data_dir.join("thread-codex-metadata.json"),
             app_settings: Mutex::new(AppSettings::default()),
             event_sink: DaemonEventSink { tx },
             codex_login_cancels: Mutex::new(HashMap::new()),
@@ -1857,7 +1870,10 @@ mod tests {
                 .enrich_thread_with_codex_metadata(workspace_id, &mut thread)
                 .await;
 
-            assert_eq!(thread.get("modelId").and_then(Value::as_str), Some("gpt-5.3-codex"));
+            assert_eq!(
+                thread.get("modelId").and_then(Value::as_str),
+                Some("gpt-5.3-codex")
+            );
             assert_eq!(thread.get("effort").and_then(Value::as_str), Some("high"));
 
             let cached = state

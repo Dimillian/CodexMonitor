@@ -1,9 +1,12 @@
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct ThreadCodexMetadata {
+    #[serde(default, rename = "modelId", alias = "model_id")]
     pub(crate) model_id: Option<String>,
+    #[serde(default)]
     pub(crate) effort: Option<String>,
 }
 
@@ -257,10 +260,7 @@ pub(crate) fn apply_metadata_to_thread(thread: &mut Value, metadata: &ThreadCode
     }
     if let Some(effort) = metadata.effort.as_ref() {
         thread_object.insert("effort".to_string(), Value::String(effort.clone()));
-        thread_object.insert(
-            "reasoningEffort".to_string(),
-            Value::String(effort.clone()),
-        );
+        thread_object.insert("reasoningEffort".to_string(), Value::String(effort.clone()));
         thread_object.insert(
             "reasoning_effort".to_string(),
             Value::String(effort.clone()),
@@ -279,6 +279,89 @@ pub(crate) fn apply_metadata_to_thread(thread: &mut Value, metadata: &ThreadCode
 pub(crate) fn thread_id_from_value(thread: &Value) -> Option<String> {
     let object = thread.as_object()?;
     as_non_empty_string(object.get("id"))
+}
+
+pub(crate) fn metadata_key(workspace_id: &str, thread_id: &str) -> Option<String> {
+    let workspace = workspace_id.trim();
+    let thread = thread_id.trim();
+    if workspace.is_empty() || thread.is_empty() {
+        return None;
+    }
+    Some(format!("{workspace}:{thread}"))
+}
+
+pub(crate) fn remember_thread_codex_metadata(
+    metadata: &mut HashMap<String, ThreadCodexMetadata>,
+    workspace_id: &str,
+    thread_id: &str,
+    model_id: Option<String>,
+    effort: Option<String>,
+) -> bool {
+    let Some(key) = metadata_key(workspace_id, thread_id) else {
+        return false;
+    };
+    if model_id.is_none() && effort.is_none() {
+        return false;
+    }
+    let entry = metadata.entry(key).or_default();
+    let mut changed = false;
+
+    if let Some(next_model_id) = model_id {
+        if entry.model_id.as_deref() != Some(next_model_id.as_str()) {
+            entry.model_id = Some(next_model_id);
+            changed = true;
+        }
+    }
+    if let Some(next_effort) = effort {
+        if entry.effort.as_deref() != Some(next_effort.as_str()) {
+            entry.effort = Some(next_effort);
+            changed = true;
+        }
+    }
+
+    changed
+}
+
+pub(crate) fn metadata_for_thread(
+    metadata: &HashMap<String, ThreadCodexMetadata>,
+    workspace_id: &str,
+    thread_id: &str,
+) -> Option<ThreadCodexMetadata> {
+    let key = metadata_key(workspace_id, thread_id)?;
+    metadata.get(&key).cloned()
+}
+
+pub(crate) fn enrich_thread_with_codex_metadata(
+    metadata_cache: &mut HashMap<String, ThreadCodexMetadata>,
+    workspace_id: &str,
+    thread: &mut Value,
+) -> bool {
+    let extracted = extract_thread_codex_metadata(thread);
+    let thread_id = thread_id_from_value(thread);
+    let stored = thread_id
+        .as_ref()
+        .and_then(|id| metadata_for_thread(metadata_cache, workspace_id, id));
+    let merged = ThreadCodexMetadata {
+        model_id: extracted
+            .model_id
+            .or_else(|| stored.as_ref().and_then(|item| item.model_id.clone())),
+        effort: extracted
+            .effort
+            .or_else(|| stored.as_ref().and_then(|item| item.effort.clone())),
+    };
+
+    let mut changed = false;
+    if let Some(thread_id) = thread_id {
+        changed = remember_thread_codex_metadata(
+            metadata_cache,
+            workspace_id,
+            &thread_id,
+            merged.model_id.clone(),
+            merged.effort.clone(),
+        );
+    }
+    apply_metadata_to_thread(thread, &merged);
+    changed
 }
 
 #[cfg(test)]
@@ -405,5 +488,67 @@ mod tests {
         assert_eq!(thread["reasoning_effort"], "high");
         assert_eq!(thread["modelReasoningEffort"], "high");
         assert_eq!(thread["model_reasoning_effort"], "high");
+    }
+
+    #[test]
+    fn remember_updates_only_on_change() {
+        let mut cache = HashMap::new();
+        assert!(remember_thread_codex_metadata(
+            &mut cache,
+            "ws-1",
+            "thread-1",
+            Some("gpt-5.3-codex".to_string()),
+            Some("high".to_string())
+        ));
+        assert!(!remember_thread_codex_metadata(
+            &mut cache,
+            "ws-1",
+            "thread-1",
+            Some("gpt-5.3-codex".to_string()),
+            Some("high".to_string())
+        ));
+    }
+
+    #[test]
+    fn enrich_merges_extracted_and_cached_values() {
+        let mut cache = HashMap::new();
+        remember_thread_codex_metadata(
+            &mut cache,
+            "ws-1",
+            "thread-1",
+            Some("gpt-5.3-codex".to_string()),
+            Some("medium".to_string()),
+        );
+
+        let mut thread = json!({
+            "id": "thread-1",
+            "turns": [
+                {
+                    "items": [
+                        {
+                            "payload": {
+                                "settings": {
+                                    "reasoning_effort": "high"
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        });
+
+        assert!(enrich_thread_with_codex_metadata(
+            &mut cache,
+            "ws-1",
+            &mut thread
+        ));
+        assert_eq!(
+            thread.get("modelId").and_then(Value::as_str),
+            Some("gpt-5.3-codex")
+        );
+        assert_eq!(thread.get("effort").and_then(Value::as_str), Some("high"));
+        let cached = metadata_for_thread(&cache, "ws-1", "thread-1").expect("cache entry");
+        assert_eq!(cached.model_id.as_deref(), Some("gpt-5.3-codex"));
+        assert_eq!(cached.effort.as_deref(), Some("high"));
     }
 }

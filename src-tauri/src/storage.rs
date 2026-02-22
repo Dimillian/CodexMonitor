@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use crate::shared::thread_codex_metadata::ThreadCodexMetadata;
 use crate::types::{AppSettings, WorkspaceEntry};
 use serde_json::Value;
 
@@ -49,6 +50,32 @@ pub(crate) fn write_settings(path: &PathBuf, settings: &AppSettings) -> Result<(
     std::fs::write(path, data).map_err(|e| e.to_string())
 }
 
+pub(crate) fn read_thread_codex_metadata(
+    path: &PathBuf,
+) -> Result<HashMap<String, ThreadCodexMetadata>, String> {
+    if !path.exists() {
+        return Ok(HashMap::new());
+    }
+    let data = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let mut entries: HashMap<String, ThreadCodexMetadata> =
+        serde_json::from_str(&data).map_err(|e| e.to_string())?;
+    entries.retain(|key, value| {
+        !key.trim().is_empty() && (value.model_id.is_some() || value.effort.is_some())
+    });
+    Ok(entries)
+}
+
+pub(crate) fn write_thread_codex_metadata(
+    path: &PathBuf,
+    entries: &HashMap<String, ThreadCodexMetadata>,
+) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let data = serde_json::to_string_pretty(entries).map_err(|e| e.to_string())?;
+    std::fs::write(path, data).map_err(|e| e.to_string())
+}
+
 fn sanitize_remote_settings_for_tcp_only(value: &mut Value) {
     let Value::Object(root) = value else {
         return;
@@ -94,7 +121,11 @@ fn migrate_follow_up_message_behavior(value: &mut Value) {
 
 #[cfg(test)]
 mod tests {
-    use super::{read_settings, read_workspaces, write_workspaces};
+    use super::{
+        read_settings, read_thread_codex_metadata, read_workspaces, write_thread_codex_metadata,
+        write_workspaces,
+    };
+    use crate::shared::thread_codex_metadata::ThreadCodexMetadata;
     use crate::types::{WorkspaceEntry, WorkspaceKind, WorkspaceSettings};
     use uuid::Uuid;
 
@@ -233,5 +264,27 @@ mod tests {
 
         let settings = read_settings(&path).expect("read settings");
         assert_eq!(settings.follow_up_message_behavior, "queue");
+    }
+
+    #[test]
+    fn write_read_thread_codex_metadata_round_trip() {
+        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+        let path = temp_dir.join("thread-codex-metadata.json");
+
+        let mut entries = std::collections::HashMap::new();
+        entries.insert(
+            "ws-1:thread-1".to_string(),
+            ThreadCodexMetadata {
+                model_id: Some("gpt-5.3-codex".to_string()),
+                effort: Some("high".to_string()),
+            },
+        );
+
+        write_thread_codex_metadata(&path, &entries).expect("write metadata");
+        let restored = read_thread_codex_metadata(&path).expect("read metadata");
+        let restored_entry = restored.get("ws-1:thread-1").expect("entry");
+        assert_eq!(restored_entry.model_id.as_deref(), Some("gpt-5.3-codex"));
+        assert_eq!(restored_entry.effort.as_deref(), Some("high"));
     }
 }

@@ -15,7 +15,9 @@ use crate::event_sink::TauriEventSink;
 use crate::remote_backend;
 use crate::shared::agents_config_core;
 use crate::shared::codex_core;
+use crate::shared::thread_codex_metadata;
 use crate::state::AppState;
+use crate::storage::write_thread_codex_metadata;
 use crate::types::WorkspaceEntry;
 
 fn emit_thread_live_event(app: &AppHandle, workspace_id: &str, method: &str, params: Value) {
@@ -29,6 +31,104 @@ fn emit_thread_live_event(app: &AppHandle, workspace_id: &str, method: &str, par
             }),
         },
     );
+}
+
+fn persist_thread_codex_metadata(
+    state: &AppState,
+    metadata: &std::collections::HashMap<String, thread_codex_metadata::ThreadCodexMetadata>,
+) {
+    let _ = write_thread_codex_metadata(&state.thread_codex_metadata_path, metadata);
+}
+
+async fn remember_thread_codex_metadata(
+    state: &AppState,
+    workspace_id: &str,
+    thread_id: &str,
+    model_id: Option<String>,
+    effort: Option<String>,
+) {
+    let snapshot = {
+        let mut metadata = state.thread_codex_metadata.lock().await;
+        if thread_codex_metadata::remember_thread_codex_metadata(
+            &mut metadata,
+            workspace_id,
+            thread_id,
+            model_id,
+            effort,
+        ) {
+            Some(metadata.clone())
+        } else {
+            None
+        }
+    };
+    if let Some(metadata) = snapshot {
+        persist_thread_codex_metadata(state, &metadata);
+    }
+}
+
+async fn enrich_resume_response_with_thread_codex_metadata(
+    state: &AppState,
+    workspace_id: &str,
+    response: &mut Value,
+) {
+    let mut thread_ref = response
+        .get_mut("result")
+        .and_then(|result| result.get_mut("thread"));
+    if thread_ref.is_none() {
+        thread_ref = response.get_mut("thread");
+    }
+    let Some(thread) = thread_ref else {
+        return;
+    };
+    let snapshot = {
+        let mut metadata = state.thread_codex_metadata.lock().await;
+        let changed = thread_codex_metadata::enrich_thread_with_codex_metadata(
+            &mut metadata,
+            workspace_id,
+            thread,
+        );
+        if changed {
+            Some(metadata.clone())
+        } else {
+            None
+        }
+    };
+    if let Some(metadata) = snapshot {
+        persist_thread_codex_metadata(state, &metadata);
+    }
+}
+
+async fn enrich_list_threads_response_with_thread_codex_metadata(
+    state: &AppState,
+    workspace_id: &str,
+    response: &mut Value,
+) {
+    let Some(items) = response
+        .get_mut("result")
+        .and_then(|result| result.get_mut("data"))
+        .and_then(Value::as_array_mut)
+    else {
+        return;
+    };
+    let snapshot = {
+        let mut metadata = state.thread_codex_metadata.lock().await;
+        let mut changed = false;
+        for thread in items.iter_mut() {
+            changed |= thread_codex_metadata::enrich_thread_with_codex_metadata(
+                &mut metadata,
+                workspace_id,
+                thread,
+            );
+        }
+        if changed {
+            Some(metadata.clone())
+        } else {
+            None
+        }
+    };
+    if let Some(metadata) = snapshot {
+        persist_thread_codex_metadata(state, &metadata);
+    }
 }
 
 pub(crate) async fn spawn_workspace_session(
@@ -107,7 +207,10 @@ pub(crate) async fn resume_thread(
         .await;
     }
 
-    codex_core::resume_thread_core(&state.sessions, workspace_id, thread_id).await
+    let mut response =
+        codex_core::resume_thread_core(&state.sessions, workspace_id.clone(), thread_id).await?;
+    enrich_resume_response_with_thread_codex_metadata(&state, &workspace_id, &mut response).await;
+    Ok(response)
 }
 
 #[tauri::command]
@@ -232,7 +335,18 @@ pub(crate) async fn list_threads(
         .await;
     }
 
-    codex_core::list_threads_core(&state.sessions, workspace_id, cursor, limit, sort_key, cwd).await
+    let mut response = codex_core::list_threads_core(
+        &state.sessions,
+        workspace_id.clone(),
+        cursor,
+        limit,
+        sort_key,
+        cwd,
+    )
+    .await?;
+    enrich_list_threads_response_with_thread_codex_metadata(&state, &workspace_id, &mut response)
+        .await;
+    Ok(response)
 }
 
 #[tauri::command]
@@ -361,10 +475,12 @@ pub(crate) async fn send_user_message(
         .await;
     }
 
-    codex_core::send_user_message_core(
+    let model_for_metadata = model.clone();
+    let effort_for_metadata = effort.clone();
+    let response = codex_core::send_user_message_core(
         &state.sessions,
-        workspace_id,
-        thread_id,
+        workspace_id.clone(),
+        thread_id.clone(),
         text,
         model,
         effort,
@@ -373,7 +489,16 @@ pub(crate) async fn send_user_message(
         app_mentions,
         collaboration_mode,
     )
-    .await
+    .await?;
+    remember_thread_codex_metadata(
+        &state,
+        &workspace_id,
+        &thread_id,
+        model_for_metadata,
+        effort_for_metadata,
+    )
+    .await;
+    Ok(response)
 }
 
 #[tauri::command]

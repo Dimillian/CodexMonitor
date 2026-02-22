@@ -533,7 +533,7 @@ function MainApp() {
         return;
       }
       const source = metadata.source;
-      const canOverwriteExisting = source === "resume";
+      const canOverwriteExisting = source !== "resume_envelope";
       const modelId =
         typeof metadata.modelId === "string" && metadata.modelId.trim().length > 0
           ? metadata.modelId.trim()

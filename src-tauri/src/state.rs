@@ -7,7 +7,8 @@ use tokio::sync::Mutex;
 
 use crate::dictation::DictationState;
 use crate::shared::codex_core::CodexLoginCancelState;
-use crate::storage::{read_settings, read_workspaces};
+use crate::shared::thread_codex_metadata::ThreadCodexMetadata;
+use crate::storage::{read_settings, read_thread_codex_metadata, read_workspaces};
 use crate::types::{AppSettings, TcpDaemonState, TcpDaemonStatus, WorkspaceEntry};
 
 pub(crate) struct TcpDaemonRuntime {
@@ -40,6 +41,8 @@ pub(crate) struct AppState {
     pub(crate) app_settings: Mutex<AppSettings>,
     pub(crate) dictation: Mutex<DictationState>,
     pub(crate) codex_login_cancels: Mutex<HashMap<String, CodexLoginCancelState>>,
+    pub(crate) thread_codex_metadata_path: PathBuf,
+    pub(crate) thread_codex_metadata: Mutex<HashMap<String, ThreadCodexMetadata>>,
     pub(crate) tcp_daemon: Mutex<TcpDaemonRuntime>,
 }
 
@@ -51,8 +54,11 @@ impl AppState {
             .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| ".".into()));
         let storage_path = data_dir.join("workspaces.json");
         let settings_path = data_dir.join("settings.json");
+        let thread_codex_metadata_path = data_dir.join("thread-codex-metadata.json");
         let workspaces = read_workspaces(&storage_path).unwrap_or_default();
         let app_settings = read_settings(&settings_path).unwrap_or_default();
+        let thread_codex_metadata =
+            read_thread_codex_metadata(&thread_codex_metadata_path).unwrap_or_default();
         Self {
             workspaces: Mutex::new(workspaces),
             sessions: Mutex::new(HashMap::new()),
@@ -63,6 +69,8 @@ impl AppState {
             app_settings: Mutex::new(app_settings),
             dictation: Mutex::new(DictationState::default()),
             codex_login_cancels: Mutex::new(HashMap::new()),
+            thread_codex_metadata_path,
+            thread_codex_metadata: Mutex::new(thread_codex_metadata),
             tcp_daemon: Mutex::new(TcpDaemonRuntime::default()),
         }
     }
