@@ -56,7 +56,11 @@ type UseThreadsOptions = {
   onThreadCodexMetadataDetected?: (
     workspaceId: string,
     threadId: string,
-    metadata: { modelId: string | null; effort: string | null },
+    metadata: {
+      modelId: string | null;
+      effort: string | null;
+      source: "resume" | "list" | "thread_summary";
+    },
   ) => void;
 };
 

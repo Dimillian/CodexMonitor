@@ -64,7 +64,11 @@ type UseThreadActionsOptions = {
   onThreadCodexMetadataDetected?: (
     workspaceId: string,
     threadId: string,
-    metadata: { modelId: string | null; effort: string | null },
+    metadata: {
+      modelId: string | null;
+      effort: string | null;
+      source: "resume" | "list";
+    },
   ) => void;
 };
 
@@ -199,7 +203,10 @@ export function useThreadActions({
         if (thread) {
           const codexMetadata = extractThreadCodexMetadata(thread);
           if (codexMetadata.modelId || codexMetadata.effort) {
-            onThreadCodexMetadataDetected?.(workspaceId, threadId, codexMetadata);
+            onThreadCodexMetadataDetected?.(workspaceId, threadId, {
+              ...codexMetadata,
+              source: "resume",
+            });
           }
           dispatch({ type: "ensureThread", workspaceId, threadId });
           applyCollabThreadLinksFromThread(workspaceId, threadId, thread);
@@ -522,7 +529,10 @@ export function useThreadActions({
           }
           const codexMetadata = extractThreadCodexMetadata(thread);
           if (codexMetadata.modelId || codexMetadata.effort) {
-            onThreadCodexMetadataDetected?.(workspace.id, threadId, codexMetadata);
+            onThreadCodexMetadataDetected?.(workspace.id, threadId, {
+              ...codexMetadata,
+              source: "list",
+            });
           }
           const sourceParentId = getParentThreadIdFromSource(thread.source);
           if (sourceParentId) {
@@ -716,7 +726,10 @@ export function useThreadActions({
           }
           const codexMetadata = extractThreadCodexMetadata(thread);
           if (codexMetadata.modelId || codexMetadata.effort) {
-            onThreadCodexMetadataDetected?.(workspace.id, id, codexMetadata);
+            onThreadCodexMetadataDetected?.(workspace.id, id, {
+              ...codexMetadata,
+              source: "list",
+            });
           }
           const sourceParentId = getParentThreadIdFromSource(thread.source);
           if (sourceParentId) {

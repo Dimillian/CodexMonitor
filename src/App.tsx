@@ -523,11 +523,17 @@ function MainApp() {
     (
       workspaceId: string,
       threadId: string,
-      metadata: { modelId: string | null; effort: string | null },
+      metadata: {
+        modelId: string | null;
+        effort: string | null;
+        source: "resume" | "list" | "thread_summary";
+      },
     ) => {
       if (!workspaceId || !threadId) {
         return;
       }
+      const source = metadata.source;
+      const canOverwriteExisting = source === "resume";
       const modelId =
         typeof metadata.modelId === "string" && metadata.modelId.trim().length > 0
           ? metadata.modelId.trim()
@@ -554,10 +560,18 @@ function MainApp() {
         modelId?: string | null;
         effort?: string | null;
       } = {};
-      if (modelId && modelId !== currentModelId) {
+      if (
+        modelId &&
+        (currentModelId === null ||
+          (canOverwriteExisting && modelId !== currentModelId))
+      ) {
         patch.modelId = modelId;
       }
-      if (effort && effort !== currentEffort) {
+      if (
+        effort &&
+        (currentEffort === null ||
+          (canOverwriteExisting && effort !== currentEffort))
+      ) {
         patch.effort = effort;
       }
       if (Object.keys(patch).length === 0) {
@@ -717,6 +731,7 @@ function MainApp() {
         typeof threadSummary.effort === "string"
           ? threadSummary.effort
           : null,
+      source: "thread_summary",
     });
   }, [
     activeThreadId,
