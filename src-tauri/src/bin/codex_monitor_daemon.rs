@@ -713,13 +713,19 @@ impl DaemonState {
         thread_codex_metadata::metadata_for_thread(&metadata, workspace_id, thread_id)
     }
 
-    async fn enrich_thread_with_codex_metadata(&self, workspace_id: &str, thread: &mut Value) {
+    async fn enrich_thread_with_codex_home_metadata(
+        &self,
+        workspace_id: &str,
+        thread: &mut Value,
+        codex_home: Option<PathBuf>,
+    ) {
         let snapshot = {
             let mut metadata = self.thread_codex_metadata.lock().await;
-            if thread_codex_metadata::enrich_thread_with_codex_metadata(
+            if thread_codex_metadata::enrich_thread_with_codex_home_metadata(
                 &mut metadata,
                 workspace_id,
                 thread,
+                codex_home.as_deref(),
             ) {
                 Some(metadata.clone())
             } else {
@@ -729,6 +735,23 @@ impl DaemonState {
         if let Some(metadata) = snapshot {
             self.persist_thread_codex_metadata(&metadata);
         }
+    }
+
+    async fn resolve_workspace_codex_home_for_metadata(
+        &self,
+        workspace_id: &str,
+    ) -> Option<PathBuf> {
+        let (entry, parent_entry) = {
+            let workspaces = self.workspaces.lock().await;
+            let entry = workspaces.get(workspace_id)?.clone();
+            let parent_entry = entry
+                .parent_id
+                .as_ref()
+                .and_then(|parent_id| workspaces.get(parent_id))
+                .cloned();
+            (entry, parent_entry)
+        };
+        codex_home::resolve_workspace_codex_home(&entry, parent_entry.as_ref())
     }
 
     async fn enrich_threads_with_codex_metadata(&self, workspace_id: &str, threads: &mut [Value]) {
@@ -760,6 +783,9 @@ impl DaemonState {
     ) -> Result<Value, String> {
         let mut response =
             codex_core::resume_thread_core(&self.sessions, workspace_id.clone(), thread_id).await?;
+        let codex_home = self
+            .resolve_workspace_codex_home_for_metadata(&workspace_id)
+            .await;
         let mut thread_ref = response
             .get_mut("result")
             .and_then(|result| result.get_mut("thread"));
@@ -767,7 +793,7 @@ impl DaemonState {
             thread_ref = response.get_mut("thread");
         }
         if let Some(thread) = thread_ref {
-            self.enrich_thread_with_codex_metadata(&workspace_id, thread)
+            self.enrich_thread_with_codex_home_metadata(&workspace_id, thread, codex_home)
                 .await;
         }
         Ok(response)

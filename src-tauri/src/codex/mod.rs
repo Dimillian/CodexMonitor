@@ -80,12 +80,14 @@ async fn enrich_resume_response_with_thread_codex_metadata(
     let Some(thread) = thread_ref else {
         return;
     };
+    let codex_home = resolve_workspace_codex_home_for_metadata(state, workspace_id).await;
     let snapshot = {
         let mut metadata = state.thread_codex_metadata.lock().await;
-        let changed = thread_codex_metadata::enrich_thread_with_codex_metadata(
+        let changed = thread_codex_metadata::enrich_thread_with_codex_home_metadata(
             &mut metadata,
             workspace_id,
             thread,
+            codex_home.as_deref(),
         );
         if changed {
             Some(metadata.clone())
@@ -96,6 +98,23 @@ async fn enrich_resume_response_with_thread_codex_metadata(
     if let Some(metadata) = snapshot {
         persist_thread_codex_metadata(state, &metadata);
     }
+}
+
+async fn resolve_workspace_codex_home_for_metadata(
+    state: &AppState,
+    workspace_id: &str,
+) -> Option<PathBuf> {
+    let (entry, parent_entry) = {
+        let workspaces = state.workspaces.lock().await;
+        let entry = workspaces.get(workspace_id)?.clone();
+        let parent_entry = entry
+            .parent_id
+            .as_ref()
+            .and_then(|parent_id| workspaces.get(parent_id))
+            .cloned();
+        (entry, parent_entry)
+    };
+    home::resolve_workspace_codex_home(&entry, parent_entry.as_ref())
 }
 
 async fn enrich_list_threads_response_with_thread_codex_metadata(
