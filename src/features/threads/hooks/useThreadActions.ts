@@ -278,6 +278,8 @@ export function useThreadActions({
           | null;
         if (thread) {
           const threadCodexMetadata = extractThreadCodexMetadata(thread);
+          const turns = Array.isArray(thread.turns) ? thread.turns : [];
+          const allowResumeEnvelopeFallback = turns.length === 0;
           const resumeEnvelopeMetadata = extractResumeEnvelopeCodexMetadata(
             asRecord(response),
             asRecord(result),
@@ -286,8 +288,12 @@ export function useThreadActions({
             threadCodexMetadata.modelId || threadCodexMetadata.effort,
           );
           const codexMetadata = {
-            modelId: threadCodexMetadata.modelId ?? resumeEnvelopeMetadata.modelId,
-            effort: threadCodexMetadata.effort ?? resumeEnvelopeMetadata.effort,
+            modelId:
+              threadCodexMetadata.modelId ??
+              (allowResumeEnvelopeFallback ? resumeEnvelopeMetadata.modelId : null),
+            effort:
+              threadCodexMetadata.effort ??
+              (allowResumeEnvelopeFallback ? resumeEnvelopeMetadata.effort : null),
           };
           if (codexMetadata.modelId || codexMetadata.effort) {
             onThreadCodexMetadataDetected?.(workspaceId, threadId, {

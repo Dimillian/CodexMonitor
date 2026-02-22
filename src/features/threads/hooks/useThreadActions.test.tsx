@@ -1107,6 +1107,36 @@ describe("useThreadActions", () => {
     );
   });
 
+  it("ignores resume response envelope metadata for threads that already have turns", async () => {
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        model: "gpt-5.3-codex",
+        reasoningEffort: "xhigh",
+        thread: {
+          id: "thread-resume-envelope-existing",
+          preview: "resume preview",
+          updated_at: 1200,
+          turns: [{ items: [{ type: "userMessage", id: "u1", content: [] }] }],
+        },
+      },
+    });
+    vi.mocked(buildItemsFromThread).mockReturnValue([]);
+    vi.mocked(isReviewingFromThread).mockReturnValue(false);
+    vi.mocked(getThreadTimestamp).mockReturnValue(1200);
+
+    const onThreadCodexMetadataDetected = vi.fn();
+    const { result } = renderActions({ onThreadCodexMetadataDetected });
+
+    await act(async () => {
+      await result.current.resumeThreadForWorkspace(
+        "ws-1",
+        "thread-resume-envelope-existing",
+      );
+    });
+
+    expect(onThreadCodexMetadataDetected).not.toHaveBeenCalled();
+  });
+
   it("archives threads and reports errors", async () => {
     vi.mocked(archiveThread).mockRejectedValue(new Error("nope"));
     const onDebug = vi.fn();
