@@ -161,6 +161,18 @@ where
         .await;
     }
 
+    let clone_source_workspace_id = source_entry
+        .settings
+        .clone_source_workspace_id
+        .clone()
+        .or_else(|| {
+            if source_entry.kind.is_worktree() {
+                source_entry.parent_id.clone()
+            } else {
+                Some(source_entry.id.clone())
+            }
+        });
+
     let entry = WorkspaceEntry {
         id: Uuid::new_v4().to_string(),
         name: copy_name,
@@ -171,6 +183,7 @@ where
         worktree: None,
         settings: WorkspaceSettings {
             group_id: inherited_group_id,
+            clone_source_workspace_id,
             ..WorkspaceSettings::default()
         },
     };

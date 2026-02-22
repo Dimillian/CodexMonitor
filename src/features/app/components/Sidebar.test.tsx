@@ -322,6 +322,63 @@ describe("Sidebar", () => {
     expect(onSelectWorkspace).toHaveBeenCalledWith("ws-1");
   });
 
+  it("renders clone agents nested under their source project", () => {
+    const { container } = render(
+      <Sidebar
+        {...baseProps}
+        workspaces={[
+          {
+            id: "ws-1",
+            name: "Main Project",
+            path: "/tmp/main",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+          {
+            id: "ws-2",
+            name: "Clone Agent",
+            path: "/tmp/main-copy",
+            connected: true,
+            settings: {
+              sidebarCollapsed: false,
+              cloneSourceWorkspaceId: "ws-1",
+            },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-1",
+                name: "Main Project",
+                path: "/tmp/main",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+              {
+                id: "ws-2",
+                name: "Clone Agent",
+                path: "/tmp/main-copy",
+                connected: true,
+                settings: {
+                  sidebarCollapsed: false,
+                  cloneSourceWorkspaceId: "ws-1",
+                },
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("Clone agents")).toBeTruthy();
+    expect(screen.getByText("Clone Agent")).toBeTruthy();
+    expect(container.querySelectorAll(".workspace-row")).toHaveLength(1);
+    expect(container.querySelectorAll(".worktree-row")).toHaveLength(1);
+  });
+
   it("does not show a workspace activity indicator when a thread is processing", () => {
     render(
       <Sidebar

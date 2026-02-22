@@ -196,7 +196,7 @@ export const Sidebar = memo(function Sidebar({
     COLLAPSED_GROUPS_STORAGE_KEY,
   );
   const { getThreadRows } = useThreadRows(threadParentById);
-  const { showThreadMenu, showWorkspaceMenu, showWorktreeMenu } =
+  const { showThreadMenu, showWorkspaceMenu, showWorktreeMenu, showCloneMenu } =
     useSidebarMenus({
       onDeleteThread,
       onSyncThread,
@@ -360,15 +360,36 @@ export const Sidebar = memo(function Sidebar({
     isWorkspaceMatch,
   ]);
 
+  const cloneSourceIdsMatchingQuery = useMemo(() => {
+    if (!normalizedQuery) {
+      return new Set<string>();
+    }
+    const ids = new Set<string>();
+    workspaces.forEach((workspace) => {
+      const sourceId = workspace.settings.cloneSourceWorkspaceId?.trim();
+      if (!sourceId) {
+        return;
+      }
+      if (isWorkspaceMatch(workspace)) {
+        ids.add(sourceId);
+      }
+    });
+    return ids;
+  }, [isWorkspaceMatch, normalizedQuery, workspaces]);
+
   const filteredGroupedWorkspaces = useMemo(
     () =>
       groupedWorkspaces
         .map((group) => ({
           ...group,
-          workspaces: group.workspaces.filter(isWorkspaceMatch),
+          workspaces: group.workspaces.filter(
+            (workspace) =>
+              isWorkspaceMatch(workspace) ||
+              cloneSourceIdsMatchingQuery.has(workspace.id),
+          ),
         }))
         .filter((group) => group.workspaces.length > 0),
-    [groupedWorkspaces, isWorkspaceMatch],
+    [cloneSourceIdsMatchingQuery, groupedWorkspaces, isWorkspaceMatch],
   );
 
   const getSortTimestamp = useCallback(
@@ -580,6 +601,34 @@ export const Sidebar = memo(function Sidebar({
     return worktrees;
   }, [workspaces]);
 
+  const { clonesBySource, cloneChildIds } = useMemo(() => {
+    const workspaceById = new Map<string, WorkspaceInfo>();
+    workspaces.forEach((workspace) => {
+      workspaceById.set(workspace.id, workspace);
+    });
+
+    const clones = new Map<string, WorkspaceInfo[]>();
+    const cloneIds = new Set<string>();
+    workspaces
+      .filter((entry) => (entry.kind ?? "main") === "main")
+      .forEach((entry) => {
+        const sourceId = entry.settings.cloneSourceWorkspaceId?.trim();
+        if (!sourceId || sourceId === entry.id || !workspaceById.has(sourceId)) {
+          return;
+        }
+        const list = clones.get(sourceId) ?? [];
+        list.push(entry);
+        clones.set(sourceId, list);
+        cloneIds.add(entry.id);
+      });
+
+    clones.forEach((entries) => {
+      entries.sort((a, b) => a.name.localeCompare(b.name));
+    });
+
+    return { clonesBySource: clones, cloneChildIds: cloneIds };
+  }, [workspaces]);
+
   const handleToggleExpanded = useCallback((workspaceId: string) => {
     setExpandedWorkspaces((prev) => {
       const next = new Set(prev);
@@ -748,7 +797,9 @@ export const Sidebar = memo(function Sidebar({
                     isCollapsed={isGroupCollapsed}
                     onToggleCollapse={toggleGroupCollapse}
                   >
-                    {group.workspaces.map((entry) => {
+                    {group.workspaces
+                      .filter((entry) => !cloneChildIds.has(entry.id))
+                      .map((entry) => {
                       const threads = threadsByWorkspace[entry.id] ?? [];
                       const isCollapsed = entry.settings.sidebarCollapsed;
                       const isExpanded = expandedWorkspaces.has(entry.id);
@@ -771,6 +822,11 @@ export const Sidebar = memo(function Sidebar({
                       const showThreadLoader =
                         isLoadingThreads && threads.length === 0;
                       const isPaging = threadListPagingByWorkspace[entry.id] ?? false;
+                      const clones = clonesBySource.get(entry.id) ?? [];
+                      const visibleClones =
+                        isSearchActive && !isWorkspaceMatch(entry)
+                          ? clones.filter((clone) => isWorkspaceMatch(clone))
+                          : clones;
                       const worktrees = worktreesByParent.get(entry.id) ?? [];
                       const addMenuOpen = addMenuAnchor?.workspaceId === entry.id;
                       const isDraftNewAgent = newAgentDraftWorkspaceId === entry.id;
@@ -863,6 +919,40 @@ export const Sidebar = memo(function Sidebar({
                               <span className={`thread-status ${draftStatusClass}`} aria-hidden />
                               <span className="thread-name">New Agent</span>
                             </div>
+                          )}
+                          {visibleClones.length > 0 && (
+                            <WorktreeSection
+                              worktrees={visibleClones}
+                              deletingWorktreeIds={deletingWorktreeIds}
+                              threadsByWorkspace={threadsByWorkspace}
+                              threadStatusById={threadStatusById}
+                              threadListLoadingByWorkspace={threadListLoadingByWorkspace}
+                              threadListPagingByWorkspace={threadListPagingByWorkspace}
+                              threadListCursorByWorkspace={threadListCursorByWorkspace}
+                              expandedWorkspaces={expandedWorkspaces}
+                              activeWorkspaceId={activeWorkspaceId}
+                              activeThreadId={activeThreadId}
+                              pendingUserInputKeys={pendingUserInputKeys}
+                              getThreadRows={getThreadRows}
+                              getThreadTime={getThreadTime}
+                              getThreadArgsBadge={getThreadArgsBadge}
+                              isThreadPinned={isThreadPinned}
+                              getPinTimestamp={getPinTimestamp}
+                              pinnedThreadsVersion={pinnedThreadsVersion}
+                              onSelectWorkspace={onSelectWorkspace}
+                              onConnectWorkspace={onConnectWorkspace}
+                              onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
+                              onSelectThread={onSelectThread}
+                              onShowThreadMenu={showThreadMenu}
+                              onShowWorktreeMenu={showCloneMenu}
+                              onToggleExpanded={handleToggleExpanded}
+                              onLoadOlderThreads={onLoadOlderThreads}
+                              sectionLabel="Clone agents"
+                              sectionIcon={
+                                <Copy className="worktree-header-icon" aria-hidden />
+                              }
+                              className="clone-section"
+                            />
                           )}
                           {worktrees.length > 0 && (
                             <WorktreeSection
