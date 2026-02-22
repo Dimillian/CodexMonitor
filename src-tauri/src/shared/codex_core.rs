@@ -51,9 +51,22 @@ pub(crate) fn normalize_file_path(raw: &str) -> String {
     let mut index = 0usize;
     while index < bytes.len() {
         if bytes[index] == b'%' && index + 2 < bytes.len() {
-            let hex = &path[index + 1..index + 3];
-            if let Ok(value) = u8::from_str_radix(hex, 16) {
-                decoded.push(value);
+            let hi = bytes[index + 1];
+            let lo = bytes[index + 2];
+            let hi_value = match hi {
+                b'0'..=b'9' => Some(hi - b'0'),
+                b'a'..=b'f' => Some(hi - b'a' + 10),
+                b'A'..=b'F' => Some(hi - b'A' + 10),
+                _ => None,
+            };
+            let lo_value = match lo {
+                b'0'..=b'9' => Some(lo - b'0'),
+                b'a'..=b'f' => Some(lo - b'a' + 10),
+                b'A'..=b'F' => Some(lo - b'A' + 10),
+                _ => None,
+            };
+            if let (Some(hi_nibble), Some(lo_nibble)) = (hi_value, lo_value) {
+                decoded.push((hi_nibble << 4) | lo_nibble);
                 index += 3;
                 continue;
             }
