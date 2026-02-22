@@ -206,7 +206,23 @@ impl DaemonState {
         })
     }
 
+    async fn sync_workspaces_from_storage(&self) {
+        let stored = match read_workspaces(&self.storage_path) {
+            Ok(stored) => stored,
+            Err(err) => {
+                eprintln!(
+                    "daemon: failed to read workspaces from {}: {err}",
+                    self.storage_path.display()
+                );
+                return;
+            }
+        };
+        let mut workspaces = self.workspaces.lock().await;
+        *workspaces = stored;
+    }
+
     async fn list_workspaces(&self) -> Vec<WorkspaceInfo> {
+        self.sync_workspaces_from_storage().await;
         workspaces_core::list_workspaces_core(&self.workspaces, &self.sessions).await
     }
 
@@ -1678,6 +1694,7 @@ fn parse_args() -> Result<DaemonConfig, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::write_workspaces;
     use crate::types::WorkspaceKind;
     use serde_json::json;
     use std::future::Future;
@@ -1858,6 +1875,34 @@ mod tests {
     }
 
     #[test]
+    fn list_workspaces_syncs_from_storage_file() {
+        run_async_test(async {
+            let tmp = make_temp_dir("list-workspaces-sync");
+            let state = test_state(&tmp);
+
+            let persisted = vec![WorkspaceEntry {
+                id: "ws-sync".to_string(),
+                name: "Synced Workspace".to_string(),
+                path: tmp.join("workspace").to_string_lossy().to_string(),
+                codex_bin: None,
+                kind: WorkspaceKind::Main,
+                parent_id: None,
+                worktree: None,
+                settings: WorkspaceSettings::default(),
+            }];
+            write_workspaces(&state.storage_path, &persisted).expect("write workspaces");
+
+            let listed = state.list_workspaces().await;
+            assert!(
+                listed.iter().any(|workspace| workspace.id == "ws-sync"),
+                "expected daemon list_workspaces to include workspace added on disk"
+            );
+
+            let _ = std::fs::remove_dir_all(&tmp);
+        });
+    }
+
+    #[test]
     fn enrich_thread_metadata_prefers_fresh_extracted_values() {
         run_async_test(async {
             let tmp = make_temp_dir("thread-codex-metadata");
@@ -1874,7 +1919,7 @@ mod tests {
                 )
                 .await;
 
-            let mut thread = json!({
+            let mut threads = vec![json!({
                 "id": thread_id,
                 "turns": [
                     {
@@ -1890,11 +1935,13 @@ mod tests {
                         ]
                     }
                 ]
-            });
+            })];
 
             state
-                .enrich_thread_with_codex_metadata(workspace_id, &mut thread)
+                .enrich_threads_with_codex_metadata(workspace_id, &mut threads)
                 .await;
+
+            let thread = &threads[0];
 
             assert_eq!(
                 thread.get("modelId").and_then(Value::as_str),
