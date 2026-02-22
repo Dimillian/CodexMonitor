@@ -81,7 +81,7 @@ use shared::codex_core::CodexLoginCancelState;
 use shared::prompts_core::{self, CustomPromptEntry};
 use shared::{
     agents_config_core, codex_aux_core, codex_core, files_core, git_core, git_ui_core,
-    local_usage_core, settings_core, workspaces_core, worktree_core,
+    local_usage_core, settings_core, thread_codex_metadata, workspaces_core, worktree_core,
 };
 use storage::{read_settings, read_workspaces};
 use types::{
@@ -156,6 +156,7 @@ struct DaemonState {
     app_settings: Mutex<AppSettings>,
     event_sink: DaemonEventSink,
     codex_login_cancels: Mutex<HashMap<String, CodexLoginCancelState>>,
+    thread_codex_metadata: Mutex<HashMap<String, thread_codex_metadata::ThreadCodexMetadata>>,
     daemon_binary_path: Option<String>,
 }
 
@@ -183,6 +184,7 @@ impl DaemonState {
             app_settings: Mutex::new(app_settings),
             event_sink,
             codex_login_cancels: Mutex::new(HashMap::new()),
+            thread_codex_metadata: Mutex::new(HashMap::new()),
             daemon_binary_path,
         }
     }
@@ -661,12 +663,98 @@ impl DaemonState {
         codex_core::start_thread_core(&self.sessions, workspace_id).await
     }
 
+    fn thread_metadata_key(workspace_id: &str, thread_id: &str) -> Option<String> {
+        let workspace = workspace_id.trim();
+        let thread = thread_id.trim();
+        if workspace.is_empty() || thread.is_empty() {
+            return None;
+        }
+        Some(format!("{workspace}:{thread}"))
+    }
+
+    async fn remember_thread_codex_metadata(
+        &self,
+        workspace_id: &str,
+        thread_id: &str,
+        model_id: Option<String>,
+        effort: Option<String>,
+    ) {
+        let Some(key) = Self::thread_metadata_key(workspace_id, thread_id) else {
+            return;
+        };
+        if model_id.is_none() && effort.is_none() {
+            return;
+        }
+        let mut metadata = self.thread_codex_metadata.lock().await;
+        let entry = metadata
+            .entry(key)
+            .or_insert_with(thread_codex_metadata::ThreadCodexMetadata::default);
+        if let Some(model_id) = model_id {
+            entry.model_id = Some(model_id);
+        }
+        if let Some(effort) = effort {
+            entry.effort = Some(effort);
+        }
+    }
+
+    async fn metadata_for_thread(
+        &self,
+        workspace_id: &str,
+        thread_id: &str,
+    ) -> Option<thread_codex_metadata::ThreadCodexMetadata> {
+        let key = Self::thread_metadata_key(workspace_id, thread_id)?;
+        let metadata = self.thread_codex_metadata.lock().await;
+        metadata.get(&key).cloned()
+    }
+
+    async fn enrich_thread_with_codex_metadata(&self, workspace_id: &str, thread: &mut Value) {
+        let extracted = thread_codex_metadata::extract_thread_codex_metadata(thread);
+        let thread_id = thread_codex_metadata::thread_id_from_value(thread);
+        let stored = if let Some(thread_id) = thread_id.as_ref() {
+            self.metadata_for_thread(workspace_id, thread_id).await
+        } else {
+            None
+        };
+        let merged = thread_codex_metadata::ThreadCodexMetadata {
+            model_id: stored
+                .as_ref()
+                .and_then(|item| item.model_id.clone())
+                .or(extracted.model_id.clone()),
+            effort: stored
+                .as_ref()
+                .and_then(|item| item.effort.clone())
+                .or(extracted.effort.clone()),
+        };
+        if let Some(thread_id) = thread_id {
+            self.remember_thread_codex_metadata(
+                workspace_id,
+                &thread_id,
+                merged.model_id.clone(),
+                merged.effort.clone(),
+            )
+            .await;
+        }
+        thread_codex_metadata::apply_metadata_to_thread(thread, &merged);
+    }
+
     async fn resume_thread(
         &self,
         workspace_id: String,
         thread_id: String,
     ) -> Result<Value, String> {
-        codex_core::resume_thread_core(&self.sessions, workspace_id, thread_id).await
+        let mut response =
+            codex_core::resume_thread_core(&self.sessions, workspace_id.clone(), thread_id).await?;
+        let mut thread_ref = response
+            .get_mut("result")
+            .and_then(|result| result.get_mut("thread"));
+        if thread_ref.is_none() {
+            thread_ref = response.get_mut("thread");
+        }
+        if let Some(thread) = thread_ref {
+            self.enrich_thread_with_codex_metadata(&workspace_id, thread)
+                .await;
+        }
+        Ok(response)
     }
 
     async fn thread_live_subscribe(
@@ -735,8 +823,20 @@ impl DaemonState {
         sort_key: Option<String>,
         cwd: Option<String>,
     ) -> Result<Value, String> {
-        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key, cwd)
-            .await
+        let mut response =
+            codex_core::list_threads_core(&self.sessions, workspace_id.clone(), cursor, limit, sort_key, cwd)
+                .await?;
+        if let Some(items) = response
+            .get_mut("result")
+            .and_then(|result| result.get_mut("data"))
+            .and_then(Value::as_array_mut)
+        {
+            for thread in items.iter_mut() {
+                self.enrich_thread_with_codex_metadata(&workspace_id, thread)
+                    .await;
+            }
+        }
+        Ok(response)
     }
 
     async fn list_mcp_server_status(
@@ -785,19 +885,22 @@ impl DaemonState {
         app_mentions: Option<Vec<Value>>,
         collaboration_mode: Option<Value>,
     ) -> Result<Value, String> {
-        codex_core::send_user_message_core(
+        let response = codex_core::send_user_message_core(
             &self.sessions,
-            workspace_id,
-            thread_id,
+            workspace_id.clone(),
+            thread_id.clone(),
             text,
-            model,
-            effort,
+            model.clone(),
+            effort.clone(),
             access_mode,
             images,
             app_mentions,
             collaboration_mode,
         )
-        .await
+        .await?;
+        self.remember_thread_codex_metadata(&workspace_id, &thread_id, model, effort)
+            .await;
+        Ok(response)
     }
 
     async fn turn_steer(

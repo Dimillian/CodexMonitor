@@ -37,6 +37,50 @@ function pickString(
   return null;
 }
 
+function pickDeepString(
+  value: unknown,
+  keys: readonly string[],
+  options?: {
+    normalize?: (input: string | null) => string | null;
+  },
+): string | null {
+  const normalize = options?.normalize;
+  const allowed = new Set(keys);
+  const queue: unknown[] = [value];
+  const seen = new Set<unknown>();
+  let best: string | null = null;
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || typeof current !== "object") {
+      continue;
+    }
+    if (seen.has(current)) {
+      continue;
+    }
+    seen.add(current);
+
+    if (Array.isArray(current)) {
+      current.forEach((entry) => queue.push(entry));
+      continue;
+    }
+
+    const record = current as Record<string, unknown>;
+    for (const [key, rawValue] of Object.entries(record)) {
+      if (allowed.has(key)) {
+        const direct = asString(rawValue);
+        const normalized = normalize ? normalize(direct) : direct;
+        if (normalized) {
+          best = normalized;
+        }
+      }
+      queue.push(rawValue);
+    }
+  }
+
+  return best;
+}
+
 const MODEL_KEYS = [
   "modelId",
   "model_id",
@@ -59,9 +103,15 @@ function extractFromRecord(record: Record<string, unknown>): {
 } {
   const payload = asRecord(record.payload);
   const containers = [
-    record,
     payload,
     asRecord(payload?.info),
+    asRecord(payload?.settings),
+    asRecord(payload?.params),
+    asRecord(payload?.context),
+    asRecord(payload?.turnContext),
+    asRecord(payload?.turn_context),
+    asRecord(payload?.config),
+    record,
     asRecord(record.info),
     asRecord(record.metadata),
     asRecord(record.context),
@@ -82,6 +132,14 @@ function extractFromRecord(record: Record<string, unknown>): {
     if (!effort) {
       effort = normalizeEffort(pickString(container, EFFORT_KEYS));
     }
+    if (!modelId) {
+      modelId = pickDeepString(container, MODEL_KEYS);
+    }
+    if (!effort) {
+      effort = pickDeepString(container, EFFORT_KEYS, {
+        normalize: normalizeEffort,
+      });
+    }
     if (modelId && effort) {
       break;
     }
@@ -94,12 +152,9 @@ function extractFromTurn(turn: Record<string, unknown>): {
   modelId: string | null;
   effort: string | null;
 } {
-  let modelId: string | null = null;
-  let effort: string | null = null;
-
   const turnLevel = extractFromRecord(turn);
-  modelId = turnLevel.modelId;
-  effort = turnLevel.effort;
+  let modelId: string | null = turnLevel.modelId;
+  let effort: string | null = turnLevel.effort;
 
   const items = Array.isArray(turn.items)
     ? (turn.items as unknown[])
@@ -111,10 +166,10 @@ function extractFromTurn(turn: Record<string, unknown>): {
       continue;
     }
     const extracted = extractFromRecord(item);
-    if (!modelId && extracted.modelId) {
+    if (extracted.modelId) {
       modelId = extracted.modelId;
     }
-    if (!effort && extracted.effort) {
+    if (extracted.effort) {
       effort = extracted.effort;
     }
     if (modelId && effort) {

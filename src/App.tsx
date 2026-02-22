@@ -541,14 +541,41 @@ function MainApp() {
       }
 
       const current = getThreadCodexParams(workspaceId, threadId);
+      const fallbackModelId =
+        typeof appSettings.lastComposerModelId === "string" &&
+        appSettings.lastComposerModelId.trim().length > 0
+          ? appSettings.lastComposerModelId.trim()
+          : null;
+      const fallbackEffort =
+        typeof appSettings.lastComposerReasoningEffort === "string" &&
+        appSettings.lastComposerReasoningEffort.trim().length > 0
+          ? appSettings.lastComposerReasoningEffort.trim().toLowerCase()
+          : null;
+      const currentModelId =
+        typeof current?.modelId === "string" && current.modelId.trim().length > 0
+          ? current.modelId.trim()
+          : null;
+      const currentEffort =
+        typeof current?.effort === "string" && current.effort.trim().length > 0
+          ? current.effort.trim().toLowerCase()
+          : null;
+
       const patch: {
         modelId?: string | null;
         effort?: string | null;
       } = {};
-      if (modelId && !current?.modelId) {
+      if (
+        modelId &&
+        modelId !== currentModelId &&
+        (currentModelId === null || currentModelId === fallbackModelId)
+      ) {
         patch.modelId = modelId;
       }
-      if (effort && !current?.effort) {
+      if (
+        effort &&
+        effort !== currentEffort &&
+        (currentEffort === null || currentEffort === fallbackEffort)
+      ) {
         patch.effort = effort;
       }
       if (Object.keys(patch).length === 0) {
@@ -556,7 +583,12 @@ function MainApp() {
       }
       patchThreadCodexParams(workspaceId, threadId, patch);
     },
-    [getThreadCodexParams, patchThreadCodexParams],
+    [
+      appSettings.lastComposerModelId,
+      appSettings.lastComposerReasoningEffort,
+      getThreadCodexParams,
+      patchThreadCodexParams,
+    ],
   );
   const codexArgsOptions = useMemo(
     () =>
@@ -683,6 +715,36 @@ function MainApp() {
     threadSortKey: threadListSortKey,
     onThreadCodexMetadataDetected: handleThreadCodexMetadataDetected,
   });
+
+  useEffect(() => {
+    const workspaceId = activeWorkspace?.id ?? null;
+    const threadId = activeThreadId ?? null;
+    if (!workspaceId || !threadId) {
+      return;
+    }
+    const threadSummary = (threadsByWorkspace[workspaceId] ?? []).find(
+      (thread) => thread.id === threadId,
+    );
+    if (!threadSummary) {
+      return;
+    }
+    handleThreadCodexMetadataDetected(workspaceId, threadId, {
+      modelId:
+        typeof threadSummary.modelId === "string"
+          ? threadSummary.modelId
+          : null,
+      effort:
+        typeof threadSummary.effort === "string"
+          ? threadSummary.effort
+          : null,
+    });
+  }, [
+    activeThreadId,
+    activeWorkspace?.id,
+    handleThreadCodexMetadataDetected,
+    threadsByWorkspace,
+  ]);
+
   const { connectionState: remoteThreadConnectionState, reconnectLive } =
     useRemoteThreadLiveConnection({
       backendMode: appSettings.backendMode,

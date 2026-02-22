@@ -52,6 +52,62 @@ describe("extractThreadCodexMetadata", () => {
     });
   });
 
+  it("prefers latest turn item metadata over turn-level fallback values", () => {
+    const metadata = extractThreadCodexMetadata({
+      turns: [
+        {
+          model: "gpt-5.3-codex",
+          reasoning_effort: "medium",
+          items: [
+            {
+              type: "response",
+              payload: {
+                model: "gpt-5.3-codex",
+                settings: {
+                  reasoning_effort: "high",
+                },
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(metadata).toEqual({
+      modelId: "gpt-5.3-codex",
+      effort: "high",
+    });
+  });
+
+  it("extracts effort from deeply nested payload fields", () => {
+    const metadata = extractThreadCodexMetadata({
+      turns: [
+        {
+          items: [
+            {
+              type: "response",
+              payload: {
+                info: {
+                  model: "gpt-5.3-codex",
+                },
+                context: {
+                  reasoning: {
+                    effort: "high",
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(metadata).toEqual({
+      modelId: "gpt-5.3-codex",
+      effort: "high",
+    });
+  });
+
   it("normalizes missing/default effort to null", () => {
     const metadata = extractThreadCodexMetadata({
       modelId: "gpt-5",

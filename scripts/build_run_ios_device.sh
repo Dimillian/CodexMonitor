@@ -214,11 +214,19 @@ fi
 
 APP_PATH="src-tauri/gen/apple/build/arm64/Codex Monitor.app"
 if [[ ! -d "$APP_PATH" ]]; then
-  APP_PATH="$(find src-tauri/gen/apple/build -maxdepth 4 -type d -name 'Codex Monitor.app' | head -n 1 || true)"
+  APP_PATH="$(find src-tauri/gen/apple/build -maxdepth 4 -type d -path '*/arm64/Codex Monitor.app' | head -n 1 || true)"
 fi
 
 if [[ -z "$APP_PATH" || ! -d "$APP_PATH" ]]; then
-  echo "Built app not found under src-tauri/gen/apple/build." >&2
+  APP_PATH="$(find src-tauri/gen/apple/build -maxdepth 4 -type d -name 'Codex Monitor.app' ! -path '*arm64-sim*' | head -n 1 || true)"
+fi
+
+if [[ -z "$APP_PATH" || ! -d "$APP_PATH" ]]; then
+  APP_PATH="$(find "$HOME/Library/Developer/Xcode/DerivedData" -path '*/Build/Products/debug-iphoneos/Codex Monitor.app' -type d | tail -n 1 || true)"
+fi
+
+if [[ -z "$APP_PATH" || ! -d "$APP_PATH" ]]; then
+  echo "Built app not found under src-tauri/gen/apple/build or Xcode DerivedData." >&2
   exit 1
 fi
 
