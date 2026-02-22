@@ -1073,6 +1073,40 @@ describe("useThreadActions", () => {
     );
   });
 
+  it("detects model metadata from resume response envelope when thread metadata is missing", async () => {
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        model: "gpt-5.3-codex",
+        reasoningEffort: "xhigh",
+        thread: {
+          id: "thread-resume-envelope-model",
+          preview: "resume preview",
+          updated_at: 1200,
+          turns: [],
+        },
+      },
+    });
+    vi.mocked(buildItemsFromThread).mockReturnValue([]);
+    vi.mocked(isReviewingFromThread).mockReturnValue(false);
+    vi.mocked(getThreadTimestamp).mockReturnValue(1200);
+
+    const onThreadCodexMetadataDetected = vi.fn();
+    const { result } = renderActions({ onThreadCodexMetadataDetected });
+
+    await act(async () => {
+      await result.current.resumeThreadForWorkspace(
+        "ws-1",
+        "thread-resume-envelope-model",
+      );
+    });
+
+    expect(onThreadCodexMetadataDetected).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-resume-envelope-model",
+      { modelId: "gpt-5.3-codex", effort: "xhigh", source: "resume" },
+    );
+  });
+
   it("archives threads and reports errors", async () => {
     vi.mocked(archiveThread).mockRejectedValue(new Error("nope"));
     const onDebug = vi.fn();

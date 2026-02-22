@@ -40,6 +40,82 @@ const THREAD_LIST_MAX_PAGES_WITH_ACTIVITY = 8;
 const THREAD_LIST_MAX_PAGES_WITHOUT_ACTIVITY = 3;
 const THREAD_LIST_MAX_PAGES_OLDER = 6;
 
+const MODEL_KEYS = [
+  "modelId",
+  "model_id",
+  "model",
+  "modelName",
+  "model_name",
+] as const;
+
+const EFFORT_KEYS = [
+  "effort",
+  "reasoningEffort",
+  "reasoning_effort",
+  "modelReasoningEffort",
+  "model_reasoning_effort",
+] as const;
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function asNonEmptyString(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeEffort(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (!normalized || normalized === "default" || normalized === "unknown") {
+    return null;
+  }
+  return normalized;
+}
+
+function pickFirstString(
+  record: Record<string, unknown> | null,
+  keys: readonly string[],
+): string | null {
+  if (!record) {
+    return null;
+  }
+  for (const key of keys) {
+    const value = asNonEmptyString(record[key]);
+    if (value) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function extractResumeEnvelopeCodexMetadata(
+  response: Record<string, unknown> | null,
+  result: Record<string, unknown> | null,
+): {
+  modelId: string | null;
+  effort: string | null;
+} {
+  const resultModelId = pickFirstString(result, MODEL_KEYS);
+  const responseModelId = pickFirstString(response, MODEL_KEYS);
+  const resultEffort = normalizeEffort(pickFirstString(result, EFFORT_KEYS));
+  const responseEffort = normalizeEffort(pickFirstString(response, EFFORT_KEYS));
+
+  return {
+    modelId: resultModelId ?? responseModelId,
+    effort: resultEffort ?? responseEffort,
+  };
+}
+
 type UseThreadActionsOptions = {
   dispatch: Dispatch<ThreadAction>;
   itemsByThread: ThreadState["itemsByThread"];
@@ -201,7 +277,15 @@ export function useThreadActions({
           | Record<string, unknown>
           | null;
         if (thread) {
-          const codexMetadata = extractThreadCodexMetadata(thread);
+          const threadCodexMetadata = extractThreadCodexMetadata(thread);
+          const resumeEnvelopeMetadata = extractResumeEnvelopeCodexMetadata(
+            asRecord(response),
+            asRecord(result),
+          );
+          const codexMetadata = {
+            modelId: threadCodexMetadata.modelId ?? resumeEnvelopeMetadata.modelId,
+            effort: threadCodexMetadata.effort ?? resumeEnvelopeMetadata.effort,
+          };
           if (codexMetadata.modelId || codexMetadata.effort) {
             onThreadCodexMetadataDetected?.(workspaceId, threadId, {
               ...codexMetadata,

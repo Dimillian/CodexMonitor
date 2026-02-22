@@ -791,8 +791,21 @@ export function useThreads({
       if (threadId) {
         void (async () => {
           const hasLocalSnapshot = hasLocalThreadSnapshot(threadId);
+          const threadSummary = (threadsByWorkspaceRef.current[targetId] ?? []).find(
+            (entry) => entry.id === threadId,
+          );
+          const hasSummaryCodexMetadata = Boolean(
+            (typeof threadSummary?.modelId === "string" &&
+              threadSummary.modelId.trim().length > 0) ||
+              (typeof threadSummary?.effort === "string" &&
+                threadSummary.effort.trim().length > 0),
+          );
           if (hasLocalSnapshot) {
             loadedThreadsRef.current[threadId] = true;
+            // Preserve local snapshot UX but still hydrate metadata when sidebar summary lacks it.
+            if (threadSummary && !hasSummaryCodexMetadata) {
+              await resumeThreadForWorkspace(targetId, threadId, true);
+            }
             return;
           }
           const hasActiveTurnInWorkspace = hasProcessingThreadInWorkspace(targetId);

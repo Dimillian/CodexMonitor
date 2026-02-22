@@ -540,7 +540,22 @@ describe("useThreads UX integration", () => {
     );
   });
 
-  it("does not resume selected threads that already have local items", async () => {
+  it("does not resume selected local-snapshot threads when summary already has model metadata", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-3",
+            preview: "Thread with metadata",
+            updated_at: 9999,
+            cwd: workspace.path,
+            model: "gpt-5.3-codex",
+            reasoningEffort: "high",
+          },
+        ],
+        nextCursor: null,
+      },
+    });
     vi.mocked(resumeThread).mockResolvedValue({
       result: {
         thread: {
@@ -576,6 +591,10 @@ describe("useThreads UX integration", () => {
       }),
     );
 
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
     expect(handlers).not.toBeNull();
 
     act(() => {
@@ -609,6 +628,71 @@ describe("useThreads UX integration", () => {
     );
     expect(hasLocal).toBe(true);
     expect(hasRemote).toBe(false);
+  });
+
+  it("resumes selected local-snapshot threads when list summary lacks model metadata", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-local-metadata",
+            preview: "Local metadata hydrate",
+            updated_at: 5000,
+            cwd: workspace.path,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        model: "gpt-5.3-codex",
+        reasoningEffort: "xhigh",
+        thread: {
+          id: "thread-local-metadata",
+          preview: "Local metadata hydrate",
+          updated_at: 5000,
+          turns: [],
+        },
+      },
+    });
+    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+        ensureWorkspaceRuntimeCodexArgs,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    act(() => {
+      handlers?.onAgentMessageCompleted?.({
+        workspaceId: "ws-1",
+        threadId: "thread-local-metadata",
+        itemId: "local-assistant-metadata",
+        text: "Local snapshot message",
+      });
+    });
+
+    vi.mocked(resumeThread).mockClear();
+    ensureWorkspaceRuntimeCodexArgs.mockClear();
+
+    act(() => {
+      result.current.setActiveThreadId("thread-local-metadata");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith(
+        "ws-1",
+        "thread-local-metadata",
+      );
+    });
+    expect(ensureWorkspaceRuntimeCodexArgs).not.toHaveBeenCalled();
   });
 
   it("clears empty plan updates to null", () => {
