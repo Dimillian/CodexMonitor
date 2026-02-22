@@ -108,6 +108,39 @@ describe("extractThreadCodexMetadata", () => {
     });
   });
 
+  it("prefers latest turn item effort over older item effort values", () => {
+    const metadata = extractThreadCodexMetadata({
+      model: "gpt-5.3-codex",
+      turns: [
+        {
+          items: [
+            {
+              type: "tokenCount",
+              payload: {
+                settings: {
+                  reasoning_effort: "medium",
+                },
+              },
+            },
+            {
+              type: "response",
+              payload: {
+                settings: {
+                  reasoning_effort: "high",
+                },
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(metadata).toEqual({
+      modelId: "gpt-5.3-codex",
+      effort: "high",
+    });
+  });
+
   it("normalizes missing/default effort to null", () => {
     const metadata = extractThreadCodexMetadata({
       modelId: "gpt-5",

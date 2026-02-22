@@ -175,6 +175,8 @@ fn extract_from_record(record: &serde_json::Map<String, Value>) -> ThreadCodexMe
 
 fn extract_from_turn(turn: &serde_json::Map<String, Value>) -> ThreadCodexMetadata {
     let mut metadata = extract_from_record(turn);
+    let mut item_model_id: Option<String> = None;
+    let mut item_effort: Option<String> = None;
     let items = turn
         .get("items")
         .and_then(Value::as_array)
@@ -185,15 +187,21 @@ fn extract_from_turn(turn: &serde_json::Map<String, Value>) -> ThreadCodexMetada
             continue;
         };
         let item_meta = extract_from_record(record);
-        if item_meta.model_id.is_some() {
-            metadata.model_id = item_meta.model_id;
+        if item_model_id.is_none() && item_meta.model_id.is_some() {
+            item_model_id = item_meta.model_id;
         }
-        if item_meta.effort.is_some() {
-            metadata.effort = item_meta.effort;
+        if item_effort.is_none() && item_meta.effort.is_some() {
+            item_effort = item_meta.effort;
         }
-        if metadata.model_id.is_some() && metadata.effort.is_some() {
+        if item_model_id.is_some() && item_effort.is_some() {
             break;
         }
+    }
+    if item_model_id.is_some() {
+        metadata.model_id = item_model_id;
+    }
+    if item_effort.is_some() {
+        metadata.effort = item_effort;
     }
     metadata
 }
@@ -220,9 +228,17 @@ pub(crate) fn extract_thread_codex_metadata(thread: &Value) -> ThreadCodexMetada
                 break;
             }
         }
-        if metadata.model_id.is_some() || metadata.effort.is_some() {
+        if metadata.model_id.is_some() && metadata.effort.is_some() {
             return metadata;
         }
+        let thread_level = extract_from_record(thread_object);
+        if metadata.model_id.is_none() {
+            metadata.model_id = thread_level.model_id;
+        }
+        if metadata.effort.is_none() {
+            metadata.effort = thread_level.effort;
+        }
+        return metadata;
     }
 
     extract_from_record(thread_object)
@@ -327,6 +343,36 @@ mod tests {
                             }
                         }
                     }
+                }
+            ]
+        }));
+        assert_eq!(
+            metadata,
+            ThreadCodexMetadata {
+                model_id: Some("gpt-5.3-codex".to_string()),
+                effort: Some("high".to_string())
+            }
+        );
+    }
+
+    #[test]
+    fn prefers_latest_turn_item_effort_over_older_items() {
+        let metadata = extract_thread_codex_metadata(&json!({
+            "model": "gpt-5.3-codex",
+            "turns": [
+                {
+                    "items": [
+                        {
+                            "payload": {
+                                "settings": { "reasoning_effort": "medium" }
+                            }
+                        },
+                        {
+                            "payload": {
+                                "settings": { "reasoning_effort": "high" }
+                            }
+                        }
+                    ]
                 }
             ]
         }));

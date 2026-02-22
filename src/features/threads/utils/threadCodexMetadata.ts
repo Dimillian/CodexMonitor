@@ -155,6 +155,8 @@ function extractFromTurn(turn: Record<string, unknown>): {
   const turnLevel = extractFromRecord(turn);
   let modelId: string | null = turnLevel.modelId;
   let effort: string | null = turnLevel.effort;
+  let modelIdFromItems: string | null = null;
+  let effortFromItems: string | null = null;
 
   const items = Array.isArray(turn.items)
     ? (turn.items as unknown[])
@@ -166,15 +168,22 @@ function extractFromTurn(turn: Record<string, unknown>): {
       continue;
     }
     const extracted = extractFromRecord(item);
-    if (extracted.modelId) {
-      modelId = extracted.modelId;
+    if (!modelIdFromItems && extracted.modelId) {
+      modelIdFromItems = extracted.modelId;
     }
-    if (extracted.effort) {
-      effort = extracted.effort;
+    if (!effortFromItems && extracted.effort) {
+      effortFromItems = extracted.effort;
     }
-    if (modelId && effort) {
+    if (modelIdFromItems && effortFromItems) {
       break;
     }
+  }
+
+  if (modelIdFromItems) {
+    modelId = modelIdFromItems;
+  }
+  if (effortFromItems) {
+    effort = effortFromItems;
   }
 
   return { modelId, effort };
