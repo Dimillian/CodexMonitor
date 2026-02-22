@@ -1103,7 +1103,7 @@ describe("useThreadActions", () => {
     expect(onThreadCodexMetadataDetected).toHaveBeenCalledWith(
       "ws-1",
       "thread-resume-envelope-model",
-      { modelId: "gpt-5.3-codex", effort: "xhigh", source: "resume" },
+      { modelId: "gpt-5.3-codex", effort: "xhigh", source: "resume_envelope" },
     );
   });
 

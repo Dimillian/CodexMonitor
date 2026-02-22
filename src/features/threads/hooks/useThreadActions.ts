@@ -143,7 +143,7 @@ type UseThreadActionsOptions = {
     metadata: {
       modelId: string | null;
       effort: string | null;
-      source: "resume" | "list";
+      source: "resume" | "resume_envelope" | "list";
     },
   ) => void;
 };
@@ -282,6 +282,9 @@ export function useThreadActions({
             asRecord(response),
             asRecord(result),
           );
+          const hasThreadMetadata = Boolean(
+            threadCodexMetadata.modelId || threadCodexMetadata.effort,
+          );
           const codexMetadata = {
             modelId: threadCodexMetadata.modelId ?? resumeEnvelopeMetadata.modelId,
             effort: threadCodexMetadata.effort ?? resumeEnvelopeMetadata.effort,
@@ -289,7 +292,7 @@ export function useThreadActions({
           if (codexMetadata.modelId || codexMetadata.effort) {
             onThreadCodexMetadataDetected?.(workspaceId, threadId, {
               ...codexMetadata,
-              source: "resume",
+              source: hasThreadMetadata ? "resume" : "resume_envelope",
             });
           }
           dispatch({ type: "ensureThread", workspaceId, threadId });

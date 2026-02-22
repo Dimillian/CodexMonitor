@@ -59,7 +59,7 @@ type UseThreadsOptions = {
     metadata: {
       modelId: string | null;
       effort: string | null;
-      source: "resume" | "list" | "thread_summary";
+      source: "resume" | "resume_envelope" | "list" | "thread_summary";
     },
   ) => void;
 };
