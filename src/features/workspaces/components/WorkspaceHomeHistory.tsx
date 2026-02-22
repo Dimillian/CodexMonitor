@@ -1,14 +1,13 @@
 import { formatRelativeTime } from "../../../utils/time";
+import {
+  getWorkspaceHomeThreadState,
+  type ThreadStatusById,
+} from "../../../utils/threadStatus";
 import type {
   WorkspaceHomeRun,
   WorkspaceHomeRunInstance,
 } from "../hooks/useWorkspaceHome";
 import { buildLabelCounts } from "./workspaceHomeHelpers";
-
-type ThreadStatus = {
-  isProcessing: boolean;
-  isReviewing: boolean;
-};
 
 type WorkspaceHomeHistoryProps = {
   runs: WorkspaceHomeRun[];
@@ -16,7 +15,7 @@ type WorkspaceHomeHistoryProps = {
   recentThreadsUpdatedAt: number | null;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
-  threadStatusById: Record<string, ThreadStatus>;
+  threadStatusById: ThreadStatusById;
   onSelectInstance: (workspaceId: string, threadId: string) => void;
 };
 
@@ -24,7 +23,7 @@ type WorkspaceHomeInstanceListProps = {
   instances: WorkspaceHomeRunInstance[];
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
-  threadStatusById: Record<string, ThreadStatus>;
+  threadStatusById: ThreadStatusById;
   onSelectInstance: (workspaceId: string, threadId: string) => void;
 };
 
@@ -40,17 +39,7 @@ function WorkspaceHomeInstanceList({
   return (
     <div className="workspace-home-instance-list">
       {instances.map((instance) => {
-        const status = threadStatusById[instance.threadId];
-        const statusLabel = status?.isProcessing
-          ? "Running"
-          : status?.isReviewing
-            ? "Reviewing"
-            : "Idle";
-        const stateClass = status?.isProcessing
-          ? "is-running"
-          : status?.isReviewing
-            ? "is-reviewing"
-            : "is-idle";
+        const status = getWorkspaceHomeThreadState(threadStatusById[instance.threadId]);
         const isActive =
           instance.threadId === activeThreadId &&
           instance.workspaceId === activeWorkspaceId;
@@ -62,7 +51,7 @@ function WorkspaceHomeInstanceList({
 
         return (
           <button
-            className={`workspace-home-instance ${stateClass}${isActive ? " is-active" : ""}`}
+            className={`workspace-home-instance ${status.stateClass}${isActive ? " is-active" : ""}`}
             key={instance.id}
             type="button"
             onClick={() => onSelectInstance(instance.workspaceId, instance.threadId)}
@@ -70,10 +59,10 @@ function WorkspaceHomeInstanceList({
             <span className="workspace-home-instance-title">{label}</span>
             <span
               className={`workspace-home-instance-status${
-                status?.isProcessing ? " is-running" : ""
+                status.isRunning ? " is-running" : ""
               }`}
             >
-              {statusLabel}
+              {status.statusLabel}
             </span>
           </button>
         );

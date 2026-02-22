@@ -1324,13 +1324,6 @@ fn normalize_git_path(path: &str) -> String {
     path.replace('\\', "/")
 }
 
-fn parse_optional_u64(value: &Value, key: &str) -> Option<u64> {
-    match value {
-        Value::Object(map) => map.get(key).and_then(|value| value.as_u64()),
-        _ => None,
-    }
-}
-
 fn emit_background_thread_hide(event_sink: &DaemonEventSink, workspace_id: &str, thread_id: &str) {
     event_sink.emit_app_server_event(AppServerEvent {
         workspace_id: workspace_id.to_string(),

@@ -83,14 +83,15 @@ fn tailscale_binary_candidates() -> Vec<OsString> {
 
     #[cfg(target_os = "macos")]
     {
+        candidates.push(OsString::from("/opt/homebrew/bin/tailscale"));
+        candidates.push(OsString::from("/usr/local/bin/tailscale"));
+        candidates.push(OsString::from("/usr/local/bin/Tailscale"));
         candidates.push(OsString::from(
             "/Applications/Tailscale.app/Contents/MacOS/Tailscale",
         ));
         candidates.push(OsString::from(
             "/Applications/Tailscale.app/Contents/MacOS/tailscale",
         ));
-        candidates.push(OsString::from("/opt/homebrew/bin/tailscale"));
-        candidates.push(OsString::from("/usr/local/bin/tailscale"));
     }
 
     #[cfg(target_os = "linux")]
@@ -126,17 +127,44 @@ fn missing_tailscale_message() -> String {
     }
 }
 
+fn looks_like_tailscale_version(stdout: &str) -> bool {
+    fn is_version_token(token: &str) -> bool {
+        let trimmed = token.trim().trim_start_matches('v');
+        let core = trimmed
+            .split_once('-')
+            .map(|(value, _)| value)
+            .unwrap_or(trimmed);
+        let parts = core.split('.');
+        let mut count = 0usize;
+        for part in parts {
+            if part.is_empty() || !part.chars().all(|ch| ch.is_ascii_digit()) {
+                return false;
+            }
+            count += 1;
+        }
+        count >= 2
+    }
+
+    stdout
+        .split(|ch: char| ch.is_whitespace() || matches!(ch, ',' | ':' | '(' | ')' | ';'))
+        .any(is_version_token)
+}
+
 async fn resolve_tailscale_binary() -> Result<Option<(OsString, Output)>, String> {
     let mut failures: Vec<String> = Vec::new();
     for binary in tailscale_binary_candidates() {
         let output = tailscale_output(binary.as_os_str(), &["version"]).await;
         match output {
             Ok(version_output) => {
-                if version_output.status.success() {
-                    return Ok(Some((binary, version_output)));
-                }
                 let stdout = trim_to_non_empty(std::str::from_utf8(&version_output.stdout).ok());
                 let stderr = trim_to_non_empty(std::str::from_utf8(&version_output.stderr).ok());
+                if version_output.status.success()
+                    && stdout
+                        .as_deref()
+                        .is_some_and(looks_like_tailscale_version)
+                {
+                    return Ok(Some((binary, version_output)));
+                }
                 let detail = match (stdout, stderr) {
                     (Some(out), Some(err)) => format!("stdout: {out}; stderr: {err}"),
                     (Some(out), None) => format!("stdout: {out}"),
@@ -144,7 +172,7 @@ async fn resolve_tailscale_binary() -> Result<Option<(OsString, Output)>, String
                     (None, None) => "no output".to_string(),
                 };
                 failures.push(format!(
-                    "{}: tailscale version failed ({detail})",
+                    "{}: tailscale version failed or returned unexpected output ({detail})",
                     OsStr::new(&binary).to_string_lossy()
                 ));
             }
@@ -479,7 +507,8 @@ pub(crate) async fn tailscale_status() -> Result<TailscaleStatus, String> {
 mod tests {
     use super::{
         daemon_listen_addr, ensure_listen_addr_available, parse_port_from_remote_host,
-        sync_tcp_daemon_listen_addr, tailscale_binary_candidates, truncate_preview,
+        looks_like_tailscale_version, sync_tcp_daemon_listen_addr, tailscale_binary_candidates,
+        truncate_preview,
     };
     use crate::types::{TcpDaemonState, TcpDaemonStatus};
 
@@ -491,9 +520,26 @@ mod tests {
 
         #[cfg(target_os = "macos")]
         {
+            let usr_local_index = candidates
+                .iter()
+                .position(|candidate| candidate == "/usr/local/bin/tailscale")
+                .expect("usr/local tailscale candidate missing");
+            let app_bundle_index = candidates
+                .iter()
+                .position(|candidate| candidate == "/Applications/Tailscale.app/Contents/MacOS/Tailscale")
+                .expect("app bundle tailscale candidate missing");
+            assert!(usr_local_index < app_bundle_index);
+
             assert!(candidates.iter().any(|candidate| {
                 candidate.to_string_lossy()
                     == "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+            }));
+            assert!(candidates.iter().any(|candidate| {
+                candidate.to_string_lossy()
+                    == "/Applications/Tailscale.app/Contents/MacOS/tailscale"
+            }));
+            assert!(candidates.iter().any(|candidate| {
+                candidate.to_string_lossy() == "/usr/local/bin/Tailscale"
             }));
         }
     }
@@ -504,6 +550,23 @@ mod tests {
         let preview = truncate_preview(&sample, 200);
         assert_eq!(preview.chars().count(), 201);
         assert!(preview.ends_with('…'));
+    }
+
+    #[test]
+    fn validates_tailscale_version_output() {
+        let output = "1.94.2\n  tailscale commit: 0a29cf18\n";
+        assert!(looks_like_tailscale_version(output));
+    }
+
+    #[test]
+    fn rejects_gui_error_as_version_output() {
+        let output = "The Tailscale GUI failed to start: The operation couldn’t be completed. (Tailscale.CLIError error 3.)";
+        assert!(!looks_like_tailscale_version(output));
+    }
+
+    #[test]
+    fn rejects_empty_version_output() {
+        assert!(!looks_like_tailscale_version(" \n\t "));
     }
 
     #[test]

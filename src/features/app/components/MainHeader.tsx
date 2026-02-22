@@ -9,12 +9,15 @@ import { revealInFileManagerLabel } from "../../../utils/platformPaths";
 import { BranchList } from "../../git/components/BranchList";
 import { filterBranches, findExactBranch } from "../../git/utils/branchSearch";
 import { validateBranchName } from "../../git/utils/branchValidation";
-import { PopoverSurface } from "../../design-system/components/popover/PopoverPrimitives";
+import {
+  MenuTrigger,
+  PopoverSurface,
+} from "../../design-system/components/popover/PopoverPrimitives";
 import { OpenAppMenu } from "./OpenAppMenu";
 import { LaunchScriptButton } from "./LaunchScriptButton";
 import { LaunchScriptEntryButton } from "./LaunchScriptEntryButton";
 import type { WorkspaceLaunchScriptsState } from "../hooks/useWorkspaceLaunchScripts";
-import { useDismissibleMenu } from "../hooks/useDismissibleMenu";
+import { useMenuController } from "../hooks/useMenuController";
 
 type MainHeaderProps = {
   workspace: WorkspaceInfo;
@@ -104,17 +107,22 @@ export function MainHeader({
   launchScriptsState,
   worktreeRename,
 }: MainHeaderProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [infoOpen, setInfoOpen] = useState(false);
   const [branchQuery, setBranchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState(false);
   const copyTimeoutRef = useRef<number | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const infoRef = useRef<HTMLDivElement | null>(null);
   const renameInputRef = useRef<HTMLInputElement | null>(null);
   const renameConfirmRef = useRef<HTMLButtonElement | null>(null);
   const renameOnCancel = worktreeRename?.onCancel;
+  const branchMenu = useMenuController({
+    onDismiss: () => {
+      setBranchQuery("");
+      setError(null);
+    },
+  });
+  const infoMenu = useMenuController();
+  const { isOpen: menuOpen, setOpen: setMenuOpen, containerRef: menuRef } = branchMenu;
+  const { isOpen: infoOpen, containerRef: infoRef } = infoMenu;
 
   const trimmedQuery = branchQuery.trim();
   const filteredBranches = useMemo(
@@ -143,22 +151,6 @@ export function MainHeader({
     () => `cd "${relativeWorktreePath}"`,
     [relativeWorktreePath],
   );
-
-  useDismissibleMenu({
-    isOpen: menuOpen,
-    containerRef: menuRef,
-    onClose: () => {
-      setMenuOpen(false);
-      setBranchQuery("");
-      setError(null);
-    },
-  });
-
-  useDismissibleMenu({
-    isOpen: infoOpen,
-    containerRef: infoRef,
-    onClose: () => setInfoOpen(false),
-  });
 
   useEffect(() => {
     if (!infoOpen && renameOnCancel) {
@@ -204,17 +196,16 @@ export function MainHeader({
           </span>
           {disableBranchMenu ? (
             <div className="workspace-branch-static-row" ref={infoRef}>
-              <button
-                type="button"
+              <MenuTrigger
+                isOpen={infoOpen}
+                popupRole="dialog"
                 className="workspace-branch-static-button"
-                onClick={() => setInfoOpen((prev) => !prev)}
-                aria-haspopup="dialog"
-                aria-expanded={infoOpen}
+                onClick={infoMenu.toggle}
                 data-tauri-drag-region="false"
                 title="Worktree info"
               >
                 {worktreeLabel || branchName}
-              </button>
+              </MenuTrigger>
               {infoOpen && (
                 <PopoverSurface className="worktree-info-popover" role="dialog">
                   {worktreeRename && (
@@ -347,19 +338,17 @@ export function MainHeader({
             </div>
           ) : (
             <div className="workspace-branch-menu" ref={menuRef}>
-              <button
-                type="button"
+              <MenuTrigger
+                isOpen={menuOpen}
                 className="workspace-branch-button"
-                onClick={() => setMenuOpen((prev) => !prev)}
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
+                onClick={branchMenu.toggle}
                 data-tauri-drag-region="false"
               >
                 <span className="workspace-branch">{branchName}</span>
                 <span className="workspace-branch-caret" aria-hidden>
                   ›
                 </span>
-              </button>
+              </MenuTrigger>
               {menuOpen && (
                 <PopoverSurface
                   className="workspace-branch-dropdown"

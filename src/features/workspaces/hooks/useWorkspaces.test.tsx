@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { message } from "@tauri-apps/plugin-dialog";
 import type { WorkspaceInfo } from "../../../types";
 import {
   addWorkspace,
@@ -9,18 +8,11 @@ import {
   connectWorkspace as connectWorkspaceService,
   isWorkspacePathDir,
   listWorkspaces,
-  pickWorkspacePaths,
   renameWorktree,
   renameWorktreeUpstream,
   updateWorkspaceSettings,
 } from "../../../services/tauri";
-import { isMobilePlatform } from "../../../utils/platformPaths";
 import { useWorkspaces } from "./useWorkspaces";
-
-vi.mock("@tauri-apps/plugin-dialog", () => ({
-  ask: vi.fn(),
-  message: vi.fn(),
-}));
 
 vi.mock("../../../services/tauri", () => ({
   listWorkspaces: vi.fn(),
@@ -39,13 +31,8 @@ vi.mock("../../../services/tauri", () => ({
   updateWorkspaceSettings: vi.fn(),
 }));
 
-vi.mock("../../../utils/platformPaths", () => ({
-  isMobilePlatform: vi.fn(() => false),
-}));
-
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(isMobilePlatform).mockReturnValue(false);
 });
 
 const worktree: WorkspaceInfo = {
@@ -303,16 +290,13 @@ describe("useWorkspaces.connectWorkspace", () => {
   });
 });
 
-describe("useWorkspaces.addWorkspace (bulk)", () => {
-  it("adds multiple workspaces and activates the first", async () => {
+describe("useWorkspaces.addWorkspacesFromPaths", () => {
+  it("adds multiple workspaces, activates the first, and returns structured result", async () => {
     const listWorkspacesMock = vi.mocked(listWorkspaces);
-    const pickWorkspacePathsMock = vi.mocked(pickWorkspacePaths);
     const isWorkspacePathDirMock = vi.mocked(isWorkspacePathDir);
     const addWorkspaceMock = vi.mocked(addWorkspace);
-    const messageMock = vi.mocked(message);
 
     listWorkspacesMock.mockResolvedValue([]);
-    pickWorkspacePathsMock.mockResolvedValue(["/tmp/ws-1", "/tmp/ws-2"]);
     isWorkspacePathDirMock.mockResolvedValue(true);
     addWorkspaceMock
       .mockResolvedValueOnce({ ...workspaceOne, id: "added-1", path: "/tmp/ws-1" })
@@ -324,8 +308,9 @@ describe("useWorkspaces.addWorkspace (bulk)", () => {
       await Promise.resolve();
     });
 
+    let addResult: Awaited<ReturnType<typeof result.current.addWorkspacesFromPaths>>;
     await act(async () => {
-      await result.current.addWorkspace();
+      addResult = await result.current.addWorkspacesFromPaths(["/tmp/ws-1", "/tmp/ws-2"]);
     });
 
     expect(addWorkspaceMock).toHaveBeenCalledTimes(2);
@@ -333,19 +318,20 @@ describe("useWorkspaces.addWorkspace (bulk)", () => {
     expect(addWorkspaceMock).toHaveBeenCalledWith("/tmp/ws-2", null);
     expect(result.current.workspaces).toHaveLength(2);
     expect(result.current.activeWorkspaceId).toBe("added-1");
-    expect(messageMock).not.toHaveBeenCalled();
+    expect(addResult!.firstAdded?.id).toBe("added-1");
+    expect(addResult!.added).toHaveLength(2);
+    expect(addResult!.skippedExisting).toHaveLength(0);
+    expect(addResult!.skippedInvalid).toHaveLength(0);
+    expect(addResult!.failures).toHaveLength(0);
   });
 
-  it("shows a summary when some selections are skipped or fail", async () => {
+  it("returns skipped and failure details without UI side effects", async () => {
     const listWorkspacesMock = vi.mocked(listWorkspaces);
-    const pickWorkspacePathsMock = vi.mocked(pickWorkspacePaths);
     const isWorkspacePathDirMock = vi.mocked(isWorkspacePathDir);
     const addWorkspaceMock = vi.mocked(addWorkspace);
-    const messageMock = vi.mocked(message);
 
     listWorkspacesMock.mockResolvedValue([workspaceOne]);
-    pickWorkspacePathsMock.mockResolvedValue([workspaceOne.path, workspaceTwo.path]);
-    isWorkspacePathDirMock.mockResolvedValue(true);
+    isWorkspacePathDirMock.mockImplementation(async (path: string) => path !== "/tmp/not-a-dir");
     addWorkspaceMock.mockResolvedValue(workspaceTwo);
 
     const { result } = renderHook(() => useWorkspaces());
@@ -354,57 +340,22 @@ describe("useWorkspaces.addWorkspace (bulk)", () => {
       await Promise.resolve();
     });
 
+    let addResult: Awaited<ReturnType<typeof result.current.addWorkspacesFromPaths>>;
     await act(async () => {
-      await result.current.addWorkspace();
+      addResult = await result.current.addWorkspacesFromPaths([
+        workspaceOne.path,
+        "/tmp/not-a-dir",
+        workspaceTwo.path,
+      ]);
     });
 
     expect(addWorkspaceMock).toHaveBeenCalledTimes(1);
     expect(addWorkspaceMock).toHaveBeenCalledWith(workspaceTwo.path, null);
-    expect(messageMock).toHaveBeenCalledTimes(1);
-    const [summary, options] = messageMock.mock.calls[0];
-    expect(String(summary)).toContain("Skipped 1 already added workspace");
-    expect(options).toEqual(
-      expect.objectContaining({ title: "Some workspaces were skipped", kind: "warning" }),
-    );
-  });
-
-  it("uses manual server paths on mobile remote mode", async () => {
-    const listWorkspacesMock = vi.mocked(listWorkspaces);
-    const pickWorkspacePathsMock = vi.mocked(pickWorkspacePaths);
-    const isWorkspacePathDirMock = vi.mocked(isWorkspacePathDir);
-    const addWorkspaceMock = vi.mocked(addWorkspace);
-    const promptSpy = vi
-      .spyOn(window, "prompt")
-      .mockReturnValue("/srv/repo-a\n/srv/repo-b");
-    vi.mocked(isMobilePlatform).mockReturnValue(true);
-
-    listWorkspacesMock.mockResolvedValue([]);
-    isWorkspacePathDirMock.mockResolvedValue(true);
-    addWorkspaceMock
-      .mockResolvedValueOnce({ ...workspaceOne, id: "added-1", path: "/srv/repo-a" })
-      .mockResolvedValueOnce({ ...workspaceTwo, id: "added-2", path: "/srv/repo-b" });
-
-    const { result } = renderHook(() =>
-      useWorkspaces({
-        appSettings: { backendMode: "remote" } as never,
-      }),
-    );
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    await act(async () => {
-      await result.current.addWorkspace();
-    });
-
-    expect(promptSpy).toHaveBeenCalledTimes(1);
-    expect(pickWorkspacePathsMock).not.toHaveBeenCalled();
-    expect(addWorkspaceMock).toHaveBeenCalledTimes(2);
-    expect(addWorkspaceMock).toHaveBeenNthCalledWith(1, "/srv/repo-a", null);
-    expect(addWorkspaceMock).toHaveBeenNthCalledWith(2, "/srv/repo-b", null);
-
-    promptSpy.mockRestore();
+    expect(addResult!.added).toHaveLength(1);
+    expect(addResult!.firstAdded?.id).toBe(workspaceTwo.id);
+    expect(addResult!.skippedExisting).toEqual([workspaceOne.path]);
+    expect(addResult!.skippedInvalid).toEqual(["/tmp/not-a-dir"]);
+    expect(addResult!.failures).toHaveLength(0);
   });
 });
 

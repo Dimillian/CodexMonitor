@@ -666,6 +666,20 @@
 
   .home-button {
     white-space: normal;
+    width: 100%;
+  }
+
+  .home-add-workspaces-button {
+    display: none;
+  }
+
+  .home-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .home-add-workspaces-button,
+  .home-add-workspace-from-url-button {
+    grid-column: 1 / -1;
   }
 }
 

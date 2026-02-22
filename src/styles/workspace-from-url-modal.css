@@ -1,5 +1,7 @@
 .workspace-from-url-modal-card {
   width: min(640px, calc(100vw - 24px));
+  border-radius: 16px;
+  background: var(--surface-sidebar-opaque);
 }
 
 .workspace-from-url-modal-content {

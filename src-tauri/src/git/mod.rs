@@ -1,14 +1,23 @@
 use serde::de::DeserializeOwned;
-use serde_json::{json, Value};
+use serde::Serialize;
+use serde_json::Value;
 use tauri::{AppHandle, State};
 
 use crate::remote_backend;
-use crate::shared::git_ui_core;
+use crate::shared::{git_rpc, git_ui_core};
 use crate::state::AppState;
 use crate::types::{
     GitCommitDiff, GitFileDiff, GitHubIssuesResponse, GitHubPullRequestComment,
     GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse,
 };
+
+fn git_remote_params<T: Serialize>(request: &T) -> Result<Value, String> {
+    git_rpc::to_params(request)
+}
+
+fn optional_usize_to_u32(value: Option<usize>) -> Option<u32> {
+    value.and_then(|raw| u32::try_from(raw).ok())
+}
 
 async fn call_remote_if_enabled(
     state: &AppState,
@@ -75,11 +84,14 @@ pub(crate) async fn get_git_status(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Value, String> {
+    let request = git_rpc::WorkspaceIdRequest {
+        workspace_id: workspace_id.clone(),
+    };
     try_remote_value!(
         state,
         app,
-        "get_git_status",
-        json!({ "workspaceId": &workspace_id })
+        git_rpc::METHOD_GET_GIT_STATUS,
+        git_remote_params(&request)?
     );
     git_ui_core::get_git_status_core(&state.workspaces, workspace_id).await
 }
@@ -92,14 +104,24 @@ pub(crate) async fn init_git_repo(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Value, String> {
+    let request = git_rpc::InitGitRepoRequest {
+        workspace_id: workspace_id.clone(),
+        branch: branch.clone(),
+        force,
+    };
     try_remote_value!(
         state,
         app,
-        "init_git_repo",
-        json!({ "workspaceId": &workspace_id, "branch": &branch, "force": force })
+        git_rpc::METHOD_INIT_GIT_REPO,
+        git_remote_params(&request)?
     );
-    git_ui_core::init_git_repo_core(&state.workspaces, workspace_id, branch, force.unwrap_or(false))
-        .await
+    git_ui_core::init_git_repo_core(
+        &state.workspaces,
+        workspace_id,
+        branch,
+        force.unwrap_or(false),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -111,11 +133,17 @@ pub(crate) async fn create_github_repo(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Value, String> {
+    let request = git_rpc::CreateGitHubRepoRequest {
+        workspace_id: workspace_id.clone(),
+        repo: repo.clone(),
+        visibility: visibility.clone(),
+        branch: branch.clone(),
+    };
     try_remote_value!(
         state,
         app,
-        "create_github_repo",
-        json!({ "workspaceId": &workspace_id, "repo": &repo, "visibility": &visibility, "branch": branch })
+        git_rpc::METHOD_CREATE_GITHUB_REPO,
+        git_remote_params(&request)?
     );
     git_ui_core::create_github_repo_core(&state.workspaces, workspace_id, repo, visibility, branch)
         .await
@@ -128,11 +156,15 @@ pub(crate) async fn stage_git_file(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
+    let request = git_rpc::WorkspacePathRequest {
+        workspace_id: workspace_id.clone(),
+        path: path.clone(),
+    };
     try_remote_unit!(
         state,
         app,
-        "stage_git_file",
-        json!({ "workspaceId": &workspace_id, "path": &path })
+        git_rpc::METHOD_STAGE_GIT_FILE,
+        git_remote_params(&request)?
     );
     git_ui_core::stage_git_file_core(&state.workspaces, workspace_id, path).await
 }
@@ -143,11 +175,14 @@ pub(crate) async fn stage_git_all(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
+    let request = git_rpc::WorkspaceIdRequest {
+        workspace_id: workspace_id.clone(),
+    };
     try_remote_unit!(
         state,
         app,
-        "stage_git_all",
-        json!({ "workspaceId": &workspace_id })
+        git_rpc::METHOD_STAGE_GIT_ALL,
+        git_remote_params(&request)?
     );
     git_ui_core::stage_git_all_core(&state.workspaces, workspace_id).await
 }
@@ -159,11 +194,15 @@ pub(crate) async fn unstage_git_file(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
+    let request = git_rpc::WorkspacePathRequest {
+        workspace_id: workspace_id.clone(),
+        path: path.clone(),
+    };
     try_remote_unit!(
         state,
         app,
-        "unstage_git_file",
-        json!({ "workspaceId": &workspace_id, "path": &path })
+        git_rpc::METHOD_UNSTAGE_GIT_FILE,
+        git_remote_params(&request)?
     );
     git_ui_core::unstage_git_file_core(&state.workspaces, workspace_id, path).await
 }
@@ -175,11 +214,15 @@ pub(crate) async fn revert_git_file(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
+    let request = git_rpc::WorkspacePathRequest {
+        workspace_id: workspace_id.clone(),
+        path: path.clone(),
+    };
     try_remote_unit!(
         state,
         app,
-        "revert_git_file",
-        json!({ "workspaceId": &workspace_id, "path": &path })
+        git_rpc::METHOD_REVERT_GIT_FILE,
+        git_remote_params(&request)?
     );
     git_ui_core::revert_git_file_core(&state.workspaces, workspace_id, path).await
 }
@@ -190,11 +233,14 @@ pub(crate) async fn revert_git_all(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
+    let request = git_rpc::WorkspaceIdRequest {
+        workspace_id: workspace_id.clone(),
+    };
     try_remote_unit!(
         state,
         app,
-        "revert_git_all",
-        json!({ "workspaceId": &workspace_id })
+        git_rpc::METHOD_REVERT_GIT_ALL,
+        git_remote_params(&request)?
     );
     git_ui_core::revert_git_all_core(&state.workspaces, workspace_id).await
 }
@@ -206,11 +252,15 @@ pub(crate) async fn commit_git(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
+    let request = git_rpc::WorkspaceMessageRequest {
+        workspace_id: workspace_id.clone(),
+        message: message.clone(),
+    };
     try_remote_unit!(
         state,
         app,
-        "commit_git",
-        json!({ "workspaceId": &workspace_id, "message": &message })
+        git_rpc::METHOD_COMMIT_GIT,
+        git_remote_params(&request)?
     );
     git_ui_core::commit_git_core(&state.workspaces, workspace_id, message).await
 }
@@ -221,11 +271,14 @@ pub(crate) async fn push_git(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
+    let request = git_rpc::WorkspaceIdRequest {
+        workspace_id: workspace_id.clone(),
+    };
     try_remote_unit!(
         state,
         app,
-        "push_git",
-        json!({ "workspaceId": &workspace_id })
+        git_rpc::METHOD_PUSH_GIT,
+        git_remote_params(&request)?
     );
     git_ui_core::push_git_core(&state.workspaces, workspace_id).await
 }
@@ -236,11 +289,14 @@ pub(crate) async fn pull_git(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
+    let request = git_rpc::WorkspaceIdRequest {
+        workspace_id: workspace_id.clone(),
+    };
     try_remote_unit!(
         state,
         app,
-        "pull_git",
-        json!({ "workspaceId": &workspace_id })
+        git_rpc::METHOD_PULL_GIT,
+        git_remote_params(&request)?
     );
     git_ui_core::pull_git_core(&state.workspaces, workspace_id).await
 }
@@ -251,11 +307,14 @@ pub(crate) async fn fetch_git(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
+    let request = git_rpc::WorkspaceIdRequest {
+        workspace_id: workspace_id.clone(),
+    };
     try_remote_unit!(
         state,
         app,
-        "fetch_git",
-        json!({ "workspaceId": &workspace_id })
+        git_rpc::METHOD_FETCH_GIT,
+        git_remote_params(&request)?
     );
     git_ui_core::fetch_git_core(&state.workspaces, workspace_id).await
 }
@@ -266,11 +325,14 @@ pub(crate) async fn sync_git(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
+    let request = git_rpc::WorkspaceIdRequest {
+        workspace_id: workspace_id.clone(),
+    };
     try_remote_unit!(
         state,
         app,
-        "sync_git",
-        json!({ "workspaceId": &workspace_id })
+        git_rpc::METHOD_SYNC_GIT,
+        git_remote_params(&request)?
     );
     git_ui_core::sync_git_core(&state.workspaces, workspace_id).await
 }
@@ -282,11 +344,15 @@ pub(crate) async fn list_git_roots(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Vec<String>, String> {
+    let request = git_rpc::ListGitRootsRequest {
+        workspace_id: workspace_id.clone(),
+        depth: optional_usize_to_u32(depth),
+    };
     try_remote_typed!(
         state,
         app,
-        "list_git_roots",
-        json!({ "workspaceId": &workspace_id, "depth": depth }),
+        git_rpc::METHOD_LIST_GIT_ROOTS,
+        git_remote_params(&request)?,
         Vec<String>
     );
     git_ui_core::list_git_roots_core(&state.workspaces, workspace_id, depth).await
@@ -311,11 +377,14 @@ pub(crate) async fn get_git_diffs(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Vec<GitFileDiff>, String> {
+    let request = git_rpc::WorkspaceIdRequest {
+        workspace_id: workspace_id.clone(),
+    };
     try_remote_typed!(
         state,
         app,
-        "get_git_diffs",
-        json!({ "workspaceId": &workspace_id }),
+        git_rpc::METHOD_GET_GIT_DIFFS,
+        git_remote_params(&request)?,
         Vec<GitFileDiff>
     );
     git_ui_core::get_git_diffs_core(&state.workspaces, &state.app_settings, workspace_id).await
@@ -328,11 +397,15 @@ pub(crate) async fn get_git_log(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<GitLogResponse, String> {
+    let request = git_rpc::GetGitLogRequest {
+        workspace_id: workspace_id.clone(),
+        limit: optional_usize_to_u32(limit),
+    };
     try_remote_typed!(
         state,
         app,
-        "get_git_log",
-        json!({ "workspaceId": &workspace_id, "limit": limit }),
+        git_rpc::METHOD_GET_GIT_LOG,
+        git_remote_params(&request)?,
         GitLogResponse
     );
     git_ui_core::get_git_log_core(&state.workspaces, workspace_id, limit).await
@@ -345,11 +418,15 @@ pub(crate) async fn get_git_commit_diff(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Vec<GitCommitDiff>, String> {
+    let request = git_rpc::WorkspaceShaRequest {
+        workspace_id: workspace_id.clone(),
+        sha: sha.clone(),
+    };
     try_remote_typed!(
         state,
         app,
-        "get_git_commit_diff",
-        json!({ "workspaceId": &workspace_id, "sha": &sha }),
+        git_rpc::METHOD_GET_GIT_COMMIT_DIFF,
+        git_remote_params(&request)?,
         Vec<GitCommitDiff>
     );
     git_ui_core::get_git_commit_diff_core(&state.workspaces, &state.app_settings, workspace_id, sha)
@@ -362,11 +439,14 @@ pub(crate) async fn get_git_remote(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Option<String>, String> {
+    let request = git_rpc::WorkspaceIdRequest {
+        workspace_id: workspace_id.clone(),
+    };
     try_remote_typed!(
         state,
         app,
-        "get_git_remote",
-        json!({ "workspaceId": &workspace_id }),
+        git_rpc::METHOD_GET_GIT_REMOTE,
+        git_remote_params(&request)?,
         Option<String>
     );
     git_ui_core::get_git_remote_core(&state.workspaces, workspace_id).await
@@ -378,11 +458,14 @@ pub(crate) async fn get_github_issues(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<GitHubIssuesResponse, String> {
+    let request = git_rpc::WorkspaceIdRequest {
+        workspace_id: workspace_id.clone(),
+    };
     try_remote_typed!(
         state,
         app,
-        "get_github_issues",
-        json!({ "workspaceId": &workspace_id }),
+        git_rpc::METHOD_GET_GITHUB_ISSUES,
+        git_remote_params(&request)?,
         GitHubIssuesResponse
     );
     git_ui_core::get_github_issues_core(&state.workspaces, workspace_id).await
@@ -394,11 +477,14 @@ pub(crate) async fn get_github_pull_requests(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<GitHubPullRequestsResponse, String> {
+    let request = git_rpc::WorkspaceIdRequest {
+        workspace_id: workspace_id.clone(),
+    };
     try_remote_typed!(
         state,
         app,
-        "get_github_pull_requests",
-        json!({ "workspaceId": &workspace_id }),
+        git_rpc::METHOD_GET_GITHUB_PULL_REQUESTS,
+        git_remote_params(&request)?,
         GitHubPullRequestsResponse
     );
     git_ui_core::get_github_pull_requests_core(&state.workspaces, workspace_id).await
@@ -411,11 +497,15 @@ pub(crate) async fn get_github_pull_request_diff(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Vec<GitHubPullRequestDiff>, String> {
+    let request = git_rpc::GitHubPullRequestRequest {
+        workspace_id: workspace_id.clone(),
+        pr_number,
+    };
     try_remote_typed!(
         state,
         app,
-        "get_github_pull_request_diff",
-        json!({ "workspaceId": &workspace_id, "prNumber": pr_number }),
+        git_rpc::METHOD_GET_GITHUB_PULL_REQUEST_DIFF,
+        git_remote_params(&request)?,
         Vec<GitHubPullRequestDiff>
     );
     git_ui_core::get_github_pull_request_diff_core(&state.workspaces, workspace_id, pr_number).await
@@ -428,11 +518,15 @@ pub(crate) async fn get_github_pull_request_comments(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Vec<GitHubPullRequestComment>, String> {
+    let request = git_rpc::GitHubPullRequestRequest {
+        workspace_id: workspace_id.clone(),
+        pr_number,
+    };
     try_remote_typed!(
         state,
         app,
-        "get_github_pull_request_comments",
-        json!({ "workspaceId": &workspace_id, "prNumber": pr_number }),
+        git_rpc::METHOD_GET_GITHUB_PULL_REQUEST_COMMENTS,
+        git_remote_params(&request)?,
         Vec<GitHubPullRequestComment>
     );
     git_ui_core::get_github_pull_request_comments_core(&state.workspaces, workspace_id, pr_number)
@@ -446,11 +540,15 @@ pub(crate) async fn checkout_github_pull_request(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
+    let request = git_rpc::GitHubPullRequestRequest {
+        workspace_id: workspace_id.clone(),
+        pr_number,
+    };
     try_remote_unit!(
         state,
         app,
-        "checkout_github_pull_request",
-        json!({ "workspaceId": &workspace_id, "prNumber": pr_number })
+        git_rpc::METHOD_CHECKOUT_GITHUB_PULL_REQUEST,
+        git_remote_params(&request)?
     );
     git_ui_core::checkout_github_pull_request_core(&state.workspaces, workspace_id, pr_number).await
 }
@@ -461,11 +559,14 @@ pub(crate) async fn list_git_branches(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Value, String> {
+    let request = git_rpc::WorkspaceIdRequest {
+        workspace_id: workspace_id.clone(),
+    };
     try_remote_value!(
         state,
         app,
-        "list_git_branches",
-        json!({ "workspaceId": &workspace_id })
+        git_rpc::METHOD_LIST_GIT_BRANCHES,
+        git_remote_params(&request)?
     );
     git_ui_core::list_git_branches_core(&state.workspaces, workspace_id).await
 }
@@ -477,11 +578,15 @@ pub(crate) async fn checkout_git_branch(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
+    let request = git_rpc::WorkspaceNameRequest {
+        workspace_id: workspace_id.clone(),
+        name: name.clone(),
+    };
     try_remote_unit!(
         state,
         app,
-        "checkout_git_branch",
-        json!({ "workspaceId": &workspace_id, "name": &name })
+        git_rpc::METHOD_CHECKOUT_GIT_BRANCH,
+        git_remote_params(&request)?
     );
     git_ui_core::checkout_git_branch_core(&state.workspaces, workspace_id, name).await
 }
@@ -493,11 +598,15 @@ pub(crate) async fn create_git_branch(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
+    let request = git_rpc::WorkspaceNameRequest {
+        workspace_id: workspace_id.clone(),
+        name: name.clone(),
+    };
     try_remote_unit!(
         state,
         app,
-        "create_git_branch",
-        json!({ "workspaceId": &workspace_id, "name": &name })
+        git_rpc::METHOD_CREATE_GIT_BRANCH,
+        git_remote_params(&request)?
     );
     git_ui_core::create_git_branch_core(&state.workspaces, workspace_id, name).await
 }

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback } from "react";
 import type { ModelOption, WorkspaceInfo } from "../../../types";
 import type { WorkspaceRunMode } from "../hooks/useWorkspaceHome";
 import Laptop from "lucide-react/dist/esm/icons/laptop";
@@ -8,9 +8,9 @@ import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import Cpu from "lucide-react/dist/esm/icons/cpu";
 import {
   PopoverMenuItem,
-  PopoverSurface,
+  SplitActionMenu,
 } from "../../design-system/components/popover/PopoverPrimitives";
-import { useDismissibleMenu } from "../../app/hooks/useDismissibleMenu";
+import { useMenuController } from "../../app/hooks/useMenuController";
 import {
   buildModelSummary,
   INSTANCE_OPTIONS,
@@ -56,22 +56,20 @@ export function WorkspaceHomeRunControls({
   reasoningSupported,
   isSubmitting,
 }: WorkspaceHomeRunControlsProps) {
-  const [runModeOpen, setRunModeOpen] = useState(false);
-  const [modelsOpen, setModelsOpen] = useState(false);
-  const runModeRef = useRef<HTMLDivElement | null>(null);
-  const modelsRef = useRef<HTMLDivElement | null>(null);
-
-  useDismissibleMenu({
+  const runModeMenu = useMenuController();
+  const modelsMenu = useMenuController();
+  const {
     isOpen: runModeOpen,
     containerRef: runModeRef,
-    onClose: () => setRunModeOpen(false),
-  });
-
-  useDismissibleMenu({
+    toggle: toggleRunModeOpen,
+    close: closeRunMode,
+  } = runModeMenu;
+  const {
     isOpen: modelsOpen,
     containerRef: modelsRef,
-    onClose: () => setModelsOpen(false),
-  });
+    toggle: toggleModelsOpen,
+    close: closeModels,
+  } = modelsMenu;
 
   const selectedModel = selectedModelId
     ? models.find((model) => model.id === selectedModelId) ?? null
@@ -81,19 +79,27 @@ export function WorkspaceHomeRunControls({
   const showRunMode = (workspaceKind ?? "main") !== "worktree";
   const runModeLabel = runMode === "local" ? "Local" : "Worktree";
   const RunModeIcon = runMode === "local" ? Laptop : GitBranch;
+  const toggleRunModeMenu = useCallback(() => {
+    toggleRunModeOpen();
+    closeModels();
+  }, [closeModels, toggleRunModeOpen]);
+  const toggleModelsMenu = useCallback(() => {
+    toggleModelsOpen();
+    closeRunMode();
+  }, [closeRunMode, toggleModelsOpen]);
 
   return (
     <div className="workspace-home-controls">
       {showRunMode && (
-        <div className="open-app-menu workspace-home-control" ref={runModeRef}>
-          <div className="open-app-button">
+        <SplitActionMenu
+          containerRef={runModeRef}
+          className="open-app-menu workspace-home-control"
+          buttonGroupClassName="open-app-button"
+          actionButton={
             <button
               type="button"
               className="ghost open-app-action"
-              onClick={() => {
-                setRunModeOpen((prev) => !prev);
-                setModelsOpen(false);
-              }}
+              onClick={toggleRunModeMenu}
               aria-label="Select run mode"
               data-tauri-drag-region="false"
             >
@@ -102,61 +108,51 @@ export function WorkspaceHomeRunControls({
                 {runModeLabel}
               </span>
             </button>
-            <button
-              type="button"
-              className="ghost open-app-toggle"
-              onClick={() => {
-                setRunModeOpen((prev) => !prev);
-                setModelsOpen(false);
-              }}
-              aria-haspopup="menu"
-              aria-expanded={runModeOpen}
-              aria-label="Toggle run mode menu"
-              data-tauri-drag-region="false"
-            >
-              <ChevronDown size={14} aria-hidden />
-            </button>
-          </div>
-          {runModeOpen && (
-            <PopoverSurface className="open-app-dropdown workspace-home-dropdown" role="menu">
-              <PopoverMenuItem
-                className="open-app-option"
-                onClick={() => {
-                  onRunModeChange("local");
-                  setRunModeOpen(false);
-                  setModelsOpen(false);
-                }}
-                icon={<Laptop className="workspace-home-mode-icon" aria-hidden />}
-                active={runMode === "local"}
-              >
-                Local
-              </PopoverMenuItem>
-              <PopoverMenuItem
-                className="open-app-option"
-                onClick={() => {
-                  onRunModeChange("worktree");
-                  setRunModeOpen(false);
-                  setModelsOpen(false);
-                }}
-                icon={<GitBranch className="workspace-home-mode-icon" aria-hidden />}
-                active={runMode === "worktree"}
-              >
-                Worktree
-              </PopoverMenuItem>
-            </PopoverSurface>
-          )}
-        </div>
+          }
+          isOpen={runModeOpen}
+          onToggle={toggleRunModeMenu}
+          toggleClassName="ghost open-app-toggle"
+          toggleAriaLabel="Toggle run mode menu"
+          toggleIcon={<ChevronDown size={14} aria-hidden />}
+          popoverClassName="open-app-dropdown workspace-home-dropdown"
+          popoverRole="menu"
+        >
+          <PopoverMenuItem
+            className="open-app-option"
+            onClick={() => {
+              onRunModeChange("local");
+              closeRunMode();
+              closeModels();
+            }}
+            icon={<Laptop className="workspace-home-mode-icon" aria-hidden />}
+            active={runMode === "local"}
+          >
+            Local
+          </PopoverMenuItem>
+          <PopoverMenuItem
+            className="open-app-option"
+            onClick={() => {
+              onRunModeChange("worktree");
+              closeRunMode();
+              closeModels();
+            }}
+            icon={<GitBranch className="workspace-home-mode-icon" aria-hidden />}
+            active={runMode === "worktree"}
+          >
+            Worktree
+          </PopoverMenuItem>
+        </SplitActionMenu>
       )}
 
-      <div className="open-app-menu workspace-home-control" ref={modelsRef}>
-        <div className="open-app-button">
+      <SplitActionMenu
+        containerRef={modelsRef}
+        className="open-app-menu workspace-home-control"
+        buttonGroupClassName="open-app-button"
+        actionButton={
           <button
             type="button"
             className="ghost open-app-action"
-            onClick={() => {
-              setModelsOpen((prev) => !prev);
-              setRunModeOpen(false);
-            }}
+            onClick={toggleModelsMenu}
             aria-label="Select models"
             data-tauri-drag-region="false"
           >
@@ -164,88 +160,75 @@ export function WorkspaceHomeRunControls({
               {runMode === "local" ? selectedModelLabel : modelSummary}
             </span>
           </button>
-          <button
-            type="button"
-            className="ghost open-app-toggle"
-            onClick={() => {
-              setModelsOpen((prev) => !prev);
-              setRunModeOpen(false);
-            }}
-            aria-haspopup="menu"
-            aria-expanded={modelsOpen}
-            aria-label="Toggle models menu"
-            data-tauri-drag-region="false"
-          >
-            <ChevronDown size={14} aria-hidden />
-          </button>
-        </div>
-        {modelsOpen && (
-          <PopoverSurface
-            className="open-app-dropdown workspace-home-dropdown workspace-home-model-dropdown"
-            role="menu"
-          >
-            {models.length === 0 && (
-              <div className="workspace-home-empty">
-                Connect this workspace to load available models.
-              </div>
-            )}
-            {models.map((model) => {
-              const isSelected =
-                runMode === "local"
-                  ? model.id === selectedModelId
-                  : Boolean(modelSelections[model.id]);
-              const count = modelSelections[model.id] ?? 1;
-              return (
-                <div
-                  key={model.id}
-                  className={`workspace-home-model-option${isSelected ? " is-active" : ""}`}
-                >
-                  <PopoverMenuItem
-                    className="open-app-option workspace-home-model-toggle"
-                    onClick={() => {
-                      if (runMode === "local") {
-                        onSelectModel(model.id);
-                        setModelsOpen(false);
-                        return;
-                      }
-                      onToggleModel(model.id);
-                    }}
-                    icon={<Cpu className="workspace-home-mode-icon" aria-hidden />}
-                    active={isSelected}
-                  >
-                    {resolveModelLabel(model)}
-                  </PopoverMenuItem>
-                  {runMode === "worktree" && (
-                    <>
-                      <div className="workspace-home-model-meta" aria-hidden>
-                        <span>{count}x</span>
-                        <ChevronRight size={14} />
-                      </div>
-                      <div className="workspace-home-model-submenu ds-popover">
-                        {INSTANCE_OPTIONS.map((option) => (
-                          <button
-                            key={option}
-                            type="button"
-                            className={`workspace-home-model-submenu-item${
-                              option === count ? " is-active" : ""
-                            }`}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onModelCountChange(model.id, option);
-                            }}
-                          >
-                            {option}x
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </PopoverSurface>
+        }
+        isOpen={modelsOpen}
+        onToggle={toggleModelsMenu}
+        toggleClassName="ghost open-app-toggle"
+        toggleAriaLabel="Toggle models menu"
+        toggleIcon={<ChevronDown size={14} aria-hidden />}
+        popoverClassName="open-app-dropdown workspace-home-dropdown workspace-home-model-dropdown"
+        popoverRole="menu"
+      >
+        {models.length === 0 && (
+          <div className="workspace-home-empty">
+            Connect this workspace to load available models.
+          </div>
         )}
-      </div>
+        {models.map((model) => {
+          const isSelected =
+            runMode === "local"
+              ? model.id === selectedModelId
+              : Boolean(modelSelections[model.id]);
+          const count = modelSelections[model.id] ?? 1;
+          return (
+            <div
+              key={model.id}
+              className={`workspace-home-model-option${isSelected ? " is-active" : ""}`}
+            >
+              <PopoverMenuItem
+                className="open-app-option workspace-home-model-toggle"
+                onClick={() => {
+                  if (runMode === "local") {
+                    onSelectModel(model.id);
+                    closeModels();
+                    return;
+                  }
+                  onToggleModel(model.id);
+                }}
+                icon={<Cpu className="workspace-home-mode-icon" aria-hidden />}
+                active={isSelected}
+              >
+                {resolveModelLabel(model)}
+              </PopoverMenuItem>
+              {runMode === "worktree" && (
+                <>
+                  <div className="workspace-home-model-meta" aria-hidden>
+                    <span>{count}x</span>
+                    <ChevronRight size={14} />
+                  </div>
+                  <div className="workspace-home-model-submenu ds-popover">
+                    {INSTANCE_OPTIONS.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        className={`workspace-home-model-submenu-item${
+                          option === count ? " is-active" : ""
+                        }`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onModelCountChange(model.id, option);
+                        }}
+                      >
+                        {option}x
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </SplitActionMenu>
       {collaborationModes.length > 0 && (
         <div className="composer-select-wrap workspace-home-control">
           <div className="open-app-button">
