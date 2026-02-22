@@ -6,6 +6,8 @@ import { useRenameThreadPrompt } from "../../threads/hooks/useRenameThreadPrompt
 import { useClonePrompt } from "../../workspaces/hooks/useClonePrompt";
 import { useWorktreePrompt } from "../../workspaces/hooks/useWorktreePrompt";
 import { useWorkspaceFromUrlPrompt } from "../../workspaces/hooks/useWorkspaceFromUrlPrompt";
+import { WorkspacePathsPrompt } from "../../workspaces/components/WorkspacePathsPrompt";
+import type { WorkspacePathsPromptState } from "../hooks/useWorkspaceDialogs";
 import type { BranchSwitcherState } from "../../git/hooks/useBranchSwitcher";
 import { useGitBranches } from "../../git/hooks/useGitBranches";
 
@@ -83,6 +85,10 @@ type AppModalsProps = {
   onClonePromptClearCopiesFolder: () => void;
   onClonePromptCancel: () => void;
   onClonePromptConfirm: () => void;
+  workspacePathsPrompt: WorkspacePathsPromptState;
+  onWorkspacePathsPromptChange: (value: string) => void;
+  onWorkspacePathsPromptCancel: () => void;
+  onWorkspacePathsPromptConfirm: () => void;
   workspaceFromUrlPrompt: WorkspaceFromUrlPromptState;
   workspaceFromUrlCanSubmit: boolean;
   onWorkspaceFromUrlPromptUrlChange: (value: string) => void;
@@ -132,6 +138,10 @@ export const AppModals = memo(function AppModals({
   onClonePromptClearCopiesFolder,
   onClonePromptCancel,
   onClonePromptConfirm,
+  workspacePathsPrompt,
+  onWorkspacePathsPromptChange,
+  onWorkspacePathsPromptCancel,
+  onWorkspacePathsPromptConfirm,
   workspaceFromUrlPrompt,
   workspaceFromUrlCanSubmit,
   onWorkspaceFromUrlPromptUrlChange,
@@ -229,6 +239,15 @@ export const AppModals = memo(function AppModals({
             onConfirm={onClonePromptConfirm}
           />
         </Suspense>
+      )}
+      {workspacePathsPrompt && (
+        <WorkspacePathsPrompt
+          value={workspacePathsPrompt.value}
+          error={workspacePathsPrompt.error}
+          onChange={onWorkspacePathsPromptChange}
+          onCancel={onWorkspacePathsPromptCancel}
+          onConfirm={onWorkspacePathsPromptConfirm}
+        />
       )}
       {workspaceFromUrlPrompt && (
         <Suspense fallback={null}>
