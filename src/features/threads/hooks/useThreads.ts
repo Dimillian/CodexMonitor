@@ -746,6 +746,19 @@ export function useThreads({
     registerDetachedReviewChild,
   });
 
+  const hasLocalThreadSnapshot = useCallback(
+    (threadId: string | null) => {
+      if (!threadId) {
+        return false;
+      }
+      return (
+        loadedThreadsRef.current[threadId] === true ||
+        (itemsByThreadRef.current[threadId]?.length ?? 0) > 0
+      );
+    },
+    [itemsByThreadRef, loadedThreadsRef],
+  );
+
   const setActiveThreadId = useCallback(
     (threadId: string | null, workspaceId?: string) => {
       const targetId = workspaceId ?? activeWorkspaceId;
@@ -765,6 +778,11 @@ export function useThreads({
       }
       if (threadId) {
         void (async () => {
+          const hasLocalSnapshot = hasLocalThreadSnapshot(threadId);
+          if (hasLocalSnapshot) {
+            loadedThreadsRef.current[threadId] = true;
+            return;
+          }
           const hasActiveTurnInWorkspace = hasProcessingThreadInWorkspace(targetId);
           if (!hasActiveTurnInWorkspace) {
             await ensureWorkspaceRuntimeCodexArgsBestEffort(targetId, threadId, "resume");
@@ -776,7 +794,9 @@ export function useThreads({
     [
       activeWorkspaceId,
       ensureWorkspaceRuntimeCodexArgsBestEffort,
+      hasLocalThreadSnapshot,
       hasProcessingThreadInWorkspace,
+      loadedThreadsRef,
       resumeThreadForWorkspace,
       state.activeThreadIdByWorkspace,
     ],
@@ -794,6 +814,7 @@ export function useThreads({
   return {
     activeThreadId,
     setActiveThreadId,
+    hasLocalThreadSnapshot,
     activeItems,
     approvals: state.approvals,
     userInputRequests: state.userInputRequests,

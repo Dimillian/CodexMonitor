@@ -540,7 +540,7 @@ describe("useThreads UX integration", () => {
     );
   });
 
-  it("keeps local items when resume response does not overlap", async () => {
+  it("does not resume selected threads that already have local items", async () => {
     vi.mocked(resumeThread).mockResolvedValue({
       result: {
         thread: {
@@ -566,11 +566,13 @@ describe("useThreads UX integration", () => {
         },
       },
     });
+    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
 
     const { result } = renderHook(() =>
       useThreads({
         activeWorkspace: workspace,
         onWorkspaceConnected: vi.fn(),
+        ensureWorkspaceRuntimeCodexArgs,
       }),
     );
 
@@ -589,24 +591,24 @@ describe("useThreads UX integration", () => {
       result.current.setActiveThreadId("thread-3");
     });
 
-    await waitFor(() => {
-      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-3");
+    await act(async () => {
+      await Promise.resolve();
     });
+    expect(vi.mocked(resumeThread)).not.toHaveBeenCalled();
+    expect(ensureWorkspaceRuntimeCodexArgs).not.toHaveBeenCalled();
 
-    await waitFor(() => {
-      const activeItems = result.current.activeItems;
-      const hasLocal = activeItems.some(
-        (item) =>
-          item.kind === "message" &&
-          item.role === "assistant" &&
-          item.id === "local-assistant-1",
-      );
-      const hasRemote = activeItems.some(
-        (item) => item.kind === "message" && item.id === "server-user-1",
-      );
-      expect(hasLocal).toBe(true);
-      expect(hasRemote).toBe(false);
-    });
+    const activeItems = result.current.activeItems;
+    const hasLocal = activeItems.some(
+      (item) =>
+        item.kind === "message" &&
+        item.role === "assistant" &&
+        item.id === "local-assistant-1",
+    );
+    const hasRemote = activeItems.some(
+      (item) => item.kind === "message" && item.id === "server-user-1",
+    );
+    expect(hasLocal).toBe(true);
+    expect(hasRemote).toBe(false);
   });
 
   it("clears empty plan updates to null", () => {
@@ -827,6 +829,7 @@ describe("useThreads UX integration", () => {
         isProcessing: status?.isProcessing ?? false,
         isReviewing: status?.isReviewing ?? false,
         steerEnabled: false,
+        followUpMessageBehavior: "queue",
         appsEnabled: true,
         activeWorkspace: workspace,
         connectWorkspace,

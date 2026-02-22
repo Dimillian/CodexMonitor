@@ -706,6 +706,7 @@ export function ComposerInput({
         onClick={handleActionClick}
         disabled={disabled || isDictationBusy || (!canStop && !canSend)}
         aria-label={canStop ? "Stop" : sendLabel}
+        title={canStop ? "Stop" : sendLabel}
       >
         {canStop ? (
           <>

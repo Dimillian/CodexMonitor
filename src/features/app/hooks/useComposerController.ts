@@ -1,5 +1,12 @@
 import { useCallback, useMemo, useState } from "react";
-import type { AppMention, QueuedMessage, WorkspaceInfo } from "../../../types";
+import type {
+  AppMention,
+  ComposerSendIntent,
+  FollowUpMessageBehavior,
+  QueuedMessage,
+  SendMessageResult,
+  WorkspaceInfo,
+} from "../../../types";
 import { useComposerImages } from "../../composer/hooks/useComposerImages";
 import { useQueuedSend } from "../../threads/hooks/useQueuedSend";
 
@@ -12,6 +19,7 @@ export function useComposerController({
   isReviewing,
   queueFlushPaused = false,
   steerEnabled,
+  followUpMessageBehavior,
   appsEnabled,
   connectWorkspace,
   startThreadForWorkspace,
@@ -33,6 +41,7 @@ export function useComposerController({
   isReviewing: boolean;
   queueFlushPaused?: boolean;
   steerEnabled: boolean;
+  followUpMessageBehavior: FollowUpMessageBehavior;
   appsEnabled: boolean;
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
   startThreadForWorkspace: (
@@ -43,13 +52,14 @@ export function useComposerController({
     text: string,
     images?: string[],
     appMentions?: AppMention[],
-  ) => Promise<void>;
+    options?: { sendIntent?: ComposerSendIntent },
+  ) => Promise<{ status: "sent" | "blocked" | "steer_failed" }>;
   sendUserMessageToThread: (
     workspace: WorkspaceInfo,
     threadId: string,
     text: string,
     images?: string[],
-  ) => Promise<void>;
+  ) => Promise<void | SendMessageResult>;
   startFork: (text: string) => Promise<void>;
   startReview: (text: string) => Promise<void>;
   startResume: (text: string) => Promise<void>;
@@ -88,6 +98,7 @@ export function useComposerController({
     isReviewing,
     queueFlushPaused,
     steerEnabled,
+    followUpMessageBehavior,
     appsEnabled,
     activeWorkspace,
     connectWorkspace,

@@ -197,13 +197,7 @@ pub(crate) async fn codex_update_core(
             ok,
         )
     } else {
-        (
-            "unknown".to_string(),
-            None,
-            false,
-            String::new(),
-            false,
-        )
+        ("unknown".to_string(), None, false, String::new(), false)
     };
 
     let after_version = if method == "unknown" {

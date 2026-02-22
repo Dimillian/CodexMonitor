@@ -193,10 +193,14 @@ pub(crate) fn update_agent_core(input: UpdateAgentInput) -> Result<AgentsSetting
                 if let Some(old_relative_path) = managed_relative_path_from_config(old_value) {
                     let new_relative_path = managed_relative_config_for_name(&name);
                     if old_relative_path != new_relative_path {
-                        let old_abs_path =
-                            resolve_safe_managed_abs_path_for_read(&codex_home, &old_relative_path)?;
-                        let new_abs_path =
-                            resolve_safe_managed_abs_path_for_write(&codex_home, &new_relative_path)?;
+                        let old_abs_path = resolve_safe_managed_abs_path_for_read(
+                            &codex_home,
+                            &old_relative_path,
+                        )?;
+                        let new_abs_path = resolve_safe_managed_abs_path_for_write(
+                            &codex_home,
+                            &new_relative_path,
+                        )?;
                         if new_abs_path.exists() {
                             return Err(format!(
                                 "target config file already exists: {}",
@@ -316,8 +320,9 @@ pub(crate) fn delete_agent_core(input: DeleteAgentInput) -> Result<AgentsSetting
             if let Some(relative_path) = managed_relative_path_from_config(config_file.as_str()) {
                 let target = resolve_safe_managed_abs_path_for_read(&codex_home, &relative_path)?;
                 if target.exists() {
-                    let backup = std::fs::read(&target)
-                        .map_err(|err| format!("Failed to read agent config file before delete: {err}"))?;
+                    let backup = std::fs::read(&target).map_err(|err| {
+                        format!("Failed to read agent config file before delete: {err}")
+                    })?;
                     std::fs::remove_file(&target)
                         .map_err(|err| format!("Failed to delete agent config file: {err}"))?;
                     deleted_config_backup = Some((target, backup));
@@ -326,7 +331,9 @@ pub(crate) fn delete_agent_core(input: DeleteAgentInput) -> Result<AgentsSetting
         }
     }
 
-    if let Err(persist_error) = config_toml_core::persist_global_config_document(&codex_home, &document) {
+    if let Err(persist_error) =
+        config_toml_core::persist_global_config_document(&codex_home, &document)
+    {
         if let Some((path, backup)) = deleted_config_backup {
             if let Err(restore_error) = std::fs::write(&path, backup) {
                 return Err(format!(
@@ -600,7 +607,9 @@ fn managed_relative_path_from_config(raw_path: &str) -> Option<PathBuf> {
     }
 }
 
-fn resolve_managed_agent_config_relative_path(agent_name: &str) -> Result<(PathBuf, PathBuf), String> {
+fn resolve_managed_agent_config_relative_path(
+    agent_name: &str,
+) -> Result<(PathBuf, PathBuf), String> {
     let name = normalize_agent_lookup_name(agent_name)?;
     let codex_home = resolve_codex_home()?;
     let (_, document) = config_toml_core::load_global_config_document(&codex_home)?;
@@ -803,7 +812,10 @@ mod tests {
     fn normalize_agent_name_accepts_expected_shape() {
         assert_eq!(normalize_agent_name("explorer").expect("valid"), "explorer");
         assert_eq!(normalize_agent_name("a-1_b").expect("valid"), "a-1_b");
-        assert_eq!(normalize_agent_name(" Explorer ").expect("valid"), "explorer");
+        assert_eq!(
+            normalize_agent_name(" Explorer ").expect("valid"),
+            "explorer"
+        );
         assert_eq!(normalize_agent_name("A-1_B").expect("valid"), "a-1_b");
         assert_eq!(
             normalize_agent_name("Hello world").expect("valid"),
@@ -825,13 +837,11 @@ mod tests {
     #[test]
     fn managed_path_detection_accepts_agents_prefix() {
         assert_eq!(
-            managed_relative_path_from_config("./agents/researcher.toml")
-                .expect("managed path"),
+            managed_relative_path_from_config("./agents/researcher.toml").expect("managed path"),
             PathBuf::from("agents/researcher.toml")
         );
         assert_eq!(
-            managed_relative_path_from_config("agents/researcher.toml")
-                .expect("managed path"),
+            managed_relative_path_from_config("agents/researcher.toml").expect("managed path"),
             PathBuf::from("agents/researcher.toml")
         );
     }
@@ -857,10 +867,7 @@ mod tests {
         let mut role = clone_role_table(role_item).expect("clone role");
         role["description"] = value("New");
 
-        assert_eq!(
-            role.get("custom_key").and_then(Item::as_str),
-            Some("keep")
-        );
+        assert_eq!(role.get("custom_key").and_then(Item::as_str), Some("keep"));
         assert_eq!(role.get("description").and_then(Item::as_str), Some("New"));
     }
 
@@ -910,8 +917,7 @@ mod tests {
 
     #[test]
     fn build_template_content_uses_provided_model_and_reasoning() {
-        let content =
-            build_template_content(Some("blank"), Some("gpt-5.1"), Some("high"), None);
+        let content = build_template_content(Some("blank"), Some("gpt-5.1"), Some("high"), None);
         assert!(content.contains("model = \"gpt-5.1\""));
         assert!(content.contains("model_reasoning_effort = \"high\""));
     }

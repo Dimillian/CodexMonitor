@@ -368,7 +368,9 @@ pub(crate) async fn experimental_feature_list_core(
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
     let params = json!({ "cursor": cursor, "limit": limit });
-    session.send_request("experimentalFeature/list", params).await
+    session
+        .send_request("experimentalFeature/list", params)
+        .await
 }
 
 pub(crate) async fn account_rate_limits_core(

@@ -70,6 +70,29 @@
   color: var(--text-stronger);
 }
 
+.composer-followup-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-card);
+}
+
+.composer-followup-title {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-fainter);
+}
+
+.composer-followup-copy {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-subtle);
+}
+
 .composer-context-actions {
   display: flex;
   flex-wrap: wrap;
