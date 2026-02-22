@@ -42,10 +42,13 @@ fn image_mime_type_for_path(path: &str) -> Option<&'static str> {
 #[allow(dead_code)]
 pub(crate) fn normalize_file_path(raw: &str) -> String {
     let path = raw.trim();
-    let path = path
+    let file_uri_path = path
         .strip_prefix("file://localhost")
-        .or_else(|| path.strip_prefix("file://"))
-        .unwrap_or(path);
+        .or_else(|| path.strip_prefix("file://"));
+    let Some(path) = file_uri_path else {
+        return path.to_string();
+    };
+
     let mut decoded = Vec::with_capacity(path.len());
     let bytes = path.as_bytes();
     let mut index = 0usize;
@@ -732,6 +735,14 @@ mod tests {
     }
 
     #[test]
+    fn normalize_plain_path_percent_sequences_unchanged() {
+        assert_eq!(
+            normalize_file_path("/tmp/report%20final.png"),
+            "/tmp/report%20final.png"
+        );
+    }
+
+    #[test]
     fn normalize_trims_whitespace() {
         assert_eq!(
             normalize_file_path("  /tmp/image.png  "),
@@ -792,6 +803,16 @@ mod tests {
             result2.is_ok(),
             "percent-encoded file:// URI should succeed, got: {:?}",
             result2.err()
+        );
+
+        let percent_img = dir.join("report%20final.png");
+        std::fs::write(&percent_img, png_bytes).unwrap();
+        let plain_percent_path = percent_img.display().to_string();
+        let result3 = read_image_as_data_url_core(&plain_percent_path);
+        assert!(
+            result3.is_ok(),
+            "plain filesystem paths with percent sequences should not be decoded, got: {:?}",
+            result3.err()
         );
 
         let _ = std::fs::remove_dir_all(&dir);
