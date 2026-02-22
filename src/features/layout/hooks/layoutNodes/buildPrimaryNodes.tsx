@@ -48,6 +48,8 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       pinnedThreadsVersion={options.pinnedThreadsVersion}
       threadListSortKey={options.threadListSortKey}
       onSetThreadListSortKey={options.onSetThreadListSortKey}
+      threadListOrganizeMode={options.threadListOrganizeMode}
+      onSetThreadListOrganizeMode={options.onSetThreadListOrganizeMode}
       onRefreshAllThreads={options.onRefreshAllThreads}
       activeWorkspaceId={options.activeWorkspaceId}
       activeThreadId={options.activeThreadId}

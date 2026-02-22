@@ -183,13 +183,29 @@
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  min-width: 140px;
+  width: 196px;
+  max-width: calc(100vw - 24px);
   border-radius: 10px;
   padding: 6px;
-  z-index: 10;
+  max-height: min(72vh, 420px);
+  overflow-y: auto;
+  z-index: 14;
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.sidebar-sort-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-faint);
+  padding: 4px 8px 2px;
+}
+
+.sidebar-sort-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-subtle);
 }
 
 .sidebar-sort-option {
@@ -934,6 +950,29 @@
 
 .thread-args-badge {
   max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface-hover);
+  color: var(--text-faint);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.thread-workspace-label {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-faint);
+  font-size: 10px;
+}
+
+.thread-model-badge {
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

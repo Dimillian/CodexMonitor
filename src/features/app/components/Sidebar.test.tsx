@@ -27,6 +27,8 @@ const baseProps = {
   pinnedThreadsVersion: 0,
   threadListSortKey: "updated_at" as const,
   onSetThreadListSortKey: vi.fn(),
+  threadListOrganizeMode: "by_project" as const,
+  onSetThreadListOrganizeMode: vi.fn(),
   onRefreshAllThreads: vi.fn(),
   activeWorkspaceId: null,
   activeThreadId: null,
@@ -112,15 +114,92 @@ describe("Sidebar", () => {
       />,
     );
 
-    const button = screen.getByRole("button", { name: "Sort threads" });
+    const button = screen.getByRole("button", { name: "Organize and sort threads" });
     expect(screen.queryByRole("menu")).toBeNull();
 
     fireEvent.click(button);
-    const option = screen.getByRole("menuitemradio", { name: "Most recent" });
+    const option = screen.getByRole("menuitemradio", { name: "Created" });
     fireEvent.click(option);
 
     expect(onSetThreadListSortKey).toHaveBeenCalledWith("created_at");
     expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("changes organize mode from the header filter menu", () => {
+    const onSetThreadListOrganizeMode = vi.fn();
+    render(
+      <Sidebar
+        {...baseProps}
+        threadListOrganizeMode="by_project"
+        onSetThreadListOrganizeMode={onSetThreadListOrganizeMode}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Organize and sort threads" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Thread list" }));
+
+    expect(onSetThreadListOrganizeMode).toHaveBeenCalledWith("threads_only");
+  });
+
+  it("renders threads-only mode as a global chronological list", () => {
+    const older = Date.now() - 10_000;
+    const newer = Date.now();
+    const { container } = render(
+      <Sidebar
+        {...baseProps}
+        threadListOrganizeMode="threads_only"
+        workspaces={[
+          {
+            id: "ws-1",
+            name: "Alpha Project",
+            path: "/tmp/alpha",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+          {
+            id: "ws-2",
+            name: "Beta Project",
+            path: "/tmp/beta",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-1",
+                name: "Alpha Project",
+                path: "/tmp/alpha",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+              {
+                id: "ws-2",
+                name: "Beta Project",
+                path: "/tmp/beta",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+            ],
+          },
+        ]}
+        threadsByWorkspace={{
+          "ws-1": [{ id: "thread-1", name: "Older thread", updatedAt: older }],
+          "ws-2": [{ id: "thread-2", name: "Newer thread", updatedAt: newer }],
+        }}
+      />,
+    );
+
+    const renderedNames = Array.from(container.querySelectorAll(".thread-row .thread-name")).map(
+      (node) => node.textContent?.trim(),
+    );
+    expect(renderedNames[0]).toBe("Newer thread");
+    expect(renderedNames[1]).toBe("Older thread");
+    expect(screen.getByText("Alpha Project")).toBeTruthy();
+    expect(screen.getByText("Beta Project")).toBeTruthy();
   });
 
   it("refreshes all workspace threads from the header button", () => {
