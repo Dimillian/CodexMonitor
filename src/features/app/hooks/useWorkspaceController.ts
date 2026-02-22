@@ -31,6 +31,10 @@ export function useWorkspaceController({
 
   const {
     requestWorkspacePaths,
+    workspacePathsPrompt,
+    updateWorkspacePathsPromptValue,
+    cancelWorkspacePathsPrompt,
+    confirmWorkspacePathsPrompt,
     showAddWorkspacesResult,
     confirmWorkspaceRemoval,
     confirmWorktreeRemoval,
@@ -64,7 +68,8 @@ export function useWorkspaceController({
       try {
         await removeWorkspaceCore(workspaceId);
       } catch (error) {
-        await showWorkspaceRemovalError(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        await showWorkspaceRemovalError(errorMessage);
       }
     },
     [confirmWorkspaceRemoval, removeWorkspaceCore, showWorkspaceRemovalError, workspaces],
@@ -79,7 +84,8 @@ export function useWorkspaceController({
       try {
         await removeWorktreeCore(workspaceId);
       } catch (error) {
-        await showWorktreeRemovalError(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        await showWorktreeRemovalError(errorMessage);
       }
     },
     [confirmWorktreeRemoval, removeWorktreeCore, showWorktreeRemovalError, workspaces],
@@ -89,6 +95,10 @@ export function useWorkspaceController({
     ...workspaceCore,
     addWorkspace,
     addWorkspacesFromPaths,
+    workspacePathsPrompt,
+    updateWorkspacePathsPromptValue,
+    cancelWorkspacePathsPrompt,
+    confirmWorkspacePathsPrompt,
     removeWorkspace,
     removeWorktree,
   };

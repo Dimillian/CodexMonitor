@@ -1,8 +1,9 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ask, message } from "@tauri-apps/plugin-dialog";
 import type { WorkspaceInfo } from "../../../types";
-import { isMobilePlatform } from "../../../utils/platformPaths";
+import { isAbsolutePath, isMobilePlatform } from "../../../utils/platformPaths";
 import { pickWorkspacePaths } from "../../../services/tauri";
+import { pushErrorToast } from "../../../services/toasts";
 import type { AddWorkspacesFromPathsResult } from "../../workspaces/hooks/useWorkspaceCrud";
 
 function parseWorkspacePathInput(value: string) {
@@ -12,26 +13,107 @@ function parseWorkspacePathInput(value: string) {
     .filter(Boolean);
 }
 
-function promptWorkspacePathsForMobileRemote(): string[] {
-  if (typeof window === "undefined" || typeof window.prompt !== "function") {
-    return [];
-  }
-  const input = window.prompt(
-    "Enter one or more project paths on the connected server.\nUse one path per line (or comma-separated).",
-  );
-  if (!input) {
-    return [];
-  }
-  return parseWorkspacePathInput(input);
-}
+export type WorkspacePathsPromptState = {
+  value: string;
+  error: string | null;
+} | null;
 
 export function useWorkspaceDialogs() {
+  const [workspacePathsPrompt, setWorkspacePathsPrompt] =
+    useState<WorkspacePathsPromptState>(null);
+  const workspacePathsPromptRef = useRef<WorkspacePathsPromptState>(null);
+  const workspacePathsPromptResolveRef = useRef<((paths: string[]) => void) | null>(
+    null,
+  );
+
+  const resolveWorkspacePathsPrompt = useCallback((paths: string[]) => {
+    const resolve = workspacePathsPromptResolveRef.current;
+    workspacePathsPromptResolveRef.current = null;
+    workspacePathsPromptRef.current = null;
+    setWorkspacePathsPrompt(null);
+    resolve?.(paths);
+  }, []);
+
+  useEffect(() => {
+    workspacePathsPromptRef.current = workspacePathsPrompt;
+  }, [workspacePathsPrompt]);
+
+  useEffect(() => {
+    return () => {
+      const resolve = workspacePathsPromptResolveRef.current;
+      workspacePathsPromptResolveRef.current = null;
+      resolve?.([]);
+    };
+  }, []);
+
   const requestWorkspacePaths = useCallback(async (backendMode?: string) => {
     if (isMobilePlatform() && backendMode === "remote") {
-      return promptWorkspacePathsForMobileRemote();
+      return new Promise<string[]>((resolve) => {
+        if (workspacePathsPromptResolveRef.current) {
+          pushErrorToast({
+            title: "Add workspaces",
+            message: "The workspace path dialog is already open.",
+          });
+          resolve([]);
+          return;
+        }
+        workspacePathsPromptResolveRef.current = resolve;
+        const nextPrompt = {
+          value: "",
+          error: null,
+        };
+        workspacePathsPromptRef.current = nextPrompt;
+        setWorkspacePathsPrompt(nextPrompt);
+      });
     }
     return pickWorkspacePaths();
   }, []);
+
+  const updateWorkspacePathsPromptValue = useCallback((value: string) => {
+    const current = workspacePathsPromptRef.current;
+    if (!current) {
+      return;
+    }
+    const next = {
+      ...current,
+      value,
+      error: null,
+    };
+    workspacePathsPromptRef.current = next;
+    setWorkspacePathsPrompt(next);
+  }, []);
+
+  const cancelWorkspacePathsPrompt = useCallback(() => {
+    resolveWorkspacePathsPrompt([]);
+  }, [resolveWorkspacePathsPrompt]);
+
+  const confirmWorkspacePathsPrompt = useCallback(() => {
+    const currentPrompt = workspacePathsPromptRef.current;
+    if (!currentPrompt) {
+      return;
+    }
+    const paths = parseWorkspacePathInput(currentPrompt.value);
+    if (paths.length === 0) {
+      const next = {
+        ...currentPrompt,
+        error: "Enter at least one absolute path.",
+      };
+      workspacePathsPromptRef.current = next;
+      setWorkspacePathsPrompt(next);
+      return;
+    }
+    const invalidPaths = paths.filter((path) => !isAbsolutePath(path));
+    if (invalidPaths.length > 0) {
+      const next = {
+        ...currentPrompt,
+        error: "Use absolute paths only.",
+      };
+      workspacePathsPromptRef.current = next;
+      setWorkspacePathsPrompt(next);
+      return;
+    }
+    resolveWorkspacePathsPrompt(paths);
+  }, [resolveWorkspacePathsPrompt]);
 
   const showAddWorkspacesResult = useCallback(
     async (result: AddWorkspacesFromPathsResult) => {
@@ -82,10 +164,21 @@ export function useWorkspaceDialogs() {
         result.failures.length > 0
           ? "Some workspaces failed to add"
           : "Some workspaces were skipped";
-      await message(lines.join("\n"), {
-        title,
-        kind: result.failures.length > 0 ? "error" : "warning",
-      });
+      const summary = lines.join("\n");
+
+      if (isMobilePlatform()) {
+        pushErrorToast({ title, message: summary });
+        return;
+      }
+
+      try {
+        await message(summary, {
+          title,
+          kind: result.failures.length > 0 ? "error" : "warning",
+        });
+      } catch {
+        pushErrorToast({ title, message: summary });
+      }
     },
     [],
   );
@@ -134,16 +227,14 @@ export function useWorkspaceDialogs() {
     [],
   );
 
-  const showWorkspaceRemovalError = useCallback(async (error: unknown) => {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+  const showWorkspaceRemovalError = useCallback(async (errorMessage: string) => {
     await message(errorMessage, {
       title: "Delete workspace failed",
       kind: "error",
     });
   }, []);
 
-  const showWorktreeRemovalError = useCallback(async (error: unknown) => {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+  const showWorktreeRemovalError = useCallback(async (errorMessage: string) => {
     await message(errorMessage, {
       title: "Delete worktree failed",
       kind: "error",
@@ -152,6 +243,10 @@ export function useWorkspaceDialogs() {
 
   return {
     requestWorkspacePaths,
+    workspacePathsPrompt,
+    updateWorkspacePathsPromptValue,
+    cancelWorkspacePathsPrompt,
+    confirmWorkspacePathsPrompt,
     showAddWorkspacesResult,
     confirmWorkspaceRemoval,
     confirmWorktreeRemoval,

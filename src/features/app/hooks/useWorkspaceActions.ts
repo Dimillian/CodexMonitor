@@ -2,6 +2,7 @@ import type { RefObject } from "react";
 import { useCallback } from "react";
 import * as Sentry from "@sentry/react";
 import type { DebugEntry, WorkspaceInfo } from "../../../types";
+import { pushErrorToast } from "../../../services/toasts";
 
 type Params = {
   isCompact: boolean;
@@ -65,7 +66,10 @@ export function useWorkspaceActions({
         label: "workspace/add error",
         payload: message,
       });
-      alert(`Failed to add workspace.\n\n${message}`);
+      pushErrorToast({
+        title: "Failed to add workspace",
+        message,
+      });
     }
   }, [addWorkspace, handleWorkspaceAdded, onDebug]);
 
@@ -85,7 +89,10 @@ export function useWorkspaceActions({
           label: "workspace/add error",
           payload: message,
         });
-        alert(`Failed to add workspaces.\n\n${message}`);
+        pushErrorToast({
+          title: "Failed to add workspaces",
+          message,
+        });
       }
     },
     [addWorkspacesFromPaths, handleWorkspaceAdded, onDebug],
@@ -107,12 +114,14 @@ export function useWorkspaceActions({
           label: "workspace/add error",
           payload: message,
         });
-        alert(`Failed to add workspace.\n\n${message}`);
+        pushErrorToast({
+          title: "Failed to add workspace",
+          message,
+        });
       }
     },
     [addWorkspaceFromPath, handleWorkspaceAdded, onDebug],
   );
-
 
   const handleAddWorkspaceFromGitUrl = useCallback(
     async (url: string, destinationPath: string, targetFolderName?: string | null) => {
@@ -130,9 +139,10 @@ export function useWorkspaceActions({
           label: "workspace/add-from-url error",
           payload: message,
         });
-        alert(`Failed to import workspace from URL.
-
-${message}`);
+        pushErrorToast({
+          title: "Failed to import workspace from URL",
+          message,
+        });
         throw error;
       }
     },
