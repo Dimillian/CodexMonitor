@@ -541,16 +541,6 @@ function MainApp() {
       }
 
       const current = getThreadCodexParams(workspaceId, threadId);
-      const fallbackModelId =
-        typeof appSettings.lastComposerModelId === "string" &&
-        appSettings.lastComposerModelId.trim().length > 0
-          ? appSettings.lastComposerModelId.trim()
-          : null;
-      const fallbackEffort =
-        typeof appSettings.lastComposerReasoningEffort === "string" &&
-        appSettings.lastComposerReasoningEffort.trim().length > 0
-          ? appSettings.lastComposerReasoningEffort.trim().toLowerCase()
-          : null;
       const currentModelId =
         typeof current?.modelId === "string" && current.modelId.trim().length > 0
           ? current.modelId.trim()
@@ -564,18 +554,10 @@ function MainApp() {
         modelId?: string | null;
         effort?: string | null;
       } = {};
-      if (
-        modelId &&
-        modelId !== currentModelId &&
-        (currentModelId === null || currentModelId === fallbackModelId)
-      ) {
+      if (modelId && modelId !== currentModelId) {
         patch.modelId = modelId;
       }
-      if (
-        effort &&
-        effort !== currentEffort &&
-        (currentEffort === null || currentEffort === fallbackEffort)
-      ) {
+      if (effort && effort !== currentEffort) {
         patch.effort = effort;
       }
       if (Object.keys(patch).length === 0) {
@@ -584,8 +566,6 @@ function MainApp() {
       patchThreadCodexParams(workspaceId, threadId, patch);
     },
     [
-      appSettings.lastComposerModelId,
-      appSettings.lastComposerReasoningEffort,
       getThreadCodexParams,
       patchThreadCodexParams,
     ],
