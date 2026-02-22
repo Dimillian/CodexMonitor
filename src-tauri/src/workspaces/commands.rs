@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use std::sync::Arc;
 
-use serde_json::json;
 use tauri::{AppHandle, Manager, State};
 
 use super::files::{list_workspace_files_inner, read_workspace_file_inner, WorkspaceFileResponse};
@@ -21,7 +20,7 @@ use crate::backend::app_server::WorkspaceSession;
 use crate::codex::spawn_workspace_session;
 use crate::git_utils::resolve_git_root;
 use crate::remote_backend;
-use crate::shared::workspaces_core;
+use crate::shared::{workspace_rpc, workspaces_core};
 use crate::state::AppState;
 use crate::types::{WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorktreeSetupStatus};
 
@@ -35,6 +34,14 @@ fn spawn_with_app(
     spawn_workspace_session(entry, default_bin, codex_args, app.clone(), codex_home)
 }
 
+fn workspace_remote_params<T: serde::Serialize>(request: &T) -> Result<serde_json::Value, String> {
+    workspace_rpc::to_params(request)
+}
+
+fn workspace_remote_empty_params() -> serde_json::Value {
+    serde_json::Value::Object(serde_json::Map::new())
+}
+
 #[tauri::command]
 pub(crate) async fn read_workspace_file(
     workspace_id: String,
@@ -43,11 +50,12 @@ pub(crate) async fn read_workspace_file(
     app: AppHandle,
 ) -> Result<WorkspaceFileResponse, String> {
     if remote_backend::is_remote_mode(&*state).await {
+        let request = workspace_rpc::ReadWorkspaceFileRequest { workspace_id, path };
         let response = remote_backend::call_remote(
             &*state,
             app,
             "read_workspace_file",
-            json!({ "workspaceId": workspace_id, "path": path }),
+            workspace_remote_params(&request)?,
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
@@ -68,8 +76,13 @@ pub(crate) async fn list_workspaces(
     app: AppHandle,
 ) -> Result<Vec<WorkspaceInfo>, String> {
     if remote_backend::is_remote_mode(&*state).await {
-        let response =
-            remote_backend::call_remote(&*state, app, "list_workspaces", json!({})).await?;
+        let response = remote_backend::call_remote(
+            &*state,
+            app,
+            "list_workspaces",
+            workspace_remote_empty_params(),
+        )
+        .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
     }
 
@@ -84,11 +97,15 @@ pub(crate) async fn set_workspace_runtime_codex_args(
     app: AppHandle,
 ) -> Result<workspaces_core::WorkspaceRuntimeCodexArgsResult, String> {
     if remote_backend::is_remote_mode(&*state).await {
+        let request = workspace_rpc::SetWorkspaceRuntimeCodexArgsRequest {
+            workspace_id,
+            codex_args,
+        };
         let response = remote_backend::call_remote(
             &*state,
             app,
             "set_workspace_runtime_codex_args",
-            json!({ "workspaceId": workspace_id, "codexArgs": codex_args }),
+            workspace_remote_params(&request)?,
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
@@ -112,11 +129,12 @@ pub(crate) async fn is_workspace_path_dir(
     app: AppHandle,
 ) -> Result<bool, String> {
     if remote_backend::is_remote_mode(&*state).await {
+        let request = workspace_rpc::IsWorkspacePathDirRequest { path };
         let response = remote_backend::call_remote(
             &*state,
             app,
             "is_workspace_path_dir",
-            json!({ "path": path }),
+            workspace_remote_params(&request)?,
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
@@ -134,11 +152,12 @@ pub(crate) async fn add_workspace(
     if remote_backend::is_remote_mode(&*state).await {
         let path = remote_backend::normalize_path_for_remote(path);
         let codex_bin = codex_bin.map(remote_backend::normalize_path_for_remote);
+        let request = workspace_rpc::AddWorkspaceRequest { path, codex_bin };
         let response = remote_backend::call_remote(
             &*state,
             app,
             "add_workspace",
-            json!({ "path": path, "codex_bin": codex_bin }),
+            workspace_remote_params(&request)?,
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
@@ -170,16 +189,17 @@ pub(crate) async fn add_workspace_from_git_url(
     if remote_backend::is_remote_mode(&*state).await {
         let destination_path = remote_backend::normalize_path_for_remote(destination_path);
         let codex_bin = codex_bin.map(remote_backend::normalize_path_for_remote);
+        let request = workspace_rpc::AddWorkspaceFromGitUrlRequest {
+            url,
+            destination_path,
+            target_folder_name,
+            codex_bin,
+        };
         let response = remote_backend::call_remote(
             &*state,
             app,
             "add_workspace_from_git_url",
-            json!({
-                "url": url,
-                "destination_path": destination_path,
-                "target_folder_name": target_folder_name,
-                "codex_bin": codex_bin
-            }),
+            workspace_remote_params(&request)?,
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
@@ -235,16 +255,17 @@ pub(crate) async fn add_worktree(
 ) -> Result<WorkspaceInfo, String> {
     let copy_agents_md = copy_agents_md.unwrap_or(true);
     if remote_backend::is_remote_mode(&*state).await {
+        let request = workspace_rpc::AddWorktreeRequest {
+            parent_id,
+            branch,
+            name,
+            copy_agents_md,
+        };
         let response = remote_backend::call_remote(
             &*state,
             app,
             "add_worktree",
-            json!({
-                "parentId": parent_id,
-                "branch": branch,
-                "name": name,
-                "copyAgentsMd": copy_agents_md
-            }),
+            workspace_remote_params(&request)?,
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
@@ -292,11 +313,12 @@ pub(crate) async fn worktree_setup_status(
     app: AppHandle,
 ) -> Result<WorktreeSetupStatus, String> {
     if remote_backend::is_remote_mode(&*state).await {
+        let request = workspace_rpc::WorkspaceIdRequest { workspace_id };
         let response = remote_backend::call_remote(
             &*state,
             app,
             "worktree_setup_status",
-            json!({ "workspaceId": workspace_id }),
+            workspace_remote_params(&request)?,
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
@@ -316,11 +338,12 @@ pub(crate) async fn worktree_setup_mark_ran(
     app: AppHandle,
 ) -> Result<(), String> {
     if remote_backend::is_remote_mode(&*state).await {
+        let request = workspace_rpc::WorkspaceIdRequest { workspace_id };
         remote_backend::call_remote(
             &*state,
             app,
             "worktree_setup_mark_ran",
-            json!({ "workspaceId": workspace_id }),
+            workspace_remote_params(&request)?,
         )
         .await?;
         return Ok(());
@@ -340,7 +363,14 @@ pub(crate) async fn remove_workspace(
     app: AppHandle,
 ) -> Result<(), String> {
     if remote_backend::is_remote_mode(&*state).await {
-        remote_backend::call_remote(&*state, app, "remove_workspace", json!({ "id": id })).await?;
+        let request = workspace_rpc::IdRequest { id };
+        remote_backend::call_remote(
+            &*state,
+            app,
+            "remove_workspace",
+            workspace_remote_params(&request)?,
+        )
+        .await?;
         return Ok(());
     }
 
@@ -372,7 +402,14 @@ pub(crate) async fn remove_worktree(
     app: AppHandle,
 ) -> Result<(), String> {
     if remote_backend::is_remote_mode(&*state).await {
-        remote_backend::call_remote(&*state, app, "remove_worktree", json!({ "id": id })).await?;
+        let request = workspace_rpc::IdRequest { id };
+        remote_backend::call_remote(
+            &*state,
+            app,
+            "remove_worktree",
+            workspace_remote_params(&request)?,
+        )
+        .await?;
         return Ok(());
     }
 
@@ -403,11 +440,12 @@ pub(crate) async fn rename_worktree(
     app: AppHandle,
 ) -> Result<WorkspaceInfo, String> {
     if remote_backend::is_remote_mode(&*state).await {
+        let request = workspace_rpc::RenameWorktreeRequest { id, branch };
         let response = remote_backend::call_remote(
             &*state,
             app,
             "rename_worktree",
-            json!({ "id": id, "branch": branch }),
+            workspace_remote_params(&request)?,
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
@@ -459,11 +497,16 @@ pub(crate) async fn rename_worktree_upstream(
     app: AppHandle,
 ) -> Result<(), String> {
     if remote_backend::is_remote_mode(&*state).await {
+        let request = workspace_rpc::RenameWorktreeUpstreamRequest {
+            id,
+            old_branch,
+            new_branch,
+        };
         remote_backend::call_remote(
             &*state,
             app,
             "rename_worktree_upstream",
-            json!({ "id": id, "oldBranch": old_branch, "newBranch": new_branch }),
+            workspace_remote_params(&request)?,
         )
         .await?;
         return Ok(());
@@ -521,11 +564,12 @@ pub(crate) async fn update_workspace_settings(
     app: AppHandle,
 ) -> Result<WorkspaceInfo, String> {
     if remote_backend::is_remote_mode(&*state).await {
+        let request = workspace_rpc::UpdateWorkspaceSettingsRequest { id, settings };
         let response = remote_backend::call_remote(
             &*state,
             app,
             "update_workspace_settings",
-            json!({ "id": id, "settings": settings }),
+            workspace_remote_params(&request)?,
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
@@ -557,11 +601,12 @@ pub(crate) async fn update_workspace_codex_bin(
 ) -> Result<WorkspaceInfo, String> {
     if remote_backend::is_remote_mode(&*state).await {
         let codex_bin = codex_bin.map(remote_backend::normalize_path_for_remote);
+        let request = workspace_rpc::UpdateWorkspaceCodexBinRequest { id, codex_bin };
         let response = remote_backend::call_remote(
             &*state,
             app,
             "update_workspace_codex_bin",
-            json!({ "id": id, "codex_bin": codex_bin }),
+            workspace_remote_params(&request)?,
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
@@ -584,7 +629,14 @@ pub(crate) async fn connect_workspace(
     app: AppHandle,
 ) -> Result<(), String> {
     if remote_backend::is_remote_mode(&*state).await {
-        remote_backend::call_remote(&*state, app, "connect_workspace", json!({ "id": id })).await?;
+        let request = workspace_rpc::IdRequest { id };
+        remote_backend::call_remote(
+            &*state,
+            app,
+            "connect_workspace",
+            workspace_remote_params(&request)?,
+        )
+        .await?;
         return Ok(());
     }
 
@@ -607,11 +659,12 @@ pub(crate) async fn list_workspace_files(
     app: AppHandle,
 ) -> Result<Vec<String>, String> {
     if remote_backend::is_remote_mode(&*state).await {
+        let request = workspace_rpc::WorkspaceIdRequest { workspace_id };
         let response = remote_backend::call_remote(
             &*state,
             app,
             "list_workspace_files",
-            json!({ "workspaceId": workspace_id }),
+            workspace_remote_params(&request)?,
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());

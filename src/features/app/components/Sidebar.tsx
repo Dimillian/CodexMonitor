@@ -7,7 +7,7 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import { createPortal } from "react-dom";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import type { RefObject } from "react";
 import { FolderOpen } from "lucide-react";
 import Copy from "lucide-react/dist/esm/icons/copy";
@@ -28,13 +28,14 @@ import { PinnedThreadList } from "./PinnedThreadList";
 import { WorkspaceCard } from "./WorkspaceCard";
 import { WorkspaceGroup } from "./WorkspaceGroup";
 import { useCollapsedGroups } from "../hooks/useCollapsedGroups";
+import { useMenuController } from "../hooks/useMenuController";
 import { useSidebarMenus } from "../hooks/useSidebarMenus";
 import { useSidebarScrollFade } from "../hooks/useSidebarScrollFade";
 import { useThreadRows } from "../hooks/useThreadRows";
-import { useDismissibleMenu } from "../hooks/useDismissibleMenu";
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { getUsageLabels } from "../utils/usageLabels";
 import { formatRelativeTimeShort } from "../../../utils/time";
+import type { ThreadStatusById } from "../../../utils/threadStatus";
 
 const COLLAPSED_GROUPS_STORAGE_KEY = "codexmonitor.collapsedGroups";
 const UNGROUPED_COLLAPSE_ID = "__ungrouped__";
@@ -55,10 +56,7 @@ type SidebarProps = {
   startingDraftThreadWorkspaceId?: string | null;
   threadsByWorkspace: Record<string, ThreadSummary[]>;
   threadParentById: Record<string, string>;
-  threadStatusById: Record<
-    string,
-    { isProcessing: boolean; hasUnread: boolean; isReviewing: boolean }
-  >;
+  threadStatusById: ThreadStatusById;
   threadListLoadingByWorkspace: Record<string, boolean>;
   threadListPagingByWorkspace: Record<string, boolean>;
   threadListCursorByWorkspace: Record<string, string | null>;
@@ -177,7 +175,11 @@ export const Sidebar = memo(function Sidebar({
     left: number;
     width: number;
   } | null>(null);
-  const addMenuRef = useRef<HTMLDivElement | null>(null);
+  const addMenuController = useMenuController({
+    open: Boolean(addMenuAnchor),
+    onDismiss: () => setAddMenuAnchor(null),
+  });
+  const { containerRef: addMenuRef } = addMenuController;
   const { collapsedGroups, toggleGroupCollapse } = useCollapsedGroups(
     COLLAPSED_GROUPS_STORAGE_KEY,
   );
@@ -401,12 +403,6 @@ export const Sidebar = memo(function Sidebar({
     },
     [],
   );
-
-  useDismissibleMenu({
-    isOpen: Boolean(addMenuAnchor),
-    containerRef: addMenuRef,
-    onClose: () => setAddMenuAnchor(null),
-  });
 
   useEffect(() => {
     if (!addMenuAnchor) {

@@ -552,6 +552,7 @@ function MainApp() {
 
   const {
     setActiveThreadId,
+    hasLocalThreadSnapshot,
     activeThreadId,
     activeItems,
     approvals,
@@ -640,6 +641,7 @@ function MainApp() {
       backendMode: appSettings.backendMode,
       activeWorkspace,
       activeThreadId,
+      activeThreadHasLocalSnapshot: hasLocalThreadSnapshot(activeThreadId),
       activeThreadIsProcessing: Boolean(
         activeThreadId && threadStatusById[activeThreadId]?.isProcessing,
       ),

@@ -1,4 +1,40 @@
 use super::*;
+use crate::shared::git_rpc;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
+use std::future::Future;
+
+fn parse_git_request<T: DeserializeOwned>(params: &Value) -> Result<T, String> {
+    git_rpc::from_params(params)
+}
+
+fn serialize_value<T: Serialize>(value: T) -> Result<Value, String> {
+    serde_json::to_value(value).map_err(|err| err.to_string())
+}
+
+async fn serialize_result<T, Fut>(future: Fut) -> Result<Value, String>
+where
+    T: Serialize,
+    Fut: Future<Output = Result<T, String>>,
+{
+    future.await.and_then(serialize_value)
+}
+
+async fn serialize_ok<Fut>(future: Fut) -> Result<Value, String>
+where
+    Fut: Future<Output = Result<(), String>>,
+{
+    future.await.map(|_| json!({ "ok": true }))
+}
+
+macro_rules! parse_request_or_err {
+    ($params:expr, $ty:ty) => {
+        match parse_git_request::<$ty>($params) {
+            Ok(value) => value,
+            Err(err) => return Some(Err(err)),
+        }
+    };
+}
 
 pub(super) async fn try_handle(
     state: &DaemonState,
@@ -6,375 +42,154 @@ pub(super) async fn try_handle(
     params: &Value,
 ) -> Option<Result<Value, String>> {
     match method {
-        "get_git_status" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(state.get_git_status(workspace_id).await)
+        git_rpc::METHOD_GET_GIT_STATUS => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceIdRequest);
+            Some(state.get_git_status(request.workspace_id).await)
         }
-        "init_git_repo" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let branch = match parse_string(params, "branch") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
+        git_rpc::METHOD_INIT_GIT_REPO => {
+            let request = parse_request_or_err!(params, git_rpc::InitGitRepoRequiredRequest);
             let force = parse_optional_bool(params, "force").unwrap_or(false);
-            Some(state.init_git_repo(workspace_id, branch, force).await)
-        }
-        "create_github_repo" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let repo = match parse_string(params, "repo") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let visibility = match parse_string(params, "visibility") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let branch = parse_optional_string(params, "branch");
             Some(
                 state
-                    .create_github_repo(workspace_id, repo, visibility, branch)
+                    .init_git_repo(request.workspace_id, request.branch, force)
                     .await,
             )
         }
-        "list_git_roots" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
+        git_rpc::METHOD_CREATE_GITHUB_REPO => {
+            let request = parse_request_or_err!(params, git_rpc::CreateGitHubRepoRequiredRequest);
+            let branch = parse_optional_string(params, "branch");
+            Some(
+                state
+                    .create_github_repo(
+                        request.workspace_id,
+                        request.repo,
+                        request.visibility,
+                        branch,
+                    )
+                    .await,
+            )
+        }
+        git_rpc::METHOD_LIST_GIT_ROOTS => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceIdRequest);
             let depth = parse_optional_u32(params, "depth").map(|value| value as usize);
-            let roots = match state.list_git_roots(workspace_id, depth).await {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(roots).map_err(|err| err.to_string()))
+            Some(serialize_result(state.list_git_roots(request.workspace_id, depth)).await)
         }
-        "get_git_diffs" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let diffs = match state.get_git_diffs(workspace_id).await {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(diffs).map_err(|err| err.to_string()))
+        git_rpc::METHOD_GET_GIT_DIFFS => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceIdRequest);
+            Some(serialize_result(state.get_git_diffs(request.workspace_id)).await)
         }
-        "get_git_log" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
+        git_rpc::METHOD_GET_GIT_LOG => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceIdRequest);
             let limit = parse_optional_u32(params, "limit").map(|value| value as usize);
-            let log = match state.get_git_log(workspace_id, limit).await {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(log).map_err(|err| err.to_string()))
+            Some(serialize_result(state.get_git_log(request.workspace_id, limit)).await)
         }
-        "get_git_commit_diff" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let sha = match parse_string(params, "sha") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let diff = match state.get_git_commit_diff(workspace_id, sha).await {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(diff).map_err(|err| err.to_string()))
-        }
-        "get_git_remote" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let remote = match state.get_git_remote(workspace_id).await {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(remote).map_err(|err| err.to_string()))
-        }
-        "stage_git_file" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let path = match parse_string(params, "path") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
+        git_rpc::METHOD_GET_GIT_COMMIT_DIFF => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceShaRequest);
             Some(
-                state
-                    .stage_git_file(workspace_id, path)
-                    .await
-                    .map(|_| json!({ "ok": true })),
+                serialize_result(state.get_git_commit_diff(request.workspace_id, request.sha))
+                    .await,
             )
         }
-        "stage_git_all" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
+        git_rpc::METHOD_GET_GIT_REMOTE => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceIdRequest);
+            Some(serialize_result(state.get_git_remote(request.workspace_id)).await)
+        }
+        git_rpc::METHOD_STAGE_GIT_FILE => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspacePathRequest);
+            Some(serialize_ok(state.stage_git_file(request.workspace_id, request.path)).await)
+        }
+        git_rpc::METHOD_STAGE_GIT_ALL => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceIdRequest);
+            Some(serialize_ok(state.stage_git_all(request.workspace_id)).await)
+        }
+        git_rpc::METHOD_UNSTAGE_GIT_FILE => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspacePathRequest);
+            Some(serialize_ok(state.unstage_git_file(request.workspace_id, request.path)).await)
+        }
+        git_rpc::METHOD_REVERT_GIT_FILE => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspacePathRequest);
+            Some(serialize_ok(state.revert_git_file(request.workspace_id, request.path)).await)
+        }
+        git_rpc::METHOD_REVERT_GIT_ALL => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceIdRequest);
+            Some(serialize_ok(state.revert_git_all(request.workspace_id)).await)
+        }
+        git_rpc::METHOD_COMMIT_GIT => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceMessageRequest);
+            Some(serialize_ok(state.commit_git(request.workspace_id, request.message)).await)
+        }
+        git_rpc::METHOD_PUSH_GIT => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceIdRequest);
+            Some(serialize_ok(state.push_git(request.workspace_id)).await)
+        }
+        git_rpc::METHOD_PULL_GIT => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceIdRequest);
+            Some(serialize_ok(state.pull_git(request.workspace_id)).await)
+        }
+        git_rpc::METHOD_FETCH_GIT => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceIdRequest);
+            Some(serialize_ok(state.fetch_git(request.workspace_id)).await)
+        }
+        git_rpc::METHOD_SYNC_GIT => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceIdRequest);
+            Some(serialize_ok(state.sync_git(request.workspace_id)).await)
+        }
+        git_rpc::METHOD_GET_GITHUB_ISSUES => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceIdRequest);
+            Some(serialize_result(state.get_github_issues(request.workspace_id)).await)
+        }
+        git_rpc::METHOD_GET_GITHUB_PULL_REQUESTS => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceIdRequest);
+            Some(serialize_result(state.get_github_pull_requests(request.workspace_id)).await)
+        }
+        git_rpc::METHOD_GET_GITHUB_PULL_REQUEST_DIFF => {
+            let request = parse_request_or_err!(params, git_rpc::GitHubPullRequestRequest);
             Some(
-                state
-                    .stage_git_all(workspace_id)
-                    .await
-                    .map(|_| json!({ "ok": true })),
+                serialize_result(
+                    state.get_github_pull_request_diff(request.workspace_id, request.pr_number),
+                )
+                .await,
             )
         }
-        "unstage_git_file" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let path = match parse_string(params, "path") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
+        git_rpc::METHOD_GET_GITHUB_PULL_REQUEST_COMMENTS => {
+            let request = parse_request_or_err!(params, git_rpc::GitHubPullRequestRequest);
             Some(
-                state
-                    .unstage_git_file(workspace_id, path)
-                    .await
-                    .map(|_| json!({ "ok": true })),
+                serialize_result(
+                    state.get_github_pull_request_comments(request.workspace_id, request.pr_number),
+                )
+                .await,
             )
         }
-        "revert_git_file" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let path = match parse_string(params, "path") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
+        git_rpc::METHOD_CHECKOUT_GITHUB_PULL_REQUEST => {
+            let request = parse_request_or_err!(params, git_rpc::GitHubPullRequestRequest);
             Some(
-                state
-                    .revert_git_file(workspace_id, path)
-                    .await
-                    .map(|_| json!({ "ok": true })),
+                serialize_ok(
+                    state.checkout_github_pull_request(request.workspace_id, request.pr_number),
+                )
+                .await,
             )
         }
-        "revert_git_all" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(
-                state
-                    .revert_git_all(workspace_id)
-                    .await
-                    .map(|_| json!({ "ok": true })),
-            )
+        git_rpc::METHOD_LIST_GIT_BRANCHES => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceIdRequest);
+            Some(state.list_git_branches(request.workspace_id).await)
         }
-        "commit_git" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let message = match parse_string(params, "message") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(
-                state
-                    .commit_git(workspace_id, message)
-                    .await
-                    .map(|_| json!({ "ok": true })),
-            )
+        git_rpc::METHOD_CHECKOUT_GIT_BRANCH => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceNameRequest);
+            Some(serialize_ok(state.checkout_git_branch(request.workspace_id, request.name)).await)
         }
-        "push_git" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(
-                state
-                    .push_git(workspace_id)
-                    .await
-                    .map(|_| json!({ "ok": true })),
-            )
+        git_rpc::METHOD_CREATE_GIT_BRANCH => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceNameRequest);
+            Some(serialize_ok(state.create_git_branch(request.workspace_id, request.name)).await)
         }
-        "pull_git" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(
-                state
-                    .pull_git(workspace_id)
-                    .await
-                    .map(|_| json!({ "ok": true })),
-            )
-        }
-        "fetch_git" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(
-                state
-                    .fetch_git(workspace_id)
-                    .await
-                    .map(|_| json!({ "ok": true })),
-            )
-        }
-        "sync_git" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(
-                state
-                    .sync_git(workspace_id)
-                    .await
-                    .map(|_| json!({ "ok": true })),
-            )
-        }
-        "get_github_issues" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let issues = match state.get_github_issues(workspace_id).await {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(issues).map_err(|err| err.to_string()))
-        }
-        "get_github_pull_requests" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let prs = match state.get_github_pull_requests(workspace_id).await {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(prs).map_err(|err| err.to_string()))
-        }
-        "get_github_pull_request_diff" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let pr_number = match super::super::parse_optional_u64(params, "prNumber")
-                .ok_or("missing or invalid `prNumber`")
-            {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err.to_string())),
-            };
-            let diff = match state
-                .get_github_pull_request_diff(workspace_id, pr_number)
-                .await
-            {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(diff).map_err(|err| err.to_string()))
-        }
-        "get_github_pull_request_comments" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let pr_number = match super::super::parse_optional_u64(params, "prNumber")
-                .ok_or("missing or invalid `prNumber`")
-            {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err.to_string())),
-            };
-            let comments = match state
-                .get_github_pull_request_comments(workspace_id, pr_number)
-                .await
-            {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(comments).map_err(|err| err.to_string()))
-        }
-        "checkout_github_pull_request" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let pr_number = match super::super::parse_optional_u64(params, "prNumber")
-                .ok_or("missing or invalid `prNumber`")
-            {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err.to_string())),
-            };
-            Some(
-                state
-                    .checkout_github_pull_request(workspace_id, pr_number)
-                    .await
-                    .map(|_| json!({ "ok": true })),
-            )
-        }
-        "list_git_branches" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(state.list_git_branches(workspace_id).await)
-        }
-        "checkout_git_branch" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let name = match parse_string(params, "name") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(
-                state
-                    .checkout_git_branch(workspace_id, name)
-                    .await
-                    .map(|_| json!({ "ok": true })),
-            )
-        }
-        "create_git_branch" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let name = match parse_string(params, "name") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(
-                state
-                    .create_git_branch(workspace_id, name)
-                    .await
-                    .map(|_| json!({ "ok": true })),
-            )
-        }
-        "generate_commit_message" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
+        git_rpc::METHOD_GENERATE_COMMIT_MESSAGE => {
+            let request = parse_request_or_err!(params, git_rpc::WorkspaceIdRequest);
             let commit_message_model_id = parse_optional_string(params, "commitMessageModelId");
-            let message = match state
-                .generate_commit_message(workspace_id, commit_message_model_id)
-                .await
-            {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(Ok(Value::String(message)))
+            Some(
+                state
+                    .generate_commit_message(request.workspace_id, commit_message_model_id)
+                    .await
+                    .map(Value::String),
+            )
         }
         _ => None,
     }

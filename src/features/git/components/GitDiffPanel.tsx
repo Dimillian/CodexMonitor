@@ -10,11 +10,8 @@ import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
 import Search from "lucide-react/dist/esm/icons/search";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { PanelTabs, type PanelTabId } from "../../layout/components/PanelTabs";
-import {
-  PanelFrame,
-  PanelHeader,
-} from "../../design-system/components/panel/PanelPrimitives";
+import type { PanelTabId } from "../../layout/components/PanelTabs";
+import { PanelShell } from "../../layout/components/PanelShell";
 import { pushErrorToast } from "../../../services/toasts";
 import {
   fileManagerName,
@@ -640,9 +637,11 @@ export function GitDiffPanel({
   const showSidebarError = Boolean(sidebarError);
 
   return (
-    <PanelFrame>
-      <PanelHeader className="git-panel-header">
-        <PanelTabs active={filePanelMode} onSelect={onFilePanelModeChange} />
+    <PanelShell
+      filePanelMode={filePanelMode}
+      onFilePanelModeChange={onFilePanelModeChange}
+      headerClassName="git-panel-header"
+      headerRight={
         <div className="git-panel-actions" role="group" aria-label="Git panel">
           <div className="git-panel-select">
             <span className="git-panel-select-icon" aria-hidden>
@@ -676,7 +675,8 @@ export function GitDiffPanel({
             </button>
           )}
         </div>
-      </PanelHeader>
+      }
+    >
 
       <GitPanelModeStatus
         mode={mode}
@@ -806,6 +806,6 @@ export function GitDiffPanel({
           }
         />
       )}
-    </PanelFrame>
+    </PanelShell>
   );
 }

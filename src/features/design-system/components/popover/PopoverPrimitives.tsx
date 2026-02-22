@@ -1,4 +1,9 @@
-import { forwardRef, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import {
+  forwardRef,
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { joinClassNames } from "../classNames";
 
 type PopoverSurfaceProps = ComponentPropsWithoutRef<"div"> & {
@@ -37,5 +42,90 @@ export function PopoverMenuItem({
       ) : null}
       <span className="ds-popover-item-label">{children}</span>
     </button>
+  );
+}
+
+type MenuTriggerProps = Omit<
+  ComponentPropsWithoutRef<"button">,
+  "aria-expanded" | "aria-haspopup"
+> & {
+  isOpen: boolean;
+  popupRole?: "menu" | "dialog";
+  activeClassName?: string;
+  "data-tauri-drag-region"?: string;
+};
+
+export function MenuTrigger({
+  isOpen,
+  popupRole = "menu",
+  className,
+  activeClassName,
+  "data-tauri-drag-region": dragRegion,
+  ...props
+}: MenuTriggerProps) {
+  return (
+    <button
+      type="button"
+      aria-haspopup={popupRole}
+      aria-expanded={isOpen}
+      className={joinClassNames(className, isOpen && activeClassName)}
+      data-tauri-drag-region={dragRegion ?? "false"}
+      {...props}
+    />
+  );
+}
+
+type SplitActionMenuProps = {
+  containerRef?: RefObject<HTMLDivElement | null>;
+  className?: string;
+  buttonGroupClassName?: string;
+  actionButton: ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+  toggleClassName?: string;
+  toggleAriaLabel: string;
+  toggleTitle?: string;
+  toggleIcon: ReactNode;
+  popoverClassName?: string;
+  popoverRole?: "menu" | "dialog";
+  children: ReactNode;
+};
+
+export function SplitActionMenu({
+  containerRef,
+  className,
+  buttonGroupClassName,
+  actionButton,
+  isOpen,
+  onToggle,
+  toggleClassName,
+  toggleAriaLabel,
+  toggleTitle,
+  toggleIcon,
+  popoverClassName,
+  popoverRole = "menu",
+  children,
+}: SplitActionMenuProps) {
+  return (
+    <div className={className} ref={containerRef}>
+      <div className={buttonGroupClassName}>
+        {actionButton}
+        <MenuTrigger
+          isOpen={isOpen}
+          popupRole={popoverRole}
+          className={toggleClassName}
+          onClick={onToggle}
+          aria-label={toggleAriaLabel}
+          title={toggleTitle}
+        >
+          {toggleIcon}
+        </MenuTrigger>
+      </div>
+      {isOpen && (
+        <PopoverSurface className={popoverClassName} role={popoverRole}>
+          {children}
+        </PopoverSurface>
+      )}
+    </div>
   );
 }
