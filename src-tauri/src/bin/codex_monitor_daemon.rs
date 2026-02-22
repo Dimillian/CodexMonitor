@@ -716,14 +716,22 @@ impl DaemonState {
             None
         };
         let merged = thread_codex_metadata::ThreadCodexMetadata {
-            model_id: stored
-                .as_ref()
-                .and_then(|item| item.model_id.clone())
-                .or(extracted.model_id.clone()),
-            effort: stored
-                .as_ref()
-                .and_then(|item| item.effort.clone())
-                .or(extracted.effort.clone()),
+            model_id: extracted
+                .model_id
+                .clone()
+                .or_else(|| {
+                    stored
+                        .as_ref()
+                        .and_then(|item| item.model_id.clone())
+                }),
+            effort: extracted
+                .effort
+                .clone()
+                .or_else(|| {
+                    stored
+                        .as_ref()
+                        .and_then(|item| item.effort.clone())
+                }),
         };
         if let Some(thread_id) = thread_id {
             self.remember_thread_codex_metadata(
@@ -1673,6 +1681,7 @@ mod tests {
             app_settings: Mutex::new(AppSettings::default()),
             event_sink: DaemonEventSink { tx },
             codex_login_cancels: Mutex::new(HashMap::new()),
+            thread_codex_metadata: Mutex::new(HashMap::new()),
             daemon_binary_path: Some("/tmp/codex-monitor-daemon".to_string()),
         }
     }
@@ -1805,6 +1814,59 @@ mod tests {
                 result.get("version").and_then(Value::as_str),
                 Some(env!("CARGO_PKG_VERSION"))
             );
+            let _ = std::fs::remove_dir_all(&tmp);
+        });
+    }
+
+    #[test]
+    fn enrich_thread_metadata_prefers_fresh_extracted_values() {
+        run_async_test(async {
+            let tmp = make_temp_dir("thread-codex-metadata");
+            let state = test_state(&tmp);
+            let workspace_id = "ws-1";
+            let thread_id = "thread-1";
+
+            state
+                .remember_thread_codex_metadata(
+                    workspace_id,
+                    thread_id,
+                    Some("gpt-5.3-codex".to_string()),
+                    Some("medium".to_string()),
+                )
+                .await;
+
+            let mut thread = json!({
+                "id": thread_id,
+                "turns": [
+                    {
+                        "items": [
+                            {
+                                "payload": {
+                                    "settings": {
+                                        "model": "gpt-5.3-codex",
+                                        "reasoning_effort": "high"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            });
+
+            state
+                .enrich_thread_with_codex_metadata(workspace_id, &mut thread)
+                .await;
+
+            assert_eq!(thread.get("modelId").and_then(Value::as_str), Some("gpt-5.3-codex"));
+            assert_eq!(thread.get("effort").and_then(Value::as_str), Some("high"));
+
+            let cached = state
+                .metadata_for_thread(workspace_id, thread_id)
+                .await
+                .expect("metadata to be cached");
+            assert_eq!(cached.model_id.as_deref(), Some("gpt-5.3-codex"));
+            assert_eq!(cached.effort.as_deref(), Some("high"));
+
             let _ = std::fs::remove_dir_all(&tmp);
         });
     }
