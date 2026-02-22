@@ -23,6 +23,8 @@ mod rules;
 mod shared;
 #[path = "../storage.rs"]
 mod storage;
+#[path = "codex_monitor_daemon/logger.rs"]
+mod logger;
 #[path = "codex_monitor_daemon/transport.rs"]
 mod transport;
 #[allow(dead_code)]
@@ -157,6 +159,7 @@ struct DaemonState {
     event_sink: DaemonEventSink,
     codex_login_cancels: Mutex<HashMap<String, CodexLoginCancelState>>,
     daemon_binary_path: Option<String>,
+    log: logger::DaemonLogger,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -184,6 +187,7 @@ impl DaemonState {
             event_sink,
             codex_login_cancels: Mutex::new(HashMap::new()),
             daemon_binary_path,
+            log: logger::DaemonLogger::open(&config.data_dir),
         }
     }
 
@@ -1571,6 +1575,7 @@ mod tests {
             event_sink: DaemonEventSink { tx },
             codex_login_cancels: Mutex::new(HashMap::new()),
             daemon_binary_path: Some("/tmp/codex-monitor-daemon".to_string()),
+            log: logger::DaemonLogger::open(data_dir),
         }
     }
 
@@ -1711,6 +1716,13 @@ fn main() {
     let config = match parse_args() {
         Ok(config) => config,
         Err(err) => {
+            let data_dir = default_data_dir();
+            let log = logger::DaemonLogger::open(&data_dir);
+            log.log(
+                logger::LogLevel::Error,
+                "daemon_arg_error",
+                &[("msg", &err.to_string())],
+            );
             eprintln!("{err}\n\n{}", usage());
             std::process::exit(2);
         }
@@ -1732,18 +1744,40 @@ fn main() {
         let listener = match TcpListener::bind(config.listen).await {
             Ok(listener) => listener,
             Err(err) => {
+                state.log.log(
+                    logger::LogLevel::Error,
+                    "daemon_bind_failed",
+                    &[
+                        ("addr", &config.listen.to_string()),
+                        ("msg", &err.to_string()),
+                    ],
+                );
                 eprintln!("failed to bind {}: {err}", config.listen);
                 std::process::exit(2);
             }
         };
+
+        let addr = listener.local_addr().map(|a| a.to_string()).unwrap_or_else(|_| config.listen.to_string());
+        let pid = std::process::id().to_string();
+        let data_dir_str = state
+            .storage_path
+            .parent()
+            .unwrap_or(&state.storage_path)
+            .display()
+            .to_string();
+        state.log.log(
+            logger::LogLevel::Info,
+            "daemon_started",
+            &[
+                ("addr", &addr),
+                ("pid", &pid),
+                ("version", env!("CARGO_PKG_VERSION")),
+                ("data_dir", &data_dir_str),
+            ],
+        );
         eprintln!(
             "codex-monitor-daemon listening on {} (data dir: {})",
-            config.listen,
-            state
-                .storage_path
-                .parent()
-                .unwrap_or(&state.storage_path)
-                .display()
+            config.listen, data_dir_str
         );
 
         loop {
@@ -1756,7 +1790,14 @@ fn main() {
                         transport::handle_client(socket, config, state, events).await;
                     });
                 }
-                Err(_) => continue,
+                Err(err) => {
+                    state.log.log_rate_limited(
+                        "accept",
+                        logger::LogLevel::Error,
+                        "accept_error",
+                        &[("msg", &err.to_string())],
+                    );
+                }
             }
         }
     });
