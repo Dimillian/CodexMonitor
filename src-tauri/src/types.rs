@@ -321,6 +321,8 @@ pub(crate) struct WorkspaceSettings {
     pub(crate) sort_order: Option<u32>,
     #[serde(default, rename = "groupId")]
     pub(crate) group_id: Option<String>,
+    #[serde(default, rename = "cloneSourceWorkspaceId")]
+    pub(crate) clone_source_workspace_id: Option<String>,
     #[serde(default, rename = "gitRoot")]
     pub(crate) git_root: Option<String>,
     #[serde(default, rename = "codexHome")]

@@ -1051,6 +1051,11 @@
   gap: 6px;
 }
 
+.clone-section {
+  margin-top: 4px;
+  gap: 4px;
+}
+
 .worktree-header {
   text-transform: uppercase;
   font-size: 10px;
