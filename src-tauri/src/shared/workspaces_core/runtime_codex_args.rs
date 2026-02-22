@@ -12,6 +12,7 @@ use crate::codex::home::resolve_workspace_codex_home;
 use crate::shared::process_core::kill_child_process_tree;
 use crate::types::{AppSettings, WorkspaceEntry};
 
+use super::connect::workspace_session_spawn_lock;
 use super::helpers::resolve_entry_and_parent;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -34,6 +35,7 @@ where
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
     let (entry, parent_entry) = resolve_entry_and_parent(workspaces, &workspace_id).await?;
+    let _spawn_guard = workspace_session_spawn_lock().lock().await;
 
     let (default_bin, resolved_args) = {
         let settings = app_settings.lock().await;
@@ -52,15 +54,28 @@ where
 
     // If we are not connected, we can't respawn. Treat this as a no-op success; callers
     // should call again after connecting.
-    let current = sessions.lock().await.get(&entry.id).cloned();
-    let Some(current) = current else {
+    let (workspace_connected, current_session) = {
+        let sessions = sessions.lock().await;
+        (
+            sessions.contains_key(&entry.id),
+            sessions.values().next().cloned(),
+        )
+    };
+    if !workspace_connected {
+        return Ok(WorkspaceRuntimeCodexArgsResult {
+            applied_codex_args: target_args,
+            respawned: false,
+        });
+    }
+
+    let Some(current_session) = current_session else {
         return Ok(WorkspaceRuntimeCodexArgsResult {
             applied_codex_args: target_args,
             respawned: false,
         });
     };
 
-    if current.codex_args == target_args {
+    if current_session.codex_args == target_args {
         return Ok(WorkspaceRuntimeCodexArgsResult {
             applied_codex_args: target_args,
             respawned: false,
@@ -70,10 +85,19 @@ where
     let codex_home = resolve_workspace_codex_home(&entry, parent_entry.as_ref());
     let new_session =
         spawn_session(entry.clone(), default_bin, target_args.clone(), codex_home).await?;
-    if let Some(old_session) = sessions.lock().await.insert(entry.id.clone(), new_session) {
-        let mut child = old_session.child.lock().await;
-        kill_child_process_tree(&mut child).await;
+    let workspace_ids = {
+        let mut sessions = sessions.lock().await;
+        let keys: Vec<String> = sessions.keys().cloned().collect();
+        for key in &keys {
+            sessions.insert(key.clone(), Arc::clone(&new_session));
+        }
+        keys
+    };
+    for workspace_id in &workspace_ids {
+        new_session.register_workspace(workspace_id).await;
     }
+    let mut child = current_session.child.lock().await;
+    kill_child_process_tree(&mut child).await;
 
     Ok(WorkspaceRuntimeCodexArgsResult {
         applied_codex_args: target_args,
@@ -86,6 +110,7 @@ mod tests {
     use super::*;
 
     use std::process::Stdio;
+    use std::collections::HashSet;
     use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
     use tokio::process::Command;
@@ -97,7 +122,6 @@ mod tests {
             id: id.to_string(),
             name: id.to_string(),
             path: "/tmp".to_string(),
-            codex_bin: None,
             kind: WorkspaceKind::Main,
             parent_id: None,
             worktree: None,
@@ -105,7 +129,7 @@ mod tests {
         }
     }
 
-    fn make_session(entry: WorkspaceEntry, codex_args: Option<String>) -> WorkspaceSession {
+    fn make_session(_entry: WorkspaceEntry, codex_args: Option<String>) -> WorkspaceSession {
         let mut cmd = if cfg!(windows) {
             let mut cmd = Command::new("cmd");
             cmd.args(["/C", "more"]);
@@ -124,13 +148,16 @@ mod tests {
         let stdin = child.stdin.take().expect("dummy child stdin");
 
         WorkspaceSession {
-            entry,
             codex_args,
             child: Mutex::new(child),
             stdin: Mutex::new(stdin),
             pending: Mutex::new(HashMap::new()),
+            request_context: Mutex::new(HashMap::new()),
+            thread_workspace: Mutex::new(HashMap::new()),
             next_id: AtomicU64::new(0),
             background_thread_callbacks: Mutex::new(HashMap::new()),
+            owner_workspace_id: "test-owner".to_string(),
+            workspace_ids: Mutex::new(HashSet::from(["test-owner".to_string()])),
         }
     }
 

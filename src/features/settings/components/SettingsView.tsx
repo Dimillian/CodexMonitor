@@ -50,7 +50,6 @@ export type SettingsViewProps = {
     codexBin: string | null,
     codexArgs: string | null,
   ) => Promise<CodexUpdateResult>;
-  onUpdateWorkspaceCodexBin: (id: string, codexBin: string | null) => Promise<void>;
   onUpdateWorkspaceSettings: (
     id: string,
     settings: Partial<WorkspaceSettings>,
@@ -86,7 +85,6 @@ export function SettingsView({
   onUpdateAppSettings,
   onRunDoctor,
   onRunCodexUpdate,
-  onUpdateWorkspaceCodexBin,
   onUpdateWorkspaceSettings,
   scaleShortcutTitle,
   scaleShortcutText,
@@ -118,7 +116,6 @@ export function SettingsView({
     onUpdateAppSettings,
     onRunDoctor,
     onRunCodexUpdate,
-    onUpdateWorkspaceCodexBin,
     onUpdateWorkspaceSettings,
     scaleShortcutTitle,
     scaleShortcutText,

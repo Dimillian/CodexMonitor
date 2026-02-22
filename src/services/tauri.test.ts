@@ -77,15 +77,14 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
-  it("uses codex_bin for addWorkspace", async () => {
+  it("uses path-only payload for addWorkspace", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({ id: "ws-1" });
 
-    await addWorkspace("/tmp/project", null);
+    await addWorkspace("/tmp/project");
 
     expect(invokeMock).toHaveBeenCalledWith("add_workspace", {
       path: "/tmp/project",
-      codex_bin: null,
     });
   });
 

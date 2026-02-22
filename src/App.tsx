@@ -231,7 +231,6 @@ function MainApp() {
     connectWorkspace,
     markWorkspaceConnected,
     updateWorkspaceSettings,
-    updateWorkspaceCodexBin,
     createWorkspaceGroup,
     renameWorkspaceGroup,
     moveWorkspaceGroup,
@@ -517,10 +516,9 @@ function MainApp() {
     () =>
       buildCodexArgsOptions({
         appCodexArgs: appSettings.codexArgs ?? null,
-        workspaceCodexArgs: workspaces.map((workspace) => workspace.settings.codexArgs),
         additionalCodexArgs: [selectedCodexArgsOverride],
       }),
-    [appSettings.codexArgs, selectedCodexArgsOverride, workspaces],
+    [appSettings.codexArgs, selectedCodexArgsOverride],
   );
   const ensureWorkspaceRuntimeCodexArgs = useCallback(
     async (workspaceId: string, threadId: string | null) => {
@@ -2679,9 +2677,6 @@ function MainApp() {
           },
           onRunDoctor: doctor,
           onRunCodexUpdate: codexUpdate,
-          onUpdateWorkspaceCodexBin: async (id, codexBin) => {
-            await updateWorkspaceCodexBin(id, codexBin);
-          },
           onUpdateWorkspaceSettings: async (id, settings) => {
             await updateWorkspaceSettings(id, settings);
           },

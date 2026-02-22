@@ -251,7 +251,6 @@ pub(crate) struct WorkspaceEntry {
     pub(crate) id: String,
     pub(crate) name: String,
     pub(crate) path: String,
-    pub(crate) codex_bin: Option<String>,
     #[serde(default)]
     pub(crate) kind: WorkspaceKind,
     #[serde(default, rename = "parentId")]
@@ -268,7 +267,6 @@ pub(crate) struct WorkspaceInfo {
     pub(crate) name: String,
     pub(crate) path: String,
     pub(crate) connected: bool,
-    pub(crate) codex_bin: Option<String>,
     #[serde(default)]
     pub(crate) kind: WorkspaceKind,
     #[serde(default, rename = "parentId")]
@@ -323,10 +321,6 @@ pub(crate) struct WorkspaceSettings {
     pub(crate) group_id: Option<String>,
     #[serde(default, rename = "gitRoot")]
     pub(crate) git_root: Option<String>,
-    #[serde(default, rename = "codexHome")]
-    pub(crate) codex_home: Option<String>,
-    #[serde(default, rename = "codexArgs")]
-    pub(crate) codex_args: Option<String>,
     #[serde(default, rename = "launchScript")]
     pub(crate) launch_script: Option<String>,
     #[serde(default, rename = "launchScripts")]
@@ -1375,7 +1369,7 @@ mod tests {
     #[test]
     fn workspace_entry_defaults_from_minimal_json() {
         let entry: WorkspaceEntry =
-            serde_json::from_str(r#"{"id":"1","name":"Test","path":"/tmp","codexBin":null}"#)
+            serde_json::from_str(r#"{"id":"1","name":"Test","path":"/tmp"}"#)
                 .expect("workspace deserialize");
         assert!(matches!(entry.kind, WorkspaceKind::Main));
         assert!(entry.parent_id.is_none());

@@ -17,7 +17,6 @@ export function useWorkspaceController({
 }: WorkspaceControllerOptions) {
   const workspaceCore = useWorkspaces({
     onDebug: addDebugEntry,
-    defaultCodexBin: appSettings.codexBin,
     appSettings,
     onUpdateAppSettings: queueSaveSettings,
   });

@@ -87,7 +87,7 @@ pub(crate) async fn start_thread(
         .await;
     }
 
-    codex_core::start_thread_core(&state.sessions, workspace_id).await
+    codex_core::start_thread_core(&state.sessions, &state.workspaces, workspace_id).await
 }
 
 #[tauri::command]
@@ -363,6 +363,7 @@ pub(crate) async fn send_user_message(
 
     codex_core::send_user_message_core(
         &state.sessions,
+        &state.workspaces,
         workspace_id,
         thread_id,
         text,
@@ -776,7 +777,7 @@ pub(crate) async fn skills_list(
         .await;
     }
 
-    codex_core::skills_list_core(&state.sessions, workspace_id).await
+    codex_core::skills_list_core(&state.sessions, &state.workspaces, workspace_id).await
 }
 
 #[tauri::command]
@@ -887,6 +888,7 @@ pub(crate) async fn generate_commit_message(
     };
     crate::shared::codex_aux_core::generate_commit_message_core(
         &state.sessions,
+        &state.workspaces,
         workspace_id,
         &diff,
         &commit_message_prompt,
@@ -929,6 +931,7 @@ pub(crate) async fn generate_run_metadata(
 
     crate::shared::codex_aux_core::generate_run_metadata_core(
         &state.sessions,
+        &state.workspaces,
         workspace_id,
         &prompt,
         |workspace_id, thread_id| {
@@ -970,6 +973,7 @@ pub(crate) async fn generate_agent_description(
 
     crate::shared::codex_aux_core::generate_agent_description_core(
         &state.sessions,
+        &state.workspaces,
         workspace_id,
         &description,
         |workspace_id, thread_id| {

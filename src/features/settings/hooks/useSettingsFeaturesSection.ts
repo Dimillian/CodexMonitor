@@ -10,7 +10,6 @@ import {
 type UseSettingsFeaturesSectionArgs = {
   appSettings: AppSettings;
   featureWorkspaceId: string | null;
-  hasCodexHomeOverrides: boolean;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
 };
 
@@ -23,7 +22,6 @@ const HIDDEN_DYNAMIC_FEATURE_KEYS = new Set<string>([
 export type SettingsFeaturesSectionProps = {
   appSettings: AppSettings;
   hasFeatureWorkspace: boolean;
-  hasCodexHomeOverrides: boolean;
   openConfigError: string | null;
   featureError: string | null;
   featuresLoading: boolean;
@@ -142,7 +140,6 @@ function mapFeatureToAppSettings(
 export const useSettingsFeaturesSection = ({
   appSettings,
   featureWorkspaceId,
-  hasCodexHomeOverrides,
   onUpdateAppSettings,
 }: UseSettingsFeaturesSectionArgs): SettingsFeaturesSectionProps => {
   const [openConfigError, setOpenConfigError] = useState<string | null>(null);
@@ -288,7 +285,6 @@ export const useSettingsFeaturesSection = ({
   return {
     appSettings,
     hasFeatureWorkspace: featureWorkspaceId != null,
-    hasCodexHomeOverrides,
     openConfigError,
     featureError,
     featuresLoading,

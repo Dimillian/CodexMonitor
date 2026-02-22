@@ -3,8 +3,6 @@ export type WorkspaceSettings = {
   sortOrder?: number | null;
   groupId?: string | null;
   gitRoot?: string | null;
-  codexHome?: string | null;
-  codexArgs?: string | null;
   launchScript?: string | null;
   launchScripts?: LaunchScriptEntry[] | null;
   worktreeSetupScript?: string | null;
@@ -52,7 +50,6 @@ export type WorkspaceInfo = {
   name: string;
   path: string;
   connected: boolean;
-  codex_bin?: string | null;
   kind?: WorkspaceKind;
   parentId?: string | null;
   worktree?: WorktreeInfo | null;
