@@ -88,13 +88,13 @@ fn main() {
 async fn run() -> Result<(), String> {
     let args = parse_args()?;
     let data_dir = resolve_data_dir(args.data_dir);
-    let settings = load_settings(&data_dir)?;
+    let settings = load_settings(&data_dir);
 
-    let listen_addr = resolve_listen_addr(args.listen.as_deref(), &settings)?;
+    let listen_addr = resolve_listen_addr(args.listen.as_deref(), settings.as_ref())?;
     let token = if args.insecure_no_auth {
         None
     } else {
-        resolve_token(args.token.as_deref(), &settings)
+        resolve_token(args.token.as_deref(), settings.as_ref())
     };
 
     match args.command {
@@ -288,12 +288,15 @@ fn default_app_data_dir() -> PathBuf {
     }
 }
 
-fn load_settings(data_dir: &Path) -> Result<AppSettings, String> {
+fn load_settings(data_dir: &Path) -> Option<AppSettings> {
     let settings_path = data_dir.join("settings.json");
-    storage::read_settings(&settings_path)
+    storage::read_settings(&settings_path).ok()
 }
 
-fn resolve_listen_addr(listen_arg: Option<&str>, settings: &AppSettings) -> Result<String, String> {
+fn resolve_listen_addr(
+    listen_arg: Option<&str>,
+    settings: Option<&AppSettings>,
+) -> Result<String, String> {
     if let Some(value) = trim_non_empty(listen_arg) {
         value
             .parse::<SocketAddr>()
@@ -301,17 +304,20 @@ fn resolve_listen_addr(listen_arg: Option<&str>, settings: &AppSettings) -> Resu
         return Ok(value);
     }
 
-    let from_settings = daemon_listen_addr(&settings.remote_backend_host);
-    from_settings
+    let from_settings = settings.map(|value| daemon_listen_addr(&value.remote_backend_host));
+    let resolved = from_settings.unwrap_or_else(|| DEFAULT_LISTEN_ADDR.to_string());
+    resolved
         .parse::<SocketAddr>()
-        .map_err(|err| format!("Invalid listen address from settings `{from_settings}`: {err}"))?;
-    Ok(from_settings)
+        .map_err(|err| format!("Invalid listen address `{resolved}`: {err}"))?;
+    Ok(resolved)
 }
 
-fn resolve_token(token_arg: Option<&str>, settings: &AppSettings) -> Option<String> {
+fn resolve_token(token_arg: Option<&str>, settings: Option<&AppSettings>) -> Option<String> {
     trim_non_empty(token_arg)
         .or_else(|| trim_non_empty(env::var("CODEX_MONITOR_DAEMON_TOKEN").ok().as_deref()))
-        .or_else(|| trim_non_empty(settings.remote_backend_token.as_deref()))
+        .or_else(|| {
+            settings.and_then(|value| trim_non_empty(value.remote_backend_token.as_deref()))
+        })
 }
 
 fn resolve_daemon_path(daemon_path: Option<&Path>) -> Result<PathBuf, String> {
@@ -354,8 +360,17 @@ fn parse_port_from_remote_host(remote_host: &str) -> Option<u16> {
 }
 
 fn daemon_connect_addr(listen_addr: &str) -> Option<String> {
-    let port = parse_port_from_remote_host(listen_addr)?;
-    Some(format!("127.0.0.1:{port}"))
+    let addr = listen_addr.trim().parse::<SocketAddr>().ok()?;
+    let connect_addr = match addr.ip() {
+        std::net::IpAddr::V4(ip) if ip.is_unspecified() => {
+            SocketAddr::from(([127, 0, 0, 1], addr.port()))
+        }
+        std::net::IpAddr::V6(ip) if ip.is_unspecified() => {
+            SocketAddr::from((std::net::Ipv6Addr::LOCALHOST, addr.port()))
+        }
+        _ => addr,
+    };
+    Some(connect_addr.to_string())
 }
 
 fn daemon_command_preview(
@@ -1130,7 +1145,10 @@ fn print_status(status: &TcpDaemonStatus, as_json: bool) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{daemon_listen_addr, parse_port_from_remote_host, shell_quote};
+    use super::{
+        daemon_connect_addr, daemon_listen_addr, parse_port_from_remote_host, resolve_listen_addr,
+        shell_quote,
+    };
 
     #[test]
     fn parses_listen_port_from_host() {
@@ -1157,5 +1175,37 @@ mod tests {
     #[test]
     fn shell_quote_handles_single_quotes() {
         assert_eq!(shell_quote("abc'def"), "'abc'\"'\"'def'");
+    }
+
+    #[test]
+    fn connect_addr_keeps_non_loopback_host() {
+        assert_eq!(
+            daemon_connect_addr("100.101.102.103:4732").as_deref(),
+            Some("100.101.102.103:4732")
+        );
+    }
+
+    #[test]
+    fn connect_addr_maps_unspecified_hosts_to_loopback() {
+        assert_eq!(
+            daemon_connect_addr("0.0.0.0:4732").as_deref(),
+            Some("127.0.0.1:4732")
+        );
+        assert_eq!(
+            daemon_connect_addr("[::]:4732").as_deref(),
+            Some("[::1]:4732")
+        );
+    }
+
+    #[test]
+    fn listen_addr_works_without_settings() {
+        assert_eq!(
+            resolve_listen_addr(None, None).expect("default listen addr"),
+            "0.0.0.0:4732"
+        );
+        assert_eq!(
+            resolve_listen_addr(Some("127.0.0.1:9999"), None).expect("override listen addr"),
+            "127.0.0.1:9999"
+        );
     }
 }
