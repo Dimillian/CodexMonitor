@@ -866,6 +866,55 @@ describe("useThreadActions", () => {
     );
   });
 
+  it("supports snake_case next_cursor in shared thread list responses", async () => {
+    vi.mocked(listThreads)
+      .mockResolvedValueOnce({
+        result: {
+          data: [
+            {
+              id: "thread-1",
+              cwd: "/tmp/codex",
+              preview: "First page",
+              updated_at: 5000,
+            },
+          ],
+          next_cursor: "cursor-legacy-1",
+        },
+      })
+      .mockResolvedValueOnce({
+        result: {
+          data: [
+            {
+              id: "thread-2",
+              cwd: "/tmp/codex",
+              preview: "Second page",
+              updated_at: 4900,
+            },
+          ],
+          next_cursor: null,
+        },
+      });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspaces([workspace]);
+    });
+
+    expect(listThreads).toHaveBeenCalledTimes(2);
+    expect(listThreads).toHaveBeenNthCalledWith(
+      2,
+      "ws-1",
+      "cursor-legacy-1",
+      100,
+      "updated_at",
+    );
+  });
+
   it("stores a per-workspace cursor boundary for older pagination", async () => {
     const firstPage = Array.from({ length: 10 }, (_, index) => ({
       id: `thread-${index + 1}`,
@@ -1094,6 +1143,43 @@ describe("useThreadActions", () => {
       type: "setThreadListCursor",
       workspaceId: "ws-1",
       cursor: null,
+    });
+  });
+
+  it("supports snake_case next_cursor when loading older threads", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-2",
+            cwd: "/tmp/codex",
+            preview: "Older preview",
+            updated_at: 4000,
+          },
+        ],
+        next_cursor: "cursor-legacy-next",
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, dispatch } = renderActions({
+      threadsByWorkspace: {
+        "ws-1": [{ id: "thread-1", name: "Agent 1", updatedAt: 6000 }],
+      },
+      threadListCursorByWorkspace: { "ws-1": "cursor-1" },
+    });
+
+    await act(async () => {
+      await result.current.loadOlderThreadsForWorkspace(workspace);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreadListCursor",
+      workspaceId: "ws-1",
+      cursor: "cursor-legacy-next",
     });
   });
 

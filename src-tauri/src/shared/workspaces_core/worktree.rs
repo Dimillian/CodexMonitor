@@ -442,6 +442,12 @@ where
     };
     write_workspaces(storage_path, &list)?;
 
+    if let Some(session) = sessions.lock().await.get(&entry_snapshot.id).cloned() {
+        session
+            .register_workspace_with_path(&entry_snapshot.id, Some(&entry_snapshot.path))
+            .await;
+    }
+
     let connected = sessions.lock().await.contains_key(&entry_snapshot.id);
     Ok(WorkspaceInfo {
         id: entry_snapshot.id,

@@ -40,6 +40,16 @@ const THREAD_LIST_MAX_PAGES_OLDER = 6;
 const THREAD_LIST_MAX_PAGES_DEFAULT = 6;
 const THREAD_LIST_CURSOR_PAGE_START = "__codex_monitor_page_start__";
 
+function getThreadListNextCursor(result: Record<string, unknown>): string | null {
+  if (typeof result.nextCursor === "string") {
+    return result.nextCursor;
+  }
+  if (typeof result.next_cursor === "string") {
+    return result.next_cursor;
+  }
+  return null;
+}
+
 type UseThreadActionsOptions = {
   dispatch: Dispatch<ThreadAction>;
   itemsByThread: ThreadState["itemsByThread"];
@@ -543,7 +553,7 @@ export function useThreadActions({
           const data = Array.isArray(result?.data)
             ? (result.data as Record<string, unknown>[])
             : [];
-          const nextCursor = (result?.nextCursor ?? null) as string | null;
+          const nextCursor = getThreadListNextCursor(result);
           data.forEach((thread) => {
             const path = normalizeRootPath(String(thread?.cwd ?? ""));
             const workspaceIds = workspaceIdsByPath[path] ?? [];
@@ -761,7 +771,7 @@ export function useThreadActions({
           const data = Array.isArray(result?.data)
             ? (result.data as Record<string, unknown>[])
             : [];
-          const next = (result?.nextCursor ?? null) as string | null;
+          const next = getThreadListNextCursor(result);
           matchingThreads.push(
             ...data.filter(
               (thread) =>
