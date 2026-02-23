@@ -101,6 +101,41 @@ Notes:
 - The desktop daemon must stay running while iOS is connected.
 - If the test fails, confirm both devices are online in Tailscale and that host/token match desktop settings.
 
+### Headless Daemon Management (No Desktop UI)
+
+Use the standalone daemon control CLI when you want iOS remote mode without keeping the desktop app open.
+
+Build binaries:
+
+```bash
+cd src-tauri
+cargo build --bin codex_monitor_daemon --bin codex_monitor_daemonctl
+```
+
+Examples:
+
+```bash
+# Show current daemon status
+./target/debug/codex_monitor_daemonctl status
+
+# Start daemon using host/token from settings.json
+./target/debug/codex_monitor_daemonctl start
+
+# Stop daemon
+./target/debug/codex_monitor_daemonctl stop
+
+# Print equivalent daemon start command
+./target/debug/codex_monitor_daemonctl command-preview
+```
+
+Useful overrides:
+
+- `--data-dir <path>`: app data dir containing `settings.json` / `workspaces.json`
+- `--listen <addr>`: bind address override
+- `--token <token>`: token override
+- `--daemon-path <path>`: explicit `codex-monitor-daemon` binary path
+- `--json`: machine-readable output
+
 ### iOS Prerequisites
 
 - Xcode + Command Line Tools installed.
