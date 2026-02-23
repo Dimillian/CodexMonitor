@@ -29,7 +29,7 @@
     "pretauri:dev": "npm run sync:material-icons",
     "tauri:dev": "npm run doctor:strict && tauri dev",
     "pretauri:build": "npm run sync:material-icons",
-    "tauri:build": "npm run doctor:strict && tauri build",
+    "tauri:build": "npm run doctor:strict && tauri build && bash ./src-tauri/scripts/cleanup-daemon-legacy-names.sh",
     "pretauri:dev:win": "npm run sync:material-icons",
     "tauri:dev:win": "npm run doctor:win && tauri dev --config src-tauri/tauri.windows.conf.json",
     "pretauri:build:win": "npm run sync:material-icons",

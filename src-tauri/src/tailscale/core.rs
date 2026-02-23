@@ -427,7 +427,7 @@ extra diagnostics line"#;
     #[test]
     fn daemon_command_preview_uses_placeholder_token() {
         let preview = daemon_command_preview(
-            Path::new("/tmp/codex_monitor_daemon"),
+            Path::new("/tmp/codex-monitor-daemon"),
             Path::new("/tmp/data-dir"),
             true,
         );

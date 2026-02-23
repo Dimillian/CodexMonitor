@@ -109,23 +109,23 @@ Build binaries:
 
 ```bash
 cd src-tauri
-cargo build --bin codex_monitor_daemon --bin codex_monitor_daemonctl
+cargo build --bin codex-monitor-daemon --bin codex-monitor-daemonctl
 ```
 
 Examples:
 
 ```bash
 # Show current daemon status
-./target/debug/codex_monitor_daemonctl status
+./target/debug/codex-monitor-daemonctl status
 
 # Start daemon using host/token from settings.json
-./target/debug/codex_monitor_daemonctl start
+./target/debug/codex-monitor-daemonctl start
 
 # Stop daemon
-./target/debug/codex_monitor_daemonctl stop
+./target/debug/codex-monitor-daemonctl stop
 
 # Print equivalent daemon start command
-./target/debug/codex_monitor_daemonctl command-preview
+./target/debug/codex-monitor-daemonctl command-preview
 ```
 
 Useful overrides:

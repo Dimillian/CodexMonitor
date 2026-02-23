@@ -41,11 +41,11 @@ Headless alternative (no desktop UI required):
 
 1. Build daemon + daemonctl:
    - `cd src-tauri`
-   - `cargo build --bin codex_monitor_daemon --bin codex_monitor_daemonctl`
+   - `cargo build --bin codex-monitor-daemon --bin codex-monitor-daemonctl`
 2. Start daemon from CLI:
-   - `./target/debug/codex_monitor_daemonctl start`
+   - `./target/debug/codex-monitor-daemonctl start`
 3. Verify daemon status:
-   - `./target/debug/codex_monitor_daemonctl status`
+   - `./target/debug/codex-monitor-daemonctl status`
 
 ## iOS Setup
 

@@ -45,7 +45,7 @@ libssl="${openssl_prefix}/lib/libssl.3.dylib"
 libcrypto="${openssl_prefix}/lib/libcrypto.3.dylib"
 frameworks_dir="${app_path}/Contents/Frameworks"
 bin_path="${app_path}/Contents/MacOS/codex-monitor"
-daemon_path="${app_path}/Contents/MacOS/codex_monitor_daemon"
+daemon_path="${app_path}/Contents/MacOS/codex-monitor-daemon"
 
 if [[ ! -f "${libssl}" || ! -f "${libcrypto}" ]]; then
   echo "OpenSSL dylibs not found at ${openssl_prefix}/lib"

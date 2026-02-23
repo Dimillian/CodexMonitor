@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
-pub(crate) fn daemon_binary_candidates() -> &'static [&'static str] {
+pub(crate) fn daemon_binary_name() -> &'static str {
     if cfg!(windows) {
-        &["codex_monitor_daemon.exe", "codex-monitor-daemon.exe"]
+        "codex-monitor-daemon.exe"
     } else {
-        &["codex_monitor_daemon", "codex-monitor-daemon"]
+        "codex-monitor-daemon"
     }
 }
 
@@ -13,28 +13,30 @@ pub(crate) fn resolve_daemon_binary_path() -> Result<PathBuf, String> {
     let parent = current_exe
         .parent()
         .ok_or_else(|| "Unable to resolve executable directory".to_string())?;
-    let candidate_names = daemon_binary_candidates();
+    let candidate_name = daemon_binary_name();
 
-    for name in candidate_names {
-        let candidate = parent.join(name);
-        if candidate.is_file() {
-            return Ok(candidate);
-        }
+    let candidate = parent.join(candidate_name);
+    if candidate.is_file() {
+        return Ok(candidate);
     }
 
     Err(format!(
         "Unable to locate daemon binary in {} (tried: {})",
         parent.display(),
-        candidate_names.join(", ")
+        candidate_name
     ))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::daemon_binary_candidates;
+    use super::daemon_binary_name;
 
     #[test]
-    fn daemon_binary_candidates_prioritize_underscored_name() {
-        assert!(daemon_binary_candidates()[0].starts_with("codex_monitor_daemon"));
+    fn daemon_binary_name_is_canonical() {
+        assert!(
+            daemon_binary_name().starts_with("codex-monitor-daemon"),
+            "unexpected daemon binary name: {}",
+            daemon_binary_name()
+        );
     }
 }

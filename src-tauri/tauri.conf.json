@@ -7,6 +7,7 @@
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
+    "beforeBundleCommand": "bash ./src-tauri/scripts/prepare-daemon-sidecar.sh",
     "frontendDist": "../dist"
   },
   "app": {
@@ -58,7 +59,11 @@
     ],
     "macOS": {
       "entitlements": "./Entitlements.plist",
-      "infoPlist": "./Info.plist"
+      "infoPlist": "./Info.plist",
+      "files": {
+        "MacOS/codex-monitor-daemon": "target/sidecars/codex-monitor-daemon",
+        "MacOS/codex-monitor-daemonctl": "target/sidecars/codex-monitor-daemonctl"
+      }
     }
   },
   "plugins": {

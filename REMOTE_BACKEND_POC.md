@@ -14,7 +14,7 @@ cd src-tauri
 # pick a strong token (or export CODEX_MONITOR_DAEMON_TOKEN)
 TOKEN="change-me"
 
-cargo run --bin codex_monitor_daemon -- \
+cargo run --bin codex-monitor-daemon -- \
   --listen 127.0.0.1:4732 \
   --data-dir "$HOME/.local/share/codex-monitor-daemon" \
   --token "$TOKEN"
