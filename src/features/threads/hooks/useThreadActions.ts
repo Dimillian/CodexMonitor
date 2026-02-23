@@ -22,6 +22,7 @@ import {
   mergeThreadItems,
   previewThreadName,
 } from "@utils/threadItems";
+import { extractThreadCodexMetadata } from "@threads/utils/threadCodexMetadata";
 import {
   asString,
   normalizeRootPath,
@@ -60,6 +61,11 @@ type UseThreadActionsOptions = {
   ) => void;
   updateThreadParent: (parentId: string, childIds: string[]) => void;
   onSubagentThreadDetected: (workspaceId: string, threadId: string) => void;
+  onThreadCodexMetadataDetected?: (
+    workspaceId: string,
+    threadId: string,
+    metadata: { modelId: string | null; effort: string | null },
+  ) => void;
 };
 
 export function useThreadActions({
@@ -79,6 +85,7 @@ export function useThreadActions({
   applyCollabThreadLinksFromThread,
   updateThreadParent,
   onSubagentThreadDetected,
+  onThreadCodexMetadataDetected,
 }: UseThreadActionsOptions) {
   const resumeInFlightByThreadRef = useRef<Record<string, number>>({});
   const threadStatusByIdRef = useRef(threadStatusById);
@@ -190,6 +197,10 @@ export function useThreadActions({
           | Record<string, unknown>
           | null;
         if (thread) {
+          const codexMetadata = extractThreadCodexMetadata(thread);
+          if (codexMetadata.modelId || codexMetadata.effort) {
+            onThreadCodexMetadataDetected?.(workspaceId, threadId, codexMetadata);
+          }
           dispatch({ type: "ensureThread", workspaceId, threadId });
           applyCollabThreadLinksFromThread(workspaceId, threadId, thread);
           const sourceParentId = getParentThreadIdFromSource(thread.source);
@@ -322,6 +333,7 @@ export function useThreadActions({
       loadedThreadsRef,
       onDebug,
       onSubagentThreadDetected,
+      onThreadCodexMetadataDetected,
       replaceOnResumeRef,
       updateThreadParent,
     ],
@@ -508,6 +520,10 @@ export function useThreadActions({
           if (!threadId) {
             return;
           }
+          const codexMetadata = extractThreadCodexMetadata(thread);
+          if (codexMetadata.modelId || codexMetadata.effort) {
+            onThreadCodexMetadataDetected?.(workspace.id, threadId, codexMetadata);
+          }
           const sourceParentId = getParentThreadIdFromSource(thread.source);
           if (sourceParentId) {
             updateThreadParent(sourceParentId, [threadId]);
@@ -562,10 +578,14 @@ export function useThreadActions({
                   ? `${preview.slice(0, 38)}…`
                   : preview
                 : fallbackName;
+            const metadata = extractThreadCodexMetadata(thread);
             return {
               id,
               name,
               updatedAt: getThreadTimestamp(thread),
+              createdAt: getThreadCreatedTimestamp(thread),
+              ...(metadata.modelId ? { modelId: metadata.modelId } : {}),
+              ...(metadata.effort ? { effort: metadata.effort } : {}),
             };
           })
           .filter((entry) => entry.id);
@@ -619,6 +639,7 @@ export function useThreadActions({
       threadSortKey,
       updateThreadParent,
       onSubagentThreadDetected,
+      onThreadCodexMetadataDetected,
     ],
   );
 
@@ -693,6 +714,10 @@ export function useThreadActions({
           if (!id || existingIds.has(id)) {
             return;
           }
+          const codexMetadata = extractThreadCodexMetadata(thread);
+          if (codexMetadata.modelId || codexMetadata.effort) {
+            onThreadCodexMetadataDetected?.(workspace.id, id, codexMetadata);
+          }
           const sourceParentId = getParentThreadIdFromSource(thread.source);
           if (sourceParentId) {
             updateThreadParent(sourceParentId, [id]);
@@ -707,7 +732,14 @@ export function useThreadActions({
                 ? `${preview.slice(0, 38)}…`
                 : preview
               : fallbackName;
-          additions.push({ id, name, updatedAt: getThreadTimestamp(thread) });
+          additions.push({
+            id,
+            name,
+            updatedAt: getThreadTimestamp(thread),
+            createdAt: getThreadCreatedTimestamp(thread),
+            ...(codexMetadata.modelId ? { modelId: codexMetadata.modelId } : {}),
+            ...(codexMetadata.effort ? { effort: codexMetadata.effort } : {}),
+          });
           existingIds.add(id);
         });
 
@@ -761,6 +793,7 @@ export function useThreadActions({
       threadsByWorkspace,
       threadSortKey,
       updateThreadParent,
+      onThreadCodexMetadataDetected,
     ],
   );
 

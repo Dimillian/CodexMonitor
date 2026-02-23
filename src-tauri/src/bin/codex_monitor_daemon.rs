@@ -64,7 +64,7 @@ mod files {
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs::File;
 use std::io::Read;
@@ -80,6 +80,7 @@ use tokio::sync::{broadcast, mpsc, Mutex, Semaphore};
 use backend::app_server::{spawn_workspace_session, WorkspaceSession};
 use backend::events::{AppServerEvent, EventSink, TerminalExit, TerminalOutput};
 use shared::codex_core::CodexLoginCancelState;
+use shared::process_core::kill_child_process_tree;
 use shared::prompts_core::{self, CustomPromptEntry};
 use shared::{
     agents_config_core, codex_aux_core, codex_core, files_core, git_core, git_ui_core,
@@ -201,7 +202,48 @@ impl DaemonState {
         })
     }
 
+    async fn sync_workspaces_from_storage(&self) {
+        let stored = match read_workspaces(&self.storage_path) {
+            Ok(stored) => stored,
+            Err(err) => {
+                eprintln!(
+                    "daemon: failed to read workspaces from {}: {err}",
+                    self.storage_path.display()
+                );
+                return;
+            }
+        };
+        let workspace_ids: HashSet<String> = stored.keys().cloned().collect();
+        {
+            let mut workspaces = self.workspaces.lock().await;
+            *workspaces = stored;
+        }
+
+        let stale_sessions: Vec<(String, Arc<WorkspaceSession>)> = {
+            let mut sessions = self.sessions.lock().await;
+            sessions
+                .keys()
+                .filter(|id| !workspace_ids.contains(*id))
+                .cloned()
+                .collect::<Vec<_>>()
+                .into_iter()
+                .filter_map(|workspace_id| {
+                    sessions
+                        .remove(&workspace_id)
+                        .map(|session| (workspace_id, session))
+                })
+                .collect()
+        };
+
+        for (workspace_id, session) in stale_sessions {
+            let mut child = session.child.lock().await;
+            kill_child_process_tree(&mut child).await;
+            eprintln!("daemon: pruned stale session for removed workspace {workspace_id}");
+        }
+    }
+
     async fn list_workspaces(&self) -> Vec<WorkspaceInfo> {
+        self.sync_workspaces_from_storage().await;
         workspaces_core::list_workspaces_core(&self.workspaces, &self.sessions).await
     }
 
@@ -1542,11 +1584,17 @@ fn parse_args() -> Result<DaemonConfig, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::shared::process_core::kill_child_process_tree;
+    use crate::storage::write_workspaces;
     use crate::types::WorkspaceKind;
     use serde_json::json;
     use std::future::Future;
     use std::path::PathBuf;
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::process::Stdio;
+    use std::sync::atomic::AtomicU64;
+    use std::sync::Arc;
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+    use tokio::process::Command;
 
     fn run_async_test<F>(future: F)
     where
@@ -1607,6 +1655,48 @@ mod tests {
             .lock()
             .await
             .insert(workspace_id.to_string(), entry);
+    }
+
+    fn make_workspace_entry(workspace_id: &str, workspace_path: &str) -> WorkspaceEntry {
+        WorkspaceEntry {
+            id: workspace_id.to_string(),
+            name: workspace_id.to_string(),
+            path: workspace_path.to_string(),
+            codex_bin: None,
+            kind: WorkspaceKind::Main,
+            parent_id: None,
+            worktree: None,
+            settings: WorkspaceSettings::default(),
+        }
+    }
+
+    fn make_session(entry: WorkspaceEntry) -> Arc<WorkspaceSession> {
+        let mut cmd = if cfg!(windows) {
+            let mut cmd = Command::new("cmd");
+            cmd.args(["/C", "more"]);
+            cmd
+        } else {
+            let mut cmd = Command::new("sh");
+            cmd.args(["-c", "cat"]);
+            cmd
+        };
+
+        cmd.stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+
+        let mut child = cmd.spawn().expect("spawn dummy child");
+        let stdin = child.stdin.take().expect("dummy child stdin");
+
+        Arc::new(WorkspaceSession {
+            entry,
+            codex_args: None,
+            child: Mutex::new(child),
+            stdin: Mutex::new(stdin),
+            pending: Mutex::new(HashMap::new()),
+            next_id: AtomicU64::new(0),
+            background_thread_callbacks: Mutex::new(HashMap::new()),
+        })
     }
 
     #[test]
@@ -1716,6 +1806,121 @@ mod tests {
                 result.get("version").and_then(Value::as_str),
                 Some(env!("CARGO_PKG_VERSION"))
             );
+            let _ = std::fs::remove_dir_all(&tmp);
+        });
+    }
+    #[test]
+    fn list_workspaces_syncs_from_storage_file() {
+        run_async_test(async {
+            let tmp = make_temp_dir("list-workspaces-sync");
+            let state = test_state(&tmp);
+
+            let persisted = vec![WorkspaceEntry {
+                id: "ws-sync".to_string(),
+                name: "Synced Workspace".to_string(),
+                path: tmp.join("workspace").to_string_lossy().to_string(),
+                codex_bin: None,
+                kind: WorkspaceKind::Main,
+                parent_id: None,
+                worktree: None,
+                settings: WorkspaceSettings::default(),
+            }];
+            write_workspaces(&state.storage_path, &persisted).expect("write workspaces");
+
+            let listed = state.list_workspaces().await;
+            assert!(
+                listed.iter().any(|workspace| workspace.id == "ws-sync"),
+                "expected daemon list_workspaces to include workspace added on disk"
+            );
+
+            let _ = std::fs::remove_dir_all(&tmp);
+        });
+    }
+
+    #[test]
+    fn list_workspaces_sync_prunes_stale_sessions() {
+        run_async_test(async {
+            let tmp = make_temp_dir("list-workspaces-sync-prune");
+            let state = test_state(&tmp);
+            let keep_path = tmp.join("workspace-keep");
+            let stale_path = tmp.join("workspace-stale");
+
+            let persisted = vec![make_workspace_entry(
+                "ws-keep",
+                &keep_path.to_string_lossy(),
+            )];
+            write_workspaces(&state.storage_path, &persisted).expect("write workspaces");
+
+            let keep_session = make_session(make_workspace_entry(
+                "ws-keep",
+                &keep_path.to_string_lossy(),
+            ));
+            let stale_session = make_session(make_workspace_entry(
+                "ws-stale",
+                &stale_path.to_string_lossy(),
+            ));
+            {
+                let mut sessions = state.sessions.lock().await;
+                sessions.insert("ws-keep".to_string(), keep_session);
+                sessions.insert("ws-stale".to_string(), stale_session.clone());
+            }
+
+            let listed = state.list_workspaces().await;
+            assert!(
+                listed.iter().any(|workspace| workspace.id == "ws-keep"),
+                "expected daemon list_workspaces to include persisted workspace"
+            );
+
+            {
+                let sessions = state.sessions.lock().await;
+                assert!(
+                    sessions.contains_key("ws-keep"),
+                    "expected connected persisted workspace session to remain"
+                );
+                assert!(
+                    !sessions.contains_key("ws-stale"),
+                    "expected stale session to be removed"
+                );
+            }
+
+            let stale_session_exited = tokio::time::timeout(Duration::from_secs(2), async {
+                loop {
+                    let exited = stale_session
+                        .child
+                        .lock()
+                        .await
+                        .try_wait()
+                        .expect("query stale session child");
+                    if exited.is_some() {
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(25)).await;
+                }
+            })
+            .await
+            .is_ok();
+            assert!(
+                stale_session_exited,
+                "expected stale session child process to terminate"
+            );
+
+            if let Some(keep_session) = state.sessions.lock().await.remove("ws-keep") {
+                let mut child = keep_session.child.lock().await;
+                kill_child_process_tree(&mut child).await;
+            }
+
+            if stale_session
+                .child
+                .lock()
+                .await
+                .try_wait()
+                .expect("query stale session child")
+                .is_none()
+            {
+                let mut child = stale_session.child.lock().await;
+                kill_child_process_tree(&mut child).await;
+            }
+
             let _ = std::fs::remove_dir_all(&tmp);
         });
     }

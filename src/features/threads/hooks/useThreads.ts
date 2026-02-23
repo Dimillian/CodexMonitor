@@ -53,6 +53,11 @@ type UseThreadsOptions = {
   customPrompts?: CustomPromptOption[];
   onMessageActivity?: () => void;
   threadSortKey?: ThreadListSortKey;
+  onThreadCodexMetadataDetected?: (
+    workspaceId: string,
+    threadId: string,
+    metadata: { modelId: string | null; effort: string | null },
+  ) => void;
 };
 
 function buildWorkspaceThreadKey(workspaceId: string, threadId: string) {
@@ -77,6 +82,7 @@ export function useThreads({
   customPrompts = [],
   onMessageActivity,
   threadSortKey = "updated_at",
+  onThreadCodexMetadataDetected,
 }: UseThreadsOptions) {
   const maxItemsPerThread =
     chatHistoryScrollbackItems === undefined
@@ -543,6 +549,7 @@ export function useThreads({
     applyCollabThreadLinksFromThread,
     updateThreadParent,
     onSubagentThreadDetected,
+    onThreadCodexMetadataDetected,
   });
 
   const ensureWorkspaceRuntimeCodexArgsBestEffort = useCallback(
