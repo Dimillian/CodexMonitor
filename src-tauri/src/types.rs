@@ -321,6 +321,8 @@ pub(crate) struct WorkspaceSettings {
     pub(crate) sort_order: Option<u32>,
     #[serde(default, rename = "groupId")]
     pub(crate) group_id: Option<String>,
+    #[serde(default, rename = "cloneSourceWorkspaceId")]
+    pub(crate) clone_source_workspace_id: Option<String>,
     #[serde(default, rename = "gitRoot")]
     pub(crate) git_root: Option<String>,
     #[serde(default, rename = "codexHome")]
@@ -561,6 +563,11 @@ pub(crate) struct AppSettings {
         rename = "followUpMessageBehavior"
     )]
     pub(crate) follow_up_message_behavior: String,
+    #[serde(
+        default = "default_composer_follow_up_hint_enabled",
+        rename = "composerFollowUpHintEnabled"
+    )]
+    pub(crate) composer_follow_up_hint_enabled: bool,
     #[serde(
         default = "default_pause_queued_messages_when_response_required",
         rename = "pauseQueuedMessagesWhenResponseRequired"
@@ -914,6 +921,10 @@ fn default_follow_up_message_behavior() -> String {
     "queue".to_string()
 }
 
+fn default_composer_follow_up_hint_enabled() -> bool {
+    true
+}
+
 fn default_pause_queued_messages_when_response_required() -> bool {
     true
 }
@@ -1155,6 +1166,7 @@ impl Default for AppSettings {
             collaboration_modes_enabled: true,
             steer_enabled: true,
             follow_up_message_behavior: default_follow_up_message_behavior(),
+            composer_follow_up_hint_enabled: default_composer_follow_up_hint_enabled(),
             pause_queued_messages_when_response_required:
                 default_pause_queued_messages_when_response_required(),
             unified_exec_enabled: true,
@@ -1317,6 +1329,7 @@ mod tests {
         assert!(settings.collaboration_modes_enabled);
         assert!(settings.steer_enabled);
         assert_eq!(settings.follow_up_message_behavior, "queue");
+        assert!(settings.composer_follow_up_hint_enabled);
         assert!(settings.pause_queued_messages_when_response_required);
         assert!(settings.unified_exec_enabled);
         assert!(!settings.experimental_apps_enabled);
