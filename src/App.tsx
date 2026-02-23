@@ -2309,6 +2309,7 @@ function MainApp() {
     isProcessing,
     steerAvailable,
     followUpMessageBehavior: appSettings.followUpMessageBehavior,
+    composerFollowUpHintEnabled: appSettings.composerFollowUpHintEnabled,
     reviewPrompt,
     onReviewPromptClose: closeReviewPrompt,
     onReviewPromptShowPreset: showPresetStep,

@@ -185,6 +185,7 @@ function buildDefaultSettings(): AppSettings {
     collaborationModesEnabled: true,
     steerEnabled: true,
     followUpMessageBehavior: "queue",
+    composerFollowUpHintEnabled: true,
     pauseQueuedMessagesWhenResponseRequired: true,
     unifiedExecEnabled: true,
     experimentalAppsEnabled: false,
@@ -263,6 +264,10 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
       : settings.steerEnabled
         ? "steer"
         : "queue",
+    composerFollowUpHintEnabled:
+      typeof settings.composerFollowUpHintEnabled === "boolean"
+        ? settings.composerFollowUpHintEnabled
+        : true,
     reviewDeliveryMode:
       settings.reviewDeliveryMode === "detached" ? "detached" : "inline",
     chatHistoryScrollbackItems,
