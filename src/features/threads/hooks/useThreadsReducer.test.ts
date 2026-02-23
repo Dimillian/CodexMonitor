@@ -596,6 +596,12 @@ describe("threadReducer", () => {
           lastDurationMs: null,
         },
       },
+      lastAgentMessageByThread: {
+        "thread-parent": {
+          text: "Parent fresh preview",
+          timestamp: 300,
+        },
+      },
     };
 
     const next = threadReducer(base, {
@@ -619,6 +625,10 @@ describe("threadReducer", () => {
       next.threadsByWorkspace["ws-1"]?.find((thread) => thread.id === "thread-child")
         ?.name,
     ).toBe("Child (fresh)");
+    expect(
+      next.threadsByWorkspace["ws-1"]?.find((thread) => thread.id === "thread-parent")
+        ?.updatedAt,
+    ).toBe(300);
   });
 
   it("does not resurrect hidden anchors on partial setThreads payloads", () => {

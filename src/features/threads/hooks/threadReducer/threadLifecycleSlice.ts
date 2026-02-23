@@ -318,6 +318,24 @@ export function reduceThreadLifecycle(
       );
       const reconciled = [...visibleThreads];
       const includedIds = new Set(reconciled.map((thread) => thread.id));
+      const freshenAnchorSummary = (summary: ThreadSummary) => {
+        const lastMessageTimestamp =
+          state.lastAgentMessageByThread[summary.id]?.timestamp ?? 0;
+        const processingStartedAt =
+          state.threadStatusById[summary.id]?.processingStartedAt ?? 0;
+        const nextUpdatedAt = Math.max(
+          summary.updatedAt ?? 0,
+          lastMessageTimestamp,
+          processingStartedAt,
+        );
+        if (nextUpdatedAt <= (summary.updatedAt ?? 0)) {
+          return summary;
+        }
+        return {
+          ...summary,
+          updatedAt: nextUpdatedAt,
+        };
+      };
       const appendExistingAnchor = (threadId: string | null | undefined) => {
         if (!threadId || hidden[threadId] || includedIds.has(threadId)) {
           return;
@@ -326,7 +344,7 @@ export function reduceThreadLifecycle(
         if (!summary) {
           return;
         }
-        reconciled.push(summary);
+        reconciled.push(freshenAnchorSummary(summary));
         includedIds.add(threadId);
       };
 
