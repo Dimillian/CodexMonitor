@@ -131,4 +131,51 @@ describe("useWorkspaceController dialogs", () => {
       expect.objectContaining({ title: "Delete workspace failed", kind: "error" }),
     );
   });
+
+  it("opens the in-app remote path prompt on mobile remote mode", async () => {
+    vi.mocked(isMobilePlatform).mockReturnValue(true);
+    vi.mocked(listWorkspaces).mockResolvedValue([]);
+    vi.mocked(isWorkspacePathDir).mockResolvedValue(true);
+    vi.mocked(addWorkspace).mockResolvedValue(workspaceOne);
+
+    const { result } = renderHook(() =>
+      useWorkspaceController({
+        appSettings: {
+          ...baseAppSettings,
+          backendMode: "remote",
+        },
+        addDebugEntry: vi.fn(),
+        queueSaveSettings: vi.fn(async (next) => next),
+      }),
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    let addPromise: Promise<WorkspaceInfo | null> = Promise.resolve(null);
+    await act(async () => {
+      addPromise = result.current.addWorkspace();
+    });
+
+    expect(result.current.mobileRemoteWorkspacePathPrompt).not.toBeNull();
+    expect(pickWorkspacePaths).not.toHaveBeenCalled();
+
+    await act(async () => {
+      result.current.updateMobileRemoteWorkspacePathInput("/srv/codex-monitor");
+    });
+
+    await act(async () => {
+      result.current.submitMobileRemoteWorkspacePathPrompt();
+    });
+
+    let added: WorkspaceInfo | null = null;
+    await act(async () => {
+      added = await addPromise;
+    });
+
+    expect(added).toMatchObject({ id: workspaceOne.id });
+    expect(isWorkspacePathDir).toHaveBeenCalledWith("/srv/codex-monitor");
+    expect(result.current.mobileRemoteWorkspacePathPrompt).toBeNull();
+  });
 });

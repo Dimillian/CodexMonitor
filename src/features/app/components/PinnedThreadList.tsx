@@ -16,6 +16,7 @@ type PinnedThreadListProps = {
   activeThreadId: string | null;
   threadStatusById: ThreadStatusById;
   pendingUserInputKeys?: Set<string>;
+  getWorkspaceLabel?: (workspaceId: string) => string | null;
   getThreadTime: (thread: ThreadSummary) => string | null;
   getThreadArgsBadge?: (workspaceId: string, threadId: string) => string | null;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
@@ -34,6 +35,7 @@ export function PinnedThreadList({
   activeThreadId,
   threadStatusById,
   pendingUserInputKeys,
+  getWorkspaceLabel,
   getThreadTime,
   getThreadArgsBadge,
   isThreadPinned,
@@ -54,6 +56,7 @@ export function PinnedThreadList({
             activeThreadId={activeThreadId}
             threadStatusById={threadStatusById}
             pendingUserInputKeys={pendingUserInputKeys}
+            workspaceLabel={getWorkspaceLabel?.(workspaceId) ?? null}
             getThreadTime={getThreadTime}
             getThreadArgsBadge={getThreadArgsBadge}
             isThreadPinned={isThreadPinned}
