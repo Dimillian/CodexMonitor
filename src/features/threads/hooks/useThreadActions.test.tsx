@@ -85,6 +85,7 @@ describe("useThreadActions", () => {
       dispatch,
       itemsByThread: {},
       threadsByWorkspace: {},
+      tokenUsageThreadIdsByWorkspace: {},
       activeThreadIdByWorkspace: {},
       activeTurnIdByThread: {},
       threadListCursorByWorkspace: {},
@@ -1046,6 +1047,45 @@ describe("useThreadActions", () => {
         },
       ],
     });
+  });
+
+  it("tracks workspace token usage ids from the full fetched thread set", async () => {
+    const threads = Array.from({ length: 25 }, (_, index) => ({
+      id: `thread-${index + 1}`,
+      cwd: "/tmp/codex",
+      preview: `Thread ${index + 1}`,
+      updated_at: 5000 - index,
+    }));
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: threads,
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setWorkspaceTokenUsageThreadIds",
+      workspaceId: "ws-1",
+      threadIds: threads.map((thread) => thread.id),
+    });
+    const setThreadsCall = dispatch.mock.calls.find(
+      ([action]) => action?.type === "setThreads" && action?.workspaceId === "ws-1",
+    );
+    expect(setThreadsCall?.[0]?.threads).toHaveLength(20);
+    expect(localThreadUsageSnapshot).toHaveBeenCalledWith(
+      threads.map((thread) => thread.id),
+      "/tmp/codex",
+    );
   });
 
   it("fetches multiple pages by default", async () => {

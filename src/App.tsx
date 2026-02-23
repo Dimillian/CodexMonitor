@@ -617,6 +617,7 @@ function MainApp() {
     threadListCursorByWorkspace,
     activeTurnIdByThread,
     tokenUsageByThread,
+    tokenUsageThreadIdsByWorkspace,
     rateLimitsByWorkspace,
     accountByWorkspace,
     planByThread,
@@ -1404,15 +1405,28 @@ function MainApp() {
   );
   const tokenUsageTotalsByWorkspace = useMemo(() => {
     const totals: Record<string, number> = {};
-    Object.entries(threadsByWorkspace).forEach(([workspaceId, threads]) => {
-      const total = threads.reduce(
-        (sum, thread) => sum + getDisplayThreadTokenUsageTotal(tokenUsageByThread[thread.id]),
+    const workspaceIds = new Set<string>([
+      ...Object.keys(threadsByWorkspace),
+      ...Object.keys(tokenUsageThreadIdsByWorkspace),
+    ]);
+    workspaceIds.forEach((workspaceId) => {
+      const threadIds = new Set<string>([
+        ...(tokenUsageThreadIdsByWorkspace[workspaceId] ?? []),
+        ...(threadsByWorkspace[workspaceId] ?? []).map((thread) => thread.id),
+      ]);
+      const total = Array.from(threadIds).reduce(
+        (sum, threadId) => sum + getDisplayThreadTokenUsageTotal(tokenUsageByThread[threadId]),
         0,
       );
       totals[workspaceId] = total;
     });
     return totals;
-  }, [getDisplayThreadTokenUsageTotal, threadsByWorkspace, tokenUsageByThread]);
+  }, [
+    getDisplayThreadTokenUsageTotal,
+    threadsByWorkspace,
+    tokenUsageByThread,
+    tokenUsageThreadIdsByWorkspace,
+  ]);
   const getWorkspaceTokenUsageLabel = useCallback(
     (workspaceId: string) => {
       if (!appSettings.showThreadTokenUsage) {

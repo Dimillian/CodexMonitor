@@ -68,6 +68,7 @@ type UseThreadActionsOptions = {
   dispatch: Dispatch<ThreadAction>;
   itemsByThread: ThreadState["itemsByThread"];
   threadsByWorkspace: ThreadState["threadsByWorkspace"];
+  tokenUsageThreadIdsByWorkspace: ThreadState["tokenUsageThreadIdsByWorkspace"];
   activeThreadIdByWorkspace: ThreadState["activeThreadIdByWorkspace"];
   activeTurnIdByThread: ThreadState["activeTurnIdByThread"];
   threadListCursorByWorkspace: ThreadState["threadListCursorByWorkspace"];
@@ -96,6 +97,7 @@ export function useThreadActions({
   dispatch,
   itemsByThread,
   threadsByWorkspace,
+  tokenUsageThreadIdsByWorkspace,
   activeThreadIdByWorkspace,
   activeTurnIdByThread,
   threadListCursorByWorkspace,
@@ -757,6 +759,14 @@ export function useThreadActions({
             .slice(0, THREAD_LIST_TARGET_COUNT)
             .map((thread, index) => buildThreadSummary(workspace.id, thread, index))
             .filter((entry): entry is ThreadSummary => Boolean(entry));
+          const tokenUsageThreadIds = uniqueThreads
+            .map((thread) => String(thread?.id ?? "").trim())
+            .filter((threadId) => threadId.length > 0);
+          dispatch({
+            type: "setWorkspaceTokenUsageThreadIds",
+            workspaceId: workspace.id,
+            threadIds: tokenUsageThreadIds,
+          });
           dispatch({
             type: "setThreads",
             workspaceId: workspace.id,
@@ -783,7 +793,7 @@ export function useThreadActions({
           });
           void hydrateThreadUsageForWorkspace(
             workspace,
-            summaries.map((summary) => summary.id),
+            tokenUsageThreadIds,
           );
         });
         if (didChangeAnyActivity) {
@@ -936,6 +946,19 @@ export function useThreadActions({
             sortKey: requestedSortKey,
           });
         }
+        const tokenUsageThreadIds = Array.from(
+          new Set([
+            ...(tokenUsageThreadIdsByWorkspace[workspace.id] ?? []),
+            ...matchingThreads
+              .map((thread) => String(thread?.id ?? "").trim())
+              .filter((threadId) => threadId.length > 0),
+          ]),
+        );
+        dispatch({
+          type: "setWorkspaceTokenUsageThreadIds",
+          workspaceId: workspace.id,
+          threadIds: tokenUsageThreadIds,
+        });
         dispatch({
           type: "setThreadListCursor",
           workspaceId: workspace.id,
@@ -981,6 +1004,7 @@ export function useThreadActions({
       onDebug,
       threadListCursorByWorkspace,
       threadsByWorkspace,
+      tokenUsageThreadIdsByWorkspace,
       threadSortKey,
       updateThreadParent,
       onThreadCodexMetadataDetected,
