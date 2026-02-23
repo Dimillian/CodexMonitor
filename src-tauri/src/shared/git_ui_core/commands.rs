@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use git2::{BranchType, Repository, Status, StatusOptions};
+use git2::{BranchType, ErrorCode, Repository, Status, StatusOptions};
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
 
@@ -728,7 +728,13 @@ pub(super) async fn list_git_branches_inner(
 ) -> Result<Value, String> {
     let entry = workspace_entry_for_id(workspaces, &workspace_id).await?;
     let repo_root = resolve_git_root(&entry)?;
-    let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
+    let repo = match Repository::open(&repo_root) {
+        Ok(repo) => repo,
+        Err(error) if error.code() == ErrorCode::NotFound => {
+            return Ok(json!({ "branches": [] }));
+        }
+        Err(error) => return Err(error.to_string()),
+    };
     let mut branches = Vec::new();
     let refs = repo
         .branches(Some(BranchType::Local))
