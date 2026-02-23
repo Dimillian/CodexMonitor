@@ -341,6 +341,7 @@ type GitDiffModeContentProps = {
     onUnstageFile?: (path: string) => Promise<void> | void;
     onDiscardFile?: (path: string) => Promise<void> | void;
     onDiscardFiles?: (paths: string[]) => Promise<void> | void;
+    onReviewUncommittedChanges?: () => void | Promise<void>;
     selectedFiles: Set<string>;
     selectedPath: string | null;
     onSelectFile?: (path: string) => void;
@@ -397,6 +398,7 @@ export function GitDiffModeContent({
     onUnstageFile,
     onDiscardFile,
     onDiscardFiles,
+    onReviewUncommittedChanges,
     selectedFiles,
     selectedPath,
     onSelectFile,
@@ -413,6 +415,7 @@ export function GitDiffModeContent({
         : missingRepo
             ? "This workspace isn't a Git repository yet."
             : "Choose a repo for this workspace.";
+    const generateCommitMessageTooltip = "Generate commit message";
 
     return (
         <div className="diff-list" onClick={onDiffListClick}>
@@ -524,7 +527,7 @@ export function GitDiffModeContent({
                         />
                         <button
                             type="button"
-                            className="commit-message-generate-button"
+                            className="commit-message-generate-button diff-row-action"
                             onClick={() => {
                                 if (!canGenerateCommitMessage) {
                                     return;
@@ -532,11 +535,9 @@ export function GitDiffModeContent({
                                 void onGenerateCommitMessage?.();
                             }}
                             disabled={commitMessageLoading || !canGenerateCommitMessage}
-                            title={
-                                stagedFiles.length > 0
-                                    ? "Generate commit message from staged changes"
-                                    : "Generate commit message from unstaged changes"
-                            }
+                            title={generateCommitMessageTooltip}
+                            data-tooltip={generateCommitMessageTooltip}
+                            data-tooltip-placement="bottom"
                             aria-label="Generate commit message"
                         >
                             {commitMessageLoading ? (
@@ -649,6 +650,7 @@ export function GitDiffModeContent({
                             onStageFile={onStageFile}
                             onDiscardFile={onDiscardFile}
                             onDiscardFiles={onDiscardFiles}
+                            onReviewUncommittedChanges={onReviewUncommittedChanges}
                             onFileClick={onFileClick}
                             onShowFileMenu={onShowFileMenu}
                         />

@@ -14,7 +14,7 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 TARGET="${TARGET:-aarch64}"
-BUNDLE_ID="${BUNDLE_ID:-com.dimillian.codexmonitor.ios}"
+BUNDLE_ID="${BUNDLE_ID:-}"
 APP_ID="${APP_ID:-}"
 IPA_PATH="${IPA_PATH:-}"
 BUILD_NUMBER="${BUILD_NUMBER:-}"
@@ -29,6 +29,8 @@ REVIEW_CONTACT_PHONE="${REVIEW_CONTACT_PHONE:-}"
 REVIEW_NOTES="${REVIEW_NOTES:-Codex Monitor iOS beta build for external testing.}"
 SKIP_BUILD=0
 SKIP_SUBMIT=0
+TAURI_IOS_LOCAL_CONFIG="src-tauri/tauri.ios.local.conf.json"
+TAURI_CONFIG_ARGS=()
 
 usage() {
   cat <<'USAGE'
@@ -42,7 +44,7 @@ Override the path with TESTFLIGHT_ENV_FILE=/path/to/file.
 
 Options:
   --app-id <id>              App Store Connect app ID (auto-resolved by bundle id if omitted)
-  --bundle-id <id>           Bundle identifier (default: com.dimillian.codexmonitor.ios)
+  --bundle-id <id>           Bundle identifier (default: resolved from Tauri iOS config)
   --ipa <path>               IPA path (default: src-tauri/gen/apple/build/arm64/Codex Monitor.ipa)
   --target <target>          Tauri iOS target (default: aarch64)
   --build-number <number>    Build number used during archive (default: current unix timestamp)
@@ -194,6 +196,30 @@ sync_ios_icons() {
   fi
 }
 
+resolve_ios_bundle_id() {
+  node - <<'NODE'
+const fs = require("fs");
+
+function readConfig(path) {
+  try {
+    return JSON.parse(fs.readFileSync(path, "utf8"));
+  } catch (_) {
+    return {};
+  }
+}
+
+const baseCfg = readConfig("src-tauri/tauri.conf.json");
+const iosCfg = readConfig("src-tauri/tauri.ios.conf.json");
+const localCfg = readConfig("src-tauri/tauri.ios.local.conf.json");
+const identifier =
+  localCfg?.identifier ??
+  iosCfg?.identifier ??
+  baseCfg?.identifier ??
+  "";
+process.stdout.write(String(identifier).trim());
+NODE
+}
+
 json_get() {
   local json="$1"
   local expr="$2"
@@ -202,6 +228,17 @@ json_get() {
 
 require_cmd asc
 require_cmd jq
+
+if [[ -f "$TAURI_IOS_LOCAL_CONFIG" ]]; then
+  TAURI_CONFIG_ARGS+=(--config "$TAURI_IOS_LOCAL_CONFIG")
+fi
+
+if [[ -z "$BUNDLE_ID" ]]; then
+  BUNDLE_ID="$(resolve_ios_bundle_id)"
+fi
+if [[ -z "$BUNDLE_ID" ]]; then
+  BUNDLE_ID="com.dimillian.codexmonitor.ios"
+fi
 
 log "Checking App Store Connect authentication"
 asc auth status --validate >/dev/null
@@ -225,7 +262,7 @@ if [[ "$SKIP_BUILD" -eq 0 ]]; then
 
   log "Building iOS archive and exporting IPA (build number: $BUILD_NUMBER)"
   sync_ios_icons
-  "$NPM_BIN" run tauri -- ios build --target "$TARGET" --export-method app-store-connect --build-number "$BUILD_NUMBER" --ci
+  "$NPM_BIN" run tauri -- ios build --target "$TARGET" "${TAURI_CONFIG_ARGS[@]}" --export-method app-store-connect --build-number "$BUILD_NUMBER" --ci
 fi
 
 if [[ -z "$IPA_PATH" ]]; then

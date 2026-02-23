@@ -657,6 +657,10 @@ export function useThreadMessaging({
     ],
   );
 
+  const startUncommittedReview = useCallback(async () => {
+    await startReviewTarget({ type: "uncommittedChanges" });
+  }, [startReviewTarget]);
+
   const startStatus = useCallback(
     async (_text: string) => {
       if (!activeWorkspace) {
@@ -1027,6 +1031,7 @@ export function useThreadMessaging({
     sendUserMessageToThread,
     startFork,
     startReview,
+    startUncommittedReview,
     startResume,
     startCompact,
     startApps,

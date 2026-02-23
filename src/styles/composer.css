@@ -933,6 +933,10 @@
     display: none;
   }
 
+  .app.layout-phone .composer-followup-hint {
+    display: none;
+  }
+
   .app.layout-phone .composer-select-wrap {
     gap: 4px;
     padding: 2px 5px;

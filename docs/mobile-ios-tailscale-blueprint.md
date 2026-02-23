@@ -37,6 +37,16 @@ Optional fallback:
 
 - Use `Refresh daemon command` to get a manual launch command template.
 
+Headless alternative (no desktop UI required):
+
+1. Build daemon + daemonctl:
+   - `cd src-tauri`
+   - `cargo build --bin codex_monitor_daemon --bin codex_monitor_daemonctl`
+2. Start daemon from CLI:
+   - `./target/debug/codex_monitor_daemonctl start`
+3. Verify daemon status:
+   - `./target/debug/codex_monitor_daemonctl status`
+
 ## iOS Setup
 
 In iOS CodexMonitor:
@@ -74,4 +84,3 @@ Success criteria:
 - No suggested host shown:
   - Confirm Tailscale is installed and connected on desktop.
   - Retry `Detect Tailscale`.
-

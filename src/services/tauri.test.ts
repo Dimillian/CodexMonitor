@@ -45,6 +45,7 @@ import {
   updateAgent,
   deleteAgent,
   readAgentConfigToml,
+  readImageAsDataUrl,
   generateAgentDescription,
   writeAgentConfigToml,
   writeAgentMd,
@@ -71,6 +72,12 @@ describe("tauri invoke wrappers", () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "is_macos_debug_build") {
+        return false;
+      }
+      if (command === "get_app_settings") {
+        return { backendMode: "local" };
+      }
+      if (command === "is_mobile_runtime") {
         return false;
       }
       return undefined;
@@ -619,6 +626,50 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
+  it("maps read_image_as_data_url", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce("data:image/png;base64,abc");
+
+    await readImageAsDataUrl("/tmp/image.png");
+
+    expect(invokeMock).toHaveBeenCalledWith("read_image_as_data_url", {
+      path: "/tmp/image.png",
+    });
+  });
+
+  it("converts image paths before send_user_message in remote mode", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "is_macos_debug_build") {
+        return false;
+      }
+      if (command === "get_app_settings") {
+        return { backendMode: "remote" };
+      }
+      if (command === "is_mobile_runtime") {
+        return false;
+      }
+      if (command === "read_image_as_data_url") {
+        return "data:image/png;base64,abc";
+      }
+      return undefined;
+    });
+
+    await sendUserMessage("ws-4", "thread-1", "hello", {
+      images: ["/tmp/image.png"],
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("send_user_message", {
+      workspaceId: "ws-4",
+      threadId: "thread-1",
+      text: "hello",
+      model: null,
+      effort: null,
+      accessMode: null,
+      images: ["data:image/png;base64,abc"],
+    });
+  });
+
   it("includes app mentions when sending a message", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({});
@@ -652,6 +703,92 @@ describe("tauri invoke wrappers", () => {
       text: "continue",
       images: ["image.png"],
     });
+  });
+
+  it("converts image paths before turn_steer in remote mode", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "is_macos_debug_build") {
+        return false;
+      }
+      if (command === "get_app_settings") {
+        return { backendMode: "remote" };
+      }
+      if (command === "is_mobile_runtime") {
+        return false;
+      }
+      if (command === "read_image_as_data_url") {
+        return "data:image/jpeg;base64,xyz";
+      }
+      return undefined;
+    });
+
+    await steerTurn("ws-4", "thread-1", "turn-2", "continue", ["/tmp/image.jpg"]);
+
+    expect(invokeMock).toHaveBeenCalledWith("turn_steer", {
+      workspaceId: "ws-4",
+      threadId: "thread-1",
+      turnId: "turn-2",
+      text: "continue",
+      images: ["data:image/jpeg;base64,xyz"],
+    });
+  });
+
+  it("converts image paths on mobile even in local backend mode", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "is_macos_debug_build") {
+        return false;
+      }
+      if (command === "get_app_settings") {
+        return { backendMode: "local" };
+      }
+      if (command === "is_mobile_runtime") {
+        return true;
+      }
+      if (command === "read_image_as_data_url") {
+        return "data:image/png;base64,mobile";
+      }
+      return undefined;
+    });
+
+    await sendUserMessage("ws-4", "thread-1", "hello", {
+      images: ["/private/var/mobile/sample.png"],
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("send_user_message", {
+      workspaceId: "ws-4",
+      threadId: "thread-1",
+      text: "hello",
+      model: null,
+      effort: null,
+      accessMode: null,
+      images: ["data:image/png;base64,mobile"],
+    });
+  });
+
+  it("fails when image conversion fails for send_user_message", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "is_macos_debug_build") {
+        return false;
+      }
+      if (command === "get_app_settings") {
+        return { backendMode: "remote" };
+      }
+      if (command === "is_mobile_runtime") {
+        return false;
+      }
+      if (command === "read_image_as_data_url") {
+        throw new Error("conversion failed");
+      }
+      return undefined;
+    });
+
+    await expect(
+      sendUserMessage("ws-4", "thread-1", "hello", { images: ["/tmp/image.png"] }),
+    ).rejects.toThrow("conversion failed");
+    expect(invokeMock).not.toHaveBeenCalledWith("send_user_message", expect.anything());
   });
 
   it("omits delivery when starting reviews without override", async () => {

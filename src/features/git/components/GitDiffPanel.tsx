@@ -116,6 +116,7 @@ type GitDiffPanelProps = {
   onStageFile?: (path: string) => Promise<void> | void;
   onUnstageFile?: (path: string) => Promise<void> | void;
   onRevertFile?: (path: string) => Promise<void> | void;
+  onReviewUncommittedChanges?: () => void | Promise<void>;
   logEntries: GitLogEntry[];
   selectedCommitSha?: string | null;
   onSelectCommit?: (entry: GitLogEntry) => void;
@@ -201,6 +202,7 @@ export function GitDiffPanel({
   onStageFile,
   onUnstageFile,
   onRevertFile,
+  onReviewUncommittedChanges,
   onGitRootScanDepthChange,
   onScanGitRoots,
   onSelectGitRoot,
@@ -747,6 +749,7 @@ export function GitDiffPanel({
           onUnstageFile={onUnstageFile}
           onDiscardFile={onRevertFile ? discardFile : undefined}
           onDiscardFiles={onRevertFile ? discardFiles : undefined}
+          onReviewUncommittedChanges={onReviewUncommittedChanges}
           selectedFiles={selectedFiles}
           selectedPath={selectedPath}
           onSelectFile={onSelectFile}

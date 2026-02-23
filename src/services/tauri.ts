@@ -179,6 +179,10 @@ async function fileWrite(
   return invoke("file_write", { scope, kind, workspaceId, content });
 }
 
+export async function readImageAsDataUrl(path: string): Promise<string> {
+  return invoke<string>("read_image_as_data_url", { path });
+}
+
 export async function readGlobalAgentsMd(): Promise<GlobalAgentsResponse> {
   return fileRead("global", "agents");
 }
@@ -388,6 +392,52 @@ export async function compactThread(workspaceId: string, threadId: string) {
   return invoke<any>("compact_thread", { workspaceId, threadId });
 }
 
+function isInlineImageUrl(image: string) {
+  return (
+    image.startsWith("data:") ||
+    image.startsWith("http://") ||
+    image.startsWith("https://")
+  );
+}
+
+async function convertImagesToDataUrls(images: string[]): Promise<string[]> {
+  return Promise.all(
+    images.map(async (image) => {
+      if (isInlineImageUrl(image)) {
+        return image;
+      }
+      return readImageAsDataUrl(image);
+    }),
+  );
+}
+
+async function normalizeImagesForRpc(images?: string[]): Promise<string[] | null> {
+  if (images == null) {
+    return null;
+  }
+  if (images.length === 0) {
+    return [];
+  }
+  const hasPathImages = images.some((image) => !isInlineImageUrl(image));
+  if (!hasPathImages) {
+    return images;
+  }
+  let settings: AppSettings;
+  let mobileRuntime: boolean;
+  try {
+    [settings, mobileRuntime] = await Promise.all([getAppSettings(), isMobileRuntime()]);
+  } catch (error) {
+    if (isMissingTauriInvokeError(error)) {
+      return images;
+    }
+    throw error;
+  }
+  if (settings.backendMode !== "remote" && !mobileRuntime) {
+    return images;
+  }
+  return convertImagesToDataUrls(images);
+}
+
 export async function sendUserMessage(
   workspaceId: string,
   threadId: string,
@@ -401,6 +451,7 @@ export async function sendUserMessage(
     appMentions?: AppMention[];
   },
 ) {
+  const images = await normalizeImagesForRpc(options?.images);
   const payload: Record<string, unknown> = {
     workspaceId,
     threadId,
@@ -408,7 +459,7 @@ export async function sendUserMessage(
     model: options?.model ?? null,
     effort: options?.effort ?? null,
     accessMode: options?.accessMode ?? null,
-    images: options?.images ?? null,
+    images,
   };
   if (options?.collaborationMode) {
     payload.collaborationMode = options.collaborationMode;
@@ -435,12 +486,13 @@ export async function steerTurn(
   images?: string[],
   appMentions?: AppMention[],
 ) {
+  const normalizedImages = await normalizeImagesForRpc(images);
   const payload: Record<string, unknown> = {
     workspaceId,
     threadId,
     turnId,
     text,
-    images: images ?? null,
+    images: normalizedImages,
   };
   if (appMentions && appMentions.length > 0) {
     payload.appMentions = appMentions;

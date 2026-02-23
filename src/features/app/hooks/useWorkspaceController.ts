@@ -31,6 +31,10 @@ export function useWorkspaceController({
 
   const {
     requestWorkspacePaths,
+    mobileRemoteWorkspacePathPrompt,
+    updateMobileRemoteWorkspacePathInput,
+    cancelMobileRemoteWorkspacePathPrompt,
+    submitMobileRemoteWorkspacePathPrompt,
     showAddWorkspacesResult,
     confirmWorkspaceRemoval,
     confirmWorktreeRemoval,
@@ -89,6 +93,10 @@ export function useWorkspaceController({
     ...workspaceCore,
     addWorkspace,
     addWorkspacesFromPaths,
+    mobileRemoteWorkspacePathPrompt,
+    updateMobileRemoteWorkspacePathInput,
+    cancelMobileRemoteWorkspacePathPrompt,
+    submitMobileRemoteWorkspacePathPrompt,
     removeWorkspace,
     removeWorktree,
   };

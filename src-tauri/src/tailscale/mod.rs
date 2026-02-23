@@ -26,17 +26,34 @@ use self::core as tailscale_core;
 #[cfg(any(target_os = "android", target_os = "ios"))]
 const UNSUPPORTED_MESSAGE: &str = "Tailscale integration is only available on desktop.";
 
+fn apply_tailscale_command_env(command: &mut tokio::process::Command) {
+    #[cfg(target_os = "macos")]
+    {
+        // The app-bundled Tailscale binary can fail with CLIError 3 when TERM is missing
+        // (typical for GUI-launched release apps). Force a sane terminal type.
+        let term = std::env::var("TERM").unwrap_or_else(|_| "xterm-256color".to_string());
+        command.env("TERM", term);
+    }
+}
+
+fn direct_tailscale_command(binary: &OsStr) -> tokio::process::Command {
+    let mut command = tokio_command(binary);
+    apply_tailscale_command_env(&mut command);
+    command
+}
+
 #[cfg(target_os = "macos")]
 fn tailscale_command(binary: &OsStr) -> tokio::process::Command {
     let mut command = tokio_command("/bin/launchctl");
     let uid = unsafe { libc::geteuid() };
     command.arg("asuser").arg(uid.to_string()).arg(binary);
+    apply_tailscale_command_env(&mut command);
     command
 }
 
 #[cfg(not(target_os = "macos"))]
 fn tailscale_command(binary: &OsStr) -> tokio::process::Command {
-    tokio_command(binary)
+    direct_tailscale_command(binary)
 }
 
 #[cfg(target_os = "macos")]
@@ -44,12 +61,12 @@ async fn tailscale_output(binary: &OsStr, args: &[&str]) -> std::io::Result<Outp
     let primary = tailscale_command(binary).args(args).output().await;
     match primary {
         Ok(output) if output.status.success() => Ok(output),
-        Ok(output) => match tokio_command(binary).args(args).output().await {
+        Ok(output) => match direct_tailscale_command(binary).args(args).output().await {
             Ok(fallback) if fallback.status.success() => Ok(fallback),
             Ok(_) => Ok(output),
             Err(_) => Ok(output),
         },
-        Err(primary_err) => match tokio_command(binary).args(args).output().await {
+        Err(primary_err) => match direct_tailscale_command(binary).args(args).output().await {
             Ok(fallback) => Ok(fallback),
             Err(_) => Err(primary_err),
         },

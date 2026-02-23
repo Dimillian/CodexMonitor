@@ -622,6 +622,12 @@
   color: #ff6b6b;
 }
 
+.diff-row-action--review:hover {
+  background: rgba(90, 169, 255, 0.14);
+  border-color: rgba(90, 169, 255, 0.35);
+  color: #5aa9ff;
+}
+
 .diff-row-action--apply:hover {
   background: rgba(90, 169, 255, 0.14);
   border-color: rgba(90, 169, 255, 0.35);
@@ -667,16 +673,28 @@
   border-top: 1px solid var(--border-subtle);
 }
 
-.diff-row-action:last-child[data-tooltip]::after {
+.diff-row-action:last-child[data-tooltip]:not([data-tooltip-placement="bottom"])::after {
   left: auto;
   right: 0;
   transform: translateX(0) translateY(4px);
 }
 
-.diff-row-action:last-child[data-tooltip]::before {
+.diff-row-action:last-child[data-tooltip]:not([data-tooltip-placement="bottom"])::before {
   left: auto;
   right: 8px;
   transform: translateX(0) translateY(4px) rotate(45deg);
+}
+
+.diff-row-action[data-tooltip][data-tooltip-placement="bottom"]::after {
+  top: calc(100% + 8px);
+  bottom: auto;
+  left: auto;
+  right: 0;
+  transform: translateY(-4px);
+}
+
+.diff-row-action[data-tooltip][data-tooltip-placement="bottom"]::before {
+  display: none;
 }
 
 .diff-row-action:hover::before,
@@ -692,13 +710,18 @@
   transform: translateX(-50%) translateY(0) rotate(45deg);
 }
 
-.diff-row-action:last-child:hover::after,
-.diff-row-action:last-child:focus-visible::after {
+.diff-row-action[data-tooltip][data-tooltip-placement="bottom"]:hover::after,
+.diff-row-action[data-tooltip][data-tooltip-placement="bottom"]:focus-visible::after {
+  transform: translateY(0);
+}
+
+.diff-row-action:last-child:hover:not([data-tooltip-placement="bottom"])::after,
+.diff-row-action:last-child:focus-visible:not([data-tooltip-placement="bottom"])::after {
   transform: translateX(0) translateY(0);
 }
 
-.diff-row-action:last-child:hover::before,
-.diff-row-action:last-child:focus-visible::before {
+.diff-row-action:last-child:hover:not([data-tooltip-placement="bottom"])::before,
+.diff-row-action:last-child:focus-visible:not([data-tooltip-placement="bottom"])::before {
   transform: translateX(0) translateY(0) rotate(45deg);
 }
 
