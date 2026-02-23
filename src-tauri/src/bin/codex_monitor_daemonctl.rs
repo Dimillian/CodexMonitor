@@ -347,16 +347,22 @@ fn daemon_listen_addr(remote_host: &str) -> String {
 }
 
 fn parse_port_from_remote_host(remote_host: &str) -> Option<u16> {
-    if remote_host.trim().is_empty() {
+    let trimmed = remote_host.trim();
+    if trimmed.is_empty() {
         return None;
     }
-    if let Ok(addr) = remote_host.trim().parse::<SocketAddr>() {
+    if let Ok(addr) = trimmed.parse::<SocketAddr>() {
         return Some(addr.port());
     }
-    remote_host
-        .trim()
-        .rsplit_once(':')
-        .and_then(|(_, port)| port.parse::<u16>().ok())
+    let (host, port) = trimmed.rsplit_once(':')?;
+    if host.is_empty() || port.is_empty() {
+        return None;
+    }
+    // Reject unbracketed IPv6 literals (and other multi-colon hosts) in fallback mode.
+    if host.contains(':') {
+        return None;
+    }
+    port.parse::<u16>().ok()
 }
 
 fn daemon_connect_addr(listen_addr: &str) -> Option<String> {
@@ -790,9 +796,16 @@ async fn find_listener_pid(port: u16) -> Option<u32> {
 
 #[cfg(any(test, target_os = "linux"))]
 fn parse_ss_listener_pid(output: &str, port: u16) -> Option<u32> {
-    let needle = format!(":{port}");
     for line in output.lines() {
-        if !line.contains("LISTEN") || !line.contains(&needle) {
+        if !line.contains("LISTEN") {
+            continue;
+        }
+        let columns: Vec<&str> = line.split_whitespace().collect();
+        let local_addr = match columns.get(3) {
+            Some(value) => *value,
+            None => continue,
+        };
+        if parse_port_from_addr_token(local_addr) != Some(port) {
             continue;
         }
         for token in line.split(|ch: char| ch.is_whitespace() || matches!(ch, '(' | ')' | ',')) {
@@ -808,9 +821,16 @@ fn parse_ss_listener_pid(output: &str, port: u16) -> Option<u32> {
 
 #[cfg(any(test, target_os = "linux"))]
 fn parse_netstat_listener_pid(output: &str, port: u16) -> Option<u32> {
-    let needle = format!(":{port}");
     for line in output.lines() {
-        if !line.contains("LISTEN") || !line.contains(&needle) {
+        if !line.contains("LISTEN") {
+            continue;
+        }
+        let columns: Vec<&str> = line.split_whitespace().collect();
+        let local_addr = match columns.get(3) {
+            Some(value) => *value,
+            None => continue,
+        };
+        if parse_port_from_addr_token(local_addr) != Some(port) {
             continue;
         }
         for token in line.split_whitespace().rev() {
@@ -825,6 +845,14 @@ fn parse_netstat_listener_pid(output: &str, port: u16) -> Option<u32> {
         }
     }
     None
+}
+
+#[cfg(any(test, target_os = "linux"))]
+fn parse_port_from_addr_token(value: &str) -> Option<u16> {
+    value
+        .trim()
+        .rsplit_once(':')
+        .and_then(|(_, port)| port.parse::<u16>().ok())
 }
 
 #[cfg(unix)]
@@ -1254,6 +1282,8 @@ mod tests {
             parse_port_from_remote_host("[fd7a:115c:a1e0::1]:4545"),
             Some(4545)
         );
+        assert_eq!(parse_port_from_remote_host("fd7a:115c:a1e0::1"), None);
+        assert_eq!(parse_port_from_remote_host("fd7a:115c:a1e0::1:4732"), None);
         assert_eq!(parse_port_from_remote_host("example.ts.net"), None);
     }
 
@@ -1327,5 +1357,22 @@ tcp        0      0 0.0.0.0:4732            0.0.0.0:*               LISTEN      
 "#;
         assert_eq!(parse_netstat_listener_pid(output, 4732), Some(6789));
         assert_eq!(parse_netstat_listener_pid(output, 9000), None);
+    }
+
+    #[test]
+    fn ss_parser_does_not_match_port_prefix() {
+        let output = r#"State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+LISTEN 0      4096   0.0.0.0:47320     0.0.0.0:*    users:(("other",pid=45678,fd=7))
+"#;
+        assert_eq!(parse_ss_listener_pid(output, 4732), None);
+    }
+
+    #[test]
+    fn netstat_parser_does_not_match_port_prefix() {
+        let output = r#"Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp        0      0 0.0.0.0:47320           0.0.0.0:*               LISTEN      8765/other
+"#;
+        assert_eq!(parse_netstat_listener_pid(output, 4732), None);
     }
 }
