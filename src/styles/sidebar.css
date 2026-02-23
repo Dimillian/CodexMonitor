@@ -509,6 +509,10 @@
   padding-right: 4px;
 }
 
+.workspace-group-header-all-threads {
+  padding-bottom: 4px;
+}
+
 .workspace-group-header.is-toggleable {
   cursor: pointer;
 }

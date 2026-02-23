@@ -762,7 +762,7 @@ export const Sidebar = memo(function Sidebar({
           {isThreadsOnlyMode
             ? flatThreadRows.length > 0 && (
                 <div className="workspace-group">
-                  <div className="workspace-group-header">
+                  <div className="workspace-group-header workspace-group-header-all-threads">
                     <div className="workspace-group-label">All threads</div>
                   </div>
                   <PinnedThreadList
