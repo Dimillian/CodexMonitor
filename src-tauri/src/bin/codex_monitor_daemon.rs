@@ -1631,7 +1631,6 @@ mod tests {
             id: workspace_id.to_string(),
             name: workspace_id.to_string(),
             path: workspace_path.to_string(),
-            codex_bin: None,
             kind: WorkspaceKind::Main,
             parent_id: None,
             worktree: None,
@@ -1640,6 +1639,7 @@ mod tests {
     }
 
     fn make_session(entry: WorkspaceEntry) -> Arc<WorkspaceSession> {
+        let owner_workspace_id = entry.id;
         let mut cmd = if cfg!(windows) {
             let mut cmd = Command::new("cmd");
             cmd.args(["/C", "more"]);
@@ -1658,13 +1658,16 @@ mod tests {
         let stdin = child.stdin.take().expect("dummy child stdin");
 
         Arc::new(WorkspaceSession {
-            entry,
             codex_args: None,
             child: Mutex::new(child),
             stdin: Mutex::new(stdin),
             pending: Mutex::new(HashMap::new()),
+            request_context: Mutex::new(HashMap::new()),
+            thread_workspace: Mutex::new(HashMap::new()),
             next_id: AtomicU64::new(0),
             background_thread_callbacks: Mutex::new(HashMap::new()),
+            workspace_ids: Mutex::new(HashSet::from([owner_workspace_id.clone()])),
+            owner_workspace_id,
         })
     }
 
@@ -1788,7 +1791,6 @@ mod tests {
                 id: "ws-sync".to_string(),
                 name: "Synced Workspace".to_string(),
                 path: tmp.join("workspace").to_string_lossy().to_string(),
-                codex_bin: None,
                 kind: WorkspaceKind::Main,
                 parent_id: None,
                 worktree: None,
