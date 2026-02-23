@@ -5,6 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex as StdMutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 
@@ -131,6 +132,29 @@ struct ThreadUsageUpdate {
     timestamp_ms: i64,
 }
 
+// Bound full index refreshes so repeated snapshot calls do not walk the full sessions tree.
+const SESSION_INDEX_REFRESH_INTERVAL_MS: i64 = 30_000;
+
+static SESSION_FILE_INDEX: OnceLock<StdMutex<SessionFileIndex>> = OnceLock::new();
+
+#[derive(Default)]
+struct SessionFileIndex {
+    by_root: HashMap<PathBuf, RootSessionIndex>,
+}
+
+#[derive(Default)]
+struct RootSessionIndex {
+    by_thread: HashMap<String, Vec<IndexedSessionFile>>,
+    missing_thread_checked_at: HashMap<String, i64>,
+    last_full_scan_ms: i64,
+}
+
+#[derive(Clone)]
+struct IndexedSessionFile {
+    path: PathBuf,
+    cwd: Option<String>,
+}
+
 pub(crate) async fn local_thread_usage_snapshot_core(
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     thread_ids: Vec<String>,
@@ -191,37 +215,17 @@ fn scan_thread_usage(
         return Ok(HashMap::new());
     }
 
-    let mut aggregate_by_thread: HashMap<String, ThreadUsageAggregate> = HashMap::new();
-    for root in sessions_roots {
-        if !root.exists() {
-            continue;
-        }
-        let walker = WalkBuilder::new(root)
-            .hidden(false)
-            .follow_links(false)
-            .require_git(false)
-            .build();
-        for entry in walker {
-            let Ok(entry) = entry else {
-                continue;
-            };
-            let path = entry.path();
-            if !entry
-                .file_type()
-                .is_some_and(|file_type| file_type.is_file())
-            {
-                continue;
-            }
-            if path.extension().and_then(|ext| ext.to_str()) != Some("jsonl") {
-                continue;
-            }
+    let candidates = collect_candidate_session_files(&requested, workspace_path, sessions_roots);
 
-            if let Some((thread_id, usage)) = scan_session_file(path, &requested, workspace_path)? {
-                aggregate_by_thread
-                    .entry(thread_id)
-                    .or_default()
-                    .absorb(usage);
-            }
+    let mut aggregate_by_thread: HashMap<String, ThreadUsageAggregate> = HashMap::new();
+    for candidate in candidates {
+        if let Some((thread_id, usage)) =
+            scan_session_file(&candidate.path, &requested, workspace_path)?
+        {
+            aggregate_by_thread
+                .entry(thread_id)
+                .or_default()
+                .absorb(usage);
         }
     }
 
@@ -231,6 +235,171 @@ fn scan_thread_usage(
         .collect();
 
     Ok(usage_by_thread)
+}
+
+fn collect_candidate_session_files(
+    requested_ids: &HashSet<String>,
+    workspace_path: Option<&Path>,
+    sessions_roots: &[PathBuf],
+) -> Vec<IndexedSessionFile> {
+    if requested_ids.is_empty() || sessions_roots.is_empty() {
+        return Vec::new();
+    }
+
+    let now_ms = now_timestamp_ms();
+    let mut seen_paths: HashSet<PathBuf> = HashSet::new();
+    let mut candidates = Vec::new();
+
+    let index_lock = SESSION_FILE_INDEX.get_or_init(|| StdMutex::new(SessionFileIndex::default()));
+    let mut index = match index_lock.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
+    for root in sessions_roots {
+        if !root.exists() {
+            continue;
+        }
+
+        let root_index = index.by_root.entry(root.clone()).or_default();
+        let mut refreshed = false;
+
+        if root_index.last_full_scan_ms == 0 {
+            rebuild_root_session_index(root_index, root);
+            refreshed = true;
+        }
+
+        let missing_requested: Vec<&String> = requested_ids
+            .iter()
+            .filter(|thread_id| !root_index.by_thread.contains_key(*thread_id))
+            .collect();
+        let missing_refresh_due = missing_requested.iter().any(|thread_id| {
+            match root_index.missing_thread_checked_at.get(*thread_id) {
+                None => true,
+                Some(last_checked) => {
+                    now_ms.saturating_sub(*last_checked) >= SESSION_INDEX_REFRESH_INTERVAL_MS
+                }
+            }
+        });
+
+        if missing_refresh_due && !refreshed {
+            rebuild_root_session_index(root_index, root);
+            refreshed = true;
+        }
+
+        let refresh_due = now_ms.saturating_sub(root_index.last_full_scan_ms)
+            >= SESSION_INDEX_REFRESH_INTERVAL_MS;
+
+        if refresh_due && !refreshed {
+            rebuild_root_session_index(root_index, root);
+            refreshed = true;
+        }
+
+        if refreshed {
+            let known_present: HashSet<String> = root_index.by_thread.keys().cloned().collect();
+            root_index
+                .missing_thread_checked_at
+                .retain(|thread_id, _| !known_present.contains(thread_id));
+        }
+
+        for thread_id in requested_ids {
+            if let Some(files) = root_index.by_thread.get(thread_id) {
+                root_index.missing_thread_checked_at.remove(thread_id);
+                for file in files {
+                    if let Some(workspace_path) = workspace_path {
+                        if let Some(cwd) = file.cwd.as_deref() {
+                            if !path_matches_workspace(cwd, workspace_path) {
+                                continue;
+                            }
+                        }
+                    }
+                    if seen_paths.insert(file.path.clone()) {
+                        candidates.push(file.clone());
+                    }
+                }
+            } else if refreshed {
+                root_index
+                    .missing_thread_checked_at
+                    .insert(thread_id.clone(), now_ms);
+            } else {
+                root_index
+                    .missing_thread_checked_at
+                    .entry(thread_id.clone())
+                    .or_insert(now_ms);
+            }
+        }
+    }
+
+    candidates
+}
+
+fn rebuild_root_session_index(root_index: &mut RootSessionIndex, root: &Path) {
+    let mut by_thread: HashMap<String, Vec<IndexedSessionFile>> = HashMap::new();
+
+    let walker = WalkBuilder::new(root)
+        .hidden(false)
+        .follow_links(false)
+        .require_git(false)
+        .build();
+
+    for entry in walker {
+        let Ok(entry) = entry else {
+            continue;
+        };
+        let path = entry.path();
+        if !entry
+            .file_type()
+            .is_some_and(|file_type| file_type.is_file())
+        {
+            continue;
+        }
+        if path.extension().and_then(|ext| ext.to_str()) != Some("jsonl") {
+            continue;
+        }
+
+        let Some((thread_id, cwd)) = read_session_index_metadata(path) else {
+            continue;
+        };
+
+        by_thread
+            .entry(thread_id)
+            .or_default()
+            .push(IndexedSessionFile {
+                path: path.to_path_buf(),
+                cwd,
+            });
+    }
+
+    root_index.by_thread = by_thread;
+    root_index.last_full_scan_ms = now_timestamp_ms();
+}
+
+fn read_session_index_metadata(path: &Path) -> Option<(String, Option<String>)> {
+    let file = File::open(path).ok()?;
+    let reader = BufReader::new(file);
+
+    for (line_index, line) in reader.lines().enumerate() {
+        let line = match line {
+            Ok(line) => line,
+            Err(_) => continue,
+        };
+        if line.len() > 512_000 {
+            continue;
+        }
+        let value = match serde_json::from_str::<Value>(&line) {
+            Ok(value) => value,
+            Err(_) => continue,
+        };
+        let Some(thread_id) = extract_session_thread_id(&value) else {
+            if line_index > 32 {
+                return None;
+            }
+            continue;
+        };
+        return Some((thread_id, extract_cwd(&value)));
+    }
+
+    None
 }
 
 fn scan_session_file(
@@ -542,7 +711,27 @@ fn resolve_workspace_codex_home_for_path(
 mod tests {
     use super::*;
     use std::io::Write;
+    use std::time::Duration;
     use uuid::Uuid;
+
+    fn clear_session_index_cache() {
+        let Some(index_lock) = SESSION_FILE_INDEX.get() else {
+            return;
+        };
+        match index_lock.lock() {
+            Ok(mut index) => index.by_root.clear(),
+            Err(poisoned) => poisoned.into_inner().by_root.clear(),
+        }
+    }
+
+    fn last_full_scan_ms_for_root(root: &Path) -> Option<i64> {
+        let index_lock = SESSION_FILE_INDEX.get()?;
+        let index = match index_lock.lock() {
+            Ok(index) => index,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        index.by_root.get(root).map(|root_index| root_index.last_full_scan_ms)
+    }
 
     fn make_temp_sessions_root() -> PathBuf {
         let mut root = std::env::temp_dir();
@@ -564,6 +753,8 @@ mod tests {
 
     #[test]
     fn scan_thread_usage_aggregates_total_without_double_counting_last() {
+        clear_session_index_cache();
+
         let root = make_temp_sessions_root();
         let thread_id = "thread-abc";
         write_session_file(
@@ -590,6 +781,8 @@ mod tests {
 
     #[test]
     fn scan_thread_usage_respects_workspace_filter() {
+        clear_session_index_cache();
+
         let root = make_temp_sessions_root();
         write_session_file(
             &root,
@@ -612,6 +805,8 @@ mod tests {
 
     #[test]
     fn scan_thread_usage_uses_session_meta_id_not_filename_substring() {
+        clear_session_index_cache();
+
         let root = make_temp_sessions_root();
         write_session_file(
             &root,
@@ -626,5 +821,81 @@ mod tests {
             scan_thread_usage(&["thread-1".to_string()], None, &[root]).expect("scan usage");
 
         assert!(usage.is_empty());
+    }
+
+    #[test]
+    fn scan_thread_usage_refreshes_index_when_requested_thread_is_missing() {
+        clear_session_index_cache();
+
+        let root = make_temp_sessions_root();
+        write_session_file(
+            &root,
+            "rollout-2026-02-01-thread-a.jsonl",
+            &[
+                r#"{"timestamp":"2026-02-01T10:00:00.000Z","type":"session_meta","payload":{"id":"thread-a","cwd":"/tmp/project"}}"#,
+                r#"{"timestamp":"2026-02-01T10:00:01.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5,"total_tokens":15}}}}"#,
+            ],
+        );
+
+        let initial_usage =
+            scan_thread_usage(&["thread-a".to_string()], None, std::slice::from_ref(&root))
+                .expect("scan usage");
+        assert_eq!(
+            initial_usage
+                .get("thread-a")
+                .expect("thread-a usage")
+                .total
+                .total_tokens,
+            15
+        );
+
+        write_session_file(
+            &root,
+            "rollout-2026-02-01-thread-b.jsonl",
+            &[
+                r#"{"timestamp":"2026-02-01T11:00:00.000Z","type":"session_meta","payload":{"id":"thread-b","cwd":"/tmp/project"}}"#,
+                r#"{"timestamp":"2026-02-01T11:00:01.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":4,"cached_input_tokens":0,"output_tokens":2,"total_tokens":6}}}}"#,
+            ],
+        );
+
+        let usage =
+            scan_thread_usage(&["thread-b".to_string()], None, std::slice::from_ref(&root))
+                .expect("scan usage");
+        assert_eq!(
+            usage.get("thread-b").expect("thread-b usage").total.total_tokens,
+            6
+        );
+    }
+
+    #[test]
+    fn scan_thread_usage_throttles_repeated_missing_thread_rebuilds() {
+        clear_session_index_cache();
+
+        let root = make_temp_sessions_root();
+        write_session_file(
+            &root,
+            "rollout-2026-02-01-thread-a.jsonl",
+            &[
+                r#"{"timestamp":"2026-02-01T10:00:00.000Z","type":"session_meta","payload":{"id":"thread-a","cwd":"/tmp/project"}}"#,
+                r#"{"timestamp":"2026-02-01T10:00:01.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":5,"total_tokens":15}}}}"#,
+            ],
+        );
+
+        let missing_thread_id = "thread-missing".to_string();
+        let first_usage =
+            scan_thread_usage(std::slice::from_ref(&missing_thread_id), None, std::slice::from_ref(&root))
+                .expect("scan usage");
+        assert!(first_usage.is_empty());
+
+        let first_scan_ms = last_full_scan_ms_for_root(&root).expect("first scan timestamp");
+        std::thread::sleep(Duration::from_millis(5));
+
+        let second_usage =
+            scan_thread_usage(std::slice::from_ref(&missing_thread_id), None, std::slice::from_ref(&root))
+                .expect("scan usage");
+        assert!(second_usage.is_empty());
+
+        let second_scan_ms = last_full_scan_ms_for_root(&root).expect("second scan timestamp");
+        assert_eq!(second_scan_ms, first_scan_ms);
     }
 }
