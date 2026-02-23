@@ -262,7 +262,11 @@ pub(super) async fn try_handle(
             };
             let cursor = parse_optional_string(params, "cursor");
             let limit = parse_optional_u32(params, "limit");
-            Some(state.experimental_feature_list(workspace_id, cursor, limit).await)
+            Some(
+                state
+                    .experimental_feature_list(workspace_id, cursor, limit)
+                    .await,
+            )
         }
         "collaboration_mode_list" => {
             let workspace_id = match parse_string(params, "workspaceId") {

@@ -39,6 +39,7 @@ export function WorkspaceFromUrlPrompt({
   return (
     <ModalShell
       ariaLabel="Add workspace from URL"
+      className="workspace-from-url-modal"
       cardClassName="workspace-from-url-modal-card"
       onBackdropClick={() => {
         if (!isBusy) {

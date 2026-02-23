@@ -13,7 +13,8 @@ use crate::backend::app_server::{
 use crate::shared::process_core::tokio_command;
 use crate::types::AppSettings;
 
-const DEFAULT_COMMIT_MESSAGE_PROMPT: &str = "Generate a concise git commit message for the following changes. \
+const DEFAULT_COMMIT_MESSAGE_PROMPT: &str =
+    "Generate a concise git commit message for the following changes. \
 Follow conventional commit format (e.g., feat:, fix:, refactor:, docs:, etc.). \
 Keep the summary line under 72 characters. \
 Only output the commit message, nothing else.\n\n\
@@ -629,7 +630,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        build_commit_message_prompt_for_diff, parse_agent_description_value, parse_run_metadata_value,
+        build_commit_message_prompt_for_diff, parse_agent_description_value,
+        parse_run_metadata_value,
     };
 
     #[test]
@@ -643,7 +645,8 @@ mod tests {
 
     #[test]
     fn parse_run_metadata_value_normalizes_worktree_name_alias() {
-        let raw = r#"{"title":"Fix Login Redirect Loop","worktree_name":"fix-login-redirect-loop"}"#;
+        let raw =
+            r#"{"title":"Fix Login Redirect Loop","worktree_name":"fix-login-redirect-loop"}"#;
         let parsed = parse_run_metadata_value(raw).expect("parse metadata");
         assert_eq!(parsed["title"], "Fix Login Redirect Loop");
         assert_eq!(parsed["worktreeName"], "fix/login-redirect-loop");

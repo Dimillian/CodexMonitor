@@ -4,13 +4,13 @@ import FolderPlus from "lucide-react/dist/esm/icons/folder-plus";
 import ListFilter from "lucide-react/dist/esm/icons/list-filter";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import Search from "lucide-react/dist/esm/icons/search";
-import { useRef, useState } from "react";
 import type { ThreadListSortKey } from "../../../types";
 import {
+  MenuTrigger,
   PopoverMenuItem,
   PopoverSurface,
 } from "../../design-system/components/popover/PopoverPrimitives";
-import { useDismissibleMenu } from "../hooks/useDismissibleMenu";
+import { useMenuController } from "../hooks/useMenuController";
 
 type SidebarHeaderProps = {
   onSelectHome: () => void;
@@ -35,17 +35,11 @@ export function SidebarHeader({
   refreshDisabled = false,
   refreshInProgress = false,
 }: SidebarHeaderProps) {
-  const [sortMenuOpen, setSortMenuOpen] = useState(false);
-  const sortMenuRef = useRef<HTMLDivElement | null>(null);
-
-  useDismissibleMenu({
-    isOpen: sortMenuOpen,
-    containerRef: sortMenuRef,
-    onClose: () => setSortMenuOpen(false),
-  });
+  const sortMenu = useMenuController();
+  const { isOpen: sortMenuOpen, containerRef: sortMenuRef } = sortMenu;
 
   const handleSelectSort = (sortKey: ThreadListSortKey) => {
-    setSortMenuOpen(false);
+    sortMenu.close();
     if (sortKey === threadListSortKey) {
       return;
     }
@@ -77,18 +71,17 @@ export function SidebarHeader({
       </div>
       <div className="sidebar-header-actions">
         <div className="sidebar-sort-menu" ref={sortMenuRef}>
-          <button
-            className={`ghost sidebar-sort-toggle${sortMenuOpen ? " is-active" : ""}`}
-            onClick={() => setSortMenuOpen((open) => !open)}
+          <MenuTrigger
+            isOpen={sortMenuOpen}
+            activeClassName="is-active"
+            className="ghost sidebar-sort-toggle"
+            onClick={sortMenu.toggle}
             data-tauri-drag-region="false"
             aria-label="Sort threads"
-            aria-haspopup="menu"
-            aria-expanded={sortMenuOpen}
-            type="button"
             title="Sort threads"
           >
             <ListFilter aria-hidden />
-          </button>
+          </MenuTrigger>
           {sortMenuOpen && (
             <PopoverSurface className="sidebar-sort-dropdown" role="menu">
               <PopoverMenuItem

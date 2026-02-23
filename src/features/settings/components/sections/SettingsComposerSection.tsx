@@ -5,6 +5,7 @@ type ComposerPreset = AppSettings["composerEditorPreset"];
 type SettingsComposerSectionProps = {
   appSettings: AppSettings;
   optionKeyLabel: string;
+  followUpShortcutLabel: string;
   composerPresetLabels: Record<ComposerPreset, string>;
   onComposerPresetChange: (preset: ComposerPreset) => void;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
@@ -13,16 +14,99 @@ type SettingsComposerSectionProps = {
 export function SettingsComposerSection({
   appSettings,
   optionKeyLabel,
+  followUpShortcutLabel,
   composerPresetLabels,
   onComposerPresetChange,
   onUpdateAppSettings,
 }: SettingsComposerSectionProps) {
+  const steerUnavailable = !appSettings.steerEnabled;
   return (
     <section className="settings-section">
       <div className="settings-section-title">Composer</div>
       <div className="settings-section-subtitle">
         Control helpers and formatting behavior inside the message editor.
       </div>
+      <div className="settings-field">
+        <div className="settings-field-label">Follow-up behavior</div>
+        <div className="settings-segmented" aria-label="Follow-up behavior">
+          <label
+            className={`settings-segmented-option${
+              appSettings.followUpMessageBehavior === "queue" ? " is-active" : ""
+            }`}
+          >
+            <input
+              className="settings-segmented-input"
+              type="radio"
+              name="follow-up-behavior"
+              value="queue"
+              checked={appSettings.followUpMessageBehavior === "queue"}
+              onChange={() =>
+                void onUpdateAppSettings({
+                  ...appSettings,
+                  followUpMessageBehavior: "queue",
+                })
+              }
+            />
+            <span className="settings-segmented-option-label">Queue</span>
+          </label>
+          <label
+            className={`settings-segmented-option${
+              appSettings.followUpMessageBehavior === "steer" ? " is-active" : ""
+            }${steerUnavailable ? " is-disabled" : ""}`}
+            title={steerUnavailable ? "Steer is unavailable in the current Codex config." : ""}
+          >
+            <input
+              className="settings-segmented-input"
+              type="radio"
+              name="follow-up-behavior"
+              value="steer"
+              checked={appSettings.followUpMessageBehavior === "steer"}
+              disabled={steerUnavailable}
+              onChange={() => {
+                if (steerUnavailable) {
+                  return;
+                }
+                void onUpdateAppSettings({
+                  ...appSettings,
+                  followUpMessageBehavior: "steer",
+                });
+              }}
+            />
+            <span className="settings-segmented-option-label">Steer</span>
+          </label>
+        </div>
+        <div className="settings-help">
+          Choose the default while a run is active. Press {followUpShortcutLabel} to send the
+          opposite behavior for one message.
+        </div>
+        <div className="settings-toggle-row">
+          <div>
+            <div className="settings-toggle-title">Show follow-up hint while processing</div>
+            <div className="settings-toggle-subtitle">
+              Displays queue/steer shortcut guidance above the composer.
+            </div>
+          </div>
+          <button
+            type="button"
+            className={`settings-toggle ${appSettings.composerFollowUpHintEnabled ? "on" : ""}`}
+            onClick={() =>
+              void onUpdateAppSettings({
+                ...appSettings,
+                composerFollowUpHintEnabled: !appSettings.composerFollowUpHintEnabled,
+              })
+            }
+            aria-pressed={appSettings.composerFollowUpHintEnabled}
+          >
+            <span className="settings-toggle-knob" />
+          </button>
+        </div>
+        {steerUnavailable && (
+          <div className="settings-help">
+            Steer is unavailable in the current Codex config. Follow-ups will queue.
+          </div>
+        )}
+      </div>
+      <div className="settings-divider" />
       <div className="settings-subsection-title">Presets</div>
       <div className="settings-subsection-subtitle">
         Choose a starting point and fine-tune the toggles below.

@@ -33,11 +33,7 @@ import { WorkspaceHomeHistory } from "./WorkspaceHomeHistory";
 import { WorkspaceHomeGitInitBanner } from "./WorkspaceHomeGitInitBanner";
 import { buildIconPath } from "./workspaceHomeHelpers";
 import { useWorkspaceHomeSuggestionsStyle } from "../hooks/useWorkspaceHomeSuggestionsStyle";
-
-type ThreadStatus = {
-  isProcessing: boolean;
-  isReviewing: boolean;
-};
+import type { ThreadStatusById } from "../../../utils/threadStatus";
 
 type WorkspaceHomeProps = {
   workspace: WorkspaceInfo;
@@ -69,7 +65,7 @@ type WorkspaceHomeProps = {
   isSubmitting: boolean;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
-  threadStatusById: Record<string, ThreadStatus>;
+  threadStatusById: ThreadStatusById;
   onSelectInstance: (workspaceId: string, threadId: string) => void;
   skills: SkillOption[];
   appsEnabled: boolean;

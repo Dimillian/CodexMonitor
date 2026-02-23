@@ -1,7 +1,6 @@
-import { useRef } from "react";
 import type { LaunchScriptEntry, LaunchScriptIconId } from "../../../types";
 import { PopoverSurface } from "../../design-system/components/popover/PopoverPrimitives";
-import { useDismissibleMenu } from "../hooks/useDismissibleMenu";
+import { useMenuController } from "../hooks/useMenuController";
 import { LaunchScriptIconPicker } from "./LaunchScriptIconPicker";
 import { getLaunchScriptIcon, getLaunchScriptIconLabel } from "../utils/launchScriptIcons";
 
@@ -40,15 +39,13 @@ export function LaunchScriptEntryButton({
   onSave,
   onDelete,
 }: LaunchScriptEntryButtonProps) {
-  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const editorMenu = useMenuController({
+    open: editorOpen,
+    onDismiss: onCloseEditor,
+  });
+  const { containerRef: popoverRef } = editorMenu;
   const Icon = getLaunchScriptIcon(entry.icon);
   const iconLabel = getLaunchScriptIconLabel(entry.icon);
-
-  useDismissibleMenu({
-    isOpen: editorOpen,
-    containerRef: popoverRef,
-    onClose: onCloseEditor,
-  });
 
   return (
     <div className="launch-script-menu" ref={popoverRef}>

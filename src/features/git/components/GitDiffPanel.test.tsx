@@ -115,6 +115,25 @@ describe("GitDiffPanel", () => {
     expect(onCommit).toHaveBeenCalledTimes(1);
   });
 
+  it("runs uncommitted review from unstaged section actions", () => {
+    const onReviewUncommittedChanges = vi.fn();
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        onReviewUncommittedChanges={onReviewUncommittedChanges}
+        unstagedFiles={[
+          { path: "src/file.ts", status: "M", additions: 4, deletions: 1 },
+        ]}
+      />,
+    );
+
+    const reviewButton = screen.getByRole("button", {
+      name: "Review uncommitted changes",
+    });
+    fireEvent.click(reviewButton);
+    expect(onReviewUncommittedChanges).toHaveBeenCalledTimes(1);
+  });
+
   it("adds a show in file manager option for file context menus", async () => {
     clipboardWriteText.mockClear();
     const { container } = render(

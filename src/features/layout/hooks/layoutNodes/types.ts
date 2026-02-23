@@ -6,6 +6,7 @@ import type {
   ApprovalRequest,
   BranchInfo,
   CollaborationModeOption,
+  ComposerSendIntent,
   ConversationItem,
   ComposerEditorSettings,
   CustomPromptOption,
@@ -24,6 +25,7 @@ import type {
   ModelOption,
   OpenAppTarget,
   QueuedMessage,
+  FollowUpMessageBehavior,
   PullRequestReviewAction,
   PullRequestReviewIntent,
   PullRequestSelectionRange,
@@ -328,6 +330,7 @@ export type LayoutNodesOptions = {
   onUnstageGitFile: (path: string) => Promise<void>;
   onRevertGitFile: (path: string) => Promise<void>;
   onRevertAllGitChanges: () => Promise<void>;
+  onReviewUncommittedChanges: () => Promise<void>;
   diffSource: GitDiffSource;
   gitDiffs: GitDiffViewerItem[];
   gitDiffLoading: boolean;
@@ -381,18 +384,16 @@ export type LayoutNodesOptions = {
     text: string,
     images: string[],
     appMentions?: AppMention[],
-  ) => void | Promise<void>;
-  onQueue: (
-    text: string,
-    images: string[],
-    appMentions?: AppMention[],
+    submitIntent?: ComposerSendIntent,
   ) => void | Promise<void>;
   onStop: () => void;
   canStop: boolean;
   onFileAutocompleteActiveChange?: (active: boolean) => void;
   isReviewing: boolean;
   isProcessing: boolean;
-  steerEnabled: boolean;
+  steerAvailable: boolean;
+  followUpMessageBehavior: FollowUpMessageBehavior;
+  composerFollowUpHintEnabled: boolean;
   reviewPrompt: ReviewPromptState;
   onReviewPromptClose: () => void;
   onReviewPromptShowPreset: () => void;

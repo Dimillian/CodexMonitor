@@ -68,7 +68,8 @@ where
     }
 
     let codex_home = resolve_workspace_codex_home(&entry, parent_entry.as_ref());
-    let new_session = spawn_session(entry.clone(), default_bin, target_args.clone(), codex_home).await?;
+    let new_session =
+        spawn_session(entry.clone(), default_bin, target_args.clone(), codex_home).await?;
     if let Some(old_session) = sessions.lock().await.insert(entry.id.clone(), new_session) {
         let mut child = old_session.child.lock().await;
         kill_child_process_tree(&mut child).await;

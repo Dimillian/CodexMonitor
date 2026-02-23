@@ -121,6 +121,9 @@ export function useSettingsViewOrchestration({
     : isWindowsPlatform()
       ? "Windows"
       : "Meta";
+  const followUpShortcutLabel = isMacPlatform()
+    ? "Shift+Cmd+Enter"
+    : "Shift+Ctrl+Enter";
 
   const selectedDictationModel = useMemo(() => {
     return (
@@ -223,6 +226,7 @@ export function useSettingsViewOrchestration({
     composerSectionProps: {
       appSettings,
       optionKeyLabel,
+      followUpShortcutLabel,
       composerPresetLabels: COMPOSER_PRESET_LABELS,
       onComposerPresetChange: (
         preset: AppSettings["composerEditorPreset"],

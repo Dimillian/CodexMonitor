@@ -76,6 +76,16 @@ Use project aliases for frontend imports:
 
 For broader path maps, use `docs/codebase-map.md`.
 
+## Follow-up Behavior Map
+
+For Queue vs Steer follow-up behavior, start here:
+
+- Settings model + defaults: `src/types.ts`, `src/features/settings/hooks/useAppSettings.ts`
+- Settings persistence/migration: `src-tauri/src/types.rs`, `src-tauri/src/storage.rs`
+- Composer runtime behavior: `src/features/composer/components/Composer.tsx`
+- Send intent routing: `src/features/threads/hooks/useQueuedSend.ts`, `src/features/threads/hooks/useThreadMessaging.ts`
+- App/layout wiring: `src/features/app/hooks/useComposerController.ts`, `src/features/layout/hooks/layoutNodes/buildPrimaryNodes.tsx`, `src/App.tsx`
+
 ## App/Daemon Parity Checklist
 
 When changing backend behavior that can run remotely:

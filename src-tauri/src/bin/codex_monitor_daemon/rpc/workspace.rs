@@ -1,4 +1,8 @@
 use super::*;
+use crate::shared::workspace_rpc;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
+use std::future::Future;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -25,6 +29,38 @@ fn parse_file_write_request(params: &Value) -> Result<FileWriteRequest, String> 
     serde_json::from_value(params.clone()).map_err(|err| err.to_string())
 }
 
+fn parse_workspace_request<T: DeserializeOwned>(params: &Value) -> Result<T, String> {
+    workspace_rpc::from_params(params)
+}
+
+fn serialize_value<T: Serialize>(value: T) -> Result<Value, String> {
+    serde_json::to_value(value).map_err(|err| err.to_string())
+}
+
+async fn serialize_result<T, Fut>(future: Fut) -> Result<Value, String>
+where
+    T: Serialize,
+    Fut: Future<Output = Result<T, String>>,
+{
+    future.await.and_then(serialize_value)
+}
+
+async fn serialize_ok<Fut>(future: Fut) -> Result<Value, String>
+where
+    Fut: Future<Output = Result<(), String>>,
+{
+    future.await.map(|_| json!({ "ok": true }))
+}
+
+macro_rules! parse_request_or_err {
+    ($params:expr, $ty:ty) => {
+        match parse_workspace_request::<$ty>($params) {
+            Ok(value) => value,
+            Err(err) => return Some(Err(err)),
+        }
+    };
+}
+
 pub(super) async fn try_handle(
     state: &DaemonState,
     method: &str,
@@ -32,295 +68,181 @@ pub(super) async fn try_handle(
     client_version: &str,
 ) -> Option<Result<Value, String>> {
     match method {
-        "list_workspaces" => {
-            let workspaces = state.list_workspaces().await;
-            Some(serde_json::to_value(workspaces).map_err(|err| err.to_string()))
-        }
+        "list_workspaces" => Some(serialize_value(state.list_workspaces().await)),
         "is_workspace_path_dir" => {
-            let path = match parse_string(params, "path") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let is_dir = state.is_workspace_path_dir(path).await;
-            Some(serde_json::to_value(is_dir).map_err(|err| err.to_string()))
+            let request = parse_request_or_err!(params, workspace_rpc::IsWorkspacePathDirRequest);
+            Some(serialize_value(
+                state.is_workspace_path_dir(request.path).await,
+            ))
         }
         "add_workspace" => {
-            let path = match parse_string(params, "path") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let codex_bin = parse_optional_string(params, "codex_bin");
-            let workspace = match state
-                .add_workspace(path, codex_bin, client_version.to_string())
-                .await
-            {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(workspace).map_err(|err| err.to_string()))
-        }
-        "add_workspace_from_git_url" => {
-            let url = match parse_string(params, "url") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let destination_path = match parse_string(params, "destination_path") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let target_folder_name = parse_optional_string(params, "target_folder_name");
-            let codex_bin = parse_optional_string(params, "codex_bin");
-            let workspace = match state
-                .add_workspace_from_git_url(
-                    url,
-                    destination_path,
-                    target_folder_name,
-                    codex_bin,
-                    client_version.to_string(),
-                )
-                .await
-            {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(workspace).map_err(|err| err.to_string()))
-        }
-        "add_worktree" => {
-            let parent_id = match parse_string(params, "parentId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let branch = match parse_string(params, "branch") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let name = parse_optional_string(params, "name");
-            let copy_agents_md = parse_optional_bool(params, "copyAgentsMd").unwrap_or(true);
-            let workspace = match state
-                .add_worktree(
-                    parent_id,
-                    branch,
-                    name,
-                    copy_agents_md,
-                    client_version.to_string(),
-                )
-                .await
-            {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(workspace).map_err(|err| err.to_string()))
-        }
-        "worktree_setup_status" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let status = match state.worktree_setup_status(workspace_id).await {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(status).map_err(|err| err.to_string()))
-        }
-        "worktree_setup_mark_ran" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
+            let request = parse_request_or_err!(params, workspace_rpc::AddWorkspaceRequest);
             Some(
-                state
-                    .worktree_setup_mark_ran(workspace_id)
-                    .await
-                    .map(|_| json!({ "ok": true })),
+                serialize_result(state.add_workspace(
+                    request.path,
+                    request.codex_bin,
+                    client_version.to_string(),
+                ))
+                .await,
             )
         }
-        "connect_workspace" => {
-            let id = match parse_string(params, "id") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
+        "add_workspace_from_git_url" => {
+            let request =
+                parse_request_or_err!(params, workspace_rpc::AddWorkspaceFromGitUrlRequest);
             Some(
-                state
-                    .connect_workspace(id, client_version.to_string())
-                    .await
-                    .map(|_| json!({ "ok": true })),
+                serialize_result(state.add_workspace_from_git_url(
+                    request.url,
+                    request.destination_path,
+                    request.target_folder_name,
+                    request.codex_bin,
+                    client_version.to_string(),
+                ))
+                .await,
+            )
+        }
+        "add_worktree" => {
+            let request = parse_request_or_err!(params, workspace_rpc::AddWorktreeRequest);
+            Some(
+                serialize_result(state.add_worktree(
+                    request.parent_id,
+                    request.branch,
+                    request.name,
+                    request.copy_agents_md,
+                    client_version.to_string(),
+                ))
+                .await,
+            )
+        }
+        "worktree_setup_status" => {
+            let request = parse_request_or_err!(params, workspace_rpc::WorkspaceIdRequest);
+            Some(serialize_result(state.worktree_setup_status(request.workspace_id)).await)
+        }
+        "worktree_setup_mark_ran" => {
+            let request = parse_request_or_err!(params, workspace_rpc::WorkspaceIdRequest);
+            Some(serialize_ok(state.worktree_setup_mark_ran(request.workspace_id)).await)
+        }
+        "connect_workspace" => {
+            let request = parse_request_or_err!(params, workspace_rpc::IdRequest);
+            Some(
+                serialize_ok(state.connect_workspace(request.id, client_version.to_string())).await,
             )
         }
         "set_workspace_runtime_codex_args" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let codex_args = parse_optional_string(params, "codexArgs");
+            let request =
+                parse_request_or_err!(params, workspace_rpc::SetWorkspaceRuntimeCodexArgsRequest);
             Some(
-                state
-                    .set_workspace_runtime_codex_args(
-                        workspace_id,
-                        codex_args,
-                        client_version.to_string(),
-                    )
-                    .await
-                    .and_then(|value| serde_json::to_value(value).map_err(|e| e.to_string())),
+                serialize_result(state.set_workspace_runtime_codex_args(
+                    request.workspace_id,
+                    request.codex_args,
+                    client_version.to_string(),
+                ))
+                .await,
             )
         }
         "remove_workspace" => {
-            let id = match parse_string(params, "id") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(
-                state
-                    .remove_workspace(id)
-                    .await
-                    .map(|_| json!({ "ok": true })),
-            )
+            let request = parse_request_or_err!(params, workspace_rpc::IdRequest);
+            Some(serialize_ok(state.remove_workspace(request.id)).await)
         }
         "remove_worktree" => {
-            let id = match parse_string(params, "id") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(
-                state
-                    .remove_worktree(id)
-                    .await
-                    .map(|_| json!({ "ok": true })),
-            )
+            let request = parse_request_or_err!(params, workspace_rpc::IdRequest);
+            Some(serialize_ok(state.remove_worktree(request.id)).await)
         }
         "rename_worktree" => {
-            let id = match parse_string(params, "id") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let branch = match parse_string(params, "branch") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let workspace = match state
-                .rename_worktree(id, branch, client_version.to_string())
-                .await
-            {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(workspace).map_err(|err| err.to_string()))
+            let request = parse_request_or_err!(params, workspace_rpc::RenameWorktreeRequest);
+            Some(
+                serialize_result(state.rename_worktree(
+                    request.id,
+                    request.branch,
+                    client_version.to_string(),
+                ))
+                .await,
+            )
         }
         "rename_worktree_upstream" => {
-            let id = match parse_string(params, "id") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let old_branch = match parse_string(params, "oldBranch") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let new_branch = match parse_string(params, "newBranch") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
+            let request =
+                parse_request_or_err!(params, workspace_rpc::RenameWorktreeUpstreamRequest);
             Some(
-                state
-                    .rename_worktree_upstream(id, old_branch, new_branch)
-                    .await
-                    .map(|_| json!({ "ok": true })),
+                serialize_ok(state.rename_worktree_upstream(
+                    request.id,
+                    request.old_branch,
+                    request.new_branch,
+                ))
+                .await,
             )
         }
         "update_workspace_settings" => {
-            let id = match parse_string(params, "id") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let settings_value = match params {
-                Value::Object(map) => map.get("settings").cloned().unwrap_or(Value::Null),
-                _ => Value::Null,
-            };
-            let settings: WorkspaceSettings = match serde_json::from_value(settings_value) {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err.to_string())),
-            };
-            let workspace = match state
-                .update_workspace_settings(id, settings, client_version.to_string())
-                .await
-            {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(workspace).map_err(|err| err.to_string()))
+            let request =
+                parse_request_or_err!(params, workspace_rpc::UpdateWorkspaceSettingsRequest);
+            Some(
+                serialize_result(state.update_workspace_settings(
+                    request.id,
+                    request.settings,
+                    client_version.to_string(),
+                ))
+                .await,
+            )
         }
         "update_workspace_codex_bin" => {
-            let id = match parse_string(params, "id") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let codex_bin = parse_optional_string(params, "codex_bin");
-            let workspace = match state.update_workspace_codex_bin(id, codex_bin).await {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(workspace).map_err(|err| err.to_string()))
+            let request =
+                parse_request_or_err!(params, workspace_rpc::UpdateWorkspaceCodexBinRequest);
+            Some(
+                serialize_result(state.update_workspace_codex_bin(request.id, request.codex_bin))
+                    .await,
+            )
         }
         "list_workspace_files" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let files = match state.list_workspace_files(workspace_id).await {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(files).map_err(|err| err.to_string()))
+            let request = parse_request_or_err!(params, workspace_rpc::WorkspaceIdRequest);
+            Some(serialize_result(state.list_workspace_files(request.workspace_id)).await)
         }
         "read_workspace_file" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let path = match parse_string(params, "path") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let response = match state.read_workspace_file(workspace_id, path).await {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(response).map_err(|err| err.to_string()))
+            let request = parse_request_or_err!(params, workspace_rpc::ReadWorkspaceFileRequest);
+            Some(
+                serialize_result(state.read_workspace_file(request.workspace_id, request.path))
+                    .await,
+            )
+        }
+        "add_clone" => {
+            let request = parse_request_or_err!(params, workspace_rpc::AddCloneRequest);
+            Some(
+                serialize_result(state.add_clone(
+                    request.source_workspace_id,
+                    request.copies_folder,
+                    request.copy_name,
+                    client_version.to_string(),
+                ))
+                .await,
+            )
         }
         "file_read" => {
             let request = match parse_file_read_request(params) {
                 Ok(value) => value,
                 Err(err) => return Some(Err(err)),
             };
-            let response = match state
-                .file_read(request.scope, request.kind, request.workspace_id)
-                .await
-            {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(response).map_err(|err| err.to_string()))
+            Some(
+                serialize_result(state.file_read(
+                    request.scope,
+                    request.kind,
+                    request.workspace_id,
+                ))
+                .await,
+            )
         }
         "file_write" => {
             let request = match parse_file_write_request(params) {
                 Ok(value) => value,
                 Err(err) => return Some(Err(err)),
             };
-            if let Err(err) = state
-                .file_write(
+            Some(
+                serialize_ok(state.file_write(
                     request.scope,
                     request.kind,
                     request.workspace_id,
                     request.content,
-                )
-                .await
-            {
-                return Some(Err(err));
-            }
-            Some(serde_json::to_value(json!({ "ok": true })).map_err(|err| err.to_string()))
+                ))
+                .await,
+            )
         }
-        "get_app_settings" => {
-            let settings = state.get_app_settings().await;
-            Some(serde_json::to_value(settings).map_err(|err| err.to_string()))
-        }
+        "get_app_settings" => Some(serialize_value(state.get_app_settings().await)),
         "update_app_settings" => {
             let settings_value = match params {
                 Value::Object(map) => map.get("settings").cloned().unwrap_or(Value::Null),
@@ -330,85 +252,32 @@ pub(super) async fn try_handle(
                 Ok(value) => value,
                 Err(err) => return Some(Err(err.to_string())),
             };
-            let updated = match state.update_app_settings(settings).await {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(updated).map_err(|err| err.to_string()))
-        }
-        "add_clone" => {
-            let source_workspace_id = match parse_string(params, "sourceWorkspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let copies_folder = match parse_string(params, "copiesFolder") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let copy_name = match parse_string(params, "copyName") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let workspace = match state
-                .add_clone(
-                    source_workspace_id,
-                    copies_folder,
-                    copy_name,
-                    client_version.to_string(),
-                )
-                .await
-            {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(workspace).map_err(|err| err.to_string()))
+            Some(serialize_result(state.update_app_settings(settings)).await)
         }
         "apply_worktree_changes" => {
-            let workspace_id = match parse_string(params, "workspaceId") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(
-                state
-                    .apply_worktree_changes(workspace_id)
-                    .await
-                    .map(|_| json!({ "ok": true })),
-            )
+            let request = parse_request_or_err!(params, workspace_rpc::WorkspaceIdRequest);
+            Some(serialize_ok(state.apply_worktree_changes(request.workspace_id)).await)
         }
         "open_workspace_in" => {
-            let path = match parse_string(params, "path") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let app = parse_optional_string(params, "app");
-            let command = parse_optional_string(params, "command");
-            let args = parse_optional_string_array(params, "args").unwrap_or_default();
+            let request = parse_request_or_err!(params, workspace_rpc::OpenWorkspaceInRequest);
             Some(
-                state
-                    .open_workspace_in(path, app, args, command)
-                    .await
-                    .map(|_| json!({ "ok": true })),
+                serialize_ok(state.open_workspace_in(
+                    request.path,
+                    request.app,
+                    request.args,
+                    request.command,
+                ))
+                .await,
             )
         }
         "get_open_app_icon" => {
-            let app_name = match parse_string(params, "appName") {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            let icon = match state.get_open_app_icon(app_name).await {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(icon).map_err(|err| err.to_string()))
+            let request = parse_request_or_err!(params, workspace_rpc::GetOpenAppIconRequest);
+            Some(serialize_result(state.get_open_app_icon(request.app_name)).await)
         }
         "local_usage_snapshot" => {
             let days = parse_optional_u32(params, "days");
             let workspace_path = parse_optional_string(params, "workspacePath");
-            let snapshot = match state.local_usage_snapshot(days, workspace_path).await {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(serde_json::to_value(snapshot).map_err(|err| err.to_string()))
+            Some(serialize_result(state.local_usage_snapshot(days, workspace_path)).await)
         }
         _ => None,
     }

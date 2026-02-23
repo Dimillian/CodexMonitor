@@ -123,7 +123,6 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
   const composerNode = options.showComposer ? (
     <Composer
       onSend={options.onSend}
-      onQueue={options.onQueue}
       onStop={options.onStop}
       canStop={options.canStop}
       disabled={options.isReviewing}
@@ -131,11 +130,10 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       contextUsage={options.activeTokenUsage}
       queuedMessages={options.activeQueue}
       queuePausedReason={options.queuePausedReason}
-      sendLabel={
-        options.composerSendLabel ??
-        (options.isProcessing && !options.steerEnabled ? "Queue" : "Send")
-      }
-      steerEnabled={options.steerEnabled}
+      sendLabel={options.composerSendLabel ?? "Send"}
+      steerAvailable={options.steerAvailable}
+      followUpMessageBehavior={options.followUpMessageBehavior}
+      composerFollowUpHintEnabled={options.composerFollowUpHintEnabled}
       isProcessing={options.isProcessing}
       draftText={options.draftText}
       onDraftChange={options.onDraftChange}
