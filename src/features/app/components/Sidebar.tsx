@@ -413,17 +413,60 @@ export const Sidebar = memo(function Sidebar({
         timestamp: number;
       }
     >();
+    const workspaceById = new Map<string, WorkspaceInfo>();
+    workspaces.forEach((workspace) => {
+      workspaceById.set(workspace.id, workspace);
+    });
+
+    const cloneWorkspacesBySourceId = new Map<string, WorkspaceInfo[]>();
+    workspaces
+      .filter((entry) => (entry.kind ?? "main") === "main")
+      .forEach((entry) => {
+        const sourceId = entry.settings.cloneSourceWorkspaceId?.trim();
+        if (!sourceId || sourceId === entry.id || !workspaceById.has(sourceId)) {
+          return;
+        }
+        const list = cloneWorkspacesBySourceId.get(sourceId) ?? [];
+        list.push(entry);
+        cloneWorkspacesBySourceId.set(sourceId, list);
+      });
+
     filteredGroupedWorkspaces.forEach((group) => {
       group.workspaces.forEach((workspace) => {
-        const threads = threadsByWorkspace[workspace.id] ?? [];
+        const rootThreads = threadsByWorkspace[workspace.id] ?? [];
+        const visibleClones =
+          normalizedQuery && !isWorkspaceMatch(workspace)
+            ? (cloneWorkspacesBySourceId.get(workspace.id) ?? []).filter((clone) =>
+                isWorkspaceMatch(clone),
+              )
+            : (cloneWorkspacesBySourceId.get(workspace.id) ?? []);
+        let hasThreads = rootThreads.length > 0;
+        let timestamp = getSortTimestamp(rootThreads[0]);
+
+        visibleClones.forEach((clone) => {
+          const cloneThreads = threadsByWorkspace[clone.id] ?? [];
+          if (!cloneThreads.length) {
+            return;
+          }
+          hasThreads = true;
+          timestamp = Math.max(timestamp, getSortTimestamp(cloneThreads[0]));
+        });
+
         activityById.set(workspace.id, {
-          hasThreads: threads.length > 0,
-          timestamp: getSortTimestamp(threads[0]),
+          hasThreads,
+          timestamp,
         });
       });
     });
     return activityById;
-  }, [filteredGroupedWorkspaces, getSortTimestamp, threadsByWorkspace]);
+  }, [
+    filteredGroupedWorkspaces,
+    getSortTimestamp,
+    isWorkspaceMatch,
+    normalizedQuery,
+    threadsByWorkspace,
+    workspaces,
+  ]);
 
   const sortedGroupedWorkspaces = useMemo(() => {
     if (threadListOrganizeMode !== "by_project_activity") {

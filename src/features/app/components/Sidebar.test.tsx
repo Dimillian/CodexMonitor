@@ -379,6 +379,86 @@ describe("Sidebar", () => {
     expect(container.querySelectorAll(".worktree-row")).toHaveLength(1);
   });
 
+  it("sorts by project activity using clone-thread activity for the source project", () => {
+    const { container } = render(
+      <Sidebar
+        {...baseProps}
+        threadListOrganizeMode="by_project_activity"
+        workspaces={[
+          {
+            id: "ws-a",
+            name: "Alpha Project",
+            path: "/tmp/alpha",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+          {
+            id: "ws-a-clone",
+            name: "Alpha Clone",
+            path: "/tmp/alpha-clone",
+            connected: true,
+            settings: {
+              sidebarCollapsed: false,
+              cloneSourceWorkspaceId: "ws-a",
+            },
+          },
+          {
+            id: "ws-b",
+            name: "Beta Project",
+            path: "/tmp/beta",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-a",
+                name: "Alpha Project",
+                path: "/tmp/alpha",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+              {
+                id: "ws-a-clone",
+                name: "Alpha Clone",
+                path: "/tmp/alpha-clone",
+                connected: true,
+                settings: {
+                  sidebarCollapsed: false,
+                  cloneSourceWorkspaceId: "ws-a",
+                },
+              },
+              {
+                id: "ws-b",
+                name: "Beta Project",
+                path: "/tmp/beta",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+            ],
+          },
+        ]}
+        threadsByWorkspace={{
+          "ws-a": [{ id: "thread-a", name: "Alpha root", updatedAt: 100 }],
+          "ws-a-clone": [
+            { id: "thread-a-clone", name: "Alpha clone thread", updatedAt: 300 },
+          ],
+          "ws-b": [{ id: "thread-b", name: "Beta root", updatedAt: 200 }],
+        }}
+      />,
+    );
+
+    const workspaceNames = Array.from(
+      container.querySelectorAll(".workspace-row .workspace-name"),
+    ).map((node) => node.textContent?.trim());
+    expect(workspaceNames[0]).toBe("Alpha Project");
+    expect(workspaceNames[1]).toBe("Beta Project");
+  });
+
   it("does not show a workspace activity indicator when a thread is processing", () => {
     render(
       <Sidebar
