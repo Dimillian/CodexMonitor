@@ -109,13 +109,11 @@ mod tests {
         settings.group_id = Some("group-42".to_string());
         settings.sidebar_collapsed = true;
         settings.git_root = Some("/tmp".to_string());
-        settings.codex_args = Some("--profile personal".to_string());
 
         let entry = WorkspaceEntry {
             id: "w1".to_string(),
             name: "Workspace".to_string(),
             path: "/tmp".to_string(),
-            codex_bin: None,
             kind: WorkspaceKind::Main,
             parent_id: None,
             worktree: None,
@@ -129,10 +127,6 @@ mod tests {
         assert_eq!(stored.settings.group_id.as_deref(), Some("group-42"));
         assert!(stored.settings.sidebar_collapsed);
         assert_eq!(stored.settings.git_root.as_deref(), Some("/tmp"));
-        assert_eq!(
-            stored.settings.codex_args.as_deref(),
-            Some("--profile personal")
-        );
     }
 
     #[test]

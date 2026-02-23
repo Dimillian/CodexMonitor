@@ -78,12 +78,8 @@ pub(super) async fn try_handle(
         "add_workspace" => {
             let request = parse_request_or_err!(params, workspace_rpc::AddWorkspaceRequest);
             Some(
-                serialize_result(state.add_workspace(
-                    request.path,
-                    request.codex_bin,
-                    client_version.to_string(),
-                ))
-                .await,
+                serialize_result(state.add_workspace(request.path, client_version.to_string()))
+                    .await,
             )
         }
         "add_workspace_from_git_url" => {
@@ -94,7 +90,6 @@ pub(super) async fn try_handle(
                     request.url,
                     request.destination_path,
                     request.target_folder_name,
-                    request.codex_bin,
                     client_version.to_string(),
                 ))
                 .await,
@@ -180,14 +175,6 @@ pub(super) async fn try_handle(
                     client_version.to_string(),
                 ))
                 .await,
-            )
-        }
-        "update_workspace_codex_bin" => {
-            let request =
-                parse_request_or_err!(params, workspace_rpc::UpdateWorkspaceCodexBinRequest);
-            Some(
-                serialize_result(state.update_workspace_codex_bin(request.id, request.codex_bin))
-                    .await,
             )
         }
         "list_workspace_files" => {

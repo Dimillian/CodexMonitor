@@ -4,8 +4,6 @@ export type WorkspaceSettings = {
   groupId?: string | null;
   cloneSourceWorkspaceId?: string | null;
   gitRoot?: string | null;
-  codexHome?: string | null;
-  codexArgs?: string | null;
   launchScript?: string | null;
   launchScripts?: LaunchScriptEntry[] | null;
   worktreeSetupScript?: string | null;
@@ -53,7 +51,6 @@ export type WorkspaceInfo = {
   name: string;
   path: string;
   connected: boolean;
-  codex_bin?: string | null;
   kind?: WorkspaceKind;
   parentId?: string | null;
   worktree?: WorktreeInfo | null;
@@ -69,6 +66,16 @@ export type Message = {
   id: string;
   role: "user" | "assistant";
   text: string;
+};
+
+export type CollabAgentRef = {
+  threadId: string;
+  nickname?: string;
+  role?: string;
+};
+
+export type CollabAgentStatus = CollabAgentRef & {
+  status: string;
 };
 
 export type ConversationItem =
@@ -98,6 +105,10 @@ export type ConversationItem =
       output?: string;
       durationMs?: number | null;
       changes?: { path: string; kind?: string; diff?: string }[];
+      collabSender?: CollabAgentRef;
+      collabReceiver?: CollabAgentRef;
+      collabReceivers?: CollabAgentRef[];
+      collabStatuses?: CollabAgentStatus[];
     };
 
 export type ThreadSummary = {

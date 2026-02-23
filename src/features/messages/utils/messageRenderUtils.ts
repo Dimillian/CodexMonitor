@@ -77,6 +77,64 @@ function firstStringField(
   return "";
 }
 
+function formatCollabAgentLabel(agent: {
+  threadId: string;
+  nickname?: string;
+  role?: string;
+}) {
+  const nickname = agent.nickname?.trim();
+  const role = agent.role?.trim();
+  if (nickname && role) {
+    return `${nickname} [${role}]`;
+  }
+  if (nickname) {
+    return nickname;
+  }
+  if (role) {
+    return `${agent.threadId} [${role}]`;
+  }
+  return agent.threadId;
+}
+
+function summarizeCollabLabel(title: string, status?: string) {
+  const tool = title.replace(/^collab:\s*/i, "").trim().toLowerCase();
+  const tone = statusToneFromText(status);
+  if (tool.includes("wait")) {
+    return tone === "processing" ? "waiting for" : "waited for";
+  }
+  if (tool.includes("resume")) {
+    return tone === "processing" ? "resuming" : "resumed";
+  }
+  if (tool.includes("close")) {
+    return tone === "processing" ? "closing" : "closed";
+  }
+  if (tool.includes("spawn")) {
+    return tone === "processing" ? "spawning" : "spawned";
+  }
+  if (tool.includes("send") || tool.includes("interaction")) {
+    return tone === "processing" ? "sending to" : "sent to";
+  }
+  return "sub-agent";
+}
+
+function summarizeCollabReceiver(
+  item: Extract<ConversationItem, { kind: "tool" }>,
+) {
+  const receivers =
+    item.collabReceivers && item.collabReceivers.length > 0
+      ? item.collabReceivers
+      : item.collabReceiver
+        ? [item.collabReceiver]
+        : [];
+  if (receivers.length === 0) {
+    return item.title || "";
+  }
+  if (receivers.length === 1) {
+    return formatCollabAgentLabel(receivers[0]);
+  }
+  return `${formatCollabAgentLabel(receivers[0])} +${receivers.length - 1}`;
+}
+
 export function toolNameFromTitle(title: string) {
   if (!title.toLowerCase().startsWith("tool:")) {
     return "";
@@ -299,6 +357,15 @@ export function buildToolSummary(
     return {
       label: "read",
       value: file || "image",
+    };
+  }
+
+  if (item.toolType === "collabToolCall") {
+    return {
+      label: summarizeCollabLabel(item.title, item.status),
+      value: summarizeCollabReceiver(item),
+      detail: item.detail || "",
+      output: item.output || "",
     };
   }
 

@@ -145,14 +145,12 @@ pub(crate) async fn is_workspace_path_dir(
 #[tauri::command]
 pub(crate) async fn add_workspace(
     path: String,
-    codex_bin: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<WorkspaceInfo, String> {
     if remote_backend::is_remote_mode(&*state).await {
         let path = remote_backend::normalize_path_for_remote(path);
-        let codex_bin = codex_bin.map(remote_backend::normalize_path_for_remote);
-        let request = workspace_rpc::AddWorkspaceRequest { path, codex_bin };
+        let request = workspace_rpc::AddWorkspaceRequest { path };
         let response = remote_backend::call_remote(
             &*state,
             app,
@@ -165,7 +163,6 @@ pub(crate) async fn add_workspace(
 
     workspaces_core::add_workspace_core(
         path,
-        codex_bin,
         &state.workspaces,
         &state.sessions,
         &state.app_settings,
@@ -182,18 +179,15 @@ pub(crate) async fn add_workspace_from_git_url(
     url: String,
     destination_path: String,
     target_folder_name: Option<String>,
-    codex_bin: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<WorkspaceInfo, String> {
     if remote_backend::is_remote_mode(&*state).await {
         let destination_path = remote_backend::normalize_path_for_remote(destination_path);
-        let codex_bin = codex_bin.map(remote_backend::normalize_path_for_remote);
         let request = workspace_rpc::AddWorkspaceFromGitUrlRequest {
             url,
             destination_path,
             target_folder_name,
-            codex_bin,
         };
         let response = remote_backend::call_remote(
             &*state,
@@ -209,7 +203,6 @@ pub(crate) async fn add_workspace_from_git_url(
         url,
         destination_path,
         target_folder_name,
-        codex_bin,
         &state.workspaces,
         &state.sessions,
         &state.app_settings,
@@ -588,36 +581,6 @@ pub(crate) async fn update_workspace_settings(
         |entry, default_bin, codex_args, codex_home| {
             spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
         },
-    )
-    .await
-}
-
-#[tauri::command]
-pub(crate) async fn update_workspace_codex_bin(
-    id: String,
-    codex_bin: Option<String>,
-    state: State<'_, AppState>,
-    app: AppHandle,
-) -> Result<WorkspaceInfo, String> {
-    if remote_backend::is_remote_mode(&*state).await {
-        let codex_bin = codex_bin.map(remote_backend::normalize_path_for_remote);
-        let request = workspace_rpc::UpdateWorkspaceCodexBinRequest { id, codex_bin };
-        let response = remote_backend::call_remote(
-            &*state,
-            app,
-            "update_workspace_codex_bin",
-            workspace_remote_params(&request)?,
-        )
-        .await?;
-        return serde_json::from_value(response).map_err(|err| err.to_string());
-    }
-
-    workspaces_core::update_workspace_codex_bin_core(
-        id,
-        codex_bin,
-        &state.workspaces,
-        &state.sessions,
-        &state.storage_path,
     )
     .await
 }

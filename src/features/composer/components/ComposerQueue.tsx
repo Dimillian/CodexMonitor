@@ -1,8 +1,11 @@
 import { useCallback } from "react";
-import { LogicalPosition } from "@tauri-apps/api/dpi";
-import { Menu, MenuItem } from "@tauri-apps/api/menu";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import type { QueuedMessage } from "../../../types";
+import {
+  PopoverMenuItem,
+  PopoverSurface,
+} from "../../design-system/components/popover/PopoverPrimitives";
+import { useMenuController } from "../../app/hooks/useMenuController";
 
 type ComposerQueueProps = {
   queuedMessages: QueuedMessage[];
@@ -17,27 +20,6 @@ export function ComposerQueue({
   onEditQueued,
   onDeleteQueued,
 }: ComposerQueueProps) {
-  const handleQueueMenu = useCallback(
-    async (event: React.MouseEvent, item: QueuedMessage) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const { clientX, clientY } = event;
-      const editItem = await MenuItem.new({
-        text: "Edit",
-        action: () => onEditQueued?.(item),
-      });
-      const deleteItem = await MenuItem.new({
-        text: "Delete",
-        action: () => onDeleteQueued?.(item.id),
-      });
-      const menu = await Menu.new({ items: [editItem, deleteItem] });
-      const window = getCurrentWindow();
-      const position = new LogicalPosition(clientX, clientY);
-      await menu.popup(position, window);
-    },
-    [onDeleteQueued, onEditQueued],
-  );
-
   if (queuedMessages.length === 0) {
     return null;
   }
@@ -62,16 +44,63 @@ export function ComposerQueue({
                 ? ` · ${item.images.length} image${item.images.length === 1 ? "" : "s"}`
                 : ""}
             </span>
-            <button
-              className="composer-queue-menu"
-              onClick={(event) => handleQueueMenu(event, item)}
-              aria-label="Queue item menu"
-            >
-              ...
-            </button>
+            <QueueMenuButton
+              item={item}
+              onEditQueued={onEditQueued}
+              onDeleteQueued={onDeleteQueued}
+            />
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+type QueueMenuButtonProps = {
+  item: QueuedMessage;
+  onEditQueued?: (item: QueuedMessage) => void;
+  onDeleteQueued?: (id: string) => void;
+};
+
+function QueueMenuButton({ item, onEditQueued, onDeleteQueued }: QueueMenuButtonProps) {
+  const menu = useMenuController();
+  const handleToggleMenu = useCallback(
+    (event: ReactMouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      menu.toggle();
+    },
+    [menu],
+  );
+
+  const handleEdit = useCallback(() => {
+    menu.close();
+    onEditQueued?.(item);
+  }, [item, menu, onEditQueued]);
+
+  const handleDelete = useCallback(() => {
+    menu.close();
+    onDeleteQueued?.(item.id);
+  }, [item.id, menu, onDeleteQueued]);
+
+  return (
+    <div className="composer-queue-menu-wrap" ref={menu.containerRef}>
+      <button
+        type="button"
+        className={`composer-queue-menu${menu.isOpen ? " is-open" : ""}`}
+        onClick={handleToggleMenu}
+        aria-label="Queue item menu"
+        aria-haspopup="menu"
+        aria-expanded={menu.isOpen}
+      >
+        ...
+      </button>
+      {menu.isOpen && (
+        <PopoverSurface className="composer-queue-item-popover" role="menu">
+          <PopoverMenuItem onClick={handleEdit}>Edit</PopoverMenuItem>
+          <PopoverMenuItem onClick={handleDelete}>Delete</PopoverMenuItem>
+        </PopoverSurface>
+      )}
     </div>
   );
 }

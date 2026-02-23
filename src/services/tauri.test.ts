@@ -84,15 +84,14 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
-  it("uses codex_bin for addWorkspace", async () => {
+  it("uses path-only payload for addWorkspace", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({ id: "ws-1" });
 
-    await addWorkspace("/tmp/project", null);
+    await addWorkspace("/tmp/project");
 
     expect(invokeMock).toHaveBeenCalledWith("add_workspace", {
       path: "/tmp/project",
-      codex_bin: null,
     });
   });
 
@@ -270,18 +269,17 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
-  it("maps workspaceId/cursor/limit/sortKey/cwd for list_threads", async () => {
+  it("maps workspaceId/cursor/limit/sortKey for list_threads", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({});
 
-    await listThreads("ws-10", "cursor-1", 25, "updated_at", "/tmp/codex");
+    await listThreads("ws-10", "cursor-1", 25, "updated_at");
 
     expect(invokeMock).toHaveBeenCalledWith("list_threads", {
       workspaceId: "ws-10",
       cursor: "cursor-1",
       limit: 25,
       sortKey: "updated_at",
-      cwd: "/tmp/codex",
     });
   });
 
@@ -478,6 +476,7 @@ describe("tauri invoke wrappers", () => {
       configPath: "/Users/me/.codex/config.toml",
       multiAgentEnabled: true,
       maxThreads: 6,
+      maxDepth: 1,
       agents: [],
     });
 
@@ -492,13 +491,18 @@ describe("tauri invoke wrappers", () => {
       configPath: "/Users/me/.codex/config.toml",
       multiAgentEnabled: false,
       maxThreads: 4,
+      maxDepth: 3,
       agents: [],
     });
 
-    await setAgentsCoreSettings({ multiAgentEnabled: false, maxThreads: 4 });
+    await setAgentsCoreSettings({
+      multiAgentEnabled: false,
+      maxThreads: 4,
+      maxDepth: 3,
+    });
 
     expect(invokeMock).toHaveBeenCalledWith("set_agents_core_settings", {
-      input: { multiAgentEnabled: false, maxThreads: 4 },
+      input: { multiAgentEnabled: false, maxThreads: 4, maxDepth: 3 },
     });
   });
 
