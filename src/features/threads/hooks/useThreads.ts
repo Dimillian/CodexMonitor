@@ -119,6 +119,8 @@ export function useThreads({
   threadsByWorkspaceRef.current = state.threadsByWorkspace;
   activeTurnIdByThreadRef.current = state.activeTurnIdByThread;
   threadParentByIdRef.current = state.threadParentById;
+  const rateLimitsByWorkspaceRef = useRef(state.rateLimitsByWorkspace);
+  rateLimitsByWorkspaceRef.current = state.rateLimitsByWorkspace;
   const { approvalAllowlistRef, handleApprovalDecision, handleApprovalRemember } =
     useThreadApprovals({ dispatch, onDebug });
   const { handleUserInputSubmit } = useThreadUserInput({ dispatch });
@@ -142,8 +144,8 @@ export function useThreads({
   });
 
   const getCurrentRateLimits = useCallback(
-    (workspaceId: string) => state.rateLimitsByWorkspace[workspaceId] ?? null,
-    [state.rateLimitsByWorkspace],
+    (workspaceId: string) => rateLimitsByWorkspaceRef.current[workspaceId] ?? null,
+    [],
   );
 
   const { refreshAccountRateLimits } = useThreadRateLimits({

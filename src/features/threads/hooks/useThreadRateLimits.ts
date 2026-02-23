@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { DebugEntry, RateLimitSnapshot } from "@/types";
 import { getAccountRateLimits } from "@services/tauri";
 import { normalizeRateLimits } from "@threads/utils/threadNormalize";
@@ -19,6 +19,11 @@ export function useThreadRateLimits({
   dispatch,
   onDebug,
 }: UseThreadRateLimitsOptions) {
+  const getCurrentRateLimitsRef = useRef(getCurrentRateLimits);
+  useEffect(() => {
+    getCurrentRateLimitsRef.current = getCurrentRateLimits;
+  }, [getCurrentRateLimits]);
+
   const refreshAccountRateLimits = useCallback(
     async (workspaceId?: string) => {
       const targetId = workspaceId ?? activeWorkspaceId;
@@ -47,7 +52,8 @@ export function useThreadRateLimits({
           (response?.rateLimits as Record<string, unknown> | undefined) ??
           (response?.rate_limits as Record<string, unknown> | undefined);
         if (rateLimits) {
-          const previousRateLimits = getCurrentRateLimits?.(targetId) ?? null;
+          const previousRateLimits =
+            getCurrentRateLimitsRef.current?.(targetId) ?? null;
           dispatch({
             type: "setRateLimits",
             workspaceId: targetId,
@@ -64,7 +70,7 @@ export function useThreadRateLimits({
         });
       }
     },
-    [activeWorkspaceId, dispatch, getCurrentRateLimits, onDebug],
+    [activeWorkspaceId, dispatch, onDebug],
   );
 
   useEffect(() => {

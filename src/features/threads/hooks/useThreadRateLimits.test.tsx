@@ -96,6 +96,47 @@ describe("useThreadRateLimits", () => {
     });
   });
 
+  it("does not auto-refresh again when accessor callback identity changes", async () => {
+    const dispatch = vi.fn();
+
+    vi.mocked(getAccountRateLimits).mockResolvedValue({
+      result: { rate_limits: {} },
+    });
+
+    const { rerender } = renderHook(
+      ({
+        getCurrentRateLimits,
+      }: {
+        getCurrentRateLimits: (workspaceId: string) => null;
+      }) =>
+        useThreadRateLimits({
+          activeWorkspaceId: "ws-1",
+          activeWorkspaceConnected: true,
+          dispatch,
+          getCurrentRateLimits,
+        }),
+      {
+        initialProps: {
+          getCurrentRateLimits: () => null,
+        },
+      },
+    );
+
+    await waitFor(() => {
+      expect(getAccountRateLimits).toHaveBeenCalledTimes(1);
+    });
+
+    rerender({
+      getCurrentRateLimits: () => null,
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(getAccountRateLimits).toHaveBeenCalledTimes(1);
+  });
+
   it("reports errors via debug callback without dispatching", async () => {
     const dispatch = vi.fn();
     const onDebug = vi.fn();
