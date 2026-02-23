@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+src-tauri/tauri.ios.local.conf.json
 .testflight.local.env
 
 # Editor directories and files
