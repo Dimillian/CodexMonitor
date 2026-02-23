@@ -2,9 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import * as notification from "@tauri-apps/plugin-notification";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import {
+  isGlassSupported,
+  setLiquidGlassEffect,
+} from "tauri-plugin-liquid-glass-api";
 import {
   exportMarkdownFile,
   addWorkspace,
+  applyCurrentWindowHudEffect,
+  clearCurrentWindowEffects,
   compactThread,
   createGitHubRepo,
   fetchGit,
@@ -34,11 +41,13 @@ import {
   setAgentsCoreSettings,
   startReview,
   setThreadName,
+  setLiquidGlassEnabled,
   tailscaleDaemonStart,
   tailscaleDaemonCommandPreview,
   tailscaleDaemonStatus,
   tailscaleDaemonStop,
   tailscaleStatus,
+  isLiquidGlassSupported,
   pickWorkspacePaths,
   writeGlobalAgentsMd,
   writeGlobalCodexConfigToml,
@@ -50,6 +59,30 @@ import {
   writeAgentConfigToml,
   writeAgentMd,
 } from "./tauri";
+
+const {
+  effectMock,
+  effectStateMock,
+  setEffectsMock,
+  getCurrentWindowMock,
+  isGlassSupportedMock,
+  setLiquidGlassEffectMock,
+} = vi.hoisted(() => {
+  const setEffects = vi.fn(async () => undefined);
+  const getWindow = vi.fn(() => ({ setEffects }));
+  const effect = { HudWindow: "hud-window" };
+  const effectState = { Active: "active" };
+  const isSupported = vi.fn(async () => false);
+  const setEffect = vi.fn(async () => undefined);
+  return {
+    effectMock: effect,
+    effectStateMock: effectState,
+    setEffectsMock: setEffects,
+    getCurrentWindowMock: getWindow,
+    isGlassSupportedMock: isSupported,
+    setLiquidGlassEffectMock: setEffect,
+  };
+});
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -66,6 +99,18 @@ vi.mock("@tauri-apps/plugin-notification", () => ({
   sendNotification: vi.fn(),
 }));
 
+vi.mock("@tauri-apps/api/window", () => ({
+  getCurrentWindow: getCurrentWindowMock,
+  Effect: effectMock,
+  EffectState: effectStateMock,
+}));
+
+vi.mock("tauri-plugin-liquid-glass-api", () => ({
+  isGlassSupported: isGlassSupportedMock,
+  setLiquidGlassEffect: setLiquidGlassEffectMock,
+  GlassMaterialVariant: { Regular: "regular" },
+}));
+
 describe("tauri invoke wrappers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -76,6 +121,10 @@ describe("tauri invoke wrappers", () => {
       }
       return undefined;
     });
+    setEffectsMock.mockResolvedValue(undefined);
+    getCurrentWindowMock.mockReturnValue({ setEffects: setEffectsMock });
+    isGlassSupportedMock.mockResolvedValue(false);
+    setLiquidGlassEffectMock.mockResolvedValue(undefined);
   });
 
   it("uses codex_bin for addWorkspace", async () => {
@@ -217,6 +266,48 @@ describe("tauri invoke wrappers", () => {
 
     await expect(listWorkspaces()).resolves.toEqual([]);
     expect(invokeMock).toHaveBeenCalledWith("list_workspaces");
+  });
+
+  it("clears window effects through the tauri window wrapper", async () => {
+    await clearCurrentWindowEffects();
+
+    expect(vi.mocked(getCurrentWindow)).toHaveBeenCalledTimes(1);
+    expect(setEffectsMock).toHaveBeenCalledWith({ effects: [] });
+  });
+
+  it("applies HUD effect through the tauri window wrapper", async () => {
+    await applyCurrentWindowHudEffect(16);
+
+    expect(setEffectsMock).toHaveBeenCalledWith({
+      effects: ["hud-window"],
+      state: "active",
+      radius: 16,
+    });
+  });
+
+  it("queries liquid glass support via wrapper", async () => {
+    vi.mocked(isGlassSupported).mockResolvedValueOnce(true);
+
+    await expect(isLiquidGlassSupported()).resolves.toBe(true);
+    expect(vi.mocked(isGlassSupported)).toHaveBeenCalledTimes(1);
+  });
+
+  it("enables liquid glass with regular variant via wrapper", async () => {
+    await setLiquidGlassEnabled(true, 22);
+
+    expect(vi.mocked(setLiquidGlassEffect)).toHaveBeenCalledWith({
+      enabled: true,
+      cornerRadius: 22,
+      variant: "regular",
+    });
+  });
+
+  it("disables liquid glass via wrapper", async () => {
+    await setLiquidGlassEnabled(false);
+
+    expect(vi.mocked(setLiquidGlassEffect)).toHaveBeenCalledWith({
+      enabled: false,
+    });
   });
 
   it("applies default limit for git log", async () => {
