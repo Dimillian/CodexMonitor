@@ -14,6 +14,16 @@
   transition: opacity 200ms ease, transform 200ms ease, padding-top 180ms ease;
 }
 
+.sidebar-drag-strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--side-panel-drag-strip-height, 0px);
+  z-index: var(--titlebar-drag-strip-z-index, 2);
+  pointer-events: var(--window-drag-strip-pointer-events, auto);
+}
+
 .sidebar,
 .sidebar * {
   -webkit-user-select: none;

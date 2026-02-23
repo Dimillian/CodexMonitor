@@ -53,7 +53,7 @@ export function useAppShellOrchestration({
     shouldReduceTransparency ? " reduced-transparency" : ""
   }${!isCompact && sidebarCollapsed ? " sidebar-collapsed" : ""}${
     !isCompact && rightPanelCollapsed ? " right-panel-collapsed" : ""
-  }`;
+  }${isWindows ? " is-windows" : ""}`;
 
   const appStyle = useMemo<CSSProperties>(
     () => ({
@@ -78,6 +78,10 @@ export function useAppShellOrchestration({
       ...(isWindows
         ? {
             "--titlebar-height": "8px",
+            "--titlebar-drag-strip-z-index": "5",
+            "--side-panel-drag-strip-height": "56px",
+            "--window-drag-hit-height": "44px",
+            "--window-drag-strip-pointer-events": "none",
             "--titlebar-inset-left": "0px",
             "--titlebar-collapsed-left-extra": "0px",
             "--titlebar-toggle-size": "32px",

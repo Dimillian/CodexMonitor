@@ -222,6 +222,7 @@ export function DesktopLayout({
               onMouseDown={onRightPanelResizeStart}
             />
             <div className={`right-panel ${hasActivePlan ? "" : "plan-collapsed"}`}>
+              <div className="right-panel-drag-strip" />
               <div className="right-panel-top">{gitDiffPanelNode}</div>
               <div
                 className="right-panel-divider"

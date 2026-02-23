@@ -70,8 +70,15 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  height: var(--titlebar-height, 24px);
-  z-index: 2;
+  height: var(--window-drag-hit-height, var(--titlebar-height, 24px));
+  z-index: var(--titlebar-drag-strip-z-index, 2);
+  pointer-events: var(--window-drag-strip-pointer-events, auto);
+}
+
+.app.os-windows [data-tauri-drag-region],
+.app.os-windows .titlebar,
+.app.os-windows .main-topbar {
+  -webkit-app-region: no-drag !important;
 }
 
 .titlebar-controls {

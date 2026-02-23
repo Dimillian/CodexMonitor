@@ -2611,7 +2611,7 @@ function MainApp() {
 
   return (
     <div className={`${appClassName}${isResizing ? " is-resizing" : ""}`} style={appStyle} ref={appRef}>
-      <div className="drag-strip" id="titlebar" data-tauri-drag-region />
+      <div className="drag-strip" id="titlebar" />
       <TitlebarExpandControls {...sidebarToggleProps} />
       <WindowCaptionControls enabled={!isPhone && !isTablet} />
       {shouldLoadGitHubPanelData ? (
