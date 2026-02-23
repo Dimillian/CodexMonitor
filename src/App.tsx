@@ -111,6 +111,7 @@ import { useWorkspaceLaunchScripts } from "@app/hooks/useWorkspaceLaunchScripts"
 import { useWorktreeSetupScript } from "@app/hooks/useWorktreeSetupScript";
 import { useGitCommitController } from "@app/hooks/useGitCommitController";
 import { effectiveCommitMessageModelId } from "@/features/git/utils/commitMessageModelSelection";
+import { formatCompactTokenCount } from "@utils/tokenUsage";
 import { WorkspaceHome } from "@/features/workspaces/components/WorkspaceHome";
 import { MobileServerSetupWizard } from "@/features/mobile/components/MobileServerSetupWizard";
 import { useMobileServerSetup } from "@/features/mobile/hooks/useMobileServerSetup";
@@ -118,6 +119,7 @@ import { useWorkspaceHome } from "@/features/workspaces/hooks/useWorkspaceHome";
 import { useWorkspaceAgentMd } from "@/features/workspaces/hooks/useWorkspaceAgentMd";
 import type {
   ComposerEditorSettings,
+  ThreadTokenUsage,
   WorkspaceInfo,
 } from "@/types";
 import { computePlanFollowupState } from "@/features/messages/utils/messageRenderUtils";
@@ -1312,6 +1314,72 @@ function MainApp() {
   const activeTokenUsage = activeThreadId
     ? tokenUsageByThread[activeThreadId] ?? null
     : null;
+  const fullTokenCountFormatter = useMemo(() => new Intl.NumberFormat(), []);
+  const formatFullTokenCount = useCallback((value: number) => {
+    if (!Number.isFinite(value) || value <= 0) {
+      return null;
+    }
+    return fullTokenCountFormatter.format(Math.round(value));
+  }, [fullTokenCountFormatter]);
+  const getDisplayThreadTokenUsageTotal = useCallback(
+    (usage: ThreadTokenUsage | null | undefined) => {
+      const totalTokens = usage?.total.totalTokens ?? 0;
+      if (!appSettings.threadTokenUsageExcludeCache) {
+        return totalTokens;
+      }
+      const cachedInputTokens = usage?.total.cachedInputTokens ?? 0;
+      return Math.max(0, totalTokens - cachedInputTokens);
+    },
+    [appSettings.threadTokenUsageExcludeCache],
+  );
+  const getThreadTokenUsageLabel = useCallback(
+    (_workspaceId: string, threadId: string) => {
+      if (!appSettings.showThreadTokenUsage) {
+        return null;
+      }
+      const totalTokens = getDisplayThreadTokenUsageTotal(tokenUsageByThread[threadId]);
+      const formattedTotal = appSettings.threadTokenUsageShowFull
+        ? formatFullTokenCount(totalTokens)
+        : formatCompactTokenCount(totalTokens);
+      return formattedTotal ? `${formattedTotal} tokens` : null;
+    },
+    [
+      appSettings.showThreadTokenUsage,
+      appSettings.threadTokenUsageShowFull,
+      formatFullTokenCount,
+      getDisplayThreadTokenUsageTotal,
+      tokenUsageByThread,
+    ],
+  );
+  const tokenUsageTotalsByWorkspace = useMemo(() => {
+    const totals: Record<string, number> = {};
+    Object.entries(threadsByWorkspace).forEach(([workspaceId, threads]) => {
+      const total = threads.reduce(
+        (sum, thread) => sum + getDisplayThreadTokenUsageTotal(tokenUsageByThread[thread.id]),
+        0,
+      );
+      totals[workspaceId] = total;
+    });
+    return totals;
+  }, [getDisplayThreadTokenUsageTotal, threadsByWorkspace, tokenUsageByThread]);
+  const getWorkspaceTokenUsageLabel = useCallback(
+    (workspaceId: string) => {
+      if (!appSettings.showThreadTokenUsage) {
+        return null;
+      }
+      const totalTokens = tokenUsageTotalsByWorkspace[workspaceId] ?? 0;
+      const formattedTotal = appSettings.threadTokenUsageShowFull
+        ? formatFullTokenCount(totalTokens)
+        : formatCompactTokenCount(totalTokens);
+      return formattedTotal ? `${formattedTotal} tokens` : null;
+    },
+    [
+      appSettings.showThreadTokenUsage,
+      appSettings.threadTokenUsageShowFull,
+      formatFullTokenCount,
+      tokenUsageTotalsByWorkspace,
+    ],
+  );
   const activePlan = activeThreadId
     ? planByThread[activeThreadId] ?? null
     : null;
@@ -2435,6 +2503,8 @@ function MainApp() {
     onWorkspaceDragLeave: handleWorkspaceDragLeave,
     onWorkspaceDrop: handleWorkspaceDrop,
     getThreadArgsBadge,
+    getThreadTokenUsageLabel,
+    getWorkspaceTokenUsageLabel,
   });
 
   const gitRootOverride = activeWorkspace?.settings.gitRoot;

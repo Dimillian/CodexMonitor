@@ -8,6 +8,7 @@ import {
   archiveThread,
   interruptTurn,
   listThreads,
+  localThreadUsageSnapshot,
   resumeThread,
   sendUserMessage as sendUserMessageService,
   setThreadName,
@@ -38,6 +39,7 @@ vi.mock("@services/tauri", () => ({
   startReview: vi.fn(),
   startThread: vi.fn(),
   listThreads: vi.fn(),
+  localThreadUsageSnapshot: vi.fn(),
   resumeThread: vi.fn(),
   archiveThread: vi.fn(),
   setThreadName: vi.fn(),
@@ -62,6 +64,10 @@ describe("useThreads UX integration", () => {
     handlers = null;
     localStorage.clear();
     vi.clearAllMocks();
+    vi.mocked(localThreadUsageSnapshot).mockResolvedValue({
+      updatedAt: 1,
+      usageByThread: {},
+    });
     now = 1000;
     nowSpy = vi.spyOn(Date, "now").mockImplementation(() => now++);
   });

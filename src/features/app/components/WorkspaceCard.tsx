@@ -5,6 +5,7 @@ import type { WorkspaceInfo } from "../../../types";
 type WorkspaceCardProps = {
   workspace: WorkspaceInfo;
   workspaceName?: React.ReactNode;
+  workspaceTokenUsageLabel?: string | null;
   isActive: boolean;
   isCollapsed: boolean;
   addMenuOpen: boolean;
@@ -25,6 +26,7 @@ type WorkspaceCardProps = {
 export function WorkspaceCard({
   workspace,
   workspaceName,
+  workspaceTokenUsageLabel,
   isActive,
   isCollapsed,
   addMenuOpen,
@@ -55,20 +57,25 @@ export function WorkspaceCard({
       >
         <div>
           <div className="workspace-name-row">
-            <div className="workspace-title">
-              <span className="workspace-name">{workspaceName ?? workspace.name}</span>
-              <button
-                className={`workspace-toggle ${isCollapsed ? "" : "expanded"}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onToggleWorkspaceCollapse(workspace.id, !isCollapsed);
-                }}
-                data-tauri-drag-region="false"
-                aria-label={isCollapsed ? "Show agents" : "Hide agents"}
-                aria-expanded={!isCollapsed}
-              >
-                <span className="workspace-toggle-icon">›</span>
-              </button>
+            <div className="workspace-title-block">
+              <div className="workspace-title">
+                <span className="workspace-name">{workspaceName ?? workspace.name}</span>
+                <button
+                  className={`workspace-toggle ${isCollapsed ? "" : "expanded"}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggleWorkspaceCollapse(workspace.id, !isCollapsed);
+                  }}
+                  data-tauri-drag-region="false"
+                  aria-label={isCollapsed ? "Show agents" : "Hide agents"}
+                  aria-expanded={!isCollapsed}
+                >
+                  <span className="workspace-toggle-icon">›</span>
+                </button>
+              </div>
+              {workspaceTokenUsageLabel && (
+                <div className="workspace-token-usage">{workspaceTokenUsageLabel}</div>
+              )}
             </div>
             <button
               className="ghost workspace-add"

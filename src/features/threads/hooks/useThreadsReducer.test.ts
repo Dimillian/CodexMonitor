@@ -532,6 +532,25 @@ describe("threadReducer", () => {
       },
       activeThreadIdByWorkspace: { "ws-1": "thread-1" },
       turnDiffByThread: { "thread-1": "diff --git a/file.ts b/file.ts" },
+      tokenUsageByThread: {
+        "thread-1": {
+          total: {
+            totalTokens: 100,
+            inputTokens: 60,
+            cachedInputTokens: 5,
+            outputTokens: 40,
+            reasoningOutputTokens: 2,
+          },
+          last: {
+            totalTokens: 20,
+            inputTokens: 12,
+            cachedInputTokens: 1,
+            outputTokens: 8,
+            reasoningOutputTokens: 0,
+          },
+          modelContextWindow: 200000,
+        },
+      },
     };
 
     const next = threadReducer(base, {
@@ -541,6 +560,7 @@ describe("threadReducer", () => {
     });
 
     expect(next.turnDiffByThread["thread-1"]).toBeUndefined();
+    expect(next.tokenUsageByThread["thread-1"]).toBeUndefined();
   });
 
   it("hides background threads and keeps them hidden on future syncs", () => {

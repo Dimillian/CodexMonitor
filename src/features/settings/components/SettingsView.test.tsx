@@ -101,6 +101,9 @@ const baseSettings: AppSettings = {
   uiScale: 1,
   theme: "system",
   usageShowRemaining: false,
+  showThreadTokenUsage: true,
+  threadTokenUsageShowFull: true,
+  threadTokenUsageExcludeCache: false,
   showMessageFilePath: true,
   chatHistoryScrollbackItems: 200,
   threadTitleAutogenerationEnabled: false,
@@ -494,6 +497,31 @@ describe("SettingsView Display", () => {
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({ showMessageFilePath: false }),
+      );
+    });
+  });
+
+  it("toggles excluding cache from thread token usage", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    renderDisplaySection({ onUpdateAppSettings });
+
+    const row = screen
+      .getByText("Exclude cache from thread token usage")
+      .closest(".settings-toggle-row") as HTMLElement | null;
+    if (!row) {
+      throw new Error("Expected exclude cache row");
+    }
+    const toggle = row.querySelector(
+      "button.settings-toggle",
+    ) as HTMLButtonElement | null;
+    if (!toggle) {
+      throw new Error("Expected exclude cache toggle");
+    }
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ threadTokenUsageExcludeCache: true }),
       );
     });
   });

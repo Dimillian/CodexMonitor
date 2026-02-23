@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct GitFileStatus {
@@ -185,6 +186,32 @@ pub(crate) struct LocalUsageSnapshot {
     pub(crate) totals: LocalUsageTotals,
     #[serde(default)]
     pub(crate) top_models: Vec<LocalUsageModel>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ThreadTokenUsageBreakdown {
+    pub(crate) total_tokens: i64,
+    pub(crate) input_tokens: i64,
+    pub(crate) cached_input_tokens: i64,
+    pub(crate) output_tokens: i64,
+    pub(crate) reasoning_output_tokens: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ThreadTokenUsageSnapshot {
+    pub(crate) total: ThreadTokenUsageBreakdown,
+    pub(crate) last: ThreadTokenUsageBreakdown,
+    pub(crate) model_context_window: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LocalThreadUsageSnapshot {
+    pub(crate) updated_at: i64,
+    #[serde(default)]
+    pub(crate) usage_by_thread: HashMap<String, ThreadTokenUsageSnapshot>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -497,6 +524,21 @@ pub(crate) struct AppSettings {
     )]
     pub(crate) usage_show_remaining: bool,
     #[serde(
+        default = "default_show_thread_token_usage",
+        rename = "showThreadTokenUsage"
+    )]
+    pub(crate) show_thread_token_usage: bool,
+    #[serde(
+        default = "default_thread_token_usage_show_full",
+        rename = "threadTokenUsageShowFull"
+    )]
+    pub(crate) thread_token_usage_show_full: bool,
+    #[serde(
+        default = "default_thread_token_usage_exclude_cache",
+        rename = "threadTokenUsageExcludeCache"
+    )]
+    pub(crate) thread_token_usage_exclude_cache: bool,
+    #[serde(
         default = "default_show_message_file_path",
         rename = "showMessageFilePath"
     )]
@@ -699,6 +741,18 @@ fn default_theme() -> String {
 
 fn default_usage_show_remaining() -> bool {
     false
+}
+
+fn default_show_thread_token_usage() -> bool {
+    true
+}
+
+fn default_thread_token_usage_show_full() -> bool {
+    true
+}
+
+fn default_thread_token_usage_exclude_cache() -> bool {
+    true
 }
 
 fn default_show_message_file_path() -> bool {
@@ -1138,6 +1192,9 @@ impl Default for AppSettings {
             ui_scale: 1.0,
             theme: default_theme(),
             usage_show_remaining: default_usage_show_remaining(),
+            show_thread_token_usage: default_show_thread_token_usage(),
+            thread_token_usage_show_full: default_thread_token_usage_show_full(),
+            thread_token_usage_exclude_cache: default_thread_token_usage_exclude_cache(),
             show_message_file_path: default_show_message_file_path(),
             chat_history_scrollback_items: default_chat_history_scrollback_items(),
             thread_title_autogeneration_enabled: false,
@@ -1301,6 +1358,9 @@ mod tests {
         assert!((settings.ui_scale - 1.0).abs() < f64::EPSILON);
         assert_eq!(settings.theme, "system");
         assert!(!settings.usage_show_remaining);
+        assert!(settings.show_thread_token_usage);
+        assert!(settings.thread_token_usage_show_full);
+        assert!(settings.thread_token_usage_exclude_cache);
         assert!(settings.show_message_file_path);
         assert_eq!(settings.chat_history_scrollback_items, Some(200));
         assert!(!settings.thread_title_autogeneration_enabled);

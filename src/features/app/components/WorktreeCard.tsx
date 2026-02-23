@@ -6,6 +6,7 @@ type WorktreeCardProps = {
   worktree: WorkspaceInfo;
   isActive: boolean;
   isDeleting?: boolean;
+  worktreeTokenUsageLabel?: string | null;
   onSelectWorkspace: (id: string) => void;
   onShowWorktreeMenu: (event: MouseEvent, worktree: WorkspaceInfo) => void;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
@@ -17,6 +18,7 @@ export function WorktreeCard({
   worktree,
   isActive,
   isDeleting = false,
+  worktreeTokenUsageLabel,
   onSelectWorkspace,
   onShowWorktreeMenu,
   onToggleWorkspaceCollapse,
@@ -55,7 +57,12 @@ export function WorktreeCard({
           }
         }}
       >
-        <div className="worktree-label">{worktreeLabel}</div>
+        <div className="worktree-label-block">
+          <div className="worktree-label">{worktreeLabel}</div>
+          {worktreeTokenUsageLabel && (
+            <div className="worktree-token-usage">{worktreeTokenUsageLabel}</div>
+          )}
+        </div>
         <div className="worktree-actions">
           {isDeleting ? (
             <div className="worktree-deleting" role="status" aria-live="polite">

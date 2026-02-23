@@ -279,6 +279,14 @@ pub(super) async fn try_handle(
             let workspace_path = parse_optional_string(params, "workspacePath");
             Some(serialize_result(state.local_usage_snapshot(days, workspace_path)).await)
         }
+        "local_thread_usage_snapshot" => {
+            let thread_ids = parse_optional_string_array(params, "threadIds").unwrap_or_default();
+            let workspace_path = parse_optional_string(params, "workspacePath");
+            Some(
+                serialize_result(state.local_thread_usage_snapshot(thread_ids, workspace_path))
+                    .await,
+            )
+        }
         _ => None,
     }
 }

@@ -35,6 +35,8 @@ type WorktreeSectionProps = {
   ) => ThreadRowsResult;
   getThreadTime: (thread: ThreadSummary) => string | null;
   getThreadArgsBadge?: (workspaceId: string, threadId: string) => string | null;
+  getThreadTokenUsageLabel?: (workspaceId: string, threadId: string) => string | null;
+  getWorkspaceTokenUsageLabel?: (workspaceId: string) => string | null;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
   getPinTimestamp: (workspaceId: string, threadId: string) => number | null;
   pinnedThreadsVersion: number;
@@ -68,6 +70,8 @@ export function WorktreeSection({
   getThreadRows,
   getThreadTime,
   getThreadArgsBadge,
+  getThreadTokenUsageLabel,
+  getWorkspaceTokenUsageLabel,
   isThreadPinned,
   getPinTimestamp,
   pinnedThreadsVersion,
@@ -121,6 +125,7 @@ export function WorktreeSection({
               worktree={worktree}
               isActive={worktree.id === activeWorkspaceId}
               isDeleting={deletingWorktreeIds.has(worktree.id)}
+              worktreeTokenUsageLabel={getWorkspaceTokenUsageLabel?.(worktree.id) ?? null}
               onSelectWorkspace={onSelectWorkspace}
               onShowWorktreeMenu={onShowWorktreeMenu}
               onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
@@ -143,6 +148,7 @@ export function WorktreeSection({
                   pendingUserInputKeys={pendingUserInputKeys}
                   getThreadTime={getThreadTime}
                   getThreadArgsBadge={getThreadArgsBadge}
+                  getThreadTokenUsageLabel={getThreadTokenUsageLabel}
                   isThreadPinned={isThreadPinned}
                   onToggleExpanded={onToggleExpanded}
                   onLoadOlderThreads={onLoadOlderThreads}

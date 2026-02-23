@@ -121,4 +121,15 @@ describe("PinnedThreadList", () => {
     expect(row?.querySelector(".thread-status")?.className).toContain("unread");
     expect(row?.querySelector(".thread-status")?.className).not.toContain("processing");
   });
+
+  it("renders a token usage label when provided", () => {
+    render(
+      <PinnedThreadList
+        {...baseProps}
+        getThreadTokenUsageLabel={() => "900 tokens"}
+      />,
+    );
+
+    expect(screen.getByText("900 tokens")).toBeTruthy();
+  });
 });

@@ -15,6 +15,7 @@ mod files;
 mod git;
 mod git_utils;
 mod local_usage;
+mod local_thread_usage;
 #[cfg(desktop)]
 mod menu;
 #[cfg(not(desktop))]
@@ -276,6 +277,7 @@ pub fn run() {
             dictation::dictation_stop,
             dictation::dictation_cancel,
             local_usage::local_usage_snapshot,
+            local_thread_usage::local_thread_usage_snapshot,
             notifications::is_macos_debug_build,
             notifications::send_notification_fallback,
             tailscale::tailscale_status,

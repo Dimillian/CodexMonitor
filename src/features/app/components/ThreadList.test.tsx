@@ -152,4 +152,15 @@ describe("ThreadList", () => {
     expect(row?.querySelector(".thread-status")?.className).toContain("unread");
     expect(row?.querySelector(".thread-status")?.className).not.toContain("processing");
   });
+
+  it("renders a token usage label when provided", () => {
+    render(
+      <ThreadList
+        {...baseProps}
+        getThreadTokenUsageLabel={() => "1.2k tokens"}
+      />,
+    );
+
+    expect(screen.getByText("1.2k tokens")).toBeTruthy();
+  });
 });

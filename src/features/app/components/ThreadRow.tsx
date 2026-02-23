@@ -14,6 +14,7 @@ type ThreadRowProps = {
   pendingUserInputKeys?: Set<string>;
   getThreadTime: (thread: ThreadSummary) => string | null;
   getThreadArgsBadge?: (workspaceId: string, threadId: string) => string | null;
+  getThreadTokenUsageLabel?: (workspaceId: string, threadId: string) => string | null;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
   onSelectThread: (workspaceId: string, threadId: string) => void;
   onShowThreadMenu: (
@@ -35,12 +36,14 @@ export function ThreadRow({
   pendingUserInputKeys,
   getThreadTime,
   getThreadArgsBadge,
+  getThreadTokenUsageLabel,
   isThreadPinned,
   onSelectThread,
   onShowThreadMenu,
 }: ThreadRowProps) {
   const relativeTime = getThreadTime(thread);
   const badge = getThreadArgsBadge?.(workspaceId, thread.id) ?? null;
+  const tokenUsageLabel = getThreadTokenUsageLabel?.(workspaceId, thread.id) ?? null;
   const indentStyle =
     depth > 0
       ? ({ "--thread-indent": `${depth * indentUnit}px` } as CSSProperties)
@@ -76,7 +79,12 @@ export function ThreadRow({
     >
       <span className={`thread-status ${statusClass}`} aria-hidden />
       {isPinned && <span className="thread-pin-icon" aria-label="Pinned">📌</span>}
-      <span className="thread-name">{thread.name}</span>
+      <div className="thread-text">
+        <span className="thread-name">{thread.name}</span>
+        {tokenUsageLabel && (
+          <span className="thread-token-usage">{tokenUsageLabel}</span>
+        )}
+      </div>
       <div className="thread-meta">
         {badge && <span className="thread-args-badge">{badge}</span>}
         {relativeTime && <span className="thread-time">{relativeTime}</span>}

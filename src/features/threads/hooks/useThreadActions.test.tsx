@@ -6,6 +6,7 @@ import {
   archiveThread,
   forkThread,
   listThreads,
+  localThreadUsageSnapshot,
   resumeThread,
   startThread,
 } from "@services/tauri";
@@ -25,6 +26,7 @@ vi.mock("@services/tauri", () => ({
   forkThread: vi.fn(),
   resumeThread: vi.fn(),
   listThreads: vi.fn(),
+  localThreadUsageSnapshot: vi.fn(),
   archiveThread: vi.fn(),
 }));
 
@@ -53,6 +55,10 @@ describe("useThreadActions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getThreadCreatedTimestamp).mockReturnValue(0);
+    vi.mocked(localThreadUsageSnapshot).mockResolvedValue({
+      updatedAt: 1,
+      usageByThread: {},
+    });
   });
 
   function renderActions(
@@ -307,6 +313,63 @@ describe("useThreadActions", () => {
       threadId: "thread-2",
       text: "Hello!",
       timestamp: 999,
+    });
+  });
+
+  it("hydrates thread token usage from resume payload when available", async () => {
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "thread-2",
+          token_usage: {
+            total: {
+              total_tokens: 900,
+              input_tokens: 600,
+              cached_input_tokens: 120,
+              output_tokens: 300,
+              reasoning_output_tokens: 50,
+            },
+            last: {
+              total_tokens: 120,
+              input_tokens: 80,
+              cached_input_tokens: 10,
+              output_tokens: 40,
+              reasoning_output_tokens: 6,
+            },
+            model_context_window: 200000,
+          },
+        },
+      },
+    });
+    vi.mocked(buildItemsFromThread).mockReturnValue([]);
+    vi.mocked(isReviewingFromThread).mockReturnValue(false);
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.resumeThreadForWorkspace("ws-1", "thread-2");
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreadTokenUsage",
+      threadId: "thread-2",
+      tokenUsage: {
+        total: {
+          totalTokens: 900,
+          inputTokens: 600,
+          cachedInputTokens: 120,
+          outputTokens: 300,
+          reasoningOutputTokens: 50,
+        },
+        last: {
+          totalTokens: 120,
+          inputTokens: 80,
+          cachedInputTokens: 10,
+          outputTokens: 40,
+          reasoningOutputTokens: 6,
+        },
+        modelContextWindow: 200000,
+      },
     });
   });
 
@@ -696,6 +759,28 @@ describe("useThreadActions", () => {
         nextCursor: "cursor-1",
       },
     });
+    vi.mocked(localThreadUsageSnapshot).mockResolvedValueOnce({
+      updatedAt: 100,
+      usageByThread: {
+        "thread-1": {
+          total: {
+            totalTokens: 1200,
+            inputTokens: 700,
+            cachedInputTokens: 100,
+            outputTokens: 500,
+            reasoningOutputTokens: 80,
+          },
+          last: {
+            totalTokens: 200,
+            inputTokens: 120,
+            cachedInputTokens: 20,
+            outputTokens: 80,
+            reasoningOutputTokens: 15,
+          },
+          modelContextWindow: 200000,
+        },
+      },
+    });
     vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
       const value = (thread as Record<string, unknown>).updated_at as number;
       return value ?? 0;
@@ -740,12 +825,159 @@ describe("useThreadActions", () => {
       workspaceId: "ws-1",
       cursor: "cursor-1",
     });
+    expect(localThreadUsageSnapshot).toHaveBeenCalledWith(
+      ["thread-1"],
+      "/tmp/codex",
+    );
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreadTokenUsage",
+      threadId: "thread-1",
+      tokenUsage: {
+        total: {
+          totalTokens: 1200,
+          inputTokens: 700,
+          cachedInputTokens: 100,
+          outputTokens: 500,
+          reasoningOutputTokens: 80,
+        },
+        last: {
+          totalTokens: 200,
+          inputTokens: 120,
+          cachedInputTokens: 20,
+          outputTokens: 80,
+          reasoningOutputTokens: 15,
+        },
+        modelContextWindow: 200000,
+      },
+    });
     expect(saveThreadActivity).toHaveBeenCalledWith({
       "ws-1": { "thread-1": 5000 },
     });
     expect(threadActivityRef.current).toEqual({
       "ws-1": { "thread-1": 5000 },
     });
+  });
+
+  it("merges out-of-order thread usage hydration responses across thread sets", async () => {
+    let resolveFirstHydration:
+      | ((value: Record<string, unknown>) => void)
+      | null = null;
+    let resolveSecondHydration:
+      | ((value: Record<string, unknown>) => void)
+      | null = null;
+    const firstHydrationPromise = new Promise<Record<string, unknown>>((resolve) => {
+      resolveFirstHydration = resolve;
+    });
+    const secondHydrationPromise = new Promise<Record<string, unknown>>((resolve) => {
+      resolveSecondHydration = resolve;
+    });
+
+    vi.mocked(listThreads)
+      .mockResolvedValueOnce({
+        result: {
+          data: [
+            {
+              id: "thread-a",
+              cwd: "/tmp/codex",
+              preview: "Thread A",
+              updated_at: 3000,
+            },
+          ],
+          nextCursor: null,
+        },
+      })
+      .mockResolvedValueOnce({
+        result: {
+          data: [
+            {
+              id: "thread-b",
+              cwd: "/tmp/codex",
+              preview: "Thread B",
+              updated_at: 4000,
+            },
+          ],
+          nextCursor: null,
+        },
+      });
+    vi.mocked(localThreadUsageSnapshot)
+      .mockReturnValueOnce(firstHydrationPromise as Promise<any>)
+      .mockReturnValueOnce(secondHydrationPromise as Promise<any>);
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    await act(async () => {
+      resolveSecondHydration?.({
+        updatedAt: 200,
+        usageByThread: {
+          "thread-b": {
+            total: {
+              totalTokens: 2000,
+              inputTokens: 1200,
+              cachedInputTokens: 100,
+              outputTokens: 800,
+              reasoningOutputTokens: 80,
+            },
+            last: {
+              totalTokens: 300,
+              inputTokens: 180,
+              cachedInputTokens: 20,
+              outputTokens: 120,
+              reasoningOutputTokens: 12,
+            },
+            modelContextWindow: 200000,
+          },
+        },
+      });
+      await secondHydrationPromise;
+    });
+
+    await act(async () => {
+      resolveFirstHydration?.({
+        updatedAt: 100,
+        usageByThread: {
+          "thread-a": {
+            total: {
+              totalTokens: 1500,
+              inputTokens: 900,
+              cachedInputTokens: 120,
+              outputTokens: 600,
+              reasoningOutputTokens: 60,
+            },
+            last: {
+              totalTokens: 250,
+              inputTokens: 150,
+              cachedInputTokens: 30,
+              outputTokens: 100,
+              reasoningOutputTokens: 10,
+            },
+            modelContextWindow: 200000,
+          },
+        },
+      });
+      await firstHydrationPromise;
+    });
+
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "setThreadTokenUsage",
+        threadId: "thread-a",
+      }),
+    );
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "setThreadTokenUsage",
+        threadId: "thread-b",
+      }),
+    );
   });
 
   it("restores parent-child links from thread/list source metadata", async () => {
@@ -899,6 +1131,28 @@ describe("useThreadActions", () => {
         nextCursor: null,
       },
     });
+    vi.mocked(localThreadUsageSnapshot).mockResolvedValueOnce({
+      updatedAt: 120,
+      usageByThread: {
+        "thread-2": {
+          total: {
+            totalTokens: 400,
+            inputTokens: 250,
+            cachedInputTokens: 30,
+            outputTokens: 150,
+            reasoningOutputTokens: 10,
+          },
+          last: {
+            totalTokens: 60,
+            inputTokens: 40,
+            cachedInputTokens: 5,
+            outputTokens: 20,
+            reasoningOutputTokens: 2,
+          },
+          modelContextWindow: null,
+        },
+      },
+    });
     vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
       const value = (thread as Record<string, unknown>).updated_at as number;
       return value ?? 0;
@@ -934,6 +1188,10 @@ describe("useThreadActions", () => {
       workspaceId: "ws-1",
       cursor: null,
     });
+    expect(localThreadUsageSnapshot).toHaveBeenCalledWith(
+      ["thread-2"],
+      "/tmp/codex",
+    );
   });
 
   it("passes windows cwd when loading older threads", async () => {

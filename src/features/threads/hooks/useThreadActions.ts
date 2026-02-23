@@ -10,6 +10,7 @@ import type {
 import {
   archiveThread as archiveThreadService,
   forkThread as forkThreadService,
+  localThreadUsageSnapshot as localThreadUsageSnapshotService,
   listThreads as listThreadsService,
   resumeThread as resumeThreadService,
   startThread as startThreadService,
@@ -24,6 +25,7 @@ import {
 } from "@utils/threadItems";
 import {
   asString,
+  normalizeTokenUsage,
   normalizeRootPath,
 } from "@threads/utils/threadNormalize";
 import {
@@ -38,6 +40,18 @@ const THREAD_LIST_PAGE_SIZE = 100;
 const THREAD_LIST_MAX_PAGES_WITH_ACTIVITY = 8;
 const THREAD_LIST_MAX_PAGES_WITHOUT_ACTIVITY = 3;
 const THREAD_LIST_MAX_PAGES_OLDER = 6;
+
+type ThreadUsageHydrationState = {
+  inFlightRequestKeys: Set<string>;
+  latestAppliedUpdatedAtByThread: Record<string, number>;
+};
+
+function toRecord(value: unknown): Record<string, unknown> | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
+}
 
 type UseThreadActionsOptions = {
   dispatch: Dispatch<ThreadAction>;
@@ -81,6 +95,9 @@ export function useThreadActions({
   onSubagentThreadDetected,
 }: UseThreadActionsOptions) {
   const resumeInFlightByThreadRef = useRef<Record<string, number>>({});
+  const threadUsageHydrationByWorkspaceRef = useRef<
+    Record<string, ThreadUsageHydrationState>
+  >({});
   const threadStatusByIdRef = useRef(threadStatusById);
   const activeTurnIdByThreadRef = useRef(activeTurnIdByThread);
   threadStatusByIdRef.current = threadStatusById;
@@ -90,6 +107,86 @@ export function useThreadActions({
     const thread = response.result?.thread ?? response.thread ?? null;
     return String(thread?.id ?? "");
   }, []);
+
+  const hydrateThreadUsageForWorkspace = useCallback(
+    async (workspace: WorkspaceInfo, threadIds: string[]) => {
+      const uniqueThreadIds = Array.from(
+        new Set(
+          threadIds
+            .map((threadId) => threadId.trim())
+            .filter((threadId) => threadId.length > 0),
+        ),
+      );
+      if (uniqueThreadIds.length === 0) {
+        return;
+      }
+
+      const requestKey = [...uniqueThreadIds].sort().join("|");
+      const currentState =
+        threadUsageHydrationByWorkspaceRef.current[workspace.id] ?? {
+          inFlightRequestKeys: new Set<string>(),
+          latestAppliedUpdatedAtByThread: {},
+        };
+      if (currentState.inFlightRequestKeys.has(requestKey)) {
+        return;
+      }
+      currentState.inFlightRequestKeys.add(requestKey);
+      threadUsageHydrationByWorkspaceRef.current[workspace.id] = currentState;
+
+      try {
+        const snapshot = await localThreadUsageSnapshotService(
+          uniqueThreadIds,
+          workspace.path,
+        );
+        const snapshotRecord = toRecord(snapshot);
+        if (!snapshotRecord) {
+          return;
+        }
+        const updatedAtValue = snapshotRecord.updatedAt;
+        const updatedAt =
+          typeof updatedAtValue === "number" && Number.isFinite(updatedAtValue)
+            ? updatedAtValue
+            : null;
+        const usageByThread = toRecord(snapshotRecord.usageByThread);
+        if (!usageByThread) {
+          return;
+        }
+        Object.entries(usageByThread).forEach(([threadId, tokenUsage]) => {
+          const tokenUsageRecord = toRecord(tokenUsage);
+          if (!threadId || !tokenUsageRecord) {
+            return;
+          }
+          const latestAppliedForThread =
+            currentState.latestAppliedUpdatedAtByThread[threadId] ?? 0;
+          if (updatedAt !== null && updatedAt < latestAppliedForThread) {
+            return;
+          }
+          dispatch({
+            type: "setThreadTokenUsage",
+            threadId,
+            tokenUsage: normalizeTokenUsage(tokenUsageRecord),
+          });
+          if (updatedAt !== null) {
+            currentState.latestAppliedUpdatedAtByThread[threadId] = Math.max(
+              latestAppliedForThread,
+              updatedAt,
+            );
+          }
+        });
+      } catch (error) {
+        onDebug?.({
+          id: `${Date.now()}-client-thread-usage-hydrate-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "thread/usage hydrate error",
+          payload: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        currentState.inFlightRequestKeys.delete(requestKey);
+      }
+    },
+    [dispatch, onDebug],
+  );
 
   const startThreadForWorkspace = useCallback(
     async (workspaceId: string, options?: { activate?: boolean }) => {
@@ -192,6 +289,18 @@ export function useThreadActions({
         if (thread) {
           dispatch({ type: "ensureThread", workspaceId, threadId });
           applyCollabThreadLinksFromThread(workspaceId, threadId, thread);
+          const rawTokenUsage =
+            toRecord(thread.tokenUsage) ??
+            toRecord(thread.token_usage) ??
+            toRecord(result?.tokenUsage) ??
+            toRecord(result?.token_usage);
+          if (rawTokenUsage) {
+            dispatch({
+              type: "setThreadTokenUsage",
+              threadId,
+              tokenUsage: normalizeTokenUsage(rawTokenUsage),
+            });
+          }
           const sourceParentId = getParentThreadIdFromSource(thread.source);
           if (sourceParentId) {
             updateThreadParent(sourceParentId, [threadId]);
@@ -593,6 +702,10 @@ export function useThreadActions({
             timestamp: getThreadTimestamp(thread),
           });
         });
+        void hydrateThreadUsageForWorkspace(
+          workspace,
+          summaries.map((summary) => summary.id),
+        );
       } catch (error) {
         onDebug?.({
           id: `${Date.now()}-client-thread-list-error`,
@@ -615,6 +728,7 @@ export function useThreadActions({
       dispatch,
       getCustomName,
       onDebug,
+      hydrateThreadUsageForWorkspace,
       threadActivityRef,
       threadSortKey,
       updateThreadParent,
@@ -737,6 +851,10 @@ export function useThreadActions({
             timestamp: getThreadTimestamp(thread),
           });
         });
+        void hydrateThreadUsageForWorkspace(
+          workspace,
+          additions.map((thread) => thread.id),
+        );
       } catch (error) {
         onDebug?.({
           id: `${Date.now()}-client-thread-list-older-error`,
@@ -756,6 +874,7 @@ export function useThreadActions({
     [
       dispatch,
       getCustomName,
+      hydrateThreadUsageForWorkspace,
       onDebug,
       threadListCursorByWorkspace,
       threadsByWorkspace,
