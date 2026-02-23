@@ -6,10 +6,12 @@ cd "$ROOT_DIR"
 
 SIMULATOR_NAME="${SIMULATOR_NAME:-iPhone Air}"
 TARGET="${TARGET:-aarch64-sim}"
-BUNDLE_ID="${BUNDLE_ID:-com.dimillian.codexmonitor.ios}"
+BUNDLE_ID="${BUNDLE_ID:-}"
 SKIP_BUILD=0
 CLEAN_BUILD=1
 IOS_APP_ICONSET_DIR="src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset"
+TAURI_IOS_LOCAL_CONFIG="src-tauri/tauri.ios.local.conf.json"
+TAURI_CONFIG_ARGS=()
 
 usage() {
   cat <<'EOF'
@@ -20,7 +22,7 @@ Builds the iOS simulator app, installs it on a booted simulator, and launches it
 Options:
   --simulator <name>   Simulator name (default: "iPhone Air")
   --target <target>    Tauri iOS target (default: "aarch64-sim")
-  --bundle-id <id>     Bundle id to launch (default: com.dimillian.codexmonitor.ios)
+  --bundle-id <id>     Bundle id to launch (default: resolved from Tauri iOS config)
   --skip-build         Skip the build and only install + launch the existing app
   --no-clean           Do not remove stale src-tauri/gen/apple/build before build
   -h, --help           Show this help
@@ -95,6 +97,30 @@ sync_ios_icons() {
   fi
 }
 
+resolve_ios_bundle_id() {
+  node - <<'NODE'
+const fs = require("fs");
+
+function readConfig(path) {
+  try {
+    return JSON.parse(fs.readFileSync(path, "utf8"));
+  } catch (_) {
+    return {};
+  }
+}
+
+const baseCfg = readConfig("src-tauri/tauri.conf.json");
+const iosCfg = readConfig("src-tauri/tauri.ios.conf.json");
+const localCfg = readConfig("src-tauri/tauri.ios.local.conf.json");
+const identifier =
+  localCfg?.identifier ??
+  iosCfg?.identifier ??
+  baseCfg?.identifier ??
+  "";
+process.stdout.write(String(identifier).trim());
+NODE
+}
+
 case "$TARGET" in
   aarch64-sim)
     APP_ARCH_DIR="arm64-sim"
@@ -115,12 +141,23 @@ if [[ -z "$NPM_BIN" ]]; then
   exit 1
 fi
 
+if [[ -f "$TAURI_IOS_LOCAL_CONFIG" ]]; then
+  TAURI_CONFIG_ARGS+=(--config "$TAURI_IOS_LOCAL_CONFIG")
+fi
+
+if [[ -z "$BUNDLE_ID" ]]; then
+  BUNDLE_ID="$(resolve_ios_bundle_id)"
+fi
+if [[ -z "$BUNDLE_ID" ]]; then
+  BUNDLE_ID="com.dimillian.codexmonitor.ios"
+fi
+
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
   sync_ios_icons
   if [[ "$CLEAN_BUILD" -eq 1 ]]; then
     rm -rf src-tauri/gen/apple/build
   fi
-  "$NPM_BIN" run tauri -- ios build -d -t "$TARGET" --ci
+  "$NPM_BIN" run tauri -- ios build -d -t "$TARGET" "${TAURI_CONFIG_ARGS[@]}" --ci
 fi
 
 APP_PATH="src-tauri/gen/apple/build/${APP_ARCH_DIR}/Codex Monitor.app"
