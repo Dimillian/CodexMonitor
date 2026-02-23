@@ -110,6 +110,51 @@ body {
   right: 10px;
 }
 
+.window-caption-controls {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 6;
+  display: inline-flex;
+  align-items: stretch;
+  height: var(--window-caption-height, 32px);
+  -webkit-app-region: no-drag;
+}
+
+.window-caption-control {
+  width: 46px;
+  height: var(--window-caption-height, 32px);
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+  transform: none;
+}
+
+.window-caption-control svg {
+  width: 14px;
+  height: 14px;
+}
+
+.window-caption-control:hover,
+.window-caption-control:focus-visible {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+  box-shadow: none;
+  transform: none;
+}
+
+.window-caption-control-close:hover,
+.window-caption-control-close:focus-visible {
+  background: #e81123;
+  color: #fff;
+}
+
 .sidebar-resizer {
   position: absolute;
   top: 0;

@@ -1,6 +1,6 @@
 .sidebar {
   --sidebar-padding: 20px;
-  padding: 36px var(--sidebar-padding) 56px;
+  padding: var(--sidebar-top-padding, 36px) var(--sidebar-padding) 56px;
   background: var(--surface-sidebar);
   backdrop-filter: none;
   border-right: 1px solid var(--border-subtle);

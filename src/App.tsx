@@ -80,6 +80,7 @@ import {
   SidebarCollapseButton,
   TitlebarExpandControls,
 } from "@/features/layout/components/SidebarToggleControls";
+import { WindowCaptionControls } from "@/features/layout/components/WindowCaptionControls";
 import { useUpdaterController } from "@app/hooks/useUpdaterController";
 import { useResponseRequiredNotificationsController } from "@app/hooks/useResponseRequiredNotificationsController";
 import { useErrorToasts } from "@/features/notifications/hooks/useErrorToasts";
@@ -2612,6 +2613,7 @@ function MainApp() {
     <div className={`${appClassName}${isResizing ? " is-resizing" : ""}`} style={appStyle} ref={appRef}>
       <div className="drag-strip" id="titlebar" data-tauri-drag-region />
       <TitlebarExpandControls {...sidebarToggleProps} />
+      <WindowCaptionControls enabled={!isPhone && !isTablet} />
       {shouldLoadGitHubPanelData ? (
         <Suspense fallback={null}>
           <GitHubPanelData

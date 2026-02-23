@@ -1,5 +1,6 @@
 import { useMemo, type CSSProperties } from "react";
 import type { AppSettings } from "@/types";
+import { isWindowsPlatform } from "@utils/platformPaths";
 
 type UseAppShellOrchestrationOptions = {
   isCompact: boolean;
@@ -42,6 +43,7 @@ export function useAppShellOrchestration({
   debugPanelHeight,
   appSettings,
 }: UseAppShellOrchestrationOptions) {
+  const isWindows = isWindowsPlatform();
   const showGitDetail = Boolean(selectedDiffPath) && isPhone && centerMode === "diff";
   const isThreadOpen = Boolean(activeThreadId && showComposer);
 
@@ -66,6 +68,8 @@ export function useAppShellOrchestration({
       "--ui-font-family": appSettings.uiFontFamily,
       "--code-font-family": appSettings.codeFontFamily,
       "--code-font-size": `${appSettings.codeFontSize}px`,
+      "--sidebar-top-padding": isWindows ? "12px" : "36px",
+      "--right-panel-top-padding": isWindows ? "34px" : "12px",
     } as CSSProperties),
     [
       appSettings.codeFontFamily,
@@ -73,6 +77,7 @@ export function useAppShellOrchestration({
       appSettings.uiFontFamily,
       chatDiffSplitPositionPercent,
       debugPanelHeight,
+      isWindows,
       isCompact,
       planPanelHeight,
       rightPanelCollapsed,

@@ -998,6 +998,10 @@
   overflow: hidden;
 }
 
+.right-panel-top .ds-panel {
+  padding-top: var(--right-panel-top-padding, 12px);
+}
+
 .right-panel-divider {
   position: relative;
   height: 8px;

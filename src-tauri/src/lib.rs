@@ -88,12 +88,17 @@ pub fn run() {
         }
     }
 
-    #[cfg(desktop)]
+    // Windows: no native menu bar.
+    #[cfg(all(desktop, target_os = "windows"))]
+    let builder = tauri::Builder::default().manage(menu::MenuItemRegistry::<tauri::Wry>::default());
+
+    // macOS/Linux: keep the native menu behavior.
+    #[cfg(all(desktop, not(target_os = "windows")))]
     let builder = tauri::Builder::default()
-        .enable_macos_default_menu(false)
         .manage(menu::MenuItemRegistry::<tauri::Wry>::default())
-        .menu(menu::build_menu)
-        .on_menu_event(menu::handle_menu_event);
+        .on_menu_event(menu::handle_menu_event)
+        .enable_macos_default_menu(false)
+        .menu(menu::build_menu);
 
     #[cfg(not(desktop))]
     let builder = tauri::Builder::default();
@@ -112,6 +117,12 @@ pub fn run() {
         .setup(|app| {
             let state = state::AppState::load(&app.handle());
             app.manage(state);
+            #[cfg(target_os = "windows")]
+            {
+                if let Some(main_window) = app.get_webview_window("main") {
+                    let _ = main_window.set_decorations(false);
+                }
+            }
             #[cfg(desktop)]
             {
                 let app_handle = app.handle().clone();
