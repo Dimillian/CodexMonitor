@@ -278,6 +278,7 @@ pub fn run() {
             dictation::dictation_cancel,
             local_usage::local_usage_snapshot,
             notifications::is_macos_debug_build,
+            notifications::app_build_type,
             notifications::send_notification_fallback,
             tailscale::tailscale_status,
             tailscale::tailscale_daemon_command_preview,

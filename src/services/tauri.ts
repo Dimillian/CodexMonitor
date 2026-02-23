@@ -1093,6 +1093,12 @@ export async function generateAgentDescription(
   return invoke("generate_agent_description", { workspaceId, description });
 }
 
+export type AppBuildType = "debug" | "release";
+
+export async function getAppBuildType(): Promise<AppBuildType> {
+  return invoke<AppBuildType>("app_build_type");
+}
+
 export async function sendNotification(
   title: string,
   body: string,
