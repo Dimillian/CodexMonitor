@@ -312,11 +312,48 @@ export function reduceThreadLifecycle(
     case "setThreads": {
       const hidden = state.hiddenThreadIdsByWorkspace[action.workspaceId] ?? {};
       const visibleThreads = action.threads.filter((thread) => !hidden[thread.id]);
+      const existingThreads = state.threadsByWorkspace[action.workspaceId] ?? [];
+      const existingById = new Map(
+        existingThreads.map((thread) => [thread.id, thread] as const),
+      );
+      const reconciled = [...visibleThreads];
+      const includedIds = new Set(reconciled.map((thread) => thread.id));
+      const appendExistingAnchor = (threadId: string | null | undefined) => {
+        if (!threadId || hidden[threadId] || includedIds.has(threadId)) {
+          return;
+        }
+        const summary = existingById.get(threadId);
+        if (!summary) {
+          return;
+        }
+        reconciled.push(summary);
+        includedIds.add(threadId);
+      };
+
+      const activeThreadId = state.activeThreadIdByWorkspace[action.workspaceId];
+      appendExistingAnchor(activeThreadId);
+      existingThreads.forEach((thread) => {
+        if (state.threadStatusById[thread.id]?.isProcessing) {
+          appendExistingAnchor(thread.id);
+        }
+      });
+
+      const seedThreadIds = [...includedIds];
+      seedThreadIds.forEach((threadId) => {
+        const visited = new Set<string>([threadId]);
+        let parentId = state.threadParentById[threadId];
+        while (parentId && !visited.has(parentId)) {
+          visited.add(parentId);
+          appendExistingAnchor(parentId);
+          parentId = state.threadParentById[parentId];
+        }
+      });
+
       return {
         ...state,
         threadsByWorkspace: {
           ...state.threadsByWorkspace,
-          [action.workspaceId]: visibleThreads,
+          [action.workspaceId]: reconciled,
         },
         threadSortKeyByWorkspace: {
           ...state.threadSortKeyByWorkspace,

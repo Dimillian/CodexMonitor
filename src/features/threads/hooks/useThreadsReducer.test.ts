@@ -571,6 +571,101 @@ describe("threadReducer", () => {
     expect(ids).toContain("thread-visible");
     expect(ids).not.toContain("thread-bg");
   });
+
+  it("preserves active, processing, and ancestor anchors on partial setThreads payloads", () => {
+    const base: ThreadState = {
+      ...initialState,
+      threadsByWorkspace: {
+        "ws-1": [
+          { id: "thread-parent", name: "Parent (stale)", updatedAt: 10 },
+          { id: "thread-child", name: "Child (stale)", updatedAt: 11 },
+          { id: "thread-active", name: "Active", updatedAt: 12 },
+          { id: "thread-processing", name: "Processing", updatedAt: 13 },
+        ],
+      },
+      activeThreadIdByWorkspace: { "ws-1": "thread-active" },
+      threadParentById: {
+        "thread-child": "thread-parent",
+      },
+      threadStatusById: {
+        "thread-processing": {
+          isProcessing: true,
+          hasUnread: false,
+          isReviewing: false,
+          processingStartedAt: null,
+          lastDurationMs: null,
+        },
+      },
+    };
+
+    const next = threadReducer(base, {
+      type: "setThreads",
+      workspaceId: "ws-1",
+      sortKey: "updated_at",
+      threads: [
+        { id: "thread-child", name: "Child (fresh)", updatedAt: 200 },
+        { id: "thread-new", name: "New", updatedAt: 199 },
+      ],
+    });
+
+    expect(next.threadsByWorkspace["ws-1"]?.map((thread) => thread.id)).toEqual([
+      "thread-child",
+      "thread-new",
+      "thread-active",
+      "thread-processing",
+      "thread-parent",
+    ]);
+    expect(
+      next.threadsByWorkspace["ws-1"]?.find((thread) => thread.id === "thread-child")
+        ?.name,
+    ).toBe("Child (fresh)");
+  });
+
+  it("does not resurrect hidden anchors on partial setThreads payloads", () => {
+    const base: ThreadState = {
+      ...initialState,
+      threadsByWorkspace: {
+        "ws-1": [
+          { id: "thread-parent", name: "Parent", updatedAt: 10 },
+          { id: "thread-child", name: "Child", updatedAt: 11 },
+          { id: "thread-active", name: "Active", updatedAt: 12 },
+          { id: "thread-processing", name: "Processing", updatedAt: 13 },
+        ],
+      },
+      activeThreadIdByWorkspace: { "ws-1": "thread-active" },
+      hiddenThreadIdsByWorkspace: {
+        "ws-1": {
+          "thread-parent": true,
+          "thread-active": true,
+          "thread-processing": true,
+        },
+      },
+      threadParentById: {
+        "thread-child": "thread-parent",
+      },
+      threadStatusById: {
+        "thread-processing": {
+          isProcessing: true,
+          hasUnread: false,
+          isReviewing: false,
+          processingStartedAt: null,
+          lastDurationMs: null,
+        },
+      },
+    };
+
+    const next = threadReducer(base, {
+      type: "setThreads",
+      workspaceId: "ws-1",
+      sortKey: "updated_at",
+      threads: [{ id: "thread-child", name: "Child", updatedAt: 210 }],
+    });
+
+    expect(next.threadsByWorkspace["ws-1"]?.map((thread) => thread.id)).toEqual([
+      "thread-child",
+    ]);
+  });
+
   it("trims existing items when maxItemsPerThread is reduced", () => {
     const items: ConversationItem[] = Array.from({ length: 5 }, (_, index) => ({
       id: `msg-${index}`,
