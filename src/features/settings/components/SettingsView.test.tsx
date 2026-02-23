@@ -55,6 +55,7 @@ getAgentsSettingsMock.mockResolvedValue({
   configPath: "/Users/me/.codex/config.toml",
   multiAgentEnabled: false,
   maxThreads: 6,
+  maxDepth: 1,
   agents: [],
 });
 

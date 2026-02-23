@@ -476,6 +476,7 @@ describe("tauri invoke wrappers", () => {
       configPath: "/Users/me/.codex/config.toml",
       multiAgentEnabled: true,
       maxThreads: 6,
+      maxDepth: 1,
       agents: [],
     });
 
@@ -490,13 +491,18 @@ describe("tauri invoke wrappers", () => {
       configPath: "/Users/me/.codex/config.toml",
       multiAgentEnabled: false,
       maxThreads: 4,
+      maxDepth: 3,
       agents: [],
     });
 
-    await setAgentsCoreSettings({ multiAgentEnabled: false, maxThreads: 4 });
+    await setAgentsCoreSettings({
+      multiAgentEnabled: false,
+      maxThreads: 4,
+      maxDepth: 3,
+    });
 
     expect(invokeMock).toHaveBeenCalledWith("set_agents_core_settings", {
-      input: { multiAgentEnabled: false, maxThreads: 4 },
+      input: { multiAgentEnabled: false, maxThreads: 4, maxDepth: 3 },
     });
   });
 

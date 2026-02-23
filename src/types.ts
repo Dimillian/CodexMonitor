@@ -68,6 +68,16 @@ export type Message = {
   text: string;
 };
 
+export type CollabAgentRef = {
+  threadId: string;
+  nickname?: string;
+  role?: string;
+};
+
+export type CollabAgentStatus = CollabAgentRef & {
+  status: string;
+};
+
 export type ConversationItem =
   | {
       id: string;
@@ -95,6 +105,10 @@ export type ConversationItem =
       output?: string;
       durationMs?: number | null;
       changes?: { path: string; kind?: string; diff?: string }[];
+      collabSender?: CollabAgentRef;
+      collabReceiver?: CollabAgentRef;
+      collabReceivers?: CollabAgentRef[];
+      collabStatuses?: CollabAgentStatus[];
     };
 
 export type ThreadSummary = {

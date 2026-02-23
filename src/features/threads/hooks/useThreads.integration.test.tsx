@@ -1121,6 +1121,37 @@ describe("useThreads UX integration", () => {
     expect(result.current.isSubagentThread("ws-1", "thread-child-live-collab")).toBe(true);
   });
 
+  it("classifies collab receivers from receiver_agents metadata", () => {
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      handlers?.onItemCompleted?.("ws-1", "thread-parent-live", {
+        type: "collabToolCall",
+        id: "item-collab-receiver-agents",
+        sender_thread_id: "thread-parent-live",
+        receiver_agents: [
+          {
+            thread_id: "thread-child-live-agent-ref",
+            agent_nickname: "Robie",
+            agent_role: "explorer",
+          },
+        ],
+      });
+    });
+
+    expect(result.current.threadParentById["thread-child-live-agent-ref"]).toBe(
+      "thread-parent-live",
+    );
+    expect(result.current.isSubagentThread("ws-1", "thread-child-live-agent-ref")).toBe(
+      true,
+    );
+  });
+
   it("cascades archive to subagent descendants when parent archived", async () => {
     const { result } = renderHook(() =>
       useThreads({
