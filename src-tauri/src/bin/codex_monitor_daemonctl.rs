@@ -771,6 +771,64 @@ fn is_pid_running(pid: u32) -> bool {
 
 #[cfg(unix)]
 async fn find_listener_pid(port: u16) -> Option<u32> {
+    if let Some(pid) = find_listener_pid_with_lsof(port).await {
+        return Some(pid);
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(pid) = find_listener_pid_with_ss(port).await {
+            return Some(pid);
+        }
+        if let Some(pid) = find_listener_pid_with_netstat(port).await {
+            return Some(pid);
+        }
+    }
+
+    None
+}
+
+#[cfg(any(test, target_os = "linux"))]
+fn parse_ss_listener_pid(output: &str, port: u16) -> Option<u32> {
+    let needle = format!(":{port}");
+    for line in output.lines() {
+        if !line.contains("LISTEN") || !line.contains(&needle) {
+            continue;
+        }
+        for token in line.split(|ch: char| ch.is_whitespace() || matches!(ch, '(' | ')' | ',')) {
+            if let Some(value) = token.strip_prefix("pid=") {
+                if let Ok(pid) = value.parse::<u32>() {
+                    return Some(pid);
+                }
+            }
+        }
+    }
+    None
+}
+
+#[cfg(any(test, target_os = "linux"))]
+fn parse_netstat_listener_pid(output: &str, port: u16) -> Option<u32> {
+    let needle = format!(":{port}");
+    for line in output.lines() {
+        if !line.contains("LISTEN") || !line.contains(&needle) {
+            continue;
+        }
+        for token in line.split_whitespace().rev() {
+            if token == "-" {
+                continue;
+            }
+            if let Some((pid_str, _)) = token.split_once('/') {
+                if let Ok(pid) = pid_str.parse::<u32>() {
+                    return Some(pid);
+                }
+            }
+        }
+    }
+    None
+}
+
+#[cfg(unix)]
+async fn find_listener_pid_with_lsof(port: u16) -> Option<u32> {
     let target = format!(":{port}");
     let output = match Command::new("lsof")
         .args(["-nP", "-iTCP"])
@@ -797,6 +855,34 @@ async fn find_listener_pid(port: u16) -> Option<u32> {
     stdout
         .lines()
         .find_map(|line| line.trim().parse::<u32>().ok())
+}
+
+#[cfg(target_os = "linux")]
+async fn find_listener_pid_with_ss(port: u16) -> Option<u32> {
+    let output = match Command::new("ss").args(["-ltnp"]).output().await {
+        Ok(output) => output,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return None,
+        Err(_) => return None,
+    };
+    if !output.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    parse_ss_listener_pid(&stdout, port)
+}
+
+#[cfg(target_os = "linux")]
+async fn find_listener_pid_with_netstat(port: u16) -> Option<u32> {
+    let output = match Command::new("netstat").args(["-ltnp"]).output().await {
+        Ok(output) => output,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return None,
+        Err(_) => return None,
+    };
+    if !output.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    parse_netstat_listener_pid(&stdout, port)
 }
 
 #[cfg(unix)]
@@ -1153,7 +1239,8 @@ fn print_status(status: &TcpDaemonStatus, as_json: bool) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        daemon_connect_addr, daemon_listen_addr, parse_port_from_remote_host, resolve_listen_addr,
+        daemon_connect_addr, daemon_listen_addr, parse_netstat_listener_pid,
+        parse_port_from_remote_host, parse_ss_listener_pid, resolve_listen_addr,
         safe_force_stop_pid, shell_quote,
     };
 
@@ -1221,5 +1308,24 @@ mod tests {
         assert_eq!(safe_force_stop_pid(0), None);
         assert_eq!(safe_force_stop_pid(1), None);
         assert_eq!(safe_force_stop_pid(2), Some(2));
+    }
+
+    #[test]
+    fn parses_pid_from_ss_output() {
+        let output = r#"State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+LISTEN 0      4096   0.0.0.0:4732      0.0.0.0:*    users:(("codex-monitor-da",pid=12345,fd=7))
+"#;
+        assert_eq!(parse_ss_listener_pid(output, 4732), Some(12345));
+        assert_eq!(parse_ss_listener_pid(output, 9000), None);
+    }
+
+    #[test]
+    fn parses_pid_from_netstat_output() {
+        let output = r#"Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp        0      0 0.0.0.0:4732            0.0.0.0:*               LISTEN      6789/codex-monitor-da
+"#;
+        assert_eq!(parse_netstat_listener_pid(output, 4732), Some(6789));
+        assert_eq!(parse_netstat_listener_pid(output, 9000), None);
     }
 }
