@@ -808,50 +808,33 @@ mod tests {
     }
 
     #[test]
-    fn resolve_sessions_roots_includes_workspace_overrides() {
+    fn resolve_sessions_roots_uses_single_default_root() {
         let mut workspaces = HashMap::new();
-        let mut settings_a = WorkspaceSettings::default();
-        settings_a.codex_home = Some(
-            std::env::temp_dir()
-                .join(format!("codex-home-a-{}", Uuid::new_v4()))
-                .to_string_lossy()
-                .to_string(),
-        );
         let entry_a = WorkspaceEntry {
             id: "a".to_string(),
             name: "A".to_string(),
             path: "/tmp/project-a".to_string(),
-            codex_bin: None,
             kind: WorkspaceKind::Main,
             parent_id: None,
             worktree: None,
-            settings: settings_a,
+            settings: WorkspaceSettings::default(),
         };
-        let mut settings_b = WorkspaceSettings::default();
-        settings_b.codex_home = Some(
-            std::env::temp_dir()
-                .join(format!("codex-home-b-{}", Uuid::new_v4()))
-                .to_string_lossy()
-                .to_string(),
-        );
         let entry_b = WorkspaceEntry {
             id: "b".to_string(),
             name: "B".to_string(),
             path: "/tmp/project-b".to_string(),
-            codex_bin: None,
             kind: WorkspaceKind::Main,
             parent_id: None,
             worktree: None,
-            settings: settings_b,
+            settings: WorkspaceSettings::default(),
         };
         workspaces.insert(entry_a.id.clone(), entry_a.clone());
         workspaces.insert(entry_b.id.clone(), entry_b.clone());
 
         let roots = resolve_sessions_roots(&workspaces, None);
-        let expected_a = PathBuf::from(entry_a.settings.codex_home.unwrap()).join("sessions");
-        let expected_b = PathBuf::from(entry_b.settings.codex_home.unwrap()).join("sessions");
-
-        assert!(roots.iter().any(|root| root == &expected_a));
-        assert!(roots.iter().any(|root| root == &expected_b));
+        let expected = resolve_codex_sessions_root(None)
+            .map(|root| vec![root])
+            .unwrap_or_default();
+        assert_eq!(roots, expected);
     }
 }

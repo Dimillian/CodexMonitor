@@ -129,12 +129,14 @@ export type AgentsSettings = {
   configPath: string;
   multiAgentEnabled: boolean;
   maxThreads: number;
+  maxDepth: number;
   agents: AgentSummary[];
 };
 
 export type SetAgentsCoreInput = {
   multiAgentEnabled: boolean;
   maxThreads: number;
+  maxDepth: number;
 };
 
 export type CreateAgentInput = {
@@ -244,24 +246,19 @@ export async function getConfigModel(workspaceId: string): Promise<string | null
   return trimmed.length > 0 ? trimmed : null;
 }
 
-export async function addWorkspace(
-  path: string,
-  codex_bin: string | null,
-): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("add_workspace", { path, codex_bin });
+export async function addWorkspace(path: string): Promise<WorkspaceInfo> {
+  return invoke<WorkspaceInfo>("add_workspace", { path });
 }
 
 export async function addWorkspaceFromGitUrl(
   url: string,
   destinationPath: string,
   targetFolderName: string | null,
-  codexBin: string | null,
 ): Promise<WorkspaceInfo> {
   return invoke<WorkspaceInfo>("add_workspace_from_git_url", {
     url,
     destinationPath,
     targetFolderName,
-    codexBin,
   });
 }
 
@@ -310,13 +307,6 @@ export async function updateWorkspaceSettings(
   settings: WorkspaceSettings,
 ): Promise<WorkspaceInfo> {
   return invoke<WorkspaceInfo>("update_workspace_settings", { id, settings });
-}
-
-export async function updateWorkspaceCodexBin(
-  id: string,
-  codex_bin: string | null,
-): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("update_workspace_codex_bin", { id, codex_bin });
 }
 
 export async function removeWorkspace(id: string): Promise<void> {
@@ -1037,9 +1027,8 @@ export async function listThreads(
   cursor?: string | null,
   limit?: number | null,
   sortKey?: "created_at" | "updated_at" | null,
-  cwd?: string | null,
 ) {
-  return invoke<any>("list_threads", { workspaceId, cursor, limit, sortKey, cwd });
+  return invoke<any>("list_threads", { workspaceId, cursor, limit, sortKey });
 }
 
 export async function listMcpServerStatus(

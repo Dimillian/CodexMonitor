@@ -6,8 +6,8 @@ export const REMOTE_WORKSPACE_REFRESH_INTERVAL_MS = 15_000;
 type WorkspaceRefreshOptions = {
   workspaces: WorkspaceInfo[];
   refreshWorkspaces: () => Promise<WorkspaceInfo[] | void>;
-  listThreadsForWorkspace: (
-    workspace: WorkspaceInfo,
+  listThreadsForWorkspaces: (
+    workspaces: WorkspaceInfo[],
     options?: { preserveState?: boolean },
   ) => Promise<void>;
   backendMode?: string;
@@ -17,14 +17,14 @@ type WorkspaceRefreshOptions = {
 export function useWorkspaceRefreshOnFocus({
   workspaces,
   refreshWorkspaces,
-  listThreadsForWorkspace,
+  listThreadsForWorkspaces,
   backendMode = "local",
   pollIntervalMs = REMOTE_WORKSPACE_REFRESH_INTERVAL_MS,
 }: WorkspaceRefreshOptions) {
   const optionsRef = useRef({
     workspaces,
     refreshWorkspaces,
-    listThreadsForWorkspace,
+    listThreadsForWorkspaces,
     backendMode,
     pollIntervalMs,
   });
@@ -32,7 +32,7 @@ export function useWorkspaceRefreshOnFocus({
     optionsRef.current = {
       workspaces,
       refreshWorkspaces,
-      listThreadsForWorkspace,
+      listThreadsForWorkspaces,
       backendMode,
       pollIntervalMs,
     };
@@ -51,7 +51,7 @@ export function useWorkspaceRefreshOnFocus({
       const {
         workspaces: ws,
         refreshWorkspaces: refresh,
-        listThreadsForWorkspace: listThreads,
+        listThreadsForWorkspaces: listThreads,
       } = optionsRef.current;
       void (async () => {
         let latestWorkspaces = ws;
@@ -64,9 +64,9 @@ export function useWorkspaceRefreshOnFocus({
           // Silent: refresh errors show in debug panel.
         }
         const connected = latestWorkspaces.filter((entry) => entry.connected);
-        await Promise.allSettled(
-          connected.map((workspace) => listThreads(workspace, { preserveState: true })),
-        );
+        if (connected.length > 0) {
+          await listThreads(connected, { preserveState: true });
+        }
       })().finally(() => {
         refreshInFlight = false;
       });

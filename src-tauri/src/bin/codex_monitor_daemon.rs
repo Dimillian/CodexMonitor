@@ -250,13 +250,11 @@ impl DaemonState {
     async fn add_workspace(
         &self,
         path: String,
-        codex_bin: Option<String>,
         client_version: String,
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
         workspaces_core::add_workspace_core(
             path,
-            codex_bin,
             &self.workspaces,
             &self.sessions,
             &self.app_settings,
@@ -280,7 +278,6 @@ impl DaemonState {
         url: String,
         destination_path: String,
         target_folder_name: Option<String>,
-        codex_bin: Option<String>,
         client_version: String,
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
@@ -288,7 +285,6 @@ impl DaemonState {
             url,
             destination_path,
             target_folder_name,
-            codex_bin,
             &self.workspaces,
             &self.sessions,
             &self.app_settings,
@@ -529,21 +525,6 @@ impl DaemonState {
         .await
     }
 
-    async fn update_workspace_codex_bin(
-        &self,
-        id: String,
-        codex_bin: Option<String>,
-    ) -> Result<WorkspaceInfo, String> {
-        workspaces_core::update_workspace_codex_bin_core(
-            id,
-            codex_bin,
-            &self.workspaces,
-            &self.sessions,
-            &self.storage_path,
-        )
-        .await
-    }
-
     async fn connect_workspace(&self, id: String, client_version: String) -> Result<(), String> {
         {
             let sessions = self.sessions.lock().await;
@@ -700,7 +681,7 @@ impl DaemonState {
     }
 
     async fn start_thread(&self, workspace_id: String) -> Result<Value, String> {
-        codex_core::start_thread_core(&self.sessions, workspace_id).await
+        codex_core::start_thread_core(&self.sessions, &self.workspaces, workspace_id).await
     }
 
     async fn resume_thread(
@@ -775,9 +756,8 @@ impl DaemonState {
         cursor: Option<String>,
         limit: Option<u32>,
         sort_key: Option<String>,
-        cwd: Option<String>,
     ) -> Result<Value, String> {
-        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key, cwd)
+        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key)
             .await
     }
 
@@ -829,6 +809,7 @@ impl DaemonState {
     ) -> Result<Value, String> {
         codex_core::send_user_message_core(
             &self.sessions,
+            &self.workspaces,
             workspace_id,
             thread_id,
             text,
@@ -919,7 +900,7 @@ impl DaemonState {
     }
 
     async fn skills_list(&self, workspace_id: String) -> Result<Value, String> {
-        codex_core::skills_list_core(&self.sessions, workspace_id).await
+        codex_core::skills_list_core(&self.sessions, &self.workspaces, workspace_id).await
     }
 
     async fn apps_list(
@@ -1290,6 +1271,7 @@ impl DaemonState {
         };
         codex_aux_core::generate_commit_message_core(
             &self.sessions,
+            &self.workspaces,
             workspace_id,
             &diff,
             &commit_message_prompt,
@@ -1308,6 +1290,7 @@ impl DaemonState {
     ) -> Result<Value, String> {
         codex_aux_core::generate_run_metadata_core(
             &self.sessions,
+            &self.workspaces,
             workspace_id,
             &prompt,
             |workspace_id, thread_id| {
@@ -1324,6 +1307,7 @@ impl DaemonState {
     ) -> Result<codex_aux_core::GeneratedAgentConfiguration, String> {
         codex_aux_core::generate_agent_description_core(
             &self.sessions,
+            &self.workspaces,
             workspace_id,
             &description,
             |workspace_id, thread_id| {
@@ -1627,12 +1611,10 @@ mod tests {
             id: workspace_id.to_string(),
             name: "Workspace".to_string(),
             path: workspace_path.to_string(),
-            codex_bin: None,
             kind: WorkspaceKind::Main,
             parent_id: None,
             worktree: None,
             settings: WorkspaceSettings {
-                codex_home: Some(format!("{workspace_path}/.codex-home")),
                 ..WorkspaceSettings::default()
             },
         };
@@ -1648,7 +1630,6 @@ mod tests {
             id: workspace_id.to_string(),
             name: workspace_id.to_string(),
             path: workspace_path.to_string(),
-            codex_bin: None,
             kind: WorkspaceKind::Main,
             parent_id: None,
             worktree: None,
@@ -1657,6 +1638,7 @@ mod tests {
     }
 
     fn make_session(entry: WorkspaceEntry) -> Arc<WorkspaceSession> {
+        let owner_workspace_id = entry.id;
         let mut cmd = if cfg!(windows) {
             let mut cmd = Command::new("cmd");
             cmd.args(["/C", "more"]);
@@ -1675,13 +1657,17 @@ mod tests {
         let stdin = child.stdin.take().expect("dummy child stdin");
 
         Arc::new(WorkspaceSession {
-            entry,
             codex_args: None,
             child: Mutex::new(child),
             stdin: Mutex::new(stdin),
             pending: Mutex::new(HashMap::new()),
+            request_context: Mutex::new(HashMap::new()),
+            thread_workspace: Mutex::new(HashMap::new()),
             next_id: AtomicU64::new(0),
             background_thread_callbacks: Mutex::new(HashMap::new()),
+            workspace_ids: Mutex::new(HashSet::from([owner_workspace_id.clone()])),
+            workspace_roots: Mutex::new(HashMap::new()),
+            owner_workspace_id,
         })
     }
 
@@ -1805,7 +1791,6 @@ mod tests {
                 id: "ws-sync".to_string(),
                 name: "Synced Workspace".to_string(),
                 path: tmp.join("workspace").to_string_lossy().to_string(),
-                codex_bin: None,
                 kind: WorkspaceKind::Main,
                 parent_id: None,
                 worktree: None,

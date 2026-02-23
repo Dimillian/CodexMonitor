@@ -88,10 +88,9 @@ describe("codexArgsProfiles", () => {
     ).toBe('--config "C:\\\\Program Files\\\\Codex\\\\the \\"best\\" config.toml"');
   });
 
-  it("includes active override in options even when not present in app/workspace settings", () => {
+  it("includes active override in options even when not present in app settings", () => {
     const options = buildCodexArgsOptions({
       appCodexArgs: null,
-      workspaceCodexArgs: [],
       additionalCodexArgs: ["--profile thread-active"],
     });
 

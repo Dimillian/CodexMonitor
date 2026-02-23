@@ -23,7 +23,6 @@ import { useWorktreeOps } from "./useWorktreeOps";
 
 export type UseWorkspacesOptions = {
   onDebug?: (entry: DebugEntry) => void;
-  defaultCodexBin?: string | null;
   appSettings?: AppSettings;
   onUpdateAppSettings?: (next: AppSettings) => Promise<AppSettings>;
 };
@@ -59,7 +58,6 @@ export type UseWorkspacesResult = {
   connectWorkspace: (entry: WorkspaceInfo) => Promise<void>;
   markWorkspaceConnected: (id: string) => void;
   updateWorkspaceSettings: (workspaceId: string, patch: Partial<WorkspaceSettings>) => Promise<WorkspaceInfo>;
-  updateWorkspaceCodexBin: (workspaceId: string, codexBin: string | null) => Promise<WorkspaceInfo>;
   createWorkspaceGroup: (name: string) => Promise<WorkspaceGroup | null>;
   renameWorkspaceGroup: (groupId: string, name: string) => Promise<true | null>;
   moveWorkspaceGroup: (groupId: string, direction: "up" | "down") => Promise<true | null>;
@@ -79,7 +77,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}): UseWorkspaces
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
   const workspaceSettingsRef = useRef<Map<string, WorkspaceSettings>>(new Map());
-  const { onDebug, defaultCodexBin, appSettings, onUpdateAppSettings } = options;
+  const { onDebug, appSettings, onUpdateAppSettings } = options;
 
   const {
     addWorkspaceFromPath,
@@ -90,10 +88,8 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}): UseWorkspaces
     markWorkspaceConnected,
     refreshWorkspaces,
     removeWorkspace,
-    updateWorkspaceCodexBin,
     updateWorkspaceSettings,
   } = useWorkspaceCrud({
-    defaultCodexBin,
     onDebug,
     workspaces,
     setWorkspaces,
@@ -188,7 +184,6 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}): UseWorkspaces
     connectWorkspace,
     markWorkspaceConnected,
     updateWorkspaceSettings,
-    updateWorkspaceCodexBin,
     createWorkspaceGroup,
     renameWorkspaceGroup,
     moveWorkspaceGroup,

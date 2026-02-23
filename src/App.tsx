@@ -241,7 +241,6 @@ function MainApp() {
     connectWorkspace,
     markWorkspaceConnected,
     updateWorkspaceSettings,
-    updateWorkspaceCodexBin,
     createWorkspaceGroup,
     renameWorkspaceGroup,
     moveWorkspaceGroup,
@@ -567,10 +566,9 @@ function MainApp() {
     () =>
       buildCodexArgsOptions({
         appCodexArgs: appSettings.codexArgs ?? null,
-        workspaceCodexArgs: workspaces.map((workspace) => workspace.settings.codexArgs),
         additionalCodexArgs: [selectedCodexArgsOverride],
       }),
-    [appSettings.codexArgs, selectedCodexArgsOverride, workspaces],
+    [appSettings.codexArgs, selectedCodexArgsOverride],
   );
   const ensureWorkspaceRuntimeCodexArgs = useCallback(
     async (workspaceId: string, threadId: string | null) => {
@@ -630,6 +628,7 @@ function MainApp() {
     getPinTimestamp,
     renameThread,
     startThreadForWorkspace,
+    listThreadsForWorkspaces,
     listThreadsForWorkspace,
     loadOlderThreadsForWorkspace,
     resetWorkspaceThreads,
@@ -991,7 +990,7 @@ function MainApp() {
       setThreadListSortKey,
       workspaces,
       refreshWorkspaces,
-      listThreadsForWorkspace,
+      listThreadsForWorkspaces,
       resetWorkspaceThreads,
     });
 
@@ -1745,12 +1744,12 @@ function MainApp() {
     workspaces,
     hasLoaded,
     connectWorkspace,
-    listThreadsForWorkspace
+    listThreadsForWorkspaces,
   });
   useWorkspaceRefreshOnFocus({
     workspaces,
     refreshWorkspaces,
-    listThreadsForWorkspace,
+    listThreadsForWorkspaces,
     backendMode: appSettings.backendMode,
     pollIntervalMs: REMOTE_WORKSPACE_REFRESH_INTERVAL_MS,
   });
@@ -2738,9 +2737,6 @@ function MainApp() {
           },
           onRunDoctor: doctor,
           onRunCodexUpdate: codexUpdate,
-          onUpdateWorkspaceCodexBin: async (id, codexBin) => {
-            await updateWorkspaceCodexBin(id, codexBin);
-          },
           onUpdateWorkspaceSettings: async (id, settings) => {
             await updateWorkspaceSettings(id, settings);
           },

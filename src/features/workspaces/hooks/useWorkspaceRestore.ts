@@ -1,13 +1,15 @@
 import { useEffect, useRef } from "react";
 import type { WorkspaceInfo } from "../../../types";
 
+const INITIAL_THREAD_LIST_MAX_PAGES = 6;
+
 type WorkspaceRestoreOptions = {
   workspaces: WorkspaceInfo[];
   hasLoaded: boolean;
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
-  listThreadsForWorkspace: (
-    workspace: WorkspaceInfo,
-    options?: { preserveState?: boolean },
+  listThreadsForWorkspaces: (
+    workspaces: WorkspaceInfo[],
+    options?: { preserveState?: boolean; maxPages?: number },
   ) => Promise<void>;
 };
 
@@ -15,7 +17,7 @@ export function useWorkspaceRestore({
   workspaces,
   hasLoaded,
   connectWorkspace,
-  listThreadsForWorkspace,
+  listThreadsForWorkspaces,
 }: WorkspaceRestoreOptions) {
   const restoredWorkspaces = useRef(new Set<string>());
 
@@ -23,21 +25,33 @@ export function useWorkspaceRestore({
     if (!hasLoaded) {
       return;
     }
-    workspaces.forEach((workspace) => {
-      if (restoredWorkspaces.current.has(workspace.id)) {
-        return;
-      }
+    const pending = workspaces.filter(
+      (workspace) => !restoredWorkspaces.current.has(workspace.id),
+    );
+    if (pending.length === 0) {
+      return;
+    }
+    pending.forEach((workspace) => {
       restoredWorkspaces.current.add(workspace.id);
-      void (async () => {
+    });
+    void (async () => {
+      const connectedTargets: WorkspaceInfo[] = [];
+      for (const workspace of pending) {
+        const wasConnected = workspace.connected;
         try {
-          if (!workspace.connected) {
+          if (!wasConnected) {
             await connectWorkspace(workspace);
           }
-          await listThreadsForWorkspace(workspace);
+          connectedTargets.push({ ...workspace, connected: true });
         } catch {
           // Silent: connection errors show in debug panel.
         }
-      })();
-    });
-  }, [connectWorkspace, hasLoaded, listThreadsForWorkspace, workspaces]);
+      }
+      if (connectedTargets.length > 0) {
+        await listThreadsForWorkspaces(connectedTargets, {
+          maxPages: INITIAL_THREAD_LIST_MAX_PAGES,
+        });
+      }
+    })();
+  }, [connectWorkspace, hasLoaded, listThreadsForWorkspaces, workspaces]);
 }

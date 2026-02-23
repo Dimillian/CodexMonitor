@@ -78,7 +78,6 @@ pub(crate) async fn list_workspaces_core(
             id: entry.id.clone(),
             name: entry.name.clone(),
             path: entry.path.clone(),
-            codex_bin: entry.codex_bin.clone(),
             connected: sessions.contains_key(&entry.id),
             kind: entry.kind.clone(),
             parent_id: entry.parent_id.clone(),

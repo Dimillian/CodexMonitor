@@ -27,7 +27,6 @@ vi.mock("../../../services/tauri", () => ({
   pickWorkspacePaths: vi.fn(),
   removeWorkspace: vi.fn(),
   removeWorktree: vi.fn(),
-  updateWorkspaceCodexBin: vi.fn(),
   updateWorkspaceSettings: vi.fn(),
 }));
 
@@ -251,7 +250,7 @@ describe("useWorkspaces.addWorkspaceFromPath", () => {
       await result.current.addWorkspaceFromPath("/tmp/repo");
     });
 
-    expect(addWorkspaceMock).toHaveBeenCalledWith("/tmp/repo", null);
+    expect(addWorkspaceMock).toHaveBeenCalledWith("/tmp/repo");
     expect(result.current.workspaces).toHaveLength(1);
     expect(result.current.activeWorkspaceId).toBe("workspace-1");
   });
@@ -314,8 +313,8 @@ describe("useWorkspaces.addWorkspacesFromPaths", () => {
     });
 
     expect(addWorkspaceMock).toHaveBeenCalledTimes(2);
-    expect(addWorkspaceMock).toHaveBeenCalledWith("/tmp/ws-1", null);
-    expect(addWorkspaceMock).toHaveBeenCalledWith("/tmp/ws-2", null);
+    expect(addWorkspaceMock).toHaveBeenCalledWith("/tmp/ws-1");
+    expect(addWorkspaceMock).toHaveBeenCalledWith("/tmp/ws-2");
     expect(result.current.workspaces).toHaveLength(2);
     expect(result.current.activeWorkspaceId).toBe("added-1");
     expect(addResult!.firstAdded?.id).toBe("added-1");
@@ -350,7 +349,7 @@ describe("useWorkspaces.addWorkspacesFromPaths", () => {
     });
 
     expect(addWorkspaceMock).toHaveBeenCalledTimes(1);
-    expect(addWorkspaceMock).toHaveBeenCalledWith(workspaceTwo.path, null);
+    expect(addWorkspaceMock).toHaveBeenCalledWith(workspaceTwo.path);
     expect(addResult!.added).toHaveLength(1);
     expect(addResult!.firstAdded?.id).toBe(workspaceTwo.id);
     expect(addResult!.skippedExisting).toEqual([workspaceOne.path]);
@@ -384,7 +383,6 @@ describe("useWorkspaces.addWorkspaceFromGitUrl", () => {
       "https://github.com/org/repo.git",
       "/tmp",
       "repo",
-      null,
     );
     expect(result.current.activeWorkspace?.id).toBe("from-url");
   });

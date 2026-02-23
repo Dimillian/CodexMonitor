@@ -36,7 +36,6 @@ pub(crate) struct IsWorkspacePathDirRequest {
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct AddWorkspaceRequest {
     pub(crate) path: String,
-    pub(crate) codex_bin: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -44,7 +43,6 @@ pub(crate) struct AddWorkspaceFromGitUrlRequest {
     pub(crate) url: String,
     pub(crate) destination_path: String,
     pub(crate) target_folder_name: Option<String>,
-    pub(crate) codex_bin: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -85,12 +83,6 @@ pub(crate) struct RenameWorktreeUpstreamRequest {
 pub(crate) struct UpdateWorkspaceSettingsRequest {
     pub(crate) id: String,
     pub(crate) settings: WorkspaceSettings,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct UpdateWorkspaceCodexBinRequest {
-    pub(crate) id: String,
-    pub(crate) codex_bin: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

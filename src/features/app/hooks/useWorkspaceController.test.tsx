@@ -31,7 +31,6 @@ vi.mock("../../../services/tauri", () => ({
   removeWorktree: vi.fn(),
   renameWorktree: vi.fn(),
   renameWorktreeUpstream: vi.fn(),
-  updateWorkspaceCodexBin: vi.fn(),
   updateWorkspaceSettings: vi.fn(),
 }));
 
