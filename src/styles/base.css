@@ -108,7 +108,7 @@ body {
 }
 
 .titlebar-toggle-right {
-  right: calc(12px + var(--window-caption-width, 0px) + var(--window-caption-gap, 0px));
+  right: calc(14px + var(--window-caption-width, 0px) + var(--window-caption-gap, 0px));
 }
 
 .window-caption-controls {
@@ -118,13 +118,13 @@ body {
   z-index: 6;
   display: inline-flex;
   align-items: stretch;
-  height: var(--window-caption-height, 32px);
+  height: var(--main-topbar-height, 44px);
   -webkit-app-region: no-drag;
 }
 
 .window-caption-control {
   width: 46px;
-  height: var(--window-caption-height, 32px);
+  height: var(--main-topbar-height, 44px);
   border: none;
   border-radius: 0;
   padding: 0;
@@ -140,6 +140,12 @@ body {
 button.window-caption-control,
 .titlebar-toggle .main-header-action {
   transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
+}
+
+.titlebar-toggle .main-header-action {
+  width: var(--titlebar-toggle-size, 28px);
+  height: var(--titlebar-toggle-size, 28px);
+  padding: 0;
 }
 
 button.window-caption-control:hover:not(:disabled),

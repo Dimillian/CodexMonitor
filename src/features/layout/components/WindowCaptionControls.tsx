@@ -104,7 +104,6 @@ export function WindowCaptionControls({ enabled }: WindowCaptionControlsProps) {
         type="button"
         className="window-caption-control"
         aria-label="Minimize window"
-        title="Minimize"
         data-tauri-drag-region="false"
         onClick={handleMinimize}
       >
@@ -114,7 +113,6 @@ export function WindowCaptionControls({ enabled }: WindowCaptionControlsProps) {
         type="button"
         className="window-caption-control"
         aria-label={isMaximized ? "Restore window" : "Maximize window"}
-        title={isMaximized ? "Restore" : "Maximize"}
         data-tauri-drag-region="false"
         onClick={handleToggleMaximize}
       >
@@ -124,7 +122,6 @@ export function WindowCaptionControls({ enabled }: WindowCaptionControlsProps) {
         type="button"
         className="window-caption-control window-caption-control-close"
         aria-label="Close window"
-        title="Close"
         data-tauri-drag-region="false"
         onClick={handleClose}
       >

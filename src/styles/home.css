@@ -8,14 +8,23 @@
   align-items: stretch;
   gap: 20px;
   justify-content: flex-start;
-  justify-self: center;
-  align-self: center;
-  max-width: 720px;
-  margin: 0 auto;
+  justify-self: stretch;
+  align-self: stretch;
+  max-width: none;
+  margin: 0;
   text-align: left;
-  padding: 36px 32px 24px;
+  padding: calc(36px + var(--home-scroll-offset, 0px)) 32px 24px;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+.app.layout-desktop .home {
+  height: 100%;
+}
+
+.app.layout-desktop .home > * {
+  width: min(100%, 720px);
+  margin-inline: auto;
 }
 
 .home-hero {
