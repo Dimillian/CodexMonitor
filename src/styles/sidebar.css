@@ -510,7 +510,51 @@
 }
 
 .workspace-group-header-all-threads {
+  padding-top: 2px;
   padding-bottom: 4px;
+}
+
+.all-threads-add {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border-stronger);
+  background: var(--surface-card-muted);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  -webkit-app-region: no-drag;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.all-threads-add svg {
+  width: 12px;
+  height: 12px;
+}
+
+.all-threads-add:hover,
+.all-threads-add:focus-visible {
+  color: var(--text-strong);
+  background: var(--surface-card-strong);
+}
+
+.workspace-group-header-all-threads:hover .all-threads-add,
+.all-threads-add:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.all-threads-add:disabled {
+  cursor: not-allowed;
+}
+
+.workspace-group-header-all-threads:hover .all-threads-add:disabled,
+.all-threads-add:focus-visible:disabled {
+  opacity: 0.5;
 }
 
 .workspace-group-header.is-toggleable {
@@ -804,6 +848,11 @@
   gap: 4px;
   min-width: 160px;
   z-index: 9999;
+}
+
+.all-threads-add-menu {
+  max-height: 320px;
+  overflow-y: auto;
 }
 
 .workspace-add-option {

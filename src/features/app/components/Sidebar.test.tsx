@@ -202,6 +202,61 @@ describe("Sidebar", () => {
     expect(screen.getByText("Beta Project")).toBeTruthy();
   });
 
+  it("creates a new thread from the all-threads project picker", () => {
+    const onAddAgent = vi.fn();
+    render(
+      <Sidebar
+        {...baseProps}
+        threadListOrganizeMode="threads_only"
+        onAddAgent={onAddAgent}
+        workspaces={[
+          {
+            id: "ws-1",
+            name: "Alpha Project",
+            path: "/tmp/alpha",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+          {
+            id: "ws-2",
+            name: "Beta Project",
+            path: "/tmp/beta",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-1",
+                name: "Alpha Project",
+                path: "/tmp/alpha",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+              {
+                id: "ws-2",
+                name: "Beta Project",
+                path: "/tmp/beta",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "New thread in project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Alpha Project" }));
+
+    expect(onAddAgent).toHaveBeenCalledTimes(1);
+    expect(onAddAgent).toHaveBeenCalledWith(expect.objectContaining({ id: "ws-1" }));
+  });
+
   it("refreshes all workspace threads from the header button", () => {
     const onRefreshAllThreads = vi.fn();
     render(

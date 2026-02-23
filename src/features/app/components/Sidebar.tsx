@@ -9,7 +9,7 @@ import type {
 } from "../../../types";
 import { createPortal } from "react-dom";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import type { RefObject } from "react";
+import type { MouseEvent, RefObject } from "react";
 import { FolderOpen } from "lucide-react";
 import Copy from "lucide-react/dist/esm/icons/copy";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
@@ -41,6 +41,7 @@ import type { ThreadStatusById } from "../../../utils/threadStatus";
 const COLLAPSED_GROUPS_STORAGE_KEY = "codexmonitor.collapsedGroups";
 const UNGROUPED_COLLAPSE_ID = "__ungrouped__";
 const ADD_MENU_WIDTH = 200;
+const ALL_THREADS_ADD_MENU_WIDTH = 220;
 
 type WorkspaceGroupSection = {
   id: string | null;
@@ -187,11 +188,22 @@ export const Sidebar = memo(function Sidebar({
     left: number;
     width: number;
   } | null>(null);
+  const [allThreadsAddMenuAnchor, setAllThreadsAddMenuAnchor] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+  const allThreadsAddMenuOpen = Boolean(allThreadsAddMenuAnchor);
   const addMenuController = useMenuController({
     open: Boolean(addMenuAnchor),
     onDismiss: () => setAddMenuAnchor(null),
   });
   const { containerRef: addMenuRef } = addMenuController;
+  const allThreadsAddMenuController = useMenuController({
+    open: Boolean(allThreadsAddMenuAnchor),
+    onDismiss: () => setAllThreadsAddMenuAnchor(null),
+  });
+  const { containerRef: allThreadsAddMenuRef } = allThreadsAddMenuController;
   const { collapsedGroups, toggleGroupCollapse } = useCollapsedGroups(
     COLLAPSED_GROUPS_STORAGE_KEY,
   );
@@ -626,6 +638,37 @@ export const Sidebar = memo(function Sidebar({
       ? sortedGroupedWorkspaces
       : filteredGroupedWorkspaces;
   const isThreadsOnlyMode = threadListOrganizeMode === "threads_only";
+
+  const handleAllThreadsAddMenuToggle = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      if (allThreadsAddMenuOpen) {
+        setAllThreadsAddMenuAnchor(null);
+        return;
+      }
+      setAddMenuAnchor(null);
+      const rect = event.currentTarget.getBoundingClientRect();
+      const left = Math.min(
+        Math.max(rect.left, 12),
+        window.innerWidth - ALL_THREADS_ADD_MENU_WIDTH - 12,
+      );
+      const top = rect.bottom + 8;
+      setAllThreadsAddMenuAnchor({
+        top,
+        left,
+        width: ALL_THREADS_ADD_MENU_WIDTH,
+      });
+    },
+    [allThreadsAddMenuOpen],
+  );
+
+  const handleCreateThreadInProject = useCallback(
+    (workspace: WorkspaceInfo) => {
+      setAllThreadsAddMenuAnchor(null);
+      onAddAgent(workspace);
+    },
+    [onAddAgent],
+  );
   const isSearchActive = Boolean(normalizedQuery);
 
   const worktreesByParent = useMemo(() => {
@@ -672,6 +715,24 @@ export const Sidebar = memo(function Sidebar({
     return { clonesBySource: clones, cloneChildIds: cloneIds };
   }, [workspaces]);
 
+  const projectOptionsForNewThread = useMemo(() => {
+    const seen = new Set<string>();
+    const projects: WorkspaceInfo[] = [];
+    groupedWorkspacesForRender.forEach((group) => {
+      group.workspaces.forEach((entry) => {
+        if ((entry.kind ?? "main") !== "main") {
+          return;
+        }
+        if (cloneChildIds.has(entry.id) || seen.has(entry.id)) {
+          return;
+        }
+        seen.add(entry.id);
+        projects.push(entry);
+      });
+    });
+    return projects;
+  }, [cloneChildIds, groupedWorkspacesForRender]);
+
   const handleToggleExpanded = useCallback((workspaceId: string) => {
     setExpandedWorkspaces((prev) => {
       const next = new Set(prev);
@@ -704,6 +765,19 @@ export const Sidebar = memo(function Sidebar({
       window.removeEventListener("scroll", handleScroll, true);
     };
   }, [addMenuAnchor]);
+
+  useEffect(() => {
+    if (!allThreadsAddMenuAnchor) {
+      return;
+    }
+    function handleScroll() {
+      setAllThreadsAddMenuAnchor(null);
+    }
+    window.addEventListener("scroll", handleScroll, true);
+    return () => {
+      window.removeEventListener("scroll", handleScroll, true);
+    };
+  }, [allThreadsAddMenuAnchor]);
 
   useEffect(() => {
     if (!isSearchOpen && searchQuery) {
@@ -803,24 +877,64 @@ export const Sidebar = memo(function Sidebar({
             </div>
           )}
           {isThreadsOnlyMode
-            ? flatThreadRows.length > 0 && (
+            ? groupedWorkspacesForRender.length > 0 && (
                 <div className="workspace-group">
                   <div className="workspace-group-header workspace-group-header-all-threads">
                     <div className="workspace-group-label">All threads</div>
+                    <button
+                      className="ghost all-threads-add"
+                      onClick={handleAllThreadsAddMenuToggle}
+                      data-tauri-drag-region="false"
+                      aria-label="New thread in project"
+                      title="New thread in project"
+                      aria-expanded={allThreadsAddMenuOpen}
+                      disabled={projectOptionsForNewThread.length === 0}
+                    >
+                      <Plus aria-hidden />
+                    </button>
                   </div>
-                  <PinnedThreadList
-                    rows={flatThreadRows}
-                    activeWorkspaceId={activeWorkspaceId}
-                    activeThreadId={activeThreadId}
-                    threadStatusById={threadStatusById}
-                    pendingUserInputKeys={pendingUserInputKeys}
-                    getThreadTime={getThreadTime}
-                    getThreadArgsBadge={getThreadArgsBadge}
-                    isThreadPinned={isThreadPinned}
-                    onSelectThread={onSelectThread}
-                    onShowThreadMenu={showThreadMenu}
-                    getWorkspaceLabel={getWorkspaceLabel}
-                  />
+                  {flatThreadRows.length > 0 && (
+                    <PinnedThreadList
+                      rows={flatThreadRows}
+                      activeWorkspaceId={activeWorkspaceId}
+                      activeThreadId={activeThreadId}
+                      threadStatusById={threadStatusById}
+                      pendingUserInputKeys={pendingUserInputKeys}
+                      getThreadTime={getThreadTime}
+                      getThreadArgsBadge={getThreadArgsBadge}
+                      isThreadPinned={isThreadPinned}
+                      onSelectThread={onSelectThread}
+                      onShowThreadMenu={showThreadMenu}
+                      getWorkspaceLabel={getWorkspaceLabel}
+                    />
+                  )}
+                  {allThreadsAddMenuAnchor &&
+                    createPortal(
+                      <PopoverSurface
+                        className="workspace-add-menu all-threads-add-menu"
+                        ref={allThreadsAddMenuRef}
+                        style={{
+                          top: allThreadsAddMenuAnchor.top,
+                          left: allThreadsAddMenuAnchor.left,
+                          width: allThreadsAddMenuAnchor.width,
+                        }}
+                      >
+                        {projectOptionsForNewThread.map((workspace) => (
+                          <PopoverMenuItem
+                            key={workspace.id}
+                            className="workspace-add-option"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleCreateThreadInProject(workspace);
+                            }}
+                            icon={<Plus aria-hidden />}
+                          >
+                            {workspace.name}
+                          </PopoverMenuItem>
+                        ))}
+                      </PopoverSurface>,
+                      document.body,
+                    )}
                 </div>
               )
             : groupedWorkspacesForRender.map((group) => {
