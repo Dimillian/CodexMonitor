@@ -711,8 +711,17 @@ fn resolve_workspace_codex_home_for_path(
 mod tests {
     use super::*;
     use std::io::Write;
+    use std::sync::OnceLock;
     use std::time::Duration;
     use uuid::Uuid;
+
+    fn session_index_test_guard() -> std::sync::MutexGuard<'static, ()> {
+        static TEST_GUARD: OnceLock<StdMutex<()>> = OnceLock::new();
+        match TEST_GUARD.get_or_init(|| StdMutex::new(())).lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        }
+    }
 
     fn clear_session_index_cache() {
         let Some(index_lock) = SESSION_FILE_INDEX.get() else {
@@ -753,6 +762,7 @@ mod tests {
 
     #[test]
     fn scan_thread_usage_aggregates_total_without_double_counting_last() {
+        let _guard = session_index_test_guard();
         clear_session_index_cache();
 
         let root = make_temp_sessions_root();
@@ -781,6 +791,7 @@ mod tests {
 
     #[test]
     fn scan_thread_usage_respects_workspace_filter() {
+        let _guard = session_index_test_guard();
         clear_session_index_cache();
 
         let root = make_temp_sessions_root();
@@ -805,6 +816,7 @@ mod tests {
 
     #[test]
     fn scan_thread_usage_uses_session_meta_id_not_filename_substring() {
+        let _guard = session_index_test_guard();
         clear_session_index_cache();
 
         let root = make_temp_sessions_root();
@@ -825,6 +837,7 @@ mod tests {
 
     #[test]
     fn scan_thread_usage_refreshes_index_when_requested_thread_is_missing() {
+        let _guard = session_index_test_guard();
         clear_session_index_cache();
 
         let root = make_temp_sessions_root();
@@ -869,6 +882,7 @@ mod tests {
 
     #[test]
     fn scan_thread_usage_throttles_repeated_missing_thread_rebuilds() {
+        let _guard = session_index_test_guard();
         clear_session_index_cache();
 
         let root = make_temp_sessions_root();
