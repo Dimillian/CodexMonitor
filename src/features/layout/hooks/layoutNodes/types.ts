@@ -33,6 +33,7 @@ import type {
   RequestUserInputRequest,
   RequestUserInputResponse,
   SkillOption,
+  ThreadListOrganizeMode,
   ThreadListSortKey,
   ThreadSummary,
   ThreadTokenUsage,
@@ -118,6 +119,8 @@ export type LayoutNodesOptions = {
   pinnedThreadsVersion: number;
   threadListSortKey: ThreadListSortKey;
   onSetThreadListSortKey: (sortKey: ThreadListSortKey) => void;
+  threadListOrganizeMode: ThreadListOrganizeMode;
+  onSetThreadListOrganizeMode: (organizeMode: ThreadListOrganizeMode) => void;
   onRefreshAllThreads: () => void;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
@@ -393,6 +396,7 @@ export type LayoutNodesOptions = {
   isProcessing: boolean;
   steerAvailable: boolean;
   followUpMessageBehavior: FollowUpMessageBehavior;
+  composerFollowUpHintEnabled: boolean;
   reviewPrompt: ReviewPromptState;
   onReviewPromptClose: () => void;
   onReviewPromptShowPreset: () => void;

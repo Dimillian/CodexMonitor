@@ -15,12 +15,14 @@ fi
 
 DEVICE="${DEVICE:-${IOS_DEVICE:-}}"
 TARGET="${TARGET:-${IOS_TARGET:-aarch64}}"
-BUNDLE_ID="${BUNDLE_ID:-${IOS_BUNDLE_ID:-com.dimillian.codexmonitor.ios}}"
+BUNDLE_ID="${BUNDLE_ID:-${IOS_BUNDLE_ID:-}}"
 DEVELOPMENT_TEAM="${APPLE_DEVELOPMENT_TEAM:-${IOS_DEVELOPMENT_TEAM:-}}"
 SKIP_BUILD=0
 OPEN_XCODE=0
 LIST_DEVICES=0
 IOS_APP_ICONSET_DIR="src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset"
+TAURI_IOS_LOCAL_CONFIG="src-tauri/tauri.ios.local.conf.json"
+TAURI_CONFIG_ARGS=()
 
 usage() {
   cat <<'EOF'
@@ -36,7 +38,7 @@ Options:
   --device <id|name>   Required unless --list-devices is used.
                        Accepts UDID, serial, UUID, or device name.
   --target <target>    Tauri iOS target (default: aarch64)
-  --bundle-id <id>     Bundle id to launch (default: com.dimillian.codexmonitor.ios)
+  --bundle-id <id>     Bundle id to launch (default: resolved from Tauri iOS config)
   --team <id>          Apple development team ID (sets APPLE_DEVELOPMENT_TEAM)
   --skip-build         Skip build and only install + launch existing app
   --open-xcode         Open Xcode after build instead of install/launch via devicectl
@@ -121,17 +123,46 @@ sync_ios_icons() {
   fi
 }
 
-has_configured_ios_team() {
-  node -e '
-    const fs = require("fs");
-    const baseCfg = JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json", "utf8"));
-    let iosCfg = {};
-    try {
-      iosCfg = JSON.parse(fs.readFileSync("src-tauri/tauri.ios.conf.json", "utf8"));
-    } catch (_) {}
-    const team = iosCfg?.bundle?.iOS?.developmentTeam ?? baseCfg?.bundle?.iOS?.developmentTeam;
-    process.exit(team && String(team).trim() ? 0 : 1);
-  ' >/dev/null 2>&1
+resolve_ios_config_value() {
+  local key="$1"
+  node - "$key" <<'NODE'
+const fs = require("fs");
+
+function readConfig(path) {
+  try {
+    return JSON.parse(fs.readFileSync(path, "utf8"));
+  } catch (_) {
+    return {};
+  }
+}
+
+const key = process.argv[2];
+const baseCfg = readConfig("src-tauri/tauri.conf.json");
+const iosCfg = readConfig("src-tauri/tauri.ios.conf.json");
+const localPath = "src-tauri/tauri.ios.local.conf.json";
+const hasLocal = fs.existsSync(localPath);
+const localCfg = hasLocal ? readConfig(localPath) : {};
+
+const identifier =
+  localCfg?.identifier ??
+  iosCfg?.identifier ??
+  baseCfg?.identifier ??
+  "";
+
+const team =
+  localCfg?.bundle?.iOS?.developmentTeam ??
+  iosCfg?.bundle?.iOS?.developmentTeam ??
+  baseCfg?.bundle?.iOS?.developmentTeam ??
+  "";
+
+const values = {
+  identifier: String(identifier).trim(),
+  team: String(team).trim(),
+  hasLocal: hasLocal ? "1" : "0",
+};
+
+process.stdout.write(values[key] ?? "");
+NODE
 }
 
 if ! xcrun devicectl --help >/dev/null 2>&1; then
@@ -156,14 +187,29 @@ if [[ -z "$NPM_BIN" ]]; then
   exit 1
 fi
 
+if [[ "$(resolve_ios_config_value hasLocal)" == "1" ]]; then
+  TAURI_CONFIG_ARGS+=(--config "$TAURI_IOS_LOCAL_CONFIG")
+fi
+
+if [[ -z "$BUNDLE_ID" ]]; then
+  BUNDLE_ID="$(resolve_ios_config_value identifier)"
+fi
+if [[ -z "$BUNDLE_ID" ]]; then
+  BUNDLE_ID="com.dimillian.codexmonitor.ios"
+fi
+
+if [[ -z "$DEVELOPMENT_TEAM" ]]; then
+  DEVELOPMENT_TEAM="$(resolve_ios_config_value team)"
+fi
+
 if [[ -n "$DEVELOPMENT_TEAM" ]]; then
   export APPLE_DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM"
 fi
 
 if [[ "$SKIP_BUILD" -eq 0 && -z "${APPLE_DEVELOPMENT_TEAM:-}" ]]; then
-  if ! has_configured_ios_team; then
+  if [[ -z "$(resolve_ios_config_value team)" ]]; then
     echo "Missing iOS signing team." >&2
-    echo "Set one via --team <TEAM_ID> or APPLE_DEVELOPMENT_TEAM, or set bundle.iOS.developmentTeam in src-tauri/tauri.ios.conf.json (or src-tauri/tauri.conf.json)." >&2
+    echo "Set one via --team <TEAM_ID> or APPLE_DEVELOPMENT_TEAM, or set bundle.iOS.developmentTeam in src-tauri/tauri.ios.local.conf.json (preferred) / src-tauri/tauri.ios.conf.json / src-tauri/tauri.conf.json." >&2
     echo "Tip: First-time setup can be done with --open-xcode." >&2
     exit 1
   fi
@@ -172,10 +218,10 @@ fi
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
   sync_ios_icons
   if [[ "$OPEN_XCODE" -eq 1 ]]; then
-    "$NPM_BIN" run tauri -- ios build -d -t "$TARGET" --open
+    "$NPM_BIN" run tauri -- ios build -d -t "$TARGET" "${TAURI_CONFIG_ARGS[@]}" --open
     exit 0
   fi
-  "$NPM_BIN" run tauri -- ios build -d -t "$TARGET" --ci
+  "$NPM_BIN" run tauri -- ios build -d -t "$TARGET" "${TAURI_CONFIG_ARGS[@]}" --ci
 fi
 
 APP_PATH="src-tauri/gen/apple/build/arm64/Codex Monitor.app"

@@ -101,6 +101,41 @@ Notes:
 - The desktop daemon must stay running while iOS is connected.
 - If the test fails, confirm both devices are online in Tailscale and that host/token match desktop settings.
 
+### Headless Daemon Management (No Desktop UI)
+
+Use the standalone daemon control CLI when you want iOS remote mode without keeping the desktop app open.
+
+Build binaries:
+
+```bash
+cd src-tauri
+cargo build --bin codex_monitor_daemon --bin codex_monitor_daemonctl
+```
+
+Examples:
+
+```bash
+# Show current daemon status
+./target/debug/codex_monitor_daemonctl status
+
+# Start daemon using host/token from settings.json
+./target/debug/codex_monitor_daemonctl start
+
+# Stop daemon
+./target/debug/codex_monitor_daemonctl stop
+
+# Print equivalent daemon start command
+./target/debug/codex_monitor_daemonctl command-preview
+```
+
+Useful overrides:
+
+- `--data-dir <path>`: app data dir containing `settings.json` / `workspaces.json`
+- `--listen <addr>`: bind address override
+- `--token <token>`: token override
+- `--daemon-path <path>`: explicit `codex-monitor-daemon` binary path
+- `--json`: machine-readable output
+
 ### iOS Prerequisites
 
 - Xcode + Command Line Tools installed.
@@ -113,9 +148,11 @@ rustup target add x86_64-apple-ios
 ```
 
 - Apple signing configured (development team).
-  - Preferred local-only setup: copy `.ios.local.env.example` to `.ios.local.env` and set `APPLE_DEVELOPMENT_TEAM`.
-  - Or pass `--team <TEAM_ID>` to the device script.
-  - Or set `bundle.iOS.developmentTeam` in `src-tauri/tauri.ios.conf.json`.
+  - Set `bundle.iOS.developmentTeam` and `identifier` in `src-tauri/tauri.ios.local.conf.json` (preferred for local machine setup), or
+  - set values in `src-tauri/tauri.ios.conf.json`, or
+  - pass `--team <TEAM_ID>` to the device script.
+  - `build_run_ios*.sh` and `release_testflight_ios.sh` automatically merge `src-tauri/tauri.ios.local.conf.json` when present.
+  - For device-only local defaults without editing tracked config files, use `.ios.local.env` (see USB device section below).
 
 ### Run on iOS Simulator
 

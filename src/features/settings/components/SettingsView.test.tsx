@@ -120,6 +120,7 @@ const baseSettings: AppSettings = {
   collaborationModesEnabled: true,
   steerEnabled: true,
   followUpMessageBehavior: "queue",
+  composerFollowUpHintEnabled: true,
   pauseQueuedMessagesWhenResponseRequired: true,
   unifiedExecEnabled: true,
   experimentalAppsEnabled: false,
@@ -1524,6 +1525,27 @@ describe("SettingsView Features", () => {
 });
 
 describe("SettingsView Composer", () => {
+  it("toggles follow-up hint visibility", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    renderComposerSection({
+      onUpdateAppSettings,
+      appSettings: {
+        composerFollowUpHintEnabled: true,
+      },
+    });
+
+    const hintTitle = await screen.findByText("Show follow-up hint while processing");
+    const hintRow = hintTitle.closest(".settings-toggle-row");
+    expect(hintRow).not.toBeNull();
+    fireEvent.click(within(hintRow as HTMLElement).getByRole("button"));
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ composerFollowUpHintEnabled: false }),
+      );
+    });
+  });
+
   it("updates follow-up behavior from queue to steer", async () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderComposerSection({

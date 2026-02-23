@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 .ios.local.env
+src-tauri/tauri.ios.local.conf.json
 .testflight.local.env
 
 # Editor directories and files

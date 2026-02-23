@@ -61,6 +61,7 @@ function ComposerHarness({
       appsEnabled={true}
       steerAvailable={steerAvailable}
       followUpMessageBehavior={followUpMessageBehavior}
+      composerFollowUpHintEnabled={true}
       collaborationModes={[]}
       selectedCollaborationModeId={null}
       onSelectCollaborationMode={() => {}}

@@ -61,6 +61,7 @@ type ComposerProps = {
   isProcessing: boolean;
   steerAvailable: boolean;
   followUpMessageBehavior: FollowUpMessageBehavior;
+  composerFollowUpHintEnabled: boolean;
   collaborationModes: { id: string; label: string }[];
   selectedCollaborationModeId: string | null;
   onSelectCollaborationMode: (id: string | null) => void;
@@ -168,6 +169,7 @@ export const Composer = memo(function Composer({
   isProcessing,
   steerAvailable,
   followUpMessageBehavior,
+  composerFollowUpHintEnabled,
   collaborationModes,
   selectedCollaborationModeId,
   onSelectCollaborationMode,
@@ -643,7 +645,7 @@ export const Composer = memo(function Composer({
         onEditQueued={onEditQueued}
         onDeleteQueued={onDeleteQueued}
       />
-      {isProcessing && (
+      {isProcessing && composerFollowUpHintEnabled && (
         <div className="composer-followup-hint" role="status" aria-live="polite">
           <div className="composer-followup-title">Follow-up behavior</div>
           <div className="composer-followup-copy">

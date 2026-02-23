@@ -1,0 +1,16 @@
+.mobile-remote-workspace-modal-card {
+  width: min(640px, calc(100vw - 24px));
+  border-radius: 16px;
+  background: var(--surface-sidebar-opaque);
+}
+
+.mobile-remote-workspace-modal-content {
+  padding: 14px 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.mobile-remote-workspace-modal-hint {
+  font-size: 12px;
+  color: var(--ds-text-subtle);
+}

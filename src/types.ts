@@ -2,6 +2,7 @@ export type WorkspaceSettings = {
   sidebarCollapsed: boolean;
   sortOrder?: number | null;
   groupId?: string | null;
+  cloneSourceWorkspaceId?: string | null;
   gitRoot?: string | null;
   codexHome?: string | null;
   codexArgs?: string | null;
@@ -103,9 +104,16 @@ export type ThreadSummary = {
   id: string;
   name: string;
   updatedAt: number;
+  createdAt?: number;
+  modelId?: string | null;
+  effort?: string | null;
 };
 
 export type ThreadListSortKey = "created_at" | "updated_at";
+export type ThreadListOrganizeMode =
+  | "by_project"
+  | "by_project_activity"
+  | "threads_only";
 
 export type ReviewTarget =
   | { type: "uncommittedChanges" }
@@ -234,6 +242,7 @@ export type AppSettings = {
   collaborationModesEnabled: boolean;
   steerEnabled: boolean;
   followUpMessageBehavior: FollowUpMessageBehavior;
+  composerFollowUpHintEnabled: boolean;
   pauseQueuedMessagesWhenResponseRequired: boolean;
   unifiedExecEnabled: boolean;
   experimentalAppsEnabled: boolean;
