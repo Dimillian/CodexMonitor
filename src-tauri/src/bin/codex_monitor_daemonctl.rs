@@ -967,10 +967,27 @@ fn safe_force_stop_pid(pid: u32) -> Option<u32> {
     }
 }
 
-async fn resolve_daemon_pid(listen_port: u16) -> Option<u32> {
-    find_listener_pid(listen_port)
+fn local_listener_port(listen_addr: &str) -> Option<u16> {
+    let addr = listen_addr.trim().parse::<SocketAddr>().ok()?;
+    let ip = addr.ip();
+    if ip.is_loopback() || ip.is_unspecified() {
+        Some(addr.port())
+    } else {
+        None
+    }
+}
+
+async fn resolve_daemon_pid(listen_addr: &str, expected_pid: Option<u32>) -> Option<u32> {
+    let listen_port = local_listener_port(listen_addr)?;
+    let pid = find_listener_pid(listen_port)
         .await
-        .and_then(safe_force_stop_pid)
+        .and_then(safe_force_stop_pid)?;
+    if let Some(expected) = expected_pid {
+        if expected != pid {
+            return None;
+        }
+    }
+    Some(pid)
 }
 
 async fn daemon_start(
@@ -984,7 +1001,7 @@ async fn daemon_start(
         return Err("Set a Remote backend token before starting mobile access daemon (or pass --insecure-no-auth for development).".to_string());
     }
 
-    let listen_port = parse_port_from_remote_host(listen_addr)
+    parse_port_from_remote_host(listen_addr)
         .ok_or_else(|| format!("Invalid daemon listen address: {listen_addr}"))?;
 
     match probe_daemon(listen_addr, token).await {
@@ -993,7 +1010,8 @@ async fn daemon_start(
             auth_error,
             info,
         } => {
-            let pid = resolve_daemon_pid(listen_port).await;
+            let expected_pid = info.as_ref().and_then(|value| value.pid);
+            let pid = resolve_daemon_pid(listen_addr, expected_pid).await;
             let restart_required = should_restart_daemon(info.as_ref());
             let restart_reason = if restart_required {
                 Some(daemon_restart_reason(info.as_ref()))
@@ -1050,7 +1068,7 @@ async fn daemon_start(
                         restart_reason.unwrap_or_else(|| "Daemon restart required".to_string())
                     ));
                 }
-                if let Some(pid) = resolve_daemon_pid(listen_port).await {
+                if let Some(pid) = resolve_daemon_pid(listen_addr, expected_pid).await {
                     kill_pid_gracefully(pid).await.map_err(|err| {
                         format!(
                             "{}; daemon remained reachable and forced stop failed: {err}",
@@ -1108,15 +1126,15 @@ async fn daemon_start(
 }
 
 async fn daemon_stop(listen_addr: &str, token: Option<&str>) -> TcpDaemonStatus {
-    let listen_port = parse_port_from_remote_host(listen_addr);
     let mut stop_error: Option<String> = None;
 
-    if let Some(port) = listen_port {
+    if let Some(port) = parse_port_from_remote_host(listen_addr) {
         match probe_daemon(listen_addr, token).await {
             DaemonProbe::Running { auth_ok, info, .. } => {
                 let force_kill_allowed = can_force_stop_daemon(auth_ok, info.as_ref());
+                let expected_pid = info.as_ref().and_then(|value| value.pid);
                 if let Err(shutdown_error) = request_daemon_shutdown(listen_addr, token).await {
-                    let pid = resolve_daemon_pid(port).await;
+                    let pid = resolve_daemon_pid(listen_addr, expected_pid).await;
                     if let Some(pid) = pid {
                         if force_kill_allowed {
                             if let Err(err) = kill_pid_gracefully(pid).await {
@@ -1134,7 +1152,7 @@ async fn daemon_stop(listen_addr: &str, token: Option<&str>) -> TcpDaemonStatus 
                     }
                 } else if !wait_for_daemon_shutdown(listen_addr, token).await {
                     if force_kill_allowed {
-                        let pid = resolve_daemon_pid(port).await;
+                        let pid = resolve_daemon_pid(listen_addr, expected_pid).await;
                         if let Some(pid) = pid {
                             if let Err(err) = kill_pid_gracefully(pid).await {
                                 stop_error = Some(format!(
@@ -1167,10 +1185,7 @@ async fn daemon_stop(listen_addr: &str, token: Option<&str>) -> TcpDaemonStatus 
     }
 
     let probe_after_stop = probe_daemon(listen_addr, token).await;
-    let pid_after_stop = match listen_port {
-        Some(port) => find_listener_pid(port).await,
-        None => None,
-    };
+    let pid_after_stop = resolve_daemon_pid(listen_addr, None).await;
 
     match probe_after_stop {
         DaemonProbe::Running { auth_error, .. } => TcpDaemonStatus {
@@ -1204,11 +1219,7 @@ async fn daemon_stop(listen_addr: &str, token: Option<&str>) -> TcpDaemonStatus 
 }
 
 async fn daemon_status(listen_addr: &str, token: Option<&str>) -> TcpDaemonStatus {
-    let listen_port = parse_port_from_remote_host(listen_addr);
-    let pid = match listen_port {
-        Some(port) => find_listener_pid(port).await,
-        None => None,
-    };
+    let pid = resolve_daemon_pid(listen_addr, None).await;
 
     match probe_daemon(listen_addr, token).await {
         DaemonProbe::Running { auth_error, .. } => TcpDaemonStatus {
@@ -1267,9 +1278,9 @@ fn print_status(status: &TcpDaemonStatus, as_json: bool) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        daemon_connect_addr, daemon_listen_addr, parse_netstat_listener_pid,
-        parse_port_from_remote_host, parse_ss_listener_pid, resolve_listen_addr,
-        safe_force_stop_pid, shell_quote,
+        daemon_connect_addr, daemon_listen_addr, local_listener_port, parse_netstat_listener_pid,
+        parse_port_from_remote_host, parse_ss_listener_pid, resolve_listen_addr, safe_force_stop_pid,
+        shell_quote,
     };
 
     #[test]
@@ -1334,6 +1345,16 @@ mod tests {
             daemon_connect_addr("[::]:4732").as_deref(),
             Some("[::1]:4732")
         );
+    }
+
+    #[test]
+    fn local_listener_port_allows_local_addresses_only() {
+        assert_eq!(local_listener_port("127.0.0.1:4732"), Some(4732));
+        assert_eq!(local_listener_port("[::1]:4732"), Some(4732));
+        assert_eq!(local_listener_port("0.0.0.0:4732"), Some(4732));
+        assert_eq!(local_listener_port("[::]:4732"), Some(4732));
+        assert_eq!(local_listener_port("192.168.1.42:4732"), None);
+        assert_eq!(local_listener_port("100.64.0.1:4732"), None);
     }
 
     #[test]
