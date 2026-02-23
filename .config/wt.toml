@@ -1,0 +1,8 @@
+# Worktrunk project config for codex-monitor
+# Docs: https://worktrunk.dev/config/
+
+[post-create]
+# Fast-start new worktrees by copying selected gitignored files from primary.
+copy = "wt step copy-ignored"
+# Ensure local iOS signing/config follows every new worktree.
+copy_tauri_ios_local_conf = "if [ -f \"../{{ repo }}/src-tauri/tauri.ios.local.conf.json\" ]; then cp \"../{{ repo }}/src-tauri/tauri.ios.local.conf.json\" \"src-tauri/tauri.ios.local.conf.json\"; fi"
