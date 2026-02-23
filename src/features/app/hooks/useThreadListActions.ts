@@ -9,6 +9,7 @@ type UseThreadListActionsOptions = {
   threadListSortKey: ThreadListSortKey;
   setThreadListSortKey: (sortKey: ThreadListSortKey) => void;
   workspaces: WorkspaceInfo[];
+  refreshWorkspaces: () => Promise<WorkspaceInfo[] | undefined>;
   listThreadsForWorkspace: (
     workspace: WorkspaceInfo,
     options?: ListThreadsOptions,
@@ -20,6 +21,7 @@ export function useThreadListActions({
   threadListSortKey,
   setThreadListSortKey,
   workspaces,
+  refreshWorkspaces,
   listThreadsForWorkspace,
   resetWorkspaceThreads,
 }: UseThreadListActionsOptions) {
@@ -38,13 +40,15 @@ export function useThreadListActions({
     [threadListSortKey, setThreadListSortKey, workspaces, listThreadsForWorkspace],
   );
 
-  const handleRefreshAllWorkspaceThreads = useCallback(() => {
-    const connectedWorkspaces = workspaces.filter((workspace) => workspace.connected);
+  const handleRefreshAllWorkspaceThreads = useCallback(async () => {
+    const refreshed = await refreshWorkspaces();
+    const source = refreshed ?? workspaces;
+    const connectedWorkspaces = source.filter((workspace) => workspace.connected);
     connectedWorkspaces.forEach((workspace) => {
       resetWorkspaceThreads(workspace.id);
       void listThreadsForWorkspace(workspace);
     });
-  }, [workspaces, resetWorkspaceThreads, listThreadsForWorkspace]);
+  }, [refreshWorkspaces, workspaces, resetWorkspaceThreads, listThreadsForWorkspace]);
 
   return {
     handleSetThreadListSortKey,

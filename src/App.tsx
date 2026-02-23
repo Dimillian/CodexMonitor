@@ -206,7 +206,12 @@ function MainApp() {
     clearDebugEntries,
     shouldReduceTransparency,
   } = useAppBootstrapOrchestration();
-  const { threadListSortKey, setThreadListSortKey } = useThreadListSortKey();
+  const {
+    threadListSortKey,
+    setThreadListSortKey,
+    threadListOrganizeMode,
+    setThreadListOrganizeMode,
+  } = useThreadListSortKey();
   const [activeTab, setActiveTab] = useState<
     "home" | "projects" | "codex" | "git" | "log"
   >("codex");
@@ -513,6 +518,46 @@ function MainApp() {
   } = useCustomPrompts({ activeWorkspace, onDebug: addDebugEntry });
   const resolvedModel = selectedModel?.model ?? null;
   const resolvedEffort = reasoningSupported ? selectedEffort : null;
+
+  const handleThreadCodexMetadataDetected = useCallback(
+    (
+      workspaceId: string,
+      threadId: string,
+      metadata: { modelId: string | null; effort: string | null },
+    ) => {
+      if (!workspaceId || !threadId) {
+        return;
+      }
+      const modelId =
+        typeof metadata.modelId === "string" && metadata.modelId.trim().length > 0
+          ? metadata.modelId.trim()
+          : null;
+      const effort =
+        typeof metadata.effort === "string" && metadata.effort.trim().length > 0
+          ? metadata.effort.trim().toLowerCase()
+          : null;
+      if (!modelId && !effort) {
+        return;
+      }
+
+      const current = getThreadCodexParams(workspaceId, threadId);
+      const patch: {
+        modelId?: string | null;
+        effort?: string | null;
+      } = {};
+      if (modelId && !current?.modelId) {
+        patch.modelId = modelId;
+      }
+      if (effort && !current?.effort) {
+        patch.effort = effort;
+      }
+      if (Object.keys(patch).length === 0) {
+        return;
+      }
+      patchThreadCodexParams(workspaceId, threadId, patch);
+    },
+    [getThreadCodexParams, patchThreadCodexParams],
+  );
   const codexArgsOptions = useMemo(
     () =>
       buildCodexArgsOptions({
@@ -636,6 +681,7 @@ function MainApp() {
     customPrompts: prompts,
     onMessageActivity: handleThreadMessageActivity,
     threadSortKey: threadListSortKey,
+    onThreadCodexMetadataDetected: handleThreadCodexMetadataDetected,
   });
   const { connectionState: remoteThreadConnectionState, reconnectLive } =
     useRemoteThreadLiveConnection({
@@ -939,6 +985,7 @@ function MainApp() {
       threadListSortKey,
       setThreadListSortKey,
       workspaces,
+      refreshWorkspaces,
       listThreadsForWorkspace,
       resetWorkspaceThreads,
     });
@@ -2027,6 +2074,8 @@ function MainApp() {
     pinnedThreadsVersion,
     threadListSortKey,
     onSetThreadListSortKey: handleSetThreadListSortKey,
+    threadListOrganizeMode,
+    onSetThreadListOrganizeMode: setThreadListOrganizeMode,
     onRefreshAllThreads: handleRefreshAllWorkspaceThreads,
     activeWorkspaceId,
     activeThreadId,
