@@ -15,7 +15,7 @@ use crate::types::{
     WorktreeSetupStatus,
 };
 
-use super::connect::kill_session_by_id;
+use super::connect::{kill_session_by_id, take_live_shared_session, workspace_session_spawn_lock};
 use super::helpers::{
     copy_agents_md_from_parent_to_worktree, normalize_setup_script, worktree_setup_marker_path,
     AGENTS_MD_FILE_NAME,
@@ -194,7 +194,6 @@ where
         id: Uuid::new_v4().to_string(),
         name: name.clone().unwrap_or_else(|| branch.clone()),
         path: worktree_path_string,
-        codex_bin: parent_entry.codex_bin.clone(),
         kind: WorkspaceKind::Worktree,
         parent_id: Some(parent_entry.id.clone()),
         worktree: Some(WorktreeInfo { branch }),
@@ -206,15 +205,21 @@ where
         },
     };
 
-    let (default_bin, codex_args) = {
-        let settings = app_settings.lock().await;
-        (
-            settings.codex_bin.clone(),
-            resolve_workspace_codex_args(&entry, Some(&parent_entry), Some(&settings)),
-        )
+    let _spawn_guard = workspace_session_spawn_lock().lock().await;
+    let existing_session = take_live_shared_session(sessions).await;
+    let session = if let Some(existing_session) = existing_session {
+        existing_session
+    } else {
+        let (default_bin, codex_args) = {
+            let settings = app_settings.lock().await;
+            (
+                settings.codex_bin.clone(),
+                resolve_workspace_codex_args(&entry, Some(&parent_entry), Some(&settings)),
+            )
+        };
+        let codex_home = resolve_workspace_codex_home(&entry, Some(&parent_entry));
+        spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?
     };
-    let codex_home = resolve_workspace_codex_home(&entry, Some(&parent_entry));
-    let session = spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?;
 
     {
         let mut workspaces = workspaces.lock().await;
@@ -223,13 +228,15 @@ where
         write_workspaces(storage_path, &list)?;
     }
 
+    session
+        .register_workspace_with_path(&entry.id, Some(&entry.path))
+        .await;
     sessions.lock().await.insert(entry.id.clone(), session);
 
     Ok(WorkspaceInfo {
         id: entry.id,
         name: entry.name,
         path: entry.path,
-        codex_bin: entry.codex_bin,
         connected: true,
         kind: entry.kind,
         parent_id: entry.parent_id,
@@ -326,14 +333,14 @@ pub(crate) async fn rename_worktree_core<
     data_dir: &PathBuf,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
-    app_settings: &Mutex<AppSettings>,
+    _app_settings: &Mutex<AppSettings>,
     storage_path: &PathBuf,
     resolve_git_root: FResolveGitRoot,
     unique_branch_name: FUniqueBranch,
     sanitize_worktree_name: FSanitize,
     unique_worktree_path_for_rename: FUniqueRenamePath,
     run_git_command: FRunGit,
-    spawn_session: FSpawn,
+    _spawn_session: FSpawn,
 ) -> Result<WorkspaceInfo, String>
 where
     FSpawn: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> FutSpawn,
@@ -435,31 +442,10 @@ where
     };
     write_workspaces(storage_path, &list)?;
 
-    let was_connected = sessions.lock().await.contains_key(&entry_snapshot.id);
-    if was_connected {
-        kill_session_by_id(sessions, &entry_snapshot.id).await;
-        let (default_bin, codex_args) = {
-            let settings = app_settings.lock().await;
-            (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry_snapshot, Some(&parent), Some(&settings)),
-            )
-        };
-        let codex_home = resolve_workspace_codex_home(&entry_snapshot, Some(&parent));
-        match spawn_session(entry_snapshot.clone(), default_bin, codex_args, codex_home).await {
-            Ok(session) => {
-                sessions
-                    .lock()
-                    .await
-                    .insert(entry_snapshot.id.clone(), session);
-            }
-            Err(error) => {
-                eprintln!(
-                    "rename_worktree: respawn failed for {} after rename: {error}",
-                    entry_snapshot.id
-                );
-            }
-        }
+    if let Some(session) = sessions.lock().await.get(&entry_snapshot.id).cloned() {
+        session
+            .register_workspace_with_path(&entry_snapshot.id, Some(&entry_snapshot.path))
+            .await;
     }
 
     let connected = sessions.lock().await.contains_key(&entry_snapshot.id);
@@ -467,7 +453,6 @@ where
         id: entry_snapshot.id,
         name: entry_snapshot.name,
         path: entry_snapshot.path,
-        codex_bin: entry_snapshot.codex_bin,
         connected,
         kind: entry_snapshot.kind,
         parent_id: entry_snapshot.parent_id,

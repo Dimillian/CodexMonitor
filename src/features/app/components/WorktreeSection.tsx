@@ -1,5 +1,5 @@
 import Layers from "lucide-react/dist/esm/icons/layers";
-import type { MouseEvent } from "react";
+import type { MouseEvent, ReactNode } from "react";
 
 import type { ThreadSummary, WorkspaceInfo } from "../../../types";
 import type { ThreadStatusById } from "../../../utils/threadStatus";
@@ -53,6 +53,9 @@ type WorktreeSectionProps = {
   onShowWorktreeMenu: (event: MouseEvent, worktree: WorkspaceInfo) => void;
   onToggleExpanded: (workspaceId: string) => void;
   onLoadOlderThreads: (workspaceId: string) => void;
+  sectionLabel?: string;
+  sectionIcon?: ReactNode;
+  className?: string;
 };
 
 export function WorktreeSection({
@@ -83,16 +86,19 @@ export function WorktreeSection({
   onShowWorktreeMenu,
   onToggleExpanded,
   onLoadOlderThreads,
+  sectionLabel = "Worktrees",
+  sectionIcon,
+  className,
 }: WorktreeSectionProps) {
   if (!worktrees.length) {
     return null;
   }
 
   return (
-    <div className="worktree-section">
+    <div className={`worktree-section${className ? ` ${className}` : ""}`}>
       <div className="worktree-header">
-        <Layers className="worktree-header-icon" aria-hidden />
-        Worktrees
+        {sectionIcon ?? <Layers className="worktree-header-icon" aria-hidden />}
+        {sectionLabel}
       </div>
       <div className="worktree-list">
         {worktrees.map((worktree) => {

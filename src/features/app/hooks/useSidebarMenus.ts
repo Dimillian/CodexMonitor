@@ -159,5 +159,51 @@ export function useSidebarMenus({
     [onReloadWorkspaceThreads, onDeleteWorktree],
   );
 
-  return { showThreadMenu, showWorkspaceMenu, showWorktreeMenu };
+  const showCloneMenu = useCallback(
+    async (event: MouseEvent, clone: WorkspaceInfo) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const fileManagerLabel = fileManagerName();
+      const reloadItem = await MenuItem.new({
+        text: "Reload threads",
+        action: () => onReloadWorkspaceThreads(clone.id),
+      });
+      const revealItem = await MenuItem.new({
+        text: `Show in ${fileManagerLabel}`,
+        action: async () => {
+          if (!clone.path) {
+            return;
+          }
+          try {
+            const { revealItemInDir } = await import(
+              "@tauri-apps/plugin-opener"
+            );
+            await revealItemInDir(clone.path);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            pushErrorToast({
+              title: `Couldn't show clone in ${fileManagerLabel}`,
+              message,
+            });
+            console.warn("Failed to reveal clone", {
+              message,
+              workspaceId: clone.id,
+              path: clone.path,
+            });
+          }
+        },
+      });
+      const deleteItem = await MenuItem.new({
+        text: "Delete clone",
+        action: () => onDeleteWorkspace(clone.id),
+      });
+      const menu = await Menu.new({ items: [reloadItem, revealItem, deleteItem] });
+      const window = getCurrentWindow();
+      const position = new LogicalPosition(event.clientX, event.clientY);
+      await menu.popup(position, window);
+    },
+    [onReloadWorkspaceThreads, onDeleteWorkspace],
+  );
+
+  return { showThreadMenu, showWorkspaceMenu, showWorktreeMenu, showCloneMenu };
 }

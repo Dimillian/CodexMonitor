@@ -31,6 +31,7 @@ export type SettingsAgentsSectionProps = {
   onRefresh: () => void;
   onSetMultiAgentEnabled: (enabled: boolean) => Promise<boolean>;
   onSetMaxThreads: (maxThreads: number) => Promise<boolean>;
+  onSetMaxDepth: (maxDepth: number) => Promise<boolean>;
   onCreateAgent: (input: {
     name: string;
     description?: string | null;
@@ -121,13 +122,18 @@ export const useSettingsAgentsSection = ({
   }, [refresh]);
 
   const applyCoreSettings = useCallback(
-    async (multiAgentEnabled: boolean, maxThreads: number): Promise<boolean> => {
+    async (
+      multiAgentEnabled: boolean,
+      maxThreads: number,
+      maxDepth: number,
+    ): Promise<boolean> => {
       setIsUpdatingCore(true);
       setError(null);
       try {
         const response = await setAgentsCoreSettings({
           multiAgentEnabled,
           maxThreads,
+          maxDepth,
         });
         setSettings(response);
         return true;
@@ -146,7 +152,7 @@ export const useSettingsAgentsSection = ({
       if (!settings) {
         return false;
       }
-      return applyCoreSettings(enabled, settings.maxThreads);
+      return applyCoreSettings(enabled, settings.maxThreads, settings.maxDepth);
     },
     [applyCoreSettings, settings],
   );
@@ -156,7 +162,17 @@ export const useSettingsAgentsSection = ({
       if (!settings) {
         return false;
       }
-      return applyCoreSettings(settings.multiAgentEnabled, maxThreads);
+      return applyCoreSettings(settings.multiAgentEnabled, maxThreads, settings.maxDepth);
+    },
+    [applyCoreSettings, settings],
+  );
+
+  const onSetMaxDepth = useCallback(
+    async (maxDepth: number): Promise<boolean> => {
+      if (!settings) {
+        return false;
+      }
+      return applyCoreSettings(settings.multiAgentEnabled, settings.maxThreads, maxDepth);
     },
     [applyCoreSettings, settings],
   );
@@ -340,6 +356,7 @@ export const useSettingsAgentsSection = ({
     },
     onSetMultiAgentEnabled,
     onSetMaxThreads,
+    onSetMaxDepth,
     onCreateAgent,
     onUpdateAgent,
     onDeleteAgent,

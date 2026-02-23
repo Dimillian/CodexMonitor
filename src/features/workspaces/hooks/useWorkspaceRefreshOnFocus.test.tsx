@@ -29,13 +29,13 @@ describe("useWorkspaceRefreshOnFocus", () => {
         settings: { sidebarCollapsed: false },
       },
     ]);
-    const listThreadsForWorkspace = vi.fn().mockResolvedValue(undefined);
+    const listThreadsForWorkspaces = vi.fn().mockResolvedValue(undefined);
 
     renderHook(() =>
       useWorkspaceRefreshOnFocus({
         workspaces: [],
         refreshWorkspaces,
-        listThreadsForWorkspace,
+        listThreadsForWorkspaces,
       }),
     );
 
@@ -46,9 +46,9 @@ describe("useWorkspaceRefreshOnFocus", () => {
     });
 
     expect(refreshWorkspaces).toHaveBeenCalledTimes(1);
-    expect(listThreadsForWorkspace).toHaveBeenCalledTimes(1);
-    expect(listThreadsForWorkspace).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "ws-1" }),
+    expect(listThreadsForWorkspaces).toHaveBeenCalledTimes(1);
+    expect(listThreadsForWorkspaces).toHaveBeenCalledWith(
+      [expect.objectContaining({ id: "ws-1" })],
       { preserveState: true },
     );
   });
@@ -63,13 +63,13 @@ describe("useWorkspaceRefreshOnFocus", () => {
         settings: { sidebarCollapsed: false },
       },
     ]);
-    const listThreadsForWorkspace = vi.fn().mockResolvedValue(undefined);
+    const listThreadsForWorkspaces = vi.fn().mockResolvedValue(undefined);
 
     renderHook(() =>
       useWorkspaceRefreshOnFocus({
         workspaces: [],
         refreshWorkspaces,
-        listThreadsForWorkspace,
+        listThreadsForWorkspaces,
         backendMode: "remote",
         pollIntervalMs: 2000,
       }),
@@ -86,18 +86,18 @@ describe("useWorkspaceRefreshOnFocus", () => {
       await Promise.resolve();
     });
     expect(refreshWorkspaces).toHaveBeenCalledTimes(1);
-    expect(listThreadsForWorkspace).toHaveBeenCalledTimes(1);
+    expect(listThreadsForWorkspaces).toHaveBeenCalledTimes(1);
   });
 
   it("does not poll when backend mode is local", async () => {
     const refreshWorkspaces = vi.fn().mockResolvedValue([]);
-    const listThreadsForWorkspace = vi.fn().mockResolvedValue(undefined);
+    const listThreadsForWorkspaces = vi.fn().mockResolvedValue(undefined);
 
     renderHook(() =>
       useWorkspaceRefreshOnFocus({
         workspaces: [],
         refreshWorkspaces,
-        listThreadsForWorkspace,
+        listThreadsForWorkspaces,
         backendMode: "local",
         pollIntervalMs: 1000,
       }),
@@ -109,19 +109,19 @@ describe("useWorkspaceRefreshOnFocus", () => {
     });
 
     expect(refreshWorkspaces).toHaveBeenCalledTimes(0);
-    expect(listThreadsForWorkspace).toHaveBeenCalledTimes(0);
+    expect(listThreadsForWorkspaces).toHaveBeenCalledTimes(0);
   });
 
   it("starts polling when backend mode changes from local to remote", async () => {
     const refreshWorkspaces = vi.fn().mockResolvedValue([]);
-    const listThreadsForWorkspace = vi.fn().mockResolvedValue(undefined);
+    const listThreadsForWorkspaces = vi.fn().mockResolvedValue(undefined);
 
     const { rerender } = renderHook(
       (props: { backendMode: string }) =>
         useWorkspaceRefreshOnFocus({
           workspaces: [],
           refreshWorkspaces,
-          listThreadsForWorkspace,
+          listThreadsForWorkspaces,
           backendMode: props.backendMode,
           pollIntervalMs: 1000,
         }),
@@ -147,13 +147,13 @@ describe("useWorkspaceRefreshOnFocus", () => {
 
   it("stops polling while hidden and resumes when visible again", async () => {
     const refreshWorkspaces = vi.fn().mockResolvedValue([]);
-    const listThreadsForWorkspace = vi.fn().mockResolvedValue(undefined);
+    const listThreadsForWorkspaces = vi.fn().mockResolvedValue(undefined);
 
     renderHook(() =>
       useWorkspaceRefreshOnFocus({
         workspaces: [],
         refreshWorkspaces,
-        listThreadsForWorkspace,
+        listThreadsForWorkspaces,
         backendMode: "remote",
         pollIntervalMs: 1000,
       }),

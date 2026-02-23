@@ -18,6 +18,7 @@ For backend behavior, follow this path in order:
 5. Shared core source of truth: `src-tauri/src/shared/*`
 6. Daemon RPC method parity: `src-tauri/src/bin/codex_monitor_daemon/rpc.rs`
 7. Daemon state/wiring implementation: `src-tauri/src/bin/codex_monitor_daemon.rs`
+8. Standalone daemon lifecycle CLI: `src-tauri/src/bin/codex_monitor_daemonctl.rs`
 
 If a behavior must work in both app and daemon, implement it in `src-tauri/src/shared/*` first.
 
@@ -104,6 +105,7 @@ Use TS/Vite aliases for refactor-safe imports:
 ## Daemon Navigation
 
 - Daemon entrypoint and state/wiring: `src-tauri/src/bin/codex_monitor_daemon.rs`
+- Daemon lifecycle CLI (headless start/stop/status): `src-tauri/src/bin/codex_monitor_daemonctl.rs`
 - Daemon JSON-RPC dispatcher/router: `src-tauri/src/bin/codex_monitor_daemon/rpc.rs`
 - Daemon domain handlers: `src-tauri/src/bin/codex_monitor_daemon/rpc/*`
 - Daemon transport: `src-tauri/src/bin/codex_monitor_daemon/transport.rs`

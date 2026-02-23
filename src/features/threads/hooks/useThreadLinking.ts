@@ -9,6 +9,49 @@ type UseThreadLinkingOptions = {
   onSubagentThreadDetected?: (workspaceId: string, threadId: string) => void;
 };
 
+function normalizeThreadId(value: unknown) {
+  return asString(value).trim();
+}
+
+function normalizeThreadIdsFromAgentRefs(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return "";
+      }
+      const record = entry as Record<string, unknown>;
+      return normalizeThreadId(record.threadId ?? record.thread_id ?? record.id);
+    })
+    .filter(Boolean);
+}
+
+function normalizeThreadIdsFromAgentStatuses(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return "";
+      }
+      const record = entry as Record<string, unknown>;
+      return normalizeThreadId(record.threadId ?? record.thread_id ?? record.id);
+    })
+    .filter(Boolean);
+}
+
+function normalizeThreadIdsFromStatusMap(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return [];
+  }
+  return Object.keys(value as Record<string, unknown>)
+    .map((key) => normalizeThreadId(key))
+    .filter(Boolean);
+}
+
 export function useThreadLinking({
   dispatch,
   threadParentById,
@@ -70,11 +113,18 @@ export function useThreadLinking({
       if (!parentId) {
         return;
       }
-      const receivers = [
-        ...normalizeStringList(item.receiverThreadId ?? item.receiver_thread_id),
-        ...normalizeStringList(item.receiverThreadIds ?? item.receiver_thread_ids),
-        ...normalizeStringList(item.newThreadId ?? item.new_thread_id),
-      ];
+      const receivers = Array.from(
+        new Set([
+          ...normalizeStringList(item.receiverThreadId ?? item.receiver_thread_id),
+          ...normalizeStringList(item.receiverThreadIds ?? item.receiver_thread_ids),
+          ...normalizeStringList(item.newThreadId ?? item.new_thread_id),
+          ...normalizeThreadIdsFromAgentRefs(item.receiverAgents ?? item.receiver_agents),
+          ...normalizeThreadIdsFromAgentStatuses(
+            item.agentStatuses ?? item.agent_statuses,
+          ),
+          ...normalizeThreadIdsFromStatusMap(item.statuses),
+        ]),
+      );
       updateThreadParent(parentId, receivers);
       receivers.forEach((receiver) => {
         if (!receiver) {

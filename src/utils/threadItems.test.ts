@@ -682,8 +682,62 @@ describe("threadItems", () => {
     if (item && item.kind === "tool") {
       expect(item.title).toBe("Collab: handoff");
       expect(item.detail).toContain("From thread-a");
-      expect(item.detail).toContain("thread-b, thread-c");
+      expect(item.detail).toContain("thread-b");
+      expect(item.detail).toContain("thread-c");
       expect(item.output).toBe("Coordinate work\n\nagent-1: running");
+    }
+  });
+
+  it("captures rich collab metadata from receiver_agents and agent_statuses", () => {
+    const item = buildConversationItem({
+      type: "collabToolCall",
+      id: "collab-rich-1",
+      tool: "wait",
+      status: "completed",
+      sender_thread_id: "thread-parent",
+      receiver_agents: [
+        {
+          thread_id: "thread-child-1",
+          agent_nickname: "Robie",
+          agent_role: "explorer",
+        },
+      ],
+      agent_statuses: [
+        {
+          thread_id: "thread-child-1",
+          status: "completed",
+          agent_nickname: "Robie",
+          agent_role: "explorer",
+        },
+      ],
+      prompt: "Wait for workers",
+    });
+
+    expect(item).not.toBeNull();
+    if (item && item.kind === "tool") {
+      expect(item.collabSender).toEqual({ threadId: "thread-parent" });
+      expect(item.collabReceiver).toEqual({
+        threadId: "thread-child-1",
+        nickname: "Robie",
+        role: "explorer",
+      });
+      expect(item.collabReceivers).toEqual([
+        {
+          threadId: "thread-child-1",
+          nickname: "Robie",
+          role: "explorer",
+        },
+      ]);
+      expect(item.collabStatuses).toEqual([
+        {
+          threadId: "thread-child-1",
+          nickname: "Robie",
+          role: "explorer",
+          status: "completed",
+        },
+      ]);
+      expect(item.detail).toContain("Robie [explorer]");
+      expect(item.output).toContain("Robie [explorer]: completed");
     }
   });
 

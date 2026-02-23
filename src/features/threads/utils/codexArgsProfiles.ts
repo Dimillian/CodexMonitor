@@ -501,7 +501,6 @@ export function buildEffectiveCodexArgsBadgeLabel(
 
 export function buildCodexArgsOptions(input: {
   appCodexArgs: string | null;
-  workspaceCodexArgs: Array<string | null | undefined>;
   additionalCodexArgs?: Array<string | null | undefined>;
 }): CodexArgsOption[] {
   const seen = new Set<string>();
@@ -511,7 +510,6 @@ export function buildCodexArgsOptions(input: {
 
   const candidates = [
     normalizeCodexArgs(input.appCodexArgs),
-    ...input.workspaceCodexArgs.map(normalizeCodexArgs),
     ...(input.additionalCodexArgs ?? []).map(normalizeCodexArgs),
   ].filter((value): value is string => typeof value === "string" && value.length > 0);
 

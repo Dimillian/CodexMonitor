@@ -10,6 +10,7 @@ import { SettingsProjectsSection } from "./SettingsProjectsSection";
 import { SettingsServerSection } from "./SettingsServerSection";
 import { SettingsShortcutsSection } from "./SettingsShortcutsSection";
 import { SettingsAgentsSection } from "./SettingsAgentsSection";
+import { SettingsAboutSection } from "./SettingsAboutSection";
 import type { CodexSection } from "@settings/components/settingsTypes";
 import type { SettingsViewOrchestration } from "@settings/hooks/useSettingsViewOrchestration";
 
@@ -30,6 +31,9 @@ export function SettingsSectionContainers({
   }
   if (activeSection === "display") {
     return <SettingsDisplaySection {...orchestration.displaySectionProps} />;
+  }
+  if (activeSection === "about") {
+    return <SettingsAboutSection />;
   }
   if (activeSection === "composer") {
     return <SettingsComposerSection {...orchestration.composerSectionProps} />;

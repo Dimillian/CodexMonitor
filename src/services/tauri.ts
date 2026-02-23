@@ -130,12 +130,14 @@ export type AgentsSettings = {
   configPath: string;
   multiAgentEnabled: boolean;
   maxThreads: number;
+  maxDepth: number;
   agents: AgentSummary[];
 };
 
 export type SetAgentsCoreInput = {
   multiAgentEnabled: boolean;
   maxThreads: number;
+  maxDepth: number;
 };
 
 export type CreateAgentInput = {
@@ -178,6 +180,10 @@ async function fileWrite(
   workspaceId?: string,
 ): Promise<void> {
   return invoke("file_write", { scope, kind, workspaceId, content });
+}
+
+export async function readImageAsDataUrl(path: string): Promise<string> {
+  return invoke<string>("read_image_as_data_url", { path });
 }
 
 export async function readGlobalAgentsMd(): Promise<GlobalAgentsResponse> {
@@ -241,24 +247,19 @@ export async function getConfigModel(workspaceId: string): Promise<string | null
   return trimmed.length > 0 ? trimmed : null;
 }
 
-export async function addWorkspace(
-  path: string,
-  codex_bin: string | null,
-): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("add_workspace", { path, codex_bin });
+export async function addWorkspace(path: string): Promise<WorkspaceInfo> {
+  return invoke<WorkspaceInfo>("add_workspace", { path });
 }
 
 export async function addWorkspaceFromGitUrl(
   url: string,
   destinationPath: string,
   targetFolderName: string | null,
-  codexBin: string | null,
 ): Promise<WorkspaceInfo> {
   return invoke<WorkspaceInfo>("add_workspace_from_git_url", {
     url,
     destinationPath,
     targetFolderName,
-    codexBin,
   });
 }
 
@@ -307,13 +308,6 @@ export async function updateWorkspaceSettings(
   settings: WorkspaceSettings,
 ): Promise<WorkspaceInfo> {
   return invoke<WorkspaceInfo>("update_workspace_settings", { id, settings });
-}
-
-export async function updateWorkspaceCodexBin(
-  id: string,
-  codex_bin: string | null,
-): Promise<WorkspaceInfo> {
-  return invoke<WorkspaceInfo>("update_workspace_codex_bin", { id, codex_bin });
 }
 
 export async function removeWorkspace(id: string): Promise<void> {
@@ -389,6 +383,52 @@ export async function compactThread(workspaceId: string, threadId: string) {
   return invoke<any>("compact_thread", { workspaceId, threadId });
 }
 
+function isInlineImageUrl(image: string) {
+  return (
+    image.startsWith("data:") ||
+    image.startsWith("http://") ||
+    image.startsWith("https://")
+  );
+}
+
+async function convertImagesToDataUrls(images: string[]): Promise<string[]> {
+  return Promise.all(
+    images.map(async (image) => {
+      if (isInlineImageUrl(image)) {
+        return image;
+      }
+      return readImageAsDataUrl(image);
+    }),
+  );
+}
+
+async function normalizeImagesForRpc(images?: string[]): Promise<string[] | null> {
+  if (images == null) {
+    return null;
+  }
+  if (images.length === 0) {
+    return [];
+  }
+  const hasPathImages = images.some((image) => !isInlineImageUrl(image));
+  if (!hasPathImages) {
+    return images;
+  }
+  let settings: AppSettings;
+  let mobileRuntime: boolean;
+  try {
+    [settings, mobileRuntime] = await Promise.all([getAppSettings(), isMobileRuntime()]);
+  } catch (error) {
+    if (isMissingTauriInvokeError(error)) {
+      return images;
+    }
+    throw error;
+  }
+  if (settings.backendMode !== "remote" && !mobileRuntime) {
+    return images;
+  }
+  return convertImagesToDataUrls(images);
+}
+
 export async function sendUserMessage(
   workspaceId: string,
   threadId: string,
@@ -402,6 +442,7 @@ export async function sendUserMessage(
     appMentions?: AppMention[];
   },
 ) {
+  const images = await normalizeImagesForRpc(options?.images);
   const payload: Record<string, unknown> = {
     workspaceId,
     threadId,
@@ -409,7 +450,7 @@ export async function sendUserMessage(
     model: options?.model ?? null,
     effort: options?.effort ?? null,
     accessMode: options?.accessMode ?? null,
-    images: options?.images ?? null,
+    images,
   };
   if (options?.collaborationMode) {
     payload.collaborationMode = options.collaborationMode;
@@ -436,12 +477,13 @@ export async function steerTurn(
   images?: string[],
   appMentions?: AppMention[],
 ) {
+  const normalizedImages = await normalizeImagesForRpc(images);
   const payload: Record<string, unknown> = {
     workspaceId,
     threadId,
     turnId,
     text,
-    images: images ?? null,
+    images: normalizedImages,
   };
   if (appMentions && appMentions.length > 0) {
     payload.appMentions = appMentions;
@@ -999,9 +1041,8 @@ export async function listThreads(
   cursor?: string | null,
   limit?: number | null,
   sortKey?: "created_at" | "updated_at" | null,
-  cwd?: string | null,
 ) {
-  return invoke<any>("list_threads", { workspaceId, cursor, limit, sortKey, cwd });
+  return invoke<any>("list_threads", { workspaceId, cursor, limit, sortKey });
 }
 
 export async function listMcpServerStatus(
@@ -1053,6 +1094,12 @@ export async function generateAgentDescription(
   description: string,
 ): Promise<GeneratedAgentConfiguration> {
   return invoke("generate_agent_description", { workspaceId, description });
+}
+
+export type AppBuildType = "debug" | "release";
+
+export async function getAppBuildType(): Promise<AppBuildType> {
+  return invoke<AppBuildType>("app_build_type");
 }
 
 export async function sendNotification(

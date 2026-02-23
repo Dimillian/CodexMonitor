@@ -12,6 +12,7 @@ type ThreadRowProps = {
   activeThreadId: string | null;
   threadStatusById: ThreadStatusById;
   pendingUserInputKeys?: Set<string>;
+  workspaceLabel?: string | null;
   getThreadTime: (thread: ThreadSummary) => string | null;
   getThreadArgsBadge?: (workspaceId: string, threadId: string) => string | null;
   getThreadTokenUsageLabel?: (workspaceId: string, threadId: string) => string | null;
@@ -34,6 +35,7 @@ export function ThreadRow({
   activeThreadId,
   threadStatusById,
   pendingUserInputKeys,
+  workspaceLabel,
   getThreadTime,
   getThreadArgsBadge,
   getThreadTokenUsageLabel,
@@ -43,7 +45,6 @@ export function ThreadRow({
 }: ThreadRowProps) {
   const relativeTime = getThreadTime(thread);
   const badge = getThreadArgsBadge?.(workspaceId, thread.id) ?? null;
-  const tokenUsageLabel = getThreadTokenUsageLabel?.(workspaceId, thread.id) ?? null;
   const indentStyle =
     depth > 0
       ? ({ "--thread-indent": `${depth * indentUnit}px` } as CSSProperties)
@@ -57,6 +58,13 @@ export function ThreadRow({
   );
   const canPin = depth === 0;
   const isPinned = canPin && isThreadPinned(workspaceId, thread.id);
+  const tokenUsageLabel = getThreadTokenUsageLabel?.(workspaceId, thread.id) ?? null;
+  const modelBadge =
+    thread.modelId && thread.modelId.trim().length > 0
+      ? thread.effort && thread.effort.trim().length > 0
+        ? `${thread.modelId} · ${thread.effort}`
+        : thread.modelId
+      : null;
 
   return (
     <div
@@ -86,6 +94,12 @@ export function ThreadRow({
         )}
       </div>
       <div className="thread-meta">
+        {workspaceLabel && <span className="thread-workspace-label">{workspaceLabel}</span>}
+        {modelBadge && (
+          <span className="thread-model-badge" title={modelBadge}>
+            {modelBadge}
+          </span>
+        )}
         {badge && <span className="thread-args-badge">{badge}</span>}
         {relativeTime && <span className="thread-time">{relativeTime}</span>}
         <div className="thread-menu">

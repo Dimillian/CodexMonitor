@@ -27,6 +27,8 @@ const baseProps = {
   pinnedThreadsVersion: 0,
   threadListSortKey: "updated_at" as const,
   onSetThreadListSortKey: vi.fn(),
+  threadListOrganizeMode: "by_project" as const,
+  onSetThreadListOrganizeMode: vi.fn(),
   onRefreshAllThreads: vi.fn(),
   activeWorkspaceId: null,
   activeThreadId: null,
@@ -112,15 +114,147 @@ describe("Sidebar", () => {
       />,
     );
 
-    const button = screen.getByRole("button", { name: "Sort threads" });
+    const button = screen.getByRole("button", { name: "Organize and sort threads" });
     expect(screen.queryByRole("menu")).toBeNull();
 
     fireEvent.click(button);
-    const option = screen.getByRole("menuitemradio", { name: "Most recent" });
+    const option = screen.getByRole("menuitemradio", { name: "Created" });
     fireEvent.click(option);
 
     expect(onSetThreadListSortKey).toHaveBeenCalledWith("created_at");
     expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("changes organize mode from the header filter menu", () => {
+    const onSetThreadListOrganizeMode = vi.fn();
+    render(
+      <Sidebar
+        {...baseProps}
+        threadListOrganizeMode="by_project"
+        onSetThreadListOrganizeMode={onSetThreadListOrganizeMode}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Organize and sort threads" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Thread list" }));
+
+    expect(onSetThreadListOrganizeMode).toHaveBeenCalledWith("threads_only");
+  });
+
+  it("renders threads-only mode as a global chronological list", () => {
+    const older = Date.now() - 10_000;
+    const newer = Date.now();
+    const { container } = render(
+      <Sidebar
+        {...baseProps}
+        threadListOrganizeMode="threads_only"
+        workspaces={[
+          {
+            id: "ws-1",
+            name: "Alpha Project",
+            path: "/tmp/alpha",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+          {
+            id: "ws-2",
+            name: "Beta Project",
+            path: "/tmp/beta",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-1",
+                name: "Alpha Project",
+                path: "/tmp/alpha",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+              {
+                id: "ws-2",
+                name: "Beta Project",
+                path: "/tmp/beta",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+            ],
+          },
+        ]}
+        threadsByWorkspace={{
+          "ws-1": [{ id: "thread-1", name: "Older thread", updatedAt: older }],
+          "ws-2": [{ id: "thread-2", name: "Newer thread", updatedAt: newer }],
+        }}
+      />,
+    );
+
+    const renderedNames = Array.from(container.querySelectorAll(".thread-row .thread-name")).map(
+      (node) => node.textContent?.trim(),
+    );
+    expect(renderedNames[0]).toBe("Newer thread");
+    expect(renderedNames[1]).toBe("Older thread");
+    expect(screen.getByText("Alpha Project")).toBeTruthy();
+    expect(screen.getByText("Beta Project")).toBeTruthy();
+  });
+
+  it("creates a new thread from the all-threads project picker", () => {
+    const onAddAgent = vi.fn();
+    render(
+      <Sidebar
+        {...baseProps}
+        threadListOrganizeMode="threads_only"
+        onAddAgent={onAddAgent}
+        workspaces={[
+          {
+            id: "ws-1",
+            name: "Alpha Project",
+            path: "/tmp/alpha",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+          {
+            id: "ws-2",
+            name: "Beta Project",
+            path: "/tmp/beta",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-1",
+                name: "Alpha Project",
+                path: "/tmp/alpha",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+              {
+                id: "ws-2",
+                name: "Beta Project",
+                path: "/tmp/beta",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "New thread in project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Alpha Project" }));
+
+    expect(onAddAgent).toHaveBeenCalledTimes(1);
+    expect(onAddAgent).toHaveBeenCalledWith(expect.objectContaining({ id: "ws-1" }));
   });
 
   it("refreshes all workspace threads from the header button", () => {
@@ -241,6 +375,143 @@ describe("Sidebar", () => {
 
     fireEvent.click(draftRow);
     expect(onSelectWorkspace).toHaveBeenCalledWith("ws-1");
+  });
+
+  it("renders clone agents nested under their source project", () => {
+    const { container } = render(
+      <Sidebar
+        {...baseProps}
+        workspaces={[
+          {
+            id: "ws-1",
+            name: "Main Project",
+            path: "/tmp/main",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+          {
+            id: "ws-2",
+            name: "Clone Agent",
+            path: "/tmp/main-copy",
+            connected: true,
+            settings: {
+              sidebarCollapsed: false,
+              cloneSourceWorkspaceId: "ws-1",
+            },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-1",
+                name: "Main Project",
+                path: "/tmp/main",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+              {
+                id: "ws-2",
+                name: "Clone Agent",
+                path: "/tmp/main-copy",
+                connected: true,
+                settings: {
+                  sidebarCollapsed: false,
+                  cloneSourceWorkspaceId: "ws-1",
+                },
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("Clone agents")).toBeTruthy();
+    expect(screen.getByText("Clone Agent")).toBeTruthy();
+    expect(container.querySelectorAll(".workspace-row")).toHaveLength(1);
+    expect(container.querySelectorAll(".worktree-row")).toHaveLength(1);
+  });
+
+  it("sorts by project activity using clone-thread activity for the source project", () => {
+    const { container } = render(
+      <Sidebar
+        {...baseProps}
+        threadListOrganizeMode="by_project_activity"
+        workspaces={[
+          {
+            id: "ws-a",
+            name: "Alpha Project",
+            path: "/tmp/alpha",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+          {
+            id: "ws-a-clone",
+            name: "Alpha Clone",
+            path: "/tmp/alpha-clone",
+            connected: true,
+            settings: {
+              sidebarCollapsed: false,
+              cloneSourceWorkspaceId: "ws-a",
+            },
+          },
+          {
+            id: "ws-b",
+            name: "Beta Project",
+            path: "/tmp/beta",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-a",
+                name: "Alpha Project",
+                path: "/tmp/alpha",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+              {
+                id: "ws-a-clone",
+                name: "Alpha Clone",
+                path: "/tmp/alpha-clone",
+                connected: true,
+                settings: {
+                  sidebarCollapsed: false,
+                  cloneSourceWorkspaceId: "ws-a",
+                },
+              },
+              {
+                id: "ws-b",
+                name: "Beta Project",
+                path: "/tmp/beta",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+            ],
+          },
+        ]}
+        threadsByWorkspace={{
+          "ws-a": [{ id: "thread-a", name: "Alpha root", updatedAt: 100 }],
+          "ws-a-clone": [
+            { id: "thread-a-clone", name: "Alpha clone thread", updatedAt: 300 },
+          ],
+          "ws-b": [{ id: "thread-b", name: "Beta root", updatedAt: 200 }],
+        }}
+      />,
+    );
+
+    const workspaceNames = Array.from(
+      container.querySelectorAll(".workspace-row .workspace-name"),
+    ).map((node) => node.textContent?.trim());
+    expect(workspaceNames[0]).toBe("Alpha Project");
+    expect(workspaceNames[1]).toBe("Beta Project");
   });
 
   it("does not show a workspace activity indicator when a thread is processing", () => {

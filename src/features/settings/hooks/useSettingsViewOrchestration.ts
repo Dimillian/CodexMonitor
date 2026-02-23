@@ -42,7 +42,6 @@ type UseSettingsViewOrchestrationArgs = {
     codexBin: string | null,
     codexArgs: string | null,
   ) => Promise<CodexUpdateResult>;
-  onUpdateWorkspaceCodexBin: (id: string, codexBin: string | null) => Promise<void>;
   onUpdateWorkspaceSettings: (
     id: string,
     settings: Partial<WorkspaceSettings>,
@@ -79,7 +78,6 @@ export function useSettingsViewOrchestration({
   onUpdateAppSettings,
   onRunDoctor,
   onRunCodexUpdate,
-  onUpdateWorkspaceCodexBin,
   onUpdateWorkspaceSettings,
   scaleShortcutTitle,
   scaleShortcutText,
@@ -104,10 +102,6 @@ export function useSettingsViewOrchestration({
   );
   const mainWorkspaces = useMemo(
     () => projects.filter((workspace) => (workspace.kind ?? "main") !== "worktree"),
-    [projects],
-  );
-  const hasCodexHomeOverrides = useMemo(
-    () => projects.some((workspace) => workspace.settings.codexHome != null),
     [projects],
   );
   const featureWorkspaceId = useMemo(
@@ -200,8 +194,6 @@ export function useSettingsViewOrchestration({
     onUpdateAppSettings,
     onRunDoctor,
     onRunCodexUpdate,
-    onUpdateWorkspaceCodexBin,
-    onUpdateWorkspaceSettings,
   });
 
   const gitSectionProps = useSettingsGitSection({
@@ -213,7 +205,6 @@ export function useSettingsViewOrchestration({
   const featuresSectionProps = useSettingsFeaturesSection({
     appSettings,
     featureWorkspaceId,
-    hasCodexHomeOverrides,
     onUpdateAppSettings,
   });
 

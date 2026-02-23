@@ -17,7 +17,6 @@ export function useWorkspaceController({
 }: WorkspaceControllerOptions) {
   const workspaceCore = useWorkspaces({
     onDebug: addDebugEntry,
-    defaultCodexBin: appSettings.codexBin,
     appSettings,
     onUpdateAppSettings: queueSaveSettings,
   });
@@ -31,6 +30,10 @@ export function useWorkspaceController({
 
   const {
     requestWorkspacePaths,
+    mobileRemoteWorkspacePathPrompt,
+    updateMobileRemoteWorkspacePathInput,
+    cancelMobileRemoteWorkspacePathPrompt,
+    submitMobileRemoteWorkspacePathPrompt,
     showAddWorkspacesResult,
     confirmWorkspaceRemoval,
     confirmWorktreeRemoval,
@@ -89,6 +92,10 @@ export function useWorkspaceController({
     ...workspaceCore,
     addWorkspace,
     addWorkspacesFromPaths,
+    mobileRemoteWorkspacePathPrompt,
+    updateMobileRemoteWorkspacePathInput,
+    cancelMobileRemoteWorkspacePathPrompt,
+    submitMobileRemoteWorkspacePathPrompt,
     removeWorkspace,
     removeWorktree,
   };

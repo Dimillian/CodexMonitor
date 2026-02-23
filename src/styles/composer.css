@@ -66,8 +66,23 @@
   cursor: pointer;
 }
 
-.composer-queue-menu:hover {
+.composer-queue-menu-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.composer-queue-menu:hover,
+.composer-queue-menu.is-open {
   color: var(--text-stronger);
+}
+
+.composer-queue-item-popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 4px);
+  min-width: 110px;
+  padding: 4px;
+  z-index: 40;
 }
 
 .composer-followup-hint {

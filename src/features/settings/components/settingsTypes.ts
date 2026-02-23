@@ -4,6 +4,7 @@ type SettingsSection =
   | "projects"
   | "environments"
   | "display"
+  | "about"
   | "composer"
   | "dictation"
   | "shortcuts"

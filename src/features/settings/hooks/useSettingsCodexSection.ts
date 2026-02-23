@@ -5,16 +5,12 @@ import type {
   AppSettings,
   CodexDoctorResult,
   CodexUpdateResult,
-  WorkspaceSettings,
   WorkspaceInfo,
 } from "@/types";
 import { useGlobalAgentsMd } from "./useGlobalAgentsMd";
 import { useGlobalCodexConfigToml } from "./useGlobalCodexConfigToml";
 import { useSettingsDefaultModels } from "./useSettingsDefaultModels";
-import {
-  buildEditorContentMeta,
-  buildWorkspaceOverrideDrafts,
-} from "@settings/components/settingsViewHelpers";
+import { buildEditorContentMeta } from "@settings/components/settingsViewHelpers";
 import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
 
 type UseSettingsCodexSectionArgs = {
@@ -29,11 +25,6 @@ type UseSettingsCodexSectionArgs = {
     codexBin: string | null,
     codexArgs: string | null,
   ) => Promise<CodexUpdateResult>;
-  onUpdateWorkspaceCodexBin: (id: string, codexBin: string | null) => Promise<void>;
-  onUpdateWorkspaceSettings: (
-    id: string,
-    settings: Partial<WorkspaceSettings>,
-  ) => Promise<void>;
 };
 
 export type SettingsCodexSectionProps = {
@@ -70,17 +61,10 @@ export type SettingsCodexSectionProps = {
   globalConfigRefreshDisabled: boolean;
   globalConfigSaveDisabled: boolean;
   globalConfigSaveLabel: string;
-  projects: WorkspaceInfo[];
-  codexBinOverrideDrafts: Record<string, string>;
-  codexHomeOverrideDrafts: Record<string, string>;
-  codexArgsOverrideDrafts: Record<string, string>;
   onSetCodexPathDraft: Dispatch<SetStateAction<string>>;
   onSetCodexArgsDraft: Dispatch<SetStateAction<string>>;
   onSetGlobalAgentsContent: (value: string) => void;
   onSetGlobalConfigContent: (value: string) => void;
-  onSetCodexBinOverrideDrafts: Dispatch<SetStateAction<Record<string, string>>>;
-  onSetCodexHomeOverrideDrafts: Dispatch<SetStateAction<Record<string, string>>>;
-  onSetCodexArgsOverrideDrafts: Dispatch<SetStateAction<Record<string, string>>>;
   onBrowseCodex: () => Promise<void>;
   onSaveCodexSettings: () => Promise<void>;
   onRunDoctor: () => Promise<void>;
@@ -89,11 +73,6 @@ export type SettingsCodexSectionProps = {
   onSaveGlobalAgents: () => void;
   onRefreshGlobalConfig: () => void;
   onSaveGlobalConfig: () => void;
-  onUpdateWorkspaceCodexBin: (id: string, codexBin: string | null) => Promise<void>;
-  onUpdateWorkspaceSettings: (
-    id: string,
-    settings: Partial<WorkspaceSettings>,
-  ) => Promise<void>;
 };
 
 export const useSettingsCodexSection = ({
@@ -102,20 +81,9 @@ export const useSettingsCodexSection = ({
   onUpdateAppSettings,
   onRunDoctor,
   onRunCodexUpdate,
-  onUpdateWorkspaceCodexBin,
-  onUpdateWorkspaceSettings,
 }: UseSettingsCodexSectionArgs): SettingsCodexSectionProps => {
   const [codexPathDraft, setCodexPathDraft] = useState(appSettings.codexBin ?? "");
   const [codexArgsDraft, setCodexArgsDraft] = useState(appSettings.codexArgs ?? "");
-  const [codexBinOverrideDrafts, setCodexBinOverrideDrafts] = useState<
-    Record<string, string>
-  >({});
-  const [codexHomeOverrideDrafts, setCodexHomeOverrideDrafts] = useState<
-    Record<string, string>
-  >({});
-  const [codexArgsOverrideDrafts, setCodexArgsOverrideDrafts] = useState<
-    Record<string, string>
-  >({});
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [doctorState, setDoctorState] = useState<{
     status: "idle" | "running" | "done";
@@ -183,26 +151,6 @@ export const useSettingsCodexSection = ({
   useEffect(() => {
     setCodexArgsDraft(appSettings.codexArgs ?? "");
   }, [appSettings.codexArgs]);
-
-  useEffect(() => {
-    setCodexBinOverrideDrafts((prev) =>
-      buildWorkspaceOverrideDrafts(projects, prev, (workspace) => workspace.codex_bin ?? null),
-    );
-    setCodexHomeOverrideDrafts((prev) =>
-      buildWorkspaceOverrideDrafts(
-        projects,
-        prev,
-        (workspace) => workspace.settings.codexHome ?? null,
-      ),
-    );
-    setCodexArgsOverrideDrafts((prev) =>
-      buildWorkspaceOverrideDrafts(
-        projects,
-        prev,
-        (workspace) => workspace.settings.codexArgs ?? null,
-      ),
-    );
-  }, [projects]);
 
   const nextCodexBin = codexPathDraft.trim() ? codexPathDraft.trim() : null;
   const nextCodexArgs = normalizeCodexArgsInput(codexArgsDraft);
@@ -323,17 +271,10 @@ export const useSettingsCodexSection = ({
     globalConfigRefreshDisabled: globalConfigEditorMeta.refreshDisabled,
     globalConfigSaveDisabled: globalConfigEditorMeta.saveDisabled,
     globalConfigSaveLabel: globalConfigEditorMeta.saveLabel,
-    projects,
-    codexBinOverrideDrafts,
-    codexHomeOverrideDrafts,
-    codexArgsOverrideDrafts,
     onSetCodexPathDraft: setCodexPathDraft,
     onSetCodexArgsDraft: setCodexArgsDraft,
     onSetGlobalAgentsContent: setGlobalAgentsContent,
     onSetGlobalConfigContent: setGlobalConfigContent,
-    onSetCodexBinOverrideDrafts: setCodexBinOverrideDrafts,
-    onSetCodexHomeOverrideDrafts: setCodexHomeOverrideDrafts,
-    onSetCodexArgsOverrideDrafts: setCodexArgsOverrideDrafts,
     onBrowseCodex: handleBrowseCodex,
     onSaveCodexSettings: handleSaveCodexSettings,
     onRunDoctor: handleRunDoctor,
@@ -350,7 +291,5 @@ export const useSettingsCodexSection = ({
     onSaveGlobalConfig: () => {
       void saveGlobalConfig();
     },
-    onUpdateWorkspaceCodexBin,
-    onUpdateWorkspaceSettings,
   };
 };

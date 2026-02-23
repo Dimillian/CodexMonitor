@@ -6,6 +6,15 @@ pub(crate) async fn is_macos_debug_build() -> bool {
     cfg!(all(target_os = "macos", debug_assertions))
 }
 
+#[tauri::command]
+pub(crate) async fn app_build_type() -> String {
+    if cfg!(debug_assertions) {
+        "debug".to_string()
+    } else {
+        "release".to_string()
+    }
+}
+
 /// macOS dev-mode fallback for system notifications.
 ///
 /// In `tauri dev` (debug assertions enabled), the app is typically run as a

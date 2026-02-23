@@ -53,7 +53,7 @@ git log --oneline -- \
   codex-rs/core/src/agent/control.rs \
   codex-rs/core/src/tools/handlers/multi_agents.rs
 
-rg -n "multi_agent|max_threads|AgentsToml|AgentRoleToml|config_file|apply_role_to_config|DEFAULT_ROLE_NAME|explorer" \
+rg -n "multi_agent|max_threads|max_depth|AgentsToml|AgentRoleToml|config_file|apply_role_to_config|DEFAULT_ROLE_NAME|explorer" \
   codex-rs/core/src/features.rs \
   codex-rs/core/src/features/legacy.rs \
   codex-rs/core/src/config/mod.rs \
@@ -93,11 +93,12 @@ rg -n "multi_agent|max_threads|AgentsToml|AgentRoleToml|config_file|apply_role_t
 - Keep CodexMonitor writes aligned with upstream expectations.
 
 2. Agents schema
-- Verify `[agents]` shape still supports `max_threads` plus dynamic role tables.
+- Verify `[agents]` shape still supports `max_threads`, `max_depth`, plus dynamic role tables.
 - Verify role fields (`description`, `config_file`) and path semantics.
 
 3. Defaults/validation
 - Check upstream default for `agents.max_threads` and validation constraints.
+- Check upstream default for `agents.max_depth` and validation constraints.
 - Reconcile CodexMonitor guardrails when upstream changes.
 
 4. Role setup behavior
@@ -111,7 +112,8 @@ rg -n "multi_agent|max_threads|AgentsToml|AgentRoleToml|config_file|apply_role_t
 ## Known Intentional Divergence
 
 - Upstream Codex default `agents.max_threads` is `6`.
-- CodexMonitor currently enforces a product cap of `12` in UI + backend.
+- CodexMonitor default `agents.max_depth` is `1`.
+- CodexMonitor currently enforces a product cap of `12` for `agents.max_threads` and `4` for `agents.max_depth` in UI + backend.
 
 If upstream introduces a hard max or materially changes spawn behavior, revisit this cap and update both:
 
@@ -122,6 +124,6 @@ If upstream introduces a hard max or materially changes spawn behavior, revisit 
 
 ```bash
 npm run typecheck
-npm run test -- src/services/tauri.test.ts src/features/settings/components/SettingsView.test.tsx
+npm run test -- src/services/tauri.test.ts src/features/settings/components/sections/SettingsAgentsSection.test.tsx src/features/settings/components/SettingsView.test.tsx
 cd src-tauri && cargo check
 ```

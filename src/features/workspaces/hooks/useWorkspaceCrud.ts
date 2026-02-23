@@ -9,12 +9,10 @@ import {
   isWorkspacePathDir as isWorkspacePathDirService,
   listWorkspaces,
   removeWorkspace as removeWorkspaceService,
-  updateWorkspaceCodexBin as updateWorkspaceCodexBinService,
   updateWorkspaceSettings as updateWorkspaceSettingsService,
 } from "../../../services/tauri";
 
 type UseWorkspaceCrudOptions = {
-  defaultCodexBin?: string | null;
   onDebug?: (entry: DebugEntry) => void;
   workspaces: WorkspaceInfo[];
   setWorkspaces: Dispatch<SetStateAction<WorkspaceInfo[]>>;
@@ -41,7 +39,6 @@ function normalizeWorkspacePathKey(value: string) {
 }
 
 export function useWorkspaceCrud({
-  defaultCodexBin,
   onDebug,
   workspaces,
   setWorkspaces,
@@ -83,7 +80,7 @@ export function useWorkspaceCrud({
         payload: { path: selection },
       });
       try {
-        const workspace = await addWorkspaceService(selection, defaultCodexBin ?? null);
+        const workspace = await addWorkspaceService(selection);
         setWorkspaces((prev) => [...prev, workspace]);
         if (shouldActivate) {
           setActiveWorkspaceId(workspace.id);
@@ -106,7 +103,7 @@ export function useWorkspaceCrud({
         throw error;
       }
     },
-    [defaultCodexBin, onDebug, setActiveWorkspaceId, setWorkspaces],
+    [onDebug, setActiveWorkspaceId, setWorkspaces],
   );
 
   const addWorkspaceFromGitUrl = useCallback(
@@ -142,7 +139,6 @@ export function useWorkspaceCrud({
           trimmedUrl,
           trimmedDestination,
           trimmedFolderName,
-          defaultCodexBin ?? null,
         );
         setWorkspaces((prev) => [...prev, workspace]);
         if (shouldActivate) {
@@ -160,7 +156,7 @@ export function useWorkspaceCrud({
         throw error;
       }
     },
-    [defaultCodexBin, onDebug, setActiveWorkspaceId, setWorkspaces],
+    [onDebug, setActiveWorkspaceId, setWorkspaces],
   );
 
   const addWorkspacesFromPaths = useCallback(
@@ -346,48 +342,6 @@ export function useWorkspaceCrud({
     [onDebug, setWorkspaces, workspaces, workspaceSettingsRef],
   );
 
-  const updateWorkspaceCodexBin = useCallback(
-    async (workspaceId: string, codexBin: string | null) => {
-      onDebug?.({
-        id: `${Date.now()}-client-update-workspace-codex-bin`,
-        timestamp: Date.now(),
-        source: "client",
-        label: "workspace/codexBin",
-        payload: { workspaceId, codexBin },
-      });
-      const previous = workspaces.find((entry) => entry.id === workspaceId) ?? null;
-      if (previous) {
-        setWorkspaces((prev) =>
-          prev.map((entry) =>
-            entry.id === workspaceId ? { ...entry, codex_bin: codexBin } : entry,
-          ),
-        );
-      }
-      try {
-        const updated = await updateWorkspaceCodexBinService(workspaceId, codexBin);
-        setWorkspaces((prev) =>
-          prev.map((entry) => (entry.id === workspaceId ? updated : entry)),
-        );
-        return updated;
-      } catch (error) {
-        if (previous) {
-          setWorkspaces((prev) =>
-            prev.map((entry) => (entry.id === workspaceId ? previous : entry)),
-          );
-        }
-        onDebug?.({
-          id: `${Date.now()}-client-update-workspace-codex-bin-error`,
-          timestamp: Date.now(),
-          source: "error",
-          label: "workspace/codexBin error",
-          payload: error instanceof Error ? error.message : String(error),
-        });
-        throw error;
-      }
-    },
-    [onDebug, setWorkspaces, workspaces],
-  );
-
   const removeWorkspace = useCallback(
     async (workspaceId: string) => {
       const childIds = new Set(
@@ -438,7 +392,6 @@ export function useWorkspaceCrud({
     markWorkspaceConnected,
     refreshWorkspaces,
     removeWorkspace,
-    updateWorkspaceCodexBin,
     updateWorkspaceSettings,
   };
 }

@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ask, message } from "@tauri-apps/plugin-dialog";
 import type { WorkspaceInfo } from "../../../types";
 import { isMobilePlatform } from "../../../utils/platformPaths";
@@ -12,26 +12,90 @@ function parseWorkspacePathInput(value: string) {
     .filter(Boolean);
 }
 
-function promptWorkspacePathsForMobileRemote(): string[] {
-  if (typeof window === "undefined" || typeof window.prompt !== "function") {
-    return [];
-  }
-  const input = window.prompt(
-    "Enter one or more project paths on the connected server.\nUse one path per line (or comma-separated).",
-  );
-  if (!input) {
-    return [];
-  }
-  return parseWorkspacePathInput(input);
-}
+type MobileRemoteWorkspacePathPromptState = {
+  value: string;
+  error: string | null;
+} | null;
 
 export function useWorkspaceDialogs() {
+  const [mobileRemoteWorkspacePathPrompt, setMobileRemoteWorkspacePathPrompt] =
+    useState<MobileRemoteWorkspacePathPromptState>(null);
+  const mobileRemoteWorkspacePathResolveRef = useRef<((paths: string[]) => void) | null>(
+    null,
+  );
+
+  const resolveMobileRemoteWorkspacePathRequest = useCallback((paths: string[]) => {
+    const resolve = mobileRemoteWorkspacePathResolveRef.current;
+    mobileRemoteWorkspacePathResolveRef.current = null;
+    if (resolve) {
+      resolve(paths);
+    }
+  }, []);
+
+  const requestMobileRemoteWorkspacePaths = useCallback(() => {
+    if (mobileRemoteWorkspacePathResolveRef.current) {
+      resolveMobileRemoteWorkspacePathRequest([]);
+    }
+
+    setMobileRemoteWorkspacePathPrompt({
+      value: "",
+      error: null,
+    });
+
+    return new Promise<string[]>((resolve) => {
+      mobileRemoteWorkspacePathResolveRef.current = resolve;
+    });
+  }, [resolveMobileRemoteWorkspacePathRequest]);
+
+  const updateMobileRemoteWorkspacePathInput = useCallback((value: string) => {
+    setMobileRemoteWorkspacePathPrompt((prev) =>
+      prev
+        ? {
+            ...prev,
+            value,
+            error: null,
+          }
+        : prev,
+    );
+  }, []);
+
+  const cancelMobileRemoteWorkspacePathPrompt = useCallback(() => {
+    setMobileRemoteWorkspacePathPrompt(null);
+    resolveMobileRemoteWorkspacePathRequest([]);
+  }, [resolveMobileRemoteWorkspacePathRequest]);
+
+  const submitMobileRemoteWorkspacePathPrompt = useCallback(() => {
+    if (!mobileRemoteWorkspacePathPrompt) {
+      return;
+    }
+    const paths = parseWorkspacePathInput(mobileRemoteWorkspacePathPrompt.value);
+    if (paths.length === 0) {
+      setMobileRemoteWorkspacePathPrompt((prev) =>
+        prev
+          ? {
+              ...prev,
+              error: "Enter at least one absolute directory path.",
+            }
+          : prev,
+      );
+      return;
+    }
+    setMobileRemoteWorkspacePathPrompt(null);
+    resolveMobileRemoteWorkspacePathRequest(paths);
+  }, [mobileRemoteWorkspacePathPrompt, resolveMobileRemoteWorkspacePathRequest]);
+
+  useEffect(() => {
+    return () => {
+      resolveMobileRemoteWorkspacePathRequest([]);
+    };
+  }, [resolveMobileRemoteWorkspacePathRequest]);
+
   const requestWorkspacePaths = useCallback(async (backendMode?: string) => {
     if (isMobilePlatform() && backendMode === "remote") {
-      return promptWorkspacePathsForMobileRemote();
+      return requestMobileRemoteWorkspacePaths();
     }
     return pickWorkspacePaths();
-  }, []);
+  }, [requestMobileRemoteWorkspacePaths]);
 
   const showAddWorkspacesResult = useCallback(
     async (result: AddWorkspacesFromPathsResult) => {
@@ -152,6 +216,10 @@ export function useWorkspaceDialogs() {
 
   return {
     requestWorkspacePaths,
+    mobileRemoteWorkspacePathPrompt,
+    updateMobileRemoteWorkspacePathInput,
+    cancelMobileRemoteWorkspacePathPrompt,
+    submitMobileRemoteWorkspacePathPrompt,
     showAddWorkspacesResult,
     confirmWorkspaceRemoval,
     confirmWorktreeRemoval,
