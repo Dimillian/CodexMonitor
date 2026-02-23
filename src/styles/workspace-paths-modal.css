@@ -32,6 +32,7 @@
   padding: 10px;
   border: 1px solid var(--ds-border-subtle);
   border-radius: 12px;
+  background: var(--ds-surface-muted);
   background: color-mix(in srgb, var(--ds-surface-muted) 75%, transparent);
 }
 

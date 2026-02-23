@@ -17,6 +17,31 @@
   -webkit-backdrop-filter: none;
 }
 
+.app.layout-phone :is(.workspace-paths-modal, .remote-directory-picker-modal) .ds-modal-backdrop {
+  background: var(--surface-sidebar-opaque);
+  background: color-mix(in srgb, var(--surface-sidebar-opaque) 22%, black);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.app.layout-phone :is(.workspace-paths-modal-card, .remote-directory-picker-modal-card) {
+  background: var(--surface-sidebar-opaque);
+}
+
+.app.layout-phone :is(.workspace-paths-modal, .remote-directory-picker-modal)
+  :is(.workspace-paths-browser, .workspace-paths-directory-row, .workspace-paths-breadcrumb-segment) {
+  background: var(--surface-sidebar-opaque);
+}
+
+.app.layout-phone .workspace-paths-modal .ds-modal-textarea,
+.app.layout-phone .remote-directory-picker-modal .ds-modal-input {
+  background: var(--surface-sidebar-opaque);
+}
+
+.app.layout-phone :is(.workspace-paths-modal-card, .remote-directory-picker-modal-card) {
+  isolation: isolate;
+}
+
 .ds-modal-card,
 .ds-modal-surface {
   background: var(--ds-modal-card-bg);
