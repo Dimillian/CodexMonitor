@@ -79,6 +79,27 @@ export function SettingsComposerSection({
           Choose the default while a run is active. Press {followUpShortcutLabel} to send the
           opposite behavior for one message.
         </div>
+        <div className="settings-toggle-row">
+          <div>
+            <div className="settings-toggle-title">Show follow-up hint while processing</div>
+            <div className="settings-toggle-subtitle">
+              Displays queue/steer shortcut guidance above the composer.
+            </div>
+          </div>
+          <button
+            type="button"
+            className={`settings-toggle ${appSettings.composerFollowUpHintEnabled ? "on" : ""}`}
+            onClick={() =>
+              void onUpdateAppSettings({
+                ...appSettings,
+                composerFollowUpHintEnabled: !appSettings.composerFollowUpHintEnabled,
+              })
+            }
+            aria-pressed={appSettings.composerFollowUpHintEnabled}
+          >
+            <span className="settings-toggle-knob" />
+          </button>
+        </div>
         {steerUnavailable && (
           <div className="settings-help">
             Steer is unavailable in the current Codex config. Follow-ups will queue.

@@ -396,6 +396,7 @@ export type LayoutNodesOptions = {
   isProcessing: boolean;
   steerAvailable: boolean;
   followUpMessageBehavior: FollowUpMessageBehavior;
+  composerFollowUpHintEnabled: boolean;
   reviewPrompt: ReviewPromptState;
   onReviewPromptClose: () => void;
   onReviewPromptShowPreset: () => void;

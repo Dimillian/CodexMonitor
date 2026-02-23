@@ -135,6 +135,7 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       sendLabel={options.composerSendLabel ?? "Send"}
       steerAvailable={options.steerAvailable}
       followUpMessageBehavior={options.followUpMessageBehavior}
+      composerFollowUpHintEnabled={options.composerFollowUpHintEnabled}
       isProcessing={options.isProcessing}
       draftText={options.draftText}
       onDraftChange={options.onDraftChange}

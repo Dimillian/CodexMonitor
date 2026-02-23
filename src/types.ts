@@ -242,6 +242,7 @@ export type AppSettings = {
   collaborationModesEnabled: boolean;
   steerEnabled: boolean;
   followUpMessageBehavior: FollowUpMessageBehavior;
+  composerFollowUpHintEnabled: boolean;
   pauseQueuedMessagesWhenResponseRequired: boolean;
   unifiedExecEnabled: boolean;
   experimentalAppsEnabled: boolean;
