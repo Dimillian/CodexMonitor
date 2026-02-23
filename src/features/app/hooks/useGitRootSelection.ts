@@ -10,6 +10,7 @@ type UseGitRootSelectionOptions = {
   ) => Promise<unknown> | unknown;
   clearGitRootCandidates: () => void;
   refreshGitStatus: () => void;
+  pickDirectoryPath?: () => Promise<string | null>;
 };
 
 function normalizePath(value: string): string {
@@ -21,6 +22,7 @@ export function useGitRootSelection({
   updateWorkspaceSettings,
   clearGitRootCandidates,
   refreshGitStatus,
+  pickDirectoryPath,
 }: UseGitRootSelectionOptions) {
   const activeGitRoot = activeWorkspace?.settings.gitRoot ?? null;
 
@@ -47,7 +49,7 @@ export function useGitRootSelection({
     if (!activeWorkspace) {
       return;
     }
-    const selection = await pickWorkspacePath();
+    const selection = await (pickDirectoryPath ?? pickWorkspacePath)();
     if (!selection) {
       return;
     }
@@ -62,7 +64,7 @@ export function useGitRootSelection({
       nextRoot = selectedPath;
     }
     await handleSetGitRoot(nextRoot);
-  }, [activeWorkspace, handleSetGitRoot]);
+  }, [activeWorkspace, handleSetGitRoot, pickDirectoryPath]);
 
   return {
     activeGitRoot,

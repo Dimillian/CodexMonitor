@@ -15,9 +15,13 @@ type UseWorkspaceFromUrlPromptOptions = {
     destinationPath: string,
     targetFolderName?: string | null,
   ) => Promise<void>;
+  pickDirectoryPath?: () => Promise<string | null>;
 };
 
-export function useWorkspaceFromUrlPrompt({ onSubmit }: UseWorkspaceFromUrlPromptOptions) {
+export function useWorkspaceFromUrlPrompt({
+  onSubmit,
+  pickDirectoryPath,
+}: UseWorkspaceFromUrlPromptOptions) {
   const [prompt, setPrompt] = useState<WorkspaceFromUrlPromptState>(null);
 
   const openPrompt = useCallback(() => {
@@ -42,12 +46,12 @@ export function useWorkspaceFromUrlPrompt({ onSubmit }: UseWorkspaceFromUrlPromp
   }, [prompt]);
 
   const chooseDestinationPath = useCallback(async () => {
-    const selected = await pickWorkspacePath();
+    const selected = await (pickDirectoryPath ?? pickWorkspacePath)();
     if (!selected) {
       return;
     }
     setPrompt((prev) => (prev ? { ...prev, destinationPath: selected, error: null } : prev));
-  }, []);
+  }, [pickDirectoryPath]);
 
   const submitPrompt = useCallback(async () => {
     if (!prompt || prompt.isSubmitting) {

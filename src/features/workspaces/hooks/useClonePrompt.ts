@@ -25,6 +25,7 @@ type UseClonePromptOptions = {
     workspace: WorkspaceInfo,
   ) => { groupId: string | null; copiesFolder: string | null };
   persistProjectCopiesFolder?: (groupId: string, copiesFolder: string) => Promise<void>;
+  pickDirectoryPath?: () => Promise<string | null>;
   onCompactActivate?: () => void;
   onError?: (message: string) => void;
 };
@@ -102,6 +103,7 @@ export function useClonePrompt({
   onSelectWorkspace,
   resolveProjectContext,
   persistProjectCopiesFolder,
+  pickDirectoryPath,
   onCompactActivate,
   onError,
 }: UseClonePromptOptions): UseClonePromptResult {
@@ -135,14 +137,14 @@ export function useClonePrompt({
   }, []);
 
   const chooseCopiesFolder = useCallback(async () => {
-    const selection = await pickWorkspacePath();
+    const selection = await (pickDirectoryPath ?? pickWorkspacePath)();
     if (!selection) {
       return;
     }
     setClonePrompt((prev) =>
       prev ? { ...prev, copiesFolder: selection, error: null } : prev,
     );
-  }, []);
+  }, [pickDirectoryPath]);
 
   const useSuggestedCopiesFolder = useCallback(() => {
     setClonePrompt((prev) => {

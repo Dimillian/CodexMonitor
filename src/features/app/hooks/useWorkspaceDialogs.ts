@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ask, message } from "@tauri-apps/plugin-dialog";
-import type { WorkspaceInfo } from "../../../types";
-import { isAbsolutePath, isMobilePlatform } from "../../../utils/platformPaths";
-import { pickWorkspacePaths } from "../../../services/tauri";
-import { pushErrorToast } from "../../../services/toasts";
-import type { AddWorkspacesFromPathsResult } from "../../workspaces/hooks/useWorkspaceCrud";
+import type { WorkspaceInfo } from "@/types";
+import { isAbsolutePath, isMobilePlatform } from "@utils/platformPaths";
+import {
+  listRemoteDirectories,
+  pickWorkspacePaths,
+  type RemoteDirectoryEntry,
+} from "@services/tauri";
+import { pushErrorToast } from "@services/toasts";
+import type { AddWorkspacesFromPathsResult } from "@/features/workspaces/hooks/useWorkspaceCrud";
+import { mapRemoteDirectoryError } from "@/features/workspaces/utils/remoteDirectoryErrors";
+
+const REMOTE_DIRECTORY_PAGE_SIZE = 300;
 
 function parseWorkspacePathInput(value: string) {
   return value
@@ -13,9 +20,32 @@ function parseWorkspacePathInput(value: string) {
     .filter(Boolean);
 }
 
+function appendWorkspacePathInput(value: string, path: string) {
+  const existing = parseWorkspacePathInput(value);
+  if (existing.includes(path)) {
+    return value;
+  }
+  if (existing.length === 0) {
+    return path;
+  }
+  return `${existing.join("\n")}\n${path}`;
+}
+
+type WorkspacePathsBrowserState = {
+  currentPath: string;
+  parentPath: string | null;
+  entries: RemoteDirectoryEntry[];
+  includeHidden: boolean;
+  isLoading: boolean;
+  loadError: string | null;
+  truncated: boolean;
+  entryCount: number;
+};
+
 export type WorkspacePathsPromptState = {
   value: string;
   error: string | null;
+  browser: WorkspacePathsBrowserState | null;
 } | null;
 
 export function useWorkspaceDialogs() {
@@ -25,11 +55,13 @@ export function useWorkspaceDialogs() {
   const workspacePathsPromptResolveRef = useRef<((paths: string[]) => void) | null>(
     null,
   );
+  const workspacePathsBrowserRequestIdRef = useRef(0);
 
   const resolveWorkspacePathsPrompt = useCallback((paths: string[]) => {
     const resolve = workspacePathsPromptResolveRef.current;
     workspacePathsPromptResolveRef.current = null;
     workspacePathsPromptRef.current = null;
+    workspacePathsBrowserRequestIdRef.current += 1;
     setWorkspacePathsPrompt(null);
     resolve?.(paths);
   }, []);
@@ -40,34 +72,135 @@ export function useWorkspaceDialogs() {
 
   useEffect(() => {
     return () => {
+      workspacePathsBrowserRequestIdRef.current += 1;
       const resolve = workspacePathsPromptResolveRef.current;
       workspacePathsPromptResolveRef.current = null;
       resolve?.([]);
     };
   }, []);
 
-  const requestWorkspacePaths = useCallback(async (backendMode?: string) => {
-    if (isMobilePlatform() && backendMode === "remote") {
-      return new Promise<string[]>((resolve) => {
-        if (workspacePathsPromptResolveRef.current) {
-          pushErrorToast({
-            title: "Add workspaces",
-            message: "The workspace path dialog is already open.",
-          });
-          resolve([]);
+  const refreshWorkspacePathsBrowser = useCallback(
+    async (path: string | null, includeHiddenOverride?: boolean) => {
+      const currentPrompt = workspacePathsPromptRef.current;
+      if (!currentPrompt?.browser) {
+        return;
+      }
+
+      const includeHidden = includeHiddenOverride ?? currentPrompt.browser.includeHidden;
+      const requestId = workspacePathsBrowserRequestIdRef.current + 1;
+      workspacePathsBrowserRequestIdRef.current = requestId;
+
+      const loadingPrompt = {
+        ...currentPrompt,
+        browser: {
+          ...currentPrompt.browser,
+          includeHidden,
+          isLoading: true,
+          loadError: null,
+        },
+      };
+      workspacePathsPromptRef.current = loadingPrompt;
+      setWorkspacePathsPrompt(loadingPrompt);
+
+      try {
+        const response = await listRemoteDirectories({
+          path,
+          includeHidden,
+          limit: REMOTE_DIRECTORY_PAGE_SIZE,
+          offset: 0,
+        });
+
+        if (workspacePathsBrowserRequestIdRef.current !== requestId) {
           return;
         }
-        workspacePathsPromptResolveRef.current = resolve;
+
+        const latestPrompt = workspacePathsPromptRef.current;
+        if (!latestPrompt?.browser) {
+          return;
+        }
+
         const nextPrompt = {
-          value: "",
-          error: null,
+          ...latestPrompt,
+          browser: {
+            currentPath: response.currentPath,
+            parentPath: response.parentPath,
+            entries: response.entries,
+            includeHidden,
+            isLoading: false,
+            loadError: null,
+            truncated: response.truncated,
+            entryCount: response.entryCount,
+          },
         };
         workspacePathsPromptRef.current = nextPrompt;
         setWorkspacePathsPrompt(nextPrompt);
-      });
-    }
-    return pickWorkspacePaths();
-  }, []);
+      } catch (error) {
+        if (workspacePathsBrowserRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        const latestPrompt = workspacePathsPromptRef.current;
+        if (!latestPrompt?.browser) {
+          return;
+        }
+
+        const message = mapRemoteDirectoryError(
+          error instanceof Error ? error.message : String(error),
+        );
+        const nextPrompt = {
+          ...latestPrompt,
+          browser: {
+            ...latestPrompt.browser,
+            includeHidden,
+            isLoading: false,
+            loadError: message,
+          },
+        };
+        workspacePathsPromptRef.current = nextPrompt;
+        setWorkspacePathsPrompt(nextPrompt);
+      }
+    },
+    [],
+  );
+
+  const requestWorkspacePaths = useCallback(
+    async (backendMode?: string) => {
+      if (isMobilePlatform() && backendMode === "remote") {
+        return new Promise<string[]>((resolve) => {
+          if (workspacePathsPromptResolveRef.current) {
+            pushErrorToast({
+              title: "Add workspaces",
+              message: "The workspace path dialog is already open.",
+            });
+            resolve([]);
+            return;
+          }
+
+          workspacePathsPromptResolveRef.current = resolve;
+          const nextPrompt = {
+            value: "",
+            error: null,
+            browser: {
+              currentPath: "",
+              parentPath: null,
+              entries: [],
+              includeHidden: false,
+              isLoading: true,
+              loadError: null,
+              truncated: false,
+              entryCount: 0,
+            },
+          };
+          workspacePathsPromptRef.current = nextPrompt;
+          setWorkspacePathsPrompt(nextPrompt);
+          void refreshWorkspacePathsBrowser(null, false);
+        });
+      }
+
+      return pickWorkspacePaths();
+    },
+    [refreshWorkspacePathsBrowser],
+  );
 
   const updateWorkspacePathsPromptValue = useCallback((value: string) => {
     const current = workspacePathsPromptRef.current;
@@ -77,6 +210,59 @@ export function useWorkspaceDialogs() {
     const next = {
       ...current,
       value,
+      error: null,
+    };
+    workspacePathsPromptRef.current = next;
+    setWorkspacePathsPrompt(next);
+  }, []);
+
+  const browseWorkspacePathsPromptDirectory = useCallback(
+    (path: string) => {
+      void refreshWorkspacePathsBrowser(path);
+    },
+    [refreshWorkspacePathsBrowser],
+  );
+
+  const browseWorkspacePathsPromptParentDirectory = useCallback(() => {
+    const current = workspacePathsPromptRef.current;
+    if (!current?.browser?.parentPath) {
+      return;
+    }
+    void refreshWorkspacePathsBrowser(current.browser.parentPath);
+  }, [refreshWorkspacePathsBrowser]);
+
+  const browseWorkspacePathsPromptHomeDirectory = useCallback(() => {
+    void refreshWorkspacePathsBrowser(null);
+  }, [refreshWorkspacePathsBrowser]);
+
+  const retryWorkspacePathsPromptDirectoryListing = useCallback(() => {
+    const current = workspacePathsPromptRef.current;
+    if (!current?.browser) {
+      return;
+    }
+    const path = current.browser.currentPath || null;
+    void refreshWorkspacePathsBrowser(path);
+  }, [refreshWorkspacePathsBrowser]);
+
+  const toggleWorkspacePathsPromptHiddenDirectories = useCallback(() => {
+    const current = workspacePathsPromptRef.current;
+    if (!current?.browser) {
+      return;
+    }
+    const includeHidden = !current.browser.includeHidden;
+    const path = current.browser.currentPath || null;
+    void refreshWorkspacePathsBrowser(path, includeHidden);
+  }, [refreshWorkspacePathsBrowser]);
+
+  const useWorkspacePathsPromptCurrentDirectory = useCallback(() => {
+    const current = workspacePathsPromptRef.current;
+    if (!current?.browser || !current.browser.currentPath) {
+      return;
+    }
+
+    const next = {
+      ...current,
+      value: appendWorkspacePathInput(current.value, current.browser.currentPath),
       error: null,
     };
     workspacePathsPromptRef.current = next;
@@ -245,6 +431,12 @@ export function useWorkspaceDialogs() {
     requestWorkspacePaths,
     workspacePathsPrompt,
     updateWorkspacePathsPromptValue,
+    browseWorkspacePathsPromptDirectory,
+    browseWorkspacePathsPromptParentDirectory,
+    browseWorkspacePathsPromptHomeDirectory,
+    retryWorkspacePathsPromptDirectoryListing,
+    toggleWorkspacePathsPromptHiddenDirectories,
+    useWorkspacePathsPromptCurrentDirectory,
     cancelWorkspacePathsPrompt,
     confirmWorkspacePathsPrompt,
     showAddWorkspacesResult,

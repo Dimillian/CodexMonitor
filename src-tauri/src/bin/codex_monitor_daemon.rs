@@ -209,6 +209,15 @@ impl DaemonState {
         workspaces_core::is_workspace_path_dir_core(&path)
     }
 
+    async fn list_remote_directories(
+        &self,
+        request: shared::workspace_rpc::ListRemoteDirectoriesRequest,
+    ) -> Result<shared::workspace_rpc::ListRemoteDirectoriesResponse, String> {
+        tokio::task::spawn_blocking(move || workspaces_core::list_remote_directories_core(request))
+            .await
+            .map_err(|err| format!("Directory listing task failed: {err}"))?
+    }
+
     async fn add_workspace(
         &self,
         path: String,

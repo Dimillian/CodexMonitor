@@ -1,0 +1,25 @@
+.remote-directory-picker-modal-card {
+  width: min(680px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  border-radius: 16px;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+  overflow: auto;
+}
+
+.remote-directory-picker-current {
+  display: grid;
+  gap: 6px;
+}
+
+.remote-directory-picker-current .ds-modal-input {
+  resize: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.app.layout-phone .remote-directory-picker-modal-card {
+  width: min(680px, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+}

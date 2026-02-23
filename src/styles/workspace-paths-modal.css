@@ -26,6 +26,89 @@
   gap: 12px;
 }
 
+.workspace-paths-browser {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ds-surface-muted) 75%, transparent);
+}
+
+.workspace-paths-browser-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.workspace-paths-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 74px;
+  overflow-y: auto;
+}
+
+.workspace-paths-breadcrumb-segment {
+  border: 1px solid var(--ds-border-subtle);
+  background: var(--ds-modal-card-bg);
+  color: var(--ds-text-strong);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+}
+
+.workspace-paths-breadcrumb-empty {
+  color: var(--ds-text-subtle);
+  font-size: 12px;
+}
+
+.workspace-paths-directory-list {
+  max-height: 230px;
+  overflow: auto;
+  display: grid;
+  gap: 6px;
+}
+
+.workspace-paths-directory-row {
+  width: 100%;
+  text-align: left;
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: 10px;
+  background: var(--ds-modal-card-bg);
+  color: var(--ds-text-strong);
+  padding: 8px 10px;
+}
+
+.workspace-paths-directory-row-name {
+  font-size: 13px;
+}
+
+.workspace-paths-directory-row-meta {
+  font-size: 11px;
+  color: var(--ds-text-subtle);
+}
+
+.workspace-paths-directory-empty {
+  color: var(--ds-text-subtle);
+  font-size: 12px;
+  padding: 8px 2px;
+}
+
+.workspace-paths-directory-error {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.workspace-paths-directory-hint {
+  color: var(--ds-text-faint);
+  font-size: 11px;
+}
+
 .app.layout-phone .workspace-paths-modal {
   align-items: flex-start;
   padding-top: calc(12px + env(safe-area-inset-top, 0px));

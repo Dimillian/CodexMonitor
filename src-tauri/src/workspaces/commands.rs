@@ -143,6 +143,44 @@ pub(crate) async fn is_workspace_path_dir(
 }
 
 #[tauri::command]
+pub(crate) async fn list_remote_directories(
+    path: Option<String>,
+    include_hidden: Option<bool>,
+    limit: Option<u32>,
+    offset: Option<u32>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<workspace_rpc::ListRemoteDirectoriesResponse, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let path = path.map(remote_backend::normalize_path_for_remote);
+        let request = workspace_rpc::ListRemoteDirectoriesRequest {
+            path,
+            include_hidden,
+            limit,
+            offset,
+        };
+        let response = remote_backend::call_remote(
+            &*state,
+            app,
+            "list_remote_directories",
+            workspace_remote_params(&request)?,
+        )
+        .await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
+    let request = workspace_rpc::ListRemoteDirectoriesRequest {
+        path,
+        include_hidden,
+        limit,
+        offset,
+    };
+    tokio::task::spawn_blocking(move || workspaces_core::list_remote_directories_core(request))
+        .await
+        .map_err(|err| format!("Directory listing task failed: {err}"))?
+}
+
+#[tauri::command]
 pub(crate) async fn add_workspace(
     path: String,
     codex_bin: Option<String>,

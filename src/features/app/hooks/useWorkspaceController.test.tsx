@@ -6,6 +6,7 @@ import type { AppSettings, WorkspaceInfo } from "../../../types";
 import {
   addWorkspace,
   isWorkspacePathDir,
+  listRemoteDirectories,
   listWorkspaces,
   pickWorkspacePaths,
   removeWorkspace,
@@ -26,6 +27,7 @@ vi.mock("../../../services/tauri", () => ({
   addWorktree: vi.fn(),
   connectWorkspace: vi.fn(),
   isWorkspacePathDir: vi.fn(),
+  listRemoteDirectories: vi.fn(),
   listWorkspaces: vi.fn(),
   pickWorkspacePaths: vi.fn(),
   removeWorkspace: vi.fn(),
@@ -83,6 +85,21 @@ describe("useWorkspaceController dialogs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(isMobilePlatform).mockReturnValue(false);
+    vi.mocked(listRemoteDirectories).mockResolvedValue({
+      currentPath: "/srv/repos",
+      parentPath: "/srv",
+      entries: [
+        {
+          name: "my-project",
+          path: "/srv/repos/my-project",
+          isSymlink: false,
+          isReadable: true,
+          symlinkTarget: null,
+        },
+      ],
+      truncated: false,
+      entryCount: 1,
+    });
   });
 
   it("shows add-workspaces summary in controller layer", async () => {
@@ -141,10 +158,15 @@ describe("useWorkspaceController dialogs", () => {
       addPromise = result.current.addWorkspace();
     });
 
-    expect(result.current.workspacePathsPrompt).toEqual({
-      value: "",
-      error: null,
-    });
+    expect(result.current.workspacePathsPrompt).toEqual(
+      expect.objectContaining({
+        value: "",
+        error: null,
+        browser: expect.objectContaining({
+          includeHidden: false,
+        }),
+      }),
+    );
 
     act(() => {
       result.current.updateWorkspacePathsPromptValue("/srv/repos/my-project");
@@ -277,6 +299,9 @@ describe("useWorkspaceController dialogs", () => {
     act(() => {
       secondAddPromise = result.current.addWorkspace();
     });
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     await expect(secondAddPromise).resolves.toBeNull();
     expect(pushErrorToast).toHaveBeenCalledWith(
@@ -284,10 +309,12 @@ describe("useWorkspaceController dialogs", () => {
         title: "Add workspaces",
       }),
     );
-    expect(result.current.workspacePathsPrompt).toEqual({
-      value: "",
-      error: null,
-    });
+    expect(result.current.workspacePathsPrompt).toEqual(
+      expect.objectContaining({
+        value: "",
+        error: null,
+      }),
+    );
 
     await act(async () => {
       result.current.cancelWorkspacePathsPrompt();
