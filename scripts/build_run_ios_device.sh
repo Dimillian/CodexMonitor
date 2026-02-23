@@ -4,10 +4,19 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-DEVICE=""
-TARGET="${TARGET:-aarch64}"
-BUNDLE_ID="${BUNDLE_ID:-com.dimillian.codexmonitor.ios}"
-DEVELOPMENT_TEAM="${APPLE_DEVELOPMENT_TEAM:-}"
+DEFAULT_ENV_FILE=".ios.local.env"
+ENV_FILE="${IOS_BUILD_ENV_FILE:-$DEFAULT_ENV_FILE}"
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  . "$ENV_FILE"
+  set +a
+fi
+
+DEVICE="${DEVICE:-${IOS_DEVICE:-}}"
+TARGET="${TARGET:-${IOS_TARGET:-aarch64}}"
+BUNDLE_ID="${BUNDLE_ID:-${IOS_BUNDLE_ID:-com.dimillian.codexmonitor.ios}}"
+DEVELOPMENT_TEAM="${APPLE_DEVELOPMENT_TEAM:-${IOS_DEVELOPMENT_TEAM:-}}"
 SKIP_BUILD=0
 OPEN_XCODE=0
 LIST_DEVICES=0
@@ -19,6 +28,9 @@ Usage: scripts/build_run_ios_device.sh [options]
 
 Builds the iOS app for physical devices, installs it to a USB-connected iPhone/iPad,
 and launches it using devicectl.
+
+Defaults are auto-loaded from .ios.local.env (gitignored) when present.
+Override the path with IOS_BUILD_ENV_FILE=/path/to/file.
 
 Options:
   --device <id|name>   Required unless --list-devices is used.

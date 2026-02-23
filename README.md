@@ -113,8 +113,9 @@ rustup target add x86_64-apple-ios
 ```
 
 - Apple signing configured (development team).
-  - Set `bundle.iOS.developmentTeam` in `src-tauri/tauri.ios.conf.json` (preferred), or
-  - pass `--team <TEAM_ID>` to the device script.
+  - Preferred local-only setup: copy `.ios.local.env.example` to `.ios.local.env` and set `APPLE_DEVELOPMENT_TEAM`.
+  - Or pass `--team <TEAM_ID>` to the device script.
+  - Or set `bundle.iOS.developmentTeam` in `src-tauri/tauri.ios.conf.json`.
 
 ### Run on iOS Simulator
 
@@ -137,7 +138,19 @@ List discoverable devices:
 ./scripts/build_run_ios_device.sh --list-devices
 ```
 
-Build, install, and launch on a specific device:
+Optional local defaults (gitignored):
+
+```bash
+cp .ios.local.env.example .ios.local.env
+```
+
+Set `APPLE_DEVELOPMENT_TEAM` and optionally `IOS_DEVICE`, then run:
+
+```bash
+./scripts/build_run_ios_device.sh
+```
+
+Build, install, and launch on a specific device via flags:
 
 ```bash
 ./scripts/build_run_ios_device.sh --device "<device name or identifier>" --team <TEAM_ID>
