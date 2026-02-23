@@ -845,11 +845,18 @@ async fn kill_pid_gracefully(_pid: u32) -> Result<(), String> {
     Err("Stopping external daemon by pid is not supported on this platform.".to_string())
 }
 
-async fn resolve_daemon_pid(listen_port: u16, info: Option<&DaemonInfo>) -> Option<u32> {
-    match info.and_then(|entry| entry.pid) {
-        Some(pid) => Some(pid),
-        None => find_listener_pid(listen_port).await,
+fn safe_force_stop_pid(pid: u32) -> Option<u32> {
+    if pid <= 1 {
+        None
+    } else {
+        Some(pid)
     }
+}
+
+async fn resolve_daemon_pid(listen_port: u16) -> Option<u32> {
+    find_listener_pid(listen_port)
+        .await
+        .and_then(safe_force_stop_pid)
 }
 
 async fn daemon_start(
@@ -872,7 +879,7 @@ async fn daemon_start(
             auth_error,
             info,
         } => {
-            let pid = resolve_daemon_pid(listen_port, info.as_ref()).await;
+            let pid = resolve_daemon_pid(listen_port).await;
             let restart_required = should_restart_daemon(info.as_ref());
             let restart_reason = if restart_required {
                 Some(daemon_restart_reason(info.as_ref()))
@@ -929,7 +936,7 @@ async fn daemon_start(
                         restart_reason.unwrap_or_else(|| "Daemon restart required".to_string())
                     ));
                 }
-                if let Some(pid) = resolve_daemon_pid(listen_port, info.as_ref()).await {
+                if let Some(pid) = resolve_daemon_pid(listen_port).await {
                     kill_pid_gracefully(pid).await.map_err(|err| {
                         format!(
                             "{}; daemon remained reachable and forced stop failed: {err}",
@@ -995,7 +1002,7 @@ async fn daemon_stop(listen_addr: &str, token: Option<&str>) -> TcpDaemonStatus 
             DaemonProbe::Running { auth_ok, info, .. } => {
                 let force_kill_allowed = can_force_stop_daemon(auth_ok, info.as_ref());
                 if let Err(shutdown_error) = request_daemon_shutdown(listen_addr, token).await {
-                    let pid = resolve_daemon_pid(port, info.as_ref()).await;
+                    let pid = resolve_daemon_pid(port).await;
                     if let Some(pid) = pid {
                         if force_kill_allowed {
                             if let Err(err) = kill_pid_gracefully(pid).await {
@@ -1013,7 +1020,7 @@ async fn daemon_stop(listen_addr: &str, token: Option<&str>) -> TcpDaemonStatus 
                     }
                 } else if !wait_for_daemon_shutdown(listen_addr, token).await {
                     if force_kill_allowed {
-                        let pid = resolve_daemon_pid(port, info.as_ref()).await;
+                        let pid = resolve_daemon_pid(port).await;
                         if let Some(pid) = pid {
                             if let Err(err) = kill_pid_gracefully(pid).await {
                                 stop_error = Some(format!(
@@ -1147,7 +1154,7 @@ fn print_status(status: &TcpDaemonStatus, as_json: bool) -> Result<(), String> {
 mod tests {
     use super::{
         daemon_connect_addr, daemon_listen_addr, parse_port_from_remote_host, resolve_listen_addr,
-        shell_quote,
+        safe_force_stop_pid, shell_quote,
     };
 
     #[test]
@@ -1207,5 +1214,12 @@ mod tests {
             resolve_listen_addr(Some("127.0.0.1:9999"), None).expect("override listen addr"),
             "127.0.0.1:9999"
         );
+    }
+
+    #[test]
+    fn safe_force_stop_pid_rejects_reserved_values() {
+        assert_eq!(safe_force_stop_pid(0), None);
+        assert_eq!(safe_force_stop_pid(1), None);
+        assert_eq!(safe_force_stop_pid(2), Some(2));
     }
 }
