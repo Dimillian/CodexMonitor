@@ -71,6 +71,7 @@ type UseThreadActionsOptions = {
   tokenUsageThreadIdsByWorkspace: ThreadState["tokenUsageThreadIdsByWorkspace"];
   activeThreadIdByWorkspace: ThreadState["activeThreadIdByWorkspace"];
   activeTurnIdByThread: ThreadState["activeTurnIdByThread"];
+  threadParentById: ThreadState["threadParentById"];
   threadListCursorByWorkspace: ThreadState["threadListCursorByWorkspace"];
   threadStatusById: ThreadState["threadStatusById"];
   threadSortKey: ThreadListSortKey;
@@ -100,6 +101,7 @@ export function useThreadActions({
   tokenUsageThreadIdsByWorkspace,
   activeThreadIdByWorkspace,
   activeTurnIdByThread,
+  threadParentById,
   threadListCursorByWorkspace,
   threadStatusById,
   threadSortKey,
@@ -755,10 +757,54 @@ export function useThreadActions({
               return aId.localeCompare(bId);
             });
           }
+          const summaryById = new Map<string, ThreadSummary>();
+          uniqueThreads.forEach((thread, index) => {
+            const summary = buildThreadSummary(workspace.id, thread, index);
+            if (!summary) {
+              return;
+            }
+            summaryById.set(summary.id, summary);
+          });
           const summaries = uniqueThreads
             .slice(0, THREAD_LIST_TARGET_COUNT)
-            .map((thread, index) => buildThreadSummary(workspace.id, thread, index))
+            .map((thread) => summaryById.get(String(thread?.id ?? "")) ?? null)
             .filter((entry): entry is ThreadSummary => Boolean(entry));
+          const includedIds = new Set(summaries.map((thread) => thread.id));
+          const appendFreshAnchor = (threadId: string | null | undefined) => {
+            if (!threadId || includedIds.has(threadId)) {
+              return;
+            }
+            const summary = summaryById.get(threadId);
+            if (!summary) {
+              return;
+            }
+            summaries.push(summary);
+            includedIds.add(threadId);
+          };
+          appendFreshAnchor(activeThreadIdByWorkspace[workspace.id]);
+          const workspaceThreadIds = new Set<string>([
+            ...Array.from(summaryById.keys()),
+            ...(threadsByWorkspace[workspace.id] ?? []).map((thread) => thread.id),
+          ]);
+          const activeThreadId = activeThreadIdByWorkspace[workspace.id];
+          if (activeThreadId) {
+            workspaceThreadIds.add(activeThreadId);
+          }
+          workspaceThreadIds.forEach((threadId) => {
+            if (threadStatusById[threadId]?.isProcessing) {
+              appendFreshAnchor(threadId);
+            }
+          });
+          const seedThreadIds = [...includedIds];
+          seedThreadIds.forEach((threadId) => {
+            const visited = new Set<string>([threadId]);
+            let parentId = threadParentById[threadId];
+            while (parentId && !visited.has(parentId)) {
+              visited.add(parentId);
+              appendFreshAnchor(parentId);
+              parentId = threadParentById[parentId];
+            }
+          });
           const tokenUsageThreadIds = uniqueThreads
             .map((thread) => String(thread?.id ?? "").trim())
             .filter((threadId) => threadId.length > 0);
@@ -827,8 +873,12 @@ export function useThreadActions({
       onDebug,
       onSubagentThreadDetected,
       onThreadCodexMetadataDetected,
+      activeThreadIdByWorkspace,
+      threadParentById,
       threadActivityRef,
+      threadStatusById,
       threadSortKey,
+      threadsByWorkspace,
       updateThreadParent,
     ],
   );

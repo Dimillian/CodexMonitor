@@ -1689,4 +1689,96 @@ describe("useThreads UX integration", () => {
     ]);
     expect(unpinnedRows.map((row) => row.thread.id)).toEqual(["thread-b"]);
   });
+
+  it("keeps parent rows anchored when refresh only returns subagent children", async () => {
+    vi.mocked(listThreads)
+      .mockResolvedValueOnce({
+        result: {
+          data: [
+            {
+              id: "thread-parent-anchor",
+              preview: "Parent",
+              updated_at: 2000,
+              cwd: workspace.path,
+            },
+            {
+              id: "thread-child-anchor",
+              preview: "Child",
+              updated_at: 3000,
+              cwd: workspace.path,
+              source: {
+                subAgent: {
+                  thread_spawn: {
+                    parent_thread_id: "thread-parent-anchor",
+                    depth: 1,
+                  },
+                },
+              },
+            },
+          ],
+          nextCursor: null,
+        },
+      })
+      .mockResolvedValueOnce({
+        result: {
+          data: [
+            {
+              id: "thread-child-anchor",
+              preview: "Child",
+              updated_at: 3500,
+              cwd: workspace.path,
+              source: {
+                subAgent: {
+                  thread_spawn: {
+                    parent_thread_id: "thread-parent-anchor",
+                    depth: 1,
+                  },
+                },
+              },
+            },
+          ],
+          nextCursor: null,
+        },
+      });
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    await waitFor(() => {
+      expect(result.current.threadParentById["thread-child-anchor"]).toBe(
+        "thread-parent-anchor",
+      );
+    });
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    expect(vi.mocked(listThreads)).toHaveBeenCalledTimes(2);
+    expect(result.current.threadsByWorkspace["ws-1"]?.map((thread) => thread.id)).toEqual(
+      ["thread-child-anchor", "thread-parent-anchor"],
+    );
+
+    const { result: threadRowsResult } = renderHook(() =>
+      useThreadRows(result.current.threadParentById),
+    );
+    const rows = threadRowsResult.current.getThreadRows(
+      result.current.threadsByWorkspace["ws-1"] ?? [],
+      true,
+      "ws-1",
+      () => null,
+    );
+    expect(rows.unpinnedRows.map((row) => [row.thread.id, row.depth])).toEqual([
+      ["thread-parent-anchor", 0],
+      ["thread-child-anchor", 1],
+    ]);
+  });
 });

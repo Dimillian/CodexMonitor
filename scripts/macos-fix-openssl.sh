@@ -46,6 +46,7 @@ libcrypto="${openssl_prefix}/lib/libcrypto.3.dylib"
 frameworks_dir="${app_path}/Contents/Frameworks"
 bin_path="${app_path}/Contents/MacOS/codex-monitor"
 daemon_path="${app_path}/Contents/MacOS/codex_monitor_daemon"
+daemonctl_path="${app_path}/Contents/MacOS/codex_monitor_daemonctl"
 
 if [[ ! -f "${libssl}" || ! -f "${libcrypto}" ]]; then
   echo "OpenSSL dylibs not found at ${openssl_prefix}/lib"
@@ -93,6 +94,9 @@ codesign --force --options runtime --timestamp --sign "${identity}" "${framework
 codesign --force --options runtime --timestamp --sign "${identity}" "${codesign_entitlements[@]}" "${bin_path}"
 if [[ -f "${daemon_path}" ]]; then
   codesign --force --options runtime --timestamp --sign "${identity}" "${codesign_entitlements[@]}" "${daemon_path}"
+fi
+if [[ -f "${daemonctl_path}" ]]; then
+  codesign --force --options runtime --timestamp --sign "${identity}" "${codesign_entitlements[@]}" "${daemonctl_path}"
 fi
 codesign --force --options runtime --timestamp --sign "${identity}" "${codesign_entitlements[@]}" "${app_path}"
 

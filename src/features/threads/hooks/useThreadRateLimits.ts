@@ -1,5 +1,5 @@
-import { useCallback, useEffect } from "react";
-import type { DebugEntry } from "@/types";
+import { useCallback, useEffect, useRef } from "react";
+import type { DebugEntry, RateLimitSnapshot } from "@/types";
 import { getAccountRateLimits } from "@services/tauri";
 import { normalizeRateLimits } from "@threads/utils/threadNormalize";
 import type { ThreadAction } from "./useThreadsReducer";
@@ -7,6 +7,7 @@ import type { ThreadAction } from "./useThreadsReducer";
 type UseThreadRateLimitsOptions = {
   activeWorkspaceId: string | null;
   activeWorkspaceConnected?: boolean;
+  getCurrentRateLimits?: (workspaceId: string) => RateLimitSnapshot | null;
   dispatch: React.Dispatch<ThreadAction>;
   onDebug?: (entry: DebugEntry) => void;
 };
@@ -14,9 +15,15 @@ type UseThreadRateLimitsOptions = {
 export function useThreadRateLimits({
   activeWorkspaceId,
   activeWorkspaceConnected,
+  getCurrentRateLimits,
   dispatch,
   onDebug,
 }: UseThreadRateLimitsOptions) {
+  const getCurrentRateLimitsRef = useRef(getCurrentRateLimits);
+  useEffect(() => {
+    getCurrentRateLimitsRef.current = getCurrentRateLimits;
+  }, [getCurrentRateLimits]);
+
   const refreshAccountRateLimits = useCallback(
     async (workspaceId?: string) => {
       const targetId = workspaceId ?? activeWorkspaceId;
@@ -45,10 +52,12 @@ export function useThreadRateLimits({
           (response?.rateLimits as Record<string, unknown> | undefined) ??
           (response?.rate_limits as Record<string, unknown> | undefined);
         if (rateLimits) {
+          const previousRateLimits =
+            getCurrentRateLimitsRef.current?.(targetId) ?? null;
           dispatch({
             type: "setRateLimits",
             workspaceId: targetId,
-            rateLimits: normalizeRateLimits(rateLimits),
+            rateLimits: normalizeRateLimits(rateLimits, previousRateLimits),
           });
         }
       } catch (error) {

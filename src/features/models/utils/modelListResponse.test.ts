@@ -1,43 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatModelSlug, parseModelListResponse } from "./modelListResponse";
-
-describe("formatModelSlug", () => {
-  it("capitalizes plain segments", () => {
-    expect(formatModelSlug("codex-mini")).toBe("Codex-Mini");
-  });
-
-  it("uppercases known acronyms", () => {
-    expect(formatModelSlug("gpt-5.3-codex")).toBe("GPT-5.3-Codex");
-  });
-
-  it("leaves version-like segments unchanged", () => {
-    expect(formatModelSlug("gpt-5.1-codex-max")).toBe("GPT-5.1-Codex-Max");
-  });
-
-  it("handles a version-only slug", () => {
-    expect(formatModelSlug("gpt-5.2")).toBe("GPT-5.2");
-  });
-  it("is case-insensitive for acronym detection", () => {
-    expect(formatModelSlug("GPT-5.3-codex")).toBe("GPT-5.3-Codex");
-    expect(formatModelSlug("Gpt-5.3-codex")).toBe("GPT-5.3-Codex");
-  });
-
-  it("returns empty string for non-string input", () => {
-    expect(formatModelSlug(null)).toBe("");
-    expect(formatModelSlug(undefined)).toBe("");
-    expect(formatModelSlug(42)).toBe("");
-  });
-
-  it("returns empty string for blank strings", () => {
-    expect(formatModelSlug("")).toBe("");
-    expect(formatModelSlug("   ")).toBe("");
-  });
-
-  it("handles a single segment", () => {
-    expect(formatModelSlug("codex")).toBe("Codex");
-    expect(formatModelSlug("gpt")).toBe("GPT");
-  });
-});
+import { parseModelListResponse } from "./modelListResponse";
 
 describe("parseModelListResponse", () => {
   it("uses displayName when present", () => {
@@ -52,34 +14,34 @@ describe("parseModelListResponse", () => {
     expect(model.displayName).toBe("GPT-5.3-Codex-Spark");
   });
 
-  it("formats the slug when displayName is missing", () => {
+  it("uses the raw model slug when displayName is missing", () => {
     const response = {
       result: {
         data: [{ id: "m1", model: "gpt-5.3-codex" }],
       },
     };
     const [model] = parseModelListResponse(response);
-    expect(model.displayName).toBe("GPT-5.3-Codex");
+    expect(model.displayName).toBe("gpt-5.3-codex");
   });
 
-  it("formats the slug when displayName is an empty string", () => {
+  it("uses the raw model slug when displayName is an empty string", () => {
     const response = {
       result: {
         data: [{ id: "m1", model: "gpt-5.1-codex-mini", displayName: "" }],
       },
     };
     const [model] = parseModelListResponse(response);
-    expect(model.displayName).toBe("GPT-5.1-Codex-Mini");
+    expect(model.displayName).toBe("gpt-5.1-codex-mini");
   });
 
-  it("formats the slug when displayName equals the model slug", () => {
+  it("preserves displayName when it equals the model slug", () => {
     const response = {
       result: {
         data: [{ id: "m1", model: "gpt-5.3-codex", displayName: "gpt-5.3-codex" }],
       },
     };
     const [model] = parseModelListResponse(response);
-    expect(model.displayName).toBe("GPT-5.3-Codex");
+    expect(model.displayName).toBe("gpt-5.3-codex");
   });
 
   it("preserves displayName when it differs from the slug", () => {
@@ -93,6 +55,6 @@ describe("parseModelListResponse", () => {
     };
     const models = parseModelListResponse(response);
     expect(models[0].displayName).toBe("GPT-5.3-Codex-Spark");
-    expect(models[1].displayName).toBe("GPT-5.2-Codex");
+    expect(models[1].displayName).toBe("gpt-5.2-codex");
   });
 });

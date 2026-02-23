@@ -88,6 +88,7 @@ describe("useThreadActions", () => {
       tokenUsageThreadIdsByWorkspace: {},
       activeThreadIdByWorkspace: {},
       activeTurnIdByThread: {},
+      threadParentById: {},
       threadListCursorByWorkspace: {},
       threadStatusById: {},
       threadSortKey: "updated_at",
@@ -986,6 +987,50 @@ describe("useThreadActions", () => {
         threadId: "thread-b",
       }),
     );
+  });
+
+  it("uses fresh fetched data for active anchors outside top thread target", async () => {
+    const data = Array.from({ length: 21 }, (_, index) => ({
+      id: `thread-${index + 1}`,
+      cwd: workspace.path,
+      preview: `Thread ${index + 1} fresh`,
+      updated_at: 5000 - index,
+    }));
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data,
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, dispatch } = renderActions({
+      threadsByWorkspace: {
+        "ws-1": [{ id: "thread-21", name: "Thread 21 stale", updatedAt: 10 }],
+      },
+      activeThreadIdByWorkspace: { "ws-1": "thread-21" },
+    });
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    const setThreadsAction = dispatch.mock.calls
+      .map(([action]) => action)
+      .find(
+        (action) => action.type === "setThreads" && action.workspaceId === "ws-1",
+      );
+    expect(setThreadsAction).toBeTruthy();
+    if (!setThreadsAction || setThreadsAction.type !== "setThreads") {
+      return;
+    }
+    expect(setThreadsAction.threads).toHaveLength(21);
+    expect(setThreadsAction.threads[20]?.id).toBe("thread-21");
+    expect(setThreadsAction.threads[20]?.name).toBe("Thread 21 fresh");
+    expect(setThreadsAction.threads[20]?.updatedAt).toBe(4980);
   });
 
   it("lists threads once and distributes results across workspaces", async () => {

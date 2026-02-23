@@ -76,6 +76,12 @@ Use project aliases for frontend imports:
 
 For broader path maps, use `docs/codebase-map.md`.
 
+## Thread Hierarchy Invariants
+
+- `setThreads` reconciliation must preserve incoming order while retaining required local anchors (active/processing/ancestor summaries) when payloads are partial.
+- Never resurrect hidden threads during reconciliation (`hiddenThreadIdsByWorkspace` still wins).
+- `useThreadRows` renders children under parents only when parent summaries are present in the visible list; missing parent summaries will promote children to roots.
+
 ## Follow-up Behavior Map
 
 For Queue vs Steer follow-up behavior, start here:
