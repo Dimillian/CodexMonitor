@@ -349,6 +349,7 @@
   z-index: 3;
   backdrop-filter: blur(18px) saturate(1.2);
   min-height: var(--main-topbar-height);
+  transition: padding-left 180ms ease, padding-right 180ms ease;
 }
 
 .app.sidebar-collapsed .main-topbar {
@@ -376,6 +377,8 @@
     var(--topbar-compact-padding, 16px)
     + var(--titlebar-toggle-size, 28px)
     + var(--titlebar-toggle-side-gap, 12px)
+    + var(--window-caption-width, 0px)
+    + var(--window-caption-gap, 0px)
   );
 }
 
@@ -384,6 +387,8 @@
     var(--main-panel-padding)
     + var(--titlebar-toggle-size, 28px)
     + var(--titlebar-toggle-side-gap, 12px)
+    + var(--window-caption-width, 0px)
+    + var(--window-caption-gap, 0px)
   );
 }
 
@@ -1000,6 +1005,7 @@
 
 .right-panel-top .ds-panel {
   padding-top: var(--right-panel-top-padding, 12px);
+  transition: padding-top 180ms ease;
 }
 
 .right-panel-divider {

@@ -90,7 +90,8 @@ body {
   -webkit-app-region: no-drag;
   pointer-events: auto;
   transform: translateY(calc(-50% + var(--titlebar-toggle-offset, 0px)));
-  transition: opacity 160ms ease;
+  transition: left 180ms ease, right 180ms ease, opacity 160ms ease;
+  will-change: left, right;
 }
 
 
@@ -107,7 +108,7 @@ body {
 }
 
 .titlebar-toggle-right {
-  right: 10px;
+  right: calc(12px + var(--window-caption-width, 0px) + var(--window-caption-gap, 0px));
 }
 
 .window-caption-controls {
@@ -134,6 +135,19 @@ body {
   justify-content: center;
   box-shadow: none;
   transform: none;
+}
+
+button.window-caption-control,
+.titlebar-toggle .main-header-action {
+  transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
+}
+
+button.window-caption-control:hover:not(:disabled),
+button.window-caption-control:focus-visible,
+.titlebar-toggle .main-header-action:hover:not(:disabled),
+.titlebar-toggle .main-header-action:focus-visible {
+  transform: none;
+  box-shadow: none;
 }
 
 .window-caption-control svg {
