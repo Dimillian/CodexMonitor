@@ -32,6 +32,7 @@ import "./styles/tabbar.css";
 import "./styles/worktree-modal.css";
 import "./styles/clone-modal.css";
 import "./styles/workspace-paths-modal.css";
+import "./styles/remote-directory-picker-modal.css";
 import "./styles/workspace-from-url-modal.css";
 import "./styles/branch-switcher-modal.css";
 import "./styles/git-init-modal.css";
@@ -93,6 +94,7 @@ import { useWorktreePrompt } from "@/features/workspaces/hooks/useWorktreePrompt
 import { useClonePrompt } from "@/features/workspaces/hooks/useClonePrompt";
 import { useWorkspaceFromUrlPrompt } from "@/features/workspaces/hooks/useWorkspaceFromUrlPrompt";
 import { useWorkspaceController } from "@app/hooks/useWorkspaceController";
+import { useRemoteDirectoryPicker } from "@app/hooks/useRemoteDirectoryPicker";
 import { useWorkspaceSelection } from "@/features/workspaces/hooks/useWorkspaceSelection";
 import { useGitHubPanelController } from "@app/hooks/useGitHubPanelController";
 import { useSettingsModalState } from "@app/hooks/useSettingsModalState";
@@ -151,11 +153,12 @@ import {
 import { useAppShellOrchestration } from "@app/orchestration/useLayoutOrchestration";
 import { buildCodexArgsOptions } from "@threads/utils/codexArgsProfiles";
 import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
+import { isMobilePlatform } from "@/utils/platformPaths";
 import {
   resolveWorkspaceRuntimeCodexArgsBadgeLabel,
   resolveWorkspaceRuntimeCodexArgsOverride,
 } from "@threads/utils/threadCodexParamsSeed";
-import { setWorkspaceRuntimeCodexArgs } from "@services/tauri";
+import { pickWorkspacePath, setWorkspaceRuntimeCodexArgs } from "@services/tauri";
 
 const AboutView = lazy(() =>
   import("@/features/about/components/AboutView").then((module) => ({
@@ -229,6 +232,12 @@ function MainApp() {
     addWorkspacesFromPaths,
     workspacePathsPrompt,
     updateWorkspacePathsPromptValue,
+    browseWorkspacePathsPromptDirectory,
+    browseWorkspacePathsPromptParentDirectory,
+    browseWorkspacePathsPromptHomeDirectory,
+    retryWorkspacePathsPromptDirectoryListing,
+    toggleWorkspacePathsPromptHiddenDirectories,
+    useWorkspacePathsPromptCurrentDirectory,
     cancelWorkspacePathsPrompt,
     confirmWorkspacePathsPrompt,
     addCloneAgent,
@@ -254,6 +263,26 @@ function MainApp() {
     addDebugEntry,
     queueSaveSettings,
   });
+  const {
+    remoteDirectoryPicker,
+    requestRemoteDirectory,
+    browseRemoteDirectoryPickerDirectory,
+    browseRemoteDirectoryPickerParentDirectory,
+    browseRemoteDirectoryPickerHomeDirectory,
+    retryRemoteDirectoryPickerListing,
+    toggleRemoteDirectoryPickerHiddenDirectories,
+    cancelRemoteDirectoryPicker,
+    confirmRemoteDirectoryPicker,
+  } = useRemoteDirectoryPicker();
+  const pickDirectoryPath = useCallback(
+    async (title: string, confirmLabel: string) => {
+      if (isMobilePlatform() && appSettings.backendMode === "remote") {
+        return requestRemoteDirectory({ title, confirmLabel });
+      }
+      return pickWorkspacePath();
+    },
+    [appSettings.backendMode, requestRemoteDirectory],
+  );
   const {
     isMobileRuntime,
     showMobileSetupWizard,
@@ -862,6 +891,8 @@ function MainApp() {
     updateWorkspaceSettings,
     clearGitRootCandidates,
     refreshGitStatus,
+    pickDirectoryPath: () =>
+      pickDirectoryPath("Select git root folder", "Use folder"),
   });
   const fileStatus =
     gitStatus.error
@@ -1261,6 +1292,8 @@ function MainApp() {
     onSelectWorkspace: selectWorkspace,
     resolveProjectContext: resolveCloneProjectContext,
     persistProjectCopiesFolder,
+    pickDirectoryPath: () =>
+      pickDirectoryPath("Select copies folder", "Use folder"),
     onCompactActivate: isCompact ? () => setActiveTab("codex") : undefined,
     onError: (message) => {
       addDebugEntry({
@@ -1288,6 +1321,8 @@ function MainApp() {
     onSubmit: async (url, destinationPath, targetFolderName) => {
       await handleAddWorkspaceFromGitUrl(url, destinationPath, targetFolderName);
     },
+    pickDirectoryPath: () =>
+      pickDirectoryPath("Select destination parent folder", "Use folder"),
   });
 
   const showHome = !activeWorkspace;
@@ -2649,8 +2684,34 @@ function MainApp() {
         onClonePromptConfirm={confirmClonePrompt}
         workspacePathsPrompt={workspacePathsPrompt}
         onWorkspacePathsPromptChange={updateWorkspacePathsPromptValue}
+        onWorkspacePathsPromptBrowseDirectory={browseWorkspacePathsPromptDirectory}
+        onWorkspacePathsPromptBrowseParentDirectory={browseWorkspacePathsPromptParentDirectory}
+        onWorkspacePathsPromptBrowseHomeDirectory={browseWorkspacePathsPromptHomeDirectory}
+        onWorkspacePathsPromptRetryDirectoryListing={
+          retryWorkspacePathsPromptDirectoryListing
+        }
+        onWorkspacePathsPromptToggleHiddenDirectories={
+          toggleWorkspacePathsPromptHiddenDirectories
+        }
+        onWorkspacePathsPromptUseCurrentDirectory={useWorkspacePathsPromptCurrentDirectory}
         onWorkspacePathsPromptCancel={cancelWorkspacePathsPrompt}
         onWorkspacePathsPromptConfirm={confirmWorkspacePathsPrompt}
+        remoteDirectoryPicker={remoteDirectoryPicker}
+        onRemoteDirectoryPickerBrowseDirectory={browseRemoteDirectoryPickerDirectory}
+        onRemoteDirectoryPickerBrowseParentDirectory={
+          browseRemoteDirectoryPickerParentDirectory
+        }
+        onRemoteDirectoryPickerBrowseHomeDirectory={
+          browseRemoteDirectoryPickerHomeDirectory
+        }
+        onRemoteDirectoryPickerRetryDirectoryListing={
+          retryRemoteDirectoryPickerListing
+        }
+        onRemoteDirectoryPickerToggleHiddenDirectories={
+          toggleRemoteDirectoryPickerHiddenDirectories
+        }
+        onRemoteDirectoryPickerCancel={cancelRemoteDirectoryPicker}
+        onRemoteDirectoryPickerConfirm={confirmRemoteDirectoryPicker}
         workspaceFromUrlPrompt={workspaceFromUrlPrompt}
         workspaceFromUrlCanSubmit={canSubmitWorkspaceFromUrlPrompt}
         onWorkspaceFromUrlPromptUrlChange={updateWorkspaceFromUrlUrl}

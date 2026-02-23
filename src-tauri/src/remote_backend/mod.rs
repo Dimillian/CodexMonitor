@@ -165,6 +165,7 @@ fn can_retry_after_disconnect(method: &str) -> bool {
             | "get_github_pull_request_diff"
             | "get_github_pull_requests"
             | "is_workspace_path_dir"
+            | "list_remote_directories"
             | "list_git_branches"
             | "list_git_roots"
             | "list_mcp_server_status"
@@ -266,6 +267,7 @@ mod tests {
         assert!(can_retry_after_disconnect("resume_thread"));
         assert!(can_retry_after_disconnect("list_threads"));
         assert!(can_retry_after_disconnect("local_usage_snapshot"));
+        assert!(can_retry_after_disconnect("list_remote_directories"));
         assert!(!can_retry_after_disconnect("send_user_message"));
         assert!(!can_retry_after_disconnect("start_thread"));
         assert!(!can_retry_after_disconnect("remove_workspace"));

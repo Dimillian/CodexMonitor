@@ -175,6 +175,7 @@ pub fn run() {
             codex::codex_update,
             workspaces::list_workspaces,
             workspaces::is_workspace_path_dir,
+            workspaces::list_remote_directories,
             workspaces::add_workspace,
             workspaces::add_workspace_from_git_url,
             workspaces::add_clone,

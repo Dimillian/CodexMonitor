@@ -34,6 +34,35 @@ pub(crate) struct IsWorkspacePathDirRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ListRemoteDirectoriesRequest {
+    pub(crate) path: Option<String>,
+    pub(crate) include_hidden: Option<bool>,
+    pub(crate) limit: Option<u32>,
+    pub(crate) offset: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct RemoteDirectoryEntry {
+    pub(crate) name: String,
+    pub(crate) path: String,
+    pub(crate) is_symlink: bool,
+    pub(crate) is_readable: bool,
+    pub(crate) symlink_target: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ListRemoteDirectoriesResponse {
+    pub(crate) current_path: String,
+    pub(crate) parent_path: Option<String>,
+    pub(crate) entries: Vec<RemoteDirectoryEntry>,
+    pub(crate) truncated: bool,
+    pub(crate) entry_count: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct AddWorkspaceRequest {
     pub(crate) path: String,
     pub(crate) codex_bin: Option<String>,

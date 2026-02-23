@@ -265,6 +265,40 @@ export async function isWorkspacePathDir(path: string): Promise<boolean> {
   return invoke<boolean>("is_workspace_path_dir", { path });
 }
 
+export type ListRemoteDirectoriesInput = {
+  path?: string | null;
+  includeHidden?: boolean;
+  limit?: number;
+  offset?: number;
+};
+
+export type RemoteDirectoryEntry = {
+  name: string;
+  path: string;
+  isSymlink: boolean;
+  isReadable: boolean;
+  symlinkTarget: string | null;
+};
+
+export type ListRemoteDirectoriesResponse = {
+  currentPath: string;
+  parentPath: string | null;
+  entries: RemoteDirectoryEntry[];
+  truncated: boolean;
+  entryCount: number;
+};
+
+export async function listRemoteDirectories(
+  input: ListRemoteDirectoriesInput = {},
+): Promise<ListRemoteDirectoriesResponse> {
+  return invoke<ListRemoteDirectoriesResponse>("list_remote_directories", {
+    path: input.path ?? null,
+    includeHidden: input.includeHidden ?? null,
+    limit: input.limit ?? null,
+    offset: input.offset ?? null,
+  });
+}
+
 export async function addClone(
   sourceWorkspaceId: string,
   copiesFolder: string,

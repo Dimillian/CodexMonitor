@@ -75,6 +75,11 @@ pub(super) async fn try_handle(
                 state.is_workspace_path_dir(request.path).await,
             ))
         }
+        "list_remote_directories" => {
+            let request =
+                parse_request_or_err!(params, workspace_rpc::ListRemoteDirectoriesRequest);
+            Some(serialize_result(state.list_remote_directories(request)).await)
+        }
         "add_workspace" => {
             let request = parse_request_or_err!(params, workspace_rpc::AddWorkspaceRequest);
             Some(

@@ -1,10 +1,30 @@
 import { useEffect, useRef } from "react";
+import type { RemoteDirectoryEntry } from "@services/tauri";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
+import { RemoteDirectoryBrowser } from "./RemoteDirectoryBrowser";
+
+type WorkspacePathsBrowserState = {
+  currentPath: string;
+  parentPath: string | null;
+  entries: RemoteDirectoryEntry[];
+  includeHidden: boolean;
+  isLoading: boolean;
+  loadError: string | null;
+  truncated: boolean;
+  entryCount: number;
+};
 
 type WorkspacePathsPromptProps = {
   value: string;
   error: string | null;
+  browser: WorkspacePathsBrowserState | null;
   onChange: (value: string) => void;
+  onBrowseDirectory: (path: string) => void;
+  onBrowseParentDirectory: () => void;
+  onBrowseHomeDirectory: () => void;
+  onRetryDirectoryListing: () => void;
+  onToggleHiddenDirectories: () => void;
+  onUseCurrentDirectory: () => void;
   onCancel: () => void;
   onConfirm: () => void;
 };
@@ -12,7 +32,14 @@ type WorkspacePathsPromptProps = {
 export function WorkspacePathsPrompt({
   value,
   error,
+  browser,
   onChange,
+  onBrowseDirectory,
+  onBrowseParentDirectory,
+  onBrowseHomeDirectory,
+  onRetryDirectoryListing,
+  onToggleHiddenDirectories,
+  onUseCurrentDirectory,
   onCancel,
   onConfirm,
 }: WorkspacePathsPromptProps) {
@@ -32,13 +59,34 @@ export function WorkspacePathsPrompt({
       ariaLabel="Add workspace paths"
       onBackdropClick={onCancel}
     >
-      <div className="ds-modal-title">Add workspaces</div>
+      <div className="ds-modal-title">Add workspace</div>
       <div id={helpId} className="ds-modal-subtitle">
-        Enter one or more absolute project paths on the connected server. Use one path
-        per line or comma-separated entries.
+        Browse folders on the connected server, then add one or more absolute paths.
       </div>
+
+      {browser && (
+        <RemoteDirectoryBrowser
+          currentPath={browser.currentPath}
+          parentPath={browser.parentPath}
+          entries={browser.entries}
+          includeHidden={browser.includeHidden}
+          isLoading={browser.isLoading}
+          loadError={browser.loadError}
+          truncated={browser.truncated}
+          entryCount={browser.entryCount}
+          onBrowseDirectory={onBrowseDirectory}
+          onBrowseParentDirectory={onBrowseParentDirectory}
+          onBrowseHomeDirectory={onBrowseHomeDirectory}
+          onRetryDirectoryListing={onRetryDirectoryListing}
+          onToggleHiddenDirectories={onToggleHiddenDirectories}
+          onUseCurrentDirectory={onUseCurrentDirectory}
+          currentActionLabel="Use this folder"
+          disableCurrentAction={!browser.currentPath || browser.isLoading}
+        />
+      )}
+
       <label className="ds-modal-label" htmlFor="workspace-paths-input">
-        Server paths
+        Absolute server paths (fallback)
       </label>
       <textarea
         id="workspace-paths-input"
@@ -49,7 +97,7 @@ export function WorkspacePathsPrompt({
         autoCorrect="off"
         autoComplete="off"
         spellCheck={false}
-        placeholder={"/home/dev/project-one\n/home/dev/project-two"}
+        placeholder="/home/dev/project-one\n/home/dev/project-two"
         rows={4}
         aria-invalid={Boolean(error)}
         aria-describedby={describedBy}
@@ -76,7 +124,7 @@ export function WorkspacePathsPrompt({
           Cancel
         </button>
         <button className="primary ds-modal-button" onClick={onConfirm} type="button">
-          Add
+          Add workspace
         </button>
       </div>
     </ModalShell>

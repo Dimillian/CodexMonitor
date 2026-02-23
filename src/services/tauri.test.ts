@@ -16,6 +16,7 @@ import {
   getGitLog,
   getGitStatus,
   getOpenAppIcon,
+  listRemoteDirectories,
   listThreads,
   listMcpServerStatus,
   readGlobalAgentsMd,
@@ -86,6 +87,31 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("add_workspace", {
       path: "/tmp/project",
       codex_bin: null,
+    });
+  });
+
+  it("maps remote directory listing options to invoke payload", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      currentPath: "/Users/dev",
+      parentPath: "/Users",
+      entries: [],
+      truncated: false,
+      entryCount: 0,
+    });
+
+    await listRemoteDirectories({
+      path: "/Users/dev",
+      includeHidden: true,
+      limit: 120,
+      offset: 10,
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("list_remote_directories", {
+      path: "/Users/dev",
+      includeHidden: true,
+      limit: 120,
+      offset: 10,
     });
   });
 
