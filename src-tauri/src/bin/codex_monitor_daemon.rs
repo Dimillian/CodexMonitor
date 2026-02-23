@@ -756,9 +756,8 @@ impl DaemonState {
         cursor: Option<String>,
         limit: Option<u32>,
         sort_key: Option<String>,
-        cwd: Option<String>,
     ) -> Result<Value, String> {
-        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key, cwd)
+        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key)
             .await
     }
 
@@ -1667,6 +1666,7 @@ mod tests {
             next_id: AtomicU64::new(0),
             background_thread_callbacks: Mutex::new(HashMap::new()),
             workspace_ids: Mutex::new(HashSet::from([owner_workspace_id.clone()])),
+            workspace_roots: Mutex::new(HashMap::new()),
             owner_workspace_id,
         })
     }

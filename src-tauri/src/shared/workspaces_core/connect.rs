@@ -74,7 +74,9 @@ where
         remove_session_references(sessions, &existing_for_entry).await;
     }
     if let Some(existing_session) = take_live_shared_session(sessions).await {
-        existing_session.register_workspace(&entry.id).await;
+        existing_session
+            .register_workspace_with_path(&entry.id, Some(&entry.path))
+            .await;
         sessions
             .lock()
             .await
@@ -90,7 +92,9 @@ where
     };
     let codex_home = resolve_workspace_codex_home(&entry, parent_entry.as_ref());
     let session = spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?;
-    session.register_workspace(&entry.id).await;
+    session
+        .register_workspace_with_path(&entry.id, Some(&entry.path))
+        .await;
     sessions.lock().await.insert(entry.id, session);
     Ok(())
 }
@@ -174,6 +178,7 @@ mod tests {
             background_thread_callbacks: Mutex::new(HashMap::new()),
             owner_workspace_id: "test-owner".to_string(),
             workspace_ids: Mutex::new(HashSet::from(["test-owner".to_string()])),
+            workspace_roots: Mutex::new(HashMap::new()),
         })
     }
 

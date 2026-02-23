@@ -49,6 +49,13 @@ describe("useThreadActions", () => {
     connected: true,
     settings: { sidebarCollapsed: false },
   };
+  const workspaceTwo: WorkspaceInfo = {
+    id: "ws-2",
+    name: "Other",
+    path: "/tmp/other",
+    connected: true,
+    settings: { sidebarCollapsed: false },
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -716,7 +723,6 @@ describe("useThreadActions", () => {
       null,
       100,
       "updated_at",
-      "/tmp/codex",
     );
     expect(dispatch).toHaveBeenCalledWith({
       type: "setThreadListLoading",
@@ -746,6 +752,161 @@ describe("useThreadActions", () => {
     });
     expect(threadActivityRef.current).toEqual({
       "ws-1": { "thread-1": 5000 },
+    });
+  });
+
+  it("lists threads once and distributes results across workspaces", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-1",
+            cwd: "/tmp/codex",
+            preview: "WS1 thread",
+            updated_at: 5000,
+          },
+          {
+            id: "thread-2",
+            cwd: "/tmp/other",
+            preview: "WS2 thread",
+            updated_at: 4500,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspaces([workspace, workspaceTwo]);
+    });
+
+    expect(listThreads).toHaveBeenCalledTimes(1);
+    expect(listThreads).toHaveBeenCalledWith("ws-1", null, 100, "updated_at");
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-1",
+      sortKey: "updated_at",
+      threads: [
+        {
+          id: "thread-1",
+          name: "WS1 thread",
+          updatedAt: 5000,
+          createdAt: 0,
+        },
+      ],
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-2",
+      sortKey: "updated_at",
+      threads: [
+        {
+          id: "thread-2",
+          name: "WS2 thread",
+          updatedAt: 4500,
+          createdAt: 0,
+        },
+      ],
+    });
+  });
+
+  it("fetches multiple pages by default", async () => {
+    vi.mocked(listThreads)
+      .mockResolvedValueOnce({
+        result: {
+          data: [
+            {
+              id: "thread-1",
+              cwd: "/tmp/codex",
+              preview: "First page",
+              updated_at: 5000,
+            },
+          ],
+          nextCursor: "cursor-1",
+        },
+      })
+      .mockResolvedValueOnce({
+        result: {
+          data: [
+            {
+              id: "thread-2",
+              cwd: "/tmp/codex",
+              preview: "Second page",
+              updated_at: 4900,
+            },
+          ],
+          nextCursor: null,
+        },
+      });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspaces([workspace]);
+    });
+
+    expect(listThreads).toHaveBeenCalledTimes(2);
+    expect(listThreads).toHaveBeenNthCalledWith(1, "ws-1", null, 100, "updated_at");
+    expect(listThreads).toHaveBeenNthCalledWith(
+      2,
+      "ws-1",
+      "cursor-1",
+      100,
+      "updated_at",
+    );
+  });
+
+  it("stores a per-workspace cursor boundary for older pagination", async () => {
+    const firstPage = Array.from({ length: 10 }, (_, index) => ({
+      id: `thread-${index + 1}`,
+      cwd: "/tmp/codex",
+      preview: `Thread ${index + 1}`,
+      updated_at: 5000 - index,
+    }));
+    const secondPage = Array.from({ length: 15 }, (_, index) => ({
+      id: `thread-${index + 11}`,
+      cwd: "/tmp/codex",
+      preview: `Thread ${index + 11}`,
+      updated_at: 4990 - index,
+    }));
+    vi.mocked(listThreads)
+      .mockResolvedValueOnce({
+        result: {
+          data: firstPage,
+          nextCursor: "cursor-1",
+        },
+      })
+      .mockResolvedValueOnce({
+        result: {
+          data: secondPage,
+          nextCursor: null,
+        },
+      });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreadListCursor",
+      workspaceId: "ws-1",
+      cursor: "cursor-1",
     });
   });
 
@@ -793,7 +954,7 @@ describe("useThreadActions", () => {
     expect(onSubagentThreadDetected).toHaveBeenCalledWith("ws-1", "child-thread");
   });
 
-  it("passes windows cwd to server-side thread list filtering", async () => {
+  it("matches windows workspace threads client-side", async () => {
     const windowsWorkspace: WorkspaceInfo = {
       ...workspace,
       path: "C:\\Dev\\CodexMon",
@@ -824,7 +985,6 @@ describe("useThreadActions", () => {
       null,
       100,
       "updated_at",
-      "C:\\Dev\\CodexMon",
     );
     expect(dispatch).toHaveBeenCalledWith({
       type: "setThreads",
@@ -883,7 +1043,6 @@ describe("useThreadActions", () => {
       null,
       100,
       "created_at",
-      "/tmp/codex",
     );
   });
 
@@ -938,7 +1097,36 @@ describe("useThreadActions", () => {
     });
   });
 
-  it("passes windows cwd when loading older threads", async () => {
+  it("treats page-start cursor marker as null when loading older threads", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [],
+        nextCursor: null,
+      },
+    });
+
+    const { result } = renderActions({
+      threadsByWorkspace: {
+        "ws-1": [{ id: "thread-1", name: "Agent 1", updatedAt: 6000 }],
+      },
+      threadListCursorByWorkspace: {
+        "ws-1": "__codex_monitor_page_start__",
+      },
+    });
+
+    await act(async () => {
+      await result.current.loadOlderThreadsForWorkspace(workspace);
+    });
+
+    expect(listThreads).toHaveBeenCalledWith(
+      "ws-1",
+      null,
+      100,
+      "updated_at",
+    );
+  });
+
+  it("matches windows workspace threads when loading older threads", async () => {
     const windowsWorkspace: WorkspaceInfo = {
       ...workspace,
       path: "C:\\Dev\\CodexMon",
@@ -977,7 +1165,6 @@ describe("useThreadActions", () => {
       "cursor-1",
       100,
       "updated_at",
-      "C:\\Dev\\CodexMon",
     );
     expect(dispatch).toHaveBeenCalledWith({
       type: "setThreads",

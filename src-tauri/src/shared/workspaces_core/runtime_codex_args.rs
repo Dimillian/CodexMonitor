@@ -93,8 +93,28 @@ where
         }
         keys
     };
-    for workspace_id in &workspace_ids {
-        new_session.register_workspace(workspace_id).await;
+    let workspace_paths = {
+        let workspaces = workspaces.lock().await;
+        workspace_ids
+            .iter()
+            .map(|workspace_id| {
+                let path = workspaces
+                    .get(workspace_id)
+                    .map(|entry| entry.path.clone())
+                    .unwrap_or_default();
+                (workspace_id.clone(), path)
+            })
+            .collect::<Vec<_>>()
+    };
+    for (workspace_id, workspace_path) in &workspace_paths {
+        let path = if workspace_path.is_empty() {
+            None
+        } else {
+            Some(workspace_path.as_str())
+        };
+        new_session
+            .register_workspace_with_path(workspace_id, path)
+            .await;
     }
     let mut child = current_session.child.lock().await;
     kill_child_process_tree(&mut child).await;
@@ -158,6 +178,7 @@ mod tests {
             background_thread_callbacks: Mutex::new(HashMap::new()),
             owner_workspace_id: "test-owner".to_string(),
             workspace_ids: Mutex::new(HashSet::from(["test-owner".to_string()])),
+            workspace_roots: Mutex::new(HashMap::new()),
         }
     }
 

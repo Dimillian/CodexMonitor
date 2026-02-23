@@ -628,6 +628,7 @@ function MainApp() {
     getPinTimestamp,
     renameThread,
     startThreadForWorkspace,
+    listThreadsForWorkspaces,
     listThreadsForWorkspace,
     loadOlderThreadsForWorkspace,
     resetWorkspaceThreads,
@@ -989,7 +990,7 @@ function MainApp() {
       setThreadListSortKey,
       workspaces,
       refreshWorkspaces,
-      listThreadsForWorkspace,
+      listThreadsForWorkspaces,
       resetWorkspaceThreads,
     });
 
@@ -1743,12 +1744,12 @@ function MainApp() {
     workspaces,
     hasLoaded,
     connectWorkspace,
-    listThreadsForWorkspace
+    listThreadsForWorkspaces,
   });
   useWorkspaceRefreshOnFocus({
     workspaces,
     refreshWorkspaces,
-    listThreadsForWorkspace,
+    listThreadsForWorkspaces,
     backendMode: appSettings.backendMode,
     pollIntervalMs: REMOTE_WORKSPACE_REFRESH_INTERVAL_MS,
   });

@@ -43,36 +43,76 @@ fn extract_thread_id(value: &Value) -> Option<String> {
         .or_else(|| extract_from_container(value.get("result")))
 }
 
-fn extract_thread_ids_from_thread_list_result(value: &Value) -> Vec<String> {
-    fn collect_ids(input: &Value, out: &mut Vec<String>) {
+fn normalize_root_path(value: &str) -> String {
+    let normalized = value.replace('\\', "/");
+    let normalized = normalized.trim_end_matches('/');
+    if normalized.is_empty() {
+        return String::new();
+    }
+
+    let bytes = normalized.as_bytes();
+    let is_drive_path = bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && bytes[2] == b'/';
+    if is_drive_path || normalized.starts_with("//") {
+        normalized.to_ascii_lowercase()
+    } else {
+        normalized.to_string()
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ThreadListEntry {
+    thread_id: String,
+    cwd: Option<String>,
+}
+
+fn extract_thread_entries_from_thread_list_result(value: &Value) -> Vec<ThreadListEntry> {
+    fn collect_entries(input: &Value, out: &mut Vec<ThreadListEntry>) {
         if let Some(values) = input.as_array() {
             for value in values {
-                collect_ids(value, out);
+                collect_entries(value, out);
             }
             return;
         }
+        let Some(object) = input.as_object() else {
+            return;
+        };
 
-        if let Some(id) = input
+        let cwd = object
+            .get("cwd")
+            .and_then(|value| value.as_str())
+            .map(|value| value.to_string())
+            .or_else(|| {
+                object
+                    .get("thread")
+                    .and_then(|thread| thread.get("cwd"))
+                    .and_then(|value| value.as_str())
+                    .map(|value| value.to_string())
+            });
+
+        let thread_id = object
             .get("threadId")
-            .or_else(|| input.get("thread_id"))
-            .or_else(|| input.get("id"))
-            .and_then(|v| v.as_str())
-        {
-            out.push(id.to_string());
-        }
-
-        if let Some(thread_id) = input
-            .get("thread")
-            .and_then(|thread| thread.get("id"))
-            .and_then(|v| v.as_str())
-        {
-            out.push(thread_id.to_string());
+            .or_else(|| object.get("thread_id"))
+            .or_else(|| object.get("id"))
+            .and_then(|value| value.as_str())
+            .map(|value| value.to_string())
+            .or_else(|| {
+                object
+                    .get("thread")
+                    .and_then(|thread| thread.get("id"))
+                    .and_then(|value| value.as_str())
+                    .map(|value| value.to_string())
+            });
+        if let Some(thread_id) = thread_id {
+            out.push(ThreadListEntry { thread_id, cwd });
         }
 
         for key in ["threads", "items", "results", "data"] {
-            if let Some(values) = input.get(key).and_then(|v| v.as_array()) {
+            if let Some(values) = object.get(key).and_then(|value| value.as_array()) {
                 for value in values {
-                    collect_ids(value, out);
+                    collect_entries(value, out);
                 }
             }
         }
@@ -80,9 +120,26 @@ fn extract_thread_ids_from_thread_list_result(value: &Value) -> Vec<String> {
 
     let mut out = Vec::new();
     if let Some(result) = value.get("result") {
-        collect_ids(result, &mut out);
+        collect_entries(result, &mut out);
     }
     out
+}
+
+fn resolve_workspace_for_cwd(
+    cwd: &str,
+    workspace_roots: &HashMap<String, String>,
+) -> Option<String> {
+    let normalized_cwd = normalize_root_path(cwd);
+    if normalized_cwd.is_empty() {
+        return None;
+    }
+    workspace_roots.iter().find_map(|(workspace_id, root)| {
+        if root == &normalized_cwd {
+            Some(workspace_id.clone())
+        } else {
+            None
+        }
+    })
 }
 
 fn is_global_workspace_notification(method: &str) -> bool {
@@ -135,18 +192,37 @@ pub(crate) struct WorkspaceSession {
     pub(crate) background_thread_callbacks: Mutex<HashMap<String, mpsc::UnboundedSender<Value>>>,
     pub(crate) owner_workspace_id: String,
     pub(crate) workspace_ids: Mutex<HashSet<String>>,
+    pub(crate) workspace_roots: Mutex<HashMap<String, String>>,
 }
 
 impl WorkspaceSession {
     pub(crate) async fn register_workspace(&self, workspace_id: &str) {
+        self.register_workspace_with_path(workspace_id, None).await;
+    }
+
+    pub(crate) async fn register_workspace_with_path(
+        &self,
+        workspace_id: &str,
+        workspace_path: Option<&str>,
+    ) {
         self.workspace_ids
             .lock()
             .await
             .insert(workspace_id.to_string());
+        if let Some(path) = workspace_path {
+            let normalized = normalize_root_path(path);
+            if !normalized.is_empty() {
+                self.workspace_roots
+                    .lock()
+                    .await
+                    .insert(workspace_id.to_string(), normalized);
+            }
+        }
     }
 
     pub(crate) async fn unregister_workspace(&self, workspace_id: &str) {
         self.workspace_ids.lock().await.remove(workspace_id);
+        self.workspace_roots.lock().await.remove(workspace_id);
     }
 
     pub(crate) async fn workspace_ids_snapshot(&self) -> Vec<String> {
@@ -458,6 +534,10 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
         background_thread_callbacks: Mutex::new(HashMap::new()),
         owner_workspace_id: entry.id.clone(),
         workspace_ids: Mutex::new(HashSet::from([entry.id.clone()])),
+        workspace_roots: Mutex::new(HashMap::from([(
+            entry.id.clone(),
+            normalize_root_path(&entry.path),
+        )])),
     });
 
     let session_clone = Arc::clone(&session);
@@ -510,12 +590,19 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                         .await
                         .insert(tid.clone(), workspace_id.clone());
                 }
-                if matches!(request_method.as_deref(), Some("thread/list")) {
-                    let thread_ids = extract_thread_ids_from_thread_list_result(&value);
-                    if !thread_ids.is_empty() {
-                        let mut map = session_clone.thread_workspace.lock().await;
-                        for tid in thread_ids {
-                            map.insert(tid, workspace_id.clone());
+            }
+            if matches!(request_method.as_deref(), Some("thread/list")) {
+                let thread_entries = extract_thread_entries_from_thread_list_result(&value);
+                if !thread_entries.is_empty() {
+                    let workspace_roots = session_clone.workspace_roots.lock().await.clone();
+                    let mut thread_workspace = session_clone.thread_workspace.lock().await;
+                    for entry in thread_entries {
+                        let mapped_workspace = entry
+                            .cwd
+                            .as_deref()
+                            .and_then(|cwd| resolve_workspace_for_cwd(cwd, &workspace_roots));
+                        if let Some(workspace_id) = mapped_workspace {
+                            thread_workspace.insert(entry.thread_id, workspace_id);
                         }
                     }
                 }
@@ -693,7 +780,11 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 
 #[cfg(test)]
 mod tests {
-    use super::{build_initialize_params, extract_thread_id, extract_thread_ids_from_thread_list_result};
+    use super::{
+        build_initialize_params, extract_thread_entries_from_thread_list_result, extract_thread_id,
+        normalize_root_path, resolve_workspace_for_cwd,
+    };
+    use std::collections::HashMap;
     use serde_json::json;
 
     #[test]
@@ -727,18 +818,30 @@ mod tests {
     }
 
     #[test]
-    fn extract_thread_ids_reads_standard_thread_list_shape() {
+    fn extract_thread_entries_reads_result_data_items() {
         let value = json!({
             "result": {
                 "data": [
-                    { "id": "thread-a" },
-                    { "id": "thread-b" }
+                    { "id": "thread-a", "cwd": "/tmp/a" },
+                    { "threadId": "thread-b", "cwd": "/tmp/b" }
                 ]
             }
         });
+        let entries = extract_thread_entries_from_thread_list_result(&value);
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].thread_id, "thread-a");
+        assert_eq!(entries[0].cwd.as_deref(), Some("/tmp/a"));
+        assert_eq!(entries[1].thread_id, "thread-b");
+        assert_eq!(entries[1].cwd.as_deref(), Some("/tmp/b"));
+    }
+
+    #[test]
+    fn resolve_workspace_for_cwd_normalizes_windows_paths() {
+        let mut roots = HashMap::new();
+        roots.insert("ws-1".to_string(), normalize_root_path("C:\\Dev\\Codex"));
         assert_eq!(
-            extract_thread_ids_from_thread_list_result(&value),
-            vec!["thread-a".to_string(), "thread-b".to_string()]
+            resolve_workspace_for_cwd("c:/dev/codex", &roots),
+            Some("ws-1".to_string())
         );
     }
 }

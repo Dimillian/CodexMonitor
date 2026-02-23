@@ -10,8 +10,8 @@ type UseThreadListActionsOptions = {
   setThreadListSortKey: (sortKey: ThreadListSortKey) => void;
   workspaces: WorkspaceInfo[];
   refreshWorkspaces: () => Promise<WorkspaceInfo[] | undefined>;
-  listThreadsForWorkspace: (
-    workspace: WorkspaceInfo,
+  listThreadsForWorkspaces: (
+    workspaces: WorkspaceInfo[],
     options?: ListThreadsOptions,
   ) => void | Promise<void>;
   resetWorkspaceThreads: (workspaceId: string) => void;
@@ -22,7 +22,7 @@ export function useThreadListActions({
   setThreadListSortKey,
   workspaces,
   refreshWorkspaces,
-  listThreadsForWorkspace,
+  listThreadsForWorkspaces,
   resetWorkspaceThreads,
 }: UseThreadListActionsOptions) {
   const handleSetThreadListSortKey = useCallback(
@@ -31,13 +31,12 @@ export function useThreadListActions({
         return;
       }
       setThreadListSortKey(nextSortKey);
-      workspaces
-        .filter((workspace) => workspace.connected)
-        .forEach((workspace) => {
-          void listThreadsForWorkspace(workspace, { sortKey: nextSortKey });
-        });
+      const connectedWorkspaces = workspaces.filter((workspace) => workspace.connected);
+      if (connectedWorkspaces.length > 0) {
+        void listThreadsForWorkspaces(connectedWorkspaces, { sortKey: nextSortKey });
+      }
     },
-    [threadListSortKey, setThreadListSortKey, workspaces, listThreadsForWorkspace],
+    [threadListSortKey, setThreadListSortKey, workspaces, listThreadsForWorkspaces],
   );
 
   const handleRefreshAllWorkspaceThreads = useCallback(async () => {
@@ -46,9 +45,11 @@ export function useThreadListActions({
     const connectedWorkspaces = source.filter((workspace) => workspace.connected);
     connectedWorkspaces.forEach((workspace) => {
       resetWorkspaceThreads(workspace.id);
-      void listThreadsForWorkspace(workspace);
     });
-  }, [refreshWorkspaces, workspaces, resetWorkspaceThreads, listThreadsForWorkspace]);
+    if (connectedWorkspaces.length > 0) {
+      await listThreadsForWorkspaces(connectedWorkspaces);
+    }
+  }, [refreshWorkspaces, workspaces, resetWorkspaceThreads, listThreadsForWorkspaces]);
 
   return {
     handleSetThreadListSortKey,

@@ -228,7 +228,9 @@ where
         write_workspaces(storage_path, &list)?;
     }
 
-    session.register_workspace(&entry.id).await;
+    session
+        .register_workspace_with_path(&entry.id, Some(&entry.path))
+        .await;
     sessions.lock().await.insert(entry.id.clone(), session);
 
     Ok(WorkspaceInfo {
