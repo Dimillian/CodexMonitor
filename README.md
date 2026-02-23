@@ -113,8 +113,10 @@ rustup target add x86_64-apple-ios
 ```
 
 - Apple signing configured (development team).
-  - Set `bundle.iOS.developmentTeam` in `src-tauri/tauri.ios.conf.json` (preferred), or
+  - Set `bundle.iOS.developmentTeam` and `identifier` in `src-tauri/tauri.ios.local.conf.json` (preferred for local machine setup), or
+  - set values in `src-tauri/tauri.ios.conf.json`, or
   - pass `--team <TEAM_ID>` to the device script.
+  - `build_run_ios*.sh` and `release_testflight_ios.sh` automatically merge `src-tauri/tauri.ios.local.conf.json` when present.
 
 ### Run on iOS Simulator
 
