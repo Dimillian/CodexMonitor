@@ -123,4 +123,70 @@ describe("useThreadRateLimits", () => {
       }),
     );
   });
+
+  it("merges partial payloads with previous workspace rate limits", async () => {
+    const dispatch = vi.fn();
+    const previousRateLimits = {
+      primary: {
+        usedPercent: 42,
+        windowDurationMins: 60,
+        resetsAt: 12345,
+      },
+      secondary: {
+        usedPercent: 70,
+        windowDurationMins: 10080,
+        resetsAt: 99999,
+      },
+      credits: {
+        hasCredits: true,
+        unlimited: false,
+        balance: "5",
+      },
+      planType: "pro",
+    } as const;
+
+    vi.mocked(getAccountRateLimits).mockResolvedValue({
+      result: {
+        rate_limits: {
+          primary: { resets_at: 88888 },
+          secondary: {},
+        },
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useThreadRateLimits({
+        activeWorkspaceId: "ws-1",
+        dispatch,
+        getCurrentRateLimits: () => previousRateLimits,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.refreshAccountRateLimits();
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setRateLimits",
+      workspaceId: "ws-1",
+      rateLimits: {
+        primary: {
+          usedPercent: 42,
+          windowDurationMins: 60,
+          resetsAt: 88888,
+        },
+        secondary: {
+          usedPercent: 70,
+          windowDurationMins: 10080,
+          resetsAt: 99999,
+        },
+        credits: {
+          hasCredits: true,
+          unlimited: false,
+          balance: "5",
+        },
+        planType: "pro",
+      },
+    });
+  });
 });
