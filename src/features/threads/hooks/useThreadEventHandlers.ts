@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import type { Dispatch, MutableRefObject } from "react";
-import type { AppServerEvent, DebugEntry, TurnPlan } from "@/types";
+import type { AppServerEvent, DebugEntry, RateLimitSnapshot, TurnPlan } from "@/types";
 import { getAppServerRawMethod } from "@utils/appServerEvents";
 import { useThreadApprovalEvents } from "./useThreadApprovalEvents";
 import { useThreadItemEvents } from "./useThreadItemEvents";
@@ -12,6 +12,7 @@ type ThreadEventHandlersOptions = {
   activeThreadId: string | null;
   dispatch: Dispatch<ThreadAction>;
   planByThreadRef: MutableRefObject<Record<string, TurnPlan | null>>;
+  getCurrentRateLimits?: (workspaceId: string) => RateLimitSnapshot | null;
   getCustomName: (workspaceId: string, threadId: string) => string | undefined;
   isThreadHidden: (workspaceId: string, threadId: string) => boolean;
   markProcessing: (threadId: string, isProcessing: boolean) => void;
@@ -46,6 +47,7 @@ export function useThreadEventHandlers({
   activeThreadId,
   dispatch,
   planByThreadRef,
+  getCurrentRateLimits,
   getCustomName,
   isThreadHidden,
   markProcessing,
@@ -110,6 +112,7 @@ export function useThreadEventHandlers({
   } = useThreadTurnEvents({
     dispatch,
     planByThreadRef,
+    getCurrentRateLimits,
     getCustomName,
     isThreadHidden,
     markProcessing,

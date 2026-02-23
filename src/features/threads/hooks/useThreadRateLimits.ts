@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import type { DebugEntry } from "@/types";
+import type { DebugEntry, RateLimitSnapshot } from "@/types";
 import { getAccountRateLimits } from "@services/tauri";
 import { normalizeRateLimits } from "@threads/utils/threadNormalize";
 import type { ThreadAction } from "./useThreadsReducer";
@@ -7,6 +7,7 @@ import type { ThreadAction } from "./useThreadsReducer";
 type UseThreadRateLimitsOptions = {
   activeWorkspaceId: string | null;
   activeWorkspaceConnected?: boolean;
+  getCurrentRateLimits?: (workspaceId: string) => RateLimitSnapshot | null;
   dispatch: React.Dispatch<ThreadAction>;
   onDebug?: (entry: DebugEntry) => void;
 };
@@ -14,6 +15,7 @@ type UseThreadRateLimitsOptions = {
 export function useThreadRateLimits({
   activeWorkspaceId,
   activeWorkspaceConnected,
+  getCurrentRateLimits,
   dispatch,
   onDebug,
 }: UseThreadRateLimitsOptions) {
@@ -45,10 +47,11 @@ export function useThreadRateLimits({
           (response?.rateLimits as Record<string, unknown> | undefined) ??
           (response?.rate_limits as Record<string, unknown> | undefined);
         if (rateLimits) {
+          const previousRateLimits = getCurrentRateLimits?.(targetId) ?? null;
           dispatch({
             type: "setRateLimits",
             workspaceId: targetId,
-            rateLimits: normalizeRateLimits(rateLimits),
+            rateLimits: normalizeRateLimits(rateLimits, previousRateLimits),
           });
         }
       } catch (error) {
@@ -61,7 +64,7 @@ export function useThreadRateLimits({
         });
       }
     },
-    [activeWorkspaceId, dispatch, onDebug],
+    [activeWorkspaceId, dispatch, getCurrentRateLimits, onDebug],
   );
 
   useEffect(() => {

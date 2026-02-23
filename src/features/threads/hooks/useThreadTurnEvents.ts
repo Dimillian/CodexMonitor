@@ -1,6 +1,6 @@
 import { useCallback, useRef } from "react";
 import type { Dispatch, MutableRefObject } from "react";
-import type { TurnPlan } from "@/types";
+import type { RateLimitSnapshot, TurnPlan } from "@/types";
 import { interruptTurn as interruptTurnService } from "@services/tauri";
 import { getThreadTimestamp } from "@utils/threadItems";
 import {
@@ -14,6 +14,7 @@ import type { ThreadAction } from "./useThreadsReducer";
 type UseThreadTurnEventsOptions = {
   dispatch: Dispatch<ThreadAction>;
   planByThreadRef: MutableRefObject<Record<string, TurnPlan | null>>;
+  getCurrentRateLimits?: (workspaceId: string) => RateLimitSnapshot | null;
   getCustomName: (workspaceId: string, threadId: string) => string | undefined;
   isThreadHidden: (workspaceId: string, threadId: string) => boolean;
   markProcessing: (threadId: string, isProcessing: boolean) => void;
@@ -40,6 +41,7 @@ function normalizeThreadStatusType(status: Record<string, unknown>): string {
 export function useThreadTurnEvents({
   dispatch,
   planByThreadRef,
+  getCurrentRateLimits,
   getCustomName,
   isThreadHidden,
   markProcessing,
@@ -318,13 +320,14 @@ export function useThreadTurnEvents({
 
   const onAccountRateLimitsUpdated = useCallback(
     (workspaceId: string, rateLimits: Record<string, unknown>) => {
+      const previousRateLimits = getCurrentRateLimits?.(workspaceId) ?? null;
       dispatch({
         type: "setRateLimits",
         workspaceId,
-        rateLimits: normalizeRateLimits(rateLimits),
+        rateLimits: normalizeRateLimits(rateLimits, previousRateLimits),
       });
     },
-    [dispatch],
+    [dispatch, getCurrentRateLimits],
   );
 
   const onTurnError = useCallback(

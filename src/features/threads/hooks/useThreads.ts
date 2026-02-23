@@ -141,9 +141,15 @@ export function useThreads({
     itemsByThread: state.itemsByThread,
   });
 
+  const getCurrentRateLimits = useCallback(
+    (workspaceId: string) => state.rateLimitsByWorkspace[workspaceId] ?? null,
+    [state.rateLimitsByWorkspace],
+  );
+
   const { refreshAccountRateLimits } = useThreadRateLimits({
     activeWorkspaceId,
     activeWorkspaceConnected: activeWorkspace?.connected,
+    getCurrentRateLimits,
     dispatch,
     onDebug,
   });
@@ -380,6 +386,7 @@ export function useThreads({
     activeThreadId,
     dispatch,
     planByThreadRef,
+    getCurrentRateLimits,
     getCustomName,
     isThreadHidden,
     markProcessing,
