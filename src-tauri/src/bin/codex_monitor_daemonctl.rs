@@ -1298,7 +1298,22 @@ mod tests {
 
     #[test]
     fn shell_quote_handles_single_quotes() {
-        assert_eq!(shell_quote("abc'def"), "'abc'\"'\"'def'");
+        let rendered = shell_quote("abc'def");
+        if cfg!(windows) {
+            assert_eq!(rendered, "\"abc'def\"");
+        } else {
+            assert_eq!(rendered, "'abc'\"'\"'def'");
+        }
+    }
+
+    #[test]
+    fn shell_quote_handles_double_quotes() {
+        let rendered = shell_quote("abc\"def");
+        if cfg!(windows) {
+            assert_eq!(rendered, "\"abc\\\"def\"");
+        } else {
+            assert_eq!(rendered, "'abc\"def'");
+        }
     }
 
     #[test]
