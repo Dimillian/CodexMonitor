@@ -2132,7 +2132,10 @@ function MainApp() {
     onDeleteWorktree: handleSidebarDeleteWorktree,
     onLoadOlderThreads: handleSidebarLoadOlderThreads,
     onReloadWorkspaceThreads: handleSidebarReloadWorkspaceThreads,
-    updaterState,
+    updaterState:
+      settingsOpen && settingsSection === "about"
+        ? { stage: "idle" as const }
+        : updaterState,
     onUpdate: startUpdate,
     onDismissUpdate: dismissUpdate,
     postUpdateNotice,
