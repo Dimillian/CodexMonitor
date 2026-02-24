@@ -10,7 +10,7 @@
     "dev": "vite",
     "prebuild": "npm run sync:material-icons",
     "build": "tsc && vite build",
-    "build:tauri-sidecars": "sh scripts/build-tauri-sidecars.sh",
+    "build:tauri-sidecars": "node scripts/build-tauri-sidecars.mjs",
     "build:appimage": "NO_STRIP=1 tauri build --config src-tauri/tauri.bundle.conf.json --bundles appimage",
     "doctor": "sh scripts/doctor.sh",
     "doctor:strict": "sh scripts/doctor.sh --strict",
