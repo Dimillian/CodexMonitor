@@ -187,13 +187,11 @@ const GitHubPanelData = lazy(() =>
 type MainTab = "home" | "projects" | "codex" | "git" | "log";
 type EdgeSwipeDirection = -1 | 1;
 type EdgeSwipeState = {
-  edge: "left" | "right";
   startX: number;
   startY: number;
 };
 
 const MAIN_TAB_ORDER: readonly MainTab[] = ["home", "projects", "codex", "git", "log"];
-const EDGE_SWIPE_ZONE_PX = 40;
 const EDGE_SWIPE_COMMIT_MIN_PX = 6;
 const EDGE_SWIPE_HORIZONTAL_RATIO = 1.2;
 
@@ -2086,11 +2084,8 @@ function MainApp() {
       if (absDeltaX < absDeltaY * EDGE_SWIPE_HORIZONTAL_RATIO) {
         return null;
       }
-      const direction: EdgeSwipeDirection = state.edge === "left" ? -1 : 1;
-      if (direction === -1 && deltaX <= 0) {
-        return null;
-      }
-      if (direction === 1 && deltaX >= 0) {
+      const direction: EdgeSwipeDirection = deltaX > 0 ? -1 : 1;
+      if (deltaX === 0) {
         return null;
       }
       return getAdjacentMainTab(activeTab, direction);
@@ -2108,29 +2103,12 @@ function MainApp() {
         edgeSwipeRef.current = null;
         return;
       }
-      const viewportWidth = window.innerWidth;
-      const edge =
-        touch.clientX <= EDGE_SWIPE_ZONE_PX
-          ? "left"
-          : touch.clientX >= viewportWidth - EDGE_SWIPE_ZONE_PX
-            ? "right"
-            : null;
-      if (!edge) {
-        edgeSwipeRef.current = null;
-        return;
-      }
-      const direction: EdgeSwipeDirection = edge === "left" ? -1 : 1;
-      if (!getAdjacentMainTab(activeTab, direction)) {
-        edgeSwipeRef.current = null;
-        return;
-      }
       edgeSwipeRef.current = {
-        edge,
         startX: touch.clientX,
         startY: touch.clientY,
       };
     },
-    [activeTab, isPhone],
+    [isPhone],
   );
   const handleAppTouchMove = useCallback((event: ReactTouchEvent<HTMLDivElement>) => {
     const state = edgeSwipeRef.current;
@@ -2147,11 +2125,7 @@ function MainApp() {
     if (absDeltaX < absDeltaY * EDGE_SWIPE_HORIZONTAL_RATIO) {
       return;
     }
-    if (state.edge === "left" && deltaX > 0) {
-      event.preventDefault();
-      return;
-    }
-    if (state.edge === "right" && deltaX < 0) {
+    if (absDeltaX >= EDGE_SWIPE_COMMIT_MIN_PX) {
       event.preventDefault();
     }
   }, []);
