@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationItem, WorkspaceInfo } from "@/types";
 import {
@@ -1921,6 +1921,362 @@ describe("useThreadActions", () => {
       "thread-resume-model",
       { modelId: "gpt-5.3-codex", effort: "medium" },
     );
+  });
+
+  it("prefetches model metadata in background after listing threads", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-bg-1",
+            cwd: "/tmp/codex",
+            preview: "Background model",
+            updated_at: 5000,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "thread-bg-1",
+          model: "gpt-5.2-codex",
+          reasoning_effort: "high",
+        },
+      },
+    });
+
+    const onThreadCodexMetadataDetected = vi.fn();
+    const { result } = renderActions({
+      enableBackgroundMetadataHydration: true,
+      onThreadCodexMetadataDetected,
+    });
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    await waitFor(() => {
+      expect(resumeThread).toHaveBeenCalledWith("ws-1", "thread-bg-1");
+    });
+    await waitFor(() => {
+      expect(onThreadCodexMetadataDetected).toHaveBeenCalledWith(
+        "ws-1",
+        "thread-bg-1",
+        { modelId: "gpt-5.2-codex", effort: "high" },
+      );
+    });
+  });
+
+  it("does not re-prefetch model-less metadata after first background hydration", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-bg-repeat-1",
+            cwd: "/tmp/codex",
+            preview: "Background model-less thread",
+            updated_at: 5000,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "thread-bg-repeat-1",
+          preview: "Background model-less thread",
+        },
+      },
+    });
+
+    const onThreadCodexMetadataDetected = vi.fn();
+    const { result } = renderActions({
+      enableBackgroundMetadataHydration: true,
+      onThreadCodexMetadataDetected,
+    });
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    await waitFor(() => {
+      expect(resumeThread).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    expect(resumeThread).toHaveBeenCalledTimes(1);
+    expect(onThreadCodexMetadataDetected).not.toHaveBeenCalled();
+  });
+
+  it("does not overwrite snapshot token usage during background metadata hydration", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-bg-usage-1",
+            cwd: "/tmp/codex",
+            preview: "Background usage thread",
+            updated_at: 5100,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(localThreadUsageSnapshot).mockResolvedValue({
+      updatedAt: 500,
+      usageByThread: {
+        "thread-bg-usage-1": {
+          total: {
+            totalTokens: 1000,
+            inputTokens: 650,
+            cachedInputTokens: 100,
+            outputTokens: 350,
+            reasoningOutputTokens: 25,
+          },
+          last: {
+            totalTokens: 100,
+            inputTokens: 65,
+            cachedInputTokens: 10,
+            outputTokens: 35,
+            reasoningOutputTokens: 2,
+          },
+          modelContextWindow: 200000,
+        },
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "thread-bg-usage-1",
+          model: "gpt-5.2-codex",
+          token_usage: {
+            total: {
+              total_tokens: 9999,
+              input_tokens: 6000,
+              cached_input_tokens: 1200,
+              output_tokens: 3999,
+              reasoning_output_tokens: 100,
+            },
+            last: {
+              total_tokens: 999,
+              input_tokens: 600,
+              cached_input_tokens: 120,
+              output_tokens: 399,
+              reasoning_output_tokens: 10,
+            },
+            model_context_window: 200000,
+          },
+        },
+      },
+    });
+
+    const { result, dispatch } = renderActions({
+      enableBackgroundMetadataHydration: true,
+      onThreadCodexMetadataDetected: vi.fn(),
+    });
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    await waitFor(() => {
+      expect(resumeThread).toHaveBeenCalledWith("ws-1", "thread-bg-usage-1");
+    });
+
+    const tokenUsageActions = dispatch.mock.calls
+      .map(([action]) => action)
+      .filter(
+        (action) =>
+          action.type === "setThreadTokenUsage" &&
+          action.threadId === "thread-bg-usage-1",
+      );
+
+    expect(tokenUsageActions).toHaveLength(1);
+    expect(tokenUsageActions[0]).toEqual(
+      expect.objectContaining({
+        type: "setThreadTokenUsage",
+        threadId: "thread-bg-usage-1",
+        tokenUsage: expect.objectContaining({
+          total: expect.objectContaining({
+            totalTokens: 1000,
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("prefetches metadata for all listed threads across multiple hydration batches", async () => {
+    const listedThreads = Array.from({ length: 10 }, (_, index) => ({
+      id: `thread-bg-batch-${index + 1}`,
+      cwd: "/tmp/codex",
+      preview: `Background ${index + 1}`,
+      updated_at: 6_000 - index,
+    }));
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: listedThreads,
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+    vi.mocked(resumeThread).mockImplementation(async (_workspaceId, threadId) => ({
+      result: {
+        thread: {
+          id: threadId,
+          model: "gpt-5.2-codex",
+        },
+      },
+    }));
+
+    const onThreadCodexMetadataDetected = vi.fn();
+    const { result } = renderActions({
+      enableBackgroundMetadataHydration: true,
+      onThreadCodexMetadataDetected,
+    });
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    await waitFor(() => {
+      expect(resumeThread).toHaveBeenCalledTimes(10);
+    });
+    listedThreads.forEach((thread) => {
+      expect(resumeThread).toHaveBeenCalledWith("ws-1", thread.id);
+      expect(onThreadCodexMetadataDetected).toHaveBeenCalledWith(
+        "ws-1",
+        thread.id,
+        { modelId: "gpt-5.2-codex", effort: null },
+      );
+    });
+  });
+
+  it("prefetches model metadata in background for older-page additions", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-older-bg-1",
+            cwd: "/tmp/codex",
+            preview: "Older background model",
+            updated_at: 4000,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "thread-older-bg-1",
+          model: "gpt-5.1-codex",
+          reasoning_effort: "medium",
+        },
+      },
+    });
+
+    const onThreadCodexMetadataDetected = vi.fn();
+    const { result } = renderActions({
+      enableBackgroundMetadataHydration: true,
+      onThreadCodexMetadataDetected,
+      threadsByWorkspace: {
+        "ws-1": [{ id: "thread-1", name: "Agent 1", updatedAt: 6000 }],
+      },
+      threadListCursorByWorkspace: { "ws-1": "cursor-1" },
+    });
+
+    await act(async () => {
+      await result.current.loadOlderThreadsForWorkspace(workspace);
+    });
+
+    await waitFor(() => {
+      expect(resumeThread).toHaveBeenCalledWith("ws-1", "thread-older-bg-1");
+    });
+    await waitFor(() => {
+      expect(onThreadCodexMetadataDetected).toHaveBeenCalledWith(
+        "ws-1",
+        "thread-older-bg-1",
+        { modelId: "gpt-5.1-codex", effort: "medium" },
+      );
+    });
+  });
+
+  it("prefetches metadata for all older-page additions across batches", async () => {
+    const olderThreads = Array.from({ length: 11 }, (_, index) => ({
+      id: `thread-older-bg-batch-${index + 1}`,
+      cwd: "/tmp/codex",
+      preview: `Older background ${index + 1}`,
+      updated_at: 4_500 - index,
+    }));
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: olderThreads,
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+    vi.mocked(resumeThread).mockImplementation(async (_workspaceId, threadId) => ({
+      result: {
+        thread: {
+          id: threadId,
+          model: "gpt-5.1-codex",
+        },
+      },
+    }));
+
+    const onThreadCodexMetadataDetected = vi.fn();
+    const { result } = renderActions({
+      enableBackgroundMetadataHydration: true,
+      onThreadCodexMetadataDetected,
+      threadsByWorkspace: {
+        "ws-1": [{ id: "thread-1", name: "Agent 1", updatedAt: 6_000 }],
+      },
+      threadListCursorByWorkspace: { "ws-1": "cursor-batch-1" },
+    });
+
+    await act(async () => {
+      await result.current.loadOlderThreadsForWorkspace(workspace);
+    });
+
+    await waitFor(() => {
+      expect(resumeThread).toHaveBeenCalledTimes(11);
+    });
+    olderThreads.forEach((thread) => {
+      expect(resumeThread).toHaveBeenCalledWith("ws-1", thread.id);
+      expect(onThreadCodexMetadataDetected).toHaveBeenCalledWith(
+        "ws-1",
+        thread.id,
+        { modelId: "gpt-5.1-codex", effort: null },
+      );
+    });
   });
 
   it("archives threads and reports errors", async () => {

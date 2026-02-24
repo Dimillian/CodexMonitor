@@ -42,6 +42,7 @@ const THREAD_LIST_PAGE_SIZE = 100;
 const THREAD_LIST_MAX_PAGES_OLDER = 6;
 const THREAD_LIST_MAX_PAGES_DEFAULT = 6;
 const THREAD_LIST_CURSOR_PAGE_START = "__codex_monitor_page_start__";
+const THREAD_METADATA_PREFETCH_BATCH_SIZE = 8;
 
 function isWithinWorkspaceRoot(path: string, workspaceRoot: string) {
   if (!path || !workspaceRoot) {
@@ -110,6 +111,11 @@ type ThreadUsageHydrationState = {
   latestAppliedUpdatedAtByThread: Record<string, number>;
 };
 
+type ThreadMetadataHydrationState = {
+  inFlightThreadIds: Set<string>;
+  hydratedThreadIds: Set<string>;
+};
+
 function toRecord(value: unknown): Record<string, unknown> | null {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     return value as Record<string, unknown>;
@@ -145,6 +151,7 @@ type UseThreadActionsOptions = {
     threadId: string,
     metadata: { modelId: string | null; effort: string | null },
   ) => void;
+  enableBackgroundMetadataHydration?: boolean;
 };
 
 export function useThreadActions({
@@ -167,10 +174,14 @@ export function useThreadActions({
   updateThreadParent,
   onSubagentThreadDetected,
   onThreadCodexMetadataDetected,
+  enableBackgroundMetadataHydration = false,
 }: UseThreadActionsOptions) {
   const resumeInFlightByThreadRef = useRef<Record<string, number>>({});
   const threadUsageHydrationByWorkspaceRef = useRef<
     Record<string, ThreadUsageHydrationState>
+  >({});
+  const threadMetadataHydrationByWorkspaceRef = useRef<
+    Record<string, ThreadMetadataHydrationState>
   >({});
   const threadStatusByIdRef = useRef(threadStatusById);
   const activeTurnIdByThreadRef = useRef(activeTurnIdByThread);
@@ -260,6 +271,102 @@ export function useThreadActions({
       }
     },
     [dispatch, onDebug],
+  );
+
+  const hydrateThreadMetadataForWorkspace = useCallback(
+    async (workspace: WorkspaceInfo, threadIds: string[]) => {
+      if (!enableBackgroundMetadataHydration || !onThreadCodexMetadataDetected) {
+        return;
+      }
+
+      const uniqueThreadIds = Array.from(
+        new Set(
+          threadIds
+            .map((threadId) => threadId.trim())
+            .filter((threadId) => threadId.length > 0),
+        ),
+      );
+      if (uniqueThreadIds.length === 0) {
+        return;
+      }
+
+      const currentState =
+        threadMetadataHydrationByWorkspaceRef.current[workspace.id] ?? {
+          inFlightThreadIds: new Set<string>(),
+          hydratedThreadIds: new Set<string>(),
+        };
+      threadMetadataHydrationByWorkspaceRef.current[workspace.id] = currentState;
+
+      const pendingThreadIds = uniqueThreadIds.filter((threadId) => {
+        if (currentState.hydratedThreadIds.has(threadId)) {
+          return false;
+        }
+        if (currentState.inFlightThreadIds.has(threadId)) {
+          return false;
+        }
+        if (threadStatusByIdRef.current[threadId]?.isProcessing) {
+          return false;
+        }
+        return true;
+      });
+      if (pendingThreadIds.length === 0) {
+        return;
+      }
+
+      for (
+        let startIndex = 0;
+        startIndex < pendingThreadIds.length;
+        startIndex += THREAD_METADATA_PREFETCH_BATCH_SIZE
+      ) {
+        const batch = pendingThreadIds.slice(
+          startIndex,
+          startIndex + THREAD_METADATA_PREFETCH_BATCH_SIZE,
+        );
+        await Promise.all(
+          batch.map(async (threadId) => {
+            currentState.inFlightThreadIds.add(threadId);
+            try {
+              const response =
+                (await resumeThreadService(workspace.id, threadId)) as
+                  | Record<string, unknown>
+                  | null;
+              const result = (response?.result ?? response) as
+                | Record<string, unknown>
+                | null;
+              const thread = (result?.thread ?? response?.thread ?? null) as
+                | Record<string, unknown>
+                | null;
+              if (!thread) {
+                return;
+              }
+              const codexMetadata = extractThreadCodexMetadata(thread);
+              if (codexMetadata.modelId || codexMetadata.effort) {
+                onThreadCodexMetadataDetected(workspace.id, threadId, codexMetadata);
+              }
+              // Mark this thread as hydrated even when model metadata is absent to
+              // avoid repeatedly resuming the same thread on every list refresh.
+              currentState.hydratedThreadIds.add(threadId);
+            } catch (error) {
+              onDebug?.({
+                id: `${Date.now()}-client-thread-metadata-hydrate-error`,
+                timestamp: Date.now(),
+                source: "error",
+                label: "thread/metadata hydrate error",
+                payload: error instanceof Error ? error.message : String(error),
+              });
+            } finally {
+              currentState.inFlightThreadIds.delete(threadId);
+            }
+          }),
+        );
+      }
+    },
+    [
+      dispatch,
+      enableBackgroundMetadataHydration,
+      onDebug,
+      onThreadCodexMetadataDetected,
+    ],
   );
 
   const startThreadForWorkspace = useCallback(
@@ -900,6 +1007,13 @@ export function useThreadActions({
             workspace,
             tokenUsageThreadIds,
           );
+          const missingModelThreadIds = summaries
+            .filter((thread) => !thread.modelId)
+            .map((thread) => thread.id);
+          void hydrateThreadMetadataForWorkspace(
+            workspace,
+            missingModelThreadIds,
+          );
         });
         if (didChangeAnyActivity) {
           threadActivityRef.current = nextThreadActivity;
@@ -928,6 +1042,7 @@ export function useThreadActions({
     [
       buildThreadSummary,
       dispatch,
+      hydrateThreadMetadataForWorkspace,
       hydrateThreadUsageForWorkspace,
       onDebug,
       onSubagentThreadDetected,
@@ -1109,6 +1224,13 @@ export function useThreadActions({
           workspace,
           additions.map((thread) => thread.id),
         );
+        const missingModelThreadIds = additions
+          .filter((thread) => !thread.modelId)
+          .map((thread) => thread.id);
+        void hydrateThreadMetadataForWorkspace(
+          workspace,
+          missingModelThreadIds,
+        );
       } catch (error) {
         onDebug?.({
           id: `${Date.now()}-client-thread-list-older-error`,
@@ -1128,6 +1250,7 @@ export function useThreadActions({
     [
       buildThreadSummary,
       dispatch,
+      hydrateThreadMetadataForWorkspace,
       hydrateThreadUsageForWorkspace,
       onDebug,
       threadListCursorByWorkspace,

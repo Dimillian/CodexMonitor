@@ -53,6 +53,7 @@ type UseThreadsOptions = {
   customPrompts?: CustomPromptOption[];
   onMessageActivity?: () => void;
   threadSortKey?: ThreadListSortKey;
+  enableBackgroundThreadMetadataHydration?: boolean;
   onThreadCodexMetadataDetected?: (
     workspaceId: string,
     threadId: string,
@@ -82,6 +83,7 @@ export function useThreads({
   customPrompts = [],
   onMessageActivity,
   threadSortKey = "updated_at",
+  enableBackgroundThreadMetadataHydration = false,
   onThreadCodexMetadataDetected,
 }: UseThreadsOptions) {
   const maxItemsPerThread =
@@ -562,6 +564,7 @@ export function useThreads({
     updateThreadParent,
     onSubagentThreadDetected,
     onThreadCodexMetadataDetected,
+    enableBackgroundMetadataHydration: enableBackgroundThreadMetadataHydration,
   });
 
   const ensureWorkspaceRuntimeCodexArgsBestEffort = useCallback(
