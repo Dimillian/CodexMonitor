@@ -83,8 +83,10 @@ pub fn run() {
         {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         }
+        let is_x11 = !is_wayland && std::env::var_os("DISPLAY").is_some();
         // Work around sporadic blank WebKitGTK renders on X11 by disabling compositing mode.
-        if std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none() {
+        // Keep Wayland untouched because this can interfere with input behavior on some setups.
+        if is_x11 && std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none() {
             std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
         }
     }
