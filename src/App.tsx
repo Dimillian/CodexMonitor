@@ -161,6 +161,7 @@ import { useAppShellOrchestration } from "@app/orchestration/useLayoutOrchestrat
 import { buildCodexArgsOptions } from "@threads/utils/codexArgsProfiles";
 import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
 import {
+  NO_THREAD_SCOPE_SUFFIX,
   resolveWorkspaceRuntimeCodexArgsBadgeLabel,
   resolveWorkspaceRuntimeCodexArgsOverride,
 } from "@threads/utils/threadCodexParamsSeed";
@@ -1429,9 +1430,15 @@ function MainApp() {
       if (storedModelId) {
         return storedModelId;
       }
-      return null;
+      const workspaceDefaultModelId = normalizeThreadModelId(
+        getThreadCodexParams(workspaceId, NO_THREAD_SCOPE_SUFFIX)?.modelId,
+      );
+      if (workspaceDefaultModelId) {
+        return workspaceDefaultModelId;
+      }
+      return normalizeThreadModelId(appSettings.lastComposerModelId);
     },
-    [getThreadCodexParams, threadModelIdByWorkspace],
+    [appSettings.lastComposerModelId, getThreadCodexParams, threadModelIdByWorkspace],
   );
   const getDisplayThreadTokenUsageTotal = useCallback(
     (usage: ThreadTokenUsage | null | undefined) => {
