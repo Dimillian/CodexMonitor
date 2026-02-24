@@ -194,6 +194,49 @@ type EdgeSwipeState = {
 const MAIN_TAB_ORDER: readonly MainTab[] = ["home", "projects", "codex", "git", "log"];
 const EDGE_SWIPE_COMMIT_MIN_PX = 6;
 const EDGE_SWIPE_HORIZONTAL_RATIO = 1.2;
+const EDGE_SWIPE_START_ZONE_PX = 24;
+
+function isTouchWithinEdgeSwipeZone(touchX: number, containerRect: DOMRect): boolean {
+  const distanceFromLeft = touchX - containerRect.left;
+  const distanceFromRight = containerRect.right - touchX;
+  return distanceFromLeft <= EDGE_SWIPE_START_ZONE_PX || distanceFromRight <= EDGE_SWIPE_START_ZONE_PX;
+}
+
+function resolveEventTargetElement(target: EventTarget | null): Element | null {
+  if (target instanceof Element) {
+    return target;
+  }
+  if (target instanceof Node) {
+    return target.parentElement;
+  }
+  return null;
+}
+
+function isHorizontallyScrollableElement(element: HTMLElement): boolean {
+  const overflowX = window.getComputedStyle(element).overflowX;
+  if (overflowX !== "auto" && overflowX !== "scroll" && overflowX !== "overlay") {
+    return false;
+  }
+  return element.scrollWidth > element.clientWidth + 1;
+}
+
+function hasHorizontalScrollableAncestor(
+  target: EventTarget | null,
+  container: HTMLElement | null,
+): boolean {
+  const targetElement = resolveEventTargetElement(target);
+  if (!targetElement) {
+    return false;
+  }
+  let current: Element | null = targetElement;
+  while (current && current !== container) {
+    if (current instanceof HTMLElement && isHorizontallyScrollableElement(current)) {
+      return true;
+    }
+    current = current.parentElement;
+  }
+  return false;
+}
 
 function getAdjacentMainTab(activeTab: MainTab, direction: EdgeSwipeDirection): MainTab | null {
   const currentIndex = MAIN_TAB_ORDER.indexOf(activeTab);
@@ -2098,8 +2141,21 @@ function MainApp() {
         edgeSwipeRef.current = null;
         return;
       }
+      const container = appRef.current;
+      if (!container) {
+        edgeSwipeRef.current = null;
+        return;
+      }
       const touch = event.touches[0];
       if (!touch || event.touches.length !== 1) {
+        edgeSwipeRef.current = null;
+        return;
+      }
+      if (!isTouchWithinEdgeSwipeZone(touch.clientX, container.getBoundingClientRect())) {
+        edgeSwipeRef.current = null;
+        return;
+      }
+      if (hasHorizontalScrollableAncestor(event.target, container)) {
         edgeSwipeRef.current = null;
         return;
       }
@@ -2108,7 +2164,7 @@ function MainApp() {
         startY: touch.clientY,
       };
     },
-    [isPhone],
+    [appRef, isPhone],
   );
   const handleAppTouchMove = useCallback((event: ReactTouchEvent<HTMLDivElement>) => {
     const state = edgeSwipeRef.current;
