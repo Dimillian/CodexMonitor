@@ -6,6 +6,7 @@ import {
   archiveThread,
   forkThread,
   listThreads,
+  listWorkspaces,
   resumeThread,
   startThread,
 } from "@services/tauri";
@@ -25,6 +26,7 @@ vi.mock("@services/tauri", () => ({
   forkThread: vi.fn(),
   resumeThread: vi.fn(),
   listThreads: vi.fn(),
+  listWorkspaces: vi.fn(),
   archiveThread: vi.fn(),
 }));
 
@@ -59,6 +61,7 @@ describe("useThreadActions", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(listWorkspaces).mockResolvedValue([]);
     vi.mocked(getThreadCreatedTimestamp).mockReturnValue(0);
   });
 
@@ -838,6 +841,7 @@ describe("useThreadActions", () => {
       type: "setThreads",
       workspaceId: "ws-1",
       sortKey: "updated_at",
+      preserveAnchors: true,
       threads: [
         {
           id: "thread-1",
@@ -851,6 +855,7 @@ describe("useThreadActions", () => {
       type: "setThreads",
       workspaceId: "ws-2",
       sortKey: "updated_at",
+      preserveAnchors: true,
       threads: [
         {
           id: "thread-2",
@@ -1085,6 +1090,7 @@ describe("useThreadActions", () => {
       type: "setThreads",
       workspaceId: "ws-1",
       sortKey: "updated_at",
+      preserveAnchors: true,
       threads: [
         {
           id: "thread-win-1",
@@ -1126,6 +1132,7 @@ describe("useThreadActions", () => {
       type: "setThreads",
       workspaceId: "ws-1",
       sortKey: "updated_at",
+      preserveAnchors: true,
       threads: [
         {
           id: "thread-win-ns-1",
@@ -1163,6 +1170,7 @@ describe("useThreadActions", () => {
       type: "setThreads",
       workspaceId: "ws-1",
       sortKey: "updated_at",
+      preserveAnchors: true,
       threads: [
         {
           id: "thread-nested-1",
@@ -1435,6 +1443,60 @@ describe("useThreadActions", () => {
           createdAt: 0,
         },
       ],
+    });
+  });
+
+  it("does not absorb child-workspace threads when loading older threads", async () => {
+    const parentWorkspace: WorkspaceInfo = {
+      ...workspace,
+      id: "ws-parent",
+      path: "/tmp/codex",
+    };
+    const childWorkspace: WorkspaceInfo = {
+      ...workspaceTwo,
+      id: "ws-child",
+      path: "/tmp/codex/subdir",
+    };
+    vi.mocked(listWorkspaces).mockResolvedValue([parentWorkspace, childWorkspace]);
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-child-only",
+            cwd: "/tmp/codex/subdir/project",
+            preview: "Child workspace thread",
+            updated_at: 4000,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, dispatch } = renderActions({
+      threadsByWorkspace: {
+        "ws-parent": [{ id: "thread-parent", name: "Parent", updatedAt: 6000 }],
+      },
+      threadListCursorByWorkspace: { "ws-parent": "cursor-1" },
+    });
+
+    await act(async () => {
+      await result.current.loadOlderThreadsForWorkspace(parentWorkspace);
+    });
+
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "setThreads",
+        workspaceId: "ws-parent",
+      }),
+    );
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreadListCursor",
+      workspaceId: "ws-parent",
+      cursor: null,
     });
   });
 

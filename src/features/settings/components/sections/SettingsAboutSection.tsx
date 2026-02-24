@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { getAppBuildType, type AppBuildType } from "@services/tauri";
+import {
+  getAppBuildType,
+  isMobileRuntime,
+  type AppBuildType,
+} from "@services/tauri";
 import { useUpdater } from "@/features/update/hooks/useUpdater";
 
 function formatBytes(value: number) {
@@ -18,8 +22,9 @@ function formatBytes(value: number) {
 
 export function SettingsAboutSection() {
   const [appBuildType, setAppBuildType] = useState<AppBuildType | "unknown">("unknown");
+  const [updaterEnabled, setUpdaterEnabled] = useState(false);
   const { state: updaterState, checkForUpdates, startUpdate } = useUpdater({
-    enabled: true,
+    enabled: updaterEnabled,
   });
 
   useEffect(() => {
@@ -37,6 +42,27 @@ export function SettingsAboutSection() {
       }
     };
     void loadBuildType();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const detectRuntime = async () => {
+      try {
+        const mobileRuntime = await isMobileRuntime();
+        if (active) {
+          setUpdaterEnabled(!mobileRuntime);
+        }
+      } catch {
+        if (active) {
+          // In non-Tauri previews we still want local desktop-like behavior.
+          setUpdaterEnabled(true);
+        }
+      }
+    };
+    void detectRuntime();
     return () => {
       active = false;
     };
@@ -72,6 +98,11 @@ export function SettingsAboutSection() {
         <div className="settings-help">
           Currently running version <code>{__APP_VERSION__}</code>
         </div>
+        {!updaterEnabled && (
+          <div className="settings-help">
+            Updates are unavailable in this runtime.
+          </div>
+        )}
 
         {updaterState.stage === "error" && (
           <div className="settings-help ds-text-danger">
@@ -109,6 +140,7 @@ export function SettingsAboutSection() {
             <button
               type="button"
               className="primary"
+              disabled={!updaterEnabled}
               onClick={() => void startUpdate()}
             >
               Download & Install
@@ -118,6 +150,7 @@ export function SettingsAboutSection() {
               type="button"
               className="ghost"
               disabled={
+                !updaterEnabled ||
                 updaterState.stage === "checking" ||
                 updaterState.stage === "downloading" ||
                 updaterState.stage === "installing" ||

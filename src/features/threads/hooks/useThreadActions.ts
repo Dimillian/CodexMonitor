@@ -11,6 +11,7 @@ import {
   archiveThread as archiveThreadService,
   forkThread as forkThreadService,
   listThreads as listThreadsService,
+  listWorkspaces as listWorkspacesService,
   resumeThread as resumeThreadService,
   startThread as startThreadService,
 } from "@services/tauri";
@@ -50,6 +51,46 @@ function isWithinWorkspaceRoot(path: string, workspaceRoot: string) {
       path.startsWith(workspaceRoot) &&
       path.charCodeAt(workspaceRoot.length) === 47)
   );
+}
+
+type WorkspacePathLookup = {
+  workspaceIdsByPath: Record<string, string[]>;
+  workspacePathsSorted: string[];
+};
+
+function buildWorkspacePathLookup(workspaces: WorkspaceInfo[]): WorkspacePathLookup {
+  const workspaceIdsByPath: Record<string, string[]> = {};
+  const workspacePathsSorted: string[] = [];
+  workspaces.forEach((workspace) => {
+    const workspacePath = normalizeRootPath(workspace.path);
+    if (!workspacePath) {
+      return;
+    }
+    if (!workspaceIdsByPath[workspacePath]) {
+      workspaceIdsByPath[workspacePath] = [];
+      workspacePathsSorted.push(workspacePath);
+    }
+    workspaceIdsByPath[workspacePath].push(workspace.id);
+  });
+  workspacePathsSorted.sort((a, b) => b.length - a.length);
+  return { workspaceIdsByPath, workspacePathsSorted };
+}
+
+function resolveWorkspaceIdsForThreadPath(
+  path: string,
+  lookup: WorkspacePathLookup,
+) {
+  const normalizedPath = normalizeRootPath(path);
+  if (!normalizedPath) {
+    return [];
+  }
+  const matchedWorkspacePath = lookup.workspacePathsSorted.find((workspacePath) =>
+    isWithinWorkspaceRoot(normalizedPath, workspacePath),
+  );
+  if (!matchedWorkspacePath) {
+    return [];
+  }
+  return lookup.workspaceIdsByPath[matchedWorkspacePath] ?? [];
 }
 
 function getThreadListNextCursor(result: Record<string, unknown>): string | null {
@@ -528,25 +569,14 @@ export function useThreadActions({
       try {
         const requester = targets.find((workspace) => workspace.connected) ?? targets[0];
         const matchingThreadsByWorkspace: Record<string, Record<string, unknown>[]> = {};
-        const workspaceIdsByPath: Record<string, string[]> = {};
-        const workspacePathsSorted: string[] = [];
+        const workspacePathLookup = buildWorkspacePathLookup(targets);
         const uniqueThreadIdsByWorkspace: Record<string, Set<string>> = {};
         const resumeCursorByWorkspace: Record<string, string | null> = {};
         targets.forEach((workspace) => {
           matchingThreadsByWorkspace[workspace.id] = [];
           uniqueThreadIdsByWorkspace[workspace.id] = new Set<string>();
           resumeCursorByWorkspace[workspace.id] = null;
-          const workspacePath = normalizeRootPath(workspace.path);
-          if (!workspacePath) {
-            return;
-          }
-          if (!workspaceIdsByPath[workspacePath]) {
-            workspaceIdsByPath[workspacePath] = [];
-            workspacePathsSorted.push(workspacePath);
-          }
-          workspaceIdsByPath[workspacePath].push(workspace.id);
         });
-        workspacePathsSorted.sort((a, b) => b.length - a.length);
         let pagesFetched = 0;
         let cursor: string | null = null;
         do {
@@ -572,13 +602,10 @@ export function useThreadActions({
             : [];
           const nextCursor = getThreadListNextCursor(result);
           data.forEach((thread) => {
-            const path = normalizeRootPath(String(thread?.cwd ?? ""));
-            const matchedWorkspacePath = workspacePathsSorted.find((workspacePath) =>
-              isWithinWorkspaceRoot(path, workspacePath),
+            const workspaceIds = resolveWorkspaceIdsForThreadPath(
+              String(thread?.cwd ?? ""),
+              workspacePathLookup,
             );
-            const workspaceIds = matchedWorkspacePath
-              ? (workspaceIdsByPath[matchedWorkspacePath] ?? [])
-              : [];
             workspaceIds.forEach((workspaceId) => {
               matchingThreadsByWorkspace[workspaceId]?.push(thread);
               const threadId = String(thread?.id ?? "");
@@ -714,14 +741,12 @@ export function useThreadActions({
               parentId = threadParentById[parentId];
             }
           });
-          const preserveAnchors =
-            cursor !== null || resumeCursorByWorkspace[workspace.id] !== null;
           dispatch({
             type: "setThreads",
             workspaceId: workspace.id,
             threads: summaries,
             sortKey: requestedSortKey,
-            ...(preserveAnchors ? { preserveAnchors: true } : {}),
+            preserveAnchors: true,
           });
           dispatch({
             type: "setThreadListCursor",
@@ -805,7 +830,7 @@ export function useThreadActions({
       }
       const nextCursor =
         cursorValue === THREAD_LIST_CURSOR_PAGE_START ? null : cursorValue;
-      const workspacePath = normalizeRootPath(workspace.path);
+      let workspacePathLookup = buildWorkspacePathLookup([workspace]);
       const existing = threadsByWorkspace[workspace.id] ?? [];
       dispatch({
         type: "setThreadListPaging",
@@ -820,6 +845,17 @@ export function useThreadActions({
         payload: { workspaceId: workspace.id, cursor: cursorValue },
       });
       try {
+        try {
+          const knownWorkspaces = await listWorkspacesService();
+          if (knownWorkspaces.length > 0) {
+            workspacePathLookup = buildWorkspacePathLookup([
+              ...knownWorkspaces,
+              workspace,
+            ]);
+          }
+        } catch {
+          workspacePathLookup = buildWorkspacePathLookup([workspace]);
+        }
         const matchingThreads: Record<string, unknown>[] = [];
         const maxPagesWithoutMatch = THREAD_LIST_MAX_PAGES_OLDER;
         let pagesFetched = 0;
@@ -848,8 +884,14 @@ export function useThreadActions({
           matchingThreads.push(
             ...data.filter(
               (thread) => {
-                const path = normalizeRootPath(String(thread?.cwd ?? ""));
-                return isWithinWorkspaceRoot(path, workspacePath);
+                const workspaceIds = resolveWorkspaceIdsForThreadPath(
+                  String(thread?.cwd ?? ""),
+                  workspacePathLookup,
+                );
+                if (workspaceIds.length === 0) {
+                  return false;
+                }
+                return workspaceIds.includes(workspace.id);
               },
             ),
           );
