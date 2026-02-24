@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { isWindowsPlatform } from "@utils/platformPaths";
 
 const NEVER_DRAG_TARGET_SELECTOR = [
   "button",
@@ -26,8 +25,6 @@ const NEVER_DRAG_TARGET_SELECTOR = [
   ".right-panel-divider",
 ].join(",");
 
-const DRAG_ZONE_SELECTORS = ["#titlebar", ".sidebar-drag-strip", ".right-panel-drag-strip"];
-
 function startDraggingSafe() {
   try {
     void getCurrentWindow().startDragging();
@@ -40,8 +37,14 @@ function isNeverDragTarget(event: MouseEvent) {
   if (event.button !== 0) {
     return true;
   }
-  const target = event.target;
-  if (!(target instanceof Element)) {
+  const targetNode = event.target;
+  const target =
+    targetNode instanceof Element
+      ? targetNode
+      : targetNode instanceof Node
+        ? targetNode.parentElement
+        : null;
+  if (!target) {
     return true;
   }
   return Boolean(target.closest(NEVER_DRAG_TARGET_SELECTOR));
@@ -56,8 +59,12 @@ function isInsideRect(clientX: number, clientY: number, rect: DOMRect) {
   );
 }
 
-function isInsideAnyDragZone(clientX: number, clientY: number) {
-  for (const selector of DRAG_ZONE_SELECTORS) {
+function isInsideAnyDragZone(
+  clientX: number,
+  clientY: number,
+  dragZoneSelectors: readonly string[],
+) {
+  for (const selector of dragZoneSelectors) {
     const zoneElements = document.querySelectorAll<HTMLElement>(selector);
     for (const zone of zoneElements) {
       const rect = zone.getBoundingClientRect();
@@ -78,32 +85,21 @@ export function useWindowDrag(targetId: string) {
       return;
     }
 
-    const el = document.getElementById(targetId);
-
-    const handler = (event: MouseEvent) => {
-      if (isNeverDragTarget(event)) {
-        return;
-      }
-      startDraggingSafe();
-    };
-
-    if (!isWindowsPlatform()) {
-      if (!el) {
-        return;
-      }
-      el.addEventListener("mousedown", handler);
-      return () => {
-        el.removeEventListener("mousedown", handler);
-      };
-    }
+    const dragZoneSelectors = [
+      `#${targetId}`,
+      ".main-topbar",
+      ".sidebar-drag-strip",
+      ".right-panel-drag-strip",
+    ] as const;
 
     const handleMouseDown = (event: MouseEvent) => {
       if (isNeverDragTarget(event)) {
         return;
       }
-      if (!isInsideAnyDragZone(event.clientX, event.clientY)) {
+      if (!isInsideAnyDragZone(event.clientX, event.clientY, dragZoneSelectors)) {
         return;
       }
+      event.preventDefault();
       startDraggingSafe();
     };
 

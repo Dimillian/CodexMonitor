@@ -1,10 +1,9 @@
 /** @vitest-environment jsdom */
-import { renderHook } from "@testing-library/react";
+import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const isTauriMock = vi.hoisted(() => vi.fn());
 const getCurrentWindowMock = vi.hoisted(() => vi.fn());
-const isWindowsPlatformMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@tauri-apps/api/core", () => ({
   isTauri: isTauriMock,
@@ -12,10 +11,6 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: getCurrentWindowMock,
-}));
-
-vi.mock("@utils/platformPaths", () => ({
-  isWindowsPlatform: isWindowsPlatformMock,
 }));
 
 import { useWindowDrag } from "./useWindowDrag";
@@ -43,12 +38,11 @@ describe("useWindowDrag", () => {
   });
 
   afterEach(() => {
+    cleanup();
     document.body.innerHTML = "";
   });
 
   it("starts dragging on Windows when click is inside a drag zone", () => {
-    isWindowsPlatformMock.mockReturnValue(true);
-
     const titlebar = document.createElement("div");
     titlebar.id = "titlebar";
     document.body.appendChild(titlebar);
@@ -70,9 +64,82 @@ describe("useWindowDrag", () => {
     expect(startDragging).toHaveBeenCalledTimes(1);
   });
 
-  it("does not start dragging when clicking an interactive role target", () => {
-    isWindowsPlatformMock.mockReturnValue(true);
+  it("starts dragging on Windows when click is inside the main topbar", () => {
+    const topbar = document.createElement("div");
+    topbar.className = "main-topbar";
+    document.body.appendChild(topbar);
+    setRect(topbar, { left: 0, top: 0, right: 800, bottom: 44 });
 
+    renderHook(() => useWindowDrag("titlebar"));
+
+    const target = document.createElement("span");
+    topbar.appendChild(target);
+    target.dispatchEvent(
+      new MouseEvent("mousedown", {
+        bubbles: true,
+        button: 0,
+        clientX: 120,
+        clientY: 20,
+      }),
+    );
+
+    expect(startDragging).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts dragging on Windows when mousedown target is a text node in topbar", () => {
+    const topbar = document.createElement("div");
+    topbar.className = "main-topbar";
+    document.body.appendChild(topbar);
+    setRect(topbar, { left: 0, top: 0, right: 800, bottom: 44 });
+
+    const label = document.createElement("span");
+    label.textContent = "Project Name";
+    topbar.appendChild(label);
+
+    renderHook(() => useWindowDrag("titlebar"));
+
+    const textNode = label.firstChild;
+    expect(textNode).toBeTruthy();
+    textNode?.dispatchEvent(
+      new MouseEvent("mousedown", {
+        bubbles: true,
+        button: 0,
+        clientX: 140,
+        clientY: 20,
+      }),
+    );
+
+    expect(startDragging).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not start dragging when text node is inside an interactive target", () => {
+    const topbar = document.createElement("div");
+    topbar.className = "main-topbar";
+    document.body.appendChild(topbar);
+    setRect(topbar, { left: 0, top: 0, right: 800, bottom: 44 });
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "Terminal";
+    topbar.appendChild(button);
+
+    renderHook(() => useWindowDrag("titlebar"));
+
+    const textNode = button.firstChild;
+    expect(textNode).toBeTruthy();
+    textNode?.dispatchEvent(
+      new MouseEvent("mousedown", {
+        bubbles: true,
+        button: 0,
+        clientX: 200,
+        clientY: 20,
+      }),
+    );
+
+    expect(startDragging).not.toHaveBeenCalled();
+  });
+
+  it("does not start dragging when clicking an interactive role target", () => {
     const sidebarDragStrip = document.createElement("div");
     sidebarDragStrip.className = "sidebar-drag-strip";
     document.body.appendChild(sidebarDragStrip);
@@ -96,8 +163,6 @@ describe("useWindowDrag", () => {
   });
 
   it("does not start dragging when click is outside all drag zones", () => {
-    isWindowsPlatformMock.mockReturnValue(true);
-
     const titlebar = document.createElement("div");
     titlebar.id = "titlebar";
     document.body.appendChild(titlebar);
@@ -119,12 +184,11 @@ describe("useWindowDrag", () => {
     expect(startDragging).not.toHaveBeenCalled();
   });
 
-  it("starts dragging on non-Windows via titlebar listener", () => {
-    isWindowsPlatformMock.mockReturnValue(false);
-
+  it("starts dragging via titlebar drag zone", () => {
     const titlebar = document.createElement("div");
     titlebar.id = "titlebar";
     document.body.appendChild(titlebar);
+    setRect(titlebar, { left: 0, top: 0, right: 300, bottom: 44 });
 
     renderHook(() => useWindowDrag("titlebar"));
 
@@ -132,6 +196,8 @@ describe("useWindowDrag", () => {
       new MouseEvent("mousedown", {
         bubbles: true,
         button: 0,
+        clientX: 12,
+        clientY: 12,
       }),
     );
 
