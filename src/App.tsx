@@ -1,4 +1,13 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type TouchEvent as ReactTouchEvent,
+} from "react";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import "./styles/base.css";
 import "./styles/ds-tokens.css";
@@ -175,6 +184,72 @@ const GitHubPanelData = lazy(() =>
   })),
 );
 
+type MainTab = "home" | "projects" | "codex" | "git" | "log";
+type EdgeSwipeDirection = -1 | 1;
+type EdgeSwipeState = {
+  startX: number;
+  startY: number;
+};
+
+const MAIN_TAB_ORDER: readonly MainTab[] = ["home", "projects", "codex", "git", "log"];
+const EDGE_SWIPE_COMMIT_MIN_PX = 6;
+const EDGE_SWIPE_HORIZONTAL_RATIO = 1.2;
+const EDGE_SWIPE_START_ZONE_PX = 24;
+
+function isTouchWithinEdgeSwipeZone(touchX: number, containerRect: DOMRect): boolean {
+  const distanceFromLeft = touchX - containerRect.left;
+  const distanceFromRight = containerRect.right - touchX;
+  return distanceFromLeft <= EDGE_SWIPE_START_ZONE_PX || distanceFromRight <= EDGE_SWIPE_START_ZONE_PX;
+}
+
+function resolveEventTargetElement(target: EventTarget | null): Element | null {
+  if (target instanceof Element) {
+    return target;
+  }
+  if (target instanceof Node) {
+    return target.parentElement;
+  }
+  return null;
+}
+
+function isHorizontallyScrollableElement(element: HTMLElement): boolean {
+  const overflowX = window.getComputedStyle(element).overflowX;
+  if (overflowX !== "auto" && overflowX !== "scroll" && overflowX !== "overlay") {
+    return false;
+  }
+  return element.scrollWidth > element.clientWidth + 1;
+}
+
+function hasHorizontalScrollableAncestor(
+  target: EventTarget | null,
+  container: HTMLElement | null,
+): boolean {
+  const targetElement = resolveEventTargetElement(target);
+  if (!targetElement) {
+    return false;
+  }
+  let current: Element | null = targetElement;
+  while (current && current !== container) {
+    if (current instanceof HTMLElement && isHorizontallyScrollableElement(current)) {
+      return true;
+    }
+    current = current.parentElement;
+  }
+  return false;
+}
+
+function getAdjacentMainTab(activeTab: MainTab, direction: EdgeSwipeDirection): MainTab | null {
+  const currentIndex = MAIN_TAB_ORDER.indexOf(activeTab);
+  if (currentIndex < 0) {
+    return null;
+  }
+  const nextIndex = currentIndex + direction;
+  if (nextIndex < 0 || nextIndex >= MAIN_TAB_ORDER.length) {
+    return null;
+  }
+  return MAIN_TAB_ORDER[nextIndex] ?? null;
+}
+
 function MainApp() {
   const {
     appSettings,
@@ -213,9 +288,7 @@ function MainApp() {
     threadListOrganizeMode,
     setThreadListOrganizeMode,
   } = useThreadListSortKey();
-  const [activeTab, setActiveTab] = useState<
-    "home" | "projects" | "codex" | "git" | "log"
-  >("codex");
+  const [activeTab, setActiveTab] = useState<MainTab>("codex");
   const [mobileThreadRefreshLoading, setMobileThreadRefreshLoading] = useState(false);
   const tabletTab =
     activeTab === "projects" || activeTab === "home" ? "codex" : activeTab;
@@ -2030,6 +2103,109 @@ function MainApp() {
   });
 
   useMenuAcceleratorController({ appSettings, onDebug: addDebugEntry });
+  const edgeSwipeRef = useRef<EdgeSwipeState | null>(null);
+  const handleMainTabSelect = useCallback(
+    (tab: MainTab) => {
+      if (tab === "home") {
+        resetPullRequestSelection();
+        clearDraftState();
+        selectHome();
+        return;
+      }
+      setActiveTab(tab);
+    },
+    [clearDraftState, resetPullRequestSelection, selectHome],
+  );
+  const resolveSwipeTabTarget = useCallback(
+    (state: EdgeSwipeState, touchX: number, touchY: number): MainTab | null => {
+      const deltaX = touchX - state.startX;
+      const absDeltaX = Math.abs(deltaX);
+      const absDeltaY = Math.abs(touchY - state.startY);
+      if (absDeltaX < EDGE_SWIPE_COMMIT_MIN_PX) {
+        return null;
+      }
+      if (absDeltaX < absDeltaY * EDGE_SWIPE_HORIZONTAL_RATIO) {
+        return null;
+      }
+      const direction: EdgeSwipeDirection = deltaX > 0 ? -1 : 1;
+      if (deltaX === 0) {
+        return null;
+      }
+      return getAdjacentMainTab(activeTab, direction);
+    },
+    [activeTab],
+  );
+  const handleAppTouchStart = useCallback(
+    (event: ReactTouchEvent<HTMLDivElement>) => {
+      if (!isPhone) {
+        edgeSwipeRef.current = null;
+        return;
+      }
+      const container = appRef.current;
+      if (!container) {
+        edgeSwipeRef.current = null;
+        return;
+      }
+      const touch = event.touches[0];
+      if (!touch || event.touches.length !== 1) {
+        edgeSwipeRef.current = null;
+        return;
+      }
+      if (!isTouchWithinEdgeSwipeZone(touch.clientX, container.getBoundingClientRect())) {
+        edgeSwipeRef.current = null;
+        return;
+      }
+      if (hasHorizontalScrollableAncestor(event.target, container)) {
+        edgeSwipeRef.current = null;
+        return;
+      }
+      edgeSwipeRef.current = {
+        startX: touch.clientX,
+        startY: touch.clientY,
+      };
+    },
+    [appRef, isPhone],
+  );
+  const handleAppTouchMove = useCallback((event: ReactTouchEvent<HTMLDivElement>) => {
+    const state = edgeSwipeRef.current;
+    if (!state) {
+      return;
+    }
+    const touch = event.touches[0];
+    if (!touch) {
+      return;
+    }
+    const deltaX = touch.clientX - state.startX;
+    const absDeltaX = Math.abs(deltaX);
+    const absDeltaY = Math.abs(touch.clientY - state.startY);
+    if (absDeltaX < absDeltaY * EDGE_SWIPE_HORIZONTAL_RATIO) {
+      return;
+    }
+    if (absDeltaX >= EDGE_SWIPE_COMMIT_MIN_PX) {
+      event.preventDefault();
+    }
+  }, []);
+  const handleAppTouchEnd = useCallback(
+    (event: ReactTouchEvent<HTMLDivElement>) => {
+      const state = edgeSwipeRef.current;
+      edgeSwipeRef.current = null;
+      if (!state) {
+        return;
+      }
+      const touch = event.changedTouches[0];
+      if (!touch) {
+        return;
+      }
+      const nextTab = resolveSwipeTabTarget(state, touch.clientX, touch.clientY);
+      if (nextTab) {
+        handleMainTabSelect(nextTab);
+      }
+    },
+    [handleMainTabSelect, resolveSwipeTabTarget],
+  );
+  const handleAppTouchCancel = useCallback(() => {
+    edgeSwipeRef.current = null;
+  }, []);
   const showCompactCodexThreadActions =
     Boolean(activeWorkspace) &&
     isCompact &&
@@ -2225,15 +2401,7 @@ function MainApp() {
       setSelectedDiffPath(null);
     },
     activeTab,
-    onSelectTab: (tab) => {
-      if (tab === "home") {
-        resetPullRequestSelection();
-        clearDraftState();
-        selectHome();
-        return;
-      }
-      setActiveTab(tab);
-    },
+    onSelectTab: handleMainTabSelect,
     tabletNavTab: tabletTab,
     gitPanelMode,
     onGitPanelModeChange: handleGitPanelModeChange,
@@ -2609,7 +2777,15 @@ function MainApp() {
   );
 
   return (
-    <div className={`${appClassName}${isResizing ? " is-resizing" : ""}`} style={appStyle} ref={appRef}>
+    <div
+      className={`${appClassName}${isResizing ? " is-resizing" : ""}`}
+      style={appStyle}
+      ref={appRef}
+      onTouchStart={handleAppTouchStart}
+      onTouchMove={handleAppTouchMove}
+      onTouchEnd={handleAppTouchEnd}
+      onTouchCancel={handleAppTouchCancel}
+    >
       <div className="drag-strip" id="titlebar" data-tauri-drag-region />
       <TitlebarExpandControls {...sidebarToggleProps} />
       {shouldLoadGitHubPanelData ? (
