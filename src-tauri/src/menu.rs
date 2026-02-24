@@ -2,10 +2,8 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use serde::Deserialize;
-#[cfg(not(target_os = "windows"))]
 use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
 use tauri::menu::MenuItem;
-#[cfg(not(target_os = "windows"))]
 use tauri::{Emitter, WebviewUrl, WebviewWindowBuilder};
 use tauri::{Manager, Runtime};
 
@@ -22,7 +20,6 @@ impl<R: Runtime> Default for MenuItemRegistry<R> {
 }
 
 impl<R: Runtime> MenuItemRegistry<R> {
-    #[cfg(not(target_os = "windows"))]
     fn register(&self, id: &str, item: &MenuItem<R>) {
         if let Ok(mut items) = self.items.lock() {
             items.insert(id.to_string(), item.clone());
@@ -63,7 +60,6 @@ pub fn menu_set_accelerators<R: Runtime>(
     Ok(())
 }
 
-#[cfg(not(target_os = "windows"))]
 pub(crate) fn build_menu<R: tauri::Runtime>(
     handle: &tauri::AppHandle<R>,
 ) -> tauri::Result<Menu<R>> {
@@ -328,7 +324,6 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
     )
 }
 
-#[cfg(not(target_os = "windows"))]
 pub(crate) fn handle_menu_event<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     event: tauri::menu::MenuEvent,
@@ -396,7 +391,6 @@ pub(crate) fn handle_menu_event<R: tauri::Runtime>(
     }
 }
 
-#[cfg(not(target_os = "windows"))]
 fn emit_menu_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: &str) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();

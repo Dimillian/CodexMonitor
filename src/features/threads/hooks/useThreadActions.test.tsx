@@ -734,6 +734,7 @@ describe("useThreadActions", () => {
       type: "setThreads",
       workspaceId: "ws-1",
       sortKey: "updated_at",
+      preserveAnchors: true,
       threads: [
         {
           id: "thread-1",
@@ -1095,6 +1096,84 @@ describe("useThreadActions", () => {
     });
   });
 
+  it("matches windows namespace-prefixed workspace threads client-side", async () => {
+    const windowsWorkspace: WorkspaceInfo = {
+      ...workspace,
+      path: "C:\\Dev\\CodexMon",
+    };
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-win-ns-1",
+            cwd: "\\\\?\\C:\\Dev\\CodexMon",
+            preview: "Windows namespace thread",
+            updated_at: 5000,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockReturnValue(5000);
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(windowsWorkspace);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-1",
+      sortKey: "updated_at",
+      threads: [
+        {
+          id: "thread-win-ns-1",
+          name: "Windows namespace thread",
+          updatedAt: 5000,
+          createdAt: 0,
+        },
+      ],
+    });
+  });
+
+  it("matches nested workspace threads client-side", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-nested-1",
+            cwd: "/tmp/codex/subdir/project",
+            preview: "Nested thread",
+            updated_at: 5000,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockReturnValue(5000);
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-1",
+      sortKey: "updated_at",
+      threads: [
+        {
+          id: "thread-nested-1",
+          name: "Nested thread",
+          updatedAt: 5000,
+          createdAt: 0,
+        },
+      ],
+    });
+  });
+
   it("preserves list state when requested", async () => {
     vi.mocked(listThreads).mockResolvedValue({
       result: {
@@ -1306,6 +1385,52 @@ describe("useThreadActions", () => {
         {
           id: "thread-win-older",
           name: "Older windows preview",
+          updatedAt: 4000,
+          createdAt: 0,
+        },
+      ],
+    });
+  });
+
+  it("matches nested workspace threads when loading older threads", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-nested-older",
+            cwd: "/tmp/codex/subdir/project",
+            preview: "Nested older preview",
+            updated_at: 4000,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, dispatch } = renderActions({
+      threadsByWorkspace: {
+        "ws-1": [{ id: "thread-1", name: "Agent 1", updatedAt: 6000 }],
+      },
+      threadListCursorByWorkspace: { "ws-1": "cursor-1" },
+    });
+
+    await act(async () => {
+      await result.current.loadOlderThreadsForWorkspace(workspace);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-1",
+      sortKey: "updated_at",
+      threads: [
+        { id: "thread-1", name: "Agent 1", updatedAt: 6000 },
+        {
+          id: "thread-nested-older",
+          name: "Nested older preview",
           updatedAt: 4000,
           createdAt: 0,
         },

@@ -19,7 +19,7 @@ function formatBytes(value: number) {
 export function SettingsAboutSection() {
   const [appBuildType, setAppBuildType] = useState<AppBuildType | "unknown">("unknown");
   const { state: updaterState, checkForUpdates, startUpdate } = useUpdater({
-    enabled: false,
+    enabled: true,
   });
 
   useEffect(() => {

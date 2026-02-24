@@ -88,12 +88,7 @@ pub fn run() {
         }
     }
 
-    // Windows: no native menu bar.
-    #[cfg(all(desktop, target_os = "windows"))]
-    let builder = tauri::Builder::default().manage(menu::MenuItemRegistry::<tauri::Wry>::default());
-
-    // macOS/Linux: keep the native menu behavior.
-    #[cfg(all(desktop, not(target_os = "windows")))]
+    #[cfg(desktop)]
     let builder = tauri::Builder::default()
         .manage(menu::MenuItemRegistry::<tauri::Wry>::default())
         .on_menu_event(menu::handle_menu_event)
@@ -121,6 +116,8 @@ pub fn run() {
             {
                 if let Some(main_window) = app.get_webview_window("main") {
                     let _ = main_window.set_decorations(false);
+                    // Keep menu accelerators wired while suppressing a visible native menu bar.
+                    let _ = main_window.hide_menu();
                 }
             }
             #[cfg(desktop)]

@@ -47,6 +47,17 @@ describe("normalizeRootPath", () => {
   it("normalizes UNC paths case-insensitively", () => {
     expect(normalizeRootPath("\\\\SERVER\\Share\\Repo\\")).toBe("//server/share/repo");
   });
+
+  it("strips Windows namespace prefixes from drive-letter paths", () => {
+    expect(normalizeRootPath("\\\\?\\C:\\Dev\\Repo\\")).toBe("c:/dev/repo");
+    expect(normalizeRootPath("\\\\.\\C:\\Dev\\Repo\\")).toBe("c:/dev/repo");
+  });
+
+  it("strips Windows namespace prefixes from UNC paths", () => {
+    expect(normalizeRootPath("\\\\?\\UNC\\SERVER\\Share\\Repo\\")).toBe(
+      "//server/share/repo",
+    );
+  });
 });
 
 describe("normalizeRateLimits", () => {
