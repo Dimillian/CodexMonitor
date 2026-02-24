@@ -43,10 +43,6 @@
     "active": true,
     "targets": "all",
     "createUpdaterArtifacts": true,
-    "externalBin": [
-      "binaries/codex_monitor_daemon",
-      "binaries/codex_monitor_daemonctl"
-    ],
     "iOS": {
       "frameworks": [
         "libz.tbd",

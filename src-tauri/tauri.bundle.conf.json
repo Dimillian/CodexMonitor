@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "externalBin": [
+      "binaries/codex_monitor_daemon",
+      "binaries/codex_monitor_daemonctl"
+    ]
+  }
+}

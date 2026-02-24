@@ -11,7 +11,7 @@
     "prebuild": "npm run sync:material-icons",
     "build": "tsc && vite build",
     "build:tauri-sidecars": "sh scripts/build-tauri-sidecars.sh",
-    "build:appimage": "NO_STRIP=1 tauri build --bundles appimage",
+    "build:appimage": "NO_STRIP=1 tauri build --config src-tauri/tauri.bundle.conf.json --bundles appimage",
     "doctor": "sh scripts/doctor.sh",
     "doctor:strict": "sh scripts/doctor.sh --strict",
     "doctor:win": "node scripts/doctor.mjs --strict",
@@ -30,11 +30,11 @@
     "pretauri:dev": "npm run sync:material-icons",
     "tauri:dev": "npm run doctor:strict && tauri dev",
     "pretauri:build": "npm run sync:material-icons",
-    "tauri:build": "npm run doctor:strict && tauri build",
+    "tauri:build": "npm run doctor:strict && tauri build --config src-tauri/tauri.bundle.conf.json",
     "pretauri:dev:win": "npm run sync:material-icons",
     "tauri:dev:win": "npm run doctor:win && tauri dev --config src-tauri/tauri.windows.conf.json",
     "pretauri:build:win": "npm run sync:material-icons",
-    "tauri:build:win": "npm run doctor:win && tauri build --config src-tauri/tauri.windows.conf.json"
+    "tauri:build:win": "npm run doctor:win && tauri build --config src-tauri/tauri.windows.conf.json --config src-tauri/tauri.bundle.conf.json"
   },
   "dependencies": {
     "@pierre/diffs": "^1.0.6",

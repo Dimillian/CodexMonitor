@@ -88,7 +88,7 @@ jobs:
           set -euo pipefail
           export TAURI_SIGNING_PRIVATE_KEY
           TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/codexmonitor.key")"
-          npm run tauri -- build --bundles app
+          npm run tauri -- build --bundles app --config src-tauri/tauri.bundle.conf.json
 
       - name: Bundle OpenSSL and re-sign
         run: |
@@ -211,7 +211,7 @@ jobs:
           set -euo pipefail
           export TAURI_SIGNING_PRIVATE_KEY
           TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/codexmonitor.key")"
-          npm run tauri -- build --bundles appimage,rpm
+          npm run tauri -- build --bundles appimage,rpm --config src-tauri/tauri.bundle.conf.json
 
       - name: Validate Linux bundle outputs
         run: |
