@@ -8,6 +8,7 @@ import Diff from "lucide-react/dist/esm/icons/diff";
 import FileDiff from "lucide-react/dist/esm/icons/file-diff";
 import FileText from "lucide-react/dist/esm/icons/file-text";
 import Image from "lucide-react/dist/esm/icons/image";
+import Quote from "lucide-react/dist/esm/icons/quote";
 import Search from "lucide-react/dist/esm/icons/search";
 import Terminal from "lucide-react/dist/esm/icons/terminal";
 import Users from "lucide-react/dist/esm/icons/users";
@@ -56,6 +57,7 @@ type MessageRowProps = MarkdownFileLinkProps & {
   item: Extract<ConversationItem, { kind: "message" }>;
   isCopied: boolean;
   onCopy: (item: Extract<ConversationItem, { kind: "message" }>) => void;
+  onQuote?: (item: Extract<ConversationItem, { kind: "message" }>) => void;
   codeBlockCopyUseModifier?: boolean;
 };
 
@@ -360,6 +362,7 @@ export const MessageRow = memo(function MessageRow({
   item,
   isCopied,
   onCopy,
+  onQuote,
   codeBlockCopyUseModifier,
   showMessageFilePath,
   workspacePath,
@@ -413,6 +416,17 @@ export const MessageRow = memo(function MessageRow({
             activeIndex={lightboxIndex}
             onClose={() => setLightboxIndex(null)}
           />
+        )}
+        {onQuote && hasText && (
+          <button
+            type="button"
+            className="ghost message-quote-button"
+            onClick={() => onQuote(item)}
+            aria-label="Quote message"
+            title="Quote message"
+          >
+            <Quote size={14} aria-hidden />
+          </button>
         )}
         <button
           type="button"
