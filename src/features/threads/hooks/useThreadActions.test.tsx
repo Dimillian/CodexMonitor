@@ -1182,6 +1182,53 @@ describe("useThreadActions", () => {
     });
   });
 
+  it("does not absorb nested child workspace threads when reloading one workspace", async () => {
+    const parentWorkspace: WorkspaceInfo = {
+      ...workspace,
+      id: "ws-parent",
+      path: "/tmp/codex",
+    };
+    const childWorkspace: WorkspaceInfo = {
+      ...workspaceTwo,
+      id: "ws-child",
+      path: "/tmp/codex/subdir",
+    };
+    vi.mocked(listWorkspaces).mockResolvedValue([parentWorkspace, childWorkspace]);
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-child-only",
+            cwd: "/tmp/codex/subdir/project",
+            preview: "Child workspace thread",
+            updated_at: 5000,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockReturnValue(5000);
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(parentWorkspace);
+    });
+
+    expect(listWorkspaces).toHaveBeenCalled();
+    const parentSetThreadsAction = dispatch.mock.calls
+      .map(([action]) => action)
+      .find(
+        (action) =>
+          action?.type === "setThreads" &&
+          action?.workspaceId === "ws-parent",
+      ) as
+      | { type: "setThreads"; threads: Array<{ id: string }>; workspaceId: string }
+      | undefined;
+
+    expect(parentSetThreadsAction?.threads.map((thread) => thread.id) ?? []).toEqual([]);
+  });
+
   it("preserves list state when requested", async () => {
     vi.mocked(listThreads).mockResolvedValue({
       result: {

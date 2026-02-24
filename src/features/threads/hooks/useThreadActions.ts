@@ -569,7 +569,18 @@ export function useThreadActions({
       try {
         const requester = targets.find((workspace) => workspace.connected) ?? targets[0];
         const matchingThreadsByWorkspace: Record<string, Record<string, unknown>[]> = {};
-        const workspacePathLookup = buildWorkspacePathLookup(targets);
+        let workspacePathLookup = buildWorkspacePathLookup(targets);
+        try {
+          const knownWorkspaces = await listWorkspacesService();
+          if (knownWorkspaces.length > 0) {
+            workspacePathLookup = buildWorkspacePathLookup([
+              ...knownWorkspaces,
+              ...targets,
+            ]);
+          }
+        } catch {
+          workspacePathLookup = buildWorkspacePathLookup(targets);
+        }
         const uniqueThreadIdsByWorkspace: Record<string, Set<string>> = {};
         const resumeCursorByWorkspace: Record<string, string | null> = {};
         targets.forEach((workspace) => {
