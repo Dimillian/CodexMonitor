@@ -115,6 +115,7 @@ export type ThreadAction =
       workspaceId: string;
       threads: ThreadSummary[];
       sortKey: ThreadListSortKey;
+      preserveAnchors?: boolean;
     }
   | {
       type: "setThreadListLoading";

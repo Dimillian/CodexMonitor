@@ -81,3 +81,11 @@
   --surface-context-core: rgba(255, 255, 255, 0.98);
   --surface-popover: rgba(255, 255, 255, 0.995);
 }
+
+:root[data-theme="light"] .app.is-windows:not(.reduced-transparency) {
+  --surface-sidebar: rgba(246, 247, 250, 0.25);
+  --surface-right-panel: rgba(245, 247, 250, 0.25);
+  --surface-topbar: rgba(250, 251, 253, 0.25);
+  --surface-messages: rgba(238, 241, 246, 1);
+  --surface-composer: rgba(250, 251, 253, 1);
+}

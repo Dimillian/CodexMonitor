@@ -15,7 +15,7 @@ type PhoneLayoutProps = {
   compactEmptyGitNode: ReactNode;
   compactGitBackNode: ReactNode;
   topbarLeftNode: ReactNode;
-  codexTopbarActionsNode?: ReactNode;
+  topbarActionsNode?: ReactNode;
   messagesNode: ReactNode;
   composerNode: ReactNode;
   gitDiffPanelNode: ReactNode;
@@ -37,7 +37,7 @@ export function PhoneLayout({
   compactEmptyGitNode,
   compactGitBackNode,
   topbarLeftNode,
-  codexTopbarActionsNode,
+  topbarActionsNode,
   messagesNode,
   composerNode,
   gitDiffPanelNode,
@@ -57,7 +57,7 @@ export function PhoneLayout({
             <>
               <MainTopbar
                 leftNode={topbarLeftNode}
-                actionsNode={codexTopbarActionsNode}
+                actionsNode={topbarActionsNode}
                 className="compact-topbar"
               />
               <div className="content compact-content">{messagesNode}</div>
@@ -73,7 +73,11 @@ export function PhoneLayout({
           {!activeWorkspace && compactEmptyGitNode}
           {activeWorkspace && (
             <>
-              <MainTopbar leftNode={topbarLeftNode} className="compact-topbar" />
+              <MainTopbar
+                leftNode={topbarLeftNode}
+                actionsNode={topbarActionsNode}
+                className="compact-topbar"
+              />
               {compactGitBackNode}
               {showGitDetail ? (
                 <div className="compact-git-viewer">{gitDiffViewerNode}</div>

@@ -57,14 +57,34 @@ export function RightPanelCollapseButton({
   );
 }
 
+export function RightPanelExpandButton({
+  isCompact,
+  rightPanelCollapsed,
+  onExpandRightPanel,
+}: SidebarToggleProps) {
+  if (isCompact || !rightPanelCollapsed) {
+    return null;
+  }
+  return (
+    <button
+      type="button"
+      className="ghost main-header-action"
+      onClick={onExpandRightPanel}
+      data-tauri-drag-region="false"
+      aria-label="Show git sidebar"
+      title="Show git sidebar"
+    >
+      <PanelRightOpen size={14} aria-hidden />
+    </button>
+  );
+}
+
 export function TitlebarExpandControls({
   isCompact,
   sidebarCollapsed,
-  rightPanelCollapsed,
   onExpandSidebar,
-  onExpandRightPanel,
 }: SidebarToggleProps) {
-  if (isCompact || (!sidebarCollapsed && !rightPanelCollapsed)) {
+  if (isCompact || !sidebarCollapsed) {
     return null;
   }
   return (
@@ -80,20 +100,6 @@ export function TitlebarExpandControls({
             title="Show threads sidebar"
           >
             <PanelLeftOpen size={14} aria-hidden />
-          </button>
-        </div>
-      )}
-      {rightPanelCollapsed && (
-        <div className="titlebar-toggle titlebar-toggle-right">
-          <button
-            type="button"
-            className="ghost main-header-action"
-            onClick={onExpandRightPanel}
-            data-tauri-drag-region="false"
-            aria-label="Show git sidebar"
-            title="Show git sidebar"
-          >
-            <PanelRightOpen size={14} aria-hidden />
           </button>
         </div>
       )}

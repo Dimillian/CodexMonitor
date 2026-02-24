@@ -82,3 +82,11 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 }
+
+:root[data-theme="dark"] .app.is-windows:not(.reduced-transparency) {
+  --surface-sidebar: rgba(18, 18, 18, 0.15);
+  --surface-right-panel: rgba(9, 12, 20, 0.1);
+  --surface-topbar: rgba(10, 14, 20, 0.15);
+  --surface-messages: rgba(8, 10, 16, 1);
+  --surface-composer: rgba(10, 14, 20, 1);
+}

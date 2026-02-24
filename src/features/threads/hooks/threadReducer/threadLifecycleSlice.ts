@@ -366,6 +366,31 @@ export function reduceThreadLifecycle(
     case "setThreads": {
       const hidden = state.hiddenThreadIdsByWorkspace[action.workspaceId] ?? {};
       const visibleThreads = action.threads.filter((thread) => !hidden[thread.id]);
+      const preserveAnchors = action.preserveAnchors === true;
+      if (!preserveAnchors) {
+        const currentActiveThreadId =
+          state.activeThreadIdByWorkspace[action.workspaceId] ?? null;
+        const activeThreadStillVisible = currentActiveThreadId
+          ? visibleThreads.some((thread) => thread.id === currentActiveThreadId)
+          : false;
+        return {
+          ...state,
+          threadsByWorkspace: {
+            ...state.threadsByWorkspace,
+            [action.workspaceId]: visibleThreads,
+          },
+          activeThreadIdByWorkspace: {
+            ...state.activeThreadIdByWorkspace,
+            [action.workspaceId]: activeThreadStillVisible
+              ? currentActiveThreadId
+              : (visibleThreads[0]?.id ?? null),
+          },
+          threadSortKeyByWorkspace: {
+            ...state.threadSortKeyByWorkspace,
+            [action.workspaceId]: action.sortKey,
+          },
+        };
+      }
       const existingThreads = state.threadsByWorkspace[action.workspaceId] ?? [];
       const existingById = new Map(
         existingThreads.map((thread) => [thread.id, thread] as const),

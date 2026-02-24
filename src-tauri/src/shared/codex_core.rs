@@ -241,9 +241,19 @@ pub(crate) async fn list_threads_core(
         "cursor": cursor,
         "limit": limit,
         "sortKey": sort_key,
-        // Keep spawned sub-agent sessions visible in thread/list so UI refreshes
-        // do not drop parent -> child sidebar relationships.
-        "sourceKinds": ["cli", "vscode", "subAgentThreadSpawn"]
+        // Keep interactive and sub-agent sessions visible across CLI versions so
+        // thread/list refreshes do not drop valid historical conversations.
+        "sourceKinds": [
+            "cli",
+            "vscode",
+            "appServer",
+            "subAgent",
+            "subAgentReview",
+            "subAgentCompact",
+            "subAgentThreadSpawn",
+            "subAgentOther",
+            "unknown"
+        ]
     });
     session
         .send_request_for_workspace(&workspace_id, "thread/list", params)
