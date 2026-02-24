@@ -8,8 +8,18 @@ import { ThreadLoading } from "./ThreadLoading";
 import { WorktreeCard } from "./WorktreeCard";
 
 type ThreadRowsResult = {
-  pinnedRows: Array<{ thread: ThreadSummary; depth: number }>;
-  unpinnedRows: Array<{ thread: ThreadSummary; depth: number }>;
+  pinnedRows: Array<{
+    thread: ThreadSummary;
+    depth: number;
+    hasChildren: boolean;
+    isCollapsed: boolean;
+  }>;
+  unpinnedRows: Array<{
+    thread: ThreadSummary;
+    depth: number;
+    hasChildren: boolean;
+    isCollapsed: boolean;
+  }>;
   totalRoots: number;
   hasMoreRoots: boolean;
 };
@@ -32,12 +42,16 @@ type WorktreeSectionProps = {
     workspaceId: string,
     getPinTimestamp: (workspaceId: string, threadId: string) => number | null,
     pinVersion?: number,
+    collapseVersion?: number,
+    isThreadCollapsed?: (workspaceId: string, threadId: string) => boolean,
   ) => ThreadRowsResult;
   getThreadTime: (thread: ThreadSummary) => string | null;
   getThreadArgsBadge?: (workspaceId: string, threadId: string) => string | null;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
   getPinTimestamp: (workspaceId: string, threadId: string) => number | null;
   pinnedThreadsVersion: number;
+  collapsedThreadTreesVersion: number;
+  isThreadCollapsed: (workspaceId: string, threadId: string) => boolean;
   onSelectWorkspace: (id: string) => void;
   onConnectWorkspace: (workspace: WorkspaceInfo) => void;
   onToggleWorkspaceCollapse: (workspaceId: string, collapsed: boolean) => void;
@@ -51,6 +65,7 @@ type WorktreeSectionProps = {
   onShowWorktreeMenu: (event: MouseEvent, worktree: WorkspaceInfo) => void;
   onToggleExpanded: (workspaceId: string) => void;
   onLoadOlderThreads: (workspaceId: string) => void;
+  onToggleThreadCollapsed: (workspaceId: string, threadId: string) => void;
   sectionLabel?: string;
   sectionIcon?: ReactNode;
   className?: string;
@@ -74,6 +89,8 @@ export function WorktreeSection({
   isThreadPinned,
   getPinTimestamp,
   pinnedThreadsVersion,
+  collapsedThreadTreesVersion,
+  isThreadCollapsed,
   onSelectWorkspace,
   onConnectWorkspace,
   onToggleWorkspaceCollapse,
@@ -82,6 +99,7 @@ export function WorktreeSection({
   onShowWorktreeMenu,
   onToggleExpanded,
   onLoadOlderThreads,
+  onToggleThreadCollapsed,
   sectionLabel = "Worktrees",
   sectionIcon,
   className,
@@ -119,6 +137,8 @@ export function WorktreeSection({
             worktree.id,
             getPinTimestamp,
             pinnedThreadsVersion,
+            collapsedThreadTreesVersion,
+            isThreadCollapsed,
           );
 
           return (
@@ -152,6 +172,7 @@ export function WorktreeSection({
                   isThreadPinned={isThreadPinned}
                   onToggleExpanded={onToggleExpanded}
                   onLoadOlderThreads={onLoadOlderThreads}
+                  onToggleThreadCollapsed={onToggleThreadCollapsed}
                   onSelectThread={onSelectThread}
                   onShowThreadMenu={onShowThreadMenu}
                 />

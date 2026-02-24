@@ -8,7 +8,7 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import { createPortal } from "react-dom";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent, RefObject } from "react";
 import { FolderOpen } from "lucide-react";
 import Copy from "lucide-react/dist/esm/icons/copy";
@@ -52,6 +52,8 @@ type WorkspaceGroupSection = {
 type FlatThreadRow = {
   thread: ThreadSummary;
   depth: number;
+  hasChildren: boolean;
+  isCollapsed: boolean;
   workspaceId: string;
   workspaceName: string;
 };
@@ -243,6 +245,26 @@ export const Sidebar = memo(function Sidebar({
       ),
     [userInputRequests],
   );
+  const collapsedThreadTreesRef = useRef(new Set<string>());
+  const [collapsedThreadTreesVersion, setCollapsedThreadTreesVersion] = useState(0);
+  const isThreadCollapsed = useCallback(
+    (workspaceId: string, threadId: string) =>
+      collapsedThreadTreesRef.current.has(`${workspaceId}:${threadId}`),
+    [],
+  );
+  const toggleThreadCollapsed = useCallback(
+    (workspaceId: string, threadId: string) => {
+      const key = `${workspaceId}:${threadId}`;
+      const collapsed = collapsedThreadTreesRef.current;
+      if (collapsed.has(key)) {
+        collapsed.delete(key);
+      } else {
+        collapsed.add(key);
+      }
+      setCollapsedThreadTreesVersion((prev) => prev + 1);
+    },
+    [],
+  );
 
   const isWorkspaceMatch = useCallback(
     (workspace: WorkspaceInfo) => {
@@ -302,7 +324,12 @@ export const Sidebar = memo(function Sidebar({
   );
 
   const pinnedThreadRows = useMemo(() => {
-    type ThreadRow = { thread: ThreadSummary; depth: number };
+    type ThreadRow = {
+      thread: ThreadSummary;
+      depth: number;
+      hasChildren: boolean;
+      isCollapsed: boolean;
+    };
     const groups: Array<{
       pinTime: number;
       workspaceId: string;
@@ -323,6 +350,8 @@ export const Sidebar = memo(function Sidebar({
         workspace.id,
         getPinTimestamp,
         pinnedThreadsVersion,
+        collapsedThreadTreesVersion,
+        isThreadCollapsed,
       );
       if (!pinnedRows.length) {
         return;
@@ -369,6 +398,8 @@ export const Sidebar = memo(function Sidebar({
     getThreadRows,
     getPinTimestamp,
     pinnedThreadsVersion,
+    collapsedThreadTreesVersion,
+    isThreadCollapsed,
     isWorkspaceMatch,
   ]);
 
@@ -531,6 +562,8 @@ export const Sidebar = memo(function Sidebar({
           workspace.id,
           getPinTimestamp,
           pinnedThreadsVersion,
+          collapsedThreadTreesVersion,
+          isThreadCollapsed,
         );
         if (!unpinnedRows.length) {
           return;
@@ -596,6 +629,8 @@ export const Sidebar = memo(function Sidebar({
     getSortTimestamp,
     getThreadRows,
     pinnedThreadsVersion,
+    collapsedThreadTreesVersion,
+    isThreadCollapsed,
     threadListOrganizeMode,
     threadsByWorkspace,
   ]);
@@ -604,18 +639,22 @@ export const Sidebar = memo(function Sidebar({
     () => [
       sortedGroupedWorkspaces,
       flatThreadRows,
+      pinnedThreadRows,
       threadsByWorkspace,
       expandedWorkspaces,
       normalizedQuery,
       threadListOrganizeMode,
+      collapsedThreadTreesVersion,
     ],
     [
       sortedGroupedWorkspaces,
       flatThreadRows,
+      pinnedThreadRows,
       threadsByWorkspace,
       expandedWorkspaces,
       normalizedQuery,
       threadListOrganizeMode,
+      collapsedThreadTreesVersion,
     ],
   );
   const { sidebarBodyRef, scrollFade, updateScrollFade } =
@@ -871,6 +910,7 @@ export const Sidebar = memo(function Sidebar({
                 getThreadTime={getThreadTime}
                 getThreadArgsBadge={getThreadArgsBadge}
                 isThreadPinned={isThreadPinned}
+                onToggleThreadCollapsed={toggleThreadCollapsed}
                 onSelectThread={onSelectThread}
                 onShowThreadMenu={showThreadMenu}
                 getWorkspaceLabel={isThreadsOnlyMode ? getWorkspaceLabel : undefined}
@@ -904,6 +944,7 @@ export const Sidebar = memo(function Sidebar({
                       getThreadTime={getThreadTime}
                       getThreadArgsBadge={getThreadArgsBadge}
                       isThreadPinned={isThreadPinned}
+                      onToggleThreadCollapsed={toggleThreadCollapsed}
                       onSelectThread={onSelectThread}
                       onShowThreadMenu={showThreadMenu}
                       getWorkspaceLabel={getWorkspaceLabel}
@@ -970,6 +1011,8 @@ export const Sidebar = memo(function Sidebar({
                         entry.id,
                         getPinTimestamp,
                         pinnedThreadsVersion,
+                        collapsedThreadTreesVersion,
+                        isThreadCollapsed,
                       );
                       const nextCursor =
                         threadListCursorByWorkspace[entry.id] ?? null;
@@ -1097,6 +1140,8 @@ export const Sidebar = memo(function Sidebar({
                               isThreadPinned={isThreadPinned}
                               getPinTimestamp={getPinTimestamp}
                               pinnedThreadsVersion={pinnedThreadsVersion}
+                              collapsedThreadTreesVersion={collapsedThreadTreesVersion}
+                              isThreadCollapsed={isThreadCollapsed}
                               onSelectWorkspace={onSelectWorkspace}
                               onConnectWorkspace={onConnectWorkspace}
                               onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
@@ -1105,6 +1150,7 @@ export const Sidebar = memo(function Sidebar({
                               onShowWorktreeMenu={showCloneMenu}
                               onToggleExpanded={handleToggleExpanded}
                               onLoadOlderThreads={onLoadOlderThreads}
+                              onToggleThreadCollapsed={toggleThreadCollapsed}
                               sectionLabel="Clone agents"
                               sectionIcon={
                                 <Copy className="worktree-header-icon" aria-hidden />
@@ -1131,6 +1177,8 @@ export const Sidebar = memo(function Sidebar({
                               isThreadPinned={isThreadPinned}
                               getPinTimestamp={getPinTimestamp}
                               pinnedThreadsVersion={pinnedThreadsVersion}
+                              collapsedThreadTreesVersion={collapsedThreadTreesVersion}
+                              isThreadCollapsed={isThreadCollapsed}
                               onSelectWorkspace={onSelectWorkspace}
                               onConnectWorkspace={onConnectWorkspace}
                               onToggleWorkspaceCollapse={onToggleWorkspaceCollapse}
@@ -1139,6 +1187,7 @@ export const Sidebar = memo(function Sidebar({
                               onShowWorktreeMenu={showWorktreeMenu}
                               onToggleExpanded={handleToggleExpanded}
                               onLoadOlderThreads={onLoadOlderThreads}
+                              onToggleThreadCollapsed={toggleThreadCollapsed}
                             />
                           )}
                           {showThreadList && (
@@ -1159,6 +1208,7 @@ export const Sidebar = memo(function Sidebar({
                               isThreadPinned={isThreadPinned}
                               onToggleExpanded={handleToggleExpanded}
                               onLoadOlderThreads={onLoadOlderThreads}
+                              onToggleThreadCollapsed={toggleThreadCollapsed}
                               onSelectThread={onSelectThread}
                               onShowThreadMenu={showThreadMenu}
                             />

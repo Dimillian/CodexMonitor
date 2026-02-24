@@ -5,6 +5,8 @@ import type { ThreadSummary } from "../../../types";
 type ThreadRow = {
   thread: ThreadSummary;
   depth: number;
+  hasChildren: boolean;
+  isCollapsed: boolean;
 };
 
 type ThreadRowResult = {
@@ -16,8 +18,11 @@ type ThreadRowResult = {
 
 type ThreadRowCacheEntry = {
   pinVersion: number;
+  collapseVersion: number;
   result: ThreadRowResult;
 };
+
+const isNeverCollapsed = () => false;
 
 export function useThreadRows(threadParentById: Record<string, string>) {
   const cacheRef = useRef(
@@ -42,11 +47,17 @@ export function useThreadRows(threadParentById: Record<string, string>) {
       workspaceId: string,
       getPinTimestamp: (workspaceId: string, threadId: string) => number | null,
       pinVersion = 0,
+      collapseVersion = 0,
+      isThreadCollapsed: (workspaceId: string, threadId: string) => boolean = isNeverCollapsed,
     ): ThreadRowResult => {
       const cacheKey = `${workspaceId}:${isExpanded ? "1" : "0"}`;
       const threadCache = cacheRef.current.get(threads);
       const cachedEntry = threadCache?.get(cacheKey);
-      if (cachedEntry && cachedEntry.pinVersion === pinVersion) {
+      if (
+        cachedEntry &&
+        cachedEntry.pinVersion === pinVersion &&
+        cachedEntry.collapseVersion === collapseVersion
+      ) {
         return cachedEntry.result;
       }
 
@@ -104,17 +115,33 @@ export function useThreadRows(threadParentById: Record<string, string>) {
         thread: ThreadSummary,
         depth: number,
         rows: ThreadRow[],
+        visited: Set<string>,
       ) => {
-        rows.push({ thread, depth });
+        if (visited.has(thread.id)) {
+          return;
+        }
+        visited.add(thread.id);
         const children = childrenByParent.get(thread.id) ?? [];
-        children.forEach((child) => appendThread(child, depth + 1, rows));
+        const hasChildren = children.length > 0;
+        const collapsed = hasChildren
+          ? isThreadCollapsed(workspaceId, thread.id)
+          : false;
+        rows.push({ thread, depth, hasChildren, isCollapsed: collapsed });
+        if (collapsed) {
+          return;
+        }
+        children.forEach((child) => appendThread(child, depth + 1, rows, visited));
       };
 
       const pinnedRows: ThreadRow[] = [];
-      pinnedRoots.forEach((thread) => appendThread(thread, 0, pinnedRows));
+      pinnedRoots.forEach((thread) =>
+        appendThread(thread, 0, pinnedRows, new Set<string>()),
+      );
 
       const unpinnedRows: ThreadRow[] = [];
-      visibleRoots.forEach((thread) => appendThread(thread, 0, unpinnedRows));
+      visibleRoots.forEach((thread) =>
+        appendThread(thread, 0, unpinnedRows, new Set<string>()),
+      );
 
       const result = {
         pinnedRows,
@@ -125,6 +152,7 @@ export function useThreadRows(threadParentById: Record<string, string>) {
       const nextThreadCache = threadCache ?? new Map<string, ThreadRowCacheEntry>();
       nextThreadCache.set(cacheKey, {
         pinVersion,
+        collapseVersion,
         result,
       });
       if (!threadCache) {

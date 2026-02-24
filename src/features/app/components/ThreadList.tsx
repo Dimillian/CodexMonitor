@@ -7,6 +7,8 @@ import { ThreadRow } from "./ThreadRow";
 type ThreadListRow = {
   thread: ThreadSummary;
   depth: number;
+  hasChildren: boolean;
+  isCollapsed: boolean;
 };
 
 type ThreadListProps = {
@@ -28,6 +30,7 @@ type ThreadListProps = {
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
   onToggleExpanded: (workspaceId: string) => void;
   onLoadOlderThreads: (workspaceId: string) => void;
+  onToggleThreadCollapsed?: (workspaceId: string, threadId: string) => void;
   onSelectThread: (workspaceId: string, threadId: string) => void;
   onShowThreadMenu: (
     event: MouseEvent,
@@ -56,6 +59,7 @@ export function ThreadList({
   isThreadPinned,
   onToggleExpanded,
   onLoadOlderThreads,
+  onToggleThreadCollapsed,
   onSelectThread,
   onShowThreadMenu,
 }: ThreadListProps) {
@@ -63,13 +67,16 @@ export function ThreadList({
 
   return (
     <div className={`thread-list${nested ? " thread-list-nested" : ""}`}>
-      {pinnedRows.map(({ thread, depth }) => (
+      {pinnedRows.map(({ thread, depth, hasChildren, isCollapsed }) => (
         <ThreadRow
           key={thread.id}
           thread={thread}
           depth={depth}
           workspaceId={workspaceId}
           indentUnit={indentUnit}
+          hasChildren={hasChildren}
+          isCollapsed={isCollapsed}
+          onToggleThreadCollapsed={onToggleThreadCollapsed}
           activeWorkspaceId={activeWorkspaceId}
           activeThreadId={activeThreadId}
           threadStatusById={threadStatusById}
@@ -84,13 +91,16 @@ export function ThreadList({
       {pinnedRows.length > 0 && unpinnedRows.length > 0 && (
         <div className="thread-list-separator" aria-hidden="true" />
       )}
-      {unpinnedRows.map(({ thread, depth }) => (
+      {unpinnedRows.map(({ thread, depth, hasChildren, isCollapsed }) => (
         <ThreadRow
           key={thread.id}
           thread={thread}
           depth={depth}
           workspaceId={workspaceId}
           indentUnit={indentUnit}
+          hasChildren={hasChildren}
+          isCollapsed={isCollapsed}
+          onToggleThreadCollapsed={onToggleThreadCollapsed}
           activeWorkspaceId={activeWorkspaceId}
           activeThreadId={activeThreadId}
           threadStatusById={threadStatusById}

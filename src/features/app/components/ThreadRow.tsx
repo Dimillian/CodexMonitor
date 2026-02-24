@@ -1,4 +1,6 @@
 import type { CSSProperties, MouseEvent } from "react";
+import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
+import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 
 import type { ThreadSummary } from "../../../types";
 import { getThreadStatusClass, type ThreadStatusById } from "../../../utils/threadStatus";
@@ -8,6 +10,9 @@ type ThreadRowProps = {
   depth: number;
   workspaceId: string;
   indentUnit: number;
+  hasChildren?: boolean;
+  isCollapsed?: boolean;
+  onToggleThreadCollapsed?: (workspaceId: string, threadId: string) => void;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   threadStatusById: ThreadStatusById;
@@ -30,6 +35,9 @@ export function ThreadRow({
   depth,
   workspaceId,
   indentUnit,
+  hasChildren = false,
+  isCollapsed = false,
+  onToggleThreadCollapsed,
   activeWorkspaceId,
   activeThreadId,
   threadStatusById,
@@ -62,6 +70,10 @@ export function ThreadRow({
   );
   const canPin = depth === 0;
   const isPinned = canPin && isThreadPinned(workspaceId, thread.id);
+  const TreeIcon = isCollapsed ? ChevronRight : ChevronDown;
+  const treeLabel = isCollapsed
+    ? "Expand subagent threads"
+    : "Collapse subagent threads";
 
   return (
     <div
@@ -83,6 +95,25 @@ export function ThreadRow({
       }}
     >
       <span className={`thread-status ${statusClass}`} aria-hidden />
+      {onToggleThreadCollapsed ? (
+        hasChildren ? (
+          <button
+            type="button"
+            className="thread-tree-toggle"
+            aria-label={treeLabel}
+            aria-expanded={!isCollapsed}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onToggleThreadCollapsed(workspaceId, thread.id);
+            }}
+          >
+            <TreeIcon size={12} aria-hidden />
+          </button>
+        ) : (
+          <span className="thread-tree-spacer" aria-hidden />
+        )
+      ) : null}
       {isPinned && <span className="thread-pin-icon" aria-label="Pinned">📌</span>}
       <span className="thread-name">{thread.name}</span>
       <div className="thread-meta">

@@ -967,6 +967,45 @@
   margin-left: 4px;
 }
 
+.thread-tree-spacer,
+.thread-tree-toggle {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thread-tree-toggle {
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  padding: 0;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.thread-tree-toggle:hover {
+  color: var(--text-strong);
+}
+
+.thread-row:hover .thread-tree-toggle,
+.thread-row:focus-within .thread-tree-toggle {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .thread-tree-toggle {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 .thread-pin-icon {
   font-size: 10px;
   margin-right: 2px;

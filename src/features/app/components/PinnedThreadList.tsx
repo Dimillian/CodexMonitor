@@ -8,6 +8,8 @@ type PinnedThreadRow = {
   thread: ThreadSummary;
   depth: number;
   workspaceId: string;
+  hasChildren: boolean;
+  isCollapsed: boolean;
 };
 
 type PinnedThreadListProps = {
@@ -20,6 +22,7 @@ type PinnedThreadListProps = {
   getThreadTime: (thread: ThreadSummary) => string | null;
   getThreadArgsBadge?: (workspaceId: string, threadId: string) => string | null;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
+  onToggleThreadCollapsed?: (workspaceId: string, threadId: string) => void;
   onSelectThread: (workspaceId: string, threadId: string) => void;
   onShowThreadMenu: (
     event: MouseEvent,
@@ -39,12 +42,13 @@ export function PinnedThreadList({
   getThreadTime,
   getThreadArgsBadge,
   isThreadPinned,
+  onToggleThreadCollapsed,
   onSelectThread,
   onShowThreadMenu,
 }: PinnedThreadListProps) {
   return (
     <div className="thread-list pinned-thread-list">
-      {rows.map(({ thread, depth, workspaceId }) => {
+      {rows.map(({ thread, depth, workspaceId, hasChildren, isCollapsed }) => {
         return (
           <ThreadRow
             key={`${workspaceId}:${thread.id}`}
@@ -52,6 +56,9 @@ export function PinnedThreadList({
             depth={depth}
             workspaceId={workspaceId}
             indentUnit={14}
+            hasChildren={hasChildren}
+            isCollapsed={isCollapsed}
+            onToggleThreadCollapsed={onToggleThreadCollapsed}
             activeWorkspaceId={activeWorkspaceId}
             activeThreadId={activeThreadId}
             threadStatusById={threadStatusById}

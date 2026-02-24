@@ -24,7 +24,7 @@ const statusMap = {
 const baseProps = {
   workspaceId: "ws-1",
   pinnedRows: [],
-  unpinnedRows: [{ thread, depth: 0 }],
+  unpinnedRows: [{ thread, depth: 0, hasChildren: false, isCollapsed: false }],
   totalThreadRoots: 1,
   isExpanded: false,
   nextCursor: null,
@@ -37,6 +37,7 @@ const baseProps = {
   isThreadPinned: () => false,
   onToggleExpanded: vi.fn(),
   onLoadOlderThreads: vi.fn(),
+  onToggleThreadCollapsed: vi.fn(),
   onSelectThread: vi.fn(),
   onShowThreadMenu: vi.fn(),
 };
@@ -111,8 +112,8 @@ describe("ThreadList", () => {
         {...baseProps}
         nested
         unpinnedRows={[
-          { thread, depth: 0 },
-          { thread: nestedThread, depth: 1 },
+          { thread, depth: 0, hasChildren: false, isCollapsed: false },
+          { thread: nestedThread, depth: 1, hasChildren: false, isCollapsed: false },
         ]}
         onShowThreadMenu={onShowThreadMenu}
       />,
@@ -134,10 +135,30 @@ describe("ThreadList", () => {
     );
   });
 
+  it("renders a collapse toggle for threads with children", () => {
+    const onToggleThreadCollapsed = vi.fn();
+    const onSelectThread = vi.fn();
+    render(
+      <ThreadList
+        {...baseProps}
+        unpinnedRows={[{ thread, depth: 0, hasChildren: true, isCollapsed: true }]}
+        onToggleThreadCollapsed={onToggleThreadCollapsed}
+        onSelectThread={onSelectThread}
+      />,
+    );
+
+    const toggle = screen.getByRole("button", { name: "Expand subagent threads" });
+    fireEvent.click(toggle);
+
+    expect(onToggleThreadCollapsed).toHaveBeenCalledWith("ws-1", "thread-1");
+    expect(onSelectThread).not.toHaveBeenCalled();
+  });
+
   it("shows blue unread-style status when a thread is waiting for user input", () => {
     const { container } = render(
       <ThreadList
         {...baseProps}
+        onToggleThreadCollapsed={vi.fn()}
         threadStatusById={{
           "thread-1": { isProcessing: true, hasUnread: false, isReviewing: false },
           "thread-2": { isProcessing: false, hasUnread: false, isReviewing: false },

@@ -22,12 +22,13 @@ const statusMap = {
 };
 
 const baseProps = {
-  rows: [{ thread, depth: 0, workspaceId: "ws-1" }],
+  rows: [{ thread, depth: 0, workspaceId: "ws-1", hasChildren: false, isCollapsed: false }],
   activeWorkspaceId: "ws-1",
   activeThreadId: "thread-1",
   threadStatusById: statusMap,
   getThreadTime: () => "1h",
   isThreadPinned: () => true,
+  onToggleThreadCollapsed: vi.fn(),
   onSelectThread: vi.fn(),
   onShowThreadMenu: vi.fn(),
 };
@@ -76,8 +77,8 @@ describe("PinnedThreadList", () => {
       <PinnedThreadList
         {...baseProps}
         rows={[
-          { thread, depth: 0, workspaceId: "ws-1" },
-          { thread: otherThread, depth: 0, workspaceId: "ws-2" },
+          { thread, depth: 0, workspaceId: "ws-1", hasChildren: false, isCollapsed: false },
+          { thread: otherThread, depth: 0, workspaceId: "ws-2", hasChildren: false, isCollapsed: false },
         ]}
         onSelectThread={onSelectThread}
         onShowThreadMenu={onShowThreadMenu}
@@ -106,7 +107,7 @@ describe("PinnedThreadList", () => {
     const { container } = render(
       <PinnedThreadList
         {...baseProps}
-        rows={[{ thread: otherThread, depth: 0, workspaceId: "ws-2" }]}
+        rows={[{ thread: otherThread, depth: 0, workspaceId: "ws-2", hasChildren: false, isCollapsed: false }]}
         threadStatusById={{
           "thread-1": { isProcessing: false, hasUnread: false, isReviewing: true },
           "thread-2": { isProcessing: true, hasUnread: false, isReviewing: false },
@@ -120,5 +121,25 @@ describe("PinnedThreadList", () => {
     expect(row?.querySelector(".thread-name")?.textContent).toBe("Pinned Beta");
     expect(row?.querySelector(".thread-status")?.className).toContain("unread");
     expect(row?.querySelector(".thread-status")?.className).not.toContain("processing");
+  });
+
+  it("renders a collapse toggle for pinned threads with children", () => {
+    const onToggleThreadCollapsed = vi.fn();
+    const onSelectThread = vi.fn();
+
+    render(
+      <PinnedThreadList
+        {...baseProps}
+        rows={[{ thread, depth: 0, workspaceId: "ws-1", hasChildren: true, isCollapsed: true }]}
+        onToggleThreadCollapsed={onToggleThreadCollapsed}
+        onSelectThread={onSelectThread}
+      />,
+    );
+
+    const toggle = screen.getByRole("button", { name: "Expand subagent threads" });
+    fireEvent.click(toggle);
+
+    expect(onToggleThreadCollapsed).toHaveBeenCalledWith("ws-1", "thread-1");
+    expect(onSelectThread).not.toHaveBeenCalled();
   });
 });

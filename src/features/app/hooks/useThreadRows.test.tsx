@@ -125,4 +125,69 @@ describe("useThreadRows", () => {
       ["thread-child", 1],
     ]);
   });
+
+  it("skips descendants when a thread is collapsed", () => {
+    const threads: ThreadSummary[] = [
+      { id: "thread-root", name: "Root", updatedAt: 3 },
+      { id: "thread-child-a", name: "Child A", updatedAt: 2 },
+      { id: "thread-child-b", name: "Child B", updatedAt: 1 },
+    ];
+    const getPinTimestamp = vi.fn(() => null);
+    const { result } = renderHook(() =>
+      useThreadRows({
+        "thread-child-a": "thread-root",
+        "thread-child-b": "thread-child-a",
+      }),
+    );
+
+    const expanded = result.current.getThreadRows(
+      threads,
+      true,
+      "ws-1",
+      getPinTimestamp,
+      0,
+      0,
+      () => false,
+    );
+    expect(expanded.unpinnedRows.map((row) => [row.thread.id, row.depth])).toEqual([
+      ["thread-root", 0],
+      ["thread-child-a", 1],
+      ["thread-child-b", 2],
+    ]);
+
+    const collapsedRoot = result.current.getThreadRows(
+      threads,
+      true,
+      "ws-1",
+      getPinTimestamp,
+      0,
+      1,
+      (_workspaceId, threadId) => threadId === "thread-root",
+    );
+    expect(collapsedRoot.unpinnedRows.map((row) => [row.thread.id, row.depth])).toEqual([
+      ["thread-root", 0],
+    ]);
+    expect(collapsedRoot.unpinnedRows[0]).toMatchObject({
+      hasChildren: true,
+      isCollapsed: true,
+    });
+
+    const collapsedChild = result.current.getThreadRows(
+      threads,
+      true,
+      "ws-1",
+      getPinTimestamp,
+      0,
+      2,
+      (_workspaceId, threadId) => threadId === "thread-child-a",
+    );
+    expect(collapsedChild.unpinnedRows.map((row) => [row.thread.id, row.depth])).toEqual([
+      ["thread-root", 0],
+      ["thread-child-a", 1],
+    ]);
+    expect(collapsedChild.unpinnedRows[1]).toMatchObject({
+      hasChildren: true,
+      isCollapsed: true,
+    });
+  });
 });

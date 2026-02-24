@@ -38,6 +38,8 @@ describe("WorktreeSection", () => {
         isThreadPinned={() => false}
         getPinTimestamp={() => null}
         pinnedThreadsVersion={0}
+        collapsedThreadTreesVersion={0}
+        isThreadCollapsed={() => false}
         onSelectWorkspace={vi.fn()}
         onConnectWorkspace={vi.fn()}
         onToggleWorkspaceCollapse={vi.fn()}
@@ -46,6 +48,7 @@ describe("WorktreeSection", () => {
         onShowWorktreeMenu={vi.fn()}
         onToggleExpanded={vi.fn()}
         onLoadOlderThreads={vi.fn()}
+        onToggleThreadCollapsed={vi.fn()}
       />,
     );
 
