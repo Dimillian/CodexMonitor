@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "npm run build && ./scripts/build-tauri-sidecars.sh",
     "frontendDist": "../dist"
   },
   "app": {
@@ -43,6 +43,10 @@
     "active": true,
     "targets": "all",
     "createUpdaterArtifacts": true,
+    "externalBin": [
+      "binaries/codex_monitor_daemon",
+      "binaries/codex_monitor_daemonctl"
+    ],
     "iOS": {
       "frameworks": [
         "libz.tbd",

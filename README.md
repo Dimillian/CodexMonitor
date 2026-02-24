@@ -217,6 +217,8 @@ Build the production Tauri bundle:
 npm run tauri:build
 ```
 
+`tauri:build` now prepares and bundles both sidecars (`codex_monitor_daemon` and `codex_monitor_daemonctl`) into the app bundle automatically.
+
 Artifacts will be in `src-tauri/target/release/bundle/` (platform-specific subfolders).
 
 ### Windows (opt-in)
