@@ -144,6 +144,33 @@ describe("Messages", () => {
     expect(markdown?.textContent ?? "").toContain("Literal [image] token");
   });
 
+  it("quotes a message into composer using markdown blockquote format", () => {
+    const onQuoteMessage = vi.fn();
+    const items: ConversationItem[] = [
+      {
+        id: "msg-quote-1",
+        kind: "message",
+        role: "assistant",
+        text: "First line\nSecond line",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+        onQuoteMessage={onQuoteMessage}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Quote message" }));
+    expect(onQuoteMessage).toHaveBeenCalledWith("> First line\n> Second line\n\n");
+  });
+
   it("opens linked review thread when clicking thread link", () => {
     const onOpenThreadLink = vi.fn();
     const items: ConversationItem[] = [
