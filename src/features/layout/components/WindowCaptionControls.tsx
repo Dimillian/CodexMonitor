@@ -4,12 +4,8 @@ import Square from "lucide-react/dist/esm/icons/square";
 import X from "lucide-react/dist/esm/icons/x";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { isWindowsPlatform } from "@utils/platformPaths";
-
-type WindowCaptionControlsProps = {
-  enabled: boolean;
-};
 
 function currentWindowSafe() {
   try {
@@ -19,8 +15,8 @@ function currentWindowSafe() {
   }
 }
 
-export function WindowCaptionControls({ enabled }: WindowCaptionControlsProps) {
-  const isEnabled = useMemo(() => enabled && isWindowsPlatform() && isTauri(), [enabled]);
+export function WindowCaptionControls() {
+  const isEnabled = isWindowsPlatform() && isTauri();
   const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
