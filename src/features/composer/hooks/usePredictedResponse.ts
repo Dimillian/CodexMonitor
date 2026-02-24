@@ -36,7 +36,10 @@ type UsePredictedResponseResult = {
 
 function lastParagraph(text: string): string {
   const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim());
-  return paragraphs.length ? paragraphs[paragraphs.length - 1].trim() : text.trim();
+  const para = paragraphs.length
+    ? paragraphs[paragraphs.length - 1].trim()
+    : text.trim();
+  return para.length > 2000 ? para.slice(0, 2000) : para;
 }
 
 function buildContextFromItems(items: ConversationItem[]): string {
@@ -97,6 +100,12 @@ export function usePredictedResponse({
     wasProcessingRef.current = isProcessing;
 
     if (!wasProcessing || isProcessing) {
+      // New turn started — cancel any in-flight prediction
+      if (isProcessing && (state === "loading" || state === "ready")) {
+        requestCounterRef.current += 1;
+        setState("idle");
+        setPrediction(null);
+      }
       return;
     }
 
@@ -108,6 +117,14 @@ export function usePredictedResponse({
       !threadId ||
       items.length === 0
     ) {
+      return;
+    }
+
+    const lastItem = items[items.length - 1];
+    const isAssistantTurn =
+      lastItem &&
+      (lastItem.kind !== "message" || lastItem.role === "assistant");
+    if (!isAssistantTurn) {
       return;
     }
 
@@ -141,7 +158,7 @@ export function usePredictedResponse({
         setState("idle");
       },
     );
-  }, [isProcessing, disabled, composerText, workspaceId, threadId, items, models]);
+  }, [isProcessing, disabled, composerText, workspaceId, threadId, items, models, state]);
 
   // Dismiss when user starts typing
   useEffect(() => {
