@@ -1018,6 +1018,7 @@ pub(crate) async fn predict_response(
 
     crate::shared::codex_aux_core::predict_response_core(
         &state.sessions,
+        &state.workspaces,
         workspace_id,
         &context,
         model,

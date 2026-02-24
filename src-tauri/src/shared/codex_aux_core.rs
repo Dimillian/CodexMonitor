@@ -640,6 +640,7 @@ Context:\n{context}"
 
 pub(crate) async fn predict_response_core<F>(
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
     context: &str,
     model: Option<String>,
@@ -656,6 +657,7 @@ where
     let prompt = build_predict_response_prompt(cleaned_context);
     run_background_prompt_core(
         sessions,
+        workspaces,
         workspace_id,
         prompt,
         model.as_deref(),

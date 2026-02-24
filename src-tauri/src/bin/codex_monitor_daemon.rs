@@ -1325,6 +1325,7 @@ impl DaemonState {
     ) -> Result<String, String> {
         codex_aux_core::predict_response_core(
             &self.sessions,
+            &self.workspaces,
             workspace_id,
             &context,
             model,
