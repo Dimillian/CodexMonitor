@@ -75,9 +75,9 @@ body {
   pointer-events: var(--window-drag-strip-pointer-events, auto);
 }
 
-.app.os-windows [data-tauri-drag-region],
-.app.os-windows .titlebar,
-.app.os-windows .main-topbar {
+.app.is-windows [data-tauri-drag-region],
+.app.is-windows .titlebar,
+.app.is-windows .main-topbar {
   -webkit-app-region: no-drag !important;
 }
 
