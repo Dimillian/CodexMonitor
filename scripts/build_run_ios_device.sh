@@ -205,11 +205,17 @@ fi
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
   sync_ios_icons
+  BUILD_CMD=("$NPM_BIN" run tauri -- ios build -d -t "$TARGET")
+  if [[ ${#TAURI_CONFIG_ARGS[@]} -gt 0 ]]; then
+    BUILD_CMD+=("${TAURI_CONFIG_ARGS[@]}")
+  fi
   if [[ "$OPEN_XCODE" -eq 1 ]]; then
-    "$NPM_BIN" run tauri -- ios build -d -t "$TARGET" "${TAURI_CONFIG_ARGS[@]}" --open
+    BUILD_CMD+=(--open)
+    "${BUILD_CMD[@]}"
     exit 0
   fi
-  "$NPM_BIN" run tauri -- ios build -d -t "$TARGET" "${TAURI_CONFIG_ARGS[@]}" --ci
+  BUILD_CMD+=(--ci)
+  "${BUILD_CMD[@]}"
 fi
 
 APP_PATH="src-tauri/gen/apple/build/arm64/Codex Monitor.app"
