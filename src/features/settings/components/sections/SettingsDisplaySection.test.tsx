@@ -106,7 +106,7 @@ describe("SettingsDisplaySection", () => {
       />,
     );
 
-    const row = screen.getByText("Show thread token usage").closest(".settings-toggle-row");
+    const row = screen.getByText("Show thread token usage & estimated costs").closest(".settings-toggle-row");
     expect(row).toBeTruthy();
     const button = within(row as HTMLElement).getByRole("button");
 
@@ -162,7 +162,7 @@ describe("SettingsDisplaySection", () => {
     );
 
     const row = screen
-      .getByText("Show full thread token counts")
+      .getByText("Show full thread token counts & costs")
       .closest(".settings-toggle-row");
     expect(row).toBeTruthy();
     const button = within(row as HTMLElement).getByRole("button");

@@ -228,9 +228,10 @@ export function SettingsDisplaySection({
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">Show thread token usage</div>
+          <div className="settings-toggle-title">Show thread token usage & estimated costs</div>
           <div className="settings-toggle-subtitle">
-            Display token totals beneath each thread title.
+            Display token totals & costs beneath each thread title. (both are estimates and can
+            differ from the actual values)
           </div>
         </div>
         <button
@@ -249,7 +250,7 @@ export function SettingsDisplaySection({
       </div>
       <div className="settings-toggle-row">
         <div>
-          <div className="settings-toggle-title">Show full thread token counts</div>
+          <div className="settings-toggle-title">Show full thread token counts & costs</div>
           <div className="settings-toggle-subtitle">
             Display exact totals instead of compact abbreviations.
           </div>
