@@ -261,6 +261,31 @@ describe("Messages", () => {
     expect(openFileLinkMock).toHaveBeenCalledWith(linkedPath);
   });
 
+  it("decodes percent-encoded href file paths before opening", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-file-href-encoded-link",
+        kind: "message",
+        role: "assistant",
+        text: "Open [guide](./docs/My%20Guide.md)",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    fireEvent.click(screen.getByText("guide"));
+    expect(openFileLinkMock).toHaveBeenCalledWith("./docs/My Guide.md");
+  });
+
   it("keeps non-file relative links as normal markdown links", () => {
     const items: ConversationItem[] = [
       {
@@ -284,6 +309,33 @@ describe("Messages", () => {
 
     const helpLink = screen.getByText("Help").closest("a");
     expect(helpLink?.getAttribute("href")).toBe("/help/getting-started");
+    fireEvent.click(screen.getByText("Help"));
+    expect(openFileLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps dot-relative non-file links as normal markdown links", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-help-dot-relative-href-link",
+        kind: "message",
+        role: "assistant",
+        text: "See [Help](./help/getting-started)",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const helpLink = screen.getByText("Help").closest("a");
+    expect(helpLink?.getAttribute("href")).toBe("./help/getting-started");
     fireEvent.click(screen.getByText("Help"));
     expect(openFileLinkMock).not.toHaveBeenCalled();
   });

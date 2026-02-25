@@ -268,12 +268,11 @@ function isLikelyFileHref(url: string) {
   if (hasLikelyFileName(trimmed)) {
     return true;
   }
-  if (
-    trimmed.startsWith("~/") ||
-    trimmed.startsWith("./") ||
-    trimmed.startsWith("../")
-  ) {
+  if (trimmed.startsWith("~/")) {
     return true;
+  }
+  if (trimmed.startsWith("./") || trimmed.startsWith("../")) {
+    return FILE_LINE_SUFFIX_PATTERN.test(trimmed) || hasLikelyFileName(trimmed);
   }
   return false;
 }
@@ -608,7 +607,7 @@ export function Markdown({
     if (isLikelyFileHref(url)) {
       const directPath = getLinkablePath(url);
       if (directPath) {
-        return directPath;
+        return safeDecodeURIComponent(directPath) ?? directPath;
       }
     }
     const decodedUrl = safeDecodeURIComponent(url);
