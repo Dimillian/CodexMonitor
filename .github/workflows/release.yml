@@ -90,6 +90,12 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/codexmonitor.key")"
           npm run tauri -- build --bundles app
 
+      - name: Build daemon binaries
+        run: |
+          set -euo pipefail
+          cd src-tauri
+          cargo build --release --bin codex_monitor_daemon --bin codex_monitor_daemonctl
+
       - name: Bundle OpenSSL and re-sign
         run: |
           set -euo pipefail
