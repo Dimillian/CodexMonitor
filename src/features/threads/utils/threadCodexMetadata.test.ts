@@ -63,4 +63,38 @@ describe("extractThreadCodexMetadata", () => {
       effort: null,
     });
   });
+
+  it("ignores placeholder model ids and keeps searching nested metadata", () => {
+    const metadata = extractThreadCodexMetadata({
+      model: "unknown",
+      turns: [
+        {
+          items: [
+            {
+              payload: {
+                info: {
+                  model_name: "gpt-5.2-codex",
+                },
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(metadata.modelId).toBe("gpt-5.2-codex");
+  });
+
+  it("returns null model for placeholder-only metadata", () => {
+    const metadata = extractThreadCodexMetadata({
+      model: "default",
+      turns: [
+        {
+          items: [{ payload: { model: "unknown" } }],
+        },
+      ],
+    });
+
+    expect(metadata.modelId).toBeNull();
+  });
 });

@@ -25,6 +25,7 @@ type ThreadListProps = {
   pendingUserInputKeys?: Set<string>;
   getThreadTime: (thread: ThreadSummary) => string | null;
   getThreadArgsBadge?: (workspaceId: string, threadId: string) => string | null;
+  getThreadTokenUsageLabel?: (workspaceId: string, threadId: string) => string | null;
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
   onToggleExpanded: (workspaceId: string) => void;
   onLoadOlderThreads: (workspaceId: string) => void;
@@ -53,6 +54,7 @@ export function ThreadList({
   pendingUserInputKeys,
   getThreadTime,
   getThreadArgsBadge,
+  getThreadTokenUsageLabel,
   isThreadPinned,
   onToggleExpanded,
   onLoadOlderThreads,
@@ -76,6 +78,7 @@ export function ThreadList({
           pendingUserInputKeys={pendingUserInputKeys}
           getThreadTime={getThreadTime}
           getThreadArgsBadge={getThreadArgsBadge}
+          getThreadTokenUsageLabel={getThreadTokenUsageLabel}
           isThreadPinned={isThreadPinned}
           onSelectThread={onSelectThread}
           onShowThreadMenu={onShowThreadMenu}
@@ -97,6 +100,7 @@ export function ThreadList({
           pendingUserInputKeys={pendingUserInputKeys}
           getThreadTime={getThreadTime}
           getThreadArgsBadge={getThreadArgsBadge}
+          getThreadTokenUsageLabel={getThreadTokenUsageLabel}
           isThreadPinned={isThreadPinned}
           onSelectThread={onSelectThread}
           onShowThreadMenu={onShowThreadMenu}

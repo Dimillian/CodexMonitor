@@ -532,6 +532,28 @@ describe("threadReducer", () => {
       },
       activeThreadIdByWorkspace: { "ws-1": "thread-1" },
       turnDiffByThread: { "thread-1": "diff --git a/file.ts b/file.ts" },
+      tokenUsageByThread: {
+        "thread-1": {
+          total: {
+            totalTokens: 100,
+            inputTokens: 60,
+            cachedInputTokens: 5,
+            outputTokens: 40,
+            reasoningOutputTokens: 2,
+          },
+          last: {
+            totalTokens: 20,
+            inputTokens: 12,
+            cachedInputTokens: 1,
+            outputTokens: 8,
+            reasoningOutputTokens: 0,
+          },
+          modelContextWindow: 200000,
+        },
+      },
+      tokenUsageThreadIdsByWorkspace: {
+        "ws-1": ["thread-1", "thread-2"],
+      },
     };
 
     const next = threadReducer(base, {
@@ -541,6 +563,8 @@ describe("threadReducer", () => {
     });
 
     expect(next.turnDiffByThread["thread-1"]).toBeUndefined();
+    expect(next.tokenUsageByThread["thread-1"]).toBeUndefined();
+    expect(next.tokenUsageThreadIdsByWorkspace["ws-1"]).toEqual(["thread-2"]);
   });
 
   it("hides background threads and keeps them hidden on future syncs", () => {
@@ -550,6 +574,7 @@ describe("threadReducer", () => {
       threadId: "thread-bg",
     });
     expect(withThread.threadsByWorkspace["ws-1"]?.some((t) => t.id === "thread-bg")).toBe(true);
+    expect(withThread.tokenUsageThreadIdsByWorkspace["ws-1"]).toContain("thread-bg");
 
     const hidden = threadReducer(withThread, {
       type: "hideThread",
@@ -557,6 +582,7 @@ describe("threadReducer", () => {
       threadId: "thread-bg",
     });
     expect(hidden.threadsByWorkspace["ws-1"]?.some((t) => t.id === "thread-bg")).toBe(false);
+    expect(hidden.tokenUsageThreadIdsByWorkspace["ws-1"]?.includes("thread-bg")).toBe(false);
 
     const synced = threadReducer(hidden, {
       type: "setThreads",
@@ -570,6 +596,23 @@ describe("threadReducer", () => {
     const ids = synced.threadsByWorkspace["ws-1"]?.map((t) => t.id) ?? [];
     expect(ids).toContain("thread-visible");
     expect(ids).not.toContain("thread-bg");
+  });
+
+  it("stores deduplicated workspace usage thread ids and excludes hidden threads", () => {
+    const hidden = threadReducer(initialState, {
+      type: "hideThread",
+      workspaceId: "ws-1",
+      threadId: "thread-hidden",
+    });
+    const next = threadReducer(hidden, {
+      type: "setWorkspaceTokenUsageThreadIds",
+      workspaceId: "ws-1",
+      threadIds: ["thread-1", "thread-1", "", "thread-hidden", "thread-2"],
+    });
+    expect(next.tokenUsageThreadIdsByWorkspace["ws-1"]).toEqual([
+      "thread-1",
+      "thread-2",
+    ]);
   });
 
   it("preserves active, processing, and ancestor anchors on partial setThreads payloads", () => {

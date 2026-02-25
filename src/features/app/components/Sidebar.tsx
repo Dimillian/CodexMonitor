@@ -103,6 +103,8 @@ type SidebarProps = {
   isThreadPinned: (workspaceId: string, threadId: string) => boolean;
   getPinTimestamp: (workspaceId: string, threadId: string) => number | null;
   getThreadArgsBadge?: (workspaceId: string, threadId: string) => string | null;
+  getThreadTokenUsageLabel?: (workspaceId: string, threadId: string) => string | null;
+  getWorkspaceTokenUsageLabel?: (workspaceId: string) => string | null;
   onRenameThread: (workspaceId: string, threadId: string) => void;
   onDeleteWorkspace: (workspaceId: string) => void;
   onDeleteWorktree: (workspaceId: string) => void;
@@ -164,6 +166,8 @@ export const Sidebar = memo(function Sidebar({
   isThreadPinned,
   getPinTimestamp,
   getThreadArgsBadge,
+  getThreadTokenUsageLabel,
+  getWorkspaceTokenUsageLabel,
   onRenameThread,
   onDeleteWorkspace,
   onDeleteWorktree,
@@ -870,6 +874,7 @@ export const Sidebar = memo(function Sidebar({
                 pendingUserInputKeys={pendingUserInputKeys}
                 getThreadTime={getThreadTime}
                 getThreadArgsBadge={getThreadArgsBadge}
+                getThreadTokenUsageLabel={getThreadTokenUsageLabel}
                 isThreadPinned={isThreadPinned}
                 onSelectThread={onSelectThread}
                 onShowThreadMenu={showThreadMenu}
@@ -903,6 +908,7 @@ export const Sidebar = memo(function Sidebar({
                       pendingUserInputKeys={pendingUserInputKeys}
                       getThreadTime={getThreadTime}
                       getThreadArgsBadge={getThreadArgsBadge}
+                      getThreadTokenUsageLabel={getThreadTokenUsageLabel}
                       isThreadPinned={isThreadPinned}
                       onSelectThread={onSelectThread}
                       onShowThreadMenu={showThreadMenu}
@@ -1002,6 +1008,9 @@ export const Sidebar = memo(function Sidebar({
                           key={entry.id}
                           workspace={entry}
                           workspaceName={renderHighlightedName(entry.name)}
+                          workspaceTokenUsageLabel={
+                            getWorkspaceTokenUsageLabel?.(entry.id) ?? null
+                          }
                           isActive={entry.id === activeWorkspaceId}
                           isCollapsed={isCollapsed}
                           addMenuOpen={addMenuOpen}
@@ -1094,6 +1103,8 @@ export const Sidebar = memo(function Sidebar({
                               getThreadRows={getThreadRows}
                               getThreadTime={getThreadTime}
                               getThreadArgsBadge={getThreadArgsBadge}
+                              getThreadTokenUsageLabel={getThreadTokenUsageLabel}
+                              getWorkspaceTokenUsageLabel={getWorkspaceTokenUsageLabel}
                               isThreadPinned={isThreadPinned}
                               getPinTimestamp={getPinTimestamp}
                               pinnedThreadsVersion={pinnedThreadsVersion}
@@ -1128,6 +1139,8 @@ export const Sidebar = memo(function Sidebar({
                               getThreadRows={getThreadRows}
                               getThreadTime={getThreadTime}
                               getThreadArgsBadge={getThreadArgsBadge}
+                              getThreadTokenUsageLabel={getThreadTokenUsageLabel}
+                              getWorkspaceTokenUsageLabel={getWorkspaceTokenUsageLabel}
                               isThreadPinned={isThreadPinned}
                               getPinTimestamp={getPinTimestamp}
                               pinnedThreadsVersion={pinnedThreadsVersion}
@@ -1156,6 +1169,7 @@ export const Sidebar = memo(function Sidebar({
                               pendingUserInputKeys={pendingUserInputKeys}
                               getThreadTime={getThreadTime}
                               getThreadArgsBadge={getThreadArgsBadge}
+                              getThreadTokenUsageLabel={getThreadTokenUsageLabel}
                               isThreadPinned={isThreadPinned}
                               onToggleExpanded={handleToggleExpanded}
                               onLoadOlderThreads={onLoadOlderThreads}

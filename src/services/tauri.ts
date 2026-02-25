@@ -7,6 +7,7 @@ import type {
   CodexDoctorResult,
   DictationModelStatus,
   DictationSessionState,
+  LocalThreadUsageSnapshot,
   LocalUsageSnapshot,
   TcpDaemonStatus,
   TailscaleDaemonCommandPreview,
@@ -707,6 +708,19 @@ export async function localUsageSnapshot(
     payload.workspacePath = workspacePath;
   }
   return invoke("local_usage_snapshot", payload);
+}
+
+export async function localThreadUsageSnapshot(
+  threadIds: string[],
+  workspacePath?: string | null,
+): Promise<LocalThreadUsageSnapshot> {
+  const payload: { threadIds: string[]; workspacePath?: string } = {
+    threadIds,
+  };
+  if (workspacePath) {
+    payload.workspacePath = workspacePath;
+  }
+  return invoke("local_thread_usage_snapshot", payload);
 }
 
 export async function getModelList(workspaceId: string) {

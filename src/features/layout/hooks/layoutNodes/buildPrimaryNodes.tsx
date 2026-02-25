@@ -79,6 +79,8 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       isThreadPinned={options.isThreadPinned}
       getPinTimestamp={options.getPinTimestamp}
       getThreadArgsBadge={options.getThreadArgsBadge}
+      getThreadTokenUsageLabel={options.getThreadTokenUsageLabel}
+      getWorkspaceTokenUsageLabel={options.getWorkspaceTokenUsageLabel}
       onRenameThread={options.onRenameThread}
       onDeleteWorkspace={options.onDeleteWorkspace}
       onDeleteWorktree={options.onDeleteWorktree}

@@ -560,4 +560,54 @@ describe("Sidebar", () => {
     const indicator = screen.queryByTitle("Streaming updates in progress");
     expect(indicator).toBeNull();
   });
+
+  it("renders per-project token usage labels for workspace and worktree cards", () => {
+    render(
+      <Sidebar
+        {...baseProps}
+        workspaces={[
+          {
+            id: "ws-1",
+            name: "Workspace",
+            path: "/tmp/workspace",
+            connected: true,
+            kind: "main",
+            settings: { sidebarCollapsed: false },
+          },
+          {
+            id: "wt-1",
+            name: "Worktree A",
+            path: "/tmp/workspace-worktree-a",
+            connected: true,
+            kind: "worktree",
+            parentId: "ws-1",
+            worktree: { branch: "feature/worktree-a" },
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-1",
+                name: "Workspace",
+                path: "/tmp/workspace",
+                connected: true,
+                kind: "main",
+                settings: { sidebarCollapsed: false },
+              },
+            ],
+          },
+        ]}
+        getWorkspaceTokenUsageLabel={(workspaceId) =>
+          workspaceId === "ws-1" ? "12.4K tokens" : "3.1K tokens"
+        }
+      />,
+    );
+
+    expect(screen.getByText("12.4K tokens")).toBeTruthy();
+    expect(screen.getByText("3.1K tokens")).toBeTruthy();
+  });
 });

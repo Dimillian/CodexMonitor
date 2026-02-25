@@ -228,6 +228,70 @@ export function SettingsDisplaySection({
       </div>
       <div className="settings-toggle-row">
         <div>
+          <div className="settings-toggle-title">Show thread token usage & estimated costs</div>
+          <div className="settings-toggle-subtitle">
+            Display token totals & costs beneath each thread title. (both are estimates and can
+            differ from the actual values)
+          </div>
+        </div>
+        <button
+          type="button"
+          className={`settings-toggle ${appSettings.showThreadTokenUsage ? "on" : ""}`}
+          onClick={() =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              showThreadTokenUsage: !appSettings.showThreadTokenUsage,
+            })
+          }
+          aria-pressed={appSettings.showThreadTokenUsage}
+        >
+          <span className="settings-toggle-knob" />
+        </button>
+      </div>
+      <div className="settings-toggle-row">
+        <div>
+          <div className="settings-toggle-title">Show full thread token counts & costs</div>
+          <div className="settings-toggle-subtitle">
+            Display exact totals instead of compact abbreviations.
+          </div>
+        </div>
+        <button
+          type="button"
+          className={`settings-toggle ${appSettings.threadTokenUsageShowFull ? "on" : ""}`}
+          onClick={() =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              threadTokenUsageShowFull: !appSettings.threadTokenUsageShowFull,
+            })
+          }
+          aria-pressed={appSettings.threadTokenUsageShowFull}
+        >
+          <span className="settings-toggle-knob" />
+        </button>
+      </div>
+      <div className="settings-toggle-row">
+        <div>
+          <div className="settings-toggle-title">Exclude cache from thread token usage</div>
+          <div className="settings-toggle-subtitle">
+            Subtract cached input tokens from each thread total.
+          </div>
+        </div>
+        <button
+          type="button"
+          className={`settings-toggle ${appSettings.threadTokenUsageExcludeCache ? "on" : ""}`}
+          onClick={() =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              threadTokenUsageExcludeCache: !appSettings.threadTokenUsageExcludeCache,
+            })
+          }
+          aria-pressed={appSettings.threadTokenUsageExcludeCache}
+        >
+          <span className="settings-toggle-knob" />
+        </button>
+      </div>
+      <div className="settings-toggle-row">
+        <div>
           <div className="settings-toggle-title">Split chat and diff center panes</div>
           <div className="settings-toggle-subtitle">
             Show chat and diff side by side instead of swapping between them.

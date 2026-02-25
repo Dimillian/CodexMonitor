@@ -18,6 +18,7 @@ import {
   getOpenAppIcon,
   listThreads,
   listMcpServerStatus,
+  localThreadUsageSnapshot,
   readGlobalAgentsMd,
   readGlobalCodexConfigToml,
   listWorkspaces,
@@ -280,6 +281,21 @@ describe("tauri invoke wrappers", () => {
       cursor: "cursor-1",
       limit: 25,
       sortKey: "updated_at",
+    });
+  });
+
+  it("maps threadIds/workspacePath for local_thread_usage_snapshot", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      updatedAt: 123,
+      usageByThread: {},
+    });
+
+    await localThreadUsageSnapshot(["thread-1", "thread-2"], "/tmp/codex");
+
+    expect(invokeMock).toHaveBeenCalledWith("local_thread_usage_snapshot", {
+      threadIds: ["thread-1", "thread-2"],
+      workspacePath: "/tmp/codex",
     });
   });
 

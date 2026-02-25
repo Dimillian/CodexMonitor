@@ -14,6 +14,20 @@ function statusEquals(previous: ThreadStatus, nextStatus: ThreadStatus) {
   );
 }
 
+function normalizeWorkspaceThreadIds(
+  threadIds: string[],
+  hiddenByThreadId: Record<string, true> = {},
+): string[] {
+  const unique = new Set<string>();
+  threadIds.forEach((threadId) => {
+    if (!threadId || hiddenByThreadId[threadId]) {
+      return;
+    }
+    unique.add(threadId);
+  });
+  return Array.from(unique);
+}
+
 export function reduceThreadLifecycle(
   state: ThreadState,
   action: ThreadAction,
@@ -52,8 +66,24 @@ export function reduceThreadLifecycle(
         return state;
       }
       const list = state.threadsByWorkspace[action.workspaceId] ?? [];
-      if (list.some((thread) => thread.id === action.threadId)) {
+      const usageThreadIds =
+        state.tokenUsageThreadIdsByWorkspace[action.workspaceId] ?? [];
+      const hasThread = list.some((thread) => thread.id === action.threadId);
+      const hasUsageThreadId = usageThreadIds.includes(action.threadId);
+      if (hasThread && hasUsageThreadId) {
         return state;
+      }
+      const nextUsageThreadIds = hasUsageThreadId
+        ? usageThreadIds
+        : [action.threadId, ...usageThreadIds];
+      if (hasThread) {
+        return {
+          ...state,
+          tokenUsageThreadIdsByWorkspace: {
+            ...state.tokenUsageThreadIdsByWorkspace,
+            [action.workspaceId]: nextUsageThreadIds,
+          },
+        };
       }
       const thread: ThreadSummary = {
         id: action.threadId,
@@ -65,6 +95,10 @@ export function reduceThreadLifecycle(
         threadsByWorkspace: {
           ...state.threadsByWorkspace,
           [action.workspaceId]: [thread, ...list],
+        },
+        tokenUsageThreadIdsByWorkspace: {
+          ...state.tokenUsageThreadIdsByWorkspace,
+          [action.workspaceId]: nextUsageThreadIds,
         },
         threadStatusById: {
           ...state.threadStatusById,
@@ -97,6 +131,11 @@ export function reduceThreadLifecycle(
 
       const list = state.threadsByWorkspace[action.workspaceId] ?? [];
       const filtered = list.filter((thread) => thread.id !== action.threadId);
+      const usageThreadIds =
+        state.tokenUsageThreadIdsByWorkspace[action.workspaceId] ?? [];
+      const filteredUsageThreadIds = usageThreadIds.filter(
+        (threadId) => threadId !== action.threadId,
+      );
       const nextActive =
         state.activeThreadIdByWorkspace[action.workspaceId] === action.threadId
           ? filtered[0]?.id ?? null
@@ -112,6 +151,10 @@ export function reduceThreadLifecycle(
           ...state.threadsByWorkspace,
           [action.workspaceId]: filtered,
         },
+        tokenUsageThreadIdsByWorkspace: {
+          ...state.tokenUsageThreadIdsByWorkspace,
+          [action.workspaceId]: filteredUsageThreadIds,
+        },
         activeThreadIdByWorkspace: {
           ...state.activeThreadIdByWorkspace,
           [action.workspaceId]: nextActive,
@@ -121,6 +164,11 @@ export function reduceThreadLifecycle(
     case "removeThread": {
       const list = state.threadsByWorkspace[action.workspaceId] ?? [];
       const filtered = list.filter((thread) => thread.id !== action.threadId);
+      const usageThreadIds =
+        state.tokenUsageThreadIdsByWorkspace[action.workspaceId] ?? [];
+      const filteredUsageThreadIds = usageThreadIds.filter(
+        (threadId) => threadId !== action.threadId,
+      );
       const nextActive =
         state.activeThreadIdByWorkspace[action.workspaceId] === action.threadId
           ? filtered[0]?.id ?? null
@@ -131,11 +179,16 @@ export function reduceThreadLifecycle(
       const { [action.threadId]: ____, ...restDiffs } = state.turnDiffByThread;
       const { [action.threadId]: _____, ...restPlans } = state.planByThread;
       const { [action.threadId]: ______, ...restParents } = state.threadParentById;
+      const { [action.threadId]: _______, ...restTokenUsage } = state.tokenUsageByThread;
       return {
         ...state,
         threadsByWorkspace: {
           ...state.threadsByWorkspace,
           [action.workspaceId]: filtered,
+        },
+        tokenUsageThreadIdsByWorkspace: {
+          ...state.tokenUsageThreadIdsByWorkspace,
+          [action.workspaceId]: filteredUsageThreadIds,
         },
         itemsByThread: restItems,
         threadStatusById: restStatus,
@@ -143,6 +196,7 @@ export function reduceThreadLifecycle(
         turnDiffByThread: restDiffs,
         planByThread: restPlans,
         threadParentById: restParents,
+        tokenUsageByThread: restTokenUsage,
         activeThreadIdByWorkspace: {
           ...state.activeThreadIdByWorkspace,
           [action.workspaceId]: nextActive,
@@ -401,6 +455,25 @@ export function reduceThreadLifecycle(
         threadSortKeyByWorkspace: {
           ...state.threadSortKeyByWorkspace,
           [action.workspaceId]: action.sortKey,
+        },
+      };
+    }
+    case "setWorkspaceTokenUsageThreadIds": {
+      const hidden = state.hiddenThreadIdsByWorkspace[action.workspaceId] ?? {};
+      const nextThreadIds = normalizeWorkspaceThreadIds(action.threadIds, hidden);
+      const currentThreadIds =
+        state.tokenUsageThreadIdsByWorkspace[action.workspaceId] ?? [];
+      if (
+        nextThreadIds.length === currentThreadIds.length &&
+        nextThreadIds.every((threadId, index) => threadId === currentThreadIds[index])
+      ) {
+        return state;
+      }
+      return {
+        ...state,
+        tokenUsageThreadIdsByWorkspace: {
+          ...state.tokenUsageThreadIdsByWorkspace,
+          [action.workspaceId]: nextThreadIds,
         },
       };
     }

@@ -24,6 +24,27 @@ function normalizeEffort(value: string | null): string | null {
   return normalized;
 }
 
+function normalizeModelId(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const normalized = trimmed.toLowerCase();
+  if (
+    normalized === "unknown" ||
+    normalized === "default" ||
+    normalized === "auto" ||
+    normalized === "current" ||
+    normalized === "inherit"
+  ) {
+    return null;
+  }
+  return trimmed;
+}
+
 function pickString(
   record: Record<string, unknown>,
   keys: readonly string[],
@@ -77,7 +98,7 @@ function extractFromRecord(record: Record<string, unknown>): {
 
   for (const container of containers) {
     if (!modelId) {
-      modelId = pickString(container, MODEL_KEYS);
+      modelId = normalizeModelId(pickString(container, MODEL_KEYS));
     }
     if (!effort) {
       effort = normalizeEffort(pickString(container, EFFORT_KEYS));

@@ -813,9 +813,16 @@
 
 .workspace-name-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   justify-content: space-between;
+  min-width: 0;
+}
+
+.workspace-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   min-width: 0;
 }
 
@@ -824,6 +831,16 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
+}
+
+.workspace-token-usage {
+  font-size: 10px;
+  color: var(--text-faint);
+  line-height: 1.2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workspace-toggle {
@@ -946,7 +963,7 @@
 
 .thread-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
   padding: 4px 10px 4px calc(6px + var(--thread-indent, 0px));
   border-radius: 6px;
@@ -965,11 +982,13 @@
   border-radius: 999px;
   display: inline-block;
   margin-left: 4px;
+  margin-top: 3px;
 }
 
 .thread-pin-icon {
   font-size: 10px;
   margin-right: 2px;
+  margin-top: 1px;
   opacity: 0.7;
 }
 
@@ -1009,8 +1028,25 @@
   color: var(--text-strong);
 }
 
-.thread-name {
+.thread-text {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.thread-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thread-token-usage {
+  font-size: 10px;
+  color: var(--text-faint);
+  line-height: 1.2;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1022,6 +1058,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  align-self: flex-start;
 }
 
 .thread-args-badge {
@@ -1233,13 +1270,29 @@
   text-overflow: ellipsis;
 }
 
+.worktree-label-block {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.worktree-token-usage {
+  font-size: 10px;
+  color: var(--text-faint);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .worktree-row.deleting .worktree-label {
   color: var(--text-faint);
 }
 
 .worktree-actions {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
 }
 

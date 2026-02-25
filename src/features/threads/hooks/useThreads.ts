@@ -53,6 +53,7 @@ type UseThreadsOptions = {
   customPrompts?: CustomPromptOption[];
   onMessageActivity?: () => void;
   threadSortKey?: ThreadListSortKey;
+  enableBackgroundThreadMetadataHydration?: boolean;
   onThreadCodexMetadataDetected?: (
     workspaceId: string,
     threadId: string,
@@ -82,6 +83,7 @@ export function useThreads({
   customPrompts = [],
   onMessageActivity,
   threadSortKey = "updated_at",
+  enableBackgroundThreadMetadataHydration = false,
   onThreadCodexMetadataDetected,
 }: UseThreadsOptions) {
   const maxItemsPerThread =
@@ -546,6 +548,7 @@ export function useThreads({
     dispatch,
     itemsByThread: state.itemsByThread,
     threadsByWorkspace: state.threadsByWorkspace,
+    tokenUsageThreadIdsByWorkspace: state.tokenUsageThreadIdsByWorkspace,
     activeThreadIdByWorkspace: state.activeThreadIdByWorkspace,
     activeTurnIdByThread: state.activeTurnIdByThread,
     threadParentById: state.threadParentById,
@@ -561,6 +564,7 @@ export function useThreads({
     updateThreadParent,
     onSubagentThreadDetected,
     onThreadCodexMetadataDetected,
+    enableBackgroundMetadataHydration: enableBackgroundThreadMetadataHydration,
   });
 
   const ensureWorkspaceRuntimeCodexArgsBestEffort = useCallback(
@@ -848,6 +852,7 @@ export function useThreads({
     activeTurnIdByThread: state.activeTurnIdByThread,
     turnDiffByThread: state.turnDiffByThread,
     tokenUsageByThread: state.tokenUsageByThread,
+    tokenUsageThreadIdsByWorkspace: state.tokenUsageThreadIdsByWorkspace,
     rateLimitsByWorkspace: state.rateLimitsByWorkspace,
     accountByWorkspace: state.accountByWorkspace,
     planByThread: state.planByThread,

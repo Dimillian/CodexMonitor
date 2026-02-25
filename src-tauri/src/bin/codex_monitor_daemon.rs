@@ -82,13 +82,13 @@ use shared::process_core::kill_child_process_tree;
 use shared::prompts_core::{self, CustomPromptEntry};
 use shared::{
     agents_config_core, codex_aux_core, codex_core, files_core, git_core, git_ui_core,
-    local_usage_core, settings_core, workspaces_core, worktree_core,
+    local_usage_core, settings_core, thread_usage_core, workspaces_core, worktree_core,
 };
 use storage::{read_settings, read_workspaces};
 use types::{
     AppSettings, GitCommitDiff, GitFileDiff, GitHubIssuesResponse, GitHubPullRequestComment,
-    GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse, LocalUsageSnapshot,
-    WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorktreeSetupStatus,
+    GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse, LocalThreadUsageSnapshot,
+    LocalUsageSnapshot, WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorktreeSetupStatus,
 };
 use workspace_settings::apply_workspace_settings_update;
 
@@ -1325,6 +1325,19 @@ impl DaemonState {
         local_usage_core::local_usage_snapshot_core(&self.workspaces, days, workspace_path).await
     }
 
+    async fn local_thread_usage_snapshot(
+        &self,
+        thread_ids: Vec<String>,
+        workspace_path: Option<String>,
+    ) -> Result<LocalThreadUsageSnapshot, String> {
+        thread_usage_core::local_thread_usage_snapshot_core(
+            &self.workspaces,
+            thread_ids,
+            workspace_path,
+        )
+        .await
+    }
+
     async fn menu_set_accelerators(&self, _updates: Vec<Value>) -> Result<(), String> {
         // Daemon has no native menu runtime; treat as no-op for remote parity.
         Ok(())
@@ -1750,6 +1763,27 @@ mod tests {
 
             assert!(result.get("days").and_then(Value::as_array).is_some());
             assert!(result.get("totals").is_some());
+            let _ = std::fs::remove_dir_all(&tmp);
+        });
+    }
+
+    #[test]
+    fn rpc_local_thread_usage_snapshot_returns_snapshot_shape() {
+        run_async_test(async {
+            let tmp = make_temp_dir("rpc-local-thread-usage");
+            let state = test_state(&tmp);
+
+            let result = rpc::handle_rpc_request(
+                &state,
+                "local_thread_usage_snapshot",
+                json!({ "threadIds": ["thread-1"] }),
+                "daemon-test".to_string(),
+            )
+            .await
+            .expect("local_thread_usage_snapshot should succeed");
+
+            assert!(result.get("updatedAt").and_then(Value::as_i64).is_some());
+            assert!(result.get("usageByThread").and_then(Value::as_object).is_some());
             let _ = std::fs::remove_dir_all(&tmp);
         });
     }
