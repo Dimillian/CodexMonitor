@@ -11,8 +11,10 @@ const repoRoot = resolve(scriptDir, "..");
 const srcTauriDir = join(repoRoot, "src-tauri");
 const binariesDir = join(srcTauriDir, "binaries");
 
-const explicitTarget = Boolean(process.env.TARGET || process.env.CARGO_BUILD_TARGET);
-let buildTarget = process.env.TARGET || process.env.CARGO_BUILD_TARGET || "";
+const envBuildTarget =
+  process.env.TAURI_ENV_TARGET_TRIPLE || process.env.TARGET || process.env.CARGO_BUILD_TARGET || "";
+const explicitTarget = Boolean(envBuildTarget);
+let buildTarget = envBuildTarget;
 
 if (!buildTarget) {
   const rustcVersion = run("rustc", ["-vV"], { captureOutput: true });
