@@ -220,15 +220,8 @@ export function useWorkspaceCrud({
 
       for (const selection of selections) {
         const pathCandidates = buildWorkspacePathCandidates(selection, homePrefixes);
-        const existingCandidate = pathCandidates.find((candidate) =>
-          existingPaths.has(normalizeWorkspacePathKey(candidate)),
-        );
-        if (existingCandidate) {
-          skippedExisting.push(selection);
-          continue;
-        }
-
         let addedWorkspace = false;
+        let hadExistingCandidate = false;
         let checkFailedMessage: string | null = null;
         for (const candidate of pathCandidates) {
           let isDir = false;
@@ -239,6 +232,10 @@ export function useWorkspaceCrud({
             continue;
           }
           if (!isDir) {
+            continue;
+          }
+          if (existingPaths.has(normalizeWorkspacePathKey(candidate))) {
+            hadExistingCandidate = true;
             continue;
           }
           try {
@@ -262,6 +259,10 @@ export function useWorkspaceCrud({
         }
 
         if (addedWorkspace) {
+          continue;
+        }
+        if (hadExistingCandidate) {
+          skippedExisting.push(selection);
           continue;
         }
         if (checkFailedMessage) {
