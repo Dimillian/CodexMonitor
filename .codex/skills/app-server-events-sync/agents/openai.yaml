@@ -1,0 +1,4 @@
+interface:
+  display_name: "App-Server Events Sync"
+  short_description: "Audit CodexMonitor app-server event parity"
+  default_prompt: "Use $app-server-events-sync to compare CodexMonitor routing and requests against ../Codex and update docs/app-server-events.md."

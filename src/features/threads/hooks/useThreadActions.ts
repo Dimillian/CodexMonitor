@@ -31,7 +31,7 @@ import {
   normalizeRootPath,
 } from "@threads/utils/threadNormalize";
 import {
-  getParentThreadIdFromSource,
+  getParentThreadIdFromThread,
   getResumedTurnState,
 } from "@threads/utils/threadRpc";
 import { saveThreadActivity } from "@threads/utils/threadStorage";
@@ -79,21 +79,29 @@ function buildWorkspacePathLookup(workspaces: WorkspaceInfo[]): WorkspacePathLoo
   return { workspaceIdsByPath, workspacePathsSorted };
 }
 
-function resolveWorkspaceIdsForThreadPath(
+function resolveWorkspaceIdForThreadPath(
   path: string,
   lookup: WorkspacePathLookup,
+  allowedWorkspaceIds?: Set<string>,
 ) {
   const normalizedPath = normalizeRootPath(path);
   if (!normalizedPath) {
-    return [];
+    return null;
   }
   const matchedWorkspacePath = lookup.workspacePathsSorted.find((workspacePath) =>
     isWithinWorkspaceRoot(normalizedPath, workspacePath),
   );
   if (!matchedWorkspacePath) {
-    return [];
+    return null;
   }
-  return lookup.workspaceIdsByPath[matchedWorkspacePath] ?? [];
+  const workspaceIds = lookup.workspaceIdsByPath[matchedWorkspacePath] ?? [];
+  if (!allowedWorkspaceIds) {
+    return workspaceIds[0] ?? null;
+  }
+  return (
+    workspaceIds.find((workspaceId) => allowedWorkspaceIds.has(workspaceId)) ??
+    null
+  );
 }
 
 function getThreadListNextCursor(result: Record<string, unknown>): string | null {
@@ -486,7 +494,7 @@ export function useThreadActions({
               tokenUsage: normalizeTokenUsage(rawTokenUsage),
             });
           }
-          const sourceParentId = getParentThreadIdFromSource(thread.source);
+          const sourceParentId = getParentThreadIdFromThread(thread);
           if (sourceParentId) {
             updateThreadParent(sourceParentId, [threadId]);
             onSubagentThreadDetected(workspaceId, threadId);
@@ -788,12 +796,13 @@ export function useThreadActions({
         const requester = targets.find((workspace) => workspace.connected) ?? targets[0];
         const matchingThreadsByWorkspace: Record<string, Record<string, unknown>[]> = {};
         let workspacePathLookup = buildWorkspacePathLookup(targets);
+        const targetWorkspaceIds = new Set(targets.map((workspace) => workspace.id));
         try {
           const knownWorkspaces = await listWorkspacesService();
           if (knownWorkspaces.length > 0) {
             workspacePathLookup = buildWorkspacePathLookup([
-              ...knownWorkspaces,
               ...targets,
+              ...knownWorkspaces,
             ]);
           }
         } catch {
@@ -831,29 +840,31 @@ export function useThreadActions({
             : [];
           const nextCursor = getThreadListNextCursor(result);
           data.forEach((thread) => {
-            const workspaceIds = resolveWorkspaceIdsForThreadPath(
+            const workspaceId = resolveWorkspaceIdForThreadPath(
               String(thread?.cwd ?? ""),
               workspacePathLookup,
+              targetWorkspaceIds,
             );
-            workspaceIds.forEach((workspaceId) => {
-              matchingThreadsByWorkspace[workspaceId]?.push(thread);
-              const threadId = String(thread?.id ?? "");
-              if (!threadId) {
-                return;
-              }
-              const uniqueThreadIds = uniqueThreadIdsByWorkspace[workspaceId];
-              if (!uniqueThreadIds || uniqueThreadIds.has(threadId)) {
-                return;
-              }
-              uniqueThreadIds.add(threadId);
-              if (
-                uniqueThreadIds.size > THREAD_LIST_TARGET_COUNT &&
-                resumeCursorByWorkspace[workspaceId] === null
-              ) {
-                resumeCursorByWorkspace[workspaceId] =
-                  pageCursor ?? THREAD_LIST_CURSOR_PAGE_START;
-              }
-            });
+            if (!workspaceId) {
+              return;
+            }
+            matchingThreadsByWorkspace[workspaceId]?.push(thread);
+            const threadId = String(thread?.id ?? "");
+            if (!threadId) {
+              return;
+            }
+            const uniqueThreadIds = uniqueThreadIdsByWorkspace[workspaceId];
+            if (!uniqueThreadIds || uniqueThreadIds.has(threadId)) {
+              return;
+            }
+            uniqueThreadIds.add(threadId);
+            if (
+              uniqueThreadIds.size > THREAD_LIST_TARGET_COUNT &&
+              resumeCursorByWorkspace[workspaceId] === null
+            ) {
+              resumeCursorByWorkspace[workspaceId] =
+                pageCursor ?? THREAD_LIST_CURSOR_PAGE_START;
+            }
           });
           cursor = nextCursor;
           if (pagesFetched >= maxPages) {
@@ -885,7 +896,7 @@ export function useThreadActions({
             if (codexMetadata.modelId || codexMetadata.effort) {
               onThreadCodexMetadataDetected?.(workspace.id, threadId, codexMetadata);
             }
-            const sourceParentId = getParentThreadIdFromSource(thread.source);
+            const sourceParentId = getParentThreadIdFromThread(thread);
             if (sourceParentId) {
               updateThreadParent(sourceParentId, [threadId]);
               onSubagentThreadDetected(workspace.id, threadId);
@@ -1081,6 +1092,7 @@ export function useThreadActions({
       const nextCursor =
         cursorValue === THREAD_LIST_CURSOR_PAGE_START ? null : cursorValue;
       let workspacePathLookup = buildWorkspacePathLookup([workspace]);
+      const allowedWorkspaceIds = new Set([workspace.id]);
       const existing = threadsByWorkspace[workspace.id] ?? [];
       dispatch({
         type: "setThreadListPaging",
@@ -1099,8 +1111,8 @@ export function useThreadActions({
           const knownWorkspaces = await listWorkspacesService();
           if (knownWorkspaces.length > 0) {
             workspacePathLookup = buildWorkspacePathLookup([
-              ...knownWorkspaces,
               workspace,
+              ...knownWorkspaces,
             ]);
           }
         } catch {
@@ -1134,14 +1146,12 @@ export function useThreadActions({
           matchingThreads.push(
             ...data.filter(
               (thread) => {
-                const workspaceIds = resolveWorkspaceIdsForThreadPath(
+                const workspaceId = resolveWorkspaceIdForThreadPath(
                   String(thread?.cwd ?? ""),
                   workspacePathLookup,
+                  allowedWorkspaceIds,
                 );
-                if (workspaceIds.length === 0) {
-                  return false;
-                }
-                return workspaceIds.includes(workspace.id);
+                return workspaceId === workspace.id;
               },
             ),
           );
@@ -1165,7 +1175,7 @@ export function useThreadActions({
           if (codexMetadata.modelId || codexMetadata.effort) {
             onThreadCodexMetadataDetected?.(workspace.id, id, codexMetadata);
           }
-          const sourceParentId = getParentThreadIdFromSource(thread.source);
+          const sourceParentId = getParentThreadIdFromThread(thread);
           if (sourceParentId) {
             updateThreadParent(sourceParentId, [id]);
           }

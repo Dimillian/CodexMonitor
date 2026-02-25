@@ -469,6 +469,7 @@ export type LayoutNodesOptions = {
   dictationState: DictationSessionState;
   dictationLevel: number;
   onToggleDictation: () => void;
+  onCancelDictation?: () => void;
   dictationTranscript: DictationTranscript | null;
   onDictationTranscriptHandled: (id: string) => void;
   dictationError: string | null;

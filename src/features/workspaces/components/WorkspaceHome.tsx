@@ -76,6 +76,7 @@ type WorkspaceHomeProps = {
   dictationState: DictationSessionState;
   dictationLevel: number;
   onToggleDictation: () => void;
+  onCancelDictation?: () => void;
   onOpenDictationSettings: () => void;
   dictationError: string | null;
   onDismissDictationError: () => void;
@@ -138,6 +139,7 @@ export function WorkspaceHome({
   dictationState,
   dictationLevel,
   onToggleDictation,
+  onCancelDictation,
   onOpenDictationSettings,
   dictationError,
   onDismissDictationError,
@@ -386,6 +388,7 @@ export function WorkspaceHome({
             dictationLevel={dictationLevel}
             dictationEnabled={dictationEnabled}
             onToggleDictation={onToggleDictation}
+            onCancelDictation={onCancelDictation}
             onOpenDictationSettings={onOpenDictationSettings}
             dictationError={dictationError}
             onDismissDictationError={onDismissDictationError}

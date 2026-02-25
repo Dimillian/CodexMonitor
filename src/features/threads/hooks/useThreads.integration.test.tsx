@@ -1104,6 +1104,30 @@ describe("useThreads UX integration", () => {
     expect(result.current.isSubagentThread("ws-1", "thread-child-live")).toBe(true);
   });
 
+  it("classifies live spawned threads from top-level parent thread metadata", () => {
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      handlers?.onThreadStarted?.("ws-1", {
+        id: "thread-child-live-flat-parent",
+        preview: "Child live flat parent",
+        parent_thread_id: "thread-parent-live-flat",
+      });
+    });
+
+    expect(result.current.threadParentById["thread-child-live-flat-parent"]).toBe(
+      "thread-parent-live-flat",
+    );
+    expect(result.current.isSubagentThread("ws-1", "thread-child-live-flat-parent")).toBe(
+      true,
+    );
+  });
+
   it("classifies live spawned threads from collab tool events", () => {
     const { result } = renderHook(() =>
       useThreads({
@@ -1125,6 +1149,32 @@ describe("useThreads UX integration", () => {
       "thread-parent-live",
     );
     expect(result.current.isSubagentThread("ws-1", "thread-child-live-collab")).toBe(true);
+  });
+
+  it("classifies live spawned threads from spawn tool payloads with link hints", () => {
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      handlers?.onItemCompleted?.("ws-1", "thread-parent-live", {
+        type: "mcpToolCall",
+        id: "item-spawn-link-hints",
+        tool: "spawn_agent",
+        sender_thread_id: "thread-parent-live",
+        new_thread_id: "thread-child-live-spawn-hint",
+      });
+    });
+
+    expect(result.current.threadParentById["thread-child-live-spawn-hint"]).toBe(
+      "thread-parent-live",
+    );
+    expect(result.current.isSubagentThread("ws-1", "thread-child-live-spawn-hint")).toBe(
+      true,
+    );
   });
 
   it("classifies collab receivers from receiver_agents metadata", () => {

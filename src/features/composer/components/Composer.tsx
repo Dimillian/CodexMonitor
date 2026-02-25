@@ -106,6 +106,7 @@ type ComposerProps = {
   dictationState?: "idle" | "listening" | "processing";
   dictationLevel?: number;
   onToggleDictation?: () => void;
+  onCancelDictation?: () => void;
   onOpenDictationSettings?: () => void;
   dictationTranscript?: DictationTranscript | null;
   onDictationTranscriptHandled?: (id: string) => void;
@@ -214,6 +215,7 @@ export const Composer = memo(function Composer({
   dictationState = "idle",
   dictationLevel = 0,
   onToggleDictation,
+  onCancelDictation,
   onOpenDictationSettings,
   dictationTranscript = null,
   onDictationTranscriptHandled,
@@ -695,6 +697,7 @@ export const Composer = memo(function Composer({
         dictationState={dictationState}
         dictationLevel={dictationLevel}
         onToggleDictation={onToggleDictation}
+        onCancelDictation={onCancelDictation}
         onOpenDictationSettings={onOpenDictationSettings}
         dictationError={dictationError}
         onDismissDictationError={onDismissDictationError}

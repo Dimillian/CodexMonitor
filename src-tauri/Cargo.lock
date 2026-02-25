@@ -599,7 +599,7 @@ dependencies = [
 
 [[package]]
 name = "codex-monitor"
-version = "0.7.58"
+version = "0.7.59"
 dependencies = [
  "base64 0.22.1",
  "block2",
