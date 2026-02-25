@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getResumedActiveTurnId, getResumedTurnState } from "./threadRpc";
+import {
+  getParentThreadIdFromThread,
+  getResumedActiveTurnId,
+  getResumedTurnState,
+} from "./threadRpc";
 
 describe("threadRpc", () => {
   it("prefers explicit activeTurnId when present", () => {
@@ -73,5 +77,30 @@ describe("threadRpc", () => {
       activeTurnStartedAtMs: null,
       confidentNoActiveTurn: false,
     });
+  });
+
+  it("extracts parent thread ids from top-level thread fields", () => {
+    expect(
+      getParentThreadIdFromThread({
+        id: "thread-child",
+        parent_thread_id: "thread-parent",
+      }),
+    ).toBe("thread-parent");
+  });
+
+  it("prioritizes source metadata over fallback parent fields", () => {
+    expect(
+      getParentThreadIdFromThread({
+        id: "thread-child",
+        parent_thread_id: "thread-parent-flat",
+        source: {
+          subAgent: {
+            thread_spawn: {
+              parent_thread_id: "thread-parent-source",
+            },
+          },
+        },
+      }),
+    ).toBe("thread-parent-source");
   });
 });
