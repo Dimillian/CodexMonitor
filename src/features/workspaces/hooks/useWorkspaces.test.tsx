@@ -356,6 +356,43 @@ describe("useWorkspaces.addWorkspacesFromPaths", () => {
     expect(addResult!.skippedInvalid).toEqual(["/tmp/not-a-dir"]);
     expect(addResult!.failures).toHaveLength(0);
   });
+
+  it("expands tilde paths using known workspace home prefixes", async () => {
+    const listWorkspacesMock = vi.mocked(listWorkspaces);
+    const isWorkspacePathDirMock = vi.mocked(isWorkspacePathDir);
+    const addWorkspaceMock = vi.mocked(addWorkspace);
+
+    listWorkspacesMock.mockResolvedValue([
+      {
+        ...workspaceOne,
+        id: "existing",
+        path: "/Users/vlad/dev/existing",
+      },
+    ]);
+    isWorkspacePathDirMock.mockImplementation(async (path: string) => path === "/Users/vlad/dev/personal");
+    addWorkspaceMock.mockResolvedValue({
+      ...workspaceTwo,
+      id: "added-home",
+      path: "/Users/vlad/dev/personal",
+    });
+
+    const { result } = renderHook(() => useWorkspaces());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    let addResult: Awaited<ReturnType<typeof result.current.addWorkspacesFromPaths>>;
+    await act(async () => {
+      addResult = await result.current.addWorkspacesFromPaths(["~/dev/personal"]);
+    });
+
+    expect(isWorkspacePathDirMock).toHaveBeenCalledWith("/Users/vlad/dev/personal");
+    expect(addWorkspaceMock).toHaveBeenCalledWith("/Users/vlad/dev/personal");
+    expect(addResult!.added).toHaveLength(1);
+    expect(addResult!.skippedInvalid).toHaveLength(0);
+    expect(addResult!.failures).toHaveLength(0);
+  });
 });
 
 

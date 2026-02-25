@@ -38,6 +38,41 @@ function normalizeWorkspacePathKey(value: string) {
   return value.trim().replace(/\\/g, "/").replace(/\/+$/, "");
 }
 
+function inferHomePrefixes(paths: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const path of paths) {
+    const normalized = path.trim().replace(/\\/g, "/");
+    if (!normalized.startsWith("/")) {
+      continue;
+    }
+    const segments = normalized.split("/").filter(Boolean);
+    if (segments.length < 2) {
+      continue;
+    }
+    const candidate = `/${segments[0]}/${segments[1]}`;
+    if (seen.has(candidate)) {
+      continue;
+    }
+    seen.add(candidate);
+    result.push(candidate);
+  }
+  return result;
+}
+
+function buildWorkspacePathCandidates(path: string, homePrefixes: string[]): string[] {
+  const trimmed = path.trim();
+  if (trimmed === "~") {
+    return [...homePrefixes, trimmed];
+  }
+  const rest = trimmed.startsWith("~/") ? trimmed.slice(2) : null;
+  if (rest == null) {
+    return [trimmed];
+  }
+  const expanded = homePrefixes.map((prefix) => `${prefix}/${rest}`);
+  return [...expanded, trimmed];
+}
+
 export function useWorkspaceCrud({
   onDebug,
   workspaces,
@@ -161,6 +196,7 @@ export function useWorkspaceCrud({
 
   const addWorkspacesFromPaths = useCallback(
     async (paths: string[]): Promise<AddWorkspacesFromPathsResult> => {
+      const homePrefixes = inferHomePrefixes(workspaces.map((entry) => entry.path));
       const existingPaths = new Set(
         workspaces.map((entry) => normalizeWorkspacePathKey(entry.path)),
       );
@@ -183,42 +219,59 @@ export function useWorkspaceCrud({
         });
 
       for (const selection of selections) {
-        const key = normalizeWorkspacePathKey(selection);
-        if (existingPaths.has(key)) {
+        const pathCandidates = buildWorkspacePathCandidates(selection, homePrefixes);
+        const existingCandidate = pathCandidates.find((candidate) =>
+          existingPaths.has(normalizeWorkspacePathKey(candidate)),
+        );
+        if (existingCandidate) {
           skippedExisting.push(selection);
           continue;
         }
 
-        let isDir = false;
-        try {
-          isDir = await isWorkspacePathDirService(selection);
-        } catch (error) {
-          failures.push({
-            path: selection,
-            message: error instanceof Error ? error.message : String(error),
-          });
-          continue;
-        }
-
-        if (!isDir) {
-          skippedInvalid.push(selection);
-          continue;
-        }
-
-        try {
-          const workspace = await addWorkspaceFromPath(selection, {
-            activate: added.length === 0,
-          });
-          if (workspace) {
-            added.push(workspace);
-            existingPaths.add(key);
+        let addedWorkspace = false;
+        let checkFailedMessage: string | null = null;
+        for (const candidate of pathCandidates) {
+          let isDir = false;
+          try {
+            isDir = await isWorkspacePathDirService(candidate);
+          } catch (error) {
+            checkFailedMessage = error instanceof Error ? error.message : String(error);
+            continue;
           }
-        } catch (error) {
+          if (!isDir) {
+            continue;
+          }
+          try {
+            const workspace = await addWorkspaceFromPath(candidate, {
+              activate: added.length === 0,
+            });
+            if (workspace) {
+              added.push(workspace);
+              existingPaths.add(normalizeWorkspacePathKey(workspace.path));
+              addedWorkspace = true;
+              break;
+            }
+          } catch (error) {
+            failures.push({
+              path: selection,
+              message: error instanceof Error ? error.message : String(error),
+            });
+            addedWorkspace = true;
+            break;
+          }
+        }
+
+        if (addedWorkspace) {
+          continue;
+        }
+        if (checkFailedMessage) {
           failures.push({
             path: selection,
-            message: error instanceof Error ? error.message : String(error),
+            message: checkFailedMessage,
           });
+          continue;
         }
+        skippedInvalid.push(selection);
       }
 
       return {

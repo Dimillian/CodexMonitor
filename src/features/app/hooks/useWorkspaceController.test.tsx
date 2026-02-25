@@ -70,6 +70,7 @@ describe("useWorkspaceController dialogs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(isMobilePlatform).mockReturnValue(false);
+    window.localStorage.clear();
   });
 
   it("shows add-workspaces summary in controller layer", async () => {
@@ -176,5 +177,99 @@ describe("useWorkspaceController dialogs", () => {
     expect(added).toMatchObject({ id: workspaceOne.id });
     expect(isWorkspacePathDir).toHaveBeenCalledWith("/srv/codex-monitor");
     expect(result.current.mobileRemoteWorkspacePathPrompt).toBeNull();
+    expect(window.localStorage.getItem("mobile-remote-workspace-recent-paths")).toBe(
+      JSON.stringify(["/tmp/ws-1"]),
+    );
+  });
+
+  it("appends selected recent path only when missing", async () => {
+    vi.mocked(isMobilePlatform).mockReturnValue(true);
+    window.localStorage.setItem(
+      "mobile-remote-workspace-recent-paths",
+      JSON.stringify(["/srv/one", "/srv/two"]),
+    );
+    vi.mocked(listWorkspaces).mockResolvedValue([]);
+
+    const { result } = renderHook(() =>
+      useWorkspaceController({
+        appSettings: {
+          ...baseAppSettings,
+          backendMode: "remote",
+        },
+        addDebugEntry: vi.fn(),
+        queueSaveSettings: vi.fn(async (next) => next),
+      }),
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      void result.current.addWorkspace();
+    });
+
+    expect(result.current.mobileRemoteWorkspacePathPrompt?.recentPaths).toEqual([
+      "/srv/one",
+      "/srv/two",
+    ]);
+
+    await act(async () => {
+      result.current.appendMobileRemoteWorkspacePathFromRecent("/srv/one");
+    });
+    expect(result.current.mobileRemoteWorkspacePathPrompt?.value).toBe("/srv/one");
+
+    await act(async () => {
+      result.current.appendMobileRemoteWorkspacePathFromRecent("/srv/one");
+    });
+    expect(result.current.mobileRemoteWorkspacePathPrompt?.value).toBe("/srv/one");
+
+    await act(async () => {
+      result.current.appendMobileRemoteWorkspacePathFromRecent("/srv/two");
+    });
+    expect(result.current.mobileRemoteWorkspacePathPrompt?.value).toBe(
+      "/srv/one\n/srv/two",
+    );
+  });
+
+  it("accepts quoted mobile remote paths", async () => {
+    vi.mocked(isMobilePlatform).mockReturnValue(true);
+    vi.mocked(listWorkspaces).mockResolvedValue([]);
+    vi.mocked(isWorkspacePathDir).mockResolvedValue(true);
+    vi.mocked(addWorkspace).mockResolvedValue(workspaceOne);
+
+    const { result } = renderHook(() =>
+      useWorkspaceController({
+        appSettings: {
+          ...baseAppSettings,
+          backendMode: "remote",
+        },
+        addDebugEntry: vi.fn(),
+        queueSaveSettings: vi.fn(async (next) => next),
+      }),
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    let addPromise: Promise<WorkspaceInfo | null> = Promise.resolve(null);
+    await act(async () => {
+      addPromise = result.current.addWorkspace();
+    });
+
+    await act(async () => {
+      result.current.updateMobileRemoteWorkspacePathInput("'~/dev/personal'");
+    });
+
+    await act(async () => {
+      result.current.submitMobileRemoteWorkspacePathPrompt();
+    });
+
+    await act(async () => {
+      await addPromise;
+    });
+
+    expect(isWorkspacePathDir).toHaveBeenCalledWith("~/dev/personal");
   });
 });

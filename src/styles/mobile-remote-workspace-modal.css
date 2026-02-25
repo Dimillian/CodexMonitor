@@ -14,3 +14,37 @@
   font-size: 12px;
   color: var(--ds-text-subtle);
 }
+
+.mobile-remote-workspace-modal-recent {
+  display: grid;
+  gap: 6px;
+}
+
+.mobile-remote-workspace-modal-recent-title {
+  font-size: 12px;
+  color: var(--ds-text-subtle);
+}
+
+.mobile-remote-workspace-modal-recent-list {
+  display: grid;
+  gap: 8px;
+}
+
+.mobile-remote-workspace-modal-recent-item {
+  border: 1px solid var(--ds-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ds-text-subtle);
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 8px 10px;
+  width: 100%;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.mobile-remote-workspace-modal-recent-item:hover {
+  color: var(--ds-text);
+  border-color: var(--ds-accent-border, var(--ds-border-strong));
+}

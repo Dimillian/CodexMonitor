@@ -56,6 +56,7 @@ type WorkspaceFromUrlPromptState = ReturnType<
 type MobileRemoteWorkspacePathPromptState = {
   value: string;
   error: string | null;
+  recentPaths: string[];
 } | null;
 
 type AppModalsProps = {
@@ -102,6 +103,7 @@ type AppModalsProps = {
   onWorkspaceFromUrlPromptConfirm: () => void;
   mobileRemoteWorkspacePathPrompt: MobileRemoteWorkspacePathPromptState;
   onMobileRemoteWorkspacePathPromptChange: (value: string) => void;
+  onMobileRemoteWorkspacePathPromptRecentPathSelect: (path: string) => void;
   onMobileRemoteWorkspacePathPromptCancel: () => void;
   onMobileRemoteWorkspacePathPromptConfirm: () => void;
   branchSwitcher: BranchSwitcherState;
@@ -155,6 +157,7 @@ export const AppModals = memo(function AppModals({
   onWorkspaceFromUrlPromptConfirm,
   mobileRemoteWorkspacePathPrompt,
   onMobileRemoteWorkspacePathPromptChange,
+  onMobileRemoteWorkspacePathPromptRecentPathSelect,
   onMobileRemoteWorkspacePathPromptCancel,
   onMobileRemoteWorkspacePathPromptConfirm,
   branchSwitcher,
@@ -270,7 +273,9 @@ export const AppModals = memo(function AppModals({
           <MobileRemoteWorkspacePrompt
             value={mobileRemoteWorkspacePathPrompt.value}
             error={mobileRemoteWorkspacePathPrompt.error}
+            recentPaths={mobileRemoteWorkspacePathPrompt.recentPaths}
             onChange={onMobileRemoteWorkspacePathPromptChange}
+            onRecentPathSelect={onMobileRemoteWorkspacePathPromptRecentPathSelect}
             onCancel={onMobileRemoteWorkspacePathPromptCancel}
             onConfirm={onMobileRemoteWorkspacePathPromptConfirm}
           />

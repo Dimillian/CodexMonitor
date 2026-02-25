@@ -63,7 +63,22 @@ pub(crate) fn worktree_setup_marker_path(data_dir: &PathBuf, workspace_id: &str)
 }
 
 pub(crate) fn is_workspace_path_dir_core(path: &str) -> bool {
-    PathBuf::from(path).is_dir()
+    normalize_workspace_path_input(path).is_dir()
+}
+
+pub(crate) fn normalize_workspace_path_input(path: &str) -> PathBuf {
+    let trimmed = path.trim();
+    if let Some(rest) = trimmed.strip_prefix("~/") {
+        if let Some(home) = crate::codex::home::resolve_home_dir() {
+            return home.join(rest);
+        }
+    }
+    if trimmed == "~" {
+        if let Some(home) = crate::codex::home::resolve_home_dir() {
+            return home;
+        }
+    }
+    PathBuf::from(trimmed)
 }
 
 pub(crate) async fn list_workspaces_core(
@@ -131,8 +146,14 @@ pub(super) fn sort_workspaces(workspaces: &mut [WorkspaceInfo]) {
 
 #[cfg(test)]
 mod tests {
-    use super::{copy_agents_md_from_parent_to_worktree, AGENTS_MD_FILE_NAME};
+    use super::{
+        copy_agents_md_from_parent_to_worktree, normalize_workspace_path_input, AGENTS_MD_FILE_NAME,
+    };
+    use std::path::PathBuf;
+    use std::sync::Mutex;
     use uuid::Uuid;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn make_temp_dir() -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!("codex-monitor-{}", Uuid::new_v4()));
@@ -178,5 +199,22 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(parent);
         let _ = std::fs::remove_dir_all(worktree);
+    }
+
+    #[test]
+    fn normalize_workspace_path_input_expands_home_prefix() {
+        let _guard = ENV_LOCK.lock().expect("lock env");
+        let previous_home = std::env::var("HOME").ok();
+        std::env::set_var("HOME", "/tmp/cm-home");
+
+        assert_eq!(
+            normalize_workspace_path_input("~/dev/repo"),
+            PathBuf::from("/tmp/cm-home/dev/repo")
+        );
+
+        match previous_home {
+            Some(value) => std::env::set_var("HOME", value),
+            None => std::env::remove_var("HOME"),
+        }
     }
 }

@@ -137,7 +137,7 @@ fn join_env_path(prefix: &str, remainder: &str) -> PathBuf {
     }
 }
 
-fn resolve_home_dir() -> Option<PathBuf> {
+pub(crate) fn resolve_home_dir() -> Option<PathBuf> {
     if let Ok(value) = env::var("HOME") {
         if !value.trim().is_empty() {
             return Some(PathBuf::from(value));
@@ -146,6 +146,24 @@ fn resolve_home_dir() -> Option<PathBuf> {
     if let Ok(value) = env::var("USERPROFILE") {
         if !value.trim().is_empty() {
             return Some(PathBuf::from(value));
+        }
+    }
+    #[cfg(unix)]
+    {
+        // Fallback for daemon environments that do not expose HOME.
+        unsafe {
+            let uid = libc::geteuid();
+            let pwd = libc::getpwuid(uid);
+            if !pwd.is_null() {
+                let dir_ptr = (*pwd).pw_dir;
+                if !dir_ptr.is_null() {
+                    if let Ok(dir) = std::ffi::CStr::from_ptr(dir_ptr).to_str() {
+                        if !dir.trim().is_empty() {
+                            return Some(PathBuf::from(dir));
+                        }
+                    }
+                }
+            }
         }
     }
     None

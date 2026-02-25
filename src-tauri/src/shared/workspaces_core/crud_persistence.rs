@@ -15,7 +15,7 @@ use crate::storage::write_workspaces;
 use crate::types::{AppSettings, WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings};
 
 use super::connect::{kill_session_by_id, take_live_shared_session, workspace_session_spawn_lock};
-use super::helpers::normalize_setup_script;
+use super::helpers::{normalize_setup_script, normalize_workspace_path_input};
 
 pub(crate) async fn add_workspace_core<F, Fut>(
     path: String,
@@ -29,9 +29,11 @@ where
     F: Fn(WorkspaceEntry, Option<String>, Option<String>, Option<PathBuf>) -> Fut,
     Fut: Future<Output = Result<Arc<WorkspaceSession>, String>>,
 {
-    if !PathBuf::from(&path).is_dir() {
+    let normalized_path = normalize_workspace_path_input(&path);
+    if !normalized_path.is_dir() {
         return Err("Workspace path must be a folder.".to_string());
     }
+    let path = normalized_path.to_string_lossy().to_string();
 
     let name = PathBuf::from(&path)
         .file_name()
