@@ -26,6 +26,42 @@ export function getParentThreadIdFromSource(source: unknown): string | null {
   return parentId || null;
 }
 
+export function getParentThreadIdFromThread(
+  thread: Record<string, unknown>,
+): string | null {
+  const sourceParentId = getParentThreadIdFromSource(thread.source);
+  if (sourceParentId) {
+    return sourceParentId;
+  }
+  const directParentId = asString(
+    thread.parentThreadId ??
+      thread.parent_thread_id ??
+      thread.parentId ??
+      thread.parent_id ??
+      thread.senderThreadId ??
+      thread.sender_thread_id,
+  );
+  if (directParentId) {
+    return directParentId;
+  }
+  const spawnRaw =
+    thread.threadSpawn ?? thread.thread_spawn ?? thread.spawn ?? thread.subAgent;
+  const spawn =
+    spawnRaw && typeof spawnRaw === "object"
+      ? (spawnRaw as Record<string, unknown>)
+      : null;
+  if (!spawn) {
+    return null;
+  }
+  const spawnParentId = asString(
+    spawn.parentThreadId ??
+      spawn.parent_thread_id ??
+      spawn.parentId ??
+      spawn.parent_id,
+  );
+  return spawnParentId || null;
+}
+
 export type ResumedTurnState = {
   activeTurnId: string | null;
   activeTurnStartedAtMs: number | null;

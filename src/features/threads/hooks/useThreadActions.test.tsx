@@ -867,6 +867,57 @@ describe("useThreadActions", () => {
     });
   });
 
+  it("assigns shared-root threads to a single target workspace when listing multiple workspaces", async () => {
+    const workspaceAlias: WorkspaceInfo = {
+      ...workspaceTwo,
+      id: "ws-alias",
+      path: workspace.path,
+    };
+    vi.mocked(listWorkspaces).mockResolvedValue([workspaceAlias, workspace]);
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "thread-shared-root",
+            cwd: workspace.path,
+            preview: "Shared root thread",
+            updated_at: 5000,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockReturnValue(5000);
+
+    const { result, dispatch } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspaces([workspace, workspaceAlias]);
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-1",
+      sortKey: "updated_at",
+      preserveAnchors: true,
+      threads: [
+        {
+          id: "thread-shared-root",
+          name: "Shared root thread",
+          updatedAt: 5000,
+          createdAt: 0,
+        },
+      ],
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreads",
+      workspaceId: "ws-alias",
+      sortKey: "updated_at",
+      preserveAnchors: true,
+      threads: [],
+    });
+  });
+
   it("fetches multiple pages by default", async () => {
     vi.mocked(listThreads)
       .mockResolvedValueOnce({
@@ -1052,6 +1103,41 @@ describe("useThreadActions", () => {
 
     expect(updateThreadParent).toHaveBeenCalledWith("parent-thread", ["child-thread"]);
     expect(onSubagentThreadDetected).toHaveBeenCalledWith("ws-1", "child-thread");
+  });
+
+  it("restores parent-child links from thread/list top-level parent metadata", async () => {
+    vi.mocked(listThreads).mockResolvedValue({
+      result: {
+        data: [
+          {
+            id: "child-thread-flat",
+            cwd: "/tmp/codex",
+            preview: "Child",
+            updated_at: 4500,
+            parent_thread_id: "parent-thread-flat",
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    vi.mocked(getThreadTimestamp).mockImplementation((thread) => {
+      const value = (thread as Record<string, unknown>).updated_at as number;
+      return value ?? 0;
+    });
+
+    const { result, updateThreadParent, onSubagentThreadDetected } = renderActions();
+
+    await act(async () => {
+      await result.current.listThreadsForWorkspace(workspace);
+    });
+
+    expect(updateThreadParent).toHaveBeenCalledWith("parent-thread-flat", [
+      "child-thread-flat",
+    ]);
+    expect(onSubagentThreadDetected).toHaveBeenCalledWith(
+      "ws-1",
+      "child-thread-flat",
+    );
   });
 
   it("matches windows workspace threads client-side", async () => {
