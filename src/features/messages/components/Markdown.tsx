@@ -180,6 +180,136 @@ function normalizeUrlLine(line: string) {
   return withoutBullet;
 }
 
+function safeDecodeURIComponent(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return null;
+  }
+}
+
+function safeDecodeFileLink(url: string) {
+  try {
+    return decodeFileLink(url);
+  } catch {
+    return null;
+  }
+}
+
+const FILE_LINE_SUFFIX_PATTERN = /:\d+(?::\d+)?$/;
+const LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES = [
+  "/Users/",
+  "/home/",
+  "/tmp/",
+  "/var/",
+  "/opt/",
+  "/etc/",
+  "/private/",
+  "/Volumes/",
+  "/mnt/",
+];
+
+function stripPathLineSuffix(value: string) {
+  return value.replace(FILE_LINE_SUFFIX_PATTERN, "");
+}
+
+function hasLikelyFileName(path: string) {
+  const normalizedPath = stripPathLineSuffix(path).replace(/[\\/]+$/, "");
+  const lastSegment = normalizedPath.split(/[\\/]/).pop() ?? "";
+  if (!lastSegment || lastSegment === "." || lastSegment === "..") {
+    return false;
+  }
+  if (lastSegment.startsWith(".") && lastSegment.length > 1) {
+    return true;
+  }
+  return lastSegment.includes(".");
+}
+
+function hasLikelyLocalAbsolutePrefix(path: string) {
+  const normalizedPath = path.replace(/\\/g, "/");
+  return LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES.some((prefix) =>
+    normalizedPath.startsWith(prefix),
+  );
+}
+
+function isLikelyFileHref(url: string) {
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return false;
+  }
+  if (trimmed.startsWith("file://")) {
+    return true;
+  }
+  if (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("mailto:")
+  ) {
+    return false;
+  }
+  if (trimmed.startsWith("thread://") || trimmed.startsWith("/thread/")) {
+    return false;
+  }
+  if (trimmed.startsWith("#")) {
+    return false;
+  }
+  if (/[?#]/.test(trimmed)) {
+    return false;
+  }
+  if (/^[A-Za-z]:[\\/]/.test(trimmed) || trimmed.startsWith("\\\\")) {
+    return true;
+  }
+  if (trimmed.startsWith("/")) {
+    return hasLikelyLocalAbsolutePrefix(trimmed);
+  }
+  if (FILE_LINE_SUFFIX_PATTERN.test(trimmed)) {
+    return true;
+  }
+  if (hasLikelyFileName(trimmed)) {
+    return true;
+  }
+  if (
+    trimmed.startsWith("~/") ||
+    trimmed.startsWith("./") ||
+    trimmed.startsWith("../")
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function toPathFromFileUrl(url: string) {
+  if (!url.toLowerCase().startsWith("file://")) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "file:") {
+      return null;
+    }
+
+    const decodedPath = safeDecodeURIComponent(parsed.pathname) ?? parsed.pathname;
+    let path = decodedPath;
+    if (parsed.host && parsed.host !== "localhost") {
+      const normalizedPath = decodedPath.startsWith("/")
+        ? decodedPath
+        : `/${decodedPath}`;
+      path = `//${parsed.host}${normalizedPath}`;
+    }
+    if (/^\/[A-Za-z]:\//.test(path)) {
+      path = path.slice(1);
+    }
+    return path;
+  } catch {
+    const manualPath = url.slice("file://".length).trim();
+    if (!manualPath) {
+      return null;
+    }
+    return safeDecodeURIComponent(manualPath) ?? manualPath;
+  }
+}
+
 function extractUrlLines(value: string) {
   const lines = value.split(/\r?\n/);
   const urls = lines
@@ -474,9 +604,29 @@ export function Markdown({
     }
     return trimmed;
   };
+  const resolveHrefFilePath = (url: string) => {
+    if (isLikelyFileHref(url)) {
+      const directPath = getLinkablePath(url);
+      if (directPath) {
+        return directPath;
+      }
+    }
+    const decodedUrl = safeDecodeURIComponent(url);
+    if (decodedUrl && isLikelyFileHref(decodedUrl)) {
+      const decodedPath = getLinkablePath(decodedUrl);
+      if (decodedPath) {
+        return decodedPath;
+      }
+    }
+    const fileUrlPath = toPathFromFileUrl(url);
+    if (!fileUrlPath) {
+      return null;
+    }
+    return getLinkablePath(fileUrlPath);
+  };
   const components: Components = {
     a: ({ href, children }) => {
-      const url = href ?? "";
+      const url = (href ?? "").trim();
       const threadId = url.startsWith("thread://")
         ? url.slice("thread://".length).trim()
         : url.startsWith("/thread/")
@@ -497,7 +647,20 @@ export function Markdown({
         );
       }
       if (isFileLinkUrl(url)) {
-        const path = decodeFileLink(url);
+        const path = safeDecodeFileLink(url);
+        if (!path) {
+          return (
+            <a
+              href={href}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+            >
+              {children}
+            </a>
+          );
+        }
         return (
           <FileReferenceLink
             href={href ?? toFileLink(path)}
@@ -507,6 +670,18 @@ export function Markdown({
             onClick={handleFileLinkClick}
             onContextMenu={handleFileLinkContextMenu}
           />
+        );
+      }
+      const hrefFilePath = resolveHrefFilePath(url);
+      if (hrefFilePath) {
+        return (
+          <a
+            href={href ?? toFileLink(hrefFilePath)}
+            onClick={(event) => handleFileLinkClick(event, hrefFilePath)}
+            onContextMenu={(event) => handleFileLinkContextMenu(event, hrefFilePath)}
+          >
+            {children}
+          </a>
         );
       }
       const isExternal =
