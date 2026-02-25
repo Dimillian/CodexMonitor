@@ -357,7 +357,46 @@ describe("useWorkspaces.addWorkspacesFromPaths", () => {
     expect(addResult!.failures).toHaveLength(0);
   });
 
-  it("expands tilde paths using known workspace home prefixes", async () => {
+  it("tries raw tilde paths before inferred home-prefix expansion", async () => {
+    const listWorkspacesMock = vi.mocked(listWorkspaces);
+    const isWorkspacePathDirMock = vi.mocked(isWorkspacePathDir);
+    const addWorkspaceMock = vi.mocked(addWorkspace);
+
+    listWorkspacesMock.mockResolvedValue([
+      {
+        ...workspaceOne,
+        id: "existing",
+        path: "/Users/vlad/dev/existing",
+      },
+    ]);
+    isWorkspacePathDirMock.mockImplementation(async (path: string) => path === "~/dev/personal");
+    addWorkspaceMock.mockResolvedValue({
+      ...workspaceTwo,
+      id: "added-home",
+      path: "/Users/vlad/dev/personal",
+    });
+
+    const { result } = renderHook(() => useWorkspaces());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    let addResult: Awaited<ReturnType<typeof result.current.addWorkspacesFromPaths>>;
+    await act(async () => {
+      addResult = await result.current.addWorkspacesFromPaths(["~/dev/personal"]);
+    });
+
+    expect(isWorkspacePathDirMock).toHaveBeenCalledWith("~/dev/personal");
+    expect(isWorkspacePathDirMock).not.toHaveBeenCalledWith("/Users/vlad/dev/personal");
+    expect(addWorkspaceMock).toHaveBeenCalledWith("~/dev/personal");
+    expect(addWorkspaceMock).not.toHaveBeenCalledWith("/Users/vlad/dev/personal");
+    expect(addResult!.added).toHaveLength(1);
+    expect(addResult!.skippedInvalid).toHaveLength(0);
+    expect(addResult!.failures).toHaveLength(0);
+  });
+
+  it("falls back to inferred home-prefix expansion when raw tilde path is invalid", async () => {
     const listWorkspacesMock = vi.mocked(listWorkspaces);
     const isWorkspacePathDirMock = vi.mocked(isWorkspacePathDir);
     const addWorkspaceMock = vi.mocked(addWorkspace);
@@ -387,7 +426,8 @@ describe("useWorkspaces.addWorkspacesFromPaths", () => {
       addResult = await result.current.addWorkspacesFromPaths(["~/dev/personal"]);
     });
 
-    expect(isWorkspacePathDirMock).toHaveBeenCalledWith("/Users/vlad/dev/personal");
+    expect(isWorkspacePathDirMock).toHaveBeenNthCalledWith(1, "~/dev/personal");
+    expect(isWorkspacePathDirMock).toHaveBeenNthCalledWith(2, "/Users/vlad/dev/personal");
     expect(addWorkspaceMock).toHaveBeenCalledWith("/Users/vlad/dev/personal");
     expect(addResult!.added).toHaveLength(1);
     expect(addResult!.skippedInvalid).toHaveLength(0);

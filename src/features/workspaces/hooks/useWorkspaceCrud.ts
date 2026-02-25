@@ -63,14 +63,14 @@ function inferHomePrefixes(paths: string[]): string[] {
 function buildWorkspacePathCandidates(path: string, homePrefixes: string[]): string[] {
   const trimmed = path.trim();
   if (trimmed === "~") {
-    return [...homePrefixes, trimmed];
+    return [trimmed, ...homePrefixes];
   }
   const rest = trimmed.startsWith("~/") ? trimmed.slice(2) : null;
   if (rest == null) {
     return [trimmed];
   }
   const expanded = homePrefixes.map((prefix) => `${prefix}/${rest}`);
-  return [...expanded, trimmed];
+  return [trimmed, ...expanded];
 }
 
 export function useWorkspaceCrud({
