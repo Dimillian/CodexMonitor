@@ -261,6 +261,32 @@ describe("Messages", () => {
     expect(openFileLinkMock).toHaveBeenCalledWith(linkedPath);
   });
 
+  it("routes absolute non-whitelisted file href paths through the file opener", () => {
+    const linkedPath = "/custom/project/src/App.tsx:12";
+    const items: ConversationItem[] = [
+      {
+        id: "msg-file-href-absolute-non-whitelisted-link",
+        kind: "message",
+        role: "assistant",
+        text: `Open [app file](${linkedPath})`,
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    fireEvent.click(screen.getByText("app file"));
+    expect(openFileLinkMock).toHaveBeenCalledWith(linkedPath);
+  });
+
   it("decodes percent-encoded href file paths before opening", () => {
     const items: ConversationItem[] = [
       {
@@ -310,6 +336,33 @@ describe("Messages", () => {
     const helpLink = screen.getByText("Help").closest("a");
     expect(helpLink?.getAttribute("href")).toBe("/help/getting-started");
     fireEvent.click(screen.getByText("Help"));
+    expect(openFileLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps route-like absolute links as normal markdown links", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-help-workspace-route-link",
+        kind: "message",
+        role: "assistant",
+        text: "See [Workspace Home](/workspace/settings)",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const link = screen.getByText("Workspace Home").closest("a");
+    expect(link?.getAttribute("href")).toBe("/workspace/settings");
+    fireEvent.click(screen.getByText("Workspace Home"));
     expect(openFileLinkMock).not.toHaveBeenCalled();
   });
 

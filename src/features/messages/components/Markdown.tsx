@@ -207,6 +207,12 @@ const LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES = [
   "/private/",
   "/Volumes/",
   "/mnt/",
+  "/usr/",
+  "/workspace/",
+  "/workspaces/",
+  "/root/",
+  "/srv/",
+  "/data/",
 ];
 
 function stripPathLineSuffix(value: string) {
@@ -230,6 +236,10 @@ function hasLikelyLocalAbsolutePrefix(path: string) {
   return LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES.some((prefix) =>
     normalizedPath.startsWith(prefix),
   );
+}
+
+function pathSegmentCount(path: string) {
+  return path.split("/").filter(Boolean).length;
 }
 
 function isLikelyFileHref(url: string) {
@@ -260,12 +270,15 @@ function isLikelyFileHref(url: string) {
     return true;
   }
   if (trimmed.startsWith("/")) {
-    return hasLikelyLocalAbsolutePrefix(trimmed);
+    if (FILE_LINE_SUFFIX_PATTERN.test(trimmed)) {
+      return true;
+    }
+    if (hasLikelyFileName(trimmed)) {
+      return true;
+    }
+    return hasLikelyLocalAbsolutePrefix(trimmed) && pathSegmentCount(trimmed) >= 3;
   }
   if (FILE_LINE_SUFFIX_PATTERN.test(trimmed)) {
-    return true;
-  }
-  if (hasLikelyFileName(trimmed)) {
     return true;
   }
   if (trimmed.startsWith("~/")) {
@@ -273,6 +286,9 @@ function isLikelyFileHref(url: string) {
   }
   if (trimmed.startsWith("./") || trimmed.startsWith("../")) {
     return FILE_LINE_SUFFIX_PATTERN.test(trimmed) || hasLikelyFileName(trimmed);
+  }
+  if (hasLikelyFileName(trimmed)) {
+    return pathSegmentCount(trimmed) >= 3;
   }
   return false;
 }
@@ -673,11 +689,17 @@ export function Markdown({
       }
       const hrefFilePath = resolveHrefFilePath(url);
       if (hrefFilePath) {
+        const clickHandler = onOpenFileLink
+          ? (event: React.MouseEvent) => handleFileLinkClick(event, hrefFilePath)
+          : undefined;
+        const contextMenuHandler = onOpenFileLinkMenu
+          ? (event: React.MouseEvent) => handleFileLinkContextMenu(event, hrefFilePath)
+          : undefined;
         return (
           <a
             href={href ?? toFileLink(hrefFilePath)}
-            onClick={(event) => handleFileLinkClick(event, hrefFilePath)}
-            onContextMenu={(event) => handleFileLinkContextMenu(event, hrefFilePath)}
+            onClick={clickHandler}
+            onContextMenu={contextMenuHandler}
           >
             {children}
           </a>
