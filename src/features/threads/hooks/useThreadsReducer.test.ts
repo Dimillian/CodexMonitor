@@ -608,6 +608,7 @@ describe("threadReducer", () => {
       type: "setThreads",
       workspaceId: "ws-1",
       sortKey: "updated_at",
+      preserveAnchors: true,
       threads: [
         { id: "thread-child", name: "Child (fresh)", updatedAt: 200 },
         { id: "thread-new", name: "New", updatedAt: 199 },
@@ -668,12 +669,38 @@ describe("threadReducer", () => {
       type: "setThreads",
       workspaceId: "ws-1",
       sortKey: "updated_at",
+      preserveAnchors: true,
       threads: [{ id: "thread-child", name: "Child", updatedAt: 210 }],
     });
 
     expect(next.threadsByWorkspace["ws-1"]?.map((thread) => thread.id)).toEqual([
       "thread-child",
     ]);
+  });
+
+  it("drops stale active anchors on complete setThreads payloads", () => {
+    const base: ThreadState = {
+      ...initialState,
+      threadsByWorkspace: {
+        "ws-1": [
+          { id: "thread-old", name: "Old", updatedAt: 10 },
+          { id: "thread-stale", name: "Stale", updatedAt: 9 },
+        ],
+      },
+      activeThreadIdByWorkspace: { "ws-1": "thread-old" },
+    };
+
+    const next = threadReducer(base, {
+      type: "setThreads",
+      workspaceId: "ws-1",
+      sortKey: "updated_at",
+      threads: [{ id: "thread-fresh", name: "Fresh", updatedAt: 210 }],
+    });
+
+    expect(next.threadsByWorkspace["ws-1"]?.map((thread) => thread.id)).toEqual([
+      "thread-fresh",
+    ]);
+    expect(next.activeThreadIdByWorkspace["ws-1"]).toBe("thread-fresh");
   });
 
   it("trims existing items when maxItemsPerThread is reduced", () => {

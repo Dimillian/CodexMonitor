@@ -51,6 +51,16 @@ export function useLiquidGlassEffect({ reduceTransparency, onDebug }: Params) {
         const userAgent = navigator.userAgent ?? "";
         const isMac = userAgent.includes("Macintosh");
         const isLinux = userAgent.includes("Linux");
+        const isWindows = userAgent.includes("Windows");
+
+        if (isWindows) {
+          await window.setEffects({
+            effects: [Effect.Acrylic],
+            state: EffectState.Active,
+          });
+          return;
+        }
+
         if (!isMac && !isLinux) {
           return;
         }

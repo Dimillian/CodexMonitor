@@ -129,13 +129,25 @@ export function normalizeRootPath(value: string) {
   if (!normalized) {
     return "";
   }
-  if (/^[A-Za-z]:\//.test(normalized)) {
-    return normalized.toLowerCase();
+
+  let withoutNamespace = normalized;
+  if (/^\/\/\?\/unc\//i.test(withoutNamespace)) {
+    withoutNamespace = `//${withoutNamespace.slice(8)}`;
+  } else if (/^\/\/[?.]\//.test(withoutNamespace)) {
+    withoutNamespace = withoutNamespace.slice(4);
   }
-  if (normalized.startsWith("//")) {
-    return normalized.toLowerCase();
+
+  if (!withoutNamespace) {
+    return "";
   }
-  return normalized;
+
+  if (/^[A-Za-z]:\//.test(withoutNamespace)) {
+    return withoutNamespace.toLowerCase();
+  }
+  if (withoutNamespace.startsWith("//")) {
+    return withoutNamespace.toLowerCase();
+  }
+  return withoutNamespace;
 }
 
 export function extractRpcErrorMessage(response: unknown) {

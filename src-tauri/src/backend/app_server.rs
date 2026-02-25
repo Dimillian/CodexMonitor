@@ -43,9 +43,150 @@ fn extract_thread_id(value: &Value) -> Option<String> {
         .or_else(|| extract_from_container(value.get("result")))
 }
 
+fn push_thread_id(out: &mut Vec<String>, value: Option<&Value>) {
+    let Some(value) = value else {
+        return;
+    };
+    if let Some(thread_id) = value.as_str().map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        out.push(thread_id.to_string());
+        return;
+    }
+    if let Some(values) = value.as_array() {
+        for entry in values {
+            push_thread_id(out, Some(entry));
+        }
+    }
+}
+
+fn extract_related_thread_ids(value: &Value) -> Vec<String> {
+    fn collect_agent_thread_ids(value: Option<&Value>, out: &mut Vec<String>) {
+        let Some(value) = value else {
+            return;
+        };
+        if let Some(values) = value.as_array() {
+            for entry in values {
+                collect_agent_thread_ids(Some(entry), out);
+            }
+            return;
+        }
+        let Some(record) = value.as_object() else {
+            return;
+        };
+        push_thread_id(
+            out,
+            record.get("threadId").or_else(|| record.get("thread_id")),
+        );
+        push_thread_id(out, record.get("id"));
+        push_thread_id(
+            out,
+            record
+                .get("thread")
+                .and_then(|thread| {
+                    thread
+                        .get("id")
+                        .or_else(|| thread.get("threadId"))
+                        .or_else(|| thread.get("thread_id"))
+                }),
+        );
+    }
+
+    fn collect_from_container(container: Option<&Value>, out: &mut Vec<String>) {
+        let Some(container) = container.and_then(|value| value.as_object()) else {
+            return;
+        };
+        push_thread_id(out, container.get("threadId").or_else(|| container.get("thread_id")));
+        push_thread_id(
+            out,
+            container
+                .get("thread")
+                .and_then(|thread| thread.get("id")),
+        );
+        push_thread_id(
+            out,
+            container
+                .get("params")
+                .and_then(|params| params.get("threadId").or_else(|| params.get("thread_id"))),
+        );
+        push_thread_id(
+            out,
+            container
+                .get("result")
+                .and_then(|result| result.get("threadId").or_else(|| result.get("thread_id"))),
+        );
+        push_thread_id(
+            out,
+            container
+                .get("newThreadId")
+                .or_else(|| container.get("new_thread_id")),
+        );
+        push_thread_id(
+            out,
+            container
+                .get("receiverThreadId")
+                .or_else(|| container.get("receiver_thread_id")),
+        );
+        push_thread_id(
+            out,
+            container
+                .get("receiverThreadIds")
+                .or_else(|| container.get("receiver_thread_ids")),
+        );
+        collect_agent_thread_ids(
+            container
+                .get("receiverAgents")
+                .or_else(|| container.get("receiver_agents")),
+            out,
+        );
+        collect_agent_thread_ids(
+            container
+                .get("receiverAgent")
+                .or_else(|| container.get("receiver_agent")),
+            out,
+        );
+        collect_agent_thread_ids(
+            container
+                .get("agentStatuses")
+                .or_else(|| container.get("agent_statuses")),
+            out,
+        );
+        if let Some(status_map) = container.get("statuses").and_then(|value| value.as_object()) {
+            out.extend(
+                status_map
+                    .keys()
+                    .map(|key| key.trim().to_string())
+                    .filter(|key| !key.is_empty()),
+            );
+        }
+        if let Some(item) = container.get("item") {
+            collect_from_container(Some(item), out);
+        }
+    }
+
+    let mut out = Vec::new();
+    collect_from_container(value.get("params"), &mut out);
+    collect_from_container(value.get("result"), &mut out);
+    collect_from_container(Some(value), &mut out);
+
+    let mut seen = HashSet::new();
+    out.into_iter()
+        .filter(|thread_id| seen.insert(thread_id.clone()))
+        .collect()
+}
+
 fn normalize_root_path(value: &str) -> String {
     let normalized = value.replace('\\', "/");
     let normalized = normalized.trim_end_matches('/');
+    if normalized.is_empty() {
+        return String::new();
+    }
+    let lower = normalized.to_ascii_lowercase();
+    let normalized = if lower.starts_with("//?/unc/") {
+        format!("//{}", &normalized[8..])
+    } else if lower.starts_with("//?/") || lower.starts_with("//./") {
+        normalized[4..].to_string()
+    } else {
+        normalized.to_string()
+    };
     if normalized.is_empty() {
         return String::new();
     }
@@ -133,13 +274,24 @@ fn resolve_workspace_for_cwd(
     if normalized_cwd.is_empty() {
         return None;
     }
-    workspace_roots.iter().find_map(|(workspace_id, root)| {
-        if root == &normalized_cwd {
-            Some(workspace_id.clone())
-        } else {
-            None
-        }
-    })
+    workspace_roots
+        .iter()
+        .filter_map(|(workspace_id, root)| {
+            if root.is_empty() {
+                return None;
+            }
+            let is_exact_match = root == &normalized_cwd;
+            let is_nested_match = normalized_cwd.len() > root.len()
+                && normalized_cwd.starts_with(root)
+                && normalized_cwd.as_bytes().get(root.len()) == Some(&b'/');
+            if is_exact_match || is_nested_match {
+                Some((workspace_id, root.len()))
+            } else {
+                None
+            }
+        })
+        .max_by_key(|(_, root_len)| *root_len)
+        .map(|(workspace_id, _)| workspace_id.clone())
 }
 
 fn is_global_workspace_notification(method: &str) -> bool {
@@ -583,7 +735,13 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
             }
 
             if let Some(ref workspace_id) = request_workspace {
-                if let Some(ref tid) = thread_id {
+                let related_thread_ids = extract_related_thread_ids(&value);
+                if !related_thread_ids.is_empty() {
+                    let mut thread_workspace = session_clone.thread_workspace.lock().await;
+                    for tid in related_thread_ids {
+                        thread_workspace.insert(tid, workspace_id.clone());
+                    }
+                } else if let Some(ref tid) = thread_id {
                     session_clone
                         .thread_workspace
                         .lock()
@@ -622,6 +780,18 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                     .clone()
                     .unwrap_or_else(|| fallback_workspace_id.clone())
             };
+
+            if matches!(method_name, Some("item/started") | Some("item/completed")) {
+                let related_thread_ids = extract_related_thread_ids(&value);
+                if !related_thread_ids.is_empty() {
+                    let mut thread_workspace = session_clone.thread_workspace.lock().await;
+                    for related_id in related_thread_ids {
+                        thread_workspace
+                            .entry(related_id)
+                            .or_insert_with(|| routed_workspace_id.clone());
+                    }
+                }
+            }
 
             if method_name == Some("thread/archived") {
                 if let Some(ref tid) = thread_id {
@@ -781,8 +951,8 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_initialize_params, extract_thread_entries_from_thread_list_result, extract_thread_id,
-        normalize_root_path, resolve_workspace_for_cwd,
+        build_initialize_params, extract_related_thread_ids, extract_thread_entries_from_thread_list_result,
+        extract_thread_id, normalize_root_path, resolve_workspace_for_cwd,
     };
     use std::collections::HashMap;
     use serde_json::json;
@@ -836,12 +1006,113 @@ mod tests {
     }
 
     #[test]
+    fn extract_related_thread_ids_reads_spawn_hints_from_item_payloads() {
+        let value = json!({
+            "method": "item/completed",
+            "params": {
+                "threadId": "thread-parent",
+                "item": {
+                    "type": "mcpToolCall",
+                    "new_thread_id": "thread-child"
+                }
+            }
+        });
+        let ids = extract_related_thread_ids(&value);
+        assert!(ids.contains(&"thread-parent".to_string()));
+        assert!(ids.contains(&"thread-child".to_string()));
+    }
+
+    #[test]
+    fn extract_related_thread_ids_reads_receiver_agent_references() {
+        let value = json!({
+            "method": "item/completed",
+            "params": {
+                "threadId": "thread-parent",
+                "item": {
+                    "type": "collabToolCall",
+                    "receiver_agents": [
+                        { "thread_id": "thread-child-a" },
+                        { "thread": { "id": "thread-child-b" } }
+                    ],
+                    "statuses": {
+                        "thread-child-c": { "status": "running" }
+                    }
+                }
+            }
+        });
+        let ids = extract_related_thread_ids(&value);
+        assert!(ids.contains(&"thread-parent".to_string()));
+        assert!(ids.contains(&"thread-child-a".to_string()));
+        assert!(ids.contains(&"thread-child-b".to_string()));
+        assert!(ids.contains(&"thread-child-c".to_string()));
+    }
+
+    #[test]
+    fn extract_related_thread_ids_reads_singular_receiver_agent_reference() {
+        let value = json!({
+            "method": "item/completed",
+            "params": {
+                "threadId": "thread-parent",
+                "item": {
+                    "type": "mcpToolCall",
+                    "receiver_agent": { "thread_id": "thread-child-single" }
+                }
+            }
+        });
+        let ids = extract_related_thread_ids(&value);
+        assert!(ids.contains(&"thread-parent".to_string()));
+        assert!(ids.contains(&"thread-child-single".to_string()));
+    }
+
+    #[test]
     fn resolve_workspace_for_cwd_normalizes_windows_paths() {
         let mut roots = HashMap::new();
         roots.insert("ws-1".to_string(), normalize_root_path("C:\\Dev\\Codex"));
         assert_eq!(
             resolve_workspace_for_cwd("c:/dev/codex", &roots),
             Some("ws-1".to_string())
+        );
+    }
+
+    #[test]
+    fn resolve_workspace_for_cwd_normalizes_windows_namespace_paths() {
+        let mut roots = HashMap::new();
+        roots.insert("ws-1".to_string(), normalize_root_path("C:\\Dev\\Codex"));
+        assert_eq!(
+            resolve_workspace_for_cwd("\\\\?\\C:\\Dev\\Codex", &roots),
+            Some("ws-1".to_string())
+        );
+    }
+
+    #[test]
+    fn normalize_root_path_normalizes_windows_namespace_unc_paths() {
+        assert_eq!(
+            normalize_root_path("\\\\?\\UNC\\SERVER\\Share\\Repo\\"),
+            "//server/share/repo"
+        );
+    }
+
+    #[test]
+    fn resolve_workspace_for_cwd_matches_nested_paths() {
+        let mut roots = HashMap::new();
+        roots.insert("ws-1".to_string(), normalize_root_path("/tmp/codex"));
+        assert_eq!(
+            resolve_workspace_for_cwd("/tmp/codex/subdir/project", &roots),
+            Some("ws-1".to_string())
+        );
+    }
+
+    #[test]
+    fn resolve_workspace_for_cwd_prefers_longest_matching_root() {
+        let mut roots = HashMap::new();
+        roots.insert("ws-parent".to_string(), normalize_root_path("/tmp/codex"));
+        roots.insert(
+            "ws-child".to_string(),
+            normalize_root_path("/tmp/codex/subdir"),
+        );
+        assert_eq!(
+            resolve_workspace_for_cwd("/tmp/codex/subdir/project", &roots),
+            Some("ws-child".to_string())
         );
     }
 }

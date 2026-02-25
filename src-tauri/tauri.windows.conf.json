@@ -10,7 +10,7 @@
         "dragDropEnabled": true,
         "titleBarStyle": "Visible",
         "hiddenTitle": false,
-        "transparent": false,
+        "transparent": true,
         "devtools": true,
         "windowEffects": null
       }

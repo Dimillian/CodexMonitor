@@ -319,11 +319,16 @@ type GitDiffModeContentProps = {
     gitRoot: string | null;
     onSelectGitRoot?: (path: string) => void;
     showGenerateCommitMessage: boolean;
+    showApplyWorktree: boolean;
     commitMessage: string;
     onCommitMessageChange?: (value: string) => void;
     commitMessageLoading: boolean;
     canGenerateCommitMessage: boolean;
     onGenerateCommitMessage?: () => void | Promise<void>;
+    worktreeApplyTitle: string | null;
+    worktreeApplyLoading: boolean;
+    worktreeApplySuccess: boolean;
+    onApplyWorktreeChanges?: () => void | Promise<void>;
     stagedFiles: DiffFile[];
     unstagedFiles: DiffFile[];
     commitLoading: boolean;
@@ -376,11 +381,16 @@ export function GitDiffModeContent({
     gitRoot,
     onSelectGitRoot,
     showGenerateCommitMessage,
+    showApplyWorktree,
     commitMessage,
     onCommitMessageChange,
     commitMessageLoading,
     canGenerateCommitMessage,
     onGenerateCommitMessage,
+    worktreeApplyTitle,
+    worktreeApplyLoading,
+    worktreeApplySuccess,
+    onApplyWorktreeChanges,
     stagedFiles,
     unstagedFiles,
     commitLoading,
@@ -416,6 +426,9 @@ export function GitDiffModeContent({
             ? "This workspace isn't a Git repository yet."
             : "Choose a repo for this workspace.";
     const generateCommitMessageTooltip = "Generate commit message";
+    const showWorktreeApplyInUnstaged = showApplyWorktree && unstagedFiles.length > 0;
+    const showWorktreeApplyInStaged =
+        showApplyWorktree && unstagedFiles.length === 0 && stagedFiles.length > 0;
 
     return (
         <div className="diff-list" onClick={onDiffListClick}>
@@ -634,6 +647,11 @@ export function GitDiffModeContent({
                             onUnstageFile={onUnstageFile}
                             onDiscardFile={onDiscardFile}
                             onDiscardFiles={onDiscardFiles}
+                            showWorktreeApplyAction={showWorktreeApplyInStaged}
+                            worktreeApplyTitle={worktreeApplyTitle}
+                            worktreeApplyLoading={worktreeApplyLoading}
+                            worktreeApplySuccess={worktreeApplySuccess}
+                            onApplyWorktreeChanges={onApplyWorktreeChanges}
                             onFileClick={onFileClick}
                             onShowFileMenu={onShowFileMenu}
                         />
@@ -651,6 +669,11 @@ export function GitDiffModeContent({
                             onDiscardFile={onDiscardFile}
                             onDiscardFiles={onDiscardFiles}
                             onReviewUncommittedChanges={onReviewUncommittedChanges}
+                            showWorktreeApplyAction={showWorktreeApplyInUnstaged}
+                            worktreeApplyTitle={worktreeApplyTitle}
+                            worktreeApplyLoading={worktreeApplyLoading}
+                            worktreeApplySuccess={worktreeApplySuccess}
+                            onApplyWorktreeChanges={onApplyWorktreeChanges}
                             onFileClick={onFileClick}
                             onShowFileMenu={onShowFileMenu}
                         />

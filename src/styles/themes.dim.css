@@ -50,3 +50,11 @@
   --surface-context-core: rgba(32, 35, 42, 0.98);
   --surface-popover: rgba(32, 35, 42, 0.995);
 }
+
+:root[data-theme="dim"] .app.is-windows:not(.reduced-transparency) {
+  --surface-sidebar: rgba(41, 44, 51, 0.15);
+  --surface-right-panel: rgba(36, 39, 46, 0.1);
+  --surface-topbar: rgba(35, 38, 45, 0.15);
+  --surface-messages: rgba(32, 35, 42, 1);
+  --surface-composer: rgba(35, 38, 45, 1);
+}

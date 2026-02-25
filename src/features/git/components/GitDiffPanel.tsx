@@ -30,7 +30,6 @@ import {
 import {
   SidebarError,
   type SidebarErrorAction,
-  WorktreeApplyIcon,
 } from "./GitDiffPanelShared";
 import {
   getFileName,
@@ -662,20 +661,6 @@ export function GitDiffPanel({
               <option value="prs">PRs</option>
             </select>
           </div>
-          {showApplyWorktree && (
-            <button
-              type="button"
-              className="diff-row-action diff-row-action--apply"
-              onClick={() => {
-                void onApplyWorktreeChanges?.();
-              }}
-              disabled={worktreeApplyLoading || worktreeApplySuccess}
-              data-tooltip={worktreeApplyTitle ?? "Apply changes to parent workspace"}
-              aria-label="Apply worktree changes"
-            >
-              <WorktreeApplyIcon success={worktreeApplySuccess} />
-            </button>
-          )}
         </div>
       }
     >
@@ -727,11 +712,16 @@ export function GitDiffPanel({
           gitRoot={gitRoot}
           onSelectGitRoot={onSelectGitRoot}
           showGenerateCommitMessage={showGenerateCommitMessage}
+          showApplyWorktree={showApplyWorktree}
           commitMessage={commitMessage}
           onCommitMessageChange={onCommitMessageChange}
           commitMessageLoading={commitMessageLoading}
           canGenerateCommitMessage={canGenerateCommitMessage}
           onGenerateCommitMessage={onGenerateCommitMessage}
+          worktreeApplyTitle={worktreeApplyTitle}
+          worktreeApplyLoading={worktreeApplyLoading}
+          worktreeApplySuccess={worktreeApplySuccess}
+          onApplyWorktreeChanges={onApplyWorktreeChanges}
           stagedFiles={stagedFiles}
           unstagedFiles={unstagedFiles}
           commitLoading={commitLoading}

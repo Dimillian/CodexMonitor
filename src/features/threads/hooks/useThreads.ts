@@ -31,7 +31,7 @@ import {
   saveCustomName,
   saveDetachedReviewLinks,
 } from "@threads/utils/threadStorage";
-import { getParentThreadIdFromSource } from "@threads/utils/threadRpc";
+import { getParentThreadIdFromThread } from "@threads/utils/threadRpc";
 import { getSubagentDescendantThreadIds } from "@threads/utils/subagentTree";
 
 type UseThreadsOptions = {
@@ -421,11 +421,11 @@ export function useThreads({
       if (!threadId) {
         return;
       }
-      const sourceParentId = getParentThreadIdFromSource(thread.source);
-      if (!sourceParentId) {
+      const parentThreadId = getParentThreadIdFromThread(thread);
+      if (!parentThreadId) {
         return;
       }
-      updateThreadParent(sourceParentId, [threadId]);
+      updateThreadParent(parentThreadId, [threadId]);
       onSubagentThreadDetected(workspaceId, threadId);
     },
     [onSubagentThreadDetected, threadHandlers, updateThreadParent],
