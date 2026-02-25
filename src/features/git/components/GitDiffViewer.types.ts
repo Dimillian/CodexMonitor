@@ -52,4 +52,5 @@ export type GitDiffViewerProps = {
   canRevert?: boolean;
   onRevertFile?: (path: string) => Promise<void> | void;
   onActivePathChange?: (path: string) => void;
+  onInsertComposerText?: (text: string) => void;
 };

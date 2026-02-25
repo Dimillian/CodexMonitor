@@ -265,6 +265,11 @@ type DiffSectionProps = {
   onDiscardFile?: (path: string) => Promise<void> | void;
   onDiscardFiles?: (paths: string[]) => Promise<void> | void;
   onReviewUncommittedChanges?: () => Promise<void> | void;
+  showWorktreeApplyAction?: boolean;
+  worktreeApplyTitle?: string | null;
+  worktreeApplyLoading?: boolean;
+  worktreeApplySuccess?: boolean;
+  onApplyWorktreeChanges?: () => Promise<void> | void;
   onFileClick: (
     event: ReactMouseEvent<HTMLDivElement>,
     path: string,
@@ -290,6 +295,11 @@ export function DiffSection({
   onDiscardFile,
   onDiscardFiles,
   onReviewUncommittedChanges,
+  showWorktreeApplyAction = false,
+  worktreeApplyTitle = null,
+  worktreeApplyLoading = false,
+  worktreeApplySuccess = false,
+  onApplyWorktreeChanges,
   onFileClick,
   onShowFileMenu,
 }: DiffSectionProps) {
@@ -304,8 +314,10 @@ export function DiffSection({
     section === "unstaged" &&
     Boolean(onReviewUncommittedChanges) &&
     filePaths.length > 0;
+  const canApplyWorktree =
+    showWorktreeApplyAction && Boolean(onApplyWorktreeChanges) && filePaths.length > 0;
   const showSectionActions =
-    canStageAll || canUnstageAll || canDiscardAll || canReviewUncommitted;
+    canApplyWorktree || canStageAll || canUnstageAll || canDiscardAll || canReviewUncommitted;
 
   return (
     <div className="diff-section">
@@ -315,6 +327,20 @@ export function DiffSection({
         </span>
         {showSectionActions && (
           <div className="diff-section-actions" role="group" aria-label={`${title} actions`}>
+            {canApplyWorktree && (
+              <button
+                type="button"
+                className="diff-row-action diff-row-action--apply"
+                onClick={() => {
+                  void onApplyWorktreeChanges?.();
+                }}
+                disabled={worktreeApplyLoading || worktreeApplySuccess}
+                data-tooltip={worktreeApplyTitle ?? "Apply changes to parent workspace"}
+                aria-label="Apply worktree changes"
+              >
+                <WorktreeApplyIcon success={worktreeApplySuccess} />
+              </button>
+            )}
             {canReviewUncommitted && (
               <button
                 type="button"

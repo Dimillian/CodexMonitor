@@ -1,7 +1,11 @@
 import { memo, useMemo } from "react";
-import { parsePatchFiles } from "@pierre/diffs";
+import {
+  parsePatchFiles,
+  type AnnotationSide,
+  type FileDiffMetadata,
+  type SelectedLineRange,
+} from "@pierre/diffs";
 import { FileDiff } from "@pierre/diffs/react";
-import type { FileDiffMetadata } from "@pierre/diffs";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import type {
   PullRequestReviewAction,
@@ -11,10 +15,60 @@ import { parseDiff, type ParsedDiffLine } from "../../../utils/diff";
 import {
   DIFF_VIEWER_SCROLL_CSS,
 } from "../../design-system/diff/diffViewerTheme";
-import { DiffBlock } from "./DiffBlock";
 import { splitPath } from "./GitDiffPanel.utils";
 import type { GitDiffViewerItem } from "./GitDiffViewer.types";
 import { normalizePatchName, parseRawDiffLines } from "./GitDiffViewer.utils";
+
+type HoveredDiffLine =
+  | {
+      lineNumber: number;
+      side?: AnnotationSide;
+      annotationSide?: AnnotationSide;
+    }
+  | undefined;
+
+function isSelectableLine(
+  line: ParsedDiffLine,
+): line is ParsedDiffLine & { type: "add" | "del" | "context" } {
+  return line.type === "add" || line.type === "del" || line.type === "context";
+}
+
+function resolveParsedLineForHover(
+  parsedLines: ParsedDiffLine[],
+  hovered: HoveredDiffLine,
+): { line: ParsedDiffLine; index: number } | null {
+  if (!hovered) {
+    return null;
+  }
+  const side = hovered.annotationSide ?? hovered.side ?? "additions";
+  const lineNumber = hovered.lineNumber;
+
+  const matchForSide = (line: ParsedDiffLine) => {
+    if (!isSelectableLine(line)) {
+      return false;
+    }
+    if (side === "deletions") {
+      return line.oldLine === lineNumber;
+    }
+    return line.newLine === lineNumber;
+  };
+
+  let index = parsedLines.findIndex(matchForSide);
+  if (index >= 0) {
+    return { line: parsedLines[index], index };
+  }
+
+  index = parsedLines.findIndex(
+    (line) =>
+      isSelectableLine(line) &&
+      (line.newLine === lineNumber || line.oldLine === lineNumber),
+  );
+  if (index >= 0) {
+    return { line: parsedLines[index], index };
+  }
+
+  return null;
+}
 
 export type DiffCardProps = {
   entry: GitDiffViewerItem;
@@ -25,15 +79,14 @@ export type DiffCardProps = {
   showRevert: boolean;
   onRequestRevert?: (path: string) => void;
   interactiveSelectionEnabled: boolean;
-  selectedRange?: { start: number; end: number } | null;
-  onLineSelect?: (index: number, shiftKey: boolean) => void;
-  onLineMouseDown?: (index: number, button: number, shiftKey: boolean) => void;
-  onLineMouseEnter?: (index: number) => void;
-  onLineMouseUp?: () => void;
+  selectedLines?: SelectedLineRange | null;
+  onSelectedLinesChange?: (range: SelectedLineRange | null) => void;
+  onLineAction?: (line: ParsedDiffLine, index: number) => void;
   reviewActions?: PullRequestReviewAction[];
   onRunReviewAction?: (
     intent: PullRequestReviewIntent,
     parsedLines: ParsedDiffLine[],
+    selectedLines: SelectedLineRange | null,
   ) => void | Promise<void>;
   onClearSelection?: () => void;
   pullRequestReviewLaunching?: boolean;
@@ -49,11 +102,9 @@ export const DiffCard = memo(function DiffCard({
   showRevert,
   onRequestRevert,
   interactiveSelectionEnabled,
-  selectedRange = null,
-  onLineSelect,
-  onLineMouseDown,
-  onLineMouseEnter,
-  onLineMouseUp,
+  selectedLines = null,
+  onSelectedLinesChange,
+  onLineAction,
   reviewActions = [],
   onRunReviewAction,
   onClearSelection,
@@ -66,16 +117,6 @@ export const DiffCard = memo(function DiffCard({
     [displayPath],
   );
   const displayDir = dir ? `${dir}/` : "";
-  const diffOptions = useMemo(
-    () => ({
-      diffStyle,
-      hunkSeparators: "line-info" as const,
-      overflow: "scroll" as const,
-      unsafeCSS: DIFF_VIEWER_SCROLL_CSS,
-      disableFileHeader: true,
-    }),
-    [diffStyle],
-  );
 
   const fileDiff = useMemo(() => {
     if (!entry.diff.trim()) {
@@ -118,13 +159,31 @@ export const DiffCard = memo(function DiffCard({
   }, [entry.diff]);
 
   const hasSelectableLines = useMemo(
-    () =>
-      parsedLines.some(
-        (line) => line.type === "add" || line.type === "del" || line.type === "context",
-      ),
+    () => parsedLines.some(isSelectableLine),
     [parsedLines],
   );
   const useInteractiveDiff = interactiveSelectionEnabled && hasSelectableLines;
+  const lineActionEnabled =
+    diffStyle === "unified" && Boolean(onLineAction) && hasSelectableLines;
+
+  const diffOptions = useMemo(
+    () => ({
+      diffStyle,
+      hunkSeparators: "line-info" as const,
+      overflow: "scroll" as const,
+      unsafeCSS: DIFF_VIEWER_SCROLL_CSS,
+      disableFileHeader: true,
+      enableLineSelection: useInteractiveDiff,
+      onLineSelected: useInteractiveDiff ? onSelectedLinesChange : undefined,
+      enableHoverUtility: lineActionEnabled,
+    }),
+    [
+      diffStyle,
+      lineActionEnabled,
+      onSelectedLinesChange,
+      useInteractiveDiff,
+    ],
+  );
 
   return (
     <div
@@ -155,7 +214,7 @@ export const DiffCard = memo(function DiffCard({
           </button>
         )}
       </div>
-      {useInteractiveDiff && selectedRange && reviewActions.length > 0 ? (
+      {useInteractiveDiff && selectedLines && reviewActions.length > 0 ? (
         <div className="diff-viewer-review-actions" role="toolbar" aria-label="PR selection actions">
           {reviewActions.map((action) => (
             <button
@@ -167,7 +226,7 @@ export const DiffCard = memo(function DiffCard({
                 if (!onRunReviewAction) {
                   return;
                 }
-                void onRunReviewAction(action.intent, parsedLines);
+                void onRunReviewAction(action.intent, parsedLines, selectedLines);
               }}
             >
               {action.label}
@@ -187,42 +246,55 @@ export const DiffCard = memo(function DiffCard({
           ) : null}
         </div>
       ) : null}
-      {useInteractiveDiff ? (
-        <div className="diff-viewer-output diff-viewer-output-flat">
-          <DiffBlock
-            diff={entry.diff}
-            parsedLines={parsedLines}
-            onLineSelect={(_line, index, event) => {
-              onLineSelect?.(index, event.shiftKey);
-            }}
-            onLineMouseDown={(_line, index, event) => {
-              event.preventDefault();
-              onLineMouseDown?.(index, event.button, event.shiftKey);
-            }}
-            onLineMouseEnter={(_line, index) => {
-              onLineMouseEnter?.(index);
-            }}
-            onLineMouseUp={() => {
-              onLineMouseUp?.();
-            }}
-            selectedRange={selectedRange}
-          />
-        </div>
-      ) : entry.diff.trim().length > 0 && fileDiff ? (
+      {entry.diff.trim().length > 0 && fileDiff ? (
         <div className="diff-viewer-output diff-viewer-output-flat">
           <FileDiff
             fileDiff={fileDiff}
             options={diffOptions}
+            selectedLines={useInteractiveDiff ? selectedLines : null}
+            renderHoverUtility={
+              lineActionEnabled
+                ? (getHoveredLine) => (
+                    <button
+                      type="button"
+                      className="diff-viewer-line-action-button"
+                      aria-label="Ask for changes on hovered line"
+                      title="Ask for changes on this line"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                      }}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        const resolved = resolveParsedLineForHover(
+                          parsedLines,
+                          getHoveredLine() as HoveredDiffLine,
+                        );
+                        if (!resolved) {
+                          return;
+                        }
+                        onLineAction?.(resolved.line, resolved.index);
+                      }}
+                    >
+                      +
+                    </button>
+                  )
+                : undefined
+            }
             style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
           />
         </div>
       ) : entry.diff.trim().length > 0 && parsedLines.length > 0 ? (
-        <div className="diff-viewer-output diff-viewer-output-flat">
-          <DiffBlock
-            diff={entry.diff}
-            parsedLines={parsedLines}
-            showLineNumbers={false}
-          />
+        <div className="diff-viewer-output diff-viewer-output-flat diff-viewer-output-raw">
+          {parsedLines.map((line, index) => (
+            <div
+              key={index}
+              className={`diff-viewer-raw-line diff-viewer-raw-line-${line.type}`}
+            >
+              {line.text}
+            </div>
+          ))}
         </div>
       ) : (
         <div className="diff-viewer-placeholder">{placeholder}</div>

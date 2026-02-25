@@ -310,6 +310,10 @@
   box-shadow: none;
 }
 
+.diff-viewer.is-unified .diff-viewer-item.active {
+  background: transparent;
+}
+
 .diff-viewer-header {
   display: flex;
   align-items: center;
@@ -515,6 +519,11 @@
   white-space: pre-wrap;
 }
 
+.diff-line.has-line-action {
+  position: relative;
+  padding-left: 30px;
+}
+
 .diff-line[data-has-gutter="false"] {
   grid-template-columns: 1fr;
   gap: 0;
@@ -585,9 +594,98 @@
   word-break: break-word;
 }
 
+.diff-line-action {
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--text-strong) 28%, transparent);
+  background: var(--surface-control);
+  color: var(--text-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 140ms ease,
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.diff-line.has-line-action:hover .diff-line-action,
+.diff-line.has-line-action:focus-visible .diff-line-action,
+.diff-line.has-line-action:focus-within .diff-line-action {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.diff-line-action:hover:not(:disabled),
+.diff-line-action:active:not(:disabled) {
+  transform: translateY(-50%);
+  box-shadow: none;
+}
+
+.diff-line-action:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--text-strong) 50%, transparent);
+  outline-offset: 1px;
+}
+
+.diff-viewer-line-action-button {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid var(--border-stronger);
+  background: var(--surface-sidebar-opaque);
+  color: var(--text-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: none;
+  transform: none;
+  opacity: 1;
+}
+
+.diff-viewer-line-action-button:hover:not(:disabled),
+.diff-viewer-line-action-button:active:not(:disabled) {
+  box-shadow: none;
+  transform: none;
+}
+
+.diff-viewer-line-action-button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--text-strong) 50%, transparent);
+  outline-offset: 1px;
+}
+
+.diff-line.has-line-action[data-has-gutter="false"] {
+  padding-left: 30px;
+}
+
 .diff-line[data-has-gutter="false"] .diff-line-content {
   overflow-wrap: normal;
   word-break: normal;
+}
+
+.diff-viewer-output-raw {
+  padding: 6px 10px;
+}
+
+.diff-viewer-raw-line {
+  white-space: pre-wrap;
 }
 
 .diff-line-hunk {

@@ -1,18 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import type { SelectedLineRange } from "@pierre/diffs";
 import { WorkerPoolContextProvider } from "@pierre/diffs/react";
 import GitCommitHorizontal from "lucide-react/dist/esm/icons/git-commit-horizontal";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import type { ParsedDiffLine } from "../../../utils/diff";
 import { workerFactory } from "../../../utils/diffsWorker";
-import type { PullRequestReviewIntent } from "../../../types";
+import type {
+  PullRequestReviewIntent,
+  PullRequestSelectionRange,
+} from "../../../types";
 import {
   DIFF_VIEWER_HIGHLIGHTER_OPTIONS,
 } from "../../design-system/diff/diffViewerTheme";
 import { ImageDiffCard } from "./ImageDiffCard";
 import { splitPath } from "./GitDiffPanel.utils";
-import { usePullRequestLineSelection } from "../hooks/usePullRequestLineSelection";
 import { DiffCard } from "./GitDiffViewerDiffCard";
 import { PullRequestSummary } from "./GitDiffViewerPullRequestSummary";
 import type {
@@ -20,6 +23,106 @@ import type {
   GitDiffViewerProps,
 } from "./GitDiffViewer.types";
 import { calculateDiffStats } from "./GitDiffViewer.utils";
+
+function isSelectableLine(
+  line: ParsedDiffLine,
+): line is ParsedDiffLine & { type: "add" | "del" | "context" } {
+  return line.type === "add" || line.type === "del" || line.type === "context";
+}
+
+function findSelectionLineIndex(
+  parsedLines: ParsedDiffLine[],
+  lineNumber: number,
+  side: "additions" | "deletions",
+  fromEnd = false,
+) {
+  const indices = fromEnd
+    ? [...parsedLines.keys()].reverse()
+    : [...parsedLines.keys()];
+
+  for (const index of indices) {
+    const line = parsedLines[index];
+    if (!line || !isSelectableLine(line)) {
+      continue;
+    }
+    if (side === "deletions" && line.oldLine === lineNumber) {
+      return index;
+    }
+    if (side === "additions" && line.newLine === lineNumber) {
+      return index;
+    }
+  }
+
+  for (const index of indices) {
+    const line = parsedLines[index];
+    if (!line || !isSelectableLine(line)) {
+      continue;
+    }
+    if (line.oldLine === lineNumber || line.newLine === lineNumber) {
+      return index;
+    }
+  }
+
+  return null;
+}
+
+function buildSelectionRangeFromLineSelection({
+  path,
+  status,
+  parsedLines,
+  selectedLines,
+}: {
+  path: string;
+  status: string;
+  parsedLines: ParsedDiffLine[];
+  selectedLines: SelectedLineRange | null;
+}): PullRequestSelectionRange | null {
+  if (!selectedLines) {
+    return null;
+  }
+
+  const startSide = selectedLines.side ?? "additions";
+  const endSide = selectedLines.endSide ?? startSide;
+  const startIndex = findSelectionLineIndex(
+    parsedLines,
+    selectedLines.start,
+    startSide,
+    false,
+  );
+  const endIndex = findSelectionLineIndex(
+    parsedLines,
+    selectedLines.end,
+    endSide,
+    true,
+  );
+  if (startIndex === null || endIndex === null) {
+    return null;
+  }
+
+  const start = Math.min(startIndex, endIndex);
+  const end = Math.max(startIndex, endIndex);
+  const lines = parsedLines
+    .slice(start, end + 1)
+    .filter(isSelectableLine)
+    .map((line) => ({
+      type: line.type,
+      oldLine: line.oldLine,
+      newLine: line.newLine,
+      text: line.text,
+    }));
+
+  if (lines.length === 0) {
+    return null;
+  }
+
+  return {
+    path,
+    status,
+    start,
+    end,
+    lines,
+  };
+}
 
 export function GitDiffViewer({
   diffs,
@@ -41,6 +144,7 @@ export function GitDiffViewer({
   canRevert = false,
   onRevertFile,
   onActivePathChange,
+  onInsertComposerText,
 }: GitDiffViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -58,16 +162,39 @@ export function GitDiffViewer({
       onRunPullRequestReview &&
       pullRequestReviewActions.length > 0,
   );
+  const [lineSelection, setLineSelection] = useState<{
+    path: string;
+    range: SelectedLineRange;
+  } | null>(null);
 
-  const {
-    clearSelection,
-    selectLine,
-    startDragSelection,
-    updateDragSelection,
-    finishDragSelection,
-    selectedRangeForPath,
-    buildSelectionRange,
-  } = usePullRequestLineSelection();
+  const clearSelection = useCallback(() => {
+    setLineSelection(null);
+  }, []);
+
+  const selectedLinesForPath = useCallback(
+    (path: string) => {
+      if (!lineSelection || lineSelection.path !== path) {
+        return null;
+      }
+      return lineSelection.range;
+    },
+    [lineSelection],
+  );
+
+  const setSelectedLinesForPath = useCallback(
+    (path: string, range: SelectedLineRange | null) => {
+      setLineSelection((previous) => {
+        if (!range) {
+          if (previous?.path !== path) {
+            return previous;
+          }
+          return null;
+        }
+        return { path, range };
+      });
+    },
+    [],
+  );
 
   const poolOptions = useMemo(() => ({ workerFactory }), []);
   const highlighterOptions = useMemo(
@@ -144,16 +271,38 @@ export function GitDiffViewer({
 
   const showRevert = canRevert && Boolean(onRevertFile);
 
+  const handleInsertLineReference = useCallback(
+    (entry: GitDiffViewerItem, line: ParsedDiffLine, index: number) => {
+      if (!onInsertComposerText) {
+        return;
+      }
+      const displayPath = entry.displayPath ?? entry.path;
+      const lineNumber = line.newLine ?? line.oldLine;
+      const lineLabel =
+        typeof lineNumber === "number" ? `L${lineNumber}` : `line-${index + 1}`;
+      const prefix = line.type === "add" ? "+" : line.type === "del" ? "-" : " ";
+      const reference = `${displayPath}:${lineLabel}\n\`\`\`diff\n${prefix}${line.text}\n\`\`\`\n\n`;
+      onInsertComposerText(reference);
+    },
+    [onInsertComposerText],
+  );
+
   const handleRunSelectionReview = useCallback(
     async (
       intent: PullRequestReviewIntent,
       entry: GitDiffViewerItem,
       parsedLines: ParsedDiffLine[],
+      selectedLines: SelectedLineRange | null,
     ) => {
       if (!onRunPullRequestReview) {
         return;
       }
-      const selection = buildSelectionRange(entry.path, entry.status, parsedLines);
+      const selection = buildSelectionRangeFromLineSelection({
+        path: entry.path,
+        status: entry.status,
+        parsedLines,
+        selectedLines,
+      });
       if (!selection) {
         return;
       }
@@ -162,7 +311,7 @@ export function GitDiffViewer({
         selection,
       });
     },
-    [buildSelectionRange, onRunPullRequestReview],
+    [onRunPullRequestReview],
   );
 
   const handleRequestRevert = useCallback(
@@ -321,9 +470,10 @@ export function GitDiffViewer({
       highlighterOptions={highlighterOptions}
     >
       <div
-        className="diff-viewer ds-diff-viewer"
+        className={`diff-viewer ds-diff-viewer ${
+          diffStyle === "unified" ? "is-unified" : "is-split"
+        }`}
         ref={containerRef}
-        onMouseUp={finishDragSelection}
       >
         {pullRequest && (
           <PullRequestSummary
@@ -436,23 +586,25 @@ export function GitDiffViewer({
                       showRevert={showRevert}
                       onRequestRevert={(path) => void handleRequestRevert(path)}
                       interactiveSelectionEnabled={interactiveSelectionEnabled}
-                      selectedRange={selectedRangeForPath(entry.path)}
-                      onLineSelect={(index, shiftKey) => {
-                        selectLine(entry.path, index, shiftKey);
+                      selectedLines={selectedLinesForPath(entry.path)}
+                      onSelectedLinesChange={(range) => {
+                        setSelectedLinesForPath(entry.path, range);
                       }}
-                      onLineMouseDown={(index, button, shiftKey) => {
-                        if (button !== 0) {
-                          return;
-                        }
-                        startDragSelection(entry.path, index, shiftKey);
-                      }}
-                      onLineMouseEnter={(index) => {
-                        updateDragSelection(entry.path, index);
-                      }}
-                      onLineMouseUp={finishDragSelection}
+                      onLineAction={
+                        onInsertComposerText
+                          ? (line, index) => {
+                              handleInsertLineReference(entry, line, index);
+                            }
+                          : undefined
+                      }
                       reviewActions={pullRequestReviewActions}
-                      onRunReviewAction={(intent, parsedLines) => {
-                        void handleRunSelectionReview(intent, entry, parsedLines);
+                      onRunReviewAction={(intent, parsedLines, selectedLines) => {
+                        void handleRunSelectionReview(
+                          intent,
+                          entry,
+                          parsedLines,
+                          selectedLines,
+                        );
                       }}
                       onClearSelection={clearSelection}
                       pullRequestReviewLaunching={pullRequestReviewLaunching}

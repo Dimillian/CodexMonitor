@@ -5,7 +5,7 @@ import Brain from "lucide-react/dist/esm/icons/brain";
 import Check from "lucide-react/dist/esm/icons/check";
 import Copy from "lucide-react/dist/esm/icons/copy";
 import Diff from "lucide-react/dist/esm/icons/diff";
-import FileDiff from "lucide-react/dist/esm/icons/file-diff";
+import FileDiffIcon from "lucide-react/dist/esm/icons/file-diff";
 import FileText from "lucide-react/dist/esm/icons/file-text";
 import Image from "lucide-react/dist/esm/icons/image";
 import Quote from "lucide-react/dist/esm/icons/quote";
@@ -17,8 +17,7 @@ import X from "lucide-react/dist/esm/icons/x";
 import { exportMarkdownFile } from "@services/tauri";
 import { pushErrorToast } from "@services/toasts";
 import type { ConversationItem } from "../../../types";
-import { languageFromPath } from "../../../utils/syntax";
-import { DiffBlock } from "../../git/components/DiffBlock";
+import { PierreDiffBlock } from "../../git/components/PierreDiffBlock";
 import {
   MAX_COMMAND_OUTPUT_LINES,
   basename,
@@ -248,7 +247,7 @@ function toolIconForSummary(
     return Terminal;
   }
   if (item.toolType === "fileChange") {
-    return FileDiff;
+    return FileDiffIcon;
   }
   if (item.toolType === "webSearch") {
     return Search;
@@ -541,7 +540,7 @@ export const DiffRow = memo(function DiffRow({ item }: DiffRowProps) {
         {item.status && <span className="item-status">{item.status}</span>}
       </div>
       <div className="diff-viewer-output">
-        <DiffBlock diff={item.diff} language={languageFromPath(item.title)} />
+        <PierreDiffBlock diff={item.diff} displayPath={item.title} />
       </div>
     </div>
   );
@@ -709,10 +708,7 @@ export const ToolRow = memo(function ToolRow({
                 </div>
                 {change.diff && (
                   <div className="diff-viewer-output">
-                    <DiffBlock
-                      diff={change.diff}
-                      language={languageFromPath(change.path)}
-                    />
+                    <PierreDiffBlock diff={change.diff} displayPath={change.path} />
                   </div>
                 )}
               </div>

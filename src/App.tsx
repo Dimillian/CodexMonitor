@@ -196,6 +196,7 @@ function MainApp() {
     dictationHint,
     dictationReady,
     handleToggleDictation,
+    cancelDictation,
     clearDictationTranscript,
     clearDictationError,
     clearDictationHint,
@@ -2440,6 +2441,7 @@ function MainApp() {
     dictationState,
     dictationLevel,
     onToggleDictation: handleToggleDictation,
+    onCancelDictation: cancelDictation,
     dictationTranscript,
     onDictationTranscriptHandled: (id) => {
       clearDictationTranscript(id);
@@ -2545,6 +2547,7 @@ function MainApp() {
       dictationState={dictationState}
       dictationLevel={dictationLevel}
       onToggleDictation={handleToggleDictation}
+      onCancelDictation={cancelDictation}
       onOpenDictationSettings={() => openSettings("dictation")}
       dictationError={dictationError}
       onDismissDictationError={clearDictationError}

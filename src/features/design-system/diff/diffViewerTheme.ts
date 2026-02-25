@@ -10,6 +10,12 @@ export const DIFF_VIEWER_SCROLL_CSS = `
   background-image: none !important;
 }
 
+[data-hover-slot] {
+  left: 0 !important;
+  right: auto !important;
+  justify-content: flex-start !important;
+}
+
 diffs-container,
 [data-diffs],
 [data-diffs-header],
