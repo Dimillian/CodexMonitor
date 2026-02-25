@@ -140,6 +140,8 @@ type ComposerProps = {
   onReviewPromptUpdateCustomInstructions?: (value: string) => void;
   onReviewPromptConfirmCustom?: () => Promise<void>;
   onFileAutocompleteActiveChange?: (active: boolean) => void;
+  ghostText?: string | null;
+  onAcceptGhostText?: () => string | null;
   contextActions?: {
     id: string;
     label: string;
@@ -243,6 +245,8 @@ export const Composer = memo(function Composer({
   onReviewPromptUpdateCustomInstructions,
   onReviewPromptConfirmCustom,
   onFileAutocompleteActiveChange,
+  ghostText = null,
+  onAcceptGhostText,
   contextActions = [],
 }: ComposerProps) {
   const [text, setText] = useState(draftText);
@@ -686,6 +690,7 @@ export const Composer = memo(function Composer({
       ) : null}
       <ComposerInput
         text={text}
+        ghostText={ghostText}
         disabled={disabled}
         sendLabel={effectiveSendLabel}
         canStop={canStop}
@@ -793,6 +798,30 @@ export const Composer = memo(function Composer({
             const nextCursor = start + 1;
             applyTextInsertion(nextText, nextCursor);
             return;
+          }
+          if (
+            event.key === "Tab" &&
+            !event.shiftKey &&
+            !suggestionsOpen &&
+            !isProcessing &&
+            !text.trim() &&
+            ghostText &&
+            onAcceptGhostText
+          ) {
+            const accepted = onAcceptGhostText();
+            if (accepted) {
+              event.preventDefault();
+              setComposerText(accepted);
+              requestAnimationFrame(() => {
+                const ta = textareaRef.current;
+                if (ta) {
+                  ta.selectionStart = accepted.length;
+                  ta.selectionEnd = accepted.length;
+                  ta.focus();
+                }
+              });
+              return;
+            }
           }
           if (reviewPromptOpen && onReviewPromptKeyDown) {
             const handled = onReviewPromptKeyDown(event);

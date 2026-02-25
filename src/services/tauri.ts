@@ -1088,6 +1088,14 @@ export async function getAppBuildType(): Promise<AppBuildType> {
   return invoke<AppBuildType>("app_build_type");
 }
 
+export async function predictResponse(
+  workspaceId: string,
+  context: string,
+  model?: string,
+): Promise<string> {
+  return invoke<string>("predict_response", { workspaceId, context, model });
+}
+
 export async function sendNotification(
   title: string,
   body: string,

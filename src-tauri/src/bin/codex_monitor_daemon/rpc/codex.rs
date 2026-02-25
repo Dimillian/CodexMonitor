@@ -492,6 +492,23 @@ pub(super) async fn try_handle(
                     .and_then(|value| serde_json::to_value(value).map_err(|err| err.to_string())),
             )
         }
+        "predict_response" => {
+            let workspace_id = match parse_string(params, "workspaceId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let context = match parse_string(params, "context") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let model = parse_optional_string(params, "model");
+            Some(
+                state
+                    .predict_response(workspace_id, context, model)
+                    .await
+                    .map(Value::String),
+            )
+        }
         _ => None,
     }
 }

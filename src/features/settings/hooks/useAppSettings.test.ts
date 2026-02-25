@@ -71,6 +71,7 @@ describe("useAppSettings", () => {
     expect(result.current.settings.backendMode).toBe("local");
     expect(result.current.settings.dictationModelId).toBe("base");
     expect(result.current.settings.interruptShortcut).toBeTruthy();
+    expect(result.current.settings.promptSuggestionsEnabled).toBe(false);
   });
 
   it("persists settings via updateAppSettings and updates local state", async () => {

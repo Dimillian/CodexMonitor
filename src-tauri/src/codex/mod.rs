@@ -992,3 +992,51 @@ pub(crate) async fn generate_agent_description(
     )
     .await
 }
+
+#[tauri::command]
+pub(crate) async fn predict_response(
+    workspace_id: String,
+    context: String,
+    model: Option<String>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<String, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let mut payload = json!({ "workspaceId": workspace_id, "context": context });
+        if let Some(ref model_id) = model {
+            payload.as_object_mut().unwrap().insert("model".to_string(), json!(model_id));
+        }
+        let value = remote_backend::call_remote(
+            &*state,
+            app,
+            "predict_response",
+            payload,
+        )
+        .await?;
+        return serde_json::from_value(value).map_err(|err| err.to_string());
+    }
+
+    crate::shared::codex_aux_core::predict_response_core(
+        &state.sessions,
+        &state.workspaces,
+        workspace_id,
+        &context,
+        model,
+        |workspace_id, thread_id| {
+            let _ = app.emit(
+                "app-server-event",
+                AppServerEvent {
+                    workspace_id: workspace_id.to_string(),
+                    message: json!({
+                        "method": "codex/backgroundThread",
+                        "params": {
+                            "threadId": thread_id,
+                            "action": "hide"
+                        }
+                    }),
+                },
+            );
+        },
+    )
+    .await
+}

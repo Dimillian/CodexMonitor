@@ -398,6 +398,7 @@ pub(crate) async fn run_background_prompt_core<F>(
     workspace_id: String,
     prompt: String,
     model: Option<&str>,
+    max_tokens: Option<u32>,
     on_hide_thread: F,
     timeout_error: &str,
     turn_error_fallback: &str,
@@ -471,6 +472,9 @@ where
     });
     if let Some(model_id) = model {
         turn_params["model"] = json!(model_id);
+    }
+    if let Some(max) = max_tokens {
+        turn_params["maxTokens"] = json!(max);
     }
     let turn_result = session
         .send_request_for_workspace(&workspace_id, "turn/start", turn_params)
@@ -580,6 +584,7 @@ where
         workspace_id,
         prompt,
         model,
+        None,
         on_hide_thread,
         "Timeout waiting for commit message generation",
         "Unknown error during commit message generation",
@@ -609,6 +614,7 @@ where
         workspace_id,
         metadata_prompt,
         None,
+        None,
         on_hide_thread,
         "Timeout waiting for metadata generation",
         "Unknown error during metadata generation",
@@ -616,6 +622,51 @@ where
     .await?;
 
     parse_run_metadata_value(&response)
+}
+
+pub(crate) fn build_predict_response_prompt(context: &str) -> String {
+    format!(
+        "Predict the user's next message in a coding conversation. \
+Only suggest something when the assistant is clearly asking a question, \
+offering options, requesting confirmation, or there is an obvious natural follow-up. \
+If the assistant just delivered a result (code, explanation, completed task) with no \
+question or choice, output NONE.\n\
+When you do predict, be extremely concise — a few words or a short phrase. \
+Examples: \"yes\", \"do it\", \"use async instead\", \"add tests for that\". \
+Output ONLY the predicted text or NONE, nothing else.\n\n\
+Context:\n{context}"
+    )
+}
+
+pub(crate) async fn predict_response_core<F>(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    context: &str,
+    model: Option<String>,
+    on_hide_thread: F,
+) -> Result<String, String>
+where
+    F: Fn(&str, &str),
+{
+    let cleaned_context = context.trim();
+    if cleaned_context.is_empty() {
+        return Err("Context is required.".to_string());
+    }
+
+    let prompt = build_predict_response_prompt(cleaned_context);
+    run_background_prompt_core(
+        sessions,
+        workspaces,
+        workspace_id,
+        prompt,
+        model.as_deref(),
+        Some(30),
+        on_hide_thread,
+        "Timeout waiting for response prediction",
+        "Unknown error during response prediction",
+    )
+    .await
 }
 
 pub(crate) async fn generate_agent_description_core<F>(
@@ -640,6 +691,7 @@ where
         workspace_id,
         prompt,
         None,
+        None,
         on_hide_thread,
         "Timeout waiting for agent configuration generation",
         "Unknown error during agent configuration generation",
@@ -652,8 +704,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        build_commit_message_prompt_for_diff, parse_agent_description_value,
-        parse_run_metadata_value,
+        build_commit_message_prompt_for_diff, build_predict_response_prompt,
+        parse_agent_description_value, parse_run_metadata_value,
     };
 
     #[test]
@@ -722,5 +774,18 @@ mod tests {
             "Refactors large React components for performance"
         );
         assert_eq!(parsed.developer_instructions, "");
+    }
+
+    #[test]
+    fn build_predict_response_prompt_includes_context() {
+        let prompt = build_predict_response_prompt("User: hello\n\nAssistant: hi there");
+        assert!(prompt.contains("User: hello"));
+        assert!(prompt.contains("Assistant: hi there"));
+    }
+
+    #[test]
+    fn build_predict_response_prompt_instructs_none_for_no_followup() {
+        let prompt = build_predict_response_prompt("some context");
+        assert!(prompt.contains("NONE"));
     }
 }

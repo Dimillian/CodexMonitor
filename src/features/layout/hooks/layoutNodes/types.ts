@@ -475,6 +475,8 @@ export type LayoutNodesOptions = {
   dictationHint: string | null;
   onDismissDictationHint: () => void;
   composerContextActions: ComposerContextAction[];
+  ghostText: string | null;
+  onAcceptGhostText: () => string | null;
   showComposer: boolean;
   composerSendLabel?: string;
   plan: TurnPlan | null;
