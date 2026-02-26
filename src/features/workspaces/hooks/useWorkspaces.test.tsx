@@ -396,6 +396,40 @@ describe("useWorkspaces.addWorkspacesFromPaths", () => {
     expect(addResult!.failures).toHaveLength(0);
   });
 
+  it("skips raw tilde paths when an equivalent inferred path already exists", async () => {
+    const listWorkspacesMock = vi.mocked(listWorkspaces);
+    const isWorkspacePathDirMock = vi.mocked(isWorkspacePathDir);
+    const addWorkspaceMock = vi.mocked(addWorkspace);
+
+    listWorkspacesMock.mockResolvedValue([
+      {
+        ...workspaceOne,
+        id: "existing-home",
+        path: "/Users/vlad/dev/personal",
+      },
+    ]);
+    isWorkspacePathDirMock.mockImplementation(async (path: string) => path === "~/dev/personal");
+
+    const { result } = renderHook(() => useWorkspaces());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    let addResult: Awaited<ReturnType<typeof result.current.addWorkspacesFromPaths>>;
+    await act(async () => {
+      addResult = await result.current.addWorkspacesFromPaths(["~/dev/personal"]);
+    });
+
+    expect(isWorkspacePathDirMock).toHaveBeenCalledWith("~/dev/personal");
+    expect(isWorkspacePathDirMock).toHaveBeenCalledWith("/Users/vlad/dev/personal");
+    expect(addWorkspaceMock).not.toHaveBeenCalled();
+    expect(addResult!.added).toHaveLength(0);
+    expect(addResult!.skippedExisting).toEqual(["~/dev/personal"]);
+    expect(addResult!.skippedInvalid).toHaveLength(0);
+    expect(addResult!.failures).toHaveLength(0);
+  });
+
   it("falls back to inferred home-prefix expansion when raw tilde path is invalid", async () => {
     const listWorkspacesMock = vi.mocked(listWorkspaces);
     const isWorkspacePathDirMock = vi.mocked(isWorkspacePathDir);

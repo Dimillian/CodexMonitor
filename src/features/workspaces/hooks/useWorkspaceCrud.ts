@@ -73,6 +73,20 @@ function buildWorkspacePathCandidates(path: string, homePrefixes: string[]): str
   return [trimmed, ...expanded];
 }
 
+function buildWorkspacePathKeyCandidates(path: string, homePrefixes: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const candidate of buildWorkspacePathCandidates(path, homePrefixes)) {
+    const key = normalizeWorkspacePathKey(candidate);
+    if (!key || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    result.push(key);
+  }
+  return result;
+}
+
 export function useWorkspaceCrud({
   onDebug,
   workspaces,
@@ -234,7 +248,11 @@ export function useWorkspaceCrud({
           if (!isDir) {
             continue;
           }
-          if (existingPaths.has(normalizeWorkspacePathKey(candidate))) {
+          const candidateKeys = buildWorkspacePathKeyCandidates(
+            candidate,
+            homePrefixes,
+          );
+          if (candidateKeys.some((key) => existingPaths.has(key))) {
             hadExistingCandidate = true;
             continue;
           }
