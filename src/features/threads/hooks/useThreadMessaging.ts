@@ -28,6 +28,7 @@ import {
   extractRpcErrorMessage,
   parseReviewTarget,
 } from "@threads/utils/threadNormalize";
+import { clampThreadName } from "@threads/utils/threadNaming";
 import type { ThreadAction, ThreadState } from "./useThreadsReducer";
 import { useReviewPrompt } from "./useReviewPrompt";
 import { formatRelativeTime } from "@utils/time";
@@ -91,7 +92,29 @@ type UseThreadMessagingOptions = {
     parentId: string,
     childId: string,
   ) => void;
+  renameThread?: (workspaceId: string, threadId: string, name: string) => void;
 };
+
+function buildReviewThreadTitle(target: ReviewTarget): string | null {
+  if (target.type === "commit") {
+    const shortSha = target.sha.trim().slice(0, 7);
+    const title = target.title?.trim() ?? "";
+    if (shortSha && title) {
+      return clampThreadName(`Review ${shortSha}: ${title}`);
+    }
+    if (shortSha) {
+      return clampThreadName(`Review ${shortSha}`);
+    }
+    return clampThreadName("Review Commit");
+  }
+  if (target.type === "baseBranch") {
+    return clampThreadName(`Review ${target.branch}`);
+  }
+  if (target.type === "uncommittedChanges") {
+    return "Review Working Tree";
+  }
+  return null;
+}
 
 function isStaleSteerTurnError(message: string): boolean {
   const normalized = message.trim().toLowerCase();
@@ -135,6 +158,7 @@ export function useThreadMessaging({
   forkThreadForWorkspace,
   updateThreadParent,
   registerDetachedReviewChild,
+  renameThread,
 }: UseThreadMessagingOptions) {
   const sendMessageToThread = useCallback(
     async (
@@ -568,6 +592,10 @@ export function useThreadMessaging({
           updateThreadParent(threadId, [reviewThreadId]);
           if (reviewDeliveryMode === "detached") {
             registerDetachedReviewChild?.(workspaceId, threadId, reviewThreadId);
+            const reviewTitle = buildReviewThreadTitle(target);
+            if (reviewTitle && !getCustomName(workspaceId, reviewThreadId)) {
+              renameThread?.(workspaceId, reviewThreadId, reviewTitle);
+            }
           }
         }
         return true;
@@ -595,6 +623,7 @@ export function useThreadMessaging({
       activeWorkspace,
       ensureThreadForActiveWorkspace,
       ensureThreadForWorkspace,
+      getCustomName,
       markProcessing,
       markReviewing,
       onDebug,
@@ -603,6 +632,7 @@ export function useThreadMessaging({
       setActiveTurnId,
       reviewDeliveryMode,
       registerDetachedReviewChild,
+      renameThread,
       updateThreadParent,
     ],
   );

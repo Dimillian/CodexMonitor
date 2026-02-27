@@ -487,4 +487,58 @@ describe("useThreadMessaging telemetry", () => {
       "Turn steer failed: steer network failure",
     );
   });
+
+  it("names detached commit review child threads from commit context", async () => {
+    vi.mocked(startReviewService).mockResolvedValueOnce({
+      result: {
+        review_thread_id: "thread-review-1",
+      },
+    } as unknown as Awaited<ReturnType<typeof startReviewService>>);
+    const renameThread = vi.fn();
+
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-parent",
+        accessMode: "current",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "detached",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing: vi.fn(),
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage: vi.fn(),
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-parent"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-parent"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+        renameThread,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startReview(
+        "/review commit abcdef1234567890 Tighten sidebar commit selection",
+      );
+    });
+
+    expect(renameThread).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-review-1",
+      "Review abcdef1: Tighten sidebar commit…",
+    );
+  });
 });

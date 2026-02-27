@@ -256,6 +256,26 @@ describe("useThreadTurnEvents", () => {
     });
   });
 
+  it("ignores placeholder thread names that mirror the thread id", () => {
+    const { result, dispatch, getCustomName } = makeOptions();
+    getCustomName.mockReturnValue(undefined);
+
+    act(() => {
+      result.current.onThreadNameUpdated("ws-1", {
+        threadId: "019c9e0e-7f97-78f2-a719-d28af9fb76b6",
+        threadName: "019c9e0e-7f97-78f2-a719-d28af9fb76b6",
+      });
+    });
+
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "setThreadName",
+        workspaceId: "ws-1",
+        threadId: "019c9e0e-7f97-78f2-a719-d28af9fb76b6",
+      }),
+    );
+  });
+
   it("does not override custom thread names on thread name updated", () => {
     const { result, dispatch, getCustomName } = makeOptions();
     getCustomName.mockReturnValue("Custom Name");

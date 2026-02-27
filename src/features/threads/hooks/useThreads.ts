@@ -763,6 +763,7 @@ export function useThreads({
     forkThreadForWorkspace,
     updateThreadParent,
     registerDetachedReviewChild,
+    renameThread,
   });
 
   const hasLocalThreadSnapshot = useCallback(

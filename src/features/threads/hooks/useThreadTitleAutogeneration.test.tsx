@@ -109,6 +109,23 @@ describe("useThreadTitleAutogeneration", () => {
     expect(generateRunMetadata).not.toHaveBeenCalled();
   });
 
+  it("treats UUID placeholder thread names as auto-generated", async () => {
+    vi.mocked(generateRunMetadata).mockResolvedValue({
+      title: "Commit review summary",
+      worktreeName: "feat/review-summary",
+    });
+    const { result, renameThread } = setup({
+      threadName: "019c9e0e-7f97-78f2-a719-d28af9fb76b6",
+    });
+
+    await act(async () => {
+      await result.current.onUserMessageCreated("ws-1", "thread-1", "Review this commit");
+    });
+
+    expect(generateRunMetadata).toHaveBeenCalledWith("ws-1", "Review this commit");
+    expect(renameThread).toHaveBeenCalledWith("ws-1", "thread-1", "Commit review summary");
+  });
+
   it("avoids duplicate generation while in flight", async () => {
     let resolvePromise!: (value: { title: string; worktreeName: string }) => void;
     const pending = new Promise<{ title: string; worktreeName: string }>((resolve) => {
