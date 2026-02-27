@@ -11,7 +11,7 @@ import {
 export type ThreadInfoPromptThread = {
   threadId: string;
   name: string;
-  workspaceName: string;
+  projectDir: string;
   branchName: string;
   createdAt?: number | null;
   updatedAt?: number | null;
@@ -51,6 +51,15 @@ function formatCompactTokens(value: number) {
   return String(Math.round(value));
 }
 
+function truncateMiddle(value: string, maxLength = 34) {
+  if (value.length <= maxLength) {
+    return value;
+  }
+  const head = Math.max(4, Math.floor((maxLength - 1) / 2));
+  const tail = Math.max(4, maxLength - head - 1);
+  return `${value.slice(0, head)}...${value.slice(-tail)}`;
+}
+
 export function ThreadInfoPrompt({
   thread,
   onClose,
@@ -62,6 +71,7 @@ export function ThreadInfoPrompt({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [threadIdCopied, setThreadIdCopied] = useState(false);
+  const [projectDirCopied, setProjectDirCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -70,6 +80,7 @@ export function ThreadInfoPrompt({
     setIsGenerating(false);
     setIsSaving(false);
     setThreadIdCopied(false);
+    setProjectDirCopied(false);
     setRenameModalOpen(false);
   }, [thread.threadId, thread.name]);
 
@@ -93,6 +104,11 @@ export function ThreadInfoPrompt({
     );
     return Math.max(0, 100 - usedPercent);
   }, [contextUsedTokens, contextWindowTokens]);
+  const threadIdDisplay = useMemo(
+    () => truncateMiddle(thread.threadId, 32),
+    [thread.threadId],
+  );
+  const projectDirValue = thread.projectDir.trim();
 
   const handleGenerate = async () => {
     if (isGenerating || isSaving) {
@@ -159,14 +175,20 @@ export function ThreadInfoPrompt({
                 aria-label="Edit thread title"
                 title="Edit thread title"
               >
-                <Pencil size={12} aria-hidden />
+                <Pencil
+                  size={14}
+                  aria-hidden
+                  className="thread-info-action-icon"
+                />
               </button>
             </div>
           </div>
           <div className="thread-info-row">
             <span className="thread-info-label">Thread ID</span>
             <div className="thread-info-value-with-action">
-              <code className="thread-info-value">{thread.threadId}</code>
+              <code className="thread-info-value thread-info-value-singleline" title={thread.threadId}>
+                {threadIdDisplay}
+              </code>
               <button
                 type="button"
                 className={`thread-info-copy-id${threadIdCopied ? " is-copied" : ""}`}
@@ -181,16 +203,54 @@ export function ThreadInfoPrompt({
                 title="Copy thread ID"
               >
                 {threadIdCopied ? (
-                  <Check size={12} aria-hidden />
+                  <Check
+                    size={14}
+                    aria-hidden
+                    className="thread-info-action-icon"
+                  />
                 ) : (
-                  <Copy size={12} aria-hidden />
+                  <Copy
+                    size={14}
+                    aria-hidden
+                    className="thread-info-action-icon"
+                  />
                 )}
               </button>
             </div>
           </div>
           <div className="thread-info-row">
-            <span className="thread-info-label">Workspace</span>
-            <span className="thread-info-value">{thread.workspaceName}</span>
+            <span className="thread-info-label">Project</span>
+            <div className="thread-info-value-with-action">
+              <code
+                className="thread-info-value thread-info-value-singleline"
+                title={projectDirValue || "Unknown"}
+              >
+                {projectDirValue || "Unknown"}
+              </code>
+              <button
+                type="button"
+                className={`thread-info-copy-id${projectDirCopied ? " is-copied" : ""}`}
+                onClick={async () => {
+                  if (!projectDirValue) {
+                    return;
+                  }
+                  await navigator.clipboard.writeText(projectDirValue);
+                  setProjectDirCopied(true);
+                  window.setTimeout(() => {
+                    setProjectDirCopied(false);
+                  }, 1200);
+                }}
+                aria-label="Copy project directory"
+                title="Copy project directory"
+                disabled={!projectDirValue}
+              >
+                {projectDirCopied ? (
+                  <Check size={14} aria-hidden className="thread-info-action-icon" />
+                ) : (
+                  <Copy size={14} aria-hidden className="thread-info-action-icon" />
+                )}
+              </button>
+            </div>
           </div>
           <div className="thread-info-row">
             <span className="thread-info-label">Branch</span>
@@ -290,9 +350,9 @@ export function ThreadInfoPrompt({
               aria-label="Generate thread title"
             >
               {isGenerating ? (
-                <MagicSparkleLoaderIcon className="thread-info-magic-loader" />
+                <MagicSparkleLoaderIcon className="thread-info-magic-loader thread-info-magic-icon" />
               ) : (
-                <MagicSparkleIcon />
+                <MagicSparkleIcon className="thread-info-magic-icon" />
               )}
             </button>
           </div>
