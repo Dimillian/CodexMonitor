@@ -271,6 +271,9 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       onCreateBranch={options.onCreateBranch}
       canCopyThread={options.activeItems.length > 0}
       onCopyThread={options.onCopyThread}
+      activeThreadInfo={options.activeThreadInfo}
+      onRenameActiveThreadName={options.onRenameActiveThreadName}
+      onGenerateActiveThreadName={options.onGenerateActiveThreadName}
       onToggleTerminal={options.onToggleTerminal}
       isTerminalOpen={options.terminalOpen}
       showTerminalButton={options.showTerminalButton}
