@@ -28,7 +28,7 @@
           version = packageJson.version;
           src = ./.;
           nodejs = pkgs.nodejs_20;
-          npmDepsHash = "sha256-GWBewwZD6Q3wstZCvVYToiRHRPvrVQcPBJGJPvook6o=";
+          npmDepsHash = "sha256-W+xAg0vHbL+8P2Xm2w99JM13UBlCO/pHyzVhCb7blDU=";
           npmBuildScript = "build";
           installPhase = ''
             mkdir -p $out
@@ -58,9 +58,10 @@
           nativeBuildInputs = [
             pkgs.cargo-tauri
             pkgs.cmake
+            pkgs.llvmPackages.libclang
+            pkgs.perl
             pkgs.pkg-config
           ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
-            pkgs.llvmPackages.libclang
             pkgs.wrapGAppsHook3
           ];
 
@@ -70,8 +71,7 @@
 
           TAURI_CONFIG = tauriConfig;
 
-          LIBCLANG_PATH = pkgs.lib.optionalString pkgs.stdenv.isLinux
-            "${pkgs.llvmPackages.libclang.lib}/lib";
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
 
           preBuild = ''
             mkdir -p dist
