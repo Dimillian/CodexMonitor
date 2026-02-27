@@ -113,6 +113,10 @@ export const zhCN: TranslationDictionary = {
   "settings.server.remoteBackend.hostAria": "远程后端主机",
   "settings.server.remoteBackend.tokenPlaceholder": "令牌（必填）",
   "settings.server.remoteBackend.tokenAria": "远程后端令牌",
+  "settings.server.remoteBackend.help.mobile":
+    "使用桌面端 CodexMonitor（Server 分区）里的 Tailscale 主机，例如 `macbook.your-tailnet.ts.net:4732`。",
+  "settings.server.remoteBackend.help.desktop":
+    "此主机/令牌用于移动端客户端和桌面端远程模式测试。",
   "settings.server.connectionTest.label": "连接测试",
   "settings.server.connectionTest.connecting": "连接中...",
   "settings.server.connectionTest.button": "连接并测试",
@@ -131,6 +135,14 @@ export const zhCN: TranslationDictionary = {
   "settings.server.mobileDaemon.help.after":
     "（端口与已配置主机端口一致）。",
   "settings.server.mobileDaemon.errorFallback": "移动端守护进程处于错误状态。",
+  "settings.server.mobileDaemon.status.listenAddrFallback": "已配置监听地址",
+  "settings.server.mobileDaemon.status.running.withPid":
+    "移动端守护进程正在运行（pid {pid}），监听 {addr}。",
+  "settings.server.mobileDaemon.status.running.noPid":
+    "移动端守护进程正在运行，监听 {addr}。",
+  "settings.server.mobileDaemon.status.stopped.withAddr":
+    "移动端守护进程已停止（{addr}）。",
+  "settings.server.mobileDaemon.status.stopped.noAddr": "移动端守护进程已停止。",
   "settings.server.tailscale.label": "Tailscale 助手",
   "settings.server.tailscale.checking": "检测中...",
   "settings.server.tailscale.detect": "检测 Tailscale",
@@ -181,12 +193,16 @@ export const zhCN: TranslationDictionary = {
   "settings.agents.maxThreads.groupAria": "最大代理线程数",
   "settings.agents.maxThreads.decreaseAria": "减少最大线程数",
   "settings.agents.maxThreads.increaseAria": "增加最大线程数",
+  "settings.agents.maxThreads.invalidRange":
+    "最大线程数必须是 {min} 到 {max} 之间的整数。",
   "settings.agents.maxDepth.title": "最大深度",
   "settings.agents.maxDepth.subtitle.before": "最大嵌套派生深度。有效范围：",
   "settings.agents.maxDepth.subtitle.after": "。修改会立即保存。",
   "settings.agents.maxDepth.groupAria": "最大代理深度",
   "settings.agents.maxDepth.decreaseAria": "减少最大深度",
   "settings.agents.maxDepth.increaseAria": "增加最大深度",
+  "settings.agents.maxDepth.invalidRange":
+    "最大深度必须是 {min} 到 {max} 之间的整数。",
   "settings.agents.create.title": "创建代理",
   "settings.agents.create.subtitle.before": "在 ",
   "settings.agents.create.subtitle.after": " 下添加自定义角色并创建其配置文件。",
@@ -205,6 +221,10 @@ export const zhCN: TranslationDictionary = {
   "settings.agents.create.notSupported": "不支持",
   "settings.agents.create.creating": "创建中...",
   "settings.agents.create.create": "创建代理",
+  "settings.agents.modelFallback.loading":
+    "正在加载工作区模型元数据，当前先使用回退模型默认值。",
+  "settings.agents.modelFallback.ready":
+    "在工作区模型元数据可用前，先使用回退模型默认值。",
   "settings.agents.configured.title": "已配置代理",
   "settings.agents.configured.subtitle": "管理自定义角色及其代理级配置文件。",
   "settings.agents.configured.empty": "还没有配置自定义代理。",
@@ -462,6 +482,95 @@ export const zhCN: TranslationDictionary = {
   "settings.features.feature.deprecated": "已弃用功能开关。",
   "settings.features.feature.removed": "为向后兼容保留的旧功能开关。",
   "settings.features.feature.key": "功能键：features.{name}",
+  "settings.features.fallback.label.undo": "撤销快照",
+  "settings.features.fallback.description.undo": "在每个回合创建一个幽灵提交（ghost commit）。",
+  "settings.features.fallback.label.shell_tool": "Shell 工具",
+  "settings.features.fallback.description.shell_tool": "启用默认 shell 工具。",
+  "settings.features.fallback.label.unified_exec": "统一执行",
+  "settings.features.fallback.description.unified_exec": "使用单一统一的 PTY 执行工具。",
+  "settings.features.fallback.label.shell_snapshot": "Shell 快照",
+  "settings.features.fallback.description.shell_snapshot": "启用 shell 快照能力。",
+  "settings.features.fallback.label.js_repl": "JavaScript REPL",
+  "settings.features.fallback.description.js_repl":
+    "启用基于持久化 Node 内核的 JavaScript REPL 工具。",
+  "settings.features.fallback.label.js_repl_tools_only": "仅暴露 js_repl 工具",
+  "settings.features.fallback.description.js_repl_tools_only":
+    "仅将 js_repl 工具直接暴露给模型。",
+  "settings.features.fallback.label.web_search_request": "Web 搜索请求（旧）",
+  "settings.features.fallback.description.web_search_request":
+    "已弃用。请改用顶层 web_search。",
+  "settings.features.fallback.label.web_search_cached": "Web 搜索缓存（旧）",
+  "settings.features.fallback.description.web_search_cached":
+    "已弃用。请改用顶层 web_search。",
+  "settings.features.fallback.label.search_tool": "搜索工具（旧）",
+  "settings.features.fallback.description.search_tool":
+    "已移除的旧搜索开关，仅为向后兼容保留。",
+  "settings.features.fallback.label.runtime_metrics": "运行时指标",
+  "settings.features.fallback.description.runtime_metrics":
+    "通过手动读取器启用运行时指标快照。",
+  "settings.features.fallback.label.sqlite": "SQLite",
+  "settings.features.fallback.description.sqlite":
+    "将 rollout 元数据持久化到本地 SQLite 数据库。",
+  "settings.features.fallback.label.memory_tool": "记忆工具",
+  "settings.features.fallback.description.memory_tool":
+    "启用启动记忆提取与记忆整合。",
+  "settings.features.fallback.label.child_agents_md": "附加 AGENTS.md",
+  "settings.features.fallback.description.child_agents_md":
+    "向用户指令追加额外的 AGENTS.md 指南。",
+  "settings.features.fallback.label.apply_patch_freeform": "自由格式 apply_patch",
+  "settings.features.fallback.description.apply_patch_freeform":
+    "包含自由格式的 apply_patch 工具。",
+  "settings.features.fallback.label.use_linux_sandbox_bwrap": "Linux bwrap 沙箱",
+  "settings.features.fallback.description.use_linux_sandbox_bwrap":
+    "使用基于 bubblewrap 的 Linux 沙箱流程。",
+  "settings.features.fallback.label.request_rule": "审批请求规则",
+  "settings.features.fallback.description.request_rule":
+    "允许审批请求和执行规则提案。",
+  "settings.features.fallback.label.experimental_windows_sandbox": "Windows 沙箱（旧）",
+  "settings.features.fallback.description.experimental_windows_sandbox":
+    "已移除的 Windows 沙箱开关，仅为向后兼容保留。",
+  "settings.features.fallback.label.elevated_windows_sandbox":
+    "提升权限 Windows 沙箱（旧）",
+  "settings.features.fallback.description.elevated_windows_sandbox":
+    "已移除的提权 Windows 沙箱开关，仅为向后兼容保留。",
+  "settings.features.fallback.label.remote_models": "远程模型刷新",
+  "settings.features.fallback.description.remote_models":
+    "在 AppReady 前刷新远程模型。",
+  "settings.features.fallback.label.powershell_utf8": "PowerShell UTF-8",
+  "settings.features.fallback.description.powershell_utf8":
+    "在 PowerShell 中强制使用 UTF-8 输出。",
+  "settings.features.fallback.label.enable_request_compression": "启用请求压缩",
+  "settings.features.fallback.description.enable_request_compression":
+    "压缩发送到 codex-backend 的流式请求体。",
+  "settings.features.fallback.label.apps": "ChatGPT Apps 集成",
+  "settings.features.fallback.description.apps": "启用 ChatGPT Apps 集成。",
+  "settings.features.fallback.label.apps_mcp_gateway": "Apps MCP 网关",
+  "settings.features.fallback.description.apps_mcp_gateway":
+    "通过配置的网关路由 Apps MCP 调用。",
+  "settings.features.fallback.label.skill_mcp_dependency_install":
+    "Skill MCP 依赖安装",
+  "settings.features.fallback.description.skill_mcp_dependency_install":
+    "允许提示并安装缺失的 MCP 依赖。",
+  "settings.features.fallback.label.skill_env_var_dependency_prompt":
+    "Skill 环境变量依赖提示",
+  "settings.features.fallback.description.skill_env_var_dependency_prompt":
+    "为缺失的 skill 环境变量依赖进行提示。",
+  "settings.features.fallback.label.steer": "Steer 引导",
+  "settings.features.fallback.description.steer":
+    "在 Codex 支持时启用回合引导能力。",
+  "settings.features.fallback.label.collaboration_modes": "协作模式",
+  "settings.features.fallback.description.collaboration_modes":
+    "启用协作模式预设。",
+  "settings.features.fallback.label.personality": "人格风格",
+  "settings.features.fallback.description.personality":
+    "启用人格风格选择。",
+  "settings.features.fallback.label.responses_websockets": "Responses WebSocket",
+  "settings.features.fallback.description.responses_websockets":
+    "默认使用 OpenAI 的 Responses API WebSocket 传输。",
+  "settings.features.fallback.label.responses_websockets_v2":
+    "Responses WebSocket v2",
+  "settings.features.fallback.description.responses_websockets_v2":
+    "启用 Responses API WebSocket v2 模式。",
   "settings.display.sectionTitle": "显示与声音",
   "settings.display.sectionSubtitle": "根据你的偏好调整界面视觉效果和提示音。",
   "settings.display.subsectionDisplayTitle": "显示",

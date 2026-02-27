@@ -62,8 +62,7 @@ export function SettingsAgentsSection({
   modelOptionsLoading,
   modelOptionsError,
 }: SettingsAgentsSectionProps) {
-  const { locale, t } = useI18n();
-  const zh = locale === "zh-CN";
+  const { t } = useI18n();
   const [openPathError, setOpenPathError] = useState<string | null>(null);
   const [maxThreadsDraft, setMaxThreadsDraft] = useState("6");
   const [maxDepthDraft, setMaxDepthDraft] = useState("1");
@@ -183,9 +182,10 @@ export function SettingsAgentsSection({
       setCreateError(null);
       setEditError(null);
       setOpenPathError(
-        zh
-          ? `最大线程数必须是 ${MIN_MAX_THREADS} 到 ${MAX_MAX_THREADS} 之间的整数。`
-          : `Max threads must be an integer between ${MIN_MAX_THREADS} and ${MAX_MAX_THREADS}.`,
+        t("settings.agents.maxThreads.invalidRange", {
+          min: MIN_MAX_THREADS,
+          max: MAX_MAX_THREADS,
+        }),
       );
       return;
     }
@@ -220,9 +220,10 @@ export function SettingsAgentsSection({
       setCreateError(null);
       setEditError(null);
       setOpenPathError(
-        zh
-          ? `最大深度必须是 ${MIN_MAX_DEPTH} 到 ${MAX_MAX_DEPTH} 之间的整数。`
-          : `Max depth must be an integer between ${MIN_MAX_DEPTH} and ${MAX_MAX_DEPTH}.`,
+        t("settings.agents.maxDepth.invalidRange", {
+          min: MIN_MAX_DEPTH,
+          max: MAX_MAX_DEPTH,
+        }),
       );
       return;
     }
@@ -618,12 +619,8 @@ export function SettingsAgentsSection({
         {modelOptions.length === 0 && (
           <div className="settings-help">
             {modelOptionsLoading
-              ? zh
-                ? "正在加载工作区模型元数据，当前先使用回退模型默认值。"
-                : "Loading workspace model metadata. Using fallback model defaults for now."
-              : zh
-                ? "在工作区模型元数据可用前，先使用回退模型默认值。"
-                : "Using fallback model defaults until workspace model metadata is available."}
+              ? t("settings.agents.modelFallback.loading")
+              : t("settings.agents.modelFallback.ready")}
           </div>
         )}
         {modelOptionsError && <div className="settings-help">{modelOptionsError}</div>}

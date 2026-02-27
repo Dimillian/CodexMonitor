@@ -14,6 +14,13 @@ export const dictionaries: Record<SupportedLocale, TranslationDictionary> = {
   "zh-CN": zhCN,
 };
 
+export function hasTranslationKey(
+  key: string,
+  locale: SupportedLocale = DEFAULT_LOCALE,
+): boolean {
+  return dictionaries[locale][key] !== undefined || dictionaries.en[key] !== undefined;
+}
+
 export function resolveEffectiveLocale(
   languagePreference: UiLanguagePreference | string | null | undefined,
 ): SupportedLocale {

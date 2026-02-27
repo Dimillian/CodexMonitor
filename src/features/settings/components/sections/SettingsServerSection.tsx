@@ -108,8 +108,7 @@ export function SettingsServerSection({
   onTcpDaemonStatus,
   onMobileConnectTest,
 }: SettingsServerSectionProps) {
-  const { locale, t } = useI18n();
-  const zh = locale === "zh-CN";
+  const { t } = useI18n();
   const [pendingDeleteRemoteId, setPendingDeleteRemoteId] = useState<string | null>(
     null,
   );
@@ -132,20 +131,24 @@ export function SettingsServerSection({
       return null;
     }
     if (tcpDaemonStatus.state === "running") {
+      const addr =
+        tcpDaemonStatus.listenAddr ?? t("settings.server.mobileDaemon.status.listenAddrFallback");
       return tcpDaemonStatus.pid
-        ? zh
-          ? `移动端守护进程正在运行（pid ${tcpDaemonStatus.pid}），监听 ${tcpDaemonStatus.listenAddr ?? "已配置监听地址"}。`
-          : `Mobile daemon is running (pid ${tcpDaemonStatus.pid}) on ${tcpDaemonStatus.listenAddr ?? "configured listen address"}.`
-        : zh
-          ? `移动端守护进程正在运行，监听 ${tcpDaemonStatus.listenAddr ?? "已配置监听地址"}。`
-          : `Mobile daemon is running on ${tcpDaemonStatus.listenAddr ?? "configured listen address"}.`;
+        ? t("settings.server.mobileDaemon.status.running.withPid", {
+            pid: tcpDaemonStatus.pid,
+            addr,
+          })
+        : t("settings.server.mobileDaemon.status.running.noPid", { addr });
     }
     if (tcpDaemonStatus.state === "error") {
       return tcpDaemonStatus.lastError ?? t("settings.server.mobileDaemon.errorFallback");
     }
-    return zh
-      ? `移动端守护进程已停止${tcpDaemonStatus.listenAddr ? `（${tcpDaemonStatus.listenAddr}）` : ""}。`
-      : `Mobile daemon is stopped${tcpDaemonStatus.listenAddr ? ` (${tcpDaemonStatus.listenAddr})` : ""}.`;
+    if (tcpDaemonStatus.listenAddr) {
+      return t("settings.server.mobileDaemon.status.stopped.withAddr", {
+        addr: tcpDaemonStatus.listenAddr,
+      });
+    }
+    return t("settings.server.mobileDaemon.status.stopped.noAddr");
   })();
 
   const openAddRemoteModal = () => {
@@ -410,12 +413,8 @@ export function SettingsServerSection({
           {remoteHostError && <div className="settings-help settings-help-error">{remoteHostError}</div>}
           <div className="settings-help">
             {isMobileSimplified
-              ? (zh
-                ? "使用桌面端 CodexMonitor（Server 分区）里的 Tailscale 主机，例如 `macbook.your-tailnet.ts.net:4732`。"
-                : "Use the Tailscale host from your desktop CodexMonitor app (Server section), for example `macbook.your-tailnet.ts.net:4732`.")
-              : (zh
-                ? "此主机/令牌用于移动端客户端和桌面端远程模式测试。"
-                : "This host/token is used by mobile clients and desktop remote-mode testing.")}
+              ? t("settings.server.remoteBackend.help.mobile")
+              : t("settings.server.remoteBackend.help.desktop")}
           </div>
         </div>
 

@@ -127,6 +127,10 @@ export const en: TranslationDictionary = {
   "settings.server.remoteBackend.hostAria": "Remote backend host",
   "settings.server.remoteBackend.tokenPlaceholder": "Token (required)",
   "settings.server.remoteBackend.tokenAria": "Remote backend token",
+  "settings.server.remoteBackend.help.mobile":
+    "Use the Tailscale host from your desktop CodexMonitor app (Server section), for example `macbook.your-tailnet.ts.net:4732`.",
+  "settings.server.remoteBackend.help.desktop":
+    "This host/token is used by mobile clients and desktop remote-mode testing.",
   "settings.server.connectionTest.label": "Connection test",
   "settings.server.connectionTest.connecting": "Connecting...",
   "settings.server.connectionTest.button": "Connect & test",
@@ -145,6 +149,14 @@ export const en: TranslationDictionary = {
   "settings.server.mobileDaemon.help.after":
     ", matching your configured host port.",
   "settings.server.mobileDaemon.errorFallback": "Mobile daemon is in an error state.",
+  "settings.server.mobileDaemon.status.listenAddrFallback": "configured listen address",
+  "settings.server.mobileDaemon.status.running.withPid":
+    "Mobile daemon is running (pid {pid}) on {addr}.",
+  "settings.server.mobileDaemon.status.running.noPid":
+    "Mobile daemon is running on {addr}.",
+  "settings.server.mobileDaemon.status.stopped.withAddr":
+    "Mobile daemon is stopped ({addr}).",
+  "settings.server.mobileDaemon.status.stopped.noAddr": "Mobile daemon is stopped.",
   "settings.server.tailscale.label": "Tailscale helper",
   "settings.server.tailscale.checking": "Checking...",
   "settings.server.tailscale.detect": "Detect Tailscale",
@@ -199,12 +211,16 @@ export const en: TranslationDictionary = {
   "settings.agents.maxThreads.groupAria": "Maximum agent threads",
   "settings.agents.maxThreads.decreaseAria": "Decrease max threads",
   "settings.agents.maxThreads.increaseAria": "Increase max threads",
+  "settings.agents.maxThreads.invalidRange":
+    "Max threads must be an integer between {min} and {max}.",
   "settings.agents.maxDepth.title": "Max Depth",
   "settings.agents.maxDepth.subtitle.before": "Maximum nested spawn depth. Valid range: ",
   "settings.agents.maxDepth.subtitle.after": ". Changes save immediately.",
   "settings.agents.maxDepth.groupAria": "Maximum agent depth",
   "settings.agents.maxDepth.decreaseAria": "Decrease max depth",
   "settings.agents.maxDepth.increaseAria": "Increase max depth",
+  "settings.agents.maxDepth.invalidRange":
+    "Max depth must be an integer between {min} and {max}.",
   "settings.agents.create.title": "Create Agent",
   "settings.agents.create.subtitle.before": "Add a custom role under ",
   "settings.agents.create.subtitle.after": " and create its config file.",
@@ -225,6 +241,10 @@ export const en: TranslationDictionary = {
   "settings.agents.create.notSupported": "not supported",
   "settings.agents.create.creating": "Creating...",
   "settings.agents.create.create": "Create Agent",
+  "settings.agents.modelFallback.loading":
+    "Loading workspace model metadata. Using fallback model defaults for now.",
+  "settings.agents.modelFallback.ready":
+    "Using fallback model defaults until workspace model metadata is available.",
   "settings.agents.configured.title": "Configured Agents",
   "settings.agents.configured.subtitle":
     "Manage custom roles and their per-agent config files.",
@@ -519,6 +539,98 @@ export const en: TranslationDictionary = {
   "settings.features.feature.removed":
     "Legacy feature flag kept for backward compatibility.",
   "settings.features.feature.key": "Feature key: features.{name}",
+  "settings.features.fallback.label.undo": "Undo",
+  "settings.features.fallback.description.undo": "Create a ghost commit at each turn.",
+  "settings.features.fallback.label.shell_tool": "Shell Tool",
+  "settings.features.fallback.description.shell_tool": "Enable the default shell tool.",
+  "settings.features.fallback.label.unified_exec": "Unified Exec",
+  "settings.features.fallback.description.unified_exec":
+    "Use the single unified PTY-backed exec tool.",
+  "settings.features.fallback.label.shell_snapshot": "Shell Snapshot",
+  "settings.features.fallback.description.shell_snapshot": "Enable shell snapshotting.",
+  "settings.features.fallback.label.js_repl": "JS Repl",
+  "settings.features.fallback.description.js_repl":
+    "Enable JavaScript REPL tools backed by a persistent Node kernel.",
+  "settings.features.fallback.label.js_repl_tools_only": "JS Repl Tools Only",
+  "settings.features.fallback.description.js_repl_tools_only":
+    "Only expose js_repl tools directly to the model.",
+  "settings.features.fallback.label.web_search_request": "Web Search Request",
+  "settings.features.fallback.description.web_search_request":
+    "Deprecated. Use top-level web_search instead.",
+  "settings.features.fallback.label.web_search_cached": "Web Search Cached",
+  "settings.features.fallback.description.web_search_cached":
+    "Deprecated. Use top-level web_search instead.",
+  "settings.features.fallback.label.search_tool": "Search Tool",
+  "settings.features.fallback.description.search_tool":
+    "Removed legacy search flag kept for backward compatibility.",
+  "settings.features.fallback.label.runtime_metrics": "Runtime Metrics",
+  "settings.features.fallback.description.runtime_metrics":
+    "Enable runtime metrics snapshots via a manual reader.",
+  "settings.features.fallback.label.sqlite": "Sqlite",
+  "settings.features.fallback.description.sqlite":
+    "Persist rollout metadata to a local SQLite database.",
+  "settings.features.fallback.label.memory_tool": "Memory Tool",
+  "settings.features.fallback.description.memory_tool":
+    "Enable startup memory extraction and memory consolidation.",
+  "settings.features.fallback.label.child_agents_md": "Child Agents Md",
+  "settings.features.fallback.description.child_agents_md":
+    "Append additional AGENTS.md guidance to user instructions.",
+  "settings.features.fallback.label.apply_patch_freeform": "Apply Patch Freeform",
+  "settings.features.fallback.description.apply_patch_freeform":
+    "Include the freeform apply_patch tool.",
+  "settings.features.fallback.label.use_linux_sandbox_bwrap": "Use Linux Sandbox Bwrap",
+  "settings.features.fallback.description.use_linux_sandbox_bwrap":
+    "Use the bubblewrap-based Linux sandbox pipeline.",
+  "settings.features.fallback.label.request_rule": "Request Rule",
+  "settings.features.fallback.description.request_rule":
+    "Allow approval requests and exec rule proposals.",
+  "settings.features.fallback.label.experimental_windows_sandbox":
+    "Experimental Windows Sandbox",
+  "settings.features.fallback.description.experimental_windows_sandbox":
+    "Removed Windows sandbox flag kept for backward compatibility.",
+  "settings.features.fallback.label.elevated_windows_sandbox":
+    "Elevated Windows Sandbox",
+  "settings.features.fallback.description.elevated_windows_sandbox":
+    "Removed elevated Windows sandbox flag kept for backward compatibility.",
+  "settings.features.fallback.label.remote_models": "Remote Models",
+  "settings.features.fallback.description.remote_models":
+    "Refresh remote models before AppReady.",
+  "settings.features.fallback.label.powershell_utf8": "Powershell Utf8",
+  "settings.features.fallback.description.powershell_utf8":
+    "Enforce UTF-8 output in PowerShell.",
+  "settings.features.fallback.label.enable_request_compression":
+    "Enable Request Compression",
+  "settings.features.fallback.description.enable_request_compression":
+    "Compress streaming request bodies sent to codex-backend.",
+  "settings.features.fallback.label.apps": "Apps",
+  "settings.features.fallback.description.apps": "Enable ChatGPT Apps integration.",
+  "settings.features.fallback.label.apps_mcp_gateway": "Apps Mcp Gateway",
+  "settings.features.fallback.description.apps_mcp_gateway":
+    "Route Apps MCP calls through the configured gateway.",
+  "settings.features.fallback.label.skill_mcp_dependency_install":
+    "Skill Mcp Dependency Install",
+  "settings.features.fallback.description.skill_mcp_dependency_install":
+    "Allow prompting and installing missing MCP dependencies.",
+  "settings.features.fallback.label.skill_env_var_dependency_prompt":
+    "Skill Env Var Dependency Prompt",
+  "settings.features.fallback.description.skill_env_var_dependency_prompt":
+    "Prompt for missing skill environment variable dependencies.",
+  "settings.features.fallback.label.steer": "Steer",
+  "settings.features.fallback.description.steer":
+    "Enable turn steering capability when supported by Codex.",
+  "settings.features.fallback.label.collaboration_modes": "Collaboration Modes",
+  "settings.features.fallback.description.collaboration_modes":
+    "Enable collaboration mode presets.",
+  "settings.features.fallback.label.personality": "Personality",
+  "settings.features.fallback.description.personality":
+    "Enable personality selection.",
+  "settings.features.fallback.label.responses_websockets": "Responses Websockets",
+  "settings.features.fallback.description.responses_websockets":
+    "Use Responses API WebSocket transport for OpenAI by default.",
+  "settings.features.fallback.label.responses_websockets_v2":
+    "Responses Websockets V2",
+  "settings.features.fallback.description.responses_websockets_v2":
+    "Enable Responses API WebSocket v2 mode.",
   "settings.display.sectionTitle": "Display & Sound",
   "settings.display.sectionSubtitle": "Tune visuals and audio alerts to your preferences.",
   "settings.display.subsectionDisplayTitle": "Display",
