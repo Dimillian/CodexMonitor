@@ -1599,14 +1599,17 @@ function MainApp() {
     if (!activeWorkspaceId || !activeThreadId) {
       return null;
     }
-    const firstUserMessage = activeItems.find(
-      (item) => item.kind === "message" && item.role === "user",
-    );
-    const rawPrompt =
-      firstUserMessage && firstUserMessage.kind === "message"
-        ? firstUserMessage.text
-        : "";
-    const prompt = cleanThreadTitlePrompt(rawPrompt);
+    let prompt = "";
+    for (const item of activeItems) {
+      if (item.kind !== "message" || item.role !== "user") {
+        continue;
+      }
+      const candidatePrompt = cleanThreadTitlePrompt(item.text);
+      if (candidatePrompt) {
+        prompt = candidatePrompt;
+        break;
+      }
+    }
     if (!prompt) {
       return null;
     }
