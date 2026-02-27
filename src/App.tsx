@@ -1571,7 +1571,7 @@ function MainApp() {
     return {
       threadId: activeThreadId,
       name: activeThreadSummary?.name?.trim() || "Untitled thread",
-      workspaceName: activeWorkspace.name,
+      projectDir: activeWorkspace.path,
       branchName: gitStatus.branchName || "unknown",
       createdAt: activeThreadSummary?.createdAt ?? null,
       updatedAt: activeThreadSummary?.updatedAt ?? null,

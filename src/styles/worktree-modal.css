@@ -119,39 +119,68 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  width: 100%;
   min-width: 0;
 }
 
+.thread-info-value-singleline {
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.thread-info-value-with-action .thread-info-value-singleline {
+  flex: 1;
+}
+
 .thread-info-copy-id {
-  width: 20px;
-  height: 20px;
-  border: 1px solid var(--ds-border-strong);
+  width: 24px;
+  height: 24px;
+  border: none;
   border-radius: 6px;
-  background: var(--ds-surface-muted);
-  color: var(--ds-text-strong);
+  background: transparent;
+  color: var(--ds-text-subtle);
+  padding: 0;
+  line-height: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
 .thread-info-copy-id svg {
-  width: 12px;
-  height: 12px;
-  stroke-width: 2.2;
+  width: 14px;
+  height: 14px;
+  display: block;
+  flex: none;
+  overflow: visible;
+  opacity: 1;
+  visibility: visible;
+}
+
+.thread-info-action-icon {
+  color: currentColor;
+  stroke: currentColor;
+  fill: none;
+  opacity: 1;
+  visibility: visible;
 }
 
 .thread-info-copy-id:hover:not(:disabled) {
   background: var(--ds-surface-hover);
   color: var(--ds-text-strong);
+  box-shadow: none;
+  transform: none;
 }
 
 .thread-info-copy-id.is-copied {
-  border-color: var(--ds-border-strong);
   color: var(--ds-text-strong);
 }
 
 .thread-info-edit-title-button {
-  color: var(--ds-text-muted);
+  color: var(--ds-text-subtle);
 }
 
 .thread-info-title-input-wrapper {
@@ -192,25 +221,44 @@
   position: absolute;
   right: 8px;
   bottom: 8px;
-  width: 26px;
-  height: 26px;
-  border: 1px solid var(--ds-border-subtle);
-  border-radius: 6px;
-  background: var(--ds-surface-card);
-  color: var(--ds-text-subtle);
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: background 160ms ease, color 160ms ease;
   z-index: 2;
 }
 
 .thread-info-magic-button:hover:not(:disabled) {
-  background: var(--ds-surface-hover);
-  color: var(--ds-text-strong);
+  background: var(--surface-control-hover);
+  color: var(--text-emphasis);
+  box-shadow: none;
+  transform: none;
 }
 
 .thread-info-magic-button:disabled {
   opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.thread-info-magic-button svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  display: block;
+}
+
+.thread-info-magic-icon {
+  color: currentColor;
+  stroke: currentColor;
+  fill: currentColor;
+  opacity: 1;
+  visibility: visible;
 }
 
 .thread-info-magic-loader {
