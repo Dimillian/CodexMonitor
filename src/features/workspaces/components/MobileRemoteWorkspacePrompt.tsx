@@ -21,9 +21,18 @@ export function MobileRemoteWorkspacePrompt({
   onConfirm,
 }: MobileRemoteWorkspacePromptProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const focusTextareaAtEnd = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return;
+    }
+    textarea.focus();
+    const end = textarea.value.length;
+    textarea.setSelectionRange(end, end);
+  };
 
   useEffect(() => {
-    textareaRef.current?.focus();
+    focusTextareaAtEnd();
   }, []);
 
   return (
@@ -63,7 +72,12 @@ export function MobileRemoteWorkspacePrompt({
                   key={path}
                   type="button"
                   className="mobile-remote-workspace-modal-recent-item"
-                  onClick={() => onRecentPathSelect(path)}
+                  onClick={() => {
+                    onRecentPathSelect(path);
+                    requestAnimationFrame(() => {
+                      focusTextareaAtEnd();
+                    });
+                  }}
                 >
                   {path}
                 </button>
