@@ -33,6 +33,7 @@ CodexMonitor.zip
 .claude/
 .cursor/
 public/assets/material-icons/
+src-tauri/binaries/
 
 # Nix
 result

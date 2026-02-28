@@ -103,29 +103,33 @@ Notes:
 
 ### Headless Daemon Management (No Desktop UI)
 
-Use the standalone daemon control CLI when you want iOS remote mode without keeping the desktop app open.
+Use the standalone daemon control CLI when you want iOS remote mode without launching the desktop app.
 
-Build binaries:
+Use binaries from the installed macOS app bundle:
 
 ```bash
-cd src-tauri
-cargo build --bin codex_monitor_daemon --bin codex_monitor_daemonctl
+APP_BIN_DIR="/Applications/Codex Monitor.app/Contents/MacOS"
+DAEMON="$APP_BIN_DIR/codex_monitor_daemon"
+DAEMONCTL="$APP_BIN_DIR/codex_monitor_daemonctl"
+
+# Verify binaries exist
+ls -l "$DAEMON" "$DAEMONCTL"
 ```
 
 Examples:
 
 ```bash
 # Show current daemon status
-./target/debug/codex_monitor_daemonctl status
+"$DAEMONCTL" status
 
 # Start daemon using host/token from settings.json
-./target/debug/codex_monitor_daemonctl start
+"$DAEMONCTL" start
 
 # Stop daemon
-./target/debug/codex_monitor_daemonctl stop
+"$DAEMONCTL" stop
 
 # Print equivalent daemon start command
-./target/debug/codex_monitor_daemonctl command-preview
+"$DAEMONCTL" command-preview
 ```
 
 Useful overrides:
@@ -133,8 +137,12 @@ Useful overrides:
 - `--data-dir <path>`: app data dir containing `settings.json` / `workspaces.json`
 - `--listen <addr>`: bind address override
 - `--token <token>`: token override
-- `--daemon-path <path>`: explicit `codex-monitor-daemon` binary path
+- `--daemon-path <path>`: explicit `codex_monitor_daemon` binary path
 - `--json`: machine-readable output
+
+For `launchd` autostart setup on macOS, see:
+
+- `docs/macos-launchd-daemon.md`
 
 ### iOS Prerequisites
 
@@ -216,6 +224,8 @@ Build the production Tauri bundle:
 ```bash
 npm run tauri:build
 ```
+
+`tauri:build` now prepares and bundles both sidecars (`codex_monitor_daemon` and `codex_monitor_daemonctl`) into the app bundle automatically.
 
 Artifacts will be in `src-tauri/target/release/bundle/` (platform-specific subfolders).
 
