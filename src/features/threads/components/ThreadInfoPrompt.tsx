@@ -151,6 +151,17 @@ export function ThreadInfoPrompt({
     }
   };
 
+  const copyToClipboard = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setError(null);
+      return true;
+    } catch {
+      setError("Could not copy to clipboard.");
+      return false;
+    }
+  };
+
   return (
     <>
       <ModalShell
@@ -193,7 +204,9 @@ export function ThreadInfoPrompt({
                 type="button"
                 className={`thread-info-copy-id${threadIdCopied ? " is-copied" : ""}`}
                 onClick={async () => {
-                  await navigator.clipboard.writeText(thread.threadId);
+                  if (!(await copyToClipboard(thread.threadId))) {
+                    return;
+                  }
                   setThreadIdCopied(true);
                   window.setTimeout(() => {
                     setThreadIdCopied(false);
@@ -234,7 +247,9 @@ export function ThreadInfoPrompt({
                   if (!projectDirValue) {
                     return;
                   }
-                  await navigator.clipboard.writeText(projectDirValue);
+                  if (!(await copyToClipboard(projectDirValue))) {
+                    return;
+                  }
                   setProjectDirCopied(true);
                   window.setTimeout(() => {
                     setProjectDirCopied(false);
@@ -295,6 +310,7 @@ export function ThreadInfoPrompt({
             </span>
           </div>
         </div>
+        {error ? <div className="thread-info-error">{error}</div> : null}
         <div className="ds-modal-actions worktree-modal-actions">
           <button
             className="ghost ds-modal-button worktree-modal-button"
