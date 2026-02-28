@@ -12,6 +12,7 @@ import {
   SettingsToggleRow,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
 import { FileEditorCard } from "@/features/shared/components/FileEditorCard";
+import { useI18n } from "@/i18n/useI18n";
 
 type SettingsCodexSectionProps = {
   appSettings: AppSettings;
@@ -146,6 +147,7 @@ export function SettingsCodexSection({
   onRefreshGlobalConfig,
   onSaveGlobalConfig,
 }: SettingsCodexSectionProps) {
+  const { t } = useI18n();
   const latestModelSlug = defaultModels[0]?.model ?? null;
   const savedModelSlug = useMemo(
     () => coerceSavedModelSlug(appSettings.lastComposerModelId, defaultModels),
@@ -229,12 +231,12 @@ export function SettingsCodexSection({
 
   return (
     <SettingsSection
-      title="Codex"
-      subtitle="Configure the Codex CLI used by CodexMonitor and validate the install."
+      title={t("settings.codex.sectionTitle")}
+      subtitle={t("settings.codex.sectionSubtitle")}
     >
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="codex-path">
-          Default Codex path
+          {t("settings.codex.path.label")}
         </label>
         <div className="settings-field-row">
           <input
@@ -251,19 +253,21 @@ export function SettingsCodexSection({
               void onBrowseCodex();
             }}
           >
-            Browse
+            {t("settings.codex.path.browse")}
           </button>
           <button
             type="button"
             className="ghost"
             onClick={() => onSetCodexPathDraft("")}
           >
-            Use PATH
+            {t("settings.codex.path.usePath")}
           </button>
         </div>
-        <div className="settings-help">Leave empty to use the system PATH resolution.</div>
+        <div className="settings-help">
+          {t("settings.codex.path.help")}
+        </div>
         <label className="settings-field-label" htmlFor="codex-args">
-          Default Codex args
+          {t("settings.codex.args.label")}
         </label>
         <div className="settings-field-row">
           <input
@@ -278,21 +282,24 @@ export function SettingsCodexSection({
             className="ghost"
             onClick={() => onSetCodexArgsDraft("")}
           >
-            Clear
+            {t("settings.codex.args.clear")}
           </button>
         </div>
         <div className="settings-help">
-          Extra flags passed before <code>app-server</code>. Use quotes for values with spaces.
+          {t("settings.codex.args.help.before")}
+          <code>app-server</code>
+          {t("settings.codex.args.help.after")}
         </div>
         <div className="settings-help">
-          These settings apply to the shared Codex app-server used across all connected workspaces.
+          {t("settings.codex.args.sharedHelp")}
         </div>
         <div className="settings-help">
-          Per-thread override processing ignores unsupported flags: <code>-m</code>/
-          <code>--model</code>, <code>-a</code>/<code>--ask-for-approval</code>,{" "}
+          {t("settings.codex.unsupportedFlags.prefix")}{" "}
+          <code>-m</code>/<code>--model</code>, <code>-a</code>/<code>--ask-for-approval</code>,{" "}
           <code>-s</code>/<code>--sandbox</code>, <code>--full-auto</code>,{" "}
           <code>--dangerously-bypass-approvals-and-sandbox</code>, <code>--oss</code>,{" "}
-          <code>--local-provider</code>, and <code>--no-alt-screen</code>.
+          <code>--local-provider</code>, {t("settings.codex.unsupportedFlags.and")} <code>--no-alt-screen</code>
+          {t("common.punctuation.period")}
         </div>
         <div className="settings-field-actions">
           {codexDirty && (
@@ -304,7 +311,7 @@ export function SettingsCodexSection({
               }}
               disabled={isSavingSettings}
             >
-              {isSavingSettings ? "Saving..." : "Save"}
+              {isSavingSettings ? t("settings.codex.actions.saving") : t("settings.codex.actions.save")}
             </button>
           )}
           <button
@@ -316,7 +323,9 @@ export function SettingsCodexSection({
             disabled={doctorState.status === "running"}
           >
             <Stethoscope aria-hidden />
-            {doctorState.status === "running" ? "Running..." : "Run doctor"}
+            {doctorState.status === "running"
+              ? t("settings.codex.actions.running")
+              : t("settings.codex.actions.runDoctor")}
           </button>
           <button
             type="button"
@@ -325,26 +334,38 @@ export function SettingsCodexSection({
               void onRunCodexUpdate();
             }}
             disabled={codexUpdateState.status === "running"}
-            title="Update Codex"
+            title={t("settings.codex.actions.updateCodex")}
           >
             <Stethoscope aria-hidden />
-            {codexUpdateState.status === "running" ? "Updating..." : "Update"}
+            {codexUpdateState.status === "running"
+              ? t("settings.codex.actions.updating")
+              : t("settings.codex.actions.update")}
           </button>
         </div>
 
         {doctorState.result && (
           <div className={`settings-doctor ${doctorState.result.ok ? "ok" : "error"}`}>
             <div className="settings-doctor-title">
-              {doctorState.result.ok ? "Codex looks good" : "Codex issue detected"}
+              {doctorState.result.ok
+                ? t("settings.codex.doctor.okTitle")
+                : t("settings.codex.doctor.errorTitle")}
             </div>
             <div className="settings-doctor-body">
-              <div>Version: {doctorState.result.version ?? "unknown"}</div>
-              <div>App-server: {doctorState.result.appServerOk ? "ok" : "failed"}</div>
               <div>
-                Node:{" "}
+                {t("settings.codex.doctor.version")}:{" "}
+                {doctorState.result.version ?? t("settings.codex.doctor.unknown")}
+              </div>
+              <div>
+                {t("settings.codex.doctor.appServer")}:{" "}
+                {doctorState.result.appServerOk
+                  ? t("settings.codex.doctor.ok")
+                  : t("settings.codex.doctor.failed")}
+              </div>
+              <div>
+                {t("settings.codex.doctor.node")}:{" "}
                 {doctorState.result.nodeOk
-                  ? `ok (${doctorState.result.nodeVersion ?? "unknown"})`
-                  : "missing"}
+                  ? `${t("settings.codex.doctor.ok")} (${doctorState.result.nodeVersion ?? t("settings.codex.doctor.unknown")})`
+                  : t("settings.codex.doctor.missing")}
               </div>
               {doctorState.result.details && <div>{doctorState.result.details}</div>}
               {doctorState.result.nodeDetails && <div>{doctorState.result.nodeDetails}</div>}
@@ -362,25 +383,25 @@ export function SettingsCodexSection({
             <div className="settings-doctor-title">
               {codexUpdateState.result.ok
                 ? codexUpdateState.result.upgraded
-                  ? "Codex updated"
-                  : "Codex already up-to-date"
-                : "Codex update failed"}
+                  ? t("settings.codex.update.updated")
+                  : t("settings.codex.update.upToDate")
+                : t("settings.codex.update.failed")}
             </div>
             <div className="settings-doctor-body">
-              <div>Method: {codexUpdateState.result.method}</div>
+              <div>{t("settings.codex.update.method")}: {codexUpdateState.result.method}</div>
               {codexUpdateState.result.package && (
-                <div>Package: {codexUpdateState.result.package}</div>
+                <div>{t("settings.codex.update.package")}: {codexUpdateState.result.package}</div>
               )}
               <div>
-                Version:{" "}
+                {t("settings.codex.doctor.version")}:{" "}
                 {codexUpdateState.result.afterVersion ??
                   codexUpdateState.result.beforeVersion ??
-                  "unknown"}
+                  t("settings.codex.doctor.unknown")}
               </div>
               {codexUpdateState.result.details && <div>{codexUpdateState.result.details}</div>}
               {codexUpdateState.result.output && (
                 <details>
-                  <summary>output</summary>
+                  <summary>{t("settings.codex.update.output")}</summary>
                   <pre>{codexUpdateState.result.output}</pre>
                 </details>
               )}
@@ -391,23 +412,23 @@ export function SettingsCodexSection({
 
       <div className="settings-divider" />
       <div className="settings-field-label settings-field-label--section">
-        Default parameters
+        {t("settings.codex.defaults.sectionTitle")}
       </div>
 
       <SettingsToggleRow
         title={
           <label htmlFor="default-model">
-            Model
+            {t("settings.codex.defaults.model.label")}
           </label>
         }
         subtitle={
           defaultModelsConnectedWorkspaceCount === 0
-            ? "Add a workspace to load available models."
+            ? t("settings.codex.defaults.model.addWorkspace")
             : defaultModelsLoading
-              ? "Loading models from the first workspace…"
+              ? t("settings.codex.defaults.model.loading")
               : defaultModelsError
-                ? `Couldn’t load models: ${defaultModelsError}`
-                : "Sourced from the first workspace and used when there is no thread-specific override."
+                ? t("settings.codex.defaults.model.loadError", { error: defaultModelsError })
+                : t("settings.codex.defaults.model.help")
         }
       >
         <div className="settings-field-row">
@@ -422,7 +443,7 @@ export function SettingsCodexSection({
                 lastComposerModelId: event.target.value,
               })
             }
-            aria-label="Model"
+            aria-label={t("settings.codex.defaults.model.label")}
           >
             {defaultModels.map((model) => (
               <option key={model.model} value={model.model}>
@@ -436,7 +457,7 @@ export function SettingsCodexSection({
             onClick={onRefreshDefaultModels}
             disabled={defaultModelsLoading || defaultModelsConnectedWorkspaceCount === 0}
           >
-            Refresh
+            {t("settings.codex.defaults.model.refresh")}
           </button>
         </div>
       </SettingsToggleRow>
@@ -444,13 +465,13 @@ export function SettingsCodexSection({
       <SettingsToggleRow
         title={
           <label htmlFor="default-effort">
-            Reasoning effort
+            {t("settings.codex.defaults.reasoning.label")}
           </label>
         }
         subtitle={
           reasoningSupported
-            ? "Available options depend on the selected model."
-            : "The selected model does not expose reasoning effort options."
+            ? t("settings.codex.defaults.reasoning.supported")
+            : t("settings.codex.defaults.reasoning.unsupported")
         }
       >
         <select
@@ -463,10 +484,12 @@ export function SettingsCodexSection({
               lastComposerReasoningEffort: event.target.value,
             })
           }
-          aria-label="Reasoning effort"
+          aria-label={t("settings.codex.defaults.reasoning.label")}
           disabled={!reasoningSupported}
         >
-          {!reasoningSupported && <option value="">not supported</option>}
+          {!reasoningSupported && (
+            <option value="">{t("settings.codex.defaults.reasoning.notSupported")}</option>
+          )}
           {reasoningOptions.map((effort) => (
             <option key={effort} value={effort}>
               {effort}
@@ -478,10 +501,10 @@ export function SettingsCodexSection({
       <SettingsToggleRow
         title={
           <label htmlFor="default-access">
-            Access mode
+            {t("settings.codex.defaults.access.label")}
           </label>
         }
-        subtitle="Used when there is no thread-specific override."
+        subtitle={t("settings.codex.defaults.access.help")}
       >
         <select
           id="default-access"
@@ -494,14 +517,14 @@ export function SettingsCodexSection({
             })
           }
         >
-          <option value="read-only">Read only</option>
-          <option value="current">On-request</option>
-          <option value="full-access">Full access</option>
+          <option value="read-only">{t("settings.codex.defaults.access.option.readOnly")}</option>
+          <option value="current">{t("settings.codex.defaults.access.option.current")}</option>
+          <option value="full-access">{t("settings.codex.defaults.access.option.fullAccess")}</option>
         </select>
       </SettingsToggleRow>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="review-delivery">
-          Review mode
+          {t("settings.codex.review.label")}
         </label>
         <select
           id="review-delivery"
@@ -514,21 +537,22 @@ export function SettingsCodexSection({
             })
           }
         >
-          <option value="inline">Inline (same thread)</option>
-          <option value="detached">Detached (new review thread)</option>
+          <option value="inline">{t("settings.codex.review.option.inline")}</option>
+          <option value="detached">{t("settings.codex.review.option.detached")}</option>
         </select>
         <div className="settings-help">
-          Choose whether <code>/review</code> runs in the current thread or a detached review
-          thread.
+          {t("settings.codex.review.help.before")}
+          <code>/review</code>
+          {t("settings.codex.review.help.after")}
         </div>
       </div>
 
       <FileEditorCard
-        title="Global AGENTS.md"
+        title={t("settings.codex.globalAgents.title")}
         meta={globalAgentsMeta}
         error={globalAgentsError}
         value={globalAgentsContent}
-        placeholder="Add global instructions for Codex agents…"
+        placeholder={t("settings.codex.globalAgents.placeholder")}
         disabled={globalAgentsLoading}
         refreshDisabled={globalAgentsRefreshDisabled}
         saveDisabled={globalAgentsSaveDisabled}
@@ -538,7 +562,9 @@ export function SettingsCodexSection({
         onSave={onSaveGlobalAgents}
         helpText={
           <>
-            Stored at <code>~/.codex/AGENTS.md</code>.
+            {t("settings.codex.file.storedAt")}
+            <code>~/.codex/AGENTS.md</code>
+            {t("common.punctuation.period")}
           </>
         }
         classNames={{
@@ -555,11 +581,11 @@ export function SettingsCodexSection({
       />
 
       <FileEditorCard
-        title="Global config.toml"
+        title={t("settings.codex.globalConfig.title")}
         meta={globalConfigMeta}
         error={globalConfigError}
         value={globalConfigContent}
-        placeholder="Edit the global Codex config.toml…"
+        placeholder={t("settings.codex.globalConfig.placeholder")}
         disabled={globalConfigLoading}
         refreshDisabled={globalConfigRefreshDisabled}
         saveDisabled={globalConfigSaveDisabled}
@@ -569,7 +595,9 @@ export function SettingsCodexSection({
         onSave={onSaveGlobalConfig}
         helpText={
           <>
-            Stored at <code>~/.codex/config.toml</code>.
+            {t("settings.codex.file.storedAt")}
+            <code>~/.codex/config.toml</code>
+            {t("common.punctuation.period")}
           </>
         }
         classNames={{

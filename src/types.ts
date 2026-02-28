@@ -173,6 +173,7 @@ export type RemoteBackendTarget = {
   lastConnectedAtMs?: number | null;
 };
 export type ThemePreference = "system" | "light" | "dark" | "dim";
+export type UiLanguagePreference = "system" | "en" | "zh-CN";
 export type PersonalityPreference = "friendly" | "pragmatic";
 export type FollowUpMessageBehavior = "queue" | "steer";
 export type ComposerSendIntent = "default" | "queue" | "steer";
@@ -236,6 +237,7 @@ export type AppSettings = {
   lastComposerReasoningEffort: string | null;
   uiScale: number;
   theme: ThemePreference;
+  uiLanguage: UiLanguagePreference;
   usageShowRemaining: boolean;
   showMessageFilePath: boolean;
   chatHistoryScrollbackItems: number | null;

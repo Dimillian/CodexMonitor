@@ -157,6 +157,7 @@ import {
   resolveWorkspaceRuntimeCodexArgsOverride,
 } from "@threads/utils/threadCodexParamsSeed";
 import { setWorkspaceRuntimeCodexArgs } from "@services/tauri";
+import { I18nProvider } from "@/i18n/provider";
 
 const AboutView = lazy(() =>
   import("@/features/about/components/AboutView").then((module) => ({
@@ -2630,7 +2631,12 @@ function MainApp() {
   );
 
   return (
-    <div className={`${appClassName}${isResizing ? " is-resizing" : ""}`} style={appStyle} ref={appRef}>
+    <I18nProvider languagePreference={appSettings.uiLanguage}>
+      <div
+        className={`${appClassName}${isResizing ? " is-resizing" : ""}`}
+        style={appStyle}
+        ref={appRef}
+      >
       <div className="drag-strip" id="titlebar" />
       <TitlebarExpandControls {...sidebarToggleProps} />
       <WindowCaptionControls />
@@ -2776,10 +2782,11 @@ function MainApp() {
           onRemoveDictationModel: dictationModel.remove,
         }}
       />
-      {showMobileSetupWizard && (
-        <MobileServerSetupWizard {...mobileSetupWizardProps} />
-      )}
-    </div>
+        {showMobileSetupWizard && (
+          <MobileServerSetupWizard {...mobileSetupWizardProps} />
+        )}
+      </div>
+    </I18nProvider>
   );
 }
 

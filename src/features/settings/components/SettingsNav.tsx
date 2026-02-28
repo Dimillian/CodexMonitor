@@ -12,6 +12,7 @@ import ServerCog from "lucide-react/dist/esm/icons/server-cog";
 import Bot from "lucide-react/dist/esm/icons/bot";
 import Info from "lucide-react/dist/esm/icons/info";
 import { PanelNavItem, PanelNavList } from "@/features/design-system/components/panel/PanelPrimitives";
+import { useI18n } from "@/i18n/useI18n";
 import type { CodexSection } from "./settingsTypes";
 
 type SettingsNavProps = {
@@ -25,6 +26,7 @@ export function SettingsNav({
   onSelectSection,
   showDisclosure = false,
 }: SettingsNavProps) {
+  const { t } = useI18n();
   return (
     <aside className="settings-sidebar">
       <PanelNavList className="settings-nav-list">
@@ -35,7 +37,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("projects")}
         >
-          Projects
+          {t("settings.nav.projects")}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -44,7 +46,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("environments")}
         >
-          Environments
+          {t("settings.nav.environments")}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -53,7 +55,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("display")}
         >
-          Display &amp; Sound
+          {t("settings.nav.display")}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -62,7 +64,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("composer")}
         >
-          Composer
+          {t("settings.nav.composer")}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -71,7 +73,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("dictation")}
         >
-          Dictation
+          {t("settings.nav.dictation")}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -80,7 +82,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("shortcuts")}
         >
-          Shortcuts
+          {t("settings.nav.shortcuts")}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -89,7 +91,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("open-apps")}
         >
-          Open in
+          {t("settings.nav.openApps")}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -98,7 +100,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("git")}
         >
-          Git
+          {t("settings.nav.git")}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -107,7 +109,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("server")}
         >
-          Server
+          {t("settings.nav.server")}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -116,7 +118,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("agents")}
         >
-          Agents
+          {t("settings.nav.agents")}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -125,7 +127,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("codex")}
         >
-          Codex
+          {t("settings.nav.codex")}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -134,7 +136,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("features")}
         >
-          Features
+          {t("settings.nav.features")}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -143,7 +145,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("about")}
         >
-          About
+          {t("settings.nav.about")}
         </PanelNavItem>
       </PanelNavList>
     </aside>

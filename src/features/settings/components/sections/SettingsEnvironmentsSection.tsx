@@ -1,7 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
-import { SettingsSection } from "@/features/design-system/components/settings/SettingsPrimitives";
 import type { WorkspaceInfo } from "@/types";
 import { pushErrorToast } from "@services/toasts";
+import { useI18n } from "@/i18n/useI18n";
+import { SettingsSection } from "@/features/design-system/components/settings/SettingsPrimitives";
 
 type SettingsEnvironmentsSectionProps = {
   mainWorkspaces: WorkspaceInfo[];
@@ -28,18 +29,19 @@ export function SettingsEnvironmentsSection({
   onSetEnvironmentDraftScript,
   onSaveEnvironmentSetup,
 }: SettingsEnvironmentsSectionProps) {
+  const { t } = useI18n();
   return (
     <SettingsSection
-      title="Environments"
-      subtitle="Configure per-project setup scripts that run after worktree creation."
+      title={t("settings.environments.sectionTitle")}
+      subtitle={t("settings.environments.sectionSubtitle")}
     >
       {mainWorkspaces.length === 0 ? (
-        <div className="settings-empty">No projects yet.</div>
+        <div className="settings-empty">{t("settings.environments.emptyNoProjects")}</div>
       ) : (
         <>
           <div className="settings-field">
             <label className="settings-field-label" htmlFor="settings-environment-project">
-              Project
+              {t("settings.environments.project.label")}
             </label>
             <select
               id="settings-environment-project"
@@ -60,9 +62,9 @@ export function SettingsEnvironmentsSection({
           </div>
 
           <div className="settings-field">
-            <div className="settings-field-label">Setup script</div>
+            <div className="settings-field-label">{t("settings.environments.setupScript.label")}</div>
             <div className="settings-help">
-              Runs once in a dedicated terminal after each new worktree is created.
+              {t("settings.environments.setupScript.help")}
             </div>
             {environmentError ? (
               <div className="settings-agents-error">{environmentError}</div>
@@ -83,24 +85,22 @@ export function SettingsEnvironmentsSection({
                   const clipboard = typeof navigator === "undefined" ? null : navigator.clipboard;
                   if (!clipboard?.writeText) {
                     pushErrorToast({
-                      title: "Copy failed",
-                      message:
-                        "Clipboard access is unavailable in this environment. Copy the script manually instead.",
+                      title: t("settings.environments.clipboard.copyFailedTitle"),
+                      message: t("settings.environments.clipboard.unavailable"),
                     });
                     return;
                   }
 
                   void clipboard.writeText(environmentDraftScript).catch(() => {
                     pushErrorToast({
-                      title: "Copy failed",
-                      message:
-                        "Could not write to the clipboard. Copy the script manually instead.",
+                      title: t("settings.environments.clipboard.copyFailedTitle"),
+                      message: t("settings.environments.clipboard.writeFailed"),
                     });
                   });
                 }}
                 disabled={environmentSaving || environmentDraftScript.length === 0}
               >
-                Copy
+                {t("settings.environments.actions.copy")}
               </button>
               <button
                 type="button"
@@ -108,7 +108,7 @@ export function SettingsEnvironmentsSection({
                 onClick={() => onSetEnvironmentDraftScript(environmentSavedScript ?? "")}
                 disabled={environmentSaving || !environmentDirty}
               >
-                Reset
+                {t("settings.environments.actions.reset")}
               </button>
               <button
                 type="button"
@@ -118,7 +118,9 @@ export function SettingsEnvironmentsSection({
                 }}
                 disabled={environmentSaving || !environmentDirty}
               >
-                {environmentSaving ? "Saving..." : "Save"}
+                {environmentSaving
+                  ? t("settings.environments.actions.saving")
+                  : t("settings.environments.actions.save")}
               </button>
             </div>
           </div>

@@ -74,19 +74,19 @@ export const SETTINGS_MOBILE_BREAKPOINT_PX = 720;
 export const DEFAULT_REMOTE_HOST = "127.0.0.1:4732";
 
 export const SETTINGS_SECTION_LABELS: Record<CodexSection, string> = {
-  projects: "Projects",
-  environments: "Environments",
-  display: "Display & Sound",
-  about: "About",
-  composer: "Composer",
-  dictation: "Dictation",
-  shortcuts: "Shortcuts",
-  "open-apps": "Open in",
-  git: "Git",
-  server: "Server",
-  agents: "Agents",
-  codex: "Codex",
-  features: "Features",
+  projects: "projects",
+  environments: "environments",
+  display: "display",
+  about: "about",
+  composer: "composer",
+  dictation: "dictation",
+  shortcuts: "shortcuts",
+  "open-apps": "openApps",
+  git: "git",
+  server: "server",
+  agents: "agents",
+  codex: "codex",
+  features: "features",
 };
 
 export const SHORTCUT_DRAFT_KEY_BY_SETTING: Record<
