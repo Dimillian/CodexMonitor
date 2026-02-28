@@ -636,6 +636,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires socket bind permission outside sandbox"]
     fn listen_addr_preflight_fails_when_port_is_in_use() {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
