@@ -7,6 +7,7 @@ import { ThreadRow } from "./ThreadRow";
 type PinnedThreadRow = {
   thread: ThreadSummary;
   depth: number;
+  hasChildren: boolean;
   workspaceId: string;
 };
 
@@ -27,6 +28,8 @@ type PinnedThreadListProps = {
     threadId: string,
     canPin: boolean,
   ) => void;
+  collapsedThreadIdsByWorkspace?: Record<string, ReadonlySet<string>>;
+  onToggleThreadChildren?: (workspaceId: string, threadId: string) => void;
 };
 
 export function PinnedThreadList({
@@ -41,15 +44,18 @@ export function PinnedThreadList({
   isThreadPinned,
   onSelectThread,
   onShowThreadMenu,
+  collapsedThreadIdsByWorkspace,
+  onToggleThreadChildren,
 }: PinnedThreadListProps) {
   return (
     <div className="thread-list pinned-thread-list">
-      {rows.map(({ thread, depth, workspaceId }) => {
+      {rows.map(({ thread, depth, hasChildren, workspaceId }) => {
         return (
           <ThreadRow
             key={`${workspaceId}:${thread.id}`}
             thread={thread}
             depth={depth}
+            hasChildren={hasChildren}
             workspaceId={workspaceId}
             indentUnit={14}
             activeWorkspaceId={activeWorkspaceId}
@@ -62,6 +68,8 @@ export function PinnedThreadList({
             isThreadPinned={isThreadPinned}
             onSelectThread={onSelectThread}
             onShowThreadMenu={onShowThreadMenu}
+            isCollapsed={Boolean(collapsedThreadIdsByWorkspace?.[workspaceId]?.has(thread.id))}
+            onToggleThreadChildren={onToggleThreadChildren}
           />
         );
       })}

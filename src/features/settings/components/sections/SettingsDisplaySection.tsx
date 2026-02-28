@@ -592,6 +592,50 @@ export function SettingsDisplaySection({
           <span className="settings-toggle-knob" />
         </button>
       </div>
+      <div className="settings-toggle-row">
+        <div>
+          <div className="settings-toggle-title">Show sub-agent sessions in sidebar</div>
+          <div className="settings-toggle-subtitle">
+            Show or hide spawned sub-agent sessions beneath their parent thread.
+          </div>
+        </div>
+        <button
+          type="button"
+          className={`settings-toggle ${appSettings.showSubagentSessions ? "on" : ""}`}
+          onClick={() =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              showSubagentSessions: !appSettings.showSubagentSessions,
+            })
+          }
+          aria-pressed={appSettings.showSubagentSessions}
+        >
+          <span className="settings-toggle-knob" />
+        </button>
+      </div>
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="settings-sync-mode-select">
+          Settings sync mode
+        </label>
+        <select
+          id="settings-sync-mode-select"
+          className="settings-select"
+          value={appSettings.syncMode}
+          onChange={(event) =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              syncMode: event.target.value as AppSettings["syncMode"],
+            })
+          }
+        >
+          <option value="app_authoritative">App authoritative</option>
+          <option value="bidirectional">Bidirectional</option>
+        </select>
+        <div className="settings-help">
+          App authoritative keeps CodexMonitor as the source of truth. Bidirectional preserves
+          direct file edits when possible and syncs changes both ways.
+        </div>
+      </div>
       <div className="settings-sound-actions">
         <button
           type="button"

@@ -542,6 +542,13 @@ pub(crate) struct AppSettings {
     )]
     pub(crate) subagent_system_notifications_enabled: bool,
     #[serde(
+        default = "default_show_subagent_sessions",
+        rename = "showSubagentSessions"
+    )]
+    pub(crate) show_subagent_sessions: bool,
+    #[serde(default = "default_settings_sync_mode", rename = "syncMode")]
+    pub(crate) sync_mode: SettingsSyncMode,
+    #[serde(
         default = "default_collaboration_modes_enabled",
         rename = "collaborationModesEnabled"
     )]
@@ -651,6 +658,19 @@ pub(crate) enum BackendMode {
 impl Default for BackendMode {
     fn default() -> Self {
         default_backend_mode()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum SettingsSyncMode {
+    AppAuthoritative,
+    Bidirectional,
+}
+
+impl Default for SettingsSyncMode {
+    fn default() -> Self {
+        SettingsSyncMode::AppAuthoritative
     }
 }
 
@@ -880,6 +900,14 @@ fn default_system_notifications_enabled() -> bool {
 
 fn default_subagent_system_notifications_enabled() -> bool {
     true
+}
+
+fn default_show_subagent_sessions() -> bool {
+    true
+}
+
+fn default_settings_sync_mode() -> SettingsSyncMode {
+    SettingsSyncMode::AppAuthoritative
 }
 
 fn default_split_chat_diff_view() -> bool {
@@ -1152,6 +1180,8 @@ impl Default for AppSettings {
             notification_sounds_enabled: true,
             system_notifications_enabled: true,
             subagent_system_notifications_enabled: true,
+            show_subagent_sessions: true,
+            sync_mode: SettingsSyncMode::AppAuthoritative,
             split_chat_diff_view: default_split_chat_diff_view(),
             preload_git_diffs: default_preload_git_diffs(),
             git_diff_ignore_whitespace_changes: default_git_diff_ignore_whitespace_changes(),

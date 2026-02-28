@@ -173,6 +173,7 @@ export type RemoteBackendTarget = {
 };
 export type ThemePreference = "system" | "light" | "dark" | "dim";
 export type PersonalityPreference = "friendly" | "pragmatic";
+export type SettingsSyncMode = "app_authoritative" | "bidirectional";
 export type FollowUpMessageBehavior = "queue" | "steer";
 export type ComposerSendIntent = "default" | "queue" | "steer";
 export type SendMessageResult = {
@@ -245,6 +246,8 @@ export type AppSettings = {
   notificationSoundsEnabled: boolean;
   systemNotificationsEnabled: boolean;
   subagentSystemNotificationsEnabled: boolean;
+  showSubagentSessions: boolean;
+  syncMode: SettingsSyncMode;
   splitChatDiffView: boolean;
   preloadGitDiffs: boolean;
   gitDiffIgnoreWhitespaceChanges: boolean;

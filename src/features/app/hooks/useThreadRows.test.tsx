@@ -125,4 +125,35 @@ describe("useThreadRows", () => {
       ["thread-child", 1],
     ]);
   });
+
+  it("supports hiding and collapsing subagent rows", () => {
+    const threads: ThreadSummary[] = [
+      { id: "thread-root", name: "Root", updatedAt: 1 },
+      { id: "thread-child", name: "Child", updatedAt: 2 },
+    ];
+    const getPinTimestamp = vi.fn(() => null);
+    const { result } = renderHook(() =>
+      useThreadRows({ "thread-child": "thread-root" }),
+    );
+
+    const hidden = result.current.getThreadRows(
+      threads,
+      true,
+      "ws-1",
+      getPinTimestamp,
+      0,
+      { showSubagentSessions: false },
+    );
+    expect(hidden.unpinnedRows.map((row) => row.thread.id)).toEqual(["thread-root"]);
+
+    const collapsed = result.current.getThreadRows(
+      threads,
+      true,
+      "ws-1",
+      getPinTimestamp,
+      0,
+      { showSubagentSessions: true, collapsedParentThreadIds: new Set(["thread-root"]) },
+    );
+    expect(collapsed.unpinnedRows.map((row) => row.thread.id)).toEqual(["thread-root"]);
+  });
 });

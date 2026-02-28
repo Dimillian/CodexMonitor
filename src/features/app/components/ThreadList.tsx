@@ -7,6 +7,7 @@ import { ThreadRow } from "./ThreadRow";
 type ThreadListRow = {
   thread: ThreadSummary;
   depth: number;
+  hasChildren: boolean;
 };
 
 type ThreadListProps = {
@@ -35,6 +36,8 @@ type ThreadListProps = {
     threadId: string,
     canPin: boolean,
   ) => void;
+  collapsedThreadIds?: ReadonlySet<string>;
+  onToggleThreadChildren?: (workspaceId: string, threadId: string) => void;
 };
 
 export function ThreadList({
@@ -58,16 +61,19 @@ export function ThreadList({
   onLoadOlderThreads,
   onSelectThread,
   onShowThreadMenu,
+  collapsedThreadIds,
+  onToggleThreadChildren,
 }: ThreadListProps) {
   const indentUnit = nested ? 10 : 14;
 
   return (
     <div className={`thread-list${nested ? " thread-list-nested" : ""}`}>
-      {pinnedRows.map(({ thread, depth }) => (
+      {pinnedRows.map(({ thread, depth, hasChildren }) => (
         <ThreadRow
           key={thread.id}
           thread={thread}
           depth={depth}
+          hasChildren={hasChildren}
           workspaceId={workspaceId}
           indentUnit={indentUnit}
           activeWorkspaceId={activeWorkspaceId}
@@ -79,16 +85,19 @@ export function ThreadList({
           isThreadPinned={isThreadPinned}
           onSelectThread={onSelectThread}
           onShowThreadMenu={onShowThreadMenu}
+          isCollapsed={Boolean(collapsedThreadIds?.has(thread.id))}
+          onToggleThreadChildren={onToggleThreadChildren}
         />
       ))}
       {pinnedRows.length > 0 && unpinnedRows.length > 0 && (
         <div className="thread-list-separator" aria-hidden="true" />
       )}
-      {unpinnedRows.map(({ thread, depth }) => (
+      {unpinnedRows.map(({ thread, depth, hasChildren }) => (
         <ThreadRow
           key={thread.id}
           thread={thread}
           depth={depth}
+          hasChildren={hasChildren}
           workspaceId={workspaceId}
           indentUnit={indentUnit}
           activeWorkspaceId={activeWorkspaceId}
@@ -100,6 +109,8 @@ export function ThreadList({
           isThreadPinned={isThreadPinned}
           onSelectThread={onSelectThread}
           onShowThreadMenu={onShowThreadMenu}
+          isCollapsed={Boolean(collapsedThreadIds?.has(thread.id))}
+          onToggleThreadChildren={onToggleThreadChildren}
         />
       ))}
       {totalThreadRoots > 3 && (

@@ -113,6 +113,8 @@ const baseSettings: AppSettings = {
   notificationSoundsEnabled: true,
   systemNotificationsEnabled: true,
   subagentSystemNotificationsEnabled: true,
+  showSubagentSessions: true,
+  syncMode: "app_authoritative",
   splitChatDiffView: false,
   preloadGitDiffs: true,
   gitDiffIgnoreWhitespaceChanges: false,
@@ -667,6 +669,45 @@ describe("SettingsView Display", () => {
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({ subagentSystemNotificationsEnabled: true }),
+      );
+    });
+  });
+
+  it("toggles sub-agent session visibility in sidebar", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    renderDisplaySection({
+      onUpdateAppSettings,
+      appSettings: { showSubagentSessions: false },
+    });
+
+    const row = screen
+      .getByText("Show sub-agent sessions in sidebar")
+      .closest(".settings-toggle-row") as HTMLElement | null;
+    if (!row) {
+      throw new Error("Expected sub-agent session visibility row");
+    }
+    fireEvent.click(within(row).getByRole("button"));
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ showSubagentSessions: true }),
+      );
+    });
+  });
+
+  it("updates settings sync mode", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    renderDisplaySection({
+      onUpdateAppSettings,
+      appSettings: { syncMode: "app_authoritative" },
+    });
+
+    const select = screen.getByLabelText("Settings sync mode");
+    fireEvent.change(select, { target: { value: "bidirectional" } });
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ syncMode: "bidirectional" }),
       );
     });
   });

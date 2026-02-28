@@ -46,6 +46,7 @@ describe("WorktreeSection", () => {
         onShowWorktreeMenu={vi.fn()}
         onToggleExpanded={vi.fn()}
         onLoadOlderThreads={vi.fn()}
+        showSubagentSessions
       />,
     );
 

@@ -5,6 +5,7 @@ import type { ThreadSummary } from "../../../types";
 type ThreadRow = {
   thread: ThreadSummary;
   depth: number;
+  hasChildren: boolean;
 };
 
 type ThreadRowResult = {
@@ -17,6 +18,11 @@ type ThreadRowResult = {
 type ThreadRowCacheEntry = {
   pinVersion: number;
   result: ThreadRowResult;
+};
+
+type GetThreadRowsOptions = {
+  showSubagentSessions?: boolean;
+  collapsedParentThreadIds?: ReadonlySet<string>;
 };
 
 export function useThreadRows(threadParentById: Record<string, string>) {
@@ -42,8 +48,13 @@ export function useThreadRows(threadParentById: Record<string, string>) {
       workspaceId: string,
       getPinTimestamp: (workspaceId: string, threadId: string) => number | null,
       pinVersion = 0,
+      options?: GetThreadRowsOptions,
     ): ThreadRowResult => {
-      const cacheKey = `${workspaceId}:${isExpanded ? "1" : "0"}`;
+      const showSubagentSessions = options?.showSubagentSessions ?? true;
+      const collapsedKey = options?.collapsedParentThreadIds
+        ? [...options.collapsedParentThreadIds].sort().join(",")
+        : "";
+      const cacheKey = `${workspaceId}:${isExpanded ? "1" : "0"}:${showSubagentSessions ? "1" : "0"}:${collapsedKey}`;
       const threadCache = cacheRef.current.get(threads);
       const cachedEntry = threadCache?.get(cacheKey);
       if (cachedEntry && cachedEntry.pinVersion === pinVersion) {
@@ -105,8 +116,15 @@ export function useThreadRows(threadParentById: Record<string, string>) {
         depth: number,
         rows: ThreadRow[],
       ) => {
-        rows.push({ thread, depth });
         const children = childrenByParent.get(thread.id) ?? [];
+        const hasChildren = showSubagentSessions && children.length > 0;
+        rows.push({ thread, depth, hasChildren });
+        if (!showSubagentSessions) {
+          return;
+        }
+        if (options?.collapsedParentThreadIds?.has(thread.id)) {
+          return;
+        }
         children.forEach((child) => appendThread(child, depth + 1, rows));
       };
 

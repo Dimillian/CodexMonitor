@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Plus from "lucide-react/dist/esm/icons/plus";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import "./styles/base.css";
 import "./styles/ds-tokens.css";
@@ -219,6 +220,8 @@ function MainApp() {
     "home" | "projects" | "codex" | "git" | "log"
   >("codex");
   const [mobileThreadRefreshLoading, setMobileThreadRefreshLoading] = useState(false);
+  const [lastCodexWorkspaceId, setLastCodexWorkspaceId] = useState<string | null>(null);
+  const [lastCodexThreadId, setLastCodexThreadId] = useState<string | null>(null);
   const tabletTab =
     activeTab === "projects" || activeTab === "home" ? "codex" : activeTab;
   const {
@@ -689,6 +692,23 @@ function MainApp() {
     threadSortKey: threadListSortKey,
     onThreadCodexMetadataDetected: handleThreadCodexMetadataDetected,
   });
+
+  useEffect(() => {
+    if (!isPhone || !activeWorkspaceId) {
+      return;
+    }
+    setLastCodexWorkspaceId(activeWorkspaceId);
+  }, [activeWorkspaceId, isPhone]);
+
+  useEffect(() => {
+    if (!isPhone || !activeWorkspaceId || !activeThreadId) {
+      return;
+    }
+    const workspaceThreads = threadsByWorkspace[activeWorkspaceId] ?? [];
+    if (workspaceThreads.some((thread) => thread.id === activeThreadId)) {
+      setLastCodexThreadId(activeThreadId);
+    }
+  }, [activeThreadId, activeWorkspaceId, isPhone, threadsByWorkspace]);
   const { connectionState: remoteThreadConnectionState, reconnectLive } =
     useRemoteThreadLiveConnection({
       backendMode: appSettings.backendMode,
@@ -2036,6 +2056,8 @@ function MainApp() {
     Boolean(activeWorkspace) &&
     isCompact &&
     ((isPhone && activeTab === "codex") || (isTablet && tabletTab === "codex"));
+  const showPhoneCodexNewChatAction =
+    Boolean(activeWorkspace) && isCompact && isPhone && activeTab === "codex";
   const showMobilePollingFetchStatus =
     showCompactCodexThreadActions &&
     Boolean(activeWorkspace?.connected) &&
@@ -2090,6 +2112,7 @@ function MainApp() {
     pollingIntervalMs: REMOTE_THREAD_POLL_INTERVAL_MS,
     activeRateLimits,
     usageShowRemaining: appSettings.usageShowRemaining,
+    showSubagentSessions: appSettings.showSubagentSessions,
     accountInfo: activeAccount,
     onSwitchAccount: handleSwitchAccount,
     onCancelSwitchAccount: handleCancelSwitchAccount,
@@ -2193,6 +2216,22 @@ function MainApp() {
     launchScriptsState,
     mainHeaderActionsNode: (
       <>
+        {showPhoneCodexNewChatAction ? (
+          <button
+            type="button"
+            className="ghost main-header-action"
+            onClick={() => {
+              if (activeWorkspace) {
+                void handleAddAgent(activeWorkspace);
+              }
+            }}
+            data-tauri-drag-region="false"
+            aria-label="Start new chat in this workspace"
+            title="Start new chat in this workspace"
+          >
+            <Plus size={14} aria-hidden />
+          </button>
+        ) : null}
         {showCompactCodexThreadActions ? (
           <button
             type="button"
@@ -2236,6 +2275,18 @@ function MainApp() {
         clearDraftState();
         selectHome();
         return;
+      }
+      if (tab === "codex" && isPhone && !activeWorkspace && lastCodexWorkspaceId) {
+        const workspace = workspacesById.get(lastCodexWorkspaceId);
+        if (workspace) {
+          selectWorkspace(lastCodexWorkspaceId);
+          if (lastCodexThreadId) {
+            const workspaceThreads = threadsByWorkspace[lastCodexWorkspaceId] ?? [];
+            if (workspaceThreads.some((thread) => thread.id === lastCodexThreadId)) {
+              setActiveThreadId(lastCodexThreadId, lastCodexWorkspaceId);
+            }
+          }
+        }
       }
       setActiveTab(tab);
     },

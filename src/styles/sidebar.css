@@ -959,6 +959,38 @@
   position: relative;
 }
 
+.thread-collapse-toggle {
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  padding: 0;
+  width: 12px;
+  height: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 4px;
+  flex: 0 0 auto;
+}
+
+.thread-collapse-toggle svg {
+  transition: transform 0.15s ease;
+}
+
+.thread-collapse-toggle.collapsed svg {
+  transform: rotate(0deg);
+}
+
+.thread-collapse-toggle:not(.collapsed) svg {
+  transform: rotate(90deg);
+}
+
+.thread-collapse-toggle:hover {
+  color: var(--text-strong);
+  background: var(--surface-hover);
+}
+
 .thread-status {
   width: 6px;
   height: 6px;

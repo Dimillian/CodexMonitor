@@ -56,6 +56,7 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       userInputRequests={options.userInputRequests}
       accountRateLimits={options.activeRateLimits}
       usageShowRemaining={options.usageShowRemaining}
+      showSubagentSessions={options.showSubagentSessions}
       accountInfo={options.accountInfo}
       onSwitchAccount={options.onSwitchAccount}
       onCancelSwitchAccount={options.onCancelSwitchAccount}

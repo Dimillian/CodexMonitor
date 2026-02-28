@@ -34,6 +34,7 @@ const baseProps = {
   activeThreadId: null,
   accountRateLimits: null,
   usageShowRemaining: false,
+  showSubagentSessions: true,
   accountInfo: null,
   onSwitchAccount: vi.fn(),
   onCancelSwitchAccount: vi.fn(),
@@ -559,5 +560,48 @@ describe("Sidebar", () => {
 
     const indicator = screen.queryByTitle("Streaming updates in progress");
     expect(indicator).toBeNull();
+  });
+
+  it("can hide sub-agent sessions from the sidebar", () => {
+    render(
+      <Sidebar
+        {...baseProps}
+        showSubagentSessions={false}
+        workspaces={[
+          {
+            id: "ws-1",
+            name: "Workspace",
+            path: "/tmp/workspace",
+            connected: true,
+            settings: { sidebarCollapsed: false },
+          },
+        ]}
+        groupedWorkspaces={[
+          {
+            id: null,
+            name: "Workspaces",
+            workspaces: [
+              {
+                id: "ws-1",
+                name: "Workspace",
+                path: "/tmp/workspace",
+                connected: true,
+                settings: { sidebarCollapsed: false },
+              },
+            ],
+          },
+        ]}
+        threadsByWorkspace={{
+          "ws-1": [
+            { id: "thread-parent", name: "Parent", updatedAt: 2 },
+            { id: "thread-child", name: "Child", updatedAt: 1 },
+          ],
+        }}
+        threadParentById={{ "thread-child": "thread-parent" }}
+      />,
+    );
+
+    expect(screen.getByText("Parent")).toBeTruthy();
+    expect(screen.queryByText("Child")).toBeNull();
   });
 });

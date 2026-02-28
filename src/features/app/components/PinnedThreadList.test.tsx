@@ -22,7 +22,7 @@ const statusMap = {
 };
 
 const baseProps = {
-  rows: [{ thread, depth: 0, workspaceId: "ws-1" }],
+  rows: [{ thread, depth: 0, hasChildren: false, workspaceId: "ws-1" }],
   activeWorkspaceId: "ws-1",
   activeThreadId: "thread-1",
   threadStatusById: statusMap,
@@ -76,8 +76,8 @@ describe("PinnedThreadList", () => {
       <PinnedThreadList
         {...baseProps}
         rows={[
-          { thread, depth: 0, workspaceId: "ws-1" },
-          { thread: otherThread, depth: 0, workspaceId: "ws-2" },
+          { thread, depth: 0, hasChildren: false, workspaceId: "ws-1" },
+          { thread: otherThread, depth: 0, hasChildren: false, workspaceId: "ws-2" },
         ]}
         onSelectThread={onSelectThread}
         onShowThreadMenu={onShowThreadMenu}
@@ -106,7 +106,7 @@ describe("PinnedThreadList", () => {
     const { container } = render(
       <PinnedThreadList
         {...baseProps}
-        rows={[{ thread: otherThread, depth: 0, workspaceId: "ws-2" }]}
+        rows={[{ thread: otherThread, depth: 0, hasChildren: false, workspaceId: "ws-2" }]}
         threadStatusById={{
           "thread-1": { isProcessing: false, hasUnread: false, isReviewing: true },
           "thread-2": { isProcessing: true, hasUnread: false, isReviewing: false },

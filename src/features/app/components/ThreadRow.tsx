@@ -1,4 +1,5 @@
 import type { CSSProperties, MouseEvent } from "react";
+import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 
 import type { ThreadSummary } from "../../../types";
 import { getThreadStatusClass, type ThreadStatusById } from "../../../utils/threadStatus";
@@ -6,6 +7,8 @@ import { getThreadStatusClass, type ThreadStatusById } from "../../../utils/thre
 type ThreadRowProps = {
   thread: ThreadSummary;
   depth: number;
+  hasChildren?: boolean;
+  isCollapsed?: boolean;
   workspaceId: string;
   indentUnit: number;
   activeWorkspaceId: string | null;
@@ -23,11 +26,14 @@ type ThreadRowProps = {
     threadId: string,
     canPin: boolean,
   ) => void;
+  onToggleThreadChildren?: (workspaceId: string, threadId: string) => void;
 };
 
 export function ThreadRow({
   thread,
   depth,
+  hasChildren = false,
+  isCollapsed = false,
   workspaceId,
   indentUnit,
   activeWorkspaceId,
@@ -40,6 +46,7 @@ export function ThreadRow({
   isThreadPinned,
   onSelectThread,
   onShowThreadMenu,
+  onToggleThreadChildren,
 }: ThreadRowProps) {
   const relativeTime = getThreadTime(thread);
   const badge = getThreadArgsBadge?.(workspaceId, thread.id) ?? null;
@@ -82,6 +89,21 @@ export function ThreadRow({
         }
       }}
     >
+      {hasChildren && (
+        <button
+          type="button"
+          className={`thread-collapse-toggle${isCollapsed ? " collapsed" : ""}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleThreadChildren?.(workspaceId, thread.id);
+          }}
+          aria-label={isCollapsed ? "Expand sub-agent sessions" : "Collapse sub-agent sessions"}
+          aria-expanded={!isCollapsed}
+          data-tauri-drag-region="false"
+        >
+          <ChevronRight size={12} aria-hidden />
+        </button>
+      )}
       <span className={`thread-status ${statusClass}`} aria-hidden />
       {isPinned && <span className="thread-pin-icon" aria-label="Pinned">📌</span>}
       <span className="thread-name">{thread.name}</span>

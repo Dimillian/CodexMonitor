@@ -129,6 +129,7 @@ export type LayoutNodesOptions = {
   pollingIntervalMs?: number;
   activeRateLimits: RateLimitSnapshot | null;
   usageShowRemaining: boolean;
+  showSubagentSessions: boolean;
   accountInfo: AccountSnapshot | null;
   onSwitchAccount: () => void;
   onCancelSwitchAccount: () => void;
