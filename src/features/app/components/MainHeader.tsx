@@ -178,6 +178,12 @@ export function MainHeader({
     };
   }, []);
 
+  useEffect(() => {
+    if (!activeThreadInfo) {
+      setThreadInfoOpen(false);
+    }
+  }, [activeThreadInfo]);
+
   const handleCopyClick = async () => {
     if (!onCopyThread) {
       return;
