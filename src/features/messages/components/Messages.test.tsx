@@ -312,6 +312,35 @@ describe("Messages", () => {
     expect(openFileLinkMock).toHaveBeenCalledWith("./docs/My Guide.md");
   });
 
+  it("routes absolute href file paths with #L anchors through the file opener", () => {
+    const linkedPath =
+      "/Users/dimillian/Documents/Dev/CodexMonitor/src/features/messages/components/Markdown.tsx#L244";
+    const items: ConversationItem[] = [
+      {
+        id: "msg-file-href-anchor-link",
+        kind: "message",
+        role: "assistant",
+        text: `Open [this file](${linkedPath})`,
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    fireEvent.click(screen.getByText("this file"));
+    expect(openFileLinkMock).toHaveBeenCalledWith(
+      "/Users/dimillian/Documents/Dev/CodexMonitor/src/features/messages/components/Markdown.tsx:244",
+    );
+  });
+
   it("keeps non-file relative links as normal markdown links", () => {
     const items: ConversationItem[] = [
       {
@@ -363,6 +392,33 @@ describe("Messages", () => {
     const link = screen.getByText("Workspace Home").closest("a");
     expect(link?.getAttribute("href")).toBe("/workspace/settings");
     fireEvent.click(screen.getByText("Workspace Home"));
+    expect(openFileLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps deep workspace route links as normal markdown links", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-help-workspace-route-link-deep",
+        kind: "message",
+        role: "assistant",
+        text: "See [Profile](/workspace/settings/profile)",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const link = screen.getByText("Profile").closest("a");
+    expect(link?.getAttribute("href")).toBe("/workspace/settings/profile");
+    fireEvent.click(screen.getByText("Profile"));
     expect(openFileLinkMock).not.toHaveBeenCalled();
   });
 

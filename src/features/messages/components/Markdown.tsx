@@ -197,6 +197,7 @@ function safeDecodeFileLink(url: string) {
 }
 
 const FILE_LINE_SUFFIX_PATTERN = /:\d+(?::\d+)?$/;
+const FILE_HASH_LINE_SUFFIX_PATTERN = /^#L(\d+)(?:C(\d+))?$/i;
 const LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES = [
   "/Users/",
   "/home/",
@@ -214,6 +215,7 @@ const LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES = [
   "/srv/",
   "/data/",
 ];
+const ROUTE_LIKE_ABSOLUTE_PATH_PREFIXES = ["/workspace/", "/workspaces/"];
 
 function stripPathLineSuffix(value: string) {
   return value.replace(FILE_LINE_SUFFIX_PATTERN, "");
@@ -238,8 +240,35 @@ function hasLikelyLocalAbsolutePrefix(path: string) {
   );
 }
 
+function usesAbsolutePathDepthFallback(path: string) {
+  const normalizedPath = path.replace(/\\/g, "/");
+  if (
+    ROUTE_LIKE_ABSOLUTE_PATH_PREFIXES.some((prefix) =>
+      normalizedPath.startsWith(prefix),
+    )
+  ) {
+    return false;
+  }
+  return hasLikelyLocalAbsolutePrefix(normalizedPath) && pathSegmentCount(normalizedPath) >= 3;
+}
+
 function pathSegmentCount(path: string) {
   return path.split("/").filter(Boolean).length;
+}
+
+function toPathFromFileHashAnchor(url: string) {
+  const hashIndex = url.indexOf("#");
+  if (hashIndex <= 0) {
+    return null;
+  }
+  const basePath = url.slice(0, hashIndex).trim();
+  const hash = url.slice(hashIndex).trim();
+  const match = hash.match(FILE_HASH_LINE_SUFFIX_PATTERN);
+  if (!basePath || !match || !isLikelyFileHref(basePath)) {
+    return null;
+  }
+  const [, line, column] = match;
+  return `${basePath}:${line}${column ? `:${column}` : ""}`;
 }
 
 function isLikelyFileHref(url: string) {
@@ -276,7 +305,7 @@ function isLikelyFileHref(url: string) {
     if (hasLikelyFileName(trimmed)) {
       return true;
     }
-    return hasLikelyLocalAbsolutePrefix(trimmed) && pathSegmentCount(trimmed) >= 3;
+    return usesAbsolutePathDepthFallback(trimmed);
   }
   if (FILE_LINE_SUFFIX_PATTERN.test(trimmed)) {
     return true;
@@ -598,6 +627,10 @@ export function Markdown({
     event.stopPropagation();
     onOpenFileLink?.(path);
   };
+  const handleLocalLinkClick = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
   const handleFileLinkContextMenu = (
     event: React.MouseEvent,
     path: string,
@@ -620,6 +653,13 @@ export function Markdown({
     return trimmed;
   };
   const resolveHrefFilePath = (url: string) => {
+    const hashAnchorPath = toPathFromFileHashAnchor(url);
+    if (hashAnchorPath) {
+      const anchoredPath = getLinkablePath(hashAnchorPath);
+      if (anchoredPath) {
+        return safeDecodeURIComponent(anchoredPath) ?? anchoredPath;
+      }
+    }
     if (isLikelyFileHref(url)) {
       const directPath = getLinkablePath(url);
       if (directPath) {
@@ -627,6 +667,15 @@ export function Markdown({
       }
     }
     const decodedUrl = safeDecodeURIComponent(url);
+    if (decodedUrl) {
+      const decodedHashAnchorPath = toPathFromFileHashAnchor(decodedUrl);
+      if (decodedHashAnchorPath) {
+        const anchoredPath = getLinkablePath(decodedHashAnchorPath);
+        if (anchoredPath) {
+          return anchoredPath;
+        }
+      }
+    }
     if (decodedUrl && isLikelyFileHref(decodedUrl)) {
       const decodedPath = getLinkablePath(decodedUrl);
       if (decodedPath) {
@@ -689,9 +738,8 @@ export function Markdown({
       }
       const hrefFilePath = resolveHrefFilePath(url);
       if (hrefFilePath) {
-        const clickHandler = onOpenFileLink
-          ? (event: React.MouseEvent) => handleFileLinkClick(event, hrefFilePath)
-          : undefined;
+        const clickHandler = (event: React.MouseEvent) =>
+          handleFileLinkClick(event, hrefFilePath);
         const contextMenuHandler = onOpenFileLinkMenu
           ? (event: React.MouseEvent) => handleFileLinkContextMenu(event, hrefFilePath)
           : undefined;
@@ -711,7 +759,14 @@ export function Markdown({
         url.startsWith("mailto:");
 
       if (!isExternal) {
-        return <a href={href}>{children}</a>;
+        if (url.startsWith("#")) {
+          return <a href={href}>{children}</a>;
+        }
+        return (
+          <a href={href} onClick={handleLocalLinkClick}>
+            {children}
+          </a>
+        );
       }
 
       return (
