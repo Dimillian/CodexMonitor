@@ -151,12 +151,24 @@ import {
 } from "@app/orchestration/useWorkspaceOrchestration";
 import { useAppShellOrchestration } from "@app/orchestration/useLayoutOrchestration";
 import { buildCodexArgsOptions } from "@threads/utils/codexArgsProfiles";
+import { clampThreadName } from "@threads/utils/threadNaming";
 import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
 import {
   resolveWorkspaceRuntimeCodexArgsBadgeLabel,
   resolveWorkspaceRuntimeCodexArgsOverride,
 } from "@threads/utils/threadCodexParamsSeed";
-import { setWorkspaceRuntimeCodexArgs } from "@services/tauri";
+import { generateRunMetadata, setWorkspaceRuntimeCodexArgs } from "@services/tauri";
+
+const MAX_THREAD_TITLE_PROMPT_CHARS = 1200;
+
+function cleanThreadTitlePrompt(text: string) {
+  const withoutImages = text.replace(/\[image(?: x\d+)?\]/gi, " ");
+  const withoutSkills = withoutImages.replace(/(^|\s)\$[A-Za-z0-9_-]+(?=\s|$)/g, " ");
+  const normalized = withoutSkills.replace(/\s+/g, " ").trim();
+  return normalized.length > MAX_THREAD_TITLE_PROMPT_CHARS
+    ? normalized.slice(0, MAX_THREAD_TITLE_PROMPT_CHARS)
+    : normalized;
+}
 
 const AboutView = lazy(() =>
   import("@/features/about/components/AboutView").then((module) => ({
@@ -1545,6 +1557,65 @@ function MainApp() {
       recentThreadsUpdatedAt: updatedAt > 0 ? updatedAt : null,
     };
   }, [activeWorkspaceId, threadsByWorkspace]);
+  const activeThreadSummary = useMemo(() => {
+    if (!activeWorkspaceId || !activeThreadId) {
+      return null;
+    }
+    const threads = threadsByWorkspace[activeWorkspaceId] ?? [];
+    return threads.find((thread) => thread.id === activeThreadId) ?? null;
+  }, [activeThreadId, activeWorkspaceId, threadsByWorkspace]);
+  const activeThreadInfo = useMemo(() => {
+    if (!activeWorkspace || !activeThreadId) {
+      return null;
+    }
+    return {
+      threadId: activeThreadId,
+      name: activeThreadSummary?.name?.trim() || "Untitled thread",
+      projectDir: activeWorkspace.path,
+      branchName: gitStatus.branchName || "unknown",
+      createdAt: activeThreadSummary?.createdAt ?? null,
+      updatedAt: activeThreadSummary?.updatedAt ?? null,
+      modelId: activeThreadSummary?.modelId ?? null,
+      effort: activeThreadSummary?.effort ?? null,
+      tokenUsage: activeTokenUsage,
+    };
+  }, [
+    activeThreadId,
+    activeThreadSummary,
+    activeWorkspace,
+    activeTokenUsage,
+    gitStatus.branchName,
+  ]);
+  const handleHeaderRenameActiveThreadName = useCallback(
+    (name: string) => {
+      if (!activeWorkspaceId || !activeThreadId) {
+        return;
+      }
+      renameThread(activeWorkspaceId, activeThreadId, name);
+    },
+    [activeThreadId, activeWorkspaceId, renameThread],
+  );
+  const handleGenerateActiveThreadName = useCallback(async () => {
+    if (!activeWorkspaceId || !activeThreadId) {
+      return null;
+    }
+    let prompt = "";
+    for (const item of activeItems) {
+      if (item.kind !== "message" || item.role !== "user") {
+        continue;
+      }
+      const candidatePrompt = cleanThreadTitlePrompt(item.text);
+      if (candidatePrompt) {
+        prompt = candidatePrompt;
+        break;
+      }
+    }
+    if (!prompt) {
+      return null;
+    }
+    const metadata = await generateRunMetadata(activeWorkspaceId, prompt);
+    return clampThreadName(metadata.title ?? "");
+  }, [activeItems, activeThreadId, activeWorkspaceId]);
   const {
     content: agentMdContent,
     exists: agentMdExists,
@@ -2193,6 +2264,9 @@ function MainApp() {
       handleCheckoutPullRequest(pullRequest.number),
     onCreateBranch: handleCreateBranch,
     onCopyThread: handleCopyThread,
+    activeThreadInfo,
+    onRenameActiveThreadName: handleHeaderRenameActiveThreadName,
+    onGenerateActiveThreadName: handleGenerateActiveThreadName,
     onToggleTerminal: handleToggleTerminalWithFocus,
     showTerminalButton: !isCompact,
     showWorkspaceTools: !isCompact,

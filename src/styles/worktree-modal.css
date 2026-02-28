@@ -87,3 +87,185 @@
   font-size: 12px;
   color: var(--ds-text-subtle);
 }
+
+.thread-info-modal .ds-modal-card {
+  width: min(620px, calc(100vw - 48px));
+}
+
+.thread-info-lines {
+  display: grid;
+  gap: 8px;
+}
+
+.thread-info-row {
+  display: grid;
+  grid-template-columns: minmax(84px, 104px) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.thread-info-label {
+  font-size: 12px;
+  color: var(--ds-text-subtle);
+}
+
+.thread-info-value {
+  font-size: 12px;
+  color: var(--ds-text-strong);
+  overflow-wrap: anywhere;
+}
+
+.thread-info-value-with-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.thread-info-value-singleline {
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.thread-info-value-with-action .thread-info-value-singleline {
+  flex: 1;
+}
+
+.thread-info-copy-id {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ds-text-subtle);
+  padding: 0;
+  line-height: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.thread-info-copy-id svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+  flex: none;
+  overflow: visible;
+  opacity: 1;
+  visibility: visible;
+}
+
+.thread-info-action-icon {
+  color: currentColor;
+  stroke: currentColor;
+  fill: none;
+  opacity: 1;
+  visibility: visible;
+}
+
+.thread-info-copy-id:hover:not(:disabled) {
+  background: var(--ds-surface-hover);
+  color: var(--ds-text-strong);
+  box-shadow: none;
+  transform: none;
+}
+
+.thread-info-copy-id.is-copied {
+  color: var(--ds-text-strong);
+}
+
+.thread-info-edit-title-button {
+  color: var(--ds-text-subtle);
+}
+
+.thread-info-title-input-wrapper {
+  position: relative;
+}
+
+.thread-info-title-textarea {
+  width: 100%;
+  font-family: var(--code-font-family);
+  font-size: var(--code-font-size, 11px);
+  line-height: 1.5;
+  color: var(--ds-text-strong);
+  background: var(--ds-surface-card);
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: 8px;
+  padding: 8px 40px 30px 10px;
+  resize: vertical;
+  min-height: 56px;
+  max-height: 140px;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.thread-info-title-textarea::placeholder {
+  color: var(--ds-text-faint);
+}
+
+.thread-info-title-textarea:focus {
+  outline: none;
+  border-color: var(--ds-border-strong);
+}
+
+.thread-info-title-textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.thread-info-magic-button {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 160ms ease, color 160ms ease;
+  z-index: 2;
+}
+
+.thread-info-magic-button:hover:not(:disabled) {
+  background: var(--surface-control-hover);
+  color: var(--text-emphasis);
+  box-shadow: none;
+  transform: none;
+}
+
+.thread-info-magic-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.thread-info-magic-button svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  display: block;
+}
+
+.thread-info-magic-icon {
+  color: currentColor;
+  stroke: currentColor;
+  fill: currentColor;
+  opacity: 1;
+  visibility: visible;
+}
+
+.thread-info-magic-loader {
+  animation: spin 1s linear infinite;
+}
+
+.thread-info-error {
+  font-size: 12px;
+  color: var(--ds-text-danger);
+}

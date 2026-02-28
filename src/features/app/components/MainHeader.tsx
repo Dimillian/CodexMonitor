@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Check from "lucide-react/dist/esm/icons/check";
 import Copy from "lucide-react/dist/esm/icons/copy";
+import Info from "lucide-react/dist/esm/icons/info";
 import Terminal from "lucide-react/dist/esm/icons/terminal";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { BranchInfo, OpenAppTarget, WorkspaceInfo } from "../../../types";
@@ -18,6 +19,10 @@ import { LaunchScriptButton } from "./LaunchScriptButton";
 import { LaunchScriptEntryButton } from "./LaunchScriptEntryButton";
 import type { WorkspaceLaunchScriptsState } from "../hooks/useWorkspaceLaunchScripts";
 import { useMenuController } from "../hooks/useMenuController";
+import {
+  ThreadInfoPrompt,
+  type ThreadInfoPromptThread,
+} from "../../threads/components/ThreadInfoPrompt";
 
 type MainHeaderProps = {
   workspace: WorkspaceInfo;
@@ -36,6 +41,9 @@ type MainHeaderProps = {
   onCreateBranch: (name: string) => Promise<void> | void;
   canCopyThread?: boolean;
   onCopyThread?: () => void | Promise<void>;
+  activeThreadInfo?: ThreadInfoPromptThread | null;
+  onRenameActiveThreadName?: (name: string) => Promise<void> | void;
+  onGenerateActiveThreadName?: () => Promise<string | null>;
   onToggleTerminal: () => void;
   isTerminalOpen: boolean;
   showTerminalButton?: boolean;
@@ -89,6 +97,9 @@ export function MainHeader({
   onCreateBranch,
   canCopyThread = false,
   onCopyThread,
+  activeThreadInfo = null,
+  onRenameActiveThreadName,
+  onGenerateActiveThreadName,
   onToggleTerminal,
   isTerminalOpen,
   showTerminalButton = true,
@@ -110,6 +121,7 @@ export function MainHeader({
   const [branchQuery, setBranchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [threadInfoOpen, setThreadInfoOpen] = useState(false);
   const copyTimeoutRef = useRef<number | null>(null);
   const renameInputRef = useRef<HTMLInputElement | null>(null);
   const renameConfirmRef = useRef<HTMLButtonElement | null>(null);
@@ -165,6 +177,12 @@ export function MainHeader({
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!activeThreadInfo) {
+      setThreadInfoOpen(false);
+    }
+  }, [activeThreadInfo]);
 
   const handleCopyClick = async () => {
     if (!onCopyThread) {
@@ -553,6 +571,21 @@ export function MainHeader({
         )}
         <button
           type="button"
+          className="ghost main-header-action"
+          onClick={() => {
+            setThreadInfoOpen(true);
+          }}
+          disabled={
+            !activeThreadInfo || !onRenameActiveThreadName || !onGenerateActiveThreadName
+          }
+          data-tauri-drag-region="false"
+          aria-label="Thread info"
+          title="Thread info"
+        >
+          <Info size={14} aria-hidden />
+        </button>
+        <button
+          type="button"
           className={`ghost main-header-action${copyFeedback ? " is-copied" : ""}`}
           onClick={handleCopyClick}
           disabled={!canCopyThread || !onCopyThread}
@@ -567,6 +600,17 @@ export function MainHeader({
         </button>
         {extraActionsNode}
       </div>
+      {threadInfoOpen &&
+      activeThreadInfo &&
+      onRenameActiveThreadName &&
+      onGenerateActiveThreadName ? (
+        <ThreadInfoPrompt
+          thread={activeThreadInfo}
+          onClose={() => setThreadInfoOpen(false)}
+          onSaveName={onRenameActiveThreadName}
+          onGenerateName={onGenerateActiveThreadName}
+        />
+      ) : null}
     </header>
   );
 }

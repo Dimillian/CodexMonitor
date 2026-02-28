@@ -1,6 +1,7 @@
 import type { DragEvent, MouseEvent, ReactNode, RefObject } from "react";
 import type { ReviewPromptState, ReviewPromptStep } from "../../../threads/hooks/useReviewPrompt";
 import type { WorkspaceLaunchScriptsState } from "../../../app/hooks/useWorkspaceLaunchScripts";
+import type { ThreadInfoPromptThread } from "../../../threads/components/ThreadInfoPrompt";
 import type {
   AccessMode,
   ApprovalRequest,
@@ -229,6 +230,9 @@ export type LayoutNodesOptions = {
   ) => Promise<void> | void;
   onCreateBranch: (name: string) => Promise<void>;
   onCopyThread: () => void | Promise<void>;
+  activeThreadInfo?: ThreadInfoPromptThread | null;
+  onRenameActiveThreadName?: (name: string) => void | Promise<void>;
+  onGenerateActiveThreadName?: () => Promise<string | null>;
   onToggleTerminal: () => void;
   showTerminalButton: boolean;
   showWorkspaceTools: boolean;
