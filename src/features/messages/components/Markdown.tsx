@@ -9,6 +9,7 @@ import {
   remarkFileLinks,
   toFileLink,
 } from "../../../utils/remarkFileLinks";
+import { resolveMountedWorkspacePath } from "../utils/mountedWorkspacePaths";
 
 type MarkdownProps = {
   value: string;
@@ -216,30 +217,7 @@ const LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES = [
   "/data/",
 ];
 const WORKSPACE_ROUTE_PREFIXES = ["/workspace/", "/workspaces/"];
-const LIKELY_WORKSPACE_ROOT_SEGMENTS = new Set([
-  "src",
-  "app",
-  "lib",
-  "docs",
-  "scripts",
-  "test",
-  "tests",
-  "packages",
-  "apps",
-  "bin",
-  "public",
-]);
-const DOTLESS_WORKSPACE_FILE_NAMES = new Set([
-  "LICENSE",
-  "README",
-  "CHANGELOG",
-  "NOTICE",
-  "COPYING",
-  "Makefile",
-  "Dockerfile",
-  "Procfile",
-  "Gemfile",
-]);
+const LOCAL_WORKSPACE_ROUTE_SEGMENTS = new Set(["reviews", "settings"]);
 
 function stripPathLineSuffix(value: string) {
   return value.replace(FILE_LINE_SUFFIX_PATTERN, "");
@@ -264,13 +242,6 @@ function hasLikelyLocalAbsolutePrefix(path: string) {
   );
 }
 
-function workspaceBaseName(workspacePath?: string | null) {
-  const normalizedWorkspace = trimTrailingPathSeparators(
-    normalizePathSeparators(workspacePath?.trim() ?? ""),
-  );
-  return normalizedWorkspace.split("/").filter(Boolean).pop() ?? "";
-}
-
 function splitWorkspaceRoutePath(path: string) {
   const normalizedPath = path.replace(/\\/g, "/");
   if (normalizedPath.startsWith("/workspace/")) {
@@ -292,70 +263,36 @@ function hasLikelyWorkspaceNameSegment(segment: string) {
   return /[A-Z]/.test(segment) || /[._-]/.test(segment);
 }
 
-function hasLikelyDotlessWorkspaceFileLeaf(segment: string) {
-  if (!segment || segment === "." || segment === "..") {
+function isKnownLocalWorkspaceRoutePath(path: string) {
+  const mountedPath = splitWorkspaceRoutePath(path);
+  if (!mountedPath || mountedPath.segments.length === 0) {
     return false;
   }
-  if (segment.startsWith(".") && segment.length > 1) {
-    return true;
-  }
-  return (
-    DOTLESS_WORKSPACE_FILE_NAMES.has(segment) || /^[A-Z0-9_-]+$/.test(segment)
-  );
+
+  const routeSegment =
+    mountedPath.prefix === "/workspace/"
+      ? mountedPath.segments[0]
+      : mountedPath.segments[1];
+  return Boolean(routeSegment) && LOCAL_WORKSPACE_ROUTE_SEGMENTS.has(routeSegment);
 }
 
 function isLikelyMountedWorkspaceFilePath(
   path: string,
   workspacePath?: string | null,
 ) {
-  const mountedPath = splitWorkspaceRoutePath(path);
-  if (!mountedPath || mountedPath.segments.length === 0) {
+  if (isKnownLocalWorkspaceRoutePath(path)) {
     return false;
   }
-
-  const workspaceName = workspaceBaseName(workspacePath);
-  if (
-    workspaceName &&
-    mountedPath.prefix === "/workspace/" &&
-    mountedPath.segments[0] === workspaceName &&
-    mountedPath.segments.length >= 2
-  ) {
+  if (resolveMountedWorkspacePath(path, workspacePath) !== null) {
     return true;
   }
 
-  if (
-    mountedPath.prefix === "/workspace/" &&
-    mountedPath.segments.length >= 2 &&
-    hasLikelyWorkspaceNameSegment(mountedPath.segments[0]) &&
-    hasLikelyDotlessWorkspaceFileLeaf(
-      mountedPath.segments[mountedPath.segments.length - 1],
-    )
-  ) {
-    return true;
-  }
-
-  if (
-    mountedPath.prefix === "/workspace/" &&
-    mountedPath.segments.length >= 2 &&
-    LIKELY_WORKSPACE_ROOT_SEGMENTS.has(mountedPath.segments[0])
-  ) {
-    return true;
-  }
-
-  if (
-    workspaceName &&
-    mountedPath.prefix === "/workspaces/" &&
-    mountedPath.segments.length >= 3
-  ) {
-    const workspaceIndex = mountedPath.segments.findIndex(
-      (segment) => segment === workspaceName,
-    );
-    if (workspaceIndex >= 0 && workspaceIndex < mountedPath.segments.length - 1) {
-      return true;
-    }
-  }
-
-  return false;
+  const mountedPath = splitWorkspaceRoutePath(path);
+  return Boolean(
+    mountedPath?.prefix === "/workspace/" &&
+      mountedPath.segments.length >= 2 &&
+      hasLikelyWorkspaceNameSegment(mountedPath.segments[0]),
+  );
 }
 
 function usesAbsolutePathDepthFallback(

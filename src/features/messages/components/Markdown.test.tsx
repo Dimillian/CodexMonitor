@@ -115,6 +115,52 @@ describe("Markdown file-like href behavior", () => {
     expect(onOpenFileLink).toHaveBeenCalledWith("/workspace/CodexMonitor/LICENSE");
   });
 
+  it("intercepts mounted workspace links outside the old root allowlist", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [workflows](/workspace/.github/workflows)"
+        className="markdown"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("workflows").closest("a");
+    expect(link?.getAttribute("href")).toBe("/workspace/.github/workflows");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith("/workspace/.github/workflows");
+  });
+
+  it("intercepts mounted workspace directory links that resolve relative to the workspace", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [assets](/workspace/dist/assets)"
+        className="markdown"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("assets").closest("a");
+    expect(link?.getAttribute("href")).toBe("/workspace/dist/assets");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith("/workspace/dist/assets");
+  });
+
   it("keeps generic workspace routes as normal markdown links", () => {
     const onOpenFileLink = vi.fn();
     render(

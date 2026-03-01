@@ -124,4 +124,25 @@ describe("useFileLinkOpener", () => {
       }),
     );
   });
+
+  it("normalizes line ranges to the starting line before opening the editor", async () => {
+    const workspacePath = "/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor";
+    const openWorkspaceInMock = vi.mocked(openWorkspaceIn);
+    const { result } = renderHook(() => useFileLinkOpener(workspacePath, [], ""));
+
+    await act(async () => {
+      await result.current.openFileLink(
+        "/workspace/src/features/messages/components/Markdown.tsx:366-369",
+      );
+    });
+
+    expect(openWorkspaceInMock).toHaveBeenCalledWith(
+      "/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor/src/features/messages/components/Markdown.tsx",
+      expect.objectContaining({
+        appName: "Visual Studio Code",
+        args: [],
+        line: 366,
+      }),
+    );
+  });
 });
