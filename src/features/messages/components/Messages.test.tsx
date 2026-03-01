@@ -171,6 +171,48 @@ describe("Messages", () => {
     expect(onQuoteMessage).toHaveBeenCalledWith("> First line\n> Second line\n\n");
   });
 
+  it("quotes selected message fragment when text is highlighted", () => {
+    const onQuoteMessage = vi.fn();
+    const items: ConversationItem[] = [
+      {
+        id: "msg-quote-selection-1",
+        kind: "message",
+        role: "assistant",
+        text: "Alpha beta gamma",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+        onQuoteMessage={onQuoteMessage}
+      />,
+    );
+
+    const textNode = screen.getByText("Alpha beta gamma").firstChild;
+    if (!(textNode instanceof Text)) {
+      throw new Error("Expected message text node");
+    }
+    const range = document.createRange();
+    range.setStart(textNode, 6);
+    range.setEnd(textNode, 10);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    const quoteButton = screen.getByRole("button", { name: "Quote message" });
+    fireEvent.mouseDown(quoteButton);
+    fireEvent.click(quoteButton);
+
+    expect(onQuoteMessage).toHaveBeenCalledWith("> beta\n\n");
+    selection?.removeAllRanges();
+  });
+
   it("opens linked review thread when clicking thread link", () => {
     const onOpenThreadLink = vi.fn();
     const items: ConversationItem[] = [
