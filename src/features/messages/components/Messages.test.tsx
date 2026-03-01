@@ -341,6 +341,32 @@ describe("Messages", () => {
     );
   });
 
+  it("routes dotless workspace href file paths through the file opener", () => {
+    const linkedPath = "/workspace/CodexMonitor/LICENSE";
+    const items: ConversationItem[] = [
+      {
+        id: "msg-file-href-workspace-dotless-link",
+        kind: "message",
+        role: "assistant",
+        text: `Open [license](${linkedPath})`,
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    fireEvent.click(screen.getByText("license"));
+    expect(openFileLinkMock).toHaveBeenCalledWith(linkedPath);
+  });
+
   it("keeps non-file relative links as normal markdown links", () => {
     const items: ConversationItem[] = [
       {

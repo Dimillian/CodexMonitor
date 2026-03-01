@@ -92,6 +92,28 @@ describe("Markdown file-like href behavior", () => {
     expect(onOpenFileLink).toHaveBeenCalledWith("/workspace/src/example.ts");
   });
 
+  it("still intercepts dotless workspace file hrefs when a file opener is provided", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [license](/workspace/CodexMonitor/LICENSE)"
+        className="markdown"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("license").closest("a");
+    expect(link?.getAttribute("href")).toBe("/workspace/CodexMonitor/LICENSE");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith("/workspace/CodexMonitor/LICENSE");
+  });
+
   it("intercepts file hrefs that use #L line anchors", () => {
     const onOpenFileLink = vi.fn();
     render(

@@ -253,6 +253,8 @@ pub(super) async fn try_handle(
                     request.app,
                     request.args,
                     request.command,
+                    request.line,
+                    request.column,
                 ))
                 .await,
             )

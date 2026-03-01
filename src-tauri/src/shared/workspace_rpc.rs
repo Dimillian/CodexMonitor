@@ -99,6 +99,8 @@ pub(crate) struct OpenWorkspaceInRequest {
     pub(crate) app: Option<String>,
     pub(crate) args: Vec<String>,
     pub(crate) command: Option<String>,
+    pub(crate) line: Option<u32>,
+    pub(crate) column: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -980,8 +980,10 @@ impl DaemonState {
         app: Option<String>,
         args: Vec<String>,
         command: Option<String>,
+        line: Option<u32>,
+        column: Option<u32>,
     ) -> Result<(), String> {
-        workspaces_core::open_workspace_in_core(path, app, args, command).await
+        workspaces_core::open_workspace_in_core(path, app, args, command, line, column).await
     }
 
     async fn get_open_app_icon(&self, app_name: String) -> Result<Option<String>, String> {

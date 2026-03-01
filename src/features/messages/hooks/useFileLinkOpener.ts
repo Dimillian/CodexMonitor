@@ -34,6 +34,9 @@ const DEFAULT_OPEN_TARGET: OpenTarget = {
 
 const resolveAppName = (target: OpenTarget) => (target.appName ?? "").trim();
 const resolveCommand = (target: OpenTarget) => (target.command ?? "").trim();
+const WORKSPACE_MOUNT_PREFIX = "/workspace/";
+const WORKSPACES_MOUNT_PREFIX = "/workspaces/";
+
 const canOpenTarget = (target: OpenTarget) => {
   if (target.kind === "finder") {
     return true;
@@ -44,10 +47,80 @@ const canOpenTarget = (target: OpenTarget) => {
   return Boolean(resolveAppName(target));
 };
 
+function normalizePathSeparators(path: string) {
+  return path.replace(/\\/g, "/");
+}
+
+function trimTrailingSeparators(path: string) {
+  return path.replace(/[\\/]+$/, "");
+}
+
+function pathBaseName(path: string) {
+  return trimTrailingSeparators(normalizePathSeparators(path.trim()))
+    .split("/")
+    .filter(Boolean)
+    .pop() ?? "";
+}
+
+function resolveMountedWorkspacePath(
+  path: string,
+  workspacePath?: string | null,
+) {
+  const trimmed = path.trim();
+  const trimmedWorkspace = workspacePath?.trim() ?? "";
+  if (!trimmedWorkspace) {
+    return null;
+  }
+
+  const normalizedPath = normalizePathSeparators(trimmed);
+  const workspaceName = pathBaseName(trimmedWorkspace);
+  if (!workspaceName) {
+    return null;
+  }
+
+  const resolveFromSegments = (segments: string[], allowDirectRelative: boolean) => {
+    if (segments.length === 0) {
+      return trimTrailingSeparators(trimmedWorkspace);
+    }
+    const workspaceIndex = segments.findIndex((segment) => segment === workspaceName);
+    if (workspaceIndex >= 0) {
+      const relativePath = segments.slice(workspaceIndex + 1).join("/");
+      return relativePath
+        ? joinWorkspacePath(trimmedWorkspace, relativePath)
+        : trimTrailingSeparators(trimmedWorkspace);
+    }
+    if (allowDirectRelative) {
+      return joinWorkspacePath(trimmedWorkspace, segments.join("/"));
+    }
+    return null;
+  };
+
+  if (normalizedPath.startsWith(WORKSPACE_MOUNT_PREFIX)) {
+    return resolveFromSegments(
+      normalizedPath.slice(WORKSPACE_MOUNT_PREFIX.length).split("/").filter(Boolean),
+      true,
+    );
+  }
+  if (normalizedPath.startsWith(WORKSPACES_MOUNT_PREFIX)) {
+    return resolveFromSegments(
+      normalizedPath
+        .slice(WORKSPACES_MOUNT_PREFIX.length)
+        .split("/")
+        .filter(Boolean),
+      false,
+    );
+  }
+  return null;
+}
+
 function resolveFilePath(path: string, workspacePath?: string | null) {
   const trimmed = path.trim();
   if (!workspacePath) {
     return trimmed;
+  }
+  const mountedWorkspacePath = resolveMountedWorkspacePath(trimmed, workspacePath);
+  if (mountedWorkspacePath) {
+    return mountedWorkspacePath;
   }
   if (isAbsolutePath(trimmed)) {
     return trimmed;
@@ -55,9 +128,70 @@ function resolveFilePath(path: string, workspacePath?: string | null) {
   return joinWorkspacePath(workspacePath, trimmed);
 }
 
-function stripLineSuffix(path: string) {
-  const match = path.match(/^(.*?)(?::\d+(?::\d+)?)?$/);
-  return match ? match[1] : path;
+type ParsedFileLocation = {
+  path: string;
+  line: number | null;
+  column: number | null;
+};
+
+const FILE_LOCATION_SUFFIX_PATTERN = /^(.*?):(\d+)(?::(\d+))?$/;
+const FILE_LOCATION_HASH_PATTERN = /^(.*?)#L(\d+)(?:C(\d+))?$/i;
+
+function parsePositiveInteger(value?: string) {
+  if (!value) {
+    return null;
+  }
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parseFileLocation(rawPath: string): ParsedFileLocation {
+  const trimmed = rawPath.trim();
+  const hashMatch = trimmed.match(FILE_LOCATION_HASH_PATTERN);
+  if (hashMatch) {
+    const [, path, lineValue, columnValue] = hashMatch;
+    const line = parsePositiveInteger(lineValue);
+    if (line !== null) {
+      return {
+        path,
+        line,
+        column: parsePositiveInteger(columnValue),
+      };
+    }
+  }
+
+  const match = trimmed.match(FILE_LOCATION_SUFFIX_PATTERN);
+  if (!match) {
+    return {
+      path: trimmed,
+      line: null,
+      column: null,
+    };
+  }
+
+  const [, path, lineValue, columnValue] = match;
+  const line = parsePositiveInteger(lineValue);
+  if (line === null) {
+    return {
+      path: trimmed,
+      line: null,
+      column: null,
+    };
+  }
+
+  return {
+    path,
+    line,
+    column: parsePositiveInteger(columnValue),
+  };
+}
+
+function toFileUrl(path: string, line: number | null, column: number | null) {
+  const base = path.startsWith("/") ? `file://${path}` : path;
+  if (line === null) {
+    return base;
+  }
+  return `${base}#L${line}${column !== null ? `C${column}` : ""}`;
 }
 
 export function useFileLinkOpener(
@@ -93,7 +227,12 @@ export function useFileLinkOpener(
         ...(openTargets.find((entry) => entry.id === selectedOpenAppId) ??
           openTargets[0]),
       };
-      const resolvedPath = resolveFilePath(stripLineSuffix(rawPath), workspacePath);
+      const fileLocation = parseFileLocation(rawPath);
+      const resolvedPath = resolveFilePath(fileLocation.path, workspacePath);
+      const openLocation = {
+        ...(fileLocation.line !== null ? { line: fileLocation.line } : {}),
+        ...(fileLocation.column !== null ? { column: fileLocation.column } : {}),
+      };
 
       try {
         if (!canOpenTarget(target)) {
@@ -112,6 +251,7 @@ export function useFileLinkOpener(
           await openWorkspaceIn(resolvedPath, {
             command,
             args: target.args,
+            ...openLocation,
           });
           return;
         }
@@ -123,6 +263,7 @@ export function useFileLinkOpener(
         await openWorkspaceIn(resolvedPath, {
           appName,
           args: target.args,
+          ...openLocation,
         });
       } catch (error) {
         reportOpenError(error, {
@@ -148,7 +289,8 @@ export function useFileLinkOpener(
         ...(openTargets.find((entry) => entry.id === selectedOpenAppId) ??
           openTargets[0]),
       };
-      const resolvedPath = resolveFilePath(stripLineSuffix(rawPath), workspacePath);
+      const fileLocation = parseFileLocation(rawPath);
+      const resolvedPath = resolveFilePath(fileLocation.path, workspacePath);
       const appName = resolveAppName(target);
       const command = resolveCommand(target);
       const canOpen = canOpenTarget(target);
@@ -199,8 +341,7 @@ export function useFileLinkOpener(
         await MenuItem.new({
           text: "Copy Link",
           action: async () => {
-            const link =
-              resolvedPath.startsWith("/") ? `file://${resolvedPath}` : resolvedPath;
+            const link = toFileUrl(resolvedPath, fileLocation.line, fileLocation.column);
             try {
               await navigator.clipboard.writeText(link);
             } catch {

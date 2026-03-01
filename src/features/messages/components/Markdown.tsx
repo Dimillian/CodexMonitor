@@ -198,6 +198,10 @@ function safeDecodeFileLink(url: string) {
 
 const FILE_LINE_SUFFIX_PATTERN = /:\d+(?::\d+)?$/;
 const FILE_HASH_LINE_SUFFIX_PATTERN = /^#L(\d+)(?:C(\d+))?$/i;
+const KNOWN_LOCAL_WORKSPACE_ROUTE_PREFIXES = [
+  "/workspace/settings",
+  "/workspaces/settings",
+];
 const LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES = [
   "/Users/",
   "/home/",
@@ -215,7 +219,6 @@ const LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES = [
   "/srv/",
   "/data/",
 ];
-const ROUTE_LIKE_ABSOLUTE_PATH_PREFIXES = ["/workspace/", "/workspaces/"];
 
 function stripPathLineSuffix(value: string) {
   return value.replace(FILE_LINE_SUFFIX_PATTERN, "");
@@ -240,13 +243,16 @@ function hasLikelyLocalAbsolutePrefix(path: string) {
   );
 }
 
+function isKnownLocalWorkspaceRoute(path: string) {
+  const normalizedPath = path.replace(/\\/g, "/");
+  return KNOWN_LOCAL_WORKSPACE_ROUTE_PREFIXES.some((prefix) =>
+    normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`),
+  );
+}
+
 function usesAbsolutePathDepthFallback(path: string) {
   const normalizedPath = path.replace(/\\/g, "/");
-  if (
-    ROUTE_LIKE_ABSOLUTE_PATH_PREFIXES.some((prefix) =>
-      normalizedPath.startsWith(prefix),
-    )
-  ) {
+  if (isKnownLocalWorkspaceRoute(normalizedPath)) {
     return false;
   }
   return hasLikelyLocalAbsolutePrefix(normalizedPath) && pathSegmentCount(normalizedPath) >= 3;

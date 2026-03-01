@@ -358,6 +358,29 @@ describe("tauri invoke wrappers", () => {
       app: "Xcode",
       command: null,
       args: ["--reuse-window"],
+      line: null,
+      column: null,
+    });
+  });
+
+  it("passes line-aware openWorkspaceIn options", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await openWorkspaceIn("/tmp/project/src/App.tsx", {
+      command: "code",
+      args: ["--reuse-window"],
+      line: 33,
+      column: 7,
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("open_workspace_in", {
+      path: "/tmp/project/src/App.tsx",
+      app: null,
+      command: "code",
+      args: ["--reuse-window"],
+      line: 33,
+      column: 7,
     });
   });
 

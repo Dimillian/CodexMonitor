@@ -1,7 +1,6 @@
 use std::collections::HashMap;
-#[cfg(target_os = "windows")]
-use std::path::Path;
-use std::path::PathBuf;
+use std::env;
+use std::path::{Path, PathBuf};
 
 use tokio::sync::Mutex;
 
@@ -12,11 +11,138 @@ use crate::types::WorkspaceEntry;
 
 use super::helpers::resolve_workspace_root;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum LineAwareLaunchStrategy {
+    GotoFlag,
+    PathWithLineColumn,
+}
+
+fn normalize_open_location(line: Option<u32>, column: Option<u32>) -> Option<(u32, Option<u32>)> {
+    let line = line.filter(|value| *value > 0)?;
+    let column = column.filter(|value| *value > 0);
+    Some((line, column))
+}
+
+fn format_path_with_location(path: &str, line: u32, column: Option<u32>) -> String {
+    match column {
+        Some(column) => format!("{path}:{line}:{column}"),
+        None => format!("{path}:{line}"),
+    }
+}
+
+fn command_identifier(command: &str) -> String {
+    let trimmed = command.trim();
+    let file_name = Path::new(trimmed)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or(trimmed);
+    let stem = Path::new(file_name)
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or(file_name);
+    stem.trim().to_ascii_lowercase()
+}
+
+fn command_launch_strategy(command: &str) -> Option<LineAwareLaunchStrategy> {
+    let identifier = command_identifier(command);
+    if identifier == "code"
+        || identifier == "code-insiders"
+        || identifier == "cursor"
+        || identifier == "cursor-insiders"
+    {
+        return Some(LineAwareLaunchStrategy::GotoFlag);
+    }
+    if identifier == "zed" || identifier == "zed-preview" {
+        return Some(LineAwareLaunchStrategy::PathWithLineColumn);
+    }
+    None
+}
+
+fn app_launch_strategy(app: &str) -> Option<LineAwareLaunchStrategy> {
+    let normalized = app.trim().to_ascii_lowercase();
+    if normalized.contains("visual studio code") || normalized.starts_with("cursor") {
+        return Some(LineAwareLaunchStrategy::GotoFlag);
+    }
+    if normalized == "zed" || normalized.starts_with("zed ") {
+        return Some(LineAwareLaunchStrategy::PathWithLineColumn);
+    }
+    None
+}
+
+fn app_cli_command(app: &str) -> Option<&'static str> {
+    let normalized = app.trim().to_ascii_lowercase();
+    if normalized.contains("visual studio code insiders") {
+        return Some("code-insiders");
+    }
+    if normalized.contains("visual studio code") {
+        return Some("code");
+    }
+    if normalized.starts_with("cursor") {
+        return Some("cursor");
+    }
+    if normalized == "zed" || normalized.starts_with("zed ") {
+        return Some("zed");
+    }
+    None
+}
+
+fn find_executable_in_path(program: &str) -> Option<PathBuf> {
+    let trimmed = program.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let path = PathBuf::from(trimmed);
+    if path.is_file() {
+        return Some(path);
+    }
+
+    let path_var = env::var_os("PATH")?;
+    for dir in env::split_paths(&path_var) {
+        let candidate = dir.join(trimmed);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+
+    None
+}
+
+fn build_launch_args(
+    path: &str,
+    args: &[String],
+    line: Option<u32>,
+    column: Option<u32>,
+    strategy: Option<LineAwareLaunchStrategy>,
+) -> Vec<String> {
+    let mut launch_args = args.to_vec();
+    if let Some((line, column)) = normalize_open_location(line, column) {
+        let located_path = format_path_with_location(path, line, column);
+        match strategy {
+            Some(LineAwareLaunchStrategy::GotoFlag) => {
+                launch_args.push("--goto".to_string());
+                launch_args.push(located_path);
+            }
+            Some(LineAwareLaunchStrategy::PathWithLineColumn) => {
+                launch_args.push(located_path);
+            }
+            None => {
+                launch_args.push(path.to_string());
+            }
+        }
+        return launch_args;
+    }
+    launch_args.push(path.to_string());
+    launch_args
+}
+
 pub(crate) async fn open_workspace_in_core(
     path: String,
     app: Option<String>,
     args: Vec<String>,
     command: Option<String>,
+    line: Option<u32>,
+    column: Option<u32>,
 ) -> Result<(), String> {
     fn output_snippet(bytes: &[u8]) -> Option<String> {
         const MAX_CHARS: usize = 240;
@@ -44,6 +170,13 @@ pub(crate) async fn open_workspace_in_core(
         if trimmed.is_empty() {
             return Err("Missing app or command".to_string());
         }
+        let launch_args = build_launch_args(
+            &path,
+            &args,
+            line,
+            column,
+            command_launch_strategy(trimmed),
+        );
 
         #[cfg(target_os = "windows")]
         let mut cmd = {
@@ -56,9 +189,7 @@ pub(crate) async fn open_workspace_in_core(
 
             if matches!(ext.as_deref(), Some("cmd") | Some("bat")) {
                 let mut cmd = tokio_command("cmd");
-                let mut command_args = args.clone();
-                command_args.push(path.clone());
-                let command_line = build_cmd_c_command(resolved_path, &command_args)?;
+                let command_line = build_cmd_c_command(resolved_path, &launch_args)?;
                 cmd.arg("/D");
                 cmd.arg("/S");
                 cmd.arg("/C");
@@ -66,7 +197,7 @@ pub(crate) async fn open_workspace_in_core(
                 cmd
             } else {
                 let mut cmd = tokio_command(resolved_path);
-                cmd.args(&args).arg(&path);
+                cmd.args(&launch_args);
                 cmd
             }
         };
@@ -74,7 +205,7 @@ pub(crate) async fn open_workspace_in_core(
         #[cfg(not(target_os = "windows"))]
         let mut cmd = {
             let mut cmd = tokio_command(trimmed);
-            cmd.args(&args).arg(&path);
+            cmd.args(&launch_args);
             cmd
         };
 
@@ -86,27 +217,43 @@ pub(crate) async fn open_workspace_in_core(
         if trimmed.is_empty() {
             return Err("Missing app or command".to_string());
         }
+        let app_strategy = app_launch_strategy(trimmed);
 
         #[cfg(target_os = "macos")]
-        let mut cmd = {
-            let mut cmd = tokio_command("open");
-            cmd.arg("-a").arg(trimmed).arg(&path);
-            if !args.is_empty() {
-                cmd.arg("--args").args(&args);
+        {
+            if let (Some(strategy), Some(cli_program)) = (
+                app_strategy,
+                normalize_open_location(line, column)
+                    .and_then(|_| app_cli_command(trimmed))
+                    .and_then(find_executable_in_path),
+            ) {
+                let launch_args = build_launch_args(&path, &args, line, column, Some(strategy));
+                let mut cmd = tokio_command(cli_program);
+                cmd.args(&launch_args);
+                cmd.output()
+                    .await
+                    .map_err(|error| format!("Failed to open app ({target_label}): {error}"))?
+            } else {
+                let mut cmd = tokio_command("open");
+                cmd.arg("-a").arg(trimmed).arg(&path);
+                if !args.is_empty() {
+                    cmd.arg("--args").args(&args);
+                }
+                cmd.output()
+                    .await
+                    .map_err(|error| format!("Failed to open app ({target_label}): {error}"))?
             }
-            cmd
-        };
+        }
 
         #[cfg(not(target_os = "macos"))]
-        let mut cmd = {
+        {
+            let launch_args = build_launch_args(&path, &args, line, column, app_strategy);
             let mut cmd = tokio_command(trimmed);
-            cmd.args(&args).arg(&path);
-            cmd
-        };
-
-        cmd.output()
-            .await
-            .map_err(|error| format!("Failed to open app ({target_label}): {error}"))?
+            cmd.args(&launch_args);
+            cmd.output()
+                .await
+                .map_err(|error| format!("Failed to open app ({target_label}): {error}"))?
+        }
     } else {
         return Err("Missing app or command".to_string());
     };
@@ -137,6 +284,112 @@ pub(crate) async fn open_workspace_in_core(
             "Failed to open app ({target_label} returned {exit_detail}; {}).",
             details.join("; ")
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        app_cli_command, app_launch_strategy, build_launch_args, command_launch_strategy,
+        LineAwareLaunchStrategy,
+    };
+
+    #[test]
+    fn matches_line_aware_command_targets() {
+        assert_eq!(
+            command_launch_strategy("/usr/local/bin/code"),
+            Some(LineAwareLaunchStrategy::GotoFlag)
+        );
+        assert_eq!(
+            command_launch_strategy("cursor.cmd"),
+            Some(LineAwareLaunchStrategy::GotoFlag)
+        );
+        assert_eq!(
+            command_launch_strategy("zed"),
+            Some(LineAwareLaunchStrategy::PathWithLineColumn)
+        );
+        assert_eq!(command_launch_strategy("vim"), None);
+    }
+
+    #[test]
+    fn matches_line_aware_app_targets() {
+        assert_eq!(
+            app_launch_strategy("Visual Studio Code"),
+            Some(LineAwareLaunchStrategy::GotoFlag)
+        );
+        assert_eq!(
+            app_launch_strategy("Cursor"),
+            Some(LineAwareLaunchStrategy::GotoFlag)
+        );
+        assert_eq!(
+            app_launch_strategy("Zed Preview"),
+            Some(LineAwareLaunchStrategy::PathWithLineColumn)
+        );
+        assert_eq!(app_launch_strategy("Ghostty"), None);
+    }
+
+    #[test]
+    fn maps_known_apps_to_cli_commands() {
+        assert_eq!(app_cli_command("Visual Studio Code"), Some("code"));
+        assert_eq!(
+            app_cli_command("Visual Studio Code Insiders"),
+            Some("code-insiders")
+        );
+        assert_eq!(app_cli_command("Cursor"), Some("cursor"));
+        assert_eq!(app_cli_command("Zed Preview"), Some("zed"));
+        assert_eq!(app_cli_command("Ghostty"), None);
+    }
+
+    #[test]
+    fn builds_goto_args_for_code_family_targets() {
+        let args = build_launch_args(
+            "/tmp/project/src/App.tsx",
+            &["--reuse-window".to_string()],
+            Some(33),
+            Some(7),
+            Some(LineAwareLaunchStrategy::GotoFlag),
+        );
+
+        assert_eq!(
+            args,
+            vec![
+                "--reuse-window".to_string(),
+                "--goto".to_string(),
+                "/tmp/project/src/App.tsx:33:7".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_line_suffixed_path_for_zed_targets() {
+        let args = build_launch_args(
+            "/tmp/project/src/App.tsx",
+            &[],
+            Some(33),
+            None,
+            Some(LineAwareLaunchStrategy::PathWithLineColumn),
+        );
+
+        assert_eq!(args, vec!["/tmp/project/src/App.tsx:33".to_string()]);
+    }
+
+    #[test]
+    fn falls_back_to_plain_path_for_unknown_targets() {
+        let args = build_launch_args(
+            "/tmp/project/src/App.tsx",
+            &["--foreground".to_string()],
+            Some(33),
+            Some(7),
+            None,
+        );
+
+        assert_eq!(
+            args,
+            vec![
+                "--foreground".to_string(),
+                "/tmp/project/src/App.tsx".to_string(),
+            ]
+        );
     }
 }
 
