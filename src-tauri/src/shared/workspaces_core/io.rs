@@ -59,7 +59,7 @@ fn command_launch_strategy(command: &str) -> Option<LineAwareLaunchStrategy> {
 }
 
 fn app_launch_strategy(app: &str) -> Option<LineAwareLaunchStrategy> {
-    let normalized = app.trim().to_ascii_lowercase();
+    let normalized = normalize_app_identifier(app);
     if normalized.contains("visual studio code") || normalized.starts_with("cursor") {
         return Some(LineAwareLaunchStrategy::GotoFlag);
     }
@@ -70,7 +70,7 @@ fn app_launch_strategy(app: &str) -> Option<LineAwareLaunchStrategy> {
 }
 
 fn app_cli_command(app: &str) -> Option<&'static str> {
-    let normalized = app.trim().to_ascii_lowercase();
+    let normalized = normalize_app_identifier(app);
     if normalized.contains("visual studio code insiders") {
         return Some("code-insiders");
     }
@@ -84,6 +84,22 @@ fn app_cli_command(app: &str) -> Option<&'static str> {
         return Some("zed");
     }
     None
+}
+
+fn normalize_app_identifier(app: &str) -> String {
+    app.trim()
+        .chars()
+        .map(|value| {
+            if value.is_ascii_alphanumeric() {
+                value.to_ascii_lowercase()
+            } else {
+                ' '
+            }
+        })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn find_executable_in_path(program: &str) -> Option<PathBuf> {
@@ -333,6 +349,10 @@ mod tests {
         assert_eq!(app_cli_command("Visual Studio Code"), Some("code"));
         assert_eq!(
             app_cli_command("Visual Studio Code Insiders"),
+            Some("code-insiders")
+        );
+        assert_eq!(
+            app_cli_command("Visual Studio Code - Insiders"),
             Some("code-insiders")
         );
         assert_eq!(app_cli_command("Cursor"), Some("cursor"));

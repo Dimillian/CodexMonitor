@@ -198,10 +198,6 @@ function safeDecodeFileLink(url: string) {
 
 const FILE_LINE_SUFFIX_PATTERN = /:\d+(?::\d+)?$/;
 const FILE_HASH_LINE_SUFFIX_PATTERN = /^#L(\d+)(?:C(\d+))?$/i;
-const KNOWN_LOCAL_WORKSPACE_ROUTE_PREFIXES = [
-  "/workspace/settings",
-  "/workspaces/settings",
-];
 const LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES = [
   "/Users/",
   "/home/",
@@ -219,6 +215,31 @@ const LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES = [
   "/srv/",
   "/data/",
 ];
+const WORKSPACE_ROUTE_PREFIXES = ["/workspace/", "/workspaces/"];
+const LIKELY_WORKSPACE_ROOT_SEGMENTS = new Set([
+  "src",
+  "app",
+  "lib",
+  "docs",
+  "scripts",
+  "test",
+  "tests",
+  "packages",
+  "apps",
+  "bin",
+  "public",
+]);
+const DOTLESS_WORKSPACE_FILE_NAMES = new Set([
+  "LICENSE",
+  "README",
+  "CHANGELOG",
+  "NOTICE",
+  "COPYING",
+  "Makefile",
+  "Dockerfile",
+  "Procfile",
+  "Gemfile",
+]);
 
 function stripPathLineSuffix(value: string) {
   return value.replace(FILE_LINE_SUFFIX_PATTERN, "");
@@ -243,16 +264,109 @@ function hasLikelyLocalAbsolutePrefix(path: string) {
   );
 }
 
-function isKnownLocalWorkspaceRoute(path: string) {
+function workspaceBaseName(workspacePath?: string | null) {
+  const normalizedWorkspace = trimTrailingPathSeparators(
+    normalizePathSeparators(workspacePath?.trim() ?? ""),
+  );
+  return normalizedWorkspace.split("/").filter(Boolean).pop() ?? "";
+}
+
+function splitWorkspaceRoutePath(path: string) {
   const normalizedPath = path.replace(/\\/g, "/");
-  return KNOWN_LOCAL_WORKSPACE_ROUTE_PREFIXES.some((prefix) =>
-    normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`),
+  if (normalizedPath.startsWith("/workspace/")) {
+    return {
+      segments: normalizedPath.slice("/workspace/".length).split("/").filter(Boolean),
+      prefix: "/workspace/",
+    };
+  }
+  if (normalizedPath.startsWith("/workspaces/")) {
+    return {
+      segments: normalizedPath.slice("/workspaces/".length).split("/").filter(Boolean),
+      prefix: "/workspaces/",
+    };
+  }
+  return null;
+}
+
+function hasLikelyWorkspaceNameSegment(segment: string) {
+  return /[A-Z]/.test(segment) || /[._-]/.test(segment);
+}
+
+function hasLikelyDotlessWorkspaceFileLeaf(segment: string) {
+  if (!segment || segment === "." || segment === "..") {
+    return false;
+  }
+  if (segment.startsWith(".") && segment.length > 1) {
+    return true;
+  }
+  return (
+    DOTLESS_WORKSPACE_FILE_NAMES.has(segment) || /^[A-Z0-9_-]+$/.test(segment)
   );
 }
 
-function usesAbsolutePathDepthFallback(path: string) {
+function isLikelyMountedWorkspaceFilePath(
+  path: string,
+  workspacePath?: string | null,
+) {
+  const mountedPath = splitWorkspaceRoutePath(path);
+  if (!mountedPath || mountedPath.segments.length === 0) {
+    return false;
+  }
+
+  const workspaceName = workspaceBaseName(workspacePath);
+  if (
+    workspaceName &&
+    mountedPath.prefix === "/workspace/" &&
+    mountedPath.segments[0] === workspaceName &&
+    mountedPath.segments.length >= 2
+  ) {
+    return true;
+  }
+
+  if (
+    mountedPath.prefix === "/workspace/" &&
+    mountedPath.segments.length >= 2 &&
+    hasLikelyWorkspaceNameSegment(mountedPath.segments[0]) &&
+    hasLikelyDotlessWorkspaceFileLeaf(
+      mountedPath.segments[mountedPath.segments.length - 1],
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    mountedPath.prefix === "/workspace/" &&
+    mountedPath.segments.length >= 2 &&
+    LIKELY_WORKSPACE_ROOT_SEGMENTS.has(mountedPath.segments[0])
+  ) {
+    return true;
+  }
+
+  if (
+    workspaceName &&
+    mountedPath.prefix === "/workspaces/" &&
+    mountedPath.segments.length >= 3
+  ) {
+    const workspaceIndex = mountedPath.segments.findIndex(
+      (segment) => segment === workspaceName,
+    );
+    if (workspaceIndex >= 0 && workspaceIndex < mountedPath.segments.length - 1) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function usesAbsolutePathDepthFallback(
+  path: string,
+  workspacePath?: string | null,
+) {
   const normalizedPath = path.replace(/\\/g, "/");
-  if (isKnownLocalWorkspaceRoute(normalizedPath)) {
+  if (
+    WORKSPACE_ROUTE_PREFIXES.some((prefix) => normalizedPath.startsWith(prefix)) &&
+    !isLikelyMountedWorkspaceFilePath(normalizedPath, workspacePath)
+  ) {
     return false;
   }
   return hasLikelyLocalAbsolutePrefix(normalizedPath) && pathSegmentCount(normalizedPath) >= 3;
@@ -262,7 +376,10 @@ function pathSegmentCount(path: string) {
   return path.split("/").filter(Boolean).length;
 }
 
-function toPathFromFileHashAnchor(url: string) {
+function toPathFromFileHashAnchor(
+  url: string,
+  workspacePath?: string | null,
+) {
   const hashIndex = url.indexOf("#");
   if (hashIndex <= 0) {
     return null;
@@ -270,14 +387,17 @@ function toPathFromFileHashAnchor(url: string) {
   const basePath = url.slice(0, hashIndex).trim();
   const hash = url.slice(hashIndex).trim();
   const match = hash.match(FILE_HASH_LINE_SUFFIX_PATTERN);
-  if (!basePath || !match || !isLikelyFileHref(basePath)) {
+  if (!basePath || !match || !isLikelyFileHref(basePath, workspacePath)) {
     return null;
   }
   const [, line, column] = match;
   return `${basePath}:${line}${column ? `:${column}` : ""}`;
 }
 
-function isLikelyFileHref(url: string) {
+function isLikelyFileHref(
+  url: string,
+  workspacePath?: string | null,
+) {
   const trimmed = url.trim();
   if (!trimmed) {
     return false;
@@ -311,7 +431,7 @@ function isLikelyFileHref(url: string) {
     if (hasLikelyFileName(trimmed)) {
       return true;
     }
-    return usesAbsolutePathDepthFallback(trimmed);
+    return usesAbsolutePathDepthFallback(trimmed, workspacePath);
   }
   if (FILE_LINE_SUFFIX_PATTERN.test(trimmed)) {
     return true;
@@ -659,14 +779,14 @@ export function Markdown({
     return trimmed;
   };
   const resolveHrefFilePath = (url: string) => {
-    const hashAnchorPath = toPathFromFileHashAnchor(url);
+    const hashAnchorPath = toPathFromFileHashAnchor(url, workspacePath);
     if (hashAnchorPath) {
       const anchoredPath = getLinkablePath(hashAnchorPath);
       if (anchoredPath) {
         return safeDecodeURIComponent(anchoredPath) ?? anchoredPath;
       }
     }
-    if (isLikelyFileHref(url)) {
+    if (isLikelyFileHref(url, workspacePath)) {
       const directPath = getLinkablePath(url);
       if (directPath) {
         return safeDecodeURIComponent(directPath) ?? directPath;
@@ -674,7 +794,10 @@ export function Markdown({
     }
     const decodedUrl = safeDecodeURIComponent(url);
     if (decodedUrl) {
-      const decodedHashAnchorPath = toPathFromFileHashAnchor(decodedUrl);
+      const decodedHashAnchorPath = toPathFromFileHashAnchor(
+        decodedUrl,
+        workspacePath,
+      );
       if (decodedHashAnchorPath) {
         const anchoredPath = getLinkablePath(decodedHashAnchorPath);
         if (anchoredPath) {
@@ -682,7 +805,7 @@ export function Markdown({
         }
       }
     }
-    if (decodedUrl && isLikelyFileHref(decodedUrl)) {
+    if (decodedUrl && isLikelyFileHref(decodedUrl, workspacePath)) {
       const decodedPath = getLinkablePath(decodedUrl);
       if (decodedPath) {
         return decodedPath;

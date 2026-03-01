@@ -98,6 +98,7 @@ describe("Markdown file-like href behavior", () => {
       <Markdown
         value="See [license](/workspace/CodexMonitor/LICENSE)"
         className="markdown"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
         onOpenFileLink={onOpenFileLink}
       />,
     );
@@ -112,6 +113,75 @@ describe("Markdown file-like href behavior", () => {
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
     expect(onOpenFileLink).toHaveBeenCalledWith("/workspace/CodexMonitor/LICENSE");
+  });
+
+  it("keeps generic workspace routes as normal markdown links", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [overview](/workspace/reviews/overview)"
+        className="markdown"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("overview").closest("a");
+    expect(link?.getAttribute("href")).toBe("/workspace/reviews/overview");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).not.toHaveBeenCalled();
+  });
+
+  it("keeps nested workspaces routes as normal markdown links", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [overview](/workspaces/team/reviews/overview)"
+        className="markdown"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("overview").closest("a");
+    expect(link?.getAttribute("href")).toBe("/workspaces/team/reviews/overview");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).not.toHaveBeenCalled();
+  });
+
+  it("still intercepts nested workspace file hrefs when a file opener is provided", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [src](/workspaces/team/CodexMonitor/src)"
+        className="markdown"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("src").closest("a");
+    expect(link?.getAttribute("href")).toBe("/workspaces/team/CodexMonitor/src");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith("/workspaces/team/CodexMonitor/src");
   });
 
   it("intercepts file hrefs that use #L line anchors", () => {
