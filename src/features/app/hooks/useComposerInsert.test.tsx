@@ -80,4 +80,50 @@ describe("useComposerInsert", () => {
 
     expect(onDraftChange).toHaveBeenCalledWith("Hello world ./src");
   });
+
+  it("focuses textarea immediately and reapplies caret after frame", () => {
+    const textarea = document.createElement("textarea");
+    textarea.value = "Hello";
+    textarea.selectionStart = 5;
+    textarea.selectionEnd = 5;
+    const textareaRef: RefObject<HTMLTextAreaElement | null> = { current: textarea };
+    const onDraftChange = vi.fn();
+
+    const focusSpy = vi.spyOn(textarea, "focus");
+    const setSelectionRangeSpy = vi.spyOn(textarea, "setSelectionRange");
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      rafCallbacks.push(callback);
+      return 1;
+    });
+
+    const { result } = renderHook(() =>
+      useComposerInsert({
+        isEnabled: true,
+        draftText: "Hello",
+        onDraftChange,
+        textareaRef,
+      }),
+    );
+
+    act(() => {
+      result.current("./src");
+    });
+
+    expect(onDraftChange).toHaveBeenCalledWith("Hello ./src");
+    expect(focusSpy).toHaveBeenCalledTimes(1);
+    expect(rafCallbacks).toHaveLength(1);
+
+    act(() => {
+      rafCallbacks[0](0);
+    });
+
+    expect(focusSpy).toHaveBeenCalledTimes(2);
+    expect(setSelectionRangeSpy).toHaveBeenLastCalledWith(
+      "Hello ./src".length,
+      "Hello ./src".length,
+    );
+
+    rafSpy.mockRestore();
+  });
 });

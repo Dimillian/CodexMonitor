@@ -37,20 +37,26 @@ export function useComposerInsert({
       const prefix = needsSpaceBefore ? " " : "";
       const suffix = needsSpaceAfter ? " " : "";
       const nextText = `${before}${prefix}${insertText}${suffix}${after}`;
-      onDraftChange(nextText);
-      requestAnimationFrame(() => {
+      const cursor =
+        before.length +
+        prefix.length +
+        insertText.length +
+        (needsSpaceAfter ? 1 : 0);
+      const focusComposer = () => {
         const node = textareaRef.current;
         if (!node) {
           return;
         }
-        const cursor =
-          before.length +
-          prefix.length +
-          insertText.length +
-          (needsSpaceAfter ? 1 : 0);
         node.focus();
         node.setSelectionRange(cursor, cursor);
         node.dispatchEvent(new Event("select", { bubbles: true }));
+      };
+
+      // Keep focus transfer in the same user gesture for mobile Safari.
+      focusComposer();
+      onDraftChange(nextText);
+      requestAnimationFrame(() => {
+        focusComposer();
       });
     },
     [isEnabled, onDraftChange, textareaRef],
