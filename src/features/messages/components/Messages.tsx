@@ -274,11 +274,12 @@ export const Messages = memo(function Messages({
   );
 
   const handleQuoteMessage = useCallback(
-    (item: Extract<ConversationItem, { kind: "message" }>) => {
+    (item: Extract<ConversationItem, { kind: "message" }>, selectedText?: string) => {
       if (!onQuoteMessage) {
         return;
       }
-      const quoteText = toMarkdownQuote(item.text);
+      const sourceText = selectedText?.trim().length ? selectedText : item.text;
+      const quoteText = toMarkdownQuote(sourceText);
       if (!quoteText) {
         return;
       }

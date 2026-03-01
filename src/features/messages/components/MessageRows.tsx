@@ -56,7 +56,7 @@ type MessageRowProps = MarkdownFileLinkProps & {
   item: Extract<ConversationItem, { kind: "message" }>;
   isCopied: boolean;
   onCopy: (item: Extract<ConversationItem, { kind: "message" }>) => void;
-  onQuote?: (item: Extract<ConversationItem, { kind: "message" }>) => void;
+  onQuote?: (item: Extract<ConversationItem, { kind: "message" }>, selectedText?: string) => void;
   codeBlockCopyUseModifier?: boolean;
 };
 
@@ -370,6 +370,8 @@ export const MessageRow = memo(function MessageRow({
   onOpenThreadLink,
 }: MessageRowProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const bubbleRef = useRef<HTMLDivElement | null>(null);
+  const selectionSnapshotRef = useRef<string | null>(null);
   const hasText = item.text.trim().length > 0;
   const imageItems = useMemo(() => {
     if (!item.images || item.images.length === 0) {
@@ -386,9 +388,47 @@ export const MessageRow = memo(function MessageRow({
       .filter(Boolean) as MessageImage[];
   }, [item.images]);
 
+  const getSelectedMessageText = useCallback(() => {
+    const bubble = bubbleRef.current;
+    const selection = window.getSelection();
+    if (!bubble || !selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      return null;
+    }
+    const selectedText = selection.toString().trim();
+    if (!selectedText) {
+      return null;
+    }
+    const range = selection.getRangeAt(0);
+    if (!bubble.contains(range.commonAncestorContainer)) {
+      return null;
+    }
+
+    const isWithinMessageControls = (node: Node | null) => {
+      if (!node) {
+        return false;
+      }
+      const element = node instanceof Element ? node : node.parentElement;
+      return Boolean(element?.closest(".message-quote-button, .message-copy-button"));
+    };
+
+    if (isWithinMessageControls(selection.anchorNode) || isWithinMessageControls(selection.focusNode)) {
+      return null;
+    }
+    return selectedText;
+  }, []);
+
+  const handleQuote = useCallback(() => {
+    if (!onQuote) {
+      return;
+    }
+    const selectedText = getSelectedMessageText() ?? selectionSnapshotRef.current ?? undefined;
+    selectionSnapshotRef.current = null;
+    onQuote(item, selectedText);
+  }, [getSelectedMessageText, item, onQuote]);
+
   return (
     <div className={`message ${item.role}`}>
-      <div className="bubble message-bubble">
+      <div ref={bubbleRef} className="bubble message-bubble">
         {imageItems.length > 0 && (
           <MessageImageGrid
             images={imageItems}
@@ -420,7 +460,13 @@ export const MessageRow = memo(function MessageRow({
           <button
             type="button"
             className="ghost message-quote-button"
-            onClick={() => onQuote(item)}
+            onMouseDown={() => {
+              selectionSnapshotRef.current = getSelectedMessageText();
+            }}
+            onTouchStart={() => {
+              selectionSnapshotRef.current = getSelectedMessageText();
+            }}
+            onClick={handleQuote}
             aria-label="Quote message"
             title="Quote message"
           >
