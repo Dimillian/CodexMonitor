@@ -74,11 +74,15 @@ pub(super) async fn tailscale_daemon_command_preview(
         .map(str::trim)
         .map(|value| !value.is_empty())
         .unwrap_or(false);
+    let listen_addr = configured_daemon_listen_addr(&settings);
+    let ws_listen_addr = configured_daemon_ws_listen_addr(&settings);
 
     Ok(tailscale_core::daemon_command_preview(
         &daemon_path,
         &data_dir,
         token_configured,
+        &listen_addr,
+        &ws_listen_addr,
     ))
 }
 
@@ -99,6 +103,7 @@ pub(super) async fn tailscale_daemon_start(
             "Set a Remote backend token before starting mobile access daemon.".to_string()
         })?;
     let listen_addr = configured_daemon_listen_addr(&settings);
+    let ws_listen_addr = configured_daemon_ws_listen_addr(&settings);
     let listen_port = parse_port_from_remote_host(&listen_addr)
         .ok_or_else(|| format!("Invalid daemon listen address: {listen_addr}"))?;
     let daemon_binary = resolve_daemon_binary_path()?;
@@ -119,8 +124,12 @@ pub(super) async fn tailscale_daemon_start(
             info,
         } => {
             let pid = resolve_daemon_pid(listen_port, info.as_ref()).await;
-            let restart_required = should_restart_daemon(info.as_ref());
-            let restart_reason = if restart_required {
+            let pid_is_expected_daemon = match pid {
+                Some(listener_pid) => is_pid_expected_daemon_process(listener_pid).await,
+                None => false,
+            };
+            let mut restart_required = should_restart_daemon(info.as_ref());
+            let mut restart_reason = if restart_required {
                 Some(daemon_restart_reason(info.as_ref()))
             } else {
                 None
@@ -135,15 +144,24 @@ pub(super) async fn tailscale_daemon_start(
                 listen_addr: Some(listen_addr.clone()),
             };
             if !auth_ok {
-                return Err(auth_error.unwrap_or_else(|| {
-                    "Daemon is already running but authentication failed.".to_string()
-                }));
+                if pid_is_expected_daemon {
+                    restart_required = true;
+                    restart_reason = Some(
+                        "Daemon token mismatch detected; restarting managed daemon with current token."
+                            .to_string(),
+                    );
+                } else {
+                    return Err(auth_error.unwrap_or_else(|| {
+                        "Daemon is already running but authentication failed.".to_string()
+                    }));
+                }
             }
-            if !restart_required {
+            if auth_ok && !restart_required {
                 return Ok(runtime.status.clone());
             }
 
-            let force_kill_allowed = can_force_stop_daemon(auth_ok, info.as_ref());
+            let force_kill_allowed =
+                can_force_stop_daemon(auth_ok, info.as_ref()) || pid_is_expected_daemon;
             let pid_for_control = pid;
             if let Err(shutdown_error) = request_daemon_shutdown(&listen_addr, Some(token)).await {
                 if !force_kill_allowed {
@@ -215,6 +233,8 @@ pub(super) async fn tailscale_daemon_start(
     let child = tokio_command(&daemon_binary)
         .arg("--listen")
         .arg(&listen_addr)
+        .arg("--ws-listen")
+        .arg(&ws_listen_addr)
         .arg("--data-dir")
         .arg(data_dir)
         .arg("--token")

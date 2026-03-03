@@ -8,6 +8,7 @@ import type {
   DictationModelStatus,
   DictationSessionState,
   LocalUsageSnapshot,
+  CloudflareTunnelStatus,
   TcpDaemonStatus,
   TailscaleDaemonCommandPreview,
   TailscaleStatus,
@@ -870,6 +871,22 @@ export async function tailscaleDaemonStop(): Promise<TcpDaemonStatus> {
 
 export async function tailscaleDaemonStatus(): Promise<TcpDaemonStatus> {
   return invoke<TcpDaemonStatus>("tailscale_daemon_status");
+}
+
+export async function cloudflareTunnelStart(): Promise<CloudflareTunnelStatus> {
+  return invoke<CloudflareTunnelStatus>("cloudflare_tunnel_start");
+}
+
+export async function cloudflareTunnelStop(): Promise<CloudflareTunnelStatus> {
+  return invoke<CloudflareTunnelStatus>("cloudflare_tunnel_stop");
+}
+
+export async function cloudflareTunnelStatus(): Promise<CloudflareTunnelStatus> {
+  return invoke<CloudflareTunnelStatus>("cloudflare_tunnel_status");
+}
+
+export async function cloudflareTunnelInstall(): Promise<CloudflareTunnelStatus> {
+  return invoke<CloudflareTunnelStatus>("cloudflare_tunnel_install");
 }
 
 type MenuAcceleratorUpdate = {

@@ -1,6 +1,7 @@
 mod protocol;
 mod tcp_transport;
 mod transport;
+mod ws_transport;
 
 use serde_json::{json, Value};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -17,6 +18,7 @@ use crate::types::BackendMode;
 use self::protocol::{build_request_line, DEFAULT_REMOTE_HOST, DISCONNECTED_MESSAGE};
 use self::tcp_transport::TcpTransport;
 use self::transport::{PendingMap, RemoteTransport, RemoteTransportConfig, RemoteTransportKind};
+use self::ws_transport::WssTransport;
 
 const REMOTE_REQUEST_TIMEOUT: Duration = Duration::from_secs(300);
 const REMOTE_SEND_TIMEOUT: Duration = Duration::from_secs(15);
@@ -109,7 +111,17 @@ impl RemoteBackend {
 
 pub(crate) async fn is_remote_mode(state: &AppState) -> bool {
     let settings = state.app_settings.lock().await;
-    matches!(settings.backend_mode, BackendMode::Remote)
+    should_use_remote_mode(&settings, cfg!(any(target_os = "ios", target_os = "android")))
+}
+
+fn should_use_remote_mode(settings: &crate::types::AppSettings, mobile_runtime: bool) -> bool {
+    if !matches!(settings.backend_mode, BackendMode::Remote) {
+        return false;
+    }
+    if mobile_runtime {
+        return true;
+    }
+    resolve_transport_config(settings).is_ok()
 }
 
 pub(crate) async fn call_remote(
@@ -195,11 +207,11 @@ async fn ensure_remote_backend(state: &AppState, app: AppHandle) -> Result<Remot
         let settings = state.app_settings.lock().await;
         resolve_transport_config(&settings)?
     };
-    let transport_kind = transport_config.kind();
     let auth_token = transport_config.auth_token().map(|value| value.to_string());
 
     let transport: Box<dyn RemoteTransport> = match transport_config.kind() {
         RemoteTransportKind::Tcp => Box::new(TcpTransport),
+        RemoteTransportKind::Wss => Box::new(WssTransport),
     };
     let connection = transport.connect(app, transport_config).await?;
 
@@ -212,13 +224,11 @@ async fn ensure_remote_backend(state: &AppState, app: AppHandle) -> Result<Remot
         }),
     };
 
-    if matches!(transport_kind, RemoteTransportKind::Tcp) {
-        if let Some(token) = auth_token {
-            client
-                .call("auth", json!({ "token": token }))
-                .await
-                .map(|_| ())?;
-        }
+    if let Some(token) = auth_token {
+        client
+            .call("auth", json!({ "token": token }))
+            .await
+            .map(|_| ())?;
     }
 
     {
@@ -232,22 +242,39 @@ async fn ensure_remote_backend(state: &AppState, app: AppHandle) -> Result<Remot
 fn resolve_transport_config(
     settings: &crate::types::AppSettings,
 ) -> Result<RemoteTransportConfig, String> {
-    let host = if settings.remote_backend_host.trim().is_empty() {
-        DEFAULT_REMOTE_HOST.to_string()
-    } else {
-        settings.remote_backend_host.clone()
-    };
-    Ok(RemoteTransportConfig::Tcp {
-        host,
-        auth_token: settings.remote_backend_token.clone(),
-    })
+    match &settings.remote_backend_provider {
+        crate::types::RemoteBackendProvider::Tcp => {
+            let host = if settings.remote_backend_host.trim().is_empty() {
+                DEFAULT_REMOTE_HOST.to_string()
+            } else {
+                settings.remote_backend_host.clone()
+            };
+            Ok(RemoteTransportConfig::Tcp {
+                host,
+                auth_token: settings.remote_backend_token.clone(),
+            })
+        }
+        crate::types::RemoteBackendProvider::Wss => {
+            let url = settings.remote_backend_host.trim();
+            if url.is_empty() {
+                return Err("Remote backend URL is required for WSS transport.".to_string());
+            }
+            if !url.starts_with("wss://") {
+                return Err("WSS transport requires a URL that starts with wss://".to_string());
+            }
+            Ok(RemoteTransportConfig::Wss {
+                url: url.to_string(),
+                auth_token: settings.remote_backend_token.clone(),
+            })
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{can_retry_after_disconnect, resolve_transport_config};
+    use super::{can_retry_after_disconnect, resolve_transport_config, should_use_remote_mode};
     use crate::remote_backend::transport::RemoteTransportConfig;
-    use crate::types::AppSettings;
+    use crate::types::{AppSettings, BackendMode, RemoteBackendProvider};
 
     #[test]
     fn resolve_tcp_transport_uses_remote_host() {
@@ -262,6 +289,29 @@ mod tests {
     }
 
     #[test]
+    fn resolve_wss_transport_uses_remote_url() {
+        let mut settings = AppSettings::default();
+        settings.remote_backend_provider = RemoteBackendProvider::Wss;
+        settings.remote_backend_host = "wss://codex.example.com/daemon".to_string();
+
+        let config = resolve_transport_config(&settings).expect("transport config");
+        let RemoteTransportConfig::Wss { url, .. } = config else {
+            panic!("expected wss transport config");
+        };
+        assert_eq!(url, "wss://codex.example.com/daemon");
+    }
+
+    #[test]
+    fn resolve_wss_transport_requires_wss_scheme() {
+        let mut settings = AppSettings::default();
+        settings.remote_backend_provider = RemoteBackendProvider::Wss;
+        settings.remote_backend_host = "https://codex.example.com/daemon".to_string();
+
+        let error = resolve_transport_config(&settings).expect_err("expected validation error");
+        assert!(error.contains("wss://"));
+    }
+
+    #[test]
     fn retries_only_retry_safe_methods_after_disconnect() {
         assert!(can_retry_after_disconnect("resume_thread"));
         assert!(can_retry_after_disconnect("list_threads"));
@@ -269,5 +319,25 @@ mod tests {
         assert!(!can_retry_after_disconnect("send_user_message"));
         assert!(!can_retry_after_disconnect("start_thread"));
         assert!(!can_retry_after_disconnect("remove_workspace"));
+    }
+
+    #[test]
+    fn remote_mode_disabled_on_desktop_when_wss_host_is_invalid() {
+        let mut settings = AppSettings::default();
+        settings.backend_mode = BackendMode::Remote;
+        settings.remote_backend_provider = RemoteBackendProvider::Wss;
+        settings.remote_backend_host = "127.0.0.1:4732".to_string();
+
+        assert!(!should_use_remote_mode(&settings, false));
+    }
+
+    #[test]
+    fn remote_mode_kept_on_mobile_even_with_incomplete_wss_host() {
+        let mut settings = AppSettings::default();
+        settings.backend_mode = BackendMode::Remote;
+        settings.remote_backend_provider = RemoteBackendProvider::Wss;
+        settings.remote_backend_host = "127.0.0.1:4732".to_string();
+
+        assert!(should_use_remote_mode(&settings, true));
     }
 }

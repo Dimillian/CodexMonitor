@@ -289,3 +289,15 @@ pub(super) async fn wait_for_daemon_shutdown(listen_addr: &str, token: Option<&s
     }
     false
 }
+
+#[cfg(test)]
+mod tests {
+    use super::is_auth_error_message;
+
+    #[test]
+    fn auth_error_detection_covers_invalid_token_variants() {
+        assert!(is_auth_error_message("invalid token"));
+        assert!(is_auth_error_message("Unauthorized"));
+        assert!(!is_auth_error_message("connection refused"));
+    }
+}

@@ -7,6 +7,7 @@ use tauri::RunEvent;
 use tauri::WindowEvent;
 
 mod backend;
+mod cloudflare;
 mod codex;
 mod daemon_binary;
 mod dictation;
@@ -43,21 +44,31 @@ mod workspaces;
 static EXIT_CLEANUP_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 
 #[cfg(desktop)]
-fn keep_daemon_running_after_close(app_handle: &tauri::AppHandle) -> bool {
+fn managed_process_exit_policy(app_handle: &tauri::AppHandle) -> (bool, bool) {
     let state = app_handle.state::<state::AppState>();
     tauri::async_runtime::block_on(async {
-        state
-            .app_settings
-            .lock()
-            .await
-            .keep_daemon_running_after_app_close
+        let settings = state.app_settings.lock().await;
+        (
+            settings.keep_daemon_running_after_app_close,
+            settings.keep_tunnel_running_after_app_close,
+        )
     })
 }
 
 #[cfg(desktop)]
-async fn stop_managed_daemons_for_exit(app_handle: tauri::AppHandle) {
-    let state = app_handle.state::<state::AppState>();
-    let _ = tailscale::tailscale_daemon_stop(state).await;
+async fn stop_managed_daemons_for_exit(
+    app_handle: tauri::AppHandle,
+    stop_daemon: bool,
+    stop_tunnel: bool,
+) {
+    if stop_tunnel {
+        let state = app_handle.state::<state::AppState>();
+        let _ = cloudflare::cloudflare_tunnel_stop(state).await;
+    }
+    if stop_daemon {
+        let state = app_handle.state::<state::AppState>();
+        let _ = tailscale::tailscale_daemon_stop(state).await;
+    }
 }
 
 #[tauri::command]
@@ -294,6 +305,10 @@ pub fn run() {
             tailscale::tailscale_daemon_start,
             tailscale::tailscale_daemon_stop,
             tailscale::tailscale_daemon_status,
+            cloudflare::cloudflare_tunnel_start,
+            cloudflare::cloudflare_tunnel_stop,
+            cloudflare::cloudflare_tunnel_status,
+            cloudflare::cloudflare_tunnel_install,
             is_mobile_runtime
         ])
         .build(tauri::generate_context!())
@@ -302,14 +317,16 @@ pub fn run() {
     app.run(|app_handle, event| {
         #[cfg(desktop)]
         if let RunEvent::ExitRequested { api, .. } = event {
-            if !EXIT_CLEANUP_IN_PROGRESS.load(Ordering::SeqCst)
-                && !keep_daemon_running_after_close(app_handle)
-            {
+            let (keep_daemon_running, keep_tunnel_running) = managed_process_exit_policy(app_handle);
+            let stop_daemon = !keep_daemon_running;
+            let stop_tunnel = !keep_tunnel_running;
+            if !EXIT_CLEANUP_IN_PROGRESS.load(Ordering::SeqCst) && (stop_daemon || stop_tunnel) {
                 api.prevent_exit();
                 EXIT_CLEANUP_IN_PROGRESS.store(true, Ordering::SeqCst);
                 let app_handle = app_handle.clone();
                 tauri::async_runtime::spawn(async move {
-                    stop_managed_daemons_for_exit(app_handle.clone()).await;
+                    stop_managed_daemons_for_exit(app_handle.clone(), stop_daemon, stop_tunnel)
+                        .await;
                     app_handle.exit(0);
                 });
             }
