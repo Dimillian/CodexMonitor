@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::item_tracker::ItemInfo;
+
 /// Represents a single event from Claude CLI's `--output-format stream-json` output.
 /// Each line of stdout is one JSON object with a `type` field.
 #[derive(Debug, Clone, Deserialize)]
@@ -229,6 +231,10 @@ pub(crate) struct BridgeState {
     pub(crate) turn_started: bool,
     /// Model ID reported by Claude.
     pub(crate) model: Option<String>,
+    /// Maps tool_use_id → ItemInfo for correlating tool results back to items.
+    pub(crate) tool_items: std::collections::HashMap<String, ItemInfo>,
+    /// Maps content block index → tool_use_id (to find ItemInfo from content block events).
+    pub(crate) block_tool_use_ids: std::collections::HashMap<u64, String>,
 }
 
 impl BridgeState {
@@ -244,6 +250,8 @@ impl BridgeState {
             thread_started: false,
             turn_started: false,
             model: None,
+            tool_items: std::collections::HashMap::new(),
+            block_tool_use_ids: std::collections::HashMap::new(),
         }
     }
 
@@ -257,5 +265,7 @@ impl BridgeState {
         self.turn_id = format!("turn_{}", uuid::Uuid::new_v4());
         self.turn_started = false;
         self.block_items.clear();
+        self.tool_items.clear();
+        self.block_tool_use_ids.clear();
     }
 }

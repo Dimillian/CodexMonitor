@@ -1,5 +1,6 @@
 use serde_json::{json, Value};
 
+use super::item_tracker::{self, ItemInfo};
 use super::types::{
     BridgeState, ClaudeEvent, ContentBlock, ContentBlockDelta,
 };
@@ -130,29 +131,81 @@ fn map_content_block_start(
                 }
             }));
         }
-        ContentBlock::ToolUse { id, name, input } => {
+        ContentBlock::ToolUse { id, name, .. } => {
             let item_id = state.next_item();
             state.block_items.insert(cb.index, item_id.clone());
-            out.push(json!({
-                "method": "item/started",
-                "params": {
-                    "threadId": state.thread_id,
-                    "turnId": state.turn_id,
-                    "item": {
-                        "id": item_id,
-                        "type": "commandExecution",
-                        "status": "in_progress",
-                        "toolUseId": id,
-                        "toolName": name,
-                        "input": input
+
+            let category = item_tracker::classify_tool(name);
+            let info = ItemInfo {
+                item_id: item_id.clone(),
+                tool_use_id: id.clone(),
+                tool_name: name.clone(),
+                category,
+                accumulated_input_json: String::new(),
+                aggregated_output: String::new(),
+            };
+
+            let event = item_tracker::build_item_started(
+                &info,
+                &state.thread_id,
+                &state.turn_id,
+            );
+
+            state.block_tool_use_ids.insert(cb.index, id.clone());
+            state.tool_items.insert(id.clone(), info);
+
+            out.push(event);
+        }
+        ContentBlock::ToolResult {
+            tool_use_id,
+            content,
+        } => {
+            // Map tool result content to output delta for the original item
+            if let Some(ref tuid) = tool_use_id {
+                let result_text = extract_tool_result_text(content.as_ref());
+                if !result_text.is_empty() {
+                    if let Some(info) = state.tool_items.get_mut(tuid) {
+                        info.aggregated_output.push_str(&result_text);
+                        out.push(item_tracker::build_output_delta(
+                            info,
+                            &state.thread_id,
+                            &state.turn_id,
+                            &result_text,
+                        ));
                     }
                 }
-            }));
+            }
         }
         _ => {}
     }
 
     out
+}
+
+/// Extract text from a tool result content value.
+fn extract_tool_result_text(content: Option<&Value>) -> String {
+    let Some(content) = content else {
+        return String::new();
+    };
+    // Content can be a string directly
+    if let Some(s) = content.as_str() {
+        return s.to_string();
+    }
+    // Or an array of content blocks
+    if let Some(arr) = content.as_array() {
+        let texts: Vec<&str> = arr
+            .iter()
+            .filter_map(|item| {
+                if item.get("type").and_then(|t| t.as_str()) == Some("text") {
+                    item.get("text").and_then(|t| t.as_str())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        return texts.join("\n");
+    }
+    String::new()
 }
 
 fn map_content_block_delta(
@@ -193,6 +246,20 @@ fn map_content_block_delta(
             }));
         }
         ContentBlockDelta::InputJsonDelta { partial_json } => {
+            // Accumulate input JSON in the item tracker
+            if let Some(tool_use_id) = state.block_tool_use_ids.get(&cbd.index) {
+                if let Some(info) = state.tool_items.get_mut(tool_use_id) {
+                    info.accumulated_input_json.push_str(partial_json);
+                    out.push(item_tracker::build_output_delta(
+                        info,
+                        &state.thread_id,
+                        &state.turn_id,
+                        partial_json,
+                    ));
+                    return out;
+                }
+            }
+            // Fallback if no tool tracking info found
             out.push(json!({
                 "method": "item/commandExecution/outputDelta",
                 "params": {
@@ -214,6 +281,20 @@ fn map_content_block_stop(
     state: &mut BridgeState,
 ) -> Vec<Value> {
     let mut out = Vec::new();
+
+    // Check if this is a tool block — emit enriched item/completed
+    if let Some(tool_use_id) = state.block_tool_use_ids.get(&cbs.index) {
+        if let Some(info) = state.tool_items.get(tool_use_id) {
+            out.push(item_tracker::build_item_completed(
+                info,
+                &state.thread_id,
+                &state.turn_id,
+            ));
+            return out;
+        }
+    }
+
+    // Non-tool block: emit simple item/completed
     if let Some(item_id) = state.block_items.get(&cbs.index) {
         out.push(json!({
             "method": "item/completed",
@@ -596,5 +677,236 @@ mod tests {
         assert_eq!(msgs.len(), 1);
         assert_eq!(msgs[0]["method"], "thread/tokenUsage/updated");
         assert_eq!(msgs[0]["params"]["usage"]["inputTokens"], 200);
+    }
+
+    // ── Phase 2: Tool Execution & Item Management ────────────────
+
+    #[test]
+    fn bash_tool_lifecycle_produces_command_execution() {
+        let mut state = make_state();
+        state.turn_started = true;
+
+        // 1. content_block_start with tool_use (bash)
+        let start = ClaudeEvent::ContentBlockStart(ContentBlockEvent {
+            index: 0,
+            content_block: Some(ContentBlock::ToolUse {
+                id: "toolu_abc".to_string(),
+                name: "bash".to_string(),
+                input: json!({}),
+            }),
+        });
+        let msgs = map_event(&start, &mut state);
+        assert_eq!(msgs.len(), 1);
+        assert_eq!(msgs[0]["method"], "item/started");
+        assert_eq!(msgs[0]["params"]["item"]["type"], "commandExecution");
+        assert_eq!(msgs[0]["params"]["item"]["toolName"], "bash");
+        assert_eq!(msgs[0]["params"]["item"]["command"], "");
+
+        let item_id = msgs[0]["params"]["item"]["id"].as_str().unwrap().to_string();
+
+        // 2. content_block_delta with input_json_delta
+        let delta1 = ClaudeEvent::ContentBlockDelta(ContentBlockDeltaEvent {
+            index: 0,
+            delta: Some(ContentBlockDelta::InputJsonDelta {
+                partial_json: r#"{"comma"#.to_string(),
+            }),
+        });
+        let msgs = map_event(&delta1, &mut state);
+        assert_eq!(msgs[0]["method"], "item/commandExecution/outputDelta");
+
+        let delta2 = ClaudeEvent::ContentBlockDelta(ContentBlockDeltaEvent {
+            index: 0,
+            delta: Some(ContentBlockDelta::InputJsonDelta {
+                partial_json: r#"nd": "ls -la"}"#.to_string(),
+            }),
+        });
+        let msgs = map_event(&delta2, &mut state);
+        assert_eq!(msgs[0]["method"], "item/commandExecution/outputDelta");
+
+        // 3. content_block_stop → enriched item/completed with command
+        let stop = ClaudeEvent::ContentBlockStop(ContentBlockStopEvent { index: 0 });
+        let msgs = map_event(&stop, &mut state);
+        assert_eq!(msgs.len(), 1);
+        assert_eq!(msgs[0]["method"], "item/completed");
+        assert_eq!(msgs[0]["params"]["itemId"], item_id);
+        assert_eq!(msgs[0]["params"]["status"], "completed");
+        assert_eq!(msgs[0]["params"]["command"], "ls -la");
+    }
+
+    #[test]
+    fn write_file_tool_produces_file_change() {
+        let mut state = make_state();
+        state.turn_started = true;
+
+        // Start
+        let start = ClaudeEvent::ContentBlockStart(ContentBlockEvent {
+            index: 0,
+            content_block: Some(ContentBlock::ToolUse {
+                id: "toolu_xyz".to_string(),
+                name: "write_file".to_string(),
+                input: json!({}),
+            }),
+        });
+        let msgs = map_event(&start, &mut state);
+        assert_eq!(msgs[0]["params"]["item"]["type"], "fileChange");
+        assert_eq!(msgs[0]["params"]["item"]["toolName"], "write_file");
+
+        // Input delta
+        let delta = ClaudeEvent::ContentBlockDelta(ContentBlockDeltaEvent {
+            index: 0,
+            delta: Some(ContentBlockDelta::InputJsonDelta {
+                partial_json: r#"{"path": "src/main.rs", "content": "fn main() {}"}"#.to_string(),
+            }),
+        });
+        let msgs = map_event(&delta, &mut state);
+        assert_eq!(msgs[0]["method"], "item/fileChange/outputDelta");
+
+        // Stop → enriched with changes array
+        let stop = ClaudeEvent::ContentBlockStop(ContentBlockStopEvent { index: 0 });
+        let msgs = map_event(&stop, &mut state);
+        assert_eq!(msgs[0]["method"], "item/completed");
+        let changes = msgs[0]["params"]["changes"].as_array().unwrap();
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0]["path"], "src/main.rs");
+        assert_eq!(changes[0]["kind"], "add");
+    }
+
+    #[test]
+    fn edit_file_tool_produces_file_change_modify() {
+        let mut state = make_state();
+        state.turn_started = true;
+
+        let start = ClaudeEvent::ContentBlockStart(ContentBlockEvent {
+            index: 0,
+            content_block: Some(ContentBlock::ToolUse {
+                id: "toolu_edit".to_string(),
+                name: "edit_file".to_string(),
+                input: json!({}),
+            }),
+        });
+        let msgs = map_event(&start, &mut state);
+        assert_eq!(msgs[0]["params"]["item"]["type"], "fileChange");
+
+        let delta = ClaudeEvent::ContentBlockDelta(ContentBlockDeltaEvent {
+            index: 0,
+            delta: Some(ContentBlockDelta::InputJsonDelta {
+                partial_json: r#"{"path": "lib.rs"}"#.to_string(),
+            }),
+        });
+        map_event(&delta, &mut state);
+
+        let stop = ClaudeEvent::ContentBlockStop(ContentBlockStopEvent { index: 0 });
+        let msgs = map_event(&stop, &mut state);
+        let changes = msgs[0]["params"]["changes"].as_array().unwrap();
+        assert_eq!(changes[0]["kind"], "modify");
+    }
+
+    #[test]
+    fn unknown_tool_defaults_to_command_execution() {
+        let mut state = make_state();
+        state.turn_started = true;
+
+        let start = ClaudeEvent::ContentBlockStart(ContentBlockEvent {
+            index: 0,
+            content_block: Some(ContentBlock::ToolUse {
+                id: "toolu_custom".to_string(),
+                name: "my_custom_tool".to_string(),
+                input: json!({}),
+            }),
+        });
+        let msgs = map_event(&start, &mut state);
+        assert_eq!(msgs[0]["params"]["item"]["type"], "commandExecution");
+    }
+
+    #[test]
+    fn tool_result_content_maps_to_output_delta() {
+        let mut state = make_state();
+        state.turn_started = true;
+
+        // Start a bash tool
+        let start = ClaudeEvent::ContentBlockStart(ContentBlockEvent {
+            index: 0,
+            content_block: Some(ContentBlock::ToolUse {
+                id: "toolu_res".to_string(),
+                name: "bash".to_string(),
+                input: json!({}),
+            }),
+        });
+        map_event(&start, &mut state);
+
+        // Stop the tool block
+        let stop = ClaudeEvent::ContentBlockStop(ContentBlockStopEvent { index: 0 });
+        map_event(&stop, &mut state);
+
+        // Tool result arrives as a new content block
+        let result = ClaudeEvent::ContentBlockStart(ContentBlockEvent {
+            index: 1,
+            content_block: Some(ContentBlock::ToolResult {
+                tool_use_id: Some("toolu_res".to_string()),
+                content: Some(json!("file1.txt\nfile2.txt\n")),
+            }),
+        });
+        let msgs = map_event(&result, &mut state);
+        assert_eq!(msgs.len(), 1);
+        assert_eq!(msgs[0]["method"], "item/commandExecution/outputDelta");
+        assert_eq!(msgs[0]["params"]["delta"], "file1.txt\nfile2.txt\n");
+
+        // Verify aggregated_output was stored
+        let info = state.tool_items.get("toolu_res").unwrap();
+        assert_eq!(info.aggregated_output, "file1.txt\nfile2.txt\n");
+    }
+
+    #[test]
+    fn tool_result_array_content_extracts_text() {
+        let mut state = make_state();
+        state.turn_started = true;
+
+        let start = ClaudeEvent::ContentBlockStart(ContentBlockEvent {
+            index: 0,
+            content_block: Some(ContentBlock::ToolUse {
+                id: "toolu_arr".to_string(),
+                name: "bash".to_string(),
+                input: json!({}),
+            }),
+        });
+        map_event(&start, &mut state);
+
+        let result = ClaudeEvent::ContentBlockStart(ContentBlockEvent {
+            index: 1,
+            content_block: Some(ContentBlock::ToolResult {
+                tool_use_id: Some("toolu_arr".to_string()),
+                content: Some(json!([
+                    {"type": "text", "text": "line1"},
+                    {"type": "image", "url": "data:..."},
+                    {"type": "text", "text": "line2"}
+                ])),
+            }),
+        });
+        let msgs = map_event(&result, &mut state);
+        assert_eq!(msgs[0]["params"]["delta"], "line1\nline2");
+    }
+
+    #[test]
+    fn new_turn_clears_tool_tracking_state() {
+        let mut state = make_state();
+        state.turn_started = true;
+
+        // Start a tool
+        let start = ClaudeEvent::ContentBlockStart(ContentBlockEvent {
+            index: 0,
+            content_block: Some(ContentBlock::ToolUse {
+                id: "toolu_clear".to_string(),
+                name: "bash".to_string(),
+                input: json!({}),
+            }),
+        });
+        map_event(&start, &mut state);
+        assert!(!state.tool_items.is_empty());
+        assert!(!state.block_tool_use_ids.is_empty());
+
+        // New turn should clear
+        state.new_turn();
+        assert!(state.tool_items.is_empty());
+        assert!(state.block_tool_use_ids.is_empty());
     }
 }
