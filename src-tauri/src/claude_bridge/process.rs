@@ -12,7 +12,7 @@ use crate::backend::events::{AppServerEvent, EventSink};
 use crate::types::WorkspaceEntry;
 
 use super::event_mapper;
-use super::types::BridgeState;
+use super::types::{BridgeState, PendingApproval};
 
 /// Check that the `claude` CLI binary is available.
 pub(crate) async fn check_claude_installation() -> Result<String, String> {
@@ -65,6 +65,11 @@ pub(crate) async fn spawn_claude_session<E: EventSink>(
         Arc::new(std::sync::Mutex::new(None));
     let detected_model_for_interceptor = detected_model.clone();
 
+    // Shared pending approvals: updated by event loop, read by interceptor
+    let pending_approvals: Arc<std::sync::Mutex<HashMap<u64, PendingApproval>>> =
+        Arc::new(std::sync::Mutex::new(HashMap::new()));
+    let pending_approvals_for_interceptor = pending_approvals.clone();
+
     // Build the request interceptor for Claude CLI protocol translation
     let interceptor_thread_id = thread_id.clone();
     let interceptor_workspace_id = workspace_id.clone();
@@ -79,6 +84,7 @@ pub(crate) async fn spawn_claude_session<E: EventSink>(
                 &interceptor_thread_id,
                 &interceptor_workspace_id,
                 model.as_deref(),
+                &pending_approvals_for_interceptor,
             )
         });
 
@@ -106,6 +112,7 @@ pub(crate) async fn spawn_claude_session<E: EventSink>(
     let ws_id_stdout = workspace_id.clone();
     let stdout_thread_id = thread_id.clone();
     let detected_model_for_loop = detected_model.clone();
+    let pending_approvals_for_loop = pending_approvals.clone();
     tokio::spawn(async move {
         let mut bridge_state = BridgeState::new(ws_id_stdout.clone(), stdout_thread_id);
         let mut lines = BufReader::new(stdout).lines();
@@ -136,6 +143,15 @@ pub(crate) async fn spawn_claude_session<E: EventSink>(
                 if let Ok(mut guard) = detected_model_for_loop.lock() {
                     if guard.as_ref() != Some(model) {
                         *guard = Some(model.clone());
+                    }
+                }
+            }
+
+            // Sync pending approvals to the shared state for the interceptor
+            if !bridge_state.pending_approvals.is_empty() {
+                if let Ok(mut guard) = pending_approvals_for_loop.lock() {
+                    for (id, approval) in &bridge_state.pending_approvals {
+                        guard.insert(*id, approval.clone());
                     }
                 }
             }
@@ -219,6 +235,7 @@ fn build_claude_intercept_action(
     thread_id: &str,
     _workspace_id: &str,
     detected_model: Option<&str>,
+    pending_approvals: &std::sync::Mutex<HashMap<u64, PendingApproval>>,
 ) -> InterceptAction {
     let method = value
         .get("method")
@@ -226,6 +243,24 @@ fn build_claude_intercept_action(
         .unwrap_or("");
     let id = value.get("id").cloned();
     let params = value.get("params").cloned().unwrap_or(Value::Null);
+
+    // Handle approval responses: messages with "id" + "result" but no "method"
+    // These come from respond_to_server_request → send_response
+    if method.is_empty() {
+        if let Some(ref id_val) = id {
+            if value.get("result").is_some() {
+                if let Some(req_id) = id_val.as_u64() {
+                    if let Ok(mut guard) = pending_approvals.lock() {
+                        if guard.remove(&req_id).is_some() {
+                            // Approval response acknowledged. In future, this
+                            // could forward the decision to Claude CLI stdin.
+                            return InterceptAction::Drop;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     match method {
         "initialize" => {
@@ -444,6 +479,12 @@ fn extract_user_text(params: &Value) -> String {
 mod tests {
     use super::*;
 
+    /// Test helper: calls build_claude_intercept_action with an empty pending_approvals map.
+    fn intercept(value: &Value, thread_id: &str, ws_id: &str, model: Option<&str>) -> InterceptAction {
+        let approvals = std::sync::Mutex::new(HashMap::new());
+        build_claude_intercept_action(value, thread_id, ws_id, model, &approvals)
+    }
+
     #[test]
     fn extract_user_text_from_input_items() {
         let params = json!({
@@ -470,7 +511,7 @@ mod tests {
     #[test]
     fn intercept_initialize_responds_immediately() {
         let action =
-            build_claude_intercept_action(&json!({"id": 1, "method": "initialize"}), "t1", "w1", None);
+            intercept(&json!({"id": 1, "method": "initialize"}), "t1", "w1", None);
         match action {
             InterceptAction::Respond(v) => {
                 assert_eq!(v["id"], 1);
@@ -482,7 +523,7 @@ mod tests {
 
     #[test]
     fn intercept_turn_start_forwards_text() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({
                 "id": 2,
                 "method": "turn/start",
@@ -502,7 +543,7 @@ mod tests {
 
     #[test]
     fn intercept_thread_list_responds_with_mock() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 3, "method": "thread/list"}),
             "thread_abc",
             "ws_1",
@@ -520,7 +561,7 @@ mod tests {
 
     #[test]
     fn intercept_unknown_method_returns_error() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 4, "method": "some/unknown"}),
             "t1",
             "w1",
@@ -537,13 +578,13 @@ mod tests {
     #[test]
     fn intercept_notification_drops_initialized() {
         let action =
-            build_claude_intercept_action(&json!({"method": "initialized"}), "t1", "w1", None);
+            intercept(&json!({"method": "initialized"}), "t1", "w1", None);
         assert!(matches!(action, InterceptAction::Drop));
     }
 
     #[test]
     fn intercept_empty_turn_start_returns_error() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({
                 "id": 5,
                 "method": "turn/start",
@@ -583,7 +624,7 @@ mod tests {
 
     #[test]
     fn intercept_model_list_uses_detected_model() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 10, "method": "model/list"}),
             "t1",
             "w1",
@@ -603,7 +644,7 @@ mod tests {
 
     #[test]
     fn intercept_model_list_fallback_when_no_detected_model() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 11, "method": "model/list"}),
             "t1",
             "w1",
@@ -621,7 +662,7 @@ mod tests {
 
     #[test]
     fn intercept_turn_steer_forwards_text() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({
                 "id": 20,
                 "method": "turn/steer",
@@ -639,7 +680,7 @@ mod tests {
 
     #[test]
     fn intercept_turn_steer_empty_returns_error() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({
                 "id": 21,
                 "method": "turn/steer",
@@ -659,7 +700,7 @@ mod tests {
 
     #[test]
     fn intercept_turn_steer_empty_no_id_drops() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({
                 "method": "turn/steer",
                 "params": {}
@@ -673,7 +714,7 @@ mod tests {
 
     #[test]
     fn intercept_thread_start_responds_with_thread() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 30, "method": "thread/start"}),
             "thread_xyz",
             "w1",
@@ -692,7 +733,7 @@ mod tests {
 
     #[test]
     fn intercept_thread_resume_responds() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 31, "method": "thread/resume"}),
             "thread_abc",
             "w1",
@@ -709,7 +750,7 @@ mod tests {
 
     #[test]
     fn intercept_thread_fork_responds_ok() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 32, "method": "thread/fork"}),
             "t1",
             "w1",
@@ -726,7 +767,7 @@ mod tests {
 
     #[test]
     fn intercept_thread_archive_responds_ok() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 33, "method": "thread/archive"}),
             "t1",
             "w1",
@@ -740,7 +781,7 @@ mod tests {
 
     #[test]
     fn intercept_thread_compact_start_responds_ok() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 34, "method": "thread/compact/start"}),
             "t1",
             "w1",
@@ -754,7 +795,7 @@ mod tests {
 
     #[test]
     fn intercept_thread_name_set_responds_ok() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 35, "method": "thread/name/set"}),
             "t1",
             "w1",
@@ -768,7 +809,7 @@ mod tests {
 
     #[test]
     fn intercept_review_start_responds_ok() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 36, "method": "review/start"}),
             "t1",
             "w1",
@@ -782,7 +823,7 @@ mod tests {
 
     #[test]
     fn intercept_skills_list_responds_empty() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 40, "method": "skills/list"}),
             "t1",
             "w1",
@@ -798,7 +839,7 @@ mod tests {
 
     #[test]
     fn intercept_app_list_responds_empty() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 41, "method": "app/list"}),
             "t1",
             "w1",
@@ -814,7 +855,7 @@ mod tests {
 
     #[test]
     fn intercept_mcp_server_status_list_responds_empty() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 42, "method": "mcpServerStatus/list"}),
             "t1",
             "w1",
@@ -830,7 +871,7 @@ mod tests {
 
     #[test]
     fn intercept_experimental_feature_list_responds_empty() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 43, "method": "experimentalFeature/list"}),
             "t1",
             "w1",
@@ -846,7 +887,7 @@ mod tests {
 
     #[test]
     fn intercept_collaboration_mode_list_responds_empty() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 44, "method": "collaborationMode/list"}),
             "t1",
             "w1",
@@ -862,7 +903,7 @@ mod tests {
 
     #[test]
     fn intercept_account_read_responds_empty() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 50, "method": "account/read"}),
             "t1",
             "w1",
@@ -879,7 +920,7 @@ mod tests {
 
     #[test]
     fn intercept_account_rate_limits_read_responds() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 51, "method": "account/rateLimits/read"}),
             "t1",
             "w1",
@@ -893,7 +934,7 @@ mod tests {
 
     #[test]
     fn intercept_account_login_start_responds() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 52, "method": "account/login/start"}),
             "t1",
             "w1",
@@ -907,7 +948,7 @@ mod tests {
 
     #[test]
     fn intercept_turn_interrupt_responds_ok() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"id": 60, "method": "turn/interrupt"}),
             "t1",
             "w1",
@@ -925,7 +966,7 @@ mod tests {
     #[test]
     fn intercept_notification_without_id_drops() {
         for method in &["thread/start", "thread/list", "model/list", "turn/interrupt", "skills/list", "account/read"] {
-            let action = build_claude_intercept_action(
+            let action = intercept(
                 &json!({"method": method}),
                 "t1",
                 "w1",
@@ -940,7 +981,7 @@ mod tests {
 
     #[test]
     fn intercept_turn_start_empty_input_no_id_drops() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({
                 "method": "turn/start",
                 "params": { "input": [] }
@@ -954,7 +995,7 @@ mod tests {
 
     #[test]
     fn intercept_unknown_method_no_id_drops() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"method": "completely/unknown"}),
             "t1",
             "w1",
@@ -1003,7 +1044,7 @@ mod tests {
 
     #[test]
     fn intercept_turn_start_with_text_field() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({
                 "id": 70,
                 "method": "turn/start",
@@ -1021,12 +1062,102 @@ mod tests {
 
     #[test]
     fn intercept_initialize_without_id_drops() {
-        let action = build_claude_intercept_action(
+        let action = intercept(
             &json!({"method": "initialize"}),
             "t1",
             "w1",
             None,
         );
         assert!(matches!(action, InterceptAction::Drop));
+    }
+
+    // ── Approval response handling tests ─────────────────────────
+
+    #[test]
+    fn intercept_approval_response_drops_when_matching() {
+        let approvals = std::sync::Mutex::new(HashMap::from([(
+            42u64,
+            PendingApproval {
+                request_id: 42,
+                tool_use_id: "toolu_abc".to_string(),
+                tool_name: "bash".to_string(),
+            },
+        )]));
+        let action = build_claude_intercept_action(
+            &json!({"id": 42, "result": {"decision": "accept"}}),
+            "t1",
+            "w1",
+            None,
+            &approvals,
+        );
+        assert!(matches!(action, InterceptAction::Drop));
+        // Approval should be removed from pending
+        assert!(approvals.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn intercept_approval_response_decline_also_drops() {
+        let approvals = std::sync::Mutex::new(HashMap::from([(
+            7u64,
+            PendingApproval {
+                request_id: 7,
+                tool_use_id: "toolu_xyz".to_string(),
+                tool_name: "write_file".to_string(),
+            },
+        )]));
+        let action = build_claude_intercept_action(
+            &json!({"id": 7, "result": {"decision": "decline"}}),
+            "t1",
+            "w1",
+            None,
+            &approvals,
+        );
+        assert!(matches!(action, InterceptAction::Drop));
+        assert!(approvals.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn intercept_response_with_unknown_id_falls_through() {
+        let approvals = std::sync::Mutex::new(HashMap::new());
+        let action = build_claude_intercept_action(
+            &json!({"id": 999, "result": {"decision": "accept"}}),
+            "t1",
+            "w1",
+            None,
+            &approvals,
+        );
+        // No matching approval → falls through to default handler (error for unknown method)
+        match action {
+            InterceptAction::Respond(v) => {
+                assert!(v["error"]["message"].as_str().is_some());
+            }
+            _ => panic!("Expected Respond with error for unknown response"),
+        }
+    }
+
+    #[test]
+    fn intercept_does_not_consume_non_approval_responses() {
+        let approvals = std::sync::Mutex::new(HashMap::from([(
+            10u64,
+            PendingApproval {
+                request_id: 10,
+                tool_use_id: "toolu_1".to_string(),
+                tool_name: "bash".to_string(),
+            },
+        )]));
+        // A request with method field should NOT match approval handling
+        let action = build_claude_intercept_action(
+            &json!({"id": 10, "method": "turn/start", "params": {"text": "hello"}}),
+            "t1",
+            "w1",
+            None,
+            &approvals,
+        );
+        match action {
+            InterceptAction::Forward(text) => assert_eq!(text, "hello"),
+            _ => panic!("Expected Forward"),
+        }
+        // Approval should still be pending
+        assert_eq!(approvals.lock().unwrap().len(), 1);
     }
 }

@@ -213,6 +213,17 @@ pub(crate) struct ResultEvent {
     pub(crate) extra: std::collections::HashMap<String, Value>,
 }
 
+/// Tracks a pending approval request sent to the frontend.
+#[derive(Debug, Clone)]
+pub(crate) struct PendingApproval {
+    /// The JSON-RPC request ID sent to the frontend.
+    pub(crate) request_id: u64,
+    /// The Claude tool_use_id this approval corresponds to.
+    pub(crate) tool_use_id: String,
+    /// The tool name (e.g. "bash", "write_file").
+    pub(crate) tool_name: String,
+}
+
 /// State tracked across the lifetime of a Claude CLI session to correlate
 /// events and generate consistent Codex-compatible IDs.
 pub(crate) struct BridgeState {
@@ -241,6 +252,10 @@ pub(crate) struct BridgeState {
     pub(crate) total_output_tokens: u64,
     /// Cumulative cost in USD across all turns.
     pub(crate) total_cost_usd: f64,
+    /// Counter for generating unique approval request IDs.
+    pub(crate) next_approval_id: u64,
+    /// Maps approval request_id → PendingApproval for correlating responses.
+    pub(crate) pending_approvals: std::collections::HashMap<u64, PendingApproval>,
 }
 
 impl BridgeState {
@@ -261,7 +276,15 @@ impl BridgeState {
             total_input_tokens: 0,
             total_output_tokens: 0,
             total_cost_usd: 0.0,
+            next_approval_id: 1,
+            pending_approvals: std::collections::HashMap::new(),
         }
+    }
+
+    pub(crate) fn next_approval(&mut self) -> u64 {
+        let id = self.next_approval_id;
+        self.next_approval_id += 1;
+        id
     }
 
     pub(crate) fn next_item(&mut self) -> String {
@@ -276,6 +299,7 @@ impl BridgeState {
         self.block_items.clear();
         self.tool_items.clear();
         self.block_tool_use_ids.clear();
+        self.pending_approvals.clear();
     }
 }
 
@@ -617,6 +641,8 @@ mod tests {
         assert_eq!(state.total_input_tokens, 0);
         assert_eq!(state.total_output_tokens, 0);
         assert!((state.total_cost_usd - 0.0).abs() < f64::EPSILON);
+        assert_eq!(state.next_approval_id, 1);
+        assert!(state.pending_approvals.is_empty());
     }
 
     #[test]
@@ -643,6 +669,11 @@ mod tests {
             aggregated_output: String::new(),
         });
         state.block_tool_use_ids.insert(0, "toolu_1".to_string());
+        state.pending_approvals.insert(1, super::PendingApproval {
+            request_id: 1,
+            tool_use_id: "toolu_1".to_string(),
+            tool_name: "bash".to_string(),
+        });
 
         state.new_turn();
 
@@ -652,6 +683,7 @@ mod tests {
         assert!(state.block_items.is_empty());
         assert!(state.tool_items.is_empty());
         assert!(state.block_tool_use_ids.is_empty());
+        assert!(state.pending_approvals.is_empty());
     }
 
     #[test]
@@ -666,6 +698,9 @@ mod tests {
         // next_item_id should persist across turns
         let _ = state.next_item(); // item_1
         let _ = state.next_item(); // item_2
+        // next_approval_id should persist across turns
+        let _ = state.next_approval(); // 1
+        let _ = state.next_approval(); // 2
 
         state.new_turn();
 
@@ -676,5 +711,15 @@ mod tests {
         assert_eq!(state.model.as_deref(), Some("claude-sonnet-4-20250514"));
         assert!(state.thread_started);
         assert_eq!(state.next_item_id, 3); // preserved
+        assert_eq!(state.next_approval_id, 3); // preserved
+    }
+
+    #[test]
+    fn bridge_state_next_approval_increments() {
+        let mut state = BridgeState::new("ws".to_string(), "t".to_string());
+        assert_eq!(state.next_approval(), 1);
+        assert_eq!(state.next_approval(), 2);
+        assert_eq!(state.next_approval(), 3);
+        assert_eq!(state.next_approval_id, 4);
     }
 }

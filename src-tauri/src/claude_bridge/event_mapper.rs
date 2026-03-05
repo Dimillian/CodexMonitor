@@ -1,8 +1,8 @@
 use serde_json::{json, Value};
 
-use super::item_tracker::{self, ItemInfo};
+use super::item_tracker::{self, ItemInfo, ToolCategory};
 use super::types::{
-    BridgeState, ClaudeEvent, ContentBlock, ContentBlockDelta,
+    BridgeState, ClaudeEvent, ContentBlock, ContentBlockDelta, PendingApproval,
 };
 
 /// Maps a Claude CLI stream-json event to zero or more Codex JSON-RPC
@@ -150,6 +150,12 @@ fn map_content_block_start(
                 &state.thread_id,
                 &state.turn_id,
             );
+
+            // Emit approval request for tool executions that modify state
+            if requires_approval(category) {
+                let approval_event = build_approval_request(state, id, name);
+                out.push(approval_event);
+            }
 
             state.block_tool_use_ids.insert(cb.index, id.clone());
             state.tool_items.insert(id.clone(), info);
@@ -484,6 +490,55 @@ fn map_assistant(
     out
 }
 
+/// Determine whether a tool category requires user approval before execution.
+/// Read-only tools are auto-approved; command execution and file changes require approval.
+fn requires_approval(category: ToolCategory) -> bool {
+    matches!(
+        category,
+        ToolCategory::CommandExecution | ToolCategory::FileChange | ToolCategory::Other
+    )
+}
+
+/// Build a `codex/requestApproval/shell` event for the frontend.
+/// The event uses the same format as the native Codex backend so the existing
+/// `ApprovalToasts` UI can display it without changes.
+fn build_approval_request(
+    state: &mut BridgeState,
+    tool_use_id: &str,
+    tool_name: &str,
+) -> Value {
+    let approval_id = state.next_approval();
+    state.pending_approvals.insert(
+        approval_id,
+        PendingApproval {
+            request_id: approval_id,
+            tool_use_id: tool_use_id.to_string(),
+            tool_name: tool_name.to_string(),
+        },
+    );
+
+    let approval_method = match tool_name {
+        "bash" | "Bash" | "execute_command" | "shell" | "run_command" => {
+            "codex/requestApproval/shell"
+        }
+        "write_file" | "edit_file" | "str_replace_editor" | "create_file" | "Write" | "Edit"
+        | "NotebookEdit" => "codex/requestApproval/fileChange",
+        _ => "codex/requestApproval/tool",
+    };
+
+    json!({
+        "id": approval_id,
+        "method": approval_method,
+        "params": {
+            "workspaceId": state.workspace_id,
+            "threadId": state.thread_id,
+            "turnId": state.turn_id,
+            "toolName": tool_name,
+            "toolUseId": tool_use_id,
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -627,8 +682,11 @@ mod tests {
             }),
         });
         let msgs = map_event(&start, &mut state);
-        assert_eq!(msgs[0]["params"]["item"]["type"], "commandExecution");
-        assert_eq!(msgs[0]["params"]["item"]["toolName"], "bash");
+        // approval event at [0], item/started at [1]
+        assert_eq!(msgs.len(), 2);
+        assert_eq!(msgs[0]["method"], "codex/requestApproval/shell");
+        assert_eq!(msgs[1]["params"]["item"]["type"], "commandExecution");
+        assert_eq!(msgs[1]["params"]["item"]["toolName"], "bash");
 
         let delta = ClaudeEvent::ContentBlockDelta(ContentBlockDeltaEvent {
             index: 0,
@@ -750,13 +808,14 @@ mod tests {
             }),
         });
         let msgs = map_event(&start, &mut state);
-        assert_eq!(msgs.len(), 1);
-        assert_eq!(msgs[0]["method"], "item/started");
-        assert_eq!(msgs[0]["params"]["item"]["type"], "commandExecution");
-        assert_eq!(msgs[0]["params"]["item"]["toolName"], "bash");
-        assert_eq!(msgs[0]["params"]["item"]["command"], "");
+        assert_eq!(msgs.len(), 2); // approval + item/started
+        assert_eq!(msgs[0]["method"], "codex/requestApproval/shell");
+        assert_eq!(msgs[1]["method"], "item/started");
+        assert_eq!(msgs[1]["params"]["item"]["type"], "commandExecution");
+        assert_eq!(msgs[1]["params"]["item"]["toolName"], "bash");
+        assert_eq!(msgs[1]["params"]["item"]["command"], "");
 
-        let item_id = msgs[0]["params"]["item"]["id"].as_str().unwrap().to_string();
+        let item_id = msgs[1]["params"]["item"]["id"].as_str().unwrap().to_string();
 
         // 2. content_block_delta with input_json_delta
         let delta1 = ClaudeEvent::ContentBlockDelta(ContentBlockDeltaEvent {
@@ -802,8 +861,10 @@ mod tests {
             }),
         });
         let msgs = map_event(&start, &mut state);
-        assert_eq!(msgs[0]["params"]["item"]["type"], "fileChange");
-        assert_eq!(msgs[0]["params"]["item"]["toolName"], "write_file");
+        assert_eq!(msgs.len(), 2); // approval + item/started
+        assert_eq!(msgs[0]["method"], "codex/requestApproval/fileChange");
+        assert_eq!(msgs[1]["params"]["item"]["type"], "fileChange");
+        assert_eq!(msgs[1]["params"]["item"]["toolName"], "write_file");
 
         // Input delta
         let delta = ClaudeEvent::ContentBlockDelta(ContentBlockDeltaEvent {
@@ -839,7 +900,7 @@ mod tests {
             }),
         });
         let msgs = map_event(&start, &mut state);
-        assert_eq!(msgs[0]["params"]["item"]["type"], "fileChange");
+        assert_eq!(msgs[1]["params"]["item"]["type"], "fileChange");
 
         let delta = ClaudeEvent::ContentBlockDelta(ContentBlockDeltaEvent {
             index: 0,
@@ -869,7 +930,10 @@ mod tests {
             }),
         });
         let msgs = map_event(&start, &mut state);
-        assert_eq!(msgs[0]["params"]["item"]["type"], "commandExecution");
+        // approval + item/started for unknown (Other category)
+        assert_eq!(msgs.len(), 2);
+        assert_eq!(msgs[0]["method"], "codex/requestApproval/tool");
+        assert_eq!(msgs[1]["params"]["item"]["type"], "commandExecution");
     }
 
     #[test]
@@ -1457,5 +1521,178 @@ mod tests {
         });
         let msgs = map_event(&event, &mut state);
         assert!(msgs.is_empty());
+    }
+
+    // ── Approval flow tests ──────────────────────────────────────
+
+    #[test]
+    fn bash_tool_emits_shell_approval_request() {
+        let mut state = make_state();
+        state.turn_started = true;
+
+        let start = ClaudeEvent::ContentBlockStart(ContentBlockEvent {
+            index: 0,
+            content_block: Some(ContentBlock::ToolUse {
+                id: "toolu_1".to_string(),
+                name: "bash".to_string(),
+                input: json!({}),
+            }),
+        });
+        let msgs = map_event(&start, &mut state);
+        let approval = &msgs[0];
+        assert_eq!(approval["method"], "codex/requestApproval/shell");
+        assert!(approval["id"].as_u64().is_some());
+        assert_eq!(approval["params"]["toolName"], "bash");
+        assert_eq!(approval["params"]["toolUseId"], "toolu_1");
+        assert_eq!(approval["params"]["workspaceId"], "ws_test");
+    }
+
+    #[test]
+    fn write_file_emits_file_change_approval_request() {
+        let mut state = make_state();
+        state.turn_started = true;
+
+        let start = ClaudeEvent::ContentBlockStart(ContentBlockEvent {
+            index: 0,
+            content_block: Some(ContentBlock::ToolUse {
+                id: "toolu_2".to_string(),
+                name: "Write".to_string(),
+                input: json!({}),
+            }),
+        });
+        let msgs = map_event(&start, &mut state);
+        assert_eq!(msgs[0]["method"], "codex/requestApproval/fileChange");
+    }
+
+    #[test]
+    fn read_tool_does_not_emit_approval() {
+        let mut state = make_state();
+        state.turn_started = true;
+
+        let start = ClaudeEvent::ContentBlockStart(ContentBlockEvent {
+            index: 0,
+            content_block: Some(ContentBlock::ToolUse {
+                id: "toolu_3".to_string(),
+                name: "Read".to_string(),
+                input: json!({}),
+            }),
+        });
+        let msgs = map_event(&start, &mut state);
+        // Only item/started, no approval
+        assert_eq!(msgs.len(), 1);
+        assert_eq!(msgs[0]["method"], "item/started");
+    }
+
+    #[test]
+    fn glob_tool_does_not_emit_approval() {
+        let mut state = make_state();
+        state.turn_started = true;
+
+        let start = ClaudeEvent::ContentBlockStart(ContentBlockEvent {
+            index: 0,
+            content_block: Some(ContentBlock::ToolUse {
+                id: "toolu_4".to_string(),
+                name: "Glob".to_string(),
+                input: json!({}),
+            }),
+        });
+        let msgs = map_event(&start, &mut state);
+        assert_eq!(msgs.len(), 1);
+        assert_eq!(msgs[0]["method"], "item/started");
+    }
+
+    #[test]
+    fn approval_ids_increment_across_tools() {
+        let mut state = make_state();
+        state.turn_started = true;
+
+        // First tool
+        let start1 = ClaudeEvent::ContentBlockStart(ContentBlockEvent {
+            index: 0,
+            content_block: Some(ContentBlock::ToolUse {
+                id: "toolu_a".to_string(),
+                name: "bash".to_string(),
+                input: json!({}),
+            }),
+        });
+        let msgs1 = map_event(&start1, &mut state);
+        let id1 = msgs1[0]["id"].as_u64().unwrap();
+
+        // Second tool
+        let start2 = ClaudeEvent::ContentBlockStart(ContentBlockEvent {
+            index: 1,
+            content_block: Some(ContentBlock::ToolUse {
+                id: "toolu_b".to_string(),
+                name: "bash".to_string(),
+                input: json!({}),
+            }),
+        });
+        let msgs2 = map_event(&start2, &mut state);
+        let id2 = msgs2[0]["id"].as_u64().unwrap();
+
+        assert_eq!(id2, id1 + 1);
+    }
+
+    #[test]
+    fn pending_approvals_tracked_in_state() {
+        let mut state = make_state();
+        state.turn_started = true;
+
+        let start = ClaudeEvent::ContentBlockStart(ContentBlockEvent {
+            index: 0,
+            content_block: Some(ContentBlock::ToolUse {
+                id: "toolu_tracked".to_string(),
+                name: "bash".to_string(),
+                input: json!({}),
+            }),
+        });
+        map_event(&start, &mut state);
+
+        assert_eq!(state.pending_approvals.len(), 1);
+        let (_, approval) = state.pending_approvals.iter().next().unwrap();
+        assert_eq!(approval.tool_use_id, "toolu_tracked");
+        assert_eq!(approval.tool_name, "bash");
+    }
+
+    #[test]
+    fn pending_approvals_cleared_on_new_turn() {
+        let mut state = make_state();
+        state.turn_started = true;
+
+        let start = ClaudeEvent::ContentBlockStart(ContentBlockEvent {
+            index: 0,
+            content_block: Some(ContentBlock::ToolUse {
+                id: "toolu_turn".to_string(),
+                name: "bash".to_string(),
+                input: json!({}),
+            }),
+        });
+        map_event(&start, &mut state);
+        assert!(!state.pending_approvals.is_empty());
+
+        // Simulate result event that triggers new_turn
+        let result = ClaudeEvent::Result(ResultEvent {
+            subtype: Some("success".to_string()),
+            result: None,
+            error: None,
+            duration_ms: Some(100),
+            duration_api_ms: None,
+            num_turns: Some(1),
+            is_error: false,
+            session_id: None,
+            cost_usd: Some(0.01),
+            usage: None,
+            extra: std::collections::HashMap::new(),
+        });
+        map_event(&result, &mut state);
+        assert!(state.pending_approvals.is_empty());
+    }
+
+    #[test]
+    fn requires_approval_categories() {
+        assert!(requires_approval(ToolCategory::CommandExecution));
+        assert!(requires_approval(ToolCategory::FileChange));
+        assert!(requires_approval(ToolCategory::Other));
+        assert!(!requires_approval(ToolCategory::FileRead));
     }
 }
