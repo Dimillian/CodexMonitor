@@ -207,6 +207,7 @@ fn normalize_root_path(value: &str) -> String {
 struct ThreadListEntry {
     thread_id: String,
     cwd: Option<String>,
+    is_memory_consolidation: bool,
 }
 
 fn extract_thread_entries_from_thread_list_result(value: &Value) -> Vec<ThreadListEntry> {
@@ -247,7 +248,17 @@ fn extract_thread_entries_from_thread_list_result(value: &Value) -> Vec<ThreadLi
                     .map(|value| value.to_string())
             });
         if let Some(thread_id) = thread_id {
-            out.push(ThreadListEntry { thread_id, cwd });
+            let source = object
+                .get("source")
+                .or_else(|| object.get("thread").and_then(|thread| thread.get("source")));
+            let is_memory_consolidation = source
+                .and_then(source_subagent_kind)
+                .is_some_and(|kind| kind == "memory_consolidation");
+            out.push(ThreadListEntry {
+                thread_id,
+                cwd,
+                is_memory_consolidation,
+            });
         }
 
         for key in ["threads", "items", "results", "data"] {
@@ -292,6 +303,94 @@ fn resolve_workspace_for_cwd(
         })
         .max_by_key(|(_, root_len)| *root_len)
         .map(|(workspace_id, _)| workspace_id.clone())
+}
+
+fn normalize_subagent_kind(value: &str) -> String {
+    let mut normalized = value.trim().to_ascii_lowercase().replace([' ', '-'], "_");
+    if let Some(stripped) = normalized.strip_prefix("subagent_") {
+        normalized = stripped.to_string();
+    } else if let Some(stripped) = normalized.strip_prefix("sub_agent_") {
+        normalized = stripped.to_string();
+    }
+    normalized
+}
+
+fn source_subagent_kind(source: &Value) -> Option<String> {
+    if let Some(raw) = source.as_str() {
+        let normalized = normalize_subagent_kind(raw);
+        return if normalized.is_empty() {
+            None
+        } else {
+            Some(normalized)
+        };
+    }
+    let source_obj = source.as_object()?;
+    let sub_agent = source_obj
+        .get("subAgent")
+        .or_else(|| source_obj.get("sub_agent"))
+        .or_else(|| source_obj.get("subagent"))?;
+
+    if let Some(raw) = sub_agent.as_str() {
+        let normalized = normalize_subagent_kind(raw);
+        return if normalized.is_empty() {
+            None
+        } else {
+            Some(normalized)
+        };
+    }
+    let sub_agent_obj = sub_agent.as_object()?;
+    if let Some(explicit) = sub_agent_obj
+        .get("kind")
+        .or_else(|| sub_agent_obj.get("type"))
+        .or_else(|| sub_agent_obj.get("name"))
+        .or_else(|| sub_agent_obj.get("id"))
+        .and_then(Value::as_str)
+    {
+        let normalized = normalize_subagent_kind(explicit);
+        return if normalized.is_empty() {
+            None
+        } else {
+            Some(normalized)
+        };
+    }
+
+    let candidate_keys: Vec<&String> = sub_agent_obj
+        .keys()
+        .filter(|key| key.as_str() != "thread_spawn" && key.as_str() != "threadSpawn")
+        .collect();
+    if candidate_keys.len() != 1 {
+        return None;
+    }
+    let normalized = normalize_subagent_kind(candidate_keys[0]);
+    if normalized.is_empty() {
+        None
+    } else {
+        Some(normalized)
+    }
+}
+
+fn thread_started_is_memory_consolidation(value: &Value) -> bool {
+    value
+        .get("params")
+        .and_then(|params| {
+            params
+                .get("thread")
+                .and_then(|thread| thread.get("source"))
+                .or_else(|| params.get("source"))
+        })
+        .and_then(source_subagent_kind)
+        .is_some_and(|kind| kind == "memory_consolidation")
+}
+
+fn should_suppress_hidden_thread_event(
+    method_name: Option<&str>,
+    has_result_or_error: bool,
+) -> bool {
+    !has_result_or_error
+        && !matches!(
+            method_name,
+            Some("thread/archived") | Some("codex/backgroundThread")
+        )
 }
 
 fn is_global_workspace_notification(method: &str) -> bool {
@@ -339,6 +438,7 @@ pub(crate) struct WorkspaceSession {
     pub(crate) pending: Mutex<HashMap<u64, oneshot::Sender<Value>>>,
     pub(crate) request_context: Mutex<HashMap<u64, RequestContext>>,
     pub(crate) thread_workspace: Mutex<HashMap<String, String>>,
+    pub(crate) hidden_thread_ids: Mutex<HashSet<String>>,
     pub(crate) next_id: AtomicU64,
     /// Callbacks for background threads - events for these threadIds are sent through the channel
     pub(crate) background_thread_callbacks: Mutex<HashMap<String, mpsc::UnboundedSender<Value>>>,
@@ -663,8 +763,8 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
         vec!["app-server".to_string()],
     )?;
     command.current_dir(&entry.path);
-    if let Some(codex_home) = codex_home {
-        command.env("CODEX_HOME", codex_home);
+    if let Some(path) = codex_home.as_ref() {
+        command.env("CODEX_HOME", path);
     }
     command.stdin(std::process::Stdio::piped());
     command.stdout(std::process::Stdio::piped());
@@ -682,6 +782,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
         pending: Mutex::new(HashMap::new()),
         request_context: Mutex::new(HashMap::new()),
         thread_workspace: Mutex::new(HashMap::new()),
+        hidden_thread_ids: Mutex::new(HashSet::new()),
         next_id: AtomicU64::new(1),
         background_thread_callbacks: Mutex::new(HashMap::new()),
         owner_workspace_id: entry.id.clone(),
@@ -753,8 +854,14 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                 let thread_entries = extract_thread_entries_from_thread_list_result(&value);
                 if !thread_entries.is_empty() {
                     let workspace_roots = session_clone.workspace_roots.lock().await.clone();
+                    let mut hidden_thread_ids = Vec::new();
                     let mut thread_workspace = session_clone.thread_workspace.lock().await;
                     for entry in thread_entries {
+                        if entry.is_memory_consolidation {
+                            thread_workspace.remove(&entry.thread_id);
+                            hidden_thread_ids.push(entry.thread_id);
+                            continue;
+                        }
                         let mapped_workspace = entry
                             .cwd
                             .as_deref()
@@ -763,23 +870,69 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                             thread_workspace.insert(entry.thread_id, workspace_id);
                         }
                     }
+                    drop(thread_workspace);
+                    if !hidden_thread_ids.is_empty() {
+                        let mut hidden = session_clone.hidden_thread_ids.lock().await;
+                        for thread_id in hidden_thread_ids {
+                            hidden.insert(thread_id);
+                        }
+                    }
                 }
             }
 
-            let routed_workspace_id = if let Some(ref tid) = thread_id {
+            let mapped_thread_workspace = if let Some(ref tid) = thread_id {
                 session_clone
                     .thread_workspace
                     .lock()
                     .await
                     .get(tid)
                     .cloned()
-                    .or_else(|| request_workspace.clone())
-                    .unwrap_or_else(|| fallback_workspace_id.clone())
             } else {
-                request_workspace
-                    .clone()
-                    .unwrap_or_else(|| fallback_workspace_id.clone())
+                None
             };
+
+            let routed_workspace_id = mapped_thread_workspace
+                .or_else(|| request_workspace.clone())
+                .unwrap_or_else(|| fallback_workspace_id.clone());
+
+            if let Some(ref tid) = thread_id {
+                if method_name == Some("codex/backgroundThread") {
+                    let action = value
+                        .get("params")
+                        .and_then(|params| params.get("action"))
+                        .and_then(Value::as_str)
+                        .unwrap_or("hide");
+                    if action.eq_ignore_ascii_case("hide") {
+                        session_clone.hidden_thread_ids.lock().await.insert(tid.clone());
+                    }
+                } else if method_name == Some("thread/started")
+                    && thread_started_is_memory_consolidation(&value)
+                {
+                    session_clone.hidden_thread_ids.lock().await.insert(tid.clone());
+                    let payload = AppServerEvent {
+                        workspace_id: routed_workspace_id.clone(),
+                        message: json!({
+                            "method": "codex/backgroundThread",
+                            "params": {
+                                "threadId": tid,
+                                "action": "hide"
+                            }
+                        }),
+                    };
+                    event_sink_clone.emit_app_server_event(payload);
+                    continue;
+                }
+
+                let should_suppress_hidden_thread = {
+                    let hidden = session_clone.hidden_thread_ids.lock().await;
+                    hidden.contains(tid)
+                };
+                if should_suppress_hidden_thread
+                    && should_suppress_hidden_thread_event(method_name, has_result_or_error)
+                {
+                    continue;
+                }
+            }
 
             if matches!(method_name, Some("item/started") | Some("item/completed")) {
                 let related_thread_ids = extract_related_thread_ids(&value);
@@ -796,6 +949,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
             if method_name == Some("thread/archived") {
                 if let Some(ref tid) = thread_id {
                     session_clone.thread_workspace.lock().await.remove(tid);
+                    session_clone.hidden_thread_ids.lock().await.remove(tid);
                 }
             }
 
@@ -953,6 +1107,8 @@ mod tests {
     use super::{
         build_initialize_params, extract_related_thread_ids, extract_thread_entries_from_thread_list_result,
         extract_thread_id, normalize_root_path, resolve_workspace_for_cwd,
+        should_suppress_hidden_thread_event, source_subagent_kind,
+        thread_started_is_memory_consolidation,
     };
     use std::collections::HashMap;
     use serde_json::json;
@@ -993,7 +1149,11 @@ mod tests {
             "result": {
                 "data": [
                     { "id": "thread-a", "cwd": "/tmp/a" },
-                    { "threadId": "thread-b", "cwd": "/tmp/b" }
+                    {
+                        "threadId": "thread-b",
+                        "cwd": "/tmp/b",
+                        "source": { "subAgent": "memory_consolidation" }
+                    }
                 ]
             }
         });
@@ -1001,8 +1161,10 @@ mod tests {
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].thread_id, "thread-a");
         assert_eq!(entries[0].cwd.as_deref(), Some("/tmp/a"));
+        assert!(!entries[0].is_memory_consolidation);
         assert_eq!(entries[1].thread_id, "thread-b");
         assert_eq!(entries[1].cwd.as_deref(), Some("/tmp/b"));
+        assert!(entries[1].is_memory_consolidation);
     }
 
     #[test]
@@ -1114,5 +1276,101 @@ mod tests {
             resolve_workspace_for_cwd("/tmp/codex/subdir/project", &roots),
             Some("ws-child".to_string())
         );
+    }
+
+    #[test]
+    fn source_subagent_kind_reads_string_variants() {
+        assert_eq!(
+            source_subagent_kind(&json!("subagent-memory-consolidation")),
+            Some("memory_consolidation".to_string())
+        );
+        assert_eq!(
+            source_subagent_kind(&json!("sub_agent_memory_consolidation")),
+            Some("memory_consolidation".to_string())
+        );
+    }
+
+    #[test]
+    fn source_subagent_kind_reads_nested_subagent_object_keys() {
+        let source = json!({
+            "subAgent": {
+                "memory_consolidation": {
+                    "thread_spawn": { "parent_thread_id": "thread-parent" }
+                }
+            }
+        });
+        assert_eq!(
+            source_subagent_kind(&source),
+            Some("memory_consolidation".to_string())
+        );
+    }
+
+    #[test]
+    fn thread_started_memory_consolidation_detects_thread_source() {
+        let value = json!({
+            "method": "thread/started",
+            "params": {
+                "thread": {
+                    "id": "thread-1",
+                    "source": {
+                        "subagent": "memory_consolidation"
+                    }
+                }
+            }
+        });
+        assert!(thread_started_is_memory_consolidation(&value));
+    }
+
+    #[test]
+    fn thread_started_memory_consolidation_detects_params_source_fallback() {
+        let value = json!({
+            "method": "thread/started",
+            "params": {
+                "threadId": "thread-1",
+                "source": {
+                    "subAgent": "memory_consolidation"
+                }
+            }
+        });
+        assert!(thread_started_is_memory_consolidation(&value));
+    }
+
+    #[test]
+    fn thread_started_memory_consolidation_rejects_non_memory_subagent() {
+        let value = json!({
+            "method": "thread/started",
+            "params": {
+                "thread": {
+                    "id": "thread-1",
+                    "source": {
+                        "subAgent": "review"
+                    }
+                }
+            }
+        });
+        assert!(!thread_started_is_memory_consolidation(&value));
+    }
+
+    #[test]
+    fn hidden_thread_suppression_allows_rpc_responses() {
+        assert!(!should_suppress_hidden_thread_event(Some("thread/archived"), true));
+        assert!(!should_suppress_hidden_thread_event(Some("thread/updated"), true));
+        assert!(!should_suppress_hidden_thread_event(None, true));
+    }
+
+    #[test]
+    fn hidden_thread_suppression_still_blocks_non_exempt_notifications() {
+        assert!(should_suppress_hidden_thread_event(
+            Some("thread/updated"),
+            false
+        ));
+        assert!(!should_suppress_hidden_thread_event(
+            Some("thread/archived"),
+            false
+        ));
+        assert!(!should_suppress_hidden_thread_event(
+            Some("codex/backgroundThread"),
+            false
+        ));
     }
 }

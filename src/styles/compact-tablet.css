@@ -87,6 +87,10 @@
   height: 100%;
 }
 
+.app.layout-tablet.reduced-transparency .tablet-main {
+  background: var(--surface-messages);
+}
+
 .tablet-topbar {
   padding: 10px 20px 8px;
 }
