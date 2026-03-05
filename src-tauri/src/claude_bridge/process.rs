@@ -140,20 +140,30 @@ pub(crate) async fn spawn_claude_session<E: EventSink>(
 
             // Propagate detected model to the shared interceptor state
             if let Some(ref model) = bridge_state.model {
-                if let Ok(mut guard) = detected_model_for_loop.lock() {
-                    if guard.as_ref() != Some(model) {
-                        *guard = Some(model.clone());
+                match detected_model_for_loop.lock() {
+                    Ok(mut guard) => {
+                        if guard.as_ref() != Some(model) {
+                            *guard = Some(model.clone());
+                        }
+                    }
+                    Err(_) => {
+                        eprintln!("[claude-bridge] WARNING: failed to lock detected_model mutex (poisoned)");
                     }
                 }
             }
 
-            // Sync pending approvals to the shared state for the interceptor
-            if !bridge_state.pending_approvals.is_empty() {
-                if let Ok(mut guard) = pending_approvals_for_loop.lock() {
-                    for (id, approval) in &bridge_state.pending_approvals {
-                        guard.insert(*id, approval.clone());
-                    }
+            // Sync pending approvals to the shared state for the interceptor.
+            // We always sync (not just when non-empty) so that approvals
+            // cleared by new_turn() are also removed from the shared map.
+            if let Ok(mut guard) = pending_approvals_for_loop.lock() {
+                // Remove shared entries that are no longer in bridge_state
+                guard.retain(|id, _| bridge_state.pending_approvals.contains_key(id));
+                // Insert any new approvals
+                for (id, approval) in &bridge_state.pending_approvals {
+                    guard.entry(*id).or_insert_with(|| approval.clone());
                 }
+            } else {
+                eprintln!("[claude-bridge] WARNING: failed to lock pending_approvals mutex (poisoned)");
             }
 
             for message in codex_messages {

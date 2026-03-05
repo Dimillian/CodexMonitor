@@ -316,13 +316,9 @@ fn map_content_block_stop(
 }
 
 /// Infer the model context window size from the model name.
-fn context_window_for_model(model: Option<&str>) -> u64 {
-    match model {
-        Some(m) if m.starts_with("claude-haiku") => 200_000,
-        Some(m) if m.starts_with("claude-sonnet") => 200_000,
-        Some(m) if m.starts_with("claude-opus") => 200_000,
-        _ => 200_000,
-    }
+/// All current Claude models have a 200k token context window.
+fn context_window_for_model(_model: Option<&str>) -> u64 {
+    200_000
 }
 
 fn map_message_delta(
