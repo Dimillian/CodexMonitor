@@ -3,6 +3,16 @@ import type { CSSProperties, MouseEvent } from "react";
 import type { ThreadSummary } from "../../../types";
 import { getThreadStatusClass, type ThreadStatusById } from "../../../utils/threadStatus";
 
+function modelBrandClass(modelId: string | null | undefined): string {
+  if (!modelId) return "";
+  const lower = modelId.toLowerCase();
+  if (lower.includes("claude") || lower.includes("anthropic")) return " model-claude";
+  if (lower.includes("gpt") || lower.includes("openai")) return " model-gpt";
+  if (lower.includes("gemini") || lower.includes("google")) return " model-gemini";
+  if (lower.includes("codex")) return " model-codex";
+  return "";
+}
+
 type ThreadRowProps = {
   thread: ThreadSummary;
   depth: number;
@@ -95,7 +105,7 @@ export function ThreadRow({
       <div className="thread-meta">
         {workspaceLabel && <span className="thread-workspace-label">{workspaceLabel}</span>}
         {modelBadge && (
-          <span className="thread-model-badge" title={modelBadge}>
+          <span className={`thread-model-badge${modelBrandClass(thread.modelId)}`} title={modelBadge}>
             {modelBadge}
           </span>
         )}

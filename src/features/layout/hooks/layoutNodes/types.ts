@@ -4,6 +4,7 @@ import type { WorkspaceLaunchScriptsState } from "../../../app/hooks/useWorkspac
 import type {
   AccessMode,
   ApprovalRequest,
+  BackendMode,
   BranchInfo,
   CollaborationModeOption,
   ComposerSendIntent,
@@ -106,6 +107,7 @@ export type LayoutNodesOptions = {
     workspaces: WorkspaceInfo[];
   }>;
   hasWorkspaceGroups: boolean;
+  backendMode: BackendMode;
   deletingWorktreeIds: Set<string>;
   newAgentDraftWorkspaceId?: string | null;
   startingDraftThreadWorkspaceId?: string | null;

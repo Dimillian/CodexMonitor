@@ -3,7 +3,7 @@ import Check from "lucide-react/dist/esm/icons/check";
 import Copy from "lucide-react/dist/esm/icons/copy";
 import Terminal from "lucide-react/dist/esm/icons/terminal";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import type { BranchInfo, OpenAppTarget, WorkspaceInfo } from "../../../types";
+import type { BackendMode, BranchInfo, OpenAppTarget, WorkspaceInfo } from "../../../types";
 import type { ReactNode } from "react";
 import { revealInFileManagerLabel } from "../../../utils/platformPaths";
 import { BranchList } from "../../git/components/BranchList";
@@ -13,6 +13,7 @@ import {
   MenuTrigger,
   PopoverSurface,
 } from "../../design-system/components/popover/PopoverPrimitives";
+import { BackendModeBadge } from "./BackendModeBadge";
 import { OpenAppMenu } from "./OpenAppMenu";
 import { LaunchScriptButton } from "./LaunchScriptButton";
 import { LaunchScriptEntryButton } from "./LaunchScriptEntryButton";
@@ -21,6 +22,7 @@ import { useMenuController } from "../hooks/useMenuController";
 
 type MainHeaderProps = {
   workspace: WorkspaceInfo;
+  backendMode?: BackendMode;
   parentName?: string | null;
   worktreeLabel?: string | null;
   disableBranchMenu?: boolean;
@@ -74,6 +76,7 @@ type MainHeaderProps = {
 
 export function MainHeader({
   workspace,
+  backendMode,
   parentName = null,
   worktreeLabel = null,
   disableBranchMenu = false,
@@ -191,6 +194,9 @@ export function MainHeader({
           <span className="workspace-title">
             {parentName ? parentName : workspace.name}
           </span>
+          {backendMode && (
+            <BackendModeBadge mode={backendMode} className="backend-mode-badge--header" />
+          )}
           <span className="workspace-separator" aria-hidden>
             ›
           </span>

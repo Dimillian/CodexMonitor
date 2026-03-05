@@ -2084,6 +2084,7 @@ function MainApp() {
     workspaces,
     groupedWorkspaces,
     hasWorkspaceGroups: workspaceGroups.length > 0,
+    backendMode: appSettings.backendMode,
     deletingWorktreeIds,
     newAgentDraftWorkspaceId,
     startingDraftThreadWorkspaceId,
