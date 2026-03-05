@@ -86,6 +86,17 @@ export type ConversationItem =
       text: string;
       images?: string[];
     }
+  | {
+      id: string;
+      kind: "userInput";
+      status: "answered";
+      questions: {
+        id: string;
+        header: string;
+        question: string;
+        answers: string[];
+      }[];
+    }
   | { id: string; kind: "reasoning"; summary: string; content: string }
   | { id: string; kind: "diff"; title: string; diff: string; status?: string }
   | { id: string; kind: "review"; state: "started" | "completed"; text: string }

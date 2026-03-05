@@ -277,6 +277,17 @@ export function normalizeItem(item: ConversationItem): ConversationItem {
   if (item.kind === "message") {
     return { ...item, text: truncateText(item.text) };
   }
+  if (item.kind === "userInput") {
+    return {
+      ...item,
+      questions: item.questions.map((question) => ({
+        ...question,
+        header: truncateText(question.header, 300),
+        question: truncateText(question.question, 2000),
+        answers: question.answers.map((answer) => truncateText(answer, 2000)),
+      })),
+    };
+  }
   if (item.kind === "explore") {
     return item;
   }
@@ -682,6 +693,22 @@ export function upsertItem(list: ConversationItem[], item: ConversationItem) {
       ...item,
       text: incomingText.length >= existingText.length ? incomingText : existingText,
       images: item.images?.length ? item.images : existing.images,
+    };
+    return next;
+  }
+
+  if (existing.kind === "userInput" && item.kind === "userInput") {
+    const incomingHasAnswers = item.questions.some((question) => question.answers.length > 0);
+    const existingHasAnswers = existing.questions.some(
+      (question) => question.answers.length > 0,
+    );
+    next[index] = {
+      ...existing,
+      ...item,
+      questions:
+        incomingHasAnswers || !existingHasAnswers || item.questions.length >= existing.questions.length
+          ? item.questions
+          : existing.questions,
     };
     return next;
   }
@@ -1157,6 +1184,19 @@ function chooseRicherItem(remote: ConversationItem, local: ConversationItem) {
   }
   if (remote.kind === "message" && local.kind === "message") {
     return local.text.length > remote.text.length ? local : remote;
+  }
+  if (remote.kind === "userInput" && local.kind === "userInput") {
+    const remoteScore = remote.questions.reduce(
+      (total, question) =>
+        total + question.question.length + question.answers.join("\n").length,
+      0,
+    );
+    const localScore = local.questions.reduce(
+      (total, question) =>
+        total + question.question.length + question.answers.join("\n").length,
+      0,
+    );
+    return localScore > remoteScore ? local : remote;
   }
   if (remote.kind === "reasoning" && local.kind === "reasoning") {
     const remoteLength = remote.summary.length + remote.content.length;

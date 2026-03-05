@@ -694,6 +694,49 @@
   word-break: break-word;
 }
 
+.user-input-inline-preview {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.user-input-inline-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.user-input-inline-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.user-input-inline-question {
+  color: var(--text-stronger);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.user-input-inline-answers {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.user-input-inline-answer {
+  color: var(--text-muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.user-input-inline-empty-answer {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
 .tool-inline-clamp {
   display: -webkit-box;
   -webkit-line-clamp: 3;

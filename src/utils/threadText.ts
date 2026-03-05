@@ -16,6 +16,16 @@ function formatReasoning(item: Extract<ConversationItem, { kind: "reasoning" }>)
   return parts.join("\n");
 }
 
+function formatUserInput(item: Extract<ConversationItem, { kind: "userInput" }>) {
+  const lines = item.questions.map((entry, index) => {
+    const title = entry.question || entry.header || `Question ${index + 1}`;
+    const answers =
+      entry.answers.length > 0 ? entry.answers.join(" | ") : "No answer provided";
+    return `- ${title}: ${answers}`;
+  });
+  return ["Input answered:", ...lines].join("\n");
+}
+
 function formatTool(item: Extract<ConversationItem, { kind: "tool" }>) {
   const parts = [`Tool: ${item.title}`];
   if (item.detail) {
@@ -63,6 +73,8 @@ export function buildThreadTranscript(items: ConversationItem[]) {
       switch (item.kind) {
         case "message":
           return formatMessage(item);
+        case "userInput":
+          return formatUserInput(item);
         case "reasoning":
           return formatReasoning(item);
         case "explore":

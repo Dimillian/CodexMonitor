@@ -903,6 +903,46 @@ describe("Messages", () => {
     expect(screen.getByText("Done in 0:04")).toBeTruthy();
   });
 
+  it("renders answered user input items with preview and expandable details", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "user-input-1",
+        kind: "userInput",
+        status: "answered",
+        questions: [
+          {
+            id: "q1",
+            header: "Confirm",
+            question: "Proceed with deployment?",
+            answers: ["Yes", "user_note: after running tests"],
+          },
+        ],
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(
+      screen.getByText(/Proceed with deployment\?: Yes \+1/),
+    ).toBeTruthy();
+    expect(screen.queryByText("user_note: after running tests")).toBeNull();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Toggle answered input details" }),
+    );
+
+    expect(screen.getByText("user_note: after running tests")).toBeTruthy();
+  });
+
   it("merges consecutive explore items under a single explored block", async () => {
     const items: ConversationItem[] = [
       {

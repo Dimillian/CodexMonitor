@@ -34,6 +34,7 @@ import {
   ReasoningRow,
   ReviewRow,
   ToolRow,
+  UserInputRow,
   WorkingIndicator,
 } from "./MessageRows";
 
@@ -426,6 +427,17 @@ export const Messages = memo(function Messages({
           onOpenFileLink={openFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
           onOpenThreadLink={handleOpenThreadLink}
+        />
+      );
+    }
+    if (item.kind === "userInput") {
+      const isExpanded = expandedItems.has(item.id);
+      return (
+        <UserInputRow
+          key={item.id}
+          item={item}
+          isExpanded={isExpanded}
+          onToggle={toggleExpanded}
         />
       );
     }

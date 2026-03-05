@@ -24,7 +24,7 @@ export type MessageImage = {
 
 export type ToolGroupItem = Extract<
   ConversationItem,
-  { kind: "tool" | "reasoning" | "explore" }
+  { kind: "tool" | "reasoning" | "explore" | "userInput" }
 >;
 
 export type ToolGroup = {
@@ -220,7 +220,12 @@ export function normalizeMessageImageSrc(path: string) {
 }
 
 function isToolGroupItem(item: ConversationItem): item is ToolGroupItem {
-  return item.kind === "tool" || item.kind === "reasoning" || item.kind === "explore";
+  return (
+    item.kind === "tool" ||
+    item.kind === "reasoning" ||
+    item.kind === "explore" ||
+    item.kind === "userInput"
+  );
 }
 
 function mergeExploreItems(
@@ -517,6 +522,8 @@ export function scrollKeyForItems(items: ConversationItem[]) {
   switch (last.kind) {
     case "message":
       return `${last.id}-${last.text.length}`;
+    case "userInput":
+      return `${last.id}-${last.status}-${last.questions.length}`;
     case "reasoning":
       return `${last.id}-${last.summary.length}-${last.content.length}`;
     case "explore":
