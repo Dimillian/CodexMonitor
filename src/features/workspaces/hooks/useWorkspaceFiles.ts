@@ -135,7 +135,7 @@ export function useWorkspaceFiles({
       if (document.visibilityState === "hidden") {
         return;
       }
-      refreshFiles().catch(() => {});
+      refreshFiles().catch((err) => console.debug("workspace files refresh failed", err));
     }, refreshInterval);
 
     return () => {

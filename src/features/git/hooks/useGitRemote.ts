@@ -63,7 +63,7 @@ export function useGitRemote(activeWorkspace: WorkspaceInfo | null) {
       return;
     }
 
-    refresh()?.catch(() => {});
+    refresh()?.catch((err) => console.debug("git remote refresh failed", err));
   }, [refresh, workspaceId]);
 
   return { ...state, refresh };

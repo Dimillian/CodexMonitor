@@ -236,7 +236,7 @@ export function useThreadTurnEvents({
       if (pendingInterruptsRef.current.has(threadId)) {
         pendingInterruptsRef.current.delete(threadId);
         if (turnId) {
-          void interruptTurnService(workspaceId, threadId, turnId).catch(() => {});
+          void interruptTurnService(workspaceId, threadId, turnId).catch((err) => console.debug("interrupt turn failed", err));
         }
         return;
       }

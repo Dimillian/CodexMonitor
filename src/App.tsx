@@ -2166,7 +2166,7 @@ function MainApp() {
     isLoadingLocalUsage,
     localUsageError,
     onRefreshLocalUsage: () => {
-      refreshLocalUsage()?.catch(() => {});
+      refreshLocalUsage()?.catch((err) => console.debug("refreshLocalUsage failed", err));
     },
     usageMetric,
     onUsageMetricChange: setUsageMetric,

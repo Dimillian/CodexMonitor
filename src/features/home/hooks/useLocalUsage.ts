@@ -60,9 +60,9 @@ export function useLocalUsage(enabled: boolean, workspacePath: string | null) {
     if (!enabled) {
       return;
     }
-    refresh()?.catch(() => {});
+    refresh()?.catch((err) => console.debug("local usage refresh failed", err));
     const interval = window.setInterval(() => {
-      refresh()?.catch(() => {});
+      refresh()?.catch((err) => console.debug("local usage refresh failed", err));
     }, REFRESH_INTERVAL_MS);
     return () => {
       window.clearInterval(interval);

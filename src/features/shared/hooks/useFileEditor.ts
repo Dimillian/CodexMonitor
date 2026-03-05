@@ -140,7 +140,7 @@ export function useFileEditor({
     if (!key) {
       return;
     }
-    refresh().catch(() => {});
+    refresh().catch((err) => console.debug("file editor refresh failed", err));
   }, [key, refresh]);
 
   const isDirty = useMemo(() => state.content !== lastLoadedContentRef.current, [state.content]);

@@ -101,7 +101,7 @@ export function useGitLog(
     }
     void refresh();
     const interval = window.setInterval(() => {
-      refresh().catch(() => {});
+      refresh().catch((err) => console.debug("git log refresh failed", err));
     }, REFRESH_INTERVAL_MS);
     return () => {
       window.clearInterval(interval);

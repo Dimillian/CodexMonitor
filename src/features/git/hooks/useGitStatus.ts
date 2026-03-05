@@ -106,7 +106,7 @@ export function useGitStatus(activeWorkspace: WorkspaceInfo | null) {
     }
 
     const fetchStatus = () => {
-      refresh()?.catch(() => {});
+      refresh()?.catch((err) => console.debug("git status refresh failed", err));
     };
 
     fetchStatus();
