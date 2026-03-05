@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { subscribeWindowDragDrop } from "../../../services/dragDrop";
+import { pushErrorToast } from "../../../services/toasts";
 
 function isDragFileTransfer(types: readonly string[] | undefined) {
   if (!types || types.length === 0) {
@@ -77,9 +78,11 @@ export function useWorkspaceDropZone({
         const result = onDropPaths(paths);
         void Promise.resolve(result).catch((error) => {
           console.error("Failed to handle workspace drop paths", error);
+          pushErrorToast({ title: "Drop failed", message: String(error) });
         });
       } catch (error) {
         console.error("Failed to handle workspace drop paths", error);
+        pushErrorToast({ title: "Drop failed", message: String(error) });
       }
     },
     [onDropPaths],
