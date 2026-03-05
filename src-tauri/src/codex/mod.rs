@@ -2,7 +2,7 @@ use serde_json::{json, Map, Value};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 pub(crate) mod args;
 pub(crate) mod config;
@@ -11,12 +11,13 @@ pub(crate) mod home;
 use crate::backend::app_server::spawn_workspace_session as spawn_workspace_session_inner;
 pub(crate) use crate::backend::app_server::WorkspaceSession;
 use crate::backend::events::AppServerEvent;
+use crate::claude_bridge::process::spawn_claude_session;
 use crate::event_sink::TauriEventSink;
 use crate::remote_backend;
 use crate::shared::agents_config_core;
 use crate::shared::codex_core;
 use crate::state::AppState;
-use crate::types::WorkspaceEntry;
+use crate::types::{BackendMode, WorkspaceEntry};
 
 fn emit_thread_live_event(app: &AppHandle, workspace_id: &str, method: &str, params: Value) {
     let _ = app.emit(
@@ -39,7 +40,19 @@ pub(crate) async fn spawn_workspace_session(
     codex_home: Option<PathBuf>,
 ) -> Result<Arc<WorkspaceSession>, String> {
     let client_version = app_handle.package_info().version.to_string();
-    let event_sink = TauriEventSink::new(app_handle);
+    let event_sink = TauriEventSink::new(app_handle.clone());
+
+    // Check if Claude CLI mode is enabled in settings
+    let use_claude = {
+        let state = app_handle.state::<AppState>();
+        let settings = state.app_settings.lock().await;
+        settings.backend_mode == BackendMode::Claude
+    };
+
+    if use_claude {
+        return spawn_claude_session(entry, client_version, event_sink).await;
+    }
+
     spawn_workspace_session_inner(
         entry,
         default_codex_bin,

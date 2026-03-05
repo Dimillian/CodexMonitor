@@ -641,11 +641,13 @@ pub(crate) struct AppSettings {
     pub(crate) selected_open_app_id: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum BackendMode {
     Local,
     Remote,
+    /// Use Claude CLI as the backend instead of Codex.
+    Claude,
 }
 
 impl Default for BackendMode {

@@ -205,10 +205,12 @@ export function SettingsServerSection({
           >
             <option value="local">Local (default)</option>
             <option value="remote">Remote (daemon)</option>
+            <option value="claude">Claude CLI</option>
           </select>
           <div className="settings-help">
-            Local keeps desktop requests in-process. Remote routes desktop requests through the same
-            TCP transport path used by mobile clients.
+            Local keeps desktop requests in-process. Remote routes requests through the TCP transport
+            path used by mobile clients. Claude CLI uses the locally-installed claude command as the
+            AI backend.
           </div>
         </div>
       )}

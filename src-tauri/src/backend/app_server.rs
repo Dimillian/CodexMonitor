@@ -431,6 +431,17 @@ fn build_initialize_params(client_version: &str) -> Value {
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(300);
 
+/// Describes how the request interceptor wants to handle a JSON-RPC message.
+pub(crate) enum InterceptAction {
+    /// Write the given string to stdin (potentially translated from the original).
+    Forward(String),
+    /// Immediately resolve with this response (don't write to stdin).
+    /// The response must include an "id" field matching the request.
+    Respond(Value),
+    /// Drop the message silently.
+    Drop,
+}
+
 pub(crate) struct WorkspaceSession {
     pub(crate) codex_args: Option<String>,
     pub(crate) child: Mutex<Child>,
@@ -445,6 +456,11 @@ pub(crate) struct WorkspaceSession {
     pub(crate) owner_workspace_id: String,
     pub(crate) workspace_ids: Mutex<HashSet<String>>,
     pub(crate) workspace_roots: Mutex<HashMap<String, String>>,
+    /// Optional request interceptor for alternative backends (e.g. Claude CLI bridge).
+    /// When set, JSON-RPC messages are passed through this function before being
+    /// written to stdin. The interceptor can translate, respond immediately, or drop.
+    pub(crate) request_interceptor:
+        Option<Arc<dyn Fn(Value) -> InterceptAction + Send + Sync>>,
 }
 
 impl WorkspaceSession {
@@ -482,8 +498,24 @@ impl WorkspaceSession {
     }
 
     async fn write_message(&self, value: Value) -> Result<(), String> {
+        let line = if let Some(ref interceptor) = self.request_interceptor {
+            match interceptor(value) {
+                InterceptAction::Forward(translated) => translated,
+                InterceptAction::Respond(response) => {
+                    if let Some(id) = response.get("id").and_then(|v| v.as_u64()) {
+                        if let Some(tx) = self.pending.lock().await.remove(&id) {
+                            let _ = tx.send(response);
+                        }
+                    }
+                    return Ok(());
+                }
+                InterceptAction::Drop => return Ok(()),
+            }
+        } else {
+            serde_json::to_string(&value).map_err(|e| e.to_string())?
+        };
         let mut stdin = self.stdin.lock().await;
-        let mut line = serde_json::to_string(&value).map_err(|e| e.to_string())?;
+        let mut line = line;
         line.push('\n');
         stdin
             .write_all(line.as_bytes())
@@ -791,6 +823,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
             entry.id.clone(),
             normalize_root_path(&entry.path),
         )])),
+        request_interceptor: None,
     });
 
     let session_clone = Arc::clone(&session);

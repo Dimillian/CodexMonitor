@@ -770,6 +770,44 @@
   padding: 0 2px;
 }
 
+/* Backend mode badge — brand accent colors */
+
+.backend-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.backend-mode-badge--local {
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.backend-mode-badge--claude {
+  background: rgba(217, 119, 87, 0.14);
+  color: #e8976b;
+  border: 1px solid rgba(217, 119, 87, 0.25);
+}
+
+.backend-mode-badge--remote {
+  background: rgba(96, 165, 250, 0.14);
+  color: #7db8fc;
+  border: 1px solid rgba(96, 165, 250, 0.25);
+}
+
+.backend-mode-badge.backend-mode-badge--header {
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
 
 .connect {
   font-size: 12px;
@@ -1059,6 +1097,30 @@
   color: var(--text-faint);
   font-size: 10px;
   line-height: 1.4;
+}
+
+.thread-model-badge.model-claude {
+  background: rgba(217, 119, 87, 0.12);
+  color: #e8976b;
+  border-color: rgba(217, 119, 87, 0.22);
+}
+
+.thread-model-badge.model-codex {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.22);
+}
+
+.thread-model-badge.model-gpt {
+  background: rgba(168, 132, 255, 0.12);
+  color: #b89cff;
+  border-color: rgba(168, 132, 255, 0.22);
+}
+
+.thread-model-badge.model-gemini {
+  background: rgba(66, 133, 244, 0.12);
+  color: #6ba3f7;
+  border-color: rgba(66, 133, 244, 0.22);
 }
 
 .thread-time {

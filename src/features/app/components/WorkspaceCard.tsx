@@ -1,10 +1,12 @@
 import type { MouseEvent } from "react";
 
-import type { WorkspaceInfo } from "../../../types";
+import type { BackendMode, WorkspaceInfo } from "../../../types";
+import { BackendModeBadge } from "./BackendModeBadge";
 
 type WorkspaceCardProps = {
   workspace: WorkspaceInfo;
   workspaceName?: React.ReactNode;
+  backendMode?: BackendMode;
   isActive: boolean;
   isCollapsed: boolean;
   addMenuOpen: boolean;
@@ -25,6 +27,7 @@ type WorkspaceCardProps = {
 export function WorkspaceCard({
   workspace,
   workspaceName,
+  backendMode,
   isActive,
   isCollapsed,
   addMenuOpen,
@@ -57,6 +60,7 @@ export function WorkspaceCard({
           <div className="workspace-name-row">
             <div className="workspace-title">
               <span className="workspace-name">{workspaceName ?? workspace.name}</span>
+              {backendMode && <BackendModeBadge mode={backendMode} />}
               <button
                 className={`workspace-toggle ${isCollapsed ? "" : "expanded"}`}
                 onClick={(event) => {

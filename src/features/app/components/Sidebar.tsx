@@ -111,6 +111,7 @@ type SidebarProps = {
   onWorkspaceDragEnter: (event: React.DragEvent<HTMLElement>) => void;
   onWorkspaceDragLeave: (event: React.DragEvent<HTMLElement>) => void;
   onWorkspaceDrop: (event: React.DragEvent<HTMLElement>) => void;
+  backendMode: import("../../../types").BackendMode;
 };
 
 export const Sidebar = memo(function Sidebar({
@@ -172,6 +173,7 @@ export const Sidebar = memo(function Sidebar({
   onWorkspaceDragEnter,
   onWorkspaceDragLeave,
   onWorkspaceDrop,
+  backendMode,
 }: SidebarProps) {
   const [expandedWorkspaces, setExpandedWorkspaces] = useState(
     new Set<string>(),
@@ -998,6 +1000,7 @@ export const Sidebar = memo(function Sidebar({
                           key={entry.id}
                           workspace={entry}
                           workspaceName={renderHighlightedName(entry.name)}
+                          backendMode={backendMode}
                           isActive={entry.id === activeWorkspaceId}
                           isCollapsed={isCollapsed}
                           addMenuOpen={addMenuOpen}

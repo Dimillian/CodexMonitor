@@ -91,6 +91,7 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
       onWorkspaceDragEnter={options.onWorkspaceDragEnter}
       onWorkspaceDragLeave={options.onWorkspaceDragLeave}
       onWorkspaceDrop={options.onWorkspaceDrop}
+      backendMode={options.backendMode}
     />
   );
 
@@ -255,6 +256,7 @@ export function buildPrimaryNodes(options: LayoutNodesOptions): PrimaryLayoutNod
   const mainHeaderNode = options.activeWorkspace ? (
     <MainHeader
       workspace={options.activeWorkspace}
+      backendMode={options.backendMode}
       parentName={options.activeParentWorkspace?.name ?? null}
       worktreeLabel={options.worktreeLabel}
       worktreeRename={options.worktreeRename}

@@ -68,6 +68,7 @@ const baseProps = {
   onWorkspaceDragEnter: vi.fn(),
   onWorkspaceDragLeave: vi.fn(),
   onWorkspaceDrop: vi.fn(),
+  backendMode: "local" as const,
 };
 
 describe("Sidebar", () => {

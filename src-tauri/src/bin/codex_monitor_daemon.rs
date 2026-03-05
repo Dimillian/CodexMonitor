@@ -1,6 +1,9 @@
 #[allow(dead_code)]
 #[path = "../backend/mod.rs"]
 mod backend;
+#[allow(dead_code)]
+#[path = "../claude_bridge/mod.rs"]
+mod claude_bridge;
 #[path = "../codex/args.rs"]
 mod codex_args;
 #[path = "../codex/config.rs"]
@@ -103,15 +106,23 @@ fn spawn_with_client(
     default_bin: Option<String>,
     codex_args: Option<String>,
     codex_home: Option<PathBuf>,
+    use_claude: bool,
 ) -> impl std::future::Future<Output = Result<Arc<WorkspaceSession>, String>> {
-    spawn_workspace_session(
-        entry,
-        default_bin,
-        codex_args,
-        codex_home,
-        client_version,
-        event_sink,
-    )
+    async move {
+        if use_claude {
+            claude_bridge::process::spawn_claude_session(entry, client_version, event_sink).await
+        } else {
+            spawn_workspace_session(
+                entry,
+                default_bin,
+                codex_args,
+                codex_home,
+                client_version,
+                event_sink,
+            )
+            .await
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -253,6 +264,7 @@ impl DaemonState {
         client_version: String,
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
+        let use_claude = self.app_settings.lock().await.backend_mode == types::BackendMode::Claude;
         workspaces_core::add_workspace_core(
             path,
             &self.workspaces,
@@ -267,6 +279,7 @@ impl DaemonState {
                     default_bin,
                     codex_args,
                     codex_home,
+                    use_claude,
                 )
             },
         )
@@ -281,6 +294,7 @@ impl DaemonState {
         client_version: String,
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
+        let use_claude = self.app_settings.lock().await.backend_mode == types::BackendMode::Claude;
         workspaces_core::add_workspace_from_git_url_core(
             url,
             destination_path,
@@ -297,6 +311,7 @@ impl DaemonState {
                     default_bin,
                     codex_args,
                     codex_home,
+                    use_claude,
                 )
             },
         )
@@ -312,6 +327,7 @@ impl DaemonState {
         client_version: String,
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
+        let use_claude = self.app_settings.lock().await.backend_mode == types::BackendMode::Claude;
         workspaces_core::add_worktree_core(
             parent_id,
             branch,
@@ -345,6 +361,7 @@ impl DaemonState {
                     default_bin,
                     codex_args,
                     codex_home,
+                    use_claude,
                 )
             },
         )
@@ -413,6 +430,7 @@ impl DaemonState {
         client_version: String,
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
+        let use_claude = self.app_settings.lock().await.backend_mode == types::BackendMode::Claude;
         workspaces_core::rename_worktree_core(
             id,
             branch,
@@ -446,6 +464,7 @@ impl DaemonState {
                     default_bin,
                     codex_args,
                     codex_home,
+                    use_claude,
                 )
             },
         )
@@ -501,6 +520,7 @@ impl DaemonState {
         client_version: String,
     ) -> Result<WorkspaceInfo, String> {
         let client_version = client_version.clone();
+        let use_claude = self.app_settings.lock().await.backend_mode == types::BackendMode::Claude;
         workspaces_core::update_workspace_settings_core(
             id,
             settings,
@@ -519,6 +539,7 @@ impl DaemonState {
                     default_bin,
                     codex_args,
                     codex_home,
+                    use_claude,
                 )
             },
         )
@@ -534,6 +555,7 @@ impl DaemonState {
         }
 
         let client_version = client_version.clone();
+        let use_claude = self.app_settings.lock().await.backend_mode == types::BackendMode::Claude;
         workspaces_core::connect_workspace_core(
             id,
             &self.workspaces,
@@ -547,6 +569,7 @@ impl DaemonState {
                     default_bin,
                     codex_args,
                     codex_home,
+                    use_claude,
                 )
             },
         )
@@ -559,6 +582,7 @@ impl DaemonState {
         codex_args: Option<String>,
         client_version: String,
     ) -> Result<workspaces_core::WorkspaceRuntimeCodexArgsResult, String> {
+        let use_claude = self.app_settings.lock().await.backend_mode == types::BackendMode::Claude;
         workspaces_core::set_workspace_runtime_codex_args_core(
             workspace_id,
             codex_args,
@@ -573,6 +597,7 @@ impl DaemonState {
                     default_bin,
                     next_args,
                     codex_home,
+                    use_claude,
                 )
             },
         )
@@ -948,6 +973,7 @@ impl DaemonState {
         copy_name: String,
         client_version: String,
     ) -> Result<WorkspaceInfo, String> {
+        let use_claude = self.app_settings.lock().await.backend_mode == types::BackendMode::Claude;
         workspaces_core::add_clone_core(
             source_workspace_id,
             copy_name,
@@ -964,6 +990,7 @@ impl DaemonState {
                     default_bin,
                     codex_args,
                     codex_home,
+                    use_claude,
                 )
             },
         )
@@ -1670,6 +1697,7 @@ mod tests {
             background_thread_callbacks: Mutex::new(HashMap::new()),
             workspace_ids: Mutex::new(HashSet::from([owner_workspace_id.clone()])),
             workspace_roots: Mutex::new(HashMap::new()),
+            request_interceptor: None,
             owner_workspace_id,
         })
     }
