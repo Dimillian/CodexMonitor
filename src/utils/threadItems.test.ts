@@ -670,6 +670,102 @@ describe("threadItems", () => {
     }
   });
 
+  it("preserves existing answers for questions that are empty in a partial userInput upsert", () => {
+    const existing: ConversationItem = {
+      id: "user-input-2",
+      kind: "userInput",
+      status: "answered",
+      questions: [
+        {
+          id: "q1",
+          header: "Question 1",
+          question: "Choose release mode",
+          answers: ["Safe"],
+        },
+        {
+          id: "q2",
+          header: "Question 2",
+          question: "Choose deployment time",
+          answers: ["Tonight"],
+        },
+      ],
+    };
+    const incoming: ConversationItem = {
+      id: "user-input-2",
+      kind: "userInput",
+      status: "answered",
+      questions: [
+        {
+          id: "q1",
+          header: "Question 1",
+          question: "Choose release mode",
+          answers: ["Fast"],
+        },
+        {
+          id: "q2",
+          header: "Question 2",
+          question: "Choose deployment time",
+          answers: [],
+        },
+      ],
+    };
+
+    const next = upsertItem([existing], incoming);
+    expect(next).toHaveLength(1);
+    expect(next[0].kind).toBe("userInput");
+    if (next[0].kind === "userInput") {
+      expect(next[0].questions).toHaveLength(2);
+      expect(next[0].questions[0]?.answers).toEqual(["Fast"]);
+      expect(next[0].questions[1]?.answers).toEqual(["Tonight"]);
+    }
+  });
+
+  it("preserves answered questions missing from a partial userInput upsert", () => {
+    const existing: ConversationItem = {
+      id: "user-input-3",
+      kind: "userInput",
+      status: "answered",
+      questions: [
+        {
+          id: "q1",
+          header: "Question 1",
+          question: "Primary answer",
+          answers: ["A"],
+        },
+        {
+          id: "q2",
+          header: "Question 2",
+          question: "Secondary answer",
+          answers: ["B"],
+        },
+      ],
+    };
+    const incoming: ConversationItem = {
+      id: "user-input-3",
+      kind: "userInput",
+      status: "answered",
+      questions: [
+        {
+          id: "q1",
+          header: "Question 1",
+          question: "Primary answer",
+          answers: ["A2"],
+        },
+      ],
+    };
+
+    const next = upsertItem([existing], incoming);
+    expect(next).toHaveLength(1);
+    expect(next[0].kind).toBe("userInput");
+    if (next[0].kind === "userInput") {
+      expect(next[0].questions).toHaveLength(2);
+      expect(next[0].questions[0]?.id).toBe("q1");
+      expect(next[0].questions[0]?.answers).toEqual(["A2"]);
+      expect(next[0].questions[1]?.id).toBe("q2");
+      expect(next[0].questions[1]?.answers).toEqual(["B"]);
+    }
+  });
+
   it("builds user message text from mixed inputs", () => {
     const item = buildConversationItemFromThreadItem({
       type: "userMessage",

@@ -548,6 +548,30 @@ function mergeExploreEntries(base: ExploreEntry[], next: ExploreEntry[]) {
   return deduped;
 }
 
+function mergeUserInputQuestions(
+  existing: Extract<ConversationItem, { kind: "userInput" }>["questions"],
+  incoming: Extract<ConversationItem, { kind: "userInput" }>["questions"],
+) {
+  const existingById = new Map(existing.map((question) => [question.id, question]));
+  const merged = incoming.map((question) => {
+    const prior = existingById.get(question.id);
+    if (!prior) {
+      return question;
+    }
+    const incomingHasAnswers = question.answers.length > 0;
+    return {
+      ...prior,
+      ...question,
+      header: question.header.trim() ? question.header : prior.header,
+      question: question.question.trim() ? question.question : prior.question,
+      answers: incomingHasAnswers ? question.answers : prior.answers,
+    };
+  });
+  const incomingIds = new Set(incoming.map((question) => question.id));
+  const missingExisting = existing.filter((question) => !incomingIds.has(question.id));
+  return [...merged, ...missingExisting];
+}
+
 function summarizeCommandExecution(item: Extract<ConversationItem, { kind: "tool" }>) {
   if (isFailedStatus(item.status)) {
     return null;
@@ -698,17 +722,10 @@ export function upsertItem(list: ConversationItem[], item: ConversationItem) {
   }
 
   if (existing.kind === "userInput" && item.kind === "userInput") {
-    const incomingHasAnswers = item.questions.some((question) => question.answers.length > 0);
-    const existingHasAnswers = existing.questions.some(
-      (question) => question.answers.length > 0,
-    );
     next[index] = {
       ...existing,
       ...item,
-      questions:
-        incomingHasAnswers || !existingHasAnswers || item.questions.length > existing.questions.length
-          ? item.questions
-          : existing.questions,
+      questions: mergeUserInputQuestions(existing.questions, item.questions),
     };
     return next;
   }
