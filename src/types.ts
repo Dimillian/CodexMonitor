@@ -162,7 +162,7 @@ export type PullRequestSelectionRange = {
 };
 
 export type AccessMode = "read-only" | "current" | "full-access";
-export type BackendMode = "local" | "remote";
+export type BackendMode = "local" | "remote" | "claude";
 export type RemoteBackendProvider = "tcp";
 export type RemoteBackendTarget = {
   id: string;
