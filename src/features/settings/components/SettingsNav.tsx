@@ -1,16 +1,4 @@
-import LayoutGrid from "lucide-react/dist/esm/icons/layout-grid";
-import SlidersHorizontal from "lucide-react/dist/esm/icons/sliders-horizontal";
-import Mic from "lucide-react/dist/esm/icons/mic";
-import Keyboard from "lucide-react/dist/esm/icons/keyboard";
-import GitBranch from "lucide-react/dist/esm/icons/git-branch";
-import TerminalSquare from "lucide-react/dist/esm/icons/terminal-square";
-import FileText from "lucide-react/dist/esm/icons/file-text";
-import FlaskConical from "lucide-react/dist/esm/icons/flask-conical";
-import ExternalLink from "lucide-react/dist/esm/icons/external-link";
-import Layers from "lucide-react/dist/esm/icons/layers";
-import ServerCog from "lucide-react/dist/esm/icons/server-cog";
-import Bot from "lucide-react/dist/esm/icons/bot";
-import Info from "lucide-react/dist/esm/icons/info";
+import { Bot, ExternalLink, FileText, FlaskConical, GitBranch, Info, Keyboard, Layers, LayoutGrid, Mic, ServerCog, SlidersHorizontal, TerminalSquare } from "lucide-react";
 import { PanelNavItem, PanelNavList } from "@/features/design-system/components/panel/PanelPrimitives";
 import type { CodexSection } from "./settingsTypes";
 

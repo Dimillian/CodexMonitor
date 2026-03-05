@@ -1,12 +1,4 @@
-import ArrowDownUp from "lucide-react/dist/esm/icons/arrow-down-up";
-import BetweenHorizontalStart from "lucide-react/dist/esm/icons/between-horizontal-start";
-import Calendar from "lucide-react/dist/esm/icons/calendar";
-import FolderPlus from "lucide-react/dist/esm/icons/folder-plus";
-import FolderTree from "lucide-react/dist/esm/icons/folder-tree";
-import ListFilter from "lucide-react/dist/esm/icons/list-filter";
-import ListTree from "lucide-react/dist/esm/icons/list-tree";
-import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
-import Search from "lucide-react/dist/esm/icons/search";
+import { ArrowDownUp, BetweenHorizontalStart, Calendar, FolderPlus, FolderTree, ListFilter, ListTree, RefreshCw, Search } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ThreadListOrganizeMode, ThreadListSortKey } from "../../../types";
 import {

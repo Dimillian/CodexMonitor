@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
-import Save from "lucide-react/dist/esm/icons/save";
+import { RefreshCw, Save } from "lucide-react";
 
 type FileEditorCardClassNames = {
   container: string;

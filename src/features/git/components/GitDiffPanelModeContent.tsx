@@ -2,13 +2,7 @@ import type { GitHubIssue, GitHubPullRequest, GitLogEntry } from "../../../types
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import ArrowLeftRight from "lucide-react/dist/esm/icons/arrow-left-right";
-import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
-import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
-import Download from "lucide-react/dist/esm/icons/download";
-import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
-import RotateCw from "lucide-react/dist/esm/icons/rotate-cw";
-import Upload from "lucide-react/dist/esm/icons/upload";
+import { ArrowLeftRight, ChevronDown, ChevronRight, Download, RotateCcw, RotateCw, Upload } from "lucide-react";
 import { formatRelativeTime } from "../../../utils/time";
 import {
   MagicSparkleIcon,

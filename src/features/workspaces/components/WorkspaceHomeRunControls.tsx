@@ -1,11 +1,7 @@
 import { useCallback } from "react";
 import type { ModelOption, WorkspaceInfo } from "../../../types";
 import type { WorkspaceRunMode } from "../hooks/useWorkspaceHome";
-import Laptop from "lucide-react/dist/esm/icons/laptop";
-import GitBranch from "lucide-react/dist/esm/icons/git-branch";
-import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
-import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
-import Cpu from "lucide-react/dist/esm/icons/cpu";
+import { ChevronDown, ChevronRight, Cpu, GitBranch, Laptop } from "lucide-react";
 import {
   PopoverMenuItem,
   SplitActionMenu,

@@ -1,7 +1,4 @@
-import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
-import Settings from "lucide-react/dist/esm/icons/settings";
-import User from "lucide-react/dist/esm/icons/user";
-import X from "lucide-react/dist/esm/icons/x";
+import { ScrollText, Settings, User, X } from "lucide-react";
 import { useEffect } from "react";
 import {
   MenuTrigger,

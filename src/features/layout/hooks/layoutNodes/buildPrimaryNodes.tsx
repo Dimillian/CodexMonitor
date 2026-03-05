@@ -1,4 +1,4 @@
-import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
+import { ArrowLeft } from "lucide-react";
 import { Sidebar } from "../../../app/components/Sidebar";
 import { Home } from "../../../home/components/Home";
 import { MainHeader } from "../../../app/components/MainHeader";

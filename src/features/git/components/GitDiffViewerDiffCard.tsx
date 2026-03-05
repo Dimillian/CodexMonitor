@@ -6,7 +6,7 @@ import {
   type SelectedLineRange,
 } from "@pierre/diffs";
 import { FileDiff } from "@pierre/diffs/react";
-import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
+import { RotateCcw } from "lucide-react";
 import type {
   PullRequestReviewAction,
   PullRequestReviewIntent,

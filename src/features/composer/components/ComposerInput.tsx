@@ -7,22 +7,7 @@ import type {
   SyntheticEvent,
 } from "react";
 import type { AutocompleteItem } from "../hooks/useComposerAutocomplete";
-import ImagePlus from "lucide-react/dist/esm/icons/image-plus";
-import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
-import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
-import Mic from "lucide-react/dist/esm/icons/mic";
-import Square from "lucide-react/dist/esm/icons/square";
-import X from "lucide-react/dist/esm/icons/x";
-import Brain from "lucide-react/dist/esm/icons/brain";
-import GitFork from "lucide-react/dist/esm/icons/git-fork";
-import PlusCircle from "lucide-react/dist/esm/icons/plus-circle";
-import Plus from "lucide-react/dist/esm/icons/plus";
-import Info from "lucide-react/dist/esm/icons/info";
-import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
-import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
-import Wrench from "lucide-react/dist/esm/icons/wrench";
-import FileText from "lucide-react/dist/esm/icons/file-text";
-import Plug from "lucide-react/dist/esm/icons/plug";
+import { Brain, ChevronDown, ChevronUp, FileText, GitFork, ImagePlus, Info, Mic, Plug, Plus, PlusCircle, RotateCcw, ScrollText, Square, Wrench, X } from "lucide-react";
 import { useComposerImageDrop } from "../hooks/useComposerImageDrop";
 import {
   PopoverMenuItem,

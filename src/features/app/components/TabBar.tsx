@@ -1,9 +1,5 @@
 import type { ReactNode } from "react";
-import FolderKanban from "lucide-react/dist/esm/icons/folder-kanban";
-import GitBranch from "lucide-react/dist/esm/icons/git-branch";
-import House from "lucide-react/dist/esm/icons/house";
-import MessagesSquare from "lucide-react/dist/esm/icons/messages-square";
-import TerminalSquare from "lucide-react/dist/esm/icons/terminal-square";
+import { FolderKanban, GitBranch, House, MessagesSquare, TerminalSquare } from "lucide-react";
 
 type TabKey = "home" | "projects" | "codex" | "git" | "log";
 

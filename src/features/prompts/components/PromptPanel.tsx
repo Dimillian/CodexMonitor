@@ -16,10 +16,7 @@ import {
 import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import MoreHorizontal from "lucide-react/dist/esm/icons/more-horizontal";
-import Plus from "lucide-react/dist/esm/icons/plus";
-import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
-import Search from "lucide-react/dist/esm/icons/search";
+import { MoreHorizontal, Plus, ScrollText, Search } from "lucide-react";
 
 type PromptPanelProps = {
   prompts: CustomPromptOption[];

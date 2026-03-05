@@ -3,8 +3,7 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { SelectedLineRange } from "@pierre/diffs";
 import { WorkerPoolContextProvider } from "@pierre/diffs/react";
-import GitCommitHorizontal from "lucide-react/dist/esm/icons/git-commit-horizontal";
-import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
+import { GitCommitHorizontal, RotateCcw } from "lucide-react";
 import type { ParsedDiffLine } from "../../../utils/diff";
 import { workerFactory } from "../../../utils/diffsWorker";
 import type {

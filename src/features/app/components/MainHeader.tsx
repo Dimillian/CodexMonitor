@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import Check from "lucide-react/dist/esm/icons/check";
-import Copy from "lucide-react/dist/esm/icons/copy";
-import Terminal from "lucide-react/dist/esm/icons/terminal";
+import { Check, Copy, Terminal } from "lucide-react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { BranchInfo, OpenAppTarget, WorkspaceInfo } from "../../../types";
 import type { ReactNode } from "react";

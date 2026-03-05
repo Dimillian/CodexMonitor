@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import X from "lucide-react/dist/esm/icons/x";
+import { X } from "lucide-react";
 import type {
   AppSettings,
   TailscaleDaemonCommandPreview,

@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
-import GitBranch from "lucide-react/dist/esm/icons/git-branch";
-import MessagesSquare from "lucide-react/dist/esm/icons/messages-square";
-import TerminalSquare from "lucide-react/dist/esm/icons/terminal-square";
+import { GitBranch, MessagesSquare, TerminalSquare } from "lucide-react";
 
 type TabletNavTab = "codex" | "git" | "log";
 

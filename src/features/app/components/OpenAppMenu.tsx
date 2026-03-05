@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
+import { ChevronDown } from "lucide-react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import * as Sentry from "@sentry/react";
 import { openWorkspaceIn } from "../../../services/tauri";

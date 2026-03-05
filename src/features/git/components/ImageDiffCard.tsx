@@ -1,6 +1,5 @@
 import { memo, useMemo } from "react";
-import ImageOff from "lucide-react/dist/esm/icons/image-off";
-import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
+import { ImageOff, RotateCcw } from "lucide-react";
 import { splitPath } from "./GitDiffPanel.utils";
 
 type ImageDiffCardProps = {

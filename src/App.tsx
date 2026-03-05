@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
+import { RefreshCw } from "lucide-react";
 import "./styles/base.css";
 import "./styles/ds-tokens.css";
 import "./styles/ds-modal.css";

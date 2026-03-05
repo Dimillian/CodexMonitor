@@ -1,6 +1,5 @@
 import { memo } from "react";
-import AlignLeft from "lucide-react/dist/esm/icons/align-left";
-import Columns2 from "lucide-react/dist/esm/icons/columns-2";
+import { AlignLeft, Columns2 } from "lucide-react";
 import type { SidebarToggleProps } from "../../layout/components/SidebarToggleControls";
 import {
   RightPanelCollapseButton,

@@ -1,7 +1,4 @@
-import PanelLeftClose from "lucide-react/dist/esm/icons/panel-left-close";
-import PanelLeftOpen from "lucide-react/dist/esm/icons/panel-left-open";
-import PanelRightClose from "lucide-react/dist/esm/icons/panel-right-close";
-import PanelRightOpen from "lucide-react/dist/esm/icons/panel-right-open";
+import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from "lucide-react";
 
 export type SidebarToggleProps = {
   isCompact: boolean;

@@ -1,6 +1,4 @@
-import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
-import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
-import Trash2 from "lucide-react/dist/esm/icons/trash-2";
+import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 import {
   SettingsSection,

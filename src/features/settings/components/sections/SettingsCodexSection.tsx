@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
+import { Stethoscope } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 import type {
   AppSettings,

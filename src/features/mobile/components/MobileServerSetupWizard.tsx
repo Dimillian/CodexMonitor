@@ -1,5 +1,5 @@
 import "../../../styles/mobile-setup-wizard.css";
-import X from "lucide-react/dist/esm/icons/x";
+import { X } from "lucide-react";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 
 export type MobileServerSetupWizardProps = {

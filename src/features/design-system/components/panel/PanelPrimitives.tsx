@@ -1,5 +1,5 @@
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
-import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
+import { ChevronRight } from "lucide-react";
 import { joinClassNames } from "../classNames";
 
 type PanelFrameProps = {

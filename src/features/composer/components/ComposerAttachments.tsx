@@ -1,6 +1,5 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
-import Image from "lucide-react/dist/esm/icons/image";
-import X from "lucide-react/dist/esm/icons/x";
+import { Image, X } from "lucide-react";
 
 type ComposerAttachmentsProps = {
   attachments: string[];

@@ -10,11 +10,7 @@ import type {
 import { createPortal } from "react-dom";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import type { MouseEvent, RefObject } from "react";
-import { FolderOpen } from "lucide-react";
-import Copy from "lucide-react/dist/esm/icons/copy";
-import GitBranch from "lucide-react/dist/esm/icons/git-branch";
-import Plus from "lucide-react/dist/esm/icons/plus";
-import X from "lucide-react/dist/esm/icons/x";
+import { Copy, FolderOpen, GitBranch, Plus, X } from "lucide-react";
 import {
   PopoverMenuItem,
   PopoverSurface,

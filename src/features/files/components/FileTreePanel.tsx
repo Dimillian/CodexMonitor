@@ -7,12 +7,7 @@ import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import Plus from "lucide-react/dist/esm/icons/plus";
-import ChevronsUpDown from "lucide-react/dist/esm/icons/chevrons-up-down";
-import File from "lucide-react/dist/esm/icons/file";
-import Folder from "lucide-react/dist/esm/icons/folder";
-import GitBranch from "lucide-react/dist/esm/icons/git-branch";
-import Search from "lucide-react/dist/esm/icons/search";
+import { ChevronsUpDown, File, Folder, GitBranch, Plus, Search } from "lucide-react";
 import type { PanelTabId } from "../../layout/components/PanelTabs";
 import { PanelShell } from "../../layout/components/PanelShell";
 import {

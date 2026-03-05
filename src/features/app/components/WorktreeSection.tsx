@@ -1,4 +1,4 @@
-import Layers from "lucide-react/dist/esm/icons/layers";
+import { Layers } from "lucide-react";
 import type { MouseEvent, ReactNode } from "react";
 
 import type { ThreadSummary, WorkspaceInfo } from "../../../types";

@@ -1,5 +1,4 @@
-import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
-import X from "lucide-react/dist/esm/icons/x";
+import { ChevronLeft, X } from "lucide-react";
 import type {
   AppSettings,
   CodexDoctorResult,
