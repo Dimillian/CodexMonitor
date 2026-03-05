@@ -1670,6 +1670,7 @@ mod tests {
             background_thread_callbacks: Mutex::new(HashMap::new()),
             workspace_ids: Mutex::new(HashSet::from([owner_workspace_id.clone()])),
             workspace_roots: Mutex::new(HashMap::new()),
+            request_interceptor: None,
             owner_workspace_id,
         })
     }
