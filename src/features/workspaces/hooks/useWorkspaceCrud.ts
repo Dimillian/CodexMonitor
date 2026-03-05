@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import * as Sentry from "@sentry/react";
 import type { DebugEntry, WorkspaceInfo, WorkspaceSettings } from "../../../types";
+import { pushErrorToast } from "../../../services/toasts";
 import {
   addWorkspace as addWorkspaceService,
   addWorkspaceFromGitUrl as addWorkspaceFromGitUrlService,
@@ -337,12 +338,17 @@ export function useWorkspaceCrud({
           ),
         );
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         onDebug?.({
           id: `${Date.now()}-client-connect-workspace-error`,
           timestamp: Date.now(),
           source: "error",
           label: "workspace/connect error",
-          payload: error instanceof Error ? error.message : String(error),
+          payload: message,
+        });
+        pushErrorToast({
+          title: "Workspace connection failed",
+          message,
         });
         throw error;
       }
