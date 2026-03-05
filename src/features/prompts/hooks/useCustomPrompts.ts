@@ -61,18 +61,19 @@ export function useCustomPrompts({ activeWorkspace, onDebug }: UseCustomPromptsO
         label: "prompts/list response",
         payload: response,
       });
-      const responsePayload = response as any;
-      let rawPrompts: any[] = [];
+      const responsePayload = response as Record<string, unknown> | undefined;
+      let rawPrompts: unknown[] = [];
       if (Array.isArray(response)) {
         rawPrompts = response;
       } else if (Array.isArray(responsePayload?.prompts)) {
         rawPrompts = responsePayload.prompts;
-      } else if (Array.isArray(responsePayload?.result?.prompts)) {
-        rawPrompts = responsePayload.result.prompts;
+      } else if (Array.isArray((responsePayload?.result as Record<string, unknown> | undefined)?.prompts)) {
+        rawPrompts = (responsePayload!.result as Record<string, unknown>).prompts as unknown[];
       } else if (Array.isArray(responsePayload?.result)) {
-        rawPrompts = responsePayload.result;
+        rawPrompts = responsePayload.result as unknown[];
       }
-      const data: CustomPromptOption[] = rawPrompts.map((item: any) => {
+      const data: CustomPromptOption[] = rawPrompts.map((rawItem: unknown) => {
+        const item = rawItem as Record<string, unknown>;
         let argumentHint: string | undefined;
         if (item.argumentHint) {
           argumentHint = String(item.argumentHint);
