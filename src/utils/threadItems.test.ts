@@ -634,6 +634,42 @@ describe("threadItems", () => {
     }
   });
 
+  it("preserves existing userInput answers when incoming payload has equal question count and no answers", () => {
+    const existing: ConversationItem = {
+      id: "user-input-1",
+      kind: "userInput",
+      status: "answered",
+      questions: [
+        {
+          id: "q1",
+          header: "Confirm",
+          question: "Proceed?",
+          answers: ["Yes"],
+        },
+      ],
+    };
+    const incoming: ConversationItem = {
+      id: "user-input-1",
+      kind: "userInput",
+      status: "answered",
+      questions: [
+        {
+          id: "q1",
+          header: "Confirm",
+          question: "Proceed?",
+          answers: [],
+        },
+      ],
+    };
+
+    const next = upsertItem([existing], incoming);
+    expect(next).toHaveLength(1);
+    expect(next[0].kind).toBe("userInput");
+    if (next[0].kind === "userInput") {
+      expect(next[0].questions[0]?.answers).toEqual(["Yes"]);
+    }
+  });
+
   it("builds user message text from mixed inputs", () => {
     const item = buildConversationItemFromThreadItem({
       type: "userMessage",

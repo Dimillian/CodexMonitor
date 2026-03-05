@@ -706,7 +706,7 @@ export function upsertItem(list: ConversationItem[], item: ConversationItem) {
       ...existing,
       ...item,
       questions:
-        incomingHasAnswers || !existingHasAnswers || item.questions.length >= existing.questions.length
+        incomingHasAnswers || !existingHasAnswers || item.questions.length > existing.questions.length
           ? item.questions
           : existing.questions,
     };
