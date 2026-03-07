@@ -2,13 +2,16 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{AppHandle, Manager};
+use tokio::task::JoinHandle;
 use tokio::process::Child;
 use tokio::sync::Mutex;
 
 use crate::dictation::DictationState;
 use crate::shared::codex_core::CodexLoginCancelState;
 use crate::storage::{read_settings, read_workspaces};
-use crate::types::{AppSettings, TcpDaemonState, TcpDaemonStatus, WorkspaceEntry};
+use crate::types::{
+    AppSettings, CloudflareTunnelStatus, TcpDaemonState, TcpDaemonStatus, WorkspaceEntry,
+};
 
 pub(crate) struct TcpDaemonRuntime {
     pub(crate) child: Option<Child>,
@@ -30,6 +33,36 @@ impl Default for TcpDaemonRuntime {
     }
 }
 
+pub(crate) struct CloudflareTunnelRuntime {
+    pub(crate) child: Option<Child>,
+    pub(crate) stdout_task: Option<JoinHandle<()>>,
+    pub(crate) stderr_task: Option<JoinHandle<()>>,
+    pub(crate) discovered_public_url: Arc<Mutex<Option<String>>>,
+    pub(crate) status: CloudflareTunnelStatus,
+}
+
+impl Default for CloudflareTunnelRuntime {
+    fn default() -> Self {
+        Self {
+            child: None,
+            stdout_task: None,
+            stderr_task: None,
+            discovered_public_url: Arc::new(Mutex::new(None)),
+            status: CloudflareTunnelStatus {
+                state: TcpDaemonState::Stopped,
+                pid: None,
+                started_at_ms: None,
+                last_error: None,
+                local_url: None,
+                public_url: None,
+                suggested_wss_url: None,
+                installed: false,
+                version: None,
+            },
+        }
+    }
+}
+
 pub(crate) struct AppState {
     pub(crate) workspaces: Mutex<HashMap<String, WorkspaceEntry>>,
     pub(crate) sessions: Mutex<HashMap<String, Arc<crate::codex::WorkspaceSession>>>,
@@ -41,6 +74,7 @@ pub(crate) struct AppState {
     pub(crate) dictation: Mutex<DictationState>,
     pub(crate) codex_login_cancels: Mutex<HashMap<String, CodexLoginCancelState>>,
     pub(crate) tcp_daemon: Mutex<TcpDaemonRuntime>,
+    pub(crate) cloudflare_tunnel: Mutex<CloudflareTunnelRuntime>,
 }
 
 impl AppState {
@@ -64,6 +98,7 @@ impl AppState {
             dictation: Mutex::new(DictationState::default()),
             codex_login_cancels: Mutex::new(HashMap::new()),
             tcp_daemon: Mutex::new(TcpDaemonRuntime::default()),
+            cloudflare_tunnel: Mutex::new(CloudflareTunnelRuntime::default()),
         }
     }
 }

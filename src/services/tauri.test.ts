@@ -40,6 +40,10 @@ import {
   tailscaleDaemonStatus,
   tailscaleDaemonStop,
   tailscaleStatus,
+  cloudflareTunnelInstall,
+  cloudflareTunnelStart,
+  cloudflareTunnelStatus,
+  cloudflareTunnelStop,
   pickWorkspacePaths,
   writeGlobalAgentsMd,
   writeGlobalCodexConfigToml,
@@ -445,6 +449,21 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_start");
     expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_stop");
     expect(invokeMock).toHaveBeenCalledWith("tailscale_daemon_status");
+  });
+
+  it("invokes cloudflare tunnel wrappers", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValue(undefined);
+
+    await cloudflareTunnelStart();
+    await cloudflareTunnelStop();
+    await cloudflareTunnelStatus();
+    await cloudflareTunnelInstall();
+
+    expect(invokeMock).toHaveBeenCalledWith("cloudflare_tunnel_start");
+    expect(invokeMock).toHaveBeenCalledWith("cloudflare_tunnel_stop");
+    expect(invokeMock).toHaveBeenCalledWith("cloudflare_tunnel_status");
+    expect(invokeMock).toHaveBeenCalledWith("cloudflare_tunnel_install");
   });
 
   it("reads agent.md for a workspace", async () => {

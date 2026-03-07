@@ -31,8 +31,7 @@ const DEFAULT_REMOTE_PROVIDER: AppSettings["remoteBackendProvider"] = "tcp";
 type RemoteBackendTarget = AppSettings["remoteBackends"][number];
 
 function normalizeRemoteProvider(value: unknown): AppSettings["remoteBackendProvider"] {
-  void value;
-  return "tcp";
+  return value === "wss" ? "wss" : "tcp";
 }
 
 function normalizeRemoteToken(value: string | null | undefined): string | null {
@@ -143,6 +142,7 @@ function buildDefaultSettings(): AppSettings {
     remoteBackends: [defaultRemote],
     activeRemoteBackendId: defaultRemote.id,
     keepDaemonRunningAfterAppClose: false,
+    keepTunnelRunningAfterAppClose: false,
     defaultAccessMode: "current",
     reviewDeliveryMode: "inline",
     composerModelShortcut: isMac ? "cmd+shift+m" : "ctrl+shift+m",
@@ -270,6 +270,10 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
         : true,
     reviewDeliveryMode:
       settings.reviewDeliveryMode === "detached" ? "detached" : "inline",
+    keepTunnelRunningAfterAppClose:
+      typeof settings.keepTunnelRunningAfterAppClose === "boolean"
+        ? settings.keepTunnelRunningAfterAppClose
+        : false,
     chatHistoryScrollbackItems,
     commitMessagePrompt,
     openAppTargets: normalizedTargets,

@@ -53,13 +53,13 @@ export function MobileServerSetupWizard({
 
       <div className="mobile-setup-wizard-body">
         <label className="mobile-setup-wizard-label" htmlFor="mobile-setup-host">
-          Tailscale host
+          Remote host
         </label>
         <input
           id="mobile-setup-host"
           className="mobile-setup-wizard-input"
           value={remoteHostDraft}
-          placeholder="macbook.your-tailnet.ts.net:4732"
+          placeholder="wss://xxxx.trycloudflare.com or macbook.your-tailnet.ts.net:4732"
           onChange={(event) => onRemoteHostChange(event.target.value)}
           disabled={busy || checking}
         />
@@ -99,7 +99,7 @@ export function MobileServerSetupWizard({
         ) : null}
 
         <div className="mobile-setup-wizard-hint">
-          Use the Tailscale host from desktop Server settings and keep the desktop daemon running.
+          Use desktop Server settings values. Supports TCP host:port and public wss:// endpoints.
         </div>
       </div>
     </ModalShell>
