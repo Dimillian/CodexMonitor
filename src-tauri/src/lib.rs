@@ -1,3 +1,5 @@
+#![cfg(feature = "tauri-app")]
+
 #[cfg(desktop)]
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
