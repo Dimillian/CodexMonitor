@@ -1052,8 +1052,10 @@
   border-radius: 10px;
   background: var(--surface-command);
   overflow: hidden;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.14);
-  margin: 6px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin: 8px 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 .message .markdown-codeblock-header {
@@ -1097,6 +1099,9 @@
   padding: 10px 12px 12px;
   white-space: pre;
   overflow-x: auto;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
   font-family: var(--code-font-family);
   font-size: var(--code-font-size, 11px);
   font-weight: var(--code-font-weight, 400);
@@ -1104,18 +1109,21 @@
 }
 
 .message .markdown-codeblock-single {
-  margin: 6px 0;
+  margin: 8px 0;
   padding: 10px 12px 12px;
   border: 1px solid var(--border-stronger);
   border-radius: 10px;
   background: var(--surface-command);
   white-space: pre;
   overflow-x: auto;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
   font-family: var(--code-font-family);
   font-size: var(--code-font-size, 11px);
   font-weight: var(--code-font-weight, 400);
   line-height: var(--code-line-height, 1.28);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .message .markdown-codeblock-single code {
@@ -1173,7 +1181,7 @@
   margin: 0;
 }
 
-.message.assistant .markdown :where(p, ul, ol, pre, blockquote) {
+.message.assistant .markdown :where(p, ul, ol, blockquote) {
   max-width: 94ch;
 }
 
