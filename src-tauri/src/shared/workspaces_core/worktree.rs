@@ -346,7 +346,7 @@ pub(crate) async fn rename_worktree_core<
     data_dir: &PathBuf,
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
-    _app_settings: &Mutex<AppSettings>,
+    app_settings: &Mutex<AppSettings>,
     storage_path: &PathBuf,
     resolve_git_root: FResolveGitRoot,
     unique_branch_name: FUniqueBranch,
@@ -408,7 +408,21 @@ where
 
     run_git_command(&parent_root, &["branch", "-m", &old_branch, &final_branch]).await?;
 
-    let worktree_root = data_dir.join("worktrees").join(&parent.id);
+    // Use the same priority logic as add_worktree_core:
+    // per-workspace setting > global setting > default
+    let worktree_root = if let Some(custom_folder) = &parent.settings.worktrees_folder {
+        PathBuf::from(custom_folder)
+    } else {
+        let global_folder = {
+            let settings = app_settings.lock().await;
+            settings.global_worktrees_folder.clone()
+        };
+        if let Some(global_folder) = global_folder {
+            PathBuf::from(global_folder).join(&parent.id)
+        } else {
+            data_dir.join("worktrees").join(&parent.id)
+        }
+    };
     std::fs::create_dir_all(&worktree_root)
         .map_err(|err| format!("Failed to create worktree directory: {err}"))?;
 
