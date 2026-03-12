@@ -246,6 +246,14 @@ fn daemon_listen_addr(remote_host: &str) -> String {
     format!("0.0.0.0:{port}")
 }
 
+fn daemon_ws_listen_addr(remote_host: &str) -> String {
+    let ws_port = match parse_port_from_remote_host(remote_host) {
+        Some(port) if port < u16::MAX => port + 1,
+        _ => 4733,
+    };
+    format!("127.0.0.1:{ws_port}")
+}
+
 fn daemon_connect_addr(listen_addr: &str) -> Option<String> {
     let port = parse_port_from_remote_host(listen_addr)?;
     Some(format!("127.0.0.1:{port}"))
@@ -253,6 +261,10 @@ fn daemon_connect_addr(listen_addr: &str) -> Option<String> {
 
 fn configured_daemon_listen_addr(settings: &crate::types::AppSettings) -> String {
     daemon_listen_addr(&settings.remote_backend_host)
+}
+
+fn configured_daemon_ws_listen_addr(settings: &crate::types::AppSettings) -> String {
+    daemon_ws_listen_addr(&settings.remote_backend_host)
 }
 
 fn sync_tcp_daemon_listen_addr(status: &mut TcpDaemonStatus, configured_listen_addr: &str) {
@@ -405,6 +417,33 @@ async fn kill_pid_gracefully(pid: u32) -> Result<(), String> {
     Err(format!("Daemon process {pid} is still running."))
 }
 
+#[cfg(unix)]
+async fn is_pid_expected_daemon_process(pid: u32) -> bool {
+    let output = match tokio_command("ps")
+        .args(["-p", &pid.to_string(), "-o", "comm="])
+        .output()
+        .await
+    {
+        Ok(output) => output,
+        Err(_) => return false,
+    };
+
+    if !output.status.success() {
+        return false;
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let command = stdout.lines().next().map(str::trim).unwrap_or_default();
+    if command.is_empty() {
+        return false;
+    }
+    let basename = std::path::Path::new(command)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or(command);
+    matches!(basename, "codex_monitor_daemon" | "codex-monitor-daemon")
+}
+
 #[cfg(not(unix))]
 async fn find_listener_pid(_port: u16) -> Option<u32> {
     None
@@ -413,6 +452,11 @@ async fn find_listener_pid(_port: u16) -> Option<u32> {
 #[cfg(not(unix))]
 async fn kill_pid_gracefully(_pid: u32) -> Result<(), String> {
     Err("Stopping external daemon by pid is not supported on this platform.".to_string())
+}
+
+#[cfg(not(unix))]
+async fn is_pid_expected_daemon_process(_pid: u32) -> bool {
+    false
 }
 
 #[tauri::command]
@@ -520,9 +564,9 @@ pub(crate) async fn tailscale_status() -> Result<TailscaleStatus, String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        daemon_listen_addr, ensure_listen_addr_available, looks_like_tailscale_version,
-        parse_port_from_remote_host, sync_tcp_daemon_listen_addr, tailscale_binary_candidates,
-        truncate_preview,
+        daemon_listen_addr, daemon_ws_listen_addr, ensure_listen_addr_available,
+        looks_like_tailscale_version, parse_port_from_remote_host,
+        sync_tcp_daemon_listen_addr, tailscale_binary_candidates, truncate_preview,
     };
     use crate::types::{TcpDaemonState, TcpDaemonStatus};
 
@@ -605,6 +649,15 @@ mod tests {
             "0.0.0.0:8888"
         );
         assert_eq!(daemon_listen_addr("mac.example.ts.net"), "0.0.0.0:4732");
+    }
+
+    #[test]
+    fn builds_ws_listen_addr_with_port_offset() {
+        assert_eq!(
+            daemon_ws_listen_addr("mac.example.ts.net:8888"),
+            "127.0.0.1:8889"
+        );
+        assert_eq!(daemon_ws_listen_addr("mac.example.ts.net"), "127.0.0.1:4733");
     }
 
     #[test]

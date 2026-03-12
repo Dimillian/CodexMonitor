@@ -211,6 +211,27 @@ pub(crate) struct TcpDaemonStatus {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct CloudflareTunnelStatus {
+    pub(crate) state: TcpDaemonState,
+    #[serde(default)]
+    pub(crate) pid: Option<u32>,
+    #[serde(default)]
+    pub(crate) started_at_ms: Option<i64>,
+    #[serde(default)]
+    pub(crate) last_error: Option<String>,
+    #[serde(default, rename = "localUrl")]
+    pub(crate) local_url: Option<String>,
+    #[serde(default, rename = "publicUrl")]
+    pub(crate) public_url: Option<String>,
+    #[serde(default, rename = "suggestedWssUrl")]
+    pub(crate) suggested_wss_url: Option<String>,
+    pub(crate) installed: bool,
+    #[serde(default)]
+    pub(crate) version: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct TailscaleStatus {
     pub(crate) installed: bool,
     pub(crate) running: bool,
@@ -393,6 +414,8 @@ pub(crate) struct AppSettings {
     pub(crate) active_remote_backend_id: Option<String>,
     #[serde(default, rename = "keepDaemonRunningAfterAppClose")]
     pub(crate) keep_daemon_running_after_app_close: bool,
+    #[serde(default, rename = "keepTunnelRunningAfterAppClose")]
+    pub(crate) keep_tunnel_running_after_app_close: bool,
     #[serde(default = "default_access_mode", rename = "defaultAccessMode")]
     pub(crate) default_access_mode: String,
     #[serde(
@@ -658,6 +681,7 @@ impl Default for BackendMode {
 #[serde(rename_all = "lowercase")]
 pub(crate) enum RemoteBackendProvider {
     Tcp,
+    Wss,
 }
 
 impl Default for RemoteBackendProvider {
@@ -1119,6 +1143,7 @@ impl Default for AppSettings {
             remote_backends: default_remote_backends(),
             active_remote_backend_id: None,
             keep_daemon_running_after_app_close: false,
+            keep_tunnel_running_after_app_close: false,
             default_access_mode: "current".to_string(),
             review_delivery_mode: default_review_delivery_mode(),
             composer_model_shortcut: default_composer_model_shortcut(),
@@ -1217,6 +1242,7 @@ mod tests {
         assert!(settings.remote_backends.is_empty());
         assert!(settings.active_remote_backend_id.is_none());
         assert!(!settings.keep_daemon_running_after_app_close);
+        assert!(!settings.keep_tunnel_running_after_app_close);
         assert_eq!(settings.default_access_mode, "current");
         assert_eq!(settings.review_delivery_mode, "inline");
         let expected_primary = if cfg!(target_os = "macos") {

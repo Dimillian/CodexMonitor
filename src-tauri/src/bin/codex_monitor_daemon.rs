@@ -74,6 +74,7 @@ use ignore::WalkBuilder;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{broadcast, mpsc, Mutex, Semaphore};
+use tokio_tungstenite::accept_async;
 
 use backend::app_server::{spawn_workspace_session, WorkspaceSession};
 use backend::events::{AppServerEvent, EventSink, TerminalExit, TerminalOutput};
@@ -93,6 +94,7 @@ use types::{
 use workspace_settings::apply_workspace_settings_update;
 
 const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:4732";
+const DEFAULT_WS_LISTEN_ADDR: &str = "127.0.0.1:4733";
 const MAX_IN_FLIGHT_RPC_PER_CONNECTION: usize = 32;
 const DAEMON_NAME: &str = "codex-monitor-daemon";
 
@@ -144,6 +146,7 @@ impl EventSink for DaemonEventSink {
 
 struct DaemonConfig {
     listen: SocketAddr,
+    ws_listen: Option<SocketAddr>,
     token: Option<String>,
     data_dir: PathBuf,
 }
@@ -757,8 +760,7 @@ impl DaemonState {
         limit: Option<u32>,
         sort_key: Option<String>,
     ) -> Result<Value, String> {
-        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key)
-            .await
+        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key).await
     }
 
     async fn list_mcp_server_status(
@@ -1491,8 +1493,8 @@ fn default_data_dir() -> PathBuf {
 fn usage() -> String {
     format!(
         "\
-USAGE:\n  codex-monitor-daemon [--listen <addr>] [--data-dir <path>] [--token <token> | --insecure-no-auth]\n\n\
-OPTIONS:\n  --listen <addr>          Bind address (default: {DEFAULT_LISTEN_ADDR})\n  --data-dir <path>        Data dir holding workspaces.json/settings.json\n  --token <token>          Shared token required by TCP clients\n  --insecure-no-auth       Disable TCP auth (dev only)\n  -h, --help               Show this help\n"
+USAGE:\n  codex-monitor-daemon [--listen <addr>] [--ws-listen <addr>] [--data-dir <path>] [--token <token> | --insecure-no-auth]\n\n\
+OPTIONS:\n  --listen <addr>          Bind address for TCP JSON-RPC (default: {DEFAULT_LISTEN_ADDR})\n  --ws-listen <addr>       Optional bind address for WebSocket JSON-RPC (example: {DEFAULT_WS_LISTEN_ADDR})\n  --data-dir <path>        Data dir holding workspaces.json/settings.json\n  --token <token>          Shared token required by clients\n  --insecure-no-auth       Disable auth (dev only)\n  -h, --help               Show this help\n"
     )
 }
 
@@ -1500,6 +1502,7 @@ fn parse_args() -> Result<DaemonConfig, String> {
     let mut listen = DEFAULT_LISTEN_ADDR
         .parse::<SocketAddr>()
         .map_err(|err| err.to_string())?;
+    let mut ws_listen: Option<SocketAddr> = None;
     let mut token = env::var("CODEX_MONITOR_DAEMON_TOKEN")
         .ok()
         .map(|value| value.trim().to_string())
@@ -1517,6 +1520,10 @@ fn parse_args() -> Result<DaemonConfig, String> {
             "--listen" => {
                 let value = args.next().ok_or("--listen requires a value")?;
                 listen = value.parse::<SocketAddr>().map_err(|err| err.to_string())?;
+            }
+            "--ws-listen" => {
+                let value = args.next().ok_or("--ws-listen requires a value")?;
+                ws_listen = Some(value.parse::<SocketAddr>().map_err(|err| err.to_string())?);
             }
             "--token" => {
                 let value = args.next().ok_or("--token requires a value")?;
@@ -1551,6 +1558,7 @@ fn parse_args() -> Result<DaemonConfig, String> {
 
     Ok(DaemonConfig {
         listen,
+        ws_listen,
         token,
         data_dir: data_dir.unwrap_or_else(default_data_dir),
     })
@@ -1931,9 +1939,24 @@ fn main() {
                 std::process::exit(2);
             }
         };
+        let ws_listener = if let Some(ws_addr) = config.ws_listen {
+            match TcpListener::bind(ws_addr).await {
+                Ok(listener) => Some(listener),
+                Err(err) => {
+                    eprintln!("failed to bind websocket listener on {}: {err}", ws_addr);
+                    std::process::exit(2);
+                }
+            }
+        } else {
+            None
+        };
         eprintln!(
-            "codex-monitor-daemon listening on {} (data dir: {})",
+            "codex-monitor-daemon listening on {}{} (data dir: {})",
             config.listen,
+            config
+                .ws_listen
+                .map(|addr| format!(", ws {}", addr))
+                .unwrap_or_default(),
             state
                 .storage_path
                 .parent()
@@ -1941,18 +1964,53 @@ fn main() {
                 .display()
         );
 
-        loop {
-            match listener.accept().await {
-                Ok((socket, _addr)) => {
-                    let config = Arc::clone(&config);
-                    let state = Arc::clone(&state);
-                    let events = events_tx.clone();
-                    tokio::spawn(async move {
-                        transport::handle_client(socket, config, state, events).await;
-                    });
+        let config_for_tcp = Arc::clone(&config);
+        let state_for_tcp = Arc::clone(&state);
+        let events_for_tcp = events_tx.clone();
+        let tcp_task = tokio::spawn(async move {
+            loop {
+                match listener.accept().await {
+                    Ok((socket, _addr)) => {
+                        let config = Arc::clone(&config_for_tcp);
+                        let state = Arc::clone(&state_for_tcp);
+                        let events = events_for_tcp.clone();
+                        tokio::spawn(async move {
+                            transport::handle_client(socket, config, state, events).await;
+                        });
+                    }
+                    Err(_) => continue,
                 }
-                Err(_) => continue,
             }
+        });
+
+        if let Some(ws_listener) = ws_listener {
+            let config_for_ws = Arc::clone(&config);
+            let state_for_ws = Arc::clone(&state);
+            let events_for_ws = events_tx.clone();
+            let ws_task = tokio::spawn(async move {
+                loop {
+                    match ws_listener.accept().await {
+                        Ok((socket, _addr)) => {
+                            let config = Arc::clone(&config_for_ws);
+                            let state = Arc::clone(&state_for_ws);
+                            let events = events_for_ws.clone();
+                            tokio::spawn(async move {
+                                if let Ok(ws_stream) = accept_async(socket).await {
+                                    transport::handle_websocket_client(
+                                        ws_stream, config, state, events,
+                                    )
+                                    .await;
+                                }
+                            });
+                        }
+                        Err(_) => continue,
+                    }
+                }
+            });
+
+            let _ = futures_util::future::join(tcp_task, ws_task).await;
+        } else {
+            let _ = tcp_task.await;
         }
     });
 }

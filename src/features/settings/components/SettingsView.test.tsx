@@ -77,6 +77,7 @@ const baseSettings: AppSettings = {
   ],
   activeRemoteBackendId: "remote-default",
   keepDaemonRunningAfterAppClose: false,
+  keepTunnelRunningAfterAppClose: false,
   defaultAccessMode: "current",
   reviewDeliveryMode: "inline",
   composerModelShortcut: null,
@@ -783,7 +784,7 @@ describe("SettingsView Codex section", () => {
     });
   });
 
-  it("renders mobile daemon controls in local backend mode for TCP provider", async () => {
+  it("keeps local-only mode focused and hides remote daemon controls", async () => {
     cleanup();
     render(
       <SettingsView
@@ -822,11 +823,173 @@ describe("SettingsView Codex section", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Start daemon" })).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Stop daemon" })).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Refresh status" })).toBeTruthy();
-      expect(screen.getByLabelText("Remote backend host")).toBeTruthy();
-      expect(screen.getByLabelText("Remote backend token")).toBeTruthy();
+      expect(screen.getByText("Local mode is active")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Start daemon" })).toBeNull();
+      expect(screen.queryByLabelText("Remote backend host")).toBeNull();
+      expect(screen.queryByLabelText("Remote backend token")).toBeNull();
+    });
+  });
+
+  it("switches to public WSS mode from server settings", async () => {
+    cleanup();
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={{
+          ...baseSettings,
+          backendMode: "local",
+          remoteBackendProvider: "tcp",
+          remoteBackendHost: "wss://abc.trycloudflare.com",
+          remoteBackends: [],
+          activeRemoteBackendId: null,
+        }}
+        openAppIconById={{}}
+        onUpdateAppSettings={onUpdateAppSettings}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="server"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("radio", { name: /3\. Public WSS/i }));
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          remoteBackendProvider: "wss",
+          backendMode: "remote",
+        }),
+      );
+    });
+  });
+
+  it("switches to public WSS mode even without a prefilled WSS host", async () => {
+    cleanup();
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={{
+          ...baseSettings,
+          backendMode: "local",
+          remoteBackendProvider: "tcp",
+          remoteBackendHost: "127.0.0.1:4732",
+        }}
+        openAppIconById={{}}
+        onUpdateAppSettings={onUpdateAppSettings}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="server"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("radio", { name: /3\. Public WSS/i }));
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          remoteBackendProvider: "wss",
+          backendMode: "remote",
+        }),
+      );
+    });
+    expect(screen.queryByText(/Public WSS mode needs a valid `wss:\/\/` host/i)).toBeNull();
+  });
+
+  it("shows cloudflared install step in public mode when cloudflared is unavailable", async () => {
+    cleanup();
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={{
+          ...baseSettings,
+          backendMode: "remote",
+          remoteBackendProvider: "wss",
+          remoteBackendHost: "wss://abc.trycloudflare.com",
+          remoteBackendToken: "token-123",
+          remoteBackends: [
+            {
+              id: "remote-default",
+              name: "Primary remote",
+              provider: "wss",
+              host: "wss://abc.trycloudflare.com",
+              token: "token-123",
+            },
+          ],
+          activeRemoteBackendId: "remote-default",
+        }}
+        openAppIconById={{}}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="server"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Step 1: Install Cloudflare tunnel")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Install cloudflared" })).toBeTruthy();
     });
   });
 
@@ -906,9 +1069,7 @@ describe("SettingsView Codex section", () => {
       expect(screen.queryByRole("button", { name: "Start daemon" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Detect Tailscale" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Start Runner" })).toBeNull();
-      expect(
-        screen.getByText(/get the tailscale hostname and token from your desktop/i),
-      ).toBeTruthy();
+      expect(screen.getByText(/configure either a tailscale tcp host or a wss tunnel endpoint/i)).toBeTruthy();
     } finally {
       if (originalPlatformDescriptor) {
         Object.defineProperty(window.navigator, "platform", originalPlatformDescriptor);
