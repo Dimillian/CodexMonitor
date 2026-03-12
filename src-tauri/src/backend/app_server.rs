@@ -1126,6 +1126,18 @@ mod tests {
     }
 
     #[test]
+    fn extract_thread_id_reads_hook_notification_thread_id() {
+        let value = json!({
+            "method": "hook/started",
+            "params": {
+                "threadId": "thread-hook-1",
+                "run": { "id": "hook-1" }
+            }
+        });
+        assert_eq!(extract_thread_id(&value), Some("thread-hook-1".to_string()));
+    }
+
+    #[test]
     fn extract_thread_id_returns_none_when_missing() {
         let value = json!({ "params": {} });
         assert_eq!(extract_thread_id(&value), None);

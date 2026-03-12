@@ -396,6 +396,7 @@ export function useThreads({
   const threadHandlers = useThreadEventHandlers({
     activeThreadId,
     dispatch,
+    getItemsForThread: (threadId) => itemsByThreadRef.current[threadId] ?? [],
     planByThreadRef,
     getCurrentRateLimits,
     getCustomName,

@@ -9,6 +9,8 @@ export const SUPPORTED_APP_SERVER_METHODS = [
   "codex/connected",
   "codex/event/skills_update_available",
   "error",
+  "hook/completed",
+  "hook/started",
   "item/agentMessage/delta",
   "item/commandExecution/outputDelta",
   "item/commandExecution/terminalInteraction",

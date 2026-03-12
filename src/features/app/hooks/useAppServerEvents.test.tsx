@@ -47,6 +47,8 @@ describe("useAppServerEvents", () => {
     const handlers: Handlers = {
       onAppServerEvent: vi.fn(),
       onWorkspaceConnected: vi.fn(),
+      onHookStarted: vi.fn(),
+      onHookCompleted: vi.fn(),
       onThreadStarted: vi.fn(),
       onThreadNameUpdated: vi.fn(),
       onThreadStatusChanged: vi.fn(),
@@ -120,6 +122,45 @@ describe("useAppServerEvents", () => {
       "plan-1",
       "- Step 1",
     );
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "hook/started",
+          params: {
+            threadId: "thread-1",
+            turnId: "turn-1",
+            run: { id: "hook-1", eventName: "session-start", statusMessage: "Preparing" },
+          },
+        },
+      });
+    });
+    expect(handlers.onHookStarted).toHaveBeenCalledWith({
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      turnId: "turn-1",
+      run: { id: "hook-1", eventName: "session-start", statusMessage: "Preparing" },
+    });
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "hook/completed",
+          params: {
+            threadId: "thread-1",
+            run: { id: "hook-1", eventName: "session-start", status: "completed" },
+          },
+        },
+      });
+    });
+    expect(handlers.onHookCompleted).toHaveBeenCalledWith({
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      turnId: null,
+      run: { id: "hook-1", eventName: "session-start", status: "completed" },
+    });
 
     act(() => {
       listener?.({

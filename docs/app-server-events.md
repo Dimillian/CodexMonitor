@@ -1,4 +1,4 @@
-# App-Server Events Reference (Codex `6baeec68bd1bdc11284885a6d00fa4db4e1327b6`)
+# App-Server Events Reference (Codex `23e55d7668dabf86f8ae80b2ed1947a5192da11a`)
 
 This document helps agents quickly answer:
 - Which app-server events CodexMonitor supports right now.
@@ -62,6 +62,8 @@ subscriptions.
 - `account/updated`
 - `app/list/updated`
 - `error`
+- `hook/completed`
+- `hook/started`
 - `item/agentMessage/delta`
 - `item/commandExecution/outputDelta`
 - `item/commandExecution/terminalInteraction`
@@ -123,8 +125,6 @@ events are currently not routed:
 - `deprecationNotice`
 - `fuzzyFileSearch/sessionCompleted`
 - `fuzzyFileSearch/sessionUpdated`
-- `hook/completed`
-- `hook/started`
 - `item/mcpToolCall/progress`
 - `mcpServer/oauthLogin/completed`
 - `model/rerouted`

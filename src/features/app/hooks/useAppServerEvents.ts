@@ -28,6 +28,13 @@ type AgentCompleted = {
   text: string;
 };
 
+type HookEvent = {
+  workspaceId: string;
+  threadId: string;
+  turnId: string | null;
+  run: Record<string, unknown>;
+};
+
 type AppServerEventHandlers = {
   onWorkspaceConnected?: (workspaceId: string) => void;
   onThreadStarted?: (workspaceId: string, thread: Record<string, unknown>) => void;
@@ -67,6 +74,8 @@ type AppServerEventHandlers = {
     turnId: string,
     payload: { explanation: unknown; plan: unknown },
   ) => void;
+  onHookStarted?: (event: HookEvent) => void;
+  onHookCompleted?: (event: HookEvent) => void;
   onItemStarted?: (workspaceId: string, threadId: string, item: Record<string, unknown>) => void;
   onItemCompleted?: (workspaceId: string, threadId: string, item: Record<string, unknown>) => void;
   onReasoningSummaryDelta?: (workspaceId: string, threadId: string, itemId: string, delta: string) => void;
@@ -105,6 +114,8 @@ export const METHODS_ROUTED_IN_USE_APP_SERVER_EVENTS = [
   "codex/backgroundThread",
   "codex/connected",
   "error",
+  "hook/completed",
+  "hook/started",
   "item/agentMessage/delta",
   "item/commandExecution/outputDelta",
   "item/commandExecution/terminalInteraction",
@@ -128,6 +139,31 @@ export const METHODS_ROUTED_IN_USE_APP_SERVER_EVENTS = [
   "turn/plan/updated",
   "turn/started",
 ] as const satisfies readonly SupportedAppServerMethod[];
+
+function parseHookEvent(
+  workspaceId: string,
+  params: Record<string, unknown>,
+): HookEvent | null {
+  const threadId = String(params.threadId ?? params.thread_id ?? "").trim();
+  if (!threadId) {
+    return null;
+  }
+  const run = params.run;
+  if (!run || typeof run !== "object" || Array.isArray(run)) {
+    return null;
+  }
+  const turnIdRaw = params.turnId ?? params.turn_id ?? null;
+  const turnId =
+    typeof turnIdRaw === "string" && turnIdRaw.trim().length > 0
+      ? turnIdRaw.trim()
+      : null;
+  return {
+    workspaceId,
+    threadId,
+    turnId,
+    run: run as Record<string, unknown>,
+  };
+}
 
 export function useAppServerEvents(handlers: AppServerEventHandlers) {
   // Use ref to keep handlers current without triggering re-subscription
@@ -234,6 +270,22 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         const turnId = String(turn?.id ?? params.turnId ?? params.turn_id ?? "");
         if (threadId) {
           currentHandlers.onTurnStarted?.(workspace_id, threadId, turnId);
+        }
+        return;
+      }
+
+      if (method === "hook/started") {
+        const event = parseHookEvent(workspace_id, params);
+        if (event) {
+          currentHandlers.onHookStarted?.(event);
+        }
+        return;
+      }
+
+      if (method === "hook/completed") {
+        const event = parseHookEvent(workspace_id, params);
+        if (event) {
+          currentHandlers.onHookCompleted?.(event);
         }
         return;
       }

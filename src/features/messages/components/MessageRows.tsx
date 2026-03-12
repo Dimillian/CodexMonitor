@@ -24,6 +24,7 @@ import {
   buildToolSummary,
   exploreKindLabel,
   formatDurationMs,
+  formatToolStatusLabel,
   normalizeMessageImageSrc,
   toolNameFromTitle,
   toolStatusTone,
@@ -703,6 +704,7 @@ export const ToolRow = memo(function ToolRow({
     : isCommand
       ? ""
       : summary.label;
+  const inlineStatus = formatToolStatusLabel(item);
   const summaryValue = isFileChange
     ? changeNames.length > 1
       ? `${changeNames[0]} +${changeNames.length - 1}`
@@ -805,6 +807,9 @@ export const ToolRow = memo(function ToolRow({
                 summaryValue
               )}
             </span>
+          )}
+          {inlineStatus && (
+            <span className="tool-inline-status">{inlineStatus}</span>
           )}
         </button>
         {isExpanded && summary.detail && !isFileChange && (

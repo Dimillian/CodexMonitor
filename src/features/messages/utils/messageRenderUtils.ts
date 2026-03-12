@@ -365,6 +365,15 @@ export function buildToolSummary(
     };
   }
 
+  if (item.toolType === "hook") {
+    return {
+      label: "hook",
+      value: item.title.replace(/^Hook:\s*/i, "").trim() || item.title || "hook",
+      detail: item.detail || "",
+      output: item.output || "",
+    };
+  }
+
   if (item.toolType === "collabToolCall") {
     return {
       label: summarizeCollabLabel(item.title, item.status),
@@ -446,6 +455,23 @@ export function toolStatusTone(
     return "completed";
   }
   return "processing";
+}
+
+export function formatToolStatusLabel(
+  item: Extract<ConversationItem, { kind: "tool" }>,
+) {
+  if (item.toolType !== "hook") {
+    return "";
+  }
+  const parts: string[] = [];
+  const status = (item.status ?? "").trim().toLowerCase();
+  if (status) {
+    parts.push(status.replace(/[_-]+/g, " "));
+  }
+  if (typeof item.durationMs === "number" && Number.isFinite(item.durationMs)) {
+    parts.push(formatDurationMs(item.durationMs));
+  }
+  return parts.join(" • ");
 }
 
 

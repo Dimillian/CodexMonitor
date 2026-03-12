@@ -1589,4 +1589,40 @@ describe("Messages", () => {
     expect(screen.getByText("Input requested")).toBeTruthy();
     expect(screen.queryByText("Plan ready")).toBeNull();
   });
+
+  it("renders hook rows through the standard tool renderer", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "hook-hook-1",
+        kind: "tool",
+        toolType: "hook",
+        title: "Hook: session-start",
+        detail: "command • sync • thread • session-start.sh • Preparing",
+        status: "failed",
+        output: "[error] Missing config",
+        durationMs: 3100,
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(screen.getByText("hook:")).toBeTruthy();
+    expect(screen.getByText("session-start")).toBeTruthy();
+    expect(screen.getByText("failed • 0:03")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle tool details" }));
+    expect(
+      screen.getByText("command • sync • thread • session-start.sh • Preparing"),
+    ).toBeTruthy();
+    expect(screen.getByText("[error] Missing config")).toBeTruthy();
+  });
 });
