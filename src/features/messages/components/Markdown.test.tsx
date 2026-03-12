@@ -273,4 +273,43 @@ describe("Markdown file-like href behavior", () => {
     expect(clickEvent.defaultPrevented).toBe(true);
     expect(onOpenFileLink).not.toHaveBeenCalled();
   });
+
+  it("does not turn natural-language slash phrases into file links", () => {
+    const { container } = render(
+      <Markdown
+        value="Keep the current app/daemon behavior and the existing Git/Plan experience."
+        className="markdown"
+      />,
+    );
+
+    expect(container.querySelector(".message-file-link")).toBeNull();
+    expect(container.textContent).toContain("app/daemon");
+    expect(container.textContent).toContain("Git/Plan");
+  });
+
+  it("does not turn longer slash phrases into file links", () => {
+    const { container } = render(
+      <Markdown
+        value="This keeps Spec/Verification/Evidence in the note without turning it into a file link."
+        className="markdown"
+      />,
+    );
+
+    expect(container.querySelector(".message-file-link")).toBeNull();
+    expect(container.textContent).toContain("Spec/Verification/Evidence");
+  });
+
+  it("still turns clear file paths in plain text into file links", () => {
+    const { container } = render(
+      <Markdown
+        value="See docs/setup.md and /Users/example/project/src/index.ts for details."
+        className="markdown"
+      />,
+    );
+
+    const fileLinks = [...container.querySelectorAll(".message-file-link")];
+    expect(fileLinks).toHaveLength(2);
+    expect(fileLinks[0]?.textContent).toContain("setup.md");
+    expect(fileLinks[1]?.textContent).toContain("index.ts");
+  });
 });

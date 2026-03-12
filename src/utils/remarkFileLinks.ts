@@ -9,17 +9,7 @@ const FILE_PATH_PATTERN =
 const FILE_PATH_MATCH = new RegExp(`^${FILE_PATH_PATTERN.source}$`);
 
 const TRAILING_PUNCTUATION = new Set([".", ",", ";", ":", "!", "?", ")", "]", "}"]);
-const RELATIVE_ALLOWED_PREFIXES = [
-  "src/",
-  "app/",
-  "lib/",
-  "tests/",
-  "test/",
-  "packages/",
-  "apps/",
-  "docs/",
-  "scripts/",
-];
+const LETTER_OR_NUMBER_PATTERN = /[\p{L}\p{N}.]/u;
 
 type MarkdownNode = {
   type: string;
@@ -43,7 +33,11 @@ function isPathCandidate(
     return false;
   }
   if (value.startsWith("/") || value.startsWith("./") || value.startsWith("../")) {
-    if (value.startsWith("/") && previousChar && /[A-Za-z0-9.]/.test(previousChar)) {
+    if (
+      value.startsWith("/") &&
+      previousChar &&
+      LETTER_OR_NUMBER_PATTERN.test(previousChar)
+    ) {
       return false;
     }
     return true;
@@ -52,10 +46,7 @@ function isPathCandidate(
     return true;
   }
   const lastSegment = value.split("/").pop() ?? "";
-  if (lastSegment.includes(".")) {
-    return true;
-  }
-  return RELATIVE_ALLOWED_PREFIXES.some((prefix) => value.startsWith(prefix));
+  return lastSegment.includes(".");
 }
 
 function splitTrailingPunctuation(value: string) {
