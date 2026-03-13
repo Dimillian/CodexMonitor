@@ -7,6 +7,7 @@ export type WorkspaceSettings = {
   launchScript?: string | null;
   launchScripts?: LaunchScriptEntry[] | null;
   worktreeSetupScript?: string | null;
+  worktreesFolder?: string | null;
 };
 
 export type LaunchScriptIconId =
@@ -303,6 +304,7 @@ export type AppSettings = {
   composerListContinuation: boolean;
   composerCodeBlockCopyUseModifier: boolean;
   workspaceGroups: WorkspaceGroup[];
+  globalWorktreesFolder: string | null;
   openAppTargets: OpenAppTarget[];
   selectedOpenAppId: string;
 };

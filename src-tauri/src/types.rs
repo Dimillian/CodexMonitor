@@ -329,6 +329,8 @@ pub(crate) struct WorkspaceSettings {
     pub(crate) launch_scripts: Option<Vec<LaunchScriptEntry>>,
     #[serde(default, rename = "worktreeSetupScript")]
     pub(crate) worktree_setup_script: Option<String>,
+    #[serde(default, rename = "worktreesFolder")]
+    pub(crate) worktrees_folder: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -635,6 +637,8 @@ pub(crate) struct AppSettings {
     pub(crate) composer_code_block_copy_use_modifier: bool,
     #[serde(default = "default_workspace_groups", rename = "workspaceGroups")]
     pub(crate) workspace_groups: Vec<WorkspaceGroup>,
+    #[serde(default, rename = "globalWorktreesFolder")]
+    pub(crate) global_worktrees_folder: Option<String>,
     #[serde(default = "default_open_app_targets", rename = "openAppTargets")]
     pub(crate) open_app_targets: Vec<OpenAppTarget>,
     #[serde(default = "default_selected_open_app_id", rename = "selectedOpenAppId")]
@@ -1182,6 +1186,7 @@ impl Default for AppSettings {
             composer_list_continuation: default_composer_list_continuation(),
             composer_code_block_copy_use_modifier: default_composer_code_block_copy_use_modifier(),
             workspace_groups: default_workspace_groups(),
+            global_worktrees_folder: None,
             open_app_targets: default_open_app_targets(),
             selected_open_app_id: default_selected_open_app_id(),
         }

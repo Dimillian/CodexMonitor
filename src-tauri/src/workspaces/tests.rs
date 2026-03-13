@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex as StdMutex};
 
 use super::settings::{apply_workspace_settings_update, sort_workspaces};
 use super::worktree::{
@@ -56,6 +56,7 @@ fn workspace_with_id_and_kind(
             launch_script: None,
             launch_scripts: None,
             worktree_setup_script: None,
+            worktrees_folder: None,
         },
     }
 }
@@ -387,6 +388,95 @@ fn rename_worktree_updates_name_when_unmodified() {
         .expect("rename worktree");
 
         assert_eq!(updated.name, "feature/new");
+    });
+}
+
+#[test]
+fn rename_worktree_validates_worktree_root_before_branch_rename() {
+    run_async(async {
+        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        let repo_path = temp_dir.join("repo");
+        std::fs::create_dir_all(&repo_path).expect("create repo path");
+        let worktree_path = temp_dir.join("worktrees").join("parent").join("old");
+        std::fs::create_dir_all(&worktree_path).expect("create worktree path");
+
+        let invalid_root = temp_dir.join("not-a-directory");
+        std::fs::write(&invalid_root, "x").expect("create invalid root file");
+
+        let mut parent_settings = WorkspaceSettings::default();
+        parent_settings.worktrees_folder = Some(invalid_root.to_string_lossy().to_string());
+        let parent = WorkspaceEntry {
+            id: "parent".to_string(),
+            name: "Parent".to_string(),
+            path: repo_path.to_string_lossy().to_string(),
+            kind: WorkspaceKind::Main,
+            parent_id: None,
+            worktree: None,
+            settings: parent_settings,
+        };
+        let worktree = WorkspaceEntry {
+            id: "wt-3".to_string(),
+            name: "feature/old".to_string(),
+            path: worktree_path.to_string_lossy().to_string(),
+            kind: WorkspaceKind::Worktree,
+            parent_id: Some(parent.id.clone()),
+            worktree: Some(WorktreeInfo {
+                branch: "feature/old".to_string(),
+            }),
+            settings: WorkspaceSettings::default(),
+        };
+        let workspaces = Mutex::new(HashMap::from([
+            (parent.id.clone(), parent.clone()),
+            (worktree.id.clone(), worktree.clone()),
+        ]));
+        let sessions: Mutex<HashMap<String, Arc<WorkspaceSession>>> = Mutex::new(HashMap::new());
+        let app_settings = Mutex::new(AppSettings::default());
+        let storage_path = temp_dir.join("workspaces.json");
+
+        let calls: Arc<StdMutex<Vec<Vec<String>>>> = Arc::new(StdMutex::new(Vec::new()));
+        let result = rename_worktree_core(
+            worktree.id.clone(),
+            "feature/new".to_string(),
+            &temp_dir,
+            &workspaces,
+            &sessions,
+            &app_settings,
+            &storage_path,
+            |_| Ok(repo_path.clone()),
+            |_root, branch| {
+                let branch = branch.to_string();
+                async move { Ok(branch) }
+            },
+            |value| sanitize_worktree_name(value),
+            |_, _, current| Ok(current.to_path_buf()),
+            |_root, args| {
+                let calls = calls.clone();
+                let args: Vec<String> = args.iter().map(|value| value.to_string()).collect();
+                async move {
+                    calls
+                        .lock()
+                        .expect("lock")
+                        .push(args);
+                    Ok(())
+                }
+            },
+            |_entry, _default_bin, _codex_args, _codex_home| async move {
+                Err("spawn not expected".to_string())
+            },
+        )
+        .await;
+
+        let error = result.expect_err("expected invalid worktree root to fail");
+        assert!(error.contains("Failed to create worktree directory"));
+        assert!(calls.lock().expect("lock").is_empty());
+
+        let stored = workspaces.lock().await;
+        let entry = stored.get(&worktree.id).expect("stored entry");
+        assert_eq!(
+            entry.worktree.as_ref().map(|worktree| worktree.branch.as_str()),
+            Some("feature/old")
+        );
+        assert_eq!(entry.path, worktree.path);
     });
 }
 

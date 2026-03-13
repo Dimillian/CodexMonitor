@@ -11,8 +11,12 @@ type SettingsEnvironmentsSectionProps = {
   environmentDraftScript: string;
   environmentSavedScript: string | null;
   environmentDirty: boolean;
+  worktreesFolderDraft: string;
+  worktreesFolderSaved: string | null;
+  worktreesFolderDirty: boolean;
   onSetEnvironmentWorkspaceId: Dispatch<SetStateAction<string | null>>;
   onSetEnvironmentDraftScript: Dispatch<SetStateAction<string>>;
+  onSetWorktreesFolderDraft: Dispatch<SetStateAction<string>>;
   onSaveEnvironmentSetup: () => Promise<void>;
 };
 
@@ -24,14 +28,20 @@ export function SettingsEnvironmentsSection({
   environmentDraftScript,
   environmentSavedScript,
   environmentDirty,
+  worktreesFolderDraft,
+  worktreesFolderSaved,
+  worktreesFolderDirty,
   onSetEnvironmentWorkspaceId,
   onSetEnvironmentDraftScript,
+  onSetWorktreesFolderDraft,
   onSaveEnvironmentSetup,
 }: SettingsEnvironmentsSectionProps) {
+  const hasAnyChanges = environmentDirty || worktreesFolderDirty;
+
   return (
     <SettingsSection
       title="Environments"
-      subtitle="Configure per-project setup scripts that run after worktree creation."
+      subtitle="Configure per-project setup scripts and worktree locations."
     >
       {mainWorkspaces.length === 0 ? (
         <div className="settings-empty">No projects yet.</div>
@@ -116,9 +126,54 @@ export function SettingsEnvironmentsSection({
                 onClick={() => {
                   void onSaveEnvironmentSetup();
                 }}
-                disabled={environmentSaving || !environmentDirty}
+                disabled={environmentSaving || !hasAnyChanges}
               >
                 {environmentSaving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+
+          <div className="settings-field">
+            <label className="settings-field-label" htmlFor="settings-worktrees-folder">
+              Worktrees folder
+            </label>
+            <div className="settings-help">
+              Custom location for worktrees. Leave empty to use the default location.
+            </div>
+            <div className="settings-field-row">
+              <input
+                id="settings-worktrees-folder"
+                type="text"
+                className="settings-input"
+                value={worktreesFolderDraft}
+                onChange={(event) => onSetWorktreesFolderDraft(event.target.value)}
+                placeholder="/path/to/worktrees"
+                disabled={environmentSaving}
+              />
+              <button
+                type="button"
+                className="ghost settings-button-compact"
+                onClick={async () => {
+                  try {
+                    const { open } = await import("@tauri-apps/plugin-dialog");
+                    const selected = await open({
+                      directory: true,
+                      multiple: false,
+                      title: "Select worktrees folder",
+                    });
+                    if (selected && typeof selected === "string") {
+                      onSetWorktreesFolderDraft(selected);
+                    }
+                  } catch (error) {
+                    pushErrorToast({
+                      title: "Failed to open folder picker",
+                      message: error instanceof Error ? error.message : String(error),
+                    });
+                  }
+                }}
+                disabled={environmentSaving}
+              >
+                Browse
               </button>
             </div>
           </div>
