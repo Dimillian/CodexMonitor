@@ -451,7 +451,7 @@
 .settings-agents-generate-loader {
   width: 14px;
   height: 14px;
-  animation: settings-spin 1s linear infinite;
+  animation: settings-spin var(--ds-spinner-dur) linear infinite;
 }
 
 .settings-agents-textarea {
@@ -641,6 +641,8 @@
   background: var(--surface-control);
   color: var(--text-strong);
   font-size: 12px;
+  transition: border-color var(--ds-dur-normal) var(--ds-ease-out-soft),
+              box-shadow var(--ds-dur-normal) var(--ds-ease-out-soft);
 }
 
 .settings-input--compact {
@@ -685,6 +687,8 @@
   background: var(--surface-control);
   color: var(--text-strong);
   font-size: 12px;
+  transition: border-color var(--ds-dur-normal) var(--ds-ease-out-soft),
+              box-shadow var(--ds-dur-normal) var(--ds-ease-out-soft);
 }
 
 .settings-select option {
@@ -720,6 +724,9 @@
   padding: 0;
   min-width: 72px;
   overflow: hidden;
+  transition: color var(--ds-dur-fast) var(--ds-ease-out-soft),
+              background-color var(--ds-dur-fast) var(--ds-ease-out-soft),
+              box-shadow var(--ds-dur-fast) var(--ds-ease-out-soft);
 }
 
 .settings-segmented-input {
@@ -1198,13 +1205,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  transition: all 0.2s ease;
+  transition: background var(--ds-dur-normal) var(--ds-ease-out-soft),
+              border-color var(--ds-dur-normal) var(--ds-ease-out-soft);
 }
 
 .settings-toggle.on {
   background: linear-gradient(135deg, rgba(100, 200, 255, 0.6), rgba(120, 235, 190, 0.6));
   border-color: var(--border-accent);
-  justify-content: flex-end;
 }
 
 .app.reduced-transparency .settings-toggle:not(.on) {
@@ -1218,6 +1225,11 @@
   border-radius: 999px;
   background: var(--surface-card-strong);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: transform var(--ds-dur-normal) var(--ds-ease-spring);
+}
+
+.settings-toggle.on .settings-toggle-knob {
+  transform: translateX(20px);
 }
 
 @media (max-width: 720px) {

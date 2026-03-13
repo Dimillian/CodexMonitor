@@ -10,6 +10,7 @@
   background: var(--ds-modal-backdrop);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  animation: ds-modal-backdrop-in var(--ds-dur-entrance) var(--ds-ease-out) both;
 }
 
 .app.reduced-transparency .ds-modal-backdrop {
@@ -30,6 +31,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  animation: ds-modal-card-in var(--ds-dur-slow) var(--ds-ease-out) both;
 }
 
 .ds-modal :where(input, textarea, select):focus-visible {
@@ -62,6 +64,8 @@
   padding: 10px 12px;
   font-size: 13px;
   width: 100%;
+  transition: border-color var(--ds-dur-normal) var(--ds-ease-out-soft),
+              box-shadow var(--ds-dur-normal) var(--ds-ease-out-soft);
 }
 
 .ds-modal-textarea {
@@ -96,4 +100,20 @@
 .ds-modal-button {
   padding: 6px 12px;
   border-radius: 10px;
+}
+
+@keyframes ds-modal-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes ds-modal-card-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }

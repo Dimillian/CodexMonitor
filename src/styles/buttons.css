@@ -10,7 +10,7 @@ button {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, filter 0.15s ease;
   -webkit-app-region: no-drag;
 }
 
@@ -51,4 +51,22 @@ button:disabled {
 button:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 12px 18px rgba(0, 0, 0, 0.2);
+}
+
+button:active:not(:disabled) {
+  transform: scale(var(--ds-active-scale));
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transition-duration: 50ms;
+}
+
+.icon-button:active:not(:disabled) {
+  transform: scale(var(--ds-active-scale-sm));
+}
+
+.primary:active:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.ghost:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
 }

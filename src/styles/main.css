@@ -883,7 +883,7 @@
 }
 
 .compact-codex-refresh-icon.spinning {
-  animation: compact-codex-refresh-spin 0.8s linear infinite;
+  animation: compact-codex-refresh-spin var(--ds-spinner-dur) linear infinite;
 }
 
 @keyframes compact-codex-refresh-spin {

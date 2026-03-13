@@ -47,7 +47,7 @@ html[data-mobile-composer-focus="true"] .app.layout-phone .tabbar {
   justify-content: center;
   gap: 4px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .tabbar-item:hover {

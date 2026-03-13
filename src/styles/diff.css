@@ -997,7 +997,7 @@
   border-radius: 50%;
   border: 2px solid var(--border-subtle);
   border-top-color: var(--text-strong);
-  animation: spin 0.9s linear infinite;
+  animation: spin var(--ds-spinner-dur) linear infinite;
 }
 
 @keyframes spin {
@@ -1102,7 +1102,7 @@
 .commit-message-loader {
   width: 14px;
   height: 14px;
-  animation: spin 1s linear infinite;
+  animation: spin var(--ds-spinner-dur) linear infinite;
 }
 
 .commit-message-error {
@@ -1150,7 +1150,7 @@
   border-radius: 50%;
   border: 2px solid var(--border-subtle);
   border-top-color: var(--text-emphasis);
-  animation: spin 0.9s linear infinite;
+  animation: spin var(--ds-spinner-dur) linear infinite;
 }
 
 /* Push section */

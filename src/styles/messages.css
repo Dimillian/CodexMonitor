@@ -58,7 +58,7 @@
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.2);
   border-top-color: var(--text-stronger);
-  animation: working-spin 1s linear infinite;
+  animation: working-spin var(--ds-spinner-dur) linear infinite;
 }
 
 .working-timer {

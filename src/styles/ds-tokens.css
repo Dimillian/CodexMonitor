@@ -41,4 +41,18 @@
   /* Global layer scale (keep numeric so it works with z-index + calc()). */
   --ds-layer-modal: 10000;
   --ds-layer-toast: 11000;
+
+  /* ── Motion ── */
+  --ds-dur-fast: 120ms;
+  --ds-dur-normal: 160ms;
+  --ds-dur-slow: 220ms;
+  --ds-dur-entrance: 200ms;
+
+  --ds-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ds-ease-out-soft: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ds-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --ds-spinner-dur: 0.7s;
+  --ds-active-scale: 0.97;
+  --ds-active-scale-sm: 0.92;
 }

@@ -291,7 +291,7 @@
 }
 
 .sidebar-refresh-icon.spinning {
-  animation: sidebar-refresh-spin 0.8s linear infinite;
+  animation: sidebar-refresh-spin var(--ds-spinner-dur) linear infinite;
 }
 
 .sidebar-refresh-toggle:hover,
@@ -705,7 +705,7 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease;
   -webkit-app-region: no-drag;
   overflow-x: hidden;
   position: relative;
@@ -980,13 +980,13 @@
 .thread-status.processing {
   background: #ff9f43;
   box-shadow: 0 0 8px rgba(255, 159, 67, 0.8);
-  animation: pulse 1.2s ease-in-out infinite;
+  animation: pulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 .thread-status.reviewing {
   background: #2fd1c4;
   box-shadow: 0 0 8px rgba(47, 209, 196, 0.75);
-  animation: pulse 1.4s ease-in-out infinite;
+  animation: pulse 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 .thread-status.unread {
@@ -1253,7 +1253,7 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease;
   -webkit-app-region: no-drag;
   overflow-x: hidden;
 }
@@ -1308,7 +1308,7 @@
   border-radius: 50%;
   border: 2px solid var(--border-subtle);
   border-top-color: var(--text-strong);
-  animation: spin 0.9s linear infinite;
+  animation: spin var(--ds-spinner-dur) linear infinite;
 }
 
 .worktree-deleting-label {
@@ -1483,7 +1483,7 @@
   border-radius: 999px;
   border: 2px solid rgba(11, 15, 26, 0.22);
   border-top-color: rgba(11, 15, 26, 0.8);
-  animation: sidebar-account-spin 0.8s linear infinite;
+  animation: sidebar-account-spin var(--ds-spinner-dur) linear infinite;
 }
 
 @keyframes sidebar-account-spin {
@@ -1525,15 +1525,15 @@
 
 @keyframes pulse {
   0% {
-    transform: scale(0.9);
+    transform: scale(0.92);
     opacity: 0.6;
   }
   50% {
-    transform: scale(1.2);
+    transform: scale(1.1);
     opacity: 1;
   }
   100% {
-    transform: scale(0.9);
+    transform: scale(0.92);
     opacity: 0.6;
   }
 }

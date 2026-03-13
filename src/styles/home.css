@@ -213,7 +213,7 @@
 }
 
 .home-usage-refresh-icon.spinning {
-  animation: home-spin 0.8s linear infinite;
+  animation: home-spin var(--ds-spinner-dur) linear infinite;
 }
 
 .home-usage-grid {
