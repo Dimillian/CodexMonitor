@@ -603,6 +603,10 @@ export function useMainAppLayoutSurfaces({
         usageWorkspaceId,
         usageWorkspaceOptions,
         onUsageWorkspaceChange,
+        accountRateLimits: activeRateLimits,
+        usageShowRemaining: appSettings.usageShowRemaining,
+        accountInfo: activeAccount,
+        accountWorkspaceLabel: activeWorkspace?.name ?? null,
         onSelectThread: (workspaceId, threadId) => {
           threadNavigation.exitDiffView();
           threadNavigation.clearDraftState();
