@@ -592,15 +592,17 @@
   border-radius: 6px;
   border: 1px solid var(--border-subtle);
   display: inline-flex;
+  flex: 1 1 auto;
   min-width: 0;
-  max-width: 420px;
+  max-width: 100%;
 }
 
 .tool-inline-command-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  display: inline-block;
+  display: block;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -1182,7 +1184,7 @@
 }
 
 .message.assistant .markdown :where(p, ul, ol, blockquote) {
-  max-width: 94ch;
+  max-width: none;
 }
 
 .markdown :where(strong) {
