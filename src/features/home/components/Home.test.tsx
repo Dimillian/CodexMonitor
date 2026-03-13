@@ -25,7 +25,6 @@ const baseProps = {
   accountRateLimits: null,
   usageShowRemaining: false,
   accountInfo: null,
-  accountWorkspaceLabel: null,
   onSelectThread: vi.fn(),
 };
 
@@ -281,7 +280,6 @@ describe("Home", () => {
           planType: "pro",
           requiresOpenaiAuth: false,
         }}
-        accountWorkspaceLabel="CodexMonitor"
       />,
     );
 
@@ -293,6 +291,7 @@ describe("Home", () => {
     expect(screen.getByText("Unlimited")).toBeTruthy();
     expect(screen.getByText("Pro")).toBeTruthy();
     expect(screen.getByText(/user@example\.com/)).toBeTruthy();
+    expect(screen.queryByText("Workspace CodexMonitor")).toBeNull();
 
     const todayCard = screen.getByText("Today").closest(".home-usage-card");
     expect(todayCard).toBeTruthy();

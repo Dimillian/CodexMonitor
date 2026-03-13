@@ -141,6 +141,30 @@ describe("Sidebar", () => {
     expect(onSetThreadListOrganizeMode).toHaveBeenCalledWith("threads_only");
   });
 
+  it("renders available credits in the footer when present", () => {
+    render(
+      <Sidebar
+        {...baseProps}
+        accountRateLimits={{
+          primary: {
+            usedPercent: 62,
+            windowDurationMins: 300,
+            resetsAt: Math.round(Date.now() / 1000) + 3600,
+          },
+          secondary: null,
+          credits: {
+            hasCredits: true,
+            unlimited: false,
+            balance: "120",
+          },
+          planType: "pro",
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Available credits: 120")).toBeTruthy();
+  });
+
   it("renders threads-only mode as a global chronological list", () => {
     const older = Date.now() - 10_000;
     const newer = Date.now();

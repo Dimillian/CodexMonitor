@@ -138,4 +138,47 @@ describe("normalizeRateLimits", () => {
     expect(normalized.secondary?.usedPercent).toBe(60);
     expect(normalized.secondary?.windowDurationMins).toBe(10_080);
   });
+
+  it("infers credits availability from a balance when hasCredits is omitted", () => {
+    const normalized = normalizeRateLimits({
+      credits: {
+        balance: "120",
+      },
+    });
+
+    expect(normalized.credits).toEqual({
+      hasCredits: true,
+      unlimited: false,
+      balance: "120",
+    });
+  });
+
+  it("keeps credit balances visible when unlimited is explicitly false", () => {
+    const normalized = normalizeRateLimits({
+      credits: {
+        unlimited: false,
+        balance: "120",
+      },
+    });
+
+    expect(normalized.credits).toEqual({
+      hasCredits: true,
+      unlimited: false,
+      balance: "120",
+    });
+  });
+
+  it("normalizes numeric credit balances", () => {
+    const normalized = normalizeRateLimits({
+      credits: {
+        balance: 75,
+      },
+    });
+
+    expect(normalized.credits).toEqual({
+      hasCredits: true,
+      unlimited: false,
+      balance: "75",
+    });
+  });
 });

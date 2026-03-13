@@ -53,7 +53,6 @@ type HomeProps = {
   accountRateLimits: RateLimitSnapshot | null;
   usageShowRemaining: boolean;
   accountInfo: AccountSnapshot | null;
-  accountWorkspaceLabel: string | null;
   onSelectThread: (workspaceId: string, threadId: string) => void;
 };
 
@@ -226,7 +225,6 @@ export function Home({
   accountRateLimits,
   usageShowRemaining,
   accountInfo,
-  accountWorkspaceLabel,
   onSelectThread,
 }: HomeProps) {
   const [chartWeekOffset, setChartWeekOffset] = useState(0);
@@ -486,11 +484,7 @@ export function Home({
     });
   }
 
-  const accountMetaParts = [
-    accountWorkspaceLabel ? `Workspace ${accountWorkspaceLabel}` : null,
-    accountInfo?.email ?? null,
-  ].filter(Boolean);
-  const accountMeta = accountMetaParts.length > 0 ? accountMetaParts.join(" · ") : null;
+  const accountMeta = accountInfo?.email ?? null;
   const updatedLabel = localUsageSnapshot
     ? `Updated ${formatRelativeTime(localUsageSnapshot.updatedAt)}`
     : null;
@@ -708,30 +702,30 @@ export function Home({
                 >
                   {chartRangeLabel}
                 </div>
-	                <div className="home-usage-chart-actions">
-	                  {canShowOlderWeek && (
-	                    <button
+                <div className="home-usage-chart-actions">
+                  {canShowOlderWeek && (
+                    <button
                       type="button"
                       className="home-usage-chart-button"
                       onClick={() => setChartWeekOffset((current) => current + 1)}
                       aria-label="Show previous week"
                       title="Show previous week"
                     >
-	                      <ChevronLeft aria-hidden />
-	                    </button>
-	                  )}
-	                  <button
-	                    type="button"
-	                    className="home-usage-chart-button"
-	                    onClick={() => setChartWeekOffset((current) => Math.max(0, current - 1))}
-	                    aria-label="Show next week"
-	                    title="Show next week"
-	                    disabled={!canShowNewerWeek}
-	                  >
-	                    <ChevronRight aria-hidden />
-	                  </button>
-	                </div>
-	              </div>
+                      <ChevronLeft aria-hidden />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="home-usage-chart-button"
+                    onClick={() => setChartWeekOffset((current) => Math.max(0, current - 1))}
+                    aria-label="Show next week"
+                    title="Show next week"
+                    disabled={!canShowNewerWeek}
+                  >
+                    <ChevronRight aria-hidden />
+                  </button>
+                </div>
+              </div>
               <div className="home-usage-chart">
                 {chartDays.map((day) => {
                   const value =
@@ -810,7 +804,11 @@ export function Home({
               <div className="home-account">
                 <div className="home-section-header">
                   <div className="home-section-title">Account limits</div>
-                  {accountMeta && <div className="home-section-meta">{accountMeta}</div>}
+                  {accountMeta && (
+                    <div className="home-section-meta-row">
+                      <div className="home-section-meta">{accountMeta}</div>
+                    </div>
+                  )}
                 </div>
                 <div className="home-usage-grid home-account-grid">
                   {accountCards.map((card) => (
