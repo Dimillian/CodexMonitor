@@ -3,6 +3,7 @@ import type { MouseEvent, ReactNode } from "react";
 import { DesktopLayout } from "../../layout/components/DesktopLayout";
 import { TabletLayout } from "../../layout/components/TabletLayout";
 import { PhoneLayout } from "../../layout/components/PhoneLayout";
+
 type AppLayoutProps = {
   isPhone: boolean;
   isTablet: boolean;
@@ -42,6 +43,7 @@ type AppLayoutProps = {
   onRightPanelResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
   onChatTreePanelResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
   onPlanPanelResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
+  mobileChatTreeModalNode?: ReactNode;
 };
 
 export const AppLayout = memo(function AppLayout({
@@ -83,54 +85,61 @@ export const AppLayout = memo(function AppLayout({
   onRightPanelResizeStart,
   onChatTreePanelResizeStart,
   onPlanPanelResizeStart,
+  mobileChatTreeModalNode,
 }: AppLayoutProps) {
   if (isPhone) {
     return (
-      <PhoneLayout
-        approvalToastsNode={approvalToastsNode}
-        updateToastNode={updateToastNode}
-        errorToastsNode={errorToastsNode}
-        tabBarNode={tabBarNode}
-        homeNode={homeNode}
-        sidebarNode={sidebarNode}
-        activeTab={activeTab}
-        activeWorkspace={activeWorkspace}
-        showGitDetail={showGitDetail}
-        compactEmptyCodexNode={compactEmptyCodexNode}
-        compactEmptyGitNode={compactEmptyGitNode}
-        compactGitBackNode={compactGitBackNode}
-        topbarLeftNode={mainHeaderNode}
-        topbarActionsNode={topbarActionsNode}
-        messagesNode={messagesNode}
-        composerNode={composerNode}
-        gitDiffPanelNode={gitDiffPanelNode}
-        gitDiffViewerNode={gitDiffViewerNode}
-        debugPanelNode={debugPanelFullNode}
-      />
+      <>
+        <PhoneLayout
+          approvalToastsNode={approvalToastsNode}
+          updateToastNode={updateToastNode}
+          errorToastsNode={errorToastsNode}
+          tabBarNode={tabBarNode}
+          homeNode={homeNode}
+          sidebarNode={sidebarNode}
+          activeTab={activeTab}
+          activeWorkspace={activeWorkspace}
+          showGitDetail={showGitDetail}
+          compactEmptyCodexNode={compactEmptyCodexNode}
+          compactEmptyGitNode={compactEmptyGitNode}
+          compactGitBackNode={compactGitBackNode}
+          topbarLeftNode={mainHeaderNode}
+          topbarActionsNode={topbarActionsNode}
+          messagesNode={messagesNode}
+          composerNode={composerNode}
+          gitDiffPanelNode={gitDiffPanelNode}
+          gitDiffViewerNode={gitDiffViewerNode}
+          debugPanelNode={debugPanelFullNode}
+        />
+        {mobileChatTreeModalNode}
+      </>
     );
   }
 
   if (isTablet) {
     return (
-      <TabletLayout
-        tabletNavNode={tabletNavNode}
-        approvalToastsNode={approvalToastsNode}
-        updateToastNode={updateToastNode}
-        errorToastsNode={errorToastsNode}
-        homeNode={homeNode}
-        showHome={showHome}
-        showWorkspace={activeWorkspace && !showHome}
-        sidebarNode={sidebarNode}
-        tabletTab={tabletTab}
-        onSidebarResizeStart={onSidebarResizeStart}
-        topbarLeftNode={mainHeaderNode}
-        topbarActionsNode={topbarActionsNode}
-        messagesNode={messagesNode}
-        composerNode={composerNode}
-        gitDiffPanelNode={gitDiffPanelNode}
-        gitDiffViewerNode={gitDiffViewerNode}
-        debugPanelNode={debugPanelFullNode}
-      />
+      <>
+        <TabletLayout
+          tabletNavNode={tabletNavNode}
+          approvalToastsNode={approvalToastsNode}
+          updateToastNode={updateToastNode}
+          errorToastsNode={errorToastsNode}
+          homeNode={homeNode}
+          showHome={showHome}
+          showWorkspace={activeWorkspace && !showHome}
+          sidebarNode={sidebarNode}
+          tabletTab={tabletTab}
+          onSidebarResizeStart={onSidebarResizeStart}
+          topbarLeftNode={mainHeaderNode}
+          topbarActionsNode={topbarActionsNode}
+          messagesNode={messagesNode}
+          composerNode={composerNode}
+          gitDiffPanelNode={gitDiffPanelNode}
+          gitDiffViewerNode={gitDiffViewerNode}
+          debugPanelNode={debugPanelFullNode}
+        />
+        {mobileChatTreeModalNode}
+      </>
     );
   }
 

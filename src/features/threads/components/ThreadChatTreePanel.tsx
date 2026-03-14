@@ -1,4 +1,6 @@
+import { useEffect, useMemo, useState } from "react";
 import type { ThreadChatTree } from "@/types";
+import { PopoverSurface } from "@/features/design-system/components/popover/PopoverPrimitives";
 import {
   PanelFrame,
   PanelHeader,
@@ -23,6 +25,7 @@ const GRAPH_PADDING_X = 30;
 const GRAPH_PADDING_Y = 22;
 const NODE_RADIUS = 7;
 const CONNECTOR_CURVE_OFFSET = 26;
+const NODE_POPOVER_OFFSET_Y = 20;
 
 function shortId(value: string | null) {
   if (!value) {
@@ -33,24 +36,6 @@ function shortId(value: string | null) {
 
 function nodeTitle(node: ThreadChatTree["nodes"][number]) {
   return node.summary?.trim() || node.turnId?.trim() || shortId(node.nodeId);
-}
-
-function tooltipText({
-  node,
-  isCurrent,
-}: {
-  node: ThreadChatTree["nodes"][number];
-  isCurrent: boolean;
-}) {
-  const lines = [nodeTitle(node)];
-
-  if (isCurrent) {
-    lines.push("Current branch.");
-  } else {
-    lines.push("Double-click to switch to this branch.");
-  }
-
-  return lines.join("\n");
 }
 
 function laneX(lane: number) {
@@ -71,8 +56,16 @@ export function ThreadChatTreePanel({
   onReload,
   onSetCurrentNode,
 }: ThreadChatTreePanelProps) {
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const graph = buildThreadChatTreeGraph(tree);
   const graphNodeById = new Map(graph.nodes.map((entry) => [entry.node.nodeId, entry]));
+  const selectedEntry = useMemo(
+    () =>
+      selectedNodeId
+        ? graph.nodes.find((entry) => entry.node.nodeId === selectedNodeId) ?? null
+        : null,
+    [graph.nodes, selectedNodeId],
+  );
   const graphWidth =
     graph.laneCount > 0
       ? GRAPH_PADDING_X * 2 + Math.max(0, graph.laneCount - 1) * LANE_GAP
@@ -86,6 +79,25 @@ export function ThreadChatTreePanel({
     ? `${graph.nodes.length} node${graph.nodes.length === 1 ? "" : "s"}`
     : "No branches yet";
   const branchSwitchingDisabled = isProcessing || isLoading || isSwitching;
+
+  useEffect(() => {
+    if (selectedNodeId && !graphNodeById.has(selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [graphNodeById, selectedNodeId]);
+
+  useEffect(() => {
+    if (switchingNodeId) {
+      setSelectedNodeId(switchingNodeId);
+    }
+  }, [switchingNodeId]);
+
+  async function handleSwitchNode(nodeId: string) {
+    const didSwitch = await onSetCurrentNode(nodeId);
+    if (didSwitch) {
+      setSelectedNodeId(null);
+    }
+  }
 
   return (
     <PanelFrame className="chat-tree-panel">
@@ -120,13 +132,16 @@ export function ThreadChatTreePanel({
                 ? "Branch switching is disabled while the thread is running."
                 : isLoading || isSwitching
                   ? "Branch switching is disabled while the thread is refreshing."
-                  : "Double-click a node to switch to that branch. Hover a node to inspect it."}
+                  : "Tap or click a node to inspect it, then use Switch to change branches."}
             </div>
             <div
               className="chat-tree-graph"
               style={{
                 minWidth: `${graphWidth}px`,
                 minHeight: `${graphHeight}px`,
+              }}
+              onClick={() => {
+                setSelectedNodeId(null);
               }}
             >
               <svg
@@ -163,36 +178,72 @@ export function ThreadChatTreePanel({
                   );
                 })}
               </svg>
-              {graph.nodes.map((entry) => {
-                const disabled =
-                  branchSwitchingDisabled ||
-                  (isSwitching && switchingNodeId !== entry.node.nodeId);
-
-                return (
-                  <button
-                    key={entry.node.nodeId}
-                    type="button"
-                    className={`chat-tree-graph-node-button${entry.isCurrent ? " is-current" : ""}${
-                      switchingNodeId === entry.node.nodeId ? " is-switching" : ""
-                    }`}
-                    style={{
-                      left: `${laneX(entry.lane)}px`,
-                      top: `${depthY(entry.depth)}px`,
-                    }}
-                    onDoubleClick={() => {
-                      void onSetCurrentNode(entry.node.nodeId);
-                    }}
-                    disabled={disabled}
-                    aria-label={nodeTitle(entry.node)}
-                    title={tooltipText({
-                      node: entry.node,
-                      isCurrent: entry.isCurrent,
-                    })}
-                  >
-                    <span className="chat-tree-graph-node-dot" />
-                  </button>
-                );
-              })}
+              {graph.nodes.map((entry) => (
+                <button
+                  key={entry.node.nodeId}
+                  type="button"
+                  className={`chat-tree-graph-node-button${entry.isCurrent ? " is-current" : ""}${
+                    switchingNodeId === entry.node.nodeId ? " is-switching" : ""
+                  }${selectedNodeId === entry.node.nodeId ? " is-selected" : ""}`}
+                  style={{
+                    left: `${laneX(entry.lane)}px`,
+                    top: `${depthY(entry.depth)}px`,
+                  }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setSelectedNodeId((current) =>
+                      current === entry.node.nodeId ? null : entry.node.nodeId,
+                    );
+                  }}
+                  aria-label={nodeTitle(entry.node)}
+                  aria-pressed={selectedNodeId === entry.node.nodeId}
+                >
+                  <span className="chat-tree-graph-node-dot" />
+                </button>
+              ))}
+              {selectedEntry ? (
+                <PopoverSurface
+                  className="chat-tree-node-popover"
+                  role="dialog"
+                  style={{
+                    left: `${laneX(selectedEntry.lane)}px`,
+                    top: `${depthY(selectedEntry.depth) + NODE_POPOVER_OFFSET_Y}px`,
+                  }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                  }}
+                >
+                  <div className="chat-tree-node-popover-title">{nodeTitle(selectedEntry.node)}</div>
+                  <div className="chat-tree-node-popover-meta">
+                    <div>{selectedEntry.isCurrent ? "Current branch" : "Available branch"}</div>
+                    <div>Node: {shortId(selectedEntry.node.nodeId)}</div>
+                    {selectedEntry.node.turnId ? (
+                      <div>Turn: {shortId(selectedEntry.node.turnId)}</div>
+                    ) : null}
+                  </div>
+                  {!selectedEntry.isCurrent ? (
+                    <div className="chat-tree-node-popover-actions">
+                      <button
+                        type="button"
+                        className="chat-tree-node-switch"
+                        disabled={
+                          branchSwitchingDisabled ||
+                          switchingNodeId === selectedEntry.node.nodeId
+                        }
+                        onClick={() => {
+                          void handleSwitchNode(selectedEntry.node.nodeId);
+                        }}
+                      >
+                        {switchingNodeId === selectedEntry.node.nodeId
+                          ? "Switching..."
+                          : "Switch"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="chat-tree-node-popover-current">Current</div>
+                  )}
+                </PopoverSurface>
+              ) : null}
             </div>
           </>
         )}

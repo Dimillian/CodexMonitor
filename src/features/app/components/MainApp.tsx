@@ -2,6 +2,7 @@ import { lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import successSoundUrl from "@/assets/success-notification.mp3";
 import errorSoundUrl from "@/assets/error-notification.mp3";
 import { MainAppShell } from "@app/components/MainAppShell";
+import { ModalShell } from "@/features/design-system/components/modal/ModalShell";
 import { useThreads } from "@threads/hooks/useThreads";
 import { usePullRequestComposer } from "@/features/git/hooks/usePullRequestComposer";
 import { useAutoExitEmptyDiff } from "@/features/git/hooks/useAutoExitEmptyDiff";
@@ -134,6 +135,7 @@ export default function MainApp() {
     "home" | "projects" | "codex" | "git" | "log"
   >("codex");
   const [mobileThreadRefreshLoading, setMobileThreadRefreshLoading] = useState(false);
+  const [mobileChatTreeOpen, setMobileChatTreeOpen] = useState(false);
   const tabletTab =
     activeTab === "projects" || activeTab === "home" ? "codex" : activeTab;
   const {
@@ -1606,6 +1608,11 @@ export default function MainApp() {
     Boolean(activeWorkspace?.connected) &&
     appSettings.backendMode === "remote" &&
     remoteThreadConnectionState === "polling";
+  useEffect(() => {
+    if (!showCompactCodexThreadActions) {
+      setMobileChatTreeOpen(false);
+    }
+  }, [showCompactCodexThreadActions]);
   const gitRootOverride = activeWorkspace?.settings.gitRoot;
   const hasGitRootOverride =
     typeof gitRootOverride === "string" && gitRootOverride.trim().length > 0;
@@ -1613,6 +1620,9 @@ export default function MainApp() {
     Boolean(activeWorkspace) && !hasGitRootOverride && isMissingRepo(gitStatus.error);
   const displayNodes = useMainAppDisplayNodes({
     showCompactCodexThreadActions,
+    onOpenMobileChatTree: () => {
+      setMobileChatTreeOpen(true);
+    },
     handleMobileThreadRefresh,
     mobileThreadRefreshLoading,
     centerMode,
@@ -1929,6 +1939,31 @@ export default function MainApp() {
   } = useMainAppLayoutNodes(layoutSurfaces);
 
   const mainMessagesNode = showWorkspaceHome ? workspaceHomeNode : messagesNode;
+  const mobileChatTreeModalNode = mobileChatTreeOpen ? (
+    <ModalShell
+      className="mobile-chat-tree-modal"
+      cardClassName="mobile-chat-tree-modal-card"
+      ariaLabel="Chat tree"
+      onBackdropClick={() => {
+        setMobileChatTreeOpen(false);
+      }}
+    >
+      <div className="mobile-chat-tree-modal-shell">
+        <div className="mobile-chat-tree-modal-toolbar">
+          <button
+            type="button"
+            className="ghost mobile-chat-tree-modal-close"
+            onClick={() => {
+              setMobileChatTreeOpen(false);
+            }}
+          >
+            Close
+          </button>
+        </div>
+        <div className="mobile-chat-tree-modal-body">{chatTreePanelNode}</div>
+      </div>
+    </ModalShell>
+  ) : null;
   const compactThreadConnectionState: "live" | "polling" | "disconnected" =
     !activeWorkspace?.connected
       ? "disconnected"
@@ -1993,6 +2028,7 @@ export default function MainApp() {
       onRightPanelResizeStart,
       onChatTreePanelResizeStart,
       onPlanPanelResizeStart,
+      mobileChatTreeModalNode,
     },
     topbar: {
       isCompact,

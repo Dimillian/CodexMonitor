@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ThreadChatTreePanel } from "./ThreadChatTreePanel";
 
@@ -8,8 +8,8 @@ afterEach(() => {
 });
 
 describe("ThreadChatTreePanel", () => {
-  it("renders graph nodes and switches on double-click", () => {
-    const onSetCurrentNode = vi.fn();
+  it("opens node details and switches from the popover action", async () => {
+    const onSetCurrentNode = vi.fn().mockResolvedValue(true);
 
     render(
       <ThreadChatTreePanel
@@ -42,18 +42,18 @@ describe("ThreadChatTreePanel", () => {
       />,
     );
 
-    expect(screen.getByText("Chat Tree")).toBeTruthy();
-    expect(screen.queryByText("Current")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Feature branch" }));
 
-    const targetButton = screen.getByRole("button", { name: "Feature branch" });
-    expect(targetButton.getAttribute("title")?.includes("Double-click to switch")).toBe(true);
+    expect(screen.getByText("Available branch")).toBeTruthy();
 
-    fireEvent.doubleClick(targetButton);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Switch" }));
+    });
 
     expect(onSetCurrentNode).toHaveBeenCalledWith("node-b");
   });
 
-  it("uses hover tooltip metadata for the current node", () => {
+  it("shows current branch details when selecting the active node", () => {
     render(
       <ThreadChatTreePanel
         tree={{
@@ -78,11 +78,13 @@ describe("ThreadChatTreePanel", () => {
       />,
     );
 
-    const currentNode = screen.getByRole("button", { name: "Root branch" });
-    expect(currentNode.getAttribute("title")?.includes("Current branch")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Root branch" }));
+
+    expect(screen.getByText("Current branch")).toBeTruthy();
+    expect(screen.getByText("Current")).toBeTruthy();
   });
 
-  it("disables branch switching while the tree is refreshing", () => {
+  it("disables the switch action while the tree is refreshing", () => {
     render(
       <ThreadChatTreePanel
         tree={{
@@ -119,9 +121,10 @@ describe("ThreadChatTreePanel", () => {
     ).toBeTruthy();
 
     const refreshButton = screen.getByRole("button", { name: "Refresh" });
-    const targetButton = screen.getByRole("button", { name: "Feature branch" });
+    fireEvent.click(screen.getByRole("button", { name: "Feature branch" }));
+    const switchButton = screen.getByRole("button", { name: "Switch" });
 
     expect(refreshButton.hasAttribute("disabled")).toBe(true);
-    expect(targetButton.hasAttribute("disabled")).toBe(true);
+    expect(switchButton.hasAttribute("disabled")).toBe(true);
   });
 });
