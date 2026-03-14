@@ -1,0 +1,41 @@
+[workspace]
+members = ["sys"]
+exclude = ["examples/full_usage"]
+
+[package]
+name = "whisper-rs"
+version = "0.12.0"
+edition = "2021"
+description = "Rust bindings for whisper.cpp"
+license = "Unlicense"
+documentation = "https://docs.rs/whisper-rs"
+repository = "https://github.com/tazz4843/whisper-rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+whisper-rs-sys = { path = "sys", version = "0.10" }
+log = { version = "0.4", optional = true }
+tracing = { version = "0.1", optional = true }
+
+[dev-dependencies]
+hound = "3.5.0"
+rand = "0.8.4"
+
+[features]
+default = []
+
+raw-api = []
+coreml = ["whisper-rs-sys/coreml"]
+cuda = ["whisper-rs-sys/cuda", "_gpu"]
+hipblas = ["whisper-rs-sys/hipblas", "_gpu"]
+opencl = ["whisper-rs-sys/opencl"]
+openblas = ["whisper-rs-sys/openblas"]
+metal = ["whisper-rs-sys/metal", "_gpu"]
+_gpu = []
+test-with-tiny-model = []
+whisper-cpp-log = ["dep:log"]
+whisper-cpp-tracing = ["dep:tracing"]
+
+[package.metadata.docs.rs]
+features = ["simd"]

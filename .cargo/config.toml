@@ -1,0 +1,5 @@
+[env]
+# LLVM 22 + bindgen can regenerate whisper bindings with Windows enum types
+# that do not match whisper-rs 0.12's MSVC expectations. Use the crate's
+# bundled bindings until the upstream dependency is updated.
+WHISPER_DONT_GENERATE_BINDINGS = { value = "1", force = true }

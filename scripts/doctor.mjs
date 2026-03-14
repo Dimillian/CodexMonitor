@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { getWindowsToolPath } from "./windows-toolchain.mjs";
 
 const strict = process.argv.includes("--strict");
 
@@ -43,8 +44,15 @@ function hasCommand(command) {
 }
 
 const missing = [];
-if (!hasCommand("cmake")) missing.push("cmake");
-if (process.platform === "win32" && !hasCommand("clang")) missing.push("llvm");
+const hasCmake =
+  hasCommand("cmake") || (process.platform === "win32" && getWindowsToolPath("cmake"));
+const hasLlvm =
+  process.platform !== "win32" ||
+  hasCommand("clang") ||
+  Boolean(getWindowsToolPath("clang"));
+
+if (!hasCmake) missing.push("cmake");
+if (!hasLlvm) missing.push("llvm");
 
 if (missing.length === 0) {
   console.log("Doctor: OK");

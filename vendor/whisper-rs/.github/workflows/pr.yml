@@ -1,0 +1,76 @@
+name: Check code
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  rustfmt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code into the proper directory
+        uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+
+      - name: Cache rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rustfmt
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+
+  clippy:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust-version: [stable, nightly]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out code into the proper directory
+        uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+
+      - name: Cache rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust-version }}
+          components: clippy
+
+      - name: Check clippy lints
+        run: cargo clippy
+
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust-version: [stable, nightly]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out code into the proper directory
+        uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+
+      - name: Cache rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust-version }}
+
+      - name: Check build
+        run: cargo build --verbose
