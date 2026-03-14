@@ -598,4 +598,352 @@ describe("useHomeAccount", () => {
       expect(refreshAccountRateLimits).toHaveBeenLastCalledWith("ws-1");
     });
   });
+
+  it("falls back when the retained aggregate workspace disconnects", async () => {
+    const refreshAccountInfo = vi.fn();
+    const refreshAccountRateLimits = vi.fn();
+
+    const { result, rerender } = renderHook(
+      ({
+        workspaces,
+      }: {
+        workspaces: WorkspaceInfo[];
+      }) =>
+        useHomeAccount({
+          showHome: true,
+          usageWorkspaceId: null,
+          workspaces,
+          threadsByWorkspace: {
+            "ws-1": [makeThread("thread-1", 10)],
+            "ws-2": [makeThread("thread-2", 20)],
+          },
+          threadListLoadingByWorkspace: makeThreadListLoadingState(workspaces),
+          rateLimitsByWorkspace: {
+            "ws-1": makeRateLimits({ primary: { usedPercent: 30, windowDurationMins: 300, resetsAt: 1_700_000_000 } }),
+            "ws-2": makeRateLimits({ primary: { usedPercent: 60, windowDurationMins: 300, resetsAt: 1_700_000_000 } }),
+          },
+          accountByWorkspace: {
+            "ws-1": makeAccount({ email: "older@example.com" }),
+            "ws-2": makeAccount({ email: "recent@example.com" }),
+          },
+          refreshAccountInfo,
+          refreshAccountRateLimits,
+        }),
+      {
+        initialProps: {
+          workspaces: [
+            makeWorkspace("ws-1"),
+            makeWorkspace("ws-2"),
+          ],
+        },
+      },
+    );
+
+    expect(result.current.homeAccountWorkspaceId).toBe("ws-2");
+
+    await waitFor(() => {
+      expect(refreshAccountInfo).toHaveBeenCalledWith("ws-2");
+      expect(refreshAccountRateLimits).toHaveBeenCalledWith("ws-2");
+    });
+
+    refreshAccountInfo.mockClear();
+    refreshAccountRateLimits.mockClear();
+
+    rerender({
+      workspaces: [
+        makeWorkspace("ws-1"),
+        makeWorkspace("ws-2", { connected: false }),
+      ],
+    });
+
+    await waitFor(() => {
+      expect(result.current.homeAccountWorkspaceId).toBe("ws-1");
+    });
+
+    expect(result.current.homeAccount?.email).toBe("older@example.com");
+    await waitFor(() => {
+      expect(refreshAccountInfo).toHaveBeenLastCalledWith("ws-1");
+      expect(refreshAccountRateLimits).toHaveBeenLastCalledWith("ws-1");
+    });
+  });
+
+  it("keeps a committed disconnected aggregate workspace stable while all workspaces stay offline", async () => {
+    const refreshAccountInfo = vi.fn();
+    const refreshAccountRateLimits = vi.fn();
+    type HookProps = {
+      threadsByWorkspace: Record<string, ThreadSummary[]>;
+      rateLimitsByWorkspace: Record<string, RateLimitSnapshot | null | undefined>;
+      accountByWorkspace: Record<string, AccountSnapshot | null | undefined>;
+    };
+    const workspaces = [
+      makeWorkspace("ws-1", { connected: false }),
+      makeWorkspace("ws-2", { connected: false }),
+    ];
+
+    const { result, rerender } = renderHook(
+      ({
+        threadsByWorkspace,
+        rateLimitsByWorkspace,
+        accountByWorkspace,
+      }: HookProps) =>
+        useHomeAccount({
+          showHome: true,
+          usageWorkspaceId: null,
+          workspaces,
+          threadsByWorkspace,
+          threadListLoadingByWorkspace: makeThreadListLoadingState(workspaces),
+          rateLimitsByWorkspace,
+          accountByWorkspace,
+          refreshAccountInfo,
+          refreshAccountRateLimits,
+        }),
+      {
+        initialProps: {
+          threadsByWorkspace: {
+            "ws-1": [makeThread("thread-1", 20)],
+            "ws-2": [makeThread("thread-2", 10)],
+          },
+          rateLimitsByWorkspace: {
+            "ws-1": makeRateLimits({ primary: { usedPercent: 99, windowDurationMins: 300, resetsAt: 1_700_000_000 } }),
+            "ws-2": makeRateLimits({ primary: { usedPercent: 42, windowDurationMins: 300, resetsAt: 1_700_000_000 } }),
+          },
+          accountByWorkspace: {
+            "ws-1": makeAccount({ email: "stale@example.com" }),
+            "ws-2": makeAccount({ email: "current@example.com" }),
+          },
+        },
+      },
+    );
+
+    expect(result.current.homeAccountWorkspaceId).toBe("ws-1");
+    expect(refreshAccountInfo).not.toHaveBeenCalled();
+    expect(refreshAccountRateLimits).not.toHaveBeenCalled();
+
+    rerender({
+      threadsByWorkspace: {
+        "ws-1": [makeThread("thread-1", 20)],
+        "ws-2": [makeThread("thread-2", 30)],
+      },
+      rateLimitsByWorkspace: {
+        "ws-1": makeRateLimits({ primary: { usedPercent: 99, windowDurationMins: 300, resetsAt: 1_700_000_000 } }),
+        "ws-2": makeRateLimits({ primary: { usedPercent: 15, windowDurationMins: 300, resetsAt: 1_700_000_000 } }),
+      },
+      accountByWorkspace: {
+        "ws-1": makeAccount({ email: "stale@example.com" }),
+        "ws-2": makeAccount({ email: "newer@example.com" }),
+      },
+    });
+
+    expect(result.current.homeAccountWorkspaceId).toBe("ws-1");
+    expect(result.current.homeAccount?.email).toBe("stale@example.com");
+    expect(refreshAccountInfo).not.toHaveBeenCalled();
+    expect(refreshAccountRateLimits).not.toHaveBeenCalled();
+  });
+
+  it("retains a committed disconnected aggregate workspace until a reconnected workspace finishes hydrating", async () => {
+    const refreshAccountInfo = vi.fn();
+    const refreshAccountRateLimits = vi.fn();
+    type HookProps = {
+      workspaces: WorkspaceInfo[];
+      threadListLoadingByWorkspace: Record<string, boolean>;
+      rateLimitsByWorkspace: Record<string, RateLimitSnapshot | null | undefined>;
+      accountByWorkspace: Record<string, AccountSnapshot | null | undefined>;
+    };
+    const initialProps: HookProps = {
+      workspaces: [
+        makeWorkspace("ws-1", { connected: false }),
+        makeWorkspace("ws-2", { connected: false }),
+      ],
+      threadListLoadingByWorkspace: {
+        "ws-1": false,
+        "ws-2": false,
+      },
+      rateLimitsByWorkspace: {
+        "ws-1": makeRateLimits({ primary: { usedPercent: 99, windowDurationMins: 300, resetsAt: 1_700_000_000 } }),
+      },
+      accountByWorkspace: {
+        "ws-1": makeAccount({ email: "stale@example.com" }),
+      },
+    };
+
+    const { result, rerender } = renderHook(
+      ({
+        workspaces,
+        threadListLoadingByWorkspace,
+        rateLimitsByWorkspace,
+        accountByWorkspace,
+      }: HookProps) =>
+        useHomeAccount({
+          showHome: true,
+          usageWorkspaceId: null,
+          workspaces,
+          threadsByWorkspace: {
+            "ws-1": [makeThread("thread-1", 20)],
+            "ws-2": [makeThread("thread-2", 10)],
+          },
+          threadListLoadingByWorkspace,
+          rateLimitsByWorkspace,
+          accountByWorkspace,
+          refreshAccountInfo,
+          refreshAccountRateLimits,
+        }),
+      {
+        initialProps,
+      },
+    );
+
+    expect(result.current.homeAccountWorkspaceId).toBe("ws-1");
+    expect(result.current.homeAccount?.email).toBe("stale@example.com");
+    expect(refreshAccountInfo).not.toHaveBeenCalled();
+    expect(refreshAccountRateLimits).not.toHaveBeenCalled();
+
+    rerender({
+      workspaces: [
+        makeWorkspace("ws-1", { connected: false }),
+        makeWorkspace("ws-2"),
+      ],
+      threadListLoadingByWorkspace: {
+        "ws-1": false,
+        "ws-2": true,
+      },
+      rateLimitsByWorkspace: {
+        "ws-1": makeRateLimits({ primary: { usedPercent: 99, windowDurationMins: 300, resetsAt: 1_700_000_000 } }),
+      },
+      accountByWorkspace: {
+        "ws-1": makeAccount({ email: "stale@example.com" }),
+      },
+    });
+
+    expect(result.current.homeAccountWorkspaceId).toBe("ws-1");
+    expect(result.current.homeAccount?.email).toBe("stale@example.com");
+    expect(refreshAccountInfo).not.toHaveBeenCalled();
+    expect(refreshAccountRateLimits).not.toHaveBeenCalled();
+
+    rerender({
+      workspaces: [
+        makeWorkspace("ws-1", { connected: false }),
+        makeWorkspace("ws-2"),
+      ],
+      threadListLoadingByWorkspace: {
+        "ws-1": false,
+        "ws-2": false,
+      },
+      rateLimitsByWorkspace: {
+        "ws-1": makeRateLimits({ primary: { usedPercent: 99, windowDurationMins: 300, resetsAt: 1_700_000_000 } }),
+      },
+      accountByWorkspace: {
+        "ws-1": makeAccount({ email: "stale@example.com" }),
+      },
+    });
+
+    expect(result.current.homeAccountWorkspaceId).toBe("ws-1");
+    expect(result.current.homeAccount?.email).toBe("stale@example.com");
+    expect(refreshAccountInfo).not.toHaveBeenCalled();
+    expect(refreshAccountRateLimits).not.toHaveBeenCalled();
+
+    rerender({
+      workspaces: [
+        makeWorkspace("ws-1", { connected: false }),
+        makeWorkspace("ws-2"),
+      ],
+      threadListLoadingByWorkspace: {
+        "ws-1": false,
+        "ws-2": false,
+      },
+      rateLimitsByWorkspace: {
+        "ws-1": makeRateLimits({ primary: { usedPercent: 99, windowDurationMins: 300, resetsAt: 1_700_000_000 } }),
+        "ws-2": makeRateLimits({ primary: { usedPercent: 42, windowDurationMins: 300, resetsAt: 1_700_000_000 } }),
+      },
+      accountByWorkspace: {
+        "ws-1": makeAccount({ email: "stale@example.com" }),
+        "ws-2": makeAccount({ email: "current@example.com" }),
+      },
+    });
+
+    await waitFor(() => {
+      expect(result.current.homeAccountWorkspaceId).toBe("ws-2");
+    });
+
+    expect(result.current.homeAccount?.email).toBe("current@example.com");
+    await waitFor(() => {
+      expect(refreshAccountInfo).toHaveBeenLastCalledWith("ws-2");
+      expect(refreshAccountRateLimits).toHaveBeenLastCalledWith("ws-2");
+    });
+  });
+
+  it("drops a committed disconnected aggregate workspace after another workspace reconnects", async () => {
+    const refreshAccountInfo = vi.fn();
+    const refreshAccountRateLimits = vi.fn();
+    type HookProps = {
+      workspaces: WorkspaceInfo[];
+      rateLimitsByWorkspace: Record<string, RateLimitSnapshot | null | undefined>;
+      accountByWorkspace: Record<string, AccountSnapshot | null | undefined>;
+    };
+    const initialProps: HookProps = {
+      workspaces: [
+        makeWorkspace("ws-1", { connected: false }),
+        makeWorkspace("ws-2", { connected: false }),
+      ],
+      rateLimitsByWorkspace: {
+        "ws-1": makeRateLimits({ primary: { usedPercent: 99, windowDurationMins: 300, resetsAt: 1_700_000_000 } }),
+      },
+      accountByWorkspace: {
+        "ws-1": makeAccount({ email: "stale@example.com" }),
+      },
+    };
+
+    const { result, rerender } = renderHook(
+      ({
+        workspaces,
+        rateLimitsByWorkspace,
+        accountByWorkspace,
+      }: HookProps) =>
+        useHomeAccount({
+          showHome: true,
+          usageWorkspaceId: null,
+          workspaces,
+          threadsByWorkspace: {
+            "ws-1": [makeThread("thread-1", 20)],
+            "ws-2": [makeThread("thread-2", 10)],
+          },
+          threadListLoadingByWorkspace: makeThreadListLoadingState(workspaces),
+          rateLimitsByWorkspace,
+          accountByWorkspace,
+          refreshAccountInfo,
+          refreshAccountRateLimits,
+        }),
+      {
+        initialProps,
+      },
+    );
+
+    expect(result.current.homeAccountWorkspaceId).toBe("ws-1");
+    expect(refreshAccountInfo).not.toHaveBeenCalled();
+    expect(refreshAccountRateLimits).not.toHaveBeenCalled();
+
+    rerender({
+      workspaces: [
+        makeWorkspace("ws-1", { connected: false }),
+        makeWorkspace("ws-2"),
+      ],
+      rateLimitsByWorkspace: {
+        "ws-1": makeRateLimits({ primary: { usedPercent: 99, windowDurationMins: 300, resetsAt: 1_700_000_000 } }),
+        "ws-2": makeRateLimits({ primary: { usedPercent: 42, windowDurationMins: 300, resetsAt: 1_700_000_000 } }),
+      },
+      accountByWorkspace: {
+        "ws-1": makeAccount({ email: "stale@example.com" }),
+        "ws-2": makeAccount({ email: "current@example.com" }),
+      },
+    });
+
+    await waitFor(() => {
+      expect(result.current.homeAccountWorkspaceId).toBe("ws-2");
+    });
+
+    expect(result.current.homeAccount?.email).toBe("current@example.com");
+    await waitFor(() => {
+      expect(refreshAccountInfo).toHaveBeenLastCalledWith("ws-2");
+      expect(refreshAccountRateLimits).toHaveBeenLastCalledWith("ws-2");
+    });
+  });
 });

@@ -97,6 +97,11 @@ function normalizeCreditsSnapshot(
   const hasCreditsRaw = source.hasCredits ?? source.has_credits;
   const unlimitedRaw = source.unlimited;
   const balanceRaw = source.balance;
+  const normalizedUnlimited =
+    typeof unlimitedRaw === "boolean"
+      ? unlimitedRaw
+      : previousCredits?.unlimited ?? false;
+  const balanceHasExplicitValue = hasOwn(source, "balance");
   const normalizedBalance =
     typeof balanceRaw === "string"
       ? balanceRaw
@@ -105,19 +110,30 @@ function normalizeCreditsSnapshot(
         : balanceRaw === null
           ? null
           : previousCredits?.balance ?? null;
-  const parsedBalance = Number.parseFloat(normalizedBalance?.trim() ?? "");
+  const explicitBalanceHasCredits =
+    balanceRaw === null
+      ? false
+      : typeof balanceRaw === "string"
+        ? (() => {
+            const parsed = Number.parseFloat(balanceRaw.trim());
+            return Number.isFinite(parsed) ? parsed > 0 : null;
+          })()
+        : typeof balanceRaw === "number" && Number.isFinite(balanceRaw)
+          ? balanceRaw > 0
+          : null;
   const inferredHasCredits =
-    unlimitedRaw === true || (Number.isFinite(parsedBalance) && parsedBalance > 0);
+    normalizedUnlimited
+      ? true
+      : balanceHasExplicitValue
+        ? explicitBalanceHasCredits
+        : null;
 
   return {
     hasCredits:
       typeof hasCreditsRaw === "boolean"
         ? hasCreditsRaw
-        : inferredHasCredits || previousCredits?.hasCredits || false,
-    unlimited:
-      typeof unlimitedRaw === "boolean"
-        ? unlimitedRaw
-        : previousCredits?.unlimited ?? false,
+        : inferredHasCredits ?? previousCredits?.hasCredits ?? false,
+    unlimited: normalizedUnlimited,
     balance: normalizedBalance,
   };
 }

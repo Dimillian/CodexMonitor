@@ -182,6 +182,91 @@ describe("normalizeRateLimits", () => {
     });
   });
 
+  it("clears previous credit availability when a partial update sets balance to zero", () => {
+    const previous = {
+      primary: null,
+      secondary: null,
+      credits: {
+        hasCredits: true,
+        unlimited: false,
+        balance: "120",
+      },
+      planType: null,
+    } as const;
+
+    const normalized = normalizeRateLimits(
+      {
+        credits: {
+          balance: "0",
+        },
+      },
+      previous,
+    );
+
+    expect(normalized.credits).toEqual({
+      hasCredits: false,
+      unlimited: false,
+      balance: "0",
+    });
+  });
+
+  it("clears previous credit availability when a partial update nulls the balance", () => {
+    const previous = {
+      primary: null,
+      secondary: null,
+      credits: {
+        hasCredits: true,
+        unlimited: false,
+        balance: "120",
+      },
+      planType: null,
+    } as const;
+
+    const normalized = normalizeRateLimits(
+      {
+        credits: {
+          balance: null,
+        },
+      },
+      previous,
+    );
+
+    expect(normalized.credits).toEqual({
+      hasCredits: false,
+      unlimited: false,
+      balance: null,
+    });
+  });
+
+  it.each([{ balance: "0" }, { balance: null }])(
+    "preserves unlimited credits when a partial update only changes balance to $balance",
+    (credits) => {
+      const previous = {
+        primary: null,
+        secondary: null,
+        credits: {
+          hasCredits: true,
+          unlimited: true,
+          balance: "120",
+        },
+        planType: null,
+      } as const;
+
+      const normalized = normalizeRateLimits(
+        {
+          credits,
+        },
+        previous,
+      );
+
+      expect(normalized.credits).toEqual({
+        hasCredits: true,
+        unlimited: true,
+        balance: credits.balance,
+      });
+    },
+  );
+
   it("normalizes numeric credit balances", () => {
     const normalized = normalizeRateLimits({
       credits: {

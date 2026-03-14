@@ -89,9 +89,22 @@ function workspaceHasAccountData(
   return hasUsableAccountSnapshot(account) || hasUsableRateLimitSnapshot(rateLimits);
 }
 
+function hasConnectedWorkspaceWithAccountData(
+  workspaces: WorkspaceInfo[],
+  rateLimitsByWorkspace: Record<string, RateLimitSnapshot | null | undefined>,
+  accountByWorkspace: Record<string, AccountSnapshot | null | undefined>,
+): boolean {
+  return workspaces.some(
+    (workspace) =>
+      workspace.connected &&
+      workspaceHasAccountData(workspace, rateLimitsByWorkspace, accountByWorkspace),
+  );
+}
+
 function canRetainAggregateHomeAccountWorkspaceId(
   workspaceId: string | null,
   workspaces: WorkspaceInfo[],
+  aggregateThreadListsSettled: boolean,
   rateLimitsByWorkspace: Record<string, RateLimitSnapshot | null | undefined>,
   accountByWorkspace: Record<string, AccountSnapshot | null | undefined>,
 ): boolean {
@@ -104,11 +117,19 @@ function canRetainAggregateHomeAccountWorkspaceId(
     return false;
   }
 
-  return workspaceHasAccountData(
-    workspace,
-    rateLimitsByWorkspace,
-    accountByWorkspace,
-  );
+  if (
+    aggregateThreadListsSettled &&
+    !workspace.connected &&
+    hasConnectedWorkspaceWithAccountData(
+      workspaces,
+      rateLimitsByWorkspace,
+      accountByWorkspace,
+    )
+  ) {
+    return false;
+  }
+
+  return workspaceHasAccountData(workspace, rateLimitsByWorkspace, accountByWorkspace);
 }
 
 function haveAggregateThreadListsSettled(
@@ -240,6 +261,7 @@ export function useHomeAccount({
       canRetainAggregateHomeAccountWorkspaceId(
         aggregateHomeAccountSelection.workspaceId,
         workspaces,
+        aggregateThreadListsSettled,
         rateLimitsByWorkspace,
         accountByWorkspace,
       )
@@ -250,6 +272,7 @@ export function useHomeAccount({
     return resolvedHomeAccountWorkspaceId;
   }, [
     accountByWorkspace,
+    aggregateThreadListsSettled,
     aggregateHomeAccountSelection,
     resolvedHomeAccountWorkspaceId,
     rateLimitsByWorkspace,
