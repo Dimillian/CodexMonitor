@@ -120,9 +120,5 @@
         formatter = pkgs.alejandra;
 
         packages.default = appPackage;
-        apps.default = flake-utils.lib.mkApp {
-          drv = appPackage;
-          name = "codex-monitor";
-        };
       });
 }
