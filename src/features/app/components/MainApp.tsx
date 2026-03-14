@@ -1178,6 +1178,8 @@ export default function MainApp() {
     showHome,
     usageWorkspaceId,
     workspaces,
+    threadsByWorkspace,
+    threadListLoadingByWorkspace,
     rateLimitsByWorkspace,
     accountByWorkspace,
     refreshAccountInfo,

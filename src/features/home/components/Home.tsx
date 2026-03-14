@@ -800,33 +800,33 @@ export function Home({
                 <div className="home-usage-error">{localUsageError}</div>
               )}
             </div>
-            {accountCards.length > 0 && (
-              <div className="home-account">
-                <div className="home-section-header">
-                  <div className="home-section-title">Account limits</div>
-                  {accountMeta && (
-                    <div className="home-section-meta-row">
-                      <div className="home-section-meta">{accountMeta}</div>
-                    </div>
-                  )}
-                </div>
-                <div className="home-usage-grid home-account-grid">
-                  {accountCards.map((card) => (
-                    <div className="home-usage-card" key={card.label}>
-                      <div className="home-usage-label">{card.label}</div>
-                      <div className="home-usage-value">
-                        <span className="home-usage-number">{card.value}</span>
-                        {card.suffix && (
-                          <span className="home-usage-suffix">{card.suffix}</span>
-                        )}
-                      </div>
-                      <div className="home-usage-caption">{card.caption}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </>
+        )}
+        {accountCards.length > 0 && (
+          <div className="home-account">
+            <div className="home-section-header">
+              <div className="home-section-title">Account limits</div>
+              {accountMeta && (
+                <div className="home-section-meta-row">
+                  <div className="home-section-meta">{accountMeta}</div>
+                </div>
+              )}
+            </div>
+            <div className="home-usage-grid home-account-grid">
+              {accountCards.map((card) => (
+                <div className="home-usage-card" key={card.label}>
+                  <div className="home-usage-label">{card.label}</div>
+                  <div className="home-usage-value">
+                    <span className="home-usage-number">{card.value}</span>
+                    {card.suffix && (
+                      <span className="home-usage-suffix">{card.suffix}</span>
+                    )}
+                  </div>
+                  <div className="home-usage-caption">{card.caption}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>

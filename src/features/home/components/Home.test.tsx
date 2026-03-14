@@ -331,4 +331,37 @@ describe("Home", () => {
         .disabled,
     ).toBe(true);
   });
+
+  it("renders account limits even when no local usage snapshot exists", () => {
+    render(
+      <Home
+        {...baseProps}
+        accountRateLimits={{
+          primary: {
+            usedPercent: 62,
+            windowDurationMins: 300,
+            resetsAt: Math.round(Date.now() / 1000) + 3600,
+          },
+          secondary: null,
+          credits: {
+            hasCredits: true,
+            unlimited: false,
+            balance: "120",
+          },
+          planType: "pro",
+        }}
+        accountInfo={{
+          type: "chatgpt",
+          email: "user@example.com",
+          planType: "pro",
+          requiresOpenaiAuth: false,
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Account limits")).toBeTruthy();
+    expect(screen.getByText("120")).toBeTruthy();
+    expect(screen.getByText(/user@example\.com/)).toBeTruthy();
+    expect(screen.getByText("No usage data yet")).toBeTruthy();
+  });
 });
