@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ThreadSummary, WorkspaceInfo } from "../../../types";
 import {
@@ -7,7 +7,12 @@ import {
   useTrayRecentThreads,
 } from "./useTrayRecentThreads";
 
+const isTauriMock = vi.hoisted(() => vi.fn(() => true));
 const setTrayRecentThreadsMock = vi.fn();
+
+vi.mock("@tauri-apps/api/core", () => ({
+  isTauri: isTauriMock,
+}));
 
 vi.mock("@services/tauri", () => ({
   setTrayRecentThreads: (...args: unknown[]) => setTrayRecentThreadsMock(...args),
@@ -36,6 +41,7 @@ function makeThread(overrides: Partial<ThreadSummary> = {}): ThreadSummary {
 describe("useTrayRecentThreads", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    isTauriMock.mockReturnValue(true);
     setTrayRecentThreadsMock.mockReset();
     setTrayRecentThreadsMock.mockResolvedValue(undefined);
   });
@@ -143,5 +149,118 @@ describe("useTrayRecentThreads", () => {
         updatedAt: 20,
       },
     ]);
+  });
+
+  it("retries the same payload after a tray sync failure", async () => {
+    setTrayRecentThreadsMock
+      .mockRejectedValueOnce(new Error("tray bridge not ready"))
+      .mockResolvedValueOnce(undefined);
+
+    renderHook(() =>
+      useTrayRecentThreads({
+        workspaces: [makeWorkspace()],
+        threadsByWorkspace: {
+          "ws-1": [makeThread({ id: "thread-1", name: "Alpha", updatedAt: 10 })],
+        },
+        isSubagentThread: () => false,
+      }),
+    );
+
+    await vi.advanceTimersByTimeAsync(150);
+    expect(setTrayRecentThreadsMock).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(150);
+    expect(setTrayRecentThreadsMock).toHaveBeenCalledTimes(2);
+    expect(setTrayRecentThreadsMock).toHaveBeenNthCalledWith(1, [
+      {
+        workspaceId: "ws-1",
+        workspaceLabel: "Workspace One",
+        threadId: "thread-1",
+        threadLabel: "Workspace One: Alpha",
+        updatedAt: 10,
+      },
+    ]);
+    expect(setTrayRecentThreadsMock).toHaveBeenNthCalledWith(2, [
+      {
+        workspaceId: "ws-1",
+        workspaceLabel: "Workspace One",
+        threadId: "thread-1",
+        threadLabel: "Workspace One: Alpha",
+        updatedAt: 10,
+      },
+    ]);
+  });
+
+  it("does not queue a duplicate sync while the same payload is still in flight", async () => {
+    let resolveSync: (() => void) | null = null;
+    setTrayRecentThreadsMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSync = resolve;
+        }),
+    );
+
+    const { rerender } = renderHook(
+      ({
+        threadsByWorkspace,
+      }: {
+        threadsByWorkspace: Record<string, ThreadSummary[]>;
+      }) =>
+        useTrayRecentThreads({
+          workspaces: [makeWorkspace()],
+          threadsByWorkspace,
+          isSubagentThread: () => false,
+        }),
+      {
+        initialProps: {
+          threadsByWorkspace: {
+            "ws-1": [makeThread({ id: "thread-1", name: "Alpha", updatedAt: 10 })],
+          },
+        },
+      },
+    );
+
+    await vi.advanceTimersByTimeAsync(150);
+    expect(setTrayRecentThreadsMock).toHaveBeenCalledTimes(1);
+
+    rerender({
+      threadsByWorkspace: {
+        "ws-1": [makeThread({ id: "thread-1", name: "Alpha", updatedAt: 10 })],
+      },
+    });
+    await vi.advanceTimersByTimeAsync(150);
+
+    expect(setTrayRecentThreadsMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveSync?.();
+      await Promise.resolve();
+    });
+
+    rerender({
+      threadsByWorkspace: {
+        "ws-1": [makeThread({ id: "thread-1", name: "Alpha", updatedAt: 10 })],
+      },
+    });
+    await vi.runAllTimersAsync();
+
+    expect(setTrayRecentThreadsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips tray syncing outside the Tauri runtime", async () => {
+    isTauriMock.mockReturnValue(false);
+
+    renderHook(() =>
+      useTrayRecentThreads({
+        workspaces: [makeWorkspace()],
+        threadsByWorkspace: {
+          "ws-1": [makeThread({ id: "thread-1", name: "Alpha", updatedAt: 10 })],
+        },
+        isSubagentThread: () => false,
+      }),
+    );
+
+    await vi.runAllTimersAsync();
+    expect(setTrayRecentThreadsMock).not.toHaveBeenCalled();
   });
 });

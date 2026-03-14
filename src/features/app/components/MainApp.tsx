@@ -47,6 +47,7 @@ import { useMainAppSidebarMenuOrchestration } from "@app/hooks/useMainAppSidebar
 import { useMainAppWorktreeState } from "@app/hooks/useMainAppWorktreeState";
 import { useMainAppWorkspaceActions } from "@app/hooks/useMainAppWorkspaceActions";
 import { useMainAppWorkspaceLifecycle } from "@app/hooks/useMainAppWorkspaceLifecycle";
+import { useHomeAccount } from "@app/hooks/useHomeAccount";
 import type {
   ComposerEditorSettings,
   ServiceTier,
@@ -1170,6 +1171,20 @@ export default function MainApp() {
   const activeRateLimits = activeWorkspaceId
     ? rateLimitsByWorkspace[activeWorkspaceId] ?? null
     : null;
+  const {
+    homeAccount,
+    homeRateLimits,
+  } = useHomeAccount({
+    showHome,
+    usageWorkspaceId,
+    workspaces,
+    threadsByWorkspace,
+    threadListLoadingByWorkspace,
+    rateLimitsByWorkspace,
+    accountByWorkspace,
+    refreshAccountInfo,
+    refreshAccountRateLimits,
+  });
   const activeTokenUsage = activeThreadId
     ? tokenUsageByThread[activeThreadId] ?? null
     : null;
@@ -1707,6 +1722,8 @@ export default function MainApp() {
     approvals,
     activeRateLimits,
     activeAccount,
+    homeRateLimits,
+    homeAccount,
     accountSwitching,
     onSwitchAccount: handleSwitchAccount,
     onCancelSwitchAccount: handleCancelSwitchAccount,

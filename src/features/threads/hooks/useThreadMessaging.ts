@@ -427,6 +427,7 @@ export function useThreadMessaging({
       ensureWorkspaceRuntimeCodexArgs,
       shouldPreflightRuntimeCodexArgsForSend,
       activeTurnIdByThread,
+      getCustomName,
       markProcessing,
       model,
       onDebug,
@@ -667,7 +668,6 @@ export function useThreadMessaging({
       reviewDeliveryMode,
       registerDetachedReviewChild,
       renameThread,
-      serviceTier,
       updateThreadParent,
     ],
   );

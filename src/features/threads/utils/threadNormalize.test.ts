@@ -138,4 +138,170 @@ describe("normalizeRateLimits", () => {
     expect(normalized.secondary?.usedPercent).toBe(60);
     expect(normalized.secondary?.windowDurationMins).toBe(10_080);
   });
+
+  it("infers credits availability from a balance when hasCredits is omitted", () => {
+    const normalized = normalizeRateLimits({
+      credits: {
+        balance: "120",
+      },
+    });
+
+    expect(normalized.credits).toEqual({
+      hasCredits: true,
+      unlimited: false,
+      balance: "120",
+    });
+  });
+
+  it("keeps credit balances visible when unlimited is explicitly false", () => {
+    const normalized = normalizeRateLimits({
+      credits: {
+        unlimited: false,
+        balance: "120",
+      },
+    });
+
+    expect(normalized.credits).toEqual({
+      hasCredits: true,
+      unlimited: false,
+      balance: "120",
+    });
+  });
+
+  it("does not infer available credits from a zero balance", () => {
+    const normalized = normalizeRateLimits({
+      credits: {
+        balance: "0",
+      },
+    });
+
+    expect(normalized.credits).toEqual({
+      hasCredits: false,
+      unlimited: false,
+      balance: "0",
+    });
+  });
+
+  it("clears previous credit availability when a partial update sets balance to zero", () => {
+    const previous = {
+      primary: null,
+      secondary: null,
+      credits: {
+        hasCredits: true,
+        unlimited: false,
+        balance: "120",
+      },
+      planType: null,
+    } as const;
+
+    const normalized = normalizeRateLimits(
+      {
+        credits: {
+          balance: "0",
+        },
+      },
+      previous,
+    );
+
+    expect(normalized.credits).toEqual({
+      hasCredits: false,
+      unlimited: false,
+      balance: "0",
+    });
+  });
+
+  it("clears previous credit availability when a partial update nulls the balance", () => {
+    const previous = {
+      primary: null,
+      secondary: null,
+      credits: {
+        hasCredits: true,
+        unlimited: false,
+        balance: "120",
+      },
+      planType: null,
+    } as const;
+
+    const normalized = normalizeRateLimits(
+      {
+        credits: {
+          balance: null,
+        },
+      },
+      previous,
+    );
+
+    expect(normalized.credits).toEqual({
+      hasCredits: false,
+      unlimited: false,
+      balance: null,
+    });
+  });
+
+  it.each([{ balance: "0" }, { balance: null }])(
+    "preserves unlimited credits when a partial update only changes balance to $balance",
+    (credits) => {
+      const previous = {
+        primary: null,
+        secondary: null,
+        credits: {
+          hasCredits: true,
+          unlimited: true,
+          balance: "120",
+        },
+        planType: null,
+      } as const;
+
+      const normalized = normalizeRateLimits(
+        {
+          credits,
+        },
+        previous,
+      );
+
+      expect(normalized.credits).toEqual({
+        hasCredits: true,
+        unlimited: true,
+        balance: credits.balance,
+      });
+    },
+  );
+
+  it("normalizes numeric credit balances", () => {
+    const normalized = normalizeRateLimits({
+      credits: {
+        balance: 75,
+      },
+    });
+
+    expect(normalized.credits).toEqual({
+      hasCredits: true,
+      unlimited: false,
+      balance: "75",
+    });
+  });
+
+  it("keeps the previous credits snapshot when the incoming balance is NaN", () => {
+    const previous = {
+      primary: null,
+      secondary: null,
+      credits: {
+        hasCredits: true,
+        unlimited: false,
+        balance: "120",
+      },
+      planType: null,
+    } as const;
+
+    const normalized = normalizeRateLimits(
+      {
+        credits: {
+          balance: Number.NaN,
+        },
+      },
+      previous,
+    );
+
+    expect(normalized.credits).toEqual(previous.credits);
+  });
 });

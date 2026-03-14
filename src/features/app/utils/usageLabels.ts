@@ -28,7 +28,7 @@ function formatCreditsLabel(accountRateLimits: RateLimitSnapshot | null) {
     return null;
   }
   if (credits.unlimited) {
-    return "Credits: Unlimited";
+    return "Available credits: Unlimited";
   }
   const balance = credits.balance?.trim() ?? "";
   if (!balance) {
@@ -36,12 +36,12 @@ function formatCreditsLabel(accountRateLimits: RateLimitSnapshot | null) {
   }
   const intValue = Number.parseInt(balance, 10);
   if (Number.isFinite(intValue) && intValue > 0) {
-    return `Credits: ${intValue} credits`;
+    return `Available credits: ${intValue}`;
   }
   const floatValue = Number.parseFloat(balance);
   if (Number.isFinite(floatValue) && floatValue > 0) {
     const rounded = Math.round(floatValue);
-    return rounded > 0 ? `Credits: ${rounded} credits` : null;
+    return rounded > 0 ? `Available credits: ${rounded}` : null;
   }
   return null;
 }
