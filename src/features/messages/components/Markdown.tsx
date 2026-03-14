@@ -6,7 +6,6 @@ import {
   decodeFileLink,
   isFileLinkUrl,
   isLinkableFilePath,
-  remarkFileLinks,
   toFileLink,
 } from "../../../utils/remarkFileLinks";
 import { resolveMountedWorkspacePath } from "../utils/mountedWorkspacePaths";
@@ -358,7 +357,11 @@ function isLikelyFileHref(
   if (/[?#]/.test(trimmed)) {
     return false;
   }
-  if (/^[A-Za-z]:[\\/]/.test(trimmed) || trimmed.startsWith("\\\\")) {
+  if (
+    /^[A-Za-z]:[\\/]/.test(trimmed) ||
+    trimmed.startsWith("\\\\") ||
+    /^\/[A-Za-z](?:\/|$)/.test(trimmed)
+  ) {
     return true;
   }
   if (trimmed.startsWith("/")) {
@@ -882,11 +885,12 @@ export function Markdown({
   return (
     <div className={className}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkFileLinks]}
+        remarkPlugins={[remarkGfm]}
         urlTransform={(url) => {
           const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(url);
           if (
             isFileLinkUrl(url) ||
+            resolveHrefFilePath(url) ||
             url.startsWith("http://") ||
             url.startsWith("https://") ||
             url.startsWith("mailto:") ||

@@ -276,6 +276,324 @@ describe("Messages", () => {
     );
   });
 
+  it("does not auto-link bare file paths in normal message text", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-bare-file-text",
+        kind: "message",
+        role: "assistant",
+        text: "See src/features/messages/components/Markdown.tsx:244 for details.",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(container.querySelector(".message-file-link")).toBeNull();
+    expect(container.querySelector(".markdown")?.textContent ?? "").toContain(
+      "See src/features/messages/components/Markdown.tsx:244 for details.",
+    );
+    expect(openFileLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps slash-delimited non-Latin prose as normal message text", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-chinese-slash-text",
+        kind: "message",
+        role: "assistant",
+        text: 'Session 测试文本"甲/乙"测试文本',
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(container.querySelector(".message-file-link")).toBeNull();
+    expect(container.querySelector(".markdown")?.textContent ?? "").toContain(
+      'Session 测试文本"甲/乙"测试文本',
+    );
+    expect(openFileLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps slash-delimited Japanese prose as normal message text", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-japanese-slash-text",
+        kind: "message",
+        role: "assistant",
+        text: "Session テスト本文「甲/乙」テスト本文",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(container.querySelector(".message-file-link")).toBeNull();
+    expect(container.querySelector(".markdown")?.textContent ?? "").toContain(
+      "Session テスト本文「甲/乙」テスト本文",
+    );
+    expect(openFileLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps slash-delimited non-file inline code as plain code text", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-chinese-slash-inline-code",
+        kind: "message",
+        role: "assistant",
+        text: '说明：`甲/乙` 摘要',
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(container.querySelector(".message-file-link")).toBeNull();
+    const inlineCode = container.querySelector(".markdown code");
+    expect(inlineCode?.textContent).toBe("甲/乙");
+    expect(openFileLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("renders Windows drive inline code paths as compact links and opens them", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-windows-inline-code",
+        kind: "message",
+        role: "assistant",
+        text: "Open `D:\\repo\\src\\App.tsx:12` next.",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(screen.getByText("App.tsx")).toBeTruthy();
+    expect(screen.getByText("L12")).toBeTruthy();
+    expect(screen.getByText("D:/repo/src")).toBeTruthy();
+
+    const fileLink = container.querySelector(".message-file-link");
+    expect(fileLink).toBeTruthy();
+    fireEvent.click(fileLink as Element);
+    expect(openFileLinkMock).toHaveBeenCalledWith("D:\\repo\\src\\App.tsx:12");
+  });
+
+  it("renders Windows drive roots inside inline code as compact links and opens them", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-windows-drive-root-inline-code",
+        kind: "message",
+        role: "assistant",
+        text: "Open `D:\\` next.",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const fileLink = container.querySelector(".message-file-link");
+    expect(fileLink).toBeTruthy();
+    expect(screen.getByText("D:")).toBeTruthy();
+
+    fireEvent.click(fileLink as Element);
+    expect(openFileLinkMock).toHaveBeenCalledWith("D:\\");
+  });
+
+  it("renders /c/ style inline code paths as compact links and opens them", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-cygwin-inline-code",
+        kind: "message",
+        role: "assistant",
+        text: "Open `/c/abc/def.ts` next.",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(screen.getByText("def.ts")).toBeTruthy();
+    expect(screen.getByText("/c/abc")).toBeTruthy();
+
+    const fileLink = container.querySelector(".message-file-link");
+    expect(fileLink).toBeTruthy();
+    fireEvent.click(fileLink as Element);
+    expect(openFileLinkMock).toHaveBeenCalledWith("/c/abc/def.ts");
+  });
+
+  it("renders UNC inline code paths as compact links and opens them", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-unc-inline-code",
+        kind: "message",
+        role: "assistant",
+        text: "Open `\\\\server\\share\\file.txt` next.",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(screen.getByText("file.txt")).toBeTruthy();
+    expect(screen.getByText("//server/share")).toBeTruthy();
+
+    const fileLink = container.querySelector(".message-file-link");
+    expect(fileLink).toBeTruthy();
+    fireEvent.click(fileLink as Element);
+    expect(openFileLinkMock).toHaveBeenCalledWith("\\\\server\\share\\file.txt");
+  });
+
+  it("keeps bare file-like prose as normal message text", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-bare-file-like-prose",
+        kind: "message",
+        role: "assistant",
+        text: "See src/features/messages/components/Markdown.tsx:244 for details",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(container.querySelector(".message-file-link")).toBeNull();
+    expect(container.querySelector(".markdown")?.textContent ?? "").toContain(
+      "See src/features/messages/components/Markdown.tsx:244 for details",
+    );
+    expect(openFileLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("renders Windows drive file references as compact links and opens them", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-windows-drive-file-link",
+        kind: "message",
+        role: "assistant",
+        text: "Reference: `D:\\repo\\src\\App.tsx:42`",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const fileLink = container.querySelector(".message-file-link");
+    expect(fileLink).toBeTruthy();
+    expect(screen.getByText("App.tsx")).toBeTruthy();
+    expect(screen.getByText("L42")).toBeTruthy();
+
+    fireEvent.click(fileLink as Element);
+    expect(openFileLinkMock).toHaveBeenCalledWith("D:\\repo\\src\\App.tsx:42");
+  });
+
+  it("renders git-bash style drive file references as compact links and opens them", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-git-bash-drive-file-link",
+        kind: "message",
+        role: "assistant",
+        text: "Reference: `/c/projects/CodexMonitor/src/App.tsx`",
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const fileLink = container.querySelector(".message-file-link");
+    expect(fileLink).toBeTruthy();
+    expect(screen.getByText("App.tsx")).toBeTruthy();
+
+    fireEvent.click(fileLink as Element);
+    expect(openFileLinkMock).toHaveBeenCalledWith("/c/projects/CodexMonitor/src/App.tsx");
+  });
+
   it("routes markdown href file paths through the file opener", () => {
     const linkedPath =
       "/Users/dimillian/Documents/Dev/CodexMonitor/src/features/messages/components/Markdown.tsx:244";
@@ -326,6 +644,58 @@ describe("Messages", () => {
     );
 
     fireEvent.click(screen.getByText("app file"));
+    expect(openFileLinkMock).toHaveBeenCalledWith(linkedPath);
+  });
+
+  it("routes Windows drive href file paths through the file opener", () => {
+    const linkedPath = "D:\\repo\\src\\App.tsx:12";
+    const items: ConversationItem[] = [
+      {
+        id: "msg-file-href-windows-drive-link",
+        kind: "message",
+        role: "assistant",
+        text: `Open [app](${linkedPath})`,
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    fireEvent.click(screen.getByText("app"));
+    expect(openFileLinkMock).toHaveBeenCalledWith(linkedPath);
+  });
+
+  it("routes git-bash style drive href file paths through the file opener", () => {
+    const linkedPath = "/c/projects/CodexMonitor/src/App.tsx";
+    const items: ConversationItem[] = [
+      {
+        id: "msg-file-href-git-bash-drive-link",
+        kind: "message",
+        role: "assistant",
+        text: `Open [app](${linkedPath})`,
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    fireEvent.click(screen.getByText("app"));
     expect(openFileLinkMock).toHaveBeenCalledWith(linkedPath);
   });
 

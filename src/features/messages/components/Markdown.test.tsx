@@ -27,6 +27,51 @@ describe("Markdown file-like href behavior", () => {
     expect(clickEvent.defaultPrevented).toBe(true);
   });
 
+  it("does not auto-link slash-delimited non-Latin prose as a file path", () => {
+    const { container } = render(
+      <Markdown
+        value={'测试文本"甲/乙"测试文本'}
+        className="markdown"
+      />,
+    );
+
+    expect(container.querySelector(".message-file-link")).toBeNull();
+    expect(container.querySelector('a[href^="codex-file:"]')).toBeNull();
+    expect(container.querySelector(".markdown")?.textContent ?? "").toContain(
+      '测试文本"甲/乙"测试文本',
+    );
+  });
+
+  it("does not auto-link slash-delimited Japanese prose as a file path", () => {
+    const { container } = render(
+      <Markdown
+        value="テスト本文「甲/乙」テスト本文"
+        className="markdown"
+      />,
+    );
+
+    expect(container.querySelector(".message-file-link")).toBeNull();
+    expect(container.querySelector('a[href^="codex-file:"]')).toBeNull();
+    expect(container.querySelector(".markdown")?.textContent ?? "").toContain(
+      "テスト本文「甲/乙」テスト本文",
+    );
+  });
+
+  it("does not auto-link bare file-like prose outside code or markdown links", () => {
+    const { container } = render(
+      <Markdown
+        value="See src/features/messages/components/Markdown.tsx:244 for details"
+        className="markdown"
+      />,
+    );
+
+    expect(container.querySelector(".message-file-link")).toBeNull();
+    expect(container.querySelector('a[href^="codex-file:"]')).toBeNull();
+    expect(container.querySelector(".markdown")?.textContent ?? "").toContain(
+      "See src/features/messages/components/Markdown.tsx:244 for details",
+    );
+  });
+
   it("intercepts file-like href clicks when a file opener is provided", () => {
     const onOpenFileLink = vi.fn();
     render(
@@ -90,6 +135,73 @@ describe("Markdown file-like href behavior", () => {
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
     expect(onOpenFileLink).toHaveBeenCalledWith("/workspace/src/example.ts");
+  });
+
+  it("intercepts Windows drive hrefs when a file opener is provided", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value={"See [app](D:\\repo\\src\\App.tsx:12)"}
+        className="markdown"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("app").closest("a");
+    expect(link?.getAttribute("href")).toContain("D:");
+    expect(link?.getAttribute("href")).toContain("%5C");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith("D:\\repo\\src\\App.tsx:12");
+  });
+
+  it("intercepts git-bash style drive hrefs when a file opener is provided", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [workspace](/c/projects/CodexMonitor/src/App.tsx)"
+        className="markdown"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("workspace").closest("a");
+    expect(link?.getAttribute("href")).toBe("/c/projects/CodexMonitor/src/App.tsx");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith("/c/projects/CodexMonitor/src/App.tsx");
+  });
+
+  it("intercepts encoded UNC hrefs when a file opener is provided", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [share](%5C%5Cserver%5Cshare%5Cfile.txt)"
+        className="markdown"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("share").closest("a");
+    expect(link?.getAttribute("href")).toBe("%5C%5Cserver%5Cshare%5Cfile.txt");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith("\\\\server\\share\\file.txt");
   });
 
   it("still intercepts dotless workspace file hrefs when a file opener is provided", () => {
