@@ -290,11 +290,11 @@
 }
 
 .home-usage-number.is-up {
-  color: var(--text-accent);
+  color: var(--text-stronger);
 }
 
 .home-usage-number.is-down {
-  color: rgba(255, 174, 130, 0.92);
+  color: var(--text-stronger);
 }
 
 .home-usage-number.is-flat {

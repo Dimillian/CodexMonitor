@@ -168,6 +168,20 @@ describe("normalizeRateLimits", () => {
     });
   });
 
+  it("does not infer available credits from a zero balance", () => {
+    const normalized = normalizeRateLimits({
+      credits: {
+        balance: "0",
+      },
+    });
+
+    expect(normalized.credits).toEqual({
+      hasCredits: false,
+      unlimited: false,
+      balance: "0",
+    });
+  });
+
   it("normalizes numeric credit balances", () => {
     const normalized = normalizeRateLimits({
       credits: {
@@ -180,5 +194,29 @@ describe("normalizeRateLimits", () => {
       unlimited: false,
       balance: "75",
     });
+  });
+
+  it("keeps the previous credits snapshot when the incoming balance is NaN", () => {
+    const previous = {
+      primary: null,
+      secondary: null,
+      credits: {
+        hasCredits: true,
+        unlimited: false,
+        balance: "120",
+      },
+      planType: null,
+    } as const;
+
+    const normalized = normalizeRateLimits(
+      {
+        credits: {
+          balance: Number.NaN,
+        },
+      },
+      previous,
+    );
+
+    expect(normalized.credits).toEqual(previous.credits);
   });
 });

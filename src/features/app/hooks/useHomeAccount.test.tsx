@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useState } from "react";
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type {
@@ -110,6 +111,27 @@ describe("resolveHomeAccountWorkspaceId", () => {
         },
       }),
     ).toBe("ws-2");
+  });
+
+  it("uses workspace order as a deterministic tiebreaker when activity timestamps match", () => {
+    expect(
+      resolveHomeAccountWorkspaceId({
+        usageWorkspaceId: "missing",
+        workspaces: [makeWorkspace("ws-1"), makeWorkspace("ws-2")],
+        threadsByWorkspace: {
+          "ws-1": [makeThread("thread-1", 20)],
+          "ws-2": [makeThread("thread-2", 20)],
+        },
+        rateLimitsByWorkspace: {
+          "ws-1": makeRateLimits(),
+          "ws-2": makeRateLimits(),
+        },
+        accountByWorkspace: {
+          "ws-1": makeAccount({ email: "first@example.com" }),
+          "ws-2": makeAccount({ email: "second@example.com" }),
+        },
+      }),
+    ).toBe("ws-1");
   });
 
   it("ignores empty cached rate-limit snapshots when falling back from a stale selection", () => {
@@ -389,6 +411,56 @@ describe("useHomeAccount", () => {
       expect(refreshAccountInfo).not.toHaveBeenCalled();
       expect(refreshAccountRateLimits).not.toHaveBeenCalled();
     });
+  });
+
+  it("does not refresh twice when same-tick refresh callbacks trigger a rerender", async () => {
+    const infoCalls: Array<{ workspaceId: string; tick: number }> = [];
+    const rateCalls: Array<{ workspaceId: string; tick: number }> = [];
+    const workspaces = [
+      makeWorkspace("ws-1"),
+      makeWorkspace("ws-2"),
+    ];
+
+    const { result } = renderHook(() => {
+      const [tick, setTick] = useState(0);
+
+      useHomeAccount({
+        showHome: true,
+        usageWorkspaceId: null,
+        workspaces,
+        threadsByWorkspace: {
+          "ws-1": [makeThread("thread-1", 10)],
+          "ws-2": [makeThread("thread-2", 20)],
+        },
+        threadListLoadingByWorkspace: makeThreadListLoadingState(workspaces),
+        rateLimitsByWorkspace: { "ws-1": makeRateLimits(), "ws-2": makeRateLimits() },
+        accountByWorkspace: {
+          "ws-1": makeAccount({ email: "older@example.com" }),
+          "ws-2": makeAccount({ email: "recent@example.com" }),
+        },
+        refreshAccountInfo: (workspaceId: string) => {
+          infoCalls.push({ workspaceId, tick });
+          if (tick === 0) {
+            setTick(1);
+          }
+        },
+        refreshAccountRateLimits: (workspaceId: string) => {
+          rateCalls.push({ workspaceId, tick });
+          if (tick === 0) {
+            setTick((current) => (current === 0 ? 1 : current));
+          }
+        },
+      });
+
+      return { tick };
+    });
+
+    await waitFor(() => {
+      expect(result.current.tick).toBe(1);
+    });
+
+    expect(infoCalls).toEqual([{ workspaceId: "ws-2", tick: 0 }]);
+    expect(rateCalls).toEqual([{ workspaceId: "ws-2", tick: 0 }]);
   });
 
   it("recomputes the aggregate workspace after thread lists finish hydrating", async () => {

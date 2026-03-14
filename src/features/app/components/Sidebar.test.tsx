@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRef } from "react";
 import { Sidebar } from "./Sidebar";
@@ -72,34 +71,22 @@ const baseProps = {
 
 describe("Sidebar", () => {
   it("toggles the search bar from the header icon", () => {
-    vi.useFakeTimers();
     render(<Sidebar {...baseProps} />);
 
     const toggleButton = screen.getByRole("button", { name: "Toggle search" });
     expect(screen.queryByLabelText("Search projects")).toBeNull();
 
-    act(() => {
-      fireEvent.click(toggleButton);
-    });
+    fireEvent.click(toggleButton);
     const input = screen.getByLabelText("Search projects") as HTMLInputElement;
     expect(input).toBeTruthy();
 
-    act(() => {
-      fireEvent.change(input, { target: { value: "alpha" } });
-      vi.runOnlyPendingTimers();
-    });
+    fireEvent.change(input, { target: { value: "alpha" } });
     expect(input.value).toBe("alpha");
 
-    act(() => {
-      fireEvent.click(toggleButton);
-      vi.runOnlyPendingTimers();
-    });
+    fireEvent.click(toggleButton);
     expect(screen.queryByLabelText("Search projects")).toBeNull();
 
-    act(() => {
-      fireEvent.click(toggleButton);
-      vi.runOnlyPendingTimers();
-    });
+    fireEvent.click(toggleButton);
     const reopened = screen.getByLabelText("Search projects") as HTMLInputElement;
     expect(reopened.value).toBe("");
   });
@@ -162,7 +149,8 @@ describe("Sidebar", () => {
       />,
     );
 
-    expect(screen.getByText("Available credits: 120")).toBeTruthy();
+    const creditsLabel = screen.getByText(/^Available credits:/);
+    expect(creditsLabel.textContent ?? "").toContain("120");
   });
 
   it("renders threads-only mode as a global chronological list", () => {

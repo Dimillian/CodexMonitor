@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   AccountSnapshot,
   RateLimitSnapshot,
@@ -189,6 +189,8 @@ export function useHomeAccount({
   refreshAccountInfo,
   refreshAccountRateLimits,
 }: UseHomeAccountArgs) {
+  const refreshAccountInfoRef = useRef(refreshAccountInfo);
+  const refreshAccountRateLimitsRef = useRef(refreshAccountRateLimits);
   const resolvedHomeAccountWorkspaceId = useMemo(
     () =>
       resolveHomeAccountWorkspaceId({
@@ -206,6 +208,15 @@ export function useHomeAccount({
       accountByWorkspace,
     ],
   );
+
+  useEffect(() => {
+    refreshAccountInfoRef.current = refreshAccountInfo;
+  }, [refreshAccountInfo]);
+
+  useEffect(() => {
+    refreshAccountRateLimitsRef.current = refreshAccountRateLimits;
+  }, [refreshAccountRateLimits]);
+
   const aggregateThreadListsSettled = useMemo(
     () =>
       usageWorkspaceId
@@ -297,14 +308,12 @@ export function useHomeAccount({
     if (!showHome || !stableHomeAccountWorkspaceId || !homeAccountWorkspace?.connected) {
       return;
     }
-    void refreshAccountInfo(stableHomeAccountWorkspaceId);
-    void refreshAccountRateLimits(stableHomeAccountWorkspaceId);
+    void refreshAccountInfoRef.current(stableHomeAccountWorkspaceId);
+    void refreshAccountRateLimitsRef.current(stableHomeAccountWorkspaceId);
   }, [
     homeAccountWorkspace?.connected,
-    stableHomeAccountWorkspaceId,
-    refreshAccountInfo,
-    refreshAccountRateLimits,
     showHome,
+    stableHomeAccountWorkspaceId,
   ]);
 
   return {

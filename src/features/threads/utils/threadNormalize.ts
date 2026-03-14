@@ -105,9 +105,9 @@ function normalizeCreditsSnapshot(
         : balanceRaw === null
           ? null
           : previousCredits?.balance ?? null;
+  const parsedBalance = Number.parseFloat(normalizedBalance?.trim() ?? "");
   const inferredHasCredits =
-    unlimitedRaw === true ||
-    (typeof normalizedBalance === "string" && normalizedBalance.trim().length > 0);
+    unlimitedRaw === true || (Number.isFinite(parsedBalance) && parsedBalance > 0);
 
   return {
     hasCredits:
