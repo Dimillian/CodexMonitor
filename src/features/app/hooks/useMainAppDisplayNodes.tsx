@@ -1,12 +1,10 @@
 import type { ComponentProps } from "react";
-import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import { MainHeaderActions } from "@app/components/MainHeaderActions";
 import { WorkspaceHome } from "@/features/workspaces/components/WorkspaceHome";
 
 type UseMainAppDisplayNodesArgs = {
   showCompactCodexThreadActions: boolean;
-  onOpenMobileChatTree: () => void;
   handleMobileThreadRefresh: () => void;
   mobileThreadRefreshLoading: boolean;
   centerMode: "chat" | "diff";
@@ -20,7 +18,6 @@ type UseMainAppDisplayNodesArgs = {
 
 export function useMainAppDisplayNodes({
   showCompactCodexThreadActions,
-  onOpenMobileChatTree,
   handleMobileThreadRefresh,
   mobileThreadRefreshLoading,
   centerMode,
@@ -34,36 +31,23 @@ export function useMainAppDisplayNodes({
   const mainHeaderActionsNode = (
     <>
       {showCompactCodexThreadActions ? (
-        <>
-          <button
-            type="button"
-            className="ghost main-header-action compact-chat-tree-trigger"
-            onClick={onOpenMobileChatTree}
-            data-tauri-drag-region="false"
-            aria-label="Open chat tree"
-            title="Open chat tree"
-          >
-            <GitBranch size={14} aria-hidden />
-            <span>Chat Tree</span>
-          </button>
-          <button
-            type="button"
-            className="ghost main-header-action ds-tooltip-trigger"
-            onClick={handleMobileThreadRefresh}
-            data-tauri-drag-region="false"
-            aria-label="Refresh current thread from server"
-            title="Refresh current thread from server"
-            data-tooltip="Refresh current thread from server"
-            data-tooltip-placement="bottom"
-            disabled={mobileThreadRefreshLoading}
-          >
-            <RefreshCw
-              className={`compact-codex-refresh-icon${mobileThreadRefreshLoading ? " spinning" : ""}`}
-              size={14}
-              aria-hidden
-            />
-          </button>
-        </>
+        <button
+          type="button"
+          className="ghost main-header-action ds-tooltip-trigger"
+          onClick={handleMobileThreadRefresh}
+          data-tauri-drag-region="false"
+          aria-label="Refresh current thread from server"
+          title="Refresh current thread from server"
+          data-tooltip="Refresh current thread from server"
+          data-tooltip-placement="bottom"
+          disabled={mobileThreadRefreshLoading}
+        >
+          <RefreshCw
+            className={`compact-codex-refresh-icon${mobileThreadRefreshLoading ? " spinning" : ""}`}
+            size={14}
+            aria-hidden
+          />
+        </button>
       ) : null}
       <MainHeaderActions
         centerMode={centerMode}

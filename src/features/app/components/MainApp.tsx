@@ -1620,9 +1620,6 @@ export default function MainApp() {
     Boolean(activeWorkspace) && !hasGitRootOverride && isMissingRepo(gitStatus.error);
   const displayNodes = useMainAppDisplayNodes({
     showCompactCodexThreadActions,
-    onOpenMobileChatTree: () => {
-      setMobileChatTreeOpen(true);
-    },
     handleMobileThreadRefresh,
     mobileThreadRefreshLoading,
     centerMode,
@@ -1701,6 +1698,22 @@ export default function MainApp() {
       : null,
   });
   const { workspaceHomeNode } = displayNodes;
+  const compactComposerContextActions =
+    showCompactCodexThreadActions && activeThreadId
+      ? [
+          ...(composerContextActions ?? []),
+          {
+            id: "chat-tree",
+            label: "Chat Tree",
+            title: "Open chat tree",
+            disabled: chatTreeLoading || chatTreeSwitching,
+            onSelect: () => {
+              setMobileChatTreeOpen(true);
+            },
+          },
+        ]
+      : composerContextActions;
+
   const layoutSurfaces = useMainAppLayoutSurfaces({
     appSettings: {
       usageShowRemaining: appSettings.usageShowRemaining,
@@ -1860,7 +1873,7 @@ export default function MainApp() {
     clearDictationTranscript,
     clearDictationError,
     clearDictationHint,
-    composerContextActions,
+    composerContextActions: compactComposerContextActions,
     reviewPrompt,
     closeReviewPrompt,
     showPresetStep,

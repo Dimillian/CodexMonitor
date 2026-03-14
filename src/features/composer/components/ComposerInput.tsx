@@ -14,6 +14,7 @@ import Mic from "lucide-react/dist/esm/icons/mic";
 import Square from "lucide-react/dist/esm/icons/square";
 import X from "lucide-react/dist/esm/icons/x";
 import Brain from "lucide-react/dist/esm/icons/brain";
+import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import GitFork from "lucide-react/dist/esm/icons/git-fork";
 import PlusCircle from "lucide-react/dist/esm/icons/plus-circle";
 import Plus from "lucide-react/dist/esm/icons/plus";
@@ -59,6 +60,13 @@ type ComposerInputProps = {
   onRemoveAttachment?: (path: string) => void;
   onTextChange: (next: string, selectionStart: number | null) => void;
   onTextPaste?: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
+  contextActions?: {
+    id: string;
+    label: string;
+    title?: string;
+    disabled?: boolean;
+    onSelect: () => void | Promise<void>;
+  }[];
   onSelectionChange: (selectionStart: number | null) => void;
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   isExpanded?: boolean;
@@ -162,6 +170,7 @@ export function ComposerInput({
   onRemoveAttachment,
   onTextChange,
   onTextPaste,
+  contextActions = [],
   onSelectionChange,
   onKeyDown,
   isExpanded = false,
@@ -481,6 +490,19 @@ export function ComposerInput({
                 >
                   Add image
                 </PopoverMenuItem>
+                {contextActions.map((action) => (
+                  <PopoverMenuItem
+                    key={action.id}
+                    onClick={() => {
+                      setMobileActionsOpen(false);
+                      void action.onSelect();
+                    }}
+                    disabled={disabled || Boolean(action.disabled)}
+                    icon={<GitBranch size={14} />}
+                  >
+                    {action.label}
+                  </PopoverMenuItem>
+                ))}
                 {onToggleExpand && (
                   <PopoverMenuItem
                     onClick={handleMobileExpandClick}
