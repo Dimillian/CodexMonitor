@@ -148,6 +148,8 @@ These are v2 request methods CodexMonitor currently sends to Codex app-server:
 - `thread/resume`
 - `thread/fork`
 - `thread/list`
+- `thread/chatTree/read`
+- `thread/chatTree/current/set`
 - `thread/archive`
 - `thread/compact/start`
 - `thread/name/set`
@@ -168,6 +170,8 @@ These are v2 request methods CodexMonitor currently sends to Codex app-server:
 
 Notes:
 - `turn/start` now forwards the optional `serviceTier` override (`"fast"` for `/fast`, `null` for default/off) alongside `model`, `effort`, and `collaborationMode`.
+- Chat-tree UI sync is request-driven: CodexMonitor reads `thread/chatTree/read` after resume, refresh, turn completion, and branch switches rather than depending on a typed push notification.
+- If upstream `TurnAbortedEvent` payloads include a `chat_tree` field, CodexMonitor tolerates that schema drift by ignoring the extra field and continuing to refresh the tree through the request path above.
 
 ## Missing Client Requests (Codex v2 ClientRequest Methods)
 

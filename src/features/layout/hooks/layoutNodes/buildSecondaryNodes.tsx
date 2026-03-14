@@ -2,6 +2,7 @@ import { DebugPanel } from "../../../debug/components/DebugPanel";
 import { PlanPanel } from "../../../plan/components/PlanPanel";
 import { TerminalDock } from "../../../terminal/components/TerminalDock";
 import { TerminalPanel } from "../../../terminal/components/TerminalPanel";
+import { ThreadChatTreePanel } from "../../../threads/components/ThreadChatTreePanel";
 import type {
   LayoutNodesResult,
   LayoutSecondarySurface,
@@ -11,6 +12,7 @@ export type SecondaryLayoutNodesOptions = LayoutSecondarySurface;
 
 type SecondaryLayoutNodes = Pick<
   LayoutNodesResult,
+  | "chatTreePanelNode"
   | "planPanelNode"
   | "debugPanelNode"
   | "debugPanelFullNode"
@@ -21,6 +23,7 @@ type SecondaryLayoutNodes = Pick<
 >;
 
 export function buildSecondaryNodes(options: SecondaryLayoutNodesOptions): SecondaryLayoutNodes {
+  const chatTreePanelNode = <ThreadChatTreePanel {...options.chatTreePanelProps} />;
   const planPanelNode = <PlanPanel {...options.planPanelProps} />;
 
   const terminalPanelNode = options.terminalState ? (
@@ -92,6 +95,7 @@ export function buildSecondaryNodes(options: SecondaryLayoutNodesOptions): Secon
   );
 
   return {
+    chatTreePanelNode,
     planPanelNode,
     debugPanelNode,
     debugPanelFullNode,

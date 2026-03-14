@@ -16,6 +16,7 @@ import { PlanPanel } from "../../../plan/components/PlanPanel";
 import { PromptPanel } from "../../../prompts/components/PromptPanel";
 import { TerminalDock } from "../../../terminal/components/TerminalDock";
 import type { TerminalSessionState } from "../../../terminal/hooks/useTerminalSession";
+import { ThreadChatTreePanel } from "../../../threads/components/ThreadChatTreePanel";
 import { UpdateToast } from "../../../update/components/UpdateToast";
 
 export type WorktreeRenameState = {
@@ -69,6 +70,7 @@ export type LayoutGitSurface = {
 };
 
 export type LayoutSecondarySurface = {
+  chatTreePanelProps: ComponentProps<typeof ThreadChatTreePanel>;
   planPanelProps: ComponentProps<typeof PlanPanel>;
   terminalDockProps: Omit<ComponentProps<typeof TerminalDock>, "terminalNode">;
   terminalState: TerminalSessionState | null;
@@ -103,6 +105,7 @@ export type LayoutNodesResult = {
   tabBarNode: ReactNode;
   gitDiffPanelNode: ReactNode;
   gitDiffViewerNode: ReactNode;
+  chatTreePanelNode: ReactNode;
   planPanelNode: ReactNode;
   debugPanelNode: ReactNode;
   debugPanelFullNode: ReactNode;

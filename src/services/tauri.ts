@@ -1053,6 +1053,18 @@ export async function resumeThread(workspaceId: string, threadId: string) {
   return invoke<any>("resume_thread", { workspaceId, threadId });
 }
 
+export async function threadChatTreeRead(workspaceId: string, threadId: string) {
+  return invoke<any>("thread_chat_tree_read", { workspaceId, threadId });
+}
+
+export async function threadChatTreeSetCurrent(
+  workspaceId: string,
+  threadId: string,
+  nodeId: string,
+) {
+  return invoke<any>("thread_chat_tree_set_current", { workspaceId, threadId, nodeId });
+}
+
 export async function threadLiveSubscribe(workspaceId: string, threadId: string) {
   return invoke<any>("thread_live_subscribe", { workspaceId, threadId });
 }

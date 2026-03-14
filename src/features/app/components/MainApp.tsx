@@ -33,6 +33,7 @@ import { useThreadRows } from "@app/hooks/useThreadRows";
 import { useInterruptShortcut } from "@app/hooks/useInterruptShortcut";
 import { useArchiveShortcut } from "@app/hooks/useArchiveShortcut";
 import { useCopyThread } from "@threads/hooks/useCopyThread";
+import { useThreadChatTree } from "@threads/hooks/useThreadChatTree";
 import { useTerminalController } from "@/features/terminal/hooks/useTerminalController";
 import { useWorkspaceLaunchScript } from "@app/hooks/useWorkspaceLaunchScript";
 import { useWorkspaceLaunchScripts } from "@app/hooks/useWorkspaceLaunchScripts";
@@ -222,9 +223,11 @@ export default function MainApp() {
     sidebarWidth,
     chatDiffSplitPositionPercent,
     rightPanelWidth,
+    chatTreePanelHeight,
     onSidebarResizeStart,
     onChatDiffSplitPositionResizeStart,
     onRightPanelResizeStart,
+    onChatTreePanelResizeStart,
     planPanelHeight,
     onPlanPanelResizeStart,
     terminalPanelHeight,
@@ -588,6 +591,29 @@ export default function MainApp() {
       refreshThread,
       reconnectWorkspace: connectWorkspace,
     });
+  const activeThreadHasLocalSnapshot = hasLocalThreadSnapshot(activeThreadId);
+  const activeThreadIsProcessing = Boolean(
+    activeThreadId && threadStatusById[activeThreadId]?.isProcessing,
+  );
+  const activeThreadIsResumeLoading = Boolean(
+    activeThreadId && threadResumeLoadingById[activeThreadId],
+  );
+  const {
+    activeTree,
+    isLoading: chatTreeLoading,
+    isSwitching: chatTreeSwitching,
+    switchingNodeId: chatTreeSwitchingNodeId,
+    error: chatTreeError,
+    reloadActiveTree,
+    setCurrentNode: setCurrentChatTreeNode,
+  } = useThreadChatTree({
+    activeWorkspaceId,
+    activeThreadId,
+    hasLocalSnapshot: activeThreadHasLocalSnapshot,
+    isProcessing: activeThreadIsProcessing,
+    isResumeLoading: activeThreadIsResumeLoading,
+    refreshThread,
+  });
 
   const handleMobileThreadRefresh = useCallback(() => {
     if (mobileThreadRefreshLoading || !activeWorkspace) {
@@ -1500,6 +1526,7 @@ export default function MainApp() {
     sidebarWidth,
     chatDiffSplitPositionPercent,
     rightPanelWidth,
+    chatTreePanelHeight,
     planPanelHeight,
     terminalPanelHeight,
     debugPanelHeight,
@@ -1716,6 +1743,14 @@ export default function MainApp() {
     onPlanAccept: handlePlanAccept,
     onPlanSubmitChanges: handlePlanSubmitChanges,
     activePlan,
+    activeChatTree: activeTree,
+    chatTreeLoading,
+    chatTreeSwitching,
+    chatTreeSwitchingNodeId,
+    chatTreeError,
+    activeThreadIsProcessing,
+    onReloadChatTree: reloadActiveTree,
+    onSetCurrentChatTreeNode: setCurrentChatTreeNode,
     activeTokenUsage,
     latestAgentRuns,
     isLoadingLatestAgents,
@@ -1883,6 +1918,7 @@ export default function MainApp() {
     tabBarNode,
     gitDiffPanelNode,
     gitDiffViewerNode,
+    chatTreePanelNode,
     planPanelNode,
     debugPanelNode,
     debugPanelFullNode,
@@ -1944,6 +1980,7 @@ export default function MainApp() {
       tabBarNode,
       gitDiffPanelNode,
       gitDiffViewerNode,
+      chatTreePanelNode,
       planPanelNode,
       debugPanelNode,
       debugPanelFullNode,
@@ -1954,6 +1991,7 @@ export default function MainApp() {
       onSidebarResizeStart,
       onChatDiffSplitPositionResizeStart,
       onRightPanelResizeStart,
+      onChatTreePanelResizeStart,
       onPlanPanelResizeStart,
     },
     topbar: {

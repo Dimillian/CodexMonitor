@@ -184,4 +184,54 @@ describe("useResizablePanels", () => {
     split.remove();
     appEl.remove();
   });
+
+  it("shrinks lower right-rail panels to preserve a usable top panel height", () => {
+    window.localStorage.setItem("codexmonitor.chatTreePanelHeight", "220");
+    window.localStorage.setItem("codexmonitor.planPanelHeight", "220");
+
+    const hook = renderResizablePanels();
+    const appEl = document.createElement("div");
+    document.body.appendChild(appEl);
+    Object.defineProperty(appEl, "clientHeight", {
+      configurable: true,
+      value: 620,
+    });
+    hook.result.appRef.current = appEl;
+
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+
+    expect(hook.result.chatTreePanelHeight).toBe(148);
+    expect(hook.result.planPanelHeight).toBe(220);
+
+    hook.unmount();
+    appEl.remove();
+  });
+
+  it("lets chat tree use freed height when the plan panel is collapsed", () => {
+    window.localStorage.setItem("codexmonitor.chatTreePanelHeight", "220");
+    window.localStorage.setItem("codexmonitor.planPanelHeight", "220");
+
+    const hook = renderResizablePanels();
+    const appEl = document.createElement("div");
+    const rightPanel = document.createElement("div");
+    rightPanel.className = "right-panel plan-collapsed";
+    appEl.appendChild(rightPanel);
+    document.body.appendChild(appEl);
+    Object.defineProperty(appEl, "clientHeight", {
+      configurable: true,
+      value: 620,
+    });
+    hook.result.appRef.current = appEl;
+
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+
+    expect(hook.result.chatTreePanelHeight).toBe(220);
+
+    hook.unmount();
+    appEl.remove();
+  });
 });

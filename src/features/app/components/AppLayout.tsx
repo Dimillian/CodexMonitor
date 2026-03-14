@@ -29,6 +29,7 @@ type AppLayoutProps = {
   tabBarNode: ReactNode;
   gitDiffPanelNode: ReactNode;
   gitDiffViewerNode: ReactNode;
+  chatTreePanelNode: ReactNode;
   planPanelNode: ReactNode;
   debugPanelNode: ReactNode;
   debugPanelFullNode: ReactNode;
@@ -39,6 +40,7 @@ type AppLayoutProps = {
   onSidebarResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
   onChatDiffSplitPositionResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
   onRightPanelResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
+  onChatTreePanelResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
   onPlanPanelResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
 };
 
@@ -68,6 +70,7 @@ export const AppLayout = memo(function AppLayout({
   tabBarNode,
   gitDiffPanelNode,
   gitDiffViewerNode,
+  chatTreePanelNode,
   planPanelNode,
   debugPanelNode,
   debugPanelFullNode,
@@ -78,6 +81,7 @@ export const AppLayout = memo(function AppLayout({
   onSidebarResizeStart,
   onChatDiffSplitPositionResizeStart,
   onRightPanelResizeStart,
+  onChatTreePanelResizeStart,
   onPlanPanelResizeStart,
 }: AppLayoutProps) {
   if (isPhone) {
@@ -147,6 +151,7 @@ export const AppLayout = memo(function AppLayout({
       messagesNode={messagesNode}
       gitDiffViewerNode={gitDiffViewerNode}
       gitDiffPanelNode={gitDiffPanelNode}
+      chatTreePanelNode={chatTreePanelNode}
       planPanelNode={planPanelNode}
       composerNode={composerNode}
       terminalDockNode={terminalDockNode}
@@ -155,6 +160,7 @@ export const AppLayout = memo(function AppLayout({
       onSidebarResizeStart={onSidebarResizeStart}
       onChatDiffSplitPositionResizeStart={onChatDiffSplitPositionResizeStart}
       onRightPanelResizeStart={onRightPanelResizeStart}
+      onChatTreePanelResizeStart={onChatTreePanelResizeStart}
       onPlanPanelResizeStart={onPlanPanelResizeStart}
     />
   );

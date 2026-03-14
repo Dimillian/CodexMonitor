@@ -219,6 +219,8 @@ pub fn run() {
             codex::generate_run_metadata,
             codex::generate_agent_description,
             codex::resume_thread,
+            codex::thread_chat_tree_read,
+            codex::thread_chat_tree_set_current,
             codex::thread_live_subscribe,
             codex::thread_live_unsubscribe,
             codex::fork_thread,

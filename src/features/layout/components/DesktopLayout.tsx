@@ -69,6 +69,7 @@ type DesktopLayoutProps = {
   messagesNode: ReactNode;
   gitDiffViewerNode: ReactNode;
   gitDiffPanelNode: ReactNode;
+  chatTreePanelNode: ReactNode;
   planPanelNode: ReactNode;
   composerNode: ReactNode;
   terminalDockNode: ReactNode;
@@ -77,6 +78,7 @@ type DesktopLayoutProps = {
   onSidebarResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
   onChatDiffSplitPositionResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
   onRightPanelResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
+  onChatTreePanelResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
   onPlanPanelResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
 };
 
@@ -96,6 +98,7 @@ export function DesktopLayout({
   messagesNode,
   gitDiffViewerNode,
   gitDiffPanelNode,
+  chatTreePanelNode,
   planPanelNode,
   composerNode,
   terminalDockNode,
@@ -103,6 +106,7 @@ export function DesktopLayout({
   hasActivePlan,
   onSidebarResizeStart,
   onRightPanelResizeStart,
+  onChatTreePanelResizeStart,
   onPlanPanelResizeStart,
   onChatDiffSplitPositionResizeStart,
 }: DesktopLayoutProps) {
@@ -115,6 +119,10 @@ export function DesktopLayout({
     preloadGitDiffs,
     centerMode,
   });
+
+  useEffect(() => {
+    window.dispatchEvent(new Event("resize"));
+  }, [hasActivePlan]);
 
   useEffect(() => {
     const diffLayer = diffLayerRef.current;
@@ -227,7 +235,15 @@ export function DesktopLayout({
               <div className="right-panel-drag-strip" />
               <div className="right-panel-top">{gitDiffPanelNode}</div>
               <div
-                className="right-panel-divider"
+                className="right-panel-divider right-panel-middle-divider"
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label="Resize chat tree panel"
+                onMouseDown={onChatTreePanelResizeStart}
+              />
+              <div className="right-panel-middle">{chatTreePanelNode}</div>
+              <div
+                className="right-panel-divider right-panel-bottom-divider"
                 role="separator"
                 aria-orientation="horizontal"
                 aria-label="Resize plan panel"

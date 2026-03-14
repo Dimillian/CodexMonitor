@@ -17,6 +17,7 @@ type UseAppShellOrchestrationOptions = {
   sidebarWidth: number;
   rightPanelWidth: number;
   chatDiffSplitPositionPercent: number;
+  chatTreePanelHeight: number;
   planPanelHeight: number;
   terminalPanelHeight: number;
   debugPanelHeight: number;
@@ -38,6 +39,7 @@ export function useAppShellOrchestration({
   sidebarWidth,
   rightPanelWidth,
   chatDiffSplitPositionPercent,
+  chatTreePanelHeight,
   planPanelHeight,
   terminalPanelHeight,
   debugPanelHeight,
@@ -62,6 +64,7 @@ export function useAppShellOrchestration({
         isCompact ? rightPanelWidth : rightPanelCollapsed ? 0 : rightPanelWidth
       }px`,
       "--chat-diff-split-position-percent": `${chatDiffSplitPositionPercent}%`,
+      "--chat-tree-panel-height": `${chatTreePanelHeight}px`,
       "--plan-panel-height": `${planPanelHeight}px`,
       "--terminal-panel-height": `${terminalPanelHeight}px`,
       "--debug-panel-height": `${debugPanelHeight}px`,
@@ -96,6 +99,7 @@ export function useAppShellOrchestration({
       appSettings.codeFontSize,
       appSettings.uiFontFamily,
       chatDiffSplitPositionPercent,
+      chatTreePanelHeight,
       debugPanelHeight,
       isWindows,
       isCompact,

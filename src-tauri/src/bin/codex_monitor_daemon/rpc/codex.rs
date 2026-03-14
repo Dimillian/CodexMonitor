@@ -48,6 +48,36 @@ pub(super) async fn try_handle(
             };
             Some(state.resume_thread(workspace_id, thread_id).await)
         }
+        "thread_chat_tree_read" => {
+            let workspace_id = match parse_string(params, "workspaceId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let thread_id = match parse_string(params, "threadId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            Some(state.thread_chat_tree_read(workspace_id, thread_id).await)
+        }
+        "thread_chat_tree_set_current" => {
+            let workspace_id = match parse_string(params, "workspaceId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let thread_id = match parse_string(params, "threadId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let node_id = match parse_string(params, "nodeId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            Some(
+                state
+                    .thread_chat_tree_set_current(workspace_id, thread_id, node_id)
+                    .await,
+            )
+        }
         "thread_live_subscribe" => {
             let workspace_id = match parse_string(params, "workspaceId") {
                 Ok(value) => value,

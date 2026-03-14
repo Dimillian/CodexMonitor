@@ -1,5 +1,6 @@
 import type { RefObject } from "react";
 import type { AppSettings, ComposerEditorSettings, WorkspaceInfo } from "@/types";
+import type { ThreadChatTree } from "@/types";
 import type { ThreadState } from "@/features/threads/hooks/useThreadsReducer";
 import type { WorkspaceLaunchScriptsState } from "@app/hooks/useWorkspaceLaunchScripts";
 import { REMOTE_THREAD_POLL_INTERVAL_MS } from "@app/hooks/useRemoteThreadRefreshOnFocus";
@@ -67,6 +68,14 @@ type UseMainAppLayoutSurfacesArgs = {
   onPlanAccept: LayoutNodesOptions["primary"]["messagesProps"]["onPlanAccept"];
   onPlanSubmitChanges: LayoutNodesOptions["primary"]["messagesProps"]["onPlanSubmitChanges"];
   activePlan: LayoutNodesOptions["secondary"]["planPanelProps"]["plan"];
+  activeChatTree: ThreadChatTree | null;
+  chatTreeLoading: boolean;
+  chatTreeSwitching: boolean;
+  chatTreeSwitchingNodeId: string | null;
+  chatTreeError: string | null;
+  activeThreadIsProcessing: boolean;
+  onReloadChatTree: () => void | Promise<unknown>;
+  onSetCurrentChatTreeNode: (nodeId: string) => void | Promise<boolean>;
   activeTokenUsage: ComposerProps["contextUsage"];
   latestAgentRuns: LayoutNodesOptions["primary"]["homeProps"]["latestAgentRuns"];
   isLoadingLatestAgents: LayoutNodesOptions["primary"]["homeProps"]["isLoadingLatestAgents"];
@@ -263,6 +272,14 @@ export function useMainAppLayoutSurfaces({
   onPlanAccept,
   onPlanSubmitChanges,
   activePlan,
+  activeChatTree,
+  chatTreeLoading,
+  chatTreeSwitching,
+  chatTreeSwitchingNodeId,
+  chatTreeError,
+  activeThreadIsProcessing,
+  onReloadChatTree,
+  onSetCurrentChatTreeNode,
   activeTokenUsage,
   latestAgentRuns,
   isLoadingLatestAgents,
@@ -857,6 +874,16 @@ export function useMainAppLayoutSurfaces({
       },
     },
     secondary: {
+      chatTreePanelProps: {
+        tree: activeChatTree,
+        isLoading: chatTreeLoading,
+        isSwitching: chatTreeSwitching,
+        switchingNodeId: chatTreeSwitchingNodeId,
+        isProcessing: activeThreadIsProcessing,
+        error: chatTreeError,
+        onReload: onReloadChatTree,
+        onSetCurrentNode: onSetCurrentChatTreeNode,
+      },
       planPanelProps: {
         plan: activePlan,
         isProcessing: composerWorkspaceState.isProcessing,

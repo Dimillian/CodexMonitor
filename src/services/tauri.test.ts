@@ -35,6 +35,8 @@ import {
   setTraySessionUsage,
   startReview,
   setThreadName,
+  threadChatTreeRead,
+  threadChatTreeSetCurrent,
   tailscaleDaemonStart,
   tailscaleDaemonCommandPreview,
   tailscaleDaemonStatus,
@@ -255,6 +257,31 @@ describe("tauri invoke wrappers", () => {
       workspaceId: "ws-9",
       threadId: "thread-9",
       name: "New Name",
+    });
+  });
+
+  it("maps workspaceId/threadId for thread_chat_tree_read", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await threadChatTreeRead("ws-9", "thread-9");
+
+    expect(invokeMock).toHaveBeenCalledWith("thread_chat_tree_read", {
+      workspaceId: "ws-9",
+      threadId: "thread-9",
+    });
+  });
+
+  it("maps workspaceId/threadId/nodeId for thread_chat_tree_set_current", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await threadChatTreeSetCurrent("ws-9", "thread-9", "node-3");
+
+    expect(invokeMock).toHaveBeenCalledWith("thread_chat_tree_set_current", {
+      workspaceId: "ws-9",
+      threadId: "thread-9",
+      nodeId: "node-3",
     });
   });
 

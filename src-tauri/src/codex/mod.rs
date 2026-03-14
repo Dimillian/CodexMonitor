@@ -111,6 +111,53 @@ pub(crate) async fn resume_thread(
 }
 
 #[tauri::command]
+pub(crate) async fn thread_chat_tree_read(
+    workspace_id: String,
+    thread_id: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "thread_chat_tree_read",
+            json!({ "workspaceId": workspace_id, "threadId": thread_id }),
+        )
+        .await;
+    }
+
+    codex_core::thread_chat_tree_read_core(&state.sessions, workspace_id, thread_id).await
+}
+
+#[tauri::command]
+pub(crate) async fn thread_chat_tree_set_current(
+    workspace_id: String,
+    thread_id: String,
+    node_id: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "thread_chat_tree_set_current",
+            json!({ "workspaceId": workspace_id, "threadId": thread_id, "nodeId": node_id }),
+        )
+        .await;
+    }
+
+    codex_core::thread_chat_tree_set_current_core(
+        &state.sessions,
+        workspace_id,
+        thread_id,
+        node_id,
+    )
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn thread_live_subscribe(
     workspace_id: String,
     thread_id: String,

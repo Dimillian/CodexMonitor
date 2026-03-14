@@ -5,6 +5,7 @@ const STORAGE_KEY_SIDEBAR = "codexmonitor.sidebarWidth";
 const STORAGE_KEY_RIGHT_PANEL = "codexmonitor.rightPanelWidth";
 const STORAGE_KEY_CHAT_DIFF_SPLIT_POSITION_PERCENT =
   "codexmonitor.chatDiffSplitPositionPercent";
+const STORAGE_KEY_CHAT_TREE_PANEL = "codexmonitor.chatTreePanelHeight";
 const STORAGE_KEY_PLAN_PANEL = "codexmonitor.planPanelHeight";
 const STORAGE_KEY_TERMINAL_PANEL = "codexmonitor.terminalPanelHeight";
 const STORAGE_KEY_DEBUG_PANEL = "codexmonitor.debugPanelHeight";
@@ -14,8 +15,13 @@ const MIN_CHAT_DIFF_SPLIT_POSITION_PERCENT = 20;
 const MAX_CHAT_DIFF_SPLIT_POSITION_PERCENT = 80;
 const MIN_RIGHT_PANEL_WIDTH = 270;
 const MAX_RIGHT_PANEL_WIDTH = 420;
+const MIN_CHAT_TREE_PANEL_HEIGHT = 160;
+const MAX_CHAT_TREE_PANEL_HEIGHT = Number.POSITIVE_INFINITY;
 const MIN_PLAN_PANEL_HEIGHT = 140;
 const MAX_PLAN_PANEL_HEIGHT = 420;
+const MIN_RIGHT_PANEL_TOP_HEIGHT = 220;
+const RIGHT_PANEL_DIVIDER_HEIGHT = 8;
+const RIGHT_PANEL_FIXED_PANEL_PADDING = 16;
 const MIN_TERMINAL_PANEL_HEIGHT = 140;
 const MAX_TERMINAL_PANEL_HEIGHT = 480;
 const MIN_DEBUG_PANEL_HEIGHT = 120;
@@ -23,6 +29,7 @@ const MAX_DEBUG_PANEL_HEIGHT = 420;
 const DEFAULT_SIDEBAR_WIDTH = 280;
 const DEFAULT_CHAT_DIFF_SPLIT_POSITION_PERCENT = 50;
 const DEFAULT_RIGHT_PANEL_WIDTH = 230;
+const DEFAULT_CHAT_TREE_PANEL_HEIGHT = 260;
 const DEFAULT_PLAN_PANEL_HEIGHT = 220;
 const DEFAULT_TERMINAL_PANEL_HEIGHT = 220;
 const DEFAULT_DEBUG_PANEL_HEIGHT = 180;
@@ -32,6 +39,7 @@ type ResizeState = {
     | "sidebar"
     | "right-panel"
     | "chat-diff-split"
+    | "chat-tree-panel"
     | "plan-panel"
     | "terminal-panel"
     | "debug-panel";
@@ -53,6 +61,7 @@ const CSS_VAR_MAP: Record<
     prop: "--chat-diff-split-position-percent",
     unit: "%",
   },
+  "chat-tree-panel": { prop: "--chat-tree-panel-height", unit: "px" },
   "plan-panel": { prop: "--plan-panel-height", unit: "px" },
   "terminal-panel": { prop: "--terminal-panel-height", unit: "px" },
   "debug-panel": { prop: "--debug-panel-height", unit: "px" },
@@ -60,6 +69,49 @@ const CSS_VAR_MAP: Record<
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function clampPanelHeight(value: number, min: number, max: number) {
+  const effectiveMax = Math.max(0, max);
+  const effectiveMin = Math.min(min, effectiveMax);
+  return clamp(value, effectiveMin, effectiveMax);
+}
+
+function getRightPanelFixedHeightBudget(appEl: HTMLDivElement | null) {
+  const totalHeight = appEl?.clientHeight ?? window.innerHeight;
+  return (
+    totalHeight -
+    MIN_RIGHT_PANEL_TOP_HEIGHT -
+    RIGHT_PANEL_DIVIDER_HEIGHT * 2 -
+    RIGHT_PANEL_FIXED_PANEL_PADDING
+  );
+}
+
+function isPlanPanelCollapsed(appEl: HTMLDivElement | null) {
+  return Boolean(appEl?.querySelector(".right-panel.plan-collapsed"));
+}
+
+function getMaxChatTreePanelHeight(
+  appEl: HTMLDivElement | null,
+  planPanelHeight: number,
+) {
+  const effectivePlanPanelHeight = isPlanPanelCollapsed(appEl)
+    ? 0
+    : planPanelHeight;
+  return Math.min(
+    MAX_CHAT_TREE_PANEL_HEIGHT,
+    getRightPanelFixedHeightBudget(appEl) - effectivePlanPanelHeight,
+  );
+}
+
+function getMaxPlanPanelHeight(
+  appEl: HTMLDivElement | null,
+  chatTreePanelHeight: number,
+) {
+  return Math.min(
+    MAX_PLAN_PANEL_HEIGHT,
+    getRightPanelFixedHeightBudget(appEl) - chatTreePanelHeight,
+  );
 }
 
 function readStoredWidth(key: string, fallback: number, min: number, max: number) {
@@ -107,6 +159,14 @@ export function useResizablePanels() {
       DEFAULT_RIGHT_PANEL_WIDTH,
       MIN_RIGHT_PANEL_WIDTH,
       MAX_RIGHT_PANEL_WIDTH,
+    ),
+  );
+  const [chatTreePanelHeight, setChatTreePanelHeight] = useState(() =>
+    readStoredWidth(
+      STORAGE_KEY_CHAT_TREE_PANEL,
+      DEFAULT_CHAT_TREE_PANEL_HEIGHT,
+      MIN_CHAT_TREE_PANEL_HEIGHT,
+      MAX_CHAT_TREE_PANEL_HEIGHT,
     ),
   );
   const [planPanelHeight, setPlanPanelHeight] = useState(() =>
@@ -158,10 +218,52 @@ export function useResizablePanels() {
 
   useEffect(() => {
     window.localStorage.setItem(
+      STORAGE_KEY_CHAT_TREE_PANEL,
+      String(chatTreePanelHeight),
+    );
+  }, [chatTreePanelHeight]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
       STORAGE_KEY_PLAN_PANEL,
       String(planPanelHeight),
     );
   }, [planPanelHeight]);
+
+  useEffect(() => {
+    function syncRightPanelHeights() {
+      const maxChatTreePanelHeight = getMaxChatTreePanelHeight(
+        appRef.current,
+        planPanelHeight,
+      );
+      const nextChatTreePanelHeight = clampPanelHeight(
+        chatTreePanelHeight,
+        MIN_CHAT_TREE_PANEL_HEIGHT,
+        maxChatTreePanelHeight,
+      );
+      const maxPlanPanelHeight = getMaxPlanPanelHeight(
+        appRef.current,
+        nextChatTreePanelHeight,
+      );
+      const nextPlanPanelHeight = clampPanelHeight(
+        planPanelHeight,
+        MIN_PLAN_PANEL_HEIGHT,
+        maxPlanPanelHeight,
+      );
+      if (nextChatTreePanelHeight !== chatTreePanelHeight) {
+        setChatTreePanelHeight(nextChatTreePanelHeight);
+      }
+      if (nextPlanPanelHeight !== planPanelHeight) {
+        setPlanPanelHeight(nextPlanPanelHeight);
+      }
+    }
+
+    syncRightPanelHeights();
+    window.addEventListener("resize", syncRightPanelHeights);
+    return () => {
+      window.removeEventListener("resize", syncRightPanelHeights);
+    };
+  }, [chatTreePanelHeight, planPanelHeight]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -210,10 +312,17 @@ export function useResizablePanels() {
         );
       } else if (resize.type === "plan-panel") {
         const delta = event.clientY - resize.startY;
-        next = clamp(
+        next = clampPanelHeight(
           resize.startHeight - delta,
           MIN_PLAN_PANEL_HEIGHT,
-          MAX_PLAN_PANEL_HEIGHT,
+          getMaxPlanPanelHeight(el, chatTreePanelHeight),
+        );
+      } else if (resize.type === "chat-tree-panel") {
+        const delta = event.clientY - resize.startY;
+        next = clampPanelHeight(
+          resize.startHeight - delta,
+          MIN_CHAT_TREE_PANEL_HEIGHT,
+          getMaxChatTreePanelHeight(el, planPanelHeight),
         );
       } else if (resize.type === "terminal-panel") {
         const delta = event.clientY - resize.startY;
@@ -256,6 +365,9 @@ export function useResizablePanels() {
           case "plan-panel":
             setPlanPanelHeight(finalValue);
             break;
+          case "chat-tree-panel":
+            setChatTreePanelHeight(finalValue);
+            break;
           case "terminal-panel":
             setTerminalPanelHeight(finalValue);
             break;
@@ -287,13 +399,13 @@ export function useResizablePanels() {
         startX: event.clientX,
         startY: event.clientY,
         startWidth: sidebarWidth,
-        startHeight: planPanelHeight,
+        startHeight: chatTreePanelHeight,
       };
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
       setIsResizing(true);
     },
-    [planPanelHeight, sidebarWidth],
+    [chatTreePanelHeight, sidebarWidth],
   );
 
   const onChatDiffSplitPositionResizeStart = useCallback(
@@ -328,13 +440,31 @@ export function useResizablePanels() {
         startX: event.clientX,
         startY: event.clientY,
         startWidth: rightPanelWidth,
-        startHeight: planPanelHeight,
+        startHeight: chatTreePanelHeight,
       };
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
       setIsResizing(true);
     },
-    [planPanelHeight, rightPanelWidth],
+    [chatTreePanelHeight, rightPanelWidth],
+  );
+
+  const onChatTreePanelResizeStart = useCallback(
+    (event: ReactMouseEvent) => {
+      event.preventDefault();
+
+      resizeRef.current = {
+        type: "chat-tree-panel",
+        startX: event.clientX,
+        startY: event.clientY,
+        startWidth: rightPanelWidth,
+        startHeight: chatTreePanelHeight,
+      };
+      document.body.style.cursor = "row-resize";
+      document.body.style.userSelect = "none";
+      setIsResizing(true);
+    },
+    [chatTreePanelHeight, rightPanelWidth],
   );
 
   const onPlanPanelResizeStart = useCallback(
@@ -396,6 +526,8 @@ export function useResizablePanels() {
     isResizing,
     sidebarWidth,
     rightPanelWidth,
+    chatTreePanelHeight,
+    onChatTreePanelResizeStart,
     planPanelHeight,
     terminalPanelHeight,
     debugPanelHeight,

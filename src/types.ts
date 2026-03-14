@@ -150,6 +150,19 @@ export type ThreadSummary = {
   isSubagent?: boolean;
 };
 
+export type ThreadChatTreeNode = {
+  nodeId: string;
+  parentNodeId: string | null;
+  summary: string | null;
+  turnId: string | null;
+  order: number;
+};
+
+export type ThreadChatTree = {
+  currentNodeId: string | null;
+  nodes: ThreadChatTreeNode[];
+};
+
 export type ThreadListSortKey = "created_at" | "updated_at";
 export type ThreadListOrganizeMode =
   | "by_project"

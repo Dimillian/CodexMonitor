@@ -692,6 +692,29 @@ impl DaemonState {
         codex_core::resume_thread_core(&self.sessions, workspace_id, thread_id).await
     }
 
+    async fn thread_chat_tree_read(
+        &self,
+        workspace_id: String,
+        thread_id: String,
+    ) -> Result<Value, String> {
+        codex_core::thread_chat_tree_read_core(&self.sessions, workspace_id, thread_id).await
+    }
+
+    async fn thread_chat_tree_set_current(
+        &self,
+        workspace_id: String,
+        thread_id: String,
+        node_id: String,
+    ) -> Result<Value, String> {
+        codex_core::thread_chat_tree_set_current_core(
+            &self.sessions,
+            workspace_id,
+            thread_id,
+            node_id,
+        )
+        .await
+    }
+
     async fn thread_live_subscribe(
         &self,
         workspace_id: String,

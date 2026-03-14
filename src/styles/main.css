@@ -1014,7 +1014,7 @@
   flex-direction: column;
   gap: 12px;
   flex: 1;
-  min-height: 0;
+  min-height: 220px;
   overflow: hidden;
 }
 
@@ -1046,19 +1046,26 @@
   opacity: 0.9;
 }
 
+.right-panel-middle {
+  flex: 0 0 auto;
+  height: var(--chat-tree-panel-height, 260px);
+  min-height: 0;
+  max-height: none;
+  padding-top: 4px;
+  overflow: hidden;
+}
+
 .right-panel-bottom {
   flex: 0 0 auto;
   height: var(--plan-panel-height, 220px);
-  min-height: 140px;
+  min-height: 0;
   max-height: 420px;
   padding-bottom: 8px;
   padding-top: 4px;
+  overflow: hidden;
 }
 
-.right-panel.plan-collapsed .right-panel-divider {
-  display: none;
-}
-
+.right-panel.plan-collapsed .right-panel-bottom-divider,
 .right-panel.plan-collapsed .right-panel-bottom {
   height: 0;
   min-height: 0;
@@ -1069,6 +1076,142 @@
 
 .right-panel.plan-collapsed .plan-panel {
   display: none;
+}
+
+.chat-tree-panel {
+  height: 100%;
+  overflow: hidden;
+}
+
+.chat-tree-panel-header {
+  align-items: center;
+}
+
+.chat-tree-panel-meta {
+  align-items: center;
+  gap: 10px;
+}
+
+.chat-tree-panel-refresh {
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.chat-tree-panel-refresh:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.chat-tree-panel-body {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 0 12px 12px;
+}
+
+.chat-tree-panel-hint,
+.chat-tree-panel-empty,
+.chat-tree-panel-error {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.chat-tree-panel-error {
+  color: var(--text-danger, #ff8f8f);
+  margin-bottom: 8px;
+}
+
+.chat-tree-panel-empty {
+  padding: 12px 0;
+}
+
+.chat-tree-panel-hint {
+  margin-bottom: 8px;
+}
+
+.chat-tree-graph {
+  position: relative;
+  width: max-content;
+  min-width: 100%;
+}
+
+.chat-tree-graph-svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.chat-tree-graph-connector {
+  fill: none;
+  stroke: color-mix(in srgb, var(--border-strong) 68%, transparent);
+  stroke-width: 1.35;
+  opacity: 0.95;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chat-tree-graph-node-button {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
+}
+
+.chat-tree-graph-node-button:disabled {
+  cursor: default;
+}
+
+.chat-tree-graph-node-button:hover:not(:disabled),
+.chat-tree-graph-node-button:active:not(:disabled),
+.chat-tree-graph-node-button:focus-visible {
+  transform: translate(-50%, -50%);
+  box-shadow: none;
+}
+
+.chat-tree-graph-node-dot {
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: 4px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 1px rgba(15, 18, 28, 0.3);
+  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.chat-tree-graph-node-button:hover:not(:disabled) .chat-tree-graph-node-dot {
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+
+.chat-tree-graph-node-button:focus-visible .chat-tree-graph-node-dot {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+
+.chat-tree-graph-node-button.is-current .chat-tree-graph-node-dot {
+  border-color: var(--accent-primary, #86b7ff);
+  background: color-mix(in srgb, var(--accent-primary, #86b7ff) 55%, white 45%);
+  box-shadow: 0 0 0 4px rgba(134, 183, 255, 0.2);
+}
+
+.chat-tree-graph-node-button.is-switching .chat-tree-graph-node-dot {
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
 }
 
 .right-panel-resizer {
