@@ -57,10 +57,15 @@ export type PostUpdateNoticeState = PostUpdateNotice | null;
 
 type UseUpdaterOptions = {
   enabled?: boolean;
+  autoCheckOnMount?: boolean;
   onDebug?: (entry: DebugEntry) => void;
 };
 
-export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
+export function useUpdater({
+  enabled = true,
+  autoCheckOnMount = true,
+  onDebug,
+}: UseUpdaterOptions) {
   const [state, setState] = useState<UpdateState>({ stage: "idle" });
   const [postUpdateNotice, setPostUpdateNotice] = useState<PostUpdateNoticeState>(
     null,
@@ -205,11 +210,11 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
   }, [checkForUpdates, enabled, onDebug]);
 
   useEffect(() => {
-    if (!enabled || import.meta.env.DEV || !isTauri()) {
+    if (!enabled || !autoCheckOnMount || import.meta.env.DEV || !isTauri()) {
       return;
     }
     void checkForUpdates();
-  }, [checkForUpdates, enabled]);
+  }, [autoCheckOnMount, checkForUpdates, enabled]);
 
   useEffect(() => {
     if (!enabled || !isTauri()) {
