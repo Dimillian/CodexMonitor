@@ -21,6 +21,15 @@ use crate::types::WorkspaceEntry;
 const LOGIN_START_TIMEOUT: Duration = Duration::from_secs(30);
 #[allow(dead_code)]
 const MAX_INLINE_IMAGE_BYTES: u64 = 50 * 1024 * 1024;
+const THREAD_LIST_SOURCE_KINDS: &[&str] = &[
+    "cli",
+    "vscode",
+    "appServer",
+    "subAgentReview",
+    "subAgentCompact",
+    "subAgentThreadSpawn",
+    "unknown",
+];
 
 #[allow(dead_code)]
 fn image_mime_type_for_path(path: &str) -> Option<&'static str> {
@@ -243,19 +252,9 @@ pub(crate) async fn list_threads_core(
         "sortKey": sort_key,
         // Keep interactive and sub-agent sessions visible across CLI versions so
         // thread/list refreshes do not drop valid historical conversations.
-        "sourceKinds": [
-            "cli",
-            "vscode",
-            "appServer",
-            // Intentionally exclude generic "subAgent" to avoid pulling
-            // parentless internal sessions (for example memory consolidation).
-            // Keep only explicit parent-linked sub-agent kinds so internal
-            // background jobs (for example memory consolidation) stay hidden.
-            "subAgentReview",
-            "subAgentCompact",
-            "subAgentThreadSpawn",
-            "unknown"
-        ]
+        // Intentionally exclude generic "subAgent" so parentless internal jobs
+        // (for example memory consolidation) do not leak back into app state.
+        "sourceKinds": THREAD_LIST_SOURCE_KINDS
     });
     session
         .send_request_for_workspace(&workspace_id, "thread/list", params)
@@ -935,5 +934,13 @@ mod tests {
             Some(Some("fast".to_string())),
         );
         assert_eq!(params.get("serviceTier"), Some(&json!("fast")));
+    }
+
+    #[test]
+    fn thread_list_source_kinds_exclude_generic_subagent_and_keep_explicit_variants() {
+        assert!(!THREAD_LIST_SOURCE_KINDS.contains(&"subAgent"));
+        assert!(THREAD_LIST_SOURCE_KINDS.contains(&"subAgentReview"));
+        assert!(THREAD_LIST_SOURCE_KINDS.contains(&"subAgentCompact"));
+        assert!(THREAD_LIST_SOURCE_KINDS.contains(&"subAgentThreadSpawn"));
     }
 }

@@ -1,3 +1,4 @@
+import { isTauri } from "@tauri-apps/api/core";
 import { useEffect, useMemo, useRef } from "react";
 import { setTrayRecentThreads } from "@services/tauri";
 import type { ThreadSummary, TrayRecentThreadEntry, WorkspaceInfo } from "../../../types";
@@ -83,21 +84,49 @@ export function useTrayRecentThreads({
       buildTrayRecentThreadEntries(workspaces, threadsByWorkspace, isSubagentThread),
     [isSubagentThread, threadsByWorkspace, workspaces],
   );
+  const serializedEntries = useMemo(() => JSON.stringify(entries), [entries]);
+  const syncEntries = useMemo(() => entries, [serializedEntries]);
   const lastSyncedEntriesRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const serializedEntries = JSON.stringify(entries);
+    if (!isTauri()) {
+      return;
+    }
+
     if (lastSyncedEntriesRef.current === serializedEntries) {
       return;
     }
 
-    const timeoutId = window.setTimeout(() => {
-      lastSyncedEntriesRef.current = serializedEntries;
-      void setTrayRecentThreads(entries).catch(() => {
-        // Ignore tray sync failures outside macOS or before the desktop bridge is ready.
-      });
-    }, SYNC_DEBOUNCE_MS);
+    let cancelled = false;
+    let timeoutId: number | null = null;
 
-    return () => window.clearTimeout(timeoutId);
-  }, [entries]);
+    const scheduleSync = () => {
+      timeoutId = window.setTimeout(() => {
+        timeoutId = null;
+        void setTrayRecentThreads(syncEntries)
+          .then(() => {
+            if (cancelled) {
+              return;
+            }
+            lastSyncedEntriesRef.current = serializedEntries;
+          })
+          .catch(() => {
+            if (cancelled) {
+              return;
+            }
+            // Retry until the desktop bridge or tray is ready for the same payload.
+            scheduleSync();
+          });
+      }, SYNC_DEBOUNCE_MS);
+    };
+
+    scheduleSync();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [serializedEntries, syncEntries]);
 }

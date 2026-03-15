@@ -80,6 +80,8 @@
 .home-section-meta-row {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
   min-width: 0;
 }
@@ -222,6 +224,12 @@
   gap: 12px;
 }
 
+.home-usage-insights {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .home-usage-card {
   padding: 12px 14px;
   border-radius: 14px;
@@ -235,6 +243,21 @@
   min-height: 96px;
   overflow: hidden;
   position: relative;
+}
+
+.home-usage-card.is-compact {
+  min-height: 82px;
+  padding: 10px 12px;
+}
+
+.home-usage-card.is-up {
+  background: linear-gradient(135deg, rgba(88, 190, 255, 0.18), transparent 58%),
+    var(--surface-card);
+}
+
+.home-usage-card.is-down {
+  background: linear-gradient(135deg, rgba(255, 177, 124, 0.16), transparent 58%),
+    var(--surface-card);
 }
 
 .home-usage-label {
@@ -266,6 +289,18 @@
   max-width: 100%;
 }
 
+.home-usage-number.is-up {
+  color: var(--text-stronger);
+}
+
+.home-usage-number.is-down {
+  color: var(--text-stronger);
+}
+
+.home-usage-number.is-flat {
+  color: var(--text-subtle);
+}
+
 .home-usage-suffix {
   font-size: 11px;
   color: var(--text-subtle);
@@ -286,6 +321,61 @@
     var(--surface-card);
   border: 1px solid var(--border-subtle);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+}
+
+.home-usage-chart-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.home-usage-chart-range {
+  font-size: 12px;
+  color: var(--text-stronger);
+  letter-spacing: 0.01em;
+}
+
+.home-usage-chart-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.home-usage-chart-button {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-stronger);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 120ms ease, transform 120ms ease, border-color 120ms ease;
+  padding: 0;
+}
+
+.home-usage-chart-button:hover {
+  background: var(--surface-card-strong);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.home-usage-chart-button:disabled {
+  opacity: 0.38;
+  cursor: default;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-faint);
+  border-color: var(--border-subtle);
+  transform: none;
+}
+
+.home-usage-chart-button svg {
+  width: 14px;
+  height: 14px;
 }
 
 .home-usage-chart {
@@ -346,6 +436,16 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.home-account {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.home-account-grid {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
 .home-usage-models-label {
@@ -638,6 +738,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .home-usage-insights {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .home-usage-chart {
     grid-template-columns: repeat(7, minmax(0, 1fr));
   }
@@ -656,8 +760,21 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .home-usage-insights {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .home-usage-controls {
     align-items: stretch;
+  }
+
+  .home-usage-chart-nav {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .home-usage-chart-actions {
+    align-self: flex-end;
   }
 
   .home-usage-control-group {

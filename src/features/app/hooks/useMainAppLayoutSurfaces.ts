@@ -58,6 +58,8 @@ type UseMainAppLayoutSurfacesArgs = {
   approvals: LayoutNodesOptions["primary"]["approvalToastsProps"]["approvals"];
   activeRateLimits: SidebarProps["accountRateLimits"];
   activeAccount: SidebarProps["accountInfo"];
+  homeRateLimits: LayoutNodesOptions["primary"]["homeProps"]["accountRateLimits"];
+  homeAccount: LayoutNodesOptions["primary"]["homeProps"]["accountInfo"];
   accountSwitching: SidebarProps["accountSwitching"];
   onSwitchAccount: SidebarProps["onSwitchAccount"];
   onCancelSwitchAccount: SidebarProps["onCancelSwitchAccount"];
@@ -254,6 +256,8 @@ export function useMainAppLayoutSurfaces({
   approvals,
   activeRateLimits,
   activeAccount,
+  homeRateLimits,
+  homeAccount,
   accountSwitching,
   onSwitchAccount,
   onCancelSwitchAccount,
@@ -383,6 +387,9 @@ export function useMainAppLayoutSurfaces({
   showDebugButton,
   handleDebugClick,
 }: UseMainAppLayoutSurfacesArgs): LayoutNodesOptions {
+  const sidebarRateLimits = activeWorkspace ? activeRateLimits : homeRateLimits;
+  const sidebarAccount = activeWorkspace ? activeAccount : homeAccount;
+
   return {
     primary: {
       sidebarProps: {
@@ -407,9 +414,9 @@ export function useMainAppLayoutSurfaces({
         activeWorkspaceId,
         activeThreadId,
         userInputRequests,
-        accountRateLimits: activeRateLimits,
+        accountRateLimits: sidebarRateLimits,
         usageShowRemaining: appSettings.usageShowRemaining,
-        accountInfo: activeAccount,
+        accountInfo: sidebarAccount,
         onSwitchAccount,
         onCancelSwitchAccount,
         accountSwitching,
@@ -603,6 +610,9 @@ export function useMainAppLayoutSurfaces({
         usageWorkspaceId,
         usageWorkspaceOptions,
         onUsageWorkspaceChange,
+        accountRateLimits: homeRateLimits,
+        usageShowRemaining: appSettings.usageShowRemaining,
+        accountInfo: homeAccount,
         onSelectThread: (workspaceId, threadId) => {
           threadNavigation.exitDiffView();
           threadNavigation.clearDraftState();

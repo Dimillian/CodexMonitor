@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRef } from "react";
 import { Sidebar } from "./Sidebar";
@@ -72,34 +71,22 @@ const baseProps = {
 
 describe("Sidebar", () => {
   it("toggles the search bar from the header icon", () => {
-    vi.useFakeTimers();
     render(<Sidebar {...baseProps} />);
 
     const toggleButton = screen.getByRole("button", { name: "Toggle search" });
     expect(screen.queryByLabelText("Search projects")).toBeNull();
 
-    act(() => {
-      fireEvent.click(toggleButton);
-    });
+    fireEvent.click(toggleButton);
     const input = screen.getByLabelText("Search projects") as HTMLInputElement;
     expect(input).toBeTruthy();
 
-    act(() => {
-      fireEvent.change(input, { target: { value: "alpha" } });
-      vi.runOnlyPendingTimers();
-    });
+    fireEvent.change(input, { target: { value: "alpha" } });
     expect(input.value).toBe("alpha");
 
-    act(() => {
-      fireEvent.click(toggleButton);
-      vi.runOnlyPendingTimers();
-    });
+    fireEvent.click(toggleButton);
     expect(screen.queryByLabelText("Search projects")).toBeNull();
 
-    act(() => {
-      fireEvent.click(toggleButton);
-      vi.runOnlyPendingTimers();
-    });
+    fireEvent.click(toggleButton);
     const reopened = screen.getByLabelText("Search projects") as HTMLInputElement;
     expect(reopened.value).toBe("");
   });
@@ -139,6 +126,31 @@ describe("Sidebar", () => {
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Thread list" }));
 
     expect(onSetThreadListOrganizeMode).toHaveBeenCalledWith("threads_only");
+  });
+
+  it("renders available credits in the footer when present", () => {
+    render(
+      <Sidebar
+        {...baseProps}
+        accountRateLimits={{
+          primary: {
+            usedPercent: 62,
+            windowDurationMins: 300,
+            resetsAt: Math.round(Date.now() / 1000) + 3600,
+          },
+          secondary: null,
+          credits: {
+            hasCredits: true,
+            unlimited: false,
+            balance: "120",
+          },
+          planType: "pro",
+        }}
+      />,
+    );
+
+    const creditsLabel = screen.getByText(/^Available credits:/);
+    expect(creditsLabel.textContent ?? "").toContain("120");
   });
 
   it("renders threads-only mode as a global chronological list", () => {
