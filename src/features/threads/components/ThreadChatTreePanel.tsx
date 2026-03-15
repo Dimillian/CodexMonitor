@@ -17,6 +17,7 @@ type ThreadChatTreePanelProps = {
   error: string | null;
   onReload: () => void | Promise<unknown>;
   onSetCurrentNode: (nodeId: string) => void | Promise<boolean>;
+  interactionMode?: "desktop" | "compact";
 };
 
 const DEPTH_GAP = 78;
@@ -38,6 +39,24 @@ function nodeTitle(node: ThreadChatTree["nodes"][number]) {
   return node.summary?.trim() || node.turnId?.trim() || shortId(node.nodeId);
 }
 
+function tooltipText({
+  node,
+  isCurrent,
+}: {
+  node: ThreadChatTree["nodes"][number];
+  isCurrent: boolean;
+}) {
+  const lines = [nodeTitle(node)];
+
+  if (isCurrent) {
+    lines.push("Current branch.");
+  } else {
+    lines.push("Double-click to switch to this branch.");
+  }
+
+  return lines.join("\n");
+}
+
 function laneX(lane: number) {
   return GRAPH_PADDING_X + lane * LANE_GAP;
 }
@@ -55,7 +74,9 @@ export function ThreadChatTreePanel({
   error,
   onReload,
   onSetCurrentNode,
+  interactionMode = "desktop",
 }: ThreadChatTreePanelProps) {
+  const isCompactMode = interactionMode === "compact";
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const graph = buildThreadChatTreeGraph(tree);
   const graphNodeById = new Map(graph.nodes.map((entry) => [entry.node.nodeId, entry]));
@@ -81,16 +102,20 @@ export function ThreadChatTreePanel({
   const branchSwitchingDisabled = isProcessing || isLoading || isSwitching;
 
   useEffect(() => {
+    if (!isCompactMode && selectedNodeId) {
+      setSelectedNodeId(null);
+      return;
+    }
     if (selectedNodeId && !graphNodeById.has(selectedNodeId)) {
       setSelectedNodeId(null);
     }
-  }, [graphNodeById, selectedNodeId]);
+  }, [graphNodeById, isCompactMode, selectedNodeId]);
 
   useEffect(() => {
-    if (switchingNodeId) {
+    if (isCompactMode && switchingNodeId) {
       setSelectedNodeId(switchingNodeId);
     }
-  }, [switchingNodeId]);
+  }, [isCompactMode, switchingNodeId]);
 
   async function handleSwitchNode(nodeId: string) {
     const didSwitch = await onSetCurrentNode(nodeId);
@@ -132,7 +157,9 @@ export function ThreadChatTreePanel({
                 ? "Branch switching is disabled while the thread is running."
                 : isLoading || isSwitching
                   ? "Branch switching is disabled while the thread is refreshing."
-                  : "Tap or click a node to inspect it, then use Switch to change branches."}
+                  : isCompactMode
+                    ? "Tap or click a node to inspect it, then use Switch to change branches."
+                    : "Double-click a node to switch to that branch. Hover a node to inspect it."}
             </div>
             <div
               className="chat-tree-graph"
@@ -141,7 +168,9 @@ export function ThreadChatTreePanel({
                 minHeight: `${graphHeight}px`,
               }}
               onClick={() => {
-                setSelectedNodeId(null);
+                if (isCompactMode) {
+                  setSelectedNodeId(null);
+                }
               }}
             >
               <svg
@@ -178,30 +207,54 @@ export function ThreadChatTreePanel({
                   );
                 })}
               </svg>
-              {graph.nodes.map((entry) => (
-                <button
-                  key={entry.node.nodeId}
-                  type="button"
-                  className={`chat-tree-graph-node-button${entry.isCurrent ? " is-current" : ""}${
-                    switchingNodeId === entry.node.nodeId ? " is-switching" : ""
-                  }${selectedNodeId === entry.node.nodeId ? " is-selected" : ""}`}
-                  style={{
-                    left: `${laneX(entry.lane)}px`,
-                    top: `${depthY(entry.depth)}px`,
-                  }}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setSelectedNodeId((current) =>
-                      current === entry.node.nodeId ? null : entry.node.nodeId,
-                    );
-                  }}
-                  aria-label={nodeTitle(entry.node)}
-                  aria-pressed={selectedNodeId === entry.node.nodeId}
-                >
-                  <span className="chat-tree-graph-node-dot" />
-                </button>
-              ))}
-              {selectedEntry ? (
+              {graph.nodes.map((entry) => {
+                const desktopDisabled =
+                  branchSwitchingDisabled ||
+                  (isSwitching && switchingNodeId !== entry.node.nodeId);
+
+                return (
+                  <button
+                    key={entry.node.nodeId}
+                    type="button"
+                    className={`chat-tree-graph-node-button${entry.isCurrent ? " is-current" : ""}${
+                      switchingNodeId === entry.node.nodeId ? " is-switching" : ""
+                    }${selectedNodeId === entry.node.nodeId ? " is-selected" : ""}`}
+                    style={{
+                      left: `${laneX(entry.lane)}px`,
+                      top: `${depthY(entry.depth)}px`,
+                    }}
+                    onClick={(event) => {
+                      if (!isCompactMode) {
+                        return;
+                      }
+                      event.stopPropagation();
+                      setSelectedNodeId((current) =>
+                        current === entry.node.nodeId ? null : entry.node.nodeId,
+                      );
+                    }}
+                    onDoubleClick={() => {
+                      if (isCompactMode) {
+                        return;
+                      }
+                      void onSetCurrentNode(entry.node.nodeId);
+                    }}
+                    disabled={isCompactMode ? false : desktopDisabled}
+                    aria-label={nodeTitle(entry.node)}
+                    aria-pressed={isCompactMode ? selectedNodeId === entry.node.nodeId : undefined}
+                    title={
+                      isCompactMode
+                        ? undefined
+                        : tooltipText({
+                            node: entry.node,
+                            isCurrent: entry.isCurrent,
+                          })
+                    }
+                  >
+                    <span className="chat-tree-graph-node-dot" />
+                  </button>
+                );
+              })}
+              {isCompactMode && selectedEntry ? (
                 <PopoverSurface
                   className="chat-tree-node-popover"
                   role="dialog"

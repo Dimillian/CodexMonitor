@@ -8,7 +8,7 @@ afterEach(() => {
 });
 
 describe("ThreadChatTreePanel", () => {
-  it("opens node details and switches from the popover action", async () => {
+  it("keeps desktop double-click switching behavior", async () => {
     const onSetCurrentNode = vi.fn().mockResolvedValue(true);
 
     render(
@@ -42,6 +42,56 @@ describe("ThreadChatTreePanel", () => {
       />,
     );
 
+    expect(
+      screen.getByText("Double-click a node to switch to that branch. Hover a node to inspect it."),
+    ).toBeTruthy();
+
+    const featureNode = screen.getByRole("button", { name: "Feature branch" });
+    expect(featureNode.getAttribute("title")).toContain("Double-click to switch to this branch.");
+
+    await act(async () => {
+      fireEvent.doubleClick(featureNode);
+    });
+
+    expect(onSetCurrentNode).toHaveBeenCalledWith("node-b");
+    expect(screen.queryByText("Available branch")).toBeNull();
+  });
+
+  it("opens node details and switches from the compact popover action", async () => {
+    const onSetCurrentNode = vi.fn().mockResolvedValue(true);
+
+    render(
+      <ThreadChatTreePanel
+        tree={{
+          currentNodeId: "node-a",
+          nodes: [
+            {
+              nodeId: "node-a",
+              parentNodeId: null,
+              summary: "Root branch",
+              turnId: "turn-a",
+              order: 0,
+            },
+            {
+              nodeId: "node-b",
+              parentNodeId: "node-a",
+              summary: "Feature branch",
+              turnId: "turn-b",
+              order: 1,
+            },
+          ],
+        }}
+        isLoading={false}
+        isSwitching={false}
+        switchingNodeId={null}
+        isProcessing={false}
+        error={null}
+        onReload={vi.fn()}
+        onSetCurrentNode={onSetCurrentNode}
+        interactionMode="compact"
+      />,
+    );
+
     fireEvent.click(screen.getByRole("button", { name: "Feature branch" }));
 
     expect(screen.getByText("Available branch")).toBeTruthy();
@@ -53,7 +103,7 @@ describe("ThreadChatTreePanel", () => {
     expect(onSetCurrentNode).toHaveBeenCalledWith("node-b");
   });
 
-  it("shows current branch details when selecting the active node", () => {
+  it("shows current branch details in compact mode when selecting the active node", () => {
     render(
       <ThreadChatTreePanel
         tree={{
@@ -75,6 +125,7 @@ describe("ThreadChatTreePanel", () => {
         error={null}
         onReload={vi.fn()}
         onSetCurrentNode={vi.fn()}
+        interactionMode="compact"
       />,
     );
 
@@ -84,7 +135,7 @@ describe("ThreadChatTreePanel", () => {
     expect(screen.getByText("Current")).toBeTruthy();
   });
 
-  it("disables the switch action while the tree is refreshing", () => {
+  it("disables the compact switch action while the tree is refreshing", () => {
     render(
       <ThreadChatTreePanel
         tree={{
@@ -113,6 +164,7 @@ describe("ThreadChatTreePanel", () => {
         error={null}
         onReload={vi.fn()}
         onSetCurrentNode={vi.fn()}
+        interactionMode="compact"
       />,
     );
 

@@ -34,6 +34,7 @@ import { useThreadRows } from "@app/hooks/useThreadRows";
 import { useInterruptShortcut } from "@app/hooks/useInterruptShortcut";
 import { useArchiveShortcut } from "@app/hooks/useArchiveShortcut";
 import { useCopyThread } from "@threads/hooks/useCopyThread";
+import { ThreadChatTreePanel } from "@threads/components/ThreadChatTreePanel";
 import { useThreadChatTree } from "@threads/hooks/useThreadChatTree";
 import { useTerminalController } from "@/features/terminal/hooks/useTerminalController";
 import { useWorkspaceLaunchScript } from "@app/hooks/useWorkspaceLaunchScript";
@@ -1973,7 +1974,12 @@ export default function MainApp() {
             Close
           </button>
         </div>
-        <div className="mobile-chat-tree-modal-body">{chatTreePanelNode}</div>
+        <div className="mobile-chat-tree-modal-body">
+          <ThreadChatTreePanel
+            {...layoutSurfaces.secondary.chatTreePanelProps}
+            interactionMode="compact"
+          />
+        </div>
       </div>
     </ModalShell>
   ) : null;
