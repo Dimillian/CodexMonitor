@@ -631,6 +631,7 @@ export default function MainApp() {
     handleTestSystemNotification,
   } = useUpdaterController({
     enabled: updaterEnabled,
+    autoCheckOnMount: appSettings.automaticAppUpdateChecksEnabled,
     notificationSoundsEnabled: appSettings.notificationSoundsEnabled,
     systemNotificationsEnabled: appSettings.systemNotificationsEnabled,
     subagentSystemNotificationsEnabled:

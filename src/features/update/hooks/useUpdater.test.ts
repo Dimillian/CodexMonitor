@@ -199,6 +199,23 @@ describe("useUpdater", () => {
     expect(result.current.state.stage).toBe("idle");
   });
 
+  it("skips automatic startup checks when auto-check is disabled but still allows manual checks", async () => {
+    checkMock.mockResolvedValue(null);
+
+    const { result } = renderHook(() =>
+      useUpdater({ autoCheckOnMount: false }),
+    );
+
+    expect(checkMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.checkForUpdates({ announceNoUpdate: true });
+    });
+
+    expect(checkMock).toHaveBeenCalledTimes(1);
+    expect(result.current.state.stage).toBe("latest");
+  });
+
   it("loads post-update release notes after restart when marker matches current version", async () => {
     window.localStorage.setItem(
       STORAGE_KEY_PENDING_POST_UPDATE_VERSION,

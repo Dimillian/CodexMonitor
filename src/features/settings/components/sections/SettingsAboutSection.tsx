@@ -1,11 +1,21 @@
 import { useEffect, useState } from "react";
+import type { AppSettings } from "@/types";
 import {
   getAppBuildType,
   isMobileRuntime,
   type AppBuildType,
 } from "@services/tauri";
 import { useUpdater } from "@/features/update/hooks/useUpdater";
-import { SettingsSection } from "@/features/design-system/components/settings/SettingsPrimitives";
+import {
+  SettingsSection,
+  SettingsToggleRow,
+  SettingsToggleSwitch,
+} from "@/features/design-system/components/settings/SettingsPrimitives";
+
+type SettingsAboutSectionProps = {
+  appSettings: AppSettings;
+  onUpdateAppSettings: (next: AppSettings) => Promise<void>;
+};
 
 function formatBytes(value: number) {
   if (!Number.isFinite(value) || value <= 0) {
@@ -21,11 +31,15 @@ function formatBytes(value: number) {
   return `${size.toFixed(size >= 10 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
-export function SettingsAboutSection() {
+export function SettingsAboutSection({
+  appSettings,
+  onUpdateAppSettings,
+}: SettingsAboutSectionProps) {
   const [appBuildType, setAppBuildType] = useState<AppBuildType | "unknown">("unknown");
   const [updaterEnabled, setUpdaterEnabled] = useState(false);
   const { state: updaterState, checkForUpdates, startUpdate } = useUpdater({
     enabled: updaterEnabled,
+    autoCheckOnMount: false,
   });
 
   useEffect(() => {
@@ -96,6 +110,21 @@ export function SettingsAboutSection() {
       </div>
       <div className="settings-field">
         <div className="settings-label">App Updates</div>
+        <SettingsToggleRow
+          title="Automatically check for app updates"
+          subtitle="When enabled, CodexMonitor checks for new app versions on launch."
+        >
+          <SettingsToggleSwitch
+            pressed={appSettings.automaticAppUpdateChecksEnabled}
+            onClick={() =>
+              void onUpdateAppSettings({
+                ...appSettings,
+                automaticAppUpdateChecksEnabled:
+                  !appSettings.automaticAppUpdateChecksEnabled,
+              })
+            }
+          />
+        </SettingsToggleRow>
         <div className="settings-help">
           Currently running version <code>{__APP_VERSION__}</code>
         </div>

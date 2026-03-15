@@ -504,6 +504,11 @@ pub(crate) struct AppSettings {
     pub(crate) chat_history_scrollback_items: Option<u32>,
     #[serde(default, rename = "threadTitleAutogenerationEnabled")]
     pub(crate) thread_title_autogeneration_enabled: bool,
+    #[serde(
+        default = "default_automatic_app_update_checks_enabled",
+        rename = "automaticAppUpdateChecksEnabled"
+    )]
+    pub(crate) automatic_app_update_checks_enabled: bool,
     #[serde(default = "default_ui_font_family", rename = "uiFontFamily")]
     pub(crate) ui_font_family: String,
     #[serde(default = "default_code_font_family", rename = "codeFontFamily")]
@@ -708,6 +713,10 @@ fn default_show_message_file_path() -> bool {
 
 fn default_chat_history_scrollback_items() -> Option<u32> {
     Some(200)
+}
+
+fn default_automatic_app_update_checks_enabled() -> bool {
+    true
 }
 
 fn default_ui_font_family() -> String {
@@ -1146,6 +1155,7 @@ impl Default for AppSettings {
             show_message_file_path: default_show_message_file_path(),
             chat_history_scrollback_items: default_chat_history_scrollback_items(),
             thread_title_autogeneration_enabled: false,
+            automatic_app_update_checks_enabled: true,
             ui_font_family: default_ui_font_family(),
             code_font_family: default_code_font_family(),
             code_font_size: default_code_font_size(),
@@ -1310,6 +1320,7 @@ mod tests {
         assert!(settings.show_message_file_path);
         assert_eq!(settings.chat_history_scrollback_items, Some(200));
         assert!(!settings.thread_title_autogeneration_enabled);
+        assert!(settings.automatic_app_update_checks_enabled);
         assert!(settings.ui_font_family.contains("system-ui"));
         assert!(settings.code_font_family.contains("ui-monospace"));
         assert_eq!(settings.code_font_size, 11);

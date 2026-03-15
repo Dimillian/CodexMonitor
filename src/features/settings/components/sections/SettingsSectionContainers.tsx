@@ -33,7 +33,7 @@ export function SettingsSectionContainers({
     return <SettingsDisplaySection {...orchestration.displaySectionProps} />;
   }
   if (activeSection === "about") {
-    return <SettingsAboutSection />;
+    return <SettingsAboutSection {...orchestration.aboutSectionProps} />;
   }
   if (activeSection === "composer") {
     return <SettingsComposerSection {...orchestration.composerSectionProps} />;
