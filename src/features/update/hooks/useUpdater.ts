@@ -71,6 +71,7 @@ export function useUpdater({
     null,
   );
   const updateRef = useRef<Update | null>(null);
+  const hasAttemptedAutoCheckRef = useRef(false);
   const postUpdateFetchGenerationRef = useRef(0);
   const latestTimeoutRef = useRef<number | null>(null);
   const latestToastDurationMs = 2000;
@@ -213,6 +214,10 @@ export function useUpdater({
     if (!enabled || !autoCheckOnMount || import.meta.env.DEV || !isTauri()) {
       return;
     }
+    if (hasAttemptedAutoCheckRef.current) {
+      return;
+    }
+    hasAttemptedAutoCheckRef.current = true;
     void checkForUpdates();
   }, [autoCheckOnMount, checkForUpdates, enabled]);
 

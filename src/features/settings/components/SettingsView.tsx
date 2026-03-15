@@ -42,6 +42,7 @@ export type SettingsViewProps = {
   appSettings: AppSettings;
   openAppIconById: Record<string, string>;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
+  onToggleAutomaticAppUpdateChecks?: () => void;
   onRunDoctor: (
     codexBin: string | null,
     codexArgs: string | null,
@@ -83,6 +84,7 @@ export function SettingsView({
   appSettings,
   openAppIconById,
   onUpdateAppSettings,
+  onToggleAutomaticAppUpdateChecks,
   onRunDoctor,
   onRunCodexUpdate,
   onUpdateWorkspaceSettings,
@@ -114,6 +116,7 @@ export function SettingsView({
     appSettings,
     openAppIconById,
     onUpdateAppSettings,
+    onToggleAutomaticAppUpdateChecks,
     onRunDoctor,
     onRunCodexUpdate,
     onUpdateWorkspaceSettings,

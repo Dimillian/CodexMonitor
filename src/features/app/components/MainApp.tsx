@@ -632,7 +632,8 @@ export default function MainApp() {
     handleTestSystemNotification,
   } = useUpdaterController({
     enabled: updaterEnabled,
-    autoCheckOnMount: appSettings.automaticAppUpdateChecksEnabled,
+    autoCheckOnMount:
+      !appSettingsLoading && appSettings.automaticAppUpdateChecksEnabled,
     notificationSoundsEnabled: appSettings.notificationSoundsEnabled,
     systemNotificationsEnabled: appSettings.systemNotificationsEnabled,
     subagentSystemNotificationsEnabled:
@@ -1014,6 +1015,18 @@ export default function MainApp() {
     [queueSaveSettings, setAppSettings],
   );
 
+  const handleToggleAutomaticAppUpdateChecks = useCallback(() => {
+    setAppSettings((current) => {
+      const nextSettings = {
+        ...current,
+        automaticAppUpdateChecksEnabled:
+          !current.automaticAppUpdateChecksEnabled,
+      };
+      void queueSaveSettings(nextSettings);
+      return nextSettings;
+    });
+  }, [queueSaveSettings, setAppSettings]);
+
   const openAppIconById = useOpenAppIcons(appSettings.openAppTargets);
 
   const persistProjectCopiesFolder = useCallback(
@@ -1119,6 +1132,7 @@ export default function MainApp() {
       appSettings,
       openAppIconById,
       queueSaveSettings,
+      handleToggleAutomaticAppUpdateChecks,
       doctor,
       codexUpdate,
       updateWorkspaceSettings,

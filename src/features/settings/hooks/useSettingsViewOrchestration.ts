@@ -34,6 +34,7 @@ type UseSettingsViewOrchestrationArgs = {
   appSettings: AppSettings;
   openAppIconById: Record<string, string>;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
+  onToggleAutomaticAppUpdateChecks?: () => void;
   onRunDoctor: (
     codexBin: string | null,
     codexArgs: string | null,
@@ -76,6 +77,7 @@ export function useSettingsViewOrchestration({
   appSettings,
   openAppIconById,
   onUpdateAppSettings,
+  onToggleAutomaticAppUpdateChecks,
   onRunDoctor,
   onRunCodexUpdate,
   onUpdateWorkspaceSettings,
@@ -213,7 +215,7 @@ export function useSettingsViewOrchestration({
   return {
     aboutSectionProps: {
       appSettings,
-      onUpdateAppSettings,
+      onToggleAutomaticAppUpdateChecks,
     },
     projectsSectionProps,
     environmentsSectionProps,

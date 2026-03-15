@@ -14,7 +14,7 @@ import {
 
 type SettingsAboutSectionProps = {
   appSettings: AppSettings;
-  onUpdateAppSettings: (next: AppSettings) => Promise<void>;
+  onToggleAutomaticAppUpdateChecks?: () => void;
 };
 
 function formatBytes(value: number) {
@@ -33,7 +33,7 @@ function formatBytes(value: number) {
 
 export function SettingsAboutSection({
   appSettings,
-  onUpdateAppSettings,
+  onToggleAutomaticAppUpdateChecks,
 }: SettingsAboutSectionProps) {
   const [appBuildType, setAppBuildType] = useState<AppBuildType | "unknown">("unknown");
   const [updaterEnabled, setUpdaterEnabled] = useState(false);
@@ -116,13 +116,9 @@ export function SettingsAboutSection({
         >
           <SettingsToggleSwitch
             pressed={appSettings.automaticAppUpdateChecksEnabled}
-            onClick={() =>
-              void onUpdateAppSettings({
-                ...appSettings,
-                automaticAppUpdateChecksEnabled:
-                  !appSettings.automaticAppUpdateChecksEnabled,
-              })
-            }
+            onClick={() => {
+              onToggleAutomaticAppUpdateChecks?.();
+            }}
           />
         </SettingsToggleRow>
         <div className="settings-help">

@@ -279,17 +279,23 @@ const renderAboutSection = (
   options: {
     appSettings?: Partial<AppSettings>;
     onUpdateAppSettings?: ComponentProps<typeof SettingsView>["onUpdateAppSettings"];
+    onToggleAutomaticAppUpdateChecks?: ComponentProps<
+      typeof SettingsView
+    >["onToggleAutomaticAppUpdateChecks"];
   } = {},
 ) => {
   cleanup();
   const onUpdateAppSettings =
     options.onUpdateAppSettings ?? vi.fn().mockResolvedValue(undefined);
+  const onToggleAutomaticAppUpdateChecks =
+    options.onToggleAutomaticAppUpdateChecks ?? vi.fn();
   const props: ComponentProps<typeof SettingsView> = {
     reduceTransparency: false,
     onToggleTransparency: vi.fn(),
     appSettings: { ...baseSettings, ...options.appSettings },
     openAppIconById: {},
     onUpdateAppSettings,
+    onToggleAutomaticAppUpdateChecks,
     workspaceGroups: [],
     groupedWorkspaces: [],
     ungroupedLabel: "Ungrouped",
@@ -316,7 +322,7 @@ const renderAboutSection = (
   render(<SettingsView {...props} />);
   fireEvent.click(screen.getByRole("button", { name: "About" }));
 
-  return { onUpdateAppSettings };
+  return { onUpdateAppSettings, onToggleAutomaticAppUpdateChecks };
 };
 
 const renderFeaturesSection = (
@@ -727,9 +733,9 @@ describe("SettingsView Display", () => {
 
 describe("SettingsView About", () => {
   it("toggles automatic app update checks", async () => {
-    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    const onToggleAutomaticAppUpdateChecks = vi.fn();
     renderAboutSection({
-      onUpdateAppSettings,
+      onToggleAutomaticAppUpdateChecks,
       appSettings: { automaticAppUpdateChecksEnabled: false },
     });
 
@@ -742,9 +748,7 @@ describe("SettingsView About", () => {
     fireEvent.click(within(row).getByRole("button"));
 
     await waitFor(() => {
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ automaticAppUpdateChecksEnabled: true }),
-      );
+      expect(onToggleAutomaticAppUpdateChecks).toHaveBeenCalledTimes(1);
     });
   });
 });
