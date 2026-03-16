@@ -377,6 +377,8 @@ pub(crate) struct RemoteBackendTarget {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct AppSettings {
+    #[serde(default = "default_locale", rename = "locale")]
+    pub(crate) locale: String,
     #[serde(default, rename = "codexBin")]
     pub(crate) codex_bin: Option<String>,
     #[serde(default, rename = "codexArgs")]
@@ -668,6 +670,10 @@ impl Default for RemoteBackendProvider {
     fn default() -> Self {
         RemoteBackendProvider::Tcp
     }
+}
+
+fn default_locale() -> String {
+    "en".to_string()
 }
 
 fn default_access_mode() -> String {

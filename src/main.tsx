@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import * as Sentry from "@sentry/react";
 import App from "./App";
 import { isMobilePlatform } from "./utils/platformPaths";
+import "@/i18n"; // Initialize i18n
 
 const sentryDsn =
   import.meta.env.VITE_SENTRY_DSN ??

@@ -15,6 +15,28 @@ vi.mock("@sentry/react", () => ({
   },
 }));
 
+vi.mock("@/i18n", () => ({
+  default: {
+    language: "en",
+    changeLanguage: vi.fn(),
+  },
+}));
+
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string) => key,
+    i18n: {
+      language: "en",
+      changeLanguage: vi.fn(),
+    },
+  }),
+  initReactI18next: {
+    type: "3rdParty",
+    init: vi.fn(),
+    use: () => ({ init: vi.fn() }),
+  },
+}));
+
 vi.mock("react-dom/client", () => ({
   default: {
     createRoot: createRootMock,

@@ -233,7 +233,10 @@ export type OpenAppTarget = {
   args: string[];
 };
 
+export type SupportedLocale = "en" | "zh";
+
 export type AppSettings = {
+  locale: SupportedLocale;
   codexBin: string | null;
   codexArgs: string | null;
   backendMode: BackendMode;

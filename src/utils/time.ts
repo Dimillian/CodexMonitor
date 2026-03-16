@@ -1,17 +1,23 @@
+import i18n from "@/i18n";
+
 export function formatRelativeTime(timestamp: number, locale?: string | string[]) {
   const now = Date.now();
   const diffSeconds = Math.round((timestamp - now) / 1000);
   const absSeconds = Math.abs(diffSeconds);
   if (absSeconds < 5) {
-    return "now";
+    return i18n.t("time.now");
   }
   if (absSeconds < 60) {
     const value = Math.max(1, Math.round(absSeconds));
-    return diffSeconds < 0 ? `${value}s ago` : `in ${value}s`;
+    return diffSeconds < 0
+      ? i18n.t("time.secondsAgo", { count: value })
+      : `${i18n.t("time.in")} ${i18n.t("time.seconds", { count: value })}`;
   }
   if (absSeconds < 60 * 60) {
     const value = Math.max(1, Math.round(absSeconds / 60));
-    return diffSeconds < 0 ? `${value}m ago` : `in ${value}m`;
+    return diffSeconds < 0
+      ? i18n.t("time.minutesAgo", { count: value })
+      : `${i18n.t("time.in")} ${i18n.t("time.minutes", { count: value })}`;
   }
   const ranges: { unit: Intl.RelativeTimeFormatUnit; seconds: number }[] = [
     { unit: "year", seconds: 60 * 60 * 24 * 365 },
@@ -26,33 +32,57 @@ export function formatRelativeTime(timestamp: number, locale?: string | string[]
     ranges.find((entry) => absSeconds >= entry.seconds) ||
     ranges[ranges.length - 1];
   if (!range) {
-    return "now";
+    return i18n.t("time.now");
   }
   const value = Math.round(diffSeconds / range.seconds);
   const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
   return formatter.format(value, range.unit);
 }
 
-export function formatRelativeTimeShort(timestamp: number) {
+export function formatRelativeTimeShort(timestamp: number, locale?: string | string[]) {
   const now = Date.now();
   const absSeconds = Math.abs(Math.round((timestamp - now) / 1000));
   if (absSeconds < 60) {
-    return "now";
+    return i18n.t("time.now");
   }
   if (absSeconds < 60 * 60) {
-    return `${Math.max(1, Math.round(absSeconds / 60))}m`;
+    const value = Math.max(1, Math.round(absSeconds / 60));
+    // Use Intl.RelativeTimeFormat for short format with locale
+    try {
+      const formatter = new Intl.RelativeTimeFormat(locale ?? i18n.language, {
+        numeric: "auto",
+        style: "narrow",
+      });
+      return formatter.format(-value, "minute");
+    } catch {
+      // Fallback to simple format
+      return i18n.t("time.minutesAgo", { count: value });
+    }
   }
   if (absSeconds < 60 * 60 * 24) {
-    return `${Math.max(1, Math.round(absSeconds / (60 * 60)))}h`;
+    const value = Math.max(1, Math.round(absSeconds / (60 * 60)));
+    try {
+      const formatter = new Intl.RelativeTimeFormat(locale ?? i18n.language, {
+        numeric: "auto",
+        style: "narrow",
+      });
+      return formatter.format(-value, "hour");
+    } catch {
+      return i18n.t("time.hoursAgo", { count: value });
+    }
   }
   if (absSeconds < 60 * 60 * 24 * 7) {
-    return `${Math.max(1, Math.round(absSeconds / (60 * 60 * 24)))}d`;
+    const value = Math.max(1, Math.round(absSeconds / (60 * 60 * 24)));
+    try {
+      const formatter = new Intl.RelativeTimeFormat(locale ?? i18n.language, {
+        numeric: "auto",
+        style: "narrow",
+      });
+      return formatter.format(-value, "day");
+    } catch {
+      return i18n.t("time.daysAgo", { count: value });
+    }
   }
-  if (absSeconds < 60 * 60 * 24 * 30) {
-    return `${Math.max(1, Math.round(absSeconds / (60 * 60 * 24 * 7)))}w`;
-  }
-  if (absSeconds < 60 * 60 * 24 * 365) {
-    return `${Math.max(1, Math.round(absSeconds / (60 * 60 * 24 * 30)))}mo`;
-  }
-  return `${Math.max(1, Math.round(absSeconds / (60 * 60 * 24 * 365)))}y`;
+  // For longer periods, use standard format
+  return formatRelativeTime(timestamp, locale ?? i18n.language);
 }
