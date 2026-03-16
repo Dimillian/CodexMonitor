@@ -32,6 +32,8 @@ CodexMonitor.zip
 .agent/
 .agents/
 .claude/
+.omc/
+.omx/
 .cursor/
 public/assets/material-icons/
 
