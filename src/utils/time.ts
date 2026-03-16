@@ -1,4 +1,4 @@
-export function formatRelativeTime(timestamp: number) {
+export function formatRelativeTime(timestamp: number, locale?: string | string[]) {
   const now = Date.now();
   const diffSeconds = Math.round((timestamp - now) / 1000);
   const absSeconds = Math.abs(diffSeconds);
@@ -29,7 +29,7 @@ export function formatRelativeTime(timestamp: number) {
     return "now";
   }
   const value = Math.round(diffSeconds / range.seconds);
-  const formatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
   return formatter.format(value, range.unit);
 }
 

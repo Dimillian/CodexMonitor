@@ -18,7 +18,7 @@ function formatResetLabel(resetsAt?: number | null) {
     return null;
   }
   const resetMs = resetsAt > 1_000_000_000_000 ? resetsAt : resetsAt * 1000;
-  const relative = formatRelativeTime(resetMs).replace(/^in\s+/i, "");
+  const relative = formatRelativeTime(resetMs, "en").replace(/^in\s+/i, "");
   return `Resets ${relative}`;
 }
 

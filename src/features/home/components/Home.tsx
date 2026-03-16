@@ -127,7 +127,7 @@ function formatDayLabel(value: string | null | undefined) {
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat("en", {
     month: "short",
     day: "numeric",
   }).format(date);
@@ -486,7 +486,7 @@ export function Home({
 
   const accountMeta = accountInfo?.email ?? null;
   const updatedLabel = localUsageSnapshot
-    ? `Updated ${formatRelativeTime(localUsageSnapshot.updatedAt)}`
+    ? `Updated ${formatRelativeTime(localUsageSnapshot.updatedAt, "en")}`
     : null;
   const showUsageSkeleton = isLoadingLocalUsage && !localUsageSnapshot;
   const showUsageEmpty = !isLoadingLocalUsage && !localUsageSnapshot;
