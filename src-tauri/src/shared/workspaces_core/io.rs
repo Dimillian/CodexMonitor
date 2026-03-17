@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::env;
-use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use tokio::sync::Mutex;
@@ -134,27 +133,26 @@ fn build_launch_args(
     strategy: Option<LineAwareLaunchStrategy>,
 ) -> Vec<String> {
     let mut launch_args = args.to_vec();
-    let path: Cow<'_, str> = match strategy {
-        Some(_) => Cow::Owned(normalize_windows_namespace_path(path)),
-        None => Cow::Borrowed(path),
-    };
     if let Some((line, column)) = normalize_open_location(line, column) {
-        let located_path = format_path_with_location(&path, line, column);
         match strategy {
             Some(LineAwareLaunchStrategy::GotoFlag) => {
+                let sanitized_path = normalize_windows_namespace_path(path);
+                let located_path = format_path_with_location(&sanitized_path, line, column);
                 launch_args.push("--goto".to_string());
                 launch_args.push(located_path);
             }
             Some(LineAwareLaunchStrategy::PathWithLineColumn) => {
+                let sanitized_path = normalize_windows_namespace_path(path);
+                let located_path = format_path_with_location(&sanitized_path, line, column);
                 launch_args.push(located_path);
             }
             None => {
-                launch_args.push(path.into_owned());
+                launch_args.push(path.to_string());
             }
         }
         return launch_args;
     }
-    launch_args.push(path.into_owned());
+    launch_args.push(path.to_string());
     launch_args
 }
 
@@ -435,6 +433,25 @@ mod tests {
             args,
             vec![
                 "--foreground".to_string(),
+                r"\\?\I:\very\long\workspace".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn preserves_namespace_path_for_line_aware_targets_without_location() {
+        let args = build_launch_args(
+            r"\\?\I:\very\long\workspace",
+            &["--reuse-window".to_string()],
+            None,
+            None,
+            Some(LineAwareLaunchStrategy::GotoFlag),
+        );
+
+        assert_eq!(
+            args,
+            vec![
+                "--reuse-window".to_string(),
                 r"\\?\I:\very\long\workspace".to_string(),
             ]
         );
