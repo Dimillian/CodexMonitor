@@ -3,8 +3,12 @@ use std::path::PathBuf;
 use tokio::sync::Mutex;
 
 use crate::codex::config as codex_config;
+use crate::types::OpenAppTarget;
+use crate::shared::workspaces_core::optional_open_app_targets_core;
 use crate::storage::write_settings;
 use crate::types::AppSettings;
+
+const OPTIONAL_OPEN_APP_TARGET_IDS: &[&str] = &["phpstorm"];
 
 fn normalize_personality(value: &str) -> Option<&'static str> {
     match value.trim() {
@@ -36,6 +40,7 @@ pub(crate) async fn get_app_settings_core(app_settings: &Mutex<AppSettings>) -> 
             .unwrap_or("friendly")
             .to_string();
     }
+    inject_optional_open_app_targets(&mut settings);
     settings
 }
 
@@ -52,7 +57,9 @@ pub(crate) async fn update_app_settings_core(
     write_settings(settings_path, &settings)?;
     let mut current = app_settings.lock().await;
     *current = settings.clone();
-    Ok(settings)
+    let mut response = settings;
+    inject_optional_open_app_targets(&mut response);
+    Ok(response)
 }
 
 pub(crate) fn get_codex_config_path_core() -> Result<String, String> {
@@ -63,4 +70,51 @@ pub(crate) fn get_codex_config_path_core() -> Result<String, String> {
                 .map(|value| value.to_string())
                 .ok_or_else(|| "Unable to resolve CODEX_HOME".to_string())
         })
+}
+
+fn inject_optional_open_app_targets(settings: &mut AppSettings) {
+    let optional_targets = optional_open_app_targets_core();
+    let mut available_optional_targets_by_id = optional_targets
+        .into_iter()
+        .map(|target| (target.id.clone(), target))
+        .collect::<std::collections::HashMap<String, OpenAppTarget>>();
+    let mut existing_targets = std::mem::take(&mut settings.open_app_targets);
+    existing_targets.retain(|target| {
+        !OPTIONAL_OPEN_APP_TARGET_IDS.contains(&target.id.as_str())
+            || available_optional_targets_by_id.contains_key(&target.id)
+    });
+
+    let mut merged_targets =
+        Vec::with_capacity(existing_targets.len() + available_optional_targets_by_id.len());
+    let mut inserted_optional = false;
+
+    for target in existing_targets {
+        if OPTIONAL_OPEN_APP_TARGET_IDS.contains(&target.id.as_str()) {
+            available_optional_targets_by_id.remove(&target.id);
+        }
+        if !inserted_optional && target.kind == "finder" {
+            merged_targets.extend(available_optional_targets_by_id.into_values());
+            available_optional_targets_by_id = std::collections::HashMap::new();
+            inserted_optional = true;
+        }
+        merged_targets.push(target);
+    }
+
+    if !inserted_optional {
+        merged_targets.extend(available_optional_targets_by_id.into_values());
+    }
+
+    settings.open_app_targets = merged_targets;
+
+    if !settings
+        .open_app_targets
+        .iter()
+        .any(|target| target.id == settings.selected_open_app_id)
+    {
+        settings.selected_open_app_id = settings
+            .open_app_targets
+            .first()
+            .map(|target| target.id.clone())
+            .unwrap_or_default();
+    }
 }

@@ -2,6 +2,7 @@ import cursorIcon from "../../../assets/app-icons/cursor.png";
 import finderIcon from "../../../assets/app-icons/finder.png";
 import antigravityIcon from "../../../assets/app-icons/antigravity.png";
 import ghosttyIcon from "../../../assets/app-icons/ghostty.png";
+import phpstormIcon from "../../../assets/app-icons/phpstorm.png";
 import vscodeIcon from "../../../assets/app-icons/vscode.png";
 import zedIcon from "../../../assets/app-icons/zed.png";
 import { isMacPlatform } from "../../../utils/platformPaths";
@@ -30,6 +31,8 @@ export function getKnownOpenAppIcon(id: string): string | null {
       return zedIcon;
     case "ghostty":
       return ghosttyIcon;
+    case "phpstorm":
+      return phpstormIcon;
     case "antigravity":
       return antigravityIcon;
     case "finder":

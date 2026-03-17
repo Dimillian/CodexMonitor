@@ -7,7 +7,7 @@ use tokio::sync::Mutex;
 use crate::shared::process_core::tokio_command;
 #[cfg(target_os = "windows")]
 use crate::shared::process_core::{build_cmd_c_command, resolve_windows_executable};
-use crate::types::WorkspaceEntry;
+use crate::types::{OpenAppTarget, WorkspaceEntry};
 use crate::utils::normalize_windows_namespace_path;
 
 use super::helpers::resolve_workspace_root;
@@ -15,6 +15,7 @@ use super::helpers::resolve_workspace_root;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum LineAwareLaunchStrategy {
     GotoFlag,
+    JetBrainsLineColumnFlags,
     PathWithLineColumn,
 }
 
@@ -52,6 +53,9 @@ fn command_launch_strategy(command: &str) -> Option<LineAwareLaunchStrategy> {
         || identifier == "cursor-insiders"
     {
         return Some(LineAwareLaunchStrategy::GotoFlag);
+    }
+    if identifier == "phpstorm" || identifier == "phpstorm64" {
+        return Some(LineAwareLaunchStrategy::JetBrainsLineColumnFlags);
     }
     if identifier == "zed" || identifier == "zed-preview" {
         return Some(LineAwareLaunchStrategy::PathWithLineColumn);
@@ -125,6 +129,54 @@ fn find_executable_in_path(program: &str) -> Option<PathBuf> {
     None
 }
 
+#[cfg(target_os = "windows")]
+fn first_available_command(candidates: &[&str]) -> Option<String> {
+    candidates
+        .iter()
+        .copied()
+        .find(|candidate| resolve_windows_executable(candidate, None).is_some())
+        .map(str::to_string)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn first_available_command(candidates: &[&str]) -> Option<String> {
+    candidates
+        .iter()
+        .copied()
+        .find(|candidate| find_executable_in_path(candidate).is_some())
+        .map(str::to_string)
+}
+
+#[cfg(target_os = "windows")]
+fn phpstorm_command_candidates() -> &'static [&'static str] {
+    &["phpstorm64.exe", "phpstorm.bat", "phpstorm"]
+}
+
+#[cfg(target_os = "macos")]
+fn phpstorm_command_candidates() -> &'static [&'static str] {
+    &["phpstorm"]
+}
+
+#[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
+fn phpstorm_command_candidates() -> &'static [&'static str] {
+    &["phpstorm", "phpstorm.sh"]
+}
+
+pub(crate) fn optional_open_app_targets_core() -> Vec<OpenAppTarget> {
+    let Some(command) = first_available_command(phpstorm_command_candidates()) else {
+        return Vec::new();
+    };
+
+    vec![OpenAppTarget {
+        id: "phpstorm".to_string(),
+        label: "PHPStorm".to_string(),
+        kind: "command".to_string(),
+        app_name: None,
+        command: Some(command),
+        args: Vec::new(),
+    }]
+}
+
 fn build_launch_args(
     path: &str,
     args: &[String],
@@ -140,6 +192,15 @@ fn build_launch_args(
                 let located_path = format_path_with_location(&sanitized_path, line, column);
                 launch_args.push("--goto".to_string());
                 launch_args.push(located_path);
+            }
+            Some(LineAwareLaunchStrategy::JetBrainsLineColumnFlags) => {
+                launch_args.push("--line".to_string());
+                launch_args.push(line.to_string());
+                if let Some(column) = column {
+                    launch_args.push("--column".to_string());
+                    launch_args.push(column.to_string());
+                }
+                launch_args.push(path.to_string());
             }
             Some(LineAwareLaunchStrategy::PathWithLineColumn) => {
                 let sanitized_path = normalize_windows_namespace_path(path);
@@ -323,6 +384,10 @@ mod tests {
             command_launch_strategy("zed"),
             Some(LineAwareLaunchStrategy::PathWithLineColumn)
         );
+        assert_eq!(
+            command_launch_strategy("phpstorm64.exe"),
+            Some(LineAwareLaunchStrategy::JetBrainsLineColumnFlags)
+        );
         assert_eq!(command_launch_strategy("vim"), None);
     }
 
@@ -488,6 +553,28 @@ mod tests {
         );
 
         assert_eq!(args, vec!["/tmp/project/src/App.tsx:33".to_string()]);
+    }
+
+    #[test]
+    fn builds_line_and_column_flags_for_phpstorm_targets() {
+        let args = build_launch_args(
+            "/tmp/project/src/App.tsx",
+            &[],
+            Some(33),
+            Some(7),
+            Some(LineAwareLaunchStrategy::JetBrainsLineColumnFlags),
+        );
+
+        assert_eq!(
+            args,
+            vec![
+                "--line".to_string(),
+                "33".to_string(),
+                "--column".to_string(),
+                "7".to_string(),
+                "/tmp/project/src/App.tsx".to_string(),
+            ]
+        );
     }
 
     #[test]

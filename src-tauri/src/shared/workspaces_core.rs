@@ -15,7 +15,7 @@ pub(crate) use git_orchestration::{apply_worktree_changes_core, run_git_command_
 pub(crate) use helpers::{is_workspace_path_dir_core, list_workspaces_core};
 pub(crate) use io::{
     get_open_app_icon_core, list_workspace_files_core, open_workspace_in_core,
-    read_workspace_file_core,
+    optional_open_app_targets_core, read_workspace_file_core,
 };
 pub(crate) use runtime_codex_args::{
     set_workspace_runtime_codex_args_core, WorkspaceRuntimeCodexArgsResult,
