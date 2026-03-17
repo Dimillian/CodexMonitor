@@ -130,6 +130,29 @@ mod tests {
     }
 
     #[test]
+    fn write_read_workspaces_preserves_windows_namespace_paths() {
+        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+        let path = temp_dir.join("workspaces.json");
+
+        let entry = WorkspaceEntry {
+            id: "w1".to_string(),
+            name: "Workspace".to_string(),
+            path: r"\\?\I:\gpt-projects\json-composer".to_string(),
+            kind: WorkspaceKind::Main,
+            parent_id: None,
+            worktree: None,
+            settings: WorkspaceSettings::default(),
+        };
+
+        write_workspaces(&path, &[entry]).expect("write workspaces");
+
+        let read = read_workspaces(&path).expect("read workspaces");
+        let stored = read.get("w1").expect("stored workspace");
+        assert_eq!(stored.path, r"\\?\I:\gpt-projects\json-composer");
+    }
+
+    #[test]
     fn read_settings_sanitizes_non_tcp_remote_provider() {
         let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&temp_dir).expect("create temp dir");

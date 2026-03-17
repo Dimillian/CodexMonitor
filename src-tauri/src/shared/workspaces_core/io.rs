@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::env;
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use tokio::sync::Mutex;
@@ -8,6 +9,7 @@ use crate::shared::process_core::tokio_command;
 #[cfg(target_os = "windows")]
 use crate::shared::process_core::{build_cmd_c_command, resolve_windows_executable};
 use crate::types::WorkspaceEntry;
+use crate::utils::normalize_windows_namespace_path;
 
 use super::helpers::resolve_workspace_root;
 
@@ -132,8 +134,12 @@ fn build_launch_args(
     strategy: Option<LineAwareLaunchStrategy>,
 ) -> Vec<String> {
     let mut launch_args = args.to_vec();
+    let path: Cow<'_, str> = match strategy {
+        Some(_) => Cow::Owned(normalize_windows_namespace_path(path)),
+        None => Cow::Borrowed(path),
+    };
     if let Some((line, column)) = normalize_open_location(line, column) {
-        let located_path = format_path_with_location(path, line, column);
+        let located_path = format_path_with_location(&path, line, column);
         match strategy {
             Some(LineAwareLaunchStrategy::GotoFlag) => {
                 launch_args.push("--goto".to_string());
@@ -143,12 +149,12 @@ fn build_launch_args(
                 launch_args.push(located_path);
             }
             None => {
-                launch_args.push(path.to_string());
+                launch_args.push(path.into_owned());
             }
         }
         return launch_args;
     }
-    launch_args.push(path.to_string());
+    launch_args.push(path.into_owned());
     launch_args
 }
 
@@ -186,13 +192,8 @@ pub(crate) async fn open_workspace_in_core(
         if trimmed.is_empty() {
             return Err("Missing app or command".to_string());
         }
-        let launch_args = build_launch_args(
-            &path,
-            &args,
-            line,
-            column,
-            command_launch_strategy(trimmed),
-        );
+        let launch_args =
+            build_launch_args(&path, &args, line, column, command_launch_strategy(trimmed));
 
         #[cfg(target_os = "windows")]
         let mut cmd = {
@@ -376,6 +377,85 @@ mod tests {
                 "--reuse-window".to_string(),
                 "--goto".to_string(),
                 "/tmp/project/src/App.tsx:33:7".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_goto_args_with_windows_namespace_path_sanitized() {
+        let args = build_launch_args(
+            r"\\?\I:\gpt-projects\json-composer\src\App.tsx",
+            &["--reuse-window".to_string()],
+            Some(33),
+            Some(7),
+            Some(LineAwareLaunchStrategy::GotoFlag),
+        );
+
+        assert_eq!(
+            args,
+            vec![
+                "--reuse-window".to_string(),
+                "--goto".to_string(),
+                r"I:\gpt-projects\json-composer\src\App.tsx:33:7".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_goto_args_with_lowercase_unc_namespace_path_sanitized() {
+        let args = build_launch_args(
+            r"\\?\unc\server\share\repo\src\App.tsx",
+            &["--reuse-window".to_string()],
+            Some(12),
+            Some(2),
+            Some(LineAwareLaunchStrategy::GotoFlag),
+        );
+
+        assert_eq!(
+            args,
+            vec![
+                "--reuse-window".to_string(),
+                "--goto".to_string(),
+                r"\\server\share\repo\src\App.tsx:12:2".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn preserves_namespace_path_for_unknown_targets() {
+        let args = build_launch_args(
+            r"\\?\I:\very\long\workspace",
+            &["--foreground".to_string()],
+            None,
+            None,
+            None,
+        );
+
+        assert_eq!(
+            args,
+            vec![
+                "--foreground".to_string(),
+                r"\\?\I:\very\long\workspace".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn preserves_non_drive_namespace_path_for_line_aware_targets() {
+        let args = build_launch_args(
+            r"\\?\Volume{01234567-89ab-cdef-0123-456789abcdef}\repo\src\App.tsx",
+            &[],
+            Some(5),
+            None,
+            Some(LineAwareLaunchStrategy::GotoFlag),
+        );
+
+        assert_eq!(
+            args,
+            vec![
+                "--goto".to_string(),
+                r"\\?\Volume{01234567-89ab-cdef-0123-456789abcdef}\repo\src\App.tsx:5"
+                    .to_string(),
             ]
         );
     }
