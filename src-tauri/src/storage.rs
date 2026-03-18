@@ -31,11 +31,13 @@ pub(crate) fn read_settings(path: &PathBuf) -> Result<AppSettings, String> {
     let data = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
     let mut value: Value = serde_json::from_str(&data).map_err(|e| e.to_string())?;
     migrate_follow_up_message_behavior(&mut value);
+    migrate_open_app_targets(&mut value);
     match serde_json::from_value(value.clone()) {
         Ok(settings) => Ok(settings),
         Err(_) => {
             sanitize_remote_settings_for_tcp_only(&mut value);
             migrate_follow_up_message_behavior(&mut value);
+            migrate_open_app_targets(&mut value);
             serde_json::from_value(value).map_err(|e| e.to_string())
         }
     }
@@ -90,6 +92,47 @@ fn migrate_follow_up_message_behavior(value: &mut Value) {
         "followUpMessageBehavior".to_string(),
         Value::String(if steer_enabled { "steer" } else { "queue" }.to_string()),
     );
+}
+
+fn migrate_open_app_targets(value: &mut Value) {
+    let Value::Object(root) = value else {
+        return;
+    };
+    let Some(Value::Array(existing_targets)) = root.get_mut("openAppTargets") else {
+        return;
+    };
+
+    let default_targets = match serde_json::to_value(AppSettings::default().open_app_targets) {
+        Ok(Value::Array(targets)) => targets,
+        _ => return,
+    };
+
+    let existing_ids = existing_targets
+        .iter()
+        .filter_map(|target| target.get("id").and_then(Value::as_str))
+        .collect::<std::collections::HashSet<_>>();
+
+    let missing_targets: Vec<Value> = default_targets
+        .into_iter()
+        .filter(|target| {
+            target
+                .get("id")
+                .and_then(Value::as_str)
+                .map(|id| !existing_ids.contains(id))
+                .unwrap_or(false)
+        })
+        .collect();
+
+    if missing_targets.is_empty() {
+        return;
+    }
+
+    let insert_at = existing_targets
+        .iter()
+        .position(|target| target.get("id").and_then(Value::as_str) == Some("finder"))
+        .unwrap_or(existing_targets.len());
+
+    existing_targets.splice(insert_at..insert_at, missing_targets);
 }
 
 #[cfg(test)]
@@ -250,5 +293,49 @@ mod tests {
 
         let settings = read_settings(&path).expect("read settings");
         assert_eq!(settings.follow_up_message_behavior, "queue");
+    }
+
+    #[test]
+    fn read_settings_migrates_missing_open_app_targets() {
+        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+        let path = temp_dir.join("settings.json");
+
+        std::fs::write(
+            &path,
+            r#"{
+  "theme": "dark",
+  "selectedOpenAppId": "vscode",
+  "openAppTargets": [
+    { "id": "vscode", "label": "VS Code", "kind": "command", "appName": null, "command": "code", "args": [] },
+    { "id": "cursor", "label": "Cursor", "kind": "command", "appName": null, "command": "cursor", "args": [] },
+    { "id": "zed", "label": "Zed", "kind": "command", "appName": null, "command": "zed", "args": [] },
+    { "id": "ghostty", "label": "Ghostty", "kind": "command", "appName": null, "command": "ghostty", "args": [] },
+    { "id": "antigravity", "label": "Antigravity", "kind": "command", "appName": null, "command": "antigravity", "args": [] },
+    { "id": "finder", "label": "File Manager", "kind": "finder", "appName": null, "command": null, "args": [] }
+  ]
+}"#,
+        )
+        .expect("write settings");
+
+        let settings = read_settings(&path).expect("read settings");
+        let ids: Vec<&str> = settings
+            .open_app_targets
+            .iter()
+            .map(|target| target.id.as_str())
+            .collect();
+
+        assert_eq!(
+            ids,
+            vec![
+                "vscode",
+                "cursor",
+                "zed",
+                "ghostty",
+                "antigravity",
+                "phpstorm",
+                "finder"
+            ]
+        );
     }
 }
