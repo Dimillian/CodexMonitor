@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import type { AppSettings } from "@/types";
 import {
   getAppBuildType,
@@ -35,12 +36,33 @@ export function SettingsAboutSection({
   appSettings,
   onToggleAutomaticAppUpdateChecks,
 }: SettingsAboutSectionProps) {
+  const [appVersion, setAppVersion] = useState(__APP_VERSION__);
   const [appBuildType, setAppBuildType] = useState<AppBuildType | "unknown">("unknown");
   const [updaterEnabled, setUpdaterEnabled] = useState(false);
   const { state: updaterState, checkForUpdates, startUpdate } = useUpdater({
     enabled: updaterEnabled,
     autoCheckOnMount: false,
   });
+
+  useEffect(() => {
+    let active = true;
+    const loadVersion = async () => {
+      try {
+        const value = await getVersion();
+        if (active && value.trim().length > 0) {
+          setAppVersion(value);
+        }
+      } catch {
+        if (active) {
+          setAppVersion(__APP_VERSION__);
+        }
+      }
+    };
+    void loadVersion();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -93,7 +115,7 @@ export function SettingsAboutSection({
     <SettingsSection title="About" subtitle="App version, build metadata, and update controls.">
       <div className="settings-field">
         <div className="settings-help">
-          Version: <code>{__APP_VERSION__}</code>
+          Version: <code>{appVersion}</code>
         </div>
         <div className="settings-help">
           Build type: <code>{appBuildType}</code>
@@ -122,7 +144,7 @@ export function SettingsAboutSection({
           />
         </SettingsToggleRow>
         <div className="settings-help">
-          Currently running version <code>{__APP_VERSION__}</code>
+          Currently running version <code>{appVersion}</code>
         </div>
         {!updaterEnabled && (
           <div className="settings-help">
