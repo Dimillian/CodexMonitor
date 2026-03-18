@@ -7,6 +7,7 @@ import {
 
 export const OPEN_APP_STORAGE_KEY = "open-workspace-app";
 export const DEFAULT_OPEN_APP_ID = isWindowsPlatform() ? "finder" : "vscode";
+const PHPSTORM_COMMAND = isWindowsPlatform() ? "phpstorm64.exe" : "phpstorm";
 
 export type OpenAppId = string;
 
@@ -45,6 +46,13 @@ export const DEFAULT_OPEN_APP_TARGETS: OpenAppTarget[] = isMacPlatform()
         label: "Antigravity",
         kind: "app",
         appName: "Antigravity",
+        args: [],
+      },
+      {
+        id: "phpstorm",
+        label: "PHPStorm",
+        kind: "app",
+        appName: "PhpStorm",
         args: [],
       },
       {
@@ -88,6 +96,13 @@ export const DEFAULT_OPEN_APP_TARGETS: OpenAppTarget[] = isMacPlatform()
         label: "Antigravity",
         kind: "command",
         command: "antigravity",
+        args: [],
+      },
+      {
+        id: "phpstorm",
+        label: "PHPStorm",
+        kind: "command",
+        command: PHPSTORM_COMMAND,
         args: [],
       },
       {
