@@ -1,7 +1,6 @@
 export const DIFF_VIEWER_SCROLL_CSS = `
 [data-column-number],
 [data-buffer],
-[data-separator-wrapper],
 [data-annotation-content] {
   position: static !important;
 }
