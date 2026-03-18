@@ -90,6 +90,28 @@ fn app_cli_command(app: &str) -> Option<&'static str> {
     None
 }
 
+fn find_executable_in_path(program: &str) -> Option<PathBuf> {
+    let trimmed = program.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let path = PathBuf::from(trimmed);
+    if path.is_file() {
+        return Some(path);
+    }
+
+    let path_var = env::var_os("PATH")?;
+    for dir in env::split_paths(&path_var) {
+        let candidate = dir.join(trimmed);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+
+    None
+}
+
 fn normalize_app_identifier(app: &str) -> String {
     app.trim()
         .chars()
@@ -229,7 +251,8 @@ pub(crate) async fn open_workspace_in_core(
             if let (Some(strategy), Some(cli_program)) = (
                 app_strategy,
                 normalize_open_location(line, column)
-                    .and_then(|_| app_cli_command(trimmed)),
+                    .and_then(|_| app_cli_command(trimmed))
+                    .and_then(find_executable_in_path),
             ) {
                 let launch_args = build_launch_args(&path, &args, line, column, Some(strategy));
                 let mut cmd = tokio_command(cli_program);
