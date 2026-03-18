@@ -8,6 +8,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import { getVersion } from "@tauri-apps/api/app";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { AppSettings, WorkspaceInfo } from "@/types";
@@ -29,6 +30,10 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
 }));
 
+vi.mock("@tauri-apps/api/app", () => ({
+  getVersion: vi.fn(),
+}));
+
 vi.mock("@services/tauri", async () => {
   const actual = await vi.importActual<typeof import("@services/tauri")>(
     "@services/tauri",
@@ -47,6 +52,7 @@ vi.mock("@services/tauri", async () => {
 });
 
 const connectWorkspaceMock = vi.mocked(connectWorkspace);
+const getVersionMock = vi.mocked(getVersion);
 const getAppBuildTypeMock = vi.mocked(getAppBuildType);
 const getConfigModelMock = vi.mocked(getConfigModel);
 const getModelListMock = vi.mocked(getModelList);
@@ -55,6 +61,7 @@ const getAgentsSettingsMock = vi.mocked(getAgentsSettings);
 const isMobileRuntimeMock = vi.mocked(isMobileRuntime);
 const listWorkspacesMock = vi.mocked(listWorkspaces);
 connectWorkspaceMock.mockResolvedValue(undefined);
+getVersionMock.mockResolvedValue("0.7.63");
 getAppBuildTypeMock.mockResolvedValue("release");
 getConfigModelMock.mockResolvedValue(null);
 isMobileRuntimeMock.mockResolvedValue(false);
@@ -750,6 +757,16 @@ describe("SettingsView About", () => {
 
     await waitFor(() => {
       expect(onToggleAutomaticAppUpdateChecks).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("prefers the runtime app version when available", async () => {
+    getVersionMock.mockResolvedValueOnce("0.7.63-runtime");
+
+    renderAboutSection();
+
+    await waitFor(() => {
+      expect(screen.getAllByText("0.7.63-runtime", { selector: "code" })).toHaveLength(2);
     });
   });
 });
