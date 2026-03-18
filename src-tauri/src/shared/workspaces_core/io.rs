@@ -67,6 +67,9 @@ fn app_launch_strategy(app: &str) -> Option<LineAwareLaunchStrategy> {
     if normalized.contains("visual studio code") || normalized.starts_with("cursor") {
         return Some(LineAwareLaunchStrategy::GotoFlag);
     }
+    if normalized == "phpstorm" {
+        return Some(LineAwareLaunchStrategy::JetBrainsLineColumnFlags);
+    }
     if normalized == "zed" || normalized.starts_with("zed ") {
         return Some(LineAwareLaunchStrategy::PathWithLineColumn);
     }
@@ -83,6 +86,9 @@ fn app_cli_command(app: &str) -> Option<&'static str> {
     }
     if normalized.starts_with("cursor") {
         return Some("cursor");
+    }
+    if normalized == "phpstorm" {
+        return Some("phpstorm");
     }
     if normalized == "zed" || normalized.starts_with("zed ") {
         return Some("zed");

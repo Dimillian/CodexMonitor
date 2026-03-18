@@ -1052,9 +1052,9 @@ fn default_open_app_targets() -> Vec<OpenAppTarget> {
             OpenAppTarget {
                 id: "phpstorm".to_string(),
                 label: "PHPStorm".to_string(),
-                kind: "command".to_string(),
-                app_name: None,
-                command: Some(phpstorm_command.to_string()),
+                kind: "app".to_string(),
+                app_name: Some("PhpStorm".to_string()),
+                command: None,
                 args: Vec::new(),
             },
             OpenAppTarget {
