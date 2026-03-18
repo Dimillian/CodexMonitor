@@ -60,9 +60,11 @@ export function useGitActions({
     }
   }, [workspaceId]);
 
-  const refreshGitData = useCallback(() => {
-    onRefreshGitStatus();
-    onRefreshGitDiffs();
+  const refreshGitData = useCallback(async () => {
+    await Promise.allSettled([
+      Promise.resolve(onRefreshGitStatus()),
+      Promise.resolve(onRefreshGitDiffs()),
+    ]);
   }, [onRefreshGitDiffs, onRefreshGitStatus]);
 
   const stageGitFile = useCallback(
@@ -77,7 +79,7 @@ export function useGitActions({
         onError?.(error);
       } finally {
         if (workspaceIdRef.current === actionWorkspaceId) {
-          refreshGitData();
+          await refreshGitData();
         }
       }
     },
@@ -95,7 +97,7 @@ export function useGitActions({
       onError?.(error);
     } finally {
       if (workspaceIdRef.current === actionWorkspaceId) {
-        refreshGitData();
+        await refreshGitData();
       }
     }
   }, [onError, refreshGitData, workspaceId]);
@@ -124,7 +126,7 @@ export function useGitActions({
         return null;
       } finally {
         if (workspaceIdRef.current === actionWorkspaceId) {
-          refreshGitData();
+          await refreshGitData();
         }
       }
     },
@@ -143,7 +145,7 @@ export function useGitActions({
         onError?.(error);
       } finally {
         if (workspaceIdRef.current === actionWorkspaceId) {
-          refreshGitData();
+          await refreshGitData();
         }
       }
     },
@@ -162,7 +164,7 @@ export function useGitActions({
         onError?.(error);
       } finally {
         if (workspaceIdRef.current === actionWorkspaceId) {
-          refreshGitData();
+          await refreshGitData();
         }
       }
     },
@@ -182,7 +184,7 @@ export function useGitActions({
     }
     try {
       await revertGitAll(workspaceId);
-      refreshGitData();
+      await refreshGitData();
     } catch (error) {
       onError?.(error);
     }

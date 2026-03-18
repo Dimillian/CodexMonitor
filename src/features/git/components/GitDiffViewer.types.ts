@@ -14,6 +14,8 @@ export type GitDiffViewerItem = {
   displayPath?: string;
   status: string;
   diff: string;
+  stagedDiff?: string | null;
+  unstagedDiff?: string | null;
   oldLines?: string[];
   newLines?: string[];
   isImage?: boolean;
@@ -21,6 +23,22 @@ export type GitDiffViewerItem = {
   newImageData?: string | null;
   oldImageMime?: string | null;
   newImageMime?: string | null;
+};
+
+export type LocalLineAction = {
+  op: "stage" | "unstage";
+  source: "unstaged" | "staged";
+  label: "Stage" | "Unstage";
+  title: string;
+  disabledReason?: string;
+};
+
+export type LocalLineActionContext = {
+  hasStaged: boolean;
+  hasUnstaged: boolean;
+  stagedDiff?: string | null;
+  unstagedDiff?: string | null;
+  disabledReason?: string;
 };
 
 export type DiffStats = {

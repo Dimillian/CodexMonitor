@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { GitDiffViewer } from "./GitDiffViewer";
@@ -130,7 +130,7 @@ describe("GitDiffViewer", () => {
     expect(rawLines[2]?.className).toContain("diff-viewer-raw-line-del");
   });
 
-  it("invokes line-level stage action for local unstaged diffs", () => {
+  it("invokes line-level stage action for local unstaged diffs", async () => {
     const onStageSelection = vi.fn();
     render(
       <GitDiffViewer
@@ -151,27 +151,27 @@ describe("GitDiffViewer", () => {
       />,
     );
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Ask for changes on hovered line" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Stage" }));
 
-    expect(onStageSelection).toHaveBeenCalledTimes(1);
-    expect(onStageSelection).toHaveBeenCalledWith({
-      path: "src/main.ts",
-      op: "stage",
-      source: "unstaged",
-      lines: [
-        {
-          type: "add",
-          oldLine: null,
-          newLine: 2,
-          text: "new line",
-        },
-      ],
+    await waitFor(() => {
+      expect(onStageSelection).toHaveBeenCalledTimes(1);
+      expect(onStageSelection).toHaveBeenCalledWith({
+        path: "src/main.ts",
+        op: "stage",
+        source: "unstaged",
+        lines: [
+          {
+            type: "add",
+            oldLine: null,
+            newLine: 2,
+            text: "new line",
+          },
+        ],
+      });
     });
   });
 
-  it("disables line-level actions when file has both staged and unstaged changes", () => {
+  it("enables line-level stage actions in split view", async () => {
     const onStageSelection = vi.fn();
     render(
       <GitDiffViewer
@@ -185,7 +185,51 @@ describe("GitDiffViewer", () => {
         selectedPath="src/main.ts"
         isLoading={false}
         error={null}
-        diffStyle="unified"
+        diffStyle="split"
+        diffSource="local"
+        unstagedPaths={["src/main.ts"]}
+        onStageSelection={onStageSelection}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Stage" }));
+
+    await waitFor(() => {
+      expect(onStageSelection).toHaveBeenCalledTimes(1);
+      expect(onStageSelection).toHaveBeenCalledWith({
+        path: "src/main.ts",
+        op: "stage",
+        source: "unstaged",
+        lines: [
+          {
+            type: "add",
+            oldLine: null,
+            newLine: 2,
+            text: "new line",
+          },
+        ],
+      });
+    });
+  });
+
+  it("keeps mixed files in-order and offers chunk-level stage/unstage actions", async () => {
+    const onStageSelection = vi.fn();
+    render(
+      <GitDiffViewer
+        diffs={[
+          {
+            path: "src/main.ts",
+            status: "M",
+            diff:
+              "@@ -1,2 +1,4 @@\n line one\n+new staged line\n line two\n+new unstaged line",
+            stagedDiff: "@@ -1,1 +1,2 @@\n line one\n+new staged line",
+            unstagedDiff: "@@ -2,1 +3,2 @@\n line two\n+new unstaged line",
+          },
+        ]}
+        selectedPath="src/main.ts"
+        isLoading={false}
+        error={null}
+        diffStyle="split"
         diffSource="local"
         stagedPaths={["src/main.ts"]}
         unstagedPaths={["src/main.ts"]}
@@ -193,9 +237,269 @@ describe("GitDiffViewer", () => {
       />,
     );
 
-    expect(
-      screen.queryByRole("button", { name: "Ask for changes on hovered line" }),
-    ).toBeNull();
-    expect(onStageSelection).not.toHaveBeenCalled();
+    expect(screen.queryByText("Staged changes")).toBeNull();
+    expect(screen.queryByText("Unstaged changes")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Unstage" }));
+    await waitFor(() => {
+      expect(onStageSelection).toHaveBeenCalledWith({
+        path: "src/main.ts",
+        op: "unstage",
+        source: "staged",
+        lines: [
+          {
+            type: "add",
+            oldLine: null,
+            newLine: 2,
+            text: "new staged line",
+          },
+        ],
+      });
+    });
+
+    await waitFor(() => {
+      expect(onStageSelection).toHaveBeenCalledTimes(1);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Stage" }));
+    await waitFor(() => {
+      expect(onStageSelection).toHaveBeenCalledTimes(2);
+      expect(onStageSelection).toHaveBeenLastCalledWith({
+        path: "src/main.ts",
+        op: "stage",
+        source: "unstaged",
+        lines: [
+          {
+            type: "add",
+            oldLine: null,
+            newLine: 4,
+            text: "new unstaged line",
+          },
+        ],
+      });
+    });
+  });
+
+  it("renders one hover target per changed chunk", async () => {
+    const onStageSelection = vi.fn();
+    render(
+      <GitDiffViewer
+        diffs={[
+          {
+            path: "src/main.ts",
+            status: "M",
+            diff:
+              "@@ -1,3 +1,5 @@\n line one\n+first addition\n line two\n+second addition",
+          },
+        ]}
+        selectedPath="src/main.ts"
+        isLoading={false}
+        error={null}
+        diffStyle="split"
+        diffSource="local"
+        unstagedPaths={["src/main.ts"]}
+        onStageSelection={onStageSelection}
+      />,
+    );
+
+    const stageButtons = screen.getAllByRole("button", { name: "Stage" });
+    expect(stageButtons).toHaveLength(2);
+
+    fireEvent.click(stageButtons[0]);
+    await waitFor(() => {
+      expect(onStageSelection).toHaveBeenCalledWith({
+        path: "src/main.ts",
+        op: "stage",
+        source: "unstaged",
+        lines: [
+          {
+            type: "add",
+            oldLine: null,
+            newLine: 2,
+            text: "first addition",
+          },
+        ],
+      });
+    });
+
+    fireEvent.click(stageButtons[1]);
+    await waitFor(() => {
+      expect(onStageSelection).toHaveBeenLastCalledWith({
+        path: "src/main.ts",
+        op: "stage",
+        source: "unstaged",
+        lines: [
+          {
+            type: "add",
+            oldLine: null,
+            newLine: 4,
+            text: "second addition",
+          },
+        ],
+      });
+    });
+  });
+
+  it("stages a full contiguous changed chunk with one click", async () => {
+    const onStageSelection = vi.fn();
+    render(
+      <GitDiffViewer
+        diffs={[
+          {
+            path: "src/main.ts",
+            status: "M",
+            diff:
+              "@@ -1,2 +1,5 @@\n line one\n+first addition\n+second addition\n+third addition\n line two",
+          },
+        ]}
+        selectedPath="src/main.ts"
+        isLoading={false}
+        error={null}
+        diffStyle="split"
+        diffSource="local"
+        unstagedPaths={["src/main.ts"]}
+        onStageSelection={onStageSelection}
+      />,
+    );
+
+    const stageButtons = screen.getAllByRole("button", { name: "Stage" });
+    expect(stageButtons.length).toBeGreaterThan(0);
+
+    fireEvent.click(stageButtons[0]);
+    await waitFor(() => {
+      expect(onStageSelection).toHaveBeenCalledWith({
+        path: "src/main.ts",
+        op: "stage",
+        source: "unstaged",
+        lines: [
+          {
+            type: "add",
+            oldLine: null,
+            newLine: 2,
+            text: "first addition",
+          },
+          {
+            type: "add",
+            oldLine: null,
+            newLine: 3,
+            text: "second addition",
+          },
+          {
+            type: "add",
+            oldLine: null,
+            newLine: 4,
+            text: "third addition",
+          },
+        ],
+      });
+    });
+  });
+
+  it("maps mixed-file chunk line coordinates to source-specific diffs", async () => {
+    const onStageSelection = vi.fn();
+    render(
+      <GitDiffViewer
+        diffs={[
+          {
+            path: "src/main.ts",
+            status: "M",
+            diff:
+              "@@ -1,2 +1,4 @@\n line one\n+new staged line\n line two\n+new unstaged line",
+            stagedDiff: "@@ -1,1 +1,2 @@\n line one\n+new staged line",
+            unstagedDiff: "@@ -1,1 +1,2 @@\n line two\n+new unstaged line",
+          },
+        ]}
+        selectedPath="src/main.ts"
+        isLoading={false}
+        error={null}
+        diffStyle="split"
+        diffSource="local"
+        stagedPaths={["src/main.ts"]}
+        unstagedPaths={["src/main.ts"]}
+        onStageSelection={onStageSelection}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Stage" }));
+    await waitFor(() => {
+      expect(onStageSelection).toHaveBeenLastCalledWith({
+        path: "src/main.ts",
+        op: "stage",
+        source: "unstaged",
+        lines: [
+          {
+            type: "add",
+            oldLine: null,
+            newLine: 2,
+            text: "new unstaged line",
+          },
+        ],
+      });
+    });
+  });
+
+  it("preserves empty added lines in mixed staged/unstaged chunk actions", async () => {
+    const onStageSelection = vi.fn();
+    render(
+      <GitDiffViewer
+        diffs={[
+          {
+            path: "src/main.ts",
+            status: "M",
+            diff:
+              "@@ -1,2 +1,5 @@\n import a\n+\n import b\n+\n+import c",
+            stagedDiff: "@@ -1,1 +1,2 @@\n import a\n+",
+            unstagedDiff: "@@ -3,1 +3,3 @@\n import b\n+\n+import c",
+          },
+        ]}
+        selectedPath="src/main.ts"
+        isLoading={false}
+        error={null}
+        diffStyle="split"
+        diffSource="local"
+        stagedPaths={["src/main.ts"]}
+        unstagedPaths={["src/main.ts"]}
+        onStageSelection={onStageSelection}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Unstage" }));
+    await waitFor(() => {
+      expect(onStageSelection).toHaveBeenCalledWith({
+        path: "src/main.ts",
+        op: "unstage",
+        source: "staged",
+        lines: [
+          {
+            type: "add",
+            oldLine: null,
+            newLine: 2,
+            text: "",
+          },
+        ],
+      });
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Stage" }));
+    await waitFor(() => {
+      expect(onStageSelection).toHaveBeenLastCalledWith({
+        path: "src/main.ts",
+        op: "stage",
+        source: "unstaged",
+        lines: [
+          {
+            type: "add",
+            oldLine: null,
+            newLine: 4,
+            text: "",
+          },
+          {
+            type: "add",
+            oldLine: null,
+            newLine: 5,
+            text: "import c",
+          },
+        ],
+      });
+    });
   });
 });
