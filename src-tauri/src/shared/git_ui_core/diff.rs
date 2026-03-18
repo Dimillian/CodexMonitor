@@ -123,19 +123,39 @@ fn status_for_delta(status: git2::Delta) -> &'static str {
     }
 }
 
-fn has_unstaged_diff_with_git(repo_root: &Path, path: &str) -> Option<bool> {
-    let git_bin = resolve_git_binary().ok()?;
-    let output = std_command(git_bin)
-        .args(["diff", "--no-color", "-U0", "--", path])
-        .current_dir(repo_root)
-        .env("PATH", git_env_path())
-        .output()
-        .ok()?;
-    if !(output.status.success() || output.status.code() == Some(1)) {
-        return None;
+fn unstaged_diff_paths_with_git(repo_root: &Path, paths: &[String]) -> Option<HashSet<String>> {
+    if paths.is_empty() {
+        return Some(HashSet::new());
     }
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    Some(!stdout.trim().is_empty())
+
+    const MAX_PATHS_PER_BATCH: usize = 200;
+    let git_bin = resolve_git_binary().ok()?;
+    let mut changed_paths = HashSet::new();
+
+    for batch in paths.chunks(MAX_PATHS_PER_BATCH) {
+        let mut args = vec!["diff", "--no-color", "--name-only", "-z", "--"];
+        args.extend(batch.iter().map(String::as_str));
+
+        let output = std_command(&git_bin)
+            .args(args)
+            .current_dir(repo_root)
+            .env("PATH", git_env_path())
+            .output()
+            .ok()?;
+        if !(output.status.success() || output.status.code() == Some(1)) {
+            return None;
+        }
+
+        for raw_path in output.stdout.split(|byte| *byte == 0) {
+            if raw_path.is_empty() {
+                continue;
+            }
+            let path = String::from_utf8_lossy(raw_path);
+            changed_paths.insert(normalize_git_path(path.as_ref()));
+        }
+    }
+
+    Some(changed_paths)
 }
 
 fn source_diff_for_path(
@@ -407,7 +427,12 @@ pub(super) async fn get_git_status_inner(
         .filter_map(|entry| entry.path().map(PathBuf::from))
         .filter(|path| !path.as_os_str().is_empty())
         .collect();
+    let normalized_status_paths: Vec<String> = status_paths
+        .iter()
+        .map(|path| normalize_git_path(path.to_string_lossy().as_ref()))
+        .collect();
     let ignored_paths = collect_ignored_paths_with_git(&repo, &status_paths);
+    let unstaged_diff_paths = unstaged_diff_paths_with_git(&repo_root, &normalized_status_paths);
 
     let head_tree = repo.head().ok().and_then(|head| head.peel_to_tree().ok());
     let index = repo.index().ok();
@@ -453,11 +478,8 @@ pub(super) async fn get_git_status_inner(
         // libgit2 can briefly report both staged and workdir status for a path.
         // Verify actual unstaged diff content before keeping the workdir bucket.
         if include_index && include_workdir {
-            if matches!(
-                has_unstaged_diff_with_git(&repo_root, normalized_path.as_str()),
-                Some(false)
-            ) {
-                include_workdir = false;
+            if let Some(unstaged_diff_paths) = unstaged_diff_paths.as_ref() {
+                include_workdir = unstaged_diff_paths.contains(&normalized_path);
             }
         }
         let mut combined_additions = 0i64;
