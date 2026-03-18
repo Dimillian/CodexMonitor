@@ -1,4 +1,4 @@
-import { useMemo, useState, type MouseEvent } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { GitSelectionLine } from "../../../types";
 import { parseDiff, type ParsedDiffLine } from "../../../utils/diff";
 import { highlightLine } from "../../../utils/syntax";
@@ -127,6 +127,14 @@ function buildGitLineFuzzyKey(line: GitSelectionLine) {
 
 function primaryLineNumber(line: GitSelectionLine) {
   return line.type === "add" ? line.newLine : line.oldLine;
+}
+
+function chunkIdFromEventTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) {
+    return null;
+  }
+  const chunkNode = target.closest<HTMLElement>("[data-chunk-id]");
+  return chunkNode?.dataset.chunkId ?? null;
 }
 
 function toGitSelectionLine(
@@ -455,9 +463,18 @@ export function LocalActionDiffBlock({
   onChunkAction,
 }: LocalActionDiffBlockProps) {
   const [hoveredChunkId, setHoveredChunkId] = useState<string | null>(null);
+  const hoveredChunkIdRef = useRef<string | null>(null);
   const splitRows = useMemo(
     () => (diffStyle === "split" ? buildSplitRows(parsedLines) : []),
     [diffStyle, parsedLines],
+  );
+  const highlightedHtmlByIndex = useMemo(
+    () =>
+      parsedLines.map((line) => {
+        const shouldHighlight = isHighlightableLine(line);
+        return highlightLine(line.text, shouldHighlight ? language : null);
+      }),
+    [language, parsedLines],
   );
 
   const stagedSourceLines = useMemo(
@@ -498,6 +515,13 @@ export function LocalActionDiffBlock({
     () => buildChunks(parsedLines, sourceLineByIndex, context.disabledReason),
     [context.disabledReason, parsedLines, sourceLineByIndex],
   );
+  const updateHoveredChunkId = (nextChunkId: string | null) => {
+    if (hoveredChunkIdRef.current === nextChunkId) {
+      return;
+    }
+    hoveredChunkIdRef.current = nextChunkId;
+    setHoveredChunkId(nextChunkId);
+  };
 
   const renderLine = (
     line: ParsedDiffLine,
@@ -505,8 +529,7 @@ export function LocalActionDiffBlock({
     side?: "left" | "right",
     mirroredChunk?: ChangeChunk,
   ) => {
-    const shouldHighlight = isHighlightableLine(line);
-    const html = highlightLine(line.text, shouldHighlight ? language : null);
+    const html = highlightedHtmlByIndex[index] ?? "";
     const chunkMeta = chunkMetaByIndex.get(index);
     const chunk = mirroredChunk ?? chunkMeta?.chunk;
     const shouldRenderAction = Boolean(
@@ -568,22 +591,14 @@ export function LocalActionDiffBlock({
   };
 
   if (diffStyle === "split") {
-    const handleChunkPointerMove = (event: MouseEvent<HTMLDivElement>) => {
-      const target = event.target;
-      if (!(target instanceof Element)) {
-        return;
-      }
-      const chunkNode = target.closest<HTMLElement>("[data-chunk-id]");
-      const nextChunkId = chunkNode?.dataset.chunkId ?? null;
-      setHoveredChunkId((current) => (current === nextChunkId ? current : nextChunkId));
-    };
-
     return (
       <div
         className="diff-split-block"
-        onMouseMove={handleChunkPointerMove}
+        onMouseOver={(event) => {
+          updateHoveredChunkId(chunkIdFromEventTarget(event.target));
+        }}
         onMouseLeave={() => {
-          setHoveredChunkId(null);
+          updateHoveredChunkId(null);
         }}
       >
         {splitRows.map((row, rowIndex) => {
@@ -652,17 +667,11 @@ export function LocalActionDiffBlock({
 
   return (
     <div
-      onMouseMove={(event) => {
-        const target = event.target;
-        if (!(target instanceof Element)) {
-          return;
-        }
-        const chunkNode = target.closest<HTMLElement>("[data-chunk-id]");
-        const nextChunkId = chunkNode?.dataset.chunkId ?? null;
-        setHoveredChunkId((current) => (current === nextChunkId ? current : nextChunkId));
+      onMouseOver={(event) => {
+        updateHoveredChunkId(chunkIdFromEventTarget(event.target));
       }}
       onMouseLeave={() => {
-        setHoveredChunkId(null);
+        updateHoveredChunkId(null);
       }}
     >
       {parsedLines.map((line, index) => (
