@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
 
@@ -105,76 +104,6 @@ fn normalize_app_identifier(app: &str) -> String {
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
-}
-
-fn find_executable_in_path(program: &str) -> Option<PathBuf> {
-    let trimmed = program.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-
-    let path = PathBuf::from(trimmed);
-    if path.is_file() {
-        return Some(path);
-    }
-
-    let path_var = env::var_os("PATH")?;
-    for dir in env::split_paths(&path_var) {
-        let candidate = dir.join(trimmed);
-        if candidate.is_file() {
-            return Some(candidate);
-        }
-    }
-
-    None
-}
-
-#[cfg(target_os = "windows")]
-fn first_available_command(candidates: &[&str]) -> Option<String> {
-    candidates
-        .iter()
-        .copied()
-        .find(|candidate| resolve_windows_executable(candidate, None).is_some())
-        .map(str::to_string)
-}
-
-#[cfg(not(target_os = "windows"))]
-fn first_available_command(candidates: &[&str]) -> Option<String> {
-    candidates
-        .iter()
-        .copied()
-        .find(|candidate| find_executable_in_path(candidate).is_some())
-        .map(str::to_string)
-}
-
-#[cfg(target_os = "windows")]
-fn phpstorm_command_candidates() -> &'static [&'static str] {
-    &["phpstorm64.exe", "phpstorm.bat", "phpstorm"]
-}
-
-#[cfg(target_os = "macos")]
-fn phpstorm_command_candidates() -> &'static [&'static str] {
-    &["phpstorm"]
-}
-
-#[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
-fn phpstorm_command_candidates() -> &'static [&'static str] {
-    &["phpstorm", "phpstorm.sh"]
-}
-
-pub(crate) fn optional_open_app_targets_core() -> Vec<OpenAppTarget> {
-    let Some(command) = first_available_command(phpstorm_command_candidates()) else {
-        return Vec::new();
-    };
-
-    vec![OpenAppTarget {
-        id: "phpstorm".to_string(),
-        label: "PHPStorm".to_string(),
-        kind: "command".to_string(),
-        app_name: None,
-        command: Some(command),
-        args: Vec::new(),
-    }]
 }
 
 fn build_launch_args(
@@ -300,8 +229,7 @@ pub(crate) async fn open_workspace_in_core(
             if let (Some(strategy), Some(cli_program)) = (
                 app_strategy,
                 normalize_open_location(line, column)
-                    .and_then(|_| app_cli_command(trimmed))
-                    .and_then(find_executable_in_path),
+                    .and_then(|_| app_cli_command(trimmed)),
             ) {
                 let launch_args = build_launch_args(&path, &args, line, column, Some(strategy));
                 let mut cmd = tokio_command(cli_program);

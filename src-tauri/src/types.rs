@@ -1044,6 +1044,14 @@ fn default_open_app_targets() -> Vec<OpenAppTarget> {
                 args: Vec::new(),
             },
             OpenAppTarget {
+                id: "phpstorm".to_string(),
+                label: "PHPStorm".to_string(),
+                kind: "command".to_string(),
+                app_name: None,
+                command: Some("phpstorm".to_string()),
+                args: Vec::new(),
+            },
+            OpenAppTarget {
                 id: "finder".to_string(),
                 label: "Finder".to_string(),
                 kind: "finder".to_string(),
@@ -1099,6 +1107,14 @@ fn default_open_app_targets() -> Vec<OpenAppTarget> {
             kind: "command".to_string(),
             app_name: None,
             command: Some("antigravity".to_string()),
+            args: Vec::new(),
+        },
+        OpenAppTarget {
+            id: "phpstorm".to_string(),
+            label: "PHPStorm".to_string(),
+            kind: "command".to_string(),
+            app_name: None,
+            command: Some("phpstorm".to_string()),
             args: Vec::new(),
         },
         OpenAppTarget {
@@ -1364,7 +1380,7 @@ mod tests {
             "vscode"
         };
         assert_eq!(settings.selected_open_app_id, expected_open_id);
-        assert_eq!(settings.open_app_targets.len(), 6);
+        assert_eq!(settings.open_app_targets.len(), 7);
         assert_eq!(settings.open_app_targets[0].id, "vscode");
     }
 
