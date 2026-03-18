@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type MouseEvent } from "react";
 import type { GitSelectionLine } from "../../../types";
 import { parseDiff, type ParsedDiffLine } from "../../../utils/diff";
 import { highlightLine } from "../../../utils/syntax";
@@ -130,10 +130,16 @@ function primaryLineNumber(line: GitSelectionLine) {
 }
 
 function chunkIdFromEventTarget(target: EventTarget | null) {
-  if (!(target instanceof Element)) {
+  const element =
+    target instanceof Element
+      ? target
+      : target instanceof Node
+        ? target.parentElement
+        : null;
+  if (!element) {
     return null;
   }
-  const chunkNode = target.closest<HTMLElement>("[data-chunk-id]");
+  const chunkNode = element.closest<HTMLElement>("[data-chunk-id]");
   return chunkNode?.dataset.chunkId ?? null;
 }
 
@@ -522,6 +528,21 @@ export function LocalActionDiffBlock({
     hoveredChunkIdRef.current = nextChunkId;
     setHoveredChunkId(nextChunkId);
   };
+  const handleChunkMouseEnter = (chunkId: string) => {
+    updateHoveredChunkId(chunkId);
+  };
+  const handleChunkMouseLeave = (
+    event: MouseEvent<HTMLDivElement>,
+    chunkId: string,
+  ) => {
+    const toChunkId = chunkIdFromEventTarget(event.relatedTarget);
+    if (toChunkId === chunkId) {
+      return;
+    }
+    if (hoveredChunkIdRef.current === chunkId) {
+      updateHoveredChunkId(null);
+    }
+  };
 
   const renderLine = (
     line: ParsedDiffLine,
@@ -550,6 +571,20 @@ export function LocalActionDiffBlock({
         className={lineClassName}
         data-has-gutter="true"
         data-chunk-id={chunk?.id}
+        onMouseEnter={
+          chunk
+            ? () => {
+                handleChunkMouseEnter(chunk.id);
+              }
+            : undefined
+        }
+        onMouseLeave={
+          chunk
+            ? (event) => {
+                handleChunkMouseLeave(event, chunk.id);
+              }
+            : undefined
+        }
       >
         <div className="diff-gutter">
           <span className="diff-line-number">
@@ -594,9 +629,6 @@ export function LocalActionDiffBlock({
     return (
       <div
         className="diff-split-block"
-        onMouseOver={(event) => {
-          updateHoveredChunkId(chunkIdFromEventTarget(event.target));
-        }}
         onMouseLeave={() => {
           updateHoveredChunkId(null);
         }}
@@ -667,9 +699,6 @@ export function LocalActionDiffBlock({
 
   return (
     <div
-      onMouseOver={(event) => {
-        updateHoveredChunkId(chunkIdFromEventTarget(event.target));
-      }}
       onMouseLeave={() => {
         updateHoveredChunkId(null);
       }}

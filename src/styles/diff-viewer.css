@@ -616,6 +616,8 @@
 }
 
 .diff-line-content {
+  display: block;
+  white-space: pre-wrap;
   min-width: 0;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -625,7 +627,7 @@
   position: absolute;
   top: 50%;
   left: 7px;
-  transform: translateY(-50%);
+  transform: translate3d(0, -50%, 0);
   width: 20px;
   height: 20px;
   border-radius: 999px;
@@ -642,8 +644,10 @@
   line-height: 1;
   opacity: 0;
   pointer-events: none;
+  will-change: opacity;
+  backface-visibility: hidden;
+  contain: paint;
   transition:
-    opacity 140ms ease,
     background 140ms ease,
     border-color 140ms ease,
     color 140ms ease;
@@ -674,7 +678,7 @@
 
 .diff-line-action:hover:not(:disabled),
 .diff-line-action:active:not(:disabled) {
-  transform: translateY(-50%);
+  transform: translate3d(0, -50%, 0);
   box-shadow: none;
 }
 
