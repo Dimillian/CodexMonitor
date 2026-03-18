@@ -1001,6 +1001,12 @@ fn default_workspace_groups() -> Vec<WorkspaceGroup> {
 }
 
 fn default_open_app_targets() -> Vec<OpenAppTarget> {
+    let phpstorm_command = if cfg!(target_os = "windows") {
+        "phpstorm64.exe"
+    } else {
+        "phpstorm"
+    };
+
     if cfg!(target_os = "macos") {
         return vec![
             OpenAppTarget {
@@ -1048,7 +1054,7 @@ fn default_open_app_targets() -> Vec<OpenAppTarget> {
                 label: "PHPStorm".to_string(),
                 kind: "command".to_string(),
                 app_name: None,
-                command: Some("phpstorm".to_string()),
+                command: Some(phpstorm_command.to_string()),
                 args: Vec::new(),
             },
             OpenAppTarget {
@@ -1114,7 +1120,7 @@ fn default_open_app_targets() -> Vec<OpenAppTarget> {
             label: "PHPStorm".to_string(),
             kind: "command".to_string(),
             app_name: None,
-            command: Some("phpstorm".to_string()),
+            command: Some(phpstorm_command.to_string()),
             args: Vec::new(),
         },
         OpenAppTarget {
