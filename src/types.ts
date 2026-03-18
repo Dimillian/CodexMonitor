@@ -194,7 +194,7 @@ export type PullRequestSelectionRange = {
 export type AccessMode = "read-only" | "current" | "full-access";
 export type ServiceTier = "fast" | "flex";
 export type BackendMode = "local" | "remote";
-export type RemoteBackendProvider = "tcp";
+export type RemoteBackendProvider = "tcp" | "wss";
 export type RemoteBackendTarget = {
   id: string;
   name: string;
@@ -243,6 +243,7 @@ export type AppSettings = {
   remoteBackends: RemoteBackendTarget[];
   activeRemoteBackendId: string | null;
   keepDaemonRunningAfterAppClose: boolean;
+  keepTunnelRunningAfterAppClose: boolean;
   defaultAccessMode: AccessMode;
   reviewDeliveryMode: "inline" | "detached";
   composerModelShortcut: string | null;
@@ -335,6 +336,18 @@ export type TcpDaemonStatus = {
   startedAtMs: number | null;
   lastError: string | null;
   listenAddr: string | null;
+};
+
+export type CloudflareTunnelStatus = {
+  state: TcpDaemonState;
+  pid: number | null;
+  startedAtMs: number | null;
+  lastError: string | null;
+  localUrl: string | null;
+  publicUrl: string | null;
+  suggestedWssUrl: string | null;
+  installed: boolean;
+  version: string | null;
 };
 
 export type TailscaleStatus = {

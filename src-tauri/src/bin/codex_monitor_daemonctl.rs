@@ -91,6 +91,7 @@ async fn run() -> Result<(), String> {
     let settings = load_settings(&data_dir);
 
     let listen_addr = resolve_listen_addr(args.listen.as_deref(), settings.as_ref())?;
+    let ws_listen_addr = daemon_ws_listen_addr(&listen_addr);
     let token = if args.insecure_no_auth {
         None
     } else {
@@ -105,6 +106,7 @@ async fn run() -> Result<(), String> {
                 &data_dir,
                 token.is_some(),
                 &listen_addr,
+                &ws_listen_addr,
                 args.insecure_no_auth,
             );
             if args.json {
@@ -133,6 +135,7 @@ async fn run() -> Result<(), String> {
             let daemon_path = resolve_daemon_path(args.daemon_path.as_deref())?;
             let status = daemon_start(
                 &listen_addr,
+                &ws_listen_addr,
                 token.as_deref(),
                 args.insecure_no_auth,
                 &data_dir,
@@ -346,6 +349,12 @@ fn daemon_listen_addr(remote_host: &str) -> String {
     format!("0.0.0.0:{port}")
 }
 
+fn daemon_ws_listen_addr(listen_addr: &str) -> String {
+    let port = parse_port_from_remote_host(listen_addr).unwrap_or(4732);
+    let ws_port = if port < u16::MAX { port + 1 } else { 4733 };
+    format!("127.0.0.1:{ws_port}")
+}
+
 fn parse_port_from_remote_host(remote_host: &str) -> Option<u16> {
     let trimmed = remote_host.trim();
     if trimmed.is_empty() {
@@ -384,6 +393,7 @@ fn daemon_command_preview(
     data_dir: &Path,
     token_configured: bool,
     listen_addr: &str,
+    ws_listen_addr: &str,
     insecure_no_auth: bool,
 ) -> TailscaleDaemonCommandPreview {
     let daemon_path_str = daemon_path.to_string_lossy().to_string();
@@ -393,6 +403,8 @@ fn daemon_command_preview(
         vec![
             "--listen".to_string(),
             listen_addr.to_string(),
+            "--ws-listen".to_string(),
+            ws_listen_addr.to_string(),
             "--data-dir".to_string(),
             data_dir_str.clone(),
             "--insecure-no-auth".to_string(),
@@ -401,6 +413,8 @@ fn daemon_command_preview(
         vec![
             "--listen".to_string(),
             listen_addr.to_string(),
+            "--ws-listen".to_string(),
+            ws_listen_addr.to_string(),
             "--data-dir".to_string(),
             data_dir_str.clone(),
             "--token".to_string(),
@@ -992,6 +1006,7 @@ async fn resolve_daemon_pid(listen_addr: &str, expected_pid: Option<u32>) -> Opt
 
 async fn daemon_start(
     listen_addr: &str,
+    ws_listen_addr: &str,
     token: Option<&str>,
     insecure_no_auth: bool,
     data_dir: &Path,
@@ -1099,6 +1114,8 @@ async fn daemon_start(
     command
         .arg("--listen")
         .arg(listen_addr)
+        .arg("--ws-listen")
+        .arg(ws_listen_addr)
         .arg("--data-dir")
         .arg(data_dir)
         .stdin(Stdio::null())
@@ -1278,10 +1295,11 @@ fn print_status(status: &TcpDaemonStatus, as_json: bool) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        daemon_connect_addr, daemon_listen_addr, local_listener_port, parse_netstat_listener_pid,
-        parse_port_from_remote_host, parse_ss_listener_pid, resolve_listen_addr, safe_force_stop_pid,
-        shell_quote,
+        daemon_command_preview, daemon_connect_addr, daemon_listen_addr, daemon_ws_listen_addr,
+        local_listener_port, parse_netstat_listener_pid, parse_port_from_remote_host,
+        parse_ss_listener_pid, resolve_listen_addr, safe_force_stop_pid, shell_quote,
     };
+    use std::path::Path;
 
     #[test]
     fn parses_listen_port_from_host() {
@@ -1305,6 +1323,32 @@ mod tests {
             "0.0.0.0:8888"
         );
         assert_eq!(daemon_listen_addr("mac.example.ts.net"), "0.0.0.0:4732");
+    }
+
+    #[test]
+    fn builds_ws_listen_addr_with_port_offset() {
+        assert_eq!(daemon_ws_listen_addr("0.0.0.0:8888"), "127.0.0.1:8889");
+        assert_eq!(daemon_ws_listen_addr("0.0.0.0:4732"), "127.0.0.1:4733");
+    }
+
+    #[test]
+    fn preview_includes_ws_listen_args() {
+        let preview = daemon_command_preview(
+            Path::new("/tmp/codex-monitor-daemon"),
+            Path::new("/tmp/data"),
+            true,
+            "0.0.0.0:4732",
+            "127.0.0.1:4733",
+            false,
+        );
+        assert!(preview.command.contains("--ws-listen"));
+        assert!(preview.command.contains("127.0.0.1:4733"));
+        assert!(
+            preview
+                .args
+                .windows(2)
+                .any(|pair| pair[0] == "--ws-listen" && pair[1] == "127.0.0.1:4733")
+        );
     }
 
     #[test]

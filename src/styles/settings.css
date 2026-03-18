@@ -131,6 +131,140 @@
   margin-bottom: 18px;
 }
 
+.settings-server-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.settings-server-mode-card {
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-card);
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-server-mode-card:hover {
+  border-color: var(--border-strong);
+}
+
+.settings-server-mode-card.is-active {
+  border-color: color-mix(in srgb, var(--border-accent) 68%, var(--border-muted));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--border-accent) 35%, transparent);
+}
+
+.settings-server-mode-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.settings-server-mode-subtitle {
+  font-size: 11px;
+  color: var(--text-subtle);
+  line-height: 1.4;
+}
+
+.settings-server-mode-note {
+  margin-bottom: 18px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-card);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-server-mode-note-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.settings-wss-wizard-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-card);
+}
+
+.settings-wss-wizard-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-wss-wizard-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-subtle);
+}
+
+.settings-wss-wizard-step-badge {
+  flex: 0 0 auto;
+  min-width: 56px;
+  text-align: center;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--border-muted);
+  color: var(--text-subtle);
+  background: var(--surface-control);
+}
+
+.settings-wss-wizard-step.is-done .settings-wss-wizard-step-badge {
+  border-color: color-mix(in srgb, var(--border-accent) 60%, var(--border-muted));
+  background: color-mix(in srgb, var(--border-accent) 18%, transparent);
+  color: var(--text-strong);
+}
+
+.settings-wss-wizard-step.is-active .settings-wss-wizard-step-badge {
+  border-color: color-mix(in srgb, var(--border-strong) 60%, var(--border-muted));
+  color: var(--text-strong);
+}
+
+.settings-wss-wizard-step.is-error .settings-wss-wizard-step-badge {
+  border-color: color-mix(in srgb, var(--text-danger) 58%, var(--border-muted));
+  background: color-mix(in srgb, var(--text-danger) 14%, transparent);
+  color: var(--text-danger);
+}
+
+.settings-wss-wizard-step-text {
+  color: var(--text-strong);
+}
+
+.settings-server-provider-pill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-control);
+  color: var(--text-strong);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
 .settings-field-label {
   font-size: 12px;
   font-weight: 600;
@@ -575,6 +709,10 @@
 }
 
 @media (max-width: 720px) {
+  .settings-server-mode-grid {
+    grid-template-columns: 1fr;
+  }
+
   .settings-agents-inline-separator {
     display: none;
   }

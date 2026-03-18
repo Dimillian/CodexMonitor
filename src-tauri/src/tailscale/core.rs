@@ -5,7 +5,6 @@ use serde_json::Value;
 
 use crate::types::{TailscaleDaemonCommandPreview, TailscaleStatus};
 
-const DEFAULT_DAEMON_LISTEN_ADDR: &str = "0.0.0.0:4732";
 const REMOTE_TOKEN_PLACEHOLDER: &str = "<remote-backend-token>";
 
 pub(crate) fn unavailable_status(version: Option<String>, message: String) -> TailscaleStatus {
@@ -252,12 +251,16 @@ pub(crate) fn daemon_command_preview(
     daemon_path: &Path,
     data_dir: &Path,
     token_configured: bool,
+    listen_addr: &str,
+    ws_listen_addr: &str,
 ) -> TailscaleDaemonCommandPreview {
     let daemon_path_str = daemon_path.to_string_lossy().to_string();
     let data_dir_str = data_dir.to_string_lossy().to_string();
     let args = vec![
         "--listen".to_string(),
-        DEFAULT_DAEMON_LISTEN_ADDR.to_string(),
+        listen_addr.to_string(),
+        "--ws-listen".to_string(),
+        ws_listen_addr.to_string(),
         "--data-dir".to_string(),
         data_dir_str.clone(),
         "--token".to_string(),
@@ -430,9 +433,13 @@ extra diagnostics line"#;
             Path::new("/tmp/codex_monitor_daemon"),
             Path::new("/tmp/data-dir"),
             true,
+            "0.0.0.0:4732",
+            "127.0.0.1:4733",
         );
         assert!(preview.command.contains("--listen"));
         assert!(preview.command.contains("0.0.0.0:4732"));
+        assert!(preview.command.contains("--ws-listen"));
+        assert!(preview.command.contains("127.0.0.1:4733"));
         assert!(preview.command.contains("<remote-backend-token>"));
         assert!(preview.token_configured);
     }

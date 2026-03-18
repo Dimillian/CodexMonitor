@@ -23,7 +23,11 @@ function isRemoteServerConfigured(settings: AppSettings): boolean {
 }
 
 function defaultMobileSetupMessage(): string {
-  return "Enter your desktop Tailscale host and token, then run Connect & test.";
+  return "Enter a remote host (TCP host:port or wss:// URL) and token, then run Connect & test.";
+}
+
+function inferRemoteProviderFromHost(host: string): AppSettings["remoteBackendProvider"] {
+  return host.trim().toLowerCase().startsWith("wss://") ? "wss" : "tcp";
 }
 
 function markActiveRemoteBackendConnected(settings: AppSettings, connectedAtMs: number): AppSettings {
@@ -34,7 +38,7 @@ function markActiveRemoteBackendConnected(settings: AppSettings, connectedAtMs: 
           {
             id: settings.activeRemoteBackendId ?? "remote-default",
             name: "Primary remote",
-            provider: "tcp" as const,
+            provider: inferRemoteProviderFromHost(settings.remoteBackendHost),
             host: settings.remoteBackendHost,
             token: settings.remoteBackendToken,
             lastConnectedAtMs: null,
@@ -48,7 +52,7 @@ function markActiveRemoteBackendConnected(settings: AppSettings, connectedAtMs: 
   const active = existingBackends[activeIndex];
   existingBackends[activeIndex] = {
     ...active,
-    provider: "tcp",
+    provider: settings.remoteBackendProvider,
     host: settings.remoteBackendHost,
     token: settings.remoteBackendToken,
     lastConnectedAtMs: connectedAtMs,
@@ -130,6 +134,7 @@ export function useMobileServerSetup({
       }
 
       const nextHost = remoteHostDraft.trim();
+      const nextProvider = inferRemoteProviderFromHost(nextHost);
       const nextToken = remoteTokenDraft.trim() ? remoteTokenDraft.trim() : null;
 
       if (!nextHost || !nextToken) {
@@ -147,7 +152,7 @@ export function useMobileServerSetup({
         const saved = await queueSaveSettings({
           ...appSettings,
           backendMode: "remote",
-          remoteBackendProvider: "tcp",
+          remoteBackendProvider: nextProvider,
           remoteBackendHost: nextHost,
           remoteBackendToken: nextToken,
         });

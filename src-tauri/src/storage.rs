@@ -34,7 +34,7 @@ pub(crate) fn read_settings(path: &PathBuf) -> Result<AppSettings, String> {
     match serde_json::from_value(value.clone()) {
         Ok(settings) => Ok(settings),
         Err(_) => {
-            sanitize_remote_settings_for_tcp_only(&mut value);
+            sanitize_remote_settings_for_supported_providers(&mut value);
             migrate_follow_up_message_behavior(&mut value);
             serde_json::from_value(value).map_err(|e| e.to_string())
         }
@@ -49,20 +49,31 @@ pub(crate) fn write_settings(path: &PathBuf, settings: &AppSettings) -> Result<(
     std::fs::write(path, data).map_err(|e| e.to_string())
 }
 
-fn sanitize_remote_settings_for_tcp_only(value: &mut Value) {
+fn sanitize_remote_settings_for_supported_providers(value: &mut Value) {
     let Value::Object(root) = value else {
         return;
     };
+
+    fn normalized_provider(value: Option<&Value>) -> &'static str {
+        match value.and_then(Value::as_str) {
+            Some("tcp") => "tcp",
+            Some("wss") => "wss",
+            _ => "tcp",
+        }
+    }
+
+    let root_provider = normalized_provider(root.get("remoteBackendProvider"));
     root.insert(
         "remoteBackendProvider".to_string(),
-        Value::String("tcp".to_string()),
+        Value::String(root_provider.to_string()),
     );
     if let Some(Value::Array(remote_backends)) = root.get_mut("remoteBackends") {
         for entry in remote_backends {
             let Value::Object(entry_obj) = entry else {
                 continue;
             };
-            entry_obj.insert("provider".to_string(), Value::String("tcp".to_string()));
+            let provider = normalized_provider(entry_obj.get("provider"));
+            entry_obj.insert("provider".to_string(), Value::String(provider.to_string()));
             entry_obj.retain(|key, _| {
                 matches!(
                     key.as_str(),
@@ -189,6 +200,49 @@ mod tests {
             settings.remote_backends[0].provider,
             crate::types::RemoteBackendProvider::Tcp
         ));
+        assert_eq!(settings.theme, "dark");
+    }
+
+    #[test]
+    fn read_settings_preserves_wss_remote_provider() {
+        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+        let path = temp_dir.join("settings.json");
+
+        std::fs::write(
+            &path,
+            r#"{
+  "remoteBackendProvider": "wss",
+  "remoteBackendHost": "wss://codex.example.com/daemon",
+  "remoteBackendToken": "token-1",
+  "remoteBackends": [
+    {
+      "id": "remote-a",
+      "name": "Remote A",
+      "provider": "wss",
+      "host": "wss://codex.example.com/daemon",
+      "token": "token-1"
+    }
+  ],
+  "theme": "dark"
+}"#,
+        )
+        .expect("write settings");
+
+        let settings = read_settings(&path).expect("read settings");
+        assert!(matches!(
+            settings.remote_backend_provider,
+            crate::types::RemoteBackendProvider::Wss
+        ));
+        assert_eq!(settings.remote_backends.len(), 1);
+        assert!(matches!(
+            settings.remote_backends[0].provider,
+            crate::types::RemoteBackendProvider::Wss
+        ));
+        assert_eq!(
+            settings.remote_backend_host,
+            "wss://codex.example.com/daemon"
+        );
         assert_eq!(settings.theme, "dark");
     }
 
