@@ -152,13 +152,14 @@ fn build_launch_args(
                 launch_args.push(located_path);
             }
             Some(LineAwareLaunchStrategy::JetBrainsLineColumnFlags) => {
+                let sanitized_path = normalize_windows_namespace_path(path);
                 launch_args.push("--line".to_string());
                 launch_args.push(line.to_string());
                 if let Some(column) = column {
                     launch_args.push("--column".to_string());
                     launch_args.push(column.to_string());
                 }
-                launch_args.push(path.to_string());
+                launch_args.push(sanitized_path);
             }
             Some(LineAwareLaunchStrategy::PathWithLineColumn) => {
                 let sanitized_path = normalize_windows_namespace_path(path);
