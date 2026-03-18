@@ -102,37 +102,29 @@ fn migrate_open_app_targets(value: &mut Value) {
         return;
     };
 
-    let default_targets = match serde_json::to_value(AppSettings::default().open_app_targets) {
-        Ok(Value::Array(targets)) => targets,
-        _ => return,
-    };
-
-    let existing_ids = existing_targets
+    let has_phpstorm = existing_targets
         .iter()
-        .filter_map(|target| target.get("id").and_then(Value::as_str))
-        .collect::<std::collections::HashSet<_>>();
-
-    let missing_targets: Vec<Value> = default_targets
-        .into_iter()
-        .filter(|target| {
-            target
-                .get("id")
-                .and_then(Value::as_str)
-                .map(|id| !existing_ids.contains(id))
-                .unwrap_or(false)
-        })
-        .collect();
-
-    if missing_targets.is_empty() {
+        .any(|target| target.get("id").and_then(Value::as_str) == Some("phpstorm"));
+    if has_phpstorm {
         return;
     }
+
+    let phpstorm_target = match serde_json::to_value(AppSettings::default().open_app_targets) {
+        Ok(Value::Array(targets)) => targets
+            .into_iter()
+            .find(|target| target.get("id").and_then(Value::as_str) == Some("phpstorm")),
+        _ => None,
+    };
+    let Some(phpstorm_target) = phpstorm_target else {
+        return;
+    };
 
     let insert_at = existing_targets
         .iter()
         .position(|target| target.get("id").and_then(Value::as_str) == Some("finder"))
         .unwrap_or(existing_targets.len());
 
-    existing_targets.splice(insert_at..insert_at, missing_targets);
+    existing_targets.insert(insert_at, phpstorm_target);
 }
 
 #[cfg(test)]
