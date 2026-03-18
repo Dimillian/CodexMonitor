@@ -1,10 +1,11 @@
 import type { MouseEvent } from "react";
 
-import type { WorkspaceInfo } from "../../../types";
+import type { WorkspaceInfo, WorkspaceSymphonyStatus } from "../../../types";
 
 type WorkspaceCardProps = {
   workspace: WorkspaceInfo;
   workspaceName?: React.ReactNode;
+  symphonyStatus?: WorkspaceSymphonyStatus | null;
   isActive: boolean;
   isCollapsed: boolean;
   addMenuOpen: boolean;
@@ -25,6 +26,7 @@ type WorkspaceCardProps = {
 export function WorkspaceCard({
   workspace,
   workspaceName,
+  symphonyStatus = null,
   isActive,
   isCollapsed,
   addMenuOpen,
@@ -53,7 +55,7 @@ export function WorkspaceCard({
           }
         }}
       >
-        <div>
+        <div className="workspace-header">
           <div className="workspace-name-row">
             <div className="workspace-title">
               <span className="workspace-name">{workspaceName ?? workspace.name}</span>
@@ -98,6 +100,22 @@ export function WorkspaceCard({
               +
             </button>
           </div>
+          {symphonyStatus?.state === "running" ? (
+            <div className="workspace-symphony-indicator">
+              <span
+                className={`workspace-symphony-indicator-dot is-${symphonyStatus.health}`}
+                aria-hidden
+              />
+              <span className="workspace-symphony-indicator-text">
+                {symphonyStatus.activeAgents === 1
+                  ? "1 agent"
+                  : `${symphonyStatus.activeAgents} agents`}
+                {symphonyStatus.activeTasks > 0
+                  ? ` • ${symphonyStatus.activeTasks} active`
+                  : ""}
+              </span>
+            </div>
+          ) : null}
         </div>
         {!workspace.connected && (
           <span

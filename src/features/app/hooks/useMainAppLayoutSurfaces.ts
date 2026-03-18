@@ -1,5 +1,10 @@
 import type { RefObject } from "react";
-import type { AppSettings, ComposerEditorSettings, WorkspaceInfo } from "@/types";
+import type {
+  AppSettings,
+  ComposerEditorSettings,
+  WorkspaceInfo,
+  WorkspaceSymphonyStatus,
+} from "@/types";
 import type { ThreadState } from "@/features/threads/hooks/useThreadsReducer";
 import type { WorkspaceLaunchScriptsState } from "@app/hooks/useWorkspaceLaunchScripts";
 import { REMOTE_THREAD_POLL_INTERVAL_MS } from "@app/hooks/useRemoteThreadRefreshOnFocus";
@@ -53,6 +58,7 @@ type UseMainAppLayoutSurfacesArgs = {
   activeWorkspace: WorkspaceInfo | null;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
+  workspaceSymphonyStatusByWorkspace: Record<string, WorkspaceSymphonyStatus>;
   activeItems: LayoutNodesOptions["primary"]["messagesProps"]["items"];
   userInputRequests: SidebarProps["userInputRequests"];
   approvals: LayoutNodesOptions["primary"]["approvalToastsProps"]["approvals"];
@@ -251,6 +257,7 @@ export function useMainAppLayoutSurfaces({
   activeWorkspace,
   activeWorkspaceId,
   activeThreadId,
+  workspaceSymphonyStatusByWorkspace,
   activeItems,
   userInputRequests,
   approvals,
@@ -411,6 +418,7 @@ export function useMainAppLayoutSurfaces({
         threadListOrganizeMode,
         onSetThreadListOrganizeMode,
         onRefreshAllThreads,
+        workspaceSymphonyStatusByWorkspace,
         activeWorkspaceId,
         activeThreadId,
         userInputRequests,

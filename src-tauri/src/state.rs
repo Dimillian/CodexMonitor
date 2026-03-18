@@ -7,6 +7,7 @@ use tokio::sync::Mutex;
 
 use crate::dictation::DictationState;
 use crate::shared::codex_core::CodexLoginCancelState;
+use crate::shared::symphony_core::SymphonyRuntimeRegistry;
 use crate::storage::{read_settings, read_workspaces};
 use crate::types::{AppSettings, TcpDaemonState, TcpDaemonStatus, WorkspaceEntry};
 
@@ -41,6 +42,7 @@ pub(crate) struct AppState {
     pub(crate) dictation: Mutex<DictationState>,
     pub(crate) codex_login_cancels: Mutex<HashMap<String, CodexLoginCancelState>>,
     pub(crate) tcp_daemon: Mutex<TcpDaemonRuntime>,
+    pub(crate) symphony_runtimes: Arc<SymphonyRuntimeRegistry>,
 }
 
 impl AppState {
@@ -64,6 +66,7 @@ impl AppState {
             dictation: Mutex::new(DictationState::default()),
             codex_login_cancels: Mutex::new(HashMap::new()),
             tcp_daemon: Mutex::new(TcpDaemonRuntime::default()),
+            symphony_runtimes: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }

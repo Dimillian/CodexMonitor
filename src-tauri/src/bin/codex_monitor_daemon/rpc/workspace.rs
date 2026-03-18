@@ -188,6 +188,218 @@ pub(super) async fn try_handle(
                     .await,
             )
         }
+        "get_workspace_symphony_status" => {
+            let request = parse_request_or_err!(params, workspace_rpc::WorkspaceIdRequest);
+            Some(
+                serialize_result(symphony_core::get_workspace_symphony_snapshot_core(
+                    &state.symphony_runtimes,
+                    &state.storage_path,
+                    &request.workspace_id,
+                ))
+                .await,
+            )
+        }
+        "start_workspace_symphony" => {
+            let request = parse_request_or_err!(params, workspace_rpc::WorkspaceIdRequest);
+            let binary_path = match symphony_binary::resolve_symphony_binary_path() {
+                Ok(path) => path,
+                Err(err) => return Some(Err(err)),
+            };
+            Some(
+                serialize_result(symphony_core::start_workspace_symphony_core(
+                    state.symphony_runtimes.clone(),
+                    &state.workspaces,
+                    &state.storage_path,
+                    &request.workspace_id,
+                    state.event_sink.clone(),
+                    binary_path,
+                ))
+                .await,
+            )
+        }
+        "stop_workspace_symphony" => {
+            let request = parse_request_or_err!(params, workspace_rpc::WorkspaceIdRequest);
+            Some(
+                match symphony_core::stop_workspace_symphony_core(
+                    &state.symphony_runtimes,
+                    &request.workspace_id,
+                )
+                .await
+                {
+                    Ok(status) => {
+                        state
+                            .event_sink
+                            .emit_workspace_symphony_event(WorkspaceSymphonyEvent {
+                                workspace_id: request.workspace_id,
+                                kind: "runtime_stopped".to_string(),
+                                status: Some(status.clone()),
+                                task: None,
+                                telemetry: None,
+                                message: None,
+                            });
+                        serialize_value(status)
+                    }
+                    Err(err) => Err(err),
+                },
+            )
+        }
+        "list_workspace_symphony_tasks" => {
+            let request = parse_request_or_err!(params, workspace_rpc::WorkspaceIdRequest);
+            Some(
+                serialize_result(symphony_core::list_workspace_symphony_tasks_core(
+                    &state.storage_path,
+                    &request.workspace_id,
+                ))
+                .await,
+            )
+        }
+        "create_workspace_symphony_task" => {
+            let request =
+                parse_request_or_err!(params, workspace_rpc::CreateWorkspaceSymphonyTaskRequest);
+            Some(
+                match symphony_core::create_workspace_symphony_task_core(
+                    &state.storage_path,
+                    &request.workspace_id,
+                    request.input,
+                )
+                .await
+                {
+                    Ok(task) => {
+                        state
+                            .event_sink
+                            .emit_workspace_symphony_event(WorkspaceSymphonyEvent {
+                                workspace_id: request.workspace_id,
+                                kind: "task_created".to_string(),
+                                status: None,
+                                task: Some(task.clone()),
+                                telemetry: None,
+                                message: None,
+                            });
+                        serialize_value(task)
+                    }
+                    Err(err) => Err(err),
+                },
+            )
+        }
+        "update_workspace_symphony_task" => {
+            let request =
+                parse_request_or_err!(params, workspace_rpc::UpdateWorkspaceSymphonyTaskRequest);
+            Some(
+                match symphony_core::update_workspace_symphony_task_core(
+                    &state.storage_path,
+                    &request.workspace_id,
+                    request.input,
+                )
+                .await
+                {
+                    Ok(task) => {
+                        state
+                            .event_sink
+                            .emit_workspace_symphony_event(WorkspaceSymphonyEvent {
+                                workspace_id: request.workspace_id,
+                                kind: "task_updated".to_string(),
+                                status: None,
+                                task: Some(task.clone()),
+                                telemetry: None,
+                                message: None,
+                            });
+                        serialize_value(task)
+                    }
+                    Err(err) => Err(err),
+                },
+            )
+        }
+        "move_workspace_symphony_task" => {
+            let request =
+                parse_request_or_err!(params, workspace_rpc::MoveWorkspaceSymphonyTaskRequest);
+            Some(
+                match symphony_core::move_workspace_symphony_task_core(
+                    &state.storage_path,
+                    &request.workspace_id,
+                    request.input,
+                )
+                .await
+                {
+                    Ok(task) => {
+                        state
+                            .event_sink
+                            .emit_workspace_symphony_event(WorkspaceSymphonyEvent {
+                                workspace_id: request.workspace_id,
+                                kind: "task_moved".to_string(),
+                                status: None,
+                                task: Some(task.clone()),
+                                telemetry: None,
+                                message: None,
+                            });
+                        serialize_value(task)
+                    }
+                    Err(err) => Err(err),
+                },
+            )
+        }
+        "delete_workspace_symphony_task" => {
+            let request = parse_request_or_err!(params, workspace_rpc::TaskIdRequest);
+            Some(
+                match symphony_core::delete_workspace_symphony_task_core(
+                    &state.storage_path,
+                    &request.workspace_id,
+                    &request.task_id,
+                )
+                .await
+                {
+                    Ok(()) => {
+                        state
+                            .event_sink
+                            .emit_workspace_symphony_event(WorkspaceSymphonyEvent {
+                                workspace_id: request.workspace_id,
+                                kind: "task_deleted".to_string(),
+                                status: None,
+                                task: None,
+                                telemetry: None,
+                                message: Some(request.task_id),
+                            });
+                        Ok(json!({ "ok": true }))
+                    }
+                    Err(err) => Err(err),
+                },
+            )
+        }
+        "get_workspace_symphony_telemetry" => {
+            let request = parse_request_or_err!(params, workspace_rpc::TaskIdRequest);
+            Some(
+                serialize_result(symphony_core::get_workspace_symphony_telemetry_core(
+                    &state.storage_path,
+                    &request.workspace_id,
+                    &request.task_id,
+                ))
+                .await,
+            )
+        }
+        "read_workspace_symphony_workflow_override" => {
+            let request = parse_request_or_err!(params, workspace_rpc::WorkspaceIdRequest);
+            Some(
+                serialize_result(symphony_core::read_workspace_symphony_workflow_override_core(
+                    &state.workspaces,
+                    &state.storage_path,
+                    &request.workspace_id,
+                ))
+                .await,
+            )
+        }
+        "write_workspace_symphony_workflow_override" => {
+            let request = parse_request_or_err!(
+                params,
+                workspace_rpc::WriteWorkspaceSymphonyWorkflowOverrideRequest
+            );
+            Some(
+                serialize_ok(symphony_core::write_workspace_symphony_workflow_override_core(
+                    &state.storage_path,
+                    &request.workspace_id,
+                    &request.content,
+                ))
+                .await,
+            )
+        }
         "add_clone" => {
             let request = parse_request_or_err!(params, workspace_rpc::AddCloneRequest);
             Some(

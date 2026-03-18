@@ -4,6 +4,7 @@ import type {
   DictationEvent,
   DictationModelStatus,
   TrayOpenThreadPayload,
+  WorkspaceSymphonyEvent,
 } from "../types";
 
 export type Unsubscribe = () => void;
@@ -87,6 +88,9 @@ function createEventHub<T>(eventName: string) {
 }
 
 const appServerHub = createEventHub<AppServerEvent>("app-server-event");
+const workspaceSymphonyHub = createEventHub<WorkspaceSymphonyEvent>(
+  "workspace-symphony-event",
+);
 const dictationDownloadHub = createEventHub<DictationModelStatus>("dictation-download");
 const dictationEventHub = createEventHub<DictationEvent>("dictation-event");
 const terminalOutputHub = createEventHub<TerminalOutputEvent>("terminal-output");
@@ -123,6 +127,13 @@ export function subscribeAppServerEvents(
   options?: SubscriptionOptions,
 ): Unsubscribe {
   return appServerHub.subscribe(onEvent, options);
+}
+
+export function subscribeWorkspaceSymphonyEvents(
+  onEvent: (event: WorkspaceSymphonyEvent) => void,
+  options?: SubscriptionOptions,
+): Unsubscribe {
+  return workspaceSymphonyHub.subscribe(onEvent, options);
 }
 
 export function subscribeDictationDownload(

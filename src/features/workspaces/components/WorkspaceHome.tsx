@@ -14,6 +14,7 @@ import type {
   DictationTranscript,
   ModelOption,
   SkillOption,
+  WorkspaceHomeTab,
   WorkspaceInfo,
 } from "../../../types";
 import { ComposerInput } from "../../composer/components/ComposerInput";
@@ -31,6 +32,7 @@ import { FileEditorCard } from "../../shared/components/FileEditorCard";
 import { WorkspaceHomeRunControls } from "./WorkspaceHomeRunControls";
 import { WorkspaceHomeHistory } from "./WorkspaceHomeHistory";
 import { WorkspaceHomeGitInitBanner } from "./WorkspaceHomeGitInitBanner";
+import { WorkspaceHomeSymphonySection } from "./WorkspaceHomeSymphonySection";
 import { buildIconPath } from "./workspaceHomeHelpers";
 import { useWorkspaceHomeSuggestionsStyle } from "../hooks/useWorkspaceHomeSuggestionsStyle";
 import type { ThreadStatusById } from "../../../utils/threadStatus";
@@ -96,6 +98,17 @@ type WorkspaceHomeProps = {
   onAgentMdChange: (value: string) => void;
   onAgentMdRefresh: () => void;
   onAgentMdSave: () => void;
+  workflowContent: string;
+  workflowExists: boolean;
+  workflowTruncated: boolean;
+  workflowLoading: boolean;
+  workflowSaving: boolean;
+  workflowError: string | null;
+  workflowDirty: boolean;
+  onWorkflowChange: (value: string) => void;
+  onWorkflowRefresh: () => void;
+  onWorkflowSave: () => void;
+  onWorkspaceHomeTabChange: (tab: WorkspaceHomeTab) => void | Promise<void>;
 };
 
 export function WorkspaceHome({
@@ -159,6 +172,17 @@ export function WorkspaceHome({
   onAgentMdChange,
   onAgentMdRefresh,
   onAgentMdSave,
+  workflowContent,
+  workflowExists,
+  workflowTruncated,
+  workflowLoading,
+  workflowSaving,
+  workflowError,
+  workflowDirty,
+  onWorkflowChange,
+  onWorkflowRefresh,
+  onWorkflowSave,
+  onWorkspaceHomeTabChange,
 }: WorkspaceHomeProps) {
   const [showIcon, setShowIcon] = useState(true);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
@@ -346,9 +370,32 @@ export function WorkspaceHome({
   const agentMdSaveLabel = agentMdExists ? "Save" : "Create";
   const agentMdSaveDisabled = agentMdLoading || agentMdSaving || !agentMdDirty;
   const agentMdRefreshDisabled = agentMdLoading || agentMdSaving;
+  const selectedTab = workspace.settings.workspaceHomeTab ?? "configuration";
+  const workflowStatus = workflowLoading
+    ? "Loading…"
+    : workflowSaving
+      ? "Saving…"
+      : workflowExists
+        ? "Override"
+        : "Default";
+  const workflowMetaParts: string[] = [];
+  if (workflowStatus) {
+    workflowMetaParts.push(workflowStatus);
+  }
+  if (workflowTruncated) {
+    workflowMetaParts.push("Truncated");
+  }
+  const workflowMeta = workflowMetaParts.join(" · ");
+  const workflowSaveLabel = workflowExists ? "Save" : "Create";
+  const workflowSaveDisabled = workflowLoading || workflowSaving || !workflowDirty;
+  const workflowRefreshDisabled = workflowLoading || workflowSaving;
 
   return (
-    <div className="workspace-home">
+    <div
+      className={`workspace-home${
+        selectedTab === "symphony" ? " workspace-home--symphony" : ""
+      }`}
+    >
       <div className="workspace-home-hero">
         {showIcon && (
           <img
@@ -364,121 +411,184 @@ export function WorkspaceHome({
         </div>
       </div>
 
-      {showGitInitBanner && (
-        <WorkspaceHomeGitInitBanner
-          isLoading={initGitRepoLoading}
-          onInitGitRepo={onInitGitRepo}
+      <div
+        className={`settings-segmented workspace-home-tab-segmented${
+          selectedTab === "symphony" ? " is-second-active" : ""
+        }`}
+        aria-label="Workspace home view"
+      >
+        <label
+          className={`settings-segmented-option${
+            selectedTab === "configuration" ? " is-active" : ""
+          }`}
+        >
+          <input
+            className="settings-segmented-input"
+            type="radio"
+            name={`workspace-home-tab-${workspace.id}`}
+            checked={selectedTab === "configuration"}
+            onChange={() => {
+              void onWorkspaceHomeTabChange("configuration");
+            }}
+          />
+          <span className="settings-segmented-option-label">Configuration</span>
+        </label>
+        <label
+          className={`settings-segmented-option${
+            selectedTab === "symphony" ? " is-active" : ""
+          }`}
+        >
+          <input
+            className="settings-segmented-input"
+            type="radio"
+            name={`workspace-home-tab-${workspace.id}`}
+            checked={selectedTab === "symphony"}
+            onChange={() => {
+              void onWorkspaceHomeTabChange("symphony");
+            }}
+          />
+          <span className="settings-segmented-option-label">Symphony</span>
+        </label>
+      </div>
+
+      {selectedTab === "configuration" ? (
+        <>
+          {showGitInitBanner && (
+            <WorkspaceHomeGitInitBanner
+              isLoading={initGitRepoLoading}
+              onInitGitRepo={onInitGitRepo}
+            />
+          )}
+
+          <div className="workspace-home-composer">
+            <div className="composer">
+              <ComposerInput
+                text={prompt}
+                disabled={isSubmitting}
+                sendLabel="Send"
+                canStop={false}
+                canSend={prompt.trim().length > 0 || activeImages.length > 0}
+                isProcessing={isSubmitting}
+                onStop={() => {}}
+                onSend={() => {
+                  void handleRunSubmit();
+                }}
+                dictationState={dictationState}
+                dictationLevel={dictationLevel}
+                dictationEnabled={dictationEnabled}
+                onToggleDictation={onToggleDictation}
+                onCancelDictation={onCancelDictation}
+                onOpenDictationSettings={onOpenDictationSettings}
+                dictationError={dictationError}
+                onDismissDictationError={onDismissDictationError}
+                dictationHint={dictationHint}
+                onDismissDictationHint={onDismissDictationHint}
+                attachments={activeImages}
+                onAddAttachment={() => {
+                  void pickImages();
+                }}
+                onAttachImages={attachImages}
+                onRemoveAttachment={removeImage}
+                onTextChange={handleTextChangeWithHistory}
+                onSelectionChange={handleSelectionChange}
+                onKeyDown={handleComposerKeyDown}
+                isExpanded={false}
+                onToggleExpand={undefined}
+                textareaRef={textareaRef}
+                suggestionsOpen={isAutocompleteOpen}
+                suggestions={autocompleteMatches}
+                highlightIndex={highlightIndex}
+                onHighlightIndex={setHighlightIndex}
+                onSelectSuggestion={applyAutocomplete}
+                suggestionsStyle={suggestionsStyle}
+              />
+            </div>
+            {error && <div className="workspace-home-error">{error}</div>}
+          </div>
+
+          <WorkspaceHomeRunControls
+            workspaceKind={workspace.kind}
+            runMode={runMode}
+            onRunModeChange={onRunModeChange}
+            models={models}
+            selectedModelId={selectedModelId}
+            onSelectModel={onSelectModel}
+            modelSelections={modelSelections}
+            onToggleModel={onToggleModel}
+            onModelCountChange={onModelCountChange}
+            collaborationModes={collaborationModes}
+            selectedCollaborationModeId={selectedCollaborationModeId}
+            onSelectCollaborationMode={onSelectCollaborationMode}
+            reasoningOptions={reasoningOptions}
+            selectedEffort={selectedEffort}
+            onSelectEffort={onSelectEffort}
+            reasoningSupported={reasoningSupported}
+            isSubmitting={isSubmitting}
+          />
+
+          <div className="workspace-home-agent">
+            {agentMdTruncated && (
+              <div className="workspace-home-agent-warning">
+                Showing the first part of a large file.
+              </div>
+            )}
+            <FileEditorCard
+              title="AGENTS.md"
+              meta={agentMdMeta}
+              error={agentMdError}
+              value={agentMdContent}
+              placeholder="Add workspace instructions for the agent…"
+              disabled={agentMdLoading}
+              refreshDisabled={agentMdRefreshDisabled}
+              saveDisabled={agentMdSaveDisabled}
+              saveLabel={agentMdSaveLabel}
+              onChange={onAgentMdChange}
+              onRefresh={onAgentMdRefresh}
+              onSave={onAgentMdSave}
+              classNames={{
+                container: "workspace-home-agent-card",
+                header: "workspace-home-section-header",
+                title: "workspace-home-section-title",
+                actions: "workspace-home-section-actions",
+                meta: "workspace-home-section-meta",
+                iconButton: "ghost workspace-home-icon-button",
+                error: "workspace-home-error",
+                textarea: "workspace-home-agent-textarea",
+                help: "workspace-home-section-meta",
+              }}
+            />
+          </div>
+
+          <WorkspaceHomeHistory
+            runs={runs}
+            recentThreadInstances={recentThreadInstances}
+            recentThreadsUpdatedAt={recentThreadsUpdatedAt}
+            activeWorkspaceId={activeWorkspaceId}
+            activeThreadId={activeThreadId}
+            threadStatusById={threadStatusById}
+            onSelectInstance={onSelectInstance}
+          />
+        </>
+      ) : (
+        <WorkspaceHomeSymphonySection
+          workspace={workspace}
+          workflowContent={workflowContent}
+          workflowExists={workflowExists}
+          workflowTruncated={workflowTruncated}
+          workflowLoading={workflowLoading}
+          workflowSaving={workflowSaving}
+          workflowError={workflowError}
+          workflowDirty={workflowDirty}
+          onWorkflowChange={onWorkflowChange}
+          onWorkflowRefresh={onWorkflowRefresh}
+          onWorkflowSave={onWorkflowSave}
+          onSelectInstance={onSelectInstance}
+          workflowMeta={workflowMeta}
+          workflowSaveLabel={workflowSaveLabel}
+          workflowSaveDisabled={workflowSaveDisabled}
+          workflowRefreshDisabled={workflowRefreshDisabled}
         />
       )}
-
-      <div className="workspace-home-composer">
-        <div className="composer">
-          <ComposerInput
-            text={prompt}
-            disabled={isSubmitting}
-            sendLabel="Send"
-            canStop={false}
-            canSend={prompt.trim().length > 0 || activeImages.length > 0}
-            isProcessing={isSubmitting}
-            onStop={() => {}}
-            onSend={() => {
-              void handleRunSubmit();
-            }}
-            dictationState={dictationState}
-            dictationLevel={dictationLevel}
-            dictationEnabled={dictationEnabled}
-            onToggleDictation={onToggleDictation}
-            onCancelDictation={onCancelDictation}
-            onOpenDictationSettings={onOpenDictationSettings}
-            dictationError={dictationError}
-            onDismissDictationError={onDismissDictationError}
-            dictationHint={dictationHint}
-            onDismissDictationHint={onDismissDictationHint}
-            attachments={activeImages}
-            onAddAttachment={() => {
-              void pickImages();
-            }}
-            onAttachImages={attachImages}
-            onRemoveAttachment={removeImage}
-            onTextChange={handleTextChangeWithHistory}
-            onSelectionChange={handleSelectionChange}
-            onKeyDown={handleComposerKeyDown}
-            isExpanded={false}
-            onToggleExpand={undefined}
-            textareaRef={textareaRef}
-            suggestionsOpen={isAutocompleteOpen}
-            suggestions={autocompleteMatches}
-            highlightIndex={highlightIndex}
-            onHighlightIndex={setHighlightIndex}
-            onSelectSuggestion={applyAutocomplete}
-            suggestionsStyle={suggestionsStyle}
-          />
-        </div>
-        {error && <div className="workspace-home-error">{error}</div>}
-      </div>
-
-      <WorkspaceHomeRunControls
-        workspaceKind={workspace.kind}
-        runMode={runMode}
-        onRunModeChange={onRunModeChange}
-        models={models}
-        selectedModelId={selectedModelId}
-        onSelectModel={onSelectModel}
-        modelSelections={modelSelections}
-        onToggleModel={onToggleModel}
-        onModelCountChange={onModelCountChange}
-        collaborationModes={collaborationModes}
-        selectedCollaborationModeId={selectedCollaborationModeId}
-        onSelectCollaborationMode={onSelectCollaborationMode}
-        reasoningOptions={reasoningOptions}
-        selectedEffort={selectedEffort}
-        onSelectEffort={onSelectEffort}
-        reasoningSupported={reasoningSupported}
-        isSubmitting={isSubmitting}
-      />
-
-      <div className="workspace-home-agent">
-        {agentMdTruncated && (
-          <div className="workspace-home-agent-warning">
-            Showing the first part of a large file.
-          </div>
-        )}
-        <FileEditorCard
-          title="AGENTS.md"
-          meta={agentMdMeta}
-          error={agentMdError}
-          value={agentMdContent}
-          placeholder="Add workspace instructions for the agent…"
-          disabled={agentMdLoading}
-          refreshDisabled={agentMdRefreshDisabled}
-          saveDisabled={agentMdSaveDisabled}
-          saveLabel={agentMdSaveLabel}
-          onChange={onAgentMdChange}
-          onRefresh={onAgentMdRefresh}
-          onSave={onAgentMdSave}
-          classNames={{
-            container: "workspace-home-agent-card",
-            header: "workspace-home-section-header",
-            title: "workspace-home-section-title",
-            actions: "workspace-home-section-actions",
-            meta: "workspace-home-section-meta",
-            iconButton: "ghost workspace-home-icon-button",
-            error: "workspace-home-error",
-            textarea: "workspace-home-agent-textarea",
-            help: "workspace-home-section-meta",
-          }}
-        />
-      </div>
-
-      <WorkspaceHomeHistory
-        runs={runs}
-        recentThreadInstances={recentThreadInstances}
-        recentThreadsUpdatedAt={recentThreadsUpdatedAt}
-        activeWorkspaceId={activeWorkspaceId}
-        activeThreadId={activeThreadId}
-        threadStatusById={threadStatusById}
-        onSelectInstance={onSelectInstance}
-      />
     </div>
   );
 }

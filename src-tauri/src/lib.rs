@@ -28,6 +28,8 @@ mod settings;
 mod shared;
 mod state;
 mod storage;
+mod symphony;
+mod symphony_binary;
 mod tailscale;
 #[cfg(desktop)]
 mod terminal;
@@ -295,6 +297,17 @@ pub fn run() {
             dictation::dictation_stop,
             dictation::dictation_cancel,
             local_usage::local_usage_snapshot,
+            symphony::get_workspace_symphony_status,
+            symphony::start_workspace_symphony,
+            symphony::stop_workspace_symphony,
+            symphony::list_workspace_symphony_tasks,
+            symphony::create_workspace_symphony_task,
+            symphony::update_workspace_symphony_task,
+            symphony::move_workspace_symphony_task,
+            symphony::delete_workspace_symphony_task,
+            symphony::get_workspace_symphony_telemetry,
+            symphony::read_workspace_symphony_workflow_override,
+            symphony::write_workspace_symphony_workflow_override,
             notifications::is_macos_debug_build,
             notifications::app_build_type,
             notifications::send_notification_fallback,

@@ -1,6 +1,8 @@
 use serde::Serialize;
 use serde_json::Value;
 
+use crate::types::WorkspaceSymphonyEvent;
+
 #[derive(Serialize, Clone)]
 pub(crate) struct AppServerEvent {
     pub(crate) workspace_id: String,
@@ -28,4 +30,5 @@ pub(crate) trait EventSink: Clone + Send + Sync + 'static {
     fn emit_app_server_event(&self, event: AppServerEvent);
     fn emit_terminal_output(&self, event: TerminalOutput);
     fn emit_terminal_exit(&self, event: TerminalExit);
+    fn emit_workspace_symphony_event(&self, event: WorkspaceSymphonyEvent);
 }

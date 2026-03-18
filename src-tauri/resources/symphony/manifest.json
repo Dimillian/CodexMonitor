@@ -1,0 +1,10 @@
+{
+  "version": "0.1.0-codexmonitor",
+  "binaries": {
+    "darwin-aarch64": "codex_monitor_symphony",
+    "darwin-x86_64": "codex_monitor_symphony",
+    "linux-x86_64": "codex_monitor_symphony",
+    "windows-x86_64": "codex_monitor_symphony.exe"
+  },
+  "notes": "Place pinned CodexMonitor Symphony release binaries in this directory for bundle builds."
+}

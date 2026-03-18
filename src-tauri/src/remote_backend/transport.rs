@@ -135,6 +135,9 @@ pub(crate) async fn dispatch_incoming_line(
             "app-server-event" => {
                 let _ = app.emit("app-server-event", params);
             }
+            "workspace-symphony-event" => {
+                let _ = app.emit("workspace-symphony-event", params);
+            }
             "terminal-output" => {
                 let _ = app.emit("terminal-output", params);
             }

@@ -23,6 +23,8 @@ mod rules;
 mod shared;
 #[path = "../storage.rs"]
 mod storage;
+#[path = "../symphony_binary.rs"]
+mod symphony_binary;
 #[path = "codex_monitor_daemon/transport.rs"]
 mod transport;
 #[allow(dead_code)]
@@ -82,13 +84,13 @@ use shared::process_core::kill_child_process_tree;
 use shared::prompts_core::{self, CustomPromptEntry};
 use shared::{
     agents_config_core, codex_aux_core, codex_core, files_core, git_core, git_ui_core,
-    local_usage_core, settings_core, workspaces_core, worktree_core,
+    local_usage_core, settings_core, symphony_core, workspaces_core, worktree_core,
 };
 use storage::{read_settings, read_workspaces};
 use types::{
     AppSettings, GitCommitDiff, GitFileDiff, GitHubIssuesResponse, GitHubPullRequestComment,
     GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse, LocalUsageSnapshot,
-    WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorktreeSetupStatus,
+    WorkspaceEntry, WorkspaceInfo, WorkspaceSettings, WorkspaceSymphonyEvent, WorktreeSetupStatus,
 };
 use workspace_settings::apply_workspace_settings_update;
 
@@ -122,6 +124,7 @@ struct DaemonEventSink {
 #[derive(Clone)]
 enum DaemonEvent {
     AppServer(AppServerEvent),
+    WorkspaceSymphony(WorkspaceSymphonyEvent),
     #[allow(dead_code)]
     TerminalOutput(TerminalOutput),
     #[allow(dead_code)]
@@ -139,6 +142,10 @@ impl EventSink for DaemonEventSink {
 
     fn emit_terminal_exit(&self, event: TerminalExit) {
         let _ = self.tx.send(DaemonEvent::TerminalExit(event));
+    }
+
+    fn emit_workspace_symphony_event(&self, event: WorkspaceSymphonyEvent) {
+        let _ = self.tx.send(DaemonEvent::WorkspaceSymphony(event));
     }
 }
 
@@ -158,6 +165,7 @@ struct DaemonState {
     event_sink: DaemonEventSink,
     codex_login_cancels: Mutex<HashMap<String, CodexLoginCancelState>>,
     daemon_binary_path: Option<String>,
+    symphony_runtimes: Arc<symphony_core::SymphonyRuntimeRegistry>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -185,6 +193,7 @@ impl DaemonState {
             event_sink,
             codex_login_cancels: Mutex::new(HashMap::new()),
             daemon_binary_path,
+            symphony_runtimes: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -757,8 +766,7 @@ impl DaemonState {
         limit: Option<u32>,
         sort_key: Option<String>,
     ) -> Result<Value, String> {
-        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key)
-            .await
+        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key).await
     }
 
     async fn list_mcp_server_status(

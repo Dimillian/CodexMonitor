@@ -47,7 +47,9 @@ import { useMainAppSidebarMenuOrchestration } from "@app/hooks/useMainAppSidebar
 import { useMainAppWorktreeState } from "@app/hooks/useMainAppWorktreeState";
 import { useMainAppWorkspaceActions } from "@app/hooks/useMainAppWorkspaceActions";
 import { useMainAppWorkspaceLifecycle } from "@app/hooks/useMainAppWorkspaceLifecycle";
+import { useWorkspaceSymphonyStatuses } from "@app/hooks/useWorkspaceSymphonyStatuses";
 import { useHomeAccount } from "@app/hooks/useHomeAccount";
+import { useWorkspaceSymphonyWorkflow } from "@/features/workspaces/hooks/useWorkspaceSymphonyWorkflow";
 import type {
   ComposerEditorSettings,
   ServiceTier,
@@ -1315,6 +1317,22 @@ export default function MainApp() {
     refresh: refreshAgentMd,
     save: saveAgentMd,
   } = agentMdState;
+  const {
+    content: workflowContent,
+    exists: workflowExists,
+    truncated: workflowTruncated,
+    isLoading: workflowLoading,
+    isSaving: workflowSaving,
+    error: workflowError,
+    isDirty: workflowDirty,
+    setContent: setWorkflowContent,
+    refresh: refreshWorkflow,
+    save: saveWorkflow,
+  } = useWorkspaceSymphonyWorkflow({
+    activeWorkspace,
+    onDebug: addDebugEntry,
+  });
+  const workspaceSymphonyStatusByWorkspace = useWorkspaceSymphonyStatuses(workspaces);
   const promptActions = useMainAppPromptActions({
     activeWorkspace,
     connectWorkspace,
@@ -1690,6 +1708,25 @@ export default function MainApp() {
           onAgentMdSave: () => {
             void saveAgentMd();
           },
+          workflowContent,
+          workflowExists,
+          workflowTruncated,
+          workflowLoading,
+          workflowSaving,
+          workflowError,
+          workflowDirty,
+          onWorkflowChange: setWorkflowContent,
+          onWorkflowRefresh: () => {
+            void refreshWorkflow();
+          },
+          onWorkflowSave: () => {
+            void saveWorkflow();
+          },
+          onWorkspaceHomeTabChange: async (tab) => {
+            await updateWorkspaceSettings(activeWorkspace.id, {
+              workspaceHomeTab: tab,
+            });
+          },
         }
       : null,
   });
@@ -1732,6 +1769,7 @@ export default function MainApp() {
     activeWorkspace,
     activeWorkspaceId,
     activeThreadId,
+    workspaceSymphonyStatusByWorkspace,
     activeItems,
     userInputRequests,
     approvals,

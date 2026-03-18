@@ -1,6 +1,7 @@
 use tauri::{AppHandle, Emitter};
 
 use crate::backend::events::{AppServerEvent, EventSink, TerminalExit, TerminalOutput};
+use crate::types::WorkspaceSymphonyEvent;
 
 #[derive(Clone)]
 pub(crate) struct TauriEventSink {
@@ -24,5 +25,9 @@ impl EventSink for TauriEventSink {
 
     fn emit_terminal_exit(&self, event: TerminalExit) {
         let _ = self.app.emit("terminal-exit", event);
+    }
+
+    fn emit_workspace_symphony_event(&self, event: WorkspaceSymphonyEvent) {
+        let _ = self.app.emit("workspace-symphony-event", event);
     }
 }

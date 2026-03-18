@@ -315,6 +315,8 @@ pub(crate) struct WorkspaceGroup {
 pub(crate) struct WorkspaceSettings {
     #[serde(default, rename = "sidebarCollapsed")]
     pub(crate) sidebar_collapsed: bool,
+    #[serde(default, rename = "workspaceHomeTab")]
+    pub(crate) workspace_home_tab: Option<WorkspaceHomeTab>,
     #[serde(default, rename = "sortOrder")]
     pub(crate) sort_order: Option<u32>,
     #[serde(default, rename = "groupId")]
@@ -331,6 +333,235 @@ pub(crate) struct WorkspaceSettings {
     pub(crate) worktree_setup_script: Option<String>,
     #[serde(default, rename = "worktreesFolder")]
     pub(crate) worktrees_folder: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum WorkspaceHomeTab {
+    Configuration,
+    Symphony,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum WorkspaceTaskStatus {
+    Backlog,
+    Todo,
+    InProgress,
+    HumanReview,
+    Rework,
+    Merging,
+    Done,
+}
+
+impl WorkspaceTaskStatus {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            Self::Backlog => "backlog",
+            Self::Todo => "todo",
+            Self::InProgress => "in_progress",
+            Self::HumanReview => "human_review",
+            Self::Rework => "rework",
+            Self::Merging => "merging",
+            Self::Done => "done",
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WorkspaceTask {
+    pub(crate) id: String,
+    pub(crate) workspace_id: String,
+    pub(crate) title: String,
+    #[serde(default)]
+    pub(crate) description: Option<String>,
+    pub(crate) status: WorkspaceTaskStatus,
+    pub(crate) order_index: i64,
+    pub(crate) created_at_ms: i64,
+    pub(crate) updated_at_ms: i64,
+    #[serde(default)]
+    pub(crate) active_run: Option<WorkspaceTaskRun>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WorkspaceTaskRun {
+    pub(crate) id: String,
+    pub(crate) task_id: String,
+    pub(crate) workspace_id: String,
+    #[serde(default)]
+    pub(crate) thread_id: Option<String>,
+    #[serde(default)]
+    pub(crate) worktree_workspace_id: Option<String>,
+    #[serde(default)]
+    pub(crate) branch_name: Option<String>,
+    #[serde(default)]
+    pub(crate) pull_request_url: Option<String>,
+    #[serde(default)]
+    pub(crate) session_id: Option<String>,
+    #[serde(default)]
+    pub(crate) last_event: Option<String>,
+    #[serde(default)]
+    pub(crate) last_message: Option<String>,
+    #[serde(default)]
+    pub(crate) last_error: Option<String>,
+    pub(crate) retry_count: i64,
+    pub(crate) token_total: i64,
+    pub(crate) started_at_ms: i64,
+    #[serde(default)]
+    pub(crate) updated_at_ms: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WorkspaceTaskEvent {
+    pub(crate) id: String,
+    pub(crate) task_id: String,
+    pub(crate) workspace_id: String,
+    pub(crate) message: String,
+    pub(crate) created_at_ms: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WorkspaceTaskTelemetry {
+    pub(crate) task: WorkspaceTask,
+    #[serde(default)]
+    pub(crate) events: Vec<WorkspaceTaskEvent>,
+    #[serde(default)]
+    pub(crate) live_run: Option<WorkspaceTaskLiveRun>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WorkspaceTaskLiveRun {
+    pub(crate) stage: String,
+    #[serde(default)]
+    pub(crate) agent_pid: Option<u32>,
+    #[serde(default)]
+    pub(crate) age_label: Option<String>,
+    #[serde(default)]
+    pub(crate) turn_count: Option<i64>,
+    #[serde(default)]
+    pub(crate) token_total: Option<i64>,
+    #[serde(default)]
+    pub(crate) session_id: Option<String>,
+    #[serde(default)]
+    pub(crate) current_event: Option<String>,
+    #[serde(default)]
+    pub(crate) claimed_at_ms: Option<i64>,
+    pub(crate) observed_at_ms: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum WorkspaceSymphonyRuntimeState {
+    Stopped,
+    Starting,
+    Running,
+    Error,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum WorkspaceSymphonyHealth {
+    Healthy,
+    Stale,
+    Error,
+    Stopped,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WorkspaceSymphonyStatus {
+    pub(crate) workspace_id: String,
+    pub(crate) state: WorkspaceSymphonyRuntimeState,
+    pub(crate) health: WorkspaceSymphonyHealth,
+    #[serde(default)]
+    pub(crate) binary_path: Option<String>,
+    #[serde(default)]
+    pub(crate) binary_version: Option<String>,
+    #[serde(default)]
+    pub(crate) pid: Option<u32>,
+    #[serde(default)]
+    pub(crate) started_at_ms: Option<i64>,
+    #[serde(default)]
+    pub(crate) last_heartbeat_at_ms: Option<i64>,
+    #[serde(default)]
+    pub(crate) last_error: Option<String>,
+    #[serde(default)]
+    pub(crate) log_path: Option<String>,
+    #[serde(default)]
+    pub(crate) total_tasks: usize,
+    #[serde(default)]
+    pub(crate) active_tasks: usize,
+    #[serde(default)]
+    pub(crate) retrying_tasks: usize,
+    #[serde(default)]
+    pub(crate) active_agents: usize,
+    #[serde(default)]
+    pub(crate) max_agents: usize,
+    #[serde(default)]
+    pub(crate) input_tokens: i64,
+    #[serde(default)]
+    pub(crate) output_tokens: i64,
+    #[serde(default)]
+    pub(crate) total_tokens: i64,
+    #[serde(default)]
+    pub(crate) uptime_ms: Option<i64>,
+    #[serde(default)]
+    pub(crate) last_activity_at_ms: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WorkspaceSymphonySnapshot {
+    pub(crate) status: WorkspaceSymphonyStatus,
+    #[serde(default)]
+    pub(crate) tasks: Vec<WorkspaceTask>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CreateWorkspaceTaskInput {
+    pub(crate) title: String,
+    #[serde(default)]
+    pub(crate) description: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UpdateWorkspaceTaskInput {
+    pub(crate) task_id: String,
+    #[serde(default)]
+    pub(crate) title: Option<String>,
+    #[serde(default)]
+    pub(crate) description: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct MoveWorkspaceTaskInput {
+    pub(crate) task_id: String,
+    pub(crate) status: WorkspaceTaskStatus,
+    #[serde(default)]
+    pub(crate) position: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WorkspaceSymphonyEvent {
+    pub(crate) workspace_id: String,
+    pub(crate) kind: String,
+    #[serde(default)]
+    pub(crate) status: Option<WorkspaceSymphonyStatus>,
+    #[serde(default)]
+    pub(crate) task: Option<WorkspaceTask>,
+    #[serde(default)]
+    pub(crate) telemetry: Option<WorkspaceTaskTelemetry>,
+    #[serde(default)]
+    pub(crate) message: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

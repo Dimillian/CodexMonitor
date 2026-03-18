@@ -6,6 +6,7 @@ import type {
   ThreadListSortKey,
   ThreadSummary,
   WorkspaceInfo,
+  WorkspaceSymphonyStatus,
 } from "../../../types";
 import { createPortal } from "react-dom";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
@@ -75,6 +76,7 @@ type SidebarProps = {
   threadListOrganizeMode: ThreadListOrganizeMode;
   onSetThreadListOrganizeMode: (organizeMode: ThreadListOrganizeMode) => void;
   onRefreshAllThreads: () => void;
+  workspaceSymphonyStatusByWorkspace?: Record<string, WorkspaceSymphonyStatus>;
   activeWorkspaceId: string | null;
   activeThreadId: string | null;
   userInputRequests?: RequestUserInputRequest[];
@@ -136,6 +138,7 @@ export const Sidebar = memo(function Sidebar({
   threadListOrganizeMode,
   onSetThreadListOrganizeMode,
   onRefreshAllThreads,
+  workspaceSymphonyStatusByWorkspace = {},
   activeWorkspaceId,
   activeThreadId,
   userInputRequests = [],
@@ -1002,6 +1005,7 @@ export const Sidebar = memo(function Sidebar({
                           key={entry.id}
                           workspace={entry}
                           workspaceName={renderHighlightedName(entry.name)}
+                          symphonyStatus={workspaceSymphonyStatusByWorkspace[entry.id] ?? null}
                           isActive={entry.id === activeWorkspaceId}
                           isCollapsed={isCollapsed}
                           addMenuOpen={addMenuOpen}

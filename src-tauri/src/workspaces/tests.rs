@@ -49,6 +49,7 @@ fn workspace_with_id_and_kind(
         worktree,
         settings: WorkspaceSettings {
             sidebar_collapsed: false,
+            workspace_home_tab: None,
             sort_order,
             group_id: None,
             clone_source_workspace_id: None,

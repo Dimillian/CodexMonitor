@@ -43,6 +43,9 @@
     "active": true,
     "targets": "all",
     "createUpdaterArtifacts": true,
+    "resources": [
+      "./resources/symphony/**/*"
+    ],
     "iOS": {
       "frameworks": [
         "libz.tbd",

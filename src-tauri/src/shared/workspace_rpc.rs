@@ -2,7 +2,9 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::types::WorkspaceSettings;
+use crate::types::{
+    CreateWorkspaceTaskInput, MoveWorkspaceTaskInput, UpdateWorkspaceTaskInput, WorkspaceSettings,
+};
 
 #[allow(dead_code)]
 pub(crate) fn to_params<T: Serialize>(request: &T) -> Result<Value, String> {
@@ -61,6 +63,20 @@ pub(crate) struct WorkspaceIdRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct TaskIdRequest {
+    pub(crate) workspace_id: String,
+    pub(crate) task_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WriteWorkspaceSymphonyWorkflowOverrideRequest {
+    pub(crate) workspace_id: String,
+    pub(crate) content: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct IdRequest {
     pub(crate) id: String,
 }
@@ -107,4 +123,25 @@ pub(crate) struct OpenWorkspaceInRequest {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct GetOpenAppIconRequest {
     pub(crate) app_name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CreateWorkspaceSymphonyTaskRequest {
+    pub(crate) workspace_id: String,
+    pub(crate) input: CreateWorkspaceTaskInput,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UpdateWorkspaceSymphonyTaskRequest {
+    pub(crate) workspace_id: String,
+    pub(crate) input: UpdateWorkspaceTaskInput,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct MoveWorkspaceSymphonyTaskRequest {
+    pub(crate) workspace_id: String,
+    pub(crate) input: MoveWorkspaceTaskInput,
 }

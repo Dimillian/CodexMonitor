@@ -1,5 +1,6 @@
 export type WorkspaceSettings = {
   sidebarCollapsed: boolean;
+  workspaceHomeTab?: WorkspaceHomeTab | null;
   sortOrder?: number | null;
   groupId?: string | null;
   cloneSourceWorkspaceId?: string | null;
@@ -9,6 +10,8 @@ export type WorkspaceSettings = {
   worktreeSetupScript?: string | null;
   worktreesFolder?: string | null;
 };
+
+export type WorkspaceHomeTab = "configuration" | "symphony";
 
 export type LaunchScriptIconId =
   | "play"
@@ -56,6 +59,120 @@ export type WorkspaceInfo = {
   parentId?: string | null;
   worktree?: WorktreeInfo | null;
   settings: WorkspaceSettings;
+};
+
+export type WorkspaceTaskStatus =
+  | "backlog"
+  | "todo"
+  | "in_progress"
+  | "human_review"
+  | "rework"
+  | "merging"
+  | "done";
+
+export type WorkspaceTaskRun = {
+  id: string;
+  taskId: string;
+  workspaceId: string;
+  threadId?: string | null;
+  worktreeWorkspaceId?: string | null;
+  branchName?: string | null;
+  pullRequestUrl?: string | null;
+  sessionId?: string | null;
+  lastEvent?: string | null;
+  lastMessage?: string | null;
+  lastError?: string | null;
+  retryCount: number;
+  tokenTotal: number;
+  startedAtMs: number;
+  updatedAtMs: number;
+};
+
+export type WorkspaceTask = {
+  id: string;
+  workspaceId: string;
+  title: string;
+  description?: string | null;
+  status: WorkspaceTaskStatus;
+  orderIndex: number;
+  createdAtMs: number;
+  updatedAtMs: number;
+  activeRun?: WorkspaceTaskRun | null;
+};
+
+export type WorkspaceTaskEvent = {
+  id: string;
+  taskId: string;
+  workspaceId: string;
+  message: string;
+  createdAtMs: number;
+};
+
+export type WorkspaceTaskTelemetry = {
+  task: WorkspaceTask;
+  events: WorkspaceTaskEvent[];
+  liveRun?: WorkspaceTaskLiveRun | null;
+};
+
+export type WorkspaceTaskLiveRun = {
+  stage: string;
+  agentPid?: number | null;
+  ageLabel?: string | null;
+  turnCount?: number | null;
+  tokenTotal?: number | null;
+  sessionId?: string | null;
+  currentEvent?: string | null;
+  claimedAtMs?: number | null;
+  observedAtMs: number;
+};
+
+export type WorkspaceSymphonyRuntimeState =
+  | "stopped"
+  | "starting"
+  | "running"
+  | "error";
+
+export type WorkspaceSymphonyHealth =
+  | "healthy"
+  | "stale"
+  | "error"
+  | "stopped";
+
+export type WorkspaceSymphonyStatus = {
+  workspaceId: string;
+  state: WorkspaceSymphonyRuntimeState;
+  health: WorkspaceSymphonyHealth;
+  binaryPath?: string | null;
+  binaryVersion?: string | null;
+  pid?: number | null;
+  startedAtMs?: number | null;
+  lastHeartbeatAtMs?: number | null;
+  lastError?: string | null;
+  logPath?: string | null;
+  totalTasks: number;
+  activeTasks: number;
+  retryingTasks: number;
+  activeAgents: number;
+  maxAgents: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  uptimeMs?: number | null;
+  lastActivityAtMs?: number | null;
+};
+
+export type WorkspaceSymphonySnapshot = {
+  status: WorkspaceSymphonyStatus;
+  tasks: WorkspaceTask[];
+};
+
+export type WorkspaceSymphonyEvent = {
+  workspaceId: string;
+  kind: string;
+  status?: WorkspaceSymphonyStatus | null;
+  task?: WorkspaceTask | null;
+  telemetry?: WorkspaceTaskTelemetry | null;
+  message?: string | null;
 };
 
 export type AppServerEvent = {

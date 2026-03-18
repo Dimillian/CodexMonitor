@@ -14,6 +14,11 @@ import type {
   TrayRecentThreadEntry,
   TraySessionUsage,
   WorkspaceInfo,
+  WorkspaceSymphonySnapshot,
+  WorkspaceSymphonyStatus,
+  WorkspaceTask,
+  WorkspaceTaskStatus,
+  WorkspaceTaskTelemetry,
   AppMention,
   WorkspaceSettings,
 } from "../types";
@@ -364,6 +369,85 @@ export async function getOpenAppIcon(appName: string): Promise<string | null> {
 
 export async function connectWorkspace(id: string): Promise<void> {
   return invoke("connect_workspace", { id });
+}
+
+export async function getWorkspaceSymphonyStatus(
+  workspaceId: string,
+): Promise<WorkspaceSymphonySnapshot> {
+  return invoke("get_workspace_symphony_status", { workspaceId });
+}
+
+export async function startWorkspaceSymphony(
+  workspaceId: string,
+): Promise<WorkspaceSymphonyStatus> {
+  return invoke("start_workspace_symphony", { workspaceId });
+}
+
+export async function stopWorkspaceSymphony(
+  workspaceId: string,
+): Promise<WorkspaceSymphonyStatus> {
+  return invoke("stop_workspace_symphony", { workspaceId });
+}
+
+export async function listWorkspaceSymphonyTasks(
+  workspaceId: string,
+): Promise<WorkspaceTask[]> {
+  return invoke("list_workspace_symphony_tasks", { workspaceId });
+}
+
+export async function createWorkspaceSymphonyTask(
+  workspaceId: string,
+  input: { title: string; description?: string | null },
+): Promise<WorkspaceTask> {
+  return invoke("create_workspace_symphony_task", { workspaceId, input });
+}
+
+export async function updateWorkspaceSymphonyTask(
+  workspaceId: string,
+  input: { taskId: string; title?: string | null; description?: string | null },
+): Promise<WorkspaceTask> {
+  return invoke("update_workspace_symphony_task", { workspaceId, input });
+}
+
+export async function moveWorkspaceSymphonyTask(
+  workspaceId: string,
+  taskId: string,
+  status: WorkspaceTaskStatus,
+  position?: number | null,
+): Promise<WorkspaceTask> {
+  return invoke("move_workspace_symphony_task", {
+    workspaceId,
+    taskId,
+    status,
+    position: position ?? null,
+  });
+}
+
+export async function deleteWorkspaceSymphonyTask(
+  workspaceId: string,
+  taskId: string,
+): Promise<void> {
+  return invoke("delete_workspace_symphony_task", { workspaceId, taskId });
+}
+
+export async function getWorkspaceSymphonyTelemetry(
+  workspaceId: string,
+  taskId: string,
+): Promise<WorkspaceTaskTelemetry> {
+  return invoke("get_workspace_symphony_telemetry", { workspaceId, taskId });
+}
+
+export async function readWorkspaceSymphonyWorkflowOverride(
+  workspaceId: string,
+): Promise<TextFileResponse> {
+  return invoke("read_workspace_symphony_workflow_override", { workspaceId });
+}
+
+export async function writeWorkspaceSymphonyWorkflowOverride(
+  workspaceId: string,
+  content: string,
+): Promise<void> {
+  return invoke("write_workspace_symphony_workflow_override", { workspaceId, content });
 }
 
 export async function setWorkspaceRuntimeCodexArgs(
