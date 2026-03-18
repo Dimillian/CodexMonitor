@@ -7,7 +7,11 @@ import {
 
 export const OPEN_APP_STORAGE_KEY = "open-workspace-app";
 export const DEFAULT_OPEN_APP_ID = isWindowsPlatform() ? "finder" : "vscode";
-const PHPSTORM_COMMAND = isWindowsPlatform() ? "phpstorm64.exe" : "phpstorm";
+const PHPSTORM_COMMAND = isWindowsPlatform()
+  ? "phpstorm64.exe"
+  : isMacPlatform()
+    ? "phpstorm"
+    : "phpstorm.sh";
 
 export type OpenAppId = string;
 

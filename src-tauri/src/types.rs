@@ -1003,6 +1003,8 @@ fn default_workspace_groups() -> Vec<WorkspaceGroup> {
 fn default_open_app_targets() -> Vec<OpenAppTarget> {
     let phpstorm_command = if cfg!(target_os = "windows") {
         "phpstorm64.exe"
+    } else if cfg!(target_os = "linux") {
+        "phpstorm.sh"
     } else {
         "phpstorm"
     };
