@@ -1101,9 +1101,11 @@
 
 .message .markdown-codeblock pre {
   margin: 0;
-  padding: 10px 12px 12px;
+  padding: 10px 12px 18px;
   white-space: pre;
   overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-gutter: stable both-edges;
   width: 100%;
   max-width: none;
   box-sizing: border-box;
@@ -1115,12 +1117,14 @@
 
 .message .markdown-codeblock-single {
   margin: 8px 0;
-  padding: 10px 12px 12px;
+  padding: 10px 12px 18px;
   border: 1px solid var(--border-stronger);
   border-radius: 10px;
   background: var(--surface-command);
   white-space: pre;
   overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-gutter: stable both-edges;
   width: 100%;
   max-width: none;
   box-sizing: border-box;
