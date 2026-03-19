@@ -406,4 +406,48 @@ describe("Markdown file-like href behavior", () => {
     expect(container.querySelector(".message-file-link")).toBeNull();
     expect(container.textContent).toContain("file:///C:/repo/src/App.tsx");
   });
+
+  it("ignores non-line file URL fragments when opening file hrefs", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [report](file:///tmp/report.md#overview)"
+        className="markdown"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("report").closest("a");
+    expect(link?.getAttribute("href")).toBe("file:///tmp/report.md#overview");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith("/tmp/report.md");
+  });
+
+  it("keeps line anchors when opening file URLs", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [report](file:///tmp/report.md#L12)"
+        className="markdown"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("report").closest("a");
+    expect(link?.getAttribute("href")).toBe("file:///tmp/report.md#L12");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith("/tmp/report.md:12");
+  });
 });

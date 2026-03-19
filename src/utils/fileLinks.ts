@@ -184,7 +184,10 @@ export function fromFileUrl(url: string) {
     if (/^\/[A-Za-z]:\//.test(path)) {
       path = path.slice(1);
     }
-    return normalizeFileLinkPath(`${path}${parsed.hash}`);
+    const normalizedHash = FILE_LOCATION_HASH_PATTERN.test(parsed.hash)
+      ? parsed.hash
+      : "";
+    return normalizeFileLinkPath(`${path}${normalizedHash}`);
   } catch {
     const manualPath = url.slice("file://".length).trim();
     if (!manualPath) {
