@@ -440,32 +440,38 @@ const renderEnvironmentsSection = (
     options.onUpdateAppSettings ?? vi.fn().mockResolvedValue(undefined);
   const onUpdateWorkspaceSettings =
     options.onUpdateWorkspaceSettings ?? vi.fn().mockResolvedValue(undefined);
+  const defaultGroupedWorkspaces =
+    options.groupedWorkspaces ??
+    [
+      {
+        id: null,
+        name: "Ungrouped",
+        workspaces: [
+          workspace({
+            id: "w1",
+            name: "Project One",
+            settings: {
+              sidebarCollapsed: false,
+              worktreeSetupScript: "echo one",
+            },
+          }),
+        ],
+      },
+    ];
 
-  const props: ComponentProps<typeof SettingsView> = {
+  const buildProps = (
+    nextOptions: {
+      appSettings?: Partial<AppSettings>;
+      groupedWorkspaces?: ComponentProps<typeof SettingsView>["groupedWorkspaces"];
+    } = {},
+  ): ComponentProps<typeof SettingsView> => ({
     reduceTransparency: false,
     onToggleTransparency: vi.fn(),
-    appSettings: { ...baseSettings, ...options.appSettings },
+    appSettings: { ...baseSettings, ...options.appSettings, ...nextOptions.appSettings },
     openAppIconById: {},
     onUpdateAppSettings,
     workspaceGroups: [],
-    groupedWorkspaces:
-      options.groupedWorkspaces ??
-      [
-        {
-          id: null,
-          name: "Ungrouped",
-          workspaces: [
-            workspace({
-              id: "w1",
-              name: "Project One",
-              settings: {
-                sidebarCollapsed: false,
-                worktreeSetupScript: "echo one",
-              },
-            }),
-          ],
-        },
-      ],
+    groupedWorkspaces: nextOptions.groupedWorkspaces ?? defaultGroupedWorkspaces,
     ungroupedLabel: "Ungrouped",
     onClose: vi.fn(),
     onMoveWorkspace: vi.fn(),
@@ -486,10 +492,19 @@ const renderEnvironmentsSection = (
     onCancelDictationDownload: vi.fn(),
     onRemoveDictationModel: vi.fn(),
     initialSection: "environments",
-  };
+  });
 
-  render(<SettingsView {...props} />);
-  return { onUpdateAppSettings, onUpdateWorkspaceSettings };
+  const renderResult = render(<SettingsView {...buildProps()} />);
+  return {
+    onUpdateAppSettings,
+    onUpdateWorkspaceSettings,
+    rerender: (
+      nextOptions: {
+        appSettings?: Partial<AppSettings>;
+        groupedWorkspaces?: ComponentProps<typeof SettingsView>["groupedWorkspaces"];
+      } = {},
+    ) => renderResult.rerender(<SettingsView {...buildProps(nextOptions)} />),
+  };
 };
 
 describe("SettingsView Display", () => {
@@ -865,6 +880,33 @@ describe("SettingsView Environments", () => {
         expect.objectContaining({
           globalWorktreesFolder: "I:/cm-worktrees",
         }),
+      );
+    });
+  });
+
+  it("resyncs the global worktrees root baseline after dirty state clears", async () => {
+    const { rerender } = renderEnvironmentsSection({
+      groupedWorkspaces: [],
+      appSettings: { globalWorktreesFolder: null },
+    });
+
+    const input = screen.getByLabelText("Global worktrees root");
+    fireEvent.change(input, { target: { value: "I:/typing" } });
+
+    rerender({
+      groupedWorkspaces: [],
+      appSettings: { globalWorktreesFolder: "I:/loaded-from-settings" },
+    });
+
+    expect((screen.getByLabelText("Global worktrees root") as HTMLInputElement).value).toBe(
+      "I:/typing",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+
+    await waitFor(() => {
+      expect((screen.getByLabelText("Global worktrees root") as HTMLInputElement).value).toBe(
+        "I:/loaded-from-settings",
       );
     });
   });
