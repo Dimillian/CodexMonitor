@@ -4,6 +4,20 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { openWorkspaceIn } from "../../../services/tauri";
 import { useFileLinkOpener } from "./useFileLinkOpener";
 
+const {
+  menuNewMock,
+  menuItemNewMock,
+  predefinedMenuItemNewMock,
+  logicalPositionMock,
+  getCurrentWindowMock,
+} = vi.hoisted(() => ({
+  menuNewMock: vi.fn(),
+  menuItemNewMock: vi.fn(),
+  predefinedMenuItemNewMock: vi.fn(),
+  logicalPositionMock: vi.fn(),
+  getCurrentWindowMock: vi.fn(),
+}));
+
 vi.mock("../../../services/tauri", () => ({
   openWorkspaceIn: vi.fn(),
 }));
@@ -13,17 +27,17 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
 }));
 
 vi.mock("@tauri-apps/api/menu", () => ({
-  Menu: { new: vi.fn() },
-  MenuItem: { new: vi.fn() },
-  PredefinedMenuItem: { new: vi.fn() },
+  Menu: { new: menuNewMock },
+  MenuItem: { new: menuItemNewMock },
+  PredefinedMenuItem: { new: predefinedMenuItemNewMock },
 }));
 
 vi.mock("@tauri-apps/api/dpi", () => ({
-  LogicalPosition: vi.fn(),
+  LogicalPosition: logicalPositionMock,
 }));
 
 vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: vi.fn(),
+  getCurrentWindow: getCurrentWindowMock,
 }));
 
 vi.mock("@sentry/react", () => ({
@@ -37,6 +51,121 @@ vi.mock("../../../services/toasts", () => ({
 describe("useFileLinkOpener", () => {
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("copies namespace-prefixed Windows drive paths as valid file URLs", async () => {
+    const clipboardWriteTextMock = vi.fn();
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: clipboardWriteTextMock },
+      configurable: true,
+    });
+    menuItemNewMock.mockImplementation(async (options) => options);
+    predefinedMenuItemNewMock.mockImplementation(async (options) => options);
+    menuNewMock.mockImplementation(async ({ items }) => ({
+      items,
+      popup: vi.fn(),
+    }));
+
+    const { result } = renderHook(() => useFileLinkOpener(null, [], ""));
+
+    await act(async () => {
+      await result.current.showFileLinkMenu(
+        {
+          preventDefault: vi.fn(),
+          stopPropagation: vi.fn(),
+          clientX: 12,
+          clientY: 24,
+        } as never,
+        "\\\\?\\C:\\repo\\src\\App.tsx:42",
+      );
+    });
+
+    const items = menuNewMock.mock.calls[0]?.[0]?.items ?? [];
+    const copyLinkItem = items.find(
+      (item: { text?: string; action?: () => Promise<void> }) => item.text === "Copy Link",
+    );
+
+    await copyLinkItem?.action?.();
+
+    expect(clipboardWriteTextMock).toHaveBeenCalledWith("file:///C:/repo/src/App.tsx#L42");
+  });
+
+  it("copies namespace-prefixed Windows UNC paths as valid file URLs", async () => {
+    const clipboardWriteTextMock = vi.fn();
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: clipboardWriteTextMock },
+      configurable: true,
+    });
+    menuItemNewMock.mockImplementation(async (options) => options);
+    predefinedMenuItemNewMock.mockImplementation(async (options) => options);
+    menuNewMock.mockImplementation(async ({ items }) => ({
+      items,
+      popup: vi.fn(),
+    }));
+
+    const { result } = renderHook(() => useFileLinkOpener(null, [], ""));
+
+    await act(async () => {
+      await result.current.showFileLinkMenu(
+        {
+          preventDefault: vi.fn(),
+          stopPropagation: vi.fn(),
+          clientX: 12,
+          clientY: 24,
+        } as never,
+        "\\\\?\\UNC\\server\\share\\repo\\App.tsx:42",
+      );
+    });
+
+    const items = menuNewMock.mock.calls[0]?.[0]?.items ?? [];
+    const copyLinkItem = items.find(
+      (item: { text?: string; action?: () => Promise<void> }) => item.text === "Copy Link",
+    );
+
+    await copyLinkItem?.action?.();
+
+    expect(clipboardWriteTextMock).toHaveBeenCalledWith(
+      "file://server/share/repo/App.tsx#L42",
+    );
+  });
+
+  it("percent-encodes copied file URLs for Windows paths with reserved characters", async () => {
+    const clipboardWriteTextMock = vi.fn();
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: clipboardWriteTextMock },
+      configurable: true,
+    });
+    menuItemNewMock.mockImplementation(async (options) => options);
+    predefinedMenuItemNewMock.mockImplementation(async (options) => options);
+    menuNewMock.mockImplementation(async ({ items }) => ({
+      items,
+      popup: vi.fn(),
+    }));
+
+    const { result } = renderHook(() => useFileLinkOpener(null, [], ""));
+
+    await act(async () => {
+      await result.current.showFileLinkMenu(
+        {
+          preventDefault: vi.fn(),
+          stopPropagation: vi.fn(),
+          clientX: 12,
+          clientY: 24,
+        } as never,
+        "C:\\repo\\My File #100%.tsx:42",
+      );
+    });
+
+    const items = menuNewMock.mock.calls[0]?.[0]?.items ?? [];
+    const copyLinkItem = items.find(
+      (item: { text?: string; action?: () => Promise<void> }) => item.text === "Copy Link",
+    );
+
+    await copyLinkItem?.action?.();
+
+    expect(clipboardWriteTextMock).toHaveBeenCalledWith(
+      "file:///C:/repo/My%20File%20%23100%25.tsx#L42",
+    );
   });
 
   it("maps /workspace root-relative paths to the active workspace path", async () => {

@@ -3,6 +3,11 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
+  fromFileUrl,
+  normalizeFileLinkPath,
+  parseFileLocation,
+} from "../../../utils/fileLinks";
+import {
   decodeFileLink,
   isFileLinkUrl,
   isLinkableFilePath,
@@ -196,9 +201,6 @@ function safeDecodeFileLink(url: string) {
     return null;
   }
 }
-
-const FILE_LINE_SUFFIX_PATTERN = /:\d+(?::\d+)?$/;
-const FILE_HASH_LINE_SUFFIX_PATTERN = /^#L(\d+)(?:C(\d+))?$/i;
 const LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES = [
   "/Users/",
   "/home/",
@@ -220,7 +222,7 @@ const WORKSPACE_ROUTE_PREFIXES = ["/workspace/", "/workspaces/"];
 const LOCAL_WORKSPACE_ROUTE_SEGMENTS = new Set(["reviews", "settings"]);
 
 function stripPathLineSuffix(value: string) {
-  return value.replace(FILE_LINE_SUFFIX_PATTERN, "");
+  return parseFileLocation(value).path;
 }
 
 function hasLikelyFileName(path: string) {
@@ -313,24 +315,6 @@ function pathSegmentCount(path: string) {
   return path.split("/").filter(Boolean).length;
 }
 
-function toPathFromFileHashAnchor(
-  url: string,
-  workspacePath?: string | null,
-) {
-  const hashIndex = url.indexOf("#");
-  if (hashIndex <= 0) {
-    return null;
-  }
-  const basePath = url.slice(0, hashIndex).trim();
-  const hash = url.slice(hashIndex).trim();
-  const match = hash.match(FILE_HASH_LINE_SUFFIX_PATTERN);
-  if (!basePath || !match || !isLikelyFileHref(basePath, workspacePath)) {
-    return null;
-  }
-  const [, line, column] = match;
-  return `${basePath}:${line}${column ? `:${column}` : ""}`;
-}
-
 function isLikelyFileHref(
   url: string,
   workspacePath?: string | null,
@@ -355,66 +339,36 @@ function isLikelyFileHref(
   if (trimmed.startsWith("#")) {
     return false;
   }
-  if (/[?#]/.test(trimmed)) {
+  const parsedLocation = parseFileLocation(trimmed);
+  const pathOnly = parsedLocation.path.trim();
+  if (/[?#]/.test(pathOnly)) {
     return false;
   }
-  if (/^[A-Za-z]:[\\/]/.test(trimmed) || trimmed.startsWith("\\\\")) {
+  if (/^[A-Za-z]:[\\/]/.test(pathOnly) || pathOnly.startsWith("\\\\")) {
     return true;
   }
-  if (trimmed.startsWith("/")) {
-    if (FILE_LINE_SUFFIX_PATTERN.test(trimmed)) {
+  if (pathOnly.startsWith("/")) {
+    if (parsedLocation.line !== null) {
       return true;
     }
-    if (hasLikelyFileName(trimmed)) {
+    if (hasLikelyFileName(pathOnly)) {
       return true;
     }
-    return usesAbsolutePathDepthFallback(trimmed, workspacePath);
+    return usesAbsolutePathDepthFallback(pathOnly, workspacePath);
   }
-  if (FILE_LINE_SUFFIX_PATTERN.test(trimmed)) {
+  if (parsedLocation.line !== null) {
     return true;
   }
-  if (trimmed.startsWith("~/")) {
+  if (pathOnly.startsWith("~/")) {
     return true;
   }
-  if (trimmed.startsWith("./") || trimmed.startsWith("../")) {
-    return FILE_LINE_SUFFIX_PATTERN.test(trimmed) || hasLikelyFileName(trimmed);
+  if (pathOnly.startsWith("./") || pathOnly.startsWith("../")) {
+    return parsedLocation.line !== null || hasLikelyFileName(pathOnly);
   }
-  if (hasLikelyFileName(trimmed)) {
-    return pathSegmentCount(trimmed) >= 3;
+  if (hasLikelyFileName(pathOnly)) {
+    return pathSegmentCount(pathOnly) >= 3;
   }
   return false;
-}
-
-function toPathFromFileUrl(url: string) {
-  if (!url.toLowerCase().startsWith("file://")) {
-    return null;
-  }
-
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "file:") {
-      return null;
-    }
-
-    const decodedPath = safeDecodeURIComponent(parsed.pathname) ?? parsed.pathname;
-    let path = decodedPath;
-    if (parsed.host && parsed.host !== "localhost") {
-      const normalizedPath = decodedPath.startsWith("/")
-        ? decodedPath
-        : `/${decodedPath}`;
-      path = `//${parsed.host}${normalizedPath}`;
-    }
-    if (/^\/[A-Za-z]:\//.test(path)) {
-      path = path.slice(1);
-    }
-    return path;
-  } catch {
-    const manualPath = url.slice("file://".length).trim();
-    if (!manualPath) {
-      return null;
-    }
-    return safeDecodeURIComponent(manualPath) ?? manualPath;
-  }
 }
 
 function extractUrlLines(value: string) {
@@ -532,10 +486,13 @@ function parseFileReference(
   rawPath: string,
   workspacePath?: string | null,
 ): ParsedFileReference {
-  const trimmed = rawPath.trim();
-  const lineMatch = trimmed.match(/^(.*?):(\d+(?::\d+)?)$/);
-  const pathWithoutLine = (lineMatch?.[1] ?? trimmed).trim();
-  const lineLabel = lineMatch?.[2] ?? null;
+  const trimmed = normalizeFileLinkPath(rawPath);
+  const parsedLocation = parseFileLocation(trimmed);
+  const pathWithoutLine = parsedLocation.path.trim();
+  const lineLabel =
+    parsedLocation.line === null
+      ? null
+      : `${parsedLocation.line}${parsedLocation.column !== null ? `:${parsedLocation.column}` : ""}`;
   const displayPath = relativeDisplayPath(pathWithoutLine, workspacePath);
   const normalizedPath = trimTrailingPathSeparators(displayPath) || displayPath;
   const lastSlashIndex = normalizedPath.lastIndexOf("/");
@@ -702,57 +659,40 @@ export function Markdown({
     event.stopPropagation();
     onOpenFileLinkMenu?.(event, path);
   };
-  const filePathWithOptionalLineMatch = /^(.+?)(:\d+(?::\d+)?)?$/;
   const getLinkablePath = (rawValue: string) => {
-    const trimmed = rawValue.trim();
-    if (!trimmed) {
+    const normalizedPath = normalizeFileLinkPath(rawValue).trim();
+    if (!normalizedPath) {
       return null;
     }
-    const match = trimmed.match(filePathWithOptionalLineMatch);
-    const pathOnly = match?.[1]?.trim() ?? trimmed;
-    if (!pathOnly || !isLinkableFilePath(pathOnly)) {
+    if (!isLinkableFilePath(normalizedPath)) {
       return null;
     }
-    return trimmed;
+    return normalizedPath;
   };
   const resolveHrefFilePath = (url: string) => {
-    const hashAnchorPath = toPathFromFileHashAnchor(url, workspacePath);
-    if (hashAnchorPath) {
-      const anchoredPath = getLinkablePath(hashAnchorPath);
-      if (anchoredPath) {
-        return safeDecodeURIComponent(anchoredPath) ?? anchoredPath;
+    const fileUrlPath = fromFileUrl(url);
+    if (fileUrlPath) {
+      return fileUrlPath;
+    }
+    const rawCandidates = [url, safeDecodeURIComponent(url)].filter(
+      (candidate): candidate is string => Boolean(candidate),
+    );
+    const seenCandidates = new Set<string>();
+    for (const candidate of rawCandidates) {
+      if (seenCandidates.has(candidate)) {
+        continue;
+      }
+      seenCandidates.add(candidate);
+      const linkableCandidate = getLinkablePath(candidate);
+      if (!linkableCandidate) {
+        continue;
+      }
+      if (isLikelyFileHref(linkableCandidate, workspacePath)) {
+        const decodedPath = safeDecodeURIComponent(linkableCandidate);
+        return normalizeFileLinkPath(decodedPath ?? linkableCandidate);
       }
     }
-    if (isLikelyFileHref(url, workspacePath)) {
-      const directPath = getLinkablePath(url);
-      if (directPath) {
-        return safeDecodeURIComponent(directPath) ?? directPath;
-      }
-    }
-    const decodedUrl = safeDecodeURIComponent(url);
-    if (decodedUrl) {
-      const decodedHashAnchorPath = toPathFromFileHashAnchor(
-        decodedUrl,
-        workspacePath,
-      );
-      if (decodedHashAnchorPath) {
-        const anchoredPath = getLinkablePath(decodedHashAnchorPath);
-        if (anchoredPath) {
-          return anchoredPath;
-        }
-      }
-    }
-    if (decodedUrl && isLikelyFileHref(decodedUrl, workspacePath)) {
-      const decodedPath = getLinkablePath(decodedUrl);
-      if (decodedPath) {
-        return decodedPath;
-      }
-    }
-    const fileUrlPath = toPathFromFileUrl(url);
-    if (!fileUrlPath) {
-      return null;
-    }
-    return getLinkablePath(fileUrlPath);
+    return null;
   };
   const components: Components = {
     a: ({ href, children }) => {
@@ -812,6 +752,7 @@ export function Markdown({
         return (
           <a
             href={href ?? toFileLink(hrefFilePath)}
+            title={hrefFilePath}
             onClick={clickHandler}
             onContextMenu={contextMenuHandler}
           >
@@ -885,6 +826,9 @@ export function Markdown({
         remarkPlugins={[remarkGfm, remarkFileLinks]}
         urlTransform={(url) => {
           const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(url);
+          if (resolveHrefFilePath(url)) {
+            return url;
+          }
           if (
             isFileLinkUrl(url) ||
             url.startsWith("http://") ||

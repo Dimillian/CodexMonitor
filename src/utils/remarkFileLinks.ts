@@ -1,15 +1,23 @@
+import { FILE_LINK_SUFFIX_SOURCE, normalizeFileLinkPath } from "./fileLinks";
+
 const FILE_LINK_PROTOCOL = "codex-file:";
-const FILE_LINE_SUFFIX_PATTERN = "(?::\\d+(?::\\d+)?)?";
+const POSIX_OR_RELATIVE_FILE_PATH_PATTERN =
+  "(?:\\/[^\\s\\`\"'<>]+|~\\/[^\\s\\`\"'<>]+|\\.{1,2}\\/[^\\s\\`\"'<>]+|[A-Za-z0-9._-]+(?:\\/[A-Za-z0-9._-]+)+)";
+const WINDOWS_ABSOLUTE_FILE_PATH_PATTERN =
+  "(?:[A-Za-z]:[\\\\/][^\\s\\`\"'<>]+(?:[\\\\/][^\\s\\`\"'<>]+)*)";
+const WINDOWS_UNC_FILE_PATH_PATTERN =
+  "(?:\\\\\\\\[^\\s\\`\"'<>]+(?:\\\\[^\\s\\`\"'<>]+)+)";
 
 const FILE_PATH_PATTERN =
   new RegExp(
-    `(\\/[^\\s\\\`"'<>]+|~\\/[^\\s\\\`"'<>]+|\\.{1,2}\\/[^\\s\\\`"'<>]+|[A-Za-z0-9._-]+(?:\\/[A-Za-z0-9._-]+)+)${FILE_LINE_SUFFIX_PATTERN}`,
+    `(${POSIX_OR_RELATIVE_FILE_PATH_PATTERN}|${WINDOWS_ABSOLUTE_FILE_PATH_PATTERN}|${WINDOWS_UNC_FILE_PATH_PATTERN})${FILE_LINK_SUFFIX_SOURCE}`,
     "g",
   );
 const FILE_PATH_MATCH = new RegExp(`^${FILE_PATH_PATTERN.source}$`);
 
 const TRAILING_PUNCTUATION = new Set([".", ",", ";", ":", "!", "?", ")", "]", "}"]);
 const LETTER_OR_NUMBER_PATTERN = /[\p{L}\p{N}.]/u;
+const URL_SCHEME_PREFIX_PATTERN = /[a-zA-Z][a-zA-Z0-9+.-]*:\/\/\/?$/;
 
 type MarkdownNode = {
   type: string;
@@ -20,16 +28,19 @@ type MarkdownNode = {
 
 function isPathCandidate(
   value: string,
-  leadingContext: string,
+  leadingText: string,
   previousChar: string,
 ) {
+  if (URL_SCHEME_PREFIX_PATTERN.test(leadingText)) {
+    return false;
+  }
+  if (/^[A-Za-z]:[\\/]/.test(value) || value.startsWith("\\\\")) {
+    return !previousChar || !LETTER_OR_NUMBER_PATTERN.test(previousChar);
+  }
   if (!value.includes("/")) {
     return false;
   }
   if (value.startsWith("//")) {
-    return false;
-  }
-  if (leadingContext.endsWith("://")) {
     return false;
   }
   if (value.startsWith("/") || value.startsWith("./") || value.startsWith("../")) {
@@ -77,13 +88,14 @@ function linkifyText(value: string) {
       nodes.push({ type: "text", value: value.slice(lastIndex, matchIndex) });
     }
 
-    const leadingContext = value.slice(Math.max(0, matchIndex - 3), matchIndex);
+    const leadingText = value.slice(0, matchIndex);
     const previousChar = matchIndex > 0 ? value[matchIndex - 1] : "";
     const { path, trailing } = splitTrailingPunctuation(raw);
-    if (path && isPathCandidate(path, leadingContext, previousChar)) {
+    if (path && isPathCandidate(path, leadingText, previousChar)) {
+      const normalizedPath = normalizeFileLinkPath(path);
       nodes.push({
         type: "link",
-        url: toFileLink(path),
+        url: toFileLink(normalizedPath),
         children: [{ type: "text", value: path }],
       });
       if (trailing) {

@@ -383,6 +383,35 @@ describe("Messages", () => {
     );
   });
 
+  it("routes Windows absolute href file paths with #L anchors through the file opener", () => {
+    const linkedPath =
+      "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx#L422";
+    const items: ConversationItem[] = [
+      {
+        id: "msg-file-href-windows-anchor-link",
+        kind: "message",
+        role: "assistant",
+        text: `Open [settings display](${linkedPath})`,
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    fireEvent.click(screen.getByText("settings display"));
+    expect(openFileLinkMock).toHaveBeenCalledWith(
+      "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx:422",
+    );
+  });
+
   it("routes dotless workspace href file paths through the file opener", () => {
     const linkedPath = "/workspace/CodexMonitor/LICENSE";
     const items: ConversationItem[] = [

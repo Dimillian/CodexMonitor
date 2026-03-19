@@ -252,6 +252,45 @@ describe("Markdown file-like href behavior", () => {
     expect(onOpenFileLink).toHaveBeenCalledWith("./docs/setup.md:12");
   });
 
+  it("intercepts Windows absolute file hrefs with #L anchors and preserves the tooltip", () => {
+    const onOpenFileLink = vi.fn();
+    const onOpenFileLinkMenu = vi.fn();
+    const linkedPath =
+      "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx#L422";
+    render(
+      <Markdown
+        value={`See [SettingsDisplaySection.tsx](${linkedPath})`}
+        className="markdown"
+        onOpenFileLink={onOpenFileLink}
+        onOpenFileLinkMenu={onOpenFileLinkMenu}
+      />,
+    );
+
+    const link = screen.getByText("SettingsDisplaySection.tsx").closest("a");
+    expect(link?.getAttribute("href")).toBe(
+      "I:%5Cgpt-projects%5CCodexMonitor%5Csrc%5Cfeatures%5Csettings%5Ccomponents%5Csections%5CSettingsDisplaySection.tsx#L422",
+    );
+    expect(link?.getAttribute("title")).toBe(
+      "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx:422",
+    );
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith(
+      "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx:422",
+    );
+
+    fireEvent.contextMenu(link as Element);
+    expect(onOpenFileLinkMenu).toHaveBeenCalledWith(
+      expect.anything(),
+      "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx:422",
+    );
+  });
+
   it("prevents unsupported route fragments without treating them as file links", () => {
     const onOpenFileLink = vi.fn();
     render(
@@ -311,5 +350,60 @@ describe("Markdown file-like href behavior", () => {
     expect(fileLinks).toHaveLength(2);
     expect(fileLinks[0]?.textContent).toContain("setup.md");
     expect(fileLinks[1]?.textContent).toContain("index.ts");
+  });
+
+  it("turns Windows absolute paths in plain text into file links", () => {
+    const { container } = render(
+      <Markdown
+        value="Open I:\\gpt-projects\\CodexMonitor\\src\\App.tsx:12 for details."
+        className="markdown"
+      />,
+    );
+
+    const fileLinks = [...container.querySelectorAll(".message-file-link")];
+    expect(fileLinks).toHaveLength(1);
+    expect(fileLinks[0]?.textContent).toContain("App.tsx");
+    expect(fileLinks[0]?.getAttribute("title")).toBe(
+      "I:\\gpt-projects\\CodexMonitor\\src\\App.tsx:12",
+    );
+  });
+
+  it("normalizes plain-text Windows #L anchors before opening file links", () => {
+    const onOpenFileLink = vi.fn();
+    const { container } = render(
+      <Markdown
+        value="Open I:\\gpt-projects\\CodexMonitor\\src\\App.tsx#L12 for details."
+        className="markdown"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const fileLinks = [...container.querySelectorAll(".message-file-link")];
+    expect(fileLinks).toHaveLength(1);
+    expect(fileLinks[0]?.getAttribute("title")).toBe(
+      "I:\\gpt-projects\\CodexMonitor\\src\\App.tsx:12",
+    );
+
+    const clickEvent = createEvent.click(fileLinks[0] as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(fileLinks[0] as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith(
+      "I:\\gpt-projects\\CodexMonitor\\src\\App.tsx:12",
+    );
+  });
+
+  it("does not linkify Windows paths embedded inside file URLs", () => {
+    const { container } = render(
+      <Markdown
+        value="Download file:///C:/repo/src/App.tsx instead of opening a local file link."
+        className="markdown"
+      />,
+    );
+
+    expect(container.querySelector(".message-file-link")).toBeNull();
+    expect(container.textContent).toContain("file:///C:/repo/src/App.tsx");
   });
 });

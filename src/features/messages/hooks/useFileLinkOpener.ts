@@ -8,6 +8,7 @@ import * as Sentry from "@sentry/react";
 import { openWorkspaceIn } from "../../../services/tauri";
 import { pushErrorToast } from "../../../services/toasts";
 import type { OpenAppTarget } from "../../../types";
+import { parseFileLocation, toFileUrl } from "../../../utils/fileLinks";
 import {
   isAbsolutePath,
   joinWorkspacePath,
@@ -59,86 +60,6 @@ function resolveFilePath(path: string, workspacePath?: string | null) {
     return trimmed;
   }
   return joinWorkspacePath(workspacePath, trimmed);
-}
-
-type ParsedFileLocation = {
-  path: string;
-  line: number | null;
-  column: number | null;
-};
-
-const FILE_LOCATION_SUFFIX_PATTERN = /^(.*?):(\d+)(?::(\d+))?$/;
-const FILE_LOCATION_RANGE_SUFFIX_PATTERN = /^(.*?):(\d+)-(\d+)$/;
-const FILE_LOCATION_HASH_PATTERN = /^(.*?)#L(\d+)(?:C(\d+))?$/i;
-
-function parsePositiveInteger(value?: string) {
-  if (!value) {
-    return null;
-  }
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
-function parseFileLocation(rawPath: string): ParsedFileLocation {
-  const trimmed = rawPath.trim();
-  const hashMatch = trimmed.match(FILE_LOCATION_HASH_PATTERN);
-  if (hashMatch) {
-    const [, path, lineValue, columnValue] = hashMatch;
-    const line = parsePositiveInteger(lineValue);
-    if (line !== null) {
-      return {
-        path,
-        line,
-        column: parsePositiveInteger(columnValue),
-      };
-    }
-  }
-
-  const match = trimmed.match(FILE_LOCATION_SUFFIX_PATTERN);
-  if (match) {
-    const [, path, lineValue, columnValue] = match;
-    const line = parsePositiveInteger(lineValue);
-    if (line === null) {
-      return {
-        path: trimmed,
-        line: null,
-        column: null,
-      };
-    }
-
-    return {
-      path,
-      line,
-      column: parsePositiveInteger(columnValue),
-    };
-  }
-
-  const rangeMatch = trimmed.match(FILE_LOCATION_RANGE_SUFFIX_PATTERN);
-  if (rangeMatch) {
-    const [, path, startLineValue] = rangeMatch;
-    const startLine = parsePositiveInteger(startLineValue);
-    if (startLine !== null) {
-      return {
-        path,
-        line: startLine,
-        column: null,
-      };
-    }
-  }
-
-  return {
-    path: trimmed,
-    line: null,
-    column: null,
-  };
-}
-
-function toFileUrl(path: string, line: number | null, column: number | null) {
-  const base = path.startsWith("/") ? `file://${path}` : path;
-  if (line === null) {
-    return base;
-  }
-  return `${base}#L${line}${column !== null ? `C${column}` : ""}`;
 }
 
 export function useFileLinkOpener(
