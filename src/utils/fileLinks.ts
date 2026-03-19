@@ -19,6 +19,85 @@ function parsePositiveInteger(value?: string) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+function decodeURIComponentSafely(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function normalizeRecognizedFileUrlHash(hash: string) {
+  return FILE_LOCATION_HASH_PATTERN.test(hash) ? hash : "";
+}
+
+function buildLocalPathFromFileUrl(host: string, pathname: string) {
+  const decodedPath = decodeURIComponentSafely(pathname);
+  let path = decodedPath;
+  if (host && host !== "localhost") {
+    const normalizedPath = decodedPath.startsWith("/") ? decodedPath : `/${decodedPath}`;
+    path = `//${host}${normalizedPath}`;
+  }
+  if (/^\/[A-Za-z]:\//.test(path)) {
+    path = path.slice(1);
+  }
+  return path;
+}
+
+function parseManualFileUrl(url: string) {
+  const manualPath = url.slice("file://".length).trim();
+  if (!manualPath) {
+    return null;
+  }
+
+  const hashIndex = manualPath.indexOf("#");
+  const hash = hashIndex === -1 ? "" : manualPath.slice(hashIndex);
+  const pathWithHost = hashIndex === -1 ? manualPath : manualPath.slice(0, hashIndex);
+  if (!pathWithHost) {
+    return null;
+  }
+
+  if (pathWithHost.startsWith("/")) {
+    return {
+      host: "",
+      pathname: pathWithHost,
+      hash,
+    };
+  }
+
+  const slashIndex = pathWithHost.indexOf("/");
+  if (slashIndex === -1) {
+    if (/^[A-Za-z]:$/.test(pathWithHost)) {
+      return {
+        host: "",
+        pathname: `/${pathWithHost}`,
+        hash,
+      };
+    }
+    return {
+      host: pathWithHost,
+      pathname: "",
+      hash,
+    };
+  }
+
+  const host = pathWithHost.slice(0, slashIndex);
+  const pathname = pathWithHost.slice(slashIndex);
+  if (/^[A-Za-z]:$/.test(host)) {
+    return {
+      host: "",
+      pathname: `/${host}${pathname}`,
+      hash,
+    };
+  }
+
+  return {
+    host,
+    pathname,
+    hash,
+  };
+}
+
 export function parseFileLocation(rawPath: string): ParsedFileLocation {
   const trimmed = rawPath.trim();
   const hashMatch = trimmed.match(FILE_LOCATION_HASH_PATTERN);
@@ -192,30 +271,16 @@ export function fromFileUrl(url: string) {
       return null;
     }
 
-    const decodedPath = decodeURIComponent(parsed.pathname);
-    let path = decodedPath;
-    if (parsed.host && parsed.host !== "localhost") {
-      const normalizedPath = decodedPath.startsWith("/")
-        ? decodedPath
-        : `/${decodedPath}`;
-      path = `//${parsed.host}${normalizedPath}`;
-    }
-    if (/^\/[A-Za-z]:\//.test(path)) {
-      path = path.slice(1);
-    }
-    const normalizedHash = FILE_LOCATION_HASH_PATTERN.test(parsed.hash)
-      ? parsed.hash
-      : "";
+    const path = buildLocalPathFromFileUrl(parsed.host, parsed.pathname);
+    const normalizedHash = normalizeRecognizedFileUrlHash(parsed.hash);
     return normalizeFileLinkPath(`${path}${normalizedHash}`);
   } catch {
-    const manualPath = url.slice("file://".length).trim();
-    if (!manualPath) {
+    const manualParts = parseManualFileUrl(url);
+    if (!manualParts) {
       return null;
     }
-    try {
-      return normalizeFileLinkPath(decodeURIComponent(manualPath));
-    } catch {
-      return normalizeFileLinkPath(manualPath);
-    }
+    const path = buildLocalPathFromFileUrl(manualParts.host, manualParts.pathname);
+    const normalizedHash = normalizeRecognizedFileUrlHash(manualParts.hash);
+    return normalizeFileLinkPath(`${path}${normalizedHash}`);
   }
 }

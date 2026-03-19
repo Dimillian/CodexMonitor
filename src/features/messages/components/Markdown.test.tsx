@@ -522,4 +522,48 @@ describe("Markdown file-like href behavior", () => {
     expect(clickEvent.defaultPrevented).toBe(true);
     expect(onOpenFileLink).toHaveBeenCalledWith("/tmp/report.md:12");
   });
+
+  it("preserves Windows drive paths when file URL decoding encounters an unescaped percent", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [report](file:///C:/repo/100%.tsx#L12)"
+        className="markdown"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("report").closest("a");
+    expect(link?.getAttribute("href")).toBe("file:///C:/repo/100%25.tsx#L12");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith("C:/repo/100%.tsx:12");
+  });
+
+  it("preserves UNC host paths when file URL decoding encounters an unescaped percent", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [report](file://server/share/100%.tsx#L12)"
+        className="markdown"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("report").closest("a");
+    expect(link?.getAttribute("href")).toBe("file://server/share/100%25.tsx#L12");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith("//server/share/100%.tsx:12");
+  });
 });
