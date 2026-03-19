@@ -301,8 +301,9 @@ export function GitDiffViewer({
         return null;
       }
       const path = entry.path;
-      const hasStaged = stagedPathSet.has(path);
-      const hasUnstaged = unstagedPathSet.has(path);
+      const hasStaged = stagedPathSet.has(path) || Boolean(entry.stagedDiff?.trim());
+      const hasUnstaged =
+        unstagedPathSet.has(path) || Boolean(entry.unstagedDiff?.trim());
       if (!hasStaged && !hasUnstaged) {
         return null;
       }

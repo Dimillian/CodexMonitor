@@ -1132,31 +1132,32 @@ pub(super) async fn get_git_diffs_inner(
             let is_image = old_image_mime.is_some() || new_image_mime.is_some();
             let is_deleted = delta.status() == git2::Delta::Deleted;
             let is_added = delta.status() == git2::Delta::Added;
-            let path_status = repo.status_file(display_path).unwrap_or(Status::empty());
-            let has_staged =
-                path_status.intersects(Status::INDEX_NEW | Status::INDEX_MODIFIED | Status::INDEX_DELETED | Status::INDEX_RENAMED | Status::INDEX_TYPECHANGE);
-            let has_unstaged =
-                path_status.intersects(Status::WT_NEW | Status::WT_MODIFIED | Status::WT_DELETED | Status::WT_RENAMED | Status::WT_TYPECHANGE);
-            let staged_diff = if has_staged {
-                source_diff_for_path(
-                    &repo_root,
-                    normalized_path.as_str(),
-                    true,
-                    ignore_whitespace_changes,
-                )
-            } else {
-                None
-            };
-            let unstaged_diff = if has_unstaged {
-                source_diff_for_path(
-                    &repo_root,
-                    normalized_path.as_str(),
-                    false,
-                    ignore_whitespace_changes,
-                )
-            } else {
-                None
-            };
+            let staged_diff = source_diff_for_path(
+                &repo_root,
+                normalized_path.as_str(),
+                true,
+                ignore_whitespace_changes,
+            )
+            .and_then(|diff| {
+                if diff.trim().is_empty() {
+                    None
+                } else {
+                    Some(diff)
+                }
+            });
+            let unstaged_diff = source_diff_for_path(
+                &repo_root,
+                normalized_path.as_str(),
+                false,
+                ignore_whitespace_changes,
+            )
+            .and_then(|diff| {
+                if diff.trim().is_empty() {
+                    None
+                } else {
+                    Some(diff)
+                }
+            });
 
             let old_lines = if !is_added {
                 head_tree
