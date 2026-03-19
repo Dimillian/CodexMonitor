@@ -68,7 +68,7 @@ fn app_launch_strategy(app: &str) -> Option<LineAwareLaunchStrategy> {
     if normalized.contains("visual studio code") || normalized.starts_with("cursor") {
         return Some(LineAwareLaunchStrategy::GotoFlag);
     }
-    if normalized == "phpstorm" {
+    if is_phpstorm_app_identifier(&normalized) {
         return Some(LineAwareLaunchStrategy::JetBrainsLineColumnFlags);
     }
     if normalized == "zed" || normalized.starts_with("zed ") {
@@ -88,13 +88,19 @@ fn app_cli_command(app: &str) -> Option<&'static str> {
     if normalized.starts_with("cursor") {
         return Some("cursor");
     }
-    if normalized == "phpstorm" {
+    if is_phpstorm_app_identifier(&normalized) {
         return Some("phpstorm");
     }
     if normalized == "zed" || normalized.starts_with("zed ") {
         return Some("zed");
     }
     None
+}
+
+fn is_phpstorm_app_identifier(normalized: &str) -> bool {
+    normalized == "phpstorm"
+        || normalized == "phpstorm app"
+        || normalized.ends_with(" phpstorm app")
 }
 
 fn find_executable_in_path(program: &str) -> Option<PathBuf> {
@@ -379,6 +385,14 @@ mod tests {
             app_launch_strategy("Zed Preview"),
             Some(LineAwareLaunchStrategy::PathWithLineColumn)
         );
+        assert_eq!(
+            app_launch_strategy("PhpStorm.app"),
+            Some(LineAwareLaunchStrategy::JetBrainsLineColumnFlags)
+        );
+        assert_eq!(
+            app_launch_strategy("/Applications/PhpStorm.app"),
+            Some(LineAwareLaunchStrategy::JetBrainsLineColumnFlags)
+        );
         assert_eq!(app_launch_strategy("Ghostty"), None);
     }
 
@@ -394,6 +408,11 @@ mod tests {
             Some("code-insiders")
         );
         assert_eq!(app_cli_command("Cursor"), Some("cursor"));
+        assert_eq!(app_cli_command("PhpStorm.app"), Some("phpstorm"));
+        assert_eq!(
+            app_cli_command("/Applications/PhpStorm.app"),
+            Some("phpstorm")
+        );
         assert_eq!(app_cli_command("Zed Preview"), Some("zed"));
         assert_eq!(app_cli_command("Ghostty"), None);
     }
