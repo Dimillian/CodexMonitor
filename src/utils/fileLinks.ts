@@ -7,6 +7,7 @@ export type ParsedFileLocation = {
 const FILE_LOCATION_SUFFIX_PATTERN = /^(.*?):(\d+)(?::(\d+))?$/;
 const FILE_LOCATION_RANGE_SUFFIX_PATTERN = /^(.*?):(\d+)-(\d+)$/;
 const FILE_LOCATION_HASH_PATTERN = /^(.*?)#L(\d+)(?:C(\d+))?$/i;
+const FILE_URL_LOCATION_HASH_PATTERN = /^#L(\d+)(?:C(\d+))?$/i;
 
 export const FILE_LINK_SUFFIX_SOURCE =
   "(?:(?::\\d+(?::\\d+)?|:\\d+-\\d+)|(?:#L\\d+(?:C\\d+)?))?";
@@ -27,8 +28,21 @@ function decodeURIComponentSafely(value: string) {
   }
 }
 
-function normalizeRecognizedFileUrlHash(hash: string) {
-  return FILE_LOCATION_HASH_PATTERN.test(hash) ? hash : "";
+function parseRecognizedFileUrlHash(hash: string) {
+  const match = hash.match(FILE_URL_LOCATION_HASH_PATTERN);
+  if (!match) {
+    return {
+      line: null,
+      column: null,
+    };
+  }
+
+  const [, lineValue, columnValue] = match;
+  const line = parsePositiveInteger(lineValue);
+  return {
+    line,
+    column: line === null ? null : parsePositiveInteger(columnValue),
+  };
 }
 
 function buildLocalPathFromFileUrl(host: string, pathname: string) {
@@ -272,15 +286,15 @@ export function fromFileUrl(url: string) {
     }
 
     const path = buildLocalPathFromFileUrl(parsed.host, parsed.pathname);
-    const normalizedHash = normalizeRecognizedFileUrlHash(parsed.hash);
-    return normalizeFileLinkPath(`${path}${normalizedHash}`);
+    const { line, column } = parseRecognizedFileUrlHash(parsed.hash);
+    return formatFileLocation(path, line, column);
   } catch {
     const manualParts = parseManualFileUrl(url);
     if (!manualParts) {
       return null;
     }
     const path = buildLocalPathFromFileUrl(manualParts.host, manualParts.pathname);
-    const normalizedHash = normalizeRecognizedFileUrlHash(manualParts.hash);
-    return normalizeFileLinkPath(`${path}${normalizedHash}`);
+    const { line, column } = parseRecognizedFileUrlHash(manualParts.hash);
+    return formatFileLocation(path, line, column);
   }
 }

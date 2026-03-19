@@ -566,4 +566,26 @@ describe("Markdown file-like href behavior", () => {
     expect(clickEvent.defaultPrevented).toBe(true);
     expect(onOpenFileLink).toHaveBeenCalledWith("//server/share/100%.tsx:12");
   });
+
+  it("keeps encoded #L-like filenames intact when opening file URLs", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [report](file:///tmp/report%23L12.md)"
+        className="markdown"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("report").closest("a");
+    expect(link?.getAttribute("href")).toBe("file:///tmp/report%23L12.md");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith("/tmp/report#L12.md");
+  });
 });

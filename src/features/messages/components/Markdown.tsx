@@ -836,6 +836,8 @@ export function Markdown({
         remarkPlugins={[remarkGfm, remarkFileLinks]}
         urlTransform={(url) => {
           const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(url);
+          // Keep file-like hrefs intact before scheme sanitization runs, otherwise
+          // Windows absolute paths such as C:/repo/file.ts look like unknown schemes.
           if (resolveHrefFilePath(url)) {
             return url;
           }
