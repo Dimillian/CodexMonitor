@@ -101,7 +101,6 @@ export const useSettingsEnvironmentsSection = ({
       setEnvironmentSavedScript(null);
       setEnvironmentDraftScript("");
       setEnvironmentError(null);
-      setEnvironmentSaving(false);
       if (!globalWorktreesFolderDirty) {
         lastSyncedGlobalWorktreesFolderProp.current = appSettings.globalWorktreesFolder;
         setGlobalWorktreesFolderDraft(appSettings.globalWorktreesFolder ?? "");

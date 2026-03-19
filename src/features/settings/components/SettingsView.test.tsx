@@ -884,6 +884,47 @@ describe("SettingsView Environments", () => {
     });
   });
 
+  it("keeps the no-project global worktrees root save state active until the request resolves", async () => {
+    let resolveSave: (() => void) | null = null;
+    const pendingSave = new Promise<void>((resolve) => {
+      resolveSave = resolve;
+    });
+    const onUpdateAppSettings = vi.fn().mockImplementation(() => pendingSave);
+    renderEnvironmentsSection({
+      groupedWorkspaces: [],
+      onUpdateAppSettings,
+    });
+
+    fireEvent.change(screen.getByLabelText("Global worktrees root"), {
+      target: { value: "I:/cm-worktrees" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(
+        (screen.getByRole("button", { name: "Saving..." }) as HTMLButtonElement).disabled,
+      ).toBe(true);
+    });
+    expect((screen.getByLabelText("Global worktrees root") as HTMLInputElement).disabled).toBe(
+      true,
+    );
+    expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Saving..." }));
+    expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveSave?.();
+      await pendingSave;
+    });
+
+    await waitFor(() => {
+      expect((screen.getByRole("button", { name: "Save" }) as HTMLButtonElement).disabled).toBe(
+        true,
+      );
+    });
+  });
+
   it("resyncs the global worktrees root baseline after dirty state clears", async () => {
     const { rerender } = renderEnvironmentsSection({
       groupedWorkspaces: [],
