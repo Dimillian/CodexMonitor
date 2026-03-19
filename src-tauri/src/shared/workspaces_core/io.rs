@@ -286,6 +286,7 @@ pub(crate) async fn open_workspace_in_core(
                         cmd.arg("--args").args(&args);
                     }
                 } else {
+                    cmd.arg("-n");
                     cmd.arg("--args").args(&fallback_app_args);
                 }
                 cmd.output()
