@@ -147,6 +147,7 @@ export const useSettingsEnvironmentsSection = ({
     const nextScript = environmentDraftNormalized;
     const nextGlobalFolder = globalWorktreesFolderDraft.trim() || null;
     const nextFolder = worktreesFolderDraft.trim() || null;
+    const workspaceSettingsDirty = environmentDirty || worktreesFolderDirty;
     setEnvironmentSaving(true);
     setEnvironmentError(null);
     try {
@@ -156,7 +157,7 @@ export const useSettingsEnvironmentsSection = ({
           globalWorktreesFolder: nextGlobalFolder,
         });
       }
-      if (environmentWorkspace) {
+      if (environmentWorkspace && workspaceSettingsDirty) {
         await onUpdateWorkspaceSettings(environmentWorkspace.id, {
           worktreeSetupScript: nextScript,
           worktreesFolder: nextFolder,

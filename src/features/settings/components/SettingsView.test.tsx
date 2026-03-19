@@ -789,6 +789,7 @@ describe("SettingsView Environments", () => {
         }),
       );
     });
+    expect(onUpdateWorkspaceSettings).not.toHaveBeenCalled();
   });
 
   it("does not clear an existing global worktrees root when saving project-only changes", async () => {
@@ -832,6 +833,24 @@ describe("SettingsView Environments", () => {
         }),
       );
     });
+  });
+
+  it("shows save errors for the global worktrees root when there are no projects", async () => {
+    const onUpdateAppSettings = vi
+      .fn()
+      .mockRejectedValue(new Error("Failed to save global worktrees root"));
+    renderEnvironmentsSection({
+      groupedWorkspaces: [],
+      onUpdateAppSettings,
+    });
+
+    const input = screen.getByLabelText("Global worktrees root");
+    fireEvent.change(input, { target: { value: "I:/cm-worktrees" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("Failed to save global worktrees root"),
+    ).toBeTruthy();
   });
 
   it("saves the setup script for the selected project", async () => {

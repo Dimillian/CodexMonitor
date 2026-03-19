@@ -119,6 +119,9 @@ export function SettingsEnvironmentsSection({
             </button>
           </div>
         ) : null}
+        {!hasProjects && environmentError ? (
+          <div className="settings-agents-error">{environmentError}</div>
+        ) : null}
       </div>
 
       {!hasProjects ? (
