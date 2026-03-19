@@ -429,20 +429,24 @@ const workspace = (
 
 const renderEnvironmentsSection = (
   options: {
+    appSettings?: Partial<AppSettings>;
     groupedWorkspaces?: ComponentProps<typeof SettingsView>["groupedWorkspaces"];
+    onUpdateAppSettings?: ComponentProps<typeof SettingsView>["onUpdateAppSettings"];
     onUpdateWorkspaceSettings?: ComponentProps<typeof SettingsView>["onUpdateWorkspaceSettings"];
   } = {},
 ) => {
   cleanup();
+  const onUpdateAppSettings =
+    options.onUpdateAppSettings ?? vi.fn().mockResolvedValue(undefined);
   const onUpdateWorkspaceSettings =
     options.onUpdateWorkspaceSettings ?? vi.fn().mockResolvedValue(undefined);
 
   const props: ComponentProps<typeof SettingsView> = {
     reduceTransparency: false,
     onToggleTransparency: vi.fn(),
-    appSettings: baseSettings,
+    appSettings: { ...baseSettings, ...options.appSettings },
     openAppIconById: {},
-    onUpdateAppSettings: vi.fn().mockResolvedValue(undefined),
+    onUpdateAppSettings,
     workspaceGroups: [],
     groupedWorkspaces:
       options.groupedWorkspaces ??
@@ -485,7 +489,7 @@ const renderEnvironmentsSection = (
   };
 
   render(<SettingsView {...props} />);
-  return { onUpdateWorkspaceSettings };
+  return { onUpdateAppSettings, onUpdateWorkspaceSettings };
 };
 
 describe("SettingsView Display", () => {
@@ -755,6 +759,81 @@ describe("SettingsView About", () => {
 });
 
 describe("SettingsView Environments", () => {
+  it("shows the global worktrees root input", () => {
+    renderEnvironmentsSection({
+      appSettings: { globalWorktreesFolder: "I:/existing-worktrees" },
+    });
+
+    const input = screen.getByLabelText("Global worktrees root");
+    expect(input).toBeTruthy();
+    expect((input as HTMLInputElement).value).toBe("I:/existing-worktrees");
+    expect((input as HTMLInputElement).placeholder).toBe("/path/to/worktrees-root");
+  });
+
+  it("saves the global worktrees root through app settings", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    const onUpdateWorkspaceSettings = vi.fn().mockResolvedValue(undefined);
+    renderEnvironmentsSection({
+      onUpdateAppSettings,
+      onUpdateWorkspaceSettings,
+    });
+
+    const input = screen.getByLabelText("Global worktrees root");
+    fireEvent.change(input, { target: { value: "I:/cm-worktrees" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          globalWorktreesFolder: "I:/cm-worktrees",
+        }),
+      );
+    });
+  });
+
+  it("does not clear an existing global worktrees root when saving project-only changes", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    const onUpdateWorkspaceSettings = vi.fn().mockResolvedValue(undefined);
+    renderEnvironmentsSection({
+      appSettings: { globalWorktreesFolder: "I:/existing-worktrees" },
+      onUpdateAppSettings,
+      onUpdateWorkspaceSettings,
+    });
+
+    const textarea = screen.getByPlaceholderText("pnpm install");
+    fireEvent.change(textarea, { target: { value: "echo updated" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onUpdateWorkspaceSettings).toHaveBeenCalledWith("w1", {
+        worktreeSetupScript: "echo updated",
+        worktreesFolder: null,
+      });
+    });
+    expect(onUpdateAppSettings).not.toHaveBeenCalled();
+  });
+
+  it("keeps the global worktrees root editable when there are no projects", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    renderEnvironmentsSection({
+      groupedWorkspaces: [],
+      onUpdateAppSettings,
+    });
+
+    expect(screen.getByText("No projects yet.")).toBeTruthy();
+    const input = screen.getByLabelText("Global worktrees root");
+    fireEvent.change(input, { target: { value: "I:/cm-worktrees" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          globalWorktreesFolder: "I:/cm-worktrees",
+        }),
+      );
+    });
+  });
+
   it("saves the setup script for the selected project", async () => {
     const onUpdateWorkspaceSettings = vi.fn().mockResolvedValue(undefined);
     renderEnvironmentsSection({ onUpdateWorkspaceSettings });
