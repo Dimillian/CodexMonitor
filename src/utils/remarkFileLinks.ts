@@ -1,4 +1,8 @@
-import { FILE_LINK_SUFFIX_SOURCE, normalizeFileLinkPath } from "./fileLinks";
+import {
+  FILE_LINK_SUFFIX_SOURCE,
+  isKnownLocalWorkspaceRoutePath,
+  normalizeFileLinkPath,
+} from "./fileLinks";
 
 const FILE_LINK_PROTOCOL = "codex-file:";
 const POSIX_OR_RELATIVE_FILE_PATH_PATTERN =
@@ -93,6 +97,11 @@ function linkifyText(value: string) {
     const { path, trailing } = splitTrailingPunctuation(raw);
     if (path && isPathCandidate(path, leadingText, previousChar)) {
       const normalizedPath = normalizeFileLinkPath(path);
+      if (isKnownLocalWorkspaceRoutePath(normalizedPath)) {
+        nodes.push({ type: "text", value: raw });
+        lastIndex = matchIndex + raw.length;
+        continue;
+      }
       nodes.push({
         type: "link",
         url: toFileLink(normalizedPath),
@@ -152,6 +161,9 @@ export function remarkFileLinks() {
 export function isLinkableFilePath(value: string) {
   const trimmed = value.trim();
   if (!trimmed) {
+    return false;
+  }
+  if (isKnownLocalWorkspaceRoutePath(trimmed)) {
     return false;
   }
   if (!FILE_PATH_MATCH.test(trimmed)) {

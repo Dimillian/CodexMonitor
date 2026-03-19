@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   fromFileUrl,
+  isKnownLocalWorkspaceRoutePath as isKnownLocalWorkspaceRouteFilePath,
   normalizeFileLinkPath,
   parseFileLocation,
 } from "../../../utils/fileLinks";
@@ -349,6 +350,12 @@ function isLikelyFileHref(
   }
   if (pathOnly.startsWith("/")) {
     if (parsedLocation.line !== null) {
+      const normalizedPath = pathOnly.replace(/\\/g, "/");
+      if (
+        WORKSPACE_ROUTE_PREFIXES.some((prefix) => normalizedPath.startsWith(prefix))
+      ) {
+        return isLikelyMountedWorkspaceFilePath(normalizedPath, workspacePath);
+      }
       return true;
     }
     if (hasLikelyFileName(pathOnly)) {
@@ -662,6 +669,9 @@ export function Markdown({
   const getLinkablePath = (rawValue: string) => {
     const normalizedPath = normalizeFileLinkPath(rawValue).trim();
     if (!normalizedPath) {
+      return null;
+    }
+    if (isKnownLocalWorkspaceRouteFilePath(normalizedPath)) {
       return null;
     }
     if (!isLinkableFilePath(normalizedPath)) {

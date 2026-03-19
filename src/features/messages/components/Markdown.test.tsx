@@ -313,6 +313,78 @@ describe("Markdown file-like href behavior", () => {
     expect(onOpenFileLink).not.toHaveBeenCalled();
   });
 
+  it("keeps workspace settings #L anchors as local routes", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [settings](/workspace/settings#L12)"
+        className="markdown"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("settings").closest("a");
+    expect(link?.getAttribute("href")).toBe("/workspace/settings#L12");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).not.toHaveBeenCalled();
+  });
+
+  it("keeps workspace reviews #L anchors as local routes", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [reviews](/workspace/reviews#L9)"
+        className="markdown"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("reviews").closest("a");
+    expect(link?.getAttribute("href")).toBe("/workspace/reviews#L9");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).not.toHaveBeenCalled();
+  });
+
+  it("does not linkify workspace settings #L anchors in plain text", () => {
+    const { container } = render(
+      <Markdown
+        value="See /workspace/settings#L12 for app settings."
+        className="markdown"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+      />,
+    );
+
+    expect(container.querySelector(".message-file-link")).toBeNull();
+    expect(container.textContent).toContain("/workspace/settings#L12");
+  });
+
+  it("does not turn workspace review #L anchors in inline code into file links", () => {
+    const { container } = render(
+      <Markdown
+        value="Use `/workspace/reviews#L9` to reference the reviews route."
+        className="markdown"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+      />,
+    );
+
+    expect(container.querySelector(".message-file-link")).toBeNull();
+    expect(container.querySelector("code")?.textContent).toBe("/workspace/reviews#L9");
+  });
+
   it("does not turn natural-language slash phrases into file links", () => {
     const { container } = render(
       <Markdown

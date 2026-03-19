@@ -83,6 +83,25 @@ export function normalizeFileLinkPath(rawPath: string) {
   return formatFileLocation(parsed.path, parsed.line, parsed.column);
 }
 
+export function isKnownLocalWorkspaceRoutePath(rawPath: string) {
+  const normalizedPath = parseFileLocation(rawPath).path.trim().replace(/\\/g, "/");
+  if (normalizedPath.startsWith("/workspace/")) {
+    const routeSegment = normalizedPath
+      .slice("/workspace/".length)
+      .split("/")
+      .filter(Boolean)[0];
+    return routeSegment === "reviews" || routeSegment === "settings";
+  }
+  if (normalizedPath.startsWith("/workspaces/")) {
+    const routeSegment = normalizedPath
+      .slice("/workspaces/".length)
+      .split("/")
+      .filter(Boolean)[1];
+    return routeSegment === "reviews" || routeSegment === "settings";
+  }
+  return false;
+}
+
 type FileUrlParts = {
   host: string;
   pathname: string;
