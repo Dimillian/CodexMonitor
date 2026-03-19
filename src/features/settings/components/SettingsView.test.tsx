@@ -814,6 +814,40 @@ describe("SettingsView Environments", () => {
     expect(onUpdateAppSettings).not.toHaveBeenCalled();
   });
 
+  it("keeps the global worktrees root marked as saved after workspace save fails", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    const onUpdateWorkspaceSettings = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Failed to save workspace settings"))
+      .mockResolvedValueOnce(undefined);
+    renderEnvironmentsSection({
+      appSettings: { globalWorktreesFolder: "I:/existing-worktrees" },
+      onUpdateAppSettings,
+      onUpdateWorkspaceSettings,
+    });
+
+    fireEvent.change(screen.getByLabelText("Global worktrees root"), {
+      target: { value: "I:/cm-worktrees" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("pnpm install"), {
+      target: { value: "echo updated" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("Failed to save workspace settings"),
+    ).toBeTruthy();
+    expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
+    expect(onUpdateWorkspaceSettings).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onUpdateWorkspaceSettings).toHaveBeenCalledTimes(2);
+    });
+    expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps the global worktrees root editable when there are no projects", async () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderEnvironmentsSection({
@@ -851,6 +885,50 @@ describe("SettingsView Environments", () => {
     expect(
       await screen.findByText("Failed to save global worktrees root"),
     ).toBeTruthy();
+  });
+
+  it("keeps the new global worktrees root as saved when workspace settings fail afterward", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    const onUpdateWorkspaceSettings = vi
+      .fn()
+      .mockRejectedValue(new Error("Failed to save workspace settings"));
+    renderEnvironmentsSection({
+      appSettings: { globalWorktreesFolder: "I:/existing-worktrees" },
+      onUpdateAppSettings,
+      onUpdateWorkspaceSettings,
+    });
+
+    const input = screen.getByLabelText("Global worktrees root");
+    const textarea = screen.getByPlaceholderText("pnpm install");
+    fireEvent.change(input, { target: { value: "I:/cm-worktrees" } });
+    fireEvent.change(textarea, { target: { value: "echo updated" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("Failed to save workspace settings"),
+    ).toBeTruthy();
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          globalWorktreesFolder: "I:/cm-worktrees",
+        }),
+      );
+      expect(onUpdateWorkspaceSettings).toHaveBeenCalledWith("w1", {
+        worktreeSetupScript: "echo updated",
+        worktreesFolder: null,
+      });
+    });
+
+    expect((input as HTMLInputElement).value).toBe("I:/cm-worktrees");
+
+    onUpdateWorkspaceSettings.mockResolvedValueOnce(undefined);
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onUpdateWorkspaceSettings).toHaveBeenCalledTimes(2);
+    });
+    expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
   });
 
   it("saves the setup script for the selected project", async () => {

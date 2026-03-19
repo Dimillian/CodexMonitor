@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { AppSettings, WorkspaceInfo } from "@/types";
 import { normalizeWorktreeSetupScript } from "@settings/components/settingsViewHelpers";
@@ -54,6 +54,7 @@ export const useSettingsEnvironmentsSection = ({
   );
   const [worktreesFolderDraft, setWorktreesFolderDraft] = useState("");
   const [worktreesFolderSaved, setWorktreesFolderSaved] = useState<string | null>(null);
+  const lastGlobalWorktreesFolderProp = useRef(appSettings.globalWorktreesFolder);
 
   const environmentWorkspace = useMemo(() => {
     if (mainWorkspaces.length === 0) return null;
@@ -82,15 +83,16 @@ export const useSettingsEnvironmentsSection = ({
   const worktreesFolderDirty = (worktreesFolderDraft.trim() || null) !== worktreesFolderSaved;
 
   useEffect(() => {
-    if (!globalWorktreesFolderDirty && globalWorktreesFolderSaved !== appSettings.globalWorktreesFolder) {
+    const previousGlobalWorktreesFolder = lastGlobalWorktreesFolderProp.current;
+    lastGlobalWorktreesFolderProp.current = appSettings.globalWorktreesFolder;
+    if (previousGlobalWorktreesFolder === appSettings.globalWorktreesFolder) {
+      return;
+    }
+    if (!globalWorktreesFolderDirty) {
       setGlobalWorktreesFolderSaved(appSettings.globalWorktreesFolder);
       setGlobalWorktreesFolderDraft(appSettings.globalWorktreesFolder ?? "");
     }
-  }, [
-    appSettings.globalWorktreesFolder,
-    globalWorktreesFolderDirty,
-    globalWorktreesFolderSaved,
-  ]);
+  }, [appSettings.globalWorktreesFolder, globalWorktreesFolderDirty]);
 
   useEffect(() => {
     if (!environmentWorkspace) {
@@ -147,28 +149,29 @@ export const useSettingsEnvironmentsSection = ({
     const nextScript = environmentDraftNormalized;
     const nextGlobalFolder = globalWorktreesFolderDraft.trim() || null;
     const nextFolder = worktreesFolderDraft.trim() || null;
+    const globalWorktreesFolderChanged = nextGlobalFolder !== globalWorktreesFolderSaved;
     const workspaceSettingsDirty = environmentDirty || worktreesFolderDirty;
     setEnvironmentSaving(true);
     setEnvironmentError(null);
     try {
-      if (nextGlobalFolder !== globalWorktreesFolderSaved) {
+      if (globalWorktreesFolderChanged) {
         await onUpdateAppSettings({
           ...appSettings,
           globalWorktreesFolder: nextGlobalFolder,
         });
+        setGlobalWorktreesFolderSaved(nextGlobalFolder);
+        setGlobalWorktreesFolderDraft(nextGlobalFolder ?? "");
       }
       if (environmentWorkspace && workspaceSettingsDirty) {
         await onUpdateWorkspaceSettings(environmentWorkspace.id, {
           worktreeSetupScript: nextScript,
           worktreesFolder: nextFolder,
         });
+        setEnvironmentSavedScript(nextScript);
+        setEnvironmentDraftScript(nextScript ?? "");
+        setWorktreesFolderSaved(nextFolder);
+        setWorktreesFolderDraft(nextFolder ?? "");
       }
-      setGlobalWorktreesFolderSaved(nextGlobalFolder);
-      setGlobalWorktreesFolderDraft(nextGlobalFolder ?? "");
-      setEnvironmentSavedScript(nextScript);
-      setEnvironmentDraftScript(nextScript ?? "");
-      setWorktreesFolderSaved(nextFolder);
-      setWorktreesFolderDraft(nextFolder ?? "");
     } catch (error) {
       setEnvironmentError(error instanceof Error ? error.message : String(error));
     } finally {
