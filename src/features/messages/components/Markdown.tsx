@@ -274,9 +274,13 @@ function isKnownLocalWorkspaceRoutePath(path: string) {
 
   const routeSegment =
     mountedPath.prefix === "/workspace/"
-      ? mountedPath.segments[0]
-      : mountedPath.segments[1];
-  return Boolean(routeSegment) && LOCAL_WORKSPACE_ROUTE_SEGMENTS.has(routeSegment);
+      ? mountedPath.segments.length === 1
+        ? mountedPath.segments[0]
+        : null
+      : mountedPath.segments.length === 2
+        ? mountedPath.segments[1]
+        : null;
+  return routeSegment !== null && LOCAL_WORKSPACE_ROUTE_SEGMENTS.has(routeSegment);
 }
 
 function isLikelyMountedWorkspaceFilePath(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fromFileUrl } from "./fileLinks";
+import { fromFileUrl, isKnownLocalWorkspaceRoutePath } from "./fileLinks";
 
 function withThrowingUrlConstructor(run: () => void) {
   const originalUrl = globalThis.URL;
@@ -69,5 +69,25 @@ describe("fromFileUrl", () => {
       expect(fromFileUrl("file:///tmp/%23L12")).toBe("/tmp/#L12");
       expect(fromFileUrl("file:///tmp/report%23L12.md#L34")).toBe("/tmp/report#L12.md:34");
     });
+  });
+});
+
+describe("isKnownLocalWorkspaceRoutePath", () => {
+  it("matches only exact mounted settings and reviews routes", () => {
+    expect(isKnownLocalWorkspaceRoutePath("/workspace/settings")).toBe(true);
+    expect(isKnownLocalWorkspaceRoutePath("/workspace/reviews")).toBe(true);
+    expect(isKnownLocalWorkspaceRoutePath("/workspaces/team/settings")).toBe(true);
+    expect(isKnownLocalWorkspaceRoutePath("/workspaces/team/reviews")).toBe(true);
+  });
+
+  it("does not treat deeper mounted paths as reserved routes", () => {
+    expect(isKnownLocalWorkspaceRoutePath("/workspace/settings/src/App.tsx")).toBe(false);
+    expect(isKnownLocalWorkspaceRoutePath("/workspace/reviews/src/App.tsx")).toBe(false);
+    expect(isKnownLocalWorkspaceRoutePath("/workspaces/team/settings/src/App.tsx")).toBe(
+      false,
+    );
+    expect(isKnownLocalWorkspaceRoutePath("/workspaces/team/reviews/src/App.tsx")).toBe(
+      false,
+    );
   });
 });

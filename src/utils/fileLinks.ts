@@ -179,18 +179,22 @@ export function normalizeFileLinkPath(rawPath: string) {
 export function isKnownLocalWorkspaceRoutePath(rawPath: string) {
   const normalizedPath = parseFileLocation(rawPath).path.trim().replace(/\\/g, "/");
   if (normalizedPath.startsWith("/workspace/")) {
-    const routeSegment = normalizedPath
+    const mountedSegments = normalizedPath
       .slice("/workspace/".length)
       .split("/")
-      .filter(Boolean)[0];
-    return routeSegment === "reviews" || routeSegment === "settings";
+      .filter(Boolean);
+    return mountedSegments.length === 1
+      ? mountedSegments[0] === "reviews" || mountedSegments[0] === "settings"
+      : false;
   }
   if (normalizedPath.startsWith("/workspaces/")) {
-    const routeSegment = normalizedPath
+    const mountedSegments = normalizedPath
       .slice("/workspaces/".length)
       .split("/")
-      .filter(Boolean)[1];
-    return routeSegment === "reviews" || routeSegment === "settings";
+      .filter(Boolean);
+    return mountedSegments.length === 2
+      ? mountedSegments[1] === "reviews" || mountedSegments[1] === "settings"
+      : false;
   }
   return false;
 }

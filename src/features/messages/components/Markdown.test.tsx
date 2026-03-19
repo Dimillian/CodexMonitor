@@ -161,19 +161,19 @@ describe("Markdown file-like href behavior", () => {
     expect(onOpenFileLink).toHaveBeenCalledWith("/workspace/dist/assets");
   });
 
-  it("keeps generic workspace routes as normal markdown links", () => {
+  it("keeps exact workspace routes as normal markdown links", () => {
     const onOpenFileLink = vi.fn();
     render(
       <Markdown
-        value="See [overview](/workspace/reviews/overview)"
+        value="See [reviews](/workspace/reviews)"
         className="markdown"
         workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
         onOpenFileLink={onOpenFileLink}
       />,
     );
 
-    const link = screen.getByText("overview").closest("a");
-    expect(link?.getAttribute("href")).toBe("/workspace/reviews/overview");
+    const link = screen.getByText("reviews").closest("a");
+    expect(link?.getAttribute("href")).toBe("/workspace/reviews");
 
     const clickEvent = createEvent.click(link as Element, {
       bubbles: true,
@@ -587,5 +587,49 @@ describe("Markdown file-like href behavior", () => {
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
     expect(onOpenFileLink).toHaveBeenCalledWith("/tmp/report#L12.md");
+  });
+
+  it("still opens mounted file links when the workspace basename is settings", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [app](/workspace/settings/src/App.tsx)"
+        className="markdown"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("app").closest("a");
+    expect(link?.getAttribute("href")).toBe("/workspace/settings/src/App.tsx");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith("/workspace/settings/src/App.tsx");
+  });
+
+  it("linkifies mounted file paths when the nested workspace basename is reviews", () => {
+    const onOpenFileLink = vi.fn();
+    const { container } = render(
+      <Markdown
+        value="See /workspaces/team/reviews/src/App.tsx for details."
+        className="markdown"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = container.querySelector('a[href^="codex-file:"]');
+    expect(link).not.toBeNull();
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith("/workspaces/team/reviews/src/App.tsx");
   });
 });
