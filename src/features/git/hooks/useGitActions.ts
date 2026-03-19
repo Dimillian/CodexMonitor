@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ask } from "@tauri-apps/plugin-dialog";
 import {
+  applyGitDisplayHunk as applyGitDisplayHunkService,
   applyWorktreeChanges as applyWorktreeChangesService,
   createGitHubRepo as createGitHubRepoService,
   initGitRepo as initGitRepoService,
@@ -120,6 +121,33 @@ export function useGitActions({
           options.op,
           options.source,
           options.lines,
+        );
+      } catch (error) {
+        onError?.(error);
+        return null;
+      } finally {
+        if (workspaceIdRef.current === actionWorkspaceId) {
+          await refreshGitData();
+        }
+      }
+    },
+    [onError, refreshGitData, workspaceId],
+  );
+
+  const applyGitDisplayHunk = useCallback(
+    async (options: {
+      path: string;
+      displayHunkId: string;
+    }): Promise<GitSelectionApplyResult | null> => {
+      if (!workspaceId) {
+        return null;
+      }
+      const actionWorkspaceId = workspaceId;
+      try {
+        return await applyGitDisplayHunkService(
+          actionWorkspaceId,
+          options.path,
+          options.displayHunkId,
         );
       } catch (error) {
         onError?.(error);
@@ -363,6 +391,7 @@ export function useGitActions({
     initGitRepoLoading,
     revertAllGitChanges,
     revertGitFile,
+    applyGitDisplayHunk,
     stageGitAll,
     stageGitFile,
     stageGitSelection,

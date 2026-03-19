@@ -1,6 +1,6 @@
 import type {
+  GitFileDisplayHunk,
   GitSelectionApplyResult,
-  GitSelectionLine,
   GitHubPullRequest,
   GitHubPullRequestComment,
   PullRequestReviewAction,
@@ -16,6 +16,7 @@ export type GitDiffViewerItem = {
   diff: string;
   stagedDiff?: string | null;
   unstagedDiff?: string | null;
+  displayHunks?: GitFileDisplayHunk[];
   oldLines?: string[];
   newLines?: string[];
   isImage?: boolean;
@@ -25,19 +26,14 @@ export type GitDiffViewerItem = {
   newImageMime?: string | null;
 };
 
-export type LocalLineAction = {
-  op: "stage" | "unstage";
-  source: "unstaged" | "staged";
+export type LocalLineAction = Pick<GitFileDisplayHunk, "id" | "source" | "action"> & {
   label: "Stage" | "Unstage";
   title: string;
   disabledReason?: string;
 };
 
 export type LocalLineActionContext = {
-  hasStaged: boolean;
-  hasUnstaged: boolean;
-  stagedDiff?: string | null;
-  unstagedDiff?: string | null;
+  displayHunks: GitFileDisplayHunk[];
   disabledReason?: string;
 };
 
@@ -75,11 +71,9 @@ export type GitDiffViewerProps = {
   onRevertFile?: (path: string) => Promise<void> | void;
   stagedPaths?: string[];
   unstagedPaths?: string[];
-  onStageSelection?: (options: {
+  onApplyDisplayHunk?: (options: {
     path: string;
-    op: "stage" | "unstage";
-    source: "unstaged" | "staged";
-    lines: GitSelectionLine[];
+    displayHunkId: string;
   }) => Promise<GitSelectionApplyResult | null>;
   onActivePathChange?: (path: string) => void;
   onInsertComposerText?: (text: string) => void;

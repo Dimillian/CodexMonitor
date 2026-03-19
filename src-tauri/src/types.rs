@@ -30,6 +30,17 @@ pub(crate) struct GitSelectionApplyResult {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GitFileDisplayHunk {
+    pub(crate) id: String,
+    pub(crate) source: String,
+    pub(crate) action: String,
+    pub(crate) start_display_line_index: usize,
+    pub(crate) end_display_line_index: usize,
+    pub(crate) line_count: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct GitFileDiff {
     pub(crate) path: String,
     pub(crate) diff: String,
@@ -37,6 +48,8 @@ pub(crate) struct GitFileDiff {
     pub(crate) staged_diff: Option<String>,
     #[serde(default, rename = "unstagedDiff")]
     pub(crate) unstaged_diff: Option<String>,
+    #[serde(default, rename = "displayHunks")]
+    pub(crate) display_hunks: Vec<GitFileDisplayHunk>,
     #[serde(default, rename = "oldLines")]
     pub(crate) old_lines: Option<Vec<String>>,
     #[serde(default, rename = "newLines")]

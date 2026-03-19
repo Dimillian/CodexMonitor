@@ -18,6 +18,17 @@ use crate::utils::{git_env_path, normalize_git_path, resolve_git_binary};
 
 use super::context::workspace_entry_for_id;
 
+fn git_selection_debug_enabled() -> bool {
+    std::env::var_os("CODEX_MONITOR_GIT_SELECTION_DEBUG").is_some()
+}
+
+fn git_selection_debug_log(event: &str, payload: Value) {
+    if !git_selection_debug_enabled() {
+        return;
+    }
+    eprintln!("[git-selection] {event} {}", payload);
+}
+
 async fn run_git_command(repo_root: &Path, args: &[&str]) -> Result<(), String> {
     let git_bin = resolve_git_binary().map_err(|e| format!("Failed to run git: {e}"))?;
     let output = tokio_command(git_bin)
@@ -401,7 +412,7 @@ async fn pull_with_default_strategy(repo_root: &Path) -> Result<(), String> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum SelectionLineType {
+pub(super) enum SelectionLineType {
     Add,
     Del,
 }
@@ -444,24 +455,34 @@ impl TryFrom<&GitSelectionLine> for SelectionLineKey {
 }
 
 #[derive(Debug, Clone)]
-struct ParsedPatchLine {
-    line_type: SelectionLineType,
-    old_line: Option<usize>,
-    new_line: Option<usize>,
-    old_anchor: usize,
-    new_anchor: usize,
-    text: String,
+pub(super) struct ParsedPatchLine {
+    pub(super) line_type: SelectionLineType,
+    pub(super) old_line: Option<usize>,
+    pub(super) new_line: Option<usize>,
+    pub(super) old_anchor: usize,
+    pub(super) new_anchor: usize,
+    pub(super) text: String,
 }
 
 #[derive(Debug, Clone)]
-struct ParsedPatchHunk {
-    lines: Vec<ParsedPatchLine>,
+pub(super) struct ParsedPatchHunk {
+    pub(super) old_start: usize,
+    pub(super) old_count: usize,
+    pub(super) new_start: usize,
+    pub(super) new_count: usize,
+    pub(super) lines: Vec<ParsedPatchLine>,
 }
 
 #[derive(Debug, Clone)]
-struct ParsedPatch {
-    headers: Vec<String>,
-    hunks: Vec<ParsedPatchHunk>,
+pub(super) struct ParsedPatch {
+    pub(super) headers: Vec<String>,
+    pub(super) hunks: Vec<ParsedPatchHunk>,
+}
+
+#[derive(Debug, Clone)]
+struct SelectionSourceFileContext {
+    old_lines: Vec<String>,
+    new_lines: Vec<String>,
 }
 
 fn parse_hunk_range(raw: &str) -> Option<(usize, usize)> {
@@ -472,7 +493,7 @@ fn parse_hunk_range(raw: &str) -> Option<(usize, usize)> {
     }
 }
 
-fn parse_hunk_header(line: &str) -> Option<(usize, usize, usize, usize)> {
+pub(super) fn parse_hunk_header(line: &str) -> Option<(usize, usize, usize, usize)> {
     let suffix = line.strip_prefix("@@ -")?;
     let (old_range_raw, rest) = suffix.split_once(" +")?;
     let marker_index = rest.find(" @@")?;
@@ -482,7 +503,7 @@ fn parse_hunk_header(line: &str) -> Option<(usize, usize, usize, usize)> {
     Some((old_start, old_count, new_start, new_count))
 }
 
-fn parse_zero_context_patch(diff_patch: &str) -> Result<ParsedPatch, String> {
+pub(super) fn parse_zero_context_patch(diff_patch: &str) -> Result<ParsedPatch, String> {
     let lines: Vec<&str> = diff_patch.lines().collect();
     if lines.is_empty() {
         return Err("No patch content to apply.".to_string());
@@ -536,7 +557,13 @@ fn parse_zero_context_patch(diff_patch: &str) -> Result<ParsedPatch, String> {
                 inner_index += 1;
             }
             if !parsed_lines.is_empty() {
-                hunks.push(ParsedPatchHunk { lines: parsed_lines });
+                hunks.push(ParsedPatchHunk {
+                    old_start,
+                    old_count: _old_count,
+                    new_start,
+                    new_count: _new_count,
+                    lines: parsed_lines,
+                });
             }
             index = inner_index;
             continue;
@@ -555,16 +582,328 @@ fn parse_zero_context_patch(diff_patch: &str) -> Result<ParsedPatch, String> {
     Ok(ParsedPatch { headers, hunks })
 }
 
+pub(super) fn parsed_patch_hunk_id(source: &str, hunk: &ParsedPatchHunk) -> String {
+    format!(
+        "{source}:{}:{}:{}:{}",
+        hunk.old_start,
+        hunk.old_count,
+        hunk.new_start,
+        hunk.new_count
+    )
+}
+
+fn split_text_lines(content: &str) -> Vec<String> {
+    content.lines().map(ToString::to_string).collect()
+}
+
+fn blob_to_lines(blob: git2::Blob<'_>) -> Result<Vec<String>, String> {
+    let content = String::from_utf8(blob.content().to_vec())
+        .map_err(|_| "Selected file contents are not valid UTF-8.".to_string())?;
+    Ok(split_text_lines(&content))
+}
+
+fn read_head_lines(repo: &Repository, path: &str) -> Result<Vec<String>, String> {
+    let head = match repo.head() {
+        Ok(head) => head,
+        Err(_) => return Ok(Vec::new()),
+    };
+    let tree = head.peel_to_tree().map_err(|e| e.to_string())?;
+    let entry = match tree.get_path(Path::new(path)) {
+        Ok(entry) => entry,
+        Err(_) => return Ok(Vec::new()),
+    };
+    let blob = repo.find_blob(entry.id()).map_err(|e| e.to_string())?;
+    blob_to_lines(blob)
+}
+
+fn read_index_lines(repo: &Repository, path: &str) -> Result<Vec<String>, String> {
+    let index = repo.index().map_err(|e| e.to_string())?;
+    let entry = match index.get_path(Path::new(path), 0) {
+        Some(entry) => entry,
+        None => return Ok(Vec::new()),
+    };
+    let blob = repo.find_blob(entry.id).map_err(|e| e.to_string())?;
+    blob_to_lines(blob)
+}
+
+fn read_worktree_lines(repo_root: &Path, path: &str) -> Result<Vec<String>, String> {
+    let full_path = repo_root.join(path);
+    let data = match fs::read(&full_path) {
+        Ok(data) => data,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => {
+            return Err(format!(
+                "Failed to read selected worktree file {}: {error}",
+                full_path.display()
+            ));
+        }
+    };
+    let content = String::from_utf8(data)
+        .map_err(|_| "Selected file contents are not valid UTF-8.".to_string())?;
+    Ok(split_text_lines(&content))
+}
+
+fn load_selection_source_file_context(
+    repo_root: &Path,
+    path: &str,
+    source: &str,
+) -> Result<SelectionSourceFileContext, String> {
+    let repo = Repository::open(repo_root).map_err(|e| e.to_string())?;
+    match source {
+        "unstaged" => Ok(SelectionSourceFileContext {
+            old_lines: read_index_lines(&repo, path)?,
+            new_lines: read_worktree_lines(repo_root, path)?,
+        }),
+        "staged" => Ok(SelectionSourceFileContext {
+            old_lines: read_head_lines(&repo, path)?,
+            new_lines: read_index_lines(&repo, path)?,
+        }),
+        _ => Err("Invalid selection source.".to_string()),
+    }
+}
+
+fn context_before_old_end(line: &ParsedPatchLine) -> usize {
+    match line.line_type {
+        SelectionLineType::Add => line.old_anchor,
+        SelectionLineType::Del => line.old_anchor.saturating_sub(1),
+    }
+}
+
+fn context_before_new_end(line: &ParsedPatchLine) -> usize {
+    match line.line_type {
+        SelectionLineType::Add => line.new_anchor.saturating_sub(1),
+        SelectionLineType::Del => line.new_anchor,
+    }
+}
+
+fn context_after_old_start(line: &ParsedPatchLine) -> usize {
+    line.old_anchor + 1
+}
+
+fn context_after_new_start(line: &ParsedPatchLine) -> usize {
+    match line.line_type {
+        SelectionLineType::Add => line.new_anchor + 1,
+        SelectionLineType::Del => line.new_anchor,
+    }
+}
+
+fn selected_old_start(line: &ParsedPatchLine) -> usize {
+    match line.line_type {
+        SelectionLineType::Add => line.old_anchor + 1,
+        SelectionLineType::Del => line.old_anchor,
+    }
+}
+
+fn selected_new_start(line: &ParsedPatchLine) -> usize {
+    line.new_anchor
+}
+
+fn shared_suffix_context_len(
+    old_lines: &[String],
+    new_lines: &[String],
+    old_start: usize,
+    old_end: usize,
+    new_start: usize,
+    new_end: usize,
+) -> usize {
+    if old_start == 0 || new_start == 0 || old_end < old_start || new_end < new_start {
+        return 0;
+    }
+    let old_count = old_end - old_start + 1;
+    let new_count = new_end - new_start + 1;
+    let max_count = old_count.min(new_count);
+    let mut count = 0usize;
+    while count < max_count {
+        let old_index = old_end.saturating_sub(count);
+        let new_index = new_end.saturating_sub(count);
+        if old_index == 0 || new_index == 0 {
+            break;
+        }
+        let Some(old_line) = old_lines.get(old_index - 1) else {
+            break;
+        };
+        let Some(new_line) = new_lines.get(new_index - 1) else {
+            break;
+        };
+        if old_line != new_line {
+            break;
+        }
+        count += 1;
+    }
+    count
+}
+
+fn shared_prefix_context_len(
+    old_lines: &[String],
+    new_lines: &[String],
+    old_start: usize,
+    old_end: usize,
+    new_start: usize,
+    new_end: usize,
+) -> usize {
+    if old_start == 0 || new_start == 0 || old_end < old_start || new_end < new_start {
+        return 0;
+    }
+    let old_count = old_end - old_start + 1;
+    let new_count = new_end - new_start + 1;
+    let max_count = old_count.min(new_count);
+    let mut count = 0usize;
+    while count < max_count {
+        let old_index = old_start + count;
+        let new_index = new_start + count;
+        let Some(old_line) = old_lines.get(old_index - 1) else {
+            break;
+        };
+        let Some(new_line) = new_lines.get(new_index - 1) else {
+            break;
+        };
+        if old_line != new_line {
+            break;
+        }
+        count += 1;
+    }
+    count
+}
+
+fn append_full_hunk_with_context(
+    output: &mut Vec<String>,
+    parsed: &ParsedPatch,
+    hunk_index: usize,
+    old_lines: &[String],
+    new_lines: &[String],
+) {
+    let hunk = &parsed.hunks[hunk_index];
+    let Some(first) = hunk.lines.first() else {
+        return;
+    };
+    let Some(last) = hunk.lines.last() else {
+        return;
+    };
+
+    let previous_last = hunk_index
+        .checked_sub(1)
+        .and_then(|index| parsed.hunks.get(index))
+        .and_then(|previous| previous.lines.last());
+    let next_first = parsed
+        .hunks
+        .get(hunk_index + 1)
+        .and_then(|next| next.lines.first());
+
+    let available_before_old_start = previous_last
+        .map(context_after_old_start)
+        .unwrap_or(1);
+    let available_before_new_start = previous_last
+        .map(context_after_new_start)
+        .unwrap_or(1);
+    let available_before_old_end = context_before_old_end(first);
+    let available_before_new_end = context_before_new_end(first);
+    let before_count = shared_suffix_context_len(
+        old_lines,
+        new_lines,
+        available_before_old_start,
+        available_before_old_end,
+        available_before_new_start,
+        available_before_new_end,
+    );
+    let before_old_start = if before_count > 0 {
+        available_before_old_end - before_count + 1
+    } else {
+        0
+    };
+    let before_new_start = if before_count > 0 {
+        available_before_new_end - before_count + 1
+    } else {
+        0
+    };
+
+    let available_after_old_start = context_after_old_start(last);
+    let available_after_new_start = context_after_new_start(last);
+    let available_after_old_end = next_first
+        .map(context_before_old_end)
+        .unwrap_or(old_lines.len());
+    let available_after_new_end = next_first
+        .map(context_before_new_end)
+        .unwrap_or(new_lines.len());
+    let after_count = shared_prefix_context_len(
+        old_lines,
+        new_lines,
+        available_after_old_start,
+        available_after_old_end,
+        available_after_new_start,
+        available_after_new_end,
+    );
+
+    let old_count = before_count
+        + hunk
+            .lines
+            .iter()
+            .filter(|line| line.line_type == SelectionLineType::Del)
+            .count()
+        + after_count;
+    let new_count = before_count
+        + hunk
+            .lines
+            .iter()
+            .filter(|line| line.line_type == SelectionLineType::Add)
+            .count()
+        + after_count;
+
+    let old_start = if before_count > 0 {
+        before_old_start
+    } else {
+        selected_old_start(first)
+    };
+    let new_start = if before_count > 0 {
+        before_new_start
+    } else {
+        selected_new_start(first)
+    };
+
+    output.push(format!(
+        "@@ -{},{} +{},{} @@",
+        old_start, old_count, new_start, new_count
+    ));
+
+    if before_count > 0 {
+        for offset in 0..before_count {
+            if let Some(line) = old_lines.get(before_old_start + offset - 1) {
+                output.push(format!(" {}", line));
+            }
+        }
+    }
+
+    for line in &hunk.lines {
+        let prefix = if line.line_type == SelectionLineType::Add {
+            '+'
+        } else {
+            '-'
+        };
+        output.push(format!("{prefix}{}", line.text));
+    }
+
+    if after_count > 0 {
+        for offset in 0..after_count {
+            if let Some(line) = old_lines.get(available_after_old_start + offset - 1) {
+                output.push(format!(" {}", line));
+            }
+        }
+    }
+}
+
 fn build_selected_patch(
     diff_patch: &str,
     selected_lines: &HashSet<SelectionLineKey>,
+    file_context: &SelectionSourceFileContext,
 ) -> Result<(String, usize), String> {
     let parsed = parse_zero_context_patch(diff_patch)?;
     let mut output = parsed.headers.clone();
     let mut applied_line_count = 0usize;
+    let debug_enabled = git_selection_debug_enabled();
+    let mut debug_hunks: Vec<Value> = Vec::new();
 
-    for hunk in &parsed.hunks {
+    for (hunk_index, hunk) in parsed.hunks.iter().enumerate() {
         let mut group: Vec<&ParsedPatchLine> = Vec::new();
+        let mut matched_lines: Vec<Value> = Vec::new();
         let flush_group = |group: &mut Vec<&ParsedPatchLine>, output: &mut Vec<String>| {
             if group.is_empty() {
                 return;
@@ -593,6 +932,19 @@ fn build_selected_patch(
             group.clear();
         };
 
+        let selected_count = hunk
+            .lines
+            .iter()
+            .filter(|line| {
+                selected_lines.contains(&SelectionLineKey {
+                    line_type: line.line_type,
+                    old_line: line.old_line,
+                    new_line: line.new_line,
+                    text: line.text.clone(),
+                })
+            })
+            .count();
+
         for line in &hunk.lines {
             let key = SelectionLineKey {
                 line_type: line.line_type,
@@ -603,11 +955,40 @@ fn build_selected_patch(
             if selected_lines.contains(&key) {
                 group.push(line);
                 applied_line_count += 1;
+                if debug_enabled {
+                    matched_lines.push(json!({
+                        "type": if line.line_type == SelectionLineType::Add { "add" } else { "del" },
+                        "oldLine": line.old_line,
+                        "newLine": line.new_line,
+                        "oldAnchor": line.old_anchor,
+                        "newAnchor": line.new_anchor,
+                        "text": line.text,
+                    }));
+                }
             } else {
                 flush_group(&mut group, &mut output);
             }
         }
-        flush_group(&mut group, &mut output);
+        if selected_count == hunk.lines.len() && selected_count > 0 {
+            group.clear();
+            append_full_hunk_with_context(
+                &mut output,
+                &parsed,
+                hunk_index,
+                &file_context.old_lines,
+                &file_context.new_lines,
+            );
+        } else {
+            flush_group(&mut group, &mut output);
+        }
+        if debug_enabled {
+            debug_hunks.push(json!({
+                "hunkIndex": hunk_index,
+                "hunkLineCount": hunk.lines.len(),
+                "matchedLineCount": matched_lines.len(),
+                "matchedLines": matched_lines,
+            }));
+        }
     }
 
     if applied_line_count == 0 {
@@ -617,6 +998,18 @@ fn build_selected_patch(
     let mut patch = output.join("\n");
     if !patch.ends_with('\n') {
         patch.push('\n');
+    }
+    if debug_enabled {
+        git_selection_debug_log(
+            "build-selected-patch",
+            json!({
+                "selectedLineKeyCount": selected_lines.len(),
+                "appliedLineCount": applied_line_count,
+                "outputLineCount": patch.lines().count(),
+                "hunks": debug_hunks,
+                "patch": patch,
+            }),
+        );
     }
     Ok((patch, applied_line_count))
 }
@@ -672,6 +1065,52 @@ async fn apply_cached_patch(repo_root: &Path, patch: &str, reverse: bool) -> Res
     Err(detail.to_string())
 }
 
+fn selection_source_from_display_hunk_id(display_hunk_id: &str) -> Result<&str, String> {
+    let source = display_hunk_id
+        .split(':')
+        .next()
+        .ok_or_else(|| "Invalid display hunk ID.".to_string())?;
+    match source {
+        "staged" | "unstaged" => Ok(source),
+        _ => Err("Invalid display hunk ID source.".to_string()),
+    }
+}
+
+fn build_display_hunk_patch(
+    diff_patch: &str,
+    source: &str,
+    display_hunk_id: &str,
+    file_context: &SelectionSourceFileContext,
+) -> Result<(String, usize), String> {
+    let parsed = parse_zero_context_patch(diff_patch)?;
+    let Some((hunk_index, hunk)) = parsed
+        .hunks
+        .iter()
+        .enumerate()
+        .find(|(_, hunk)| parsed_patch_hunk_id(source, hunk) == display_hunk_id)
+    else {
+        return Err(
+            "Display hunk no longer matches the current diff. Refresh and try again.".to_string(),
+        );
+    };
+
+    let mut output = parsed.headers.clone();
+    append_full_hunk_with_context(
+        &mut output,
+        &parsed,
+        hunk_index,
+        &file_context.old_lines,
+        &file_context.new_lines,
+    );
+
+    let mut patch = output.join("\n");
+    if !patch.ends_with('\n') {
+        patch.push('\n');
+    }
+
+    Ok((patch, hunk.lines.len()))
+}
+
 pub(super) async fn stage_git_selection_inner(
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
@@ -717,13 +1156,158 @@ pub(super) async fn stage_git_selection_inner(
     if source_patch.trim().is_empty() {
         return Err("No changes available for the requested selection source.".to_string());
     }
+    let debug_source_hunks = if git_selection_debug_enabled() {
+        parse_zero_context_patch(&source_patch).ok().map(|parsed| {
+            parsed
+                .hunks
+                .iter()
+                .enumerate()
+                .map(|(index, hunk)| {
+                    let first = hunk.lines.first();
+                    let last = hunk.lines.last();
+                    json!({
+                        "hunkIndex": index,
+                        "lineCount": hunk.lines.len(),
+                        "firstOldLine": first.and_then(|line| line.old_line),
+                        "firstNewLine": first.and_then(|line| line.new_line),
+                        "lastOldLine": last.and_then(|line| line.old_line),
+                        "lastNewLine": last.and_then(|line| line.new_line),
+                    })
+                })
+                .collect::<Vec<Value>>()
+        })
+    } else {
+        None
+    };
 
     let mut selected_lines = HashSet::new();
     for line in &lines {
         selected_lines.insert(SelectionLineKey::try_from(line)?);
     }
+    if git_selection_debug_enabled() {
+        git_selection_debug_log(
+            "stage-selection-request",
+            json!({
+                "workspaceId": workspace_id,
+                "path": path,
+                "op": op,
+                "source": source,
+                "rawLineCount": lines.len(),
+                "dedupedLineCount": selected_lines.len(),
+                "selectedLines": lines,
+                "sourceHunks": debug_source_hunks.unwrap_or_default(),
+            }),
+        );
+    }
 
-    let (selected_patch, applied_line_count) = build_selected_patch(&source_patch, &selected_lines)?;
+    let file_context = load_selection_source_file_context(&repo_root, action_path.as_str(), &source)?;
+    let (selected_patch, applied_line_count) =
+        build_selected_patch(&source_patch, &selected_lines, &file_context)?;
+    if git_selection_debug_enabled() {
+        git_selection_debug_log(
+            "stage-selection-apply",
+            json!({
+                "path": path,
+                "reverseApply": reverse_apply,
+                "appliedLineCount": applied_line_count,
+                "selectedPatchLineCount": selected_patch.lines().count(),
+            }),
+        );
+    }
+    apply_cached_patch(&repo_root, &selected_patch, reverse_apply).await?;
+    if git_selection_debug_enabled() {
+        let cached_after_apply = String::from_utf8_lossy(
+            &git_core::run_git_diff(
+                &repo_root.to_path_buf(),
+                &["diff", "--cached", "--no-color", "-U0", "--", action_path.as_str()],
+            )
+            .await?,
+        )
+        .to_string();
+        let unstaged_after_apply = String::from_utf8_lossy(
+            &git_core::run_git_diff(
+                &repo_root.to_path_buf(),
+                &["diff", "--no-color", "-U0", "--", action_path.as_str()],
+            )
+            .await?,
+        )
+        .to_string();
+        git_selection_debug_log(
+            "stage-selection-post-apply",
+            json!({
+                "path": path,
+                "op": op,
+                "source": source,
+                "cachedDiff": cached_after_apply,
+                "unstagedDiff": unstaged_after_apply,
+            }),
+        );
+    }
+
+    Ok(GitSelectionApplyResult {
+        applied: true,
+        applied_line_count,
+        warning: None,
+    })
+}
+
+pub(super) async fn apply_git_display_hunk_inner(
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    path: String,
+    display_hunk_id: String,
+) -> Result<GitSelectionApplyResult, String> {
+    let source = selection_source_from_display_hunk_id(&display_hunk_id)?;
+    let op = match source {
+        "unstaged" => "stage",
+        "staged" => "unstage",
+        _ => unreachable!(),
+    };
+
+    let entry = workspace_entry_for_id(workspaces, &workspace_id).await?;
+    let repo_root = resolve_git_root(&entry)?;
+    let action_paths = action_paths_for_file(&repo_root, &path);
+    if action_paths.len() != 1 {
+        return Err("Line-level stage/unstage for renamed paths is not supported yet.".to_string());
+    }
+    let action_path = action_paths[0].clone();
+
+    let (diff_args, reverse_apply): (&[&str], bool) = match source {
+        "unstaged" => (&["diff", "--no-color", "-U0", "--"], false),
+        "staged" => (&["diff", "--cached", "--no-color", "-U0", "--"], true),
+        _ => unreachable!(),
+    };
+
+    let mut args = diff_args.to_vec();
+    args.push(action_path.as_str());
+    let source_patch = String::from_utf8_lossy(
+        &git_core::run_git_diff(&repo_root.to_path_buf(), &args).await?,
+    )
+    .to_string();
+    if source_patch.trim().is_empty() {
+        return Err("No changes available for the requested display hunk.".to_string());
+    }
+
+    let file_context =
+        load_selection_source_file_context(&repo_root, action_path.as_str(), source)?;
+    let (selected_patch, applied_line_count) =
+        build_display_hunk_patch(&source_patch, source, &display_hunk_id, &file_context)?;
+
+    if git_selection_debug_enabled() {
+        git_selection_debug_log(
+            "display-hunk-apply",
+            json!({
+                "workspaceId": workspace_id,
+                "path": path,
+                "displayHunkId": display_hunk_id,
+                "op": op,
+                "source": source,
+                "reverseApply": reverse_apply,
+                "appliedLineCount": applied_line_count,
+            }),
+        );
+    }
+
     apply_cached_patch(&repo_root, &selected_patch, reverse_apply).await?;
 
     Ok(GitSelectionApplyResult {
@@ -1115,7 +1699,78 @@ pub(super) async fn create_git_branch_inner(
 
 #[cfg(test)]
 mod tests {
-    use super::{gh_repo_create_args, validate_branch_name};
+    use super::{
+        build_selected_patch, gh_repo_create_args, parse_zero_context_patch,
+        SelectionLineKey, SelectionSourceFileContext, validate_branch_name,
+    };
+    use std::{
+        collections::HashSet,
+        fs,
+        io::Write,
+        path::{Path, PathBuf},
+        process::{Command, Stdio},
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    fn run_git(repo_root: &Path, args: &[&str]) -> String {
+        let output = Command::new("git")
+            .args(args)
+            .current_dir(repo_root)
+            .output()
+            .expect("failed to run git");
+        assert!(
+            output.status.success(),
+            "git {:?} failed: {}",
+            args,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8_lossy(&output.stdout).to_string()
+    }
+
+    fn run_git_with_stdin(repo_root: &Path, args: &[&str], stdin_text: &str) {
+        let mut child = Command::new("git")
+            .args(args)
+            .current_dir(repo_root)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("failed to spawn git");
+        child
+            .stdin
+            .as_mut()
+            .expect("missing git stdin")
+            .write_all(stdin_text.as_bytes())
+            .expect("failed to write git stdin");
+        let output = child.wait_with_output().expect("failed to wait for git");
+        assert!(
+            output.status.success(),
+            "git {:?} failed: {}\n{}",
+            args,
+            String::from_utf8_lossy(&output.stderr),
+            String::from_utf8_lossy(&output.stdout)
+        );
+    }
+
+    fn create_temp_repo() -> PathBuf {
+        let unique = format!(
+            "codex_monitor_git_select_{}_{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("clock drift")
+                .as_nanos()
+        );
+        let repo_root = std::env::temp_dir().join(unique);
+        fs::create_dir_all(&repo_root).expect("failed to create temp repo");
+        run_git(&repo_root, &["init"]);
+        run_git(&repo_root, &["config", "user.name", "Codex Monitor Tests"]);
+        run_git(
+            &repo_root,
+            &["config", "user.email", "codex-monitor-tests@example.com"],
+        );
+        repo_root
+    }
 
     #[test]
     fn validate_branch_name_rejects_repeated_slashes() {
@@ -1146,5 +1801,223 @@ mod tests {
             gh_repo_create_args("owner/repo", "--public", true),
             vec!["repo", "create", "owner/repo", "--public"]
         );
+    }
+
+    #[test]
+    fn build_selected_patch_targets_first_identical_addition_hunk() {
+        let repo_root = create_temp_repo();
+        let file_path = repo_root.join("CardView.swift");
+
+        let baseline = "pre\nanchor-one\nmid\nanchor-two\npost\n";
+        fs::write(&file_path, baseline).expect("failed to write baseline");
+        run_git(&repo_root, &["add", "--", "CardView.swift"]);
+        run_git(
+            &repo_root,
+            &["commit", "-m", "Initial baseline", "--quiet"],
+        );
+
+        let changed = "pre\nanchor-one\n.padding(6)\n.background(Color.black.opacity(0.35), in:\nCircle())\n.shadow(color: .black.opacity(0.35), radius:\n4, x: 0, y: 2)\nmid\nanchor-two\n.padding(6)\n.background(Color.black.opacity(0.35), in:\nCircle())\n.shadow(color: .black.opacity(0.35), radius:\n4, x: 0, y: 2)\npost\n";
+        fs::write(&file_path, changed).expect("failed to write changed file");
+
+        let source_patch = run_git(&repo_root, &["diff", "--no-color", "-U0", "--", "CardView.swift"]);
+        let parsed = parse_zero_context_patch(&source_patch).expect("failed to parse source patch");
+        assert!(
+            parsed.hunks.len() >= 2,
+            "expected at least two hunks in source patch"
+        );
+
+        let first_hunk = &parsed.hunks[0];
+        let second_hunk = &parsed.hunks[1];
+        let selected_lines: HashSet<SelectionLineKey> = first_hunk
+            .lines
+            .iter()
+            .map(|line| SelectionLineKey {
+                line_type: line.line_type,
+                old_line: line.old_line,
+                new_line: line.new_line,
+                text: line.text.clone(),
+            })
+            .collect();
+
+        let file_context = SelectionSourceFileContext {
+            old_lines: baseline.lines().map(ToString::to_string).collect(),
+            new_lines: changed.lines().map(ToString::to_string).collect(),
+        };
+        let (selected_patch, _) = build_selected_patch(&source_patch, &selected_lines, &file_context)
+            .expect("selection patch failed");
+
+        let second_header = format!(
+            "@@ -{},0 +{},{} @@",
+            second_hunk.lines[0].old_anchor,
+            second_hunk.lines[0].new_anchor,
+            second_hunk.lines.len()
+        );
+        let first_header = format!(
+            "@@ -{},0 +{},{} @@",
+            first_hunk.lines[0].old_anchor,
+            first_hunk.lines[0].new_anchor,
+            first_hunk.lines.len()
+        );
+        assert!(
+            selected_patch.contains(" anchor-one"),
+            "selection patch did not include first-hunk context: {selected_patch}"
+        );
+        assert!(
+            selected_patch.contains(" mid"),
+            "selection patch did not include trailing context for first hunk: {selected_patch}"
+        );
+        assert!(
+            selected_patch.matches("+.padding(6)").count() == 1,
+            "selection patch included duplicate selected additions: {selected_patch}"
+        );
+
+        run_git_with_stdin(
+            &repo_root,
+            &["apply", "--cached", "--unidiff-zero", "--whitespace=nowarn", "-"],
+            &selected_patch,
+        );
+
+        let cached_patch = run_git(
+            &repo_root,
+            &["diff", "--cached", "--no-color", "-U0", "--", "CardView.swift"],
+        );
+        assert!(
+            cached_patch.contains(&first_header),
+            "cached patch did not stage first hunk: {cached_patch}"
+        );
+        assert!(
+            !cached_patch.contains(&second_header),
+            "cached patch staged second hunk unexpectedly: {cached_patch}"
+        );
+
+        fs::remove_dir_all(&repo_root).expect("failed to cleanup temp repo");
+    }
+
+    #[test]
+    fn build_selected_patch_targets_first_identical_swiftui_overlay_hunk() {
+        let repo_root = create_temp_repo();
+        let file_path = repo_root.join("CardsMediaB25ContentView.swift");
+
+        let baseline = r#"struct CardsMediaB25View: CardsSwiftUIContentViewInitializable {
+    func mediaOverlay(for type: OverlayType) {
+        if type.contains(.video) {
+            Image("video_overlay")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: state.rowWidth * 0.1, height: state.rowWidth * 0.1)
+        } else if type.contains(.audio) {
+            Image("audio_overlay")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: state.rowWidth * 0.1, height: state.rowWidth * 0.1)
+        }
+    }
+}
+"#;
+        fs::write(&file_path, baseline).expect("failed to write baseline");
+        run_git(&repo_root, &["add", "--", "CardsMediaB25ContentView.swift"]);
+        run_git(
+            &repo_root,
+            &["commit", "-m", "Initial baseline", "--quiet"],
+        );
+
+        let changed = r#"struct CardsMediaB25View: CardsSwiftUIContentViewInitializable {
+    func mediaOverlay(for type: OverlayType) {
+        if type.contains(.video) {
+            Image("video_overlay")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: state.rowWidth * 0.1, height: state.rowWidth * 0.1)
+                .padding(6)
+                .background(Color.black.opacity(0.35), in: Circle())
+                .shadow(color: .black.opacity(0.35), radius: 4, x: 0, y: 2)
+        } else if type.contains(.audio) {
+            Image("audio_overlay")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: state.rowWidth * 0.1, height: state.rowWidth * 0.1)
+                .padding(6)
+                .background(Color.black.opacity(0.35), in: Circle())
+                .shadow(color: .black.opacity(0.35), radius: 4, x: 0, y: 2)
+        }
+    }
+}
+"#;
+        fs::write(&file_path, changed).expect("failed to write changed file");
+
+        let source_patch = run_git(
+            &repo_root,
+            &["diff", "--no-color", "-U0", "--", "CardsMediaB25ContentView.swift"],
+        );
+        let parsed = parse_zero_context_patch(&source_patch).expect("failed to parse source patch");
+        assert_eq!(parsed.hunks.len(), 2, "expected two identical hunks");
+
+        let first_hunk = &parsed.hunks[0];
+        let second_hunk = &parsed.hunks[1];
+        let selected_lines: HashSet<SelectionLineKey> = first_hunk
+            .lines
+            .iter()
+            .map(|line| SelectionLineKey {
+                line_type: line.line_type,
+                old_line: line.old_line,
+                new_line: line.new_line,
+                text: line.text.clone(),
+            })
+            .collect();
+
+        let file_context = SelectionSourceFileContext {
+            old_lines: baseline.lines().map(ToString::to_string).collect(),
+            new_lines: changed.lines().map(ToString::to_string).collect(),
+        };
+        let (selected_patch, _) = build_selected_patch(&source_patch, &selected_lines, &file_context)
+            .expect("selection patch failed");
+        assert!(
+            selected_patch.contains(r#" Image("video_overlay")"#),
+            "selection patch did not anchor to the video block: {selected_patch}"
+        );
+        assert!(
+            selected_patch.matches("+                .padding(6)").count() == 1,
+            "selection patch included duplicate selected additions: {selected_patch}"
+        );
+
+        run_git_with_stdin(
+            &repo_root,
+            &["apply", "--cached", "--unidiff-zero", "--whitespace=nowarn", "-"],
+            &selected_patch,
+        );
+
+        let first_header = format!(
+            "@@ -{},0 +{},{} @@",
+            first_hunk.lines[0].old_anchor,
+            first_hunk.lines[0].new_anchor,
+            first_hunk.lines.len()
+        );
+        let second_header = format!(
+            "@@ -{},0 +{},{} @@",
+            second_hunk.lines[0].old_anchor,
+            second_hunk.lines[0].new_anchor,
+            second_hunk.lines.len()
+        );
+        let cached_patch = run_git(
+            &repo_root,
+            &[
+                "diff",
+                "--cached",
+                "--no-color",
+                "-U0",
+                "--",
+                "CardsMediaB25ContentView.swift",
+            ],
+        );
+        assert!(
+            cached_patch.contains(&first_header),
+            "cached patch did not stage first SwiftUI hunk: {cached_patch}"
+        );
+        assert!(
+            !cached_patch.contains(&second_header),
+            "cached patch staged second SwiftUI hunk unexpectedly: {cached_patch}"
+        );
+
+        fs::remove_dir_all(&repo_root).expect("failed to cleanup temp repo");
     }
 }

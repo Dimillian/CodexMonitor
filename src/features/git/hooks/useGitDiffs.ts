@@ -113,6 +113,7 @@ export function useGitDiffs(
         diff: entry?.diff ?? "",
         stagedDiff: entry?.stagedDiff ?? null,
         unstagedDiff: entry?.unstagedDiff ?? null,
+        displayHunks: entry?.displayHunks ?? [],
         oldLines: entry?.oldLines,
         newLines: entry?.newLines,
         isImage: entry?.isImage,

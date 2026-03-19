@@ -7,6 +7,7 @@ pub(crate) const METHOD_INIT_GIT_REPO: &str = "init_git_repo";
 pub(crate) const METHOD_CREATE_GITHUB_REPO: &str = "create_github_repo";
 pub(crate) const METHOD_STAGE_GIT_FILE: &str = "stage_git_file";
 pub(crate) const METHOD_STAGE_GIT_ALL: &str = "stage_git_all";
+pub(crate) const METHOD_APPLY_GIT_DISPLAY_HUNK: &str = "apply_git_display_hunk";
 pub(crate) const METHOD_UNSTAGE_GIT_FILE: &str = "unstage_git_file";
 pub(crate) const METHOD_REVERT_GIT_FILE: &str = "revert_git_file";
 pub(crate) const METHOD_REVERT_GIT_ALL: &str = "revert_git_all";
@@ -84,6 +85,14 @@ pub(crate) struct CreateGitHubRepoRequiredRequest {
 pub(crate) struct WorkspacePathRequest {
     pub(crate) workspace_id: String,
     pub(crate) path: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GitDisplayHunkActionRequest {
+    pub(crate) workspace_id: String,
+    pub(crate) path: String,
+    pub(crate) display_hunk_id: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -8,7 +8,6 @@ import {
 import { FileDiff } from "@pierre/diffs/react";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import type {
-  GitSelectionLine,
   PullRequestReviewAction,
   PullRequestReviewIntent,
 } from "../../../types";
@@ -132,10 +131,7 @@ export type DiffCardProps = {
   onSelectedLinesChange?: (range: SelectedLineRange | null) => void;
   localLineActionContext?: LocalLineActionContext | null;
   lineActionBusy?: boolean;
-  onLocalChunkAction?: (
-    lines: GitSelectionLine[],
-    action: LocalLineAction,
-  ) => void;
+  onLocalChunkAction?: (action: LocalLineAction) => void;
   onComposerLineAction?: (line: ParsedDiffLine, index: number) => void;
   reviewActions?: PullRequestReviewAction[];
   onRunReviewAction?: (
@@ -281,15 +277,17 @@ export const DiffCard = memo(function DiffCard({
         </div>
       ) : null}
       <div className="diff-viewer-output diff-viewer-output-flat">
-        {entry.diff.trim().length > 0 && showLocalLineActions ? (
+        {showLocalLineActions && localLineActionContext ? (
           <LocalActionDiffBlock
+            filePath={entry.path}
             parsedLines={parsedLines}
             diffStyle={diffStyle}
             language={fallbackLanguage}
-            context={localLineActionContext!}
+            displayHunks={localLineActionContext.displayHunks}
+            disabledReason={localLineActionContext.disabledReason}
             lineActionBusy={lineActionBusy}
-            onChunkAction={(lines, action) => {
-              onLocalChunkAction?.(lines, action);
+            onChunkAction={(action) => {
+              onLocalChunkAction?.(action);
             }}
           />
         ) : entry.diff.trim().length > 0 && fileDiff ? (

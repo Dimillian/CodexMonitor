@@ -1107,6 +1107,21 @@ impl DaemonState {
         .await
     }
 
+    async fn apply_git_display_hunk(
+        &self,
+        workspace_id: String,
+        path: String,
+        display_hunk_id: String,
+    ) -> Result<GitSelectionApplyResult, String> {
+        git_ui_core::apply_git_display_hunk_core(
+            &self.workspaces,
+            workspace_id,
+            path,
+            display_hunk_id,
+        )
+        .await
+    }
+
     async fn unstage_git_file(&self, workspace_id: String, path: String) -> Result<(), String> {
         git_ui_core::unstage_git_file_core(&self.workspaces, workspace_id, path).await
     }

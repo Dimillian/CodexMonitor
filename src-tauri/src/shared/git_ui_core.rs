@@ -128,6 +128,15 @@ pub(crate) async fn stage_git_selection_core(
     commands::stage_git_selection_inner(workspaces, workspace_id, path, op, source, lines).await
 }
 
+pub(crate) async fn apply_git_display_hunk_core(
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    path: String,
+    display_hunk_id: String,
+) -> Result<GitSelectionApplyResult, String> {
+    commands::apply_git_display_hunk_inner(workspaces, workspace_id, path, display_hunk_id).await
+}
+
 pub(crate) async fn unstage_git_file_core(
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,

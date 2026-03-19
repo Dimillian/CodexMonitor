@@ -7,11 +7,7 @@ import GitCommitHorizontal from "lucide-react/dist/esm/icons/git-commit-horizont
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import type { ParsedDiffLine } from "../../../utils/diff";
 import { workerFactory } from "../../../utils/diffsWorker";
-import type {
-  GitSelectionLine,
-  PullRequestReviewIntent,
-  PullRequestSelectionRange,
-} from "../../../types";
+import type { PullRequestReviewIntent, PullRequestSelectionRange } from "../../../types";
 import {
   DIFF_VIEWER_HIGHLIGHTER_OPTIONS,
 } from "../../design-system/diff/diffViewerTheme";
@@ -31,6 +27,24 @@ function isSelectableLine(
   line: ParsedDiffLine,
 ): line is ParsedDiffLine & { type: "add" | "del" | "context" } {
   return line.type === "add" || line.type === "del" || line.type === "context";
+}
+
+function gitSelectionDebugEnabled() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  try {
+    return window.localStorage.getItem("codexMonitor.gitSelectionDebug") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function gitSelectionDebugLog(event: string, payload: unknown) {
+  if (!gitSelectionDebugEnabled()) {
+    return;
+  }
+  console.debug("[git-selection]", event, payload);
 }
 
 function findSelectionLineIndex(
@@ -149,7 +163,7 @@ export function GitDiffViewer({
   onRevertFile,
   stagedPaths = [],
   unstagedPaths = [],
-  onStageSelection,
+  onApplyDisplayHunk,
   onActivePathChange,
   onInsertComposerText,
 }: GitDiffViewerProps) {
@@ -283,7 +297,7 @@ export function GitDiffViewer({
 
   const resolveLocalLineActionContext = useCallback(
     (entry: GitDiffViewerItem): LocalLineActionContext | null => {
-      if (diffSource !== "local" || !onStageSelection) {
+      if (diffSource !== "local" || !onApplyDisplayHunk) {
         return null;
       }
       const path = entry.path;
@@ -292,72 +306,71 @@ export function GitDiffViewer({
       if (!hasStaged && !hasUnstaged) {
         return null;
       }
-      if (entry.status === "R") {
-        return {
+      const missingStagedDiff = hasStaged && !entry.stagedDiff?.trim();
+      const missingUnstagedDiff = hasUnstaged && !entry.unstagedDiff?.trim();
+      const displayHunks = entry.displayHunks ?? [];
+      if (gitSelectionDebugEnabled()) {
+        gitSelectionDebugLog("display-hunks-context", {
+          path,
+          status: entry.status,
           hasStaged,
           hasUnstaged,
-          stagedDiff: entry.stagedDiff,
-          unstagedDiff: entry.unstagedDiff,
+          missingStagedDiff,
+          missingUnstagedDiff,
+          displayHunkCount: displayHunks.length,
+          displayHunks: displayHunks.map((hunk) => ({
+            id: hunk.id,
+            source: hunk.source,
+            action: hunk.action,
+            startDisplayLineIndex: hunk.startDisplayLineIndex,
+            endDisplayLineIndex: hunk.endDisplayLineIndex,
+            lineCount: hunk.lineCount,
+          })),
+        });
+      }
+      if (entry.status === "R") {
+        return {
+          displayHunks,
           disabledReason:
             "Line-level stage/unstage is not supported for renamed files.",
         };
       }
-      if (
-        hasStaged &&
-        hasUnstaged &&
-        (!entry.stagedDiff?.trim() || !entry.unstagedDiff?.trim())
-      ) {
+      if (missingStagedDiff || missingUnstagedDiff || displayHunks.length === 0) {
         return {
-          hasStaged,
-          hasUnstaged,
-          stagedDiff: entry.stagedDiff,
-          unstagedDiff: entry.unstagedDiff,
+          displayHunks,
           disabledReason:
-            "Line-level stage/unstage is unavailable until staged and unstaged hunks finish loading.",
+            "Line-level stage/unstage is unavailable until display hunks finish loading.",
         };
       }
       return {
-        hasStaged,
-        hasUnstaged,
-        stagedDiff: entry.stagedDiff,
-        unstagedDiff: entry.unstagedDiff,
+        displayHunks,
       };
     },
-    [diffSource, onStageSelection, stagedPathSet, unstagedPathSet],
+    [diffSource, onApplyDisplayHunk, stagedPathSet, unstagedPathSet],
   );
 
   const handleApplyLineAction = useCallback(
-    async (path: string, action: LocalLineAction, lines: GitSelectionLine[]) => {
-      if (!onStageSelection || action.disabledReason || lineActionBusy) {
-        return;
-      }
-      if (!lines.length) {
-        return;
-      }
-      const normalizedLines = lines.filter(
-        (line) =>
-          (line.type === "add" || line.type === "del") &&
-          !(
-            (line.type === "add" && line.newLine === null) ||
-            (line.type === "del" && line.oldLine === null)
-          ),
-      );
-      if (!normalizedLines.length) {
+    async (path: string, action: LocalLineAction) => {
+      if (!onApplyDisplayHunk || action.disabledReason || lineActionBusy) {
         return;
       }
       setLineActionBusy(true);
       try {
-        await onStageSelection({
+        gitSelectionDebugLog("handle-apply-line-action", {
           path,
-          op: action.op,
+          displayHunkId: action.id,
+          op: action.action,
           source: action.source,
-          lines: normalizedLines,
+        });
+        await onApplyDisplayHunk({
+          path,
+          displayHunkId: action.id,
         });
       } finally {
         setLineActionBusy(false);
       }
     },
-    [lineActionBusy, onStageSelection],
+    [lineActionBusy, onApplyDisplayHunk],
   );
 
   const handleInsertLineReference = useCallback(
@@ -687,8 +700,8 @@ export function GitDiffViewer({
                       lineActionBusy={lineActionBusy}
                       onLocalChunkAction={
                         hasLocalLineActions
-                          ? (lines, action) => {
-                              void handleApplyLineAction(entry.path, action, lines);
+                          ? (action) => {
+                              void handleApplyLineAction(entry.path, action);
                             }
                           : undefined
                       }

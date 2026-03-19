@@ -216,6 +216,35 @@ pub(crate) async fn stage_git_selection(
 }
 
 #[tauri::command]
+pub(crate) async fn apply_git_display_hunk(
+    workspace_id: String,
+    path: String,
+    display_hunk_id: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<GitSelectionApplyResult, String> {
+    let request = git_rpc::GitDisplayHunkActionRequest {
+        workspace_id: workspace_id.clone(),
+        path: path.clone(),
+        display_hunk_id: display_hunk_id.clone(),
+    };
+    try_remote_typed!(
+        state,
+        app,
+        git_rpc::METHOD_APPLY_GIT_DISPLAY_HUNK,
+        git_remote_params(&request)?,
+        GitSelectionApplyResult
+    );
+    git_ui_core::apply_git_display_hunk_core(
+        &state.workspaces,
+        workspace_id,
+        path,
+        display_hunk_id,
+    )
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn unstage_git_file(
     workspace_id: String,
     path: String,

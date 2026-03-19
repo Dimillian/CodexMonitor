@@ -654,6 +654,14 @@ export async function stageGitSelection(
   return invoke("stage_git_selection", { workspaceId, path, op, source, lines });
 }
 
+export async function applyGitDisplayHunk(
+  workspaceId: string,
+  path: string,
+  displayHunkId: string,
+): Promise<GitSelectionApplyResult> {
+  return invoke("apply_git_display_hunk", { workspaceId, path, displayHunkId });
+}
+
 export async function unstageGitFile(workspaceId: string, path: string) {
   return invoke("unstage_git_file", { workspaceId, path });
 }

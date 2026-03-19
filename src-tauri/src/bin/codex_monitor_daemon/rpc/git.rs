@@ -103,6 +103,19 @@ pub(super) async fn try_handle(
             let request = parse_request_or_err!(params, git_rpc::WorkspaceIdRequest);
             Some(serialize_ok(state.stage_git_all(request.workspace_id)).await)
         }
+        git_rpc::METHOD_APPLY_GIT_DISPLAY_HUNK => {
+            let request = parse_request_or_err!(params, git_rpc::GitDisplayHunkActionRequest);
+            Some(
+                state
+                    .apply_git_display_hunk(
+                        request.workspace_id,
+                        request.path,
+                        request.display_hunk_id,
+                    )
+                    .await
+                    .and_then(|result| serde_json::to_value(result).map_err(|err| err.to_string())),
+            )
+        }
         "stage_git_selection" => {
             let workspace_id = match parse_string(params, "workspaceId") {
                 Ok(value) => value,

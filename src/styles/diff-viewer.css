@@ -623,11 +623,29 @@
   word-break: break-word;
 }
 
-.diff-line-action {
+.diff-line-action-group {
   position: absolute;
   top: 50%;
   left: 7px;
   transform: translate3d(0, -50%, 0);
+  display: inline-flex;
+  gap: 6px;
+}
+
+.diff-line-action-group--before-gutter {
+  left: 7px;
+}
+
+.diff-line-action-group--after-gutter {
+  left: auto;
+  right: 7px;
+}
+
+.diff-line-action {
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
   width: 20px;
   height: 20px;
   border-radius: 999px;
@@ -654,12 +672,11 @@
 }
 
 .diff-line-action--before-gutter {
-  left: 7px;
+  left: auto;
 }
 
 .diff-line-action--after-gutter {
   left: auto;
-  right: 7px;
 }
 
 .diff-line-action--unstage {
@@ -678,7 +695,7 @@
 
 .diff-line-action:hover:not(:disabled),
 .diff-line-action:active:not(:disabled) {
-  transform: translate3d(0, -50%, 0);
+  transform: none;
   box-shadow: none;
 }
 

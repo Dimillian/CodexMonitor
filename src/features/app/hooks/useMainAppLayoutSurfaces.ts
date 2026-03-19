@@ -858,7 +858,7 @@ function buildGitSurface({
       onRevertFile: gitState.handleRevertGitFile,
       stagedPaths: gitState.gitStatus.stagedFiles.map((file) => file.path),
       unstagedPaths: gitState.gitStatus.unstagedFiles.map((file) => file.path),
-      onStageSelection: gitState.handleStageGitSelection,
+      onApplyDisplayHunk: gitState.handleApplyGitDisplayHunk,
       onActivePathChange: gitState.handleActiveDiffPath,
       onInsertComposerText: composerWorkspaceState.canInsertComposerText
         ? composerWorkspaceState.handleInsertComposerText
