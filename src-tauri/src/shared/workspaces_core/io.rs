@@ -269,10 +269,24 @@ pub(crate) async fn open_workspace_in_core(
                     .await
                     .map_err(|error| format!("Failed to open app ({target_label}): {error}"))?
             } else {
+                let fallback_app_args = if matches!(
+                    app_strategy,
+                    Some(LineAwareLaunchStrategy::JetBrainsLineColumnFlags)
+                ) && normalize_open_location(line, column).is_some()
+                {
+                    build_launch_args(&path, &args, line, column, app_strategy)
+                } else {
+                    Vec::new()
+                };
                 let mut cmd = tokio_command("open");
-                cmd.arg("-a").arg(trimmed).arg(&path);
-                if !args.is_empty() {
-                    cmd.arg("--args").args(&args);
+                cmd.arg("-a").arg(trimmed);
+                if fallback_app_args.is_empty() {
+                    cmd.arg(&path);
+                    if !args.is_empty() {
+                        cmd.arg("--args").args(&args);
+                    }
+                } else {
+                    cmd.arg("--args").args(&fallback_app_args);
                 }
                 cmd.output()
                     .await
