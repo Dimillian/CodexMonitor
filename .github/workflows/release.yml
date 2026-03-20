@@ -145,7 +145,7 @@ jobs:
 
           ditto -c -k --keepParent \
             "src-tauri/target/release/bundle/macos/Codex Monitor.app" \
-            release-artifacts/CodexMonitor.zip
+            release-artifacts/CodexMonitor_${TARGET_ARCH}.zip
 
           hdiutil create -volname "Codex Monitor" \
             -srcfolder release-artifacts/dmg-root \
@@ -171,7 +171,7 @@ jobs:
         with:
           name: macos-artifacts-${{ matrix.arch }}
           path: |
-            release-artifacts/CodexMonitor.zip
+            release-artifacts/CodexMonitor_${{ matrix.arch }}.zip
             release-artifacts/CodexMonitor_*_${{ matrix.arch }}.dmg
             release-artifacts/CodexMonitor_${{ matrix.arch }}.app.tar.gz
             release-artifacts/CodexMonitor_${{ matrix.arch }}.app.tar.gz.sig
@@ -397,7 +397,6 @@ jobs:
           PY
           )
 
-          SIGNATURE=$(cat release-artifacts/CodexMonitor.app.tar.gz.sig)
           LAST_TAG=$(git tag --sort=-version:refname \
             | grep -v "^v${VERSION}$" \
             | head -n 1 || true)
@@ -460,7 +459,7 @@ jobs:
           platforms = {}
 
           # Find macOS updater bundles for each architecture
-          macos_tarballs = list(artifacts_dir.glob("CodexMonitor_*_*.app.tar.gz"))
+          macos_tarballs = list(artifacts_dir.glob("CodexMonitor_*.app.tar.gz"))
           for tarball in macos_tarballs:
             if "aarch64" in tarball.name:
               sig_path = tarball.with_suffix(tarball.suffix + ".sig")
@@ -593,6 +592,7 @@ jobs:
           appimages=(release-artifacts/**/*.AppImage*)
           dmgs=(release-artifacts/**/*.dmg)
           tarballs=(release-artifacts/**/*.app.tar.gz)
+          zips=(release-artifacts/CodexMonitor_*.zip)
           mapfile -t rpms < <(find release-artifacts -type f -name '*.rpm' | sort)
           mapfile -t windows_exes < <(find release-artifacts -type f -name '*.exe*' | sort)
           mapfile -t windows_msis < <(find release-artifacts -type f -name '*.msi*' | sort)
@@ -616,7 +616,7 @@ jobs:
             --title "v${VERSION}" \
             --notes-file release-artifacts/release-notes.md \
             --target "$GITHUB_SHA" \
-            release-artifacts/CodexMonitor.zip \
+            "${zips[@]}" \
             "${dmgs[@]}" \
             "${tarballs[@]}" \
             "${appimages[@]}" \
