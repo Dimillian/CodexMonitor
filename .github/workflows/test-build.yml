@@ -1,0 +1,49 @@
+name: Test Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/add-macos-x86_64-build
+    paths:
+      - '.github/workflows/test-build.yml'
+      - 'src-tauri/**'
+      - 'src/**'
+
+jobs:
+  test_macos_build:
+    name: Test macOS build (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            arch: aarch64
+          - runner: macos-15
+            arch: x86_64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install CMake
+        run: brew install cmake
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Tauri build (no bundle, no sign)
+        run: npm run tauri -- build --debug --no-bundle
+
+      - name: Build daemon binaries
+        run: |
+          cd src-tauri
+          cargo build --release --bin codex_monitor_daemon --bin codex_monitor_daemonctl
