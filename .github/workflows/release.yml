@@ -25,7 +25,7 @@ jobs:
         include:
           - runner: macos-latest
             arch: aarch64
-          - runner: macos-15
+          - runner: macos-15-intel
             arch: x86_64
     steps:
       - name: Checkout
@@ -162,9 +162,9 @@ jobs:
             "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz"
 
           cp "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz" \
-            release-artifacts/CodexMonitor.app.tar.gz
+            release-artifacts/CodexMonitor_${TARGET_ARCH}.app.tar.gz
           cp "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz.sig" \
-            release-artifacts/CodexMonitor.app.tar.gz.sig
+            release-artifacts/CodexMonitor_${TARGET_ARCH}.app.tar.gz.sig
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
@@ -173,8 +173,8 @@ jobs:
           path: |
             release-artifacts/CodexMonitor.zip
             release-artifacts/CodexMonitor_*_${{ matrix.arch }}.dmg
-            release-artifacts/CodexMonitor.app.tar.gz
-            release-artifacts/CodexMonitor.app.tar.gz.sig
+            release-artifacts/CodexMonitor_${{ matrix.arch }}.app.tar.gz
+            release-artifacts/CodexMonitor_${{ matrix.arch }}.app.tar.gz.sig
 
   build_linux:
     name: linux bundles (${{ matrix.arch }})
@@ -457,16 +457,27 @@ jobs:
           def release_url(filename):
             return f"https://github.com/Dimillian/CodexMonitor/releases/download/v${VERSION}/{quote(filename)}"
 
-          platforms = {
-            "darwin-aarch64": {
-              "url": release_url("CodexMonitor.app.tar.gz"),
-              "signature": "${SIGNATURE}",
-            },
-            "darwin-x86_64": {
-              "url": release_url("CodexMonitor.app.tar.gz"),
-              "signature": "${SIGNATURE}",
-            },
-          }
+          platforms = {}
+
+          # Find macOS updater bundles for each architecture
+          macos_tarballs = list(artifacts_dir.glob("CodexMonitor_*_*.app.tar.gz"))
+          for tarball in macos_tarballs:
+            if "aarch64" in tarball.name:
+              sig_path = tarball.with_suffix(tarball.suffix + ".sig")
+              if not sig_path.exists():
+                raise SystemExit(f"Missing signature for {tarball.name}")
+              platforms["darwin-aarch64"] = {
+                "url": release_url(tarball.name),
+                "signature": sig_path.read_text().strip(),
+              }
+            elif "x86_64" in tarball.name:
+              sig_path = tarball.with_suffix(tarball.suffix + ".sig")
+              if not sig_path.exists():
+                raise SystemExit(f"Missing signature for {tarball.name}")
+              platforms["darwin-x86_64"] = {
+                "url": release_url(tarball.name),
+                "signature": sig_path.read_text().strip(),
+              }
 
           appimages = list(artifacts_dir.rglob("*.AppImage.tar.gz"))
           if not appimages:
@@ -581,6 +592,7 @@ jobs:
           shopt -s nullglob globstar
           appimages=(release-artifacts/**/*.AppImage*)
           dmgs=(release-artifacts/**/*.dmg)
+          tarballs=(release-artifacts/**/*.app.tar.gz)
           mapfile -t rpms < <(find release-artifacts -type f -name '*.rpm' | sort)
           mapfile -t windows_exes < <(find release-artifacts -type f -name '*.exe*' | sort)
           mapfile -t windows_msis < <(find release-artifacts -type f -name '*.msi*' | sort)
@@ -606,8 +618,7 @@ jobs:
             --target "$GITHUB_SHA" \
             release-artifacts/CodexMonitor.zip \
             "${dmgs[@]}" \
-            release-artifacts/CodexMonitor.app.tar.gz \
-            release-artifacts/CodexMonitor.app.tar.gz.sig \
+            "${tarballs[@]}" \
             "${appimages[@]}" \
             "${rpms[@]}" \
             "${windows_exes[@]}" \
