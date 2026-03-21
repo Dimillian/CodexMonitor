@@ -253,6 +253,29 @@ describe("Markdown file-like href behavior", () => {
     expect(onOpenFileLink).toHaveBeenCalledWith("/workspaces/team/CodexMonitor/src");
   });
 
+  it("treats extensionless paths under /workspace/settings as files", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [license](/workspace/settings/LICENSE)"
+        className="markdown"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/settings"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("license").closest("a");
+    expect(link?.getAttribute("href")).toBe("/workspace/settings/LICENSE");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith("/workspace/settings/LICENSE");
+  });
+
   it("intercepts file hrefs that use #L line anchors", () => {
     const onOpenFileLink = vi.fn();
     render(
@@ -445,6 +468,28 @@ describe("Markdown file-like href behavior", () => {
     expect(fileLinks).toHaveLength(2);
     expect(fileLinks[0]?.textContent).toContain("setup.md");
     expect(fileLinks[1]?.textContent).toContain("index.ts");
+  });
+
+  it("linkifies extensionless mounted file paths under reserved workspace names", () => {
+    const onOpenFileLink = vi.fn();
+    const { container } = render(
+      <Markdown
+        value="See /workspaces/team/reviews/bin/tool for details."
+        className="markdown"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = container.querySelector('a[href^="codex-file:"]');
+    expect(link).not.toBeNull();
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith("/workspaces/team/reviews/bin/tool");
   });
 
   it("turns Windows absolute paths in plain text into file links", () => {

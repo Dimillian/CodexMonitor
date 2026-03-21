@@ -200,6 +200,21 @@ describe("useFileLinkOpener", () => {
     );
   });
 
+  it("maps extensionless files under /workspace/settings to the active workspace path", async () => {
+    const workspacePath = "/Users/sotiriskaniras/Documents/Development/Forks/settings";
+    const openWorkspaceInMock = vi.mocked(openWorkspaceIn);
+    const { result } = renderHook(() => useFileLinkOpener(workspacePath, [], ""));
+
+    await act(async () => {
+      await result.current.openFileLink("/workspace/settings/LICENSE");
+    });
+
+    expect(openWorkspaceInMock).toHaveBeenCalledWith(
+      "/Users/sotiriskaniras/Documents/Development/Forks/settings/LICENSE",
+      expect.objectContaining({ appName: "Visual Studio Code", args: [] }),
+    );
+  });
+
   it("maps nested /workspaces/.../<workspace-name>/... paths to the active workspace path", async () => {
     const workspacePath = "/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor";
     const openWorkspaceInMock = vi.mocked(openWorkspaceIn);

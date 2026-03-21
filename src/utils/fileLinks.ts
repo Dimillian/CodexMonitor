@@ -8,24 +8,25 @@ const FILE_LOCATION_SUFFIX_PATTERN = /^(.*?):(\d+)(?::(\d+))?$/;
 const FILE_LOCATION_RANGE_SUFFIX_PATTERN = /^(.*?):(\d+)-(\d+)$/;
 const FILE_LOCATION_HASH_PATTERN = /^(.*?)#L(\d+)(?:C(\d+))?$/i;
 const FILE_URL_LOCATION_HASH_PATTERN = /^#L(\d+)(?:C(\d+))?$/i;
-const RESERVED_LOCAL_WORKSPACE_ROUTE_SEGMENTS = new Set(["reviews", "settings"]);
-const LIKELY_WORKSPACE_FILE_HEAD_SEGMENTS = new Set([
-  ".github",
-  ".vscode",
-  "app",
-  "assets",
-  "components",
-  "dist",
-  "docs",
-  "hooks",
-  "lib",
-  "public",
-  "scripts",
-  "src",
-  "test",
-  "tests",
-  "utils",
-]);
+const LOCAL_WORKSPACE_ROUTE_TAIL_SEGMENTS = {
+  reviews: new Set(["overview"]),
+  settings: new Set([
+    "about",
+    "agents",
+    "codex",
+    "composer",
+    "dictation",
+    "display",
+    "environments",
+    "features",
+    "git",
+    "open-apps",
+    "profile",
+    "projects",
+    "server",
+    "shortcuts",
+  ]),
+} as const;
 
 export const FILE_LINK_SUFFIX_SOURCE =
   "(?:(?::\\d+(?::\\d+)?|:\\d+-\\d+)|(?:#L\\d+(?:C\\d+)?))?";
@@ -197,32 +198,21 @@ export function normalizeFileLinkPath(rawPath: string) {
   return formatFileLocation(parsed.path, parsed.line, parsed.column);
 }
 
-function hasLikelyFileNameSegment(segment: string) {
-  return segment.startsWith(".") ? segment.length > 1 : segment.includes(".");
-}
-
-function hasLikelyMountedWorkspaceFileTail(
-  segments: string[],
-  line: number | null,
-) {
-  if (segments.length === 0) {
-    return false;
-  }
-  if (line !== null) {
-    return true;
-  }
-
-  const [firstSegment] = segments;
-  const lastSegment = segments[segments.length - 1];
-  return (
-    hasLikelyFileNameSegment(lastSegment) ||
-    LIKELY_WORKSPACE_FILE_HEAD_SEGMENTS.has(firstSegment)
-  );
+function stripNonLineUrlSuffix(path: string) {
+  const queryIndex = path.indexOf("?");
+  const hashIndex = path.indexOf("#");
+  const boundaryIndex =
+    queryIndex === -1
+      ? hashIndex
+      : hashIndex === -1
+        ? queryIndex
+        : Math.min(queryIndex, hashIndex);
+  return boundaryIndex === -1 ? path : path.slice(0, boundaryIndex);
 }
 
 function getLocalWorkspaceRouteInfo(rawPath: string) {
   const parsed = parseFileLocation(rawPath);
-  const normalizedPath = parsed.path.trim().replace(/\\/g, "/");
+  const normalizedPath = stripNonLineUrlSuffix(parsed.path.trim().replace(/\\/g, "/"));
   if (normalizedPath.startsWith("/workspace/")) {
     const mountedSegments = normalizedPath
       .slice("/workspace/".length)
@@ -255,10 +245,25 @@ export function isKnownLocalWorkspaceRoutePath(rawPath: string) {
   if (!routeInfo?.routeSegment) {
     return false;
   }
-  if (!RESERVED_LOCAL_WORKSPACE_ROUTE_SEGMENTS.has(routeInfo.routeSegment)) {
+  if (
+    !Object.prototype.hasOwnProperty.call(
+      LOCAL_WORKSPACE_ROUTE_TAIL_SEGMENTS,
+      routeInfo.routeSegment,
+    )
+  ) {
     return false;
   }
-  return !hasLikelyMountedWorkspaceFileTail(routeInfo.tailSegments, routeInfo.line);
+  if (routeInfo.tailSegments.length === 0) {
+    return true;
+  }
+  if (routeInfo.tailSegments.length !== 1) {
+    return false;
+  }
+  const allowedTailSegments =
+    LOCAL_WORKSPACE_ROUTE_TAIL_SEGMENTS[
+      routeInfo.routeSegment as keyof typeof LOCAL_WORKSPACE_ROUTE_TAIL_SEGMENTS
+    ];
+  return allowedTailSegments.has(routeInfo.tailSegments[0]);
 }
 
 type FileUrlParts = {
