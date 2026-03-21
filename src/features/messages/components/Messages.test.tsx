@@ -17,6 +17,15 @@ const { exportMarkdownFileMock } = vi.hoisted(() => ({
   exportMarkdownFileMock: vi.fn(),
 }));
 
+function expectOpenedFileTarget(
+  mock: ReturnType<typeof vi.fn>,
+  path: string,
+  line: number | null = null,
+  column: number | null = null,
+) {
+  expect(mock).toHaveBeenCalledWith({ path, line, column });
+}
+
 vi.mock("../hooks/useFileLinkOpener", () => ({
   useFileLinkOpener: (
     workspacePath: string | null,
@@ -300,7 +309,11 @@ describe("Messages", () => {
     );
 
     fireEvent.click(screen.getByText("this file"));
-    expect(openFileLinkMock).toHaveBeenCalledWith(linkedPath);
+    expectOpenedFileTarget(
+      openFileLinkMock,
+      "/Users/dimillian/Documents/Dev/CodexMonitor/src/features/messages/components/Markdown.tsx",
+      244,
+    );
   });
 
   it("routes absolute non-whitelisted file href paths through the file opener", () => {
@@ -326,7 +339,7 @@ describe("Messages", () => {
     );
 
     fireEvent.click(screen.getByText("app file"));
-    expect(openFileLinkMock).toHaveBeenCalledWith(linkedPath);
+    expectOpenedFileTarget(openFileLinkMock, "/custom/project/src/App.tsx", 12);
   });
 
   it("decodes percent-encoded href file paths before opening", () => {
@@ -351,7 +364,7 @@ describe("Messages", () => {
     );
 
     fireEvent.click(screen.getByText("guide"));
-    expect(openFileLinkMock).toHaveBeenCalledWith("./docs/My Guide.md");
+    expectOpenedFileTarget(openFileLinkMock, "./docs/My Guide.md");
   });
 
   it("routes absolute href file paths with #L anchors through the file opener", () => {
@@ -378,8 +391,41 @@ describe("Messages", () => {
     );
 
     fireEvent.click(screen.getByText("this file"));
-    expect(openFileLinkMock).toHaveBeenCalledWith(
-      "/Users/dimillian/Documents/Dev/CodexMonitor/src/features/messages/components/Markdown.tsx:244",
+    expectOpenedFileTarget(
+      openFileLinkMock,
+      "/Users/dimillian/Documents/Dev/CodexMonitor/src/features/messages/components/Markdown.tsx",
+      244,
+    );
+  });
+
+  it("routes Windows absolute href file paths with #L anchors through the file opener", () => {
+    const linkedPath =
+      "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx#L422";
+    const items: ConversationItem[] = [
+      {
+        id: "msg-file-href-windows-anchor-link",
+        kind: "message",
+        role: "assistant",
+        text: `Open [settings display](${linkedPath})`,
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    fireEvent.click(screen.getByText("settings display"));
+    expectOpenedFileTarget(
+      openFileLinkMock,
+      "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx",
+      422,
     );
   });
 
@@ -406,7 +452,7 @@ describe("Messages", () => {
     );
 
     fireEvent.click(screen.getByText("license"));
-    expect(openFileLinkMock).toHaveBeenCalledWith(linkedPath);
+    expectOpenedFileTarget(openFileLinkMock, linkedPath);
   });
 
   it("keeps non-file relative links as normal markdown links", () => {
