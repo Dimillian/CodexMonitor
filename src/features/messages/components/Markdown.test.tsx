@@ -184,6 +184,29 @@ describe("Markdown file-like href behavior", () => {
     expect(onOpenFileLink).not.toHaveBeenCalled();
   });
 
+  it("keeps nested workspace reviews routes local even when the workspace basename matches", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [overview](/workspace/reviews/overview)"
+        className="markdown"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/reviews"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("overview").closest("a");
+    expect(link?.getAttribute("href")).toBe("/workspace/reviews/overview");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).not.toHaveBeenCalled();
+  });
+
   it("keeps nested workspaces routes as normal markdown links", () => {
     const onOpenFileLink = vi.fn();
     render(
