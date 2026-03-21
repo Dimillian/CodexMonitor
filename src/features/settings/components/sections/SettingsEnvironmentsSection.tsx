@@ -11,11 +11,15 @@ type SettingsEnvironmentsSectionProps = {
   environmentDraftScript: string;
   environmentSavedScript: string | null;
   environmentDirty: boolean;
+  globalWorktreesFolderDraft: string;
+  globalWorktreesFolderSaved: string | null;
+  globalWorktreesFolderDirty: boolean;
   worktreesFolderDraft: string;
   worktreesFolderSaved: string | null;
   worktreesFolderDirty: boolean;
   onSetEnvironmentWorkspaceId: Dispatch<SetStateAction<string | null>>;
   onSetEnvironmentDraftScript: Dispatch<SetStateAction<string>>;
+  onSetGlobalWorktreesFolderDraft: Dispatch<SetStateAction<string>>;
   onSetWorktreesFolderDraft: Dispatch<SetStateAction<string>>;
   onSaveEnvironmentSetup: () => Promise<void>;
 };
@@ -28,22 +32,99 @@ export function SettingsEnvironmentsSection({
   environmentDraftScript,
   environmentSavedScript,
   environmentDirty,
+  globalWorktreesFolderDraft,
+  globalWorktreesFolderSaved: _globalWorktreesFolderSaved,
+  globalWorktreesFolderDirty,
   worktreesFolderDraft,
   worktreesFolderSaved: _worktreesFolderSaved,
   worktreesFolderDirty,
   onSetEnvironmentWorkspaceId,
   onSetEnvironmentDraftScript,
+  onSetGlobalWorktreesFolderDraft,
   onSetWorktreesFolderDraft,
   onSaveEnvironmentSetup,
 }: SettingsEnvironmentsSectionProps) {
-  const hasAnyChanges = environmentDirty || worktreesFolderDirty;
+  const hasAnyChanges =
+    environmentDirty || globalWorktreesFolderDirty || worktreesFolderDirty;
+  const hasProjects = mainWorkspaces.length > 0;
 
   return (
     <SettingsSection
       title="Environments"
       subtitle="Configure per-project setup scripts and worktree locations."
     >
-      {mainWorkspaces.length === 0 ? (
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="settings-global-worktrees-folder">
+          Global worktrees root
+        </label>
+        <div className="settings-help">
+          Default location for new worktrees when a project does not override it. Each
+          project gets its own subfolder under this root.
+        </div>
+        <div className="settings-field-row">
+          <input
+            id="settings-global-worktrees-folder"
+            type="text"
+            className="settings-input"
+            value={globalWorktreesFolderDraft}
+            onChange={(event) => onSetGlobalWorktreesFolderDraft(event.target.value)}
+            placeholder="/path/to/worktrees-root"
+            disabled={environmentSaving}
+          />
+          <button
+            type="button"
+            className="ghost settings-button-compact"
+            onClick={async () => {
+              try {
+                const { open } = await import("@tauri-apps/plugin-dialog");
+                const selected = await open({
+                  directory: true,
+                  multiple: false,
+                  title: "Select global worktrees root",
+                });
+                if (selected && typeof selected === "string") {
+                  onSetGlobalWorktreesFolderDraft(selected);
+                }
+              } catch (error) {
+                pushErrorToast({
+                  title: "Failed to open folder picker",
+                  message: error instanceof Error ? error.message : String(error),
+                });
+              }
+            }}
+            disabled={environmentSaving}
+          >
+            Browse
+          </button>
+        </div>
+        {!hasProjects ? (
+          <div className="settings-field-actions">
+            <button
+              type="button"
+              className="ghost settings-button-compact"
+              onClick={() => onSetGlobalWorktreesFolderDraft(_globalWorktreesFolderSaved ?? "")}
+              disabled={environmentSaving || !globalWorktreesFolderDirty}
+            >
+              Reset
+            </button>
+            <button
+              type="button"
+              className="primary settings-button-compact"
+              onClick={() => {
+                void onSaveEnvironmentSetup();
+              }}
+              disabled={environmentSaving || !globalWorktreesFolderDirty}
+            >
+              {environmentSaving ? "Saving..." : "Save"}
+            </button>
+          </div>
+        ) : null}
+        {!hasProjects && environmentError ? (
+          <div className="settings-agents-error">{environmentError}</div>
+        ) : null}
+      </div>
+
+      {!hasProjects ? (
         <div className="settings-empty">No projects yet.</div>
       ) : (
         <>
@@ -138,7 +219,8 @@ export function SettingsEnvironmentsSection({
               Worktrees folder
             </label>
             <div className="settings-help">
-              Custom location for worktrees. Leave empty to use the default location.
+              Custom location for this project's worktrees. Leave empty to use the global root or
+              the built-in default.
             </div>
             <div className="settings-field-row">
               <input
