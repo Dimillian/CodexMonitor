@@ -2,8 +2,57 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::types::{AppSettings, WorkspaceEntry, WorkspaceSettings};
-use crate::utils::normalize_windows_namespace_path;
 use serde_json::Value;
+
+fn normalize_windows_namespace_path(path: &str) -> String {
+    if path.is_empty() {
+        return String::new();
+    }
+
+    fn strip_prefix_ascii_case<'a>(value: &'a str, prefix: &str) -> Option<&'a str> {
+        value
+            .get(..prefix.len())
+            .filter(|candidate| candidate.eq_ignore_ascii_case(prefix))
+            .map(|_| &value[prefix.len()..])
+    }
+
+    fn starts_with_drive_path(value: &str) -> bool {
+        let bytes = value.as_bytes();
+        bytes.len() >= 3
+            && bytes[0].is_ascii_alphabetic()
+            && bytes[1] == b':'
+            && (bytes[2] == b'\\' || bytes[2] == b'/')
+    }
+
+    if let Some(rest) = strip_prefix_ascii_case(path, r"\\?\UNC\") {
+        return format!(r"\\{rest}");
+    }
+    if let Some(rest) = strip_prefix_ascii_case(path, "//?/UNC/") {
+        return format!("//{rest}");
+    }
+    if let Some(rest) =
+        strip_prefix_ascii_case(path, r"\\?\").filter(|rest| starts_with_drive_path(rest))
+    {
+        return rest.to_string();
+    }
+    if let Some(rest) =
+        strip_prefix_ascii_case(path, "//?/").filter(|rest| starts_with_drive_path(rest))
+    {
+        return rest.to_string();
+    }
+    if let Some(rest) =
+        strip_prefix_ascii_case(path, r"\\.\").filter(|rest| starts_with_drive_path(rest))
+    {
+        return rest.to_string();
+    }
+    if let Some(rest) =
+        strip_prefix_ascii_case(path, "//./").filter(|rest| starts_with_drive_path(rest))
+    {
+        return rest.to_string();
+    }
+
+    path.to_string()
+}
 
 fn normalize_optional_windows_namespace_path(path: Option<String>) -> (Option<String>, bool) {
     match path {
@@ -70,16 +119,6 @@ fn normalize_app_settings(settings: AppSettings) -> (AppSettings, bool) {
     )
 }
 
-fn try_rewrite_workspaces_with_normalized_paths(path: &PathBuf, list: &[WorkspaceEntry]) {
-    if let Err(error) = write_workspaces(path, list) {
-        eprintln!(
-            "read_workspaces: failed to persist normalized workspace paths to {}: {}",
-            path.display(),
-            error
-        );
-    }
-}
-
 fn try_rewrite_settings_with_normalized_paths(path: &PathBuf, settings: &AppSettings) {
     if let Err(error) = write_settings(path, settings) {
         eprintln!(
@@ -96,10 +135,7 @@ pub(crate) fn read_workspaces(path: &PathBuf) -> Result<HashMap<String, Workspac
     }
     let data = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
     let list: Vec<WorkspaceEntry> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
-    let (list, changed) = normalize_workspace_entries(list);
-    if changed {
-        try_rewrite_workspaces_with_normalized_paths(path, &list);
-    }
+    let (list, _) = normalize_workspace_entries(list);
     Ok(list
         .into_iter()
         .map(|entry| (entry.id.clone(), entry))
@@ -255,7 +291,7 @@ mod tests {
     }
 
     #[test]
-    fn read_workspaces_rewrites_namespace_paths_with_sanitized_values() {
+    fn read_workspaces_sanitizes_namespace_paths_without_rewriting_file() {
         let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&temp_dir).expect("create temp dir");
         let path = temp_dir.join("workspaces.json");
@@ -280,9 +316,9 @@ mod tests {
         let stored = read.get("w1").expect("stored workspace");
         assert_eq!(stored.path, r"I:\gpt-projects\json-composer");
 
-        let rewritten = std::fs::read_to_string(&path).expect("read rewritten workspaces");
-        assert!(rewritten.contains(r#"I:\gpt-projects\json-composer"#));
-        assert!(!rewritten.contains(r#"\\?\I:\gpt-projects\json-composer"#));
+        let persisted = std::fs::read_to_string(&path).expect("read persisted workspaces");
+        assert!(persisted.contains(r#"\\?\I:\gpt-projects\json-composer"#));
+        assert!(!persisted.contains(r#""path": "I:\gpt-projects\json-composer""#));
     }
 
     #[test]
