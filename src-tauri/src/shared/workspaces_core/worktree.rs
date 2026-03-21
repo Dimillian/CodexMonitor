@@ -17,8 +17,8 @@ use crate::types::{
 
 use super::connect::{kill_session_by_id, take_live_shared_session, workspace_session_spawn_lock};
 use super::helpers::{
-    copy_agents_md_from_parent_to_worktree, normalize_setup_script, worktree_setup_marker_path,
-    AGENTS_MD_FILE_NAME,
+    copy_agents_md_from_parent_to_worktree, normalize_setup_script, workspace_path_to_string,
+    worktree_setup_marker_path, AGENTS_MD_FILE_NAME,
 };
 
 pub(crate) async fn worktree_setup_status_core(
@@ -136,14 +136,15 @@ where
 
     // Determine worktree root: per-workspace setting > global setting > default
     let worktree_root = if let Some(custom_folder) = &parent_entry.settings.worktrees_folder {
-        PathBuf::from(custom_folder)
+        PathBuf::from(workspace_path_to_string(&PathBuf::from(custom_folder)))
     } else {
         let global_folder = {
             let settings = app_settings.lock().await;
             settings.global_worktrees_folder.clone()
         };
         if let Some(global_folder) = global_folder {
-            PathBuf::from(global_folder).join(&parent_entry.id)
+            PathBuf::from(workspace_path_to_string(&PathBuf::from(global_folder)))
+                .join(&parent_entry.id)
         } else {
             data_dir.join("worktrees").join(&parent_entry.id)
         }
@@ -154,6 +155,7 @@ where
     let safe_name = sanitize_worktree_name(&branch);
     let worktree_path = unique_worktree_path(&worktree_root, &safe_name)?;
     let worktree_path_string = worktree_path.to_string_lossy().to_string();
+    let stored_worktree_path = workspace_path_to_string(&worktree_path);
 
     let repo_path = PathBuf::from(&parent_entry.path);
     let branch_exists = git_branch_exists(&repo_path, &branch).await?;
@@ -206,7 +208,7 @@ where
     let entry = WorkspaceEntry {
         id: Uuid::new_v4().to_string(),
         name: name.clone().unwrap_or_else(|| branch.clone()),
-        path: worktree_path_string,
+        path: stored_worktree_path,
         kind: WorkspaceKind::Worktree,
         parent_id: Some(parent_entry.id.clone()),
         worktree: Some(WorktreeInfo { branch }),
@@ -409,14 +411,14 @@ where
     // Use the same priority logic as add_worktree_core:
     // per-workspace setting > global setting > default
     let worktree_root = if let Some(custom_folder) = &parent.settings.worktrees_folder {
-        PathBuf::from(custom_folder)
+        PathBuf::from(workspace_path_to_string(&PathBuf::from(custom_folder)))
     } else {
         let global_folder = {
             let settings = app_settings.lock().await;
             settings.global_worktrees_folder.clone()
         };
         if let Some(global_folder) = global_folder {
-            PathBuf::from(global_folder).join(&parent.id)
+            PathBuf::from(workspace_path_to_string(&PathBuf::from(global_folder))).join(&parent.id)
         } else {
             data_dir.join("worktrees").join(&parent.id)
         }
@@ -428,12 +430,13 @@ where
     let current_path = PathBuf::from(&entry.path);
     let next_path = unique_worktree_path_for_rename(&worktree_root, &safe_name, &current_path)?;
     let next_path_string = next_path.to_string_lossy().to_string();
+    let stored_next_path = workspace_path_to_string(&next_path);
     let old_path_string = entry.path.clone();
 
     run_git_command(&parent_root, &["branch", "-m", &old_branch, &final_branch]).await?;
 
     let mut moved_worktree = false;
-    if next_path_string != old_path_string {
+    if stored_next_path != old_path_string {
         if let Err(error) = run_git_command(
             &parent_root,
             &["worktree", "move", &old_path_string, &next_path_string],
@@ -454,7 +457,7 @@ where
             if entry.name.trim() == old_branch {
                 entry.name = final_branch.clone();
             }
-            entry.path = next_path_string.clone();
+            entry.path = stored_next_path.clone();
             match entry.worktree.as_mut() {
                 Some(worktree) => {
                     worktree.branch = final_branch.clone();

@@ -6,10 +6,12 @@ use std::sync::{Arc, Mutex as StdMutex};
 use super::settings::{apply_workspace_settings_update, sort_workspaces};
 use super::worktree::{
     build_clone_destination_path, sanitize_clone_dir_name, sanitize_worktree_name,
+    unique_worktree_path_for_rename,
 };
 use crate::backend::app_server::WorkspaceSession;
 use crate::shared::workspaces_core::{
     remove_workspace_core, remove_worktree_core, rename_worktree_core,
+    update_workspace_settings_core,
 };
 use crate::storage::{read_workspaces, write_workspaces};
 use crate::types::{
@@ -218,6 +220,7 @@ fn update_workspace_settings_persists_sort_and_group() {
     settings.git_root = Some("/tmp".to_string());
     settings.launch_script = Some("npm run dev".to_string());
     settings.worktree_setup_script = Some("pnpm install".to_string());
+    settings.worktrees_folder = Some(r"\\?\I:\gpt-projects\worktrees".to_string());
 
     let updated =
         apply_workspace_settings_update(&mut workspaces, &id, settings.clone()).expect("update");
@@ -232,6 +235,10 @@ fn update_workspace_settings_persists_sort_and_group() {
     assert_eq!(
         updated.settings.worktree_setup_script.as_deref(),
         Some("pnpm install"),
+    );
+    assert_eq!(
+        updated.settings.worktrees_folder.as_deref(),
+        Some(r"\\?\I:\gpt-projects\worktrees"),
     );
 
     let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
@@ -253,6 +260,10 @@ fn update_workspace_settings_persists_sort_and_group() {
     assert_eq!(
         stored.settings.worktree_setup_script.as_deref(),
         Some("pnpm install"),
+    );
+    assert_eq!(
+        stored.settings.worktrees_folder.as_deref(),
+        Some(r"I:\gpt-projects\worktrees"),
     );
 }
 
@@ -453,10 +464,7 @@ fn rename_worktree_validates_worktree_root_before_branch_rename() {
                 let calls = calls.clone();
                 let args: Vec<String> = args.iter().map(|value| value.to_string()).collect();
                 async move {
-                    calls
-                        .lock()
-                        .expect("lock")
-                        .push(args);
+                    calls.lock().expect("lock").push(args);
                     Ok(())
                 }
             },
@@ -473,10 +481,145 @@ fn rename_worktree_validates_worktree_root_before_branch_rename() {
         let stored = workspaces.lock().await;
         let entry = stored.get(&worktree.id).expect("stored entry");
         assert_eq!(
-            entry.worktree.as_ref().map(|worktree| worktree.branch.as_str()),
+            entry
+                .worktree
+                .as_ref()
+                .map(|worktree| worktree.branch.as_str()),
             Some("feature/old")
         );
         assert_eq!(entry.path, worktree.path);
+    });
+}
+
+#[test]
+#[cfg(target_os = "windows")]
+fn update_workspace_settings_core_sanitizes_namespace_worktrees_folder() {
+    run_async(async {
+        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&temp_dir).expect("create temp dir");
+        let storage_path = temp_dir.join("workspaces.json");
+
+        let id = "workspace-1".to_string();
+        let entry = WorkspaceEntry {
+            id: id.clone(),
+            name: "Workspace".to_string(),
+            path: temp_dir.join("repo").to_string_lossy().to_string(),
+            kind: WorkspaceKind::Main,
+            parent_id: None,
+            worktree: None,
+            settings: WorkspaceSettings::default(),
+        };
+        let workspaces = Mutex::new(HashMap::from([(id.clone(), entry)]));
+        let sessions: Mutex<HashMap<String, Arc<WorkspaceSession>>> = Mutex::new(HashMap::new());
+        let app_settings = Mutex::new(AppSettings::default());
+
+        let mut settings = WorkspaceSettings::default();
+        settings.worktrees_folder = Some(r"\\?\I:\gpt-projects\worktrees".to_string());
+
+        let updated = update_workspace_settings_core(
+            id.clone(),
+            settings,
+            &workspaces,
+            &sessions,
+            &app_settings,
+            &storage_path,
+            apply_workspace_settings_update,
+            |_entry, _default_bin, _codex_args, _codex_home| async move {
+                Err("spawn not expected".to_string())
+            },
+        )
+        .await
+        .expect("update workspace settings");
+
+        assert_eq!(
+            updated.settings.worktrees_folder.as_deref(),
+            Some(r"I:\gpt-projects\worktrees")
+        );
+    });
+}
+
+#[test]
+#[cfg(target_os = "windows")]
+fn rename_worktree_ignores_namespace_only_difference_in_worktree_root() {
+    run_async(async {
+        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        let repo_path = temp_dir.join("repo");
+        std::fs::create_dir_all(&repo_path).expect("create repo path");
+        let worktree_root = temp_dir.join("worktrees").join("parent");
+        std::fs::create_dir_all(&worktree_root).expect("create worktree root");
+        let current_path = worktree_root.join("feature-new");
+        std::fs::create_dir_all(&current_path).expect("create current worktree path");
+
+        let mut parent_settings = WorkspaceSettings::default();
+        parent_settings.worktrees_folder =
+            Some(format!(r"\\?\{}", worktree_root.to_string_lossy()));
+        let parent = WorkspaceEntry {
+            id: "parent".to_string(),
+            name: "Parent".to_string(),
+            path: repo_path.to_string_lossy().to_string(),
+            kind: WorkspaceKind::Main,
+            parent_id: None,
+            worktree: None,
+            settings: parent_settings,
+        };
+        let worktree = WorkspaceEntry {
+            id: "wt-namespace".to_string(),
+            name: "feature/new".to_string(),
+            path: current_path.to_string_lossy().to_string(),
+            kind: WorkspaceKind::Worktree,
+            parent_id: Some(parent.id.clone()),
+            worktree: Some(WorktreeInfo {
+                branch: "feature/new".to_string(),
+            }),
+            settings: WorkspaceSettings::default(),
+        };
+        let workspaces = Mutex::new(HashMap::from([
+            (parent.id.clone(), parent.clone()),
+            (worktree.id.clone(), worktree.clone()),
+        ]));
+        let sessions: Mutex<HashMap<String, Arc<WorkspaceSession>>> = Mutex::new(HashMap::new());
+        let app_settings = Mutex::new(AppSettings::default());
+        let storage_path = temp_dir.join("workspaces.json");
+        let calls: Arc<StdMutex<Vec<Vec<String>>>> = Arc::new(StdMutex::new(Vec::new()));
+
+        let updated = rename_worktree_core(
+            worktree.id.clone(),
+            "feature-new".to_string(),
+            &temp_dir,
+            &workspaces,
+            &sessions,
+            &app_settings,
+            &storage_path,
+            |_| Ok(repo_path.clone()),
+            |_root, branch| {
+                let branch = branch.to_string();
+                async move { Ok(branch) }
+            },
+            |value| sanitize_worktree_name(value),
+            |base_dir, name, current| unique_worktree_path_for_rename(base_dir, name, current),
+            |_root, args| {
+                let args: Vec<String> = args.iter().map(|value| value.to_string()).collect();
+                let calls = calls.clone();
+                async move {
+                    calls.lock().expect("lock").push(args);
+                    Ok(())
+                }
+            },
+            |_entry, _default_bin, _codex_args, _codex_home| async move {
+                Err("spawn not expected".to_string())
+            },
+        )
+        .await
+        .expect("rename worktree");
+
+        let recorded_calls = calls.lock().expect("lock");
+        assert!(recorded_calls
+            .iter()
+            .all(
+                |args| !(args.get(0).map(|value| value.as_str()) == Some("worktree")
+                    && args.get(1).map(|value| value.as_str()) == Some("move"))
+            ));
+        assert_eq!(updated.path, current_path.to_string_lossy().to_string());
     });
 }
 

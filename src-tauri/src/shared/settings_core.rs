@@ -5,6 +5,7 @@ use tokio::sync::Mutex;
 use crate::codex::config as codex_config;
 use crate::storage::write_settings;
 use crate::types::AppSettings;
+use crate::utils::normalize_windows_namespace_path;
 
 fn normalize_personality(value: &str) -> Option<&'static str> {
     match value.trim() {
@@ -40,10 +41,13 @@ pub(crate) async fn get_app_settings_core(app_settings: &Mutex<AppSettings>) -> 
 }
 
 pub(crate) async fn update_app_settings_core(
-    settings: AppSettings,
+    mut settings: AppSettings,
     app_settings: &Mutex<AppSettings>,
     settings_path: &PathBuf,
 ) -> Result<AppSettings, String> {
+    settings.global_worktrees_folder = settings
+        .global_worktrees_folder
+        .map(|path| normalize_windows_namespace_path(&path));
     let _ = codex_config::write_collaboration_modes_enabled(settings.collaboration_modes_enabled);
     let _ = codex_config::write_steer_enabled(settings.steer_enabled);
     let _ = codex_config::write_unified_exec_enabled(settings.unified_exec_enabled);

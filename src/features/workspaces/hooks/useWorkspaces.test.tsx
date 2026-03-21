@@ -357,6 +357,82 @@ describe("useWorkspaces.addWorkspacesFromPaths", () => {
     expect(addResult!.failures).toHaveLength(0);
   });
 
+  it("treats Windows namespace paths as duplicates of existing workspace roots", async () => {
+    const listWorkspacesMock = vi.mocked(listWorkspaces);
+    const isWorkspacePathDirMock = vi.mocked(isWorkspacePathDir);
+    const addWorkspaceMock = vi.mocked(addWorkspace);
+
+    listWorkspacesMock.mockResolvedValue([
+      {
+        ...workspaceOne,
+        id: "existing-win",
+        path: "I:\\gpt-projects\\CodexMonitor",
+      },
+    ]);
+    isWorkspacePathDirMock.mockResolvedValue(true);
+
+    const { result } = renderHook(() => useWorkspaces());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    let addResult: Awaited<ReturnType<typeof result.current.addWorkspacesFromPaths>>;
+    await act(async () => {
+      addResult = await result.current.addWorkspacesFromPaths([
+        "\\\\?\\I:\\gpt-projects\\CodexMonitor",
+      ]);
+    });
+
+    expect(isWorkspacePathDirMock).toHaveBeenCalledWith(
+      "\\\\?\\I:\\gpt-projects\\CodexMonitor",
+    );
+    expect(addWorkspaceMock).not.toHaveBeenCalled();
+    expect(addResult!.added).toHaveLength(0);
+    expect(addResult!.skippedExisting).toEqual(["\\\\?\\I:\\gpt-projects\\CodexMonitor"]);
+    expect(addResult!.skippedInvalid).toHaveLength(0);
+    expect(addResult!.failures).toHaveLength(0);
+  });
+
+  it("treats Windows UNC namespace paths as duplicates of existing workspace roots", async () => {
+    const listWorkspacesMock = vi.mocked(listWorkspaces);
+    const isWorkspacePathDirMock = vi.mocked(isWorkspacePathDir);
+    const addWorkspaceMock = vi.mocked(addWorkspace);
+
+    listWorkspacesMock.mockResolvedValue([
+      {
+        ...workspaceOne,
+        id: "existing-unc",
+        path: "\\\\SERVER\\Share\\CodexMonitor",
+      },
+    ]);
+    isWorkspacePathDirMock.mockResolvedValue(true);
+
+    const { result } = renderHook(() => useWorkspaces());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    let addResult: Awaited<ReturnType<typeof result.current.addWorkspacesFromPaths>>;
+    await act(async () => {
+      addResult = await result.current.addWorkspacesFromPaths([
+        "\\\\?\\UNC\\SERVER\\Share\\CodexMonitor",
+      ]);
+    });
+
+    expect(isWorkspacePathDirMock).toHaveBeenCalledWith(
+      "\\\\?\\UNC\\SERVER\\Share\\CodexMonitor",
+    );
+    expect(addWorkspaceMock).not.toHaveBeenCalled();
+    expect(addResult!.added).toHaveLength(0);
+    expect(addResult!.skippedExisting).toEqual([
+      "\\\\?\\UNC\\SERVER\\Share\\CodexMonitor",
+    ]);
+    expect(addResult!.skippedInvalid).toHaveLength(0);
+    expect(addResult!.failures).toHaveLength(0);
+  });
+
   it("tries raw tilde paths before inferred home-prefix expansion", async () => {
     const listWorkspacesMock = vi.mocked(listWorkspaces);
     const isWorkspacePathDirMock = vi.mocked(isWorkspacePathDir);
