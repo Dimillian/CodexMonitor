@@ -3,11 +3,13 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
+  type FileLinkTarget,
+  type ParsedFileLocation,
   formatFileLocation,
-  fromFileUrl,
   isKnownLocalWorkspaceRoutePath as isKnownLocalWorkspaceRouteFilePath,
   normalizeFileLinkPath,
   parseFileLocation,
+  parseFileUrlLocation,
 } from "../../../utils/fileLinks";
 import {
   decodeFileLink,
@@ -26,8 +28,8 @@ type MarkdownProps = {
   codeBlockCopyUseModifier?: boolean;
   showFilePath?: boolean;
   workspacePath?: string | null;
-  onOpenFileLink?: (path: string) => void;
-  onOpenFileLinkMenu?: (event: React.MouseEvent, path: string) => void;
+  onOpenFileLink?: (path: FileLinkTarget) => void;
+  onOpenFileLinkMenu?: (event: React.MouseEvent, path: FileLinkTarget) => void;
   onOpenThreadLink?: (threadId: string) => void;
 };
 
@@ -60,6 +62,15 @@ type ParsedFileReference = {
   lineLabel: string | null;
   parentPath: string | null;
 };
+
+function toParsedFileTarget(target: FileLinkTarget): ParsedFileLocation {
+  return typeof target === "string" ? parseFileLocation(target) : target;
+}
+
+function formatFileTarget(target: FileLinkTarget) {
+  const parsed = toParsedFileTarget(target);
+  return formatFileLocation(parsed.path, parsed.line, parsed.column);
+}
 
 function normalizePathSeparators(path: string) {
   return path.replace(/\\/g, "/");
@@ -477,11 +488,15 @@ function LinkBlock({ urls }: LinkBlockProps) {
 }
 
 function parseFileReference(
-  rawPath: string,
+  rawPath: FileLinkTarget,
   workspacePath?: string | null,
 ): ParsedFileReference {
-  const trimmed = normalizeFileLinkPath(rawPath);
-  const parsedLocation = parseFileLocation(trimmed);
+  const parsedLocation = toParsedFileTarget(rawPath);
+  const fullPath = formatFileLocation(
+    parsedLocation.path,
+    parsedLocation.line,
+    parsedLocation.column,
+  );
   const pathWithoutLine = parsedLocation.path.trim();
   const lineLabel =
     parsedLocation.line === null
@@ -490,7 +505,7 @@ function parseFileReference(
   const displayPath = relativeDisplayPath(pathWithoutLine, workspacePath);
   const normalizedPath = trimTrailingPathSeparators(displayPath) || displayPath;
   const lastSlashIndex = normalizedPath.lastIndexOf("/");
-  const fallbackFile = normalizedPath || trimmed;
+  const fallbackFile = normalizedPath || fullPath;
   const fileName =
     lastSlashIndex >= 0 ? normalizedPath.slice(lastSlashIndex + 1) : fallbackFile;
   const rawParentPath =
@@ -498,7 +513,7 @@ function parseFileReference(
   const parentPath = rawParentPath || (normalizedPath.startsWith("/") ? "/" : null);
 
   return {
-    fullPath: trimmed,
+    fullPath,
     fileName,
     lineLabel,
     parentPath,
@@ -514,11 +529,11 @@ function FileReferenceLink({
   onContextMenu,
 }: {
   href: string;
-  rawPath: string;
+  rawPath: FileLinkTarget;
   showFilePath: boolean;
   workspacePath?: string | null;
-  onClick: (event: React.MouseEvent, path: string) => void;
-  onContextMenu: (event: React.MouseEvent, path: string) => void;
+  onClick: (event: React.MouseEvent, path: FileLinkTarget) => void;
+  onContextMenu: (event: React.MouseEvent, path: FileLinkTarget) => void;
 }) {
   const { fullPath, fileName, lineLabel, parentPath } = parseFileReference(
     rawPath,
@@ -636,7 +651,7 @@ export function Markdown({
   const content = codeBlock
     ? `\`\`\`\n${normalizedValue}\n\`\`\``
     : normalizedValue;
-  const handleFileLinkClick = (event: React.MouseEvent, path: string) => {
+  const handleFileLinkClick = (event: React.MouseEvent, path: FileLinkTarget) => {
     event.preventDefault();
     event.stopPropagation();
     onOpenFileLink?.(path);
@@ -647,7 +662,7 @@ export function Markdown({
   };
   const handleFileLinkContextMenu = (
     event: React.MouseEvent,
-    path: string,
+    path: FileLinkTarget,
   ) => {
     event.preventDefault();
     event.stopPropagation();
@@ -667,7 +682,7 @@ export function Markdown({
     return normalizedPath;
   };
   const resolveHrefFilePath = (url: string) => {
-    const fileUrlPath = fromFileUrl(url);
+    const fileUrlPath = parseFileUrlLocation(url);
     if (fileUrlPath) {
       return fileUrlPath;
     }
@@ -687,11 +702,11 @@ export function Markdown({
       if (isLikelyFileHref(linkableCandidate, workspacePath)) {
         const parsedCandidate = parseFileLocation(linkableCandidate);
         const decodedPath = safeDecodeURIComponent(parsedCandidate.path);
-        return formatFileLocation(
-          decodedPath ?? parsedCandidate.path,
-          parsedCandidate.line,
-          parsedCandidate.column,
-        );
+        return {
+          path: decodedPath ?? parsedCandidate.path,
+          line: parsedCandidate.line,
+          column: parsedCandidate.column,
+        };
       }
     }
     return null;
@@ -746,6 +761,7 @@ export function Markdown({
       }
       const hrefFilePath = resolveHrefFilePath(url);
       if (hrefFilePath) {
+        const formattedHrefFilePath = formatFileTarget(hrefFilePath);
         const clickHandler = (event: React.MouseEvent) =>
           handleFileLinkClick(event, hrefFilePath);
         const contextMenuHandler = onOpenFileLinkMenu
@@ -753,8 +769,8 @@ export function Markdown({
           : undefined;
         return (
           <a
-            href={href ?? toFileLink(hrefFilePath)}
-            title={hrefFilePath}
+            href={href ?? toFileLink(formattedHrefFilePath)}
+            title={formattedHrefFilePath}
             onClick={clickHandler}
             onContextMenu={contextMenuHandler}
           >

@@ -3,6 +3,15 @@ import { cleanup, createEvent, fireEvent, render, screen } from "@testing-librar
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Markdown } from "./Markdown";
 
+function expectOpenedFileTarget(
+  mock: ReturnType<typeof vi.fn>,
+  path: string,
+  line: number | null = null,
+  column: number | null = null,
+) {
+  expect(mock).toHaveBeenCalledWith({ path, line, column });
+}
+
 describe("Markdown file-like href behavior", () => {
   afterEach(() => {
     cleanup();
@@ -46,7 +55,7 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expect(onOpenFileLink).toHaveBeenCalledWith("./docs/setup.md");
+    expectOpenedFileTarget(onOpenFileLink, "./docs/setup.md");
   });
 
   it("prevents bare relative link navigation without treating it as a file", () => {
@@ -89,7 +98,7 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expect(onOpenFileLink).toHaveBeenCalledWith("/workspace/src/example.ts");
+    expectOpenedFileTarget(onOpenFileLink, "/workspace/src/example.ts");
   });
 
   it("still intercepts dotless workspace file hrefs when a file opener is provided", () => {
@@ -112,7 +121,7 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expect(onOpenFileLink).toHaveBeenCalledWith("/workspace/CodexMonitor/LICENSE");
+    expectOpenedFileTarget(onOpenFileLink, "/workspace/CodexMonitor/LICENSE");
   });
 
   it("intercepts mounted workspace links outside the old root allowlist", () => {
@@ -135,7 +144,7 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expect(onOpenFileLink).toHaveBeenCalledWith("/workspace/.github/workflows");
+    expectOpenedFileTarget(onOpenFileLink, "/workspace/.github/workflows");
   });
 
   it("intercepts mounted workspace directory links that resolve relative to the workspace", () => {
@@ -158,7 +167,7 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expect(onOpenFileLink).toHaveBeenCalledWith("/workspace/dist/assets");
+    expectOpenedFileTarget(onOpenFileLink, "/workspace/dist/assets");
   });
 
   it("keeps exact workspace routes as normal markdown links", () => {
@@ -273,7 +282,7 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expect(onOpenFileLink).toHaveBeenCalledWith("/workspaces/team/CodexMonitor/src");
+    expectOpenedFileTarget(onOpenFileLink, "/workspaces/team/CodexMonitor/src");
   });
 
   it("treats extensionless paths under /workspace/settings as files", () => {
@@ -296,7 +305,7 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expect(onOpenFileLink).toHaveBeenCalledWith("/workspace/settings/LICENSE");
+    expectOpenedFileTarget(onOpenFileLink, "/workspace/settings/LICENSE");
   });
 
   it("intercepts file hrefs that use #L line anchors", () => {
@@ -318,7 +327,7 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expect(onOpenFileLink).toHaveBeenCalledWith("./docs/setup.md:12");
+    expectOpenedFileTarget(onOpenFileLink, "./docs/setup.md", 12);
   });
 
   it("intercepts Windows absolute file hrefs with #L anchors and preserves the tooltip", () => {
@@ -349,14 +358,20 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expect(onOpenFileLink).toHaveBeenCalledWith(
-      "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx:422",
+    expectOpenedFileTarget(
+      onOpenFileLink,
+      "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx",
+      422,
     );
 
     fireEvent.contextMenu(link as Element);
     expect(onOpenFileLinkMenu).toHaveBeenCalledWith(
       expect.anything(),
-      "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx:422",
+      {
+        path: "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx",
+        line: 422,
+        column: null,
+      },
     );
   });
 
@@ -589,7 +604,7 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expect(onOpenFileLink).toHaveBeenCalledWith("/tmp/report.md");
+    expectOpenedFileTarget(onOpenFileLink, "/tmp/report.md");
   });
 
   it("keeps line anchors when opening file URLs", () => {
@@ -611,7 +626,7 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expect(onOpenFileLink).toHaveBeenCalledWith("/tmp/report.md:12");
+    expectOpenedFileTarget(onOpenFileLink, "/tmp/report.md", 12);
   });
 
   it("preserves Windows drive paths when file URL decoding encounters an unescaped percent", () => {
@@ -633,7 +648,7 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expect(onOpenFileLink).toHaveBeenCalledWith("C:/repo/100%.tsx:12");
+    expectOpenedFileTarget(onOpenFileLink, "C:/repo/100%.tsx", 12);
   });
 
   it("preserves UNC host paths when file URL decoding encounters an unescaped percent", () => {
@@ -655,7 +670,7 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expect(onOpenFileLink).toHaveBeenCalledWith("//server/share/100%.tsx:12");
+    expectOpenedFileTarget(onOpenFileLink, "//server/share/100%.tsx", 12);
   });
 
   it("keeps encoded #L-like filenames intact when opening file URLs", () => {
@@ -677,7 +692,29 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expect(onOpenFileLink).toHaveBeenCalledWith("/tmp/report#L12.md");
+    expectOpenedFileTarget(onOpenFileLink, "/tmp/report#L12.md");
+  });
+
+  it("keeps encoded bare #L-like filenames intact when opening file URLs", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [report](file:///tmp/%23L12)"
+        className="markdown"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("report").closest("a");
+    expect(link?.getAttribute("href")).toBe("file:///tmp/%23L12");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expectOpenedFileTarget(onOpenFileLink, "/tmp/#L12");
   });
 
   it("keeps encoded #L-like filename endings intact when opening markdown hrefs", () => {
@@ -699,7 +736,7 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expect(onOpenFileLink).toHaveBeenCalledWith("./report.md#L12");
+    expectOpenedFileTarget(onOpenFileLink, "./report.md#L12");
   });
 
   it("keeps encoded #L-like filename column endings intact when opening markdown hrefs", () => {
@@ -721,7 +758,7 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expect(onOpenFileLink).toHaveBeenCalledWith("./report.md#L12C3");
+    expectOpenedFileTarget(onOpenFileLink, "./report.md#L12C3");
   });
 
   it("still opens mounted file links when the workspace basename is settings", () => {
@@ -743,7 +780,7 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expect(onOpenFileLink).toHaveBeenCalledWith("/workspace/settings/src/App.tsx");
+    expectOpenedFileTarget(onOpenFileLink, "/workspace/settings/src/App.tsx");
   });
 
   it("keeps nested settings routes local when the workspace basename is settings", () => {

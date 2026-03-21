@@ -271,6 +271,24 @@ describe("useFileLinkOpener", () => {
     );
   });
 
+  it("opens structured file targets without re-parsing #L-like filename endings", async () => {
+    const openWorkspaceInMock = vi.mocked(openWorkspaceIn);
+    const { result } = renderHook(() => useFileLinkOpener(null, [], ""));
+
+    await act(async () => {
+      await result.current.openFileLink({
+        path: "/tmp/#L12",
+        line: null,
+        column: null,
+      });
+    });
+
+    expect(openWorkspaceInMock).toHaveBeenCalledWith(
+      "/tmp/#L12",
+      expect.objectContaining({ appName: "Visual Studio Code", args: [] }),
+    );
+  });
+
   it("normalizes line ranges to the starting line before opening the editor", async () => {
     const workspacePath = "/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor";
     const openWorkspaceInMock = vi.mocked(openWorkspaceIn);

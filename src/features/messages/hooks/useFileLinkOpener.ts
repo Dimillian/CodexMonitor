@@ -8,7 +8,12 @@ import * as Sentry from "@sentry/react";
 import { openWorkspaceIn } from "../../../services/tauri";
 import { pushErrorToast } from "../../../services/toasts";
 import type { OpenAppTarget } from "../../../types";
-import { parseFileLocation, toFileUrl } from "../../../utils/fileLinks";
+import {
+  type FileLinkTarget,
+  formatFileLocation,
+  parseFileLocation,
+  toFileUrl,
+} from "../../../utils/fileLinks";
 import {
   isAbsolutePath,
   joinWorkspacePath,
@@ -46,6 +51,10 @@ const canOpenTarget = (target: OpenTarget) => {
   }
   return Boolean(resolveAppName(target));
 };
+
+function toParsedFileTarget(target: FileLinkTarget) {
+  return typeof target === "string" ? parseFileLocation(target) : target;
+}
 
 function resolveFilePath(path: string, workspacePath?: string | null) {
   const trimmed = path.trim();
@@ -89,13 +98,18 @@ export function useFileLinkOpener(
   );
 
   const openFileLink = useCallback(
-    async (rawPath: string) => {
+    async (rawPath: FileLinkTarget) => {
       const target = {
         ...DEFAULT_OPEN_TARGET,
         ...(openTargets.find((entry) => entry.id === selectedOpenAppId) ??
           openTargets[0]),
       };
-      const fileLocation = parseFileLocation(rawPath);
+      const fileLocation = toParsedFileTarget(rawPath);
+      const rawPathLabel = formatFileLocation(
+        fileLocation.path,
+        fileLocation.line,
+        fileLocation.column,
+      );
       const resolvedPath = resolveFilePath(fileLocation.path, workspacePath);
       const openLocation = {
         ...(fileLocation.line !== null ? { line: fileLocation.line } : {}),
@@ -135,7 +149,7 @@ export function useFileLinkOpener(
         });
       } catch (error) {
         reportOpenError(error, {
-          rawPath,
+          rawPath: rawPathLabel,
           resolvedPath,
           workspacePath,
           targetId: target.id,
@@ -149,7 +163,7 @@ export function useFileLinkOpener(
   );
 
   const showFileLinkMenu = useCallback(
-    async (event: MouseEvent, rawPath: string) => {
+    async (event: MouseEvent, rawPath: FileLinkTarget) => {
       event.preventDefault();
       event.stopPropagation();
       const target = {
@@ -157,7 +171,12 @@ export function useFileLinkOpener(
         ...(openTargets.find((entry) => entry.id === selectedOpenAppId) ??
           openTargets[0]),
       };
-      const fileLocation = parseFileLocation(rawPath);
+      const fileLocation = toParsedFileTarget(rawPath);
+      const rawPathLabel = formatFileLocation(
+        fileLocation.path,
+        fileLocation.line,
+        fileLocation.column,
+      );
       const resolvedPath = resolveFilePath(fileLocation.path, workspacePath);
       const appName = resolveAppName(target);
       const command = resolveCommand(target);
@@ -190,7 +209,7 @@ export function useFileLinkOpener(
                     await revealItemInDir(resolvedPath);
                   } catch (error) {
                     reportOpenError(error, {
-                      rawPath,
+                      rawPath: rawPathLabel,
                       resolvedPath,
                       workspacePath,
                       targetId: target.id,

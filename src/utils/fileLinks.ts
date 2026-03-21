@@ -4,6 +4,8 @@ export type ParsedFileLocation = {
   column: number | null;
 };
 
+export type FileLinkTarget = string | ParsedFileLocation;
+
 const FILE_LOCATION_SUFFIX_PATTERN = /^(.*?):(\d+)(?::(\d+))?$/;
 const FILE_LOCATION_RANGE_SUFFIX_PATTERN = /^(.*?):(\d+)-(\d+)$/;
 const FILE_LOCATION_HASH_PATTERN = /^(.*?)#L(\d+)(?:C(\d+))?$/i;
@@ -354,7 +356,7 @@ export function toFileUrl(path: string, line: number | null, column: number | nu
   return `${base}#L${line}${column !== null ? `C${column}` : ""}`;
 }
 
-export function fromFileUrl(url: string) {
+export function parseFileUrlLocation(url: string): ParsedFileLocation | null {
   if (!url.toLowerCase().startsWith("file://")) {
     return null;
   }
@@ -367,7 +369,7 @@ export function fromFileUrl(url: string) {
 
     const path = buildLocalPathFromFileUrl(parsed.host, parsed.pathname);
     const { line, column } = parseRecognizedFileUrlHash(parsed.hash);
-    return formatFileLocation(path, line, column);
+    return { path, line, column };
   } catch {
     const manualParts = parseManualFileUrl(url);
     if (!manualParts) {
@@ -375,6 +377,11 @@ export function fromFileUrl(url: string) {
     }
     const path = buildLocalPathFromFileUrl(manualParts.host, manualParts.pathname);
     const { line, column } = parseRecognizedFileUrlHash(manualParts.hash);
-    return formatFileLocation(path, line, column);
+    return { path, line, column };
   }
+}
+
+export function fromFileUrl(url: string) {
+  const parsed = parseFileUrlLocation(url);
+  return parsed ? formatFileLocation(parsed.path, parsed.line, parsed.column) : null;
 }
