@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fromFileUrl, isKnownLocalWorkspaceRoutePath } from "./fileLinks";
+import { fromFileUrl, isKnownLocalWorkspaceRoutePath, toFileUrl } from "./fileLinks";
 
 function withThrowingUrlConstructor(run: () => void) {
   const originalUrl = globalThis.URL;
@@ -70,17 +70,38 @@ describe("fromFileUrl", () => {
       expect(fromFileUrl("file:///tmp/report%23L12.md#L34")).toBe("/tmp/report#L12.md:34");
     });
   });
+
+  it("round-trips Windows namespace drive paths through file URLs", () => {
+    const fileUrl = toFileUrl("\\\\?\\C:\\repo\\src\\App.tsx", 12, null);
+    expect(fileUrl).toBe("file:///%5C%5C%3F%5CC%3A%5Crepo%5Csrc%5CApp.tsx#L12");
+    expect(fromFileUrl(fileUrl)).toBe("\\\\?\\C:\\repo\\src\\App.tsx:12");
+  });
+
+  it("round-trips Windows namespace UNC paths through file URLs", () => {
+    const fileUrl = toFileUrl("\\\\?\\UNC\\server\\share\\repo\\App.tsx", 12, null);
+    expect(fileUrl).toBe(
+      "file:///%5C%5C%3F%5CUNC%5Cserver%5Cshare%5Crepo%5CApp.tsx#L12",
+    );
+    expect(fromFileUrl(fileUrl)).toBe("\\\\?\\UNC\\server\\share\\repo\\App.tsx:12");
+  });
 });
 
 describe("isKnownLocalWorkspaceRoutePath", () => {
-  it("matches only exact mounted settings and reviews routes", () => {
+  it("matches exact mounted settings and reviews routes", () => {
     expect(isKnownLocalWorkspaceRoutePath("/workspace/settings")).toBe(true);
     expect(isKnownLocalWorkspaceRoutePath("/workspace/reviews")).toBe(true);
     expect(isKnownLocalWorkspaceRoutePath("/workspaces/team/settings")).toBe(true);
     expect(isKnownLocalWorkspaceRoutePath("/workspaces/team/reviews")).toBe(true);
   });
 
-  it("does not treat deeper mounted paths as reserved routes", () => {
+  it("keeps nested settings and reviews app routes out of file resolution", () => {
+    expect(isKnownLocalWorkspaceRoutePath("/workspace/settings/profile")).toBe(true);
+    expect(isKnownLocalWorkspaceRoutePath("/workspace/reviews/overview")).toBe(true);
+    expect(isKnownLocalWorkspaceRoutePath("/workspaces/team/settings/profile")).toBe(true);
+    expect(isKnownLocalWorkspaceRoutePath("/workspaces/team/reviews/overview")).toBe(true);
+  });
+
+  it("still allows file-like descendants under reserved workspace names", () => {
     expect(isKnownLocalWorkspaceRoutePath("/workspace/settings/src/App.tsx")).toBe(false);
     expect(isKnownLocalWorkspaceRoutePath("/workspace/reviews/src/App.tsx")).toBe(false);
     expect(isKnownLocalWorkspaceRoutePath("/workspaces/team/settings/src/App.tsx")).toBe(

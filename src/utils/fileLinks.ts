@@ -8,6 +8,24 @@ const FILE_LOCATION_SUFFIX_PATTERN = /^(.*?):(\d+)(?::(\d+))?$/;
 const FILE_LOCATION_RANGE_SUFFIX_PATTERN = /^(.*?):(\d+)-(\d+)$/;
 const FILE_LOCATION_HASH_PATTERN = /^(.*?)#L(\d+)(?:C(\d+))?$/i;
 const FILE_URL_LOCATION_HASH_PATTERN = /^#L(\d+)(?:C(\d+))?$/i;
+const RESERVED_LOCAL_WORKSPACE_ROUTE_SEGMENTS = new Set(["reviews", "settings"]);
+const LIKELY_WORKSPACE_FILE_HEAD_SEGMENTS = new Set([
+  ".github",
+  ".vscode",
+  "app",
+  "assets",
+  "components",
+  "dist",
+  "docs",
+  "hooks",
+  "lib",
+  "public",
+  "scripts",
+  "src",
+  "test",
+  "tests",
+  "utils",
+]);
 
 export const FILE_LINK_SUFFIX_SOURCE =
   "(?:(?::\\d+(?::\\d+)?|:\\d+-\\d+)|(?:#L\\d+(?:C\\d+)?))?";
@@ -47,6 +65,9 @@ function parseRecognizedFileUrlHash(hash: string) {
 
 function buildLocalPathFromFileUrl(host: string, pathname: string) {
   const decodedPath = decodeURIComponentSafely(pathname);
+  if (/^\/(?:\\\\|\/\/)[?.][\\/]/.test(decodedPath)) {
+    return decodedPath.slice(1);
+  }
   let path = decodedPath;
   if (host && host !== "localhost") {
     const normalizedPath = decodedPath.startsWith("/") ? decodedPath : `/${decodedPath}`;
@@ -176,35 +197,83 @@ export function normalizeFileLinkPath(rawPath: string) {
   return formatFileLocation(parsed.path, parsed.line, parsed.column);
 }
 
-export function isKnownLocalWorkspaceRoutePath(rawPath: string) {
-  const normalizedPath = parseFileLocation(rawPath).path.trim().replace(/\\/g, "/");
+function hasLikelyFileNameSegment(segment: string) {
+  return segment.startsWith(".") ? segment.length > 1 : segment.includes(".");
+}
+
+function hasLikelyMountedWorkspaceFileTail(
+  segments: string[],
+  line: number | null,
+) {
+  if (segments.length === 0) {
+    return false;
+  }
+  if (line !== null) {
+    return true;
+  }
+
+  const [firstSegment] = segments;
+  const lastSegment = segments[segments.length - 1];
+  return (
+    hasLikelyFileNameSegment(lastSegment) ||
+    LIKELY_WORKSPACE_FILE_HEAD_SEGMENTS.has(firstSegment)
+  );
+}
+
+function getLocalWorkspaceRouteInfo(rawPath: string) {
+  const parsed = parseFileLocation(rawPath);
+  const normalizedPath = parsed.path.trim().replace(/\\/g, "/");
   if (normalizedPath.startsWith("/workspace/")) {
     const mountedSegments = normalizedPath
       .slice("/workspace/".length)
       .split("/")
       .filter(Boolean);
-    return mountedSegments.length === 1
-      ? mountedSegments[0] === "reviews" || mountedSegments[0] === "settings"
-      : false;
+    return {
+      line: parsed.line,
+      mountedSegments,
+      routeSegment: mountedSegments[0] ?? null,
+      tailSegments: mountedSegments.slice(1),
+    };
   }
   if (normalizedPath.startsWith("/workspaces/")) {
     const mountedSegments = normalizedPath
       .slice("/workspaces/".length)
       .split("/")
       .filter(Boolean);
-    return mountedSegments.length === 2
-      ? mountedSegments[1] === "reviews" || mountedSegments[1] === "settings"
-      : false;
+    return {
+      line: parsed.line,
+      mountedSegments,
+      routeSegment: mountedSegments[1] ?? null,
+      tailSegments: mountedSegments.slice(2),
+    };
   }
-  return false;
+  return null;
+}
+
+export function isKnownLocalWorkspaceRoutePath(rawPath: string) {
+  const routeInfo = getLocalWorkspaceRouteInfo(rawPath);
+  if (!routeInfo?.routeSegment) {
+    return false;
+  }
+  if (!RESERVED_LOCAL_WORKSPACE_ROUTE_SEGMENTS.has(routeInfo.routeSegment)) {
+    return false;
+  }
+  return !hasLikelyMountedWorkspaceFileTail(routeInfo.tailSegments, routeInfo.line);
 }
 
 type FileUrlParts = {
   host: string;
   pathname: string;
+  treatPathnameAsOpaque?: boolean;
 };
 
-function encodeFileUrlPathname(pathname: string) {
+function encodeFileUrlPathname(pathname: string, treatPathnameAsOpaque = false) {
+  if (treatPathnameAsOpaque) {
+    return pathname
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+  }
   return pathname
     .split("/")
     .map((segment, index) => {
@@ -222,20 +291,19 @@ function toFileUrlParts(path: string): FileUrlParts | null {
     /^\\\\\?\\UNC\\([^\\]+)\\([^\\]+)(.*)$/i,
   );
   if (namespaceUncMatch) {
-    const [, server, share, rest = ""] = namespaceUncMatch;
-    const normalizedRest = rest.replace(/\\/g, "/").replace(/^\/+/, "");
     return {
-      host: server,
-      pathname: `/${share}${normalizedRest ? `/${normalizedRest}` : ""}`,
+      host: "",
+      pathname: `/${normalizedWindowsPath}`,
+      treatPathnameAsOpaque: true,
     };
   }
 
   const namespaceDriveMatch = normalizedWindowsPath.match(/^\\\\\?\\([A-Za-z]:)(.*)$/);
   if (namespaceDriveMatch) {
-    const [, driveRoot, rest = ""] = namespaceDriveMatch;
     return {
       host: "",
-      pathname: `/${driveRoot}${rest.replace(/\\/g, "/")}`,
+      pathname: `/${normalizedWindowsPath}`,
+      treatPathnameAsOpaque: true,
     };
   }
 
@@ -270,7 +338,10 @@ export function toFileUrl(path: string, line: number | null, column: number | nu
   const parts = toFileUrlParts(path);
   let base = path;
   if (parts) {
-    base = `file://${parts.host}${encodeFileUrlPathname(parts.pathname)}`;
+    base = `file://${parts.host}${encodeFileUrlPathname(
+      parts.pathname,
+      parts.treatPathnameAsOpaque,
+    )}`;
   }
   if (line === null) {
     return base;

@@ -220,7 +220,6 @@ const LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES = [
   "/data/",
 ];
 const WORKSPACE_ROUTE_PREFIXES = ["/workspace/", "/workspaces/"];
-const LOCAL_WORKSPACE_ROUTE_SEGMENTS = new Set(["reviews", "settings"]);
 
 function stripPathLineSuffix(value: string) {
   return parseFileLocation(value).path;
@@ -266,28 +265,11 @@ function hasLikelyWorkspaceNameSegment(segment: string) {
   return /[A-Z]/.test(segment) || /[._-]/.test(segment);
 }
 
-function isKnownLocalWorkspaceRoutePath(path: string) {
-  const mountedPath = splitWorkspaceRoutePath(path);
-  if (!mountedPath || mountedPath.segments.length === 0) {
-    return false;
-  }
-
-  const routeSegment =
-    mountedPath.prefix === "/workspace/"
-      ? mountedPath.segments.length === 1
-        ? mountedPath.segments[0]
-        : null
-      : mountedPath.segments.length === 2
-        ? mountedPath.segments[1]
-        : null;
-  return routeSegment !== null && LOCAL_WORKSPACE_ROUTE_SEGMENTS.has(routeSegment);
-}
-
 function isLikelyMountedWorkspaceFilePath(
   path: string,
   workspacePath?: string | null,
 ) {
-  if (isKnownLocalWorkspaceRoutePath(path)) {
+  if (isKnownLocalWorkspaceRouteFilePath(path)) {
     return false;
   }
   if (resolveMountedWorkspacePath(path, workspacePath) !== null) {

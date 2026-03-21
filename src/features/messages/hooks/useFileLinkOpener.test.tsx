@@ -53,7 +53,7 @@ describe("useFileLinkOpener", () => {
     vi.clearAllMocks();
   });
 
-  it("copies namespace-prefixed Windows drive paths as valid file URLs", async () => {
+  it("copies namespace-prefixed Windows drive paths as round-trippable file URLs", async () => {
     const clipboardWriteTextMock = vi.fn();
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText: clipboardWriteTextMock },
@@ -87,10 +87,12 @@ describe("useFileLinkOpener", () => {
 
     await copyLinkItem?.action?.();
 
-    expect(clipboardWriteTextMock).toHaveBeenCalledWith("file:///C:/repo/src/App.tsx#L42");
+    expect(clipboardWriteTextMock).toHaveBeenCalledWith(
+      "file:///%5C%5C%3F%5CC%3A%5Crepo%5Csrc%5CApp.tsx#L42",
+    );
   });
 
-  it("copies namespace-prefixed Windows UNC paths as valid file URLs", async () => {
+  it("copies namespace-prefixed Windows UNC paths as round-trippable file URLs", async () => {
     const clipboardWriteTextMock = vi.fn();
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText: clipboardWriteTextMock },
@@ -125,7 +127,7 @@ describe("useFileLinkOpener", () => {
     await copyLinkItem?.action?.();
 
     expect(clipboardWriteTextMock).toHaveBeenCalledWith(
-      "file://server/share/repo/App.tsx#L42",
+      "file:///%5C%5C%3F%5CUNC%5Cserver%5Cshare%5Crepo%5CApp.tsx#L42",
     );
   });
 

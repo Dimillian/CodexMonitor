@@ -1,4 +1,5 @@
 import { joinWorkspacePath } from "../../../utils/platformPaths";
+import { isKnownLocalWorkspaceRoutePath } from "../../../utils/fileLinks";
 
 const WORKSPACE_MOUNT_PREFIX = "/workspace/";
 const WORKSPACES_MOUNT_PREFIX = "/workspaces/";
@@ -23,6 +24,9 @@ export function resolveMountedWorkspacePath(
   workspacePath?: string | null,
 ) {
   const trimmed = path.trim();
+  if (isKnownLocalWorkspaceRoutePath(trimmed)) {
+    return null;
+  }
   const trimmedWorkspace = workspacePath?.trim() ?? "";
   if (!trimmedWorkspace) {
     return null;

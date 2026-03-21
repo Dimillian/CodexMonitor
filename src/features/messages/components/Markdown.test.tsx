@@ -207,6 +207,29 @@ describe("Markdown file-like href behavior", () => {
     expect(onOpenFileLink).not.toHaveBeenCalled();
   });
 
+  it("keeps nested reviews routes local even when the workspace basename matches the route segment", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [overview](/workspaces/team/reviews/overview)"
+        className="markdown"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/reviews"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("overview").closest("a");
+    expect(link?.getAttribute("href")).toBe("/workspaces/team/reviews/overview");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).not.toHaveBeenCalled();
+  });
+
   it("still intercepts nested workspace file hrefs when a file opener is provided", () => {
     const onOpenFileLink = vi.fn();
     render(
@@ -609,6 +632,29 @@ describe("Markdown file-like href behavior", () => {
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
     expect(onOpenFileLink).toHaveBeenCalledWith("/workspace/settings/src/App.tsx");
+  });
+
+  it("keeps nested settings routes local when the workspace basename is settings", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [profile](/workspace/settings/profile)"
+        className="markdown"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/settings"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("profile").closest("a");
+    expect(link?.getAttribute("href")).toBe("/workspace/settings/profile");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).not.toHaveBeenCalled();
   });
 
   it("linkifies mounted file paths when the nested workspace basename is reviews", () => {
