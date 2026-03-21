@@ -680,6 +680,50 @@ describe("Markdown file-like href behavior", () => {
     expect(onOpenFileLink).toHaveBeenCalledWith("/tmp/report#L12.md");
   });
 
+  it("keeps encoded #L-like filename endings intact when opening markdown hrefs", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [report](./report.md%23L12)"
+        className="markdown"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("report").closest("a");
+    expect(link?.getAttribute("href")).toBe("./report.md%23L12");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith("./report.md#L12");
+  });
+
+  it("keeps encoded #L-like filename column endings intact when opening markdown hrefs", () => {
+    const onOpenFileLink = vi.fn();
+    render(
+      <Markdown
+        value="See [report](./report.md%23L12C3)"
+        className="markdown"
+        onOpenFileLink={onOpenFileLink}
+      />,
+    );
+
+    const link = screen.getByText("report").closest("a");
+    expect(link?.getAttribute("href")).toBe("./report.md%23L12C3");
+
+    const clickEvent = createEvent.click(link as Element, {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(link as Element, clickEvent);
+    expect(clickEvent.defaultPrevented).toBe(true);
+    expect(onOpenFileLink).toHaveBeenCalledWith("./report.md#L12C3");
+  });
+
   it("still opens mounted file links when the workspace basename is settings", () => {
     const onOpenFileLink = vi.fn();
     render(

@@ -3,6 +3,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
+  formatFileLocation,
   fromFileUrl,
   isKnownLocalWorkspaceRoutePath as isKnownLocalWorkspaceRouteFilePath,
   normalizeFileLinkPath,
@@ -684,8 +685,13 @@ export function Markdown({
         continue;
       }
       if (isLikelyFileHref(linkableCandidate, workspacePath)) {
-        const decodedPath = safeDecodeURIComponent(linkableCandidate);
-        return normalizeFileLinkPath(decodedPath ?? linkableCandidate);
+        const parsedCandidate = parseFileLocation(linkableCandidate);
+        const decodedPath = safeDecodeURIComponent(parsedCandidate.path);
+        return formatFileLocation(
+          decodedPath ?? parsedCandidate.path,
+          parsedCandidate.line,
+          parsedCandidate.column,
+        );
       }
     }
     return null;
