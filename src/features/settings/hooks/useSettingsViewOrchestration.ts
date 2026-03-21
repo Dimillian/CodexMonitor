@@ -169,6 +169,8 @@ export function useSettingsViewOrchestration({
   });
 
   const environmentsSectionProps = useSettingsEnvironmentsSection({
+    appSettings,
+    onUpdateAppSettings,
     mainWorkspaces,
     onUpdateWorkspaceSettings,
   });
