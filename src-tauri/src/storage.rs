@@ -317,8 +317,10 @@ mod tests {
         assert_eq!(stored.path, r"I:\gpt-projects\json-composer");
 
         let persisted = std::fs::read_to_string(&path).expect("read persisted workspaces");
-        assert!(persisted.contains(r#"\\?\I:\gpt-projects\json-composer"#));
-        assert!(!persisted.contains(r#""path": "I:\gpt-projects\json-composer""#));
+        let persisted_entries: Vec<WorkspaceEntry> =
+            serde_json::from_str(&persisted).expect("deserialize persisted workspaces");
+        assert_eq!(persisted_entries.len(), 1);
+        assert_eq!(persisted_entries[0].path, r"\\?\I:\gpt-projects\json-composer");
     }
 
     #[test]
@@ -440,8 +442,12 @@ mod tests {
         );
 
         let rewritten = std::fs::read_to_string(&path).expect("read rewritten settings");
-        assert!(rewritten.contains(r#"I:\gpt-projects\worktrees"#));
-        assert!(!rewritten.contains(r#"\\?\I:\gpt-projects\worktrees"#));
+        let rewritten_settings: AppSettings =
+            serde_json::from_str(&rewritten).expect("deserialize rewritten settings");
+        assert_eq!(
+            rewritten_settings.global_worktrees_folder.as_deref(),
+            Some(r"I:\gpt-projects\worktrees")
+        );
     }
 
     #[test]
