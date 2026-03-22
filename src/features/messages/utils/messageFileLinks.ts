@@ -45,7 +45,7 @@ const FILE_PATH_MATCH = new RegExp(`^${FILE_PATH_PATTERN.source}$`);
 const TRAILING_PUNCTUATION = new Set([".", ",", ";", ":", "!", "?", ")", "]", "}"]);
 const LETTER_OR_NUMBER_PATTERN = /[\p{L}\p{N}.]/u;
 const URL_SCHEME_PREFIX_PATTERN = /[a-zA-Z][a-zA-Z0-9+.-]*:\/\/\/?$/;
-const PATH_CANDIDATE_PREFIX_BOUNDARY_PATTERN = /[\s<>"'`()\[\]{}]/u;
+const PATH_CANDIDATE_PREFIX_BOUNDARY_PATTERN = /[\s<>"'()`[\]{}]/u;
 const LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES = [
   "/Users/",
   "/home/",
