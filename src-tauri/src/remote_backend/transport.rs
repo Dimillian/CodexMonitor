@@ -20,23 +20,30 @@ pub(crate) enum RemoteTransportConfig {
         host: String,
         auth_token: Option<String>,
     },
+    WebSocket {
+        url: String,
+        auth_token: Option<String>,
+    },
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum RemoteTransportKind {
     Tcp,
+    WebSocket,
 }
 
 impl RemoteTransportConfig {
     pub(crate) fn kind(&self) -> RemoteTransportKind {
         match self {
             RemoteTransportConfig::Tcp { .. } => RemoteTransportKind::Tcp,
+            RemoteTransportConfig::WebSocket { .. } => RemoteTransportKind::WebSocket,
         }
     }
 
     pub(crate) fn auth_token(&self) -> Option<&str> {
         match self {
             RemoteTransportConfig::Tcp { auth_token, .. } => auth_token.as_deref(),
+            RemoteTransportConfig::WebSocket { auth_token, .. } => auth_token.as_deref(),
         }
     }
 }

@@ -196,7 +196,7 @@ export type PullRequestSelectionRange = {
 export type AccessMode = "read-only" | "current" | "full-access";
 export type ServiceTier = "fast" | "flex";
 export type BackendMode = "local" | "remote";
-export type RemoteBackendProvider = "tcp";
+export type RemoteBackendProvider = "tcp" | "websocket";
 export type RemoteBackendTarget = {
   id: string;
   name: string;

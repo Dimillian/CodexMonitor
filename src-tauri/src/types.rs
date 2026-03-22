@@ -667,6 +667,7 @@ impl Default for BackendMode {
 #[serde(rename_all = "lowercase")]
 pub(crate) enum RemoteBackendProvider {
     Tcp,
+    WebSocket,
 }
 
 impl Default for RemoteBackendProvider {

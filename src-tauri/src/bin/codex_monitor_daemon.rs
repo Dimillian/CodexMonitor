@@ -25,6 +25,8 @@ mod shared;
 mod storage;
 #[path = "codex_monitor_daemon/transport.rs"]
 mod transport;
+#[path = "codex_monitor_daemon/ws_transport.rs"]
+mod ws_transport;
 #[allow(dead_code)]
 #[path = "../types.rs"]
 mod types;
@@ -71,7 +73,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use ignore::WalkBuilder;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{broadcast, mpsc, Mutex, Semaphore};
 
@@ -1500,7 +1502,7 @@ fn usage() -> String {
     format!(
         "\
 USAGE:\n  codex-monitor-daemon [--listen <addr>] [--data-dir <path>] [--token <token> | --insecure-no-auth]\n\n\
-OPTIONS:\n  --listen <addr>          Bind address (default: {DEFAULT_LISTEN_ADDR})\n  --data-dir <path>        Data dir holding workspaces.json/settings.json\n  --token <token>          Shared token required by TCP clients\n  --insecure-no-auth       Disable TCP auth (dev only)\n  -h, --help               Show this help\n"
+OPTIONS:\n  --listen <addr>          Bind address (default: {DEFAULT_LISTEN_ADDR})\n  --data-dir <path>        Data dir holding workspaces.json/settings.json\n  --token <token>          Shared token required by clients\n  --insecure-no-auth       Disable auth (dev only)\n  -h, --help               Show this help\n"
     )
 }
 
@@ -1940,7 +1942,7 @@ fn main() {
             }
         };
         eprintln!(
-            "codex-monitor-daemon listening on {} (data dir: {})",
+            "codex-monitor-daemon listening on {} (tcp+ws, data dir: {})",
             config.listen,
             state
                 .storage_path
@@ -1956,7 +1958,32 @@ fn main() {
                     let state = Arc::clone(&state);
                     let events = events_tx.clone();
                     tokio::spawn(async move {
-                        transport::handle_client(socket, config, state, events).await;
+                        // Peek at first bytes to detect HTTP (WebSocket upgrade) vs raw TCP JSON
+                        let mut peek_buf = [0u8; 4];
+                        match socket.peek(&mut peek_buf).await {
+                            Ok(n) if n >= 3 => {
+                                let is_http = peek_buf.starts_with(b"GET")
+                                    || peek_buf.starts_with(b"get");
+                                if is_http {
+                                    ws_transport::handle_ws_client(
+                                        socket, config, state, events,
+                                    )
+                                    .await;
+                                } else {
+                                    transport::handle_client(
+                                        socket, config, state, events,
+                                    )
+                                    .await;
+                                }
+                            }
+                            _ => {
+                                // Fallback to TCP on peek failure
+                                transport::handle_client(
+                                    socket, config, state, events,
+                                )
+                                .await;
+                            }
+                        }
                     });
                 }
                 Err(_) => continue,

@@ -1,6 +1,7 @@
 mod protocol;
 mod tcp_transport;
 mod transport;
+mod ws_transport;
 
 use serde_json::{json, Value};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -17,6 +18,7 @@ use crate::types::BackendMode;
 use self::protocol::{build_request_line, DEFAULT_REMOTE_HOST, DISCONNECTED_MESSAGE};
 use self::tcp_transport::TcpTransport;
 use self::transport::{PendingMap, RemoteTransport, RemoteTransportConfig, RemoteTransportKind};
+use self::ws_transport::WebSocketTransport;
 
 const REMOTE_REQUEST_TIMEOUT: Duration = Duration::from_secs(300);
 const REMOTE_SEND_TIMEOUT: Duration = Duration::from_secs(15);
@@ -201,6 +203,7 @@ async fn ensure_remote_backend(state: &AppState, app: AppHandle) -> Result<Remot
 
     let transport: Box<dyn RemoteTransport> = match transport_config.kind() {
         RemoteTransportKind::Tcp => Box::new(TcpTransport),
+        RemoteTransportKind::WebSocket => Box::new(WebSocketTransport),
     };
     let connection = transport.connect(app, transport_config).await?;
 
@@ -213,13 +216,11 @@ async fn ensure_remote_backend(state: &AppState, app: AppHandle) -> Result<Remot
         }),
     };
 
-    if matches!(transport_kind, RemoteTransportKind::Tcp) {
-        if let Some(token) = auth_token {
-            client
-                .call("auth", json!({ "token": token }))
-                .await
-                .map(|_| ())?;
-        }
+    if let Some(token) = auth_token {
+        client
+            .call("auth", json!({ "token": token }))
+            .await
+            .map(|_| ())?;
     }
 
     {
@@ -238,10 +239,32 @@ fn resolve_transport_config(
     } else {
         settings.remote_backend_host.clone()
     };
-    Ok(RemoteTransportConfig::Tcp {
-        host,
-        auth_token: settings.remote_backend_token.clone(),
-    })
+
+    // Detect WebSocket URLs (ws:// or wss:// prefix, or explicit provider)
+    let is_websocket = host.starts_with("ws://")
+        || host.starts_with("wss://")
+        || matches!(
+            settings.remote_backend_provider,
+            crate::types::RemoteBackendProvider::WebSocket
+        );
+
+    if is_websocket {
+        let url = if host.starts_with("ws://") || host.starts_with("wss://") {
+            host
+        } else {
+            // Assume wss:// for bare hostnames in WebSocket mode
+            format!("wss://{host}")
+        };
+        Ok(RemoteTransportConfig::WebSocket {
+            url,
+            auth_token: settings.remote_backend_token.clone(),
+        })
+    } else {
+        Ok(RemoteTransportConfig::Tcp {
+            host,
+            auth_token: settings.remote_backend_token.clone(),
+        })
+    }
 }
 
 #[cfg(test)]
@@ -260,6 +283,31 @@ mod tests {
             panic!("expected tcp transport config");
         };
         assert_eq!(host, "tcp.example:4732");
+    }
+
+    #[test]
+    fn resolve_websocket_transport_from_url() {
+        let mut settings = AppSettings::default();
+        settings.remote_backend_host = "wss://my-tunnel.trycloudflare.com".to_string();
+
+        let config = resolve_transport_config(&settings).expect("transport config");
+        let RemoteTransportConfig::WebSocket { url, .. } = config else {
+            panic!("expected websocket transport config");
+        };
+        assert_eq!(url, "wss://my-tunnel.trycloudflare.com");
+    }
+
+    #[test]
+    fn resolve_websocket_transport_from_provider() {
+        let mut settings = AppSettings::default();
+        settings.remote_backend_provider = crate::types::RemoteBackendProvider::WebSocket;
+        settings.remote_backend_host = "my-tunnel.trycloudflare.com".to_string();
+
+        let config = resolve_transport_config(&settings).expect("transport config");
+        let RemoteTransportConfig::WebSocket { url, .. } = config else {
+            panic!("expected websocket transport config");
+        };
+        assert_eq!(url, "wss://my-tunnel.trycloudflare.com");
     }
 
     #[test]

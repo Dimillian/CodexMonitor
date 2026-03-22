@@ -420,6 +420,47 @@ export function SettingsServerSection({
           </div>
         )}
 
+        {/* Cloudflare Tunnel helper (non-mobile only) */}
+        {!isMobileSimplified && (
+          <>
+            <div className="settings-field">
+              <div className="settings-field-label">Cloudflare Tunnel</div>
+              <div className="settings-help">
+                Connect from anywhere using a Cloudflare Quick Tunnel. No VPN needed — 
+                the daemon auto-detects WebSocket connections on the same port.
+              </div>
+              <div className="settings-field-row">
+                <button
+                  className="button settings-button-compact"
+                  disabled={!remoteTokenDraft}
+                  onClick={() => {
+                    if (remoteHostDraft?.includes("trycloudflare.com")) {
+                      // Already configured for CF - prefix with wss:// if not already
+                      if (!remoteHostDraft.startsWith("wss://") && !remoteHostDraft.startsWith("ws://")) {
+                        onSetRemoteHostDraft(`wss://${remoteHostDraft}`);
+                      }
+                    }
+                  }}
+                >
+                  Use WebSocket mode
+                </button>
+              </div>
+              <div className="settings-help">
+                To expose the daemon via Cloudflare Tunnel, run on your desktop:
+              </div>
+              <pre className="settings-command-preview">
+                <code>cloudflared tunnel --url http://127.0.0.1:4732</code>
+              </pre>
+              <div className="settings-help">
+                Then paste the generated <code>*.trycloudflare.com</code> URL as the
+                remote host with a <code>wss://</code> prefix.
+                Example: <code>wss://abc-xyz.trycloudflare.com</code>
+              </div>
+            </div>
+          </>
+        )}
+
+
         {!isMobileSimplified && (
           <div className="settings-field">
             <div className="settings-field-label">Mobile access daemon</div>
