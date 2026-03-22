@@ -3,22 +3,16 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
-  type FileLinkTarget,
-  type ParsedFileLocation,
-  formatFileLocation,
-  isKnownLocalWorkspaceRoutePath as isKnownLocalWorkspaceRouteFilePath,
-  normalizeFileLinkPath,
-  parseFileLocation,
-  parseFileUrlLocation,
-} from "../../../utils/fileLinks";
-import {
-  decodeFileLink,
+  describeFileTarget,
+  formatParsedFileLocation,
   isFileLinkUrl,
-  isLinkableFilePath,
+  parseFileLinkUrl,
+  parseInlineFileTarget,
   remarkFileLinks,
+  resolveMessageFileHref,
   toFileLink,
-} from "../../../utils/remarkFileLinks";
-import { resolveMountedWorkspacePath } from "../utils/mountedWorkspacePaths";
+} from "../utils/messageFileLinks";
+import type { ParsedFileLocation } from "../../../utils/fileLinks";
 
 type MarkdownProps = {
   value: string;
@@ -28,8 +22,8 @@ type MarkdownProps = {
   codeBlockCopyUseModifier?: boolean;
   showFilePath?: boolean;
   workspacePath?: string | null;
-  onOpenFileLink?: (path: FileLinkTarget) => void;
-  onOpenFileLinkMenu?: (event: React.MouseEvent, path: FileLinkTarget) => void;
+  onOpenFileLink?: (path: ParsedFileLocation) => void;
+  onOpenFileLinkMenu?: (event: React.MouseEvent, path: ParsedFileLocation) => void;
   onOpenThreadLink?: (threadId: string) => void;
 };
 
@@ -55,112 +49,6 @@ type PreProps = {
 type LinkBlockProps = {
   urls: string[];
 };
-
-type ParsedFileReference = {
-  fullPath: string;
-  fileName: string;
-  lineLabel: string | null;
-  parentPath: string | null;
-};
-
-function toParsedFileTarget(target: FileLinkTarget): ParsedFileLocation {
-  return typeof target === "string" ? parseFileLocation(target) : target;
-}
-
-function formatFileTarget(target: FileLinkTarget) {
-  const parsed = toParsedFileTarget(target);
-  return formatFileLocation(parsed.path, parsed.line, parsed.column);
-}
-
-function normalizePathSeparators(path: string) {
-  return path.replace(/\\/g, "/");
-}
-
-function trimTrailingPathSeparators(path: string) {
-  return path.replace(/\/+$/, "");
-}
-
-function isWindowsAbsolutePath(path: string) {
-  return /^[A-Za-z]:\//.test(path);
-}
-
-function isAbsolutePath(path: string) {
-  return path.startsWith("/") || isWindowsAbsolutePath(path);
-}
-
-function extractPathRoot(path: string) {
-  if (isWindowsAbsolutePath(path)) {
-    return path.slice(0, 2).toLowerCase();
-  }
-  if (path.startsWith("/")) {
-    return "/";
-  }
-  return "";
-}
-
-function splitAbsolutePath(path: string) {
-  const root = extractPathRoot(path);
-  if (!root) {
-    return null;
-  }
-  const withoutRoot =
-    root === "/" ? path.slice(1) : path.slice(2).replace(/^\/+/, "");
-  return {
-    root,
-    segments: withoutRoot.split("/").filter(Boolean),
-  };
-}
-
-function toRelativePath(fromPath: string, toPath: string) {
-  const fromAbsolute = splitAbsolutePath(fromPath);
-  const toAbsolute = splitAbsolutePath(toPath);
-  if (!fromAbsolute || !toAbsolute) {
-    return null;
-  }
-  if (fromAbsolute.root !== toAbsolute.root) {
-    return null;
-  }
-  const caseInsensitive = fromAbsolute.root !== "/";
-  let commonLength = 0;
-  while (
-    commonLength < fromAbsolute.segments.length &&
-    commonLength < toAbsolute.segments.length &&
-    (caseInsensitive
-      ? fromAbsolute.segments[commonLength].toLowerCase() ===
-        toAbsolute.segments[commonLength].toLowerCase()
-      : fromAbsolute.segments[commonLength] === toAbsolute.segments[commonLength])
-  ) {
-    commonLength += 1;
-  }
-  const backtrack = new Array(fromAbsolute.segments.length - commonLength).fill("..");
-  const forward = toAbsolute.segments.slice(commonLength);
-  return [...backtrack, ...forward].join("/");
-}
-
-function relativeDisplayPath(path: string, workspacePath?: string | null) {
-  const normalizedPath = trimTrailingPathSeparators(normalizePathSeparators(path.trim()));
-  if (!workspacePath) {
-    return normalizedPath;
-  }
-  const normalizedWorkspace = trimTrailingPathSeparators(
-    normalizePathSeparators(workspacePath.trim()),
-  );
-  if (!normalizedWorkspace) {
-    return normalizedPath;
-  }
-  if (!isAbsolutePath(normalizedPath) || !isAbsolutePath(normalizedWorkspace)) {
-    return normalizedPath;
-  }
-  const relative = toRelativePath(normalizedWorkspace, normalizedPath);
-  if (relative === null) {
-    return normalizedPath;
-  }
-  if (relative.length === 0) {
-    const segments = normalizedPath.split("/").filter(Boolean);
-    return segments.length > 0 ? segments[segments.length - 1] : normalizedPath;
-  }
-  return relative;
-}
 
 function extractLanguageTag(className?: string) {
   if (!className) {
@@ -199,182 +87,6 @@ function normalizeUrlLine(line: string) {
   return withoutBullet;
 }
 
-function safeDecodeURIComponent(value: string) {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return null;
-  }
-}
-
-function safeDecodeFileLink(url: string) {
-  try {
-    return decodeFileLink(url);
-  } catch {
-    return null;
-  }
-}
-const LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES = [
-  "/Users/",
-  "/home/",
-  "/tmp/",
-  "/var/",
-  "/opt/",
-  "/etc/",
-  "/private/",
-  "/Volumes/",
-  "/mnt/",
-  "/usr/",
-  "/workspace/",
-  "/workspaces/",
-  "/root/",
-  "/srv/",
-  "/data/",
-];
-const WORKSPACE_ROUTE_PREFIXES = ["/workspace/", "/workspaces/"];
-
-function stripPathLineSuffix(value: string) {
-  return parseFileLocation(value).path;
-}
-
-function hasLikelyFileName(path: string) {
-  const normalizedPath = stripPathLineSuffix(path).replace(/[\\/]+$/, "");
-  const lastSegment = normalizedPath.split(/[\\/]/).pop() ?? "";
-  if (!lastSegment || lastSegment === "." || lastSegment === "..") {
-    return false;
-  }
-  if (lastSegment.startsWith(".") && lastSegment.length > 1) {
-    return true;
-  }
-  return lastSegment.includes(".");
-}
-
-function hasLikelyLocalAbsolutePrefix(path: string) {
-  const normalizedPath = path.replace(/\\/g, "/");
-  return LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES.some((prefix) =>
-    normalizedPath.startsWith(prefix),
-  );
-}
-
-function splitWorkspaceRoutePath(path: string) {
-  const normalizedPath = path.replace(/\\/g, "/");
-  if (normalizedPath.startsWith("/workspace/")) {
-    return {
-      segments: normalizedPath.slice("/workspace/".length).split("/").filter(Boolean),
-      prefix: "/workspace/",
-    };
-  }
-  if (normalizedPath.startsWith("/workspaces/")) {
-    return {
-      segments: normalizedPath.slice("/workspaces/".length).split("/").filter(Boolean),
-      prefix: "/workspaces/",
-    };
-  }
-  return null;
-}
-
-function hasLikelyWorkspaceNameSegment(segment: string) {
-  return /[A-Z]/.test(segment) || /[._-]/.test(segment);
-}
-
-function isLikelyMountedWorkspaceFilePath(
-  path: string,
-  workspacePath?: string | null,
-) {
-  if (isKnownLocalWorkspaceRouteFilePath(path)) {
-    return false;
-  }
-  if (resolveMountedWorkspacePath(path, workspacePath) !== null) {
-    return true;
-  }
-
-  const mountedPath = splitWorkspaceRoutePath(path);
-  return Boolean(
-    mountedPath?.prefix === "/workspace/" &&
-      mountedPath.segments.length >= 2 &&
-      hasLikelyWorkspaceNameSegment(mountedPath.segments[0]),
-  );
-}
-
-function usesAbsolutePathDepthFallback(
-  path: string,
-  workspacePath?: string | null,
-) {
-  const normalizedPath = path.replace(/\\/g, "/");
-  if (
-    WORKSPACE_ROUTE_PREFIXES.some((prefix) => normalizedPath.startsWith(prefix)) &&
-    !isLikelyMountedWorkspaceFilePath(normalizedPath, workspacePath)
-  ) {
-    return false;
-  }
-  return hasLikelyLocalAbsolutePrefix(normalizedPath) && pathSegmentCount(normalizedPath) >= 3;
-}
-
-function pathSegmentCount(path: string) {
-  return path.split("/").filter(Boolean).length;
-}
-
-function isLikelyFileHref(
-  url: string,
-  workspacePath?: string | null,
-) {
-  const trimmed = url.trim();
-  if (!trimmed) {
-    return false;
-  }
-  if (trimmed.startsWith("file://")) {
-    return true;
-  }
-  if (
-    trimmed.startsWith("http://") ||
-    trimmed.startsWith("https://") ||
-    trimmed.startsWith("mailto:")
-  ) {
-    return false;
-  }
-  if (trimmed.startsWith("thread://") || trimmed.startsWith("/thread/")) {
-    return false;
-  }
-  if (trimmed.startsWith("#")) {
-    return false;
-  }
-  const parsedLocation = parseFileLocation(trimmed);
-  const pathOnly = parsedLocation.path.trim();
-  if (/[?#]/.test(pathOnly)) {
-    return false;
-  }
-  if (/^[A-Za-z]:[\\/]/.test(pathOnly) || pathOnly.startsWith("\\\\")) {
-    return true;
-  }
-  if (pathOnly.startsWith("/")) {
-    if (parsedLocation.line !== null) {
-      const normalizedPath = pathOnly.replace(/\\/g, "/");
-      if (
-        WORKSPACE_ROUTE_PREFIXES.some((prefix) => normalizedPath.startsWith(prefix))
-      ) {
-        return isLikelyMountedWorkspaceFilePath(normalizedPath, workspacePath);
-      }
-      return true;
-    }
-    if (hasLikelyFileName(pathOnly)) {
-      return true;
-    }
-    return usesAbsolutePathDepthFallback(pathOnly, workspacePath);
-  }
-  if (parsedLocation.line !== null) {
-    return true;
-  }
-  if (pathOnly.startsWith("~/")) {
-    return true;
-  }
-  if (pathOnly.startsWith("./") || pathOnly.startsWith("../")) {
-    return parsedLocation.line !== null || hasLikelyFileName(pathOnly);
-  }
-  if (hasLikelyFileName(pathOnly)) {
-    return pathSegmentCount(pathOnly) >= 3;
-  }
-  return false;
-}
 
 function extractUrlLines(value: string) {
   const lines = value.split(/\r?\n/);
@@ -487,39 +199,6 @@ function LinkBlock({ urls }: LinkBlockProps) {
   );
 }
 
-function parseFileReference(
-  rawPath: FileLinkTarget,
-  workspacePath?: string | null,
-): ParsedFileReference {
-  const parsedLocation = toParsedFileTarget(rawPath);
-  const fullPath = formatFileLocation(
-    parsedLocation.path,
-    parsedLocation.line,
-    parsedLocation.column,
-  );
-  const pathWithoutLine = parsedLocation.path.trim();
-  const lineLabel =
-    parsedLocation.line === null
-      ? null
-      : `${parsedLocation.line}${parsedLocation.column !== null ? `:${parsedLocation.column}` : ""}`;
-  const displayPath = relativeDisplayPath(pathWithoutLine, workspacePath);
-  const normalizedPath = trimTrailingPathSeparators(displayPath) || displayPath;
-  const lastSlashIndex = normalizedPath.lastIndexOf("/");
-  const fallbackFile = normalizedPath || fullPath;
-  const fileName =
-    lastSlashIndex >= 0 ? normalizedPath.slice(lastSlashIndex + 1) : fallbackFile;
-  const rawParentPath =
-    lastSlashIndex >= 0 ? normalizedPath.slice(0, lastSlashIndex) : "";
-  const parentPath = rawParentPath || (normalizedPath.startsWith("/") ? "/" : null);
-
-  return {
-    fullPath,
-    fileName,
-    lineLabel,
-    parentPath,
-  };
-}
-
 function FileReferenceLink({
   href,
   rawPath,
@@ -529,16 +208,13 @@ function FileReferenceLink({
   onContextMenu,
 }: {
   href: string;
-  rawPath: FileLinkTarget;
+  rawPath: ParsedFileLocation;
   showFilePath: boolean;
   workspacePath?: string | null;
-  onClick: (event: React.MouseEvent, path: FileLinkTarget) => void;
-  onContextMenu: (event: React.MouseEvent, path: FileLinkTarget) => void;
+  onClick: (event: React.MouseEvent, path: ParsedFileLocation) => void;
+  onContextMenu: (event: React.MouseEvent, path: ParsedFileLocation) => void;
 }) {
-  const { fullPath, fileName, lineLabel, parentPath } = parseFileReference(
-    rawPath,
-    workspacePath,
-  );
+  const { fullPath, fileName, lineLabel, parentPath } = describeFileTarget(rawPath, workspacePath);
   return (
     <a
       href={href}
@@ -651,7 +327,7 @@ export function Markdown({
   const content = codeBlock
     ? `\`\`\`\n${normalizedValue}\n\`\`\``
     : normalizedValue;
-  const handleFileLinkClick = (event: React.MouseEvent, path: FileLinkTarget) => {
+  const handleFileLinkClick = (event: React.MouseEvent, path: ParsedFileLocation) => {
     event.preventDefault();
     event.stopPropagation();
     onOpenFileLink?.(path);
@@ -662,54 +338,24 @@ export function Markdown({
   };
   const handleFileLinkContextMenu = (
     event: React.MouseEvent,
-    path: FileLinkTarget,
+    path: ParsedFileLocation,
   ) => {
     event.preventDefault();
     event.stopPropagation();
     onOpenFileLinkMenu?.(event, path);
   };
-  const getLinkablePath = (rawValue: string) => {
-    const normalizedPath = normalizeFileLinkPath(rawValue).trim();
-    if (!normalizedPath) {
-      return null;
-    }
-    if (isKnownLocalWorkspaceRouteFilePath(normalizedPath)) {
-      return null;
-    }
-    if (!isLinkableFilePath(normalizedPath)) {
-      return null;
-    }
-    return normalizedPath;
-  };
+  const resolvedHrefFilePathCache = new Map<string, ParsedFileLocation | null>();
   const resolveHrefFilePath = (url: string) => {
-    const fileUrlPath = parseFileUrlLocation(url);
-    if (fileUrlPath) {
-      return fileUrlPath;
+    if (resolvedHrefFilePathCache.has(url)) {
+      return resolvedHrefFilePathCache.get(url) ?? null;
     }
-    const rawCandidates = [url, safeDecodeURIComponent(url)].filter(
-      (candidate): candidate is string => Boolean(candidate),
-    );
-    const seenCandidates = new Set<string>();
-    for (const candidate of rawCandidates) {
-      if (seenCandidates.has(candidate)) {
-        continue;
-      }
-      seenCandidates.add(candidate);
-      const linkableCandidate = getLinkablePath(candidate);
-      if (!linkableCandidate) {
-        continue;
-      }
-      if (isLikelyFileHref(linkableCandidate, workspacePath)) {
-        const parsedCandidate = parseFileLocation(linkableCandidate);
-        const decodedPath = safeDecodeURIComponent(parsedCandidate.path);
-        return {
-          path: decodedPath ?? parsedCandidate.path,
-          line: parsedCandidate.line,
-          column: parsedCandidate.column,
-        };
-      }
+    const resolvedPath = resolveMessageFileHref(url, workspacePath);
+    if (!resolvedPath) {
+      resolvedHrefFilePathCache.set(url, null);
+      return null;
     }
-    return null;
+    resolvedHrefFilePathCache.set(url, resolvedPath);
+    return resolvedPath;
   };
   const components: Components = {
     a: ({ href, children }) => {
@@ -734,7 +380,7 @@ export function Markdown({
         );
       }
       if (isFileLinkUrl(url)) {
-        const path = safeDecodeFileLink(url);
+        const path = parseFileLinkUrl(url);
         if (!path) {
           return (
             <a
@@ -761,7 +407,7 @@ export function Markdown({
       }
       const hrefFilePath = resolveHrefFilePath(url);
       if (hrefFilePath) {
-        const formattedHrefFilePath = formatFileTarget(hrefFilePath);
+        const formattedHrefFilePath = formatParsedFileLocation(hrefFilePath);
         const clickHandler = (event: React.MouseEvent) =>
           handleFileLinkClick(event, hrefFilePath);
         const contextMenuHandler = onOpenFileLinkMenu
@@ -769,7 +415,7 @@ export function Markdown({
           : undefined;
         return (
           <a
-            href={href ?? toFileLink(formattedHrefFilePath)}
+            href={href ?? toFileLink(hrefFilePath)}
             title={formattedHrefFilePath}
             onClick={clickHandler}
             onContextMenu={contextMenuHandler}
@@ -812,15 +458,15 @@ export function Markdown({
         return <code className={codeClassName}>{children}</code>;
       }
       const text = String(children ?? "").trim();
-      const linkablePath = getLinkablePath(text);
-      if (!linkablePath) {
+      const fileTarget = parseInlineFileTarget(text);
+      if (!fileTarget) {
         return <code>{children}</code>;
       }
-      const href = toFileLink(linkablePath);
+      const href = toFileLink(fileTarget);
       return (
         <FileReferenceLink
           href={href}
-          rawPath={linkablePath}
+          rawPath={fileTarget}
           showFilePath={showFilePath}
           workspacePath={workspacePath}
           onClick={handleFileLinkClick}

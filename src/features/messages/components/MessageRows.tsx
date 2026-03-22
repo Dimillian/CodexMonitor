@@ -17,7 +17,7 @@ import X from "lucide-react/dist/esm/icons/x";
 import { exportMarkdownFile } from "@services/tauri";
 import { pushErrorToast } from "@services/toasts";
 import type { ConversationItem } from "../../../types";
-import type { FileLinkTarget } from "../../../utils/fileLinks";
+import type { ParsedFileLocation } from "../../../utils/fileLinks";
 import { PierreDiffBlock } from "../../git/components/PierreDiffBlock";
 import {
   MAX_COMMAND_OUTPUT_LINES,
@@ -39,8 +39,8 @@ import { Markdown } from "./Markdown";
 type MarkdownFileLinkProps = {
   showMessageFilePath?: boolean;
   workspacePath?: string | null;
-  onOpenFileLink?: (path: FileLinkTarget) => void;
-  onOpenFileLinkMenu?: (event: MouseEvent, path: FileLinkTarget) => void;
+  onOpenFileLink?: (path: ParsedFileLocation) => void;
+  onOpenFileLinkMenu?: (event: MouseEvent, path: ParsedFileLocation) => void;
   onOpenThreadLink?: (threadId: string) => void;
 };
 

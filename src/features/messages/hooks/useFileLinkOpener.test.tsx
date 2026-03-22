@@ -2,6 +2,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { openWorkspaceIn } from "../../../services/tauri";
+import { fileTarget } from "../test/fileLinkAssertions";
 import { useFileLinkOpener } from "./useFileLinkOpener";
 
 const {
@@ -53,7 +54,7 @@ describe("useFileLinkOpener", () => {
     vi.clearAllMocks();
   });
 
-  it("copies namespace-prefixed Windows drive paths as round-trippable file URLs", async () => {
+  async function copyLinkFor(rawPath: string) {
     const clipboardWriteTextMock = vi.fn();
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText: clipboardWriteTextMock },
@@ -76,7 +77,7 @@ describe("useFileLinkOpener", () => {
           clientX: 12,
           clientY: 24,
         } as never,
-        "\\\\?\\C:\\repo\\src\\App.tsx:42",
+        fileTarget(rawPath),
       );
     });
 
@@ -86,86 +87,23 @@ describe("useFileLinkOpener", () => {
     );
 
     await copyLinkItem?.action?.();
+    return clipboardWriteTextMock.mock.calls[0]?.[0];
+  }
 
-    expect(clipboardWriteTextMock).toHaveBeenCalledWith(
+  it("copies namespace-prefixed Windows drive paths as round-trippable file URLs", async () => {
+    expect(await copyLinkFor("\\\\?\\C:\\repo\\src\\App.tsx:42")).toBe(
       "file:///%5C%5C%3F%5CC%3A%5Crepo%5Csrc%5CApp.tsx#L42",
     );
   });
 
   it("copies namespace-prefixed Windows UNC paths as round-trippable file URLs", async () => {
-    const clipboardWriteTextMock = vi.fn();
-    Object.defineProperty(navigator, "clipboard", {
-      value: { writeText: clipboardWriteTextMock },
-      configurable: true,
-    });
-    menuItemNewMock.mockImplementation(async (options) => options);
-    predefinedMenuItemNewMock.mockImplementation(async (options) => options);
-    menuNewMock.mockImplementation(async ({ items }) => ({
-      items,
-      popup: vi.fn(),
-    }));
-
-    const { result } = renderHook(() => useFileLinkOpener(null, [], ""));
-
-    await act(async () => {
-      await result.current.showFileLinkMenu(
-        {
-          preventDefault: vi.fn(),
-          stopPropagation: vi.fn(),
-          clientX: 12,
-          clientY: 24,
-        } as never,
-        "\\\\?\\UNC\\server\\share\\repo\\App.tsx:42",
-      );
-    });
-
-    const items = menuNewMock.mock.calls[0]?.[0]?.items ?? [];
-    const copyLinkItem = items.find(
-      (item: { text?: string; action?: () => Promise<void> }) => item.text === "Copy Link",
-    );
-
-    await copyLinkItem?.action?.();
-
-    expect(clipboardWriteTextMock).toHaveBeenCalledWith(
+    expect(await copyLinkFor("\\\\?\\UNC\\server\\share\\repo\\App.tsx:42")).toBe(
       "file:///%5C%5C%3F%5CUNC%5Cserver%5Cshare%5Crepo%5CApp.tsx#L42",
     );
   });
 
   it("percent-encodes copied file URLs for Windows paths with reserved characters", async () => {
-    const clipboardWriteTextMock = vi.fn();
-    Object.defineProperty(navigator, "clipboard", {
-      value: { writeText: clipboardWriteTextMock },
-      configurable: true,
-    });
-    menuItemNewMock.mockImplementation(async (options) => options);
-    predefinedMenuItemNewMock.mockImplementation(async (options) => options);
-    menuNewMock.mockImplementation(async ({ items }) => ({
-      items,
-      popup: vi.fn(),
-    }));
-
-    const { result } = renderHook(() => useFileLinkOpener(null, [], ""));
-
-    await act(async () => {
-      await result.current.showFileLinkMenu(
-        {
-          preventDefault: vi.fn(),
-          stopPropagation: vi.fn(),
-          clientX: 12,
-          clientY: 24,
-        } as never,
-        "C:\\repo\\My File #100%.tsx:42",
-      );
-    });
-
-    const items = menuNewMock.mock.calls[0]?.[0]?.items ?? [];
-    const copyLinkItem = items.find(
-      (item: { text?: string; action?: () => Promise<void> }) => item.text === "Copy Link",
-    );
-
-    await copyLinkItem?.action?.();
-
-    expect(clipboardWriteTextMock).toHaveBeenCalledWith(
+    expect(await copyLinkFor("C:\\repo\\My File #100%.tsx:42")).toBe(
       "file:///C:/repo/My%20File%20%23100%25.tsx#L42",
     );
   });
@@ -176,7 +114,9 @@ describe("useFileLinkOpener", () => {
     const { result } = renderHook(() => useFileLinkOpener(workspacePath, [], ""));
 
     await act(async () => {
-      await result.current.openFileLink("/workspace/src/features/messages/components/Markdown.tsx");
+      await result.current.openFileLink(
+        fileTarget("/workspace/src/features/messages/components/Markdown.tsx"),
+      );
     });
 
     expect(openWorkspaceInMock).toHaveBeenCalledWith(
@@ -191,7 +131,7 @@ describe("useFileLinkOpener", () => {
     const { result } = renderHook(() => useFileLinkOpener(workspacePath, [], ""));
 
     await act(async () => {
-      await result.current.openFileLink("/workspace/CodexMonitor/LICENSE");
+      await result.current.openFileLink(fileTarget("/workspace/CodexMonitor/LICENSE"));
     });
 
     expect(openWorkspaceInMock).toHaveBeenCalledWith(
@@ -206,7 +146,7 @@ describe("useFileLinkOpener", () => {
     const { result } = renderHook(() => useFileLinkOpener(workspacePath, [], ""));
 
     await act(async () => {
-      await result.current.openFileLink("/workspace/settings/LICENSE");
+      await result.current.openFileLink(fileTarget("/workspace/settings/LICENSE"));
     });
 
     expect(openWorkspaceInMock).toHaveBeenCalledWith(
@@ -221,7 +161,7 @@ describe("useFileLinkOpener", () => {
     const { result } = renderHook(() => useFileLinkOpener(workspacePath, [], ""));
 
     await act(async () => {
-      await result.current.openFileLink("/workspaces/team/CodexMonitor/src");
+      await result.current.openFileLink(fileTarget("/workspaces/team/CodexMonitor/src"));
     });
 
     expect(openWorkspaceInMock).toHaveBeenCalledWith(
@@ -237,7 +177,7 @@ describe("useFileLinkOpener", () => {
 
     await act(async () => {
       await result.current.openFileLink(
-        "/workspace/src/features/messages/components/Markdown.tsx:33:7",
+        fileTarget("/workspace/src/features/messages/components/Markdown.tsx:33:7"),
       );
     });
 
@@ -258,7 +198,7 @@ describe("useFileLinkOpener", () => {
     const { result } = renderHook(() => useFileLinkOpener(workspacePath, [], ""));
 
     await act(async () => {
-      await result.current.openFileLink("/workspace/src/App.tsx#L33");
+      await result.current.openFileLink(fileTarget("/workspace/src/App.tsx#L33"));
     });
 
     expect(openWorkspaceInMock).toHaveBeenCalledWith(
@@ -296,7 +236,7 @@ describe("useFileLinkOpener", () => {
 
     await act(async () => {
       await result.current.openFileLink(
-        "/workspace/src/features/messages/components/Markdown.tsx:366-369",
+        fileTarget("/workspace/src/features/messages/components/Markdown.tsx:366-369"),
       );
     });
 

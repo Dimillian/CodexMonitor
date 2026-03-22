@@ -4,31 +4,10 @@ export type ParsedFileLocation = {
   column: number | null;
 };
 
-export type FileLinkTarget = string | ParsedFileLocation;
-
 const FILE_LOCATION_SUFFIX_PATTERN = /^(.*?):(\d+)(?::(\d+))?$/;
 const FILE_LOCATION_RANGE_SUFFIX_PATTERN = /^(.*?):(\d+)-(\d+)$/;
 const FILE_LOCATION_HASH_PATTERN = /^(.*?)#L(\d+)(?:C(\d+))?$/i;
 const FILE_URL_LOCATION_HASH_PATTERN = /^#L(\d+)(?:C(\d+))?$/i;
-const LOCAL_WORKSPACE_ROUTE_TAIL_SEGMENTS = {
-  reviews: new Set(["overview"]),
-  settings: new Set([
-    "about",
-    "agents",
-    "codex",
-    "composer",
-    "dictation",
-    "display",
-    "environments",
-    "features",
-    "git",
-    "open-apps",
-    "profile",
-    "projects",
-    "server",
-    "shortcuts",
-  ]),
-} as const;
 
 export const FILE_LINK_SUFFIX_SOURCE =
   "(?:(?::\\d+(?::\\d+)?|:\\d+-\\d+)|(?:#L\\d+(?:C\\d+)?))?";
@@ -200,74 +179,6 @@ export function normalizeFileLinkPath(rawPath: string) {
   return formatFileLocation(parsed.path, parsed.line, parsed.column);
 }
 
-function stripNonLineUrlSuffix(path: string) {
-  const queryIndex = path.indexOf("?");
-  const hashIndex = path.indexOf("#");
-  const boundaryIndex =
-    queryIndex === -1
-      ? hashIndex
-      : hashIndex === -1
-        ? queryIndex
-        : Math.min(queryIndex, hashIndex);
-  return boundaryIndex === -1 ? path : path.slice(0, boundaryIndex);
-}
-
-function getLocalWorkspaceRouteInfo(rawPath: string) {
-  const parsed = parseFileLocation(rawPath);
-  const normalizedPath = stripNonLineUrlSuffix(parsed.path.trim().replace(/\\/g, "/"));
-  if (normalizedPath.startsWith("/workspace/")) {
-    const mountedSegments = normalizedPath
-      .slice("/workspace/".length)
-      .split("/")
-      .filter(Boolean);
-    return {
-      line: parsed.line,
-      mountedSegments,
-      routeSegment: mountedSegments[0] ?? null,
-      tailSegments: mountedSegments.slice(1),
-    };
-  }
-  if (normalizedPath.startsWith("/workspaces/")) {
-    const mountedSegments = normalizedPath
-      .slice("/workspaces/".length)
-      .split("/")
-      .filter(Boolean);
-    return {
-      line: parsed.line,
-      mountedSegments,
-      routeSegment: mountedSegments[1] ?? null,
-      tailSegments: mountedSegments.slice(2),
-    };
-  }
-  return null;
-}
-
-export function isKnownLocalWorkspaceRoutePath(rawPath: string) {
-  const routeInfo = getLocalWorkspaceRouteInfo(rawPath);
-  if (!routeInfo?.routeSegment) {
-    return false;
-  }
-  if (
-    !Object.prototype.hasOwnProperty.call(
-      LOCAL_WORKSPACE_ROUTE_TAIL_SEGMENTS,
-      routeInfo.routeSegment,
-    )
-  ) {
-    return false;
-  }
-  if (routeInfo.tailSegments.length === 0) {
-    return true;
-  }
-  if (routeInfo.tailSegments.length !== 1) {
-    return false;
-  }
-  const allowedTailSegments =
-    LOCAL_WORKSPACE_ROUTE_TAIL_SEGMENTS[
-      routeInfo.routeSegment as keyof typeof LOCAL_WORKSPACE_ROUTE_TAIL_SEGMENTS
-    ];
-  return allowedTailSegments.has(routeInfo.tailSegments[0]);
-}
-
 type FileUrlParts = {
   host: string;
   pathname: string;
@@ -379,9 +290,4 @@ export function parseFileUrlLocation(url: string): ParsedFileLocation | null {
     const { line, column } = parseRecognizedFileUrlHash(manualParts.hash);
     return { path, line, column };
   }
-}
-
-export function fromFileUrl(url: string) {
-  const parsed = parseFileUrlLocation(url);
-  return parsed ? formatFileLocation(parsed.path, parsed.line, parsed.column) : null;
 }

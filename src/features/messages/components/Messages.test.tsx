@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationItem } from "../../../types";
+import { expectOpenedFileTarget } from "../test/fileLinkAssertions";
 import { Messages } from "./Messages";
 
 const useFileLinkOpenerMock = vi.fn(
@@ -16,15 +17,6 @@ const showFileLinkMenuMock = vi.fn();
 const { exportMarkdownFileMock } = vi.hoisted(() => ({
   exportMarkdownFileMock: vi.fn(),
 }));
-
-function expectOpenedFileTarget(
-  mock: ReturnType<typeof vi.fn>,
-  path: string,
-  line: number | null = null,
-  column: number | null = null,
-) {
-  expect(mock).toHaveBeenCalledWith({ path, line, column });
-}
 
 vi.mock("../hooks/useFileLinkOpener", () => ({
   useFileLinkOpener: (
@@ -280,8 +272,10 @@ describe("Messages", () => {
     expect(fileLink).toBeTruthy();
 
     fireEvent.click(fileLink as Element);
-    expect(openFileLinkMock).toHaveBeenCalledWith(
-      "iosApp/src/views/DocumentsList/DocumentListView.swift:111",
+    expectOpenedFileTarget(
+      openFileLinkMock,
+      "iosApp/src/views/DocumentsList/DocumentListView.swift",
+      111,
     );
   });
 
@@ -649,7 +643,11 @@ describe("Messages", () => {
     const fileLink = container.querySelector(".message-file-link");
     expect(fileLink).toBeTruthy();
     fireEvent.click(fileLink as Element);
-    expect(openFileLinkMock).toHaveBeenCalledWith(absolutePath);
+    expectOpenedFileTarget(
+      openFileLinkMock,
+      "/Users/dimillian/Documents/Dev/CodexMonitor/src/features/messages/components/Markdown.tsx",
+      244,
+    );
   });
 
   it("renders absolute file references outside workspace using dotdot-relative paths", () => {
@@ -683,7 +681,11 @@ describe("Messages", () => {
     const fileLink = container.querySelector(".message-file-link");
     expect(fileLink).toBeTruthy();
     fireEvent.click(fileLink as Element);
-    expect(openFileLinkMock).toHaveBeenCalledWith(absolutePath);
+    expectOpenedFileTarget(
+      openFileLinkMock,
+      "/Users/dimillian/Documents/Other/IceCubesApp/file.rs",
+      123,
+    );
   });
 
   it("does not re-render messages while typing when message props stay stable", () => {
