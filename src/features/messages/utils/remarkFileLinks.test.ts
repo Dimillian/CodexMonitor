@@ -66,4 +66,11 @@ describe("remarkFileLinks", () => {
     );
     expect(tree.children?.[0]?.children?.map((child) => child.type)).toEqual(["text"]);
   });
+
+  it("does not split custom URIs that embed Windows file paths", () => {
+    const tree = runRemarkFileLinks(
+      textParagraph("Open vscode://file/C:/repo/src/App.tsx:12 in VS Code."),
+    );
+    expect(tree.children?.[0]?.children?.map((child) => child.type)).toEqual(["text"]);
+  });
 });

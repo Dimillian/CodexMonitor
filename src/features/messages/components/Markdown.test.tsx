@@ -448,6 +448,18 @@ describe("Markdown file-like href behavior", () => {
     expect(container.textContent).toContain("/workspace/settings#L12");
   });
 
+  it("does not linkify Windows file paths embedded in custom URIs", () => {
+    const { container } = render(
+      <Markdown
+        value="Open vscode://file/C:/repo/src/App.tsx:12 in VS Code."
+        className="markdown"
+      />,
+    );
+
+    expect(container.querySelector(".message-file-link")).toBeNull();
+    expect(container.textContent).toContain("vscode://file/C:/repo/src/App.tsx:12");
+  });
+
   it("does not turn workspace review #L anchors in inline code into file links", () => {
     const { container } = render(
       <Markdown

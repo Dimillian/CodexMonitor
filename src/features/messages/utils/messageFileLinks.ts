@@ -45,6 +45,7 @@ const FILE_PATH_MATCH = new RegExp(`^${FILE_PATH_PATTERN.source}$`);
 const TRAILING_PUNCTUATION = new Set([".", ",", ";", ":", "!", "?", ")", "]", "}"]);
 const LETTER_OR_NUMBER_PATTERN = /[\p{L}\p{N}.]/u;
 const URL_SCHEME_PREFIX_PATTERN = /[a-zA-Z][a-zA-Z0-9+.-]*:\/\/\/?$/;
+const EMBEDDED_URL_SCHEME_PATTERN = /[a-zA-Z][a-zA-Z0-9+.-]*:\/\/\S*$/;
 const PATH_CANDIDATE_PREFIX_BOUNDARY_PATTERN = /[\s<>"'()`[\]{}]/u;
 const LIKELY_LOCAL_ABSOLUTE_PATH_PREFIXES = [
   "/Users/",
@@ -198,7 +199,10 @@ function isPathCandidate(
   leadingText: string,
   previousChar: string,
 ) {
-  if (URL_SCHEME_PREFIX_PATTERN.test(leadingText)) {
+  if (
+    URL_SCHEME_PREFIX_PATTERN.test(leadingText) ||
+    EMBEDDED_URL_SCHEME_PATTERN.test(leadingText)
+  ) {
     return false;
   }
   if (/^[A-Za-z]:[\\/]/.test(value) || value.startsWith("\\\\")) {
