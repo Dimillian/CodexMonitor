@@ -2,11 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type {
   AppSettings,
+  CloudflareTunnelStatus,
   TailscaleDaemonCommandPreview,
   TailscaleStatus,
   TcpDaemonStatus,
 } from "@/types";
 import {
+  cloudflareTunnelInstall,
+  cloudflareTunnelStart,
+  cloudflareTunnelStatus as fetchCloudflareTunnelStatus,
+  cloudflareTunnelStop,
   listWorkspaces,
   tailscaleDaemonCommandPreview as fetchTailscaleDaemonCommandPreview,
   tailscaleDaemonStart,
@@ -25,6 +30,7 @@ type UseSettingsServerSectionArgs = {
 
 export type AddRemoteBackendDraft = {
   name: string;
+  provider: AppSettings["remoteBackendProvider"];
   host: string;
   token: string;
 };
@@ -43,6 +49,7 @@ export type SettingsServerSectionProps = {
   remoteNameError: string | null;
   remoteHostError: string | null;
   remoteNameDraft: string;
+  remoteProviderDraft: AppSettings["remoteBackendProvider"];
   remoteHostDraft: string;
   remoteTokenDraft: string;
   nextRemoteNameSuggestion: string;
@@ -54,12 +61,19 @@ export type SettingsServerSectionProps = {
   tailscaleCommandError: string | null;
   tcpDaemonStatus: TcpDaemonStatus | null;
   tcpDaemonBusyAction: "start" | "stop" | "status" | null;
+  cloudflareTunnelStatus: CloudflareTunnelStatus | null;
+  cloudflareTunnelBusyAction: "start" | "stop" | "status" | "setup" | "install" | null;
   onSetRemoteNameDraft: Dispatch<SetStateAction<string>>;
+  onSetRemoteProviderDraft: Dispatch<SetStateAction<AppSettings["remoteBackendProvider"]>>;
   onSetRemoteHostDraft: Dispatch<SetStateAction<string>>;
   onSetRemoteTokenDraft: Dispatch<SetStateAction<string>>;
   onCommitRemoteName: () => Promise<void>;
+  onCommitRemoteProvider: (
+    nextProvider?: AppSettings["remoteBackendProvider"],
+  ) => Promise<void>;
   onCommitRemoteHost: () => Promise<void>;
   onCommitRemoteToken: () => Promise<void>;
+  onSetBackendMode: (nextMode: AppSettings["backendMode"]) => Promise<void>;
   onSelectRemoteBackend: (id: string) => Promise<void>;
   onAddRemoteBackend: (draft: AddRemoteBackendDraft) => Promise<void>;
   onMoveRemoteBackend: (id: string, direction: "up" | "down") => Promise<void>;
@@ -70,6 +84,13 @@ export type SettingsServerSectionProps = {
   onTcpDaemonStart: () => Promise<void>;
   onTcpDaemonStop: () => Promise<void>;
   onTcpDaemonStatus: () => Promise<void>;
+  onCloudflareTunnelStart: () => Promise<void>;
+  onCloudflareTunnelStop: () => Promise<void>;
+  onCloudflareTunnelStatus: () => Promise<void>;
+  onCloudflareTunnelInstall: () => Promise<void>;
+  onGenerateRemotePassword: () => Promise<void>;
+  onApplySuggestedWssUrl: () => Promise<void>;
+  onOneClickWssSetup: () => Promise<void>;
   onMobileConnectTest: () => void;
 };
 
@@ -94,10 +115,14 @@ type RemoteBackendTarget = AppSettings["remoteBackends"][number];
 const createRemoteBackendId = () =>
   `remote-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
+const normalizeRemoteProvider = (
+  value: unknown,
+): AppSettings["remoteBackendProvider"] => (value === "wss" ? "wss" : "tcp");
+
 const buildFallbackRemoteBackend = (settings: AppSettings): RemoteBackendTarget => ({
   id: settings.activeRemoteBackendId ?? "remote-default",
   name: "Primary remote",
-  provider: "tcp",
+  provider: normalizeRemoteProvider(settings.remoteBackendProvider),
   host: settings.remoteBackendHost,
   token: settings.remoteBackendToken,
   lastConnectedAtMs: null,
@@ -115,10 +140,28 @@ const getActiveRemoteBackend = (settings: AppSettings): RemoteBackendTarget => {
   return configured.find((entry) => entry.id === settings.activeRemoteBackendId) ?? configured[0];
 };
 
-const validateRemoteHost = (value: string): string | null => {
+const validateRemoteHost = (
+  provider: AppSettings["remoteBackendProvider"],
+  value: string,
+): string | null => {
   const trimmed = value.trim();
   if (!trimmed) {
-    return "Host is required.";
+    return provider === "wss" ? "WSS URL is required." : "Host is required.";
+  }
+  if (provider === "wss") {
+    let parsed: URL;
+    try {
+      parsed = new URL(trimmed);
+    } catch {
+      return "Use a valid WSS URL (for example `wss://codex.example.com/daemon`).";
+    }
+    if (parsed.protocol !== "wss:") {
+      return "WSS transport requires a URL starting with `wss://`.";
+    }
+    if (!parsed.hostname) {
+      return "WSS URL must include a hostname.";
+    }
+    return null;
   }
   const match = trimmed.match(/^([^:\s]+|\[[^\]]+\]):([0-9]{1,5})$/);
   if (!match) {
@@ -142,6 +185,19 @@ const buildNextRemoteName = (remoteBackends: RemoteBackendTarget[]) => {
   return candidate;
 };
 
+const generatePasswordToken = (length = 24) => {
+  const alphabet =
+    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789-_";
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const bytes = new Uint8Array(length);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
+  }
+  return Array.from({ length }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join(
+    "",
+  );
+};
+
 export const useSettingsServerSection = ({
   appSettings,
   onUpdateAppSettings,
@@ -149,6 +205,7 @@ export const useSettingsServerSection = ({
 }: UseSettingsServerSectionArgs): SettingsServerSectionProps => {
   const initialActiveRemoteBackend = getActiveRemoteBackend(appSettings);
   const [remoteNameDraft, setRemoteNameDraft] = useState(initialActiveRemoteBackend.name);
+  const [remoteProviderDraft, setRemoteProviderDraft] = useState(initialActiveRemoteBackend.provider);
   const [remoteHostDraft, setRemoteHostDraft] = useState(initialActiveRemoteBackend.host);
   const [remoteTokenDraft, setRemoteTokenDraft] = useState(initialActiveRemoteBackend.token ?? "");
   const [remoteStatusText, setRemoteStatusText] = useState<string | null>(null);
@@ -165,6 +222,11 @@ export const useSettingsServerSection = ({
   const [tcpDaemonStatus, setTcpDaemonStatus] = useState<TcpDaemonStatus | null>(null);
   const [tcpDaemonBusyAction, setTcpDaemonBusyAction] = useState<
     "start" | "stop" | "status" | null
+  >(null);
+  const [cloudflareTunnelStatus, setCloudflareTunnelStatus] =
+    useState<CloudflareTunnelStatus | null>(null);
+  const [cloudflareTunnelBusyAction, setCloudflareTunnelBusyAction] = useState<
+    "start" | "stop" | "status" | "setup" | "install" | null
   >(null);
   const [mobileConnectBusy, setMobileConnectBusy] = useState(false);
   const [mobileConnectStatusText, setMobileConnectStatusText] = useState<string | null>(null);
@@ -185,6 +247,7 @@ export const useSettingsServerSection = ({
 
   useEffect(() => {
     setRemoteNameDraft(activeRemoteBackend.name);
+    setRemoteProviderDraft(activeRemoteBackend.provider);
     setRemoteHostDraft(activeRemoteBackend.host);
     setRemoteTokenDraft(activeRemoteBackend.token ?? "");
     setRemoteNameError(null);
@@ -194,17 +257,21 @@ export const useSettingsServerSection = ({
   const normalizeRemoteBackendEntry = (
     entry: RemoteBackendTarget,
     index: number,
-  ): RemoteBackendTarget => ({
-    id: entry.id?.trim() || `remote-${index + 1}`,
-    name: entry.name?.trim() || `Remote ${index + 1}`,
-    provider: "tcp",
-    host: entry.host?.trim() || DEFAULT_REMOTE_HOST,
-    token: entry.token?.trim() ? entry.token.trim() : null,
-    lastConnectedAtMs:
-      typeof entry.lastConnectedAtMs === "number" && Number.isFinite(entry.lastConnectedAtMs)
-        ? entry.lastConnectedAtMs
-        : null,
-  });
+  ): RemoteBackendTarget => {
+    const provider = normalizeRemoteProvider(entry.provider);
+    const defaultHost = provider === "wss" ? "" : DEFAULT_REMOTE_HOST;
+    return {
+      id: entry.id?.trim() || `remote-${index + 1}`,
+      name: entry.name?.trim() || `Remote ${index + 1}`,
+      provider,
+      host: entry.host?.trim() || defaultHost,
+      token: entry.token?.trim() ? entry.token.trim() : null,
+      lastConnectedAtMs:
+        typeof entry.lastConnectedAtMs === "number" && Number.isFinite(entry.lastConnectedAtMs)
+          ? entry.lastConnectedAtMs
+          : null,
+    };
+  };
 
   const buildSettingsFromRemoteBackends = useCallback(
     (
@@ -223,7 +290,7 @@ export const useSettingsServerSection = ({
         ...latestSettings,
         remoteBackends: normalizedBackends,
         activeRemoteBackendId: active.id,
-        remoteBackendProvider: "tcp",
+        remoteBackendProvider: active.provider,
         remoteBackendHost: active.host,
         remoteBackendToken: active.token,
         ...(mobilePlatform
@@ -270,22 +337,24 @@ export const useSettingsServerSection = ({
       nextBackends[safeIndex] = {
         ...nextBackends[safeIndex],
         ...patch,
-        provider: "tcp",
       };
       await persistRemoteBackends(nextBackends, nextBackends[safeIndex].id);
     },
     [persistRemoteBackends],
   );
 
-  const applyRemoteHost = async (rawValue: string) => {
+  const applyRemoteHost = async (
+    provider: AppSettings["remoteBackendProvider"],
+    rawValue: string,
+  ) => {
     const nextHost = rawValue.trim();
-    const validationError = validateRemoteHost(nextHost);
+    const validationError = validateRemoteHost(provider, nextHost);
     if (validationError) {
       setRemoteHostError(validationError);
       setRemoteStatus(validationError, true);
       return false;
     }
-    const normalizedHost = nextHost || DEFAULT_REMOTE_HOST;
+    const normalizedHost = nextHost || (provider === "wss" ? "" : DEFAULT_REMOTE_HOST);
     setRemoteHostError(null);
     setRemoteHostDraft(normalizedHost);
     await updateActiveRemoteBackend({ host: normalizedHost });
@@ -319,7 +388,7 @@ export const useSettingsServerSection = ({
   };
 
   const handleCommitRemoteHost = async () => {
-    await applyRemoteHost(remoteHostDraft);
+    await applyRemoteHost(remoteProviderDraft, remoteHostDraft);
   };
 
   const handleCommitRemoteToken = async () => {
@@ -328,6 +397,37 @@ export const useSettingsServerSection = ({
     await updateActiveRemoteBackend({ token: nextToken });
     setRemoteStatus("Remote token saved.");
   };
+
+  const handleCommitRemoteProvider = async (
+    nextProviderValue?: AppSettings["remoteBackendProvider"],
+  ) => {
+    const nextProvider = normalizeRemoteProvider(nextProviderValue ?? remoteProviderDraft);
+    if (nextProviderValue) {
+      setRemoteProviderDraft(nextProvider);
+    }
+    await updateActiveRemoteBackend({ provider: nextProvider });
+    setRemoteStatus(
+      nextProvider === "wss"
+        ? "Remote transport saved as WSS."
+        : "Remote transport saved as TCP.",
+    );
+  };
+
+  const handleSetBackendMode = useCallback(
+    async (nextMode: AppSettings["backendMode"]) => {
+      const latestSettings = latestSettingsRef.current;
+      if (latestSettings.backendMode === nextMode) {
+        return;
+      }
+      const nextSettings = {
+        ...latestSettings,
+        backendMode: nextMode,
+      };
+      await onUpdateAppSettings(nextSettings);
+      latestSettingsRef.current = nextSettings;
+    },
+    [onUpdateAppSettings],
+  );
 
   const handleSelectRemoteBackend = async (id: string) => {
     const latestSettings = latestSettingsRef.current;
@@ -357,8 +457,9 @@ export const useSettingsServerSection = ({
       setRemoteStatus(message, true);
       throw new Error(message);
     }
+    const nextProvider = normalizeRemoteProvider(draft.provider);
     const nextHost = draft.host.trim();
-    const hostError = validateRemoteHost(nextHost);
+    const hostError = validateRemoteHost(nextProvider, nextHost);
     if (hostError) {
       setRemoteStatus(hostError, true);
       throw new Error(hostError);
@@ -374,7 +475,7 @@ export const useSettingsServerSection = ({
     const nextRemote: RemoteBackendTarget = {
       id: nextId,
       name: nextName,
-      provider: "tcp",
+      provider: nextProvider,
       host: nextHost,
       token: nextToken,
       lastConnectedAtMs: null,
@@ -438,6 +539,17 @@ export const useSettingsServerSection = ({
     setRemoteHostDraft((previous) => (typeof value === "function" ? value(previous) : value));
   };
 
+  const handleSetRemoteProviderDraft: Dispatch<
+    SetStateAction<AppSettings["remoteBackendProvider"]>
+  > = (value) => {
+    setRemoteHostError(null);
+    setRemoteStatus(null);
+    setRemoteProviderDraft((previous) => {
+      const next = typeof value === "function" ? value(previous) : value;
+      return normalizeRemoteProvider(next);
+    });
+  };
+
   const handleMoveRemoteBackend = async (id: string, direction: "up" | "down") => {
     const latestSettings = latestSettingsRef.current;
     const nextBackends = [...getConfiguredRemoteBackends(latestSettings)];
@@ -488,7 +600,7 @@ export const useSettingsServerSection = ({
         return;
       }
 
-      const hostError = validateRemoteHost(remoteHostDraft);
+      const hostError = validateRemoteHost(remoteProviderDraft, remoteHostDraft);
       if (hostError) {
         setRemoteHostError(hostError);
         setMobileConnectStatusError(true);
@@ -500,9 +612,11 @@ export const useSettingsServerSection = ({
       setMobileConnectStatusText(null);
       setMobileConnectStatusError(false);
       try {
-        const nextHost = remoteHostDraft.trim() || DEFAULT_REMOTE_HOST;
+        const nextHost =
+          remoteHostDraft.trim() || (remoteProviderDraft === "wss" ? "" : DEFAULT_REMOTE_HOST);
         setRemoteHostDraft(nextHost);
         await updateActiveRemoteBackend({
+          provider: remoteProviderDraft,
           host: nextHost,
           token: nextToken,
         });
@@ -536,7 +650,7 @@ export const useSettingsServerSection = ({
     }
     setMobileConnectStatusText(null);
     setMobileConnectStatusError(false);
-  }, [mobilePlatform, remoteHostDraft, remoteTokenDraft]);
+  }, [mobilePlatform, remoteProviderDraft, remoteHostDraft, remoteTokenDraft]);
 
   const handleRefreshTailscaleStatus = useCallback(() => {
     void (async () => {
@@ -577,7 +691,7 @@ export const useSettingsServerSection = ({
     if (!suggestedHost) {
       return;
     }
-    await applyRemoteHost(suggestedHost);
+    await applyRemoteHost("tcp", suggestedHost);
   };
 
   const runTcpDaemonAction = useCallback(
@@ -622,16 +736,158 @@ export const useSettingsServerSection = ({
     await runTcpDaemonAction("status", tailscaleDaemonStatus);
   }, [runTcpDaemonAction]);
 
+  const runCloudflareTunnelAction = useCallback(
+    async (
+      action: "start" | "stop" | "status" | "install",
+      run: () => Promise<CloudflareTunnelStatus>,
+    ) => {
+      setCloudflareTunnelBusyAction(action);
+      try {
+        const status = await run();
+        setCloudflareTunnelStatus(status);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : typeof error === "string"
+              ? error
+              : "Unable to update Cloudflare tunnel status.";
+        setCloudflareTunnelStatus((prev) => ({
+          state: "error",
+          pid: null,
+          startedAtMs: null,
+          lastError: errorMessage,
+          localUrl: prev?.localUrl ?? null,
+          publicUrl: prev?.publicUrl ?? null,
+          suggestedWssUrl: prev?.suggestedWssUrl ?? null,
+          installed: prev?.installed ?? false,
+          version: prev?.version ?? null,
+        }));
+      } finally {
+        setCloudflareTunnelBusyAction(null);
+      }
+    },
+    [],
+  );
+
+  const handleCloudflareTunnelStart = useCallback(async () => {
+    await runCloudflareTunnelAction("start", cloudflareTunnelStart);
+  }, [runCloudflareTunnelAction]);
+
+  const handleCloudflareTunnelStop = useCallback(async () => {
+    await runCloudflareTunnelAction("stop", cloudflareTunnelStop);
+  }, [runCloudflareTunnelAction]);
+
+  const handleCloudflareTunnelStatus = useCallback(async () => {
+    await runCloudflareTunnelAction("status", fetchCloudflareTunnelStatus);
+  }, [runCloudflareTunnelAction]);
+
+  const handleCloudflareTunnelInstall = useCallback(async () => {
+    await runCloudflareTunnelAction("install", cloudflareTunnelInstall);
+  }, [runCloudflareTunnelAction]);
+
+  const handleGenerateRemotePassword = useCallback(async () => {
+    const generated = generatePasswordToken();
+    setRemoteTokenDraft(generated);
+    await updateActiveRemoteBackend({ token: generated });
+    setRemoteStatus("Generated and saved remote password.");
+  }, [setRemoteStatus, updateActiveRemoteBackend]);
+
+  const handleOneClickWssSetup = useCallback(async () => {
+    if (cloudflareTunnelBusyAction !== null || tcpDaemonBusyAction !== null) {
+      return;
+    }
+
+    setCloudflareTunnelBusyAction("setup");
+    try {
+      const password = remoteTokenDraft.trim() || generatePasswordToken();
+      if (!remoteTokenDraft.trim()) {
+        setRemoteTokenDraft(password);
+      }
+
+      setRemoteStatus("Saving password...");
+      await updateActiveRemoteBackend({ token: password });
+
+      setRemoteStatus("Starting mobile access daemon...");
+      const daemon = await tailscaleDaemonStart();
+      setTcpDaemonStatus(daemon);
+
+      setRemoteStatus("Starting Cloudflare tunnel...");
+      const tunnel = await cloudflareTunnelStart();
+      setCloudflareTunnelStatus(tunnel);
+
+      const suggestedWssUrl = tunnel.suggestedWssUrl ?? null;
+      if (!suggestedWssUrl) {
+        setRemoteStatus(
+          "Tunnel started. URL is still provisioning; click Refresh tunnel status in a few seconds.",
+          true,
+        );
+        return;
+      }
+
+      setRemoteProviderDraft("wss");
+      setRemoteHostDraft(suggestedWssUrl);
+      setRemoteHostError(null);
+      await updateActiveRemoteBackend({
+        provider: "wss",
+        host: suggestedWssUrl,
+        token: password,
+      });
+      setRemoteStatus(
+        `Ready. Remote URL saved to ${suggestedWssUrl}. Use your password on mobile.`,
+      );
+    } catch (error) {
+      setRemoteStatus(
+        formatErrorMessage(error, "One-click WSS setup failed."),
+        true,
+      );
+    } finally {
+      setCloudflareTunnelBusyAction(null);
+    }
+  }, [
+    cloudflareTunnelBusyAction,
+    remoteTokenDraft,
+    setRemoteStatus,
+    tcpDaemonBusyAction,
+    updateActiveRemoteBackend,
+  ]);
+
+  const handleApplySuggestedWssUrl = useCallback(async () => {
+    const suggestedWssUrl = cloudflareTunnelStatus?.suggestedWssUrl?.trim() ?? "";
+    if (!suggestedWssUrl) {
+      setRemoteStatus(
+        "Tunnel URL is not ready yet. Start tunnel and refresh status.",
+        true,
+      );
+      return;
+    }
+    const hostError = validateRemoteHost("wss", suggestedWssUrl);
+    if (hostError) {
+      setRemoteStatus(hostError, true);
+      return;
+    }
+    setRemoteProviderDraft("wss");
+    setRemoteHostDraft(suggestedWssUrl);
+    setRemoteHostError(null);
+    await updateActiveRemoteBackend({
+      provider: "wss",
+      host: suggestedWssUrl,
+    });
+    setRemoteStatus(`Saved tunnel URL ${suggestedWssUrl}.`);
+  }, [cloudflareTunnelStatus?.suggestedWssUrl, setRemoteStatus, updateActiveRemoteBackend]);
+
   useEffect(() => {
     if (!mobilePlatform) {
       handleRefreshTailscaleCommandPreview();
       void handleTcpDaemonStatus();
+      void handleCloudflareTunnelStatus();
     }
     if (tailscaleStatus === null && !tailscaleStatusBusy && !tailscaleStatusError) {
       handleRefreshTailscaleStatus();
     }
   }, [
     appSettings.remoteBackendToken,
+    handleCloudflareTunnelStatus,
     handleRefreshTailscaleCommandPreview,
     handleRefreshTailscaleStatus,
     handleTcpDaemonStatus,
@@ -652,6 +908,7 @@ export const useSettingsServerSection = ({
     remoteNameError,
     remoteHostError,
     remoteNameDraft,
+    remoteProviderDraft,
     remoteHostDraft,
     remoteTokenDraft,
     nextRemoteNameSuggestion: buildNextRemoteName(getConfiguredRemoteBackends(appSettings)),
@@ -663,12 +920,17 @@ export const useSettingsServerSection = ({
     tailscaleCommandError,
     tcpDaemonStatus,
     tcpDaemonBusyAction,
+    cloudflareTunnelStatus,
+    cloudflareTunnelBusyAction,
     onSetRemoteNameDraft: handleSetRemoteNameDraft,
+    onSetRemoteProviderDraft: handleSetRemoteProviderDraft,
     onSetRemoteHostDraft: handleSetRemoteHostDraft,
     onSetRemoteTokenDraft: setRemoteTokenDraft,
     onCommitRemoteName: handleCommitRemoteName,
+    onCommitRemoteProvider: handleCommitRemoteProvider,
     onCommitRemoteHost: handleCommitRemoteHost,
     onCommitRemoteToken: handleCommitRemoteToken,
+    onSetBackendMode: handleSetBackendMode,
     onSelectRemoteBackend: handleSelectRemoteBackend,
     onAddRemoteBackend: handleAddRemoteBackend,
     onMoveRemoteBackend: handleMoveRemoteBackend,
@@ -679,6 +941,13 @@ export const useSettingsServerSection = ({
     onTcpDaemonStart: handleTcpDaemonStart,
     onTcpDaemonStop: handleTcpDaemonStop,
     onTcpDaemonStatus: handleTcpDaemonStatus,
+    onCloudflareTunnelStart: handleCloudflareTunnelStart,
+    onCloudflareTunnelStop: handleCloudflareTunnelStop,
+    onCloudflareTunnelStatus: handleCloudflareTunnelStatus,
+    onCloudflareTunnelInstall: handleCloudflareTunnelInstall,
+    onGenerateRemotePassword: handleGenerateRemotePassword,
+    onApplySuggestedWssUrl: handleApplySuggestedWssUrl,
+    onOneClickWssSetup: handleOneClickWssSetup,
     isMobilePlatform: mobilePlatform,
     mobileConnectBusy,
     mobileConnectStatusText,

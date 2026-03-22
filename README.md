@@ -13,7 +13,7 @@ CodexMonitor is a Tauri app for orchestrating multiple Codex agents across local
 - Worktree and clone agents for isolated work; worktrees live under the app data directory (legacy `.codex-worktrees` supported).
 - Thread management: pin/rename/archive/copy, per-thread drafts, and stop/interrupt in-flight turns.
 - Optional remote backend (daemon) mode for running Codex on another machine.
-- Remote setup helpers for self-hosted connectivity (Tailscale detection/host bootstrap for TCP mode).
+- Remote setup helpers for self-hosted connectivity (Tailscale host bootstrap for TCP mode and Cloudflare quick tunnel for WSS mode).
 
 ### Composer & Agent Controls
 
@@ -101,6 +101,44 @@ Notes:
 - The desktop daemon must stay running while iOS is connected.
 - If the test fails, confirm both devices are online in Tailscale and that host/token match desktop settings.
 
+### iOS + Cloudflare Tunnel Setup (WSS)
+
+Use this when connecting over public internet without requiring Tailscale on iOS.
+
+Recommended (desktop one-click):
+
+1. On desktop CodexMonitor, open `Settings > Server`.
+2. Click `One-click WSS setup`.
+3. CodexMonitor will:
+   - generate/save a remote password if missing,
+   - start the desktop daemon with TCP + WS listeners,
+   - start a Cloudflare quick tunnel,
+   - auto-fill the active remote host with the discovered `wss://...` URL.
+4. On iOS CodexMonitor, open `Settings > Server`.
+5. Enter the same password/token shown on desktop.
+6. Tap `Connect & test`.
+
+Manual fallback:
+
+1. Start daemon with both TCP and WebSocket listeners:
+
+```bash
+cd src-tauri
+cargo run --bin codex_monitor_daemon -- \
+  --listen 127.0.0.1:4732 \
+  --ws-listen 127.0.0.1:4733 \
+  --token "<same-token-from-settings>"
+```
+
+2. Run `cloudflared tunnel --url http://127.0.0.1:4733`.
+3. Use the generated `https://...` endpoint as `wss://...` in iOS settings.
+
+Notes:
+
+- Keep desktop daemon/tunnel processes running while iOS is connected.
+- Prefer Cloudflare Access / origin restrictions when exposing this endpoint.
+- Rotate the remote token if endpoint scope changes.
+
 ### Headless Daemon Management (No Desktop UI)
 
 Use the standalone daemon control CLI when you want iOS remote mode without keeping the desktop app open.
@@ -126,6 +164,9 @@ Examples:
 
 # Print equivalent daemon start command
 ./target/debug/codex_monitor_daemonctl command-preview
+
+# Start daemon with optional WebSocket listener (for WSS reverse proxies/tunnels)
+./target/debug/codex_monitor_daemon --listen 127.0.0.1:4732 --ws-listen 127.0.0.1:4733 --token "$TOKEN"
 ```
 
 Useful overrides:
@@ -313,4 +354,4 @@ Frontend calls live in `src/services/tauri.ts` and map to commands in `src-tauri
 - Git/GitHub: `get_git_status`, `list_git_roots`, `get_git_diffs`, `get_git_log`, `get_git_commit_diff`, `get_git_remote`, `stage_git_file`, `stage_git_all`, `unstage_git_file`, `revert_git_file`, `revert_git_all`, `commit_git`, `push_git`, `pull_git`, `fetch_git`, `sync_git`, `list_git_branches`, `checkout_git_branch`, `create_git_branch`, `get_github_issues`, `get_github_pull_requests`, `get_github_pull_request_diff`, `get_github_pull_request_comments`.
 - Prompts: `prompts_list`, `prompts_create`, `prompts_update`, `prompts_delete`, `prompts_move`, `prompts_workspace_dir`, `prompts_global_dir`.
 - Terminal/dictation/notifications/usage: `terminal_open`, `terminal_write`, `terminal_resize`, `terminal_close`, `dictation_model_status`, `dictation_download_model`, `dictation_cancel_download`, `dictation_remove_model`, `dictation_request_permission`, `dictation_start`, `dictation_stop`, `dictation_cancel`, `send_notification_fallback`, `is_macos_debug_build`, `local_usage_snapshot`.
-- Remote backend helpers: `tailscale_status`, `tailscale_daemon_command_preview`, `tailscale_daemon_start`, `tailscale_daemon_stop`, `tailscale_daemon_status`.
+- Remote backend helpers: `tailscale_status`, `tailscale_daemon_command_preview`, `tailscale_daemon_start`, `tailscale_daemon_stop`, `tailscale_daemon_status`, `cloudflare_tunnel_start`, `cloudflare_tunnel_stop`, `cloudflare_tunnel_status`, `cloudflare_tunnel_install`.
