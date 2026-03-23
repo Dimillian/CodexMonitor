@@ -10,8 +10,7 @@ import type {
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import type { MouseEvent, RefObject } from "react";
 import { FolderOpen } from "lucide-react";
-import { SidebarCornerActions } from "./SidebarCornerActions";
-import { SidebarFooter } from "./SidebarFooter";
+import { SidebarBottomRail } from "./SidebarBottomRail";
 import { SidebarHeader } from "./SidebarHeader";
 import { SidebarSearchBar } from "./SidebarSearchBar";
 import { SidebarThreadsOnlySection } from "./SidebarThreadsOnlySection";
@@ -1028,15 +1027,13 @@ export const Sidebar = memo(function Sidebar({
             )}
         </div>
       </div>
-      <SidebarFooter
+      <SidebarBottomRail
         sessionPercent={sessionPercent}
         weeklyPercent={weeklyPercent}
         sessionResetLabel={sessionResetLabel}
         weeklyResetLabel={weeklyResetLabel}
         creditsLabel={creditsLabel}
         showWeekly={showWeekly}
-      />
-      <SidebarCornerActions
         onOpenSettings={onOpenSettings}
         onOpenDebug={onOpenDebug}
         showDebugButton={showDebugButton}

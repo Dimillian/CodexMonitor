@@ -153,6 +153,26 @@ describe("Sidebar", () => {
     expect(creditsLabel.textContent ?? "").toContain("120");
   });
 
+  it("opens the account menu from the bottom rail", () => {
+    render(
+      <Sidebar
+        {...baseProps}
+        activeWorkspaceId="ws-1"
+        accountInfo={{
+          email: "dimillian@example.com",
+          type: "chatgpt",
+          planType: "pro",
+          requiresOpenaiAuth: false,
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Account" }));
+
+    expect(screen.getByText("dimillian@example.com")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Switch account" })).toBeTruthy();
+  });
+
   it("renders threads-only mode as a global chronological list", () => {
     const older = Date.now() - 10_000;
     const newer = Date.now();
