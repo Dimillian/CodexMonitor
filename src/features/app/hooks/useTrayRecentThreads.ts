@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef } from "react";
 import { setTrayRecentThreads } from "@services/tauri";
 import type { ThreadSummary, TrayRecentThreadEntry, WorkspaceInfo } from "../../../types";
 
-const MAX_RECENT_THREADS = 8;
 const SYNC_DEBOUNCE_MS = 150;
 
 type UseTrayRecentThreadsParams = {
@@ -55,7 +54,7 @@ function buildCandidateThreads(
     );
   });
 
-  return candidates.slice(0, MAX_RECENT_THREADS);
+  return candidates;
 }
 
 export function buildTrayRecentThreadEntries(
@@ -69,7 +68,7 @@ export function buildTrayRecentThreadEntries(
     workspaceId: candidate.workspaceId,
     workspaceLabel: candidate.workspaceLabel,
     threadId: candidate.threadId,
-    threadLabel: `${candidate.workspaceLabel}: ${candidate.threadLabel}`,
+    threadLabel: candidate.threadLabel,
     updatedAt: candidate.updatedAt,
   }));
 }
@@ -80,8 +79,8 @@ export function useTrayRecentThreads({
   isSubagentThread,
 }: UseTrayRecentThreadsParams) {
   const entries = useMemo(
-    () =>
-      buildTrayRecentThreadEntries(workspaces, threadsByWorkspace, isSubagentThread),
+    // Tauri derives the top-3 recents and workspace submenus from the full visible tray thread set.
+    () => buildTrayRecentThreadEntries(workspaces, threadsByWorkspace, isSubagentThread),
     [isSubagentThread, threadsByWorkspace, workspaces],
   );
   const serializedEntries = useMemo(() => JSON.stringify(entries), [entries]);

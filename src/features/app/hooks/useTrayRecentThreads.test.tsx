@@ -50,7 +50,7 @@ describe("useTrayRecentThreads", () => {
     vi.useRealTimers();
   });
 
-  it("builds global recents ordered by updatedAt and excludes subagents", () => {
+  it("builds all visible tray entries ordered by updatedAt and excludes subagents", () => {
     const workspaces = [
       makeWorkspace(),
       makeWorkspace({
@@ -60,43 +60,92 @@ describe("useTrayRecentThreads", () => {
       }),
     ];
     const threadsByWorkspace = {
-      "ws-1": [
-        makeThread({ id: "thread-1", name: "Alpha", updatedAt: 10 }),
-        makeThread({ id: "thread-2", name: "Beta", updatedAt: 30 }),
-      ],
-      "ws-2": [
-        makeThread({ id: "thread-3", name: "Alpha", updatedAt: 20 }),
-        makeThread({ id: "thread-4", name: "Hidden", updatedAt: 40 }),
-      ],
+      "ws-1": Array.from({ length: 5 }, (_, index) =>
+        makeThread({
+          id: `ws-1-thread-${index + 1}`,
+          name: `Workspace One ${index + 1}`,
+          updatedAt: 100 - index,
+        }),
+      ),
+      "ws-2": Array.from({ length: 5 }, (_, index) =>
+        makeThread({
+          id: `ws-2-thread-${index + 1}`,
+          name: index === 0 ? "Hidden" : `Workspace Two ${index}`,
+          updatedAt: 90 - index,
+        }),
+      ),
     };
 
     const entries = buildTrayRecentThreadEntries(
       workspaces,
       threadsByWorkspace,
-      (workspaceId, threadId) => workspaceId === "ws-2" && threadId === "thread-4",
+      (workspaceId, threadId) => workspaceId === "ws-2" && threadId === "ws-2-thread-1",
     );
 
+    expect(entries).toHaveLength(9);
     expect(entries).toEqual([
       {
         workspaceId: "ws-1",
         workspaceLabel: "Workspace One",
-        threadId: "thread-2",
-        threadLabel: "Workspace One: Beta",
-        updatedAt: 30,
-      },
-      {
-        workspaceId: "ws-2",
-        workspaceLabel: "Workspace Two",
-        threadId: "thread-3",
-        threadLabel: "Workspace Two: Alpha",
-        updatedAt: 20,
+        threadId: "ws-1-thread-1",
+        threadLabel: "Workspace One 1",
+        updatedAt: 100,
       },
       {
         workspaceId: "ws-1",
         workspaceLabel: "Workspace One",
-        threadId: "thread-1",
-        threadLabel: "Workspace One: Alpha",
-        updatedAt: 10,
+        threadId: "ws-1-thread-2",
+        threadLabel: "Workspace One 2",
+        updatedAt: 99,
+      },
+      {
+        workspaceId: "ws-1",
+        workspaceLabel: "Workspace One",
+        threadId: "ws-1-thread-3",
+        threadLabel: "Workspace One 3",
+        updatedAt: 98,
+      },
+      {
+        workspaceId: "ws-1",
+        workspaceLabel: "Workspace One",
+        threadId: "ws-1-thread-4",
+        threadLabel: "Workspace One 4",
+        updatedAt: 97,
+      },
+      {
+        workspaceId: "ws-1",
+        workspaceLabel: "Workspace One",
+        threadId: "ws-1-thread-5",
+        threadLabel: "Workspace One 5",
+        updatedAt: 96,
+      },
+      {
+        workspaceId: "ws-2",
+        workspaceLabel: "Workspace Two",
+        threadId: "ws-2-thread-2",
+        threadLabel: "Workspace Two 1",
+        updatedAt: 89,
+      },
+      {
+        workspaceId: "ws-2",
+        workspaceLabel: "Workspace Two",
+        threadId: "ws-2-thread-3",
+        threadLabel: "Workspace Two 2",
+        updatedAt: 88,
+      },
+      {
+        workspaceId: "ws-2",
+        workspaceLabel: "Workspace Two",
+        threadId: "ws-2-thread-4",
+        threadLabel: "Workspace Two 3",
+        updatedAt: 87,
+      },
+      {
+        workspaceId: "ws-2",
+        workspaceLabel: "Workspace Two",
+        threadId: "ws-2-thread-5",
+        threadLabel: "Workspace Two 4",
+        updatedAt: 86,
       },
     ]);
   });
@@ -145,7 +194,7 @@ describe("useTrayRecentThreads", () => {
         workspaceId: "ws-1",
         workspaceLabel: "Workspace One",
         threadId: "thread-1",
-        threadLabel: "Workspace One: Alpha",
+        threadLabel: "Alpha",
         updatedAt: 20,
       },
     ]);
@@ -176,7 +225,7 @@ describe("useTrayRecentThreads", () => {
         workspaceId: "ws-1",
         workspaceLabel: "Workspace One",
         threadId: "thread-1",
-        threadLabel: "Workspace One: Alpha",
+        threadLabel: "Alpha",
         updatedAt: 10,
       },
     ]);
@@ -185,7 +234,7 @@ describe("useTrayRecentThreads", () => {
         workspaceId: "ws-1",
         workspaceLabel: "Workspace One",
         threadId: "thread-1",
-        threadLabel: "Workspace One: Alpha",
+        threadLabel: "Alpha",
         updatedAt: 10,
       },
     ]);

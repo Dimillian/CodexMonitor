@@ -7,19 +7,23 @@ use tauri::AppHandle;
 #[cfg(target_os = "macos")]
 use tauri::image::Image;
 #[cfg(target_os = "macos")]
-use tauri::menu::{Menu, MenuEvent, MenuItemBuilder, PredefinedMenuItem};
+use tauri::menu::{IsMenuItem, Menu, MenuEvent, MenuItemBuilder, PredefinedMenuItem, Submenu};
 #[cfg(target_os = "macos")]
 use tauri::tray::TrayIconBuilder;
 #[cfg(target_os = "macos")]
 use tauri::{Emitter, Manager, Runtime};
 
-const MAX_RECENT_THREADS: usize = 8;
+const RECENT_THREADS_SECTION_LIMIT: usize = 3;
 #[cfg(target_os = "macos")]
 const TRAY_ID: &str = "codex-monitor-tray";
 #[cfg(target_os = "macos")]
 const TRAY_QUIT_ID: &str = "tray_quit";
 #[cfg(target_os = "macos")]
+const TRAY_RECENT_HEADER_ID: &str = "tray_recent_header";
+#[cfg(target_os = "macos")]
 const TRAY_EMPTY_ID: &str = "tray_recent_empty";
+#[cfg(target_os = "macos")]
+const TRAY_WORKSPACES_HEADER_ID: &str = "tray_workspaces_header";
 #[cfg(target_os = "macos")]
 const TRAY_USAGE_HEADER_ID: &str = "tray_usage_header";
 #[cfg(target_os = "macos")]
@@ -54,9 +58,9 @@ pub(crate) struct TraySessionUsage {
 
 #[derive(Default)]
 pub(crate) struct TrayState {
-    recent_threads: Mutex<Vec<TrayRecentThreadEntry>>,
+    tray_threads: Mutex<Vec<TrayRecentThreadEntry>>,
     session_usage: Mutex<Option<TraySessionUsage>>,
-    recent_targets_by_menu_id: Mutex<HashMap<String, TrayOpenThreadPayload>>,
+    thread_targets_by_menu_id: Mutex<HashMap<String, TrayOpenThreadPayload>>,
 }
 
 #[tauri::command]
@@ -65,16 +69,16 @@ pub(crate) fn set_tray_recent_threads<R: tauri::Runtime>(
     state: tauri::State<'_, TrayState>,
     entries: Vec<TrayRecentThreadEntry>,
 ) -> Result<(), String> {
-    let normalized = normalize_recent_threads(entries);
+    let normalized = normalize_tray_threads(entries);
     {
-        let mut recent_threads = state
-            .recent_threads
+        let mut tray_threads = state
+            .tray_threads
             .lock()
-            .map_err(|_| "failed to lock tray recent threads".to_string())?;
-        if *recent_threads == normalized {
+            .map_err(|_| "failed to lock tray threads".to_string())?;
+        if *tray_threads == normalized {
             return Ok(());
         }
-        *recent_threads = normalized;
+        *tray_threads = normalized;
     }
 
     #[cfg(target_os = "macos")]
@@ -133,7 +137,7 @@ pub(crate) fn initialize<R: tauri::Runtime>(
     Ok(())
 }
 
-fn normalize_recent_threads(entries: Vec<TrayRecentThreadEntry>) -> Vec<TrayRecentThreadEntry> {
+fn normalize_tray_threads(entries: Vec<TrayRecentThreadEntry>) -> Vec<TrayRecentThreadEntry> {
     let mut deduped = HashMap::<(String, String), TrayRecentThreadEntry>::new();
     for entry in entries.into_iter() {
         let workspace_id = entry.workspace_id.trim();
@@ -174,8 +178,116 @@ fn normalize_recent_threads(entries: Vec<TrayRecentThreadEntry>) -> Vec<TrayRece
             .then_with(|| left.thread_label.cmp(&right.thread_label))
             .then_with(|| left.workspace_label.cmp(&right.workspace_label))
     });
-    normalized.truncate(MAX_RECENT_THREADS);
     normalized
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TrayThreadMenuItem {
+    menu_id: String,
+    label: String,
+    payload: TrayOpenThreadPayload,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TrayWorkspaceMenuSection {
+    workspace_label: String,
+    newest_updated_at: i64,
+    items: Vec<TrayThreadMenuItem>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TrayThreadMenuSections {
+    recent: Vec<TrayThreadMenuItem>,
+    workspaces: Vec<TrayWorkspaceMenuSection>,
+}
+
+fn build_thread_menu_item(menu_id: String, entry: &TrayRecentThreadEntry) -> TrayThreadMenuItem {
+    TrayThreadMenuItem {
+        menu_id,
+        label: entry.thread_label.clone(),
+        payload: TrayOpenThreadPayload {
+            workspace_id: entry.workspace_id.clone(),
+            thread_id: entry.thread_id.clone(),
+        },
+    }
+}
+
+fn build_thread_menu_sections(entries: &[TrayRecentThreadEntry]) -> TrayThreadMenuSections {
+    let recent = entries
+        .iter()
+        .take(RECENT_THREADS_SECTION_LIMIT)
+        .enumerate()
+        .map(|(index, entry)| build_thread_menu_item(format!("tray_recent_{index}"), entry))
+        .collect();
+
+    let mut workspace_entries_by_id = HashMap::<String, Vec<TrayRecentThreadEntry>>::new();
+    for entry in entries {
+        workspace_entries_by_id
+            .entry(entry.workspace_id.clone())
+            .or_default()
+            .push(entry.clone());
+    }
+
+    let mut workspaces: Vec<_> = workspace_entries_by_id
+        .into_iter()
+        .map(|(_, mut workspace_entries)| {
+            workspace_entries.sort_by(|left, right| {
+                right
+                    .updated_at
+                    .cmp(&left.updated_at)
+                    .then_with(|| left.thread_label.cmp(&right.thread_label))
+            });
+            let workspace_label = workspace_entries
+                .first()
+                .map(|entry| entry.workspace_label.clone())
+                .unwrap_or_else(|| "Workspace".to_string());
+            let newest_updated_at = workspace_entries
+                .first()
+                .map(|entry| entry.updated_at)
+                .unwrap_or_default();
+            let items = workspace_entries
+                .iter()
+                .enumerate()
+                .map(|(_, entry)| build_thread_menu_item(String::new(), entry))
+                .collect();
+
+            TrayWorkspaceMenuSection {
+                workspace_label,
+                newest_updated_at,
+                items,
+            }
+        })
+        .collect();
+
+    workspaces.sort_by(|left, right| {
+        right
+            .newest_updated_at
+            .cmp(&left.newest_updated_at)
+            .then_with(|| left.workspace_label.cmp(&right.workspace_label))
+    });
+
+    for (workspace_index, workspace) in workspaces.iter_mut().enumerate() {
+        for (thread_index, item) in workspace.items.iter_mut().enumerate() {
+            item.menu_id = format!("tray_workspace_{workspace_index}_{thread_index}");
+        }
+    }
+
+    TrayThreadMenuSections { recent, workspaces }
+}
+
+fn collect_thread_menu_targets(
+    sections: &TrayThreadMenuSections,
+) -> HashMap<String, TrayOpenThreadPayload> {
+    let mut targets = HashMap::new();
+    for item in &sections.recent {
+        targets.insert(item.menu_id.clone(), item.payload.clone());
+    }
+    for workspace in &sections.workspaces {
+        for item in &workspace.items {
+            targets.insert(item.menu_id.clone(), item.payload.clone());
+        }
+    }
+    targets
 }
 
 fn normalize_session_usage(usage: Option<TraySessionUsage>) -> Option<TraySessionUsage> {
@@ -215,8 +327,8 @@ fn build_tray_menu<R: Runtime>(
     state: &TrayState,
 ) -> tauri::Result<Menu<R>> {
     let menu = Menu::new(app)?;
-    let recent_threads = state
-        .recent_threads
+    let tray_threads = state
+        .tray_threads
         .lock()
         .map(|entries| entries.clone())
         .unwrap_or_default();
@@ -225,56 +337,83 @@ fn build_tray_menu<R: Runtime>(
         .lock()
         .map(|usage| usage.clone())
         .unwrap_or_default();
-    let (recent_items, recent_targets) = build_recent_menu_items(app, &recent_threads)?;
+    let thread_sections = build_thread_menu_sections(&tray_threads);
     let usage_items = build_usage_menu_items(app, session_usage.as_ref())?;
-    if let Ok(mut targets) = state.recent_targets_by_menu_id.lock() {
-        *targets = recent_targets;
+    if let Ok(mut targets) = state.thread_targets_by_menu_id.lock() {
+        *targets = collect_thread_menu_targets(&thread_sections);
     }
-    for item in &recent_items {
-        menu.append(item)?;
+
+    let recent_header = MenuItemBuilder::with_id(TRAY_RECENT_HEADER_ID, "Recent Threads")
+        .enabled(false)
+        .build(app)?;
+    menu.append(&recent_header)?;
+
+    if thread_sections.recent.is_empty() {
+        let empty_item = MenuItemBuilder::with_id(TRAY_EMPTY_ID, "No recent threads")
+            .enabled(false)
+            .build(app)?;
+        menu.append(&empty_item)?;
+    } else {
+        append_thread_menu_items(app, &menu, &thread_sections.recent)?;
     }
-    let separator = PredefinedMenuItem::separator(app)?;
-    menu.append(&separator)?;
+
+    if !thread_sections.workspaces.is_empty() {
+        let thread_separator = PredefinedMenuItem::separator(app)?;
+        menu.append(&thread_separator)?;
+
+        let workspace_header = MenuItemBuilder::with_id(TRAY_WORKSPACES_HEADER_ID, "Workspaces")
+            .enabled(false)
+            .build(app)?;
+        menu.append(&workspace_header)?;
+
+        append_workspace_submenus(app, &menu, &thread_sections.workspaces)?;
+    }
+
+    let usage_separator = PredefinedMenuItem::separator(app)?;
+    menu.append(&usage_separator)?;
     for item in &usage_items {
         menu.append(item)?;
     }
-    let usage_separator = PredefinedMenuItem::separator(app)?;
-    menu.append(&usage_separator)?;
+    let quit_separator = PredefinedMenuItem::separator(app)?;
+    menu.append(&quit_separator)?;
     let quit_item = MenuItemBuilder::with_id(TRAY_QUIT_ID, "Quit").build(app)?;
     menu.append(&quit_item)?;
     Ok(menu)
 }
 
 #[cfg(target_os = "macos")]
-fn build_recent_menu_items<R: Runtime>(
+fn append_thread_menu_items<R: Runtime>(
     app: &tauri::AppHandle<R>,
-    entries: &[TrayRecentThreadEntry],
-) -> tauri::Result<(
-    Vec<tauri::menu::MenuItem<R>>,
-    HashMap<String, TrayOpenThreadPayload>,
-)> {
-    if entries.is_empty() {
-        let empty_item = MenuItemBuilder::with_id(TRAY_EMPTY_ID, "No recent threads")
-            .enabled(false)
-            .build(app)?;
-        return Ok((vec![empty_item], HashMap::new()));
+    menu: &Menu<R>,
+    items: &[TrayThreadMenuItem],
+) -> tauri::Result<()> {
+    for item in items {
+        let menu_item = MenuItemBuilder::with_id(item.menu_id.clone(), &item.label).build(app)?;
+        menu.append(&menu_item)?;
     }
+    Ok(())
+}
 
-    let mut items = Vec::with_capacity(entries.len());
-    let mut targets = HashMap::with_capacity(entries.len());
-    for (index, entry) in entries.iter().enumerate() {
-        let menu_id = format!("tray_recent_{index}");
-        let item = MenuItemBuilder::with_id(menu_id.clone(), &entry.thread_label).build(app)?;
-        items.push(item);
-        targets.insert(
-            menu_id,
-            TrayOpenThreadPayload {
-                workspace_id: entry.workspace_id.clone(),
-                thread_id: entry.thread_id.clone(),
-            },
-        );
+#[cfg(target_os = "macos")]
+fn append_workspace_submenus<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    menu: &Menu<R>,
+    workspaces: &[TrayWorkspaceMenuSection],
+) -> tauri::Result<()> {
+    for workspace in workspaces {
+        let submenu_items = workspace
+            .items
+            .iter()
+            .map(|item| MenuItemBuilder::with_id(item.menu_id.clone(), &item.label).build(app))
+            .collect::<tauri::Result<Vec<_>>>()?;
+        let submenu_refs: Vec<&dyn IsMenuItem<R>> = submenu_items
+            .iter()
+            .map(|item| item as &dyn IsMenuItem<R>)
+            .collect();
+        let submenu = Submenu::with_items(app, &workspace.workspace_label, true, &submenu_refs)?;
+        menu.append(&submenu)?;
     }
-    Ok((items, targets))
+    Ok(())
 }
 
 #[cfg(target_os = "macos")]
@@ -307,7 +446,10 @@ fn build_usage_menu_labels(usage: Option<&TraySessionUsage>) -> (String, String,
         usage
             .map(|usage| format!("Session: {}", usage.session_label))
             .unwrap_or_else(|| "No active session".to_string()),
-        usage.map(|usage| usage.weekly_label.clone()).unwrap_or(None).map(|label| format!("Weekly: {label}")),
+        usage
+            .map(|usage| usage.weekly_label.clone())
+            .unwrap_or(None)
+            .map(|label| format!("Weekly: {label}")),
     )
 }
 
@@ -318,7 +460,7 @@ fn handle_tray_menu_event<R: Runtime>(app: &tauri::AppHandle<R>, event: MenuEven
         id => {
             let state = app.state::<TrayState>();
             let payload = state
-                .recent_targets_by_menu_id
+                .thread_targets_by_menu_id
                 .lock()
                 .ok()
                 .and_then(|targets| targets.get(id).cloned());
@@ -356,8 +498,9 @@ fn load_tray_icon() -> tauri::Result<Image<'static>> {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_usage_menu_labels, normalize_recent_threads, normalize_session_usage,
-        TrayOpenThreadPayload, TrayRecentThreadEntry, TraySessionUsage, MAX_RECENT_THREADS,
+        build_thread_menu_sections, build_usage_menu_labels, collect_thread_menu_targets,
+        normalize_session_usage, normalize_tray_threads, TrayOpenThreadPayload,
+        TrayRecentThreadEntry, TraySessionUsage, RECENT_THREADS_SECTION_LIMIT,
     };
 
     fn recent_entry(
@@ -377,7 +520,7 @@ mod tests {
     }
 
     #[test]
-    fn normalize_recent_threads_sorts_limits_and_deduplicates() {
+    fn normalize_tray_threads_sorts_and_deduplicates_without_truncating() {
         let entries = vec![
             recent_entry("ws-1", "One", "t-1", "Alpha", 10),
             recent_entry("ws-2", "Two", "t-2", "Beta", 50),
@@ -396,15 +539,112 @@ mod tests {
         }))
         .collect();
 
-        let normalized = normalize_recent_threads(entries);
+        let normalized = normalize_tray_threads(entries);
 
-        assert_eq!(normalized.len(), MAX_RECENT_THREADS);
+        assert_eq!(normalized.len(), 14);
         assert_eq!(normalized[0].thread_id, "t-2");
         assert_eq!(normalized[1].thread_id, "t-1");
         assert_eq!(normalized[1].updated_at, 20);
         assert!(!normalized
             .iter()
             .any(|entry| entry.thread_label == "Ignored"));
+    }
+
+    #[test]
+    fn build_thread_menu_sections_groups_recent_threads_and_workspaces() {
+        let normalized = normalize_tray_threads(vec![
+            recent_entry("ws-1", "One", "t-1", "Alpha", 100),
+            recent_entry("ws-2", "Two", "t-2", "Beta", 110),
+            recent_entry("ws-1", "One", "t-3", "Gamma", 90),
+            recent_entry("ws-3", "Three", "t-4", "Delta", 105),
+            recent_entry("ws-2", "Two", "t-5", "Epsilon", 95),
+        ]);
+
+        let sections = build_thread_menu_sections(&normalized);
+
+        assert_eq!(sections.recent.len(), RECENT_THREADS_SECTION_LIMIT);
+        assert_eq!(
+            sections
+                .recent
+                .iter()
+                .map(|item| item.payload.thread_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["t-2", "t-4", "t-1"]
+        );
+        assert_eq!(
+            sections
+                .workspaces
+                .iter()
+                .map(|workspace| workspace.workspace_label.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Two", "Three", "One"]
+        );
+        assert_eq!(
+            sections.workspaces[0]
+                .items
+                .iter()
+                .map(|item| item.payload.thread_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["t-2", "t-5"]
+        );
+        assert_eq!(
+            sections.workspaces[1]
+                .items
+                .iter()
+                .map(|item| item.payload.thread_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["t-4"]
+        );
+        assert_eq!(
+            sections.workspaces[2]
+                .items
+                .iter()
+                .map(|item| item.payload.thread_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["t-1", "t-3"]
+        );
+    }
+
+    #[test]
+    fn collect_thread_menu_targets_maps_recent_and_workspace_items() {
+        let normalized = normalize_tray_threads(vec![
+            recent_entry("ws-1", "One", "t-1", "Alpha", 100),
+            recent_entry("ws-2", "Two", "t-2", "Beta", 110),
+            recent_entry("ws-1", "One", "t-3", "Gamma", 90),
+            recent_entry("ws-3", "Three", "t-4", "Delta", 105),
+        ]);
+
+        let sections = build_thread_menu_sections(&normalized);
+        let targets = collect_thread_menu_targets(&sections);
+
+        assert_eq!(
+            targets.get("tray_recent_0"),
+            Some(&TrayOpenThreadPayload {
+                workspace_id: "ws-2".into(),
+                thread_id: "t-2".into(),
+            })
+        );
+        assert_eq!(
+            targets.get("tray_workspace_0_0"),
+            Some(&TrayOpenThreadPayload {
+                workspace_id: "ws-2".into(),
+                thread_id: "t-2".into(),
+            })
+        );
+        assert_eq!(
+            targets.get("tray_workspace_1_0"),
+            Some(&TrayOpenThreadPayload {
+                workspace_id: "ws-3".into(),
+                thread_id: "t-4".into(),
+            })
+        );
+        assert_eq!(
+            targets.get("tray_workspace_2_1"),
+            Some(&TrayOpenThreadPayload {
+                workspace_id: "ws-1".into(),
+                thread_id: "t-3".into(),
+            })
+        );
     }
 
     #[test]
