@@ -162,10 +162,12 @@ export function buildResumeHydrationPlan({
     : resumedTurnState.activeTurnId;
   const shouldMarkProcessing = keepLocalProcessing || Boolean(resumedActiveTurnId);
   const processingTimestamp = resumedTurnState.activeTurnStartedAtMs ?? Date.now();
+  const localItemIds =
+    items.length > 0 && localItems.length > 0
+      ? new Set(localItems.map((local) => local.id))
+      : null;
   const hasOverlap =
-    items.length > 0 &&
-    localItems.length > 0 &&
-    items.some((item) => localItems.some((local) => local.id === item.id));
+    localItemIds !== null && items.some((item) => localItemIds.has(item.id));
   const mergedItems =
     items.length > 0
       ? replaceLocal
