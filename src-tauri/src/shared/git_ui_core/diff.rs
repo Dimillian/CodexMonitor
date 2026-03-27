@@ -199,19 +199,32 @@ fn source_diff_for_path(
     path: &str,
     cached: bool,
     ignore_whitespace_changes: bool,
+    is_untracked_worktree_file: bool,
 ) -> Option<String> {
     let git_bin = resolve_git_binary().ok()?;
     let mut args = vec!["diff"];
-    if cached {
-        args.push("--cached");
+    if is_untracked_worktree_file && !cached {
+        args.push("--no-index");
+        args.push("--no-color");
+        args.push("-U0");
+        if ignore_whitespace_changes {
+            args.push("-w");
+        }
+        args.push("--");
+        args.push(if cfg!(windows) { "NUL" } else { "/dev/null" });
+        args.push(path);
+    } else {
+        if cached {
+            args.push("--cached");
+        }
+        args.push("--no-color");
+        args.push("-U0");
+        if ignore_whitespace_changes {
+            args.push("-w");
+        }
+        args.push("--");
+        args.push(path);
     }
-    args.push("--no-color");
-    args.push("-U0");
-    if ignore_whitespace_changes {
-        args.push("-w");
-    }
-    args.push("--");
-    args.push(path);
 
     let output = std_command(git_bin)
         .args(args)
@@ -370,7 +383,7 @@ fn map_new_to_old_line_clamped(hunks: &[ParsedPatchHunk], new_line: usize) -> us
             if new_line < insertion_point {
                 break;
             }
-            delta -= hunk.old_count as isize;
+            delta += hunk.old_count as isize;
             continue;
         }
 
@@ -718,6 +731,42 @@ mod display_hunk_tests {
         assert!(display_hunks[1].start_display_line_index <= display_hunks[1].end_display_line_index);
 
         assert!(display_hunks[0].start_display_line_index < display_hunks[1].start_display_line_index);
+    }
+
+    #[test]
+    fn build_display_hunks_maps_unstaged_hunks_after_staged_deletions() {
+        let diff = concat!(
+            "@@ -2,1 +2,0 @@\n",
+            "-line two\n",
+            "@@ -5,1 +4,1 @@\n",
+            "-line five\n",
+            "+line five updated\n"
+        );
+        let staged_diff = concat!(
+            "diff --git a/example.txt b/example.txt\n",
+            "index 1111111..2222222 100644\n",
+            "--- a/example.txt\n",
+            "+++ b/example.txt\n",
+            "@@ -2,1 +2,0 @@\n",
+            "-line two\n"
+        );
+        let unstaged_diff = concat!(
+            "diff --git a/example.txt b/example.txt\n",
+            "index 2222222..3333333 100644\n",
+            "--- a/example.txt\n",
+            "+++ b/example.txt\n",
+            "@@ -4,1 +4,1 @@\n",
+            "-line five\n",
+            "+line five updated\n"
+        );
+
+        let display_hunks = build_display_hunks(diff, Some(staged_diff), Some(unstaged_diff));
+
+        assert_eq!(display_hunks.len(), 2);
+        assert_eq!(display_hunks[0].id, "staged:2:1:2:0");
+        assert_eq!(display_hunks[1].id, "unstaged:4:1:4:1");
+        assert_eq!(display_hunks[1].start_display_line_index, 3);
+        assert_eq!(display_hunks[1].end_display_line_index, 4);
     }
 }
 
@@ -1132,11 +1181,15 @@ pub(super) async fn get_git_diffs_inner(
             let is_image = old_image_mime.is_some() || new_image_mime.is_some();
             let is_deleted = delta.status() == git2::Delta::Deleted;
             let is_added = delta.status() == git2::Delta::Added;
+            let file_status = repo.status_file(display_path).unwrap_or(Status::empty());
+            let is_untracked_worktree_file =
+                file_status.contains(Status::WT_NEW) && !file_status.contains(Status::INDEX_NEW);
             let staged_diff = source_diff_for_path(
                 &repo_root,
                 normalized_path.as_str(),
                 true,
                 ignore_whitespace_changes,
+                is_untracked_worktree_file,
             )
             .and_then(|diff| {
                 if diff.trim().is_empty() {
@@ -1150,6 +1203,7 @@ pub(super) async fn get_git_diffs_inner(
                 normalized_path.as_str(),
                 false,
                 ignore_whitespace_changes,
+                is_untracked_worktree_file,
             )
             .and_then(|diff| {
                 if diff.trim().is_empty() {

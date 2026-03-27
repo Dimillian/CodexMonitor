@@ -227,6 +227,70 @@ fn get_git_diffs_omits_global_ignored_paths() {
 }
 
 #[test]
+fn get_git_diffs_populates_untracked_file_unstaged_diff_and_display_hunks() {
+    let (root, repo) = create_temp_repo();
+    let tracked_path = root.join("tracked.txt");
+    fs::write(&tracked_path, "tracked\n").expect("write tracked file");
+    let mut index = repo.index().expect("repo index");
+    index.add_path(Path::new("tracked.txt")).expect("add tracked path");
+    index.write().expect("write index");
+    let tree_id = index.write_tree().expect("write tree");
+    let tree = repo.find_tree(tree_id).expect("find tree");
+    let sig = git2::Signature::now("Test", "test@example.com").expect("signature");
+    repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+        .expect("commit");
+
+    fs::write(root.join("new-file.txt"), "first line\nsecond line\n").expect("write new file");
+
+    let workspace = WorkspaceEntry {
+        id: "w1".to_string(),
+        name: "w1".to_string(),
+        path: root.to_string_lossy().to_string(),
+        kind: WorkspaceKind::Main,
+        parent_id: None,
+        worktree: None,
+        settings: WorkspaceSettings::default(),
+    };
+    let mut entries = HashMap::new();
+    entries.insert("w1".to_string(), workspace);
+    let workspaces = Mutex::new(entries);
+    let app_settings = Mutex::new(AppSettings::default());
+
+    let runtime = Runtime::new().expect("create tokio runtime");
+    let diffs = runtime
+        .block_on(diff::get_git_diffs_inner(
+            &workspaces,
+            &app_settings,
+            "w1".to_string(),
+        ))
+        .expect("get git diffs");
+
+    let diff = diffs
+        .iter()
+        .find(|diff| diff.path == "new-file.txt")
+        .expect("find new file diff");
+    let unstaged_diff = diff
+        .unstaged_diff
+        .as_deref()
+        .expect("untracked file should have unstaged diff");
+
+    assert!(
+        unstaged_diff.contains("+++ b/new-file.txt"),
+        "expected relative untracked diff header, got: {unstaged_diff}"
+    );
+    assert!(
+        unstaged_diff.contains("+first line\n+second line"),
+        "expected untracked diff body, got: {unstaged_diff}"
+    );
+    assert!(
+        !diff.display_hunks.is_empty(),
+        "untracked file should expose display hunks"
+    );
+    assert_eq!(diff.display_hunks[0].source, "unstaged");
+    assert_eq!(diff.display_hunks[0].action, "stage");
+}
+
+#[test]
 fn check_ignore_with_git_respects_negated_rule_for_specific_file() {
     let (root, repo) = create_temp_repo();
 
