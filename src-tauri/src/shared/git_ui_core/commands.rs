@@ -462,6 +462,7 @@ pub(super) struct ParsedPatchLine {
     pub(super) old_anchor: usize,
     pub(super) new_anchor: usize,
     pub(super) text: String,
+    pub(super) no_newline_after: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -527,32 +528,34 @@ pub(super) fn parse_zero_context_patch(diff_patch: &str) -> Result<ParsedPatch, 
                 }
 
                 if let Some(text) = body_line.strip_prefix('+') {
-                    if !body_line.starts_with("+++") {
-                        parsed_lines.push(ParsedPatchLine {
-                            line_type: SelectionLineType::Add,
-                            old_line: None,
-                            new_line: Some(new_cursor),
-                            old_anchor: old_cursor,
-                            new_anchor: new_cursor,
-                            text: text.to_string(),
-                        });
-                        new_cursor += 1;
-                    }
+                    parsed_lines.push(ParsedPatchLine {
+                        line_type: SelectionLineType::Add,
+                        old_line: None,
+                        new_line: Some(new_cursor),
+                        old_anchor: old_cursor,
+                        new_anchor: new_cursor,
+                        text: text.to_string(),
+                        no_newline_after: false,
+                    });
+                    new_cursor += 1;
                 } else if let Some(text) = body_line.strip_prefix('-') {
-                    if !body_line.starts_with("---") {
-                        parsed_lines.push(ParsedPatchLine {
-                            line_type: SelectionLineType::Del,
-                            old_line: Some(old_cursor),
-                            new_line: None,
-                            old_anchor: old_cursor,
-                            new_anchor: new_cursor,
-                            text: text.to_string(),
-                        });
-                        old_cursor += 1;
-                    }
+                    parsed_lines.push(ParsedPatchLine {
+                        line_type: SelectionLineType::Del,
+                        old_line: Some(old_cursor),
+                        new_line: None,
+                        old_anchor: old_cursor,
+                        new_anchor: new_cursor,
+                        text: text.to_string(),
+                        no_newline_after: false,
+                    });
+                    old_cursor += 1;
                 } else if body_line.starts_with(' ') {
                     old_cursor += 1;
                     new_cursor += 1;
+                } else if body_line == "\\ No newline at end of file" {
+                    if let Some(last_line) = parsed_lines.last_mut() {
+                        last_line.no_newline_after = true;
+                    }
                 }
                 inner_index += 1;
             }
@@ -879,6 +882,9 @@ fn append_full_hunk_with_context(
             '-'
         };
         output.push(format!("{prefix}{}", line.text));
+        if line.no_newline_after {
+            output.push("\\ No newline at end of file".to_string());
+        }
     }
 
     if after_count > 0 {
@@ -928,6 +934,9 @@ fn build_selected_patch(
                     '-'
                 };
                 output.push(format!("{prefix}{}", line.text));
+                if line.no_newline_after {
+                    output.push("\\ No newline at end of file".to_string());
+                }
             }
             group.clear();
         };
@@ -1111,6 +1120,49 @@ fn build_display_hunk_patch(
     Ok((patch, hunk.lines.len()))
 }
 
+async fn load_selection_source_patch(
+    repo_root: &Path,
+    action_path: &str,
+    source: &str,
+    ignore_whitespace_changes: bool,
+) -> Result<String, String> {
+    let repo = Repository::open(repo_root).map_err(|e| e.to_string())?;
+    let status = repo
+        .status_file(Path::new(action_path))
+        .unwrap_or(Status::empty());
+    let is_untracked_worktree_file =
+        status.contains(Status::WT_NEW) && !status.contains(Status::INDEX_NEW);
+
+    let mut args = vec!["diff"];
+    if source == "unstaged" && is_untracked_worktree_file {
+        args.push("--no-index");
+        args.push("--no-color");
+        args.push("-U0");
+        if ignore_whitespace_changes {
+            args.push("-w");
+        }
+        args.push("--");
+        args.push(if cfg!(windows) { "NUL" } else { "/dev/null" });
+        args.push(action_path);
+    } else {
+        if source == "staged" {
+            args.push("--cached");
+        }
+        args.push("--no-color");
+        args.push("-U0");
+        if ignore_whitespace_changes {
+            args.push("-w");
+        }
+        args.push("--");
+        args.push(action_path);
+    }
+
+    Ok(String::from_utf8_lossy(
+        &git_core::run_git_diff(&repo_root.to_path_buf(), &args).await?,
+    )
+    .to_string())
+}
+
 pub(super) async fn stage_git_selection_inner(
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: String,
@@ -1131,9 +1183,9 @@ pub(super) async fn stage_git_selection_inner(
     }
     let action_path = action_paths[0].clone();
 
-    let (diff_args, reverse_apply): (&[&str], bool) = match (op.as_str(), source.as_str()) {
-        ("stage", "unstaged") => (&["diff", "--no-color", "-U0", "--"], false),
-        ("unstage", "staged") => (&["diff", "--cached", "--no-color", "-U0", "--"], true),
+    let reverse_apply = match (op.as_str(), source.as_str()) {
+        ("stage", "unstaged") => false,
+        ("unstage", "staged") => true,
         ("stage", "staged") => {
             return Err("Staging selected lines requires source `unstaged`.".to_string());
         }
@@ -1145,14 +1197,8 @@ pub(super) async fn stage_git_selection_inner(
         }
     };
 
-    let mut args = diff_args.to_vec();
-    args.push(action_path.as_str());
-    let source_patch = String::from_utf8_lossy(&git_core::run_git_diff(
-        &repo_root.to_path_buf(),
-        &args,
-    )
-    .await?)
-    .to_string();
+    let source_patch =
+        load_selection_source_patch(&repo_root, action_path.as_str(), &source, false).await?;
     if source_patch.trim().is_empty() {
         return Err("No changes available for the requested selection source.".to_string());
     }
@@ -1279,21 +1325,13 @@ pub(super) async fn apply_git_display_hunk_inner(
         _ => unreachable!(),
     };
 
-    let mut args = vec!["diff"];
-    if source == "staged" {
-        args.push("--cached");
-    }
-    args.push("--no-color");
-    args.push("-U0");
-    if ignore_whitespace_changes {
-        args.push("-w");
-    }
-    args.push("--");
-    args.push(action_path.as_str());
-    let source_patch = String::from_utf8_lossy(
-        &git_core::run_git_diff(&repo_root.to_path_buf(), &args).await?,
+    let source_patch = load_selection_source_patch(
+        &repo_root,
+        action_path.as_str(),
+        source,
+        ignore_whitespace_changes,
     )
-    .to_string();
+    .await?;
     if source_patch.trim().is_empty() {
         return Err("No changes available for the requested display hunk.".to_string());
     }
@@ -2026,6 +2064,102 @@ mod tests {
         assert!(
             !cached_patch.contains(&second_header),
             "cached patch staged second SwiftUI hunk unexpectedly: {cached_patch}"
+        );
+
+        fs::remove_dir_all(&repo_root).expect("failed to cleanup temp repo");
+    }
+
+    #[test]
+    fn parse_zero_context_patch_keeps_no_newline_markers() {
+        let diff_patch = concat!(
+            "diff --git a/example.txt b/example.txt\n",
+            "index 1111111..2222222 100644\n",
+            "--- a/example.txt\n",
+            "+++ b/example.txt\n",
+            "@@ -1 +1 @@\n",
+            "-before\n",
+            "\\ No newline at end of file\n",
+            "+after\n",
+            "\\ No newline at end of file\n"
+        );
+
+        let parsed = parse_zero_context_patch(diff_patch).expect("parse source patch");
+
+        assert_eq!(parsed.hunks.len(), 1);
+        assert_eq!(parsed.hunks[0].lines.len(), 2);
+        assert!(parsed.hunks[0].lines[0].no_newline_after);
+        assert!(parsed.hunks[0].lines[1].no_newline_after);
+    }
+
+    #[test]
+    fn parse_zero_context_patch_keeps_content_lines_starting_with_patch_header_prefixes() {
+        let diff_patch = concat!(
+            "diff --git a/example.txt b/example.txt\n",
+            "index 1111111..2222222 100644\n",
+            "--- a/example.txt\n",
+            "+++ b/example.txt\n",
+            "@@ -1,2 +1,2 @@\n",
+            "----title\n",
+            "-plain\n",
+            "++++title\n",
+            "+plain updated\n"
+        );
+
+        let parsed = parse_zero_context_patch(diff_patch).expect("parse source patch");
+        let texts: Vec<&str> = parsed.hunks[0].lines.iter().map(|line| line.text.as_str()).collect();
+
+        assert_eq!(texts, vec!["---title", "plain", "+++title", "plain updated"]);
+    }
+
+    #[test]
+    fn build_selected_patch_preserves_no_newline_markers_for_apply() {
+        let repo_root = create_temp_repo();
+        let file_path = repo_root.join("example.txt");
+
+        fs::write(&file_path, "before").expect("write baseline");
+        run_git(&repo_root, &["add", "--", "example.txt"]);
+        run_git(&repo_root, &["commit", "-m", "Initial baseline", "--quiet"]);
+
+        fs::write(&file_path, "after").expect("write changed file");
+
+        let source_patch = run_git(&repo_root, &["diff", "--no-color", "-U0", "--", "example.txt"]);
+        let parsed = parse_zero_context_patch(&source_patch).expect("failed to parse source patch");
+        let selected_lines: HashSet<SelectionLineKey> = parsed.hunks[0]
+            .lines
+            .iter()
+            .map(|line| SelectionLineKey {
+                line_type: line.line_type,
+                old_line: line.old_line,
+                new_line: line.new_line,
+                text: line.text.clone(),
+            })
+            .collect();
+
+        let file_context = SelectionSourceFileContext {
+            old_lines: vec!["before".to_string()],
+            new_lines: vec!["after".to_string()],
+        };
+        let (selected_patch, _) = build_selected_patch(&source_patch, &selected_lines, &file_context)
+            .expect("selection patch failed");
+
+        assert!(
+            selected_patch.contains("\\ No newline at end of file"),
+            "selection patch should preserve no-newline marker: {selected_patch}"
+        );
+
+        run_git_with_stdin(
+            &repo_root,
+            &["apply", "--cached", "--unidiff-zero", "--whitespace=nowarn", "-"],
+            &selected_patch,
+        );
+
+        let cached_patch = run_git(
+            &repo_root,
+            &["diff", "--cached", "--no-color", "-U0", "--", "example.txt"],
+        );
+        assert!(
+            cached_patch.contains("+after"),
+            "cached patch did not stage newline-less change: {cached_patch}"
         );
 
         fs::remove_dir_all(&repo_root).expect("failed to cleanup temp repo");

@@ -291,6 +291,80 @@ fn get_git_diffs_populates_untracked_file_unstaged_diff_and_display_hunks() {
 }
 
 #[test]
+fn apply_git_display_hunk_stages_untracked_file_hunks() {
+    let (root, repo) = create_temp_repo();
+    let tracked_path = root.join("tracked.txt");
+    fs::write(&tracked_path, "tracked\n").expect("write tracked file");
+    let mut index = repo.index().expect("repo index");
+    index.add_path(Path::new("tracked.txt")).expect("add tracked path");
+    index.write().expect("write index");
+    let tree_id = index.write_tree().expect("write tree");
+    let tree = repo.find_tree(tree_id).expect("find tree");
+    let sig = git2::Signature::now("Test", "test@example.com").expect("signature");
+    repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+        .expect("commit");
+
+    fs::write(root.join("new-file.txt"), "first line\nsecond line\n").expect("write new file");
+
+    let workspace = WorkspaceEntry {
+        id: "w1".to_string(),
+        name: "w1".to_string(),
+        path: root.to_string_lossy().to_string(),
+        kind: WorkspaceKind::Main,
+        parent_id: None,
+        worktree: None,
+        settings: WorkspaceSettings::default(),
+    };
+    let mut entries = HashMap::new();
+    entries.insert("w1".to_string(), workspace);
+    let workspaces = Mutex::new(entries);
+    let app_settings = Mutex::new(AppSettings::default());
+
+    let runtime = Runtime::new().expect("create tokio runtime");
+    let diffs = runtime
+        .block_on(diff::get_git_diffs_inner(
+            &workspaces,
+            &app_settings,
+            "w1".to_string(),
+        ))
+        .expect("get git diffs");
+    let display_hunk_id = diffs
+        .iter()
+        .find(|diff| diff.path == "new-file.txt")
+        .and_then(|diff| diff.display_hunks.first())
+        .map(|hunk| hunk.id.clone())
+        .expect("find untracked display hunk");
+
+    let result = runtime
+        .block_on(apply_git_display_hunk_core(
+            &workspaces,
+            &app_settings,
+            "w1".to_string(),
+            "new-file.txt".to_string(),
+            display_hunk_id,
+        ))
+        .expect("apply display hunk");
+
+    assert!(result.applied, "display hunk should be applied");
+
+    let cached = Command::new("git")
+        .args(["diff", "--cached", "--no-color", "-U0", "--", "new-file.txt"])
+        .current_dir(&root)
+        .output()
+        .expect("run cached diff");
+    assert!(
+        cached.status.success(),
+        "cached diff failed: {}",
+        String::from_utf8_lossy(&cached.stderr)
+    );
+    let cached_diff = String::from_utf8_lossy(&cached.stdout);
+    assert!(
+        cached_diff.contains("+first line\n+second line"),
+        "expected untracked file additions to be staged, got: {cached_diff}"
+    );
+}
+
+#[test]
 fn check_ignore_with_git_respects_negated_rule_for_specific_file() {
     let (root, repo) = create_temp_repo();
 
