@@ -1256,6 +1256,7 @@ pub(super) async fn apply_git_display_hunk_inner(
     workspace_id: String,
     path: String,
     display_hunk_id: String,
+    ignore_whitespace_changes: bool,
 ) -> Result<GitSelectionApplyResult, String> {
     let source = selection_source_from_display_hunk_id(&display_hunk_id)?;
     let op = match source {
@@ -1272,13 +1273,22 @@ pub(super) async fn apply_git_display_hunk_inner(
     }
     let action_path = action_paths[0].clone();
 
-    let (diff_args, reverse_apply): (&[&str], bool) = match source {
-        "unstaged" => (&["diff", "--no-color", "-U0", "--"], false),
-        "staged" => (&["diff", "--cached", "--no-color", "-U0", "--"], true),
+    let reverse_apply = match source {
+        "unstaged" => false,
+        "staged" => true,
         _ => unreachable!(),
     };
 
-    let mut args = diff_args.to_vec();
+    let mut args = vec!["diff"];
+    if source == "staged" {
+        args.push("--cached");
+    }
+    args.push("--no-color");
+    args.push("-U0");
+    if ignore_whitespace_changes {
+        args.push("-w");
+    }
+    args.push("--");
     args.push(action_path.as_str());
     let source_patch = String::from_utf8_lossy(
         &git_core::run_git_diff(&repo_root.to_path_buf(), &args).await?,

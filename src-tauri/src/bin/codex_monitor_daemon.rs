@@ -1115,6 +1115,7 @@ impl DaemonState {
     ) -> Result<GitSelectionApplyResult, String> {
         git_ui_core::apply_git_display_hunk_core(
             &self.workspaces,
+            &self.app_settings,
             workspace_id,
             path,
             display_hunk_id,

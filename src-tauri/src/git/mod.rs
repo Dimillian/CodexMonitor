@@ -237,6 +237,7 @@ pub(crate) async fn apply_git_display_hunk(
     );
     git_ui_core::apply_git_display_hunk_core(
         &state.workspaces,
+        &state.app_settings,
         workspace_id,
         path,
         display_hunk_id,

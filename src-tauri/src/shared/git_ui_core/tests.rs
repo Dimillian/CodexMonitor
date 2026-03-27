@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use git2::Repository;
 use serde_json::Value;
@@ -9,8 +10,7 @@ use tokio::sync::Mutex;
 
 use crate::types::{AppSettings, WorkspaceEntry, WorkspaceKind, WorkspaceSettings};
 
-use super::commands;
-use super::diff;
+use super::{apply_git_display_hunk_core, commands, diff};
 
 fn create_temp_repo() -> (PathBuf, Repository) {
     let root = std::env::temp_dir().join(format!("codex-monitor-test-{}", uuid::Uuid::new_v4()));
@@ -434,4 +434,107 @@ fn collect_ignored_paths_with_git_handles_large_ignored_output() {
         diff::collect_ignored_paths_with_git(&repo, &paths).expect("collect ignored paths");
 
     assert_eq!(ignored_paths.len(), total);
+}
+
+#[test]
+fn apply_git_display_hunk_uses_ignore_whitespace_mode_for_hunk_ids() {
+    let (root, repo) = create_temp_repo();
+    let file_path = root.join("example.txt");
+    fs::write(&file_path, "alpha\nbeta\ncharlie\n").expect("write baseline");
+
+    let mut index = repo.index().expect("repo index");
+    index.add_path(Path::new("example.txt")).expect("add path");
+    index.write().expect("write index");
+    let tree_id = index.write_tree().expect("write tree");
+    let tree = repo.find_tree(tree_id).expect("find tree");
+    let sig = git2::Signature::now("Test", "test@example.com").expect("signature");
+    repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+        .expect("commit");
+
+    fs::write(&file_path, "alpha  \nbeta updated\ncharlie\n").expect("write changed file");
+
+    let workspace = WorkspaceEntry {
+        id: "w1".to_string(),
+        name: "w1".to_string(),
+        path: root.to_string_lossy().to_string(),
+        kind: WorkspaceKind::Main,
+        parent_id: None,
+        worktree: None,
+        settings: WorkspaceSettings::default(),
+    };
+    let mut entries = HashMap::new();
+    entries.insert("w1".to_string(), workspace);
+    let workspaces = Mutex::new(entries);
+
+    let mut settings = AppSettings::default();
+    settings.git_diff_ignore_whitespace_changes = true;
+    let app_settings = Mutex::new(settings);
+
+    let source_patch = Command::new("git")
+        .args(["diff", "--no-color", "-U0", "-w", "--", "example.txt"])
+        .current_dir(&root)
+        .output()
+        .expect("run whitespace-ignored diff");
+    assert!(
+        source_patch.status.success(),
+        "source diff failed: {}",
+        String::from_utf8_lossy(&source_patch.stderr)
+    );
+    let source_patch = String::from_utf8_lossy(&source_patch.stdout).to_string();
+    let parsed = commands::parse_zero_context_patch(&source_patch).expect("parse source patch");
+    let display_hunk_id = parsed
+        .hunks
+        .first()
+        .map(|hunk| commands::parsed_patch_hunk_id("unstaged", hunk))
+        .expect("find whitespace-ignored hunk");
+
+    let runtime = Runtime::new().expect("create tokio runtime");
+    let result = runtime
+        .block_on(apply_git_display_hunk_core(
+            &workspaces,
+            &app_settings,
+            "w1".to_string(),
+            "example.txt".to_string(),
+            display_hunk_id,
+        ))
+        .expect("apply display hunk");
+
+    assert!(result.applied, "display hunk should be applied");
+    assert_eq!(result.applied_line_count, 2);
+
+    let cached = Command::new("git")
+        .args(["diff", "--cached", "--no-color", "-U0", "--", "example.txt"])
+        .current_dir(&root)
+        .output()
+        .expect("run cached diff");
+    assert!(
+        cached.status.success(),
+        "cached diff failed: {}",
+        String::from_utf8_lossy(&cached.stderr)
+    );
+    let cached_diff = String::from_utf8_lossy(&cached.stdout);
+    assert!(
+        cached_diff.contains("-beta\n+beta updated"),
+        "expected substantive line staged, got: {cached_diff}"
+    );
+
+    let unstaged = Command::new("git")
+        .args(["diff", "--no-color", "-U0", "--", "example.txt"])
+        .current_dir(&root)
+        .output()
+        .expect("run unstaged diff");
+    assert!(
+        unstaged.status.success(),
+        "unstaged diff failed: {}",
+        String::from_utf8_lossy(&unstaged.stderr)
+    );
+    let unstaged_diff = String::from_utf8_lossy(&unstaged.stdout);
+    assert!(
+        unstaged_diff.contains("-alpha\n+alpha  "),
+        "expected whitespace-only edit to remain unstaged, got: {unstaged_diff}"
+    );
+    assert!(
+        !unstaged_diff.contains("beta updated"),
+        "substantive edit should no longer be unstaged: {unstaged_diff}"
+    );
 }

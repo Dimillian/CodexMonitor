@@ -130,11 +130,23 @@ pub(crate) async fn stage_git_selection_core(
 
 pub(crate) async fn apply_git_display_hunk_core(
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    app_settings: &Mutex<AppSettings>,
     workspace_id: String,
     path: String,
     display_hunk_id: String,
 ) -> Result<GitSelectionApplyResult, String> {
-    commands::apply_git_display_hunk_inner(workspaces, workspace_id, path, display_hunk_id).await
+    let ignore_whitespace_changes = {
+        let settings = app_settings.lock().await;
+        settings.git_diff_ignore_whitespace_changes
+    };
+    commands::apply_git_display_hunk_inner(
+        workspaces,
+        workspace_id,
+        path,
+        display_hunk_id,
+        ignore_whitespace_changes,
+    )
+    .await
 }
 
 pub(crate) async fn unstage_git_file_core(
