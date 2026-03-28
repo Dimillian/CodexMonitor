@@ -557,4 +557,64 @@ describe("Markdown file-like href behavior", () => {
     expect(screen.getByText("Ready")).toBeTruthy();
   });
 
+  it("renders inline dollar math when enabled", () => {
+    const { container } = render(
+      <Markdown
+        value="Euler identity: $e^{i\\pi}+1=0$"
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelector(".katex")).toBeTruthy();
+    expect(container.textContent).toContain("Euler identity");
+  });
+
+  it("renders block math when enabled", () => {
+    const { container } = render(
+      <Markdown
+        value={["$$", "\\nabla \\cdot \\mathbf{E} = \\frac{\\rho}{\\varepsilon_0}", "$$"].join(
+          "\n",
+        )}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelector(".katex-display")).toBeTruthy();
+  });
+
+  it("supports \\(inline\\) and \\[block\\] LaTeX delimiters when enabled", () => {
+    const { container } = render(
+      <Markdown
+        value={[
+          "Inline: \\(x^2 + y^2\\)",
+          "",
+          "\\[",
+          "\\int_0^1 x^2\\,dx = \\frac{1}{3}",
+          "\\]",
+        ].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelectorAll(".katex").length).toBeGreaterThanOrEqual(2);
+    expect(container.querySelector(".katex-display")).toBeTruthy();
+  });
+
+  it("does not render math inside fenced code blocks", () => {
+    const { container } = render(
+      <Markdown
+        value={["```text", "$e^{i\\pi}+1=0$", "\\(x^2\\)", "```"].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(container.textContent).toContain("$e^{i\\pi}+1=0$");
+    expect(container.textContent).toContain("\\(x^2\\)");
+  });
+
 });

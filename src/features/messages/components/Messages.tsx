@@ -37,6 +37,7 @@ type MessagesProps = {
   openTargets: OpenAppTarget[];
   selectedOpenAppId: string;
   codeBlockCopyUseModifier?: boolean;
+  enableMathRendering?: boolean;
   showMessageFilePath?: boolean;
   userInputRequests?: RequestUserInputRequest[];
   onUserInputSubmit?: (
@@ -63,6 +64,7 @@ export const Messages = memo(function Messages({
   openTargets,
   selectedOpenAppId,
   codeBlockCopyUseModifier = false,
+  enableMathRendering = false,
   showMessageFilePath = true,
   userInputRequests = [],
   onUserInputSubmit,
@@ -155,6 +157,7 @@ export const Messages = memo(function Messages({
           onCopy={handleCopyMessage}
           onQuote={onQuoteMessage ? handleQuoteMessage : undefined}
           codeBlockCopyUseModifier={codeBlockCopyUseModifier}
+          enableMathRendering={enableMathRendering}
           showMessageFilePath={showMessageFilePath}
           workspacePath={workspacePath}
           onOpenFileLink={openFileLink}
@@ -173,6 +176,7 @@ export const Messages = memo(function Messages({
           parsed={parsed}
           isExpanded={isExpanded}
           onToggle={toggleExpanded}
+          enableMathRendering={enableMathRendering}
           showMessageFilePath={showMessageFilePath}
           workspacePath={workspacePath}
           onOpenFileLink={openFileLink}
@@ -186,6 +190,7 @@ export const Messages = memo(function Messages({
         <ReviewRow
           key={item.id}
           item={item}
+          enableMathRendering={enableMathRendering}
           showMessageFilePath={showMessageFilePath}
           workspacePath={workspacePath}
           onOpenFileLink={openFileLink}
@@ -216,6 +221,7 @@ export const Messages = memo(function Messages({
           item={item}
           isExpanded={isExpanded}
           onToggle={toggleExpanded}
+          enableMathRendering={enableMathRendering}
           showMessageFilePath={showMessageFilePath}
           workspacePath={workspacePath}
           onOpenFileLink={openFileLink}

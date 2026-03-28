@@ -271,6 +271,7 @@ export type AppSettings = {
   theme: ThemePreference;
   usageShowRemaining: boolean;
   showMessageFilePath: boolean;
+  mathRenderingEnabled: boolean;
   chatHistoryScrollbackItems: number | null;
   threadTitleAutogenerationEnabled: boolean;
   automaticAppUpdateChecksEnabled: boolean;

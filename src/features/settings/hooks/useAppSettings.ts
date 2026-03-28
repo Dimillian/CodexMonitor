@@ -169,6 +169,7 @@ function buildDefaultSettings(): AppSettings {
     theme: "system",
     usageShowRemaining: false,
     showMessageFilePath: true,
+    mathRenderingEnabled: false,
     chatHistoryScrollbackItems: CHAT_SCROLLBACK_DEFAULT,
     threadTitleAutogenerationEnabled: false,
     automaticAppUpdateChecksEnabled: true,
@@ -272,6 +273,10 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
         : true,
     reviewDeliveryMode:
       settings.reviewDeliveryMode === "detached" ? "detached" : "inline",
+    mathRenderingEnabled:
+      typeof settings.mathRenderingEnabled === "boolean"
+        ? settings.mathRenderingEnabled
+        : false,
     chatHistoryScrollbackItems,
     commitMessagePrompt,
     openAppTargets: normalizedTargets,

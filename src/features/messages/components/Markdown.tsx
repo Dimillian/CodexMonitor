@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode, type MouseEvent } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
+import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   describeFileTarget,
@@ -20,6 +22,7 @@ type MarkdownProps = {
   codeBlock?: boolean;
   codeBlockStyle?: "default" | "message";
   codeBlockCopyUseModifier?: boolean;
+  enableMathRendering?: boolean;
   showFilePath?: boolean;
   workspacePath?: string | null;
   onOpenFileLink?: (path: ParsedFileLocation) => void;
@@ -296,6 +299,84 @@ function normalizeListIndentation(value: string) {
   return normalized.join("\n");
 }
 
+const MARKDOWN_FENCE_PATTERN = /^\s*(```|~~~)/;
+const INLINE_CODE_PLACEHOLDER_PREFIX = "\u0000CODExINLINECODE";
+const INLINE_CODE_PLACEHOLDER_SUFFIX = "\u0000";
+const INLINE_CODE_PATTERN = /(`+)([\s\S]*?)\1/g;
+
+function normalizeLatexMathDelimitersInChunk(value: string) {
+  const inlineCodeSpans: string[] = [];
+  const withMaskedInlineCode = value.replace(INLINE_CODE_PATTERN, (match) => {
+    const index = inlineCodeSpans.length;
+    inlineCodeSpans.push(match);
+    return `${INLINE_CODE_PLACEHOLDER_PREFIX}${index}${INLINE_CODE_PLACEHOLDER_SUFFIX}`;
+  });
+
+  const withBlockMath = withMaskedInlineCode.replace(
+    /\\\[([\s\S]*?)\\\]/g,
+    (match, body: string) => {
+      const trimmed = body.trim();
+      if (!trimmed) {
+        return match;
+      }
+      return `$$\n${trimmed}\n$$`;
+    },
+  );
+  const withInlineMath = withBlockMath.replace(
+    /\\\(([\s\S]*?)\\\)/g,
+    (match, body: string) => {
+      const trimmed = body.trim();
+      if (!trimmed) {
+        return match;
+      }
+      return `$${trimmed}$`;
+    },
+  );
+
+  return withInlineMath.replace(
+    new RegExp(
+      `${INLINE_CODE_PLACEHOLDER_PREFIX}(\\d+)${INLINE_CODE_PLACEHOLDER_SUFFIX}`,
+      "g",
+    ),
+    (_match, indexString: string) => {
+      const index = Number(indexString);
+      return inlineCodeSpans[index] ?? _match;
+    },
+  );
+}
+
+function normalizeLatexMathDelimiters(value: string) {
+  const lines = value.split(/\r?\n/);
+  const output: string[] = [];
+  let inFence = false;
+  let nonFenceChunk: string[] = [];
+
+  const flushNonFenceChunk = () => {
+    if (nonFenceChunk.length === 0) {
+      return;
+    }
+    output.push(normalizeLatexMathDelimitersInChunk(nonFenceChunk.join("\n")));
+    nonFenceChunk = [];
+  };
+
+  for (const line of lines) {
+    if (MARKDOWN_FENCE_PATTERN.test(line)) {
+      flushNonFenceChunk();
+      inFence = !inFence;
+      output.push(line);
+      continue;
+    }
+    if (inFence) {
+      output.push(line);
+      continue;
+    }
+    nonFenceChunk.push(line);
+  }
+
+  flushNonFenceChunk();
+  return output.join("\n");
+}
+
 function LinkBlock({ urls }: LinkBlockProps) {
   return (
     <div className="markdown-linkblock">
@@ -434,15 +515,20 @@ export function Markdown({
   codeBlock,
   codeBlockStyle = "default",
   codeBlockCopyUseModifier = false,
+  enableMathRendering = false,
   showFilePath = true,
   workspacePath = null,
   onOpenFileLink,
   onOpenFileLinkMenu,
   onOpenThreadLink,
 }: MarkdownProps) {
+  const markdownValue = codeBlock ? value : normalizeListIndentation(value);
+  const mathNormalizedValue = !codeBlock && enableMathRendering
+    ? normalizeLatexMathDelimiters(markdownValue)
+    : markdownValue;
   const normalizedValue = codeBlock
-    ? value
-    : normalizeStructuredReviewTables(normalizeListIndentation(value));
+    ? mathNormalizedValue
+    : normalizeStructuredReviewTables(mathNormalizedValue);
   const content = codeBlock
     ? `\`\`\`\n${normalizedValue}\n\`\`\``
     : normalizedValue;
@@ -611,7 +697,12 @@ export function Markdown({
   return (
     <div className={className}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkFileLinks]}
+        remarkPlugins={
+          enableMathRendering
+            ? [remarkGfm, remarkMath, remarkFileLinks]
+            : [remarkGfm, remarkFileLinks]
+        }
+        rehypePlugins={enableMathRendering ? [rehypeKatex] : undefined}
         urlTransform={(url) => {
           const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(url);
           // Keep file-like hrefs intact before scheme sanitization runs, otherwise

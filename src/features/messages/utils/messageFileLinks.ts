@@ -255,7 +255,13 @@ function getLeadingPathCandidateContext(value: string, matchIndex: number) {
 }
 
 function isSkippableParent(parentType?: string) {
-  return parentType === "link" || parentType === "inlineCode" || parentType === "code";
+  return (
+    parentType === "link" ||
+    parentType === "inlineCode" ||
+    parentType === "code" ||
+    parentType === "inlineMath" ||
+    parentType === "math"
+  );
 }
 
 function isLikelyMountedWorkspaceFilePath(

@@ -500,6 +500,11 @@ pub(crate) struct AppSettings {
     )]
     pub(crate) show_message_file_path: bool,
     #[serde(
+        default = "default_math_rendering_enabled",
+        rename = "mathRenderingEnabled"
+    )]
+    pub(crate) math_rendering_enabled: bool,
+    #[serde(
         default = "default_chat_history_scrollback_items",
         rename = "chatHistoryScrollbackItems"
     )]
@@ -713,6 +718,10 @@ fn default_usage_show_remaining() -> bool {
 
 fn default_show_message_file_path() -> bool {
     true
+}
+
+fn default_math_rendering_enabled() -> bool {
+    false
 }
 
 fn default_chat_history_scrollback_items() -> Option<u32> {
@@ -1157,6 +1166,7 @@ impl Default for AppSettings {
             theme: default_theme(),
             usage_show_remaining: default_usage_show_remaining(),
             show_message_file_path: default_show_message_file_path(),
+            math_rendering_enabled: default_math_rendering_enabled(),
             chat_history_scrollback_items: default_chat_history_scrollback_items(),
             thread_title_autogeneration_enabled: false,
             automatic_app_update_checks_enabled: true,
@@ -1323,6 +1333,7 @@ mod tests {
         assert_eq!(settings.theme, "system");
         assert!(!settings.usage_show_remaining);
         assert!(settings.show_message_file_path);
+        assert!(!settings.math_rendering_enabled);
         assert_eq!(settings.chat_history_scrollback_items, Some(200));
         assert!(!settings.thread_title_autogeneration_enabled);
         assert!(settings.automatic_app_update_checks_enabled);
