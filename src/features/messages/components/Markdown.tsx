@@ -310,6 +310,8 @@ const INLINE_CODE_PLACEHOLDER_PREFIX = "\u0000CODEXINLINECODE";
 const INLINE_CODE_PLACEHOLDER_SUFFIX = "\u0000";
 const LINK_DEST_PLACEHOLDER_PREFIX = "\u0000CODEXLINKDEST";
 const LINK_DEST_PLACEHOLDER_SUFFIX = "\u0000";
+const URL_PLACEHOLDER_PREFIX = "\u0000CODEXURL";
+const URL_PLACEHOLDER_SUFFIX = "\u0000";
 const INLINE_CODE_PATTERN = /(`+)([\s\S]*?)\1/g;
 const INLINE_LATEX_MATH_PATTERN = /\\\(([^\n]*?)\\\)/g;
 const BLOCK_LATEX_SINGLE_LINE_PATTERN = /^([ \t]*(?:>\s*)*)\\\[\s*(.*?)\s*\\\]\s*$/;
@@ -467,6 +469,50 @@ function maskMarkdownLinkDestinations(value: string) {
   };
 }
 
+function maskUrlLiterals(value: string) {
+  const urls: string[] = [];
+  const toPlaceholder = (url: string) => {
+    const index = urls.length;
+    urls.push(url);
+    return `${URL_PLACEHOLDER_PREFIX}${index}${URL_PLACEHOLDER_SUFFIX}`;
+  };
+  const lines = value.split(/\r?\n/);
+  const maskedLines = lines.map((line) => {
+    const referenceDefinitionMatch = line.match(/^(\s{0,3}\[[^\]]+\]:\s*)(\S+)(.*)$/);
+    if (referenceDefinitionMatch) {
+      const prefix = referenceDefinitionMatch[1] ?? "";
+      const rawDestination = referenceDefinitionMatch[2] ?? "";
+      const suffix = referenceDefinitionMatch[3] ?? "";
+      if (rawDestination.startsWith("<") && rawDestination.endsWith(">")) {
+        const innerDestination = rawDestination.slice(1, -1);
+        return `${prefix}<${toPlaceholder(innerDestination)}>${suffix}`;
+      }
+      return `${prefix}${toPlaceholder(rawDestination)}${suffix}`;
+    }
+
+    const withAutolinksMasked = line.replace(
+      /<((?:https?:\/\/|mailto:)[^\s>]+)>/gi,
+      (_match, url: string) => `<${toPlaceholder(url)}>`,
+    );
+    return withAutolinksMasked.replace(
+      /\bhttps?:\/\/[^\s<]+/gi,
+      (url: string) => toPlaceholder(url),
+    );
+  });
+
+  return {
+    masked: maskedLines.join("\n"),
+    restore: (normalized: string) =>
+      normalized.replace(
+        new RegExp(`${URL_PLACEHOLDER_PREFIX}(\\d+)${URL_PLACEHOLDER_SUFFIX}`, "g"),
+        (match, indexValue: string) => {
+          const parsedIndex = Number(indexValue);
+          return urls[parsedIndex] ?? match;
+        },
+      ),
+  };
+}
+
 function replaceInlineLatexMathDelimiters(value: string) {
   return value.replace(
     INLINE_LATEX_MATH_PATTERN,
@@ -505,6 +551,7 @@ function replaceBlockLatexMathDelimiters(value: string) {
   let collectingBlock = false;
   let blockLines: string[] = [];
   let activeBlockPrefix = "";
+  let activeBlockPrefixNormalized = "";
   let activeOpenLine = "";
 
   for (const line of lines) {
@@ -525,6 +572,7 @@ function replaceBlockLatexMathDelimiters(value: string) {
         collectingBlock = true;
         blockLines = [];
         activeBlockPrefix = blockOpenMatch[1] ?? "";
+        activeBlockPrefixNormalized = activeBlockPrefix.replace(/>\s*/g, ">");
         activeOpenLine = line;
         continue;
       }
@@ -533,7 +581,10 @@ function replaceBlockLatexMathDelimiters(value: string) {
     }
 
     const blockCloseMatch = line.match(BLOCK_LATEX_CLOSE_PATTERN);
-    if (blockCloseMatch && (blockCloseMatch[1] ?? "") === activeBlockPrefix) {
+    if (
+      blockCloseMatch &&
+      (blockCloseMatch[1] ?? "").replace(/>\s*/g, ">") === activeBlockPrefixNormalized
+    ) {
       if (blockLines.some((bodyLine) => bodyLine.trim().length > 0)) {
         output.push(`${activeBlockPrefix}$$`, ...blockLines, `${activeBlockPrefix}$$`);
       } else {
@@ -542,6 +593,7 @@ function replaceBlockLatexMathDelimiters(value: string) {
       collectingBlock = false;
       blockLines = [];
       activeBlockPrefix = "";
+      activeBlockPrefixNormalized = "";
       activeOpenLine = "";
       continue;
     }
@@ -567,10 +619,12 @@ function normalizeLatexMathDelimitersInChunk(value: string) {
     inlineCodeSpans.push(match);
     return `${INLINE_CODE_PLACEHOLDER_PREFIX}${placeholderIndex}${INLINE_CODE_PLACEHOLDER_SUFFIX}`;
   });
-  const { masked, restore } = maskMarkdownLinkDestinations(withMaskedInlineCode);
-  const withBlockMath = replaceBlockLatexMathDelimiters(masked);
+  const { masked: linkMasked, restore: restoreLinks } = maskMarkdownLinkDestinations(withMaskedInlineCode);
+  const { masked: urlMasked, restore: restoreUrls } = maskUrlLiterals(linkMasked);
+  const withBlockMath = replaceBlockLatexMathDelimiters(urlMasked);
   const withInlineMath = replaceInlineLatexMathDelimiters(withBlockMath);
-  const withRestoredLinks = restore(withInlineMath);
+  const withRestoredUrls = restoreUrls(withInlineMath);
+  const withRestoredLinks = restoreLinks(withRestoredUrls);
   return withRestoredLinks.replace(
     new RegExp(
       `${INLINE_CODE_PLACEHOLDER_PREFIX}(\\d+)${INLINE_CODE_PLACEHOLDER_SUFFIX}`,

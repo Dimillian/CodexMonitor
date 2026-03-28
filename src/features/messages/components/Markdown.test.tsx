@@ -768,4 +768,35 @@ describe("Markdown file-like href behavior", () => {
     );
   });
 
+  it("does not rewrite escaped latex delimiters in plain URL literals and references", () => {
+    const { container } = render(
+      <Markdown
+        value={[
+          "https://example.com/\\(foo\\)",
+          "[ref]: https://example.com/\\(bar\\)",
+        ].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    const plainUrlLink = screen.getByText("https://example.com/\\(foo\\)").closest("a");
+    expect(plainUrlLink?.getAttribute("href")).toBe("https://example.com/%5C(foo%5C)");
+    const referenceUrlLink = screen.getByText("https://example.com/\\(bar\\)").closest("a");
+    expect(referenceUrlLink?.getAttribute("href")).toBe("https://example.com/%5C(bar%5C)");
+    expect(container.textContent).toContain("[ref]:");
+  });
+
+  it("matches blockquote block-math closer when quote spacing differs", () => {
+    const { container } = render(
+      <Markdown
+        value={["> \\[", "> E = mc^2", ">\\]"].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelector("blockquote .katex-display")).toBeTruthy();
+  });
+
 });
