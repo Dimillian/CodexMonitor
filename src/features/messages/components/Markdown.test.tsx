@@ -639,6 +639,38 @@ describe("Markdown file-like href behavior", () => {
     expect(container.textContent).toContain("\\]");
   });
 
+  it("does not rewrite escaped \\(inline\\) delimiters", () => {
+    const { container } = render(
+      <Markdown
+        value={["Literal: \\\\(x\\\\)", "Outside: \\(z^2\\)"].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelectorAll(".katex").length).toBe(1);
+    expect(container.textContent).toContain("\\(x\\)");
+  });
+
+  it("does not render math inside blockquote-indented code blocks", () => {
+    const { container } = render(
+      <Markdown
+        value={[
+          ">     \\(x^2\\)",
+          ">     \\[x+y\\]",
+          "",
+          "Outside: \\(z^2\\)",
+        ].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelectorAll(".katex").length).toBe(1);
+    expect(container.textContent).toContain("\\(x^2\\)");
+    expect(container.textContent).toContain("\\[x+y\\]");
+  });
+
   it("keeps math-like delimiters literal inside long fences with nested shorter fences", () => {
     const { container } = render(
       <Markdown

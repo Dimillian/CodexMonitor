@@ -455,6 +455,16 @@ function replaceInlineLatexMathDelimiters(value: string) {
       if (!trimmed) {
         return match;
       }
+      let precedingBackslashes = 0;
+      for (let index = offset - 1; index >= 0; index -= 1) {
+        if (source[index] !== "\\") {
+          break;
+        }
+        precedingBackslashes += 1;
+      }
+      if (precedingBackslashes % 2 === 1) {
+        return match;
+      }
       const before = offset > 0 ? source[offset - 1] : "";
       const afterIndex = offset + match.length;
       const after = afterIndex < source.length ? source[afterIndex] : "";
@@ -527,7 +537,15 @@ function replaceBlockLatexMathDelimiters(value: string) {
 }
 
 function isIndentedCodeLine(line: string) {
-  return /^(?: {4}|\t)/.test(line);
+  let remaining = line;
+  while (true) {
+    const quotePrefixMatch = remaining.match(/^[ \t]{0,3}>[ \t]?/);
+    if (!quotePrefixMatch) {
+      break;
+    }
+    remaining = remaining.slice(quotePrefixMatch[0].length);
+  }
+  return /^(?: {4}|\t)/.test(remaining);
 }
 
 function normalizeLatexMathDelimitersInChunk(value: string) {
