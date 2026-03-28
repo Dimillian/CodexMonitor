@@ -553,6 +553,8 @@ function replaceBlockLatexMathDelimiters(value: string) {
   let activeBlockPrefix = "";
   let activeBlockPrefixNormalized = "";
   let activeOpenLine = "";
+  const normalizePrefixForComparison = (prefix: string) =>
+    prefix.includes(">") ? (prefix.match(/>/g) ?? []).join("") : prefix;
 
   for (const line of lines) {
     if (!collectingBlock) {
@@ -572,7 +574,7 @@ function replaceBlockLatexMathDelimiters(value: string) {
         collectingBlock = true;
         blockLines = [];
         activeBlockPrefix = blockOpenMatch[1] ?? "";
-        activeBlockPrefixNormalized = activeBlockPrefix.replace(/>\s*/g, ">");
+        activeBlockPrefixNormalized = normalizePrefixForComparison(activeBlockPrefix);
         activeOpenLine = line;
         continue;
       }
@@ -583,7 +585,7 @@ function replaceBlockLatexMathDelimiters(value: string) {
     const blockCloseMatch = line.match(BLOCK_LATEX_CLOSE_PATTERN);
     if (
       blockCloseMatch &&
-      (blockCloseMatch[1] ?? "").replace(/>\s*/g, ">") === activeBlockPrefixNormalized
+      normalizePrefixForComparison(blockCloseMatch[1] ?? "") === activeBlockPrefixNormalized
     ) {
       if (blockLines.some((bodyLine) => bodyLine.trim().length > 0)) {
         output.push(`${activeBlockPrefix}$$`, ...blockLines, `${activeBlockPrefix}$$`);

@@ -799,4 +799,16 @@ describe("Markdown file-like href behavior", () => {
     expect(container.querySelector("blockquote .katex-display")).toBeTruthy();
   });
 
+  it("matches blockquote block-math closer when quote indentation differs", () => {
+    const { container } = render(
+      <Markdown
+        value={[" > \\[", "> E = mc^2", ">\\]"].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelector("blockquote .katex-display")).toBeTruthy();
+  });
+
 });
