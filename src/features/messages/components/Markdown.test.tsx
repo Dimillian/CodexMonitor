@@ -652,6 +652,23 @@ describe("Markdown file-like href behavior", () => {
     expect(container.textContent).toContain("\\(x\\)");
   });
 
+  it("renders \\(inline\\) math when adjacent to percent and slash punctuation", () => {
+    const { container } = render(
+      <Markdown
+        value={[
+          "Success: \\(p\\)%",
+          "Ratio: \\(a\\)/\\(b\\)",
+        ].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelectorAll(".katex").length).toBe(3);
+    expect(container.textContent).toContain("Success:");
+    expect(container.textContent).toContain("Ratio:");
+  });
+
   it("does not render math inside blockquote-indented code blocks", () => {
     const { container } = render(
       <Markdown

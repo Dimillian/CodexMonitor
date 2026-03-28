@@ -315,7 +315,7 @@ const INLINE_LATEX_MATH_PATTERN = /\\\(([^\n]*?)\\\)/g;
 const BLOCK_LATEX_SINGLE_LINE_PATTERN = /^([ \t]*(?:>\s*)*)\\\[\s*(.*?)\s*\\\]\s*$/;
 const BLOCK_LATEX_OPEN_PATTERN = /^([ \t]*(?:>\s*)*)\\\[\s*$/;
 const BLOCK_LATEX_CLOSE_PATTERN = /^([ \t]*(?:>\s*)*)\\\]\s*$/;
-const INLINE_MATH_BOUNDARY_PATTERN = /[A-Za-z0-9_/%]/;
+const INLINE_MATH_BOUNDARY_PATTERN = /[A-Za-z0-9_]/;
 
 function parseFenceOpener(line: string): MarkdownFenceState | null {
   const match = line.match(MARKDOWN_FENCE_OPENER_PATTERN);
