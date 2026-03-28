@@ -617,4 +617,26 @@ describe("Markdown file-like href behavior", () => {
     expect(container.textContent).toContain("\\(x^2\\)");
   });
 
+  it("keeps math-like delimiters literal inside long fences with nested shorter fences", () => {
+    const { container } = render(
+      <Markdown
+        value={[
+          "````text",
+          "inner fence marker:",
+          "```",
+          "\\(x^2\\)",
+          "\\[x+y\\]",
+          "````",
+          "Outside: \\(z^2\\)",
+        ].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelector(".katex")).toBeTruthy();
+    expect(container.textContent).toContain("\\(x^2\\)");
+    expect(container.textContent).toContain("\\[x+y\\]");
+  });
+
 });

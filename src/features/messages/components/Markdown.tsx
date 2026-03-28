@@ -299,10 +299,41 @@ function normalizeListIndentation(value: string) {
   return normalized.join("\n");
 }
 
-const MARKDOWN_FENCE_PATTERN = /^\s*(```|~~~)/;
+type MarkdownFenceState = {
+  marker: "`" | "~";
+  length: number;
+};
+
+const MARKDOWN_FENCE_OPENER_PATTERN = /^ {0,3}(`{3,}|~{3,})(.*)$/;
+const MARKDOWN_FENCE_CLOSER_PATTERN = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
 const INLINE_CODE_PLACEHOLDER_PREFIX = "\u0000CODExINLINECODE";
 const INLINE_CODE_PLACEHOLDER_SUFFIX = "\u0000";
 const INLINE_CODE_PATTERN = /(`+)([\s\S]*?)\1/g;
+
+function parseFenceOpener(line: string): MarkdownFenceState | null {
+  const match = line.match(MARKDOWN_FENCE_OPENER_PATTERN);
+  if (!match) {
+    return null;
+  }
+  const sequence = match[1];
+  const marker = sequence[0];
+  if (marker !== "`" && marker !== "~") {
+    return null;
+  }
+  return {
+    marker,
+    length: sequence.length,
+  };
+}
+
+function isFenceCloser(line: string, activeFence: MarkdownFenceState) {
+  const match = line.match(MARKDOWN_FENCE_CLOSER_PATTERN);
+  if (!match) {
+    return false;
+  }
+  const sequence = match[1];
+  return sequence[0] === activeFence.marker && sequence.length >= activeFence.length;
+}
 
 function normalizeLatexMathDelimitersInChunk(value: string) {
   const inlineCodeSpans: string[] = [];
@@ -348,7 +379,7 @@ function normalizeLatexMathDelimitersInChunk(value: string) {
 function normalizeLatexMathDelimiters(value: string) {
   const lines = value.split(/\r?\n/);
   const output: string[] = [];
-  let inFence = false;
+  let activeFence: MarkdownFenceState | null = null;
   let nonFenceChunk: string[] = [];
 
   const flushNonFenceChunk = () => {
@@ -360,13 +391,18 @@ function normalizeLatexMathDelimiters(value: string) {
   };
 
   for (const line of lines) {
-    if (MARKDOWN_FENCE_PATTERN.test(line)) {
-      flushNonFenceChunk();
-      inFence = !inFence;
+    if (activeFence) {
       output.push(line);
+      if (isFenceCloser(line, activeFence)) {
+        activeFence = null;
+      }
       continue;
     }
-    if (inFence) {
+
+    const fenceOpener = parseFenceOpener(line);
+    if (fenceOpener) {
+      flushNonFenceChunk();
+      activeFence = fenceOpener;
       output.push(line);
       continue;
     }
