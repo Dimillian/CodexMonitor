@@ -312,9 +312,9 @@ const LINK_DEST_PLACEHOLDER_PREFIX = "\u0000CODEXLINKDEST";
 const LINK_DEST_PLACEHOLDER_SUFFIX = "\u0000";
 const INLINE_CODE_PATTERN = /(`+)([\s\S]*?)\1/g;
 const INLINE_LATEX_MATH_PATTERN = /\\\(([^\n]*?)\\\)/g;
-const BLOCK_LATEX_SINGLE_LINE_PATTERN = /^\s*\\\[\s*(.*?)\s*\\\]\s*$/;
-const BLOCK_LATEX_OPEN_PATTERN = /^\s*\\\[\s*$/;
-const BLOCK_LATEX_CLOSE_PATTERN = /^\s*\\\]\s*$/;
+const BLOCK_LATEX_SINGLE_LINE_PATTERN = /^([ \t]*(?:>\s*)*)\\\[\s*(.*?)\s*\\\]\s*$/;
+const BLOCK_LATEX_OPEN_PATTERN = /^([ \t]*(?:>\s*)*)\\\[\s*$/;
+const BLOCK_LATEX_CLOSE_PATTERN = /^([ \t]*(?:>\s*)*)\\\]\s*$/;
 const INLINE_MATH_BOUNDARY_PATTERN = /[A-Za-z0-9_/%]/;
 
 function parseFenceOpener(line: string): MarkdownFenceState | null {
@@ -474,37 +474,45 @@ function replaceBlockLatexMathDelimiters(value: string) {
   const output: string[] = [];
   let collectingBlock = false;
   let blockLines: string[] = [];
+  let activeBlockPrefix = "";
+  let activeOpenLine = "";
 
   for (const line of lines) {
     if (!collectingBlock) {
       const singleLineMatch = line.match(BLOCK_LATEX_SINGLE_LINE_PATTERN);
       if (singleLineMatch) {
-        const body = (singleLineMatch[1] ?? "").trim();
+        const prefix = singleLineMatch[1] ?? "";
+        const body = (singleLineMatch[2] ?? "").trim();
         if (!body) {
           output.push(line);
           continue;
         }
-        output.push("$$", body, "$$");
+        output.push(`${prefix}$$`, `${prefix}${body}`, `${prefix}$$`);
         continue;
       }
-      if (BLOCK_LATEX_OPEN_PATTERN.test(line)) {
+      const blockOpenMatch = line.match(BLOCK_LATEX_OPEN_PATTERN);
+      if (blockOpenMatch) {
         collectingBlock = true;
         blockLines = [];
+        activeBlockPrefix = blockOpenMatch[1] ?? "";
+        activeOpenLine = line;
         continue;
       }
       output.push(line);
       continue;
     }
 
-    if (BLOCK_LATEX_CLOSE_PATTERN.test(line)) {
-      const body = blockLines.join("\n").trim();
-      if (body) {
-        output.push("$$", body, "$$");
+    const blockCloseMatch = line.match(BLOCK_LATEX_CLOSE_PATTERN);
+    if (blockCloseMatch && (blockCloseMatch[1] ?? "") === activeBlockPrefix) {
+      if (blockLines.some((bodyLine) => bodyLine.trim().length > 0)) {
+        output.push(`${activeBlockPrefix}$$`, ...blockLines, `${activeBlockPrefix}$$`);
       } else {
-        output.push("\\[", "\\]");
+        output.push(activeOpenLine, ...blockLines, line);
       }
       collectingBlock = false;
       blockLines = [];
+      activeBlockPrefix = "";
+      activeOpenLine = "";
       continue;
     }
 
@@ -512,10 +520,14 @@ function replaceBlockLatexMathDelimiters(value: string) {
   }
 
   if (collectingBlock) {
-    output.push("\\[", ...blockLines);
+    output.push(activeOpenLine, ...blockLines);
   }
 
   return output.join("\n");
+}
+
+function isIndentedCodeLine(line: string) {
+  return /^(?: {4}|\t)/.test(line);
 }
 
 function normalizeLatexMathDelimitersInChunk(value: string) {
@@ -555,12 +567,15 @@ function normalizeLatexMathDelimiters(value: string) {
     nonFenceChunk = [];
   };
 
-  for (const line of lines) {
+  let lineIndex = 0;
+  while (lineIndex < lines.length) {
+    const line = lines[lineIndex];
     if (activeFence) {
       output.push(line);
       if (isFenceCloser(line, activeFence)) {
         activeFence = null;
       }
+      lineIndex += 1;
       continue;
     }
 
@@ -569,10 +584,32 @@ function normalizeLatexMathDelimiters(value: string) {
       flushNonFenceChunk();
       activeFence = fenceOpener;
       output.push(line);
+      lineIndex += 1;
+      continue;
+    }
+
+    if (isIndentedCodeLine(line)) {
+      flushNonFenceChunk();
+      output.push(line);
+      lineIndex += 1;
+      while (lineIndex < lines.length) {
+        const candidate = lines[lineIndex];
+        if (!candidate.trim()) {
+          output.push(candidate);
+          lineIndex += 1;
+          continue;
+        }
+        if (!isIndentedCodeLine(candidate)) {
+          break;
+        }
+        output.push(candidate);
+        lineIndex += 1;
+      }
       continue;
     }
 
     nonFenceChunk.push(line);
+    lineIndex += 1;
   }
 
   flushNonFenceChunk();

@@ -617,6 +617,28 @@ describe("Markdown file-like href behavior", () => {
     expect(container.textContent).toContain("\\(x^2\\)");
   });
 
+  it("does not render math inside indented code blocks", () => {
+    const { container } = render(
+      <Markdown
+        value={[
+          "    \\(x^2\\)",
+          "    \\[",
+          "    x+y",
+          "    \\]",
+          "",
+          "Outside: \\(z^2\\)",
+        ].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelectorAll(".katex").length).toBe(1);
+    expect(container.textContent).toContain("\\(x^2\\)");
+    expect(container.textContent).toContain("\\[");
+    expect(container.textContent).toContain("\\]");
+  });
+
   it("keeps math-like delimiters literal inside long fences with nested shorter fences", () => {
     const { container } = render(
       <Markdown
@@ -637,6 +659,28 @@ describe("Markdown file-like href behavior", () => {
     expect(container.querySelector(".katex")).toBeTruthy();
     expect(container.textContent).toContain("\\(x^2\\)");
     expect(container.textContent).toContain("\\[x+y\\]");
+  });
+
+  it("preserves nested list and blockquote structure for \\\\[...\\\\] block delimiters", () => {
+    const { container } = render(
+      <Markdown
+        value={[
+          "- List item with block math:",
+          "  \\[",
+          "  x^2 + y^2 = r^2",
+          "  \\]",
+          "",
+          "> \\[",
+          "> E = mc^2",
+          "> \\]",
+        ].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelector("li .katex-display")).toBeTruthy();
+    expect(container.querySelector("blockquote .katex-display")).toBeTruthy();
   });
 
   it("does not rewrite escaped latex delimiters in link destinations", () => {
