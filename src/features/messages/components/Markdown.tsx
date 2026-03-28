@@ -317,8 +317,27 @@ const BLOCK_LATEX_OPEN_PATTERN = /^([ \t]*(?:>\s*)*)\\\[\s*$/;
 const BLOCK_LATEX_CLOSE_PATTERN = /^([ \t]*(?:>\s*)*)\\\]\s*$/;
 const INLINE_MATH_BOUNDARY_PATTERN = /[A-Za-z0-9_]/;
 
+function stripMarkdownContainerPrefixes(line: string) {
+  let remaining = line;
+  while (true) {
+    const quotePrefixMatch = remaining.match(/^[ \t]{0,3}>[ \t]?/);
+    if (quotePrefixMatch) {
+      remaining = remaining.slice(quotePrefixMatch[0].length);
+      continue;
+    }
+    const listPrefixMatch = remaining.match(/^[ \t]{0,3}(?:[*+-]|\d+[.)])[ \t]+/);
+    if (listPrefixMatch) {
+      remaining = remaining.slice(listPrefixMatch[0].length);
+      continue;
+    }
+    break;
+  }
+  return remaining;
+}
+
 function parseFenceOpener(line: string): MarkdownFenceState | null {
-  const match = line.match(MARKDOWN_FENCE_OPENER_PATTERN);
+  const contentLine = stripMarkdownContainerPrefixes(line);
+  const match = contentLine.match(MARKDOWN_FENCE_OPENER_PATTERN);
   if (!match) {
     return null;
   }
@@ -334,7 +353,8 @@ function parseFenceOpener(line: string): MarkdownFenceState | null {
 }
 
 function isFenceCloser(line: string, activeFence: MarkdownFenceState) {
-  const match = line.match(MARKDOWN_FENCE_CLOSER_PATTERN);
+  const contentLine = stripMarkdownContainerPrefixes(line);
+  const match = contentLine.match(MARKDOWN_FENCE_CLOSER_PATTERN);
   if (!match) {
     return false;
   }
@@ -537,15 +557,7 @@ function replaceBlockLatexMathDelimiters(value: string) {
 }
 
 function isIndentedCodeLine(line: string) {
-  let remaining = line;
-  while (true) {
-    const quotePrefixMatch = remaining.match(/^[ \t]{0,3}>[ \t]?/);
-    if (!quotePrefixMatch) {
-      break;
-    }
-    remaining = remaining.slice(quotePrefixMatch[0].length);
-  }
-  return /^(?: {4}|\t)/.test(remaining);
+  return /^(?: {4}|\t)/.test(stripMarkdownContainerPrefixes(line));
 }
 
 function normalizeLatexMathDelimitersInChunk(value: string) {

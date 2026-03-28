@@ -617,6 +617,27 @@ describe("Markdown file-like href behavior", () => {
     expect(container.textContent).toContain("\\(x^2\\)");
   });
 
+  it("does not render math inside container-prefixed fenced code blocks", () => {
+    const { container } = render(
+      <Markdown
+        value={[
+          "> ```text",
+          "> \\(x^2\\)",
+          "> \\[x+y\\]",
+          "> ```",
+          "",
+          "Outside: \\(z^2\\)",
+        ].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelectorAll(".katex").length).toBe(1);
+    expect(container.textContent).toContain("\\(x^2\\)");
+    expect(container.textContent).toContain("\\[x+y\\]");
+  });
+
   it("does not render math inside indented code blocks", () => {
     const { container } = render(
       <Markdown
