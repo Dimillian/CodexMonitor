@@ -306,9 +306,16 @@ type MarkdownFenceState = {
 
 const MARKDOWN_FENCE_OPENER_PATTERN = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 const MARKDOWN_FENCE_CLOSER_PATTERN = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
-const INLINE_CODE_PLACEHOLDER_PREFIX = "\u0000CODExINLINECODE";
+const INLINE_CODE_PLACEHOLDER_PREFIX = "\u0000CODEXINLINECODE";
 const INLINE_CODE_PLACEHOLDER_SUFFIX = "\u0000";
+const LINK_DEST_PLACEHOLDER_PREFIX = "\u0000CODEXLINKDEST";
+const LINK_DEST_PLACEHOLDER_SUFFIX = "\u0000";
 const INLINE_CODE_PATTERN = /(`+)([\s\S]*?)\1/g;
+const INLINE_LATEX_MATH_PATTERN = /\\\(([^\n]*?)\\\)/g;
+const BLOCK_LATEX_SINGLE_LINE_PATTERN = /^\s*\\\[\s*(.*?)\s*\\\]\s*$/;
+const BLOCK_LATEX_OPEN_PATTERN = /^\s*\\\[\s*$/;
+const BLOCK_LATEX_CLOSE_PATTERN = /^\s*\\\]\s*$/;
+const INLINE_MATH_BOUNDARY_PATTERN = /[A-Za-z0-9_/%]/;
 
 function parseFenceOpener(line: string): MarkdownFenceState | null {
   const match = line.match(MARKDOWN_FENCE_OPENER_PATTERN);
@@ -335,43 +342,201 @@ function isFenceCloser(line: string, activeFence: MarkdownFenceState) {
   return sequence[0] === activeFence.marker && sequence.length >= activeFence.length;
 }
 
-function normalizeLatexMathDelimitersInChunk(value: string) {
-  const inlineCodeSpans: string[] = [];
-  const withMaskedInlineCode = value.replace(INLINE_CODE_PATTERN, (match) => {
-    const index = inlineCodeSpans.length;
-    inlineCodeSpans.push(match);
-    return `${INLINE_CODE_PLACEHOLDER_PREFIX}${index}${INLINE_CODE_PLACEHOLDER_SUFFIX}`;
-  });
+function findClosingBracket(value: string, startIndex: number) {
+  let depth = 0;
+  for (let index = startIndex; index < value.length; index += 1) {
+    const char = value[index];
+    if (char === "\\") {
+      index += 1;
+      continue;
+    }
+    if (char === "[") {
+      depth += 1;
+      continue;
+    }
+    if (char === "]") {
+      depth -= 1;
+      if (depth === 0) {
+        return index;
+      }
+    }
+  }
+  return -1;
+}
 
-  const withBlockMath = withMaskedInlineCode.replace(
-    /\\\[([\s\S]*?)\\\]/g,
-    (match, body: string) => {
+function findClosingParen(value: string, startIndex: number) {
+  let depth = 0;
+  for (let index = startIndex; index < value.length; index += 1) {
+    const char = value[index];
+    if (char === "\\") {
+      index += 1;
+      continue;
+    }
+    if (char === "(") {
+      depth += 1;
+      continue;
+    }
+    if (char === ")") {
+      depth -= 1;
+      if (depth === 0) {
+        return index;
+      }
+    }
+  }
+  return -1;
+}
+
+function maskMarkdownLinkDestinations(value: string) {
+  const destinations: string[] = [];
+  let masked = "";
+  let index = 0;
+
+  while (index < value.length) {
+    const isImageLink = value[index] === "!" && value[index + 1] === "[";
+    const labelStart = isImageLink ? index + 1 : index;
+    if (value[labelStart] !== "[") {
+      masked += value[index];
+      index += 1;
+      continue;
+    }
+
+    const labelEnd = findClosingBracket(value, labelStart);
+    if (labelEnd < 0) {
+      masked += value[index];
+      index += 1;
+      continue;
+    }
+
+    let destinationOpen = labelEnd + 1;
+    while (destinationOpen < value.length && /[ \t]/.test(value[destinationOpen])) {
+      destinationOpen += 1;
+    }
+    if (value[destinationOpen] !== "(") {
+      masked += value[index];
+      index += 1;
+      continue;
+    }
+
+    const destinationClose = findClosingParen(value, destinationOpen);
+    if (destinationClose < 0) {
+      masked += value[index];
+      index += 1;
+      continue;
+    }
+
+    const destination = value.slice(destinationOpen + 1, destinationClose);
+    const placeholderIndex = destinations.length;
+    destinations.push(destination);
+    masked += `${value.slice(index, destinationOpen + 1)}${LINK_DEST_PLACEHOLDER_PREFIX}${placeholderIndex}${LINK_DEST_PLACEHOLDER_SUFFIX})`;
+    index = destinationClose + 1;
+  }
+
+  return {
+    masked,
+    restore: (normalized: string) =>
+      normalized.replace(
+        new RegExp(
+          `${LINK_DEST_PLACEHOLDER_PREFIX}(\\d+)${LINK_DEST_PLACEHOLDER_SUFFIX}`,
+          "g",
+        ),
+        (match, indexValue: string) => {
+          const parsedIndex = Number(indexValue);
+          return destinations[parsedIndex] ?? match;
+        },
+      ),
+  };
+}
+
+function replaceInlineLatexMathDelimiters(value: string) {
+  return value.replace(
+    INLINE_LATEX_MATH_PATTERN,
+    (match, body: string, offset: number, source: string) => {
       const trimmed = body.trim();
       if (!trimmed) {
         return match;
       }
-      return `$$\n${trimmed}\n$$`;
-    },
-  );
-  const withInlineMath = withBlockMath.replace(
-    /\\\(([\s\S]*?)\\\)/g,
-    (match, body: string) => {
-      const trimmed = body.trim();
-      if (!trimmed) {
+      const before = offset > 0 ? source[offset - 1] : "";
+      const afterIndex = offset + match.length;
+      const after = afterIndex < source.length ? source[afterIndex] : "";
+      if (
+        (before && INLINE_MATH_BOUNDARY_PATTERN.test(before)) ||
+        (after && INLINE_MATH_BOUNDARY_PATTERN.test(after))
+      ) {
         return match;
       }
       return `$${trimmed}$`;
     },
   );
+}
 
-  return withInlineMath.replace(
+function replaceBlockLatexMathDelimiters(value: string) {
+  const lines = value.split(/\r?\n/);
+  const output: string[] = [];
+  let collectingBlock = false;
+  let blockLines: string[] = [];
+
+  for (const line of lines) {
+    if (!collectingBlock) {
+      const singleLineMatch = line.match(BLOCK_LATEX_SINGLE_LINE_PATTERN);
+      if (singleLineMatch) {
+        const body = (singleLineMatch[1] ?? "").trim();
+        if (!body) {
+          output.push(line);
+          continue;
+        }
+        output.push("$$", body, "$$");
+        continue;
+      }
+      if (BLOCK_LATEX_OPEN_PATTERN.test(line)) {
+        collectingBlock = true;
+        blockLines = [];
+        continue;
+      }
+      output.push(line);
+      continue;
+    }
+
+    if (BLOCK_LATEX_CLOSE_PATTERN.test(line)) {
+      const body = blockLines.join("\n").trim();
+      if (body) {
+        output.push("$$", body, "$$");
+      } else {
+        output.push("\\[", "\\]");
+      }
+      collectingBlock = false;
+      blockLines = [];
+      continue;
+    }
+
+    blockLines.push(line);
+  }
+
+  if (collectingBlock) {
+    output.push("\\[", ...blockLines);
+  }
+
+  return output.join("\n");
+}
+
+function normalizeLatexMathDelimitersInChunk(value: string) {
+  const inlineCodeSpans: string[] = [];
+  const withMaskedInlineCode = value.replace(INLINE_CODE_PATTERN, (match) => {
+    const placeholderIndex = inlineCodeSpans.length;
+    inlineCodeSpans.push(match);
+    return `${INLINE_CODE_PLACEHOLDER_PREFIX}${placeholderIndex}${INLINE_CODE_PLACEHOLDER_SUFFIX}`;
+  });
+  const { masked, restore } = maskMarkdownLinkDestinations(withMaskedInlineCode);
+  const withBlockMath = replaceBlockLatexMathDelimiters(masked);
+  const withInlineMath = replaceInlineLatexMathDelimiters(withBlockMath);
+  const withRestoredLinks = restore(withInlineMath);
+  return withRestoredLinks.replace(
     new RegExp(
       `${INLINE_CODE_PLACEHOLDER_PREFIX}(\\d+)${INLINE_CODE_PLACEHOLDER_SUFFIX}`,
       "g",
     ),
-    (_match, indexString: string) => {
-      const index = Number(indexString);
-      return inlineCodeSpans[index] ?? _match;
+    (match, indexValue: string) => {
+      const parsedIndex = Number(indexValue);
+      return inlineCodeSpans[parsedIndex] ?? match;
     },
   );
 }
@@ -406,6 +571,7 @@ function normalizeLatexMathDelimiters(value: string) {
       output.push(line);
       continue;
     }
+
     nonFenceChunk.push(line);
   }
 

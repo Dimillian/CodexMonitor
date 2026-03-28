@@ -639,4 +639,19 @@ describe("Markdown file-like href behavior", () => {
     expect(container.textContent).toContain("\\[x+y\\]");
   });
 
+  it("does not rewrite escaped latex delimiters in link destinations", () => {
+    render(
+      <Markdown
+        value="[wiki](https://en.wikipedia.org/wiki/Function_\\(mathematics\\))"
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    const link = screen.getByText("wiki").closest("a");
+    expect(link?.getAttribute("href")).toBe(
+      "https://en.wikipedia.org/wiki/Function_%5C(mathematics%5C)",
+    );
+  });
+
 });
