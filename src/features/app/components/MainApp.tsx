@@ -1580,6 +1580,7 @@ export default function MainApp() {
       composerCodeBlockCopyUseModifier:
         appSettings.composerCodeBlockCopyUseModifier,
       showMessageFilePath: appSettings.showMessageFilePath,
+      mathRenderingEnabled: appSettings.mathRenderingEnabled,
       openAppTargets: appSettings.openAppTargets,
       selectedOpenAppId: appSettings.selectedOpenAppId,
       experimentalAppsEnabled: appSettings.experimentalAppsEnabled,

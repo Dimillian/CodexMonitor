@@ -38,6 +38,7 @@ import { Markdown } from "./Markdown";
 import { isStandaloneMarkdownTable } from "./Markdown";
 
 type MarkdownFileLinkProps = {
+  enableMathRendering?: boolean;
   showMessageFilePath?: boolean;
   workspacePath?: string | null;
   onOpenFileLink?: (path: ParsedFileLocation) => void;
@@ -372,6 +373,7 @@ export const MessageRow = memo(function MessageRow({
   onCopy,
   onQuote,
   codeBlockCopyUseModifier,
+  enableMathRendering = false,
   showMessageFilePath,
   workspacePath,
   onOpenFileLink,
@@ -459,6 +461,7 @@ export const MessageRow = memo(function MessageRow({
             className="markdown"
             codeBlockStyle="message"
             codeBlockCopyUseModifier={codeBlockCopyUseModifier}
+            enableMathRendering={enableMathRendering}
             showFilePath={showMessageFilePath}
             workspacePath={workspacePath}
             onOpenFileLink={onOpenFileLink}
@@ -512,6 +515,7 @@ export const ReasoningRow = memo(function ReasoningRow({
   parsed,
   isExpanded,
   onToggle,
+  enableMathRendering = false,
   showMessageFilePath,
   workspacePath,
   onOpenFileLink,
@@ -549,6 +553,7 @@ export const ReasoningRow = memo(function ReasoningRow({
             className={`reasoning-inline-detail markdown ${
               isExpanded ? "" : "tool-inline-clamp"
             }`}
+            enableMathRendering={enableMathRendering}
             showFilePath={showMessageFilePath}
             workspacePath={workspacePath}
             onOpenFileLink={onOpenFileLink}
@@ -563,6 +568,7 @@ export const ReasoningRow = memo(function ReasoningRow({
 
 export const ReviewRow = memo(function ReviewRow({
   item,
+  enableMathRendering = false,
   showMessageFilePath,
   workspacePath,
   onOpenFileLink,
@@ -584,6 +590,7 @@ export const ReviewRow = memo(function ReviewRow({
         <Markdown
           value={item.text}
           className="item-text markdown"
+          enableMathRendering={enableMathRendering}
           showFilePath={showMessageFilePath}
           workspacePath={workspacePath}
           onOpenFileLink={onOpenFileLink}
@@ -687,6 +694,7 @@ export const ToolRow = memo(function ToolRow({
   item,
   isExpanded,
   onToggle,
+  enableMathRendering = false,
   showMessageFilePath,
   workspacePath,
   onOpenFileLink,
@@ -860,6 +868,7 @@ export const ToolRow = memo(function ToolRow({
           <Markdown
             value={item.detail}
             className="item-text markdown"
+            enableMathRendering={enableMathRendering}
             showFilePath={showMessageFilePath}
             workspacePath={workspacePath}
             onOpenFileLink={onOpenFileLink}
@@ -873,6 +882,7 @@ export const ToolRow = memo(function ToolRow({
             value={summary.output}
             className="tool-inline-output markdown"
             codeBlock={item.toolType !== "plan"}
+            enableMathRendering={enableMathRendering}
             showFilePath={showMessageFilePath}
             workspacePath={workspacePath}
             onOpenFileLink={onOpenFileLink}

@@ -557,4 +557,258 @@ describe("Markdown file-like href behavior", () => {
     expect(screen.getByText("Ready")).toBeTruthy();
   });
 
+  it("renders inline dollar math when enabled", () => {
+    const { container } = render(
+      <Markdown
+        value="Euler identity: $e^{i\\pi}+1=0$"
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelector(".katex")).toBeTruthy();
+    expect(container.textContent).toContain("Euler identity");
+  });
+
+  it("renders block math when enabled", () => {
+    const { container } = render(
+      <Markdown
+        value={["$$", "\\nabla \\cdot \\mathbf{E} = \\frac{\\rho}{\\varepsilon_0}", "$$"].join(
+          "\n",
+        )}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelector(".katex-display")).toBeTruthy();
+  });
+
+  it("supports \\(inline\\) and \\[block\\] LaTeX delimiters when enabled", () => {
+    const { container } = render(
+      <Markdown
+        value={[
+          "Inline: \\(x^2 + y^2\\)",
+          "",
+          "\\[",
+          "\\int_0^1 x^2\\,dx = \\frac{1}{3}",
+          "\\]",
+        ].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelectorAll(".katex").length).toBeGreaterThanOrEqual(2);
+    expect(container.querySelector(".katex-display")).toBeTruthy();
+  });
+
+  it("does not render math inside fenced code blocks", () => {
+    const { container } = render(
+      <Markdown
+        value={["```text", "$e^{i\\pi}+1=0$", "\\(x^2\\)", "```"].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(container.textContent).toContain("$e^{i\\pi}+1=0$");
+    expect(container.textContent).toContain("\\(x^2\\)");
+  });
+
+  it("does not render math inside container-prefixed fenced code blocks", () => {
+    const { container } = render(
+      <Markdown
+        value={[
+          "> ```text",
+          "> \\(x^2\\)",
+          "> \\[x+y\\]",
+          "> ```",
+          "",
+          "Outside: \\(z^2\\)",
+        ].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelectorAll(".katex").length).toBe(1);
+    expect(container.textContent).toContain("\\(x^2\\)");
+    expect(container.textContent).toContain("\\[x+y\\]");
+  });
+
+  it("does not render math inside indented code blocks", () => {
+    const { container } = render(
+      <Markdown
+        value={[
+          "    \\(x^2\\)",
+          "    \\[",
+          "    x+y",
+          "    \\]",
+          "",
+          "Outside: \\(z^2\\)",
+        ].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelectorAll(".katex").length).toBe(1);
+    expect(container.textContent).toContain("\\(x^2\\)");
+    expect(container.textContent).toContain("\\[");
+    expect(container.textContent).toContain("\\]");
+  });
+
+  it("does not rewrite escaped \\(inline\\) delimiters", () => {
+    const { container } = render(
+      <Markdown
+        value={["Literal: \\\\(x\\\\)", "Outside: \\(z^2\\)"].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelectorAll(".katex").length).toBe(1);
+    expect(container.textContent).toContain("\\(x\\)");
+  });
+
+  it("renders \\(inline\\) math when adjacent to percent and slash punctuation", () => {
+    const { container } = render(
+      <Markdown
+        value={[
+          "Success: \\(p\\)%",
+          "Ratio: \\(a\\)/\\(b\\)",
+        ].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelectorAll(".katex").length).toBe(3);
+    expect(container.textContent).toContain("Success:");
+    expect(container.textContent).toContain("Ratio:");
+  });
+
+  it("does not render math inside blockquote-indented code blocks", () => {
+    const { container } = render(
+      <Markdown
+        value={[
+          ">     \\(x^2\\)",
+          ">     \\[x+y\\]",
+          "",
+          "Outside: \\(z^2\\)",
+        ].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelectorAll(".katex").length).toBe(1);
+    expect(container.textContent).toContain("\\(x^2\\)");
+    expect(container.textContent).toContain("\\[x+y\\]");
+  });
+
+  it("keeps math-like delimiters literal inside long fences with nested shorter fences", () => {
+    const { container } = render(
+      <Markdown
+        value={[
+          "````text",
+          "inner fence marker:",
+          "```",
+          "\\(x^2\\)",
+          "\\[x+y\\]",
+          "````",
+          "Outside: \\(z^2\\)",
+        ].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelector(".katex")).toBeTruthy();
+    expect(container.textContent).toContain("\\(x^2\\)");
+    expect(container.textContent).toContain("\\[x+y\\]");
+  });
+
+  it("preserves nested list and blockquote structure for \\\\[...\\\\] block delimiters", () => {
+    const { container } = render(
+      <Markdown
+        value={[
+          "- List item with block math:",
+          "  \\[",
+          "  x^2 + y^2 = r^2",
+          "  \\]",
+          "",
+          "> \\[",
+          "> E = mc^2",
+          "> \\]",
+        ].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelector("li .katex-display")).toBeTruthy();
+    expect(container.querySelector("blockquote .katex-display")).toBeTruthy();
+  });
+
+  it("does not rewrite escaped latex delimiters in link destinations", () => {
+    render(
+      <Markdown
+        value="[wiki](https://en.wikipedia.org/wiki/Function_\\(mathematics\\))"
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    const link = screen.getByText("wiki").closest("a");
+    expect(link?.getAttribute("href")).toBe(
+      "https://en.wikipedia.org/wiki/Function_%5C(mathematics%5C)",
+    );
+  });
+
+  it("does not rewrite escaped latex delimiters in plain URL literals and references", () => {
+    const { container } = render(
+      <Markdown
+        value={[
+          "https://example.com/\\(foo\\)",
+          "[ref]: https://example.com/\\(bar\\)",
+        ].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    const plainUrlLink = screen.getByText("https://example.com/\\(foo\\)").closest("a");
+    expect(plainUrlLink?.getAttribute("href")).toBe("https://example.com/%5C(foo%5C)");
+    const referenceUrlLink = screen.getByText("https://example.com/\\(bar\\)").closest("a");
+    expect(referenceUrlLink?.getAttribute("href")).toBe("https://example.com/%5C(bar%5C)");
+    expect(container.textContent).toContain("[ref]:");
+  });
+
+  it("matches blockquote block-math closer when quote spacing differs", () => {
+    const { container } = render(
+      <Markdown
+        value={["> \\[", "> E = mc^2", ">\\]"].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelector("blockquote .katex-display")).toBeTruthy();
+  });
+
+  it("matches blockquote block-math closer when quote indentation differs", () => {
+    const { container } = render(
+      <Markdown
+        value={[" > \\[", "> E = mc^2", ">\\]"].join("\n")}
+        className="markdown"
+        enableMathRendering
+      />,
+    );
+
+    expect(container.querySelector("blockquote .katex-display")).toBeTruthy();
+  });
+
 });

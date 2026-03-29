@@ -250,6 +250,20 @@ export function SettingsDisplaySection({
         Control how much conversation history is retained per thread.
       </div>
       <SettingsToggleRow
+        title="Enable math rendering"
+        subtitle="Render LaTeX-style formulas in chat messages (inline and block)."
+      >
+        <SettingsToggleSwitch
+          pressed={appSettings.mathRenderingEnabled}
+          onClick={() =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              mathRenderingEnabled: !appSettings.mathRenderingEnabled,
+            })
+          }
+        />
+      </SettingsToggleRow>
+      <SettingsToggleRow
         title="Unlimited chat history"
         subtitle="Keep full thread history in memory (may impact performance)."
       >

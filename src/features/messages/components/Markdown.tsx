@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode, type MouseEvent } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
+import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   describeFileTarget,
@@ -12,6 +14,7 @@ import {
   resolveMessageFileHref,
   toFileLink,
 } from "../utils/messageFileLinks";
+import { normalizeBackslashMathDelimiters } from "../utils/backslashMathScanner";
 import type { ParsedFileLocation } from "../../../utils/fileLinks";
 
 type MarkdownProps = {
@@ -20,6 +23,7 @@ type MarkdownProps = {
   codeBlock?: boolean;
   codeBlockStyle?: "default" | "message";
   codeBlockCopyUseModifier?: boolean;
+  enableMathRendering?: boolean;
   showFilePath?: boolean;
   workspacePath?: string | null;
   onOpenFileLink?: (path: ParsedFileLocation) => void;
@@ -434,15 +438,20 @@ export function Markdown({
   codeBlock,
   codeBlockStyle = "default",
   codeBlockCopyUseModifier = false,
+  enableMathRendering = false,
   showFilePath = true,
   workspacePath = null,
   onOpenFileLink,
   onOpenFileLinkMenu,
   onOpenThreadLink,
 }: MarkdownProps) {
+  const markdownValue = codeBlock ? value : normalizeListIndentation(value);
+  const mathNormalizedValue = !codeBlock && enableMathRendering
+    ? normalizeBackslashMathDelimiters(markdownValue)
+    : markdownValue;
   const normalizedValue = codeBlock
-    ? value
-    : normalizeStructuredReviewTables(normalizeListIndentation(value));
+    ? mathNormalizedValue
+    : normalizeStructuredReviewTables(mathNormalizedValue);
   const content = codeBlock
     ? `\`\`\`\n${normalizedValue}\n\`\`\``
     : normalizedValue;
@@ -611,7 +620,12 @@ export function Markdown({
   return (
     <div className={className}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkFileLinks]}
+        remarkPlugins={
+          enableMathRendering
+            ? [remarkGfm, remarkMath, remarkFileLinks]
+            : [remarkGfm, remarkFileLinks]
+        }
+        rehypePlugins={enableMathRendering ? [rehypeKatex] : undefined}
         urlTransform={(url) => {
           const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(url);
           // Keep file-like hrefs intact before scheme sanitization runs, otherwise

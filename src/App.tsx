@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import "katex/dist/katex.min.css";
 import "./styles/base.css";
 import "./styles/ds-tokens.css";
 import "./styles/ds-modal.css";

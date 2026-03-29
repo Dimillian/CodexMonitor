@@ -111,6 +111,7 @@ const baseSettings: AppSettings = {
   theme: "system",
   usageShowRemaining: false,
   showMessageFilePath: true,
+  mathRenderingEnabled: false,
   chatHistoryScrollbackItems: 200,
   threadTitleAutogenerationEnabled: false,
   automaticAppUpdateChecksEnabled: true,
