@@ -14,6 +14,7 @@ const MARKDOWN_FENCE_CLOSER_PATTERN = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
 const BLOCK_LATEX_SINGLE_LINE_PATTERN = /^\\\[\s*(.*?)\s*\\\]\s*$/;
 const BLOCK_LATEX_OPEN_PATTERN = /^\\\[\s*$/;
 const BLOCK_LATEX_CLOSE_PATTERN = /^\\\]\s*$/;
+const LIST_MARKER_PREFIX_PATTERN = /(?:[*+-]|\d+[.)])[ \t]+/g;
 const INLINE_CODE_PLACEHOLDER_PREFIX = "\u0000CODEXBACKSLASHINLINE";
 const INLINE_CODE_PLACEHOLDER_SUFFIX = "\u0000";
 const LINK_DEST_PLACEHOLDER_PREFIX = "\u0000CODEXBACKSLASHLINK";
@@ -381,9 +382,12 @@ function convertBackslashBlockDelimiters(value: string) {
   const output: string[] = [];
   let collectingBlock = false;
   let blockLines: string[] = [];
-  let activePrefix = "";
+  let activeFencePrefix = "";
   let activeQuoteDepth = 0;
   let activeOpenLine = "";
+
+  const toFencePrefix = (prefix: string) =>
+    prefix.replace(LIST_MARKER_PREFIX_PATTERN, (marker) => " ".repeat(marker.length));
 
   for (const line of lines) {
     const { prefix, content, quoteDepth } = parseLinePrefix(line);
@@ -396,14 +400,15 @@ function convertBackslashBlockDelimiters(value: string) {
           output.push(line);
           continue;
         }
-        output.push(`${prefix}$$`, `${prefix}${body}`, `${prefix}$$`);
+        const fencePrefix = toFencePrefix(prefix);
+        output.push(`${fencePrefix}$$`, `${fencePrefix}${body}`, `${fencePrefix}$$`);
         continue;
       }
 
       if (BLOCK_LATEX_OPEN_PATTERN.test(content)) {
         collectingBlock = true;
         blockLines = [];
-        activePrefix = prefix;
+        activeFencePrefix = toFencePrefix(prefix);
         activeQuoteDepth = quoteDepth;
         activeOpenLine = line;
         continue;
@@ -415,13 +420,13 @@ function convertBackslashBlockDelimiters(value: string) {
 
     if (BLOCK_LATEX_CLOSE_PATTERN.test(content) && quoteDepth === activeQuoteDepth) {
       if (blockLines.some((bodyLine) => bodyLine.trim().length > 0)) {
-        output.push(`${activePrefix}$$`, ...blockLines, `${activePrefix}$$`);
+        output.push(`${activeFencePrefix}$$`, ...blockLines, `${activeFencePrefix}$$`);
       } else {
         output.push(activeOpenLine, ...blockLines, line);
       }
       collectingBlock = false;
       blockLines = [];
-      activePrefix = "";
+      activeFencePrefix = "";
       activeQuoteDepth = 0;
       activeOpenLine = "";
       continue;

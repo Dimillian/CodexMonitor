@@ -118,13 +118,29 @@ describe("normalizeBackslashMathDelimiters", () => {
     const normalized = normalizeBackslashMathDelimiters(input);
 
     expect(normalized).toBe([
-      "- $$",
+      "  $$",
       "  x+y",
-      "- $$",
+      "  $$",
       "",
       "> $$",
       "> z+w",
       "> $$",
+    ].join("\n"));
+  });
+
+  it("emits list-content fences (not list-marker fences) for ordered items", () => {
+    const input = [
+      "1. \\[",
+      "   E = mc^2",
+      "   \\]",
+    ].join("\n");
+
+    const normalized = normalizeBackslashMathDelimiters(input);
+
+    expect(normalized).toBe([
+      "   $$",
+      "   E = mc^2",
+      "   $$",
     ].join("\n"));
   });
 
