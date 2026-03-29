@@ -382,33 +382,41 @@ function convertBackslashBlockDelimiters(value: string) {
   const output: string[] = [];
   let collectingBlock = false;
   let blockLines: string[] = [];
-  let activeFencePrefix = "";
+  let activeStartFencePrefix = "";
+  let activeContinuationFencePrefix = "";
   let activeQuoteDepth = 0;
   let activeOpenLine = "";
 
-  const toFencePrefix = (prefix: string) =>
+  const toContinuationFencePrefix = (prefix: string) =>
     prefix.replace(LIST_MARKER_PREFIX_PATTERN, (marker) => " ".repeat(marker.length));
 
   for (const line of lines) {
     const { prefix, content, quoteDepth } = parseLinePrefix(line);
+    const normalizedContent = content.trimStart();
 
     if (!collectingBlock) {
-      const singleLineMatch = content.match(BLOCK_LATEX_SINGLE_LINE_PATTERN);
+      const singleLineMatch = normalizedContent.match(BLOCK_LATEX_SINGLE_LINE_PATTERN);
       if (singleLineMatch) {
         const body = (singleLineMatch[1] ?? "").trim();
         if (!body) {
           output.push(line);
           continue;
         }
-        const fencePrefix = toFencePrefix(prefix);
-        output.push(`${fencePrefix}$$`, `${fencePrefix}${body}`, `${fencePrefix}$$`);
+        const startFencePrefix = prefix;
+        const continuationFencePrefix = toContinuationFencePrefix(prefix);
+        output.push(
+          `${startFencePrefix}$$`,
+          `${continuationFencePrefix}${body}`,
+          `${continuationFencePrefix}$$`,
+        );
         continue;
       }
 
-      if (BLOCK_LATEX_OPEN_PATTERN.test(content)) {
+      if (BLOCK_LATEX_OPEN_PATTERN.test(normalizedContent)) {
         collectingBlock = true;
         blockLines = [];
-        activeFencePrefix = toFencePrefix(prefix);
+        activeStartFencePrefix = prefix;
+        activeContinuationFencePrefix = toContinuationFencePrefix(prefix);
         activeQuoteDepth = quoteDepth;
         activeOpenLine = line;
         continue;
@@ -418,15 +426,20 @@ function convertBackslashBlockDelimiters(value: string) {
       continue;
     }
 
-    if (BLOCK_LATEX_CLOSE_PATTERN.test(content) && quoteDepth === activeQuoteDepth) {
+    if (BLOCK_LATEX_CLOSE_PATTERN.test(normalizedContent) && quoteDepth === activeQuoteDepth) {
       if (blockLines.some((bodyLine) => bodyLine.trim().length > 0)) {
-        output.push(`${activeFencePrefix}$$`, ...blockLines, `${activeFencePrefix}$$`);
+        output.push(
+          `${activeStartFencePrefix}$$`,
+          ...blockLines,
+          `${activeContinuationFencePrefix}$$`,
+        );
       } else {
         output.push(activeOpenLine, ...blockLines, line);
       }
       collectingBlock = false;
       blockLines = [];
-      activeFencePrefix = "";
+      activeStartFencePrefix = "";
+      activeContinuationFencePrefix = "";
       activeQuoteDepth = 0;
       activeOpenLine = "";
       continue;

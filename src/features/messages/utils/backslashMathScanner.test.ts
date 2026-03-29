@@ -104,7 +104,7 @@ describe("normalizeBackslashMathDelimiters", () => {
     expect(normalized).toBe("f$x$ + $n$th + a$x$b");
   });
 
-  it("preserves list and blockquote prefixes when converting block delimiters", () => {
+  it("keeps list-marker prefix on opening fence and continuation prefix on closing fence", () => {
     const input = [
       "- \\[",
       "  x+y",
@@ -118,7 +118,7 @@ describe("normalizeBackslashMathDelimiters", () => {
     const normalized = normalizeBackslashMathDelimiters(input);
 
     expect(normalized).toBe([
-      "  $$",
+      "- $$",
       "  x+y",
       "  $$",
       "",
@@ -128,7 +128,7 @@ describe("normalizeBackslashMathDelimiters", () => {
     ].join("\n"));
   });
 
-  it("emits list-content fences (not list-marker fences) for ordered items", () => {
+  it("keeps ordered-list marker on opening fence and continuation indentation on closing fence", () => {
     const input = [
       "1. \\[",
       "   E = mc^2",
@@ -138,9 +138,25 @@ describe("normalizeBackslashMathDelimiters", () => {
     const normalized = normalizeBackslashMathDelimiters(input);
 
     expect(normalized).toBe([
-      "   $$",
+      "1. $$",
       "   E = mc^2",
       "   $$",
+    ].join("\n"));
+  });
+
+  it("keeps quote+list marker on opening fence and continuation prefix on closing fence", () => {
+    const input = [
+      "> - \\[",
+      ">   x+y",
+      ">   \\]",
+    ].join("\n");
+
+    const normalized = normalizeBackslashMathDelimiters(input);
+
+    expect(normalized).toBe([
+      "> - $$",
+      ">   x+y",
+      ">   $$",
     ].join("\n"));
   });
 
@@ -159,6 +175,20 @@ describe("normalizeBackslashMathDelimiters", () => {
     expect(once).toContain("\\[");
     expect(once).toContain("Balanced $z$");
     expect(twice).toBe(once);
+  });
+
+  it("keeps escaped block delimiters literal while converting real block delimiters", () => {
+    const input = [
+      String.raw`Escaped: \\[ literal \\]`,
+      String.raw`\[`,
+      "E=mc^2",
+      String.raw`\]`,
+    ].join("\n");
+
+    const normalized = normalizeBackslashMathDelimiters(input);
+
+    expect(normalized).toContain(String.raw`Escaped: \\[ literal \\]`);
+    expect(normalized).toContain(["$$", "E=mc^2", "$$"].join("\n"));
   });
 });
 
