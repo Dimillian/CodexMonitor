@@ -312,6 +312,11 @@ fn build_display_segments(parsed_lines: &[ParsedDisplayLine]) -> Vec<ParsedDispl
     for (index, line) in parsed_lines.iter().cloned().enumerate() {
         match line.line_type {
             ParsedDisplayLineType::Add | ParsedDisplayLineType::Del => current.push((index, line)),
+            ParsedDisplayLineType::Meta => {
+                if !current.is_empty() {
+                    current.push((index, line));
+                }
+            }
             _ => {
                 if !current.is_empty() {
                     segments.push(ParsedDisplaySegment { lines: current });
@@ -767,6 +772,35 @@ mod display_hunk_tests {
         assert_eq!(display_hunks[1].id, "unstaged:4:1:4:1");
         assert_eq!(display_hunks[1].start_display_line_index, 3);
         assert_eq!(display_hunks[1].end_display_line_index, 4);
+    }
+
+    #[test]
+    fn build_display_hunks_keeps_eof_no_newline_markers_in_one_segment() {
+        let diff = concat!(
+            "@@ -1 +1 @@\n",
+            "-before\n",
+            "\\ No newline at end of file\n",
+            "+after\n",
+            "\\ No newline at end of file\n"
+        );
+        let unstaged_diff = concat!(
+            "diff --git a/example.txt b/example.txt\n",
+            "index 1111111..2222222 100644\n",
+            "--- a/example.txt\n",
+            "+++ b/example.txt\n",
+            "@@ -1,1 +1,1 @@\n",
+            "-before\n",
+            "\\ No newline at end of file\n",
+            "+after\n",
+            "\\ No newline at end of file\n"
+        );
+
+        let display_hunks = build_display_hunks(diff, None, Some(unstaged_diff));
+
+        assert_eq!(display_hunks.len(), 1);
+        assert_eq!(display_hunks[0].id, "unstaged:1:1:1:1");
+        assert_eq!(display_hunks[0].start_display_line_index, 1);
+        assert_eq!(display_hunks[0].end_display_line_index, 3);
     }
 }
 

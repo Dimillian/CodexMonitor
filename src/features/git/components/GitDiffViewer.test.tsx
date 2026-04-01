@@ -48,7 +48,7 @@ vi.mock("@pierre/diffs/react", () => ({
         | undefined,
     ) => ReactNode;
   }) => (
-    <div>
+    <div data-testid="mock-file-diff">
       {renderHoverUtility
         ? renderHoverUtility(() => ({ lineNumber: 2, side: "additions" }))
         : null}
@@ -147,6 +147,60 @@ describe("GitDiffViewer", () => {
     const rawLines = Array.from(document.querySelectorAll(".diff-viewer-raw-line"));
     expect(rawLines[1]?.className).toContain("diff-viewer-raw-line-add");
     expect(rawLines[2]?.className).toContain("diff-viewer-raw-line-del");
+  });
+
+  it("keeps the placeholder fallback for local entries without parsed diff text", () => {
+    render(
+      <GitDiffViewer
+        diffs={[
+          {
+            path: "src/main.ts",
+            status: "M",
+            diff: "",
+            unstagedDiff: "@@ -1,0 +1,1 @@\n+new line",
+            displayHunks: [
+              displayHunk("unstaged:1:0:1:1", "unstaged", "stage", 0, 0, 1),
+            ],
+          },
+        ]}
+        selectedPath="src/main.ts"
+        isLoading={false}
+        error={null}
+        diffSource="local"
+        unstagedPaths={["src/main.ts"]}
+        onApplyDisplayHunk={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Diff unavailable.")).toBeTruthy();
+    expect(document.querySelector(".diff-viewer-line-action-hint")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Stage" })).toBeNull();
+  });
+
+  it("does not replace fallback rendering with local line actions for empty local diffs on non-text paths", () => {
+    render(
+      <GitDiffViewer
+        diffs={[
+          {
+            path: "assets/archive.bin",
+            status: "M",
+            diff: "",
+            unstagedDiff: null,
+            displayHunks: [],
+          },
+        ]}
+        selectedPath="assets/archive.bin"
+        isLoading={false}
+        error={null}
+        diffSource="local"
+        unstagedPaths={["assets/archive.bin"]}
+        onApplyDisplayHunk={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Diff unavailable.")).toBeTruthy();
+    expect(document.querySelector(".diff-viewer-line-action-hint")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Stage" })).toBeNull();
   });
 
   it("applies a backend-authored unstaged display hunk in unified view", async () => {

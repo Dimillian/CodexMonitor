@@ -185,8 +185,13 @@ export const DiffCard = memo(function DiffCard({
     [parsedLines],
   );
   const useInteractiveDiff = interactiveSelectionEnabled && hasSelectableLines;
+  const hasRenderableParsedDiff =
+    entry.diff.trim().length > 0 && parsedLines.length > 0;
   const showLocalLineActions = Boolean(
-    !useInteractiveDiff && localLineActionContext && onLocalChunkAction,
+    !useInteractiveDiff &&
+      hasRenderableParsedDiff &&
+      localLineActionContext &&
+      onLocalChunkAction,
   );
   const composerLineActionEnabled = Boolean(
     !useInteractiveDiff &&
