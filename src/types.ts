@@ -432,9 +432,34 @@ export type GitFileStatus = {
   deletions: number;
 };
 
+export type GitSelectionLine = {
+  type: "add" | "del";
+  oldLine: number | null;
+  newLine: number | null;
+  text: string;
+};
+
+export type GitSelectionApplyResult = {
+  applied: boolean;
+  appliedLineCount: number;
+  warning?: string | null;
+};
+
+export type GitFileDisplayHunk = {
+  id: string;
+  source: "staged" | "unstaged";
+  action: "stage" | "unstage";
+  startDisplayLineIndex: number;
+  endDisplayLineIndex: number;
+  lineCount: number;
+};
+
 export type GitFileDiff = {
   path: string;
   diff: string;
+  stagedDiff?: string | null;
+  unstagedDiff?: string | null;
+  displayHunks?: GitFileDisplayHunk[];
   oldLines?: string[];
   newLines?: string[];
   isBinary?: boolean;

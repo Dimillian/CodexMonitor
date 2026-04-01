@@ -1,16 +1,22 @@
 import type {
+  GitFileDisplayHunk,
+  GitSelectionApplyResult,
   GitHubPullRequest,
   GitHubPullRequestComment,
   PullRequestReviewAction,
   PullRequestReviewIntent,
   PullRequestSelectionRange,
 } from "../../../types";
+import type { GitDiffSource } from "../types";
 
 export type GitDiffViewerItem = {
   path: string;
   displayPath?: string;
   status: string;
   diff: string;
+  stagedDiff?: string | null;
+  unstagedDiff?: string | null;
+  displayHunks?: GitFileDisplayHunk[];
   oldLines?: string[];
   newLines?: string[];
   isImage?: boolean;
@@ -18,6 +24,17 @@ export type GitDiffViewerItem = {
   newImageData?: string | null;
   oldImageMime?: string | null;
   newImageMime?: string | null;
+};
+
+export type LocalLineAction = Pick<GitFileDisplayHunk, "id" | "source" | "action"> & {
+  label: "Stage" | "Unstage";
+  title: string;
+  disabledReason?: string;
+};
+
+export type LocalLineActionContext = {
+  displayHunks: GitFileDisplayHunk[];
+  disabledReason?: string;
 };
 
 export type DiffStats = {
@@ -31,6 +48,7 @@ export type GitDiffViewerProps = {
   scrollRequestId?: number;
   isLoading: boolean;
   error: string | null;
+  diffSource?: GitDiffSource;
   diffStyle?: "split" | "unified";
   ignoreWhitespaceChanges?: boolean;
   pullRequest?: GitHubPullRequest | null;
@@ -51,6 +69,12 @@ export type GitDiffViewerProps = {
   ) => Promise<void> | void;
   canRevert?: boolean;
   onRevertFile?: (path: string) => Promise<void> | void;
+  stagedPaths?: string[];
+  unstagedPaths?: string[];
+  onApplyDisplayHunk?: (options: {
+    path: string;
+    displayHunkId: string;
+  }) => Promise<GitSelectionApplyResult | null>;
   onActivePathChange?: (path: string) => void;
   onInsertComposerText?: (text: string) => void;
 };

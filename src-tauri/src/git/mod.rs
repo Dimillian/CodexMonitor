@@ -1,6 +1,6 @@
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{json, Value};
 use tauri::{AppHandle, State};
 
 use crate::remote_backend;
@@ -8,7 +8,8 @@ use crate::shared::{git_rpc, git_ui_core};
 use crate::state::AppState;
 use crate::types::{
     GitCommitDiff, GitFileDiff, GitHubIssuesResponse, GitHubPullRequestComment,
-    GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse,
+    GitHubPullRequestDiff, GitHubPullRequestsResponse, GitLogResponse, GitSelectionApplyResult,
+    GitSelectionLine,
 };
 
 fn git_remote_params<T: Serialize>(request: &T) -> Result<Value, String> {
@@ -185,6 +186,63 @@ pub(crate) async fn stage_git_all(
         git_remote_params(&request)?
     );
     git_ui_core::stage_git_all_core(&state.workspaces, workspace_id).await
+}
+
+#[tauri::command]
+pub(crate) async fn stage_git_selection(
+    workspace_id: String,
+    path: String,
+    op: String,
+    source: String,
+    lines: Vec<GitSelectionLine>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<GitSelectionApplyResult, String> {
+    try_remote_typed!(
+        state,
+        app,
+        "stage_git_selection",
+        json!({
+            "workspaceId": &workspace_id,
+            "path": &path,
+            "op": &op,
+            "source": &source,
+            "lines": &lines
+        }),
+        GitSelectionApplyResult
+    );
+    git_ui_core::stage_git_selection_core(&state.workspaces, workspace_id, path, op, source, lines)
+        .await
+}
+
+#[tauri::command]
+pub(crate) async fn apply_git_display_hunk(
+    workspace_id: String,
+    path: String,
+    display_hunk_id: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<GitSelectionApplyResult, String> {
+    let request = git_rpc::GitDisplayHunkActionRequest {
+        workspace_id: workspace_id.clone(),
+        path: path.clone(),
+        display_hunk_id: display_hunk_id.clone(),
+    };
+    try_remote_typed!(
+        state,
+        app,
+        git_rpc::METHOD_APPLY_GIT_DISPLAY_HUNK,
+        git_remote_params(&request)?,
+        GitSelectionApplyResult
+    );
+    git_ui_core::apply_git_display_hunk_core(
+        &state.workspaces,
+        &state.app_settings,
+        workspace_id,
+        path,
+        display_hunk_id,
+    )
+    .await
 }
 
 #[tauri::command]

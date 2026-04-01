@@ -240,6 +240,8 @@ pub fn run() {
             git::get_git_remote,
             git::stage_git_file,
             git::stage_git_all,
+            git::stage_git_selection,
+            git::apply_git_display_hunk,
             git::unstage_git_file,
             git::revert_git_file,
             git::revert_git_all,

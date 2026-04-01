@@ -9,9 +9,47 @@ pub(crate) struct GitFileStatus {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GitSelectionLine {
+    #[serde(rename = "type")]
+    pub(crate) line_type: String,
+    #[serde(default, rename = "oldLine")]
+    pub(crate) old_line: Option<usize>,
+    #[serde(default, rename = "newLine")]
+    pub(crate) new_line: Option<usize>,
+    pub(crate) text: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GitSelectionApplyResult {
+    pub(crate) applied: bool,
+    pub(crate) applied_line_count: usize,
+    #[serde(default)]
+    pub(crate) warning: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GitFileDisplayHunk {
+    pub(crate) id: String,
+    pub(crate) source: String,
+    pub(crate) action: String,
+    pub(crate) start_display_line_index: usize,
+    pub(crate) end_display_line_index: usize,
+    pub(crate) line_count: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct GitFileDiff {
     pub(crate) path: String,
     pub(crate) diff: String,
+    #[serde(default, rename = "stagedDiff")]
+    pub(crate) staged_diff: Option<String>,
+    #[serde(default, rename = "unstagedDiff")]
+    pub(crate) unstaged_diff: Option<String>,
+    #[serde(default, rename = "displayHunks")]
+    pub(crate) display_hunks: Vec<GitFileDisplayHunk>,
     #[serde(default, rename = "oldLines")]
     pub(crate) old_lines: Option<Vec<String>>,
     #[serde(default, rename = "newLines")]

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ask } from "@tauri-apps/plugin-dialog";
 import {
+  applyGitDisplayHunk as applyGitDisplayHunkService,
   applyWorktreeChanges as applyWorktreeChangesService,
   createGitHubRepo as createGitHubRepoService,
   initGitRepo as initGitRepoService,
@@ -8,9 +9,14 @@ import {
   revertGitFile as revertGitFileService,
   stageGitAll as stageGitAllService,
   stageGitFile as stageGitFileService,
+  stageGitSelection as stageGitSelectionService,
   unstageGitFile as unstageGitFileService,
 } from "../../../services/tauri";
-import type { WorkspaceInfo } from "../../../types";
+import type {
+  GitSelectionApplyResult,
+  GitSelectionLine,
+  WorkspaceInfo,
+} from "../../../types";
 
 type UseGitActionsOptions = {
   activeWorkspace: WorkspaceInfo | null;
@@ -55,9 +61,11 @@ export function useGitActions({
     }
   }, [workspaceId]);
 
-  const refreshGitData = useCallback(() => {
-    onRefreshGitStatus();
-    onRefreshGitDiffs();
+  const refreshGitData = useCallback(async () => {
+    await Promise.allSettled([
+      Promise.resolve(onRefreshGitStatus()),
+      Promise.resolve(onRefreshGitDiffs()),
+    ]);
   }, [onRefreshGitDiffs, onRefreshGitStatus]);
 
   const stageGitFile = useCallback(
@@ -72,7 +80,7 @@ export function useGitActions({
         onError?.(error);
       } finally {
         if (workspaceIdRef.current === actionWorkspaceId) {
-          refreshGitData();
+          await refreshGitData();
         }
       }
     },
@@ -90,10 +98,68 @@ export function useGitActions({
       onError?.(error);
     } finally {
       if (workspaceIdRef.current === actionWorkspaceId) {
-        refreshGitData();
+        await refreshGitData();
       }
     }
   }, [onError, refreshGitData, workspaceId]);
+
+  const stageGitSelection = useCallback(
+    async (options: {
+      path: string;
+      op: "stage" | "unstage";
+      source: "unstaged" | "staged";
+      lines: GitSelectionLine[];
+    }): Promise<GitSelectionApplyResult | null> => {
+      if (!workspaceId) {
+        return null;
+      }
+      const actionWorkspaceId = workspaceId;
+      try {
+        return await stageGitSelectionService(
+          actionWorkspaceId,
+          options.path,
+          options.op,
+          options.source,
+          options.lines,
+        );
+      } catch (error) {
+        onError?.(error);
+        return null;
+      } finally {
+        if (workspaceIdRef.current === actionWorkspaceId) {
+          await refreshGitData();
+        }
+      }
+    },
+    [onError, refreshGitData, workspaceId],
+  );
+
+  const applyGitDisplayHunk = useCallback(
+    async (options: {
+      path: string;
+      displayHunkId: string;
+    }): Promise<GitSelectionApplyResult | null> => {
+      if (!workspaceId) {
+        return null;
+      }
+      const actionWorkspaceId = workspaceId;
+      try {
+        return await applyGitDisplayHunkService(
+          actionWorkspaceId,
+          options.path,
+          options.displayHunkId,
+        );
+      } catch (error) {
+        onError?.(error);
+        return null;
+      } finally {
+        if (workspaceIdRef.current === actionWorkspaceId) {
+          await refreshGitData();
+        }
+      }
+    },
+    [onError, refreshGitData, workspaceId],
+  );
 
   const unstageGitFile = useCallback(
     async (path: string) => {
@@ -107,7 +173,7 @@ export function useGitActions({
         onError?.(error);
       } finally {
         if (workspaceIdRef.current === actionWorkspaceId) {
-          refreshGitData();
+          await refreshGitData();
         }
       }
     },
@@ -126,7 +192,7 @@ export function useGitActions({
         onError?.(error);
       } finally {
         if (workspaceIdRef.current === actionWorkspaceId) {
-          refreshGitData();
+          await refreshGitData();
         }
       }
     },
@@ -146,7 +212,7 @@ export function useGitActions({
     }
     try {
       await revertGitAll(workspaceId);
-      refreshGitData();
+      await refreshGitData();
     } catch (error) {
       onError?.(error);
     }
@@ -325,8 +391,10 @@ export function useGitActions({
     initGitRepoLoading,
     revertAllGitChanges,
     revertGitFile,
+    applyGitDisplayHunk,
     stageGitAll,
     stageGitFile,
+    stageGitSelection,
     unstageGitFile,
     worktreeApplyError,
     worktreeApplyLoading,

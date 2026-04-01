@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import * as notification from "@tauri-apps/plugin-notification";
 import {
+  applyGitDisplayHunk,
   exportMarkdownFile,
   addWorkspace,
   compactThread,
@@ -25,6 +26,7 @@ import {
   openWorkspaceIn,
   readAgentMd,
   stageGitAll,
+  stageGitSelection,
   respondToServerRequest,
   respondToUserInputRequest,
   sendUserMessage,
@@ -196,6 +198,56 @@ describe("tauri invoke wrappers", () => {
 
     expect(invokeMock).toHaveBeenCalledWith("get_git_status", {
       workspaceId: "ws-1",
+    });
+  });
+
+  it("maps args for stage_git_selection", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      applied: true,
+      appliedLineCount: 1,
+      warning: null,
+    });
+
+    await stageGitSelection("ws-1", "src/main.ts", "stage", "unstaged", [
+      {
+        type: "add",
+        oldLine: null,
+        newLine: 7,
+        text: "const x = 1;",
+      },
+    ]);
+
+    expect(invokeMock).toHaveBeenCalledWith("stage_git_selection", {
+      workspaceId: "ws-1",
+      path: "src/main.ts",
+      op: "stage",
+      source: "unstaged",
+      lines: [
+        {
+          type: "add",
+          oldLine: null,
+          newLine: 7,
+          text: "const x = 1;",
+        },
+      ],
+    });
+  });
+
+  it("maps args for apply_git_display_hunk", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      applied: true,
+      appliedLineCount: 2,
+      warning: null,
+    });
+
+    await applyGitDisplayHunk("ws-1", "src/main.ts", "unstaged:1:0:2:1");
+
+    expect(invokeMock).toHaveBeenCalledWith("apply_git_display_hunk", {
+      workspaceId: "ws-1",
+      path: "src/main.ts",
+      displayHunkId: "unstaged:1:0:2:1",
     });
   });
 

@@ -330,6 +330,7 @@ export function useMainAppGitState({
 
   const {
     applyWorktreeChanges: handleApplyWorktreeChanges,
+    applyGitDisplayHunk: handleApplyGitDisplayHunk,
     createGitHubRepo: handleCreateGitHubRepo,
     createGitHubRepoLoading,
     initGitRepo: handleInitGitRepo,
@@ -338,6 +339,7 @@ export function useMainAppGitState({
     revertGitFile: handleRevertGitFile,
     stageGitAll: handleStageGitAll,
     stageGitFile: handleStageGitFile,
+    stageGitSelection: handleStageGitSelection,
     unstageGitFile: handleUnstageGitFile,
     worktreeApplyError,
     worktreeApplyLoading,
@@ -503,8 +505,10 @@ export function useMainAppGitState({
     initGitRepoLoading,
     handleRevertAllGitChanges,
     handleRevertGitFile,
+    handleApplyGitDisplayHunk,
     handleStageGitAll,
     handleStageGitFile,
+    handleStageGitSelection,
     handleUnstageGitFile,
     worktreeApplyError,
     worktreeApplyLoading,

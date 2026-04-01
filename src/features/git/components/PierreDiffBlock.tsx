@@ -14,6 +14,11 @@ import {
   parseRawDiffLines,
 } from "./GitDiffViewer.utils";
 
+type FileDiffWithSourceLines = FileDiffMetadata & {
+  oldLines?: string[];
+  newLines?: string[];
+};
+
 type PierreDiffBlockProps = {
   diff: string;
   displayPath: string;
@@ -55,7 +60,7 @@ export function PierreDiffBlock({
       prevName: normalizedPrevName,
       oldLines,
       newLines,
-    } satisfies FileDiffMetadata;
+    } as FileDiffWithSourceLines;
   }, [diff, displayPath, oldLines, newLines]);
 
   const parsedLines = useMemo(() => {

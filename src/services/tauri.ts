@@ -26,6 +26,8 @@ import type {
   GitHubPullRequestDiff,
   GitHubPullRequestsResponse,
   GitLogResponse,
+  GitSelectionApplyResult,
+  GitSelectionLine,
   ReviewTarget,
 } from "../types";
 
@@ -640,6 +642,24 @@ export async function stageGitFile(workspaceId: string, path: string) {
 
 export async function stageGitAll(workspaceId: string): Promise<void> {
   return invoke("stage_git_all", { workspaceId });
+}
+
+export async function stageGitSelection(
+  workspaceId: string,
+  path: string,
+  op: "stage" | "unstage",
+  source: "unstaged" | "staged",
+  lines: GitSelectionLine[],
+): Promise<GitSelectionApplyResult> {
+  return invoke("stage_git_selection", { workspaceId, path, op, source, lines });
+}
+
+export async function applyGitDisplayHunk(
+  workspaceId: string,
+  path: string,
+  displayHunkId: string,
+): Promise<GitSelectionApplyResult> {
+  return invoke("apply_git_display_hunk", { workspaceId, path, displayHunkId });
 }
 
 export async function unstageGitFile(workspaceId: string, path: string) {
