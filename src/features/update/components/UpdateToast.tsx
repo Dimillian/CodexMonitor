@@ -1,6 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { useTranslation } from "react-i18next";
 import type { PostUpdateNoticeState, UpdateState } from "../hooks/useUpdater";
 import {
   ToastActions,
@@ -41,23 +42,26 @@ export function UpdateToast({
   postUpdateNotice = null,
   onDismissPostUpdateNotice,
 }: UpdateToastProps) {
+  const { t } = useTranslation();
   if (postUpdateNotice) {
     return (
       <ToastViewport className="update-toasts" role="region" ariaLive="polite">
         <ToastCard className="update-toast" role="status">
           <ToastHeader className="update-toast-header">
-            <ToastTitle className="update-toast-title">What's New</ToastTitle>
+            <ToastTitle className="update-toast-title">
+              {t("settings.about.whatsNew")}
+            </ToastTitle>
             <div className="update-toast-version">v{postUpdateNotice.version}</div>
           </ToastHeader>
           {postUpdateNotice.stage === "loading" ? (
             <ToastBody className="update-toast-body">
-              Updated successfully. Loading release notes...
+              {t("settings.about.postUpdateLoadingNotes")}
             </ToastBody>
           ) : null}
           {postUpdateNotice.stage === "ready" ? (
             <>
               <ToastBody className="update-toast-body">
-                Updated successfully. Here is what is new:
+                {t("settings.about.postUpdateWhatIsNew")}
               </ToastBody>
               <div className="update-toast-notes" role="document">
                 <ReactMarkdown
@@ -90,8 +94,9 @@ export function UpdateToast({
           ) : null}
           {postUpdateNotice.stage === "fallback" ? (
             <ToastBody className="update-toast-body">
-              Updated to v{postUpdateNotice.version}. Release notes could not be
-              loaded.
+              {t("settings.about.postUpdateFallback", {
+                version: postUpdateNotice.version,
+              })}
             </ToastBody>
           ) : null}
           <ToastActions className="update-toast-actions">
@@ -102,14 +107,14 @@ export function UpdateToast({
                   void openUrl(postUpdateNotice.htmlUrl);
                 }}
               >
-                View on GitHub
+                {t("settings.about.viewOnGitHub")}
               </button>
             ) : null}
             <button
               className="secondary"
               onClick={onDismissPostUpdateNotice ?? onDismiss}
             >
-              Dismiss
+              {t("uiText.toasts.dismiss")}
             </button>
           </ToastActions>
         </ToastCard>
@@ -132,25 +137,29 @@ export function UpdateToast({
     <ToastViewport className="update-toasts" role="region" ariaLive="polite">
       <ToastCard className="update-toast" role="status">
         <ToastHeader className="update-toast-header">
-          <ToastTitle className="update-toast-title">Update</ToastTitle>
+          <ToastTitle className="update-toast-title">
+            {t("settings.codex.update")}
+          </ToastTitle>
           {state.version ? (
             <div className="update-toast-version">v{state.version}</div>
           ) : null}
         </ToastHeader>
         {state.stage === "checking" && (
-          <ToastBody className="update-toast-body">Checking for updates...</ToastBody>
+          <ToastBody className="update-toast-body">
+            {t("settings.about.checkingForUpdates")}
+          </ToastBody>
         )}
         {state.stage === "available" && (
           <>
             <ToastBody className="update-toast-body">
-              A new version is available.
+              {t("settings.about.versionAvailableShort")}
             </ToastBody>
             <ToastActions className="update-toast-actions">
               <button className="secondary" onClick={onDismiss}>
-                Later
+                {t("settings.about.later")}
               </button>
               <button className="primary" onClick={onUpdate}>
-                Update
+                {t("settings.codex.update")}
               </button>
             </ToastActions>
           </>
@@ -158,17 +167,17 @@ export function UpdateToast({
         {state.stage === "latest" && (
           <div className="update-toast-inline">
             <ToastBody className="update-toast-body update-toast-body-inline">
-              You’re up to date.
+              {t("settings.about.latestVersion")}
             </ToastBody>
             <button className="secondary" onClick={onDismiss}>
-              Dismiss
+              {t("uiText.toasts.dismiss")}
             </button>
           </div>
         )}
         {state.stage === "downloading" && (
           <>
             <ToastBody className="update-toast-body">
-              Downloading update…
+              {t("settings.about.downloadingUpdate")}
             </ToastBody>
             <div className="update-toast-progress">
               <div className="update-toast-progress-bar">
@@ -180,29 +189,37 @@ export function UpdateToast({
               <div className="update-toast-progress-meta">
                 {totalBytes
                   ? `${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)}`
-                  : `${formatBytes(downloadedBytes)} downloaded`}
+                  : t("settings.about.downloadedBytes", {
+                      value: formatBytes(downloadedBytes),
+                    })}
               </div>
             </div>
           </>
         )}
         {state.stage === "installing" && (
-          <ToastBody className="update-toast-body">Installing update…</ToastBody>
+          <ToastBody className="update-toast-body">
+            {t("settings.about.installingUpdate")}
+          </ToastBody>
         )}
         {state.stage === "restarting" && (
-          <ToastBody className="update-toast-body">Restarting…</ToastBody>
+          <ToastBody className="update-toast-body">
+            {t("settings.about.restarting")}
+          </ToastBody>
         )}
         {state.stage === "error" && (
           <>
-            <ToastBody className="update-toast-body">Update failed.</ToastBody>
+            <ToastBody className="update-toast-body">
+              {t("settings.about.updateFailedShort")}
+            </ToastBody>
             {state.error ? (
               <ToastError className="update-toast-error">{state.error}</ToastError>
             ) : null}
             <ToastActions className="update-toast-actions">
               <button className="secondary" onClick={onDismiss}>
-                Dismiss
+                {t("uiText.toasts.dismiss")}
               </button>
               <button className="primary" onClick={onUpdate}>
-                Retry
+                {t("settings.about.retry")}
               </button>
             </ToastActions>
           </>

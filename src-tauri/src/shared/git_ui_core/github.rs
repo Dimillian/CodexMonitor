@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use git2::Repository;
 use tokio::sync::Mutex;
 
 use crate::git_utils::{parse_github_repo, resolve_git_root};
@@ -12,22 +11,15 @@ use crate::types::{
 };
 use crate::utils::normalize_git_path;
 
+use super::commands::{git_remote_url, preferred_git_remote_name};
 use super::context::workspace_entry_for_id;
 
 fn github_repo_from_path(path: &Path) -> Result<String, String> {
-    let repo = Repository::open(path).map_err(|e| e.to_string())?;
-    let remotes = repo.remotes().map_err(|e| e.to_string())?;
-    let name = if remotes.iter().any(|remote| remote == Some("origin")) {
-        "origin".to_string()
-    } else {
-        remotes.iter().flatten().next().unwrap_or("").to_string()
-    };
-    if name.is_empty() {
+    let Some(name) = preferred_git_remote_name(path)? else {
         return Err("No git remote configured.".to_string());
-    }
-    let remote = repo.find_remote(&name).map_err(|e| e.to_string())?;
-    let remote_url = remote.url().ok_or("Remote has no URL configured.")?;
-    parse_github_repo(remote_url).ok_or("Remote is not a GitHub repository.".to_string())
+    };
+    let remote_url = git_remote_url(path, &name).ok_or("Remote has no URL configured.")?;
+    parse_github_repo(&remote_url).ok_or("Remote is not a GitHub repository.".to_string())
 }
 
 fn parse_pr_diff(diff: &str) -> Vec<GitHubPullRequestDiff> {

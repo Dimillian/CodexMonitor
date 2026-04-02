@@ -16,11 +16,13 @@ use crate::shared::process_core::std_command;
 use crate::types::{AppSettings, GitCommitDiff, GitFileDiff, GitFileStatus, WorkspaceEntry};
 use crate::utils::{git_env_path, normalize_git_path, resolve_git_binary};
 
+use super::commands::normalize_repository_access_error;
 use super::context::workspace_entry_for_id;
 
 const INDEX_SKIP_WORKTREE_FLAG: u16 = 0x4000;
 const MAX_IMAGE_BYTES: usize = 10 * 1024 * 1024;
 const MAX_TEXT_DIFF_BYTES: usize = 2 * 1024 * 1024;
+const MAX_RENDERABLE_TEXT_DIFF_BYTES: u64 = 256 * 1024;
 
 fn encode_image_base64(data: &[u8]) -> Option<String> {
     if data.len() > MAX_IMAGE_BYTES {
@@ -297,7 +299,8 @@ fn build_combined_diff(repo: &Repository, diff: &git2::Diff) -> String {
 }
 
 pub(super) fn collect_workspace_diff(repo_root: &Path) -> Result<String, String> {
-    let repo = Repository::open(repo_root).map_err(|e| e.to_string())?;
+    let repo = Repository::open(repo_root)
+        .map_err(|e| normalize_repository_access_error(repo_root, &e.to_string()))?;
     let head_tree = repo.head().ok().and_then(|head| head.peel_to_tree().ok());
 
     let mut options = DiffOptions::new();
@@ -337,7 +340,8 @@ pub(super) async fn get_git_status_inner(
 ) -> Result<Value, String> {
     let entry = workspace_entry_for_id(workspaces, &workspace_id).await?;
     let repo_root = resolve_git_root(&entry)?;
-    let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
+    let repo = Repository::open(&repo_root)
+        .map_err(|e| normalize_repository_access_error(&repo_root, &e.to_string()))?;
 
     let branch_name = repo
         .head()
@@ -475,7 +479,8 @@ pub(super) async fn get_git_diffs_inner(
     };
 
     tokio::task::spawn_blocking(move || {
-        let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
+        let repo = Repository::open(&repo_root)
+            .map_err(|e| normalize_repository_access_error(&repo_root, &e.to_string()))?;
         let head_tree = repo.head().ok().and_then(|head| head.peel_to_tree().ok());
 
         let mut options = DiffOptions::new();
@@ -520,8 +525,25 @@ pub(super) async fn get_git_diffs_inner(
             let is_image = old_image_mime.is_some() || new_image_mime.is_some();
             let is_deleted = delta.status() == git2::Delta::Deleted;
             let is_added = delta.status() == git2::Delta::Added;
+            let old_blob_size = if !is_added {
+                head_tree
+                    .as_ref()
+                    .and_then(|tree| old_path.and_then(|path| tree.get_path(path).ok()))
+                    .and_then(|entry| repo.find_blob(entry.id()).ok())
+                    .map(|blob| blob.size() as u64)
+            } else {
+                None
+            };
+            let worktree_file_size = fs::metadata(repo_root.join(display_path))
+                .ok()
+                .map(|meta| meta.len());
+            let is_diff_too_large = !is_image
+                && old_blob_size
+                    .into_iter()
+                    .chain(worktree_file_size)
+                    .any(|size| size > MAX_RENDERABLE_TEXT_DIFF_BYTES);
 
-            let old_lines = if !is_added {
+            let old_lines = if !is_diff_too_large && !is_added {
                 head_tree
                     .as_ref()
                     .and_then(|tree| old_path.and_then(|path| tree.get_path(path).ok()))
@@ -531,7 +553,7 @@ pub(super) async fn get_git_diffs_inner(
                 None
             };
 
-            let new_lines = if !is_deleted {
+            let new_lines = if !is_diff_too_large && !is_deleted {
                 match new_path {
                     Some(path) => {
                         let full_path = repo_root.join(path);
@@ -573,10 +595,28 @@ pub(super) async fn get_git_diffs_inner(
                     new_lines: None,
                     is_binary: true,
                     is_image: true,
+                    is_diff_too_large: false,
                     old_image_data,
                     new_image_data,
                     old_image_mime: old_image_mime.map(str::to_string),
                     new_image_mime: new_image_mime.map(str::to_string),
+                });
+                continue;
+            }
+
+            if is_diff_too_large {
+                results.push(GitFileDiff {
+                    path: normalized_path,
+                    diff: String::new(),
+                    old_lines: None,
+                    new_lines: None,
+                    is_binary: false,
+                    is_image: false,
+                    is_diff_too_large: true,
+                    old_image_data: None,
+                    new_image_data: None,
+                    old_image_mime: None,
+                    new_image_mime: None,
                 });
                 continue;
             }
@@ -602,6 +642,7 @@ pub(super) async fn get_git_diffs_inner(
                 new_lines,
                 is_binary: false,
                 is_image: false,
+                is_diff_too_large: false,
                 old_image_data: None,
                 new_image_data: None,
                 old_image_mime: None,
@@ -629,7 +670,8 @@ pub(super) async fn get_git_commit_diff_inner(
     };
 
     let repo_root = resolve_git_root(&entry)?;
-    let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
+    let repo = Repository::open(&repo_root)
+        .map_err(|e| normalize_repository_access_error(&repo_root, &e.to_string()))?;
     let oid = git2::Oid::from_str(&sha).map_err(|e| e.to_string())?;
     let commit = repo.find_commit(oid).map_err(|e| e.to_string())?;
     let commit_tree = commit.tree().map_err(|e| e.to_string())?;
@@ -658,8 +700,30 @@ pub(super) async fn get_git_commit_diff_inner(
         let is_image = old_image_mime.is_some() || new_image_mime.is_some();
         let is_deleted = delta.status() == git2::Delta::Deleted;
         let is_added = delta.status() == git2::Delta::Added;
+        let old_blob_size = if !is_added {
+            parent_tree
+                .as_ref()
+                .and_then(|tree| old_path.and_then(|path| tree.get_path(path).ok()))
+                .and_then(|entry| repo.find_blob(entry.id()).ok())
+                .map(|blob| blob.size() as u64)
+        } else {
+            None
+        };
+        let new_blob_size = if !is_deleted {
+            new_path
+                .and_then(|path| commit_tree.get_path(path).ok())
+                .and_then(|entry| repo.find_blob(entry.id()).ok())
+                .map(|blob| blob.size() as u64)
+        } else {
+            None
+        };
+        let is_diff_too_large = !is_image
+            && old_blob_size
+                .into_iter()
+                .chain(new_blob_size)
+                .any(|size| size > MAX_RENDERABLE_TEXT_DIFF_BYTES);
 
-        let old_lines = if !is_added {
+        let old_lines = if !is_diff_too_large && !is_added {
             parent_tree
                 .as_ref()
                 .and_then(|tree| old_path.and_then(|path| tree.get_path(path).ok()))
@@ -669,7 +733,7 @@ pub(super) async fn get_git_commit_diff_inner(
             None
         };
 
-        let new_lines = if !is_deleted {
+        let new_lines = if !is_diff_too_large && !is_deleted {
             new_path
                 .and_then(|path| commit_tree.get_path(path).ok())
                 .and_then(|entry| repo.find_blob(entry.id()).ok())
@@ -706,10 +770,29 @@ pub(super) async fn get_git_commit_diff_inner(
                 new_lines: None,
                 is_binary: true,
                 is_image: true,
+                is_diff_too_large: false,
                 old_image_data,
                 new_image_data,
                 old_image_mime: old_image_mime.map(str::to_string),
                 new_image_mime: new_image_mime.map(str::to_string),
+            });
+            continue;
+        }
+
+        if is_diff_too_large {
+            results.push(GitCommitDiff {
+                path: normalized_path,
+                status: status_for_delta(delta.status()).to_string(),
+                diff: String::new(),
+                old_lines: None,
+                new_lines: None,
+                is_binary: false,
+                is_image: false,
+                is_diff_too_large: true,
+                old_image_data: None,
+                new_image_data: None,
+                old_image_mime: None,
+                new_image_mime: None,
             });
             continue;
         }
@@ -736,6 +819,7 @@ pub(super) async fn get_git_commit_diff_inner(
             new_lines,
             is_binary: false,
             is_image: false,
+            is_diff_too_large: false,
             old_image_data: None,
             new_image_data: None,
             old_image_mime: None,

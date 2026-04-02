@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { startTransition, useCallback, useEffect, useRef } from "react";
 import type { Dispatch } from "react";
 import { buildConversationItem } from "@utils/threadItems";
 import type { CollabAgentRef } from "@/types";
@@ -37,6 +37,28 @@ type UseThreadItemEventsOptions = {
   onReviewExited?: (workspaceId: string, threadId: string) => void;
 };
 
+const STREAM_BATCH_WINDOW_MS = 64;
+
+type BufferedStreamAction =
+  | {
+      type: "appendAgentDelta";
+      workspaceId: string;
+      threadId: string;
+      itemId: string;
+      delta: string;
+      hasCustomName: boolean;
+    }
+  | {
+      type: "appendReasoningSummary" | "appendReasoningContent" | "appendPlanDelta" | "appendToolOutput";
+      threadId: string;
+      itemId: string;
+      delta: string;
+    };
+
+function bufferedStreamKey(action: BufferedStreamAction) {
+  return `${action.type}:${action.threadId}:${action.itemId}`;
+}
+
 export function useThreadItemEvents({
   activeThreadId,
   dispatch,
@@ -50,6 +72,94 @@ export function useThreadItemEvents({
   onUserMessageCreated,
   onReviewExited,
 }: UseThreadItemEventsOptions) {
+  const pendingStreamActionsRef = useRef<Map<string, BufferedStreamAction>>(new Map());
+  const flushTimerRef = useRef<number | null>(null);
+
+  const flushBufferedActions = useCallback(
+    (matcher?: (action: BufferedStreamAction) => boolean) => {
+      const pending = pendingStreamActionsRef.current;
+      if (pending.size === 0) {
+        return;
+      }
+
+      const selected: BufferedStreamAction[] = [];
+      for (const [key, action] of pending.entries()) {
+        if (!matcher || matcher(action)) {
+          selected.push(action);
+          pending.delete(key);
+        }
+      }
+
+      if (selected.length === 0) {
+        return;
+      }
+
+      if (flushTimerRef.current !== null && pending.size === 0) {
+        window.clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+
+      startTransition(() => {
+        const ensuredThreads = new Set<string>();
+        selected.forEach((action) => {
+          if (action.type === "appendAgentDelta") {
+            const ensureKey = `${action.workspaceId}:${action.threadId}`;
+            if (!ensuredThreads.has(ensureKey)) {
+              ensuredThreads.add(ensureKey);
+              dispatch({
+                type: "ensureThread",
+                workspaceId: action.workspaceId,
+                threadId: action.threadId,
+              });
+            }
+            dispatch(action);
+            return;
+          }
+          dispatch(action);
+        });
+      });
+
+      safeMessageActivity();
+    },
+    [dispatch, safeMessageActivity],
+  );
+
+  const scheduleBufferedFlush = useCallback(() => {
+    if (flushTimerRef.current !== null) {
+      return;
+    }
+    flushTimerRef.current = window.setTimeout(() => {
+      flushTimerRef.current = null;
+      flushBufferedActions();
+    }, STREAM_BATCH_WINDOW_MS);
+  }, [flushBufferedActions]);
+
+  const queueBufferedAction = useCallback(
+    (action: BufferedStreamAction) => {
+      const key = bufferedStreamKey(action);
+      const existing = pendingStreamActionsRef.current.get(key);
+      if (existing) {
+        pendingStreamActionsRef.current.set(key, {
+          ...existing,
+          delta: `${existing.delta}${action.delta}`,
+        } as BufferedStreamAction);
+      } else {
+        pendingStreamActionsRef.current.set(key, action);
+      }
+      scheduleBufferedFlush();
+    },
+    [scheduleBufferedFlush],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (flushTimerRef.current !== null) {
+        window.clearTimeout(flushTimerRef.current);
+      }
+      pendingStreamActionsRef.current.clear();
+    };
+  }, []);
+
   const handleItemUpdate = useCallback(
     (
       workspaceId: string,
@@ -57,6 +167,7 @@ export function useThreadItemEvents({
       item: Record<string, unknown>,
       shouldMarkProcessing: boolean,
     ) => {
+      flushBufferedActions((action) => action.threadId === threadId);
       dispatch({ type: "ensureThread", workspaceId, threadId });
       if (shouldMarkProcessing) {
         markProcessing(threadId, true);
@@ -95,6 +206,7 @@ export function useThreadItemEvents({
     [
       applyCollabThreadLinks,
       dispatch,
+      flushBufferedActions,
       getCustomName,
       markProcessing,
       markReviewing,
@@ -108,10 +220,9 @@ export function useThreadItemEvents({
   const handleToolOutputDelta = useCallback(
     (threadId: string, itemId: string, delta: string) => {
       markProcessing(threadId, true);
-      dispatch({ type: "appendToolOutput", threadId, itemId, delta });
-      safeMessageActivity();
+      queueBufferedAction({ type: "appendToolOutput", threadId, itemId, delta });
     },
-    [dispatch, markProcessing, safeMessageActivity],
+    [markProcessing, queueBufferedAction],
   );
 
   const handleTerminalInteraction = useCallback(
@@ -138,19 +249,17 @@ export function useThreadItemEvents({
       itemId: string;
       delta: string;
     }) => {
-      dispatch({ type: "ensureThread", workspaceId, threadId });
       markProcessing(threadId, true);
-      const hasCustomName = Boolean(getCustomName(workspaceId, threadId));
-      dispatch({
+      queueBufferedAction({
         type: "appendAgentDelta",
         workspaceId,
         threadId,
         itemId,
         delta,
-        hasCustomName,
+        hasCustomName: Boolean(getCustomName(workspaceId, threadId)),
       });
     },
-    [dispatch, getCustomName, markProcessing],
+    [getCustomName, markProcessing, queueBufferedAction],
   );
 
   const onAgentMessageCompleted = useCallback(
@@ -165,6 +274,11 @@ export function useThreadItemEvents({
       itemId: string;
       text: string;
     }) => {
+      flushBufferedActions(
+        (action) =>
+          action.threadId === threadId &&
+          action.itemId === itemId,
+      );
       const timestamp = Date.now();
       dispatch({ type: "ensureThread", workspaceId, threadId });
       const hasCustomName = Boolean(getCustomName(workspaceId, threadId));
@@ -197,6 +311,7 @@ export function useThreadItemEvents({
     [
       activeThreadId,
       dispatch,
+      flushBufferedActions,
       getCustomName,
       recordThreadActivity,
       safeMessageActivity,
@@ -219,30 +334,36 @@ export function useThreadItemEvents({
 
   const onReasoningSummaryDelta = useCallback(
     (_workspaceId: string, threadId: string, itemId: string, delta: string) => {
-      dispatch({ type: "appendReasoningSummary", threadId, itemId, delta });
+      queueBufferedAction({ type: "appendReasoningSummary", threadId, itemId, delta });
     },
-    [dispatch],
+    [queueBufferedAction],
   );
 
   const onReasoningSummaryBoundary = useCallback(
     (_workspaceId: string, threadId: string, itemId: string) => {
+      flushBufferedActions(
+        (action) =>
+          action.threadId === threadId &&
+          action.itemId === itemId &&
+          action.type === "appendReasoningSummary",
+      );
       dispatch({ type: "appendReasoningSummaryBoundary", threadId, itemId });
     },
-    [dispatch],
+    [dispatch, flushBufferedActions],
   );
 
   const onReasoningTextDelta = useCallback(
     (_workspaceId: string, threadId: string, itemId: string, delta: string) => {
-      dispatch({ type: "appendReasoningContent", threadId, itemId, delta });
+      queueBufferedAction({ type: "appendReasoningContent", threadId, itemId, delta });
     },
-    [dispatch],
+    [queueBufferedAction],
   );
 
   const onPlanDelta = useCallback(
     (_workspaceId: string, threadId: string, itemId: string, delta: string) => {
-      dispatch({ type: "appendPlanDelta", threadId, itemId, delta });
+      queueBufferedAction({ type: "appendPlanDelta", threadId, itemId, delta });
     },
-    [dispatch],
+    [queueBufferedAction],
   );
 
   const onCommandOutputDelta = useCallback(

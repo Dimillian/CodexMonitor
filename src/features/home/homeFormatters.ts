@@ -1,6 +1,6 @@
-import type { AccountSnapshot, LocalUsageDay } from "../../types";
+﻿import type { AccountSnapshot, LocalUsageDay } from "../../types";
 
-export function formatCompactNumber(value: number | null | undefined) {
+export function formatCompactNumber(value: number | null | undefined, locale?: string) {
   if (value === null || value === undefined) {
     return "--";
   }
@@ -16,14 +16,14 @@ export function formatCompactNumber(value: number | null | undefined) {
     const scaled = value / 1_000;
     return `${scaled.toFixed(scaled >= 10 ? 0 : 1)}k`;
   }
-  return String(value);
+  return new Intl.NumberFormat(locale).format(value);
 }
 
-export function formatCount(value: number | null | undefined) {
+export function formatCount(value: number | null | undefined, locale?: string) {
   if (value === null || value === undefined) {
     return "--";
   }
-  return new Intl.NumberFormat().format(value);
+  return new Intl.NumberFormat(locale).format(value);
 }
 
 export function formatDuration(valueMs: number | null | undefined) {
@@ -59,7 +59,7 @@ export function formatDurationCompact(valueMs: number | null | undefined) {
   return `${seconds}s`;
 }
 
-export function formatDayLabel(value: string | null | undefined) {
+export function formatDayLabel(value: string | null | undefined, locale?: string) {
   if (!value) {
     return "--";
   }
@@ -71,21 +71,30 @@ export function formatDayLabel(value: string | null | undefined) {
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric",
   }).format(date);
 }
 
-export function formatWeekRange(days: LocalUsageDay[]) {
+export function formatWeekRange(
+  days: LocalUsageDay[],
+  locale?: string,
+  formatRange?: (start: string, end: string) => string,
+  emptyLabel = "No usage data",
+) {
   if (days.length === 0) {
-    return "No usage data";
+    return emptyLabel;
   }
   const first = days[0];
   const last = days[days.length - 1];
-  const firstLabel = formatDayLabel(first?.day);
-  const lastLabel = formatDayLabel(last?.day);
-  return first?.day === last?.day ? firstLabel : `${firstLabel} to ${lastLabel}`;
+  const firstLabel = formatDayLabel(first?.day, locale);
+  const lastLabel = formatDayLabel(last?.day, locale);
+  return first?.day === last?.day
+    ? firstLabel
+    : formatRange
+      ? formatRange(firstLabel, lastLabel)
+      : `${firstLabel} to ${lastLabel}`;
 }
 
 export function isUsageDayActive(day: LocalUsageDay) {
@@ -106,41 +115,54 @@ export function formatPlanType(value: string | null | undefined) {
 
 export function formatAccountTypeLabel(
   value: AccountSnapshot["type"] | null | undefined,
+  labels?: {
+    chatgpt: string;
+    apikey: string;
+    connected: string;
+  },
 ) {
   if (value === "chatgpt") {
-    return "ChatGPT account";
+    return labels?.chatgpt ?? "ChatGPT account";
   }
   if (value === "apikey") {
-    return "API key";
+    return labels?.apikey ?? "API key";
   }
-  return "Connected account";
+  return labels?.connected ?? "Connected account";
 }
 
-export function formatWindowDuration(valueMins: number | null | undefined) {
+export function formatWindowDuration(
+  valueMins: number | null | undefined,
+  dayLabel = "days",
+  windowLabel = "window",
+) {
   if (typeof valueMins !== "number" || !Number.isFinite(valueMins) || valueMins <= 0) {
     return null;
   }
   if (valueMins >= 60 * 24) {
     const days = Math.round(valueMins / (60 * 24));
-    return `${days} day${days === 1 ? "" : "s"} window`;
+    return `${days} ${dayLabel} ${windowLabel}`;
   }
   if (valueMins >= 60) {
-    const hours = Math.round(valueMins / 60);
-    return `${hours}h window`;
+    return `${Math.round(valueMins / 60)}h ${windowLabel}`;
   }
-  return `${Math.round(valueMins)}m window`;
+  return `${Math.round(valueMins)}m ${windowLabel}`;
 }
 
 export function buildWindowCaption(
   resetLabel: string | null,
   windowDurationMins: number | null | undefined,
   fallback: string,
+  dayLabel = "days",
+  windowLabel = "window",
 ) {
-  const parts = [resetLabel, formatWindowDuration(windowDurationMins)].filter(Boolean);
+  const parts = [
+    resetLabel,
+    formatWindowDuration(windowDurationMins, dayLabel, windowLabel),
+  ].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : fallback;
 }
 
-export function formatCreditsBalance(value: string | null | undefined) {
+export function formatCreditsBalance(value: string | null | undefined, locale?: string) {
   const trimmed = value?.trim();
   if (!trimmed) {
     return null;
@@ -149,14 +171,14 @@ export function formatCreditsBalance(value: string | null | undefined) {
   if (!Number.isFinite(numeric) || numeric <= 0) {
     return trimmed;
   }
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat(locale, {
     maximumFractionDigits: 0,
   }).format(numeric);
 }
 
-export function formatDayCount(value: number | null | undefined) {
+export function formatDayCount(value: number | null | undefined, dayLabel = "days") {
   if (value === null || value === undefined) {
     return "--";
   }
-  return `${value} day${value === 1 ? "" : "s"}`;
+  return `${value} ${dayLabel}`;
 }

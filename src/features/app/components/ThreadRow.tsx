@@ -1,4 +1,5 @@
 import type { CSSProperties, MouseEvent } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { ThreadSummary } from "../../../types";
 import { getThreadStatusClass, type ThreadStatusById } from "../../../utils/threadStatus";
@@ -86,6 +87,7 @@ export function ThreadRow({
   onToggleSubagents,
   showPinnedLabel = true,
 }: ThreadRowProps) {
+  const { t } = useTranslation();
   const relativeTime = getThreadTime(thread);
   const badge = getThreadArgsBadge?.(workspaceId, thread.id) ?? null;
   const modelBadge =
@@ -107,9 +109,9 @@ export function ThreadRow({
   );
   const statusLabel =
     statusClass === "reviewing"
-      ? "Reviewing"
+      ? t("threadRow.reviewing")
       : hasPendingUserInput
-        ? "Waiting"
+        ? t("threadRow.waiting")
         : null;
   const subagentLabel =
     thread.isSubagent && (thread.subagentNickname || thread.subagentRole)
@@ -197,7 +199,9 @@ export function ThreadRow({
                 {contextLabel}
               </span>
             )}
-            {showPinnedLabel && isPinned && <span className="thread-pinned-label">Pinned</span>}
+            {showPinnedLabel && isPinned && (
+              <span className="thread-pinned-label">{t("threadRow.pinned")}</span>
+            )}
           </div>
         )}
       </div>
@@ -211,10 +215,16 @@ export function ThreadRow({
               onToggleSubagents?.(workspaceId, thread.id);
             }}
             data-tauri-drag-region="false"
-            aria-label={subagentsExpanded ? "Hide sub-agents" : "Show sub-agents"}
+            aria-label={
+              subagentsExpanded
+                ? t("threadRow.hideSubagents")
+                : t("threadRow.showSubagents")
+            }
             aria-expanded={subagentsExpanded}
           >
-            <span className="thread-subagent-time-label">{relativeTime ?? "Now"}</span>
+            <span className="thread-subagent-time-label">
+              {relativeTime ?? t("threadRow.now")}
+            </span>
             <span className="thread-subagent-toggle-icon" aria-hidden>
               ›
             </span>

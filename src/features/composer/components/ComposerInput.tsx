@@ -13,6 +13,7 @@ import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import Mic from "lucide-react/dist/esm/icons/mic";
 import Square from "lucide-react/dist/esm/icons/square";
 import X from "lucide-react/dist/esm/icons/x";
+import { useTranslation } from "react-i18next";
 import { useComposerImageDrop } from "../hooks/useComposerImageDrop";
 import { ComposerMobileActionsMenu } from "./ComposerMobileActionsMenu";
 import { ComposerSuggestionsPopover } from "./ComposerSuggestionsPopover";
@@ -136,6 +137,7 @@ export function ComposerInput({
   onReviewPromptUpdateCustomInstructions,
   onReviewPromptConfirmCustom,
 }: ComposerInputProps) {
+  const { t } = useTranslation();
   const suggestionListRef = useRef<HTMLDivElement | null>(null);
   const suggestionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const { isPhoneLayout, isPhoneTallInput } = useComposerInputLayout({
@@ -247,8 +249,8 @@ export function ComposerInput({
             className="composer-attach"
             onClick={onAddAttachment}
             disabled={disabled || !onAddAttachment}
-            aria-label="Add image"
-            title="Add image"
+            aria-label={t("uiText.composerInput.addImage")}
+            title={t("uiText.composerInput.addImage")}
           >
             <ImagePlus size={14} aria-hidden />
           </button>
@@ -275,8 +277,8 @@ export function ComposerInput({
             ref={textareaRef}
             placeholder={
               disabled
-                ? "Review in progress. Chat will re-enable when it completes."
-                : "Ask Codex to do something..."
+                ? t("uiText.composerInput.reviewInProgressPlaceholder")
+                : t("uiText.composerInput.askCodexPlaceholder")
             }
             value={text}
             onChange={handleTextareaChange}
@@ -297,8 +299,16 @@ export function ComposerInput({
                 }`}
                 onClick={onToggleExpand}
                 disabled={disabled}
-                aria-label={isExpanded ? "Collapse input" : "Expand input"}
-                title={isExpanded ? "Collapse input" : "Expand input"}
+                aria-label={
+                  isExpanded
+                    ? t("uiText.composerInput.collapseInput")
+                    : t("uiText.composerInput.expandInput")
+                }
+                title={
+                  isExpanded
+                    ? t("uiText.composerInput.collapseInput")
+                    : t("uiText.composerInput.expandInput")
+                }
               >
                 {isExpanded ? <ChevronDown aria-hidden /> : <ChevronUp aria-hidden />}
               </button>
@@ -328,8 +338,8 @@ export function ComposerInput({
               }`}
               onClick={handleActionClick}
               disabled={(disabled && !canStop) || isDictationBusy || (!canStop && !canSend)}
-              aria-label={canStop ? "Stop" : sendLabel}
-              title={canStop ? "Stop" : sendLabel}
+              aria-label={canStop ? t("uiText.composerInput.stop") : sendLabel}
+              title={canStop ? t("uiText.composerInput.stop") : sendLabel}
             >
               {canStop ? (
                 <>
@@ -367,7 +377,7 @@ export function ComposerInput({
               className="ghost composer-dictation-error-dismiss"
               onClick={onDismissDictationError}
             >
-              Dismiss
+              {t("uiText.composerInput.dismiss")}
             </button>
           </div>
         )}
@@ -380,7 +390,7 @@ export function ComposerInput({
                 className="ghost composer-dictation-error-dismiss"
                 onClick={onDismissDictationHint}
               >
-                Dismiss
+                {t("uiText.composerInput.dismiss")}
               </button>
             )}
           </div>

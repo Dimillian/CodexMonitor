@@ -6,6 +6,7 @@ import {
   useState,
   type ClipboardEvent,
 } from "react";
+import { useTranslation } from "react-i18next";
 import type {
   AppMention,
   AppOption,
@@ -244,6 +245,7 @@ export const Composer = memo(function Composer({
   onFileAutocompleteActiveChange,
   contextActions = [],
 }: ComposerProps) {
+  const { t } = useTranslation();
   const [text, setText] = useState(draftText);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const [appMentionBindings, setAppMentionBindings] = useState<AppMentionBinding[]>([]);
@@ -584,19 +586,29 @@ export const Composer = memo(function Composer({
       />
       {isProcessing && composerFollowUpHintEnabled && (
         <div className="composer-followup-hint" role="status" aria-live="polite">
-          <div className="composer-followup-title">Follow-up behavior</div>
+          <div className="composer-followup-title">
+            {t("uiText.composerFollowUp.title")}
+          </div>
           <div className="composer-followup-copy">
             {oppositeFallsBackToQueue ? (
-              <>
-                Default: Queue (Steer unavailable). Both Enter and {followUpShortcutLabel} will
-                queue this message.
-              </>
+              t("uiText.composerFollowUp.unavailableCopy", {
+                shortcut: followUpShortcutLabel,
+                queueLabel: t("settings.composer.queue"),
+                steerLabel: t("settings.composer.steer"),
+                queueVerb: t("uiText.composerFollowUp.queueVerb"),
+              })
             ) : (
-              <>
-                Default: {effectiveFollowUpBehavior === "steer" ? "Steer" : "Queue"}. Press{" "}
-                {followUpShortcutLabel} to{" "}
-                {oppositeFollowUpIntent === "steer" ? "steer" : "queue"} this message.
-              </>
+              t("uiText.composerFollowUp.defaultCopy", {
+                behavior:
+                  effectiveFollowUpBehavior === "steer"
+                    ? t("settings.composer.steer")
+                    : t("settings.composer.queue"),
+                shortcut: followUpShortcutLabel,
+                action:
+                  oppositeFollowUpIntent === "steer"
+                    ? t("uiText.composerFollowUp.steerVerb")
+                    : t("uiText.composerFollowUp.queueVerb"),
+              })
             )}
           </div>
         </div>

@@ -1,4 +1,5 @@
 import type { ErrorToast } from "../../../services/toasts";
+import { useTranslation } from "react-i18next";
 import {
   ToastBody,
   ToastCard,
@@ -13,6 +14,7 @@ type ErrorToastsProps = {
 };
 
 export function ErrorToasts({ toasts, onDismiss }: ErrorToastsProps) {
+  const { t } = useTranslation();
   if (!toasts.length) {
     return null;
   }
@@ -27,8 +29,8 @@ export function ErrorToasts({ toasts, onDismiss }: ErrorToastsProps) {
               type="button"
               className="ghost error-toast-dismiss"
               onClick={() => onDismiss(toast.id)}
-              aria-label="Dismiss error"
-              title="Dismiss"
+              aria-label={t("uiText.toasts.dismissError")}
+              title={t("uiText.toasts.dismiss")}
             >
               ×
             </button>

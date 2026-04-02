@@ -20,7 +20,7 @@ describe("threadStatus", () => {
         isReviewing: false,
       }),
     ).toEqual({
-      statusLabel: "Running",
+      statusLabel: "running",
       stateClass: "is-running",
       isRunning: true,
     });
@@ -32,7 +32,7 @@ describe("threadStatus", () => {
         isReviewing: true,
       }),
     ).toEqual({
-      statusLabel: "Reviewing",
+      statusLabel: "reviewing",
       stateClass: "is-reviewing",
       isRunning: false,
     });
@@ -44,7 +44,7 @@ describe("threadStatus", () => {
         isReviewing: false,
       }),
     ).toEqual({
-      statusLabel: "Idle",
+      statusLabel: "idle",
       stateClass: "is-idle",
       isRunning: false,
     });
@@ -58,7 +58,7 @@ describe("threadStatus", () => {
         isReviewing: true,
       }),
     ).toEqual({
-      statusLabel: "Running",
+      statusLabel: "running",
       stateClass: "is-running",
       isRunning: true,
     });

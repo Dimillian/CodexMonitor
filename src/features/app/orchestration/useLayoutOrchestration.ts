@@ -1,4 +1,5 @@
 import { useMemo, type CSSProperties } from "react";
+import { useTranslation } from "react-i18next";
 import type { AppSettings } from "@/types";
 import { isWindowsPlatform } from "@utils/platformPaths";
 
@@ -43,6 +44,7 @@ export function useAppShellOrchestration({
   debugPanelHeight,
   appSettings,
 }: UseAppShellOrchestrationOptions) {
+  const { t } = useTranslation();
   const isWindows = isWindowsPlatform();
   const showGitDetail = Boolean(selectedDiffPath) && isPhone && centerMode === "diff";
   const isThreadOpen = Boolean(activeThreadId && showComposer);
@@ -112,7 +114,7 @@ export function useAppShellOrchestration({
     showGitDetail,
     isThreadOpen,
     dropOverlayActive: isWorkspaceDropActive,
-    dropOverlayText: "Drop Project Here",
+    dropOverlayText: t("sidebar.dropProjectHere"),
     appClassName,
     appStyle,
   };

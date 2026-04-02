@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import i18n from "../../../i18n";
 import type {
   ApprovalRequest,
   DebugEntry,
@@ -355,11 +356,13 @@ export function useAgentResponseRequiredNotifications({
         return;
       }
       const workspaceName = getWorkspaceName?.(workspaceId);
-      const title = workspaceName ? `Plan ready — ${workspaceName}` : "Plan ready";
+      const title = workspaceName
+        ? `${i18n.t("planReady.title")} — ${workspaceName}`
+        : i18n.t("planReady.title");
       const text = String(item.text ?? "").trim();
       const body = text
         ? truncateText(text.split("\n")[0] ?? text, MAX_BODY_LENGTH)
-        : "Plan is ready. Open CodexMonitor to respond.";
+        : i18n.t("planReady.notificationBody");
       const extra = {
         kind: "response_required",
         type: "plan",

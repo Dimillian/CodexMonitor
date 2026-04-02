@@ -1,4 +1,5 @@
 import type { ConversationItem } from "../types";
+import i18n from "../i18n";
 
 function formatMessage(item: Extract<ConversationItem, { kind: "message" }>) {
   const roleLabel = item.role === "user" ? "User" : "Assistant";
@@ -20,10 +21,12 @@ function formatUserInput(item: Extract<ConversationItem, { kind: "userInput" }>)
   const lines = item.questions.map((entry, index) => {
     const title = entry.question || entry.header || `Question ${index + 1}`;
     const answers =
-      entry.answers.length > 0 ? entry.answers.join(" | ") : "No answer provided";
+      entry.answers.length > 0
+        ? entry.answers.join(" | ")
+        : i18n.t("uiText.messages.noAnswerProvided");
     return `- ${title}: ${answers}`;
   });
-  return ["Input answered:", ...lines].join("\n");
+  return [i18n.t("uiText.messages.inputAnswered"), ...lines].join("\n");
 }
 
 function formatTool(item: Extract<ConversationItem, { kind: "tool" }>) {

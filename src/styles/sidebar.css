@@ -214,6 +214,8 @@
   padding: 6px;
   max-height: min(72vh, 420px);
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--border-strong) 82%, transparent) transparent;
   z-index: 14;
   display: flex;
   flex-direction: column;
@@ -457,10 +459,39 @@
   -webkit-app-region: no-drag;
   margin-right: calc(-1 * var(--sidebar-padding));
   padding-right: calc(var(--sidebar-padding) - 12px);
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--border-strong) 82%, transparent) transparent;
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   -webkit-mask-size: 100% 100%;
   mask-size: 100% 100%;
+}
+
+.sidebar-body::-webkit-scrollbar,
+.sidebar-sort-dropdown::-webkit-scrollbar,
+.all-threads-add-menu::-webkit-scrollbar {
+  width: 9px;
+}
+
+.sidebar-body::-webkit-scrollbar-track,
+.sidebar-sort-dropdown::-webkit-scrollbar-track,
+.all-threads-add-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-body::-webkit-scrollbar-thumb,
+.sidebar-sort-dropdown::-webkit-scrollbar-thumb,
+.all-threads-add-menu::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--border-strong) 82%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.sidebar-body::-webkit-scrollbar-thumb:hover,
+.sidebar-sort-dropdown::-webkit-scrollbar-thumb:hover,
+.all-threads-add-menu::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text-muted) 58%, transparent);
 }
 
 .sidebar-body.fade-top.fade-bottom {
@@ -934,6 +965,8 @@
 .all-threads-add-menu {
   max-height: 320px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--border-strong) 82%, transparent) transparent;
 }
 
 .workspace-add-option {

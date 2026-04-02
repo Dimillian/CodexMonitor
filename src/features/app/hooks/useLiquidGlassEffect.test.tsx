@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { useLiquidGlassEffect } from "./useLiquidGlassEffect";
 import { isGlassSupported, setLiquidGlassEffect } from "tauri-plugin-liquid-glass-api";
@@ -58,6 +58,25 @@ describe("useLiquidGlassEffect", () => {
     await waitFor(() => {
       expect(mockSetEffects).toHaveBeenCalledWith({ effects: [] });
       expect(setLiquidGlassEffect).toHaveBeenCalledWith({ enabled: false });
+    });
+  });
+
+  it("suspends window transparency while a conversation is active", async () => {
+    vi.mocked(isGlassSupported).mockResolvedValue(true);
+
+    renderHook(() => useLiquidGlassEffect({ reduceTransparency: false }));
+
+    await act(async () => {
+      document.documentElement.dataset.codexThinking = "true";
+    });
+
+    await waitFor(() => {
+      expect(mockSetEffects).toHaveBeenCalledWith({ effects: [] });
+      expect(setLiquidGlassEffect).toHaveBeenCalledWith({ enabled: false });
+    });
+
+    await act(async () => {
+      delete document.documentElement.dataset.codexThinking;
     });
   });
 

@@ -935,6 +935,7 @@
   flex: 1;
   min-height: 0;
   min-width: 0;
+  margin-bottom: var(--composer-overlay-height, 0px);
 }
 
 .chat-pane-composer {

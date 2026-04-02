@@ -38,6 +38,27 @@ export function reduceThreadConfig(state: ThreadState, action: ThreadAction): Th
         itemsByThread,
       };
     }
+    case "compactInactiveThreadItems": {
+      const keepThreadIds = new Set(action.keepThreadIds);
+      const normalizedLimit = Math.max(1, Math.floor(action.maxInactiveItems));
+      let itemsByThread = state.itemsByThread;
+      for (const [threadId, items] of Object.entries(state.itemsByThread)) {
+        if (keepThreadIds.has(threadId) || items.length <= normalizedLimit) {
+          continue;
+        }
+        if (itemsByThread === state.itemsByThread) {
+          itemsByThread = { ...state.itemsByThread };
+        }
+        itemsByThread[threadId] = items.slice(-normalizedLimit);
+      }
+      if (itemsByThread === state.itemsByThread) {
+        return state;
+      }
+      return {
+        ...state,
+        itemsByThread,
+      };
+    }
     default:
       return state;
   }

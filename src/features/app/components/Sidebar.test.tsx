@@ -229,6 +229,7 @@ describe("Sidebar", () => {
       (node) => node.textContent?.trim(),
     );
     expect(screen.getByText("Recent conversations")).toBeTruthy();
+    expect(screen.getByText("Now")).toBeTruthy();
     expect(renderedNames[0]).toBe("Newer thread");
     expect(renderedNames[1]).toBe("Older thread");
     expect(screen.getByText("Alpha Project")).toBeTruthy();

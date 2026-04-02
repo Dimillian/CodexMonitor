@@ -744,4 +744,32 @@ describe("threadReducer", () => {
     expect(trimmed.itemsByThread["thread-1"]?.[0]?.id).toBe("msg-2");
   });
 
+  it("compacts inactive thread items without touching kept threads", () => {
+    const makeItems = (prefix: string, count: number): ConversationItem[] =>
+      Array.from({ length: count }, (_, index) => ({
+        id: `${prefix}-${index}`,
+        kind: "message",
+        role: "assistant",
+        text: `${prefix} ${index}`,
+      }));
+
+    const base = {
+      ...initialState,
+      itemsByThread: {
+        "thread-active": makeItems("active", 6),
+        "thread-idle": makeItems("idle", 6),
+      },
+    };
+
+    const next = threadReducer(base, {
+      type: "compactInactiveThreadItems",
+      keepThreadIds: ["thread-active"],
+      maxInactiveItems: 2,
+    });
+
+    expect(next.itemsByThread["thread-active"]).toHaveLength(6);
+    expect(next.itemsByThread["thread-idle"]).toHaveLength(2);
+    expect(next.itemsByThread["thread-idle"]?.[0]?.id).toBe("idle-4");
+  });
+
 });

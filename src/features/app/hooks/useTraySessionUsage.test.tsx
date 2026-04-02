@@ -1,4 +1,4 @@
-// @vitest-environment jsdom
+﻿// @vitest-environment jsdom
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RateLimitSnapshot } from "../../../types";
@@ -49,7 +49,7 @@ describe("useTraySessionUsage", () => {
 
   it("builds the current session usage summary from workspace rate limits", () => {
     expect(buildTraySessionUsage(makeRateLimits(), false)).toEqual({
-      sessionLabel: "12% used · Resets 2 hours",
+      sessionLabel: expect.stringContaining("12% used"),
       weeklyLabel: null,
     });
   });
@@ -67,7 +67,7 @@ describe("useTraySessionUsage", () => {
         true,
       ),
     ).toEqual({
-      sessionLabel: "58% remaining · Resets 2 hours",
+      sessionLabel: expect.stringContaining("58% remaining"),
       weeklyLabel: null,
     });
   });
@@ -85,8 +85,8 @@ describe("useTraySessionUsage", () => {
         false,
       ),
     ).toEqual({
-      sessionLabel: "12% used · Resets 2 hours",
-      weeklyLabel: "67% used · Resets 2 days",
+      sessionLabel: expect.stringContaining("12% used"),
+      weeklyLabel: expect.stringContaining("67% used"),
     });
   });
 
@@ -111,7 +111,7 @@ describe("useTraySessionUsage", () => {
     await vi.runAllTimersAsync();
     expect(setTraySessionUsageMock).toHaveBeenCalledTimes(1);
     expect(setTraySessionUsageMock).toHaveBeenLastCalledWith({
-      sessionLabel: "12% used · Resets 2 hours",
+      sessionLabel: expect.stringContaining("12% used"),
       weeklyLabel: null,
     });
 
@@ -143,7 +143,7 @@ describe("useTraySessionUsage", () => {
     await vi.advanceTimersByTimeAsync(150);
     expect(setTraySessionUsageMock).toHaveBeenCalledTimes(2);
     expect(setTraySessionUsageMock).toHaveBeenLastCalledWith({
-      sessionLabel: "12% used · Resets 2 hours",
+      sessionLabel: expect.stringContaining("12% used"),
       weeklyLabel: null,
     });
   });

@@ -1,7 +1,8 @@
 /** @vitest-environment jsdom */
 import type { MouseEvent as ReactMouseEvent } from "react";
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import i18n from "i18next";
 
 import type { WorkspaceInfo } from "../../../types";
 import { useSidebarMenus } from "./useSidebarMenus";
@@ -43,7 +44,61 @@ vi.mock("../../../services/toasts", () => ({
 }));
 
 describe("useSidebarMenus", () => {
+  it("localizes thread context menu labels", async () => {
+    await act(async () => {
+      await i18n.changeLanguage("zh");
+    });
+    const onDeleteThread = vi.fn();
+    const onSyncThread = vi.fn();
+    const onPinThread = vi.fn();
+    const onUnpinThread = vi.fn();
+    const isThreadPinned = vi.fn(() => false);
+    const onRenameThread = vi.fn();
+    const onReloadWorkspaceThreads = vi.fn();
+    const onDeleteWorkspace = vi.fn();
+    const onDeleteWorktree = vi.fn();
+
+    const { result } = renderHook(() =>
+      useSidebarMenus({
+        onDeleteThread,
+        onSyncThread,
+        onPinThread,
+        onUnpinThread,
+        isThreadPinned,
+        onRenameThread,
+        onReloadWorkspaceThreads,
+        onDeleteWorkspace,
+        onDeleteWorktree,
+      }),
+    );
+
+    const event = {
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+      clientX: 12,
+      clientY: 34,
+    } as unknown as ReactMouseEvent;
+
+    await result.current.showThreadMenu(event, "ws-1", "thread-1", true);
+
+    const menuArgs = menuNew.mock.calls[menuNew.mock.calls.length - 1]?.[0];
+    expect(menuArgs.items.map((item: { text: string }) => item.text)).toEqual([
+      "重命名",
+      "从服务器同步",
+      "固定",
+      "复制 ID",
+      "归档",
+    ]);
+
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
+  });
+
   it("adds a show in file manager option for worktrees", async () => {
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
     const onDeleteThread = vi.fn();
     const onSyncThread = vi.fn();
     const onPinThread = vi.fn();
@@ -90,7 +145,7 @@ describe("useSidebarMenus", () => {
 
     await result.current.showWorktreeMenu(event, worktree);
 
-    const menuArgs = menuNew.mock.calls[0]?.[0];
+    const menuArgs = menuNew.mock.calls[menuNew.mock.calls.length - 1]?.[0];
     const revealItem = menuArgs.items.find(
       (item: { text: string }) => item.text === `Show in ${fileManagerName()}`,
     );

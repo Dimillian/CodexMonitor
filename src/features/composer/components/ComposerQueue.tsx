@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type { QueuedMessage } from "../../../types";
 import {
@@ -20,13 +21,15 @@ export function ComposerQueue({
   onEditQueued,
   onDeleteQueued,
 }: ComposerQueueProps) {
+  const { t } = useTranslation();
+
   if (queuedMessages.length === 0) {
     return null;
   }
 
   return (
     <div className="composer-queue">
-      <div className="composer-queue-title">Queued</div>
+      <div className="composer-queue-title">{t("uiText.composerQueue.title")}</div>
       {pausedReason ? (
         <div className="composer-queue-hint">{pausedReason}</div>
       ) : null}
@@ -37,11 +40,11 @@ export function ComposerQueue({
               {item.text ||
                 (item.images?.length
                   ? item.images.length === 1
-                    ? "Image"
-                    : "Images"
+                    ? t("uiText.composerQueue.image")
+                    : t("uiText.composerQueue.images")
                   : "")}
               {item.images?.length
-                ? ` · ${item.images.length} image${item.images.length === 1 ? "" : "s"}`
+                ? t("uiText.composerQueue.imageCount", { count: item.images.length })
                 : ""}
             </span>
             <QueueMenuButton
@@ -63,7 +66,9 @@ type QueueMenuButtonProps = {
 };
 
 function QueueMenuButton({ item, onEditQueued, onDeleteQueued }: QueueMenuButtonProps) {
+  const { t } = useTranslation();
   const menu = useMenuController();
+
   const handleToggleMenu = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>) => {
       event.preventDefault();
@@ -89,7 +94,7 @@ function QueueMenuButton({ item, onEditQueued, onDeleteQueued }: QueueMenuButton
         type="button"
         className={`composer-queue-menu${menu.isOpen ? " is-open" : ""}`}
         onClick={handleToggleMenu}
-        aria-label="Queue item menu"
+        aria-label={t("uiText.composerQueue.menu")}
         aria-haspopup="menu"
         aria-expanded={menu.isOpen}
       >
@@ -97,8 +102,12 @@ function QueueMenuButton({ item, onEditQueued, onDeleteQueued }: QueueMenuButton
       </button>
       {menu.isOpen && (
         <PopoverSurface className="composer-queue-item-popover" role="menu">
-          <PopoverMenuItem onClick={handleEdit}>Edit</PopoverMenuItem>
-          <PopoverMenuItem onClick={handleDelete}>Delete</PopoverMenuItem>
+          <PopoverMenuItem onClick={handleEdit}>
+            {t("uiText.composerQueue.edit")}
+          </PopoverMenuItem>
+          <PopoverMenuItem onClick={handleDelete}>
+            {t("uiText.composerQueue.delete")}
+          </PopoverMenuItem>
         </PopoverSurface>
       )}
     </div>

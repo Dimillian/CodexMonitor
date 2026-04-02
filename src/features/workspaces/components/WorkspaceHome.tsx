@@ -7,6 +7,7 @@ import {
   type RefObject,
 } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { useTranslation } from "react-i18next";
 import type {
   AppOption,
   CustomPromptOption,
@@ -160,6 +161,7 @@ export function WorkspaceHome({
   onAgentMdRefresh,
   onAgentMdSave,
 }: WorkspaceHomeProps) {
+  const { t } = useTranslation();
   const [showIcon, setShowIcon] = useState(true);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const iconPath = useMemo(() => buildIconPath(workspace.path), [workspace.path]);
@@ -329,21 +331,23 @@ export function WorkspaceHome({
   };
 
   const agentMdStatus = agentMdLoading
-    ? "Loading…"
+    ? t("workspaceHome.loading")
     : agentMdSaving
-      ? "Saving…"
+      ? t("workspaceHome.saving")
       : agentMdExists
         ? ""
-        : "Not found";
+        : t("workspaceHome.notFound");
   const agentMdMetaParts: string[] = [];
   if (agentMdStatus) {
     agentMdMetaParts.push(agentMdStatus);
   }
   if (agentMdTruncated) {
-    agentMdMetaParts.push("Truncated");
+    agentMdMetaParts.push(t("workspaceHome.truncated"));
   }
   const agentMdMeta = agentMdMetaParts.join(" · ");
-  const agentMdSaveLabel = agentMdExists ? "Save" : "Create";
+  const agentMdSaveLabel = agentMdExists
+    ? t("uiText.fileEditor.save")
+    : t("uiText.fileEditor.create");
   const agentMdSaveDisabled = agentMdLoading || agentMdSaving || !agentMdDirty;
   const agentMdRefreshDisabled = agentMdLoading || agentMdSaving;
 
@@ -440,7 +444,7 @@ export function WorkspaceHome({
       <div className="workspace-home-agent">
         {agentMdTruncated && (
           <div className="workspace-home-agent-warning">
-            Showing the first part of a large file.
+            {t("workspaceHome.showingFirstPartOfLargeFile")}
           </div>
         )}
         <FileEditorCard
@@ -448,11 +452,17 @@ export function WorkspaceHome({
           meta={agentMdMeta}
           error={agentMdError}
           value={agentMdContent}
-          placeholder="Add workspace instructions for the agent…"
+          placeholder={t("workspaceHome.agentInstructionsPlaceholder")}
           disabled={agentMdLoading}
           refreshDisabled={agentMdRefreshDisabled}
           saveDisabled={agentMdSaveDisabled}
+          refreshLabel={t("uiText.fileEditor.refresh")}
           saveLabel={agentMdSaveLabel}
+          refreshAriaLabel={t("uiText.fileEditor.refreshFile", { title: "AGENTS.md" })}
+          saveAriaLabel={t(
+            agentMdExists ? "uiText.fileEditor.saveFile" : "uiText.fileEditor.createFile",
+            { title: "AGENTS.md" },
+          )}
           onChange={onAgentMdChange}
           onRefresh={onAgentMdRefresh}
           onSave={onAgentMdSave}

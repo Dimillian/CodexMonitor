@@ -1,4 +1,5 @@
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import type { TerminalTab } from "../hooks/useTerminalTabs";
 
 type TerminalDockProps = {
@@ -22,6 +23,7 @@ export function TerminalDock({
   onResizeStart,
   terminalNode,
 }: TerminalDockProps) {
+  const { t } = useTranslation();
   if (!isOpen) {
     return null;
   }
@@ -33,12 +35,12 @@ export function TerminalDock({
           className="terminal-panel-resizer"
           role="separator"
           aria-orientation="horizontal"
-          aria-label="Resize terminal panel"
+          aria-label={t("uiText.terminal.resizePanel")}
           onMouseDown={onResizeStart}
         />
       )}
       <div className="terminal-header">
-        <div className="terminal-tabs" role="tablist" aria-label="Terminal tabs">
+        <div className="terminal-tabs" role="tablist" aria-label={t("uiText.terminal.tabs")}>
           {terminals.map((tab) => (
             <button
               key={tab.id}
@@ -54,7 +56,7 @@ export function TerminalDock({
               <span
                 className="terminal-tab-close"
                 role="button"
-                aria-label={`Close ${tab.title}`}
+                aria-label={t("uiText.terminal.closeTerminal", { title: tab.title })}
                 onClick={(event) => {
                   event.stopPropagation();
                   onCloseTerminal(tab.id);
@@ -68,8 +70,8 @@ export function TerminalDock({
             className="terminal-tab-add"
             type="button"
             onClick={onNewTerminal}
-            aria-label="New terminal"
-            title="New terminal"
+            aria-label={t("uiText.terminal.newTerminal")}
+            title={t("uiText.terminal.newTerminal")}
           >
             +
           </button>

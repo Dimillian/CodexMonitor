@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { createRef } from "react";
+import i18n from "i18next";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ComposerInput } from "./ComposerInput";
 
@@ -14,6 +15,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 afterEach(() => {
   cleanup();
+  void i18n.changeLanguage("en");
 });
 
 describe("ComposerInput dictation controls", () => {
@@ -56,5 +58,48 @@ describe("ComposerInput dictation controls", () => {
     expect(onCancelDictation).toHaveBeenCalledTimes(1);
     expect(onToggleDictation).not.toHaveBeenCalled();
     expect(onOpenDictationSettings).not.toHaveBeenCalled();
+  });
+
+  it("localizes the placeholder and action labels", async () => {
+    await act(async () => {
+      await i18n.changeLanguage("zh");
+    });
+    render(
+      <ComposerInput
+        text=""
+        disabled={false}
+        sendLabel="发送"
+        canStop={true}
+        canSend={true}
+        isProcessing={true}
+        onStop={() => {}}
+        onSend={() => {}}
+        dictationState="idle"
+        dictationEnabled={true}
+        onToggleDictation={() => {}}
+        onTextChange={() => {}}
+        onSelectionChange={() => {}}
+        onKeyDown={() => {}}
+        onAddAttachment={() => {}}
+        isExpanded={false}
+        onToggleExpand={() => {}}
+        textareaRef={createRef<HTMLTextAreaElement>()}
+        suggestionsOpen={false}
+        suggestions={[]}
+        highlightIndex={0}
+        onHighlightIndex={() => {}}
+        onSelectSuggestion={() => {}}
+      />,
+    );
+
+    expect(screen.getByPlaceholderText("让 Codex 执行某项操作...")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "添加图片" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "更多操作" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "展开输入框" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "停止" })).toBeTruthy();
+
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
   });
 });

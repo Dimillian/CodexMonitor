@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import type {
   AppSettings,
   CodexDoctorResult,
@@ -20,9 +21,9 @@ import { useSettingsProjectsSection } from "./useSettingsProjectsSection";
 import { useSettingsServerSection } from "./useSettingsServerSection";
 import type { GroupedWorkspaces } from "./settingsSectionTypes";
 import {
+  buildComposerPresetLabels,
+  buildDictationModels,
   COMPOSER_PRESET_CONFIGS,
-  COMPOSER_PRESET_LABELS,
-  DICTATION_MODELS,
 } from "@settings/components/settingsViewConstants";
 
 type UseSettingsViewOrchestrationArgs = {
@@ -98,6 +99,12 @@ export function useSettingsViewOrchestration({
   onCancelDictationDownload,
   onRemoveDictationModel,
 }: UseSettingsViewOrchestrationArgs) {
+  const { t } = useTranslation();
+  const dictationModels = useMemo(() => buildDictationModels(t), [t]);
+  const composerPresetLabels = useMemo(
+    () => buildComposerPresetLabels(t),
+    [t],
+  );
   const projects = useMemo(
     () => groupedWorkspaces.flatMap((group) => group.workspaces),
     [groupedWorkspaces],
@@ -123,11 +130,11 @@ export function useSettingsViewOrchestration({
 
   const selectedDictationModel = useMemo(() => {
     return (
-      DICTATION_MODELS.find(
+      dictationModels.find(
         (model) => model.id === appSettings.dictationModelId,
-      ) ?? DICTATION_MODELS[1]
+      ) ?? dictationModels[1]
     );
-  }, [appSettings.dictationModelId]);
+  }, [appSettings.dictationModelId, dictationModels]);
 
   const dictationReady = dictationModelStatus?.state === "ready";
 
@@ -226,7 +233,7 @@ export function useSettingsViewOrchestration({
       appSettings,
       optionKeyLabel,
       followUpShortcutLabel,
-      composerPresetLabels: COMPOSER_PRESET_LABELS,
+      composerPresetLabels,
       onComposerPresetChange: (
         preset: AppSettings["composerEditorPreset"],
       ) => {
@@ -243,7 +250,7 @@ export function useSettingsViewOrchestration({
       appSettings,
       optionKeyLabel,
       metaKeyLabel,
-      dictationModels: DICTATION_MODELS,
+      dictationModels,
       selectedDictationModel,
       dictationModelStatus,
       dictationReady,

@@ -32,6 +32,8 @@ type HoveredDiffLine =
     }
   | undefined;
 
+const MAX_RENDERABLE_DIFF_CHARS = 250_000;
+
 function isSelectableLine(
   line: ParsedDiffLine,
 ): line is ParsedDiffLine & { type: "add" | "del" | "context" } {
@@ -126,12 +128,15 @@ export const DiffCard = memo(function DiffCard({
     () => languageFromPath(displayPath),
     [displayPath],
   );
+  const isDiffTooLarge =
+    entry.isDiffTooLarge === true || entry.diff.length > MAX_RENDERABLE_DIFF_CHARS;
+  const renderableDiff = isDiffTooLarge ? "" : entry.diff;
 
   const fileDiff = useMemo(() => {
-    if (!entry.diff.trim()) {
+    if (!renderableDiff.trim()) {
       return null;
     }
-    const patch = parsePatchFiles(entry.diff);
+    const patch = parsePatchFiles(renderableDiff);
     const parsed = patch[0]?.files[0];
     if (!parsed) {
       return null;
@@ -147,25 +152,28 @@ export const DiffCard = memo(function DiffCard({
       oldLines: entry.oldLines,
       newLines: entry.newLines,
     } satisfies FileDiffMetadata;
-  }, [displayPath, entry.diff, entry.newLines, entry.oldLines]);
+  }, [displayPath, entry.newLines, entry.oldLines, renderableDiff]);
 
   const placeholder = useMemo(() => {
     if (isLoading) {
       return "Loading diff...";
     }
+    if (isDiffTooLarge) {
+      return "Diff omitted because this file is too large to render safely.";
+    }
     if (ignoreWhitespaceChanges && !entry.diff.trim()) {
       return "No non-whitespace changes.";
     }
     return "Diff unavailable.";
-  }, [entry.diff, ignoreWhitespaceChanges, isLoading]);
+  }, [entry.diff, ignoreWhitespaceChanges, isDiffTooLarge, isLoading]);
 
   const parsedLines = useMemo(() => {
-    const parsed = parseDiff(entry.diff);
+    const parsed = parseDiff(renderableDiff);
     if (parsed.length > 0) {
       return parsed;
     }
-    return parseRawDiffLines(entry.diff);
-  }, [entry.diff]);
+    return parseRawDiffLines(renderableDiff);
+  }, [renderableDiff]);
 
   const hasSelectableLines = useMemo(
     () => parsedLines.some(isSelectableLine),
@@ -255,7 +263,7 @@ export const DiffCard = memo(function DiffCard({
           ) : null}
         </div>
       ) : null}
-      {entry.diff.trim().length > 0 && fileDiff ? (
+      {renderableDiff.trim().length > 0 && fileDiff ? (
         <div className="diff-viewer-output diff-viewer-output-flat">
           <FileDiff
             fileDiff={fileDiff}
@@ -294,7 +302,7 @@ export const DiffCard = memo(function DiffCard({
             style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
           />
         </div>
-      ) : entry.diff.trim().length > 0 && parsedLines.length > 0 ? (
+      ) : renderableDiff.trim().length > 0 && parsedLines.length > 0 ? (
         <div className="diff-viewer-output diff-viewer-output-flat diff-viewer-output-raw">
           {parsedLines.map((line, index) => {
             const highlighted = highlightLine(

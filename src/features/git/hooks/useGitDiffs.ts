@@ -114,6 +114,7 @@ export function useGitDiffs(
         oldLines: entry?.oldLines,
         newLines: entry?.newLines,
         isImage: entry?.isImage,
+        isDiffTooLarge: entry?.isDiffTooLarge,
         oldImageData: entry?.oldImageData,
         newImageData: entry?.newImageData,
         oldImageMime: entry?.oldImageMime,

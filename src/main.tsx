@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import * as Sentry from "@sentry/react";
+import "./i18n";
 import App from "./App";
 import { isMobilePlatform } from "./utils/platformPaths";
 

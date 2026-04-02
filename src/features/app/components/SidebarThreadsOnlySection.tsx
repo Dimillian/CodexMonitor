@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import type { MouseEvent, MutableRefObject } from "react";
 import Plus from "lucide-react/dist/esm/icons/plus";
+import { useTranslation } from "react-i18next";
 
 import type { ThreadSummary, WorkspaceInfo } from "../../../types";
 import type { ThreadStatusById } from "../../../utils/threadStatus";
@@ -55,16 +56,17 @@ export function SidebarThreadsOnlySection({
   onToggleAddMenu,
   onCreateThreadInProject,
 }: SidebarThreadsOnlySectionProps) {
+  const { t } = useTranslation();
   return (
     <div className="workspace-group">
       <div className="sidebar-section-header workspace-group-header-all-threads">
-        <div className="sidebar-section-title">Recent conversations</div>
+        <div className="sidebar-section-title">{t("sidebar.allThreads")}</div>
         <button
           className="ghost all-threads-add"
           onClick={onToggleAddMenu}
           data-tauri-drag-region="false"
-          aria-label="New thread in project"
-          title="New thread in project"
+          aria-label={t("sidebar.newThreadInProject")}
+          title={t("sidebar.newThreadInProject")}
           aria-expanded={addMenuOpen}
           disabled={projectOptionsForNewThread.length === 0}
         >

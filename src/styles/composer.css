@@ -513,6 +513,11 @@
   animation: composer-action-spin var(--ds-spinner-dur) linear infinite;
 }
 
+:root[data-codex-thinking="true"] .composer-action-spinner {
+  animation: none;
+  border-right-color: rgba(255, 120, 120, 0.55);
+}
+
 
 .composer.is-disabled {
   opacity: 0.7;

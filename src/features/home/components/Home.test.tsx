@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import i18n from "i18next";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Home } from "./Home";
 
 afterEach(() => {
+  void i18n.changeLanguage("en");
   cleanup();
 });
 
@@ -70,6 +72,16 @@ describe("Home", () => {
     expect(
       screen.getByText("Start a thread to see the latest responses here."),
     ).toBeTruthy();
+  });
+
+  it("renders translated Chinese home copy", async () => {
+    await i18n.changeLanguage("zh");
+
+    render(<Home {...baseProps} />);
+
+    expect(screen.getByText("最近代理")).toBeTruthy();
+    expect(screen.getByText("还没有代理活动")).toBeTruthy();
+    expect(screen.getByText("添加工作区")).toBeTruthy();
   });
 
   it("renders usage cards in time mode", () => {

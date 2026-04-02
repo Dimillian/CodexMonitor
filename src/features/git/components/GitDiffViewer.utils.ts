@@ -9,6 +9,7 @@ const DIFF_METADATA_PREFIXES = [
   "index ",
   "\\ No newline",
 ] as const;
+const MAX_RENDERABLE_DIFF_CHARS = 250_000;
 
 export function normalizePatchName(name: string) {
   if (!name) {
@@ -66,6 +67,13 @@ export function calculateDiffStats(diffs: GitDiffViewerItem[]): DiffStats {
   let deletions = 0;
 
   for (const entry of diffs) {
+    if (
+      entry.isDiffTooLarge ||
+      !entry.diff ||
+      entry.diff.length > MAX_RENDERABLE_DIFF_CHARS
+    ) {
+      continue;
+    }
     const lines = entry.diff.split("\n");
     for (const line of lines) {
       if (!line) {

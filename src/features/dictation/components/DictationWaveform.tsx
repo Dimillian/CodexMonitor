@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type DictationWaveformProps = {
   active: boolean;
@@ -21,6 +22,7 @@ export function DictationWaveform({
   processing,
   level,
 }: DictationWaveformProps) {
+  const { t } = useTranslation();
   const [bars, setBars] = useState<number[]>(
     () => new Array(MAX_BARS).fill(0),
   );
@@ -50,7 +52,11 @@ export function DictationWaveform({
       className={`composer-waveform${processing ? " is-processing" : ""}`}
       aria-hidden
     >
-      {processing && <span className="composer-waveform-label">Processing...</span>}
+      {processing && (
+        <span className="composer-waveform-label">
+          {t("settings.dictation.processing")}
+        </span>
+      )}
       {barHeights.map((height, index) => (
         <span
           key={index}

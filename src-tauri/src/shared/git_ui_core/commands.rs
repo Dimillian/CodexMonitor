@@ -9,11 +9,35 @@ use tokio::sync::Mutex;
 use crate::git_utils::{
     checkout_branch, list_git_roots as scan_git_roots, parse_github_repo, resolve_git_root,
 };
-use crate::shared::process_core::tokio_command;
+use crate::shared::process_core::{std_command, tokio_command};
 use crate::types::{BranchInfo, WorkspaceEntry};
-use crate::utils::{git_env_path, normalize_git_path, resolve_git_binary};
+use crate::utils::{
+    git_env_path, normalize_git_path, normalize_windows_namespace_path, resolve_git_binary,
+};
 
 use super::context::workspace_entry_for_id;
+
+fn normalized_repo_root_for_git(repo_root: &Path) -> String {
+    let sanitized = normalize_windows_namespace_path(repo_root.to_string_lossy().as_ref());
+    normalize_git_path(&sanitized)
+}
+
+pub(super) fn normalized_repo_root_for_safe_directory(repo_root: &Path) -> String {
+    normalized_repo_root_for_git(repo_root)
+}
+
+pub(super) fn prefer_safe_git_cli_repo_access() -> bool {
+    if cfg!(windows) {
+        return true;
+    }
+
+    matches!(
+        std::env::var("CODEX_MONITOR_FORCE_SAFE_GIT_CLI")
+            .ok()
+            .as_deref(),
+        Some("1") | Some("true") | Some("TRUE") | Some("yes") | Some("YES")
+    )
+}
 
 async fn run_git_command(repo_root: &Path, args: &[&str]) -> Result<(), String> {
     let git_bin = resolve_git_binary().map_err(|e| format!("Failed to run git: {e}"))?;
@@ -40,6 +64,121 @@ async fn run_git_command(repo_root: &Path, args: &[&str]) -> Result<(), String> 
         return Err("Git command failed.".to_string());
     }
     Err(detail.to_string())
+}
+
+fn safe_directory_arg(repo_root: &Path) -> String {
+    format!("safe.directory={}", normalized_repo_root_for_git(repo_root))
+}
+
+async fn run_git_command_with_safe_directory(
+    repo_root: &Path,
+    args: &[&str],
+) -> Result<(), String> {
+    let safe_directory = safe_directory_arg(repo_root);
+    let git_bin = resolve_git_binary().map_err(|e| format!("Failed to run git: {e}"))?;
+    let output = tokio_command(git_bin)
+        .arg("-c")
+        .arg(&safe_directory)
+        .args(args)
+        .current_dir(repo_root)
+        .env("PATH", git_env_path())
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run git: {e}"))?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let detail = if stderr.trim().is_empty() {
+        stdout.trim()
+    } else {
+        stderr.trim()
+    };
+    if detail.is_empty() {
+        return Err("Git command failed.".to_string());
+    }
+    Err(detail.to_string())
+}
+
+async fn run_git_command_stdout_with_safe_directory(
+    repo_root: &Path,
+    args: &[&str],
+) -> Result<String, String> {
+    let safe_directory = safe_directory_arg(repo_root);
+    let git_bin = resolve_git_binary().map_err(|e| format!("Failed to run git: {e}"))?;
+    let output = tokio_command(git_bin)
+        .arg("-c")
+        .arg(&safe_directory)
+        .args(args)
+        .current_dir(repo_root)
+        .env("PATH", git_env_path())
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run git: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    if output.status.success() {
+        return Ok(stdout);
+    }
+
+    let detail = if stderr.trim().is_empty() {
+        stdout.trim()
+    } else {
+        stderr.trim()
+    };
+    if detail.is_empty() {
+        return Err("Git command failed.".to_string());
+    }
+    Err(detail.to_string())
+}
+
+fn run_git_command_stdout_with_safe_directory_sync(
+    repo_root: &Path,
+    args: &[&str],
+) -> Result<String, String> {
+    let safe_directory = safe_directory_arg(repo_root);
+    let git_bin = resolve_git_binary().map_err(|e| format!("Failed to run git: {e}"))?;
+    let output = std_command(git_bin)
+        .arg("-c")
+        .arg(&safe_directory)
+        .args(args)
+        .current_dir(repo_root)
+        .env("PATH", git_env_path())
+        .output()
+        .map_err(|e| format!("Failed to run git: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    if output.status.success() {
+        return Ok(stdout);
+    }
+
+    let detail = if stderr.trim().is_empty() {
+        stdout.trim()
+    } else {
+        stderr.trim()
+    };
+    if detail.is_empty() {
+        return Err("Git command failed.".to_string());
+    }
+    Err(detail.to_string())
+}
+
+fn git_stdout_trim_with_safe_directory_sync(
+    repo_root: &Path,
+    args: &[&str],
+) -> Result<String, String> {
+    Ok(
+        run_git_command_stdout_with_safe_directory_sync(repo_root, args)?
+            .trim()
+            .to_string(),
+    )
 }
 
 async fn run_gh_command(repo_root: &Path, args: &[&str]) -> Result<(String, String), String> {
@@ -70,6 +209,93 @@ async fn run_gh_command(repo_root: &Path, args: &[&str]) -> Result<(String, Stri
 async fn gh_stdout_trim(repo_root: &Path, args: &[&str]) -> Result<String, String> {
     let (stdout, _) = run_gh_command(repo_root, args).await?;
     Ok(stdout.trim().to_string())
+}
+
+pub(super) fn is_repository_owner_error(detail: &str) -> bool {
+    let lower = detail.to_ascii_lowercase();
+    lower.contains("not owned by current user")
+        || lower.contains("dubious ownership")
+        || lower.contains("safe.directory")
+        || lower.contains("code=owner")
+}
+
+pub(super) fn is_repository_missing_error(detail: &str) -> bool {
+    let lower = detail.to_ascii_lowercase();
+    lower.contains("could not find repository")
+        || lower.contains("not a git repository")
+        || lower.contains("repository not found")
+        || lower.contains("code=notfound")
+        || lower.contains("cannot change to")
+        || lower.contains("no such file or directory")
+}
+
+fn should_retry_repository_command(detail: &str) -> bool {
+    is_repository_owner_error(detail) || is_repository_missing_error(detail)
+}
+
+fn format_repository_owner_error(repo_root: &Path, detail: &str) -> String {
+    format!(
+        "Git could not access repository {} because it is owned by a different user. Add it as a safe directory with `git config --global --add safe.directory \"{}\"`, or update the folder owner. Original error: {}",
+        repo_root.display(),
+        normalized_repo_root_for_git(repo_root),
+        detail
+    )
+}
+
+fn format_repository_missing_error(repo_root: &Path, detail: &str) -> String {
+    format!(
+        "Git repository not found at {}. Verify the workspace path still exists and points to a Git repository. Original error: {}",
+        repo_root.display(),
+        detail
+    )
+}
+
+fn normalize_repository_command_error(repo_root: &Path, detail: &str) -> String {
+    if is_repository_owner_error(detail) {
+        return format_repository_owner_error(repo_root, detail);
+    }
+    if is_repository_missing_error(detail) {
+        return format_repository_missing_error(repo_root, detail);
+    }
+    detail.to_string()
+}
+
+pub(super) fn normalize_repository_access_error(repo_root: &Path, detail: &str) -> String {
+    normalize_repository_command_error(repo_root, detail)
+}
+
+pub(super) fn parse_git_branch_listing(stdout: &str) -> Vec<BranchInfo> {
+    let mut branches = stdout
+        .lines()
+        .filter_map(|line| {
+            let (name, last_commit) = line.split_once('\t')?;
+            let trimmed = name.trim();
+            if trimmed.is_empty() {
+                return None;
+            }
+            Some(BranchInfo {
+                name: trimmed.to_string(),
+                last_commit: last_commit.trim().parse::<i64>().unwrap_or(0),
+            })
+        })
+        .collect::<Vec<_>>();
+    branches.sort_by(|a, b| b.last_commit.cmp(&a.last_commit));
+    branches
+}
+
+async fn list_git_branches_with_safe_directory(
+    repo_root: &Path,
+) -> Result<Vec<BranchInfo>, String> {
+    let stdout = run_git_command_stdout_with_safe_directory(
+        repo_root,
+        &[
+            "for-each-ref",
+            "refs/heads",
+            "--format=%(refname:short)\t%(committerdate:unix)",
+        ],
+    )
+    .await?;
+    Ok(parse_git_branch_listing(&stdout))
 }
 
 async fn gh_git_protocol(repo_root: &Path) -> String {
@@ -183,10 +409,121 @@ pub(super) fn github_repo_names_match(existing: &str, requested: &str) -> bool {
     normalize_repo_full_name(existing).eq_ignore_ascii_case(&normalize_repo_full_name(requested))
 }
 
-fn git_remote_url(repo_root: &Path, remote_name: &str) -> Option<String> {
-    let repo = Repository::open(repo_root).ok()?;
-    let remote = repo.find_remote(remote_name).ok()?;
-    remote.url().map(|url| url.to_string())
+pub(super) fn git_remote_names(repo_root: &Path) -> Result<Vec<String>, String> {
+    let list_with_cli = || {
+        git_stdout_trim_with_safe_directory_sync(repo_root, &["remote"]).map(|stdout| {
+            stdout
+                .lines()
+                .map(str::trim)
+                .filter(|line| !line.is_empty())
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+        })
+    };
+
+    if prefer_safe_git_cli_repo_access() {
+        return list_with_cli();
+    }
+
+    match Repository::open(repo_root) {
+        Ok(repo) => Ok(repo
+            .remotes()
+            .map_err(|e| e.to_string())?
+            .iter()
+            .flatten()
+            .map(ToString::to_string)
+            .collect()),
+        Err(error) => {
+            let detail = error.to_string();
+            if !should_retry_repository_command(&detail) {
+                return Err(normalize_repository_command_error(repo_root, &detail));
+            }
+            list_with_cli().map_err(|fallback_error| {
+                normalize_repository_command_error(repo_root, &fallback_error)
+            })
+        }
+    }
+}
+
+pub(super) fn preferred_git_remote_name(repo_root: &Path) -> Result<Option<String>, String> {
+    let remotes = git_remote_names(repo_root)?;
+    if remotes.iter().any(|remote| remote == "origin") {
+        return Ok(Some("origin".to_string()));
+    }
+    Ok(remotes.into_iter().next())
+}
+
+pub(super) fn git_remote_url(repo_root: &Path, remote_name: &str) -> Option<String> {
+    let url_with_cli = || {
+        git_stdout_trim_with_safe_directory_sync(repo_root, &["remote", "get-url", remote_name])
+            .ok()
+            .filter(|url| !url.is_empty())
+    };
+
+    if prefer_safe_git_cli_repo_access() {
+        return url_with_cli();
+    }
+
+    match Repository::open(repo_root) {
+        Ok(repo) => repo
+            .find_remote(remote_name)
+            .ok()
+            .and_then(|remote| remote.url().map(|url| url.to_string())),
+        Err(error) => {
+            let detail = error.to_string();
+            if !should_retry_repository_command(&detail) {
+                return None;
+            }
+            url_with_cli()
+        }
+    }
+}
+
+pub(super) fn current_branch_name(repo_root: &Path) -> Result<Option<String>, String> {
+    let branch_with_cli = || {
+        git_stdout_trim_with_safe_directory_sync(
+            repo_root,
+            &["symbolic-ref", "--quiet", "--short", "HEAD"],
+        )
+        .ok()
+        .filter(|name| !name.is_empty())
+    };
+
+    if prefer_safe_git_cli_repo_access() {
+        return Ok(branch_with_cli());
+    }
+
+    match Repository::open(repo_root) {
+        Ok(repo) => Ok(repo
+            .head()
+            .ok()
+            .and_then(|head| head.shorthand().map(|name| name.to_string()))),
+        Err(error) => {
+            let detail = error.to_string();
+            if !should_retry_repository_command(&detail) {
+                return Err(normalize_repository_command_error(repo_root, &detail));
+            }
+            Ok(branch_with_cli())
+        }
+    }
+}
+
+pub(super) fn is_git_repository(repo_root: &Path) -> bool {
+    if let Ok(git_bin) = resolve_git_binary() {
+        let cli_result = std_command(git_bin)
+            .arg("-c")
+            .arg(safe_directory_arg(repo_root))
+            .args(["rev-parse", "--git-dir"])
+            .current_dir(repo_root)
+            .env("PATH", git_env_path())
+            .output();
+
+        if let Ok(output) = cli_result {
+            return output.status.success();
+        }
+    }
+
+    Repository::open(repo_root).is_ok()
 }
 
 fn gh_repo_create_args<'a>(
@@ -312,7 +649,38 @@ fn parse_upstream_ref(name: &str) -> Option<(String, String)> {
 }
 
 fn upstream_remote_and_branch(repo_root: &Path) -> Result<Option<(String, String)>, String> {
-    let repo = Repository::open(repo_root).map_err(|e| e.to_string())?;
+    let upstream_with_cli = || -> Result<Option<(String, String)>, String> {
+        let upstream = match git_stdout_trim_with_safe_directory_sync(
+            repo_root,
+            &[
+                "rev-parse",
+                "--abbrev-ref",
+                "--symbolic-full-name",
+                "@{upstream}",
+            ],
+        ) {
+            Ok(value) => value,
+            Err(_) => return Ok(None),
+        };
+        Ok(parse_upstream_ref(&upstream))
+    };
+
+    if prefer_safe_git_cli_repo_access() {
+        return upstream_with_cli();
+    }
+
+    let repo = match Repository::open(repo_root) {
+        Ok(repo) => repo,
+        Err(error) => {
+            let detail = error.to_string();
+            if !should_retry_repository_command(&detail) {
+                return Err(normalize_repository_command_error(repo_root, &detail));
+            }
+            return upstream_with_cli().map_err(|fallback_error| {
+                normalize_repository_command_error(repo_root, &fallback_error)
+            });
+        }
+    };
     let head = match repo.head() {
         Ok(head) => head,
         Err(_) => return Ok(None),
@@ -538,7 +906,7 @@ pub(super) async fn init_git_repo_inner(
     let repo_root = resolve_git_root(&entry)?;
     let branch = validate_branch_name(&branch)?;
 
-    if Repository::open(&repo_root).is_ok() {
+    if is_git_repository(&repo_root) {
         return Ok(json!({ "status": "already_initialized" }));
     }
 
@@ -605,12 +973,10 @@ pub(super) async fn create_github_repo_inner(
         other => return Err(format!("Invalid repo visibility: {other}")),
     };
 
-    let local_repo = Repository::open(&repo_root)
-        .map_err(|_| "Git is not initialized in this folder yet.".to_string())?;
-    let origin_url_before = local_repo
-        .find_remote("origin")
-        .ok()
-        .and_then(|remote| remote.url().map(|url| url.to_string()));
+    if !is_git_repository(&repo_root) {
+        return Err("Git is not initialized in this folder yet.".to_string());
+    }
+    let origin_url_before = git_remote_url(&repo_root, "origin");
 
     let full_name = if repo.contains('/') {
         repo
@@ -674,14 +1040,7 @@ pub(super) async fn create_github_repo_inner(
     let default_branch = if let Some(branch) = branch {
         Some(validate_branch_name(&branch)?)
     } else {
-        let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
-        let head = repo.head().ok();
-        let name = head
-            .as_ref()
-            .filter(|head| head.is_branch())
-            .and_then(|head| head.shorthand())
-            .map(str::to_string);
-        name.and_then(|name| validate_branch_name(&name).ok())
+        current_branch_name(&repo_root)?.and_then(|name| validate_branch_name(&name).ok())
     };
 
     let default_branch_result = if let Some(branch) = default_branch.as_deref() {
@@ -728,25 +1087,47 @@ pub(super) async fn list_git_branches_inner(
 ) -> Result<Value, String> {
     let entry = workspace_entry_for_id(workspaces, &workspace_id).await?;
     let repo_root = resolve_git_root(&entry)?;
-    let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
-    let mut branches = Vec::new();
-    let refs = repo
-        .branches(Some(BranchType::Local))
-        .map_err(|e| e.to_string())?;
-    for branch_result in refs {
-        let (branch, _) = branch_result.map_err(|e| e.to_string())?;
-        let name = branch.name().ok().flatten().unwrap_or("").to_string();
-        if name.is_empty() {
-            continue;
-        }
-        let last_commit = branch
-            .get()
-            .target()
-            .and_then(|oid| repo.find_commit(oid).ok())
-            .map(|commit| commit.time().seconds())
-            .unwrap_or(0);
-        branches.push(BranchInfo { name, last_commit });
+    if prefer_safe_git_cli_repo_access() {
+        let mut branches = list_git_branches_with_safe_directory(&repo_root)
+            .await
+            .map_err(|error| normalize_repository_command_error(&repo_root, &error))?;
+        branches.sort_by(|a, b| b.last_commit.cmp(&a.last_commit));
+        return Ok(json!({ "branches": branches }));
     }
+    let mut branches = match Repository::open(&repo_root) {
+        Ok(repo) => {
+            let mut branches = Vec::new();
+            let refs = repo
+                .branches(Some(BranchType::Local))
+                .map_err(|e| e.to_string())?;
+            for branch_result in refs {
+                let (branch, _) = branch_result.map_err(|e| e.to_string())?;
+                let name = branch.name().ok().flatten().unwrap_or("").to_string();
+                if name.is_empty() {
+                    continue;
+                }
+                let last_commit = branch
+                    .get()
+                    .target()
+                    .and_then(|oid| repo.find_commit(oid).ok())
+                    .map(|commit| commit.time().seconds())
+                    .unwrap_or(0);
+                branches.push(BranchInfo { name, last_commit });
+            }
+            branches
+        }
+        Err(error) => {
+            let detail = error.to_string();
+            if !should_retry_repository_command(&detail) {
+                return Err(detail);
+            }
+            list_git_branches_with_safe_directory(&repo_root)
+                .await
+                .map_err(|fallback_error| {
+                    normalize_repository_command_error(&repo_root, &fallback_error)
+                })?
+        }
+    };
     branches.sort_by(|a, b| b.last_commit.cmp(&a.last_commit));
     Ok(json!({ "branches": branches }))
 }
@@ -758,8 +1139,25 @@ pub(super) async fn checkout_git_branch_inner(
 ) -> Result<(), String> {
     let entry = workspace_entry_for_id(workspaces, &workspace_id).await?;
     let repo_root = resolve_git_root(&entry)?;
-    let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
-    checkout_branch(&repo, &name).map_err(|e| e.to_string())
+    if prefer_safe_git_cli_repo_access() {
+        return run_git_command_with_safe_directory(&repo_root, &["checkout", &name])
+            .await
+            .map_err(|error| normalize_repository_command_error(&repo_root, &error));
+    }
+    match Repository::open(&repo_root) {
+        Ok(repo) => checkout_branch(&repo, &name).map_err(|e| e.to_string()),
+        Err(error) => {
+            let detail = error.to_string();
+            if !should_retry_repository_command(&detail) {
+                return Err(detail);
+            }
+            run_git_command_with_safe_directory(&repo_root, &["checkout", &name])
+                .await
+                .map_err(|fallback_error| {
+                    normalize_repository_command_error(&repo_root, &fallback_error)
+                })
+        }
+    }
 }
 
 pub(super) async fn create_git_branch_inner(
@@ -769,12 +1167,31 @@ pub(super) async fn create_git_branch_inner(
 ) -> Result<(), String> {
     let entry = workspace_entry_for_id(workspaces, &workspace_id).await?;
     let repo_root = resolve_git_root(&entry)?;
-    let repo = Repository::open(&repo_root).map_err(|e| e.to_string())?;
-    let head = repo.head().map_err(|e| e.to_string())?;
-    let target = head.peel_to_commit().map_err(|e| e.to_string())?;
-    repo.branch(&name, &target, false)
-        .map_err(|e| e.to_string())?;
-    checkout_branch(&repo, &name).map_err(|e| e.to_string())
+    if prefer_safe_git_cli_repo_access() {
+        return run_git_command_with_safe_directory(&repo_root, &["checkout", "-b", &name])
+            .await
+            .map_err(|error| normalize_repository_command_error(&repo_root, &error));
+    }
+    match Repository::open(&repo_root) {
+        Ok(repo) => {
+            let head = repo.head().map_err(|e| e.to_string())?;
+            let target = head.peel_to_commit().map_err(|e| e.to_string())?;
+            repo.branch(&name, &target, false)
+                .map_err(|e| e.to_string())?;
+            checkout_branch(&repo, &name).map_err(|e| e.to_string())
+        }
+        Err(error) => {
+            let detail = error.to_string();
+            if !should_retry_repository_command(&detail) {
+                return Err(detail);
+            }
+            run_git_command_with_safe_directory(&repo_root, &["checkout", "-b", &name])
+                .await
+                .map_err(|fallback_error| {
+                    normalize_repository_command_error(&repo_root, &fallback_error)
+                })
+        }
+    }
 }
 
 #[cfg(test)]

@@ -94,6 +94,7 @@ export function useThreads({
   threadSortKey = "updated_at",
   onThreadCodexMetadataDetected,
 }: UseThreadsOptions) {
+  const INACTIVE_THREAD_CACHE_ITEMS = 32;
   const maxItemsPerThread =
     chatHistoryScrollbackItems === undefined
       ? CHAT_SCROLLBACK_DEFAULT
@@ -126,6 +127,41 @@ export function useThreads({
   threadsByWorkspaceRef.current = state.threadsByWorkspace;
   activeTurnIdByThreadRef.current = state.activeTurnIdByThread;
   threadParentByIdRef.current = state.threadParentById;
+
+  useEffect(() => {
+    const keepThreadIds = new Set<string>();
+    Object.values(state.activeThreadIdByWorkspace).forEach((threadId) => {
+      if (threadId) {
+        keepThreadIds.add(threadId);
+      }
+    });
+    Object.entries(state.threadStatusById).forEach(([threadId, status]) => {
+      if (status?.isProcessing || status?.isReviewing) {
+        keepThreadIds.add(threadId);
+      }
+    });
+
+    const compactCandidates = Object.entries(state.itemsByThread)
+      .filter(
+        ([threadId, items]) =>
+          !keepThreadIds.has(threadId) && items.length > INACTIVE_THREAD_CACHE_ITEMS,
+      )
+      .map(([threadId]) => threadId);
+
+    if (compactCandidates.length === 0) {
+      return;
+    }
+
+    compactCandidates.forEach((threadId) => {
+      loadedThreadsRef.current[threadId] = false;
+    });
+
+    dispatch({
+      type: "compactInactiveThreadItems",
+      keepThreadIds: [...keepThreadIds],
+      maxInactiveItems: INACTIVE_THREAD_CACHE_ITEMS,
+    });
+  }, [dispatch, state.activeThreadIdByWorkspace, state.itemsByThread, state.threadStatusById]);
   const rateLimitsByWorkspaceRef = useRef(state.rateLimitsByWorkspace);
   rateLimitsByWorkspaceRef.current = state.rateLimitsByWorkspace;
   const { approvalAllowlistRef, handleApprovalDecision, handleApprovalRemember } =

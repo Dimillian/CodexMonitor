@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import type { ModelOption, WorkspaceInfo } from "../../../types";
 import type { WorkspaceRunMode } from "../hooks/useWorkspaceHome";
 import Laptop from "lucide-react/dist/esm/icons/laptop";
@@ -56,6 +57,7 @@ export function WorkspaceHomeRunControls({
   reasoningSupported,
   isSubmitting,
 }: WorkspaceHomeRunControlsProps) {
+  const { t } = useTranslation();
   const runModeMenu = useMenuController();
   const modelsMenu = useMenuController();
   const {
@@ -77,7 +79,10 @@ export function WorkspaceHomeRunControls({
   const selectedModelLabel = resolveModelLabel(selectedModel);
   const modelSummary = buildModelSummary(models, modelSelections);
   const showRunMode = (workspaceKind ?? "main") !== "worktree";
-  const runModeLabel = runMode === "local" ? "Local" : "Worktree";
+  const runModeLabel =
+    runMode === "local"
+      ? t("workspaceRunControls.local")
+      : t("workspaceRunControls.worktree");
   const RunModeIcon = runMode === "local" ? Laptop : GitBranch;
   const toggleRunModeMenu = useCallback(() => {
     toggleRunModeOpen();
@@ -100,7 +105,7 @@ export function WorkspaceHomeRunControls({
               type="button"
               className="ghost open-app-action"
               onClick={toggleRunModeMenu}
-              aria-label="Select run mode"
+              aria-label={t("workspaceRunControls.selectRunMode")}
               data-tauri-drag-region="false"
             >
               <span className="open-app-label">
@@ -112,7 +117,7 @@ export function WorkspaceHomeRunControls({
           isOpen={runModeOpen}
           onToggle={toggleRunModeMenu}
           toggleClassName="ghost open-app-toggle"
-          toggleAriaLabel="Toggle run mode menu"
+          toggleAriaLabel={t("workspaceRunControls.toggleRunModeMenu")}
           toggleIcon={<ChevronDown size={14} aria-hidden />}
           popoverClassName="open-app-dropdown workspace-home-dropdown"
           popoverRole="menu"
@@ -127,7 +132,7 @@ export function WorkspaceHomeRunControls({
             icon={<Laptop className="workspace-home-mode-icon" aria-hidden />}
             active={runMode === "local"}
           >
-            Local
+            {t("workspaceRunControls.local")}
           </PopoverMenuItem>
           <PopoverMenuItem
             className="open-app-option"
@@ -139,7 +144,7 @@ export function WorkspaceHomeRunControls({
             icon={<GitBranch className="workspace-home-mode-icon" aria-hidden />}
             active={runMode === "worktree"}
           >
-            Worktree
+            {t("workspaceRunControls.worktree")}
           </PopoverMenuItem>
         </SplitActionMenu>
       )}
@@ -153,7 +158,7 @@ export function WorkspaceHomeRunControls({
             type="button"
             className="ghost open-app-action"
             onClick={toggleModelsMenu}
-            aria-label="Select models"
+            aria-label={t("workspaceRunControls.selectModels")}
             data-tauri-drag-region="false"
           >
             <span className="open-app-label">
@@ -164,14 +169,14 @@ export function WorkspaceHomeRunControls({
         isOpen={modelsOpen}
         onToggle={toggleModelsMenu}
         toggleClassName="ghost open-app-toggle"
-        toggleAriaLabel="Toggle models menu"
+        toggleAriaLabel={t("workspaceRunControls.toggleModelsMenu")}
         toggleIcon={<ChevronDown size={14} aria-hidden />}
         popoverClassName="open-app-dropdown workspace-home-dropdown workspace-home-model-dropdown"
         popoverRole="menu"
       >
         {models.length === 0 && (
           <div className="workspace-home-empty">
-            Connect this workspace to load available models.
+            {t("workspaceRunControls.connectToLoadModels")}
           </div>
         )}
         {models.map((model) => {
@@ -244,7 +249,7 @@ export function WorkspaceHomeRunControls({
             </span>
             <select
               className="composer-select composer-select--model"
-              aria-label="Collaboration mode"
+              aria-label={t("uiText.composerBar.collaborationMode")}
               value={selectedCollaborationModeId ?? ""}
               onChange={(event) => onSelectCollaborationMode(event.target.value || null)}
               disabled={isSubmitting}
@@ -290,12 +295,14 @@ export function WorkspaceHomeRunControls({
           </span>
           <select
             className="composer-select composer-select--effort"
-            aria-label="Thinking mode"
+            aria-label={t("uiText.composerBar.thinkingMode")}
             value={selectedEffort ?? ""}
             onChange={(event) => onSelectEffort(event.target.value)}
             disabled={isSubmitting || !reasoningSupported}
           >
-            {reasoningOptions.length === 0 && <option value="">Default</option>}
+            {reasoningOptions.length === 0 && (
+              <option value="">{t("uiText.composerBar.default")}</option>
+            )}
             {reasoningOptions.map((effortOption) => (
               <option key={effortOption} value={effortOption}>
                 {effortOption}

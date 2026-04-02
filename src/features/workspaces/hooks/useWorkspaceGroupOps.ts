@@ -1,7 +1,7 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import type { AppSettings, WorkspaceGroup, WorkspaceInfo, WorkspaceSettings } from "../../../types";
 import {
-  RESERVED_GROUP_NAME,
   createGroupId,
   isDuplicateGroupName,
   isReservedGroupName,
@@ -28,6 +28,7 @@ export function useWorkspaceGroupOps({
   workspaces,
   updateWorkspaceSettings,
 }: UseWorkspaceGroupOpsOptions) {
+  const { t } = useTranslation();
   const updateWorkspaceGroups = useCallback(
     async (nextGroups: WorkspaceGroup[]) => {
       if (!appSettings || !onUpdateAppSettings) {
@@ -49,14 +50,18 @@ export function useWorkspaceGroupOps({
       }
       const trimmed = normalizeGroupName(name);
       if (!trimmed) {
-        throw new Error("Group name is required.");
+        throw new Error(t("settings.projects.groupNameRequired"));
       }
       if (isReservedGroupName(trimmed)) {
-        throw new Error(`"${RESERVED_GROUP_NAME}" is reserved.`);
+        throw new Error(
+          t("settings.projects.groupNameReserved", {
+            name: t("settings.projects.ungrouped"),
+          }),
+        );
       }
       const currentGroups = appSettings.workspaceGroups ?? [];
       if (isDuplicateGroupName(trimmed, currentGroups)) {
-        throw new Error("Group name already exists.");
+        throw new Error(t("settings.projects.groupNameExists"));
       }
       const nextSortOrder =
         currentGroups.reduce((max, group) => {
@@ -74,7 +79,7 @@ export function useWorkspaceGroupOps({
       await updateWorkspaceGroups([...currentGroups, nextGroup]);
       return nextGroup;
     },
-    [appSettings, onUpdateAppSettings, updateWorkspaceGroups],
+    [appSettings, onUpdateAppSettings, t, updateWorkspaceGroups],
   );
 
   const renameWorkspaceGroup = useCallback(
@@ -84,14 +89,18 @@ export function useWorkspaceGroupOps({
       }
       const trimmed = normalizeGroupName(name);
       if (!trimmed) {
-        throw new Error("Group name is required.");
+        throw new Error(t("settings.projects.groupNameRequired"));
       }
       if (isReservedGroupName(trimmed)) {
-        throw new Error(`"${RESERVED_GROUP_NAME}" is reserved.`);
+        throw new Error(
+          t("settings.projects.groupNameReserved", {
+            name: t("settings.projects.ungrouped"),
+          }),
+        );
       }
       const currentGroups = appSettings.workspaceGroups ?? [];
       if (isDuplicateGroupName(trimmed, currentGroups, groupId)) {
-        throw new Error("Group name already exists.");
+        throw new Error(t("settings.projects.groupNameExists"));
       }
       const nextGroups = currentGroups.map((group) =>
         group.id === groupId ? { ...group, name: trimmed } : group,
@@ -99,7 +108,7 @@ export function useWorkspaceGroupOps({
       await updateWorkspaceGroups(nextGroups);
       return true;
     },
-    [appSettings, onUpdateAppSettings, updateWorkspaceGroups],
+    [appSettings, onUpdateAppSettings, t, updateWorkspaceGroups],
   );
 
   const moveWorkspaceGroup = useCallback(

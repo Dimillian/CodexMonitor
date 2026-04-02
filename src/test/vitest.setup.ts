@@ -1,4 +1,28 @@
 import { vi } from "vitest";
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
+import { localeMessages } from "@/locales";
+
+void i18n.use(initReactI18next).init({
+  resources: {
+    ar: { common: localeMessages.ar },
+    de: { common: localeMessages.de },
+    en: { common: localeMessages.en },
+    es: { common: localeMessages.es },
+    fr: { common: localeMessages.fr },
+    hi: { common: localeMessages.hi },
+    ja: { common: localeMessages.ja },
+    ko: { common: localeMessages.ko },
+    pt: { common: localeMessages.pt },
+    ru: { common: localeMessages.ru },
+    zh: { common: localeMessages.zh },
+  },
+  lng: "en",
+  fallbackLng: "en",
+  defaultNS: "common",
+  ns: ["common"],
+  interpolation: { escapeValue: false },
+});
 
 if (!("IS_REACT_ACT_ENVIRONMENT" in globalThis)) {
   Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {

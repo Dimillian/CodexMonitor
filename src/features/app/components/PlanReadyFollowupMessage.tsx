@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type PlanReadyFollowupMessageProps = {
   onAccept: () => void;
@@ -9,6 +10,7 @@ export function PlanReadyFollowupMessage({
   onAccept,
   onSubmitChanges,
 }: PlanReadyFollowupMessageProps) {
+  const { t } = useTranslation();
   const [changes, setChanges] = useState("");
   const trimmed = useMemo(() => changes.trim(), [changes]);
 
@@ -17,19 +19,19 @@ export function PlanReadyFollowupMessage({
       <div
         className="bubble request-user-input-card"
         role="group"
-        aria-label="Plan ready"
+        aria-label={t("planReady.ariaLabel")}
       >
         <div className="request-user-input-header">
-          <div className="request-user-input-title">Plan ready</div>
+          <div className="request-user-input-title">{t("planReady.title")}</div>
         </div>
         <div className="request-user-input-body">
           <section className="request-user-input-question">
             <div className="request-user-input-question-text">
-              Start building from this plan, or describe changes to the plan.
+              {t("planReady.description")}
             </div>
             <textarea
               className="request-user-input-notes"
-              placeholder="Describe what you want to change in the plan..."
+              placeholder={t("planReady.placeholder")}
               value={changes}
               onChange={(event) => setChanges(event.target.value)}
               rows={3}
@@ -49,10 +51,10 @@ export function PlanReadyFollowupMessage({
             }}
             disabled={!trimmed}
           >
-            Send changes
+            {t("planReady.sendChanges")}
           </button>
           <button type="button" className="primary" onClick={onAccept}>
-            Implement this plan
+            {t("planReady.implement")}
           </button>
         </div>
       </div>

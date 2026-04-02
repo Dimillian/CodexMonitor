@@ -1,4 +1,6 @@
-import { memo, useCallback } from "react";
+import { memo, useCallback, useEffect } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useTranslation } from "react-i18next";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import type {
@@ -10,7 +12,7 @@ import type {
 import { PlanReadyFollowupMessage } from "../../app/components/PlanReadyFollowupMessage";
 import { RequestUserInputMessage } from "../../app/components/RequestUserInputMessage";
 import { useFileLinkOpener } from "../hooks/useFileLinkOpener";
-import { formatCount, parseReasoning } from "../utils/messageRenderUtils";
+import { parseReasoning } from "../utils/messageRenderUtils";
 import {
   DiffRow,
   ExploreRow,
@@ -71,6 +73,25 @@ export const Messages = memo(function Messages({
   onOpenThreadLink,
   onQuoteMessage,
 }: MessagesProps) {
+  const { t } = useTranslation();
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!root) {
+      return undefined;
+    }
+    if (isThinking) {
+      root.dataset.codexThinking = "true";
+    } else if (root.dataset.codexThinking === "true") {
+      delete root.dataset.codexThinking;
+    }
+    return () => {
+      if (root.dataset.codexThinking === "true") {
+        delete root.dataset.codexThinking;
+      }
+    };
+  }, [isThinking]);
+
   const activeUserInputRequestId =
     threadId && userInputRequests.length
       ? (userInputRequests.find(
@@ -105,6 +126,8 @@ export const Messages = memo(function Messages({
   const {
     bottomRef,
     containerRef,
+    contentRef,
+    handleUserScrollIntent,
     updateAutoScroll,
     requestAutoScroll,
     expandedItems,
@@ -143,6 +166,22 @@ export const Messages = memo(function Messages({
         }}
       />
     ) : null;
+
+  const rowVirtualizer = useVirtualizer({
+    count: groupedItems.length,
+    getScrollElement: () => containerRef.current,
+    estimateSize: () => 120,
+    overscan: 4,
+  });
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const virtualTopSpacer = virtualRows[0]?.start ?? 0;
+  const virtualBottomSpacer =
+    virtualRows.length > 0
+      ? Math.max(
+          rowVirtualizer.getTotalSize() - (virtualRows[virtualRows.length - 1]?.end ?? 0),
+          0,
+        )
+      : 0;
 
   const renderItem = (item: ConversationItem) => {
     if (item.kind === "message") {
@@ -231,56 +270,101 @@ export const Messages = memo(function Messages({
     return null;
   };
 
+  const renderEntry = (
+    entry: (typeof groupedItems)[number],
+  ) => {
+    if (entry.kind === "toolGroup") {
+      const { group } = entry;
+      const isCollapsed = collapsedToolGroups.has(group.id);
+      const summaryParts = [
+        group.toolCount === 1
+          ? t("uiText.messages.oneToolCall")
+          : t("uiText.messages.toolCallCount", { count: group.toolCount }),
+      ];
+      if (group.messageCount > 0) {
+        summaryParts.push(
+          group.messageCount === 1
+            ? t("uiText.messages.oneMessage")
+            : t("uiText.messages.messageCount", { count: group.messageCount }),
+        );
+      }
+      const summaryText = summaryParts.join(", ");
+      const groupBodyId = `tool-group-${group.id}`;
+      const ChevronIcon = isCollapsed ? ChevronDown : ChevronUp;
+      return (
+        <div
+          className={`tool-group ${isCollapsed ? "tool-group-collapsed" : ""}`}
+        >
+          <div className="tool-group-header">
+            <button
+              type="button"
+              className="tool-group-toggle"
+              onClick={() => toggleToolGroup(group.id)}
+              aria-expanded={!isCollapsed}
+              aria-controls={groupBodyId}
+              aria-label={
+                isCollapsed
+                  ? t("uiText.messages.expandToolCalls")
+                  : t("uiText.messages.collapseToolCalls")
+              }
+            >
+              <span className="tool-group-chevron" aria-hidden>
+                <ChevronIcon size={14} />
+              </span>
+              <span className="tool-group-summary">{summaryText}</span>
+            </button>
+          </div>
+          {!isCollapsed && (
+            <div className="tool-group-body" id={groupBodyId}>
+              {group.items.map(renderItem)}
+            </div>
+          )}
+        </div>
+      );
+    }
+    return renderItem(entry.item);
+  };
+
   return (
     <div
-      className="messages messages-full"
+      className={`messages messages-full${isThinking ? " is-thinking" : ""}`}
       ref={containerRef}
+      onWheelCapture={handleUserScrollIntent}
+      onTouchStartCapture={handleUserScrollIntent}
       onScroll={updateAutoScroll}
     >
-      <div className="messages-inner">
-        {groupedItems.map((entry) => {
-          if (entry.kind === "toolGroup") {
-            const { group } = entry;
-            const isCollapsed = collapsedToolGroups.has(group.id);
-            const summaryParts = [
-              formatCount(group.toolCount, "tool call", "tool calls"),
-            ];
-            if (group.messageCount > 0) {
-              summaryParts.push(formatCount(group.messageCount, "message", "messages"));
-            }
-            const summaryText = summaryParts.join(", ");
-            const groupBodyId = `tool-group-${group.id}`;
-            const ChevronIcon = isCollapsed ? ChevronDown : ChevronUp;
+      <div className="messages-inner" ref={contentRef}>
+        <div className="messages-virtual-content">
+          {virtualTopSpacer > 0 ? (
+            <div
+              className="messages-virtual-spacer"
+              style={{ height: `${virtualTopSpacer}px` }}
+              aria-hidden
+            />
+          ) : null}
+          {virtualRows.map((virtualRow) => {
+            const entry = groupedItems[virtualRow.index];
+            const entryKey =
+              entry.kind === "toolGroup" ? `tool-group-${entry.group.id}` : entry.item.id;
             return (
               <div
-                key={`tool-group-${group.id}`}
-                className={`tool-group ${isCollapsed ? "tool-group-collapsed" : ""}`}
+                key={entryKey}
+                className="messages-virtual-row"
+                data-index={virtualRow.index}
+                ref={rowVirtualizer.measureElement}
               >
-                <div className="tool-group-header">
-                  <button
-                    type="button"
-                    className="tool-group-toggle"
-                    onClick={() => toggleToolGroup(group.id)}
-                    aria-expanded={!isCollapsed}
-                    aria-controls={groupBodyId}
-                    aria-label={isCollapsed ? "Expand tool calls" : "Collapse tool calls"}
-                  >
-                    <span className="tool-group-chevron" aria-hidden>
-                      <ChevronIcon size={14} />
-                    </span>
-                    <span className="tool-group-summary">{summaryText}</span>
-                  </button>
-                </div>
-                {!isCollapsed && (
-                  <div className="tool-group-body" id={groupBodyId}>
-                    {group.items.map(renderItem)}
-                  </div>
-                )}
+                {renderEntry(entry)}
               </div>
             );
-          }
-          return renderItem(entry.item);
-        })}
+          })}
+          {virtualBottomSpacer > 0 ? (
+            <div
+              className="messages-virtual-spacer"
+              style={{ height: `${virtualBottomSpacer}px` }}
+              aria-hidden
+            />
+          ) : null}
+        </div>
         {planFollowupNode}
         {userInputNode}
         <WorkingIndicator
@@ -294,18 +378,24 @@ export const Messages = memo(function Messages({
         />
         {!items.length && !userInputNode && !isThinking && !isLoadingMessages && (
           <div className="empty messages-empty">
-            {threadId ? "Send a prompt to the agent." : "Send a prompt to start a new agent."}
+            {threadId
+              ? t("uiText.messages.sendPromptToAgent")
+              : t("uiText.messages.sendPromptToStartAgent")}
           </div>
         )}
         {!items.length && !userInputNode && !isThinking && isLoadingMessages && (
           <div className="empty messages-empty">
             <div className="messages-loading-indicator" role="status" aria-live="polite">
-              <span className="working-spinner" aria-hidden />
-              <span className="messages-loading-label">Loading…</span>
+              <span className="working-dots" aria-hidden>
+                <span />
+                <span />
+                <span />
+              </span>
+              <span className="messages-loading-label">{t("uiText.messages.loading")}</span>
             </div>
           </div>
         )}
-        <div ref={bottomRef} />
+        <div ref={bottomRef} className="messages-bottom-anchor" />
       </div>
     </div>
   );

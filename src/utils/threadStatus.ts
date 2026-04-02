@@ -28,7 +28,7 @@ export function getThreadStatusClass(
 }
 
 type WorkspaceHomeThreadState = {
-  statusLabel: "Running" | "Reviewing" | "Idle";
+  statusLabel: "running" | "reviewing" | "idle";
   stateClass: "is-running" | "is-reviewing" | "is-idle";
   isRunning: boolean;
 };
@@ -37,10 +37,10 @@ export function getWorkspaceHomeThreadState(
   status: ThreadStatusFlags | undefined,
 ): WorkspaceHomeThreadState {
   if (status?.isProcessing) {
-    return { statusLabel: "Running", stateClass: "is-running", isRunning: true };
+    return { statusLabel: "running", stateClass: "is-running", isRunning: true };
   }
   if (status?.isReviewing) {
-    return { statusLabel: "Reviewing", stateClass: "is-reviewing", isRunning: false };
+    return { statusLabel: "reviewing", stateClass: "is-reviewing", isRunning: false };
   }
-  return { statusLabel: "Idle", stateClass: "is-idle", isRunning: false };
+  return { statusLabel: "idle", stateClass: "is-idle", isRunning: false };
 }

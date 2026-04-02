@@ -1,7 +1,7 @@
 import {
+  useDeferredValue,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -9,12 +9,12 @@ import {
 import type { ConversationItem } from "../../../types";
 import { isPlanReadyTaggedMessage } from "../../../utils/internalPlanReadyMessages";
 import {
-  SCROLL_THRESHOLD_PX,
   buildToolGroups,
   computePlanFollowupState,
   parseReasoning,
   scrollKeyForItems,
 } from "../utils/messageRenderUtils";
+import { useMessagesViewport } from "./useMessagesViewport";
 
 function toMarkdownQuote(text: string): string {
   const trimmed = text.trim();
@@ -49,11 +49,9 @@ export function useMessagesViewState({
   onPlanSubmitChanges,
   onQuoteMessage,
 }: UseMessagesViewStateArgs) {
-  const bottomRef = useRef<HTMLDivElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const autoScrollRef = useRef(true);
   const copyTimeoutRef = useRef<number | null>(null);
   const manuallyToggledExpandedRef = useRef<Set<string>>(new Set());
+  const initializedToolGroupsRef = useRef<Set<string>>(new Set());
 
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [collapsedToolGroups, setCollapsedToolGroups] = useState<Set<string>>(
@@ -62,53 +60,21 @@ export function useMessagesViewState({
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [dismissedPlanFollowupByThread, setDismissedPlanFollowupByThread] =
     useState<Record<string, string>>({});
+  const deferredItems = useDeferredValue(items);
+  const displayItems = isThinking ? items : deferredItems;
 
-  const scrollKey = `${scrollKeyForItems(items)}-${activeUserInputRequestId ?? "no-input"}`;
-
-  const isNearBottom = useCallback(
-    (node: HTMLDivElement) =>
-      node.scrollHeight - node.scrollTop - node.clientHeight <= SCROLL_THRESHOLD_PX,
-    [],
-  );
-
-  const updateAutoScroll = useCallback(() => {
-    if (!containerRef.current) {
-      return;
-    }
-    autoScrollRef.current = isNearBottom(containerRef.current);
-  }, [isNearBottom]);
-
-  const requestAutoScroll = useCallback(() => {
-    const container = containerRef.current;
-    const shouldScroll =
-      autoScrollRef.current || (container ? isNearBottom(container) : true);
-    if (!shouldScroll) {
-      return;
-    }
-    if (container) {
-      container.scrollTop = container.scrollHeight;
-      return;
-    }
-    bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [isNearBottom]);
-
-  useLayoutEffect(() => {
-    autoScrollRef.current = true;
-  }, [threadId]);
-
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    const shouldScroll =
-      autoScrollRef.current || (container ? isNearBottom(container) : true);
-    if (!shouldScroll) {
-      return;
-    }
-    if (container) {
-      container.scrollTop = container.scrollHeight;
-      return;
-    }
-    bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [scrollKey, isThinking, isNearBottom, threadId]);
+  const scrollKey = `${scrollKeyForItems(displayItems)}-${activeUserInputRequestId ?? "no-input"}`;
+  const {
+    bottomRef,
+    containerRef,
+    contentRef,
+    handleUserScrollIntent,
+    updateAutoScroll,
+    requestAutoScroll,
+  } = useMessagesViewport({
+    threadId,
+    contentKey: `${scrollKey}-${isThinking ? "thinking" : "idle"}`,
+  });
 
   useEffect(() => {
     return () => {
@@ -178,17 +144,17 @@ export function useMessagesViewState({
 
   const reasoningMetaById = useMemo(() => {
     const meta = new Map<string, ReturnType<typeof parseReasoning>>();
-    items.forEach((item) => {
+    displayItems.forEach((item) => {
       if (item.kind === "reasoning") {
         meta.set(item.id, parseReasoning(item));
       }
     });
     return meta;
-  }, [items]);
+  }, [displayItems]);
 
   const latestReasoningLabel = useMemo(() => {
-    for (let index = items.length - 1; index >= 0; index -= 1) {
-      const item = items[index];
+    for (let index = displayItems.length - 1; index >= 0; index -= 1) {
+      const item = displayItems[index];
       if (item.kind === "message") {
         break;
       }
@@ -201,11 +167,11 @@ export function useMessagesViewState({
       }
     }
     return null;
-  }, [items, reasoningMetaById]);
+  }, [displayItems, reasoningMetaById]);
 
   const visibleItems = useMemo(
     () =>
-      items.filter((item) => {
+      displayItems.filter((item) => {
         if (
           item.kind === "message" &&
           item.role === "user" &&
@@ -218,7 +184,7 @@ export function useMessagesViewState({
         }
         return reasoningMetaById.get(item.id)?.hasBody ?? false;
       }),
-    [items, reasoningMetaById],
+    [displayItems, reasoningMetaById],
   );
 
   useEffect(() => {
@@ -247,6 +213,28 @@ export function useMessagesViewState({
 
   const groupedItems = useMemo(() => buildToolGroups(visibleItems), [visibleItems]);
 
+  useEffect(() => {
+    const nextCollapsedIds: string[] = [];
+    groupedItems.forEach((entry) => {
+      if (entry.kind !== "toolGroup") {
+        return;
+      }
+      if (initializedToolGroupsRef.current.has(entry.group.id)) {
+        return;
+      }
+      initializedToolGroupsRef.current.add(entry.group.id);
+      nextCollapsedIds.push(entry.group.id);
+    });
+    if (nextCollapsedIds.length === 0) {
+      return;
+    }
+    setCollapsedToolGroups((prev) => {
+      const next = new Set(prev);
+      nextCollapsedIds.forEach((id) => next.add(id));
+      return next;
+    });
+  }, [groupedItems]);
+
   const planFollowup = useMemo(() => {
     if (!onPlanAccept || !onPlanSubmitChanges) {
       return { shouldShow: false, planItemId: null };
@@ -254,7 +242,7 @@ export function useMessagesViewState({
 
     const candidate = computePlanFollowupState({
       threadId,
-      items,
+      items: displayItems,
       isThinking,
       hasVisibleUserInputRequest,
     });
@@ -270,7 +258,7 @@ export function useMessagesViewState({
     dismissedPlanFollowupByThread,
     hasVisibleUserInputRequest,
     isThinking,
-    items,
+    displayItems,
     onPlanAccept,
     onPlanSubmitChanges,
     threadId,
@@ -289,6 +277,8 @@ export function useMessagesViewState({
   return {
     bottomRef,
     containerRef,
+    contentRef,
+    handleUserScrollIntent,
     updateAutoScroll,
     requestAutoScroll,
     expandedItems,

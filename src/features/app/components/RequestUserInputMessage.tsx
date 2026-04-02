@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type {
   RequestUserInputRequest,
   RequestUserInputResponse,
@@ -23,6 +24,7 @@ export function RequestUserInputMessage({
   activeWorkspaceId,
   onSubmit,
 }: RequestUserInputMessageProps) {
+  const { t } = useTranslation();
   const activeRequests = useMemo(
     () =>
       requests.filter((request) => {
@@ -116,13 +118,13 @@ export function RequestUserInputMessage({
       <div
         className="bubble request-user-input-card"
         role="group"
-        aria-label="User input requested"
+        aria-label={t("requestUserInput.ariaLabel")}
       >
         <div className="request-user-input-header">
-          <div className="request-user-input-title">Input requested</div>
+          <div className="request-user-input-title">{t("requestUserInput.title")}</div>
           {totalRequests > 1 ? (
             <div className="request-user-input-queue">
-              {`Request 1 of ${totalRequests}`}
+              {t("requestUserInput.queue", { index: 1, total: totalRequests })}
             </div>
           ) : null}
         </div>
@@ -133,10 +135,10 @@ export function RequestUserInputMessage({
               const selectedIndex = selections[questionId];
               const options = question.options ?? [];
               const notePlaceholder = question.isOther
-                ? "Type your answer (optional)"
+                ? t("requestUserInput.typeAnswerOptional")
                 : options.length
-                ? "Add notes (optional)"
-                : "Type your answer (optional)";
+                  ? t("requestUserInput.addNotesOptional")
+                  : t("requestUserInput.typeAnswerOptional");
               return (
                 <section key={questionId} className="request-user-input-question">
                   {question.header ? (
@@ -184,13 +186,13 @@ export function RequestUserInputMessage({
             })
           ) : (
             <div className="request-user-input-empty">
-              No questions provided.
+              {t("requestUserInput.noQuestions")}
             </div>
           )}
         </div>
         <div className="request-user-input-actions">
           <button className="primary" onClick={handleSubmit}>
-            Submit
+            {t("requestUserInput.submit")}
           </button>
         </div>
       </div>

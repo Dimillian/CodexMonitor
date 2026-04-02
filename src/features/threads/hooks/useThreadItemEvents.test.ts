@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildConversationItem } from "@utils/threadItems";
 import { useThreadItemEvents } from "./useThreadItemEvents";
 
@@ -64,7 +64,12 @@ describe("useThreadItemEvents", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
     vi.mocked(buildConversationItem).mockReturnValue(convertedItem);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("dispatches item updates and marks review mode on item start", () => {
@@ -223,6 +228,7 @@ describe("useThreadItemEvents", () => {
         itemId: "assistant-1",
         delta: "Hello",
       });
+      vi.advanceTimersByTime(70);
     });
 
     expect(dispatch).toHaveBeenCalledWith({
@@ -232,6 +238,41 @@ describe("useThreadItemEvents", () => {
     });
     expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
     expect(dispatch).toHaveBeenCalledWith({
+      type: "appendAgentDelta",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      itemId: "assistant-1",
+      delta: "Hello",
+      hasCustomName: false,
+    });
+  });
+
+  it("coalesces multiple agent deltas before dispatching", () => {
+    const { result, dispatch } = makeOptions();
+
+    act(() => {
+      result.current.onAgentMessageDelta({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        delta: "Hel",
+      });
+      result.current.onAgentMessageDelta({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        delta: "lo",
+      });
+      vi.advanceTimersByTime(70);
+    });
+
+    expect(dispatch).toHaveBeenCalledTimes(2);
+    expect(dispatch).toHaveBeenNthCalledWith(1, {
+      type: "ensureThread",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+    });
+    expect(dispatch).toHaveBeenNthCalledWith(2, {
       type: "appendAgentDelta",
       workspaceId: "ws-1",
       threadId: "thread-1",
@@ -311,6 +352,7 @@ describe("useThreadItemEvents", () => {
 
     act(() => {
       result.current.onPlanDelta("ws-1", "thread-1", "plan-1", "- Step 1");
+      vi.advanceTimersByTime(70);
     });
 
     expect(dispatch).toHaveBeenCalledWith({

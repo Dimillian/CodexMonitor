@@ -16,6 +16,27 @@
   padding: calc(36px + var(--home-scroll-offset, 0px)) 32px 24px;
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--border-strong) 82%, transparent) transparent;
+}
+
+.home::-webkit-scrollbar {
+  width: 10px;
+}
+
+.home::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.home::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--border-strong) 82%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.home::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text-muted) 58%, transparent);
 }
 
 .app.layout-desktop .home {

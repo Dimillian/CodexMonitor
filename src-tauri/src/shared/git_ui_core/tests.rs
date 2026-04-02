@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex as StdMutex, OnceLock};
 
 use git2::Repository;
 use serde_json::Value;
@@ -17,6 +18,11 @@ fn create_temp_repo() -> (PathBuf, Repository) {
     fs::create_dir_all(&root).expect("create temp repo root");
     let repo = Repository::init(&root).expect("init repo");
     (root, repo)
+}
+
+fn git_cli_env_lock() -> &'static StdMutex<()> {
+    static LOCK: OnceLock<StdMutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| StdMutex::new(()))
 }
 
 #[test]
@@ -112,6 +118,164 @@ fn validate_normalized_repo_name_accepts_non_empty_normalized_slug() {
         commands::validate_normalized_repo_name("owner/repo.git"),
         Ok("owner/repo".to_string())
     );
+}
+
+#[test]
+fn parse_git_branch_listing_reads_branch_names_and_timestamps() {
+    let branches =
+        commands::parse_git_branch_listing("feature/b\t100\nmain\t250\nstale\t0\ninvalid\tnope\n");
+
+    assert_eq!(branches[0].name, "main");
+    assert_eq!(branches[0].last_commit, 250);
+    assert_eq!(branches[1].name, "feature/b");
+    assert_eq!(branches[1].last_commit, 100);
+    assert_eq!(branches[3].name, "invalid");
+    assert_eq!(branches[3].last_commit, 0);
+}
+
+#[test]
+fn detects_repository_owner_errors_from_git_and_libgit2_messages() {
+    assert!(commands::is_repository_owner_error(
+        "repository path 'F:/repo' is not owned by current user; class=Config (7); code=Owner (-36)"
+    ));
+    assert!(commands::is_repository_owner_error(
+        "fatal: detected dubious ownership in repository at '/tmp/repo'"
+    ));
+    assert!(!commands::is_repository_owner_error(
+        "fatal: not a git repository (or any of the parent directories): .git"
+    ));
+}
+
+#[test]
+fn detects_repository_missing_errors_from_git_and_libgit2_messages() {
+    assert!(commands::is_repository_missing_error(
+        "could not find repository at 'F:\\CODE\\daily'; class=Repository (6); code=NotFound (-3)"
+    ));
+    assert!(commands::is_repository_missing_error(
+        "fatal: not a git repository (or any of the parent directories): .git"
+    ));
+    assert!(commands::is_repository_missing_error(
+        "fatal: cannot change to 'F:/CODE/missing': No such file or directory"
+    ));
+    assert!(!commands::is_repository_missing_error(
+        "repository path 'F:/repo' is not owned by current user; class=Config (7); code=Owner (-36)"
+    ));
+}
+
+#[test]
+fn list_git_branches_supports_cli_first_repo_access_mode() {
+    let _guard = git_cli_env_lock().lock().expect("env lock");
+    let (root, repo) = create_temp_repo();
+    fs::write(root.join("tracked.txt"), "tracked\n").expect("write tracked file");
+    let mut index = repo.index().expect("repo index");
+    index.add_path(Path::new("tracked.txt")).expect("add path");
+    let tree_id = index.write_tree().expect("write tree");
+    let tree = repo.find_tree(tree_id).expect("find tree");
+    let sig = git2::Signature::now("Test", "test@example.com").expect("signature");
+    repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+        .expect("commit");
+    let default_branch = repo
+        .head()
+        .expect("head")
+        .shorthand()
+        .expect("branch name")
+        .to_string();
+
+    let head_commit = repo
+        .head()
+        .expect("head")
+        .peel_to_commit()
+        .expect("head commit");
+    repo.branch("feature/cli", &head_commit, false)
+        .expect("create branch");
+
+    let workspace = WorkspaceEntry {
+        id: "w1".to_string(),
+        name: "w1".to_string(),
+        path: root.to_string_lossy().to_string(),
+        kind: WorkspaceKind::Main,
+        parent_id: None,
+        worktree: None,
+        settings: WorkspaceSettings::default(),
+    };
+    let mut entries = HashMap::new();
+    entries.insert("w1".to_string(), workspace);
+    let workspaces = Mutex::new(entries);
+
+    unsafe {
+        std::env::set_var("CODEX_MONITOR_FORCE_SAFE_GIT_CLI", "1");
+    }
+
+    let runtime = Runtime::new().expect("create tokio runtime");
+    let result = runtime
+        .block_on(commands::list_git_branches_inner(
+            &workspaces,
+            "w1".to_string(),
+        ))
+        .expect("list branches");
+
+    unsafe {
+        std::env::remove_var("CODEX_MONITOR_FORCE_SAFE_GIT_CLI");
+    }
+
+    let branches = result
+        .get("branches")
+        .and_then(Value::as_array)
+        .expect("branches array");
+    let names: Vec<&str> = branches
+        .iter()
+        .filter_map(|entry| entry.get("name").and_then(Value::as_str))
+        .collect();
+    assert!(names.iter().any(|name| *name == default_branch.as_str()));
+    assert!(names.contains(&"feature/cli"));
+}
+
+#[test]
+fn get_git_log_supports_cli_first_repo_access_mode() {
+    let _guard = git_cli_env_lock().lock().expect("env lock");
+    let (root, repo) = create_temp_repo();
+    fs::write(root.join("tracked.txt"), "tracked\n").expect("write tracked file");
+    let mut index = repo.index().expect("repo index");
+    index.add_path(Path::new("tracked.txt")).expect("add path");
+    let tree_id = index.write_tree().expect("write tree");
+    let tree = repo.find_tree(tree_id).expect("find tree");
+    let sig = git2::Signature::now("Test", "test@example.com").expect("signature");
+    repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+        .expect("commit");
+
+    let workspace = WorkspaceEntry {
+        id: "w1".to_string(),
+        name: "w1".to_string(),
+        path: root.to_string_lossy().to_string(),
+        kind: WorkspaceKind::Main,
+        parent_id: None,
+        worktree: None,
+        settings: WorkspaceSettings::default(),
+    };
+    let mut entries = HashMap::new();
+    entries.insert("w1".to_string(), workspace);
+    let workspaces = Mutex::new(entries);
+
+    unsafe {
+        std::env::set_var("CODEX_MONITOR_FORCE_SAFE_GIT_CLI", "1");
+    }
+
+    let runtime = Runtime::new().expect("create tokio runtime");
+    let result = runtime
+        .block_on(super::log::get_git_log_inner(
+            &workspaces,
+            "w1".to_string(),
+            Some(10),
+        ))
+        .expect("git log");
+
+    unsafe {
+        std::env::remove_var("CODEX_MONITOR_FORCE_SAFE_GIT_CLI");
+    }
+
+    assert_eq!(result.total, 1);
+    assert_eq!(result.entries.len(), 1);
+    assert_eq!(result.entries[0].summary, "init");
 }
 
 #[test]
@@ -224,6 +388,63 @@ fn get_git_diffs_omits_global_ignored_paths() {
         .iter()
         .any(|diff| diff.path.starts_with("ignored_root/example/foo/bar"));
     assert!(!has_ignored, "ignored files should not appear in diff list");
+}
+
+#[test]
+fn get_git_diffs_marks_large_text_files_as_too_large() {
+    let (root, repo) = create_temp_repo();
+    let large_path = root.join("dist").join("bundle.js");
+    fs::create_dir_all(large_path.parent().expect("parent")).expect("create dist dir");
+    fs::write(&large_path, "const version = 1;\n").expect("write initial bundle");
+
+    let mut index = repo.index().expect("repo index");
+    index
+        .add_path(Path::new("dist/bundle.js"))
+        .expect("add bundle");
+    let tree_id = index.write_tree().expect("write tree");
+    let tree = repo.find_tree(tree_id).expect("find tree");
+    let sig = git2::Signature::now("Test", "test@example.com").expect("signature");
+    repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+        .expect("commit");
+
+    let large_content = format!("{}\n", "x".repeat(300 * 1024));
+    fs::write(&large_path, large_content).expect("overwrite bundle with large output");
+
+    let workspace = WorkspaceEntry {
+        id: "w1".to_string(),
+        name: "w1".to_string(),
+        path: root.to_string_lossy().to_string(),
+        kind: WorkspaceKind::Main,
+        parent_id: None,
+        worktree: None,
+        settings: WorkspaceSettings::default(),
+    };
+    let mut entries = HashMap::new();
+    entries.insert("w1".to_string(), workspace);
+    let workspaces = Mutex::new(entries);
+    let app_settings = Mutex::new(AppSettings::default());
+
+    let runtime = Runtime::new().expect("create tokio runtime");
+    let diffs = runtime
+        .block_on(diff::get_git_diffs_inner(
+            &workspaces,
+            &app_settings,
+            "w1".to_string(),
+        ))
+        .expect("get git diffs");
+
+    let large_diff = diffs
+        .iter()
+        .find(|diff| diff.path == "dist/bundle.js")
+        .expect("bundle diff");
+
+    assert!(
+        large_diff.is_diff_too_large,
+        "large text outputs should be marked as too large for safe rendering"
+    );
+    assert!(large_diff.diff.is_empty(), "large text diff content should be omitted");
+    assert!(large_diff.old_lines.is_none(), "large diff should not carry old lines");
+    assert!(large_diff.new_lines.is_none(), "large diff should not carry new lines");
 }
 
 #[test]

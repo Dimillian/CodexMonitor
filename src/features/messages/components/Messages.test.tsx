@@ -6,6 +6,18 @@ import type { ConversationItem } from "../../../types";
 import { expectOpenedFileTarget } from "../test/fileLinkAssertions";
 import { Messages } from "./Messages";
 
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: ({ count }: { count: number }) => ({
+    getVirtualItems: () =>
+      Array.from({ length: count }, (_, index) => ({
+        index,
+        start: index * 120,
+      })),
+    getTotalSize: () => count * 120,
+    measureElement: () => {},
+  }),
+}));
+
 const useFileLinkOpenerMock = vi.fn(
   (_workspacePath: string | null, _openTargets: unknown[], _selectedOpenAppId: string) => ({
     openFileLink: openFileLinkMock,
@@ -53,6 +65,32 @@ describe("Messages", () => {
     showFileLinkMenuMock.mockReset();
     exportMarkdownFileMock.mockReset();
   });
+
+  function mockAnimationFrameWithTimers() {
+    vi.useFakeTimers();
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback: FrameRequestCallback) =>
+        window.setTimeout(() => callback(performance.now()), 0),
+      );
+    const cancelAnimationFrameSpy = vi
+      .spyOn(window, "cancelAnimationFrame")
+      .mockImplementation((handle: number) => {
+        window.clearTimeout(handle);
+      });
+    return {
+      flushFrames() {
+        act(() => {
+          vi.runAllTimers();
+        });
+      },
+      restore() {
+        requestAnimationFrameSpy.mockRestore();
+        cancelAnimationFrameSpy.mockRestore();
+        vi.useRealTimers();
+      },
+    };
+  }
 
   it("renders image grid above message text and opens lightbox", () => {
     const items: ConversationItem[] = [
@@ -1128,9 +1166,13 @@ describe("Messages", () => {
       />,
     );
 
+    const expandButton = await screen.findByRole("button", {
+      name: /expand tool calls/i,
+    });
+    fireEvent.click(expandButton);
+
     await waitFor(() => {
-      const exploreBlocks = container.querySelectorAll(".explore-inline");
-      expect(exploreBlocks.length).toBe(2);
+      expect(container.querySelectorAll(".explore-inline").length).toBe(2);
     });
     const exploreItems = container.querySelectorAll(".explore-inline-item");
     expect(exploreItems.length).toBe(2);
@@ -1169,6 +1211,11 @@ describe("Messages", () => {
         selectedOpenAppId=""
       />,
     );
+
+    const expandButton = await screen.findByRole("button", {
+      name: /expand tool calls/i,
+    });
+    fireEvent.click(expandButton);
 
     await waitFor(() => {
       expect(container.querySelectorAll(".explore-inline").length).toBe(2);
@@ -1282,6 +1329,7 @@ describe("Messages", () => {
   });
 
   it("re-pins to bottom on thread switch even when previous thread was scrolled up", () => {
+    const animationFrame = mockAnimationFrameWithTimers();
     const items: ConversationItem[] = [
       {
         id: "msg-shared",
@@ -1333,7 +1381,167 @@ describe("Messages", () => {
       />,
     );
 
-    expect(scrollNode.scrollTop).toBe(900);
+    animationFrame.flushFrames();
+    expect(scrollNode.scrollTop).toBe(700);
+    animationFrame.restore();
+  });
+
+  it("stays pinned when content grows while already at the bottom", () => {
+    const animationFrame = mockAnimationFrameWithTimers();
+    const initialItems: ConversationItem[] = [
+      {
+        id: "msg-1",
+        kind: "message",
+        role: "assistant",
+        text: "First message",
+      },
+    ];
+
+    const { container, rerender } = render(
+      <Messages
+        items={initialItems}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const scrollNode = container.querySelector(".messages.messages-full") as HTMLDivElement;
+    Object.defineProperty(scrollNode, "clientHeight", {
+      configurable: true,
+      value: 200,
+    });
+    Object.defineProperty(scrollNode, "scrollHeight", {
+      configurable: true,
+      value: 600,
+    });
+    scrollNode.scrollTop = 400;
+    fireEvent.scroll(scrollNode);
+
+    Object.defineProperty(scrollNode, "scrollHeight", {
+      configurable: true,
+      value: 840,
+    });
+
+    rerender(
+      <Messages
+        items={[
+          ...initialItems,
+          {
+            id: "msg-2",
+            kind: "message",
+            role: "assistant",
+            text: "Second message",
+          },
+        ]}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={true}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    animationFrame.flushFrames();
+    expect(scrollNode.scrollTop).toBe(640);
+    expect(scrollNode.dataset.scrolling).toBeUndefined();
+    animationFrame.restore();
+  });
+
+  it("marks the message view as scrolling only briefly during scroll", () => {
+    vi.useFakeTimers();
+    const items: ConversationItem[] = [
+      {
+        id: "msg-1",
+        kind: "message",
+        role: "assistant",
+        text: "Hello",
+      },
+    ];
+
+    const { container, unmount } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    const scrollNode = container.querySelector(".messages.messages-full") as HTMLDivElement;
+    Object.defineProperty(scrollNode, "clientHeight", {
+      configurable: true,
+      value: 200,
+    });
+    Object.defineProperty(scrollNode, "scrollHeight", {
+      configurable: true,
+      value: 600,
+    });
+    scrollNode.scrollTop = 10;
+
+    fireEvent.scroll(scrollNode);
+
+    expect(scrollNode.dataset.scrolling).toBe("true");
+    expect(document.documentElement.dataset.codexScrolling).toBe("true");
+
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+
+    expect(scrollNode.dataset.scrolling).toBeUndefined();
+    expect(document.documentElement.dataset.codexScrolling).toBeUndefined();
+
+    unmount();
+    vi.useRealTimers();
+  });
+
+  it("marks the document as thinking only while a turn is active", () => {
+    const { rerender, unmount } = render(
+      <Messages
+        items={[]}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={true}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(document.documentElement.dataset.codexThinking).toBe("true");
+
+    rerender(
+      <Messages
+        items={[]}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(document.documentElement.dataset.codexThinking).toBeUndefined();
+
+    rerender(
+      <Messages
+        items={[]}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={true}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(document.documentElement.dataset.codexThinking).toBe("true");
+
+    unmount();
+
+    expect(document.documentElement.dataset.codexThinking).toBeUndefined();
   });
 
   it("shows a plan-ready follow-up prompt after a completed plan tool item", () => {
@@ -1701,5 +1909,61 @@ describe("Messages", () => {
       screen.getByText("command • sync • thread • session-start.sh • Preparing"),
     ).toBeTruthy();
     expect(screen.getByText("[error] Missing config")).toBeTruthy();
+  });
+
+  it("does not mount command output when a completed command row stays collapsed", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "command-collapsed",
+        kind: "tool",
+        toolType: "commandExecution",
+        title: "Command: npm test",
+        detail: "/repo",
+        status: "completed",
+        output: "line 1\nline 2",
+        durationMs: 450,
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(container.querySelector(".tool-inline-terminal")).toBeNull();
+  });
+
+  it("does not mount command output when a running command row stays collapsed", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "command-running-collapsed",
+        kind: "tool",
+        toolType: "commandExecution",
+        title: "Command: npm exec tauri build",
+        detail: "/repo",
+        status: "in_progress",
+        output: "building...\nchunk 1",
+        durationMs: 3200,
+      },
+    ];
+
+    const { container } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    expect(container.querySelector(".tool-inline-terminal")).toBeNull();
   });
 });

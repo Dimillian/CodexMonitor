@@ -47,6 +47,17 @@ export type TerminalSessionState = {
   cleanupTerminalSession: (workspaceId: string, terminalId: string) => void;
 };
 
+function isTerminalPasteShortcut(event: KeyboardEvent) {
+  if (event.type !== "keydown") {
+    return false;
+  }
+  const key = event.key.toLowerCase();
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && key === "v") {
+    return true;
+  }
+  return !event.ctrlKey && !event.metaKey && event.shiftKey && key === "insert";
+}
+
 function appendBuffer(existing: string | undefined, data: string): string {
   const next = (existing ?? "") + data;
   if (next.length <= MAX_BUFFER_CHARS) {
@@ -168,6 +179,32 @@ export function useTerminalSession({
     terminalRef.current?.write(data);
   }, []);
 
+  const pasteFromClipboard = useCallback(() => {
+    const terminal = terminalRef.current;
+    if (!terminal) {
+      return;
+    }
+
+    const clipboard =
+      typeof navigator === "undefined" ? undefined : navigator.clipboard;
+    if (!clipboard?.readText) {
+      return;
+    }
+
+    void clipboard
+      .readText()
+      .then((text) => {
+        if (!text) {
+          return;
+        }
+        terminal.focus();
+        terminal.paste(text);
+      })
+      .catch((error) => {
+        onDebug?.(buildErrorDebugEntry("terminal paste error", error));
+      });
+  }, [onDebug]);
+
   const focusTerminalIfRequested = useCallback(() => {
     if (!pendingFocusRef.current) {
       return;
@@ -268,6 +305,14 @@ export function useTerminalSession({
       terminal.loadAddon(fitAddon);
       terminal.open(containerRef.current);
       fitAddon.fit();
+      terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+        if (!isTerminalPasteShortcut(event)) {
+          return true;
+        }
+        event.preventDefault();
+        void pasteFromClipboard();
+        return false;
+      });
       terminalRef.current = terminal;
       fitAddonRef.current = fitAddon;
 
@@ -290,7 +335,7 @@ export function useTerminalSession({
         });
       });
     }
-  }, [isVisible, onDebug]);
+  }, [isVisible, onDebug, pasteFromClipboard]);
 
   useEffect(() => {
     return () => {

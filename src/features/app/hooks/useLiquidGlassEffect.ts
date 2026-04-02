@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   isGlassSupported,
   setLiquidGlassEffect,
@@ -14,14 +14,39 @@ type Params = {
 
 export function useLiquidGlassEffect({ reduceTransparency, onDebug }: Params) {
   const supportedRef = useRef<boolean | null>(null);
+  const [suspendForConversation, setSuspendForConversation] = useState(false);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!root) {
+      return undefined;
+    }
+
+    const syncSuspendedState = () => {
+      setSuspendForConversation(root.dataset.codexThinking === "true");
+    };
+
+    syncSuspendedState();
+
+    const observer = new MutationObserver(syncSuspendedState);
+    observer.observe(root, {
+      attributes: true,
+      attributeFilter: ["data-codex-thinking"],
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
+    const shouldReduceTransparency = reduceTransparency || suspendForConversation;
 
     const apply = async () => {
       try {
         const window = getCurrentWindow();
-        if (reduceTransparency) {
+        if (shouldReduceTransparency) {
           if (supportedRef.current === null) {
             supportedRef.current = await isGlassSupported();
           }
@@ -88,5 +113,5 @@ export function useLiquidGlassEffect({ reduceTransparency, onDebug }: Params) {
     return () => {
       cancelled = true;
     };
-  }, [onDebug, reduceTransparency]);
+  }, [onDebug, reduceTransparency, suspendForConversation]);
 }

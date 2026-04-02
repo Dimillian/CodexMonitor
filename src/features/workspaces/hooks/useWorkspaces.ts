@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type {
   AppSettings,
   DebugEntry,
@@ -7,7 +8,6 @@ import type {
   WorkspaceSettings,
 } from "../../../types";
 import {
-  RESERVED_GROUP_NAME,
   buildGroupedWorkspaces,
   buildWorkspaceById,
   buildWorkspaceGroupById,
@@ -73,6 +73,7 @@ export type UseWorkspacesResult = {
 };
 
 export function useWorkspaces(options: UseWorkspacesOptions = {}): UseWorkspacesResult {
+  const { t } = useTranslation();
   const [workspaces, setWorkspaces] = useState<WorkspaceInfo[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -128,8 +129,13 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}): UseWorkspaces
   );
 
   const groupedWorkspaces = useMemo(
-    () => buildGroupedWorkspaces(workspaces, workspaceGroups),
-    [workspaceGroups, workspaces],
+    () =>
+      buildGroupedWorkspaces(workspaces, workspaceGroups).map((group) =>
+        group.id === null
+          ? { ...group, name: t("settings.projects.ungrouped") }
+          : group,
+      ),
+    [t, workspaceGroups, workspaces],
   );
 
   const getWorkspaceGroupName = useCallback(
@@ -171,7 +177,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}): UseWorkspaces
     workspaceGroups,
     groupedWorkspaces,
     getWorkspaceGroupName,
-    ungroupedLabel: RESERVED_GROUP_NAME,
+    ungroupedLabel: t("settings.projects.ungrouped"),
     activeWorkspace,
     activeWorkspaceId,
     setActiveWorkspaceId,

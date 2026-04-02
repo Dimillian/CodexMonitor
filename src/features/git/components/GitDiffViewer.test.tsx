@@ -129,4 +129,50 @@ describe("GitDiffViewer", () => {
     expect(rawLines[1]?.className).toContain("diff-viewer-raw-line-add");
     expect(rawLines[2]?.className).toContain("diff-viewer-raw-line-del");
   });
+
+  it("keeps the loading overlay visible without intercepting pointer events", () => {
+    render(
+      <GitDiffViewer
+        diffs={[
+          {
+            path: "src/main.ts@@item-change-1@@change-0",
+            displayPath: "src/main.ts",
+            status: "M",
+            diff: "@@ -1,1 +1,2 @@\n line one\n+added line",
+          },
+        ]}
+        selectedPath="src/main.ts@@item-change-1@@change-0"
+        isLoading
+        error={null}
+      />,
+    );
+
+    const overlay = screen.getByText("Refreshing diff...");
+    expect(overlay).toBeTruthy();
+    expect((overlay as HTMLDivElement).style.pointerEvents).toBe("none");
+  });
+
+  it("shows a safe placeholder instead of rendering oversized diffs", () => {
+    render(
+      <GitDiffViewer
+        diffs={[
+          {
+            path: "dist/bundle.js",
+            displayPath: "dist/bundle.js",
+            status: "M",
+            diff: "@@ -1,1 +1,1 @@\n-minifiedOld\n+minifiedNew",
+            isDiffTooLarge: true,
+          },
+        ]}
+        selectedPath="dist/bundle.js"
+        isLoading={false}
+        error={null}
+      />,
+    );
+
+    expect(
+      screen.getByText("Diff omitted because this file is too large to render safely."),
+    ).toBeTruthy();
+    expect(screen.queryByText("minifiedNew")).toBeNull();
+  });
 });

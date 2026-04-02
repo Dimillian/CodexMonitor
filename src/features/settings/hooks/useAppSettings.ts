@@ -19,6 +19,7 @@ import { normalizeOpenAppTargets } from "@app/utils/openApp";
 import { getDefaultInterruptShortcut, isMacPlatform } from "@utils/shortcuts";
 import { isMobilePlatform } from "@utils/platformPaths";
 import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
+import { applyLanguageFromSettings } from "@/i18n";
 
 const allowedThemes = new Set(["system", "light", "dark", "dim"]);
 const allowedPersonality = new Set(["friendly", "pragmatic"]);
@@ -208,6 +209,7 @@ function buildDefaultSettings(): AppSettings {
     openAppTargets: DEFAULT_OPEN_APP_TARGETS,
     selectedOpenAppId: DEFAULT_OPEN_APP_ID,
     globalWorktreesFolder: null,
+    language: null,
   };
 }
 
@@ -290,12 +292,12 @@ export function useAppSettings() {
       try {
         const response = await getAppSettings();
         if (active) {
-          setSettings(
-            normalizeAppSettings({
-              ...defaultSettings,
-              ...response,
-            }),
-          );
+          const normalized = normalizeAppSettings({
+            ...defaultSettings,
+            ...response,
+          });
+          setSettings(normalized);
+          applyLanguageFromSettings(normalized.language);
         }
       } catch {
         // Defaults stay in place if loading settings fails.

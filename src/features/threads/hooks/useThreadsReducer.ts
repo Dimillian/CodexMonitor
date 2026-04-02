@@ -51,6 +51,11 @@ export type ThreadState = {
 export type ThreadAction =
   | { type: "setActiveThreadId"; workspaceId: string; threadId: string | null }
   | { type: "setMaxItemsPerThread"; maxItemsPerThread: number | null }
+  | {
+      type: "compactInactiveThreadItems";
+      keepThreadIds: string[];
+      maxInactiveItems: number;
+    }
   | { type: "ensureThread"; workspaceId: string; threadId: string }
   | { type: "hideThread"; workspaceId: string; threadId: string }
   | { type: "removeThread"; workspaceId: string; threadId: string }

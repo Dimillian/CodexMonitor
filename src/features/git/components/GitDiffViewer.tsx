@@ -529,7 +529,10 @@ export function GitDiffViewer({
         )}
         {error && <div className="diff-viewer-empty">{error}</div>}
         {!error && isLoading && diffs.length > 0 && (
-          <div className="diff-viewer-loading diff-viewer-loading-overlay">
+          <div
+            className="diff-viewer-loading diff-viewer-loading-overlay"
+            style={{ pointerEvents: "none" }}
+          >
             Refreshing diff...
           </div>
         )}
