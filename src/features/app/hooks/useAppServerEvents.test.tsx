@@ -61,6 +61,7 @@ describe("useAppServerEvents", () => {
       onPlanDelta: vi.fn(),
       onApprovalRequest: vi.fn(),
       onRequestUserInput: vi.fn(),
+      onItemStarted: vi.fn(),
       onItemCompleted: vi.fn(),
       onAgentMessageCompleted: vi.fn(),
       onAccountRateLimitsUpdated: vi.fn(),
@@ -324,6 +325,7 @@ describe("useAppServerEvents", () => {
           method: "item/completed",
           params: {
             threadId: "thread-1",
+            turnId: "turn-2",
             item: { type: "agentMessage", id: "item-2", text: "Done" },
           },
         },
@@ -332,6 +334,7 @@ describe("useAppServerEvents", () => {
     expect(handlers.onItemCompleted).toHaveBeenCalledWith("ws-1", "thread-1", {
       type: "agentMessage",
       id: "item-2",
+      turnId: "turn-2",
       text: "Done",
     });
     expect(handlers.onAgentMessageCompleted).toHaveBeenCalledWith({
@@ -339,6 +342,25 @@ describe("useAppServerEvents", () => {
       threadId: "thread-1",
       itemId: "item-2",
       text: "Done",
+    });
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "item/started",
+          params: {
+            threadId: "thread-1",
+            turnId: "turn-3",
+            item: { type: "userMessage", id: "item-3" },
+          },
+        },
+      });
+    });
+    expect(handlers.onItemStarted).toHaveBeenCalledWith("ws-1", "thread-1", {
+      type: "userMessage",
+      id: "item-3",
+      turnId: "turn-3",
     });
 
     act(() => {

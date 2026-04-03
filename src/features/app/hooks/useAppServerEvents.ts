@@ -467,8 +467,10 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       if (method === "item/completed") {
         const threadId = String(params.threadId ?? params.thread_id ?? "");
         const item = params.item as Record<string, unknown> | undefined;
+        const turnId = String(params.turnId ?? params.turn_id ?? "").trim();
         if (threadId && item) {
-          currentHandlers.onItemCompleted?.(workspace_id, threadId, item);
+          const itemWithTurnId = turnId ? { ...item, turnId } : item;
+          currentHandlers.onItemCompleted?.(workspace_id, threadId, itemWithTurnId);
         }
         if (threadId && item?.type === "agentMessage") {
           const itemId = String(item.id ?? "");
@@ -488,8 +490,10 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
       if (method === "item/started") {
         const threadId = String(params.threadId ?? params.thread_id ?? "");
         const item = params.item as Record<string, unknown> | undefined;
+        const turnId = String(params.turnId ?? params.turn_id ?? "").trim();
         if (threadId && item) {
-          currentHandlers.onItemStarted?.(workspace_id, threadId, item);
+          const itemWithTurnId = turnId ? { ...item, turnId } : item;
+          currentHandlers.onItemStarted?.(workspace_id, threadId, itemWithTurnId);
         }
         return;
       }
