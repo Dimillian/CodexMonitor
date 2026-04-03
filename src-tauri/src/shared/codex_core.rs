@@ -379,10 +379,48 @@ pub(crate) async fn rollback_thread_core(
     turn_id: String,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
-    let params = json!({ "threadId": thread_id, "turnId": turn_id });
+    let thread_response = read_thread_core(sessions, workspace_id.clone(), thread_id.clone()).await?;
+    let num_turns = rollback_num_turns_from_response(&thread_response, &turn_id)?;
+    let params = json!({ "threadId": thread_id, "numTurns": num_turns });
     session
         .send_request_for_workspace(&workspace_id, "thread/rollback", params)
         .await
+}
+
+fn rollback_num_turns_from_response(response: &Value, turn_id: &str) -> Result<usize, String> {
+    let thread = extract_thread_from_response(response)
+        .ok_or_else(|| "Rollback failed: thread/read response missing thread payload.".to_string())?;
+    let turns = thread
+        .get("turns")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "Rollback failed: thread/read response missing turns.".to_string())?;
+    let turn_index = turns
+        .iter()
+        .position(|turn| {
+            turn.as_object().is_some_and(|record| {
+                record
+                    .get("id")
+                    .or_else(|| record.get("turnId"))
+                    .or_else(|| record.get("turn_id"))
+                    .and_then(Value::as_str)
+                    .is_some_and(|value| value == turn_id)
+            })
+        })
+        .ok_or_else(|| format!("Rollback failed: turn '{turn_id}' was not found in thread."))?;
+    Ok(turns.len().saturating_sub(turn_index))
+}
+
+fn extract_thread_from_response<'a>(response: &'a Value) -> Option<&'a Map<String, Value>> {
+    response
+        .as_object()
+        .and_then(|record| {
+            record
+                .get("result")
+                .and_then(Value::as_object)
+                .and_then(|result| result.get("thread"))
+                .or_else(|| record.get("thread"))
+        })
+        .and_then(Value::as_object)
 }
 
 pub(crate) async fn compact_thread_core(
@@ -1042,5 +1080,52 @@ mod tests {
         assert!(THREAD_LIST_SOURCE_KINDS.contains(&"subAgentReview"));
         assert!(THREAD_LIST_SOURCE_KINDS.contains(&"subAgentCompact"));
         assert!(THREAD_LIST_SOURCE_KINDS.contains(&"subAgentThreadSpawn"));
+    }
+
+    #[test]
+    fn rollback_num_turns_counts_from_target_turn_to_end() {
+        let response = json!({
+            "result": {
+                "thread": {
+                    "turns": [
+                        { "id": "turn-1" },
+                        { "id": "turn-2" },
+                        { "id": "turn-3" }
+                    ]
+                }
+            }
+        });
+
+        let num_turns = rollback_num_turns_from_response(&response, "turn-2").unwrap();
+        assert_eq!(num_turns, 2);
+    }
+
+    #[test]
+    fn rollback_num_turns_supports_turn_id_aliases() {
+        let response = json!({
+            "thread": {
+                "turns": [
+                    { "turn_id": "turn-1" },
+                    { "turnId": "turn-2" }
+                ]
+            }
+        });
+
+        let num_turns = rollback_num_turns_from_response(&response, "turn-2").unwrap();
+        assert_eq!(num_turns, 1);
+    }
+
+    #[test]
+    fn rollback_num_turns_errors_when_turn_is_missing() {
+        let response = json!({
+            "result": {
+                "thread": {
+                    "turns": [{ "id": "turn-1" }]
+                }
+            }
+        });
+
+        let err = rollback_num_turns_from_response(&response, "turn-9").unwrap_err();
+        assert!(err.contains("turn-9"));
     }
 }
