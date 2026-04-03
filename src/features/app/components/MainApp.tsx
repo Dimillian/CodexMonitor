@@ -66,6 +66,7 @@ import { useRemoteThreadLiveConnection } from "@app/hooks/useRemoteThreadLiveCon
 import { useTrayRecentThreads } from "@app/hooks/useTrayRecentThreads";
 import { useTraySessionUsage } from "@app/hooks/useTraySessionUsage";
 import { useTauriEvent } from "@app/hooks/useTauriEvent";
+import { useMessageEdit } from "@/features/messages/hooks/useMessageEdit";
 import { useAppBootstrapOrchestration } from "@app/bootstrap/useAppBootstrapOrchestration";
 import {
   useThreadCodexBootstrapOrchestration,
@@ -494,6 +495,7 @@ export default function MainApp() {
     handleUserInputSubmit,
     refreshAccountInfo,
     refreshAccountRateLimits,
+    editAndRegenerateMessage,
   } = useThreads({
     activeWorkspace,
     onWorkspaceConnected: markWorkspaceConnected,
@@ -515,6 +517,15 @@ export default function MainApp() {
     onMessageActivity: handleThreadMessageActivity,
     threadSortKey: threadListSortKey,
     onThreadCodexMetadataDetected: handleThreadCodexMetadataDetected,
+  });
+
+  const messageEditState = useMessageEdit({
+    onRegenerate: async (itemId, newText, images) => {
+      if (!activeWorkspace || !activeThreadId) {
+        return;
+      }
+      await editAndRegenerateMessage(activeWorkspace, activeThreadId, itemId, newText, images);
+    },
   });
   const { connectionState: remoteThreadConnectionState, reconnectLive } =
     useRemoteThreadLiveConnection({
@@ -1648,6 +1659,7 @@ export default function MainApp() {
     promptActions,
     worktreeState,
     sidebarHandlers: sidebarMenuOrchestration,
+    messageEditState,
     displayNodes,
     threadPinning: {
       pinThread,

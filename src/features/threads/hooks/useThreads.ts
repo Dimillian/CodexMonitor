@@ -729,6 +729,7 @@ export function useThreads({
     interruptTurn,
     sendUserMessage,
     sendUserMessageToThread,
+    editAndRegenerateMessage,
     startFork,
     startReview,
     startUncommittedReview,
@@ -792,6 +793,7 @@ export function useThreads({
     updateThreadParent,
     registerDetachedReviewChild,
     renameThread,
+    getItemsForThread: (threadId) => itemsByThreadRef.current[threadId] ?? [],
   });
 
   const hasLocalThreadSnapshot = useCallback(
@@ -901,6 +903,7 @@ export function useThreads({
     loadOlderThreadsForWorkspace,
     sendUserMessage,
     sendUserMessageToThread,
+    editAndRegenerateMessage,
     startFork,
     startReview,
     startUncommittedReview,

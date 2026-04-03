@@ -230,8 +230,25 @@
   transition: opacity 160ms ease, transform 160ms ease;
 }
 
+.message-edit-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  right: 62px;
+  bottom: -12px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--surface-card-strong);
+  border: 1px solid var(--border-strong);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
 .message:hover .message-copy-button,
-.message:hover .message-quote-button {
+.message:hover .message-quote-button,
+.message:hover .message-edit-button {
   opacity: 1;
   transform: translateY(0);
 }
@@ -274,6 +291,107 @@
   opacity: 1;
   transform: scale(1);
   filter: blur(0);
+}
+
+.message-bubble-editing {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 320px;
+}
+
+.message-edit-textarea {
+  width: 100%;
+  background: var(--cm-surface-panel-strong);
+  border: 1px solid var(--cm-border-soft);
+  color: var(--text-stronger);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 80px;
+  max-height: 500px;
+  outline: none;
+}
+
+.message-edit-textarea:focus {
+  border-color: var(--border-accent);
+}
+
+.message-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.message-edit-cancel,
+.message-edit-regenerate,
+.message-edit-confirm-cancel,
+.message-edit-confirm-proceed {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.message-edit-cancel,
+.message-edit-confirm-cancel {
+  background: transparent;
+  color: var(--text-muted);
+}
+.message-edit-cancel:hover,
+.message-edit-confirm-cancel:hover {
+  background: var(--cm-surface-hover);
+  color: var(--text-stronger);
+}
+
+.message-edit-regenerate,
+.message-edit-confirm-proceed {
+  background: var(--surface-accent);
+  color: var(--text-on-accent);
+}
+.message-edit-regenerate:hover,
+.message-edit-confirm-proceed:hover {
+  background: var(--surface-accent-hover);
+}
+.message-edit-regenerate:disabled,
+.message-edit-confirm-proceed:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.message-edit-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--status-warning) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-warning) 30%, transparent);
+}
+
+.message-edit-confirm-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-stronger);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.message-edit-confirm-warning svg {
+  color: var(--status-warning);
+}
+
+.message-edit-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .message.user .bubble {
@@ -799,6 +917,7 @@
 .tool-inline-clamp {
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -806,6 +925,7 @@
 .tool-inline-expanded .tool-inline-clamp {
   display: block;
   -webkit-line-clamp: unset;
+  line-clamp: unset;
   -webkit-box-orient: unset;
   overflow: visible;
 }

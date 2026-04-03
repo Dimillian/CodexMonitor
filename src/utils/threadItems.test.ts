@@ -3,6 +3,7 @@ import type { ConversationItem } from "../types";
 import {
   buildConversationItem,
   buildConversationItemFromThreadItem,
+  buildItemsFromThread,
   getThreadCreatedTimestamp,
   getThreadTimestamp,
   mergeThreadItems,
@@ -898,6 +899,62 @@ describe("threadItems", () => {
       expect(item.title).toBe("Context compaction");
       expect(item.status).toBe("completed");
     }
+  });
+
+  it("preserves owning turn ids when building items from a thread", () => {
+    const items = buildItemsFromThread({
+      turns: [
+        {
+          id: "turn-1",
+          items: [
+            {
+              id: "item-1",
+              type: "userMessage",
+              content: [{ type: "text", text: "Hello" }],
+            },
+            {
+              id: "item-2",
+              type: "agentMessage",
+              text: "Hi",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(items).toEqual([
+      {
+        id: "item-1",
+        turnId: "turn-1",
+        kind: "message",
+        role: "user",
+        text: "Hello",
+      },
+      {
+        id: "item-2",
+        turnId: "turn-1",
+        kind: "message",
+        role: "assistant",
+        text: "Hi",
+      },
+    ]);
+  });
+
+  it("prefers explicit turn ids over item ids when both are present", () => {
+    const item = buildConversationItem({
+      id: "item-1",
+      turnId: "turn-1",
+      type: "userMessage",
+      content: [{ type: "text", text: "Hello" }],
+    });
+
+    expect(item).toEqual({
+      id: "item-1",
+      turnId: "turn-1",
+      kind: "message",
+      role: "user",
+      text: "Hello",
+    });
   });
 
   it("parses ISO timestamps for thread updates", () => {

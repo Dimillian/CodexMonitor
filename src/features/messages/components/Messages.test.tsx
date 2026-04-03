@@ -1507,6 +1507,39 @@ describe("Messages", () => {
     expect(screen.getByText("Plan ready")).toBeTruthy();
   });
 
+  it("hides edit entry points while regenerate is in flight", () => {
+    const items: ConversationItem[] = [
+      {
+        id: "msg-1",
+        kind: "message",
+        role: "user",
+        text: "First",
+      },
+      {
+        id: "msg-2",
+        kind: "message",
+        role: "user",
+        text: "Second",
+      },
+    ];
+    const onStartEdit = vi.fn();
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+        isRegeneratingEdit
+        onStartEdit={onStartEdit}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Edit message" })).toBeNull();
+  });
+
   it("calls the plan follow-up callbacks", () => {
     const onPlanAccept = vi.fn();
     const onPlanSubmitChanges = vi.fn();

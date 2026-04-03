@@ -295,6 +295,27 @@ pub(crate) async fn archive_thread(
 }
 
 #[tauri::command]
+pub(crate) async fn rollback_thread(
+    workspace_id: String,
+    thread_id: String,
+    turn_id: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return remote_backend::call_remote(
+            &*state,
+            app,
+            "rollback_thread",
+            json!({ "workspaceId": workspace_id, "threadId": thread_id, "turnId": turn_id }),
+        )
+        .await;
+    }
+
+    codex_core::rollback_thread_core(&state.sessions, workspace_id, thread_id, turn_id).await
+}
+
+#[tauri::command]
 pub(crate) async fn compact_thread(
     workspace_id: String,
     thread_id: String,

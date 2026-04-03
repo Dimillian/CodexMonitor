@@ -47,6 +47,16 @@ type MessagesProps = {
   onPlanSubmitChanges?: (changes: string) => void;
   onOpenThreadLink?: (threadId: string, workspaceId?: string | null) => void;
   onQuoteMessage?: (text: string) => void;
+  editingItemId?: string | null;
+  editText?: string;
+  isConfirmingEdit?: boolean;
+  isRegeneratingEdit?: boolean;
+  onStartEdit?: (item: Extract<ConversationItem, { kind: "message" }>) => void;
+  onCancelEdit?: () => void;
+  onUpdateEditText?: (text: string) => void;
+  onRequestRegenerate?: () => void;
+  onCancelConfirm?: () => void;
+  onExecuteRegenerate?: () => void;
 };
 
 export const Messages = memo(function Messages({
@@ -70,6 +80,16 @@ export const Messages = memo(function Messages({
   onPlanSubmitChanges,
   onOpenThreadLink,
   onQuoteMessage,
+  editingItemId = null,
+  editText = "",
+  isConfirmingEdit = false,
+  isRegeneratingEdit = false,
+  onStartEdit,
+  onCancelEdit,
+  onUpdateEditText,
+  onRequestRegenerate,
+  onCancelConfirm,
+  onExecuteRegenerate,
 }: MessagesProps) {
   const activeUserInputRequestId =
     threadId && userInputRequests.length
@@ -147,6 +167,8 @@ export const Messages = memo(function Messages({
   const renderItem = (item: ConversationItem) => {
     if (item.kind === "message") {
       const isCopied = copiedMessageId === item.id;
+      const isEditingThis = editingItemId === item.id;
+      const editAction = isThinking || isRegeneratingEdit ? undefined : onStartEdit;
       return (
         <MessageRow
           key={item.id}
@@ -160,6 +182,16 @@ export const Messages = memo(function Messages({
           onOpenFileLink={openFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
           onOpenThreadLink={handleOpenThreadLink}
+          isEditing={isEditingThis}
+          editText={isEditingThis ? editText : undefined}
+          isConfirming={isEditingThis ? isConfirmingEdit : undefined}
+          isRegenerating={isEditingThis ? isRegeneratingEdit : undefined}
+          onStartEdit={editAction}
+          onCancelEdit={onCancelEdit}
+          onUpdateEditText={onUpdateEditText}
+          onRequestRegenerate={onRequestRegenerate}
+          onCancelConfirm={onCancelConfirm}
+          onExecuteRegenerate={onExecuteRegenerate}
         />
       );
     }

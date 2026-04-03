@@ -226,6 +226,7 @@ pub fn run() {
             codex::list_threads,
             codex::list_mcp_server_status,
             codex::archive_thread,
+            codex::rollback_thread,
             codex::compact_thread,
             codex::set_thread_name,
             codex::collaboration_mode_list,

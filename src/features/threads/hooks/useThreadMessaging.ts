@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/react";
 import type {
   AppMention,
   ComposerSendIntent,
+  ConversationItem,
   RateLimitSnapshot,
   CustomPromptOption,
   DebugEntry,
@@ -20,6 +21,7 @@ import {
   interruptTurn as interruptTurnService,
   getAppsList as getAppsListService,
   listMcpServerStatus as listMcpServerStatusService,
+  rollbackThread as rollbackThreadService,
 } from "@services/tauri";
 import { expandCustomPromptText } from "@utils/customPrompts";
 import {
@@ -94,6 +96,7 @@ type UseThreadMessagingOptions = {
     childId: string,
   ) => void;
   renameThread?: (workspaceId: string, threadId: string, name: string) => void;
+  getItemsForThread?: (threadId: string) => ConversationItem[];
 };
 
 export function useThreadMessaging({
@@ -130,7 +133,26 @@ export function useThreadMessaging({
   updateThreadParent,
   registerDetachedReviewChild,
   renameThread,
+  getItemsForThread = () => [],
 }: UseThreadMessagingOptions) {
+  const resolveRollbackTurnId = useCallback(
+    async (workspace: WorkspaceInfo, threadId: string, itemId: string) => {
+      const readTurnId = () => {
+        const item = getItemsForThread(threadId).find((entry) => entry.id === itemId);
+        return item?.kind === "message" ? item.turnId?.trim() || null : null;
+      };
+
+      const localTurnId = readTurnId();
+      if (localTurnId) {
+        return localTurnId;
+      }
+
+      await refreshThread(workspace.id, threadId);
+      return readTurnId();
+    },
+    [getItemsForThread, refreshThread],
+  );
+
   const sendMessageToThread = useCallback(
     async (
       workspace: WorkspaceInfo,
@@ -932,10 +954,62 @@ export function useThreadMessaging({
     ],
   );
 
+  const editAndRegenerateMessage = useCallback(
+    async (
+      workspace: WorkspaceInfo,
+      threadId: string,
+      itemId: string,
+      text: string,
+      images: string[] = [],
+    ) => {
+      const isProcessing = threadStatusById[threadId]?.isProcessing ?? false;
+      if (isProcessing) {
+        return;
+      }
+      try {
+        const rollbackTurnId = await resolveRollbackTurnId(workspace, threadId, itemId);
+        if (!rollbackTurnId) {
+          throw new Error("Failed to determine the turn for the edited message.");
+        }
+        const rollbackResponse = await rollbackThreadService(
+          workspace.id,
+          threadId,
+          rollbackTurnId,
+        );
+        const rollbackError = extractRpcErrorMessage(rollbackResponse);
+        if (rollbackError) {
+          throw new Error(rollbackError);
+        }
+        dispatch({
+          type: "truncateThreadItems",
+          threadId,
+          afterItemId: itemId,
+        });
+        await sendMessageToThread(workspace, threadId, text, images);
+      } catch (error) {
+        pushThreadErrorMessage(
+          threadId,
+          error instanceof Error ? error.message : "Failed to rollback thread.",
+        );
+      } finally {
+        safeMessageActivity();
+      }
+    },
+    [
+      dispatch,
+      pushThreadErrorMessage,
+      resolveRollbackTurnId,
+      safeMessageActivity,
+      sendMessageToThread,
+      threadStatusById,
+    ],
+  );
+
   return {
     interruptTurn,
     sendUserMessage,
     sendUserMessageToThread,
+    editAndRegenerateMessage,
     startFork,
     startReview,
     startUncommittedReview,

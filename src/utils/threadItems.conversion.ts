@@ -2,6 +2,10 @@ import type { ConversationItem } from "../types";
 import { parseCollabToolCallItem } from "./threadItems.collab";
 import { asNumber, asString } from "./threadItems.shared";
 
+function extractTurnId(record: Record<string, unknown>) {
+  return asString(record.turnId ?? record.turn_id ?? record.id).trim();
+}
+
 function extractImageInputValue(input: Record<string, unknown>) {
   const value =
     asString(input.url ?? "") ||
@@ -46,6 +50,7 @@ export function buildConversationItem(
 ): ConversationItem | null {
   const type = asString(item.type);
   const id = asString(item.id);
+  const turnId = extractTurnId(item);
   if (!id || !type) {
     return null;
   }
@@ -57,6 +62,7 @@ export function buildConversationItem(
     const { text, images } = parseUserInputs(content as Array<Record<string, unknown>>);
     return {
       id,
+      ...(turnId ? { turnId } : {}),
       kind: "message",
       role: "user",
       text,
@@ -208,9 +214,11 @@ export function buildConversationItem(
 
 export function buildConversationItemFromThreadItem(
   item: Record<string, unknown>,
+  turnIdOverride?: string,
 ): ConversationItem | null {
   const type = asString(item.type);
   const id = asString(item.id);
+  const turnId = turnIdOverride || extractTurnId(item);
   if (!id || !type) {
     return null;
   }
@@ -219,6 +227,7 @@ export function buildConversationItemFromThreadItem(
     const { text, images } = parseUserInputs(content as Array<Record<string, unknown>>);
     return {
       id,
+      ...(turnId ? { turnId } : {}),
       kind: "message",
       role: "user",
       text,
@@ -228,6 +237,7 @@ export function buildConversationItemFromThreadItem(
   if (type === "agentMessage") {
     return {
       id,
+      ...(turnId ? { turnId } : {}),
       kind: "message",
       role: "assistant",
       text: asString(item.text),
@@ -250,11 +260,12 @@ export function buildItemsFromThread(thread: Record<string, unknown>) {
   const items: ConversationItem[] = [];
   turns.forEach((turn) => {
     const turnRecord = turn as Record<string, unknown>;
+    const turnId = extractTurnId(turnRecord);
     const turnItems = Array.isArray(turnRecord.items)
       ? (turnRecord.items as Record<string, unknown>[])
       : [];
     turnItems.forEach((item) => {
-      const converted = buildConversationItemFromThreadItem(item);
+      const converted = buildConversationItemFromThreadItem(item, turnId);
       if (converted) {
         items.push(converted);
       }

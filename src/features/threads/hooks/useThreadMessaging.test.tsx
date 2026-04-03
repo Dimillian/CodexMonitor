@@ -10,8 +10,9 @@ import {
   getAppsList as getAppsListService,
   listMcpServerStatus as listMcpServerStatusService,
   compactThread as compactThreadService,
+  rollbackThread as rollbackThreadService,
 } from "@services/tauri";
-import type { WorkspaceInfo } from "@/types";
+import type { ConversationItem, WorkspaceInfo } from "@/types";
 import { useThreadMessaging } from "./useThreadMessaging";
 
 vi.mock("@sentry/react", () => ({
@@ -28,6 +29,7 @@ vi.mock("@services/tauri", () => ({
   getAppsList: vi.fn(),
   listMcpServerStatus: vi.fn(),
   compactThread: vi.fn(),
+  rollbackThread: vi.fn(),
 }));
 
 vi.mock("./useReviewPrompt", () => ({
@@ -95,11 +97,13 @@ describe("useThreadMessaging telemetry", () => {
     vi.mocked(compactThreadService).mockResolvedValue(
       {} as Awaited<ReturnType<typeof compactThreadService>>,
     );
+    vi.mocked(rollbackThreadService).mockResolvedValue(
+      undefined as Awaited<ReturnType<typeof rollbackThreadService>>,
+    );
   });
 
-  it("records prompt_sent once for one message send", async () => {
-    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
-    const { result } = renderHook(() =>
+  function renderUseThreadMessaging(overrides: Partial<Parameters<typeof useThreadMessaging>[0]> = {}) {
+    return renderHook(() =>
       useThreadMessaging({
         activeWorkspace: workspace,
         activeThreadId: "thread-1",
@@ -110,7 +114,6 @@ describe("useThreadMessaging telemetry", () => {
         reviewDeliveryMode: "inline",
         steerEnabled: false,
         customPrompts: [],
-        ensureWorkspaceRuntimeCodexArgs,
         threadStatusById: {},
         activeTurnIdByThread: {},
         rateLimitsByWorkspace: {},
@@ -129,8 +132,17 @@ describe("useThreadMessaging telemetry", () => {
         refreshThread: vi.fn(async () => null),
         forkThreadForWorkspace: vi.fn(async () => null),
         updateThreadParent: vi.fn(),
+        getItemsForThread: vi.fn(() => []),
+        ...overrides,
       }),
     );
+  }
+
+  it("records prompt_sent once for one message send", async () => {
+    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
+    const { result } = renderUseThreadMessaging({
+      ensureWorkspaceRuntimeCodexArgs,
+    });
 
     await act(async () => {
       await result.current.sendUserMessageToThread(
@@ -159,37 +171,7 @@ describe("useThreadMessaging telemetry", () => {
   });
 
   it("forwards explicit app mentions to turn/start", async () => {
-    const { result } = renderHook(() =>
-      useThreadMessaging({
-        activeWorkspace: workspace,
-        activeThreadId: "thread-1",
-        accessMode: "current",
-        model: null,
-        effort: null,
-        collaborationMode: null,
-        reviewDeliveryMode: "inline",
-        steerEnabled: false,
-        customPrompts: [],
-        threadStatusById: {},
-        activeTurnIdByThread: {},
-        rateLimitsByWorkspace: {},
-        pendingInterruptsRef: { current: new Set<string>() },
-        dispatch: vi.fn(),
-        getCustomName: vi.fn(() => undefined),
-        markProcessing: vi.fn(),
-        markReviewing: vi.fn(),
-        setActiveTurnId: vi.fn(),
-        recordThreadActivity: vi.fn(),
-        safeMessageActivity: vi.fn(),
-        onDebug: vi.fn(),
-        pushThreadErrorMessage: vi.fn(),
-        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
-        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
-        refreshThread: vi.fn(async () => null),
-        forkThreadForWorkspace: vi.fn(async () => null),
-        updateThreadParent: vi.fn(),
-      }),
-    );
+    const { result } = renderUseThreadMessaging();
 
     await act(async () => {
       await result.current.sendUserMessage("hello $calendar", [], [
@@ -781,5 +763,92 @@ describe("useThreadMessaging telemetry", () => {
       "thread-review-1",
       "Review abcdef1: Tighten sidebar commit…",
     );
+  });
+
+  it("rolls back by owning turn id when regenerating an edited message", async () => {
+    const items: ConversationItem[] = [
+      {
+        id: "item-user-1",
+        turnId: "turn-9",
+        kind: "message",
+        role: "user",
+        text: "Original prompt",
+      },
+    ];
+    const dispatch = vi.fn();
+
+    const { result } = renderUseThreadMessaging({
+      dispatch,
+      getItemsForThread: vi.fn(() => items),
+    });
+
+    await act(async () => {
+      await result.current.editAndRegenerateMessage(
+        workspace,
+        "thread-1",
+        "item-user-1",
+        "Edited prompt",
+      );
+    });
+
+    expect(rollbackThreadService).toHaveBeenCalledWith("ws-1", "thread-1", "turn-9");
+    expect(rollbackThreadService).not.toHaveBeenCalledWith("ws-1", "thread-1", "item-user-1");
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "truncateThreadItems",
+      threadId: "thread-1",
+      afterItemId: "item-user-1",
+    });
+    expect(sendUserMessageService).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      "Edited prompt",
+      expect.any(Object),
+    );
+  });
+
+  it("does not truncate or resend when rollback returns an rpc error", async () => {
+    const items: ConversationItem[] = [
+      {
+        id: "item-user-1",
+        turnId: "turn-9",
+        kind: "message",
+        role: "user",
+        text: "Original prompt",
+      },
+    ];
+    const dispatch = vi.fn();
+    const pushThreadErrorMessage = vi.fn();
+    vi.mocked(rollbackThreadService).mockResolvedValueOnce({
+      error: { message: "rollback failed" },
+    } as Awaited<ReturnType<typeof rollbackThreadService>>);
+
+    const { result } = renderUseThreadMessaging({
+      dispatch,
+      pushThreadErrorMessage,
+      getItemsForThread: vi.fn(() => items),
+    });
+
+    await act(async () => {
+      await result.current.editAndRegenerateMessage(
+        workspace,
+        "thread-1",
+        "item-user-1",
+        "Edited prompt",
+      );
+    });
+
+    expect(rollbackThreadService).toHaveBeenCalledWith("ws-1", "thread-1", "turn-9");
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "truncateThreadItems",
+      }),
+    );
+    expect(sendUserMessageService).not.toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      "Edited prompt",
+      expect.anything(),
+    );
+    expect(pushThreadErrorMessage).toHaveBeenCalledWith("thread-1", "rollback failed");
   });
 });

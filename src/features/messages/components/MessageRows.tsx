@@ -8,9 +8,11 @@ import Diff from "lucide-react/dist/esm/icons/diff";
 import FileDiffIcon from "lucide-react/dist/esm/icons/file-diff";
 import FileText from "lucide-react/dist/esm/icons/file-text";
 import Image from "lucide-react/dist/esm/icons/image";
+import Pencil from "lucide-react/dist/esm/icons/pencil";
 import Quote from "lucide-react/dist/esm/icons/quote";
 import Search from "lucide-react/dist/esm/icons/search";
 import Terminal from "lucide-react/dist/esm/icons/terminal";
+import TriangleAlert from "lucide-react/dist/esm/icons/triangle-alert";
 import Users from "lucide-react/dist/esm/icons/users";
 import Wrench from "lucide-react/dist/esm/icons/wrench";
 import X from "lucide-react/dist/esm/icons/x";
@@ -61,6 +63,16 @@ type MessageRowProps = MarkdownFileLinkProps & {
   onCopy: (item: Extract<ConversationItem, { kind: "message" }>) => void;
   onQuote?: (item: Extract<ConversationItem, { kind: "message" }>, selectedText?: string) => void;
   codeBlockCopyUseModifier?: boolean;
+  isEditing?: boolean;
+  editText?: string;
+  isConfirming?: boolean;
+  isRegenerating?: boolean;
+  onStartEdit?: (item: Extract<ConversationItem, { kind: "message" }>) => void;
+  onCancelEdit?: () => void;
+  onUpdateEditText?: (text: string) => void;
+  onRequestRegenerate?: () => void;
+  onCancelConfirm?: () => void;
+  onExecuteRegenerate?: () => void;
 };
 
 type ReasoningRowProps = MarkdownFileLinkProps & {
@@ -377,11 +389,24 @@ export const MessageRow = memo(function MessageRow({
   onOpenFileLink,
   onOpenFileLinkMenu,
   onOpenThreadLink,
+  isEditing = false,
+  editText = "",
+  isConfirming = false,
+  isRegenerating = false,
+  onStartEdit,
+  onCancelEdit,
+  onUpdateEditText,
+  onRequestRegenerate,
+  onCancelConfirm,
+  onExecuteRegenerate,
 }: MessageRowProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
+  const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const selectionSnapshotRef = useRef<string | null>(null);
   const hasText = item.text.trim().length > 0;
+  const isUserMessage = item.role === "user";
+  const canEdit = isUserMessage && Boolean(onStartEdit) && !isRegenerating;
   const imageItems = useMemo(() => {
     if (!item.images || item.images.length === 0) {
       return [];
@@ -401,6 +426,28 @@ export const MessageRow = memo(function MessageRow({
     hasText &&
     imageItems.length === 0 &&
     isStandaloneMarkdownTable(item.text);
+
+  useEffect(() => {
+    if (isEditing && editTextareaRef.current) {
+      const textarea = editTextareaRef.current;
+      textarea.focus();
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    }
+  }, [isEditing]);
+
+  const handleEditKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (isConfirming) {
+          onCancelConfirm?.();
+        } else {
+          onCancelEdit?.();
+        }
+      }
+    },
+    [isConfirming, onCancelConfirm, onCancelEdit],
+  );
 
   const getSelectedMessageText = useCallback(() => {
     const bubble = bubbleRef.current;
@@ -422,7 +469,7 @@ export const MessageRow = memo(function MessageRow({
         return false;
       }
       const element = node instanceof Element ? node : node.parentElement;
-      return Boolean(element?.closest(".message-quote-button, .message-copy-button"));
+      return Boolean(element?.closest(".message-quote-button, .message-copy-button, .message-edit-button"));
     };
 
     if (isWithinMessageControls(selection.anchorNode) || isWithinMessageControls(selection.focusNode)) {
@@ -439,6 +486,84 @@ export const MessageRow = memo(function MessageRow({
     selectionSnapshotRef.current = null;
     onQuote(item, selectedText);
   }, [getSelectedMessageText, item, onQuote]);
+
+  if (isEditing) {
+    return (
+      <div className={`message ${item.role}`}>
+        <div className="bubble message-bubble message-bubble-editing">
+          {imageItems.length > 0 && (
+            <MessageImageGrid
+              images={imageItems}
+              onOpen={setLightboxIndex}
+              hasText={hasText}
+            />
+          )}
+          <textarea
+            ref={editTextareaRef}
+            className="message-edit-textarea"
+            value={editText}
+            onChange={(event) => onUpdateEditText?.(event.target.value)}
+            onKeyDown={handleEditKeyDown}
+            rows={Math.min(12, Math.max(3, editText.split("\n").length + 1))}
+            disabled={isRegenerating}
+            aria-label="Edit message"
+          />
+          {isConfirming && (
+            <div className="message-edit-confirm" role="alert">
+              <div className="message-edit-confirm-warning">
+                <TriangleAlert size={14} aria-hidden />
+                <span>All messages after this point will be permanently removed.</span>
+              </div>
+              <div className="message-edit-confirm-actions">
+                <button
+                  type="button"
+                  className="message-edit-confirm-cancel"
+                  onClick={onCancelConfirm}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="message-edit-confirm-proceed"
+                  onClick={onExecuteRegenerate}
+                  disabled={isRegenerating}
+                >
+                  {isRegenerating ? "Regenerating…" : "Confirm & Regenerate"}
+                </button>
+              </div>
+            </div>
+          )}
+          {!isConfirming && (
+            <div className="message-edit-actions">
+              <button
+                type="button"
+                className="message-edit-cancel"
+                onClick={onCancelEdit}
+                disabled={isRegenerating}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="message-edit-regenerate"
+                onClick={onRequestRegenerate}
+                disabled={isRegenerating || !editText.trim()}
+              >
+                Regenerate
+              </button>
+            </div>
+          )}
+          {lightboxIndex !== null && imageItems.length > 0 && (
+            <ImageLightbox
+              images={imageItems}
+              activeIndex={lightboxIndex}
+              onClose={() => setLightboxIndex(null)}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`message ${item.role}`}>
@@ -472,6 +597,17 @@ export const MessageRow = memo(function MessageRow({
             activeIndex={lightboxIndex}
             onClose={() => setLightboxIndex(null)}
           />
+        )}
+        {canEdit && (
+          <button
+            type="button"
+            className="ghost message-edit-button"
+            onClick={() => onStartEdit?.(item)}
+            aria-label="Edit message"
+            title="Edit message"
+          >
+            <Pencil size={14} aria-hidden />
+          </button>
         )}
         {onQuote && hasText && (
           <button

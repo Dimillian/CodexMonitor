@@ -175,6 +175,11 @@ export type ThreadAction =
       threadId: string;
       text: string;
       timestamp: number;
+    }
+  | {
+      type: "truncateThreadItems";
+      threadId: string;
+      afterItemId: string;
     };
 
 const emptyItems: Record<string, ConversationItem[]> = {};
