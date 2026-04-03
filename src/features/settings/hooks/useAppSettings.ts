@@ -23,6 +23,7 @@ import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
 const allowedThemes = new Set(["system", "light", "dark", "dim"]);
 const allowedPersonality = new Set(["friendly", "pragmatic"]);
 const allowedFollowUpMessageBehavior = new Set(["queue", "steer"]);
+const allowedServiceTiers = new Set(["fast", "flex"]);
 const DEFAULT_REMOTE_BACKEND_HOST = "127.0.0.1:4732";
 const DEFAULT_REMOTE_BACKEND_ID = "remote-default";
 const DEFAULT_REMOTE_BACKEND_NAME = "Primary remote";
@@ -165,6 +166,7 @@ function buildDefaultSettings(): AppSettings {
     cycleWorkspacePrevShortcut: isMac ? "cmd+shift+up" : "ctrl+alt+shift+up",
     lastComposerModelId: null,
     lastComposerReasoningEffort: null,
+    lastComposerServiceTier: null,
     uiScale: UI_SCALE_DEFAULT,
     theme: "system",
     usageShowRemaining: false,
@@ -259,6 +261,11 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     personality: allowedPersonality.has(settings.personality)
       ? settings.personality
       : "friendly",
+    lastComposerServiceTier:
+      settings.lastComposerServiceTier &&
+      allowedServiceTiers.has(settings.lastComposerServiceTier)
+        ? settings.lastComposerServiceTier
+        : null,
     followUpMessageBehavior: allowedFollowUpMessageBehavior.has(
       settings.followUpMessageBehavior,
     )

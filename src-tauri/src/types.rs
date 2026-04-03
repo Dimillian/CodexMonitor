@@ -485,6 +485,8 @@ pub(crate) struct AppSettings {
     pub(crate) last_composer_model_id: Option<String>,
     #[serde(default, rename = "lastComposerReasoningEffort")]
     pub(crate) last_composer_reasoning_effort: Option<String>,
+    #[serde(default, rename = "lastComposerServiceTier")]
+    pub(crate) last_composer_service_tier: Option<String>,
     #[serde(default = "default_ui_scale", rename = "uiScale")]
     pub(crate) ui_scale: f64,
     #[serde(default = "default_theme", rename = "theme")]
@@ -1153,6 +1155,7 @@ impl Default for AppSettings {
             cycle_workspace_prev_shortcut: default_cycle_workspace_prev_shortcut(),
             last_composer_model_id: None,
             last_composer_reasoning_effort: None,
+            last_composer_service_tier: None,
             ui_scale: 1.0,
             theme: default_theme(),
             usage_show_remaining: default_usage_show_remaining(),
@@ -1319,6 +1322,7 @@ mod tests {
         );
         assert!(settings.last_composer_model_id.is_none());
         assert!(settings.last_composer_reasoning_effort.is_none());
+        assert!(settings.last_composer_service_tier.is_none());
         assert!((settings.ui_scale - 1.0).abs() < f64::EPSILON);
         assert_eq!(settings.theme, "system");
         assert!(!settings.usage_show_remaining);
@@ -1385,6 +1389,7 @@ mod tests {
             sort_order: Some(2),
             copies_folder: Some("/tmp/group-copies".to_string()),
         }];
+        settings.last_composer_service_tier = Some("fast".to_string());
 
         let json = serde_json::to_string(&settings).expect("serialize settings");
         let decoded: AppSettings = serde_json::from_str(&json).expect("deserialize settings");
@@ -1392,6 +1397,10 @@ mod tests {
         assert_eq!(
             decoded.workspace_groups[0].copies_folder.as_deref(),
             Some("/tmp/group-copies")
+        );
+        assert_eq!(
+            decoded.last_composer_service_tier.as_deref(),
+            Some("fast")
         );
     }
 

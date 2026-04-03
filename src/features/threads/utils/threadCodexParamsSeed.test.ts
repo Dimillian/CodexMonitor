@@ -57,6 +57,7 @@ describe("threadCodexParamsSeed", () => {
       defaultAccessMode: "current",
       lastComposerModelId: "gpt-5",
       lastComposerReasoningEffort: "medium",
+      lastComposerServiceTier: null,
       stored: {
         modelId: "gpt-4.1",
         effort: "low",
@@ -92,6 +93,7 @@ describe("threadCodexParamsSeed", () => {
       defaultAccessMode: "current",
       lastComposerModelId: "gpt-5",
       lastComposerReasoningEffort: "medium",
+      lastComposerServiceTier: null,
       stored: null,
       noThreadStored: null,
       pendingSeed: {
@@ -119,6 +121,7 @@ describe("threadCodexParamsSeed", () => {
       defaultAccessMode: "current",
       lastComposerModelId: "gpt-5",
       lastComposerReasoningEffort: "medium",
+      lastComposerServiceTier: null,
       stored: {
         modelId: null,
         effort: null,
@@ -146,6 +149,7 @@ describe("threadCodexParamsSeed", () => {
       defaultAccessMode: "current",
       lastComposerModelId: "gpt-5",
       lastComposerReasoningEffort: "medium",
+      lastComposerServiceTier: null,
       stored: {
         modelId: null,
         effort: null,
@@ -173,6 +177,7 @@ describe("threadCodexParamsSeed", () => {
       defaultAccessMode: "current",
       lastComposerModelId: "gpt-5",
       lastComposerReasoningEffort: "medium",
+      lastComposerServiceTier: null,
       stored: {
         modelId: null,
         effort: null,
@@ -206,6 +211,7 @@ describe("threadCodexParamsSeed", () => {
       defaultAccessMode: "current",
       lastComposerModelId: "gpt-5",
       lastComposerReasoningEffort: "medium",
+      lastComposerServiceTier: "fast",
       stored: {
         modelId: "gpt-4.1",
         effort: "low",
@@ -230,6 +236,36 @@ describe("threadCodexParamsSeed", () => {
     });
   });
 
+  it("falls back to the saved service tier default when workspace state is unset", () => {
+    const noThreadResolved = resolveThreadCodexState({
+      workspaceId: "ws-1",
+      threadId: null,
+      defaultAccessMode: "current",
+      lastComposerModelId: "gpt-5",
+      lastComposerReasoningEffort: "medium",
+      lastComposerServiceTier: "fast",
+      stored: null,
+      noThreadStored: null,
+      pendingSeed: null,
+    });
+
+    expect(noThreadResolved.preferredServiceTier).toBe("fast");
+
+    const threadResolved = resolveThreadCodexState({
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      defaultAccessMode: "current",
+      lastComposerModelId: "gpt-5",
+      lastComposerReasoningEffort: "medium",
+      lastComposerServiceTier: "fast",
+      stored: null,
+      noThreadStored: null,
+      pendingSeed: null,
+    });
+
+    expect(threadResolved.preferredServiceTier).toBe("fast");
+  });
+
   it("keeps explicit thread-scoped Fast off when no-thread scope is fast", () => {
     const resolved = resolveThreadCodexState({
       workspaceId: "ws-1",
@@ -237,6 +273,7 @@ describe("threadCodexParamsSeed", () => {
       defaultAccessMode: "current",
       lastComposerModelId: "gpt-5",
       lastComposerReasoningEffort: "medium",
+      lastComposerServiceTier: null,
       stored: {
         modelId: null,
         effort: null,

@@ -57,7 +57,10 @@ type UseThreadCodexSyncOrchestrationParams = {
   activeThreadId: string | null;
   appSettings: Pick<
     AppSettings,
-    "defaultAccessMode" | "lastComposerModelId" | "lastComposerReasoningEffort"
+    | "defaultAccessMode"
+    | "lastComposerModelId"
+    | "lastComposerReasoningEffort"
+    | "lastComposerServiceTier"
   >;
   threadCodexParamsVersion: number;
   getThreadCodexParams: ReturnType<typeof useThreadCodexParams>["getThreadCodexParams"];
@@ -165,6 +168,7 @@ export function useThreadCodexSyncOrchestration({
       defaultAccessMode: appSettings.defaultAccessMode,
       lastComposerModelId: appSettings.lastComposerModelId,
       lastComposerReasoningEffort: appSettings.lastComposerReasoningEffort,
+      lastComposerServiceTier: appSettings.lastComposerServiceTier,
       stored,
       noThreadStored,
       pendingSeed: pendingNewThreadSeedRef.current,
@@ -183,6 +187,7 @@ export function useThreadCodexSyncOrchestration({
     appSettings.defaultAccessMode,
     appSettings.lastComposerModelId,
     appSettings.lastComposerReasoningEffort,
+    appSettings.lastComposerServiceTier,
     getThreadCodexParams,
     setPreferredCollabModeId,
     setPreferredCodexArgsOverride,
@@ -342,9 +347,28 @@ export function useThreadSelectionHandlersOrchestration({
   const handleSelectServiceTier = useCallback(
     (tier: ServiceTier | null | undefined) => {
       setSelectedServiceTier(tier);
+      const hasActiveThread = Boolean(activeThreadIdRef.current);
+      if (!appSettingsLoading && !hasActiveThread) {
+        setAppSettings((current) => {
+          const nextTier = tier ?? null;
+          if (current.lastComposerServiceTier === nextTier) {
+            return current;
+          }
+          const nextSettings = { ...current, lastComposerServiceTier: nextTier };
+          void queueSaveSettings(nextSettings);
+          return nextSettings;
+        });
+      }
       persistThreadCodexParams({ serviceTier: tier });
     },
-    [persistThreadCodexParams, setSelectedServiceTier],
+    [
+      activeThreadIdRef,
+      appSettingsLoading,
+      persistThreadCodexParams,
+      queueSaveSettings,
+      setAppSettings,
+      setSelectedServiceTier,
+    ],
   );
 
   const handleSelectCollaborationMode = useCallback(

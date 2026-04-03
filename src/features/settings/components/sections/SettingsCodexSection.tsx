@@ -6,6 +6,7 @@ import type {
   CodexDoctorResult,
   CodexUpdateResult,
   ModelOption,
+  ServiceTier,
 } from "@/types";
 import {
   SettingsSection,
@@ -69,6 +70,13 @@ const normalizeEffortValue = (value: unknown): string | null => {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed.toLowerCase() : null;
+};
+
+const normalizeServiceTierValue = (value: unknown): ServiceTier | null => {
+  if (value === "fast" || value === "flex") {
+    return value;
+  }
+  return null;
 };
 
 function coerceSavedModelSlug(value: string | null, models: ModelOption[]): string | null {
@@ -184,6 +192,10 @@ export function SettingsCodexSection({
     }
     return reasoningOptions[0] ?? "";
   }, [reasoningOptions, reasoningSupported, savedEffort, selectedModel]);
+  const selectedServiceTier = useMemo(
+    () => normalizeServiceTierValue(appSettings.lastComposerServiceTier),
+    [appSettings.lastComposerServiceTier],
+  );
 
   const didNormalizeDefaultsRef = useRef(false);
   useEffect(() => {
@@ -472,6 +484,33 @@ export function SettingsCodexSection({
               {effort}
             </option>
           ))}
+        </select>
+      </SettingsToggleRow>
+
+      <SettingsToggleRow
+        title={
+          <label htmlFor="default-service-tier">
+            Service tier
+          </label>
+        }
+        subtitle="Used when there is no thread-specific override. Choose Fast to default new projects to Fast mode."
+      >
+        <select
+          id="default-service-tier"
+          className="settings-select"
+          value={selectedServiceTier ?? ""}
+          onChange={(event) => {
+            const nextTier = normalizeServiceTierValue(event.target.value);
+            void onUpdateAppSettings({
+              ...appSettings,
+              lastComposerServiceTier: nextTier,
+            });
+          }}
+          aria-label="Service tier"
+        >
+          <option value="">default / off</option>
+          <option value="fast">fast</option>
+          <option value="flex">flex</option>
         </select>
       </SettingsToggleRow>
 

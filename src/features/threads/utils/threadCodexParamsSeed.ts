@@ -22,6 +22,7 @@ type ResolveThreadCodexStateInput = {
   defaultAccessMode: AccessMode;
   lastComposerModelId: string | null;
   lastComposerReasoningEffort: string | null;
+  lastComposerServiceTier: ServiceTier | null;
   stored: ThreadCodexParams | null;
   noThreadStored: ThreadCodexParams | null;
   pendingSeed: PendingNewThreadSeed | null;
@@ -120,6 +121,7 @@ export function resolveThreadCodexState(
     defaultAccessMode,
     lastComposerModelId,
     lastComposerReasoningEffort,
+    lastComposerServiceTier,
     stored,
     noThreadStored,
     pendingSeed,
@@ -131,7 +133,10 @@ export function resolveThreadCodexState(
       accessMode: stored?.accessMode ?? defaultAccessMode,
       preferredModelId: stored?.modelId ?? lastComposerModelId ?? null,
       preferredEffort: stored?.effort ?? lastComposerReasoningEffort ?? null,
-      preferredServiceTier: stored?.serviceTier,
+      preferredServiceTier:
+        stored?.serviceTier !== undefined
+          ? stored.serviceTier
+          : lastComposerServiceTier ?? undefined,
       preferredCollabModeId: stored?.collaborationModeId ?? null,
       preferredCodexArgsOverride: stored?.codexArgsOverride ?? null,
     };
@@ -148,7 +153,7 @@ export function resolveThreadCodexState(
     preferredServiceTier:
       stored?.serviceTier !== undefined
         ? stored.serviceTier
-        : noThreadStored?.serviceTier,
+        : noThreadStored?.serviceTier ?? lastComposerServiceTier ?? undefined,
     preferredCollabModeId:
       stored?.collaborationModeId ??
       (pendingForWorkspace
