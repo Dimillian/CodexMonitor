@@ -107,6 +107,7 @@ const baseSettings: AppSettings = {
   cycleWorkspacePrevShortcut: null,
   lastComposerModelId: null,
   lastComposerReasoningEffort: null,
+  lastComposerServiceTier: null,
   uiScale: 1,
   theme: "system",
   usageShowRemaining: false,
@@ -1661,6 +1662,7 @@ describe("SettingsView Codex defaults", () => {
     const effortSelect = screen.getByLabelText(
       "Reasoning effort",
     ) as HTMLSelectElement;
+    const serviceTierSelect = screen.getByLabelText("Service tier") as HTMLSelectElement;
 
     await waitFor(() => {
       expect(modelSelect.disabled).toBe(false);
@@ -1685,6 +1687,15 @@ describe("SettingsView Codex defaults", () => {
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
         expect.objectContaining({ lastComposerReasoningEffort: "high" }),
+      );
+    });
+
+    onUpdateAppSettings.mockClear();
+    fireEvent.change(serviceTierSelect, { target: { value: "fast" } });
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ lastComposerServiceTier: "fast" }),
       );
     });
   });

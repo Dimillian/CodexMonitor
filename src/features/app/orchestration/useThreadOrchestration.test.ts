@@ -59,6 +59,7 @@ function makeSyncParams(
       defaultAccessMode: "current",
       lastComposerModelId: "gpt-5",
       lastComposerReasoningEffort: "medium",
+      lastComposerServiceTier: null,
     },
     threadCodexParamsVersion: 0,
     getThreadCodexParams,
@@ -146,6 +147,24 @@ describe("useThreadSelectionHandlersOrchestration codex args selection", () => {
     expect(params.persistThreadCodexParams).toHaveBeenCalledWith({
       serviceTier: "fast",
     });
+  });
+
+  it("persists service tier selections as the global default when no thread is active", () => {
+    const params = makeSelectionParams();
+    const { result } = renderHook(() => useThreadSelectionHandlersOrchestration(params));
+
+    act(() => {
+      result.current.handleSelectServiceTier("fast");
+    });
+
+    expect(params.setAppSettings).toHaveBeenCalledTimes(1);
+    const update = vi.mocked(params.setAppSettings).mock.calls[0]?.[0] as (
+      current: AppSettings,
+    ) => AppSettings;
+    const nextSettings = update({ lastComposerServiceTier: null } as AppSettings);
+
+    expect(nextSettings.lastComposerServiceTier).toBe("fast");
+    expect(params.queueSaveSettings).toHaveBeenCalledWith(nextSettings);
   });
 
   it("normalizes smart quotes/dashes before persisting selected override", () => {

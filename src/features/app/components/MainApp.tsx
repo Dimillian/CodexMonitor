@@ -670,6 +670,7 @@ export default function MainApp() {
       defaultAccessMode: appSettings.defaultAccessMode,
       lastComposerModelId: appSettings.lastComposerModelId,
       lastComposerReasoningEffort: appSettings.lastComposerReasoningEffort,
+      lastComposerServiceTier: appSettings.lastComposerServiceTier,
     },
     threadCodexParamsVersion,
     getThreadCodexParams,
