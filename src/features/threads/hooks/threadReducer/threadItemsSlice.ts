@@ -327,6 +327,21 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
         },
       };
     }
+    case "truncateThreadItems": {
+      const list = state.itemsByThread[action.threadId] ?? [];
+      const index = list.findIndex((entry) => entry.id === action.afterItemId);
+      if (index < 0) {
+        return state;
+      }
+      const truncated = list.slice(0, index);
+      return {
+        ...state,
+        itemsByThread: {
+          ...state.itemsByThread,
+          [action.threadId]: prepareThreadItems(truncated, { maxItemsPerThread: state.maxItemsPerThread }),
+        },
+      };
+    }
     default:
       return state;
   }

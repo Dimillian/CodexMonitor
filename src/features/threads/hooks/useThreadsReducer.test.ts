@@ -744,4 +744,81 @@ describe("threadReducer", () => {
     expect(trimmed.itemsByThread["thread-1"]?.[0]?.id).toBe("msg-2");
   });
 
+  it("truncates thread items before a given item id", () => {
+    const items: ConversationItem[] = [
+      { id: "msg-0", kind: "message", role: "user", text: "first" },
+      { id: "msg-1", kind: "message", role: "assistant", text: "second" },
+      { id: "msg-2", kind: "message", role: "user", text: "third" },
+      { id: "msg-3", kind: "message", role: "assistant", text: "fourth" },
+    ];
+
+    const withItems = threadReducer(initialState, {
+      type: "setThreadItems",
+      threadId: "thread-1",
+      items,
+    });
+
+    const truncated = threadReducer(withItems, {
+      type: "truncateThreadItems",
+      threadId: "thread-1",
+      afterItemId: "msg-2",
+    });
+
+    const remaining = truncated.itemsByThread["thread-1"] ?? [];
+    expect(remaining).toHaveLength(2);
+    expect(remaining.map((item) => item.id)).toEqual(["msg-0", "msg-1"]);
+  });
+
+  it("returns unchanged state when afterItemId is not found", () => {
+    const items: ConversationItem[] = [
+      { id: "msg-0", kind: "message", role: "user", text: "first" },
+    ];
+
+    const withItems = threadReducer(initialState, {
+      type: "setThreadItems",
+      threadId: "thread-1",
+      items,
+    });
+
+    const result = threadReducer(withItems, {
+      type: "truncateThreadItems",
+      threadId: "thread-1",
+      afterItemId: "nonexistent",
+    });
+
+    expect(result).toBe(withItems);
+  });
+
+  it("returns unchanged state when truncating on an empty thread", () => {
+    const result = threadReducer(initialState, {
+      type: "truncateThreadItems",
+      threadId: "thread-1",
+      afterItemId: "msg-0",
+    });
+
+    expect(result).toBe(initialState);
+  });
+
+  it("truncates to empty when afterItemId is the first item", () => {
+    const items: ConversationItem[] = [
+      { id: "msg-0", kind: "message", role: "user", text: "first" },
+      { id: "msg-1", kind: "message", role: "assistant", text: "second" },
+    ];
+
+    const withItems = threadReducer(initialState, {
+      type: "setThreadItems",
+      threadId: "thread-1",
+      items,
+    });
+
+    const truncated = threadReducer(withItems, {
+      type: "truncateThreadItems",
+      threadId: "thread-1",
+      afterItemId: "msg-0",
+    });
+
+    const remaining = truncated.itemsByThread["thread-1"] ?? [];
+    expect(remaining).toHaveLength(0);
+  });
+
 });

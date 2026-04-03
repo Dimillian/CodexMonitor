@@ -1077,7 +1077,15 @@ export async function threadLiveUnsubscribe(workspaceId: string, threadId: strin
 }
 
 export async function archiveThread(workspaceId: string, threadId: string) {
-  return invoke<any>("archive_thread", { workspaceId, threadId });
+  return invoke<void>("archive_thread", { workspaceId, threadId });
+}
+
+export async function rollbackThread(
+  workspaceId: string,
+  threadId: string,
+  turnId: string,
+) {
+  return invoke<void>("rollback_thread", { workspaceId, threadId, turnId });
 }
 
 export async function setThreadName(
