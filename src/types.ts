@@ -100,6 +100,7 @@ export type CollabAgentStatus = CollabAgentRef & {
 export type ConversationItem =
   | {
       id: string;
+      turnId?: string;
       kind: "message";
       role: "user" | "assistant";
       text: string;

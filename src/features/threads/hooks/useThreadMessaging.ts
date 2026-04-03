@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/react";
 import type {
   AppMention,
   ComposerSendIntent,
+  ConversationItem,
   RateLimitSnapshot,
   CustomPromptOption,
   DebugEntry,
@@ -95,6 +96,7 @@ type UseThreadMessagingOptions = {
     childId: string,
   ) => void;
   renameThread?: (workspaceId: string, threadId: string, name: string) => void;
+  getItemsForThread?: (threadId: string) => ConversationItem[];
 };
 
 export function useThreadMessaging({
@@ -131,7 +133,26 @@ export function useThreadMessaging({
   updateThreadParent,
   registerDetachedReviewChild,
   renameThread,
+  getItemsForThread = () => [],
 }: UseThreadMessagingOptions) {
+  const resolveRollbackTurnId = useCallback(
+    async (workspace: WorkspaceInfo, threadId: string, itemId: string) => {
+      const readTurnId = () => {
+        const item = getItemsForThread(threadId).find((entry) => entry.id === itemId);
+        return item?.kind === "message" ? item.turnId?.trim() || null : null;
+      };
+
+      const localTurnId = readTurnId();
+      if (localTurnId) {
+        return localTurnId;
+      }
+
+      await refreshThread(workspace.id, threadId);
+      return readTurnId();
+    },
+    [getItemsForThread, refreshThread],
+  );
+
   const sendMessageToThread = useCallback(
     async (
       workspace: WorkspaceInfo,
@@ -946,7 +967,11 @@ export function useThreadMessaging({
         return;
       }
       try {
-        await rollbackThreadService(workspace.id, threadId, itemId);
+        const rollbackTurnId = await resolveRollbackTurnId(workspace, threadId, itemId);
+        if (!rollbackTurnId) {
+          throw new Error("Failed to determine the turn for the edited message.");
+        }
+        await rollbackThreadService(workspace.id, threadId, rollbackTurnId);
         dispatch({
           type: "truncateThreadItems",
           threadId,
@@ -962,7 +987,14 @@ export function useThreadMessaging({
         safeMessageActivity();
       }
     },
-    [dispatch, pushThreadErrorMessage, safeMessageActivity, sendMessageToThread, threadStatusById],
+    [
+      dispatch,
+      pushThreadErrorMessage,
+      resolveRollbackTurnId,
+      safeMessageActivity,
+      sendMessageToThread,
+      threadStatusById,
+    ],
   );
 
   return {

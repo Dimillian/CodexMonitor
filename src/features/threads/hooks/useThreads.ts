@@ -793,6 +793,7 @@ export function useThreads({
     updateThreadParent,
     registerDetachedReviewChild,
     renameThread,
+    getItemsForThread: (threadId) => itemsByThreadRef.current[threadId] ?? [],
   });
 
   const hasLocalThreadSnapshot = useCallback(
