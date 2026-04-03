@@ -3,7 +3,7 @@ import { parseCollabToolCallItem } from "./threadItems.collab";
 import { asNumber, asString } from "./threadItems.shared";
 
 function extractTurnId(record: Record<string, unknown>) {
-  return asString(record.id ?? record.turnId ?? record.turn_id).trim();
+  return asString(record.turnId ?? record.turn_id ?? record.id).trim();
 }
 
 function extractImageInputValue(input: Record<string, unknown>) {

@@ -940,6 +940,23 @@ describe("threadItems", () => {
     ]);
   });
 
+  it("prefers explicit turn ids over item ids when both are present", () => {
+    const item = buildConversationItem({
+      id: "item-1",
+      turnId: "turn-1",
+      type: "userMessage",
+      content: [{ type: "text", text: "Hello" }],
+    });
+
+    expect(item).toEqual({
+      id: "item-1",
+      turnId: "turn-1",
+      kind: "message",
+      role: "user",
+      text: "Hello",
+    });
+  });
+
   it("parses ISO timestamps for thread updates", () => {
     const timestamp = getThreadTimestamp({ updated_at: "2025-01-01T00:00:00Z" });
     expect(timestamp).toBe(Date.parse("2025-01-01T00:00:00Z"));

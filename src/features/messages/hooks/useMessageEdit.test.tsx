@@ -175,4 +175,37 @@ describe("useMessageEdit", () => {
     expect(result.current.isConfirming).toBe(false);
     expect(result.current.isRegenerating).toBe(false);
   });
+
+  it("ignores startEdit while regenerate is already in flight", async () => {
+    let resolveRegenerate: (() => void) | null = null;
+    const pendingRegenerate = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveRegenerate = resolve;
+        }),
+    );
+    const { result } = renderHook(() =>
+      useMessageEdit({ onRegenerate: pendingRegenerate }),
+    );
+
+    act(() => {
+      result.current.startEdit("item-1", "text");
+    });
+
+    await act(async () => {
+      void result.current.executeRegenerate();
+    });
+
+    expect(result.current.isRegenerating).toBe(true);
+
+    act(() => {
+      result.current.startEdit("item-2", "other text");
+    });
+
+    expect(result.current.editingItemId).toBe("item-1");
+
+    await act(async () => {
+      resolveRegenerate?.();
+    });
+  });
 });

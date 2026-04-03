@@ -41,11 +41,17 @@ export function useMessageEdit({ onRegenerate }: UseMessageEditOptions): UseMess
   const [isConfirming, setIsConfirming] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
-  const startEdit = useCallback((itemId: string, text: string, images: string[] = []) => {
-    setEditState({ itemId, originalText: text, editText: text, images });
-    setIsConfirming(false);
-    setIsRegenerating(false);
-  }, []);
+  const startEdit = useCallback(
+    (itemId: string, text: string, images: string[] = []) => {
+      if (isRegenerating) {
+        return;
+      }
+      setEditState({ itemId, originalText: text, editText: text, images });
+      setIsConfirming(false);
+      setIsRegenerating(false);
+    },
+    [isRegenerating],
+  );
 
   const cancelEdit = useCallback(() => {
     setEditState(null);
