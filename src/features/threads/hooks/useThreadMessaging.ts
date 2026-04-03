@@ -971,7 +971,15 @@ export function useThreadMessaging({
         if (!rollbackTurnId) {
           throw new Error("Failed to determine the turn for the edited message.");
         }
-        await rollbackThreadService(workspace.id, threadId, rollbackTurnId);
+        const rollbackResponse = await rollbackThreadService(
+          workspace.id,
+          threadId,
+          rollbackTurnId,
+        );
+        const rollbackError = extractRpcErrorMessage(rollbackResponse);
+        if (rollbackError) {
+          throw new Error(rollbackError);
+        }
         dispatch({
           type: "truncateThreadItems",
           threadId,

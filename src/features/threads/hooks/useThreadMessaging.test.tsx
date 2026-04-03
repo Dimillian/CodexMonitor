@@ -805,4 +805,50 @@ describe("useThreadMessaging telemetry", () => {
       expect.any(Object),
     );
   });
+
+  it("does not truncate or resend when rollback returns an rpc error", async () => {
+    const items: ConversationItem[] = [
+      {
+        id: "item-user-1",
+        turnId: "turn-9",
+        kind: "message",
+        role: "user",
+        text: "Original prompt",
+      },
+    ];
+    const dispatch = vi.fn();
+    const pushThreadErrorMessage = vi.fn();
+    vi.mocked(rollbackThreadService).mockResolvedValueOnce({
+      error: { message: "rollback failed" },
+    } as Awaited<ReturnType<typeof rollbackThreadService>>);
+
+    const { result } = renderUseThreadMessaging({
+      dispatch,
+      pushThreadErrorMessage,
+      getItemsForThread: vi.fn(() => items),
+    });
+
+    await act(async () => {
+      await result.current.editAndRegenerateMessage(
+        workspace,
+        "thread-1",
+        "item-user-1",
+        "Edited prompt",
+      );
+    });
+
+    expect(rollbackThreadService).toHaveBeenCalledWith("ws-1", "thread-1", "turn-9");
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "truncateThreadItems",
+      }),
+    );
+    expect(sendUserMessageService).not.toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      "Edited prompt",
+      expect.anything(),
+    );
+    expect(pushThreadErrorMessage).toHaveBeenCalledWith("thread-1", "rollback failed");
+  });
 });

@@ -1085,7 +1085,7 @@ export async function rollbackThread(
   threadId: string,
   turnId: string,
 ) {
-  return invoke<void>("rollback_thread", { workspaceId, threadId, turnId });
+  return invoke<any>("rollback_thread", { workspaceId, threadId, turnId });
 }
 
 export async function setThreadName(
