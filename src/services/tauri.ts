@@ -1115,6 +1115,18 @@ export async function generateAgentDescription(
   return invoke("generate_agent_description", { workspaceId, description });
 }
 
+export async function generateMessageAudioSummary(
+  workspaceId: string,
+  responseText: string,
+  modelId?: string | null,
+): Promise<string> {
+  return invoke("generate_message_audio_summary", {
+    workspaceId,
+    responseText,
+    modelId: modelId ?? null,
+  });
+}
+
 export type AppBuildType = "debug" | "release";
 
 export async function getAppBuildType(): Promise<AppBuildType> {

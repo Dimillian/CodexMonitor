@@ -443,6 +443,7 @@ function buildPrimarySurface({
       workspacePath: activeWorkspace?.path ?? null,
       openTargets: appSettings.openAppTargets,
       selectedOpenAppId: appSettings.selectedOpenAppId,
+      selectedModelId,
       codeBlockCopyUseModifier: appSettings.composerCodeBlockCopyUseModifier,
       showMessageFilePath: appSettings.showMessageFilePath,
       userInputRequests,

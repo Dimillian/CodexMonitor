@@ -20,6 +20,17 @@ Keep the summary line under 72 characters. \
 Only output the commit message, nothing else.\n\n\
 Changes:\n{diff}";
 
+const DEFAULT_MESSAGE_AUDIO_SUMMARY_PROMPT: &str =
+    "You are preparing audio playback for a coding assistant response.\n\
+Summarize the response below into short spoken prose for a developer.\n\n\
+Requirements:\n\
+- Return plain text only.\n\
+- Do not include markdown fences, bullets, or headings.\n\
+- Keep it concise and easy to listen to.\n\
+- Preserve important commands, file paths, errors, results, and next actions when they matter.\n\
+- If the response is mostly code or a table, summarize the outcome instead of reading every line.\n\n\
+Assistant response:\n{response}";
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct GeneratedAgentConfiguration {
@@ -48,6 +59,15 @@ pub(crate) fn build_commit_message_prompt_for_diff(
         return Err("No changes to generate commit message for".to_string());
     }
     Ok(build_commit_message_prompt(diff, template))
+}
+
+pub(crate) fn build_message_audio_summary_prompt(response_text: &str) -> Result<String, String> {
+    let cleaned_response = response_text.trim();
+    if cleaned_response.is_empty() {
+        return Err("Response text is required.".to_string());
+    }
+
+    Ok(DEFAULT_MESSAGE_AUDIO_SUMMARY_PROMPT.replace("{response}", cleaned_response))
 }
 
 pub(crate) fn build_run_metadata_prompt(cleaned_prompt: &str) -> String {
@@ -196,6 +216,28 @@ pub(crate) fn parse_agent_description_value(
     }
 
     Err("No valid agent configuration was generated".to_string())
+}
+
+pub(crate) fn normalize_message_audio_summary_value(raw: &str) -> Result<String, String> {
+    let normalized = raw
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with("```"))
+        .map(|line| {
+            line.strip_prefix("- ")
+                .or_else(|| line.strip_prefix("* "))
+                .or_else(|| line.strip_prefix("• "))
+                .unwrap_or(line)
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    let normalized = normalized.split_whitespace().collect::<Vec<_>>().join(" ");
+    if normalized.is_empty() {
+        return Err("No summary was generated".to_string());
+    }
+
+    Ok(normalized)
 }
 
 pub(crate) fn parse_run_metadata_value(raw: &str) -> Result<Value, String> {
@@ -649,10 +691,38 @@ where
     parse_agent_description_value(&response)
 }
 
+pub(crate) async fn generate_message_audio_summary_core<F>(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    response_text: &str,
+    model: Option<&str>,
+    on_hide_thread: F,
+) -> Result<String, String>
+where
+    F: Fn(&str, &str),
+{
+    let prompt = build_message_audio_summary_prompt(response_text)?;
+    let response = run_background_prompt_core(
+        sessions,
+        workspaces,
+        workspace_id,
+        prompt,
+        model,
+        on_hide_thread,
+        "Timeout waiting for audio summary generation",
+        "Unknown error during audio summary generation",
+    )
+    .await?;
+
+    normalize_message_audio_summary_value(&response)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        build_commit_message_prompt_for_diff, parse_agent_description_value,
+        build_commit_message_prompt_for_diff, build_message_audio_summary_prompt,
+        normalize_message_audio_summary_value, parse_agent_description_value,
         parse_run_metadata_value,
     };
 
@@ -663,6 +733,22 @@ mod tests {
             result.expect_err("should fail"),
             "No changes to generate commit message for"
         );
+    }
+
+    #[test]
+    fn build_message_audio_summary_prompt_requires_response_text() {
+        let result = build_message_audio_summary_prompt("   ");
+        assert_eq!(result.expect_err("should fail"), "Response text is required.");
+    }
+
+    #[test]
+    fn normalize_message_audio_summary_value_flattens_bullets_and_fences() {
+        let result = normalize_message_audio_summary_value(
+            "```md\n- Updated src/App.tsx\n- Ran npm run test\n```",
+        )
+        .expect("summary should parse");
+
+        assert_eq!(result, "Updated src/App.tsx Ran npm run test");
     }
 
     #[test]

@@ -1022,3 +1022,51 @@ pub(crate) async fn generate_agent_description(
     )
     .await
 }
+
+#[tauri::command]
+pub(crate) async fn generate_message_audio_summary(
+    workspace_id: String,
+    response_text: String,
+    model_id: Option<String>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<String, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let value = remote_backend::call_remote(
+            &*state,
+            app,
+            "generate_message_audio_summary",
+            json!({
+                "workspaceId": workspace_id,
+                "responseText": response_text,
+                "modelId": model_id,
+            }),
+        )
+        .await?;
+        return serde_json::from_value(value).map_err(|err| err.to_string());
+    }
+
+    crate::shared::codex_aux_core::generate_message_audio_summary_core(
+        &state.sessions,
+        &state.workspaces,
+        workspace_id,
+        &response_text,
+        model_id.as_deref(),
+        |workspace_id, thread_id| {
+            let _ = app.emit(
+                "app-server-event",
+                AppServerEvent {
+                    workspace_id: workspace_id.to_string(),
+                    message: json!({
+                        "method": "codex/backgroundThread",
+                        "params": {
+                            "threadId": thread_id,
+                            "action": "hide"
+                        }
+                    }),
+                },
+            );
+        },
+    )
+    .await
+}
