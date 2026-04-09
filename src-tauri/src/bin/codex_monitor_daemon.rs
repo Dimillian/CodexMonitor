@@ -1329,6 +1329,25 @@ impl DaemonState {
         .await
     }
 
+    async fn generate_message_audio_summary(
+        &self,
+        workspace_id: String,
+        response_text: String,
+        model_id: Option<String>,
+    ) -> Result<String, String> {
+        codex_aux_core::generate_message_audio_summary_core(
+            &self.sessions,
+            &self.workspaces,
+            workspace_id,
+            &response_text,
+            model_id.as_deref(),
+            |workspace_id, thread_id| {
+                emit_background_thread_hide(&self.event_sink, workspace_id, thread_id);
+            },
+        )
+        .await
+    }
+
     async fn local_usage_snapshot(
         &self,
         days: Option<u32>,

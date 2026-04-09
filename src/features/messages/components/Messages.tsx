@@ -10,6 +10,7 @@ import type {
 import { PlanReadyFollowupMessage } from "../../app/components/PlanReadyFollowupMessage";
 import { RequestUserInputMessage } from "../../app/components/RequestUserInputMessage";
 import { useFileLinkOpener } from "../hooks/useFileLinkOpener";
+import { useMessageAudio } from "../hooks/useMessageAudio";
 import { formatCount, parseReasoning } from "../utils/messageRenderUtils";
 import {
   DiffRow,
@@ -36,6 +37,7 @@ type MessagesProps = {
   workspacePath?: string | null;
   openTargets: OpenAppTarget[];
   selectedOpenAppId: string;
+  selectedModelId?: string | null;
   codeBlockCopyUseModifier?: boolean;
   showMessageFilePath?: boolean;
   userInputRequests?: RequestUserInputRequest[];
@@ -62,6 +64,7 @@ export const Messages = memo(function Messages({
   workspacePath = null,
   openTargets,
   selectedOpenAppId,
+  selectedModelId = null,
   codeBlockCopyUseModifier = false,
   showMessageFilePath = true,
   userInputRequests = [],
@@ -84,6 +87,16 @@ export const Messages = memo(function Messages({
     openTargets,
     selectedOpenAppId,
   );
+  const {
+    getMessageAudioState,
+    listenToMessage,
+    listenToMessageSummary,
+    stopMessageAudio,
+  } = useMessageAudio({
+    workspaceId,
+    threadId,
+    selectedModelId,
+  });
   const handleOpenThreadLink = useCallback(
     (threadId: string) => {
       onOpenThreadLink?.(threadId, workspaceId ?? null);
@@ -160,6 +173,10 @@ export const Messages = memo(function Messages({
           onOpenFileLink={openFileLink}
           onOpenFileLinkMenu={showFileLinkMenu}
           onOpenThreadLink={handleOpenThreadLink}
+          audioState={getMessageAudioState(item.id)}
+          onListenFull={listenToMessage}
+          onListenSummary={listenToMessageSummary}
+          onStopAudio={stopMessageAudio}
         />
       );
     }

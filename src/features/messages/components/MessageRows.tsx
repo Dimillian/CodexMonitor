@@ -12,6 +12,7 @@ import Quote from "lucide-react/dist/esm/icons/quote";
 import Search from "lucide-react/dist/esm/icons/search";
 import Terminal from "lucide-react/dist/esm/icons/terminal";
 import Users from "lucide-react/dist/esm/icons/users";
+import Volume2 from "lucide-react/dist/esm/icons/volume-2";
 import Wrench from "lucide-react/dist/esm/icons/wrench";
 import X from "lucide-react/dist/esm/icons/x";
 import { exportMarkdownFile } from "@services/tauri";
@@ -19,6 +20,12 @@ import { pushErrorToast } from "@services/toasts";
 import type { ConversationItem } from "../../../types";
 import type { ParsedFileLocation } from "../../../utils/fileLinks";
 import { PierreDiffBlock } from "../../git/components/PierreDiffBlock";
+import { useMenuController } from "../../app/hooks/useMenuController";
+import {
+  PopoverMenuItem,
+  PopoverSurface,
+} from "../../design-system/components/popover/PopoverPrimitives";
+import type { MessageAudioState } from "../hooks/useMessageAudio";
 import {
   MAX_COMMAND_OUTPUT_LINES,
   basename,
@@ -60,6 +67,10 @@ type MessageRowProps = MarkdownFileLinkProps & {
   isCopied: boolean;
   onCopy: (item: Extract<ConversationItem, { kind: "message" }>) => void;
   onQuote?: (item: Extract<ConversationItem, { kind: "message" }>, selectedText?: string) => void;
+  audioState?: MessageAudioState;
+  onListenFull?: (messageId: string, speakableText: string) => void;
+  onListenSummary?: (messageId: string, responseText: string) => void;
+  onStopAudio?: (messageId?: string) => void;
   codeBlockCopyUseModifier?: boolean;
 };
 
@@ -98,6 +109,96 @@ type ExploreRowProps = {
 type CommandOutputProps = {
   output: string;
 };
+
+const MESSAGE_CONTROL_SELECTOR =
+  ".message-quote-button, .message-copy-button, .message-audio-button, .message-audio-popover";
+
+const BLOCK_TEXT_TAGS = new Set([
+  "blockquote",
+  "div",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "li",
+  "ol",
+  "p",
+  "pre",
+  "table",
+  "tbody",
+  "td",
+  "th",
+  "thead",
+  "tr",
+  "ul",
+]);
+
+function pushTextBoundary(parts: string[]) {
+  if (parts.length === 0 || parts[parts.length - 1] === "\n") {
+    return;
+  }
+  parts.push("\n");
+}
+
+function collectSpeakableText(node: Node, parts: string[]) {
+  if (node.nodeType === Node.TEXT_NODE) {
+    const text = node.textContent?.replace(/\s+/g, " ") ?? "";
+    if (text.trim()) {
+      parts.push(text);
+    }
+    return;
+  }
+
+  if (!(node instanceof Element)) {
+    return;
+  }
+
+  const tagName = node.tagName.toLowerCase();
+  if (tagName === "button") {
+    return;
+  }
+
+  if (tagName === "br") {
+    pushTextBoundary(parts);
+    return;
+  }
+
+  const isBlock = BLOCK_TEXT_TAGS.has(tagName);
+  if (isBlock) {
+    pushTextBoundary(parts);
+  }
+
+  node.childNodes.forEach((child) => collectSpeakableText(child, parts));
+
+  if (isBlock) {
+    pushTextBoundary(parts);
+  }
+}
+
+function extractSpeakableMessageText(
+  bubble: HTMLDivElement | null,
+  fallbackText: string,
+): string {
+  const markdownRoot = bubble?.querySelector(".markdown");
+  if (!markdownRoot) {
+    return fallbackText.trim();
+  }
+
+  const parts: string[] = [];
+  collectSpeakableText(markdownRoot, parts);
+  const normalized = parts
+    .join("")
+    .replace(/\u00a0/g, " ")
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
+
+  return normalized || fallbackText.trim();
+}
 
 const MessageImageGrid = memo(function MessageImageGrid({
   images,
@@ -371,6 +472,10 @@ export const MessageRow = memo(function MessageRow({
   isCopied,
   onCopy,
   onQuote,
+  audioState,
+  onListenFull,
+  onListenSummary,
+  onStopAudio,
   codeBlockCopyUseModifier,
   showMessageFilePath,
   workspacePath,
@@ -381,6 +486,7 @@ export const MessageRow = memo(function MessageRow({
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
   const selectionSnapshotRef = useRef<string | null>(null);
+  const audioMenu = useMenuController();
   const hasText = item.text.trim().length > 0;
   const imageItems = useMemo(() => {
     if (!item.images || item.images.length === 0) {
@@ -401,6 +507,19 @@ export const MessageRow = memo(function MessageRow({
     hasText &&
     imageItems.length === 0 &&
     isStandaloneMarkdownTable(item.text);
+  const resolvedAudioState =
+    audioState ??
+    ({
+      isActive: false,
+      mode: null,
+      status: "idle",
+    } satisfies MessageAudioState);
+  const canPlayAudio =
+    item.role === "assistant" &&
+    hasText &&
+    Boolean(onListenFull) &&
+    Boolean(onListenSummary) &&
+    Boolean(onStopAudio);
 
   const getSelectedMessageText = useCallback(() => {
     const bubble = bubbleRef.current;
@@ -422,7 +541,7 @@ export const MessageRow = memo(function MessageRow({
         return false;
       }
       const element = node instanceof Element ? node : node.parentElement;
-      return Boolean(element?.closest(".message-quote-button, .message-copy-button"));
+      return Boolean(element?.closest(MESSAGE_CONTROL_SELECTOR));
     };
 
     if (isWithinMessageControls(selection.anchorNode) || isWithinMessageControls(selection.focusNode)) {
@@ -439,6 +558,46 @@ export const MessageRow = memo(function MessageRow({
     selectionSnapshotRef.current = null;
     onQuote(item, selectedText);
   }, [getSelectedMessageText, item, onQuote]);
+
+  const handleToggleAudioMenu = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      audioMenu.toggle();
+    },
+    [audioMenu],
+  );
+
+  const handleListenFull = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      audioMenu.close();
+      const speakableText = extractSpeakableMessageText(bubbleRef.current, item.text);
+      onListenFull?.(item.id, speakableText);
+    },
+    [audioMenu, item.id, item.text, onListenFull],
+  );
+
+  const handleListenSummary = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      audioMenu.close();
+      onListenSummary?.(item.id, item.text);
+    },
+    [audioMenu, item.id, item.text, onListenSummary],
+  );
+
+  const handleStopAudio = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      audioMenu.close();
+      onStopAudio?.(item.id);
+    },
+    [audioMenu, item.id, onStopAudio],
+  );
 
   return (
     <div className={`message ${item.role}`}>
@@ -473,35 +632,80 @@ export const MessageRow = memo(function MessageRow({
             onClose={() => setLightboxIndex(null)}
           />
         )}
-        {onQuote && hasText && (
+        <div
+          className={`message-bubble-actions${
+            audioMenu.isOpen || resolvedAudioState.isActive ? " is-active" : ""
+          }`}
+        >
+          {canPlayAudio && (
+            <div className="message-audio-menu-wrap" ref={audioMenu.containerRef}>
+              <button
+                type="button"
+                className={`ghost message-audio-button${
+                  resolvedAudioState.isActive ? " is-active" : ""
+                }${resolvedAudioState.status === "preparing" ? " is-busy" : ""}`}
+                onClick={handleToggleAudioMenu}
+                aria-label="Response audio"
+                aria-haspopup="menu"
+                aria-expanded={audioMenu.isOpen}
+                title="Response audio"
+              >
+                <Volume2 size={14} aria-hidden />
+              </button>
+              {audioMenu.isOpen && (
+                <PopoverSurface className="message-audio-popover" role="menu">
+                  <PopoverMenuItem
+                    onClick={handleListenFull}
+                    active={resolvedAudioState.isActive && resolvedAudioState.mode === "full"}
+                  >
+                    Listen full
+                  </PopoverMenuItem>
+                  <PopoverMenuItem
+                    onClick={handleListenSummary}
+                    active={resolvedAudioState.isActive && resolvedAudioState.mode === "summary"}
+                  >
+                    Listen summary
+                  </PopoverMenuItem>
+                  <PopoverMenuItem
+                    onClick={handleStopAudio}
+                    disabled={!resolvedAudioState.isActive}
+                  >
+                    Stop
+                  </PopoverMenuItem>
+                </PopoverSurface>
+              )}
+            </div>
+          )}
+          {onQuote && hasText && (
+            <button
+              type="button"
+              className="ghost message-quote-button"
+              onMouseDown={() => {
+                selectionSnapshotRef.current = getSelectedMessageText();
+              }}
+              onTouchStart={() => {
+                selectionSnapshotRef.current = getSelectedMessageText();
+              }}
+              onClick={handleQuote}
+              aria-label="Quote message"
+              title="Quote message"
+            >
+              <Quote size={14} aria-hidden />
+            </button>
+          )}
           <button
             type="button"
-            className="ghost message-quote-button"
-            onMouseDown={() => {
-              selectionSnapshotRef.current = getSelectedMessageText();
-            }}
-            onTouchStart={() => {
-              selectionSnapshotRef.current = getSelectedMessageText();
-            }}
-            onClick={handleQuote}
-            aria-label="Quote message"
-            title="Quote message"
+            className={`ghost message-copy-button${isCopied ? " is-copied" : ""}`}
+            onClick={() => onCopy(item)}
+            aria-label="Copy message"
+            title="Copy message"
           >
-            <Quote size={14} aria-hidden />
+            <span className="message-copy-icon" aria-hidden>
+              <Copy className="message-copy-icon-copy" size={14} />
+              <Check className="message-copy-icon-check" size={14} />
+            </span>
           </button>
-        )}
-        <button
-          type="button"
-          className={`ghost message-copy-button${isCopied ? " is-copied" : ""}`}
-          onClick={() => onCopy(item)}
-          aria-label="Copy message"
-          title="Copy message"
-        >
-          <span className="message-copy-icon" aria-hidden>
-            <Copy className="message-copy-icon-copy" size={14} />
-            <Check className="message-copy-icon-check" size={14} />
-          </span>
-        </button>
+        </div>
       </div>
     </div>
   );

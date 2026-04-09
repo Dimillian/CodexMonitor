@@ -218,6 +218,7 @@ pub fn run() {
             codex::generate_commit_message,
             codex::generate_run_metadata,
             codex::generate_agent_description,
+            codex::generate_message_audio_summary,
             codex::resume_thread,
             codex::read_thread,
             codex::thread_live_subscribe,

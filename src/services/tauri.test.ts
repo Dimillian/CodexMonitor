@@ -51,6 +51,7 @@ import {
   readAgentConfigToml,
   readImageAsDataUrl,
   generateAgentDescription,
+  generateMessageAudioSummary,
   writeAgentConfigToml,
   writeAgentMd,
 } from "./tauri";
@@ -710,6 +711,23 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("generate_agent_description", {
       workspaceId: "ws-agent",
       description: "tests",
+    });
+  });
+
+  it("generates a hidden audio summary for a response", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce("Updated src/App.tsx and ran npm run test.");
+
+    await generateMessageAudioSummary(
+      "ws-agent",
+      "Updated `src/App.tsx` and ran `npm run test`.",
+      "gpt-5-codex",
+    );
+
+    expect(invokeMock).toHaveBeenCalledWith("generate_message_audio_summary", {
+      workspaceId: "ws-agent",
+      responseText: "Updated `src/App.tsx` and ran `npm run test`.",
+      modelId: "gpt-5-codex",
     });
   });
 

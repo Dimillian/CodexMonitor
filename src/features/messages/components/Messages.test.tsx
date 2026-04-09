@@ -14,8 +14,9 @@ const useFileLinkOpenerMock = vi.fn(
 );
 const openFileLinkMock = vi.fn();
 const showFileLinkMenuMock = vi.fn();
-const { exportMarkdownFileMock } = vi.hoisted(() => ({
+const { exportMarkdownFileMock, generateMessageAudioSummaryMock } = vi.hoisted(() => ({
   exportMarkdownFileMock: vi.fn(),
+  generateMessageAudioSummaryMock: vi.fn(),
 }));
 
 vi.mock("../hooks/useFileLinkOpener", () => ({
@@ -33,10 +34,14 @@ vi.mock("@services/tauri", async () => {
   return {
     ...actual,
     exportMarkdownFile: exportMarkdownFileMock,
+    generateMessageAudioSummary: generateMessageAudioSummaryMock,
   };
 });
 
 describe("Messages", () => {
+  let originalSpeechSynthesis: SpeechSynthesis | undefined;
+  let originalSpeechSynthesisUtterance: typeof SpeechSynthesisUtterance | undefined;
+
   beforeAll(() => {
     if (!HTMLElement.prototype.scrollIntoView) {
       HTMLElement.prototype.scrollIntoView = vi.fn();
@@ -52,7 +57,58 @@ describe("Messages", () => {
     openFileLinkMock.mockReset();
     showFileLinkMenuMock.mockReset();
     exportMarkdownFileMock.mockReset();
+    generateMessageAudioSummaryMock.mockReset();
+    originalSpeechSynthesis = window.speechSynthesis;
+    originalSpeechSynthesisUtterance = globalThis.SpeechSynthesisUtterance;
   });
+
+  afterEach(() => {
+    Object.defineProperty(window, "speechSynthesis", {
+      configurable: true,
+      value: originalSpeechSynthesis,
+    });
+    Object.defineProperty(globalThis, "SpeechSynthesisUtterance", {
+      configurable: true,
+      value: originalSpeechSynthesisUtterance,
+    });
+  });
+
+  function installSpeechMocks() {
+    const utterances: Array<{
+      text: string;
+      onend: ((event: Event) => void) | null;
+      onerror: ((event: Event) => void) | null;
+    }> = [];
+    const speak = vi.fn((utterance: { text: string }) => {
+      utterances.push(utterance as (typeof utterances)[number]);
+    });
+    const cancel = vi.fn();
+
+    Object.defineProperty(window, "speechSynthesis", {
+      configurable: true,
+      value: {
+        speak,
+        cancel,
+      } satisfies Partial<SpeechSynthesis>,
+    });
+
+    class MockSpeechSynthesisUtterance {
+      text: string;
+      onend: ((event: Event) => void) | null = null;
+      onerror: ((event: Event) => void) | null = null;
+
+      constructor(text: string) {
+        this.text = text;
+      }
+    }
+
+    Object.defineProperty(globalThis, "SpeechSynthesisUtterance", {
+      configurable: true,
+      value: MockSpeechSynthesisUtterance,
+    });
+
+    return { speak, cancel, utterances };
+  }
 
   it("renders image grid above message text and opens lightbox", () => {
     const items: ConversationItem[] = [
@@ -241,6 +297,116 @@ describe("Messages", () => {
 
     expect(onQuoteMessage).toHaveBeenCalledWith("> beta\n\n");
     selection?.removeAllRanges();
+  });
+
+  it("reads the rendered assistant response aloud", () => {
+    const { speak, utterances } = installSpeechMocks();
+    const items: ConversationItem[] = [
+      {
+        id: "msg-audio-full-1",
+        kind: "message",
+        role: "assistant",
+        text: "# Heading\n\nParagraph with `code`.",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Response audio" }));
+    fireEvent.click(screen.getByRole("button", { name: "Listen full" }));
+
+    expect(speak).toHaveBeenCalledTimes(1);
+    expect(utterances[0]?.text).toContain("Heading");
+
+    act(() => {
+      utterances[0]?.onend?.(new Event("end"));
+    });
+
+    expect(speak).toHaveBeenCalledTimes(2);
+    expect(utterances[1]?.text).toContain("Paragraph with code.");
+  });
+
+  it("generates and reads a summary with the selected model", async () => {
+    const { speak, utterances } = installSpeechMocks();
+    generateMessageAudioSummaryMock.mockResolvedValueOnce("Short spoken summary");
+    const items: ConversationItem[] = [
+      {
+        id: "msg-audio-summary-1",
+        kind: "message",
+        role: "assistant",
+        text: "Long agent response",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+        selectedModelId="gpt-5-codex"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Response audio" }));
+    fireEvent.click(screen.getByRole("button", { name: "Listen summary" }));
+
+    await waitFor(() => {
+      expect(generateMessageAudioSummaryMock).toHaveBeenCalledWith(
+        "ws-1",
+        "Long agent response",
+        "gpt-5-codex",
+      );
+    });
+    await waitFor(() => {
+      expect(speak).toHaveBeenCalledTimes(1);
+    });
+    expect(utterances[0]?.text).toBe("Short spoken summary");
+  });
+
+  it("stops the active spoken response from the message menu", async () => {
+    const { cancel } = installSpeechMocks();
+    const items: ConversationItem[] = [
+      {
+        id: "msg-audio-stop-1",
+        kind: "message",
+        role: "assistant",
+        text: "Hello world",
+      },
+    ];
+
+    render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Response audio" }));
+    fireEvent.click(screen.getByRole("button", { name: "Listen full" }));
+    expect(cancel).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Response audio" }));
+    fireEvent.click(screen.getByRole("button", { name: "Stop" }));
+
+    await waitFor(() => {
+      expect(cancel).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("opens linked review thread when clicking thread link", () => {

@@ -505,6 +505,23 @@ pub(super) async fn try_handle(
                     .and_then(|value| serde_json::to_value(value).map_err(|err| err.to_string())),
             )
         }
+        "generate_message_audio_summary" => {
+            let workspace_id = match parse_string(params, "workspaceId") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let response_text = match parse_string(params, "responseText") {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            let model_id = parse_optional_string(params, "modelId");
+            Some(
+                state
+                    .generate_message_audio_summary(workspace_id, response_text, model_id)
+                    .await
+                    .and_then(|value| serde_json::to_value(value).map_err(|err| err.to_string())),
+            )
+        }
         _ => None,
     }
 }
