@@ -54,7 +54,7 @@ jobs:
           - name: macOS
             os: macos-latest
           - name: Linux
-            os: ubuntu-latest
+            os: ubuntu-22.04
           - name: Windows
             os: windows-latest
     steps:
@@ -113,7 +113,7 @@ jobs:
             os: macos-latest
             build_command: npm run tauri -- build --debug --no-bundle
           - name: Linux
-            os: ubuntu-latest
+            os: ubuntu-22.04
             build_command: npm run tauri -- build --debug --no-bundle
           - name: Windows
             os: windows-latest
