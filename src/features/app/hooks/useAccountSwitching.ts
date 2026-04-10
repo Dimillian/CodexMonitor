@@ -1,13 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { cancelCodexLogin, runCodexLogin } from "../../../services/tauri";
+import {
+  activateSavedAuthProfile,
+  cancelCodexLogin,
+  listSavedAuthProfiles,
+  runCodexLogin,
+  syncCurrentSavedAuthProfile,
+} from "../../../services/tauri";
 import { subscribeAppServerEvents } from "../../../services/events";
-import type { AccountSnapshot } from "../../../types";
+import type { AccountSnapshot, RateLimitSnapshot, SavedAccountProfile } from "../../../types";
 import { getAppServerParams, getAppServerRawMethod } from "../../../utils/appServerEvents";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 type UseAccountSwitchingArgs = {
   activeWorkspaceId: string | null;
   accountByWorkspace: Record<string, AccountSnapshot | null | undefined>;
+  activeRateLimits: RateLimitSnapshot | null;
   refreshAccountInfo: (workspaceId: string) => Promise<void> | void;
   refreshAccountRateLimits: (workspaceId: string) => Promise<void> | void;
   alertError: (error: unknown) => void;
@@ -16,18 +23,127 @@ type UseAccountSwitchingArgs = {
 type UseAccountSwitchingResult = {
   activeAccount: AccountSnapshot | null;
   accountSwitching: boolean;
+  savedProfiles: SavedAccountProfile[];
+  savedProfilesLoading: boolean;
+  activatingProfileId: string | null;
   handleSwitchAccount: () => Promise<void>;
   handleCancelSwitchAccount: () => Promise<void>;
+  handleActivateSavedProfile: (profileId: string) => Promise<void>;
 };
+
+function hasUsableAccountSnapshot(account: AccountSnapshot | null | undefined): boolean {
+  if (!account) {
+    return false;
+  }
+  return (
+    account.type !== "unknown" ||
+    Boolean(account.email?.trim()) ||
+    Boolean(account.planType?.trim())
+  );
+}
+
+function hasUsableRateLimitSnapshot(rateLimits: RateLimitSnapshot | null | undefined): boolean {
+  if (!rateLimits) {
+    return false;
+  }
+  const balance = rateLimits.credits?.balance?.trim() ?? "";
+  return (
+    rateLimits.primary !== null ||
+    rateLimits.secondary !== null ||
+    Boolean(rateLimits.planType?.trim()) ||
+    Boolean(
+      rateLimits.credits &&
+        (rateLimits.credits.hasCredits ||
+          rateLimits.credits.unlimited ||
+          balance.length > 0),
+    )
+  );
+}
+
+function normalizeAccountType(value: unknown): SavedAccountProfile["accountType"] {
+  const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
+  if (normalized === "chatgpt" || normalized === "apikey") {
+    return normalized;
+  }
+  return "unknown";
+}
+
+function normalizeSavedProfiles(
+  response: Record<string, unknown> | null,
+): SavedAccountProfile[] {
+  const activeProfileId =
+    typeof response?.activeProfileId === "string" ? response.activeProfileId : null;
+  const profiles = Array.isArray(response?.profiles) ? response.profiles : [];
+
+  return profiles
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+      const profile = entry as Record<string, unknown>;
+      const rateLimitsRaw =
+        profile.rateLimits && typeof profile.rateLimits === "object"
+          ? (profile.rateLimits as RateLimitSnapshot)
+          : null;
+      return {
+        id: typeof profile.id === "string" ? profile.id : "",
+        accountType: normalizeAccountType(profile.accountType),
+        email: typeof profile.email === "string" ? profile.email.trim() || null : null,
+        planType:
+          typeof profile.planType === "string" ? profile.planType.trim() || null : null,
+        requiresOpenaiAuth:
+          typeof profile.requiresOpenaiAuth === "boolean"
+            ? profile.requiresOpenaiAuth
+            : null,
+        rateLimits: rateLimitsRaw,
+        updatedAt:
+          typeof profile.updatedAt === "number" && Number.isFinite(profile.updatedAt)
+            ? profile.updatedAt
+            : null,
+        isActive: typeof profile.id === "string" && profile.id === activeProfileId,
+      } satisfies SavedAccountProfile;
+    })
+    .filter((profile): profile is SavedAccountProfile => Boolean(profile?.id));
+}
+
+function accountToPayload(account: AccountSnapshot | null): Record<string, unknown> | null {
+  if (!account || !hasUsableAccountSnapshot(account)) {
+    return null;
+  }
+  return {
+    type: account.type,
+    email: account.email,
+    planType: account.planType,
+    requiresOpenaiAuth: account.requiresOpenaiAuth,
+  };
+}
+
+function rateLimitsToPayload(
+  rateLimits: RateLimitSnapshot | null,
+): Record<string, unknown> | null {
+  if (!rateLimits || !hasUsableRateLimitSnapshot(rateLimits)) {
+    return null;
+  }
+  return {
+    primary: rateLimits.primary,
+    secondary: rateLimits.secondary,
+    credits: rateLimits.credits,
+    planType: rateLimits.planType,
+  };
+}
 
 export function useAccountSwitching({
   activeWorkspaceId,
   accountByWorkspace,
+  activeRateLimits,
   refreshAccountInfo,
   refreshAccountRateLimits,
   alertError,
 }: UseAccountSwitchingArgs): UseAccountSwitchingResult {
   const [accountSwitching, setAccountSwitching] = useState(false);
+  const [savedProfiles, setSavedProfiles] = useState<SavedAccountProfile[]>([]);
+  const [savedProfilesLoading, setSavedProfilesLoading] = useState(false);
+  const [activatingProfileId, setActivatingProfileId] = useState<string | null>(null);
   const accountSwitchCanceledRef = useRef(false);
   const loginIdRef = useRef<string | null>(null);
   const loginWorkspaceIdRef = useRef<string | null>(null);
@@ -43,6 +159,16 @@ export function useAccountSwitching({
     }
     return accountByWorkspace[activeWorkspaceId] ?? null;
   }, [activeWorkspaceId, accountByWorkspace]);
+
+  const syncFingerprint = useMemo(
+    () =>
+      JSON.stringify({
+        workspaceId: activeWorkspaceId,
+        account: accountToPayload(activeAccount),
+        rateLimits: rateLimitsToPayload(activeRateLimits),
+      }),
+    [activeWorkspaceId, activeAccount, activeRateLimits],
+  );
 
   const isCodexLoginCanceled = useCallback((error: unknown) => {
     const message =
@@ -75,6 +201,18 @@ export function useAccountSwitching({
     alertErrorRef.current = alertError;
   }, [alertError]);
 
+  const reloadSavedProfiles = useCallback(async (workspaceId: string) => {
+    setSavedProfilesLoading(true);
+    try {
+      const response = await listSavedAuthProfiles(workspaceId);
+      setSavedProfiles(normalizeSavedProfiles(response));
+    } catch (error) {
+      alertErrorRef.current(error);
+    } finally {
+      setSavedProfilesLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const currentWorkspaceId = activeWorkspaceId;
     const inFlightWorkspaceId = loginWorkspaceIdRef.current;
@@ -89,6 +227,41 @@ export function useAccountSwitching({
       setAccountSwitching(false);
     }
   }, [activeWorkspaceId]);
+
+  useEffect(() => {
+    if (!activeWorkspaceId) {
+      setSavedProfiles([]);
+      setSavedProfilesLoading(false);
+      return;
+    }
+    void reloadSavedProfiles(activeWorkspaceId);
+  }, [activeWorkspaceId, reloadSavedProfiles]);
+
+  useEffect(() => {
+    if (!activeWorkspaceId) {
+      return;
+    }
+    const accountPayload = accountToPayload(activeAccount);
+    const rateLimitsPayload = rateLimitsToPayload(activeRateLimits);
+    if (!accountPayload && !rateLimitsPayload) {
+      return;
+    }
+    let canceled = false;
+    void syncCurrentSavedAuthProfile(activeWorkspaceId, accountPayload, rateLimitsPayload)
+      .then((response) => {
+        if (canceled) {
+          return;
+        }
+        setSavedProfiles(normalizeSavedProfiles(response));
+      })
+      .catch(() => {
+        // Some workspaces may not have auth.json yet; avoid noisy errors here.
+      });
+
+    return () => {
+      canceled = true;
+    };
+  }, [activeWorkspaceId, syncFingerprint, activeAccount, activeRateLimits]);
 
   useEffect(() => {
     const unlisten = subscribeAppServerEvents((payload) => {
@@ -217,10 +390,51 @@ export function useAccountSwitching({
     }
   }, [activeWorkspaceId, alertError]);
 
+  const handleActivateSavedProfile = useCallback(
+    async (profileId: string) => {
+      if (!activeWorkspaceId || !profileId || accountSwitching || activatingProfileId) {
+        return;
+      }
+      const existingProfile = savedProfiles.find((profile) => profile.id === profileId);
+      if (existingProfile?.isActive) {
+        return;
+      }
+
+      setActivatingProfileId(profileId);
+      try {
+        const response = await activateSavedAuthProfile(activeWorkspaceId, profileId);
+        setSavedProfiles(normalizeSavedProfiles(response));
+        await Promise.all([
+          refreshAccountInfo(activeWorkspaceId),
+          refreshAccountRateLimits(activeWorkspaceId),
+        ]);
+        await reloadSavedProfiles(activeWorkspaceId);
+      } catch (error) {
+        alertError(error);
+      } finally {
+        setActivatingProfileId(null);
+      }
+    },
+    [
+      activeWorkspaceId,
+      accountSwitching,
+      activatingProfileId,
+      alertError,
+      refreshAccountInfo,
+      refreshAccountRateLimits,
+      reloadSavedProfiles,
+      savedProfiles,
+    ],
+  );
+
   return {
     activeAccount,
     accountSwitching,
+    savedProfiles,
+    savedProfilesLoading,
+    activatingProfileId,
     handleSwitchAccount,
     handleCancelSwitchAccount,
+    handleActivateSavedProfile,
   };
 }

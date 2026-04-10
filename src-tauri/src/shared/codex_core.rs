@@ -15,7 +15,10 @@ use crate::backend::app_server::WorkspaceSession;
 use crate::codex::config as codex_config;
 use crate::codex::home::{resolve_default_codex_home, resolve_workspace_codex_home};
 use crate::rules;
-use crate::shared::account::{build_account_response, read_auth_account};
+use crate::shared::account::{
+    activate_saved_auth_profile, build_account_response, list_saved_auth_profiles, read_auth_account,
+    sync_saved_auth_profile,
+};
 use crate::types::WorkspaceEntry;
 
 const LOGIN_START_TIMEOUT: Duration = Duration::from_secs(30);
@@ -648,6 +651,33 @@ pub(crate) async fn account_read_core(
     let fallback = read_auth_account(codex_home);
 
     Ok(build_account_response(response, fallback))
+}
+
+pub(crate) async fn saved_auth_profiles_list_core(
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+) -> Result<Value, String> {
+    let codex_home = resolve_codex_home_for_workspace_core(workspaces, &workspace_id).await?;
+    list_saved_auth_profiles(codex_home)
+}
+
+pub(crate) async fn saved_auth_profile_sync_current_core(
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    account: Option<Value>,
+    rate_limits: Option<Value>,
+) -> Result<Value, String> {
+    let codex_home = resolve_codex_home_for_workspace_core(workspaces, &workspace_id).await?;
+    sync_saved_auth_profile(codex_home, account, rate_limits)
+}
+
+pub(crate) async fn saved_auth_profile_activate_core(
+    workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
+    workspace_id: String,
+    profile_id: String,
+) -> Result<Value, String> {
+    let codex_home = resolve_codex_home_for_workspace_core(workspaces, &workspace_id).await?;
+    activate_saved_auth_profile(codex_home, &profile_id)
 }
 
 pub(crate) async fn codex_login_core(

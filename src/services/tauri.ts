@@ -768,6 +768,32 @@ export async function getAccountInfo(workspaceId: string) {
   return invoke<any>("account_read", { workspaceId });
 }
 
+export async function listSavedAuthProfiles(workspaceId: string) {
+  return invoke<any>("saved_auth_profiles_list", { workspaceId });
+}
+
+export async function syncCurrentSavedAuthProfile(
+  workspaceId: string,
+  account?: Record<string, unknown> | null,
+  rateLimits?: Record<string, unknown> | null,
+) {
+  return invoke<any>("saved_auth_profile_sync_current", {
+    workspaceId,
+    account: account ?? null,
+    rateLimits: rateLimits ?? null,
+  });
+}
+
+export async function activateSavedAuthProfile(
+  workspaceId: string,
+  profileId: string,
+) {
+  return invoke<any>("saved_auth_profile_activate", {
+    workspaceId,
+    profileId,
+  });
+}
+
 export async function runCodexLogin(workspaceId: string) {
   return invoke<{ loginId: string; authUrl: string; raw?: unknown }>("codex_login", {
     workspaceId,

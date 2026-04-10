@@ -2,7 +2,9 @@ import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
 import Settings from "lucide-react/dist/esm/icons/settings";
 import User from "lucide-react/dist/esm/icons/user";
 import X from "lucide-react/dist/esm/icons/x";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { SavedAccountProfile } from "../../../types";
+import { getUsageLabels } from "../utils/usageLabels";
 import {
   MenuTrigger,
   PopoverSurface,
@@ -22,11 +24,16 @@ type SidebarBottomRailProps = {
   showAccountSwitcher: boolean;
   accountLabel: string;
   accountActionLabel: string;
+  savedProfiles: SavedAccountProfile[];
+  savedProfilesLoading: boolean;
+  activatingProfileId: string | null;
   accountDisabled: boolean;
   accountSwitching: boolean;
   accountCancelDisabled: boolean;
   onSwitchAccount: () => void;
   onCancelSwitchAccount: () => void;
+  onActivateSavedProfile: (profileId: string) => void;
+  usageShowRemaining: boolean;
 };
 
 type UsageRowProps = {
@@ -52,6 +59,26 @@ function UsageRow({ label, percent, resetLabel }: UsageRowProps) {
   );
 }
 
+function formatSavedProfileUsage(
+  profile: SavedAccountProfile,
+  usageShowRemaining: boolean,
+): string | null {
+  const usage = getUsageLabels(profile.rateLimits, usageShowRemaining);
+  const parts: string[] = [];
+
+  if (usage.sessionPercent !== null) {
+    parts.push(`Session ${usage.sessionPercent}%`);
+  }
+  if (usage.showWeekly && usage.weeklyPercent !== null) {
+    parts.push(`Weekly ${usage.weeklyPercent}%`);
+  }
+  if (usage.creditsLabel) {
+    parts.push(usage.creditsLabel.replace(/^Available credits:\s*/i, "Credits "));
+  }
+
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 export function SidebarBottomRail({
   sessionPercent,
   weeklyPercent,
@@ -65,13 +92,19 @@ export function SidebarBottomRail({
   showAccountSwitcher,
   accountLabel,
   accountActionLabel,
+  savedProfiles,
+  savedProfilesLoading,
+  activatingProfileId,
   accountDisabled,
   accountSwitching,
   accountCancelDisabled,
   onSwitchAccount,
   onCancelSwitchAccount,
+  onActivateSavedProfile,
+  usageShowRemaining,
 }: SidebarBottomRailProps) {
   const accountMenu = useMenuController();
+  const [savedProfilesOpen, setSavedProfilesOpen] = useState(false);
   const {
     isOpen: accountMenuOpen,
     containerRef: accountMenuRef,
@@ -82,8 +115,20 @@ export function SidebarBottomRail({
   useEffect(() => {
     if (!showAccountSwitcher) {
       closeAccountMenu();
+      setSavedProfilesOpen(false);
     }
   }, [closeAccountMenu, showAccountSwitcher]);
+
+  useEffect(() => {
+    if (!accountMenuOpen) {
+      setSavedProfilesOpen(false);
+    }
+  }, [accountMenuOpen]);
+
+  const selectableProfiles = useMemo(
+    () => savedProfiles.filter((profile) => !profile.isActive),
+    [savedProfiles],
+  );
 
   return (
     <div className="sidebar-bottom-rail">
@@ -159,6 +204,71 @@ export function SidebarBottomRail({
                     </button>
                   )}
                 </div>
+                <button
+                  type="button"
+                  className="secondary sidebar-account-saved-toggle"
+                  onClick={() => setSavedProfilesOpen((open) => !open)}
+                  disabled={savedProfilesLoading || savedProfiles.length === 0}
+                >
+                  {savedProfilesLoading
+                    ? "Loading profiles..."
+                    : savedProfiles.length === 0
+                      ? "No saved profiles yet"
+                      : savedProfilesOpen
+                        ? "Hide saved profiles"
+                        : "Saved profiles"}
+                </button>
+                {savedProfilesOpen && (
+                  <div className="sidebar-saved-profiles-list" role="list">
+                    {savedProfiles.map((profile) => {
+                      const usageSummary = formatSavedProfileUsage(
+                        profile,
+                        usageShowRemaining,
+                      );
+                      const label =
+                        profile.email?.trim() ||
+                        (profile.accountType === "apikey" ? "API key" : "Saved account");
+                      const meta = [profile.planType, usageSummary]
+                        .filter((value): value is string => Boolean(value?.trim()))
+                        .join(" · ");
+                      const isBusy = activatingProfileId === profile.id;
+                      return (
+                        <button
+                          key={profile.id}
+                          type="button"
+                          role="listitem"
+                          className={`sidebar-saved-profile${
+                            profile.isActive ? " is-active" : ""
+                          }`}
+                          onClick={async () => {
+                            await onActivateSavedProfile(profile.id);
+                            closeAccountMenu();
+                          }}
+                          disabled={profile.isActive || isBusy || accountSwitching}
+                        >
+                          <span className="sidebar-saved-profile-head">
+                            <span className="sidebar-saved-profile-label">{label}</span>
+                            <span className="sidebar-saved-profile-state">
+                              {profile.isActive
+                                ? "Active"
+                                : isBusy
+                                  ? "Switching..."
+                                  : "Use"}
+                            </span>
+                          </span>
+                          {meta && (
+                            <span className="sidebar-saved-profile-meta">{meta}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                    {!savedProfilesLoading && selectableProfiles.length === 0 && (
+                      <div className="sidebar-saved-profiles-empty">
+                        Only the current login is saved right now.
+                      </div>
+                    )}
+                  </div>
+                )}
               </PopoverSurface>
             )}
           </div>
