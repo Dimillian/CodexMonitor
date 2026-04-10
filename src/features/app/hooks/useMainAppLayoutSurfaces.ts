@@ -61,8 +61,12 @@ type UseMainAppLayoutSurfacesArgs = {
   homeRateLimits: LayoutNodesOptions["primary"]["homeProps"]["accountRateLimits"];
   homeAccount: LayoutNodesOptions["primary"]["homeProps"]["accountInfo"];
   accountSwitching: SidebarProps["accountSwitching"];
+  savedProfiles: SidebarProps["savedProfiles"];
+  savedProfilesLoading: SidebarProps["savedProfilesLoading"];
+  activatingProfileId: SidebarProps["activatingProfileId"];
   onSwitchAccount: SidebarProps["onSwitchAccount"];
   onCancelSwitchAccount: SidebarProps["onCancelSwitchAccount"];
+  onActivateSavedProfile: SidebarProps["onActivateSavedProfile"];
   onDecision: LayoutNodesOptions["primary"]["approvalToastsProps"]["onDecision"];
   onRemember: LayoutNodesOptions["primary"]["approvalToastsProps"]["onRemember"];
   onUserInputSubmit: LayoutNodesOptions["primary"]["messagesProps"]["onUserInputSubmit"];
@@ -264,8 +268,12 @@ function buildPrimarySurface({
   homeRateLimits,
   homeAccount,
   accountSwitching,
+  savedProfiles,
+  savedProfilesLoading,
+  activatingProfileId,
   onSwitchAccount,
   onCancelSwitchAccount,
+  onActivateSavedProfile,
   onDecision,
   onRemember,
   onUserInputSubmit,
@@ -401,8 +409,12 @@ function buildPrimarySurface({
       accountRateLimits: sidebarRateLimits,
       usageShowRemaining: appSettings.usageShowRemaining,
       accountInfo: sidebarAccount,
+      savedProfiles,
+      savedProfilesLoading,
+      activatingProfileId,
       onSwitchAccount,
       onCancelSwitchAccount,
+      onActivateSavedProfile,
       accountSwitching,
       onOpenSettings: sidebarHandlers.onOpenSettings,
       onOpenDebug: handleDebugClick,
@@ -971,8 +983,12 @@ export function useMainAppLayoutSurfaces({
   homeRateLimits,
   homeAccount,
   accountSwitching,
+  savedProfiles,
+  savedProfilesLoading,
+  activatingProfileId,
   onSwitchAccount,
   onCancelSwitchAccount,
+  onActivateSavedProfile,
   onDecision,
   onRemember,
   onUserInputSubmit,
@@ -1133,8 +1149,12 @@ export function useMainAppLayoutSurfaces({
     homeRateLimits,
     homeAccount,
     accountSwitching,
+    savedProfiles,
+    savedProfilesLoading,
+    activatingProfileId,
     onSwitchAccount,
     onCancelSwitchAccount,
+    onActivateSavedProfile,
     onDecision,
     onRemember,
     onUserInputSubmit,

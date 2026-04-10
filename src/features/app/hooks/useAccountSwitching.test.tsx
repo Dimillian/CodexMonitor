@@ -1,16 +1,26 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
+import { waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AppServerEvent, AccountSnapshot } from "../../../types";
-import { cancelCodexLogin, runCodexLogin } from "../../../services/tauri";
+import type { AppServerEvent, AccountSnapshot, RateLimitSnapshot } from "../../../types";
+import {
+  activateSavedAuthProfile,
+  cancelCodexLogin,
+  listSavedAuthProfiles,
+  runCodexLogin,
+  syncCurrentSavedAuthProfile,
+} from "../../../services/tauri";
 import { subscribeAppServerEvents } from "../../../services/events";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useAccountSwitching } from "./useAccountSwitching";
 
 vi.mock("../../../services/tauri", () => ({
+  activateSavedAuthProfile: vi.fn(),
   runCodexLogin: vi.fn(),
   cancelCodexLogin: vi.fn(),
+  listSavedAuthProfiles: vi.fn(),
+  syncCurrentSavedAuthProfile: vi.fn(),
 }));
 
 vi.mock("../../../services/events", () => ({
@@ -38,6 +48,15 @@ beforeEach(() => {
   listener = null;
   latest = null;
   unlisten.mockReset();
+  vi.mocked(listSavedAuthProfiles).mockResolvedValue({ activeProfileId: null, profiles: [] });
+  vi.mocked(syncCurrentSavedAuthProfile).mockResolvedValue({
+    activeProfileId: null,
+    profiles: [],
+  });
+  vi.mocked(activateSavedAuthProfile).mockResolvedValue({
+    activeProfileId: null,
+    profiles: [],
+  });
   vi.mocked(subscribeAppServerEvents).mockImplementation((cb) => {
     listener = cb;
     return unlisten;
@@ -69,6 +88,19 @@ function makeAccount(): AccountSnapshot {
   };
 }
 
+function makeRateLimits(): RateLimitSnapshot {
+  return {
+    primary: {
+      usedPercent: 40,
+      windowDurationMins: 300,
+      resetsAt: 1_900_000_000,
+    },
+    secondary: null,
+    credits: null,
+    planType: "pro",
+  };
+}
+
 describe("useAccountSwitching", () => {
   it("opens the auth URL and refreshes after account/login/completed", async () => {
     vi.mocked(runCodexLogin).mockResolvedValue({
@@ -83,6 +115,7 @@ describe("useAccountSwitching", () => {
     const { root } = await mount({
       activeWorkspaceId: "ws-1",
       accountByWorkspace: { "ws-1": makeAccount() },
+      activeRateLimits: makeRateLimits(),
       refreshAccountInfo,
       refreshAccountRateLimits,
       alertError,
@@ -135,6 +168,7 @@ describe("useAccountSwitching", () => {
     const { root } = await mount({
       activeWorkspaceId: "ws-1",
       accountByWorkspace: { "ws-1": makeAccount() },
+      activeRateLimits: makeRateLimits(),
       refreshAccountInfo,
       refreshAccountRateLimits,
       alertError,
@@ -187,6 +221,7 @@ describe("useAccountSwitching", () => {
     const { root } = await mount({
       activeWorkspaceId: "ws-1",
       accountByWorkspace: { "ws-1": makeAccount() },
+      activeRateLimits: makeRateLimits(),
       refreshAccountInfo,
       refreshAccountRateLimits,
       alertError,
@@ -228,6 +263,7 @@ describe("useAccountSwitching", () => {
     const { root } = await mount({
       activeWorkspaceId: "ws-1",
       accountByWorkspace: { "ws-1": makeAccount() },
+      activeRateLimits: makeRateLimits(),
       refreshAccountInfo,
       refreshAccountRateLimits,
       alertError,
@@ -260,6 +296,7 @@ describe("useAccountSwitching", () => {
     const { root, render } = await mount({
       activeWorkspaceId: "ws-1",
       accountByWorkspace: { "ws-1": makeAccount() },
+      activeRateLimits: makeRateLimits(),
       refreshAccountInfo,
       refreshAccountRateLimits,
       alertError,
@@ -273,6 +310,7 @@ describe("useAccountSwitching", () => {
     await render({
       activeWorkspaceId: "ws-2",
       accountByWorkspace: { "ws-1": makeAccount(), "ws-2": makeAccount() },
+      activeRateLimits: makeRateLimits(),
       refreshAccountInfo,
       refreshAccountRateLimits,
       alertError,
@@ -289,6 +327,89 @@ describe("useAccountSwitching", () => {
       });
     });
 
+    expect(refreshAccountInfo).toHaveBeenCalledWith("ws-1");
+    expect(refreshAccountRateLimits).toHaveBeenCalledWith("ws-1");
+    expect(alertError).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("loads and activates a saved profile", async () => {
+    const profilesResponse = {
+      activeProfileId: "profile-1",
+      profiles: [
+        {
+          id: "profile-1",
+          accountType: "chatgpt",
+          email: "one@example.com",
+          planType: "pro",
+          requiresOpenaiAuth: true,
+          rateLimits: makeRateLimits(),
+          updatedAt: 1,
+        },
+        {
+          id: "profile-2",
+          accountType: "chatgpt",
+          email: "two@example.com",
+          planType: "plus",
+          requiresOpenaiAuth: true,
+          rateLimits: makeRateLimits(),
+          updatedAt: 2,
+        },
+      ],
+    };
+    vi.mocked(listSavedAuthProfiles).mockResolvedValue(profilesResponse);
+    vi.mocked(syncCurrentSavedAuthProfile).mockResolvedValue(profilesResponse);
+    vi.mocked(activateSavedAuthProfile).mockResolvedValue({
+      activeProfileId: "profile-2",
+      profiles: [
+        {
+          id: "profile-1",
+          accountType: "chatgpt",
+          email: "one@example.com",
+          planType: "pro",
+          requiresOpenaiAuth: true,
+          rateLimits: makeRateLimits(),
+          updatedAt: 1,
+        },
+        {
+          id: "profile-2",
+          accountType: "chatgpt",
+          email: "two@example.com",
+          planType: "plus",
+          requiresOpenaiAuth: true,
+          rateLimits: makeRateLimits(),
+          updatedAt: 2,
+        },
+      ],
+    });
+
+    const refreshAccountInfo = vi.fn().mockResolvedValue(undefined);
+    const refreshAccountRateLimits = vi.fn().mockResolvedValue(undefined);
+    const alertError = vi.fn();
+
+    const { root } = await mount({
+      activeWorkspaceId: "ws-1",
+      accountByWorkspace: { "ws-1": makeAccount() },
+      activeRateLimits: makeRateLimits(),
+      refreshAccountInfo,
+      refreshAccountRateLimits,
+      alertError,
+    });
+
+    await waitFor(() => {
+      expect(listSavedAuthProfiles).toHaveBeenCalledWith("ws-1");
+      expect(latest?.savedProfiles).toHaveLength(2);
+    });
+    expect(latest?.savedProfiles[0]?.isActive).toBe(true);
+
+    await act(async () => {
+      await latest?.handleActivateSavedProfile("profile-2");
+    });
+
+    expect(activateSavedAuthProfile).toHaveBeenCalledWith("ws-1", "profile-2");
     expect(refreshAccountInfo).toHaveBeenCalledWith("ws-1");
     expect(refreshAccountRateLimits).toHaveBeenCalledWith("ws-1");
     expect(alertError).not.toHaveBeenCalled();

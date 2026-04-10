@@ -2,6 +2,7 @@ import type {
   AccountSnapshot,
   RequestUserInputRequest,
   RateLimitSnapshot,
+  SavedAccountProfile,
   ThreadListOrganizeMode,
   ThreadListSortKey,
   ThreadSummary,
@@ -121,8 +122,12 @@ type SidebarProps = {
   accountRateLimits: RateLimitSnapshot | null;
   usageShowRemaining: boolean;
   accountInfo: AccountSnapshot | null;
+  savedProfiles: SavedAccountProfile[];
+  savedProfilesLoading: boolean;
+  activatingProfileId: string | null;
   onSwitchAccount: () => void;
   onCancelSwitchAccount: () => void;
+  onActivateSavedProfile: (profileId: string) => void;
   accountSwitching: boolean;
   onOpenSettings: () => void;
   onOpenDebug: () => void;
@@ -182,8 +187,12 @@ export const Sidebar = memo(function Sidebar({
   accountRateLimits,
   usageShowRemaining,
   accountInfo,
+  savedProfiles,
+  savedProfilesLoading,
+  activatingProfileId,
   onSwitchAccount,
   onCancelSwitchAccount,
+  onActivateSavedProfile,
   accountSwitching,
   onOpenSettings,
   onOpenDebug,
@@ -1040,11 +1049,16 @@ export const Sidebar = memo(function Sidebar({
         showAccountSwitcher={showAccountSwitcher}
         accountLabel={accountButtonLabel}
         accountActionLabel={accountActionLabel}
+        savedProfiles={savedProfiles}
+        savedProfilesLoading={savedProfilesLoading}
+        activatingProfileId={activatingProfileId}
         accountDisabled={accountSwitchDisabled}
         accountSwitching={accountSwitching}
         accountCancelDisabled={accountCancelDisabled}
         onSwitchAccount={onSwitchAccount}
         onCancelSwitchAccount={onCancelSwitchAccount}
+        onActivateSavedProfile={onActivateSavedProfile}
+        usageShowRemaining={usageShowRemaining}
       />
     </aside>
   );

@@ -516,6 +516,9 @@ export default function MainApp() {
     threadSortKey: threadListSortKey,
     onThreadCodexMetadataDetected: handleThreadCodexMetadataDetected,
   });
+  const activeRateLimits = activeWorkspaceId
+    ? rateLimitsByWorkspace[activeWorkspaceId] ?? null
+    : null;
   const { connectionState: remoteThreadConnectionState, reconnectLive } =
     useRemoteThreadLiveConnection({
       backendMode: appSettings.backendMode,
@@ -715,11 +718,16 @@ export default function MainApp() {
   const {
     activeAccount,
     accountSwitching,
+    savedProfiles,
+    savedProfilesLoading,
+    activatingProfileId,
     handleSwitchAccount,
     handleCancelSwitchAccount,
+    handleActivateSavedProfile,
   } = useAccountSwitching({
     activeWorkspaceId,
     accountByWorkspace,
+    activeRateLimits,
     refreshAccountInfo,
     refreshAccountRateLimits,
     alertError,
@@ -1063,9 +1071,6 @@ export default function MainApp() {
     getWorkspaceGroupName,
   });
 
-  const activeRateLimits = activeWorkspaceId
-    ? rateLimitsByWorkspace[activeWorkspaceId] ?? null
-    : null;
   const {
     homeAccount,
     homeRateLimits,
@@ -1620,8 +1625,12 @@ export default function MainApp() {
     homeRateLimits,
     homeAccount,
     accountSwitching,
+    savedProfiles,
+    savedProfilesLoading,
+    activatingProfileId,
     onSwitchAccount: handleSwitchAccount,
     onCancelSwitchAccount: handleCancelSwitchAccount,
+    onActivateSavedProfile: handleActivateSavedProfile,
     onDecision: handleApprovalDecision,
     onRemember: handleApprovalRemember,
     onUserInputSubmit: handleUserInputSubmit,

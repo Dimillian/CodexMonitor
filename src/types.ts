@@ -609,6 +609,17 @@ export type AccountSnapshot = {
   requiresOpenaiAuth: boolean | null;
 };
 
+export type SavedAccountProfile = {
+  id: string;
+  accountType: "chatgpt" | "apikey" | "unknown";
+  email: string | null;
+  planType: string | null;
+  requiresOpenaiAuth: boolean | null;
+  rateLimits: RateLimitSnapshot | null;
+  updatedAt: number | null;
+  isActive: boolean;
+};
+
 export type QueuedMessage = {
   id: string;
   text: string;

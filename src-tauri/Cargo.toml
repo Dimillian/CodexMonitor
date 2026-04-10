@@ -47,10 +47,12 @@ toml_edit = "0.20.2"
 [target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
 tauri-plugin-updater = "2.10.0"
 tauri-plugin-window-state = "2"
-cpal = "0.15"
-whisper-rs = "0.12"
-sha2 = "0.10"
 portable-pty = "0.8"
+
+[target."cfg(all(not(any(target_os = \"android\", target_os = \"ios\", target_os = \"windows\"))))".dependencies]
+cpal = "0.15"
+whisper-rs = "0.16"
+sha2 = "0.10"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 objc2 = "0.6"

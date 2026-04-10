@@ -751,6 +751,55 @@ pub(crate) async fn account_read(
 }
 
 #[tauri::command]
+pub(crate) async fn saved_auth_profiles_list(
+    workspace_id: String,
+    state: State<'_, AppState>,
+    _app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return Err("Saved auth profiles are not supported in remote mode".to_string());
+    }
+
+    codex_core::saved_auth_profiles_list_core(&state.workspaces, workspace_id).await
+}
+
+#[tauri::command]
+pub(crate) async fn saved_auth_profile_sync_current(
+    workspace_id: String,
+    account: Option<Value>,
+    rate_limits: Option<Value>,
+    state: State<'_, AppState>,
+    _app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return Err("Saved auth profiles are not supported in remote mode".to_string());
+    }
+
+    codex_core::saved_auth_profile_sync_current_core(
+        &state.workspaces,
+        workspace_id,
+        account,
+        rate_limits,
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn saved_auth_profile_activate(
+    workspace_id: String,
+    profile_id: String,
+    state: State<'_, AppState>,
+    _app: AppHandle,
+) -> Result<Value, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        return Err("Saved auth profiles are not supported in remote mode".to_string());
+    }
+
+    codex_core::saved_auth_profile_activate_core(&state.workspaces, workspace_id, profile_id)
+        .await
+}
+
+#[tauri::command]
 pub(crate) async fn codex_login(
     workspace_id: String,
     state: State<'_, AppState>,
