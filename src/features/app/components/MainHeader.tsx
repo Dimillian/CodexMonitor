@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useI18n } from "@/i18n";
 import Check from "lucide-react/dist/esm/icons/check";
 import Copy from "lucide-react/dist/esm/icons/copy";
 import Terminal from "lucide-react/dist/esm/icons/terminal";
@@ -107,6 +108,7 @@ export function MainHeader({
   launchScriptsState,
   worktreeRename,
 }: MainHeaderProps) {
+  const { tx } = useI18n();
   const [branchQuery, setBranchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState(false);
@@ -135,8 +137,11 @@ export function MainHeader({
   );
   const canCreate = trimmedQuery.length > 0 && !exactMatch;
   const branchValidationMessage = useMemo(
-    () => validateBranchName(trimmedQuery),
-    [trimmedQuery],
+    () => {
+      const message = validateBranchName(trimmedQuery);
+      return message ? tx(message) : null;
+    },
+    [trimmedQuery, tx],
   );
   const resolvedWorktreePath = worktreePath ?? workspace.path;
   const relativeWorktreePath = useMemo(() => {
@@ -202,7 +207,7 @@ export function MainHeader({
                 className="workspace-branch-static-button"
                 onClick={infoMenu.toggle}
                 data-tauri-drag-region="false"
-                title="Worktree info"
+                title={tx("Worktree info")}
               >
                 {worktreeLabel || branchName}
               </MenuTrigger>
@@ -210,7 +215,7 @@ export function MainHeader({
                 <PopoverSurface className="worktree-info-popover" role="dialog">
                   {worktreeRename && (
                     <div className="worktree-info-rename">
-                      <span className="worktree-info-label">Name</span>
+                      <span className="worktree-info-label">{tx("Name")}</span>
                       <div className="worktree-info-command">
                         <input
                           ref={renameInputRef}
@@ -257,8 +262,8 @@ export function MainHeader({
                           disabled={
                             worktreeRename.isSubmitting || !worktreeRename.isDirty
                           }
-                          aria-label="Confirm rename"
-                          title="Confirm rename"
+                          aria-label={tx("Confirm rename")}
+                          title={tx("Confirm rename")}
                         >
                           <Check aria-hidden />
                         </button>
@@ -274,7 +279,7 @@ export function MainHeader({
                       {worktreeRename.upstream && (
                         <div className="worktree-info-upstream">
                           <span className="worktree-info-subtle">
-                            Do you want to update the upstream branch to{" "}
+                            {tx("Do you want to update the upstream branch to")}{" "}
                             <strong>{worktreeRename.upstream.newBranch}</strong>?
                           </span>
                           <button
@@ -283,7 +288,7 @@ export function MainHeader({
                             onClick={worktreeRename.upstream.onConfirm}
                             disabled={worktreeRename.upstream.isSubmitting}
                           >
-                            Update upstream
+                            {tx("Update upstream")}
                           </button>
                           {worktreeRename.upstream.error && (
                             <div className="worktree-info-error">
@@ -294,10 +299,10 @@ export function MainHeader({
                       )}
                     </div>
                   )}
-                  <div className="worktree-info-title">Worktree</div>
+                  <div className="worktree-info-title">{tx("Worktree")}</div>
                   <div className="worktree-info-row">
                     <span className="worktree-info-label">
-                      Terminal{parentPath ? " (repo root)" : ""}
+                      {parentPath ? tx("Terminal (repo root)") : tx("Terminal")}
                     </span>
                     <div className="worktree-info-command">
                       <code className="worktree-info-code">
@@ -310,18 +315,18 @@ export function MainHeader({
                           await navigator.clipboard.writeText(cdCommand);
                         }}
                         data-tauri-drag-region="false"
-                        aria-label="Copy command"
-                        title="Copy command"
+                        aria-label={tx("Copy command")}
+                        title={tx("Copy command")}
                       >
                         <Copy aria-hidden />
                       </button>
                     </div>
                     <span className="worktree-info-subtle">
-                      Open this worktree in your terminal.
+                      {tx("Open this worktree in your terminal.")}
                     </span>
                   </div>
                   <div className="worktree-info-row">
-                    <span className="worktree-info-label">Reveal</span>
+                    <span className="worktree-info-label">{tx("Reveal")}</span>
                     <button
                       type="button"
                       className="worktree-info-reveal"
@@ -398,14 +403,14 @@ export function MainHeader({
                             }
                           }
                         }}
-                        placeholder="Search or create branch"
+                        placeholder={tx("Search or create branch")}
                         className="branch-input"
                         autoCorrect="off"
                         autoCapitalize="none"
                         spellCheck={false}
                         autoFocus
                         data-tauri-drag-region="false"
-                        aria-label="Search branches"
+                        aria-label={tx("Search branches")}
                       />
                       <button
                         type="button"
@@ -432,7 +437,7 @@ export function MainHeader({
                         }}
                         data-tauri-drag-region="false"
                       >
-                        Create
+                        {tx("Create")}
                       </button>
                     </div>
                     {branchValidationMessage && (
@@ -440,7 +445,7 @@ export function MainHeader({
                     )}
                     {canCreate && !branchValidationMessage && (
                       <div className="branch-create-hint">
-                        Create branch “{trimmedQuery}”
+                        {tx("Create branch \"{branch}\"", { branch: trimmedQuery })}
                       </div>
                     )}
                   </div>
@@ -454,7 +459,7 @@ export function MainHeader({
                     itemRole="menuitem"
                     itemDataTauriDragRegion="false"
                     emptyClassName="branch-empty"
-                    emptyText="No branches found"
+                    emptyText={tx("No branches found")}
                     onSelect={async (branch) => {
                       if (branch.name === branchName) {
                         return;
@@ -545,9 +550,9 @@ export function MainHeader({
             className={`ghost main-header-action ds-tooltip-trigger${isTerminalOpen ? " is-active" : ""}`}
             onClick={onToggleTerminal}
             data-tauri-drag-region="false"
-            aria-label="Toggle terminal panel"
-            title="Terminal"
-            data-tooltip="Terminal"
+            aria-label={tx("Toggle terminal panel")}
+            title={tx("Terminal")}
+            data-tooltip={tx("Terminal")}
             data-tooltip-placement="bottom"
           >
             <Terminal size={14} aria-hidden />
@@ -559,9 +564,9 @@ export function MainHeader({
           onClick={handleCopyClick}
           disabled={!canCopyThread || !onCopyThread}
           data-tauri-drag-region="false"
-          aria-label="Copy thread"
-          title="Copy thread"
-          data-tooltip="Copy thread"
+          aria-label={tx("Copy thread")}
+          title={tx("Copy thread")}
+          data-tooltip={tx("Copy thread")}
           data-tooltip-placement="bottom"
         >
           <span className="main-header-icon" aria-hidden>

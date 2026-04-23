@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import type { MouseEvent, MutableRefObject } from "react";
+import { useI18n } from "@/i18n";
 import Plus from "lucide-react/dist/esm/icons/plus";
 
 import type { ThreadSummary, WorkspaceInfo } from "../../../types";
@@ -55,16 +56,18 @@ export function SidebarThreadsOnlySection({
   onToggleAddMenu,
   onCreateThreadInProject,
 }: SidebarThreadsOnlySectionProps) {
+  const { tx } = useI18n();
+
   return (
     <div className="workspace-group">
       <div className="sidebar-section-header workspace-group-header-all-threads">
-        <div className="sidebar-section-title">Recent conversations</div>
+        <div className="sidebar-section-title">{tx("Recent conversations")}</div>
         <button
           className="ghost all-threads-add"
           onClick={onToggleAddMenu}
           data-tauri-drag-region="false"
-          aria-label="New thread in project"
-          title="New thread in project"
+          aria-label={tx("New thread in project")}
+          title={tx("New thread in project")}
           aria-expanded={addMenuOpen}
           disabled={projectOptionsForNewThread.length === 0}
         >
@@ -74,7 +77,7 @@ export function SidebarThreadsOnlySection({
       {threadBuckets.map((bucket) => (
         <div key={bucket.id} className="thread-bucket">
           <div className="thread-bucket-header">
-            <div className="thread-bucket-label">{bucket.label}</div>
+            <div className="thread-bucket-label">{tx(bucket.label)}</div>
           </div>
           <PinnedThreadList
             rows={bucket.rows}

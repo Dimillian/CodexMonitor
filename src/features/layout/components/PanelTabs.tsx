@@ -1,4 +1,5 @@
 import { useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useI18n } from "@/i18n";
 import Folder from "lucide-react/dist/esm/icons/folder";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
@@ -24,6 +25,7 @@ const defaultTabs: PanelTab[] = [
 ];
 
 export function PanelTabs({ active, onSelect, tabs = defaultTabs }: PanelTabsProps) {
+  const { tx } = useI18n();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const activeIndex = tabs.findIndex((tab) => tab.id === active);
   const focusableIndex = activeIndex >= 0 ? activeIndex : 0;
@@ -66,9 +68,10 @@ export function PanelTabs({ active, onSelect, tabs = defaultTabs }: PanelTabsPro
   };
 
   return (
-    <div className="panel-tabs" role="tablist" aria-label="Panel" aria-orientation="horizontal">
+    <div className="panel-tabs" role="tablist" aria-label={tx("Panel")} aria-orientation="horizontal">
       {tabs.map((tab, index) => {
         const isActive = active === tab.id;
+        const label = tx(tab.label);
         return (
           <button
             key={tab.id}
@@ -82,8 +85,8 @@ export function PanelTabs({ active, onSelect, tabs = defaultTabs }: PanelTabsPro
             role="tab"
             aria-selected={isActive}
             tabIndex={index === focusableIndex ? 0 : -1}
-            aria-label={tab.label}
-            title={tab.label}
+            aria-label={label}
+            title={label}
           >
             <span className="panel-tab-icon" aria-hidden>
               {tab.icon}

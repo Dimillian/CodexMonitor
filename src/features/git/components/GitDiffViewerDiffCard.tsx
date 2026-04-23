@@ -6,6 +6,7 @@ import {
   type SelectedLineRange,
 } from "@pierre/diffs";
 import { FileDiff } from "@pierre/diffs/react";
+import { useI18n } from "@/i18n";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import type {
   PullRequestReviewAction,
@@ -116,6 +117,7 @@ export const DiffCard = memo(function DiffCard({
   pullRequestReviewLaunching = false,
   pullRequestReviewThreadId = null,
 }: DiffCardProps) {
+  const { tx } = useI18n();
   const displayPath = entry.displayPath ?? entry.path;
   const { name: fileName, dir } = useMemo(
     () => splitPath(displayPath),
@@ -151,13 +153,13 @@ export const DiffCard = memo(function DiffCard({
 
   const placeholder = useMemo(() => {
     if (isLoading) {
-      return "Loading diff...";
+      return tx("Loading diff...");
     }
     if (ignoreWhitespaceChanges && !entry.diff.trim()) {
-      return "No non-whitespace changes.";
+      return tx("No non-whitespace changes.");
     }
-    return "Diff unavailable.";
-  }, [entry.diff, ignoreWhitespaceChanges, isLoading]);
+    return tx("Diff unavailable.");
+  }, [entry.diff, ignoreWhitespaceChanges, isLoading, tx]);
 
   const parsedLines = useMemo(() => {
     const parsed = parseDiff(entry.diff);
@@ -211,8 +213,8 @@ export const DiffCard = memo(function DiffCard({
           <button
             type="button"
             className="diff-viewer-header-action diff-viewer-header-action--discard"
-            title="Discard changes in this file"
-            aria-label="Discard changes in this file"
+            title={tx("Discard changes in this file")}
+            aria-label={tx("Discard changes in this file")}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -224,7 +226,11 @@ export const DiffCard = memo(function DiffCard({
         )}
       </div>
       {useInteractiveDiff && selectedLines && reviewActions.length > 0 ? (
-        <div className="diff-viewer-review-actions" role="toolbar" aria-label="PR selection actions">
+        <div
+          className="diff-viewer-review-actions"
+          role="toolbar"
+          aria-label={tx("PR selection actions")}
+        >
           {reviewActions.map((action) => (
             <button
               key={action.id}
@@ -238,7 +244,7 @@ export const DiffCard = memo(function DiffCard({
                 void onRunReviewAction(action.intent, parsedLines, selectedLines);
               }}
             >
-              {action.label}
+              {tx(action.label)}
             </button>
           ))}
           <button
@@ -246,11 +252,13 @@ export const DiffCard = memo(function DiffCard({
             className="ghost diff-viewer-review-action"
             onClick={onClearSelection}
           >
-            Clear
+            {tx("Clear")}
           </button>
           {pullRequestReviewThreadId ? (
             <span className="diff-viewer-review-thread">
-              Last review thread: {pullRequestReviewThreadId}
+              {tx("Last review thread: {threadId}", {
+                threadId: pullRequestReviewThreadId,
+              })}
             </span>
           ) : null}
         </div>
@@ -267,8 +275,8 @@ export const DiffCard = memo(function DiffCard({
                     <button
                       type="button"
                       className="diff-viewer-line-action-button"
-                      aria-label="Ask for changes on hovered line"
-                      title="Ask for changes on this line"
+                      aria-label={tx("Ask for changes on hovered line")}
+                      title={tx("Ask for changes on this line")}
                       onMouseDown={(event) => {
                         event.preventDefault();
                         event.stopPropagation();

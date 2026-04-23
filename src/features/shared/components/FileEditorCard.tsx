@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useI18n } from "@/i18n";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import Save from "lucide-react/dist/esm/icons/save";
 
@@ -47,6 +48,9 @@ export function FileEditorCard({
   onSave,
   classNames,
 }: FileEditorCardProps) {
+  const { tx } = useI18n();
+  const translatedSaveLabel = tx(saveLabel);
+
   return (
     <div className={classNames.container}>
       <div className={classNames.header}>
@@ -58,8 +62,8 @@ export function FileEditorCard({
             className={classNames.iconButton}
             onClick={onRefresh}
             disabled={refreshDisabled}
-            aria-label={`Refresh ${title}`}
-            title="Refresh"
+            aria-label={tx("Refresh {title}", { title })}
+            title={tx("Refresh")}
           >
             <RefreshCw aria-hidden />
           </button>
@@ -68,8 +72,12 @@ export function FileEditorCard({
             className={classNames.iconButton}
             onClick={onSave}
             disabled={saveDisabled}
-            aria-label={saveLabel === "Create" ? `Create ${title}` : `Save ${title}`}
-            title={saveLabel}
+            aria-label={
+              saveLabel === "Create"
+                ? tx("Create {title}", { title })
+                : tx("Save {title}", { title })
+            }
+            title={translatedSaveLabel}
           >
             <Save aria-hidden />
           </button>
@@ -88,4 +96,3 @@ export function FileEditorCard({
     </div>
   );
 }
-

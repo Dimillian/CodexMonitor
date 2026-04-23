@@ -1,6 +1,7 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import Image from "lucide-react/dist/esm/icons/image";
 import X from "lucide-react/dist/esm/icons/x";
+import { useI18n } from "@/i18n";
 
 type ComposerAttachmentsProps = {
   attachments: string[];
@@ -39,6 +40,8 @@ export function ComposerAttachments({
   disabled,
   onRemoveAttachment,
 }: ComposerAttachmentsProps) {
+  const { tx } = useI18n();
+
   if (attachments.length === 0) {
     return null;
   }
@@ -46,8 +49,9 @@ export function ComposerAttachments({
   return (
     <div className="composer-attachments">
       {attachments.map((path) => {
-        const title = fileTitle(path);
-        const titleAttr = path.startsWith("data:") ? "Pasted image" : path;
+        const rawTitle = fileTitle(path);
+        const title = tx(rawTitle);
+        const titleAttr = path.startsWith("data:") ? tx("Pasted image") : path;
         const previewSrc = attachmentPreviewSrc(path);
         return (
           <div
@@ -74,7 +78,7 @@ export function ComposerAttachments({
               type="button"
               className="composer-attachment-remove"
               onClick={() => onRemoveAttachment?.(path)}
-              aria-label={`Remove ${title}`}
+              aria-label={tx("Remove {title}", { title })}
               disabled={disabled}
             >
               <X size={12} aria-hidden />

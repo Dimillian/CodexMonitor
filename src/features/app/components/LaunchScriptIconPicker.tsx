@@ -1,3 +1,4 @@
+import { useI18n } from "@/i18n";
 import type { LaunchScriptIconId } from "../utils/launchScriptIcons";
 import {
   LAUNCH_SCRIPT_ICON_OPTIONS,
@@ -10,6 +11,8 @@ type LaunchScriptIconPickerProps = {
 };
 
 export function LaunchScriptIconPicker({ value, onChange }: LaunchScriptIconPickerProps) {
+  const { tx } = useI18n();
+
   return (
     <div className="launch-script-icon-picker">
       {LAUNCH_SCRIPT_ICON_OPTIONS.map((option) => {
@@ -21,7 +24,7 @@ export function LaunchScriptIconPicker({ value, onChange }: LaunchScriptIconPick
             type="button"
             className={`launch-script-icon-option${selected ? " is-selected" : ""}`}
             onClick={() => onChange(option.id)}
-            aria-label={option.label}
+            aria-label={tx(option.label)}
             aria-pressed={selected}
             data-tauri-drag-region="false"
           >

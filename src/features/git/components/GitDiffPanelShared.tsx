@@ -1,5 +1,6 @@
 import type { GitLogEntry } from "../../../types";
 import type { MouseEvent as ReactMouseEvent } from "react";
+import { useI18n } from "@/i18n";
 import Check from "lucide-react/dist/esm/icons/check";
 import Minus from "lucide-react/dist/esm/icons/minus";
 import Plus from "lucide-react/dist/esm/icons/plus";
@@ -44,6 +45,7 @@ export function CommitButton({
   commitLoading,
   onCommit,
 }: CommitButtonProps) {
+  const { tx } = useI18n();
   const hasMessage = commitMessage.trim().length > 0;
   const hasChanges = hasStagedFiles || hasUnstagedFiles;
   const canCommit = hasMessage && hasChanges && !commitLoading;
@@ -63,12 +65,12 @@ export function CommitButton({
         disabled={!canCommit}
         title={
           !hasMessage
-            ? "Enter a commit message"
+            ? tx("Enter a commit message")
             : !hasChanges
-              ? "No changes to commit"
+              ? tx("No changes to commit")
               : hasStagedFiles
-                ? "Commit staged changes"
-                : "Commit all unstaged changes"
+                ? tx("Commit staged changes")
+                : tx("Commit all unstaged changes")
         }
       >
         {commitLoading ? (
@@ -88,7 +90,7 @@ export function CommitButton({
             <path d="M20 6 9 17l-5-5" />
           </svg>
         )}
-        <span>{commitLoading ? "Committing..." : "Commit"}</span>
+        <span>{commitLoading ? tx("Committing...") : tx("Commit")}</span>
       </button>
     </div>
   );
@@ -107,6 +109,8 @@ export function SidebarError({
   action,
   onDismiss,
 }: SidebarErrorProps) {
+  const { tx } = useI18n();
+
   return (
     <div className={`sidebar-error sidebar-error-${variant}`}>
       <div className="sidebar-error-body">
@@ -129,8 +133,8 @@ export function SidebarError({
         type="button"
         className="ghost icon-button sidebar-error-dismiss"
         onClick={onDismiss}
-        aria-label="Dismiss error"
-        title="Dismiss error"
+        aria-label={tx("Dismiss error")}
+        title={tx("Dismiss error")}
       >
         <X size={12} aria-hidden />
       </button>
@@ -163,6 +167,7 @@ function DiffFileRow({
   onUnstageFile,
   onDiscardFile,
 }: DiffFileRowProps) {
+  const { tx } = useI18n();
   const { name, dir } = splitPath(file.path);
   const { base, extension } = splitNameAndExtension(name);
   const statusSymbol = getStatusSymbol(file.status);
@@ -203,7 +208,7 @@ function DiffFileRow({
           <span className="diff-sep">/</span>
           <span className="diff-del">-{file.deletions}</span>
         </span>
-        <div className="diff-row-actions" role="group" aria-label="File actions">
+        <div className="diff-row-actions" role="group" aria-label={tx("File actions")}>
           {showStage && (
             <button
               type="button"
@@ -212,9 +217,9 @@ function DiffFileRow({
                 event.stopPropagation();
                 void onStageFile?.(file.path);
               }}
-              data-tooltip="Stage Changes"
+              data-tooltip={tx("Stage Changes")}
               data-tooltip-align="end"
-              aria-label="Stage file"
+              aria-label={tx("Stage file")}
             >
               <Plus size={12} aria-hidden />
             </button>
@@ -227,9 +232,9 @@ function DiffFileRow({
                 event.stopPropagation();
                 void onUnstageFile?.(file.path);
               }}
-              data-tooltip="Unstage Changes"
+              data-tooltip={tx("Unstage Changes")}
               data-tooltip-align="end"
-              aria-label="Unstage file"
+              aria-label={tx("Unstage file")}
             >
               <Minus size={12} aria-hidden />
             </button>
@@ -242,9 +247,9 @@ function DiffFileRow({
                 event.stopPropagation();
                 void onDiscardFile?.(file.path);
               }}
-              data-tooltip="Discard Changes"
+              data-tooltip={tx("Discard Changes")}
               data-tooltip-align="end"
-              aria-label="Discard changes"
+              aria-label={tx("Discard changes")}
             >
               <RotateCcw size={12} aria-hidden />
             </button>
@@ -306,6 +311,7 @@ export function DiffSection({
   onFileClick,
   onShowFileMenu,
 }: DiffSectionProps) {
+  const { tx } = useI18n();
   const filePaths = files.map((file) => file.path);
   const canStageAll =
     section === "unstaged" &&
@@ -330,7 +336,11 @@ export function DiffSection({
           <span className="diff-section-count">{files.length}</span>
         </div>
         {showSectionActions && (
-          <div className="diff-section-actions" role="group" aria-label={`${title} actions`}>
+          <div
+            className="diff-section-actions"
+            role="group"
+            aria-label={tx("{title} actions", { title })}
+          >
             {canApplyWorktree && (
               <button
                 type="button"
@@ -339,9 +349,13 @@ export function DiffSection({
                   void onApplyWorktreeChanges?.();
                 }}
                 disabled={worktreeApplyLoading || worktreeApplySuccess}
-                data-tooltip={worktreeApplyTitle ?? "Apply changes to parent workspace"}
+                data-tooltip={
+                  worktreeApplyTitle
+                    ? tx(worktreeApplyTitle)
+                    : tx("Apply changes to parent workspace")
+                }
                 data-tooltip-align="end"
-                aria-label="Apply worktree changes"
+                aria-label={tx("Apply worktree changes")}
               >
                 <WorktreeApplyIcon success={worktreeApplySuccess} />
               </button>
@@ -353,9 +367,9 @@ export function DiffSection({
                 onClick={() => {
                   void onReviewUncommittedChanges?.();
                 }}
-                data-tooltip="Review Uncommitted Changes"
+                data-tooltip={tx("Review Uncommitted Changes")}
                 data-tooltip-align="end"
-                aria-label="Review uncommitted changes"
+                aria-label={tx("Review uncommitted changes")}
               >
                 <MagicSparkleIcon size={12} />
               </button>
@@ -375,9 +389,9 @@ export function DiffSection({
                     }
                   })();
                 }}
-                data-tooltip="Stage All Changes"
+                data-tooltip={tx("Stage All Changes")}
                 data-tooltip-align="end"
-                aria-label="Stage all changes"
+                aria-label={tx("Stage all changes")}
               >
                 <Plus size={12} aria-hidden />
               </button>
@@ -393,9 +407,9 @@ export function DiffSection({
                     }
                   })();
                 }}
-                data-tooltip="Unstage All Changes"
+                data-tooltip={tx("Unstage All Changes")}
                 data-tooltip-align="end"
-                aria-label="Unstage all changes"
+                aria-label={tx("Unstage all changes")}
               >
                 <Minus size={12} aria-hidden />
               </button>
@@ -407,9 +421,9 @@ export function DiffSection({
                 onClick={() => {
                   void onDiscardFiles?.(filePaths);
                 }}
-                data-tooltip="Discard All Changes"
+                data-tooltip={tx("Discard All Changes")}
                 data-tooltip-align="end"
-                aria-label="Discard all changes"
+                aria-label={tx("Discard all changes")}
               >
                 <RotateCcw size={12} aria-hidden />
               </button>
@@ -457,6 +471,8 @@ export function GitLogEntryRow({
   onSelect,
   onContextMenu,
 }: GitLogEntryRowProps) {
+  const { tx } = useI18n();
+
   return (
     <div
       className={`git-log-entry ${compact ? "git-log-entry-compact" : ""} ${isSelected ? "active" : ""}`}
@@ -471,11 +487,11 @@ export function GitLogEntryRow({
         }
       }}
     >
-      <div className="git-log-summary">{entry.summary || "No message"}</div>
+      <div className="git-log-summary">{entry.summary || tx("No message")}</div>
       <div className="git-log-meta">
         <span className="git-log-sha">{entry.sha.slice(0, 7)}</span>
         <span className="git-log-sep">·</span>
-        <span className="git-log-author">{entry.author || "Unknown"}</span>
+        <span className="git-log-author">{entry.author || tx("Unknown")}</span>
         <span className="git-log-sep">·</span>
         <span className="git-log-date">{formatRelativeTime(entry.timestamp * 1000)}</span>
       </div>

@@ -8,6 +8,7 @@ import ListTree from "lucide-react/dist/esm/icons/list-tree";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import Search from "lucide-react/dist/esm/icons/search";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useI18n } from "@/i18n";
 import type { ThreadListOrganizeMode, ThreadListSortKey } from "../../../types";
 import {
   MenuTrigger,
@@ -43,6 +44,7 @@ export function SidebarHeader({
   refreshDisabled = false,
   refreshInProgress = false,
 }: SidebarHeaderProps) {
+  const { tx } = useI18n();
   const sortMenu = useMenuController();
   const { isOpen: sortMenuOpen, containerRef: sortMenuRef } = sortMenu;
   const sortMenuPopoverRef = useRef<HTMLDivElement | null>(null);
@@ -129,8 +131,8 @@ export function SidebarHeader({
             className="sidebar-title-add ds-tooltip-trigger"
             onClick={onAddWorkspace}
             data-tauri-drag-region="false"
-            aria-label="Add workspaces"
-            data-tooltip="Add workspaces"
+            aria-label={tx("Add workspaces")}
+            data-tooltip={tx("Add workspaces")}
             data-tooltip-align="start"
             data-tooltip-placement="bottom"
             type="button"
@@ -141,9 +143,9 @@ export function SidebarHeader({
             className="subtitle subtitle-button sidebar-title-button"
             onClick={onSelectHome}
             data-tauri-drag-region="false"
-            aria-label="Open home"
+            aria-label={tx("Open home")}
           >
-            Projects
+            {tx("Projects")}
           </button>
         </div>
       </div>
@@ -155,9 +157,9 @@ export function SidebarHeader({
             className="ghost sidebar-sort-toggle ds-tooltip-trigger"
             onClick={sortMenu.toggle}
             data-tauri-drag-region="false"
-            aria-label="Organize and sort threads"
-            title="Organize and sort threads"
-            data-tooltip="Organize and sort threads"
+            aria-label={tx("Organize and sort threads")}
+            title={tx("Organize and sort threads")}
+            data-tooltip={tx("Organize and sort threads")}
             data-tooltip-align="end"
             data-tooltip-placement="bottom"
           >
@@ -174,7 +176,7 @@ export function SidebarHeader({
                   : undefined
               }
             >
-              <div className="sidebar-sort-section-label">Organize</div>
+              <div className="sidebar-sort-section-label">{tx("Organize")}</div>
               <PopoverMenuItem
                 className="sidebar-sort-option"
                 role="menuitemradio"
@@ -184,7 +186,7 @@ export function SidebarHeader({
                 icon={<FolderTree aria-hidden />}
                 active={threadListOrganizeMode === "by_project"}
               >
-                By project
+                {tx("By project")}
               </PopoverMenuItem>
               <PopoverMenuItem
                 className="sidebar-sort-option"
@@ -195,7 +197,7 @@ export function SidebarHeader({
                 icon={<BetweenHorizontalStart aria-hidden />}
                 active={threadListOrganizeMode === "by_project_activity"}
               >
-                By project activity
+                {tx("By project activity")}
               </PopoverMenuItem>
               <PopoverMenuItem
                 className="sidebar-sort-option"
@@ -206,10 +208,10 @@ export function SidebarHeader({
                 icon={<ListTree aria-hidden />}
                 active={threadListOrganizeMode === "threads_only"}
               >
-                Thread list
+                {tx("Thread list")}
               </PopoverMenuItem>
               <div className="sidebar-sort-divider" aria-hidden />
-              <div className="sidebar-sort-section-label">Sort by</div>
+              <div className="sidebar-sort-section-label">{tx("Sort by")}</div>
               <PopoverMenuItem
                 className="sidebar-sort-option"
                 role="menuitemradio"
@@ -219,7 +221,7 @@ export function SidebarHeader({
                 icon={<ArrowDownUp aria-hidden />}
                 active={threadListSortKey === "updated_at"}
               >
-                Updated
+                {tx("Updated")}
               </PopoverMenuItem>
               <PopoverMenuItem
                 className="sidebar-sort-option"
@@ -230,7 +232,7 @@ export function SidebarHeader({
                 icon={<Calendar aria-hidden />}
                 active={threadListSortKey === "created_at"}
               >
-                Created
+                {tx("Created")}
               </PopoverMenuItem>
             </PopoverSurface>
           )}
@@ -239,10 +241,10 @@ export function SidebarHeader({
           className="ghost sidebar-refresh-toggle ds-tooltip-trigger"
           onClick={onRefreshAllThreads}
           data-tauri-drag-region="false"
-          aria-label="Refresh all workspace threads"
+          aria-label={tx("Refresh all workspace threads")}
           type="button"
-          title="Refresh all workspace threads"
-          data-tooltip="Refresh all workspace threads"
+          title={tx("Refresh all workspace threads")}
+          data-tooltip={tx("Refresh all workspace threads")}
           data-tooltip-align="end"
           data-tooltip-placement="bottom"
           disabled={refreshDisabled}
@@ -257,8 +259,8 @@ export function SidebarHeader({
           className={`ghost sidebar-search-toggle ds-tooltip-trigger${isSearchOpen ? " is-active" : ""}`}
           onClick={onToggleSearch}
           data-tauri-drag-region="false"
-          aria-label="Toggle search"
-          data-tooltip={isSearchOpen ? "Close search" : "Search threads"}
+          aria-label={tx("Toggle search")}
+          data-tooltip={isSearchOpen ? tx("Close search") : tx("Search threads")}
           data-tooltip-align="end"
           data-tooltip-placement="bottom"
           aria-pressed={isSearchOpen}

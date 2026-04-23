@@ -1,4 +1,5 @@
 import { memo, useMemo } from "react";
+import { useI18n } from "@/i18n";
 import ImageOff from "lucide-react/dist/esm/icons/image-off";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import { splitPath } from "./GitDiffPanel.utils";
@@ -44,6 +45,7 @@ export const ImageDiffCard = memo(function ImageDiffCard({
   showRevert = false,
   onRequestRevert,
 }: ImageDiffCardProps) {
+  const { tx } = useI18n();
   const { name: fileName, dir } = useMemo(() => splitPath(path), [path]);
   const displayDir = dir ? `${dir}/` : "";
   const oldDataUri = useMemo(
@@ -79,7 +81,7 @@ export const ImageDiffCard = memo(function ImageDiffCard({
   const isAdded = status === "A";
   const isDeleted = status === "D";
   const isModified = !isAdded && !isDeleted;
-  const placeholderLabel = "Image preview unavailable.";
+  const placeholderLabel = tx("Image preview unavailable.");
   const renderPlaceholder = () => (
     <div className="image-diff-placeholder">
       <ImageOff className="image-diff-placeholder-icon" aria-hidden />
@@ -104,8 +106,8 @@ export const ImageDiffCard = memo(function ImageDiffCard({
           <button
             type="button"
             className="diff-viewer-header-action diff-viewer-header-action--discard"
-            title="Discard changes in this file"
-            aria-label="Discard changes in this file"
+            title={tx("Discard changes in this file")}
+            aria-label={tx("Discard changes in this file")}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -123,7 +125,7 @@ export const ImageDiffCard = memo(function ImageDiffCard({
               {oldDataUri ? (
                 <img
                   src={oldDataUri}
-                  alt="Previous version"
+                  alt={tx("Previous version")}
                   className="image-diff-preview"
                 />
               ) : (
@@ -135,7 +137,7 @@ export const ImageDiffCard = memo(function ImageDiffCard({
               {newDataUri ? (
                 <img
                   src={newDataUri}
-                  alt="Current version"
+                  alt={tx("Current version")}
                   className="image-diff-preview"
                 />
               ) : (
@@ -151,7 +153,7 @@ export const ImageDiffCard = memo(function ImageDiffCard({
               {newDataUri ? (
                 <img
                   src={newDataUri}
-                  alt="New image"
+                  alt={tx("New image")}
                   className="image-diff-preview"
                 />
               ) : (
@@ -167,7 +169,7 @@ export const ImageDiffCard = memo(function ImageDiffCard({
               {oldDataUri ? (
                 <img
                   src={oldDataUri}
-                  alt="Deleted image"
+                  alt={tx("Deleted image")}
                   className="image-diff-preview"
                 />
               ) : (

@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import type { MouseEvent, MutableRefObject, ReactNode } from "react";
+import { useI18n } from "@/i18n";
 import Copy from "lucide-react/dist/esm/icons/copy";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import Plus from "lucide-react/dist/esm/icons/plus";
@@ -141,6 +142,7 @@ function SidebarWorkspaceEntry({
   onLoadOlderThreads,
   onToggleAddMenu,
 }: SidebarWorkspaceEntryProps) {
+  const { tx } = useI18n();
   if (cloneChildIds.has(workspace.id)) {
     return null;
   }
@@ -194,18 +196,28 @@ function SidebarWorkspaceEntry({
     !activeThreadId;
   const draftStatusClass =
     startingDraftThreadWorkspaceId === workspace.id ? "processing" : "ready";
+  const workspaceSummary =
+    displayThreadRootCount > 0
+      ? tx(
+          threads[0]
+            ? displayThreadRootCount === 1
+              ? "{count} conversation · Updated {time}"
+              : "{count} conversations · Updated {time}"
+            : displayThreadRootCount === 1
+              ? "{count} conversation"
+              : "{count} conversations",
+          {
+            count: displayThreadRootCount,
+            time: threads[0] ? (getThreadTime(threads[0]) ?? "") : "",
+          },
+        )
+      : tx("No conversations yet");
 
   return (
     <WorkspaceCard
       workspace={workspace}
       workspaceName={renderHighlightedName(workspace.name)}
-      summary={
-        displayThreadRootCount > 0
-          ? `${displayThreadRootCount} conversation${
-              displayThreadRootCount === 1 ? "" : "s"
-            }${threads[0] ? ` · Updated ${getThreadTime(threads[0])}` : ""}`
-          : "No conversations yet"
-      }
+      summary={workspaceSummary}
       isActive={workspace.id === activeWorkspaceId}
       isCollapsed={isCollapsed}
       addMenuOpen={addMenuOpen}
@@ -236,7 +248,7 @@ function SidebarWorkspaceEntry({
               }}
               icon={<Plus aria-hidden />}
             >
-              New agent
+              {tx("New agent")}
             </PopoverMenuItem>
             <PopoverMenuItem
               className="workspace-add-option"
@@ -247,7 +259,7 @@ function SidebarWorkspaceEntry({
               }}
               icon={<GitBranch aria-hidden />}
             >
-              New worktree agent
+              {tx("New worktree agent")}
             </PopoverMenuItem>
             <PopoverMenuItem
               className="workspace-add-option"
@@ -258,7 +270,7 @@ function SidebarWorkspaceEntry({
               }}
               icon={<Copy aria-hidden />}
             >
-              New clone agent
+              {tx("New clone agent")}
             </PopoverMenuItem>
           </PopoverSurface>,
           document.body,
@@ -279,7 +291,7 @@ function SidebarWorkspaceEntry({
           <span className={`thread-status ${draftStatusClass}`} aria-hidden />
           <div className="thread-content">
             <div className="thread-headline">
-              <span className="thread-name">New Agent</span>
+              <span className="thread-name">{tx("New Agent")}</span>
             </div>
           </div>
         </div>

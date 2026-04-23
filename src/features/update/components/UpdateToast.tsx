@@ -11,6 +11,7 @@ import {
   ToastTitle,
   ToastViewport,
 } from "../../design-system/components/toast/ToastPrimitives";
+import { useI18n } from "@/i18n";
 
 type UpdateToastProps = {
   state: UpdateState;
@@ -41,23 +42,25 @@ export function UpdateToast({
   postUpdateNotice = null,
   onDismissPostUpdateNotice,
 }: UpdateToastProps) {
+  const { tx } = useI18n();
+
   if (postUpdateNotice) {
     return (
       <ToastViewport className="update-toasts" role="region" ariaLive="polite">
         <ToastCard className="update-toast" role="status">
           <ToastHeader className="update-toast-header">
-            <ToastTitle className="update-toast-title">What's New</ToastTitle>
+            <ToastTitle className="update-toast-title">{tx("What's New")}</ToastTitle>
             <div className="update-toast-version">v{postUpdateNotice.version}</div>
           </ToastHeader>
           {postUpdateNotice.stage === "loading" ? (
             <ToastBody className="update-toast-body">
-              Updated successfully. Loading release notes...
+              {tx("Updated successfully. Loading release notes...")}
             </ToastBody>
           ) : null}
           {postUpdateNotice.stage === "ready" ? (
             <>
               <ToastBody className="update-toast-body">
-                Updated successfully. Here is what is new:
+                {tx("Updated successfully. Here is what is new:")}
               </ToastBody>
               <div className="update-toast-notes" role="document">
                 <ReactMarkdown
@@ -90,8 +93,9 @@ export function UpdateToast({
           ) : null}
           {postUpdateNotice.stage === "fallback" ? (
             <ToastBody className="update-toast-body">
-              Updated to v{postUpdateNotice.version}. Release notes could not be
-              loaded.
+              {tx("Updated to v{version}. Release notes could not be loaded.", {
+                version: postUpdateNotice.version,
+              })}
             </ToastBody>
           ) : null}
           <ToastActions className="update-toast-actions">
@@ -100,16 +104,16 @@ export function UpdateToast({
                 className="primary"
                 onClick={() => {
                   void openUrl(postUpdateNotice.htmlUrl);
-                }}
-              >
-                View on GitHub
+              }}
+            >
+                {tx("View on GitHub")}
               </button>
             ) : null}
             <button
               className="secondary"
               onClick={onDismissPostUpdateNotice ?? onDismiss}
             >
-              Dismiss
+              {tx("Dismiss")}
             </button>
           </ToastActions>
         </ToastCard>
@@ -132,25 +136,25 @@ export function UpdateToast({
     <ToastViewport className="update-toasts" role="region" ariaLive="polite">
       <ToastCard className="update-toast" role="status">
         <ToastHeader className="update-toast-header">
-          <ToastTitle className="update-toast-title">Update</ToastTitle>
+          <ToastTitle className="update-toast-title">{tx("Update")}</ToastTitle>
           {state.version ? (
             <div className="update-toast-version">v{state.version}</div>
           ) : null}
         </ToastHeader>
         {state.stage === "checking" && (
-          <ToastBody className="update-toast-body">Checking for updates...</ToastBody>
+          <ToastBody className="update-toast-body">{tx("Checking for updates...")}</ToastBody>
         )}
         {state.stage === "available" && (
           <>
             <ToastBody className="update-toast-body">
-              A new version is available.
+              {tx("A new version is available.")}
             </ToastBody>
             <ToastActions className="update-toast-actions">
               <button className="secondary" onClick={onDismiss}>
-                Later
+                {tx("Later")}
               </button>
               <button className="primary" onClick={onUpdate}>
-                Update
+                {tx("Update")}
               </button>
             </ToastActions>
           </>
@@ -158,17 +162,17 @@ export function UpdateToast({
         {state.stage === "latest" && (
           <div className="update-toast-inline">
             <ToastBody className="update-toast-body update-toast-body-inline">
-              You’re up to date.
+              {tx("You’re up to date.")}
             </ToastBody>
             <button className="secondary" onClick={onDismiss}>
-              Dismiss
+              {tx("Dismiss")}
             </button>
           </div>
         )}
         {state.stage === "downloading" && (
           <>
             <ToastBody className="update-toast-body">
-              Downloading update…
+              {tx("Downloading update…")}
             </ToastBody>
             <div className="update-toast-progress">
               <div className="update-toast-progress-bar">
@@ -186,23 +190,23 @@ export function UpdateToast({
           </>
         )}
         {state.stage === "installing" && (
-          <ToastBody className="update-toast-body">Installing update…</ToastBody>
+          <ToastBody className="update-toast-body">{tx("Installing update…")}</ToastBody>
         )}
         {state.stage === "restarting" && (
-          <ToastBody className="update-toast-body">Restarting…</ToastBody>
+          <ToastBody className="update-toast-body">{tx("Restarting…")}</ToastBody>
         )}
         {state.stage === "error" && (
           <>
-            <ToastBody className="update-toast-body">Update failed.</ToastBody>
+            <ToastBody className="update-toast-body">{tx("Update failed.")}</ToastBody>
             {state.error ? (
               <ToastError className="update-toast-error">{state.error}</ToastError>
             ) : null}
             <ToastActions className="update-toast-actions">
               <button className="secondary" onClick={onDismiss}>
-                Dismiss
+                {tx("Dismiss")}
               </button>
               <button className="primary" onClick={onUpdate}>
-                Retry
+                {tx("Retry")}
               </button>
             </ToastActions>
           </>

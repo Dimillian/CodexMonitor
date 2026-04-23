@@ -80,6 +80,7 @@ import {
 import { useAppShellOrchestration } from "@app/orchestration/useLayoutOrchestration";
 import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
 import { subscribeTrayOpenThread } from "@services/events";
+import { I18nProvider } from "@/i18n";
 
 const SettingsView = lazy(() =>
   import("@settings/components/SettingsView").then((module) => ({
@@ -1877,5 +1878,9 @@ export default function MainApp() {
     },
   });
 
-  return <MainAppShell {...mainAppShellProps} />;
+  return (
+    <I18nProvider language={appSettings.appLanguage}>
+      <MainAppShell {...mainAppShellProps} />
+    </I18nProvider>
+  );
 }

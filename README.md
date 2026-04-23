@@ -1,5 +1,7 @@
 # CodexMonitor
 
+Language: English | [简体中文](README.zh-CN.md)
+
 [![gitcgr](https://gitcgr.com/badge/Dimillian/CodexMonitor.svg)](https://gitcgr.com/Dimillian/CodexMonitor)
 
 ![CodexMonitor](screenshot.png)
@@ -262,6 +264,7 @@ cd src-tauri && cargo check
 For task-oriented file lookup ("if you need X, edit Y"), use:
 
 - `docs/codebase-map.md`
+- `docs/i18n.md` for localization architecture, conventions, and validation.
 
 ## Project Structure
 

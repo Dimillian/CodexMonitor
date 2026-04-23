@@ -1,5 +1,6 @@
 import Layers from "lucide-react/dist/esm/icons/layers";
 import type { MouseEvent, ReactNode } from "react";
+import { useI18n } from "@/i18n";
 
 import type { ThreadSummary, WorkspaceInfo } from "../../../types";
 import type { ThreadStatusById } from "../../../utils/threadStatus";
@@ -91,6 +92,8 @@ export function WorktreeSection({
   sectionIcon,
   className,
 }: WorktreeSectionProps) {
+  const { tx } = useI18n();
+
   if (!worktrees.length) {
     return null;
   }
@@ -102,7 +105,7 @@ export function WorktreeSection({
           <span className="worktree-header-icon-wrap">
             {sectionIcon ?? <Layers className="worktree-header-icon" aria-hidden />}
           </span>
-          <span>{sectionLabel}</span>
+          <span>{tx(sectionLabel)}</span>
         </span>
         <span className="worktree-header-count">{worktrees.length}</span>
       </div>

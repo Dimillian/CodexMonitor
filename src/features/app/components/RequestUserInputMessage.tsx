@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/i18n";
 import type {
   RequestUserInputRequest,
   RequestUserInputResponse,
@@ -23,6 +24,7 @@ export function RequestUserInputMessage({
   activeWorkspaceId,
   onSubmit,
 }: RequestUserInputMessageProps) {
+  const { tx } = useI18n();
   const activeRequests = useMemo(
     () =>
       requests.filter((request) => {
@@ -116,13 +118,13 @@ export function RequestUserInputMessage({
       <div
         className="bubble request-user-input-card"
         role="group"
-        aria-label="User input requested"
+        aria-label={tx("User input requested")}
       >
         <div className="request-user-input-header">
-          <div className="request-user-input-title">Input requested</div>
+          <div className="request-user-input-title">{tx("Input requested")}</div>
           {totalRequests > 1 ? (
             <div className="request-user-input-queue">
-              {`Request 1 of ${totalRequests}`}
+              {tx("Request 1 of {count}", { count: totalRequests })}
             </div>
           ) : null}
         </div>
@@ -133,10 +135,10 @@ export function RequestUserInputMessage({
               const selectedIndex = selections[questionId];
               const options = question.options ?? [];
               const notePlaceholder = question.isOther
-                ? "Type your answer (optional)"
+                ? tx("Type your answer (optional)")
                 : options.length
-                ? "Add notes (optional)"
-                : "Type your answer (optional)";
+                  ? tx("Add notes (optional)")
+                  : tx("Type your answer (optional)");
               return (
                 <section key={questionId} className="request-user-input-question">
                   {question.header ? (
@@ -184,13 +186,13 @@ export function RequestUserInputMessage({
             })
           ) : (
             <div className="request-user-input-empty">
-              No questions provided.
+              {tx("No questions provided.")}
             </div>
           )}
         </div>
         <div className="request-user-input-actions">
           <button className="primary" onClick={handleSubmit}>
-            Submit
+            {tx("Submit")}
           </button>
         </div>
       </div>

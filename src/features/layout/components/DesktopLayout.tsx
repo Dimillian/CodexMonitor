@@ -1,4 +1,5 @@
 import { useEffect, useRef, type MouseEvent, type ReactNode } from "react";
+import { useI18n } from "@/i18n";
 import { MainTopbar } from "../../app/components/MainTopbar";
 import { ChatPane } from "./ChatPane";
 
@@ -107,6 +108,7 @@ export function DesktopLayout({
   onPlanPanelResizeStart,
   onChatDiffSplitPositionResizeStart,
 }: DesktopLayoutProps) {
+  const { tx } = useI18n();
   const diffLayerRef = useRef<HTMLDivElement | null>(null);
   const chatLayerRef = useRef<HTMLDivElement | null>(null);
   const chatPaneNode = <ChatPane messagesNode={messagesNode} composerNode={composerNode} />;
@@ -146,7 +148,7 @@ export function DesktopLayout({
         className="sidebar-resizer"
         role="separator"
         aria-orientation="vertical"
-        aria-label="Resize sidebar"
+        aria-label={tx("Resize sidebar")}
         onMouseDown={onSidebarResizeStart}
       />
 
@@ -176,7 +178,7 @@ export function DesktopLayout({
                     className="content-split-resizer"
                     role="separator"
                     aria-orientation="vertical"
-                    aria-label="Resize chat/diff split"
+                    aria-label={tx("Resize chat/diff split")}
                     onMouseDown={onChatDiffSplitPositionResizeStart}
                   />
                   <div
@@ -222,7 +224,7 @@ export function DesktopLayout({
               className="right-panel-resizer"
               role="separator"
               aria-orientation="vertical"
-              aria-label="Resize right panel"
+              aria-label={tx("Resize right panel")}
               onMouseDown={onRightPanelResizeStart}
             />
             <div className={`right-panel ${hasActivePlan ? "" : "plan-collapsed"}`}>
@@ -232,7 +234,7 @@ export function DesktopLayout({
                 className="right-panel-divider"
                 role="separator"
                 aria-orientation="horizontal"
-                aria-label="Resize plan panel"
+                aria-label={tx("Resize plan panel")}
                 onMouseDown={onPlanPanelResizeStart}
               />
               <div className="right-panel-bottom">{planPanelNode}</div>

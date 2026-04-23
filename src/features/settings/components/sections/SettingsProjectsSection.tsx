@@ -2,6 +2,7 @@ import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import type { Dispatch, SetStateAction } from "react";
+import { useI18n } from "@/i18n";
 import {
   SettingsSection,
   SettingsSubsection,
@@ -57,21 +58,22 @@ export function SettingsProjectsSection({
   onMoveWorkspace,
   onDeleteWorkspace,
 }: SettingsProjectsSectionProps) {
+  const { tx } = useI18n();
   return (
     <SettingsSection
-      title="Projects"
-      subtitle="Group related workspaces and reorder projects within each group."
+      title={tx("Projects")}
+      subtitle={tx("Group related workspaces and reorder projects within each group.")}
     >
       <SettingsSubsection
-        title="Groups"
-        subtitle="Create group labels for related repositories."
+        title={tx("Groups")}
+        subtitle={tx("Create group labels for related repositories.")}
       />
       <div className="settings-groups">
         <div className="settings-group-create">
           <input
             className="settings-input settings-input--compact"
             value={newGroupName}
-            placeholder="New group name"
+            placeholder={tx("New group name")}
             onChange={(event) => onSetNewGroupName(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && canCreateGroup) {
@@ -88,7 +90,7 @@ export function SettingsProjectsSection({
             }}
             disabled={!canCreateGroup}
           >
-            Add group
+            {tx("Add group")}
           </button>
         </div>
         {groupError && <div className="settings-group-error">{groupError}</div>}
@@ -117,13 +119,13 @@ export function SettingsProjectsSection({
                     }}
                   />
                   <div className="settings-group-copies">
-                    <div className="settings-group-copies-label">Copies folder</div>
+                    <div className="settings-group-copies-label">{tx("Copies folder")}</div>
                     <div className="settings-group-copies-row">
                       <div
                         className={`settings-group-copies-path${group.copiesFolder ? "" : " empty"}`}
                         title={group.copiesFolder ?? ""}
                       >
-                        {group.copiesFolder ?? "Not set"}
+                        {group.copiesFolder ?? tx("Not set")}
                       </div>
                       <button
                         type="button"
@@ -132,7 +134,7 @@ export function SettingsProjectsSection({
                           void onChooseGroupCopiesFolder(group);
                         }}
                       >
-                        Choose…
+                        {tx("Choose…")}
                       </button>
                       <button
                         type="button"
@@ -142,7 +144,7 @@ export function SettingsProjectsSection({
                         }}
                         disabled={!group.copiesFolder}
                       >
-                        Clear
+                        {tx("Clear")}
                       </button>
                     </div>
                   </div>
@@ -155,7 +157,7 @@ export function SettingsProjectsSection({
                       void onMoveWorkspaceGroup(group.id, "up");
                     }}
                     disabled={index === 0}
-                    aria-label="Move group up"
+                    aria-label={tx("Move group up")}
                   >
                     <ChevronUp aria-hidden />
                   </button>
@@ -166,7 +168,7 @@ export function SettingsProjectsSection({
                       void onMoveWorkspaceGroup(group.id, "down");
                     }}
                     disabled={index === workspaceGroups.length - 1}
-                    aria-label="Move group down"
+                    aria-label={tx("Move group down")}
                   >
                     <ChevronDown aria-hidden />
                   </button>
@@ -176,7 +178,7 @@ export function SettingsProjectsSection({
                     onClick={() => {
                       void onDeleteGroup(group);
                     }}
-                    aria-label="Delete group"
+                    aria-label={tx("Delete group")}
                   >
                     <Trash2 aria-hidden />
                   </button>
@@ -185,12 +187,12 @@ export function SettingsProjectsSection({
             ))}
           </div>
         ) : (
-          <div className="settings-empty">No groups yet.</div>
+          <div className="settings-empty">{tx("No groups yet.")}</div>
         )}
       </div>
       <SettingsSubsection
-        title="Projects"
-        subtitle="Assign projects to groups and adjust their order."
+        title={tx("Projects")}
+        subtitle={tx("Assign projects to groups and adjust their order.")}
       />
       <div className="settings-projects">
         {groupedWorkspaces.map((group) => (
@@ -217,7 +219,7 @@ export function SettingsProjectsSection({
                         void onAssignWorkspaceGroup(workspace.id, nextGroupId);
                       }}
                     >
-                      <option value="">{ungroupedLabel}</option>
+                      <option value="">{tx(ungroupedLabel)}</option>
                       {workspaceGroups.map((entry) => (
                         <option key={entry.id} value={entry.id}>
                           {entry.name}
@@ -229,7 +231,7 @@ export function SettingsProjectsSection({
                       className="ghost icon-button"
                       onClick={() => onMoveWorkspace(workspace.id, "up")}
                       disabled={index === 0}
-                      aria-label="Move project up"
+                      aria-label={tx("Move project up")}
                     >
                       <ChevronUp aria-hidden />
                     </button>
@@ -238,7 +240,7 @@ export function SettingsProjectsSection({
                       className="ghost icon-button"
                       onClick={() => onMoveWorkspace(workspace.id, "down")}
                       disabled={index === group.workspaces.length - 1}
-                      aria-label="Move project down"
+                      aria-label={tx("Move project down")}
                     >
                       <ChevronDown aria-hidden />
                     </button>
@@ -246,7 +248,7 @@ export function SettingsProjectsSection({
                       type="button"
                       className="ghost icon-button"
                       onClick={() => onDeleteWorkspace(workspace.id)}
-                      aria-label="Delete project"
+                      aria-label={tx("Delete project")}
                     >
                       <Trash2 aria-hidden />
                     </button>
@@ -256,7 +258,7 @@ export function SettingsProjectsSection({
             })}
           </div>
         ))}
-        {projects.length === 0 && <div className="settings-empty">No projects yet.</div>}
+        {projects.length === 0 && <div className="settings-empty">{tx("No projects yet.")}</div>}
       </div>
     </SettingsSection>
   );

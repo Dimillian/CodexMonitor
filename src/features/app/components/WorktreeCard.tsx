@@ -1,4 +1,5 @@
 import type { MouseEvent } from "react";
+import { useI18n } from "@/i18n";
 
 import type { WorkspaceInfo } from "../../../types";
 
@@ -23,6 +24,7 @@ export function WorktreeCard({
   onConnectWorkspace,
   children,
 }: WorktreeCardProps) {
+  const { tx } = useI18n();
   const worktreeCollapsed = worktree.settings.sidebarCollapsed;
   const worktreeBranch = worktree.worktree?.branch ?? "";
   const worktreeLabel = worktree.name?.trim() || worktreeBranch;
@@ -65,7 +67,7 @@ export function WorktreeCard({
           {isDeleting ? (
             <div className="worktree-deleting" role="status" aria-live="polite">
               <span className="worktree-deleting-spinner" aria-hidden />
-              <span className="worktree-deleting-label">Deleting</span>
+              <span className="worktree-deleting-label">{tx("Deleting")}</span>
             </div>
           ) : (
             <>
@@ -76,7 +78,7 @@ export function WorktreeCard({
                   onToggleWorkspaceCollapse(worktree.id, !worktreeCollapsed);
                 }}
                 data-tauri-drag-region="false"
-                aria-label={worktreeCollapsed ? "Show agents" : "Hide agents"}
+                aria-label={worktreeCollapsed ? tx("Show agents") : tx("Hide agents")}
                 aria-expanded={!worktreeCollapsed}
               >
                 <span className="worktree-toggle-icon">›</span>
@@ -84,13 +86,13 @@ export function WorktreeCard({
               {!worktree.connected && (
                 <span
                   className="connect"
-                  title="Connect workspace context to the shared Codex server"
+                  title={tx("Connect workspace context to the shared Codex server")}
                   onClick={(event) => {
                     event.stopPropagation();
                     onConnectWorkspace(worktree);
                   }}
                 >
-                  connect
+                  {tx("connect")}
                 </span>
               )}
             </>

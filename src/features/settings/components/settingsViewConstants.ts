@@ -1,4 +1,5 @@
 import type { AppSettings } from "@/types";
+import type { TranslationKey } from "@/i18n";
 import type { CodexSection, ShortcutDraftKey, ShortcutSettingKey } from "./settingsTypes";
 
 export const DICTATION_MODELS = [
@@ -87,6 +88,22 @@ export const SETTINGS_SECTION_LABELS: Record<CodexSection, string> = {
   agents: "Agents",
   codex: "Codex",
   features: "Features",
+};
+
+export const SETTINGS_SECTION_LABEL_KEYS: Record<CodexSection, TranslationKey> = {
+  projects: "settings.nav.projects",
+  environments: "settings.nav.environments",
+  display: "settings.nav.display",
+  about: "settings.nav.about",
+  composer: "settings.nav.composer",
+  dictation: "settings.nav.dictation",
+  shortcuts: "settings.nav.shortcuts",
+  "open-apps": "settings.nav.open-apps",
+  git: "settings.nav.git",
+  server: "settings.nav.server",
+  agents: "settings.nav.agents",
+  codex: "settings.nav.codex",
+  features: "settings.nav.features",
 };
 
 export const SHORTCUT_DRAFT_KEY_BY_SETTING: Record<

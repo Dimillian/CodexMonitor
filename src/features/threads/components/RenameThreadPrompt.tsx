@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useI18n } from "@/i18n";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 
 type RenameThreadPromptProps = {
@@ -16,6 +17,7 @@ export function RenameThreadPrompt({
   onCancel,
   onConfirm,
 }: RenameThreadPromptProps) {
+  const { tx } = useI18n();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -27,12 +29,14 @@ export function RenameThreadPrompt({
     <ModalShell
       className="worktree-modal"
       onBackdropClick={onCancel}
-      ariaLabel="Rename thread"
+      ariaLabel={tx("Rename thread")}
     >
-      <div className="ds-modal-title worktree-modal-title">Rename thread</div>
-      <div className="ds-modal-subtitle worktree-modal-subtitle">Current name: "{currentName}"</div>
+      <div className="ds-modal-title worktree-modal-title">{tx("Rename thread")}</div>
+      <div className="ds-modal-subtitle worktree-modal-subtitle">
+        {tx("Current name: \"{name}\"", { name: currentName })}
+      </div>
       <label className="ds-modal-label worktree-modal-label" htmlFor="thread-rename">
-        New name
+        {tx("New name")}
       </label>
       <input
         id="thread-rename"
@@ -57,7 +61,7 @@ export function RenameThreadPrompt({
           onClick={onCancel}
           type="button"
         >
-          Cancel
+          {tx("Cancel")}
         </button>
         <button
           className="primary ds-modal-button worktree-modal-button"
@@ -65,7 +69,7 @@ export function RenameThreadPrompt({
           type="button"
           disabled={name.trim().length === 0}
         >
-          Rename
+          {tx("Rename")}
         </button>
       </div>
     </ModalShell>

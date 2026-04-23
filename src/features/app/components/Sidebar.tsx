@@ -9,6 +9,7 @@ import type {
 } from "../../../types";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import type { MouseEvent, RefObject } from "react";
+import { useI18n } from "@/i18n";
 import { FolderOpen } from "lucide-react";
 import { SidebarBottomRail } from "./SidebarBottomRail";
 import { SidebarHeader } from "./SidebarHeader";
@@ -217,6 +218,7 @@ export const Sidebar = memo(function Sidebar({
   onWorkspaceDragLeave,
   onWorkspaceDrop,
 }: SidebarProps) {
+  const { tx } = useI18n();
   const [expandedWorkspaces, setExpandedWorkspaces] = useState(
     new Set<string>(),
   );
@@ -358,9 +360,9 @@ export const Sidebar = memo(function Sidebar({
   const accountButtonLabel = accountEmail
     ? accountEmail
     : accountInfo?.type === "apikey"
-      ? "API key"
-      : "Sign in to Codex";
-  const accountActionLabel = accountEmail ? "Switch account" : "Sign in";
+      ? tx("API key")
+      : tx("Sign in to Codex");
+  const accountActionLabel = accountEmail ? tx("Switch account") : tx("Sign in");
   const showAccountSwitcher = Boolean(activeWorkspaceId);
   const accountSwitchDisabled = accountSwitching || !activeWorkspaceId;
   const accountCancelDisabled = !accountSwitching || !activeWorkspaceId;
@@ -906,7 +908,7 @@ export const Sidebar = memo(function Sidebar({
           {workspaceDropText === "Drop Project Here" && (
             <FolderOpen className="workspace-drop-overlay-icon" aria-hidden />
           )}
-          {workspaceDropText}
+          {tx(workspaceDropText)}
         </div>
       </div>
       <div
@@ -920,7 +922,7 @@ export const Sidebar = memo(function Sidebar({
           {pinnedThreadRows.length > 0 && (
             <div className="pinned-section">
               <div className="sidebar-section-header">
-                <div className="sidebar-section-title">Pinned conversations</div>
+                <div className="sidebar-section-title">{tx("Pinned conversations")}</div>
                 <div className="sidebar-section-count">{pinnedRootCount}</div>
               </div>
               <PinnedThreadList
@@ -1015,15 +1017,15 @@ export const Sidebar = memo(function Sidebar({
           {!groupedWorkspacesForRender.length && (
             <div className="empty">
               {isSearchActive
-                ? "No conversations match your search."
-                : "Add a workspace to start."}
+                ? tx("No conversations match your search.")
+                : tx("Add a workspace to start.")}
             </div>
           )}
           {isThreadsOnlyMode &&
             groupedWorkspacesForRender.length > 0 &&
             flatThreadRows.length === 0 &&
             pinnedThreadRows.length === 0 && (
-              <div className="empty">No conversations yet.</div>
+              <div className="empty">{tx("No conversations yet.")}</div>
             )}
         </div>
       </div>

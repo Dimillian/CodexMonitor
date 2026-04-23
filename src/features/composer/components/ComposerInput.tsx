@@ -22,6 +22,7 @@ import { useComposerDictationControls } from "../hooks/useComposerDictationContr
 import { useComposerInputLayout } from "../hooks/useComposerInputLayout";
 import { useComposerMobileActions } from "../hooks/useComposerMobileActions";
 import type { ReviewPromptState, ReviewPromptStep } from "../../threads/hooks/useReviewPrompt";
+import { useI18n } from "@/i18n";
 
 type ComposerInputProps = {
   text: string;
@@ -136,6 +137,7 @@ export function ComposerInput({
   onReviewPromptUpdateCustomInstructions,
   onReviewPromptConfirmCustom,
 }: ComposerInputProps) {
+  const { tx } = useI18n();
   const suggestionListRef = useRef<HTMLDivElement | null>(null);
   const suggestionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const { isPhoneLayout, isPhoneTallInput } = useComposerInputLayout({
@@ -247,8 +249,8 @@ export function ComposerInput({
             className="composer-attach"
             onClick={onAddAttachment}
             disabled={disabled || !onAddAttachment}
-            aria-label="Add image"
-            title="Add image"
+            aria-label={tx("Add image")}
+            title={tx("Add image")}
           >
             <ImagePlus size={14} aria-hidden />
           </button>
@@ -275,8 +277,8 @@ export function ComposerInput({
             ref={textareaRef}
             placeholder={
               disabled
-                ? "Review in progress. Chat will re-enable when it completes."
-                : "Ask Codex to do something..."
+                ? tx("Review in progress. Chat will re-enable when it completes.")
+                : tx("Ask Codex to do something...")
             }
             value={text}
             onChange={handleTextareaChange}
@@ -297,8 +299,8 @@ export function ComposerInput({
                 }`}
                 onClick={onToggleExpand}
                 disabled={disabled}
-                aria-label={isExpanded ? "Collapse input" : "Expand input"}
-                title={isExpanded ? "Collapse input" : "Expand input"}
+                aria-label={isExpanded ? tx("Collapse input") : tx("Expand input")}
+                title={isExpanded ? tx("Collapse input") : tx("Expand input")}
               >
                 {isExpanded ? <ChevronDown aria-hidden /> : <ChevronUp aria-hidden />}
               </button>
@@ -328,8 +330,8 @@ export function ComposerInput({
               }`}
               onClick={handleActionClick}
               disabled={(disabled && !canStop) || isDictationBusy || (!canStop && !canSend)}
-              aria-label={canStop ? "Stop" : sendLabel}
-              title={canStop ? "Stop" : sendLabel}
+              aria-label={canStop ? tx("Stop") : sendLabel}
+              title={canStop ? tx("Stop") : sendLabel}
             >
               {canStop ? (
                 <>
@@ -367,7 +369,7 @@ export function ComposerInput({
               className="ghost composer-dictation-error-dismiss"
               onClick={onDismissDictationError}
             >
-              Dismiss
+              {tx("Dismiss")}
             </button>
           </div>
         )}
@@ -380,7 +382,7 @@ export function ComposerInput({
                 className="ghost composer-dictation-error-dismiss"
                 onClick={onDismissDictationHint}
               >
-                Dismiss
+                {tx("Dismiss")}
               </button>
             )}
           </div>

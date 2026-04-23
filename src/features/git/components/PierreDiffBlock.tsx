@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useI18n } from "@/i18n";
 import { parsePatchFiles, type FileDiffMetadata } from "@pierre/diffs";
 import { FileDiff, WorkerPoolContextProvider } from "@pierre/diffs/react";
 import { parseDiff } from "../../../utils/diff";
@@ -29,6 +30,7 @@ export function PierreDiffBlock({
   newLines,
   diffStyle = "unified",
 }: PierreDiffBlockProps) {
+  const { tx } = useI18n();
   const poolOptions = useMemo(() => ({ workerFactory }), []);
   const highlighterOptions = useMemo(
     () => DIFF_VIEWER_HIGHLIGHTER_OPTIONS,
@@ -82,7 +84,7 @@ export function PierreDiffBlock({
   );
 
   if (!diff.trim()) {
-    return <div className="diff-viewer-placeholder">Diff unavailable.</div>;
+    return <div className="diff-viewer-placeholder">{tx("Diff unavailable.")}</div>;
   }
 
   return (

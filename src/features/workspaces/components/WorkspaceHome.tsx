@@ -6,6 +6,7 @@ import {
   type KeyboardEvent,
   type RefObject,
 } from "react";
+import { useI18n } from "@/i18n";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type {
   AppOption,
@@ -160,6 +161,7 @@ export function WorkspaceHome({
   onAgentMdRefresh,
   onAgentMdSave,
 }: WorkspaceHomeProps) {
+  const { tx } = useI18n();
   const [showIcon, setShowIcon] = useState(true);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const iconPath = useMemo(() => buildIconPath(workspace.path), [workspace.path]);
@@ -329,21 +331,21 @@ export function WorkspaceHome({
   };
 
   const agentMdStatus = agentMdLoading
-    ? "Loading…"
+    ? tx("Loading…")
     : agentMdSaving
-      ? "Saving…"
+      ? tx("Saving…")
       : agentMdExists
         ? ""
-        : "Not found";
+        : tx("Not found");
   const agentMdMetaParts: string[] = [];
   if (agentMdStatus) {
     agentMdMetaParts.push(agentMdStatus);
   }
   if (agentMdTruncated) {
-    agentMdMetaParts.push("Truncated");
+    agentMdMetaParts.push(tx("Truncated"));
   }
   const agentMdMeta = agentMdMetaParts.join(" · ");
-  const agentMdSaveLabel = agentMdExists ? "Save" : "Create";
+  const agentMdSaveLabel = agentMdExists ? tx("Save") : tx("Create");
   const agentMdSaveDisabled = agentMdLoading || agentMdSaving || !agentMdDirty;
   const agentMdRefreshDisabled = agentMdLoading || agentMdSaving;
 
@@ -376,7 +378,7 @@ export function WorkspaceHome({
           <ComposerInput
             text={prompt}
             disabled={isSubmitting}
-            sendLabel="Send"
+            sendLabel={tx("Send")}
             canStop={false}
             canSend={prompt.trim().length > 0 || activeImages.length > 0}
             isProcessing={isSubmitting}
@@ -440,7 +442,7 @@ export function WorkspaceHome({
       <div className="workspace-home-agent">
         {agentMdTruncated && (
           <div className="workspace-home-agent-warning">
-            Showing the first part of a large file.
+            {tx("Showing the first part of a large file.")}
           </div>
         )}
         <FileEditorCard
@@ -448,7 +450,7 @@ export function WorkspaceHome({
           meta={agentMdMeta}
           error={agentMdError}
           value={agentMdContent}
-          placeholder="Add workspace instructions for the agent…"
+          placeholder={tx("Add workspace instructions for the agent…")}
           disabled={agentMdLoading}
           refreshDisabled={agentMdRefreshDisabled}
           saveDisabled={agentMdSaveDisabled}

@@ -13,6 +13,7 @@ import { PopoverSurface } from "../../design-system/components/popover/PopoverPr
 import { ReviewInlinePrompt } from "./ReviewInlinePrompt";
 import type { ReviewPromptState, ReviewPromptStep } from "../../threads/hooks/useReviewPrompt";
 import { getFileTypeIconUrl } from "../../../utils/fileTypeIcons";
+import { useI18n } from "@/i18n";
 
 type ComposerSuggestionsPopoverProps = {
   highlightIndex: number;
@@ -115,6 +116,7 @@ export function ComposerSuggestionsPopover({
   suggestionsOpen,
   suggestionsStyle,
 }: ComposerSuggestionsPopoverProps) {
+  const { tx } = useI18n();
   const reviewPromptOpen = Boolean(reviewPrompt);
   const suggestionsCount = suggestions.length;
 
@@ -208,7 +210,7 @@ export function ComposerSuggestionsPopover({
 
           return (
             <div key={item.id}>
-              {showGroup && <div className="composer-suggestion-section">{item.group}</div>}
+              {showGroup && <div className="composer-suggestion-section">{tx(item.group ?? "")}</div>}
               <button
                 type="button"
                 className={`composer-suggestion${index === highlightIndex ? " is-active" : ""}`}

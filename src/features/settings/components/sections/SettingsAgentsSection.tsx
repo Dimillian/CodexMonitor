@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { useI18n } from "@/i18n";
 import type { ModelOption } from "@/types";
 import {
   MagicSparkleIcon,
@@ -62,6 +63,7 @@ export function SettingsAgentsSection({
   modelOptionsLoading,
   modelOptionsError,
 }: SettingsAgentsSectionProps) {
+  const { tx } = useI18n();
   const [openPathError, setOpenPathError] = useState<string | null>(null);
   const [maxThreadsDraft, setMaxThreadsDraft] = useState("6");
   const [maxDepthDraft, setMaxDepthDraft] = useState("1");
@@ -162,7 +164,7 @@ export function SettingsAgentsSection({
       await revealItemInDir(path);
     } catch (openError) {
       setOpenPathError(
-        openError instanceof Error ? openError.message : "Unable to open path.",
+        openError instanceof Error ? openError.message : tx("Unable to open path."),
       );
     }
   };
@@ -181,7 +183,10 @@ export function SettingsAgentsSection({
       setCreateError(null);
       setEditError(null);
       setOpenPathError(
-        `Max threads must be an integer between ${MIN_MAX_THREADS} and ${MAX_MAX_THREADS}.`,
+        tx("Max threads must be an integer between {min} and {max}.", {
+          min: MIN_MAX_THREADS,
+          max: MAX_MAX_THREADS,
+        }),
       );
       return;
     }
@@ -216,7 +221,10 @@ export function SettingsAgentsSection({
       setCreateError(null);
       setEditError(null);
       setOpenPathError(
-        `Max depth must be an integer between ${MIN_MAX_DEPTH} and ${MAX_MAX_DEPTH}.`,
+        tx("Max depth must be an integer between {min} and {max}.", {
+          min: MIN_MAX_DEPTH,
+          max: MAX_MAX_DEPTH,
+        }),
       );
       return;
     }
@@ -247,7 +255,7 @@ export function SettingsAgentsSection({
   const handleCreateAgent = async () => {
     const name = createName.trim();
     if (!name) {
-      setCreateError("Agent name is required.");
+      setCreateError(tx("Agent name is required."));
       return;
     }
     setCreateError(null);
@@ -282,7 +290,7 @@ export function SettingsAgentsSection({
     }
     const nextName = editNameDraft.trim();
     if (!nextName) {
-      setEditError("Agent name is required.");
+      setEditError(tx("Agent name is required."));
       return;
     }
     const editingAgent = settings?.agents.find((agent) => agent.name === editingName) ?? null;
@@ -351,21 +359,21 @@ export function SettingsAgentsSection({
 
   return (
     <SettingsSection
-      title="Agents"
-      subtitle="Configure multi-agent mode, limits, and custom agent roles."
+      title={tx("Agents")}
+      subtitle={tx("Configure multi-agent mode, limits, and custom agent roles.")}
     >
       <div className="settings-help settings-agents-builtins-help">
-        Built-in roles from Codex are still available: <code>default</code>, <code>explorer</code>,
-        and <code>worker</code>.
+        {tx("Built-in roles from Codex are still available:")} <code>default</code>,{" "}
+        <code>explorer</code>, {tx("and")} <code>worker</code>.
       </div>
 
       <SettingsToggleRow
-        title="Config file"
-        subtitle={<>Open global Codex config in {fileManagerName()}.</>}
+        title={tx("Config file")}
+        subtitle={<>{tx("Open global Codex config in {app}.", { app: fileManagerName() })}</>}
       >
         <div className="settings-agents-actions">
           <button type="button" className="ghost" onClick={onRefresh} disabled={isLoading}>
-            Refresh
+            {tx("Refresh")}
           </button>
           <button
             type="button"
@@ -379,10 +387,10 @@ export function SettingsAgentsSection({
       </SettingsToggleRow>
 
       <SettingsToggleRow
-        title="Enable Multi-Agent"
+        title={tx("Enable Multi-Agent")}
         subtitle={
           <>
-            Writes <code>features.multi_agent</code> in config.toml.
+            {tx("Writes")} <code>features.multi_agent</code> {tx("in config.toml.")}
           </>
         }
       >
@@ -394,14 +402,15 @@ export function SettingsAgentsSection({
       </SettingsToggleRow>
 
       <SettingsToggleRow
-        title="Max Threads"
+        title={tx("Max Threads")}
         subtitle={
           <>
-            Maximum open agent threads. Valid range: <code>1-12</code>. Changes save immediately.
+            {tx("Maximum open agent threads. Valid range:")} <code>1-12</code>.{" "}
+            {tx("Changes save immediately.")}
           </>
         }
       >
-        <div className="settings-agents-stepper" role="group" aria-label="Maximum agent threads">
+        <div className="settings-agents-stepper" role="group" aria-label={tx("Maximum agent threads")}>
           <button
             type="button"
             className="ghost settings-agents-stepper-button"
@@ -409,7 +418,7 @@ export function SettingsAgentsSection({
               void handleMaxThreadsStep(-1);
             }}
             disabled={!settings || isUpdatingCore || currentMaxThreads <= MIN_MAX_THREADS}
-            aria-label="Decrease max threads"
+            aria-label={tx("Decrease max threads")}
           >
             ▼
           </button>
@@ -423,7 +432,7 @@ export function SettingsAgentsSection({
               void handleMaxThreadsStep(1);
             }}
             disabled={!settings || isUpdatingCore || currentMaxThreads >= MAX_MAX_THREADS}
-            aria-label="Increase max threads"
+            aria-label={tx("Increase max threads")}
           >
             ▲
           </button>
@@ -431,14 +440,15 @@ export function SettingsAgentsSection({
       </SettingsToggleRow>
 
       <SettingsToggleRow
-        title="Max Depth"
+        title={tx("Max Depth")}
         subtitle={
           <>
-            Maximum nested spawn depth. Valid range: <code>1-4</code>. Changes save immediately.
+            {tx("Maximum nested spawn depth. Valid range:")} <code>1-4</code>.{" "}
+            {tx("Changes save immediately.")}
           </>
         }
       >
-        <div className="settings-agents-stepper" role="group" aria-label="Maximum agent depth">
+        <div className="settings-agents-stepper" role="group" aria-label={tx("Maximum agent depth")}>
           <button
             type="button"
             className="ghost settings-agents-stepper-button"
@@ -446,7 +456,7 @@ export function SettingsAgentsSection({
               void handleMaxDepthStep(-1);
             }}
             disabled={!settings || isUpdatingCore || currentMaxDepth <= MIN_MAX_DEPTH}
-            aria-label="Decrease max depth"
+            aria-label={tx("Decrease max depth")}
           >
             ▼
           </button>
@@ -460,7 +470,7 @@ export function SettingsAgentsSection({
               void handleMaxDepthStep(1);
             }}
             disabled={!settings || isUpdatingCore || currentMaxDepth >= MAX_MAX_DEPTH}
-            aria-label="Increase max depth"
+            aria-label={tx("Increase max depth")}
           >
             ▲
           </button>
@@ -468,17 +478,18 @@ export function SettingsAgentsSection({
       </SettingsToggleRow>
 
       <SettingsSubsection
-        title="Create Agent"
+        title={tx("Create Agent")}
         subtitle={
           <>
-            Add a custom role under <code>[agents.&lt;name&gt;]</code> and create its config file.
+            {tx("Add a custom role under")} <code>[agents.&lt;name&gt;]</code>{" "}
+            {tx("and create its config file.")}
           </>
         }
       />
       <div className="settings-field settings-agents-form">
         <div className="settings-agents-description-row">
           <label className="settings-label" htmlFor="settings-agent-create-name">
-            Name
+            {tx("Name")}
           </label>
           <button
             type="button"
@@ -504,8 +515,8 @@ export function SettingsAgentsSection({
               })();
             }}
             disabled={creatingAgent || createDescriptionGenerating || !canGenerateCreateFromName}
-            title="Generate description and developer instructions with AI"
-            aria-label="Generate fields for new agent"
+            title={tx("Generate description and developer instructions with AI")}
+            aria-label={tx("Generate fields for new agent")}
           >
             {createDescriptionGenerating ? (
               <MagicSparkleLoaderIcon className="settings-agents-generate-loader" />
@@ -523,38 +534,38 @@ export function SettingsAgentsSection({
           disabled={creatingAgent}
         />
         <label className="settings-label" htmlFor="settings-agent-create-description">
-          Description
+          {tx("Description")}
         </label>
         <textarea
           id="settings-agent-create-description"
           className="settings-agents-textarea settings-agents-textarea--compact"
           value={createDescription}
           onChange={(event) => setCreateDescription(event.target.value)}
-          placeholder="Short role summary."
+          placeholder={tx("Short role summary.")}
           rows={2}
           disabled={creatingAgent}
         />
         <label className="settings-label" htmlFor="settings-agent-create-developer-instructions">
-          Developer instructions
+          {tx("Developer instructions")}
         </label>
         <textarea
           id="settings-agent-create-developer-instructions"
           className="settings-agents-textarea"
           value={createDeveloperInstructions}
           onChange={(event) => setCreateDeveloperInstructions(event.target.value)}
-          placeholder="Multiline per-agent developer instructions."
+          placeholder={tx("Multiline per-agent developer instructions.")}
           disabled={creatingAgent}
         />
         <div className="settings-agents-model-row">
           <div className="settings-agents-model-field settings-agents-model-field--model">
-            <span className="settings-agents-inline-label">model:</span>
+            <span className="settings-agents-inline-label">{tx("model:")}</span>
             <select
               id="settings-agent-create-model"
               className="settings-select settings-select--compact"
               value={createModel}
               onChange={(event) => setCreateModel(event.target.value)}
               disabled={creatingAgent}
-              aria-label="Agent model"
+              aria-label={tx("Agent model")}
             >
               {effectiveModelOptions.map((option) => (
                 <option key={option.model} value={option.model}>
@@ -567,16 +578,16 @@ export function SettingsAgentsSection({
             |
           </span>
           <div className="settings-agents-model-field settings-agents-model-field--effort">
-            <span className="settings-agents-inline-label">reasoning:</span>
+            <span className="settings-agents-inline-label">{tx("reasoning:")}</span>
             <select
               id="settings-agent-create-effort"
               className="settings-select settings-select--compact"
               value={createReasoningEffort}
               onChange={(event) => setCreateReasoningEffort(event.target.value)}
               disabled={creatingAgent || createReasoningOptions.length === 0}
-              aria-label="Agent reasoning effort"
+              aria-label={tx("Agent reasoning effort")}
             >
-              {createReasoningOptions.length === 0 && <option value="">not supported</option>}
+              {createReasoningOptions.length === 0 && <option value="">{tx("not supported")}</option>}
               {createReasoningOptions.map((effort) => (
                 <option key={effort} value={effort}>
                   {effort}
@@ -587,14 +598,14 @@ export function SettingsAgentsSection({
         </div>
         <div className="settings-agents-actions">
           <button type="button" className="ghost" onClick={() => void handleCreateAgent()}>
-            {creatingAgent ? "Creating..." : "Create Agent"}
+            {creatingAgent ? tx("Creating...") : tx("Create Agent")}
           </button>
         </div>
         {modelOptions.length === 0 && (
           <div className="settings-help">
             {modelOptionsLoading
-              ? "Loading workspace model metadata. Using fallback model defaults for now."
-              : "Using fallback model defaults until workspace model metadata is available."}
+              ? tx("Loading workspace model metadata. Using fallback model defaults for now.")
+              : tx("Using fallback model defaults until workspace model metadata is available.")}
           </div>
         )}
         {modelOptionsError && <div className="settings-help">{modelOptionsError}</div>}
@@ -602,12 +613,12 @@ export function SettingsAgentsSection({
       </div>
 
       <SettingsSubsection
-        title="Configured Agents"
-        subtitle="Manage custom roles and their per-agent config files."
+        title={tx("Configured Agents")}
+        subtitle={tx("Manage custom roles and their per-agent config files.")}
       />
 
       {settings && settings.agents.length === 0 && !isLoading && (
-        <div className="settings-help">No custom agents configured yet.</div>
+        <div className="settings-help">{tx("No custom agents configured yet.")}</div>
       )}
 
       {settings?.agents.map((agent) => {
@@ -625,13 +636,13 @@ export function SettingsAgentsSection({
               <div>
                 <div className="settings-toggle-title">{agent.name}</div>
                 <div className="settings-toggle-subtitle">
-                  {agent.description || "No description."}
+                  {agent.description || tx("No description.")}
                 </div>
               </div>
             </div>
 
             <div className="settings-help settings-help-inline">
-              <code>{agent.configFile || "(missing config_file)"}</code>
+              <code>{agent.configFile || tx("(missing config_file)")}</code>
             </div>
             <div className="settings-agents-actions">
               {!isPendingDelete && (
@@ -642,7 +653,7 @@ export function SettingsAgentsSection({
                     onClick={() => startEditing(agent)}
                     disabled={isUpdating || isDeleting}
                   >
-                    Edit
+                    {tx("Edit")}
                   </button>
                   <button
                     type="button"
@@ -650,7 +661,7 @@ export function SettingsAgentsSection({
                     onClick={() => handleDeleteAgent(agent.name)}
                     disabled={isUpdating || isDeleting}
                   >
-                    Delete
+                    {tx("Delete")}
                   </button>
                 </>
               )}
@@ -667,16 +678,16 @@ export function SettingsAgentsSection({
                 onClick={() => void handleOpenConfigEditor(agent.name)}
                 disabled={!agent.managedByApp || isReadingConfig || isWritingConfig}
               >
-                {isReadingConfig ? "Opening..." : "Edit File"}
+                {isReadingConfig ? tx("Opening...") : tx("Edit File")}
               </button>
               {!agent.managedByApp && (
-                <span className="settings-help settings-help-inline">External path</span>
+                <span className="settings-help settings-help-inline">{tx("External path")}</span>
               )}
             </div>
             {isPendingDelete && (
               <div className="settings-agents-actions">
                 <span className="settings-help settings-help-inline">
-                  Delete agent and managed config file?
+                  {tx("Delete agent and managed config file?")}
                 </span>
                 <button
                   type="button"
@@ -686,7 +697,7 @@ export function SettingsAgentsSection({
                   }}
                   disabled={isDeleting}
                 >
-                  Cancel
+                  {tx("Cancel")}
                 </button>
                 <button
                   type="button"
@@ -694,7 +705,7 @@ export function SettingsAgentsSection({
                   onClick={() => void handleConfirmDeleteAgent(agent.name)}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? "Deleting..." : "Confirm Delete"}
+                  {isDeleting ? tx("Deleting...") : tx("Confirm Delete")}
                 </button>
               </div>
             )}
@@ -706,7 +717,7 @@ export function SettingsAgentsSection({
                     className="settings-label"
                     htmlFor={`settings-agent-edit-name-${agent.name}`}
                   >
-                    Name
+                    {tx("Name")}
                   </label>
                   <button
                     type="button"
@@ -734,8 +745,8 @@ export function SettingsAgentsSection({
                     disabled={
                       isUpdating || editDescriptionGenerating || !canGenerateEditFromName
                     }
-                    title="Generate description and developer instructions with AI"
-                    aria-label={`Generate fields for ${agent.name}`}
+                    title={tx("Generate description and developer instructions with AI")}
+                    aria-label={tx("Generate fields for {name}", { name: agent.name })}
                   >
                     {editDescriptionGenerating ? (
                       <MagicSparkleLoaderIcon className="settings-agents-generate-loader" />
@@ -755,14 +766,14 @@ export function SettingsAgentsSection({
                   className="settings-label"
                   htmlFor={`settings-agent-edit-description-${agent.name}`}
                 >
-                  Description
+                  {tx("Description")}
                 </label>
                 <textarea
                   id={`settings-agent-edit-description-${agent.name}`}
                   className="settings-agents-textarea settings-agents-textarea--compact"
                   value={editDescriptionDraft}
                   onChange={(event) => setEditDescriptionDraft(event.target.value)}
-                  placeholder="Short role summary."
+                  placeholder={tx("Short role summary.")}
                   rows={2}
                   disabled={isUpdating}
                 />
@@ -770,7 +781,7 @@ export function SettingsAgentsSection({
                   className="settings-label"
                   htmlFor={`settings-agent-edit-developer-instructions-${agent.name}`}
                 >
-                  Developer instructions
+                  {tx("Developer instructions")}
                 </label>
                 <textarea
                   id={`settings-agent-edit-developer-instructions-${agent.name}`}
@@ -779,7 +790,7 @@ export function SettingsAgentsSection({
                   onChange={(event) =>
                     setEditDeveloperInstructionsDraft(event.target.value)
                   }
-                  placeholder="Multiline per-agent developer instructions."
+                  placeholder={tx("Multiline per-agent developer instructions.")}
                   disabled={isUpdating}
                 />
                 <label className="settings-checkbox">
@@ -788,7 +799,7 @@ export function SettingsAgentsSection({
                     checked={renameManagedFile}
                     onChange={(event) => setRenameManagedFile(event.target.checked)}
                   />
-                  Rename managed config file when agent name changes
+                  {tx("Rename managed config file when agent name changes")}
                 </label>
                 <div className="settings-agents-actions">
                   <button
@@ -800,7 +811,7 @@ export function SettingsAgentsSection({
                     }}
                     disabled={isUpdating}
                   >
-                    Cancel
+                    {tx("Cancel")}
                   </button>
                   <button
                     type="button"
@@ -808,7 +819,7 @@ export function SettingsAgentsSection({
                     onClick={() => void handleUpdateAgent()}
                     disabled={isUpdating}
                   >
-                    {isUpdating ? "Saving..." : "Save"}
+                    {isUpdating ? tx("Saving...") : tx("Save")}
                   </button>
                 </div>
                 {editError && <div className="settings-agents-error">{editError}</div>}
@@ -819,7 +830,9 @@ export function SettingsAgentsSection({
               <div className="settings-field settings-agents-editor">
                 <div className="settings-agents-header">
                   <div>
-                    <div className="settings-toggle-title">{agent.name} config file</div>
+                    <div className="settings-toggle-title">
+                      {tx("{name} config file", { name: agent.name })}
+                    </div>
                     <div className="settings-toggle-subtitle">
                       <code>{agent.configFile}</code>
                     </div>
@@ -833,7 +846,7 @@ export function SettingsAgentsSection({
                         setConfigEditorDirty(false);
                       }}
                     >
-                      Close
+                      {tx("Close")}
                     </button>
                     <button
                       type="button"
@@ -841,7 +854,7 @@ export function SettingsAgentsSection({
                       onClick={() => void handleSaveConfigEditor()}
                       disabled={!configEditorDirty || writingConfigAgentName === agent.name}
                     >
-                      {isWritingConfig ? "Saving..." : "Save"}
+                      {isWritingConfig ? tx("Saving...") : tx("Save")}
                     </button>
                   </div>
                 </div>
@@ -859,7 +872,7 @@ export function SettingsAgentsSection({
         );
       })}
 
-      {isLoading && <div className="settings-help">Loading agents settings...</div>}
+      {isLoading && <div className="settings-help">{tx("Loading agents settings...")}</div>}
       {openPathError && <div className="settings-agents-error">{openPathError}</div>}
       {error && <div className="settings-agents-error">{error}</div>}
     </SettingsSection>

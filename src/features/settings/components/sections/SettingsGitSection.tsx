@@ -1,4 +1,5 @@
 import type { AppSettings, ModelOption } from "@/types";
+import { useI18n } from "@/i18n";
 import {
   SettingsSection,
   SettingsToggleRow,
@@ -28,14 +29,15 @@ export function SettingsGitSection({
   onSaveCommitMessagePrompt,
   onResetCommitMessagePrompt,
 }: SettingsGitSectionProps) {
+  const { tx } = useI18n();
   return (
     <SettingsSection
-      title="Git"
-      subtitle="Manage how diffs are loaded in the Git sidebar."
+      title={tx("Git")}
+      subtitle={tx("Manage how diffs are loaded in the Git sidebar.")}
     >
       <SettingsToggleRow
-        title="Preload git diffs"
-        subtitle="Make viewing git diff faster."
+        title={tx("Preload git diffs")}
+        subtitle={tx("Make viewing git diff faster.")}
       >
         <SettingsToggleSwitch
           pressed={appSettings.preloadGitDiffs}
@@ -48,8 +50,8 @@ export function SettingsGitSection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="Ignore whitespace changes"
-        subtitle="Hides whitespace-only changes in local and commit diffs."
+        title={tx("Ignore whitespace changes")}
+        subtitle={tx("Hides whitespace-only changes in local and commit diffs.")}
       >
         <SettingsToggleSwitch
           pressed={appSettings.gitDiffIgnoreWhitespaceChanges}
@@ -62,10 +64,10 @@ export function SettingsGitSection({
         />
       </SettingsToggleRow>
       <div className="settings-field">
-        <div className="settings-field-label">Commit message prompt</div>
+        <div className="settings-field-label">{tx("Commit message prompt")}</div>
         <div className="settings-help">
-          Used when generating commit messages. Include <code>{"{diff}"}</code> to insert the
-          git diff.
+          {tx("Used when generating commit messages. Include")}{" "}
+          <code>{"{diff}"}</code> {tx("to insert the git diff.")}
         </div>
         <textarea
           className="settings-agents-textarea"
@@ -83,7 +85,7 @@ export function SettingsGitSection({
             }}
             disabled={commitMessagePromptSaving || !commitMessagePromptDirty}
           >
-            Reset
+            {tx("Reset")}
           </button>
           <button
             type="button"
@@ -93,18 +95,17 @@ export function SettingsGitSection({
             }}
             disabled={commitMessagePromptSaving || !commitMessagePromptDirty}
           >
-            {commitMessagePromptSaving ? "Saving..." : "Save"}
+            {commitMessagePromptSaving ? tx("Saving...") : tx("Save")}
           </button>
         </div>
       </div>
       {models.length > 0 && (
         <div className="settings-field">
           <label className="settings-field-label" htmlFor="commit-message-model-select">
-            Commit message model
+            {tx("Commit message model")}
           </label>
           <div className="settings-help">
-            The model used when generating commit messages. Leave on default to use the
-            workspace model.
+            {tx("The model used when generating commit messages. Leave on default to use the workspace model.")}
           </div>
           <select
             id="commit-message-model-select"
@@ -118,7 +119,7 @@ export function SettingsGitSection({
               });
             }}
           >
-            <option value="">Default</option>
+            <option value="">{tx("Default")}</option>
             {models.map((model) => (
               <option key={model.id} value={model.model}>
                 {model.displayName?.trim() || model.model}

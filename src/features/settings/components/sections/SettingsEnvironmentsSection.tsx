@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import { useI18n } from "@/i18n";
 import { SettingsSection } from "@/features/design-system/components/settings/SettingsPrimitives";
 import type { WorkspaceInfo } from "@/types";
 import { pushErrorToast } from "@services/toasts";
@@ -44,22 +45,22 @@ export function SettingsEnvironmentsSection({
   onSetWorktreesFolderDraft,
   onSaveEnvironmentSetup,
 }: SettingsEnvironmentsSectionProps) {
+  const { tx } = useI18n();
   const hasAnyChanges =
     environmentDirty || globalWorktreesFolderDirty || worktreesFolderDirty;
   const hasProjects = mainWorkspaces.length > 0;
 
   return (
     <SettingsSection
-      title="Environments"
-      subtitle="Configure per-project setup scripts and worktree locations."
+      title={tx("Environments")}
+      subtitle={tx("Configure per-project setup scripts and worktree locations.")}
     >
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="settings-global-worktrees-folder">
-          Global worktrees root
+          {tx("Global worktrees root")}
         </label>
         <div className="settings-help">
-          Default location for new worktrees when a project does not override it. Each
-          project gets its own subfolder under this root.
+          {tx("Default location for new worktrees when a project does not override it. Each project gets its own subfolder under this root.")}
         </div>
         <div className="settings-field-row">
           <input
@@ -80,21 +81,21 @@ export function SettingsEnvironmentsSection({
                 const selected = await open({
                   directory: true,
                   multiple: false,
-                  title: "Select global worktrees root",
+                  title: tx("Select global worktrees root"),
                 });
                 if (selected && typeof selected === "string") {
                   onSetGlobalWorktreesFolderDraft(selected);
                 }
               } catch (error) {
                 pushErrorToast({
-                  title: "Failed to open folder picker",
+                  title: tx("Failed to open folder picker"),
                   message: error instanceof Error ? error.message : String(error),
                 });
               }
             }}
             disabled={environmentSaving}
           >
-            Browse
+            {tx("Browse")}
           </button>
         </div>
         {!hasProjects ? (
@@ -105,7 +106,7 @@ export function SettingsEnvironmentsSection({
               onClick={() => onSetGlobalWorktreesFolderDraft(_globalWorktreesFolderSaved ?? "")}
               disabled={environmentSaving || !globalWorktreesFolderDirty}
             >
-              Reset
+              {tx("Reset")}
             </button>
             <button
               type="button"
@@ -115,7 +116,7 @@ export function SettingsEnvironmentsSection({
               }}
               disabled={environmentSaving || !globalWorktreesFolderDirty}
             >
-              {environmentSaving ? "Saving..." : "Save"}
+              {environmentSaving ? tx("Saving...") : tx("Save")}
             </button>
           </div>
         ) : null}
@@ -125,12 +126,12 @@ export function SettingsEnvironmentsSection({
       </div>
 
       {!hasProjects ? (
-        <div className="settings-empty">No projects yet.</div>
+        <div className="settings-empty">{tx("No projects yet.")}</div>
       ) : (
         <>
           <div className="settings-field">
             <label className="settings-field-label" htmlFor="settings-environment-project">
-              Project
+              {tx("Project")}
             </label>
             <select
               id="settings-environment-project"
@@ -151,9 +152,9 @@ export function SettingsEnvironmentsSection({
           </div>
 
           <div className="settings-field">
-            <div className="settings-field-label">Setup script</div>
+            <div className="settings-field-label">{tx("Setup script")}</div>
             <div className="settings-help">
-              Runs once in a dedicated terminal after each new worktree is created.
+              {tx("Runs once in a dedicated terminal after each new worktree is created.")}
             </div>
             {environmentError ? (
               <div className="settings-agents-error">{environmentError}</div>
@@ -174,24 +175,22 @@ export function SettingsEnvironmentsSection({
                   const clipboard = typeof navigator === "undefined" ? null : navigator.clipboard;
                   if (!clipboard?.writeText) {
                     pushErrorToast({
-                      title: "Copy failed",
-                      message:
-                        "Clipboard access is unavailable in this environment. Copy the script manually instead.",
+                      title: tx("Copy failed"),
+                      message: tx("Clipboard access is unavailable in this environment. Copy the script manually instead."),
                     });
                     return;
                   }
 
                   void clipboard.writeText(environmentDraftScript).catch(() => {
                     pushErrorToast({
-                      title: "Copy failed",
-                      message:
-                        "Could not write to the clipboard. Copy the script manually instead.",
+                      title: tx("Copy failed"),
+                      message: tx("Could not write to the clipboard. Copy the script manually instead."),
                     });
                   });
                 }}
                 disabled={environmentSaving || environmentDraftScript.length === 0}
               >
-                Copy
+                {tx("Copy")}
               </button>
               <button
                 type="button"
@@ -199,7 +198,7 @@ export function SettingsEnvironmentsSection({
                 onClick={() => onSetEnvironmentDraftScript(environmentSavedScript ?? "")}
                 disabled={environmentSaving || !environmentDirty}
               >
-                Reset
+                {tx("Reset")}
               </button>
               <button
                 type="button"
@@ -209,18 +208,17 @@ export function SettingsEnvironmentsSection({
                 }}
                 disabled={environmentSaving || !hasAnyChanges}
               >
-                {environmentSaving ? "Saving..." : "Save"}
+                {environmentSaving ? tx("Saving...") : tx("Save")}
               </button>
             </div>
           </div>
 
           <div className="settings-field">
             <label className="settings-field-label" htmlFor="settings-worktrees-folder">
-              Worktrees folder
+              {tx("Worktrees folder")}
             </label>
             <div className="settings-help">
-              Custom location for this project's worktrees. Leave empty to use the global root or
-              the built-in default.
+              {tx("Custom location for this project's worktrees. Leave empty to use the global root or the built-in default.")}
             </div>
             <div className="settings-field-row">
               <input
@@ -241,21 +239,21 @@ export function SettingsEnvironmentsSection({
                     const selected = await open({
                       directory: true,
                       multiple: false,
-                      title: "Select worktrees folder",
+                      title: tx("Select worktrees folder"),
                     });
                     if (selected && typeof selected === "string") {
                       onSetWorktreesFolderDraft(selected);
                     }
                   } catch (error) {
                     pushErrorToast({
-                      title: "Failed to open folder picker",
+                      title: tx("Failed to open folder picker"),
                       message: error instanceof Error ? error.message : String(error),
                     });
                   }
                 }}
                 disabled={environmentSaving}
               >
-                Browse
+                {tx("Browse")}
               </button>
             </div>
           </div>

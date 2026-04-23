@@ -1,6 +1,7 @@
 import { memo } from "react";
 import AlignLeft from "lucide-react/dist/esm/icons/align-left";
 import Columns2 from "lucide-react/dist/esm/icons/columns-2";
+import { useI18n } from "@/i18n";
 import type { SidebarToggleProps } from "../../layout/components/SidebarToggleControls";
 import {
   RightPanelCollapseButton,
@@ -24,10 +25,14 @@ export const MainHeaderActions = memo(function MainHeaderActions({
   rightPanelCollapsed,
   sidebarToggleProps,
 }: MainHeaderActionsProps) {
+  const { tx } = useI18n();
+  const splitLabel = tx("Dual-panel diff");
+  const unifiedLabel = tx("Single-column diff");
+
   return (
     <>
       {centerMode === "diff" && (
-        <div className="diff-view-toggle" role="group" aria-label="Diff view">
+        <div className="diff-view-toggle" role="group" aria-label={tx("Diff view")}>
           <button
             type="button"
             className={`diff-view-toggle-button${
@@ -35,8 +40,8 @@ export const MainHeaderActions = memo(function MainHeaderActions({
             } ds-tooltip-trigger`}
             onClick={() => onSelectDiffViewStyle("split")}
             aria-pressed={gitDiffViewStyle === "split"}
-            title="Dual-panel diff"
-            data-tooltip="Dual-panel diff"
+            title={splitLabel}
+            data-tooltip={splitLabel}
             data-tooltip-placement="bottom"
             data-tauri-drag-region="false"
           >
@@ -49,8 +54,8 @@ export const MainHeaderActions = memo(function MainHeaderActions({
             } ds-tooltip-trigger`}
             onClick={() => onSelectDiffViewStyle("unified")}
             aria-pressed={gitDiffViewStyle === "unified"}
-            title="Single-column diff"
-            data-tooltip="Single-column diff"
+            title={unifiedLabel}
+            data-tooltip={unifiedLabel}
             data-tooltip-placement="bottom"
             data-tauri-drag-region="false"
           >

@@ -1,4 +1,5 @@
 import type { MouseEvent, ReactNode } from "react";
+import { useI18n } from "@/i18n";
 import { MainTopbar } from "../../app/components/MainTopbar";
 import { ChatPane } from "./ChatPane";
 
@@ -41,6 +42,8 @@ export function TabletLayout({
   gitDiffViewerNode,
   debugPanelNode,
 }: TabletLayoutProps) {
+  const { tx } = useI18n();
+
   return (
     <>
       {tabletNavNode}
@@ -49,7 +52,7 @@ export function TabletLayout({
         className="projects-resizer"
         role="separator"
         aria-orientation="vertical"
-        aria-label="Resize projects"
+        aria-label={tx("Resize projects")}
         onMouseDown={onSidebarResizeStart}
       />
       <section className="tablet-main">

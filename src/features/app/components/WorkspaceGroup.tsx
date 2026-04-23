@@ -1,3 +1,5 @@
+import { useI18n } from "@/i18n";
+
 type WorkspaceGroupProps = {
   toggleId: string | null;
   name: string;
@@ -15,6 +17,7 @@ export function WorkspaceGroup({
   onToggleCollapse,
   children,
 }: WorkspaceGroupProps) {
+  const { tx } = useI18n();
   const isToggleable = Boolean(toggleId);
   return (
     <div className="workspace-group">
@@ -39,7 +42,13 @@ export function WorkspaceGroup({
               : undefined
           }
           role={isToggleable ? "button" : undefined}
-          aria-label={isToggleable ? `${isCollapsed ? "Expand" : "Collapse"} group` : undefined}
+          aria-label={
+            isToggleable
+              ? isCollapsed
+                ? tx("Expand group")
+                : tx("Collapse group")
+              : undefined
+          }
           aria-expanded={isToggleable ? !isCollapsed : undefined}
           tabIndex={isToggleable ? 0 : undefined}
         >
@@ -54,7 +63,7 @@ export function WorkspaceGroup({
                 }
                 onToggleCollapse(toggleId);
               }}
-              aria-label={isCollapsed ? "Expand group" : "Collapse group"}
+              aria-label={isCollapsed ? tx("Expand group") : tx("Collapse group")}
               aria-expanded={!isCollapsed}
               type="button"
             >

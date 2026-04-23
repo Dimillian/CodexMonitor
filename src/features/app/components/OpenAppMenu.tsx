@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useI18n } from "@/i18n";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import * as Sentry from "@sentry/react";
@@ -39,6 +40,7 @@ export function OpenAppMenu({
   onSelectOpenAppId,
   iconById = {},
 }: OpenAppMenuProps) {
+  const { tx } = useI18n();
   const openMenu = useMenuController();
   const { isOpen: openMenuOpen, containerRef: openMenuRef } = openMenu;
   const availableTargets =
@@ -104,7 +106,7 @@ export function OpenAppMenu({
       },
     });
     pushErrorToast({
-      title: "Couldn’t open workspace",
+      title: tx("Couldn’t open workspace"),
       message,
     });
     console.warn("Failed to open workspace in target app", {
@@ -177,10 +179,10 @@ export function OpenAppMenu({
 
   const selectedCanOpen = canOpenTarget(selectedOpenTarget);
   const openLabel = selectedCanOpen
-    ? `Open in ${selectedOpenTarget.label}`
+    ? tx("Open in {app}", { app: selectedOpenTarget.label })
     : selectedOpenTarget.target.kind === "command"
-      ? "Set command in Settings"
-      : "Set app name in Settings";
+      ? tx("Set command in Settings")
+      : tx("Set app name in Settings");
 
   return (
     <SplitActionMenu
@@ -194,7 +196,7 @@ export function OpenAppMenu({
           onClick={handleOpen}
           disabled={!selectedCanOpen}
           data-tauri-drag-region="false"
-          aria-label={`Open in ${selectedOpenTarget.label}`}
+          aria-label={tx("Open in {app}", { app: selectedOpenTarget.label })}
           title={openLabel}
           data-tooltip={openLabel}
           data-tooltip-placement="bottom"
@@ -213,9 +215,9 @@ export function OpenAppMenu({
       isOpen={openMenuOpen}
       onToggle={openMenu.toggle}
       toggleClassName="ghost main-header-action open-app-toggle ds-tooltip-trigger"
-      toggleAriaLabel="Select editor"
-      toggleTitle="Select editor"
-      toggleTooltip="Select editor"
+      toggleAriaLabel={tx("Select editor")}
+      toggleTitle={tx("Select editor")}
+      toggleTooltip={tx("Select editor")}
       toggleTooltipPlacement="bottom"
       toggleIcon={<ChevronDown size={14} aria-hidden />}
       popoverClassName="open-app-dropdown"

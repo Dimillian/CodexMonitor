@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
+import { useI18n } from "@/i18n";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 import { validateBranchName } from "../utils/branchValidation";
 
@@ -33,6 +34,7 @@ export function InitGitRepoPrompt({
   onCancel,
   onConfirm,
 }: InitGitRepoPromptProps) {
+  const { tx } = useI18n();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -43,10 +45,11 @@ export function InitGitRepoPrompt({
   const validationError = useMemo(() => {
     const trimmed = branch.trim();
     if (!trimmed) {
-      return "Branch name is required.";
+      return tx("Branch name is required.");
     }
-    return validateBranchName(branch);
-  }, [branch]);
+    const branchError = validateBranchName(branch);
+    return branchError ? tx(branchError) : null;
+  }, [branch, tx]);
 
   const remoteValidationError = useMemo(() => {
     if (!createRemote) {
@@ -54,13 +57,13 @@ export function InitGitRepoPrompt({
     }
     const trimmed = repoName.trim();
     if (!trimmed) {
-      return "Repository name is required.";
+      return tx("Repository name is required.");
     }
     if (/\s/.test(trimmed)) {
-      return "Repository name cannot contain spaces.";
+      return tx("Repository name cannot contain spaces.");
     }
     return null;
-  }, [createRemote, repoName]);
+  }, [createRemote, repoName, tx]);
 
   const combinedValidationError = validationError || remoteValidationError;
   const canSubmit = !isBusy && !combinedValidationError;
@@ -68,20 +71,22 @@ export function InitGitRepoPrompt({
   return (
     <ModalShell
       className="git-init-modal"
-      ariaLabel="Initialize Git"
+      ariaLabel={tx("Initialize Git")}
       onBackdropClick={() => {
         if (!isBusy) {
           onCancel();
         }
       }}
     >
-      <div className="ds-modal-title git-init-modal-title">Initialize Git</div>
+      <div className="ds-modal-title git-init-modal-title">{tx("Initialize Git")}</div>
       <div className="ds-modal-subtitle git-init-modal-subtitle">
-        Create a new repository under "{workspaceName}" and make an initial commit.
+        {tx("Create a new repository under \"{workspaceName}\" and make an initial commit.", {
+          workspaceName,
+        })}
       </div>
 
       <label className="ds-modal-label git-init-modal-label" htmlFor="git-init-branch">
-        Initial branch
+        {tx("Initial branch")}
       </label>
       <input
         id="git-init-branch"
@@ -117,14 +122,14 @@ export function InitGitRepoPrompt({
           onChange={(event) => onCreateRemoteChange(event.target.checked)}
         />
         <span className="git-init-modal-checkbox-text">
-          Create GitHub repository and set up <code>origin</code>
+          {tx("Create GitHub repository and set up")} <code>origin</code>
         </span>
       </label>
 
       {createRemote && (
         <div className="git-init-modal-remote">
           <label className="ds-modal-label git-init-modal-label" htmlFor="git-init-repo-name">
-            GitHub repo
+            {tx("GitHub repo")}
           </label>
           <input
             id="git-init-repo-name"
@@ -158,7 +163,7 @@ export function InitGitRepoPrompt({
               disabled={isBusy}
               onChange={(event) => onPrivateChange(event.target.checked)}
             />
-            <span className="git-init-modal-checkbox-text">Private repo</span>
+            <span className="git-init-modal-checkbox-text">{tx("Private repo")}</span>
           </label>
         </div>
       )}
@@ -176,7 +181,7 @@ export function InitGitRepoPrompt({
           onClick={onCancel}
           disabled={isBusy}
         >
-          Cancel
+          {tx("Cancel")}
         </button>
         <button
           type="button"
@@ -184,7 +189,7 @@ export function InitGitRepoPrompt({
           onClick={onConfirm}
           disabled={!canSubmit}
         >
-          {isBusy ? "Initializing..." : "Initialize"}
+          {isBusy ? tx("Initializing...") : tx("Initialize")}
         </button>
       </div>
     </ModalShell>
