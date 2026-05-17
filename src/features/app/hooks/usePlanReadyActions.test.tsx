@@ -38,7 +38,7 @@ function renderPlanReadyActions(overrides?: {
   const connectWorkspace = vi.fn().mockResolvedValue(undefined);
   const sendUserMessageToThread = vi.fn().mockResolvedValue(undefined);
   const setSelectedCollaborationModeId = vi.fn();
-  const persistThreadCodexParams = vi.fn();
+  const persistThreadOpenCodeParams = vi.fn();
 
   const options = {
     activeWorkspace: connectedWorkspace as WorkspaceInfo | null,
@@ -50,7 +50,7 @@ function renderPlanReadyActions(overrides?: {
     connectWorkspace,
     sendUserMessageToThread,
     setSelectedCollaborationModeId,
-    persistThreadCodexParams,
+    persistThreadOpenCodeParams,
   };
 
   const hook = renderHook(() => usePlanReadyActions(options));
@@ -59,7 +59,7 @@ function renderPlanReadyActions(overrides?: {
     connectWorkspace,
     sendUserMessageToThread,
     setSelectedCollaborationModeId,
-    persistThreadCodexParams,
+    persistThreadOpenCodeParams,
   };
 }
 
@@ -68,7 +68,7 @@ describe("usePlanReadyActions", () => {
     const {
       result,
       setSelectedCollaborationModeId,
-      persistThreadCodexParams,
+      persistThreadOpenCodeParams,
       sendUserMessageToThread,
     } = renderPlanReadyActions();
 
@@ -77,7 +77,7 @@ describe("usePlanReadyActions", () => {
     });
 
     expect(setSelectedCollaborationModeId).toHaveBeenCalledWith("default");
-    expect(persistThreadCodexParams).toHaveBeenCalledWith({
+    expect(persistThreadOpenCodeParams).toHaveBeenCalledWith({
       collaborationModeId: "default",
     });
     expect(sendUserMessageToThread).toHaveBeenCalledWith(
@@ -102,7 +102,7 @@ describe("usePlanReadyActions", () => {
     const {
       result,
       setSelectedCollaborationModeId,
-      persistThreadCodexParams,
+      persistThreadOpenCodeParams,
       sendUserMessageToThread,
     } = renderPlanReadyActions({
       collaborationModes: [makeMode("plan"), makeMode("review")],
@@ -113,7 +113,7 @@ describe("usePlanReadyActions", () => {
     });
 
     expect(setSelectedCollaborationModeId).toHaveBeenCalledWith("review");
-    expect(persistThreadCodexParams).toHaveBeenCalledWith({
+    expect(persistThreadOpenCodeParams).toHaveBeenCalledWith({
       collaborationModeId: "review",
     });
     expect(sendUserMessageToThread).toHaveBeenCalledWith(
@@ -133,7 +133,7 @@ describe("usePlanReadyActions", () => {
     const {
       result,
       setSelectedCollaborationModeId,
-      persistThreadCodexParams,
+      persistThreadOpenCodeParams,
       sendUserMessageToThread,
     } = renderPlanReadyActions({
       collaborationModes: [makeMode("plan")],
@@ -144,7 +144,7 @@ describe("usePlanReadyActions", () => {
     });
 
     expect(setSelectedCollaborationModeId).toHaveBeenCalledWith(null);
-    expect(persistThreadCodexParams).toHaveBeenCalledWith({
+    expect(persistThreadOpenCodeParams).toHaveBeenCalledWith({
       collaborationModeId: null,
     });
     expect(sendUserMessageToThread).toHaveBeenCalledWith(
@@ -160,7 +160,7 @@ describe("usePlanReadyActions", () => {
     const {
       result,
       setSelectedCollaborationModeId,
-      persistThreadCodexParams,
+      persistThreadOpenCodeParams,
       sendUserMessageToThread,
     } = renderPlanReadyActions({
       collaborationModes: [],
@@ -171,7 +171,7 @@ describe("usePlanReadyActions", () => {
     });
 
     expect(setSelectedCollaborationModeId).toHaveBeenCalledWith(null);
-    expect(persistThreadCodexParams).toHaveBeenCalledWith({
+    expect(persistThreadOpenCodeParams).toHaveBeenCalledWith({
       collaborationModeId: null,
     });
     expect(sendUserMessageToThread).toHaveBeenCalledWith(
@@ -201,7 +201,7 @@ describe("usePlanReadyActions", () => {
     const {
       result,
       setSelectedCollaborationModeId,
-      persistThreadCodexParams,
+      persistThreadOpenCodeParams,
       sendUserMessageToThread,
     } = renderPlanReadyActions({
       collaborationModes: [makeMode("default"), makeMode("plan")],
@@ -212,7 +212,7 @@ describe("usePlanReadyActions", () => {
     });
 
     expect(setSelectedCollaborationModeId).toHaveBeenCalledWith("plan");
-    expect(persistThreadCodexParams).toHaveBeenCalledWith({
+    expect(persistThreadOpenCodeParams).toHaveBeenCalledWith({
       collaborationModeId: "plan",
     });
     expect(sendUserMessageToThread).toHaveBeenCalledWith(
@@ -237,7 +237,7 @@ describe("usePlanReadyActions", () => {
     const {
       result,
       setSelectedCollaborationModeId,
-      persistThreadCodexParams,
+      persistThreadOpenCodeParams,
       sendUserMessageToThread,
     } = renderPlanReadyActions({
       collaborationModes: [makeMode("default")],
@@ -248,7 +248,7 @@ describe("usePlanReadyActions", () => {
     });
 
     expect(setSelectedCollaborationModeId).not.toHaveBeenCalled();
-    expect(persistThreadCodexParams).not.toHaveBeenCalled();
+    expect(persistThreadOpenCodeParams).not.toHaveBeenCalled();
     expect(sendUserMessageToThread).toHaveBeenCalledWith(
       connectedWorkspace,
       "thread-1",

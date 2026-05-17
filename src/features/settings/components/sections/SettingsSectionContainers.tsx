@@ -1,4 +1,4 @@
-import { SettingsCodexSection } from "./SettingsCodexSection";
+import { SettingsOpenCodeSection } from "./SettingsOpenCodeSection";
 import { SettingsComposerSection } from "./SettingsComposerSection";
 import { SettingsDictationSection } from "./SettingsDictationSection";
 import { SettingsDisplaySection } from "./SettingsDisplaySection";
@@ -11,11 +11,11 @@ import { SettingsServerSection } from "./SettingsServerSection";
 import { SettingsShortcutsSection } from "./SettingsShortcutsSection";
 import { SettingsAgentsSection } from "./SettingsAgentsSection";
 import { SettingsAboutSection } from "./SettingsAboutSection";
-import type { CodexSection } from "@settings/components/settingsTypes";
+import type { OpenCodeSection } from "@settings/components/settingsTypes";
 import type { SettingsViewOrchestration } from "@settings/hooks/useSettingsViewOrchestration";
 
 type SettingsSectionContainersProps = {
-  activeSection: CodexSection;
+  activeSection: OpenCodeSection;
   orchestration: SettingsViewOrchestration;
 };
 
@@ -56,8 +56,8 @@ export function SettingsSectionContainers({
   if (activeSection === "agents") {
     return <SettingsAgentsSection {...orchestration.agentsSectionProps} />;
   }
-  if (activeSection === "codex") {
-    return <SettingsCodexSection {...orchestration.codexSectionProps} />;
+  if (activeSection === "opencode") {
+    return <SettingsOpenCodeSection {...orchestration.opencodeSectionProps} />;
   }
   if (activeSection === "features") {
     return <SettingsFeaturesSection {...orchestration.featuresSectionProps} />;

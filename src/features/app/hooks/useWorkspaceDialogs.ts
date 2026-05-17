@@ -279,7 +279,7 @@ export function useWorkspaceDialogs() {
           : "";
 
       return ask(
-        `Are you sure you want to delete "${workspaceName}"?\n\nThis will remove the workspace from CodexMonitor.${detail}`,
+        `Are you sure you want to delete "${workspaceName}"?\n\nThis will remove the workspace from OpenCodeMonitor.${detail}`,
         {
           title: "Delete Workspace",
           kind: "warning",
@@ -296,7 +296,7 @@ export function useWorkspaceDialogs() {
       const workspace = workspaces.find((entry) => entry.id === workspaceId);
       const workspaceName = workspace?.name || "this worktree";
       return ask(
-        `Are you sure you want to delete "${workspaceName}"?\n\nThis will close the agent, remove its worktree, and delete it from CodexMonitor.`,
+        `Are you sure you want to delete "${workspaceName}"?\n\nThis will close the agent, remove its worktree, and delete it from OpenCodeMonitor.`,
         {
           title: "Delete Worktree",
           kind: "warning",

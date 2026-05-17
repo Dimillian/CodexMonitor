@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
-import type { CodexSection } from "@settings/components/settingsTypes";
+import type { OpenCodeSection } from "@settings/components/settingsTypes";
 import { SETTINGS_MOBILE_BREAKPOINT_PX } from "@settings/components/settingsViewConstants";
 import { isNarrowSettingsViewport } from "@settings/components/settingsViewHelpers";
 
 type UseSettingsViewNavigationParams = {
-  initialSection?: CodexSection;
+  initialSection?: OpenCodeSection;
 };
 
 export const useSettingsViewNavigation = ({
   initialSection,
 }: UseSettingsViewNavigationParams) => {
-  const [activeSection, setActiveSection] = useState<CodexSection>("projects");
+  const [activeSection, setActiveSection] = useState<OpenCodeSection>("projects");
   const [isNarrowViewport, setIsNarrowViewport] = useState(() =>
     isNarrowSettingsViewport(),
   );
@@ -56,7 +56,7 @@ export const useSettingsViewNavigation = ({
   }, [initialSection, useMobileMasterDetail]);
 
   const handleSelectSection = useCallback(
-    (section: CodexSection) => {
+    (section: OpenCodeSection) => {
       setActiveSection(section);
       if (useMobileMasterDetail) {
         setShowMobileDetail(true);

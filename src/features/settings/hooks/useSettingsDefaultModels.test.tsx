@@ -162,7 +162,7 @@ describe("useSettingsDefaultModels", () => {
 
   it("falls back to config model when model list cannot be fetched", async () => {
     connectWorkspaceMock.mockRejectedValueOnce(new Error("connect failed"));
-    getConfigModelMock.mockResolvedValueOnce("gpt-5-codex");
+    getConfigModelMock.mockResolvedValueOnce("opencode-go/deepseek-v4-flash");
 
     const { result } = renderHook(
       ({ projects }: { projects: WorkspaceInfo[] }) => useSettingsDefaultModels(projects),
@@ -174,7 +174,7 @@ describe("useSettingsDefaultModels", () => {
     );
 
     await waitFor(() => {
-      expect(result.current.models[0]?.model).toBe("gpt-5-codex");
+      expect(result.current.models[0]?.model).toBe("opencode-go/deepseek-v4-flash");
       expect(result.current.models[0]?.displayName).toContain("(config)");
       expect(getModelListMock).not.toHaveBeenCalled();
     });

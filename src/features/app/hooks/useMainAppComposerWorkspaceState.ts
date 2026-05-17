@@ -23,8 +23,8 @@ type UseMainAppComposerWorkspaceStateArgs = {
     centerMode: "chat" | "diff";
     isCompact: boolean;
     isTablet: boolean;
-    activeTab: "home" | "projects" | "codex" | "git" | "log";
-    tabletTab: "codex" | "git" | "log";
+    activeTab: "home" | "projects" | "opencode" | "git" | "log";
+    tabletTab: "opencode" | "git" | "log";
     filePanelMode: "git" | "files" | "prompts";
     rightPanelCollapsed: boolean;
   };
@@ -75,8 +75,8 @@ type UseMainAppComposerWorkspaceStateArgs = {
     sendUserMessage: Parameters<typeof useComposerController>[0]["sendUserMessage"];
     sendUserMessageToThread: Parameters<typeof useComposerController>[0]["sendUserMessageToThread"] &
       Parameters<typeof useWorkspaceHome>[0]["sendUserMessageToThread"];
-    seedThreadCodexParams: NonNullable<
-      Parameters<typeof useWorkspaceHome>[0]["seedThreadCodexParams"]
+    seedThreadOpenCodeParams: NonNullable<
+      Parameters<typeof useWorkspaceHome>[0]["seedThreadOpenCodeParams"]
     >;
     startFork: Parameters<typeof useComposerController>[0]["startFork"];
     startReview: Parameters<typeof useComposerController>[0]["startReview"];
@@ -137,7 +137,7 @@ export function useMainAppComposerWorkspaceState({
     startThreadForWorkspace,
     sendUserMessage,
     sendUserMessageToThread,
-    seedThreadCodexParams,
+    seedThreadOpenCodeParams,
     startFork,
     startReview,
     startResume,
@@ -155,7 +155,7 @@ export function useMainAppComposerWorkspaceState({
   const showComposer =
     (!isCompact
       ? centerMode === "chat" || centerMode === "diff"
-      : (isTablet ? tabletTab : activeTab) === "codex") && !showWorkspaceHome;
+      : (isTablet ? tabletTab : activeTab) === "opencode") && !showWorkspaceHome;
 
   const { files, isLoading: isFilesLoading, setFileAutocompleteActive } =
     useWorkspaceFileListing({
@@ -254,7 +254,7 @@ export function useMainAppComposerWorkspaceState({
     effort: resolvedEffort,
     serviceTier: selectedServiceTier,
     collaborationMode: collaborationModePayload,
-    seedThreadCodexParams,
+    seedThreadOpenCodeParams,
     addWorktreeAgent,
     connectWorkspace,
     startThreadForWorkspace,

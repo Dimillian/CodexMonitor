@@ -38,7 +38,7 @@ describe("Home", () => {
           {
             message: "Ship the dashboard refresh",
             timestamp: Date.now(),
-            projectName: "CodexMonitor",
+            projectName: "OpenCodeMonitor",
             groupName: "Frontend",
             workspaceId: "workspace-1",
             threadId: "thread-1",
@@ -50,7 +50,7 @@ describe("Home", () => {
     );
 
     expect(screen.getByText("Latest agents")).toBeTruthy();
-    expect(screen.getByText("CodexMonitor")).toBeTruthy();
+    expect(screen.getByText("OpenCodeMonitor")).toBeTruthy();
     expect(screen.getByText("Frontend")).toBeTruthy();
     const message = screen.getByText("Ship the dashboard refresh");
     const card = message.closest("button");
@@ -291,7 +291,7 @@ describe("Home", () => {
     expect(screen.getByText("Unlimited")).toBeTruthy();
     expect(screen.getByText("Pro")).toBeTruthy();
     expect(screen.getByText(/user@example\.com/)).toBeTruthy();
-    expect(screen.queryByText("Workspace CodexMonitor")).toBeNull();
+    expect(screen.queryByText("Workspace OpenCodeMonitor")).toBeNull();
 
     const todayCard = screen.getByText("Today").closest(".home-usage-card");
     expect(todayCard).toBeTruthy();

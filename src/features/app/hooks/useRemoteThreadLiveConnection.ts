@@ -348,7 +348,7 @@ export function useRemoteThreadLiveConnection({
         return;
       }
 
-      if (method === "codex/connected" && isDocumentVisible()) {
+      if (method === "opencode/connected" && isDocumentVisible()) {
         void reconnectLive(activeWorkspaceId, selectedThreadId, {
           runResume: false,
           reason: "connected-recovery",

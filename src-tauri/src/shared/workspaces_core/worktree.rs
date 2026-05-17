@@ -7,8 +7,8 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::backend::app_server::WorkspaceSession;
-use crate::codex::args::resolve_workspace_codex_args;
-use crate::codex::home::resolve_workspace_codex_home;
+use crate::opencode::args::resolve_workspace_opencode_args;
+use crate::opencode::home::resolve_workspace_opencode_home;
 use crate::storage::write_workspaces;
 use crate::types::{
     AppSettings, WorkspaceEntry, WorkspaceInfo, WorkspaceKind, WorkspaceSettings, WorktreeInfo,
@@ -225,15 +225,15 @@ where
     let session = if let Some(existing_session) = existing_session {
         existing_session
     } else {
-        let (default_bin, codex_args) = {
+        let (default_bin, opencode_args) = {
             let settings = app_settings.lock().await;
             (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry, Some(&parent_entry), Some(&settings)),
+                settings.opencode_bin.clone(),
+                resolve_workspace_opencode_args(&entry, Some(&parent_entry), Some(&settings)),
             )
         };
-        let codex_home = resolve_workspace_codex_home(&entry, Some(&parent_entry));
-        spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?
+        let opencode_home = resolve_workspace_opencode_home(&entry, Some(&parent_entry));
+        spawn_session(entry.clone(), default_bin, opencode_args, opencode_home).await?
     };
 
     {

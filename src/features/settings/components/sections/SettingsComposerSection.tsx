@@ -57,7 +57,7 @@ export function SettingsComposerSection({
             className={`settings-segmented-option${
               appSettings.followUpMessageBehavior === "steer" ? " is-active" : ""
             }${steerUnavailable ? " is-disabled" : ""}`}
-            title={steerUnavailable ? "Steer is unavailable in the current Codex config." : ""}
+            title={steerUnavailable ? "Steer is unavailable in the current OpenCode config." : ""}
           >
             <input
               className="settings-segmented-input"
@@ -99,7 +99,7 @@ export function SettingsComposerSection({
         </SettingsToggleRow>
         {steerUnavailable && (
           <div className="settings-help">
-            Steer is unavailable in the current Codex config. Follow-ups will queue.
+            Steer is unavailable in the current OpenCode config. Follow-ups will queue.
           </div>
         )}
       </div>

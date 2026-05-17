@@ -44,7 +44,7 @@ type UseThreadsOptions = {
   activeWorkspace: WorkspaceInfo | null;
   onWorkspaceConnected: (id: string) => void;
   onDebug?: (entry: DebugEntry) => void;
-  ensureWorkspaceRuntimeCodexArgs?: (
+  ensureWorkspaceRuntimeOpenCodeArgs?: (
     workspaceId: string,
     threadId: string | null,
   ) => Promise<void>;
@@ -61,7 +61,7 @@ type UseThreadsOptions = {
   customPrompts?: CustomPromptOption[];
   onMessageActivity?: () => void;
   threadSortKey?: ThreadListSortKey;
-  onThreadCodexMetadataDetected?: (
+  onThreadOpenCodeMetadataDetected?: (
     workspaceId: string,
     threadId: string,
     metadata: { modelId: string | null; effort: string | null },
@@ -78,7 +78,7 @@ export function useThreads({
   activeWorkspace,
   onWorkspaceConnected,
   onDebug,
-  ensureWorkspaceRuntimeCodexArgs,
+  ensureWorkspaceRuntimeOpenCodeArgs,
   model,
   effort,
   serviceTier,
@@ -92,7 +92,7 @@ export function useThreads({
   customPrompts = [],
   onMessageActivity,
   threadSortKey = "updated_at",
-  onThreadCodexMetadataDetected,
+  onThreadOpenCodeMetadataDetected,
 }: UseThreadsOptions) {
   const maxItemsPerThread =
     chatHistoryScrollbackItems === undefined
@@ -585,28 +585,28 @@ export function useThreads({
     applyCollabThreadLinksFromThread,
     updateThreadParent,
     onSubagentThreadDetected,
-    onThreadCodexMetadataDetected,
+    onThreadOpenCodeMetadataDetected,
   });
 
-  const ensureWorkspaceRuntimeCodexArgsBestEffort = useCallback(
+  const ensureWorkspaceRuntimeOpenCodeArgsBestEffort = useCallback(
     async (workspaceId: string, threadId: string | null, phase: string) => {
-      if (!ensureWorkspaceRuntimeCodexArgs) {
+      if (!ensureWorkspaceRuntimeOpenCodeArgs) {
         return;
       }
       try {
-        await ensureWorkspaceRuntimeCodexArgs(workspaceId, threadId);
+        await ensureWorkspaceRuntimeOpenCodeArgs(workspaceId, threadId);
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
         onDebug?.({
-          id: `${Date.now()}-client-thread-runtime-codex-args-sync-error`,
+          id: `${Date.now()}-client-thread-runtime-opencode-args-sync-error`,
           timestamp: Date.now(),
           source: "error",
-          label: "thread/runtime-codex-args sync error",
+          label: "thread/runtime-opencode-args sync error",
           payload: `${phase}: ${detail}`,
         });
       }
     },
-    [ensureWorkspaceRuntimeCodexArgs, onDebug],
+    [ensureWorkspaceRuntimeOpenCodeArgs, onDebug],
   );
 
   const getWorkspaceThreadIds = useCallback(
@@ -645,7 +645,7 @@ export function useThreads({
     [getWorkspaceThreadIds, state.threadStatusById],
   );
 
-  const shouldPreflightRuntimeCodexArgsForSend = useCallback(
+  const shouldPreflightRuntimeOpenCodeArgsForSend = useCallback(
     (workspaceId: string, threadId: string) =>
       !hasProcessingThreadInWorkspace(workspaceId, threadId),
     [hasProcessingThreadInWorkspace],
@@ -653,10 +653,10 @@ export function useThreads({
 
   const startThreadForWorkspace = useCallback(
     async (workspaceId: string, options?: { activate?: boolean }) => {
-      await ensureWorkspaceRuntimeCodexArgsBestEffort(workspaceId, null, "start");
+      await ensureWorkspaceRuntimeOpenCodeArgsBestEffort(workspaceId, null, "start");
       return startThreadForWorkspaceInternal(workspaceId, options);
     },
-    [ensureWorkspaceRuntimeCodexArgsBestEffort, startThreadForWorkspaceInternal],
+    [ensureWorkspaceRuntimeOpenCodeArgsBestEffort, startThreadForWorkspaceInternal],
   );
 
   const startThread = useCallback(async () => {
@@ -677,7 +677,7 @@ export function useThreads({
         return null;
       }
     } else if (!loadedThreadsRef.current[threadId]) {
-      await ensureWorkspaceRuntimeCodexArgsBestEffort(
+      await ensureWorkspaceRuntimeOpenCodeArgsBestEffort(
         activeWorkspace.id,
         threadId,
         "resume",
@@ -688,7 +688,7 @@ export function useThreads({
   }, [
     activeWorkspace,
     activeThreadId,
-    ensureWorkspaceRuntimeCodexArgsBestEffort,
+    ensureWorkspaceRuntimeOpenCodeArgsBestEffort,
     resumeThreadForWorkspace,
     startThreadForWorkspace,
   ]);
@@ -706,7 +706,7 @@ export function useThreads({
           return null;
         }
       } else if (!loadedThreadsRef.current[threadId]) {
-        await ensureWorkspaceRuntimeCodexArgsBestEffort(workspaceId, threadId, "resume");
+        await ensureWorkspaceRuntimeOpenCodeArgsBestEffort(workspaceId, threadId, "resume");
         await resumeThreadForWorkspace(workspaceId, threadId);
       }
       if (shouldActivate && currentActiveThreadId !== threadId) {
@@ -717,7 +717,7 @@ export function useThreads({
     [
       activeWorkspaceId,
       dispatch,
-      ensureWorkspaceRuntimeCodexArgsBestEffort,
+      ensureWorkspaceRuntimeOpenCodeArgsBestEffort,
       loadedThreadsRef,
       resumeThreadForWorkspace,
       startThreadForWorkspace,
@@ -770,8 +770,8 @@ export function useThreads({
     reviewDeliveryMode,
     steerEnabled,
     customPrompts,
-    ensureWorkspaceRuntimeCodexArgs,
-    shouldPreflightRuntimeCodexArgsForSend,
+    ensureWorkspaceRuntimeOpenCodeArgs,
+    shouldPreflightRuntimeOpenCodeArgsForSend,
     threadStatusById: state.threadStatusById,
     activeTurnIdByThread: state.activeTurnIdByThread,
     rateLimitsByWorkspace: state.rateLimitsByWorkspace,
@@ -833,7 +833,7 @@ export function useThreads({
           }
           const hasActiveTurnInWorkspace = hasProcessingThreadInWorkspace(targetId);
           if (!hasActiveTurnInWorkspace) {
-            await ensureWorkspaceRuntimeCodexArgsBestEffort(targetId, threadId, "resume");
+            await ensureWorkspaceRuntimeOpenCodeArgsBestEffort(targetId, threadId, "resume");
           }
           await resumeThreadForWorkspace(targetId, threadId);
         })();
@@ -841,7 +841,7 @@ export function useThreads({
     },
     [
       activeWorkspaceId,
-      ensureWorkspaceRuntimeCodexArgsBestEffort,
+      ensureWorkspaceRuntimeOpenCodeArgsBestEffort,
       hasLocalThreadSnapshot,
       hasProcessingThreadInWorkspace,
       loadedThreadsRef,

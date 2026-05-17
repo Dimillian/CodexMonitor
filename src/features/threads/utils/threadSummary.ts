@@ -3,7 +3,7 @@ import {
   getThreadCreatedTimestamp,
   getThreadTimestamp,
 } from "@utils/threadItems";
-import { extractThreadCodexMetadata } from "@threads/utils/threadCodexMetadata";
+import { extractThreadOpenCodeMetadata } from "@threads/utils/threadOpenCodeMetadata";
 import { asString } from "@threads/utils/threadNormalize";
 import {
   getParentThreadIdFromThread,
@@ -52,7 +52,7 @@ export function buildThreadSummaryFromThread({
   const name = customName
     ? customName
     : clampThreadName(preview) ?? fallbackName;
-  const metadata = extractThreadCodexMetadata(thread);
+  const metadata = extractThreadOpenCodeMetadata(thread);
   if (shouldHideSubagentThreadFromSidebar(thread.source)) {
     return null;
   }

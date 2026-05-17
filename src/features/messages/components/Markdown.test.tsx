@@ -97,15 +97,15 @@ describe("Markdown file-like href behavior", () => {
     const onOpenFileLink = vi.fn();
     render(
       <Markdown
-        value="See [license](/workspace/CodexMonitor/LICENSE)"
+        value="See [license](/workspace/OpenCodeMonitor/LICENSE)"
         className="markdown"
-        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/OpenCodeMonitor"
         onOpenFileLink={onOpenFileLink}
       />,
     );
 
     const link = screen.getByText("license").closest("a");
-    expect(link?.getAttribute("href")).toBe("/workspace/CodexMonitor/LICENSE");
+    expect(link?.getAttribute("href")).toBe("/workspace/OpenCodeMonitor/LICENSE");
 
     const clickEvent = createEvent.click(link as Element, {
       bubbles: true,
@@ -113,7 +113,7 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expectOpenedFileTarget(onOpenFileLink, "/workspace/CodexMonitor/LICENSE");
+    expectOpenedFileTarget(onOpenFileLink, "/workspace/OpenCodeMonitor/LICENSE");
   });
 
   it("intercepts mounted workspace links outside the old root allowlist", () => {
@@ -122,7 +122,7 @@ describe("Markdown file-like href behavior", () => {
       <Markdown
         value="See [workflows](/workspace/.github/workflows)"
         className="markdown"
-        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/OpenCodeMonitor"
         onOpenFileLink={onOpenFileLink}
       />,
     );
@@ -145,7 +145,7 @@ describe("Markdown file-like href behavior", () => {
       <Markdown
         value="See [assets](/workspace/dist/assets)"
         className="markdown"
-        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/OpenCodeMonitor"
         onOpenFileLink={onOpenFileLink}
       />,
     );
@@ -168,7 +168,7 @@ describe("Markdown file-like href behavior", () => {
       <Markdown
         value="See [reviews](/workspace/reviews)"
         className="markdown"
-        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/OpenCodeMonitor"
         onOpenFileLink={onOpenFileLink}
       />,
     );
@@ -214,7 +214,7 @@ describe("Markdown file-like href behavior", () => {
       <Markdown
         value="See [overview](/workspaces/team/reviews/overview)"
         className="markdown"
-        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/OpenCodeMonitor"
         onOpenFileLink={onOpenFileLink}
       />,
     );
@@ -258,15 +258,15 @@ describe("Markdown file-like href behavior", () => {
     const onOpenFileLink = vi.fn();
     render(
       <Markdown
-        value="See [src](/workspaces/team/CodexMonitor/src)"
+        value="See [src](/workspaces/team/OpenCodeMonitor/src)"
         className="markdown"
-        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/OpenCodeMonitor"
         onOpenFileLink={onOpenFileLink}
       />,
     );
 
     const link = screen.getByText("src").closest("a");
-    expect(link?.getAttribute("href")).toBe("/workspaces/team/CodexMonitor/src");
+    expect(link?.getAttribute("href")).toBe("/workspaces/team/OpenCodeMonitor/src");
 
     const clickEvent = createEvent.click(link as Element, {
       bubbles: true,
@@ -274,7 +274,7 @@ describe("Markdown file-like href behavior", () => {
     });
     fireEvent(link as Element, clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
-    expectOpenedFileTarget(onOpenFileLink, "/workspaces/team/CodexMonitor/src");
+    expectOpenedFileTarget(onOpenFileLink, "/workspaces/team/OpenCodeMonitor/src");
   });
 
   it("treats extensionless paths under /workspace/settings as files", () => {
@@ -326,7 +326,7 @@ describe("Markdown file-like href behavior", () => {
     const onOpenFileLink = vi.fn();
     const onOpenFileLinkMenu = vi.fn();
     const linkedPath =
-      "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx#L422";
+      "I:\\gpt-projects\\OpenCodeMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx#L422";
     render(
       <Markdown
         value={`See [SettingsDisplaySection.tsx](${linkedPath})`}
@@ -338,10 +338,10 @@ describe("Markdown file-like href behavior", () => {
 
     const link = screen.getByText("SettingsDisplaySection.tsx").closest("a");
     expect(link?.getAttribute("href")).toBe(
-      "I:%5Cgpt-projects%5CCodexMonitor%5Csrc%5Cfeatures%5Csettings%5Ccomponents%5Csections%5CSettingsDisplaySection.tsx#L422",
+      "I:%5Cgpt-projects%5COpenCodeMonitor%5Csrc%5Cfeatures%5Csettings%5Ccomponents%5Csections%5CSettingsDisplaySection.tsx#L422",
     );
     expect(link?.getAttribute("title")).toBe(
-      "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx:422",
+      "I:\\gpt-projects\\OpenCodeMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx:422",
     );
 
     const clickEvent = createEvent.click(link as Element, {
@@ -352,7 +352,7 @@ describe("Markdown file-like href behavior", () => {
     expect(clickEvent.defaultPrevented).toBe(true);
     expectOpenedFileTarget(
       onOpenFileLink,
-      "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx",
+      "I:\\gpt-projects\\OpenCodeMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx",
       422,
     );
 
@@ -360,7 +360,7 @@ describe("Markdown file-like href behavior", () => {
     expect(onOpenFileLinkMenu).toHaveBeenCalledWith(
       expect.anything(),
       {
-        path: "I:\\gpt-projects\\CodexMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx",
+        path: "I:\\gpt-projects\\OpenCodeMonitor\\src\\features\\settings\\components\\sections\\SettingsDisplaySection.tsx",
         line: 422,
         column: null,
       },
@@ -395,7 +395,7 @@ describe("Markdown file-like href behavior", () => {
       <Markdown
         value="See [settings](/workspace/settings#L12)"
         className="markdown"
-        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/OpenCodeMonitor"
         onOpenFileLink={onOpenFileLink}
       />,
     );
@@ -418,7 +418,7 @@ describe("Markdown file-like href behavior", () => {
       <Markdown
         value="See [reviews](/workspace/reviews#L9)"
         className="markdown"
-        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/OpenCodeMonitor"
         onOpenFileLink={onOpenFileLink}
       />,
     );
@@ -440,7 +440,7 @@ describe("Markdown file-like href behavior", () => {
       <Markdown
         value="See /workspace/settings#L12 for app settings."
         className="markdown"
-        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/OpenCodeMonitor"
       />,
     );
 
@@ -465,7 +465,7 @@ describe("Markdown file-like href behavior", () => {
       <Markdown
         value="Use `/workspace/reviews#L9` to reference the reviews route."
         className="markdown"
-        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/CodexMonitor"
+        workspacePath="/Users/sotiriskaniras/Documents/Development/Forks/OpenCodeMonitor"
       />,
     );
 

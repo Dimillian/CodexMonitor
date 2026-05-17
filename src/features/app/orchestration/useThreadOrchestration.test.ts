@@ -4,9 +4,9 @@ import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { pushErrorToast } from "@/services/toasts";
 import type { AccessMode, AppSettings } from "@/types";
-import type { PendingNewThreadSeed } from "@threads/utils/threadCodexParamsSeed";
+import type { PendingNewThreadSeed } from "@threads/utils/threadOpenCodeParamsSeed";
 import {
-  useThreadCodexSyncOrchestration,
+  useThreadOpenCodeSyncOrchestration,
   useThreadSelectionHandlersOrchestration,
   useThreadUiOrchestration,
 } from "./useThreadOrchestration";
@@ -16,17 +16,17 @@ vi.mock("@/services/toasts", () => ({
 }));
 
 type SelectionParams = Parameters<typeof useThreadSelectionHandlersOrchestration>[0];
-type SyncParams = Parameters<typeof useThreadCodexSyncOrchestration>[0];
+type SyncParams = Parameters<typeof useThreadOpenCodeSyncOrchestration>[0];
 
 function makeSelectionParams(): SelectionParams & {
-  persistThreadCodexParams: ReturnType<typeof vi.fn>;
-  setSelectedCodexArgsOverride: ReturnType<typeof vi.fn>;
+  persistThreadOpenCodeParams: ReturnType<typeof vi.fn>;
+  setSelectedOpenCodeArgsOverride: ReturnType<typeof vi.fn>;
 } {
   const setAppSettings = vi.fn() as unknown as Dispatch<SetStateAction<AppSettings>>;
   const setAccessMode = vi.fn() as unknown as Dispatch<SetStateAction<AccessMode>>;
   const activeThreadIdRef = { current: null } as MutableRefObject<string | null>;
-  const persistThreadCodexParams = vi.fn();
-  const setSelectedCodexArgsOverride = vi.fn();
+  const persistThreadOpenCodeParams = vi.fn();
+  const setSelectedOpenCodeArgsOverride = vi.fn();
 
   return {
     appSettingsLoading: false,
@@ -38,19 +38,19 @@ function makeSelectionParams(): SelectionParams & {
     setSelectedServiceTier: vi.fn(),
     setSelectedCollaborationModeId: vi.fn(),
     setAccessMode,
-    setSelectedCodexArgsOverride,
-    persistThreadCodexParams,
+    setSelectedOpenCodeArgsOverride,
+    persistThreadOpenCodeParams,
   };
 }
 
 function makeSyncParams(
-  overrides: Partial<Omit<SyncParams, "getThreadCodexParams" | "patchThreadCodexParams">> = {},
+  overrides: Partial<Omit<SyncParams, "getThreadOpenCodeParams" | "patchThreadOpenCodeParams">> = {},
 ): SyncParams & {
-  getThreadCodexParams: ReturnType<typeof vi.fn>;
-  patchThreadCodexParams: ReturnType<typeof vi.fn>;
+  getThreadOpenCodeParams: ReturnType<typeof vi.fn>;
+  patchThreadOpenCodeParams: ReturnType<typeof vi.fn>;
 } {
-  const getThreadCodexParams = vi.fn(() => null);
-  const patchThreadCodexParams = vi.fn();
+  const getThreadOpenCodeParams = vi.fn(() => null);
+  const patchThreadOpenCodeParams = vi.fn();
 
   return {
     activeWorkspaceId: "ws-1",
@@ -60,10 +60,10 @@ function makeSyncParams(
       lastComposerModelId: "gpt-5",
       lastComposerReasoningEffort: "medium",
     },
-    threadCodexParamsVersion: 0,
-    getThreadCodexParams,
-    patchThreadCodexParams,
-    setThreadCodexSelectionKey: vi.fn() as unknown as Dispatch<
+    threadOpenCodeParamsVersion: 0,
+    getThreadOpenCodeParams,
+    patchThreadOpenCodeParams,
+    setThreadOpenCodeSelectionKey: vi.fn() as unknown as Dispatch<
       SetStateAction<string | null>
     >,
     setAccessMode: vi.fn() as unknown as Dispatch<SetStateAction<AccessMode>>,
@@ -75,7 +75,7 @@ function makeSyncParams(
     setPreferredCollabModeId: vi.fn() as unknown as Dispatch<
       SetStateAction<string | null>
     >,
-    setPreferredCodexArgsOverride: vi.fn() as unknown as Dispatch<
+    setPreferredOpenCodeArgsOverride: vi.fn() as unknown as Dispatch<
       SetStateAction<string | null>
     >,
     activeThreadIdRef: { current: null } as MutableRefObject<string | null>,
@@ -101,15 +101,15 @@ describe("useThreadSelectionHandlersOrchestration codex args selection", () => {
     const { result } = renderHook(() => useThreadSelectionHandlersOrchestration(params));
 
     act(() => {
-      result.current.handleSelectCodexArgsOverride(
+      result.current.handleSelectOpenCodeArgsOverride(
         "--profile dev --model gpt-5 --sandbox workspace-write",
       );
     });
 
-    expect(params.persistThreadCodexParams).toHaveBeenCalledWith({
-      codexArgsOverride: "--profile dev --model gpt-5 --sandbox workspace-write",
+    expect(params.persistThreadOpenCodeParams).toHaveBeenCalledWith({
+      opencodeArgsOverride: "--profile dev --model gpt-5 --sandbox workspace-write",
     });
-    expect(params.setSelectedCodexArgsOverride).toHaveBeenCalledWith(
+    expect(params.setSelectedOpenCodeArgsOverride).toHaveBeenCalledWith(
       "--profile dev --model gpt-5 --sandbox workspace-write",
     );
     expect(pushErrorToast).toHaveBeenCalledTimes(1);
@@ -126,11 +126,11 @@ describe("useThreadSelectionHandlersOrchestration codex args selection", () => {
     const { result } = renderHook(() => useThreadSelectionHandlersOrchestration(params));
 
     act(() => {
-      result.current.handleSelectCodexArgsOverride("--profile dev --config codex.toml");
+      result.current.handleSelectOpenCodeArgsOverride("--profile dev --config codex.toml");
     });
 
-    expect(params.persistThreadCodexParams).toHaveBeenCalledWith({
-      codexArgsOverride: "--profile dev --config codex.toml",
+    expect(params.persistThreadOpenCodeParams).toHaveBeenCalledWith({
+      opencodeArgsOverride: "--profile dev --config codex.toml",
     });
     expect(pushErrorToast).not.toHaveBeenCalled();
   });
@@ -143,7 +143,7 @@ describe("useThreadSelectionHandlersOrchestration codex args selection", () => {
       result.current.handleSelectServiceTier("fast");
     });
 
-    expect(params.persistThreadCodexParams).toHaveBeenCalledWith({
+    expect(params.persistThreadOpenCodeParams).toHaveBeenCalledWith({
       serviceTier: "fast",
     });
   });
@@ -153,19 +153,19 @@ describe("useThreadSelectionHandlersOrchestration codex args selection", () => {
     const { result } = renderHook(() => useThreadSelectionHandlersOrchestration(params));
 
     act(() => {
-      result.current.handleSelectCodexArgsOverride("“—search —enable memory_tool”");
+      result.current.handleSelectOpenCodeArgsOverride("“—search —enable memory_tool”");
     });
 
-    expect(params.persistThreadCodexParams).toHaveBeenCalledWith({
-      codexArgsOverride: "--search --enable memory_tool",
+    expect(params.persistThreadOpenCodeParams).toHaveBeenCalledWith({
+      opencodeArgsOverride: "--search --enable memory_tool",
     });
-    expect(params.setSelectedCodexArgsOverride).toHaveBeenCalledWith(
+    expect(params.setSelectedOpenCodeArgsOverride).toHaveBeenCalledWith(
       "--search --enable memory_tool",
     );
   });
 });
 
-describe("useThreadCodexSyncOrchestration seed behavior", () => {
+describe("useThreadOpenCodeSyncOrchestration seed behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -173,17 +173,17 @@ describe("useThreadCodexSyncOrchestration seed behavior", () => {
   it("preserves inherit semantics when seeding unseeded thread scope", async () => {
     const params = makeSyncParams();
 
-    renderHook(() => useThreadCodexSyncOrchestration(params));
+    renderHook(() => useThreadOpenCodeSyncOrchestration(params));
 
     await waitFor(() => {
-      expect(params.patchThreadCodexParams).toHaveBeenCalledTimes(1);
+      expect(params.patchThreadOpenCodeParams).toHaveBeenCalledTimes(1);
     });
 
-    expect(params.patchThreadCodexParams).toHaveBeenCalledWith(
+    expect(params.patchThreadOpenCodeParams).toHaveBeenCalledWith(
       "ws-1",
       "thread-2",
       expect.objectContaining({
-        codexArgsOverride: undefined,
+        opencodeArgsOverride: undefined,
         serviceTier: undefined,
       }),
     );
@@ -197,22 +197,22 @@ describe("useThreadCodexSyncOrchestration seed behavior", () => {
           serviceTier: "fast",
           collaborationModeId: "plan",
           accessMode: "read-only",
-          codexArgsOverride: "--profile pending",
+          opencodeArgsOverride: "--profile pending",
         },
       } as MutableRefObject<PendingNewThreadSeed | null>,
     });
 
-    renderHook(() => useThreadCodexSyncOrchestration(params));
+    renderHook(() => useThreadOpenCodeSyncOrchestration(params));
 
     await waitFor(() => {
-      expect(params.patchThreadCodexParams).toHaveBeenCalledTimes(1);
+      expect(params.patchThreadOpenCodeParams).toHaveBeenCalledTimes(1);
     });
 
-    expect(params.patchThreadCodexParams).toHaveBeenCalledWith(
+    expect(params.patchThreadOpenCodeParams).toHaveBeenCalledWith(
       "ws-1",
       "thread-2",
       expect.objectContaining({
-        codexArgsOverride: "--profile pending",
+        opencodeArgsOverride: "--profile pending",
         serviceTier: "fast",
       }),
     );
@@ -220,43 +220,43 @@ describe("useThreadCodexSyncOrchestration seed behavior", () => {
 
   it("seeds selected codex args override when creating thread outside pending flow", async () => {
     const params = makeSyncParams({
-      selectedCodexArgsOverride: "--profile selected",
+      selectedOpenCodeArgsOverride: "--profile selected",
     });
 
-    renderHook(() => useThreadCodexSyncOrchestration(params));
+    renderHook(() => useThreadOpenCodeSyncOrchestration(params));
 
     await waitFor(() => {
-      expect(params.patchThreadCodexParams).toHaveBeenCalledTimes(1);
+      expect(params.patchThreadOpenCodeParams).toHaveBeenCalledTimes(1);
     });
 
-    expect(params.patchThreadCodexParams).toHaveBeenCalledWith(
+    expect(params.patchThreadOpenCodeParams).toHaveBeenCalledWith(
       "ws-1",
       "thread-2",
-      expect.objectContaining({ codexArgsOverride: "--profile selected" }),
+      expect.objectContaining({ opencodeArgsOverride: "--profile selected" }),
     );
   });
 
   it("preserves explicit default codex args selection when creating thread outside pending flow", async () => {
     const params = makeSyncParams({
-      selectedCodexArgsOverride: null,
+      selectedOpenCodeArgsOverride: null,
     });
 
-    renderHook(() => useThreadCodexSyncOrchestration(params));
+    renderHook(() => useThreadOpenCodeSyncOrchestration(params));
 
     await waitFor(() => {
-      expect(params.patchThreadCodexParams).toHaveBeenCalledTimes(1);
+      expect(params.patchThreadOpenCodeParams).toHaveBeenCalledTimes(1);
     });
 
-    expect(params.patchThreadCodexParams).toHaveBeenCalledWith(
+    expect(params.patchThreadOpenCodeParams).toHaveBeenCalledWith(
       "ws-1",
       "thread-2",
-      expect.objectContaining({ codexArgsOverride: null }),
+      expect.objectContaining({ opencodeArgsOverride: null }),
     );
   });
 
   it("syncs selected codex args from no-thread fallback when thread scope is inherit", async () => {
     const params = makeSyncParams();
-    params.getThreadCodexParams.mockImplementation(
+    params.getThreadOpenCodeParams.mockImplementation(
       (_workspaceId: string, threadId: string) => {
         if (threadId === "thread-2") {
           return {
@@ -264,7 +264,7 @@ describe("useThreadCodexSyncOrchestration seed behavior", () => {
             effort: null,
             accessMode: null,
             collaborationModeId: null,
-            codexArgsOverride: undefined,
+            opencodeArgsOverride: undefined,
             updatedAt: 1,
           };
         }
@@ -274,7 +274,7 @@ describe("useThreadCodexSyncOrchestration seed behavior", () => {
             effort: null,
             accessMode: null,
             collaborationModeId: null,
-            codexArgsOverride: "--profile inherited",
+            opencodeArgsOverride: "--profile inherited",
             updatedAt: 2,
           };
         }
@@ -282,15 +282,15 @@ describe("useThreadCodexSyncOrchestration seed behavior", () => {
       },
     );
 
-    renderHook(() => useThreadCodexSyncOrchestration(params));
+    renderHook(() => useThreadOpenCodeSyncOrchestration(params));
 
     await waitFor(() => {
-      expect(params.setPreferredCodexArgsOverride).toHaveBeenCalledWith(
+      expect(params.setPreferredOpenCodeArgsOverride).toHaveBeenCalledWith(
         "--profile inherited",
       );
     });
 
-    expect(params.patchThreadCodexParams).not.toHaveBeenCalled();
+    expect(params.patchThreadOpenCodeParams).not.toHaveBeenCalled();
   });
 
   it("backfills missing no-thread fast mode from the active thread selection", async () => {
@@ -298,10 +298,10 @@ describe("useThreadCodexSyncOrchestration seed behavior", () => {
       selectedServiceTier: "fast",
     });
 
-    renderHook(() => useThreadCodexSyncOrchestration(params));
+    renderHook(() => useThreadOpenCodeSyncOrchestration(params));
 
     await waitFor(() => {
-      expect(params.patchThreadCodexParams).toHaveBeenCalledWith(
+      expect(params.patchThreadOpenCodeParams).toHaveBeenCalledWith(
         "ws-1",
         "__no_thread__",
         expect.objectContaining({ serviceTier: "fast" }),
@@ -313,7 +313,7 @@ describe("useThreadCodexSyncOrchestration seed behavior", () => {
 describe("useThreadUiOrchestration", () => {
   it("opens thread links in their source workspace", () => {
     const setActiveTab = vi.fn() as unknown as Dispatch<
-      SetStateAction<"home" | "projects" | "codex" | "git" | "log">
+      SetStateAction<"home" | "projects" | "opencode" | "git" | "log">
     >;
     const params = {
       activeWorkspaceId: "ws-1",
@@ -321,7 +321,7 @@ describe("useThreadUiOrchestration", () => {
       accessMode: "current" as const,
       selectedServiceTier: null,
       selectedCollaborationModeId: null,
-      selectedCodexArgsOverride: null,
+      selectedOpenCodeArgsOverride: null,
       pendingNewThreadSeedRef: {
         current: null,
       } as MutableRefObject<PendingNewThreadSeed | null>,

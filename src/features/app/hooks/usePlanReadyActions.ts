@@ -30,7 +30,7 @@ type UsePlanReadyActionsOptions = {
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;
   sendUserMessageToThread: SendUserMessageToThread;
   setSelectedCollaborationModeId: (modeId: string | null) => void;
-  persistThreadCodexParams: (patch: { collaborationModeId?: string | null }) => void;
+  persistThreadOpenCodeParams: (patch: { collaborationModeId?: string | null }) => void;
 };
 
 export function usePlanReadyActions({
@@ -42,7 +42,7 @@ export function usePlanReadyActions({
   connectWorkspace,
   sendUserMessageToThread,
   setSelectedCollaborationModeId,
-  persistThreadCodexParams,
+  persistThreadOpenCodeParams,
 }: UsePlanReadyActionsOptions) {
   const findCollaborationMode = useCallback(
     (wanted: string) => {
@@ -124,7 +124,7 @@ export function usePlanReadyActions({
     const implementationMode = findImplementationMode();
     const implementationModeId = implementationMode?.id ?? null;
     setSelectedCollaborationModeId(implementationModeId);
-    persistThreadCodexParams({
+    persistThreadOpenCodeParams({
       collaborationModeId: implementationModeId,
     });
 
@@ -142,7 +142,7 @@ export function usePlanReadyActions({
     buildCollaborationModePayloadFor,
     connectWorkspace,
     findImplementationMode,
-    persistThreadCodexParams,
+    persistThreadOpenCodeParams,
     sendUserMessageToThread,
     setSelectedCollaborationModeId,
   ]);
@@ -161,7 +161,7 @@ export function usePlanReadyActions({
       const planMode = findCollaborationMode("plan");
       if (planMode?.id) {
         setSelectedCollaborationModeId(planMode.id);
-        persistThreadCodexParams({
+        persistThreadOpenCodeParams({
           collaborationModeId: planMode.id,
         });
       }
@@ -181,7 +181,7 @@ export function usePlanReadyActions({
       buildCollaborationModePayloadFor,
       connectWorkspace,
       findCollaborationMode,
-      persistThreadCodexParams,
+      persistThreadOpenCodeParams,
       sendUserMessageToThread,
       setSelectedCollaborationModeId,
     ],

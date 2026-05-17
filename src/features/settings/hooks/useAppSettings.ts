@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppSettings } from "@/types";
-import { getAppSettings, runCodexDoctor, updateAppSettings } from "@services/tauri";
+import { getAppSettings, runOpenCodeDoctor, updateAppSettings } from "@services/tauri";
 import { clampUiScale, UI_SCALE_DEFAULT } from "@utils/uiScale";
 import { CHAT_SCROLLBACK_DEFAULT, normalizeChatHistoryScrollbackItems } from "@utils/chatScrollback";
 import {
@@ -134,8 +134,8 @@ function buildDefaultSettings(): AppSettings {
     lastConnectedAtMs: null,
   };
   return {
-    codexBin: null,
-    codexArgs: null,
+    opencodeBin: null,
+    opencodeArgs: null,
     backendMode: isMobile ? "remote" : "local",
     remoteBackendProvider: defaultRemote.provider,
     remoteBackendHost: defaultRemote.host,
@@ -243,8 +243,8 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
   return {
     ...settings,
     ...remoteBackendSettings,
-    codexBin: settings.codexBin?.trim() ? settings.codexBin.trim() : null,
-    codexArgs: settings.codexArgs?.trim() ? settings.codexArgs.trim() : null,
+    opencodeBin: settings.opencodeBin?.trim() ? settings.opencodeBin.trim() : null,
+    opencodeArgs: settings.opencodeArgs?.trim() ? settings.opencodeArgs.trim() : null,
     uiScale: clampUiScale(settings.uiScale),
     theme: allowedThemes.has(settings.theme) ? settings.theme : "system",
     uiFontFamily: normalizeFontFamily(
@@ -323,8 +323,8 @@ export function useAppSettings() {
   }, [defaultSettings]);
 
   const doctor = useCallback(
-    async (codexBin: string | null, codexArgs: string | null) => {
-      return runCodexDoctor(codexBin, codexArgs);
+    async (opencodeBin: string | null, opencodeArgs: string | null) => {
+      return runOpenCodeDoctor(opencodeBin, opencodeArgs);
     },
     [],
   );

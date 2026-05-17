@@ -3,8 +3,8 @@ import type { ComponentType } from "react";
 import type {
   AppSettings,
   BranchInfo,
-  CodexDoctorResult,
-  CodexUpdateResult,
+  OpenCodeDoctorResult,
+  OpenCodeUpdateResult,
   ThreadSummary,
   WorkspaceGroup,
   WorkspaceInfo,
@@ -109,13 +109,13 @@ type UseMainAppModalsArgs = {
     queueSaveSettings: (next: AppSettings) => Promise<unknown>;
     handleToggleAutomaticAppUpdateChecks: () => void;
     doctor: (
-      codexBin: string | null,
-      codexArgs: string | null,
-    ) => Promise<CodexDoctorResult>;
-    codexUpdate?: (
-      codexBin: string | null,
-      codexArgs: string | null,
-    ) => Promise<CodexUpdateResult>;
+      opencodeBin: string | null,
+      opencodeArgs: string | null,
+    ) => Promise<OpenCodeDoctorResult>;
+    opencodeUpdate?: (
+      opencodeBin: string | null,
+      opencodeArgs: string | null,
+    ) => Promise<OpenCodeUpdateResult>;
     updateWorkspaceSettings: (
       id: string,
       settings: Partial<WorkspaceSettings>,
@@ -185,7 +185,7 @@ function buildSettingsViewProps({
     onToggleAutomaticAppUpdateChecks:
       settings.handleToggleAutomaticAppUpdateChecks,
     onRunDoctor: settings.doctor,
-    onRunCodexUpdate: settings.codexUpdate,
+    onRunOpenCodeUpdate: settings.opencodeUpdate,
     onUpdateWorkspaceSettings: async (id, nextSettings) => {
       await settings.updateWorkspaceSettings(id, nextSettings);
     },

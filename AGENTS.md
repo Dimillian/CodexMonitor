@@ -1,4 +1,4 @@
-# CodexMonitor Agent Guide
+# OpenCodeMonitor Agent Guide
 
 All docs must be canonical, with no past commentary, only live state.
 
@@ -8,16 +8,16 @@ This file is the agent contract for how to work in this repo.
 Detailed navigation/runbooks live in:
 
 - `docs/codebase-map.md` (task-oriented file map: "if you need X, edit Y")
-- `docs/multi-agent-sync-runbook.md` (upstream `../Codex` sync checklist for multi-agent/config behavior)
+- `docs/multi-agent-sync-runbook.md` (upstream `../OpenCode` sync checklist for multi-agent/config behavior)
 - `README.md` (setup, build, release, and broader project docs)
 
 ## Project Snapshot
 
-CodexMonitor is a Tauri app that orchestrates Codex agents across local workspaces.
+OpenCodeMonitor is a Tauri app that orchestrates OpenCode agents across local workspaces.
 
 - Frontend: React + Vite (`src/`)
 - Backend app: Tauri Rust process (`src-tauri/src/lib.rs`)
-- Backend daemon: JSON-RPC process (`src-tauri/src/bin/codex_monitor_daemon.rs`)
+- Backend daemon: JSON-RPC process (`src-tauri/src/bin/opencode_monitor_daemon.rs`)
 - Shared backend source of truth: `src-tauri/src/shared/*`
 
 ## Non-Negotiable Architecture Rules
@@ -35,7 +35,7 @@ For backend behavior changes, follow this order:
 1. Shared core (`src-tauri/src/shared/*`) when behavior is cross-runtime.
 2. App adapter and Tauri command surface (`src-tauri/src/lib.rs` + adapter module).
 3. Frontend IPC wrapper (`src/services/tauri.ts`).
-4. Daemon RPC surface (`src-tauri/src/bin/codex_monitor_daemon/rpc.rs` + `rpc/*`).
+4. Daemon RPC surface (`src-tauri/src/bin/opencode_monitor_daemon/rpc.rs` + `rpc/*`).
 
 If you add a backend command, update all relevant layers and tests.
 
@@ -67,8 +67,8 @@ Use project aliases for frontend imports:
 - Frontend IPC wrapper: `src/services/tauri.ts`
 - Frontend event hub: `src/services/events.ts`
 - App command registry: `src-tauri/src/lib.rs`
-- Daemon entrypoint: `src-tauri/src/bin/codex_monitor_daemon.rs`
-- Daemon RPC router: `src-tauri/src/bin/codex_monitor_daemon/rpc.rs`
+- Daemon entrypoint: `src-tauri/src/bin/opencode_monitor_daemon.rs`
+- Daemon RPC router: `src-tauri/src/bin/opencode_monitor_daemon/rpc.rs`
 - Shared workspaces core: `src-tauri/src/shared/workspaces_core.rs` + `src-tauri/src/shared/workspaces_core/*`
 - Shared git UI core: `src-tauri/src/shared/git_ui_core.rs` + `src-tauri/src/shared/git_ui_core/*`
 - Threads reducer entrypoint: `src/features/threads/hooks/useThreadsReducer.ts`
@@ -160,7 +160,7 @@ Use extra care in high-churn/high-complexity files:
 - `src/features/threads/hooks/useThreadsReducer.ts`
 - `src-tauri/src/shared/git_ui_core.rs`
 - `src-tauri/src/shared/workspaces_core.rs`
-- `src-tauri/src/bin/codex_monitor_daemon/rpc.rs`
+- `src-tauri/src/bin/opencode_monitor_daemon/rpc.rs`
 
 ## Canonical References
 

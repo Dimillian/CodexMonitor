@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 
-use crate::codex::home::{resolve_default_codex_home, resolve_workspace_codex_home};
+use crate::opencode::home::{resolve_default_opencode_home, resolve_workspace_opencode_home};
 use crate::types::{
     LocalUsageDay, LocalUsageModel, LocalUsageSnapshot, LocalUsageTotals, WorkspaceEntry,
 };
@@ -519,9 +519,9 @@ fn make_day_keys(days: u32) -> Vec<String> {
         .collect()
 }
 
-fn resolve_codex_sessions_root(codex_home_override: Option<PathBuf>) -> Option<PathBuf> {
-    codex_home_override
-        .or_else(resolve_default_codex_home)
+fn resolve_opencode_sessions_root(opencode_home_override: Option<PathBuf>) -> Option<PathBuf> {
+    opencode_home_override
+        .or_else(resolve_default_opencode_home)
         .map(|home| home.join("sessions"))
 }
 
@@ -530,9 +530,9 @@ fn resolve_sessions_roots(
     workspace_path: Option<&Path>,
 ) -> Vec<PathBuf> {
     if let Some(workspace_path) = workspace_path {
-        let codex_home_override =
-            resolve_workspace_codex_home_for_path(workspaces, Some(workspace_path));
-        return resolve_codex_sessions_root(codex_home_override)
+        let opencode_home_override =
+            resolve_workspace_opencode_home_for_path(workspaces, Some(workspace_path));
+        return resolve_opencode_sessions_root(opencode_home_override)
             .into_iter()
             .collect();
     }
@@ -540,7 +540,7 @@ fn resolve_sessions_roots(
     let mut roots = Vec::new();
     let mut seen = HashSet::new();
 
-    if let Some(root) = resolve_codex_sessions_root(None) {
+    if let Some(root) = resolve_opencode_sessions_root(None) {
         if seen.insert(root.clone()) {
             roots.push(root);
         }
@@ -551,10 +551,10 @@ fn resolve_sessions_roots(
             .parent_id
             .as_ref()
             .and_then(|parent_id| workspaces.get(parent_id));
-        let Some(codex_home) = resolve_workspace_codex_home(entry, parent_entry) else {
+        let Some(opencode_home) = resolve_workspace_opencode_home(entry, parent_entry) else {
             continue;
         };
-        if let Some(root) = resolve_codex_sessions_root(Some(codex_home)) {
+        if let Some(root) = resolve_opencode_sessions_root(Some(opencode_home)) {
             if seen.insert(root.clone()) {
                 roots.push(root);
             }
@@ -564,7 +564,7 @@ fn resolve_sessions_roots(
     roots
 }
 
-fn resolve_workspace_codex_home_for_path(
+fn resolve_workspace_opencode_home_for_path(
     workspaces: &HashMap<String, crate::types::WorkspaceEntry>,
     workspace_path: Option<&Path>,
 ) -> Option<PathBuf> {
@@ -582,7 +582,7 @@ fn resolve_workspace_codex_home_for_path(
         .as_ref()
         .and_then(|parent_id| workspaces.get(parent_id));
 
-    resolve_workspace_codex_home(entry, parent_entry)
+    resolve_workspace_opencode_home(entry, parent_entry)
 }
 
 fn day_dir_for_key(root: &Path, day_key: &str) -> PathBuf {
@@ -832,7 +832,7 @@ mod tests {
         workspaces.insert(entry_b.id.clone(), entry_b.clone());
 
         let roots = resolve_sessions_roots(&workspaces, None);
-        let expected = resolve_codex_sessions_root(None)
+        let expected = resolve_opencode_sessions_root(None)
             .map(|root| vec![root])
             .unwrap_or_default();
         assert_eq!(roots, expected);

@@ -28,7 +28,7 @@ type MarkdownNode = {
   children?: MarkdownNode[];
 };
 
-const FILE_LINK_PROTOCOL = "codex-file:";
+const FILE_LINK_PROTOCOL = "opencode-file:";
 const POSIX_OR_RELATIVE_FILE_PATH_PATTERN =
   "(?:\\/[^\\s\\`\"'<>]+|~\\/[^\\s\\`\"'<>]+|\\.{1,2}\\/[^\\s\\`\"'<>]+|[A-Za-z0-9._-]+(?:\\/[A-Za-z0-9._-]+)+)";
 const WINDOWS_ABSOLUTE_FILE_PATH_PATTERN =

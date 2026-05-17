@@ -6,7 +6,7 @@ use tokio::process::Child;
 use tokio::sync::Mutex;
 
 use crate::dictation::DictationState;
-use crate::shared::codex_core::CodexLoginCancelState;
+use crate::shared::opencode_core::OpenCodeLoginCancelState;
 use crate::storage::{read_settings, read_workspaces};
 use crate::types::{AppSettings, TcpDaemonState, TcpDaemonStatus, WorkspaceEntry};
 
@@ -32,14 +32,14 @@ impl Default for TcpDaemonRuntime {
 
 pub(crate) struct AppState {
     pub(crate) workspaces: Mutex<HashMap<String, WorkspaceEntry>>,
-    pub(crate) sessions: Mutex<HashMap<String, Arc<crate::codex::WorkspaceSession>>>,
+    pub(crate) sessions: Mutex<HashMap<String, Arc<crate::opencode::WorkspaceSession>>>,
     pub(crate) terminal_sessions: Mutex<HashMap<String, Arc<crate::terminal::TerminalSession>>>,
     pub(crate) remote_backend: Mutex<Option<crate::remote_backend::RemoteBackend>>,
     pub(crate) storage_path: PathBuf,
     pub(crate) settings_path: PathBuf,
     pub(crate) app_settings: Mutex<AppSettings>,
     pub(crate) dictation: Mutex<DictationState>,
-    pub(crate) codex_login_cancels: Mutex<HashMap<String, CodexLoginCancelState>>,
+    pub(crate) opencode_login_cancels: Mutex<HashMap<String, OpenCodeLoginCancelState>>,
     pub(crate) tcp_daemon: Mutex<TcpDaemonRuntime>,
 }
 
@@ -62,7 +62,7 @@ impl AppState {
             settings_path,
             app_settings: Mutex::new(app_settings),
             dictation: Mutex::new(DictationState::default()),
-            codex_login_cancels: Mutex::new(HashMap::new()),
+            opencode_login_cancels: Mutex::new(HashMap::new()),
             tcp_daemon: Mutex::new(TcpDaemonRuntime::default()),
         }
     }

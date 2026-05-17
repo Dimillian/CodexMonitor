@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 pub(crate) fn daemon_binary_candidates() -> &'static [&'static str] {
     if cfg!(windows) {
-        &["codex_monitor_daemon.exe", "codex-monitor-daemon.exe"]
+        &["opencode_monitor_daemon.exe", "opencode-monitor-daemon.exe"]
     } else {
-        &["codex_monitor_daemon", "codex-monitor-daemon"]
+        &["opencode_monitor_daemon", "opencode-monitor-daemon"]
     }
 }
 
@@ -46,7 +46,7 @@ pub(crate) fn resolve_daemon_binary_path() -> Result<PathBuf, String> {
         .ok_or_else(|| "Unable to resolve executable directory".to_string())?;
     let candidate_names = daemon_binary_candidates();
 
-    if let Ok(explicit_raw) = std::env::var("CODEX_MONITOR_DAEMON_PATH") {
+    if let Ok(explicit_raw) = std::env::var("OPENCODE_MONITOR_DAEMON_PATH") {
         let explicit = explicit_raw.trim();
         if !explicit.is_empty() {
             let explicit_path = PathBuf::from(explicit);
@@ -95,6 +95,6 @@ mod tests {
 
     #[test]
     fn daemon_binary_candidates_prioritize_underscored_name() {
-        assert!(daemon_binary_candidates()[0].starts_with("codex_monitor_daemon"));
+        assert!(daemon_binary_candidates()[0].starts_with("opencode_monitor_daemon"));
     }
 }

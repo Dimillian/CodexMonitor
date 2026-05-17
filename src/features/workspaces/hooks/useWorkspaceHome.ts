@@ -38,7 +38,7 @@ type UseWorkspaceHomeOptions = {
   effort?: string | null;
   serviceTier?: ServiceTier | null | undefined;
   collaborationMode?: Record<string, unknown> | null;
-  seedThreadCodexParams?: (
+  seedThreadOpenCodeParams?: (
     workspaceId: string,
     threadId: string,
     patch: {
@@ -191,7 +191,7 @@ export function useWorkspaceHome({
   effort = null,
   serviceTier = undefined,
   collaborationMode = null,
-  seedThreadCodexParams,
+  seedThreadOpenCodeParams,
   addWorktreeAgent,
   connectWorkspace,
   startThreadForWorkspace,
@@ -490,7 +490,7 @@ export function useWorkspaceHome({
           if (!threadId) {
             throw new Error("Failed to start a local thread.");
           }
-          seedThreadCodexParams?.(activeWorkspace.id, threadId, {
+          seedThreadOpenCodeParams?.(activeWorkspace.id, threadId, {
             modelId: selectedModelId,
             effort,
             serviceTier,
@@ -557,7 +557,7 @@ export function useWorkspaceHome({
               if (!threadId) {
                 throw new Error("Failed to start a worktree thread.");
               }
-              seedThreadCodexParams?.(worktreeWorkspace.id, threadId, {
+              seedThreadOpenCodeParams?.(worktreeWorkspace.id, threadId, {
                 modelId: selection.modelId,
                 effort,
                 serviceTier,
@@ -631,7 +631,7 @@ export function useWorkspaceHome({
     modelSelections,
     updateRunState,
     runMode,
-    seedThreadCodexParams,
+    seedThreadOpenCodeParams,
     selectedModelId,
     serviceTier,
     sendUserMessageToThread,

@@ -1,13 +1,13 @@
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const STORAGE_KEY_SIDEBAR = "codexmonitor.sidebarWidth";
-const STORAGE_KEY_RIGHT_PANEL = "codexmonitor.rightPanelWidth";
+const STORAGE_KEY_SIDEBAR = "opencodemonitor.sidebarWidth";
+const STORAGE_KEY_RIGHT_PANEL = "opencodemonitor.rightPanelWidth";
 const STORAGE_KEY_CHAT_DIFF_SPLIT_POSITION_PERCENT =
-  "codexmonitor.chatDiffSplitPositionPercent";
-const STORAGE_KEY_PLAN_PANEL = "codexmonitor.planPanelHeight";
-const STORAGE_KEY_TERMINAL_PANEL = "codexmonitor.terminalPanelHeight";
-const STORAGE_KEY_DEBUG_PANEL = "codexmonitor.debugPanelHeight";
+  "opencodemonitor.chatDiffSplitPositionPercent";
+const STORAGE_KEY_PLAN_PANEL = "opencodemonitor.planPanelHeight";
+const STORAGE_KEY_TERMINAL_PANEL = "opencodemonitor.terminalPanelHeight";
+const STORAGE_KEY_DEBUG_PANEL = "opencodemonitor.debugPanelHeight";
 const MIN_SIDEBAR_WIDTH = 220;
 const MAX_SIDEBAR_WIDTH = 420;
 const MIN_CHAT_DIFF_SPLIT_POSITION_PERCENT = 20;

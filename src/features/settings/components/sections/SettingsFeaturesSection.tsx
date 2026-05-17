@@ -1,4 +1,4 @@
-import type { CodexFeature } from "@/types";
+import type { OpenCodeFeature } from "@/types";
 import {
   SettingsSection,
   SettingsSubsection,
@@ -32,14 +32,14 @@ const FEATURE_DESCRIPTION_FALLBACKS: Record<string, string> = {
   remote_models: "Refresh remote models before AppReady.",
   powershell_utf8: "Enforce UTF-8 output in PowerShell.",
   enable_request_compression:
-    "Compress streaming request bodies sent to codex-backend.",
+    "Compress streaming request bodies sent to opencode-backend.",
   apps: "Enable ChatGPT Apps integration.",
   apps_mcp_gateway: "Route Apps MCP calls through the configured gateway.",
   skill_mcp_dependency_install:
     "Allow prompting and installing missing MCP dependencies.",
   skill_env_var_dependency_prompt:
     "Prompt for missing skill environment variable dependencies.",
-  steer: "Enable turn steering capability when supported by Codex.",
+  steer: "Enable turn steering capability when supported by OpenCode.",
   collaboration_modes: "Enable collaboration mode presets.",
   personality: "Enable personality selection.",
   responses_websockets:
@@ -47,7 +47,7 @@ const FEATURE_DESCRIPTION_FALLBACKS: Record<string, string> = {
   responses_websockets_v2: "Enable Responses API WebSocket v2 mode.",
 };
 
-function formatFeatureLabel(feature: CodexFeature): string {
+function formatFeatureLabel(feature: OpenCodeFeature): string {
   const displayName = feature.displayName?.trim();
   if (displayName) {
     return displayName;
@@ -59,7 +59,7 @@ function formatFeatureLabel(feature: CodexFeature): string {
     .join(" ");
 }
 
-function featureSubtitle(feature: CodexFeature): string {
+function featureSubtitle(feature: OpenCodeFeature): string {
   if (feature.description?.trim()) {
     return feature.description;
   }
@@ -90,17 +90,17 @@ export function SettingsFeaturesSection({
   experimentalFeatures,
   hasDynamicFeatureRows,
   onOpenConfig,
-  onToggleCodexFeature,
+  onToggleOpenCodeFeature,
   onUpdateAppSettings,
 }: SettingsFeaturesSectionProps) {
   return (
     <SettingsSection
       title="Features"
-      subtitle="Manage stable and experimental Codex features."
+      subtitle="Manage stable and experimental OpenCode features."
     >
       <SettingsToggleRow
         title="Config file"
-        subtitle={`Open the Codex config in ${fileManagerName()}.`}
+        subtitle={`Open the OpenCode config in ${fileManagerName()}.`}
       >
         <button type="button" className="ghost" onClick={onOpenConfig}>
           {openInFileManagerLabel()}
@@ -115,7 +115,7 @@ export function SettingsFeaturesSection({
         title="Personality"
         subtitle={
           <>
-            Choose Codex communication style (writes top-level <code>personality</code> in
+            Choose OpenCode communication style (writes top-level <code>personality</code> in
             config.toml).
           </>
         }
@@ -138,7 +138,7 @@ export function SettingsFeaturesSection({
       </SettingsToggleRow>
       <SettingsToggleRow
         title="Pause queued messages when a response is required"
-        subtitle="Keep queued messages paused while Codex is waiting for plan accept/changes or your answers."
+        subtitle="Keep queued messages paused while OpenCode is waiting for plan accept/changes or your answers."
       >
         <SettingsToggleSwitch
           pressed={appSettings.pauseQueuedMessagesWhenResponseRequired}
@@ -159,7 +159,7 @@ export function SettingsFeaturesSection({
         >
           <SettingsToggleSwitch
             pressed={feature.enabled}
-            onClick={() => onToggleCodexFeature(feature)}
+            onClick={() => onToggleOpenCodeFeature(feature)}
             disabled={featureUpdatingKey === feature.name}
           />
         </SettingsToggleRow>
@@ -168,7 +168,7 @@ export function SettingsFeaturesSection({
         !featuresLoading &&
         !featureError &&
         stableFeatures.length === 0 && (
-        <div className="settings-help">No stable feature flags returned by Codex.</div>
+        <div className="settings-help">No stable feature flags returned by OpenCode.</div>
       )}
       <SettingsSubsection
         title="Experimental Features"
@@ -182,7 +182,7 @@ export function SettingsFeaturesSection({
         >
           <SettingsToggleSwitch
             pressed={feature.enabled}
-            onClick={() => onToggleCodexFeature(feature)}
+            onClick={() => onToggleOpenCodeFeature(feature)}
             disabled={featureUpdatingKey === feature.name}
           />
         </SettingsToggleRow>
@@ -193,15 +193,15 @@ export function SettingsFeaturesSection({
         hasDynamicFeatureRows &&
         experimentalFeatures.length === 0 && (
           <div className="settings-help">
-            No preview or under-development feature flags returned by Codex.
+            No preview or under-development feature flags returned by OpenCode.
           </div>
         )}
       {featuresLoading && (
-        <div className="settings-help">Loading Codex feature flags...</div>
+        <div className="settings-help">Loading OpenCode feature flags...</div>
       )}
       {!hasFeatureWorkspace && !featuresLoading && (
         <div className="settings-help">
-          Connect a workspace to load Codex feature flags.
+          Connect a workspace to load OpenCode feature flags.
         </div>
       )}
       {featureError && <div className="settings-help">{featureError}</div>}

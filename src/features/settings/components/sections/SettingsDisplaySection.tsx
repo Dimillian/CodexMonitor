@@ -189,7 +189,7 @@ export function SettingsDisplaySection({
         </select>
       </div>
       <SettingsToggleRow
-        title="Show remaining Codex limits"
+        title="Show remaining OpenCode limits"
         subtitle="Display what is left instead of what is used."
       >
         <SettingsToggleSwitch

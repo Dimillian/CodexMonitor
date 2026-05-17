@@ -2,7 +2,7 @@ import { useThemePreference } from "../../layout/hooks/useThemePreference";
 import { useTransparencyPreference } from "../../layout/hooks/useTransparencyPreference";
 import { useUiScaleShortcuts } from "../../layout/hooks/useUiScaleShortcuts";
 import { useAppSettings } from "../../settings/hooks/useAppSettings";
-import { runCodexUpdate } from "../../../services/tauri";
+import { runOpenCodeUpdate } from "../../../services/tauri";
 
 export function useAppSettingsController() {
   const {
@@ -34,8 +34,8 @@ export function useAppSettingsController() {
     saveSettings,
     queueSaveSettings,
     doctor,
-    codexUpdate: (codexBin: string | null, codexArgs: string | null) =>
-      runCodexUpdate(codexBin, codexArgs),
+    opencodeUpdate: (opencodeBin: string | null, opencodeArgs: string | null) =>
+      runOpenCodeUpdate(opencodeBin, opencodeArgs),
     appSettingsLoading,
     reduceTransparency,
     setReduceTransparency,

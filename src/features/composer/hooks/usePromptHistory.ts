@@ -3,7 +3,7 @@ import type { KeyboardEvent, RefObject } from "react";
 
 const HISTORY_LIMIT = 200;
 const DEFAULT_HISTORY_KEY = "default";
-const STORAGE_PREFIX = "codexmonitor.promptHistory.";
+const STORAGE_PREFIX = "opencodemonitor.promptHistory.";
 
 function getStorageKey(key: string) {
   return `${STORAGE_PREFIX}${key}`;

@@ -43,7 +43,7 @@ import { ComposerInput } from "./ComposerInput";
 import { ComposerMetaBar } from "./ComposerMetaBar";
 import { ComposerQueue } from "./ComposerQueue";
 import { isMacPlatform } from "../../../utils/platformPaths";
-import type { CodexArgsOption } from "../../threads/utils/codexArgsProfiles";
+import type { OpenCodeArgsOption } from "../../threads/utils/opencodeArgsProfiles";
 
 type ComposerProps = {
   onSend: (
@@ -71,9 +71,9 @@ type ComposerProps = {
   onSelectEffort: (effort: string) => void;
   selectedServiceTier: ServiceTier | null;
   reasoningSupported: boolean;
-  codexArgsOptions?: CodexArgsOption[];
-  selectedCodexArgsOverride?: string | null;
-  onSelectCodexArgsOverride?: (value: string | null) => void;
+  opencodeArgsOptions?: OpenCodeArgsOption[];
+  selectedOpenCodeArgsOverride?: string | null;
+  onSelectOpenCodeArgsOverride?: (value: string | null) => void;
   accessMode: "read-only" | "current" | "full-access";
   onSelectAccessMode: (mode: "read-only" | "current" | "full-access") => void;
   skills: { name: string; description?: string }[];
@@ -180,9 +180,9 @@ export const Composer = memo(function Composer({
   onSelectEffort,
   selectedServiceTier,
   reasoningSupported,
-  codexArgsOptions = [],
-  selectedCodexArgsOverride = null,
-  onSelectCodexArgsOverride,
+  opencodeArgsOptions = [],
+  selectedOpenCodeArgsOverride = null,
+  onSelectOpenCodeArgsOverride,
   accessMode,
   onSelectAccessMode,
   skills,
@@ -687,9 +687,9 @@ export const Composer = memo(function Composer({
         onSelectEffort={onSelectEffort}
         selectedServiceTier={selectedServiceTier}
         reasoningSupported={reasoningSupported}
-        codexArgsOptions={codexArgsOptions}
-        selectedCodexArgsOverride={selectedCodexArgsOverride}
-        onSelectCodexArgsOverride={onSelectCodexArgsOverride}
+        opencodeArgsOptions={opencodeArgsOptions}
+        selectedOpenCodeArgsOverride={selectedOpenCodeArgsOverride}
+        onSelectOpenCodeArgsOverride={onSelectOpenCodeArgsOverride}
         accessMode={accessMode}
         onSelectAccessMode={onSelectAccessMode}
         contextUsage={contextUsage}

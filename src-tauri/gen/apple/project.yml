@@ -1,6 +1,6 @@
-name: codex-monitor
+name: opencode-monitor
 options:
-  bundleIdPrefix: com.dimillian.codexmonitor
+  bundleIdPrefix: com.dimillian.opencodemonitor
   deploymentTarget:
     iOS: 14.0
 fileGroups: [../../src]
@@ -10,8 +10,8 @@ configs:
 settingGroups:
   app:
     base:
-      PRODUCT_NAME: Codex Monitor
-      PRODUCT_BUNDLE_IDENTIFIER: com.dimillian.codexmonitor
+      PRODUCT_NAME: OpenCode Monitor
+      PRODUCT_BUNDLE_IDENTIFIER: com.dimillian.opencodemonitor
 targetTemplates:
   app:
     type: application
@@ -24,20 +24,20 @@ targetTemplates:
     settings:
       groups: [app]
 targets:
-  codex-monitor_iOS:
+  opencode-monitor_iOS:
     type: application
     platform: iOS
     sources:
       - path: Sources
       - path: Assets.xcassets
       - path: Externals
-      - path: codex-monitor_iOS
+      - path: opencode-monitor_iOS
       - path: assets
         buildPhase: resources
         type: folder
       - path: LaunchScreen.storyboard
     info:
-      path: codex-monitor_iOS/Info.plist
+      path: opencode-monitor_iOS/Info.plist
       properties:
         LSRequiresIPhoneOS: true
         UILaunchStoryboardName: LaunchScreen
@@ -56,7 +56,7 @@ targets:
         CFBundleShortVersionString: 0.7.45
         CFBundleVersion: "0.7.45"
     entitlements:
-      path: codex-monitor_iOS/codex-monitor_iOS.entitlements
+      path: opencode-monitor_iOS/opencode-monitor_iOS.entitlements
     scheme:
       environmentVariables:
         RUST_BACKTRACE: full

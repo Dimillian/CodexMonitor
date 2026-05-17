@@ -8,7 +8,7 @@ export type SettingsSection =
   | "shortcuts"
   | "open-apps"
   | "git"
-  | "codex"
+  | "opencode"
   | "features";
 
 export function useSettingsModalState() {

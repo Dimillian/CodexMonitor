@@ -6,7 +6,7 @@ import { SettingsAgentsSection } from "./SettingsAgentsSection";
 
 const baseProps = (): SettingsAgentsSectionProps => ({
   settings: {
-    configPath: "/Users/me/.codex/config.toml",
+    configPath: "/Users/me/.config/opencode/config.toml",
     multiAgentEnabled: false,
     maxThreads: 6,
     maxDepth: 1,
@@ -16,7 +16,7 @@ const baseProps = (): SettingsAgentsSectionProps => ({
         description: "Research-focused role",
         developerInstructions: "Investigate and propose safe changes.",
         configFile: "researcher.toml",
-        resolvedPath: "/Users/me/.codex/agents/researcher.toml",
+        resolvedPath: "/Users/me/.config/opencode/agents/researcher.toml",
         managedByApp: true,
         fileExists: true,
       },
@@ -39,15 +39,15 @@ const baseProps = (): SettingsAgentsSectionProps => ({
   onCreateAgent: vi.fn(async () => true),
   onUpdateAgent: vi.fn(async () => true),
   onDeleteAgent: vi.fn(async () => true),
-  onReadAgentConfig: vi.fn(async () => "model = \"gpt-5-codex\""),
+  onReadAgentConfig: vi.fn(async () => "model = \"opencode-go/deepseek-v4-flash\""),
   onWriteAgentConfig: vi.fn(async () => true),
   onGenerateCreateDescription: vi.fn(async () => null),
   onGenerateEditDescription: vi.fn(async () => null),
   modelOptions: [
     {
-      id: "gpt-5-codex",
-      model: "gpt-5-codex",
-      displayName: "gpt-5-codex",
+      id: "opencode-go/deepseek-v4-flash",
+      model: "opencode-go/deepseek-v4-flash",
+      displayName: "opencode-go/deepseek-v4-flash",
       description: "",
       supportedReasoningEfforts: [],
       defaultReasoningEffort: null,

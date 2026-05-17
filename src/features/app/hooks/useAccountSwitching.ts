@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { cancelCodexLogin, runCodexLogin } from "../../../services/tauri";
+import { cancelOpenCodeLogin, runOpenCodeLogin } from "../../../services/tauri";
 import { subscribeAppServerEvents } from "../../../services/events";
 import type { AccountSnapshot } from "../../../types";
 import { getAppServerParams, getAppServerRawMethod } from "../../../utils/appServerEvents";
@@ -44,13 +44,13 @@ export function useAccountSwitching({
     return accountByWorkspace[activeWorkspaceId] ?? null;
   }, [activeWorkspaceId, accountByWorkspace]);
 
-  const isCodexLoginCanceled = useCallback((error: unknown) => {
+  const isOpenCodeLoginCanceled = useCallback((error: unknown) => {
     const message =
       typeof error === "string" ? error : error instanceof Error ? error.message : "";
     const normalized = message.toLowerCase();
     return (
-      normalized.includes("codex login canceled") ||
-      normalized.includes("codex login cancelled") ||
+      normalized.includes("opencode login canceled") ||
+      normalized.includes("opencode login cancelled") ||
       normalized.includes("request canceled")
     );
   }, []);
@@ -152,12 +152,12 @@ export function useAccountSwitching({
     loginIdRef.current = null;
     loginWorkspaceIdRef.current = workspaceId;
     try {
-      const { loginId, authUrl } = await runCodexLogin(workspaceId);
+      const { loginId, authUrl } = await runOpenCodeLogin(workspaceId);
 
       if (accountSwitchCanceledRef.current) {
         loginIdRef.current = loginId;
         try {
-          await cancelCodexLogin(workspaceId);
+          await cancelOpenCodeLogin(workspaceId);
         } catch {
           // Best effort: the user already canceled.
         }
@@ -171,7 +171,7 @@ export function useAccountSwitching({
       loginIdRef.current = loginId;
       await openUrl(authUrl);
     } catch (error) {
-      if (accountSwitchCanceledRef.current || isCodexLoginCanceled(error)) {
+      if (accountSwitchCanceledRef.current || isOpenCodeLoginCanceled(error)) {
         setAccountSwitching(false);
         accountSwitchCanceledRef.current = false;
         loginIdRef.current = null;
@@ -181,7 +181,7 @@ export function useAccountSwitching({
       alertError(error);
       if (loginIdRef.current) {
         try {
-          await cancelCodexLogin(workspaceId);
+          await cancelOpenCodeLogin(workspaceId);
         } catch {
           // Ignore cancel errors here; we already surfaced the primary failure.
         }
@@ -197,7 +197,7 @@ export function useAccountSwitching({
     activeWorkspaceId,
     accountSwitching,
     alertError,
-    isCodexLoginCanceled,
+    isOpenCodeLoginCanceled,
   ]);
 
   const handleCancelSwitchAccount = useCallback(async () => {
@@ -207,7 +207,7 @@ export function useAccountSwitching({
     }
     accountSwitchCanceledRef.current = true;
     try {
-      await cancelCodexLogin(targetWorkspaceId);
+      await cancelOpenCodeLogin(targetWorkspaceId);
     } catch (error) {
       alertError(error);
     } finally {

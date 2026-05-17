@@ -1,20 +1,19 @@
-# CodexMonitor
+# OpenCodeMonitor
 
-[![gitcgr](https://gitcgr.com/badge/Dimillian/CodexMonitor.svg)](https://gitcgr.com/Dimillian/CodexMonitor)
+[![gitcgr](https://gitcgr.com/badge/Dimillian/OpenCodeMonitor.svg)](https://gitcgr.com/Dimillian/OpenCodeMonitor)
 
-![CodexMonitor](screenshot.png)
+![OpenCodeMonitor](screenshot.png)
 
-CodexMonitor is a Tauri app for orchestrating multiple Codex agents across local workspaces. It provides a sidebar to manage projects, a home screen for quick actions, and a conversation view backed by the Codex app-server protocol.
+OpenCodeMonitor is a Tauri app for orchestrating multiple OpenCode agents across local workspaces. It provides a sidebar to manage projects, a home screen for quick actions, and a conversation view backed by the OpenCode app-server protocol.
 
 ## Features
 
 ### Workspaces & Threads
 
 - Add and persist workspaces, group/sort them, and jump into recent agent activity from the home dashboard.
-- Spawn one `codex app-server` per workspace, resume threads, and track unread/running state.
-- Worktree and clone agents for isolated work; worktrees live under the app data directory (legacy `.codex-worktrees` supported).
-- Thread management: pin/rename/archive/copy, per-thread drafts, and stop/interrupt in-flight turns.
-- Optional remote backend (daemon) mode for running Codex on another machine.
+- Spawn one `opencode app-server` per workspace, resume threads, and track unread/running state.
+- Worktree and clone agents for isolated work; worktrees live under the app data directory (legacy `.opencode-worktrees` supported).
+- Optional remote backend (daemon) mode for running OpenCode on another machine.
 - Remote setup helpers for self-hosted connectivity (Tailscale detection/host bootstrap for TCP mode).
 
 ### Composer & Agent Controls
@@ -52,7 +51,7 @@ CodexMonitor is a Tauri app for orchestrating multiple Codex agents across local
 - Rust toolchain (stable)
 - CMake (required for native dependencies; dictation/Whisper uses it)
 - LLVM/Clang (required on Windows to build dictation dependencies via bindgen)
-- Codex CLI installed and available as `codex` in `PATH` (or configure a custom Codex binary in app/workspace settings)
+- OpenCode CLI installed and available as `opencode` in `PATH` (or configure a custom OpenCode binary in app/workspace settings)
 - Git CLI (used for worktree operations)
 - GitHub CLI (`gh`) for GitHub Issues/PR integrations (optional)
 
@@ -90,11 +89,9 @@ Use this when connecting the iOS app to a desktop-hosted daemon over your Tailsc
 Canonical runbook: `docs/mobile-ios-tailscale-blueprint.md`.
 
 1. Install and sign in to Tailscale on both desktop and iPhone (same tailnet).
-2. On desktop CodexMonitor, open `Settings > Server`.
-3. Set a `Remote backend token`.
-4. Start the desktop daemon with `Start daemon` (in `Mobile access daemon`).
-5. In `Tailscale helper`, use `Detect Tailscale` and note the suggested host (for example `your-mac.your-tailnet.ts.net:4732`).
-6. On iOS CodexMonitor, open `Settings > Server`.
+2. On desktop OpenCodeMonitor, open `Settings > Server`.
+
+6. On iOS OpenCodeMonitor, open `Settings > Server`.
 7. Enter the desktop Tailscale host and the same token.
 8. Tap `Connect & test` and confirm it succeeds.
 
@@ -111,23 +108,20 @@ Build binaries:
 
 ```bash
 cd src-tauri
-cargo build --bin codex_monitor_daemon --bin codex_monitor_daemonctl
+  cargo build --bin opencode_monitor_daemon --bin opencode_monitor_daemonctl
 ```
 
 Examples:
 
 ```bash
 # Show current daemon status
-./target/debug/codex_monitor_daemonctl status
+  ./target/debug/opencode_monitor_daemonctl status
 
-# Start daemon using host/token from settings.json
-./target/debug/codex_monitor_daemonctl start
+  ./target/debug/opencode_monitor_daemonctl start
 
-# Stop daemon
-./target/debug/codex_monitor_daemonctl stop
+  ./target/debug/opencode_monitor_daemonctl stop
 
-# Print equivalent daemon start command
-./target/debug/codex_monitor_daemonctl command-preview
+  ./target/debug/opencode_monitor_daemonctl command-preview
 ```
 
 Useful overrides:
@@ -135,7 +129,7 @@ Useful overrides:
 - `--data-dir <path>`: app data dir containing `settings.json` / `workspaces.json`
 - `--listen <addr>`: bind address override
 - `--token <token>`: token override
-- `--daemon-path <path>`: explicit `codex-monitor-daemon` binary path
+- `--daemon-path <path>`: explicit `opencode-monitor-daemon` binary path
 - `--json`: machine-readable output
 
 ### iOS Prerequisites
@@ -276,13 +270,13 @@ src/
   types.ts          shared types
 src-tauri/
   src/lib.rs        Tauri app backend command registry
-  src/bin/codex_monitor_daemon.rs  remote daemon JSON-RPC process
-  src/bin/codex_monitor_daemon/rpc/  daemon RPC domain handlers
+  src/bin/opencode_monitor_daemon.rs  remote daemon JSON-RPC process
+  src/bin/opencode_monitor_daemon/rpc/  daemon RPC domain handlers
   src/shared/       shared backend core used by app + daemon
   src/shared/git_ui_core/      git/github shared core modules
   src/shared/workspaces_core/  workspace/worktree shared core modules
   src/workspaces/   workspace/worktree adapters
-  src/codex/        codex app-server adapters
+  src/opencode/        opencode app-server adapters
   src/files/        file adapters
   tauri.conf.json   window configuration
 ```
@@ -290,28 +284,28 @@ src-tauri/
 ## Notes
 
 - Workspaces persist to `workspaces.json` under the app data directory.
-- App settings persist to `settings.json` under the app data directory (theme, backend mode/provider, remote endpoints/tokens, Codex path, default access mode, UI scale, follow-up message behavior).
-- Feature settings are supported in the UI and synced to `$CODEX_HOME/config.toml` (or `~/.codex/config.toml`) on load/save. Stable: Collaboration modes (`features.collaboration_modes`), personality (`personality`), and Background terminal (`features.unified_exec`). Experimental: Apps (`features.apps`). Steering capability still follows Codex `features.steer`, but follow-up default behavior is controlled in Settings → Composer.
+- App settings persist to `settings.json` under the app data directory (theme, backend mode/provider, remote endpoints/tokens, OpenCode path, default access mode, UI scale, follow-up message behavior).
+- Feature settings are supported in the UI and synced to `$OPENCODE_CONFIG_DIR/config.toml` (or `~/.config/opencode/config.toml`) on load/save. Stable: Collaboration modes (`features.collaboration_modes`), personality (`personality`), and Background terminal (`features.unified_exec`). Experimental: Apps (`features.apps`). Steering capability still follows OpenCode `features.steer`, but follow-up default behavior is controlled in Settings → Composer.
 - On launch and on window focus, the app reconnects and refreshes thread lists for each workspace.
 - Threads are restored by filtering `thread/list` results using the workspace `cwd`.
 - Selecting a thread always calls `thread/resume` to refresh messages from disk.
 - CLI sessions appear if their `cwd` matches the workspace path; they are not live-streamed unless resumed.
-- The app uses `codex app-server` over stdio; see `src-tauri/src/lib.rs` and `src-tauri/src/codex/`.
-- The remote daemon entrypoint is `src-tauri/src/bin/codex_monitor_daemon.rs`; RPC routing lives in `src-tauri/src/bin/codex_monitor_daemon/rpc.rs` and domain handlers in `src-tauri/src/bin/codex_monitor_daemon/rpc/`.
+- The app uses `opencode app-server` over stdio; see `src-tauri/src/lib.rs` and `src-tauri/src/opencode/`.
+- The remote daemon entrypoint is `src-tauri/src/bin/opencode_monitor_daemon.rs`; RPC routing lives in `src-tauri/src/bin/opencode_monitor_daemon/rpc.rs` and domain handlers in `src-tauri/src/bin/opencode_monitor_daemon/rpc/`.
 - Shared domain logic lives in `src-tauri/src/shared/` (notably `src-tauri/src/shared/git_ui_core/` and `src-tauri/src/shared/workspaces_core/`).
-- Codex home resolves from workspace settings (if set), then legacy `.codexmonitor/`, then `$CODEX_HOME`/`~/.codex`.
-- Worktree agents live under the app data directory (`worktrees/<workspace-id>`); legacy `.codex-worktrees/` paths remain supported, and the app no longer edits repo `.gitignore` files.
+- OpenCode home resolves from workspace settings (if set), then `$OPENCODE_CONFIG_DIR`/`~/.config/opencode`.
+- Worktree agents live under the app data directory (`worktrees/<workspace-id>`); legacy `.opencode-worktrees/` paths remain supported, and the app no longer edits repo `.gitignore` files.
 - UI state (panel sizes, reduced transparency toggle, recent thread activity) is stored in `localStorage`.
-- Custom prompts load from `$CODEX_HOME/prompts` (or `~/.codex/prompts`) with optional frontmatter description/argument hints.
+- Custom prompts load from `$OPENCODE_CONFIG_DIR/prompts` (or `~/.config/opencode/prompts`) with optional frontmatter description/argument hints.
 
 ## Tauri IPC Surface
 
 Frontend calls live in `src/services/tauri.ts` and map to commands in `src-tauri/src/lib.rs`. The current surface includes:
 
-- Settings/config/files: `get_app_settings`, `update_app_settings`, `get_codex_config_path`, `get_config_model`, `file_read`, `file_write`, `codex_doctor`, `menu_set_accelerators`.
+- Settings/config/files: `get_app_settings`, `update_app_settings`, `get_config_model`, `file_read`, `file_write`, `opencode_doctor`, `menu_set_accelerators`.
 - Workspaces/worktrees: `list_workspaces`, `is_workspace_path_dir`, `add_workspace`, `add_clone`, `add_worktree`, `worktree_setup_status`, `worktree_setup_mark_ran`, `rename_worktree`, `rename_worktree_upstream`, `apply_worktree_changes`, `update_workspace_settings`, `remove_workspace`, `remove_worktree`, `connect_workspace`, `list_workspace_files`, `read_workspace_file`, `open_workspace_in`, `get_open_app_icon`.
 - Threads/turns/reviews: `start_thread`, `fork_thread`, `compact_thread`, `list_threads`, `resume_thread`, `archive_thread`, `set_thread_name`, `send_user_message`, `turn_interrupt`, `respond_to_server_request`, `start_review`, `remember_approval_rule`, `get_commit_message_prompt`, `generate_commit_message`, `generate_run_metadata`.
-- Account/models/collaboration: `model_list`, `account_rate_limits`, `account_read`, `skills_list`, `apps_list`, `collaboration_mode_list`, `codex_login`, `codex_login_cancel`, `list_mcp_server_status`.
+- Account/models/collaboration: `model_list`, `account_rate_limits`, `account_read`, `skills_list`, `apps_list`, `collaboration_mode_list`, `opencode_login`, `opencode_login_cancel`, `list_mcp_server_status`.
 - Git/GitHub: `get_git_status`, `list_git_roots`, `get_git_diffs`, `get_git_log`, `get_git_commit_diff`, `get_git_remote`, `stage_git_file`, `stage_git_all`, `unstage_git_file`, `revert_git_file`, `revert_git_all`, `commit_git`, `push_git`, `pull_git`, `fetch_git`, `sync_git`, `list_git_branches`, `checkout_git_branch`, `create_git_branch`, `get_github_issues`, `get_github_pull_requests`, `get_github_pull_request_diff`, `get_github_pull_request_comments`.
 - Prompts: `prompts_list`, `prompts_create`, `prompts_update`, `prompts_delete`, `prompts_move`, `prompts_workspace_dir`, `prompts_global_dir`.
 - Terminal/dictation/notifications/usage: `terminal_open`, `terminal_write`, `terminal_resize`, `terminal_close`, `dictation_model_status`, `dictation_download_model`, `dictation_cancel_download`, `dictation_remove_model`, `dictation_request_permission`, `dictation_start`, `dictation_stop`, `dictation_cancel`, `send_notification_fallback`, `is_macos_debug_build`, `local_usage_snapshot`.

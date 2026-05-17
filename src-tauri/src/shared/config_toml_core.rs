@@ -5,9 +5,9 @@ use toml_edit::{value, Document, Item, Table};
 use crate::files::ops::{read_with_policy, write_with_policy};
 use crate::files::policy::{policy_for, FileKind, FileScope};
 
-pub(crate) fn load_global_config_document(codex_home: &Path) -> Result<(bool, Document), String> {
+pub(crate) fn load_global_config_document(opencode_home: &Path) -> Result<(bool, Document), String> {
     let policy = policy_for(FileScope::Global, FileKind::Config)?;
-    let root = codex_home.to_path_buf();
+    let root = opencode_home.to_path_buf();
     let response = read_with_policy(&root, policy)?;
     let document = if response.exists {
         parse_document(response.content.as_str())?
@@ -18,11 +18,11 @@ pub(crate) fn load_global_config_document(codex_home: &Path) -> Result<(bool, Do
 }
 
 pub(crate) fn persist_global_config_document(
-    codex_home: &Path,
+    opencode_home: &Path,
     document: &Document,
 ) -> Result<(), String> {
     let policy = policy_for(FileScope::Global, FileKind::Config)?;
-    let root = codex_home.to_path_buf();
+    let root = opencode_home.to_path_buf();
     let mut rendered = document.to_string();
     if !rendered.ends_with('\n') {
         rendered.push('\n');

@@ -2,7 +2,7 @@ import { useCallback } from "react";
 
 import type { WorkspaceInfo, WorkspaceSettings } from "../../../types";
 
-type AppTab = "home" | "projects" | "codex" | "git" | "log";
+type AppTab = "home" | "projects" | "opencode" | "git" | "log";
 
 type UseSidebarLayoutActionsOptions = {
   openSettings: () => void;
@@ -87,7 +87,7 @@ export function useSidebarLayoutActions({
     async (workspace: WorkspaceInfo) => {
       await connectWorkspace(workspace);
       if (isCompact) {
-        setActiveTab("codex");
+        setActiveTab("opencode");
       }
     },
     [connectWorkspace, isCompact, setActiveTab],

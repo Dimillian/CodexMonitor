@@ -17,7 +17,7 @@ const EMPTY_STATE: SettingsDefaultModelsState = {
   connectedWorkspaceCount: 0,
 };
 
-const CONFIG_MODEL_DESCRIPTION = "Configured in CODEX_HOME/config.toml";
+const CONFIG_MODEL_DESCRIPTION = "Configured in OPENCODE_CONFIG_DIR/config.toml";
 
 const parseGptVersionScore = (slug: string): number | null => {
   const match = /^gpt-(\d+)(?:\.(\d+))?(?:\.(\d+))?/i.exec(slug.trim());

@@ -60,9 +60,9 @@ pub(crate) fn build_account_response(
     Value::Object(result)
 }
 
-pub(crate) fn read_auth_account(codex_home: Option<PathBuf>) -> Option<AuthAccount> {
-    let codex_home = codex_home?;
-    let auth_path = codex_home.join("auth.json");
+pub(crate) fn read_auth_account(opencode_home: Option<PathBuf>) -> Option<AuthAccount> {
+    let opencode_home = opencode_home?;
+    let auth_path = opencode_home.join("auth.json");
     let data = fs::read(auth_path).ok()?;
     let auth_value: Value = serde_json::from_slice(&data).ok()?;
     let tokens = auth_value.get("tokens")?;

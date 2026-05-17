@@ -61,7 +61,7 @@ const workspaceTwo: WorkspaceInfo = {
 };
 
 const baseAppSettings = {
-  codexBin: null,
+  opencodeBin: null,
   backendMode: "local",
   workspaceGroups: [],
 } as unknown as AppSettings;

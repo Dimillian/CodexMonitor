@@ -1,5 +1,5 @@
 import type { AppSettings } from "@/types";
-import type { CodexSection, ShortcutDraftKey, ShortcutSettingKey } from "./settingsTypes";
+import type { OpenCodeSection, ShortcutDraftKey, ShortcutSettingKey } from "./settingsTypes";
 
 export const DICTATION_MODELS = [
   { id: "tiny", label: "Tiny", size: "75 MB", note: "Fastest, least accurate." },
@@ -73,7 +73,7 @@ export const COMPOSER_PRESET_CONFIGS: Record<
 export const SETTINGS_MOBILE_BREAKPOINT_PX = 720;
 export const DEFAULT_REMOTE_HOST = "127.0.0.1:4732";
 
-export const SETTINGS_SECTION_LABELS: Record<CodexSection, string> = {
+export const SETTINGS_SECTION_LABELS: Record<OpenCodeSection, string> = {
   projects: "Projects",
   environments: "Environments",
   display: "Display & Sound",
@@ -85,7 +85,7 @@ export const SETTINGS_SECTION_LABELS: Record<CodexSection, string> = {
   git: "Git",
   server: "Server",
   agents: "Agents",
-  codex: "Codex",
+  opencode: "OpenCode",
   features: "Features",
 };
 

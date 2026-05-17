@@ -894,11 +894,11 @@
   background: color-mix(in srgb, var(--status-error) 12%, transparent);
 }
 
-.compact-codex-refresh-icon.spinning {
-  animation: compact-codex-refresh-spin var(--ds-spinner-dur) linear infinite;
+.compact-opencode-refresh-icon.spinning {
+  animation: compact-opencode-refresh-spin var(--ds-spinner-dur) linear infinite;
 }
 
-@keyframes compact-codex-refresh-spin {
+@keyframes compact-opencode-refresh-spin {
   to {
     transform: rotate(360deg);
   }

@@ -1,6 +1,6 @@
 # Codebase Map (Task-Oriented)
 
-Canonical navigation guide for CodexMonitor. Use this as: "if you need X, edit Y".
+Canonical navigation guide for OpenCodeMonitor. Use this as: "if you need X, edit Y".
 
 Related docs:
 
@@ -14,11 +14,11 @@ For backend behavior, follow this path in order:
 1. Frontend callsite: `src/features/**` hooks/components
 2. Frontend IPC API: `src/services/tauri.ts`
 3. Tauri command registration: `src-tauri/src/lib.rs` (`invoke_handler`)
-4. App adapter: `src-tauri/src/{codex,workspaces,git,files,settings,prompts}/*`
+4. App adapter: `src-tauri/src/{opencode,workspaces,git,files,settings,prompts}/*`
 5. Shared core source of truth: `src-tauri/src/shared/*`
-6. Daemon RPC method parity: `src-tauri/src/bin/codex_monitor_daemon/rpc.rs`
-7. Daemon state/wiring implementation: `src-tauri/src/bin/codex_monitor_daemon.rs`
-8. Standalone daemon lifecycle CLI: `src-tauri/src/bin/codex_monitor_daemonctl.rs`
+6. Daemon RPC method parity: `src-tauri/src/bin/opencode_monitor_daemon/rpc.rs`
+7. Daemon state/wiring implementation: `src-tauri/src/bin/opencode_monitor_daemon.rs`
+8. Standalone daemon lifecycle CLI: `src-tauri/src/bin/opencode_monitor_daemonctl.rs`
 
 If a behavior must work in both app and daemon, implement it in `src-tauri/src/shared/*` first.
 
@@ -32,10 +32,10 @@ If a behavior must work in both app and daemon, implement it in `src-tauri/src/s
 | Change thread state transitions | `src/features/threads/hooks/useThreadsReducer.ts`, `src/features/threads/hooks/threadReducer/*`, `src/features/threads/hooks/useThreads.ts`, focused thread hooks under `src/features/threads/hooks/*` |
 | Change workspace lifecycle/worktree behavior | `src/features/workspaces/hooks/useWorkspaces.ts`, `src-tauri/src/workspaces/commands.rs`, `src-tauri/src/shared/workspaces_core.rs`, `src-tauri/src/shared/workspaces_core/*`, `src-tauri/src/shared/worktree_core.rs` |
 | Change settings model/load/update | `src/features/settings/components/SettingsView.tsx`, `src/features/settings/hooks/useAppSettings.ts`, `src/services/tauri.ts`, `src-tauri/src/settings/mod.rs`, `src-tauri/src/shared/settings_core.rs`, `src-tauri/src/types.rs`, `src/types.ts` |
-| Change Git/GitHub backend behavior | `src/features/git/hooks/*`, `src/services/tauri.ts`, `src-tauri/src/git/mod.rs`, `src-tauri/src/shared/git_ui_core.rs`, `src-tauri/src/shared/git_ui_core/*`, `src-tauri/src/shared/git_core.rs`, `src-tauri/src/bin/codex_monitor_daemon/rpc.rs`, `src-tauri/src/bin/codex_monitor_daemon/rpc/git.rs` |
-| Change prompts CRUD/listing behavior | `src/features/prompts/hooks/useCustomPrompts.ts`, `src/features/prompts/components/PromptPanel.tsx`, `src/services/tauri.ts`, `src-tauri/src/prompts.rs`, `src-tauri/src/shared/prompts_core.rs`, `src-tauri/src/bin/codex_monitor_daemon/rpc.rs` |
-| Change file read/write for Agents/config | `src/services/tauri.ts`, `src-tauri/src/files/mod.rs`, `src-tauri/src/shared/files_core.rs`, `src-tauri/src/bin/codex_monitor_daemon/rpc.rs` |
-| Add/change daemon JSON-RPC surface | `src-tauri/src/bin/codex_monitor_daemon/rpc.rs`, `src-tauri/src/bin/codex_monitor_daemon/rpc/*`, `src-tauri/src/bin/codex_monitor_daemon.rs`, matching shared core |
+| Change Git/GitHub backend behavior | `src/features/git/hooks/*`, `src/services/tauri.ts`, `src-tauri/src/git/mod.rs`, `src-tauri/src/shared/git_ui_core.rs`, `src-tauri/src/shared/git_ui_core/*`, `src-tauri/src/shared/git_core.rs`, `src-tauri/src/bin/opencode_monitor_daemon/rpc.rs`, `src-tauri/src/bin/opencode_monitor_daemon/rpc/git.rs` |
+| Change prompts CRUD/listing behavior | `src/features/prompts/hooks/useCustomPrompts.ts`, `src/features/prompts/components/PromptPanel.tsx`, `src/services/tauri.ts`, `src-tauri/src/prompts.rs`, `src-tauri/src/shared/prompts_core.rs`, `src-tauri/src/bin/opencode_monitor_daemon/rpc.rs` |
+| Change file read/write for Agents/config | `src/services/tauri.ts`, `src-tauri/src/files/mod.rs`, `src-tauri/src/shared/files_core.rs`, `src-tauri/src/bin/opencode_monitor_daemon/rpc.rs` |
+| Add/change daemon JSON-RPC surface | `src-tauri/src/bin/opencode_monitor_daemon/rpc.rs`, `src-tauri/src/bin/opencode_monitor_daemon/rpc/*`, `src-tauri/src/bin/opencode_monitor_daemon.rs`, matching shared core |
 
 ## Frontend Navigation
 
@@ -93,7 +93,7 @@ Use TS/Vite aliases for refactor-safe imports:
 ## Backend App (Tauri) Navigation
 
 - Command registry (what frontend can invoke): `src-tauri/src/lib.rs`
-- Codex adapters: `src-tauri/src/codex/mod.rs`
+- OpenCode adapters: `src-tauri/src/opencode/mod.rs`
 - Workspace/worktree adapters: `src-tauri/src/workspaces/commands.rs`
 - Git adapters: `src-tauri/src/git/mod.rs`
 - Settings adapters: `src-tauri/src/settings/mod.rs`
@@ -104,11 +104,11 @@ Use TS/Vite aliases for refactor-safe imports:
 
 ## Daemon Navigation
 
-- Daemon entrypoint and state/wiring: `src-tauri/src/bin/codex_monitor_daemon.rs`
-- Daemon lifecycle CLI (headless start/stop/status): `src-tauri/src/bin/codex_monitor_daemonctl.rs`
-- Daemon JSON-RPC dispatcher/router: `src-tauri/src/bin/codex_monitor_daemon/rpc.rs`
-- Daemon domain handlers: `src-tauri/src/bin/codex_monitor_daemon/rpc/*`
-- Daemon transport: `src-tauri/src/bin/codex_monitor_daemon/transport.rs`
+- Daemon entrypoint and state/wiring: `src-tauri/src/bin/opencode_monitor_daemon.rs`
+- Daemon lifecycle CLI (headless start/stop/status): `src-tauri/src/bin/opencode_monitor_daemonctl.rs`
+- Daemon JSON-RPC dispatcher/router: `src-tauri/src/bin/opencode_monitor_daemon/rpc.rs`
+- Daemon domain handlers: `src-tauri/src/bin/opencode_monitor_daemon/rpc/*`
+- Daemon transport: `src-tauri/src/bin/opencode_monitor_daemon/transport.rs`
 
 When adding a new method, keep method names and payload shape aligned with `src/services/tauri.ts` and app commands in `src-tauri/src/lib.rs`.
 
@@ -116,9 +116,9 @@ When adding a new method, keep method names and payload shape aligned with `src/
 
 All cross-runtime domain behavior belongs in `src-tauri/src/shared/*`:
 
-- Codex threads/approvals/account/skills/config: `src-tauri/src/shared/codex_core.rs`
-- Codex helper commands: `src-tauri/src/shared/codex_aux_core.rs`
-- Codex update/version helpers: `src-tauri/src/shared/codex_update_core.rs`
+- OpenCode threads/approvals/account/skills/config: `src-tauri/src/shared/opencode_core.rs`
+- OpenCode helper commands: `src-tauri/src/shared/opencode_aux_core.rs`
+- OpenCode update/version helpers: `src-tauri/src/shared/opencode_update_core.rs`
 - Workspaces/worktrees: `src-tauri/src/shared/workspaces_core.rs`, `src-tauri/src/shared/workspaces_core/*`, `src-tauri/src/shared/worktree_core.rs`
 - Settings model/update: `src-tauri/src/shared/settings_core.rs`
 - Files read/write: `src-tauri/src/shared/files_core.rs`

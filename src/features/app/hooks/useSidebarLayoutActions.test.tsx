@@ -144,6 +144,6 @@ describe("useSidebarLayoutActions", () => {
     });
 
     expect(connectWorkspace).toHaveBeenCalledWith(workspace);
-    expect(setActiveTab).toHaveBeenCalledWith("codex");
+    expect(setActiveTab).toHaveBeenCalledWith("opencode");
   });
 });

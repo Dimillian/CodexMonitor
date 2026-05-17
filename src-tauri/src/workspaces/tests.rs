@@ -102,7 +102,7 @@ fn sanitize_clone_dir_name_allows_safe_chars() {
 
 #[test]
 fn build_clone_destination_path_sanitizes_and_uniquifies() {
-    let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+    let temp_dir = std::env::temp_dir().join(format!("opencode-monitor-test-{}", Uuid::new_v4()));
     let copies_folder = temp_dir.join("copies");
     std::fs::create_dir_all(&copies_folder).expect("create copies folder");
 
@@ -241,7 +241,7 @@ fn update_workspace_settings_persists_sort_and_group() {
         Some(r"\\?\I:\gpt-projects\worktrees"),
     );
 
-    let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+    let temp_dir = std::env::temp_dir().join(format!("opencode-monitor-test-{}", Uuid::new_v4()));
     std::fs::create_dir_all(&temp_dir).expect("create temp dir");
     let path = PathBuf::from(temp_dir.join("workspaces.json"));
     let list: Vec<_> = workspaces.values().cloned().collect();
@@ -270,7 +270,7 @@ fn update_workspace_settings_persists_sort_and_group() {
 #[test]
 fn rename_worktree_preserves_custom_name() {
     run_async(async {
-        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        let temp_dir = std::env::temp_dir().join(format!("opencode-monitor-test-{}", Uuid::new_v4()));
         let repo_path = temp_dir.join("repo");
         std::fs::create_dir_all(&repo_path).expect("create repo path");
         let worktree_path = temp_dir.join("worktrees").join("parent").join("old");
@@ -320,7 +320,7 @@ fn rename_worktree_preserves_custom_name() {
             |value| sanitize_worktree_name(value),
             |_, _, current| Ok(current.to_path_buf()),
             |_root, _args| async move { Ok(()) },
-            |_entry, _default_bin, _codex_args, _codex_home| async move {
+            |_entry, _default_bin, _opencode_args, _opencode_home| async move {
                 Err("spawn not expected".to_string())
             },
         )
@@ -341,7 +341,7 @@ fn rename_worktree_preserves_custom_name() {
 #[test]
 fn rename_worktree_updates_name_when_unmodified() {
     run_async(async {
-        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        let temp_dir = std::env::temp_dir().join(format!("opencode-monitor-test-{}", Uuid::new_v4()));
         let repo_path = temp_dir.join("repo");
         std::fs::create_dir_all(&repo_path).expect("create repo path");
         let worktree_path = temp_dir.join("worktrees").join("parent").join("old");
@@ -391,7 +391,7 @@ fn rename_worktree_updates_name_when_unmodified() {
             |value| sanitize_worktree_name(value),
             |_, _, current| Ok(current.to_path_buf()),
             |_root, _args| async move { Ok(()) },
-            |_entry, _default_bin, _codex_args, _codex_home| async move {
+            |_entry, _default_bin, _opencode_args, _opencode_home| async move {
                 Err("spawn not expected".to_string())
             },
         )
@@ -405,7 +405,7 @@ fn rename_worktree_updates_name_when_unmodified() {
 #[test]
 fn rename_worktree_validates_worktree_root_before_branch_rename() {
     run_async(async {
-        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        let temp_dir = std::env::temp_dir().join(format!("opencode-monitor-test-{}", Uuid::new_v4()));
         let repo_path = temp_dir.join("repo");
         std::fs::create_dir_all(&repo_path).expect("create repo path");
         let worktree_path = temp_dir.join("worktrees").join("parent").join("old");
@@ -468,7 +468,7 @@ fn rename_worktree_validates_worktree_root_before_branch_rename() {
                     Ok(())
                 }
             },
-            |_entry, _default_bin, _codex_args, _codex_home| async move {
+            |_entry, _default_bin, _opencode_args, _opencode_home| async move {
                 Err("spawn not expected".to_string())
             },
         )
@@ -495,7 +495,7 @@ fn rename_worktree_validates_worktree_root_before_branch_rename() {
 #[cfg(target_os = "windows")]
 fn update_workspace_settings_core_sanitizes_namespace_worktrees_folder() {
     run_async(async {
-        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        let temp_dir = std::env::temp_dir().join(format!("opencode-monitor-test-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&temp_dir).expect("create temp dir");
         let storage_path = temp_dir.join("workspaces.json");
 
@@ -524,7 +524,7 @@ fn update_workspace_settings_core_sanitizes_namespace_worktrees_folder() {
             &app_settings,
             &storage_path,
             apply_workspace_settings_update,
-            |_entry, _default_bin, _codex_args, _codex_home| async move {
+            |_entry, _default_bin, _opencode_args, _opencode_home| async move {
                 Err("spawn not expected".to_string())
             },
         )
@@ -542,7 +542,7 @@ fn update_workspace_settings_core_sanitizes_namespace_worktrees_folder() {
 #[cfg(target_os = "windows")]
 fn rename_worktree_ignores_namespace_only_difference_in_worktree_root() {
     run_async(async {
-        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        let temp_dir = std::env::temp_dir().join(format!("opencode-monitor-test-{}", Uuid::new_v4()));
         let repo_path = temp_dir.join("repo");
         std::fs::create_dir_all(&repo_path).expect("create repo path");
         let worktree_root = temp_dir.join("worktrees").join("parent");
@@ -605,7 +605,7 @@ fn rename_worktree_ignores_namespace_only_difference_in_worktree_root() {
                     Ok(())
                 }
             },
-            |_entry, _default_bin, _codex_args, _codex_home| async move {
+            |_entry, _default_bin, _opencode_args, _opencode_home| async move {
                 Err("spawn not expected".to_string())
             },
         )
@@ -626,7 +626,7 @@ fn rename_worktree_ignores_namespace_only_difference_in_worktree_root() {
 #[test]
 fn remove_workspace_succeeds_when_parent_repo_folder_is_missing() {
     run_async(async {
-        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        let temp_dir = std::env::temp_dir().join(format!("opencode-monitor-test-{}", Uuid::new_v4()));
         let parent_repo_path = temp_dir.join("deleted-parent-repo");
         let child_path = temp_dir.join("worktrees").join("parent").join("feature-a");
         std::fs::create_dir_all(&child_path).expect("create child path");
@@ -683,7 +683,7 @@ fn remove_workspace_succeeds_when_parent_repo_folder_is_missing() {
 #[test]
 fn remove_worktree_succeeds_when_parent_repo_folder_is_missing() {
     run_async(async {
-        let temp_dir = std::env::temp_dir().join(format!("codex-monitor-test-{}", Uuid::new_v4()));
+        let temp_dir = std::env::temp_dir().join(format!("opencode-monitor-test-{}", Uuid::new_v4()));
         let parent_repo_path = temp_dir.join("deleted-parent-repo");
         let child_path = temp_dir.join("worktrees").join("parent").join("feature-b");
         std::fs::create_dir_all(&child_path).expect("create child path");

@@ -14,7 +14,7 @@ type UseModelsOptions = {
   selectionKey?: string | null;
 };
 
-const CONFIG_MODEL_DESCRIPTION = "Configured in CODEX_HOME/config.toml";
+const CONFIG_MODEL_DESCRIPTION = "Configured in OPENCODE_CONFIG_DIR/config.toml";
 
 const findModelByIdOrModel = (
   models: ModelOption[],

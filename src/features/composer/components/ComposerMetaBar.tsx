@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { BrainCog, SlidersHorizontal, Zap } from "lucide-react";
 import type { AccessMode, ServiceTier, ThreadTokenUsage } from "../../../types";
-import type { CodexArgsOption } from "../../threads/utils/codexArgsProfiles";
+import type { OpenCodeArgsOption } from "../../threads/utils/opencodeArgsProfiles";
 
 type ComposerMetaBarProps = {
   disabled: boolean;
@@ -18,9 +18,9 @@ type ComposerMetaBarProps = {
   reasoningSupported: boolean;
   accessMode: AccessMode;
   onSelectAccessMode: (mode: AccessMode) => void;
-  codexArgsOptions?: CodexArgsOption[];
-  selectedCodexArgsOverride?: string | null;
-  onSelectCodexArgsOverride?: (value: string | null) => void;
+  opencodeArgsOptions?: OpenCodeArgsOption[];
+  selectedOpenCodeArgsOverride?: string | null;
+  onSelectOpenCodeArgsOverride?: (value: string | null) => void;
   contextUsage?: ThreadTokenUsage | null;
 };
 
@@ -39,9 +39,9 @@ export function ComposerMetaBar({
   reasoningSupported,
   accessMode,
   onSelectAccessMode,
-  codexArgsOptions = [],
-  selectedCodexArgsOverride = null,
-  onSelectCodexArgsOverride,
+  opencodeArgsOptions = [],
+  selectedOpenCodeArgsOverride = null,
+  onSelectOpenCodeArgsOverride,
   contextUsage = null,
 }: ComposerMetaBarProps) {
   const selectedModel =
@@ -217,21 +217,21 @@ export function ComposerMetaBar({
             ))}
           </select>
         </div>
-        {codexArgsOptions.length > 1 && onSelectCodexArgsOverride && (
+        {opencodeArgsOptions.length > 1 && onSelectOpenCodeArgsOverride && (
           <div className="composer-select-wrap">
             <span className="composer-icon" aria-hidden>
               <SlidersHorizontal size={14} strokeWidth={1.8} />
             </span>
             <select
               className="composer-select composer-select--approval"
-              aria-label="Codex args profile"
+              aria-label="OpenCode args profile"
               disabled={disabled}
-              value={selectedCodexArgsOverride ?? ""}
+              value={selectedOpenCodeArgsOverride ?? ""}
               onChange={(event) =>
-                onSelectCodexArgsOverride(event.target.value || null)
+                onSelectOpenCodeArgsOverride(event.target.value || null)
               }
             >
-              {codexArgsOptions.map((option) => (
+              {opencodeArgsOptions.map((option) => (
                 <option key={option.value || "default"} value={option.value}>
                   {option.label}
                 </option>

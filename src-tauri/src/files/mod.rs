@@ -5,7 +5,7 @@ use tauri::{AppHandle, State};
 use self::io::TextFileResponse;
 use self::policy::{FileKind, FileScope};
 use crate::remote_backend;
-use crate::shared::codex_core;
+use crate::shared::opencode_core;
 use crate::shared::files_core::{file_read_core, file_write_core};
 use crate::state::AppState;
 
@@ -101,13 +101,13 @@ pub(crate) async fn read_image_as_data_url(
         return Err("Image conversion is only supported in remote backend mode or on mobile runtimes".to_string());
     }
 
-    let normalized = codex_core::normalize_file_path(trimmed_path);
+    let normalized = opencode_core::normalize_file_path(trimmed_path);
     if normalized.is_empty() {
         return Err("Image path is required".to_string());
     }
 
     let _ = app;
-    codex_core::read_image_as_data_url_core(&normalized)
+    opencode_core::read_image_as_data_url_core(&normalized)
 }
 
 #[tauri::command]

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import type { AppSettings, CodexFeature, CodexFeatureStage } from "@/types";
+import type { AppSettings, OpenCodeFeature, OpenCodeFeatureStage } from "@/types";
 import {
-  getCodexConfigPath,
+  getOpenCodeConfigPath,
   getExperimentalFeatureList,
-  setCodexFeatureFlag,
+  setOpenCodeFeatureFlag,
 } from "@services/tauri";
 
 type UseSettingsFeaturesSectionArgs = {
@@ -26,15 +26,15 @@ export type SettingsFeaturesSectionProps = {
   featureError: string | null;
   featuresLoading: boolean;
   featureUpdatingKey: string | null;
-  stableFeatures: CodexFeature[];
-  experimentalFeatures: CodexFeature[];
+  stableFeatures: OpenCodeFeature[];
+  experimentalFeatures: OpenCodeFeature[];
   hasDynamicFeatureRows: boolean;
   onOpenConfig: () => void;
-  onToggleCodexFeature: (feature: CodexFeature) => void;
+  onToggleOpenCodeFeature: (feature: OpenCodeFeature) => void;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
 };
 
-function normalizeStage(value: unknown): CodexFeatureStage | null {
+function normalizeStage(value: unknown): OpenCodeFeatureStage | null {
   const raw = String(value ?? "")
     .trim()
     .toLowerCase();
@@ -56,7 +56,7 @@ function normalizeStage(value: unknown): CodexFeatureStage | null {
   return null;
 }
 
-function normalizeFeature(item: unknown): CodexFeature | null {
+function normalizeFeature(item: unknown): OpenCodeFeature | null {
   if (!item || typeof item !== "object") {
     return null;
   }
@@ -93,7 +93,7 @@ function normalizeFeature(item: unknown): CodexFeature | null {
 }
 
 function parseFeaturePage(response: unknown): {
-  data: CodexFeature[];
+  data: OpenCodeFeature[];
   nextCursor: string | null;
 } {
   if (!response || typeof response !== "object") {
@@ -107,7 +107,7 @@ function parseFeaturePage(response: unknown): {
   const dataRaw = Array.isArray(result.data) ? result.data : [];
   const data = dataRaw
     .map((item) => normalizeFeature(item))
-    .filter((item): item is CodexFeature => item !== null);
+    .filter((item): item is OpenCodeFeature => item !== null);
   const nextCursorRaw =
     typeof result.nextCursor === "string"
       ? result.nextCursor
@@ -146,12 +146,12 @@ export const useSettingsFeaturesSection = ({
   const [featureError, setFeatureError] = useState<string | null>(null);
   const [featuresLoading, setFeaturesLoading] = useState(false);
   const [featureUpdatingKey, setFeatureUpdatingKey] = useState<string | null>(null);
-  const [features, setFeatures] = useState<CodexFeature[]>([]);
+  const [features, setFeatures] = useState<OpenCodeFeature[]>([]);
 
   const handleOpenConfig = useCallback(async () => {
     setOpenConfigError(null);
     try {
-      const configPath = await getCodexConfigPath();
+      const configPath = await getOpenCodeConfigPath();
       await revealItemInDir(configPath);
     } catch (error) {
       setOpenConfigError(
@@ -175,7 +175,7 @@ export const useSettingsFeaturesSection = ({
       setFeatureError(null);
       setFeaturesLoading(true);
       try {
-        const loaded: CodexFeature[] = [];
+        const loaded: OpenCodeFeature[] = [];
         const seen = new Set<string>();
         let cursor: string | null = null;
         for (let page = 0; page < 20; page += 1) {
@@ -210,7 +210,7 @@ export const useSettingsFeaturesSection = ({
         setFeatureError(
           error instanceof Error
             ? error.message
-            : "Unable to load Codex feature flags.",
+            : "Unable to load OpenCode feature flags.",
         );
       } finally {
         if (active) {
@@ -244,8 +244,8 @@ export const useSettingsFeaturesSection = ({
   );
   const hasDynamicFeatureRows = stableFeatures.length > 0 || experimentalFeatures.length > 0;
 
-  const onToggleCodexFeature = useCallback(
-    (feature: CodexFeature) => {
+  const onToggleOpenCodeFeature = useCallback(
+    (feature: OpenCodeFeature) => {
       void (async () => {
         const nextEnabled = !feature.enabled;
         setFeatureUpdatingKey(feature.name);
@@ -259,7 +259,7 @@ export const useSettingsFeaturesSection = ({
           if (nextSettings) {
             await onUpdateAppSettings(nextSettings);
           } else {
-            await setCodexFeatureFlag(feature.name, nextEnabled);
+            await setOpenCodeFeatureFlag(feature.name, nextEnabled);
           }
           setFeatures((current) =>
             current.map((item) =>
@@ -295,7 +295,7 @@ export const useSettingsFeaturesSection = ({
     onOpenConfig: () => {
       void handleOpenConfig();
     },
-    onToggleCodexFeature,
+    onToggleOpenCodeFeature,
     onUpdateAppSettings,
   };
 };

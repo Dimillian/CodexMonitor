@@ -17,7 +17,7 @@ use super::worktree::{
 };
 
 use crate::backend::app_server::WorkspaceSession;
-use crate::codex::spawn_workspace_session;
+use crate::opencode::spawn_workspace_session;
 use crate::git_utils::resolve_git_root;
 use crate::remote_backend;
 use crate::shared::{workspace_rpc, workspaces_core};
@@ -28,10 +28,10 @@ fn spawn_with_app(
     app: &AppHandle,
     entry: WorkspaceEntry,
     default_bin: Option<String>,
-    codex_args: Option<String>,
-    codex_home: Option<PathBuf>,
+    opencode_args: Option<String>,
+    opencode_home: Option<PathBuf>,
 ) -> impl std::future::Future<Output = Result<Arc<WorkspaceSession>, String>> {
-    spawn_workspace_session(entry, default_bin, codex_args, app.clone(), codex_home)
+    spawn_workspace_session(entry, default_bin, opencode_args, app.clone(), opencode_home)
 }
 
 fn workspace_remote_params<T: serde::Serialize>(request: &T) -> Result<serde_json::Value, String> {
@@ -90,30 +90,30 @@ pub(crate) async fn list_workspaces(
 }
 
 #[tauri::command]
-pub(crate) async fn set_workspace_runtime_codex_args(
+pub(crate) async fn set_workspace_runtime_opencode_args(
     workspace_id: String,
-    codex_args: Option<String>,
+    opencode_args: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
-) -> Result<workspaces_core::WorkspaceRuntimeCodexArgsResult, String> {
+) -> Result<workspaces_core::WorkspaceRuntimeOpenCodeArgsResult, String> {
     if remote_backend::is_remote_mode(&*state).await {
-        let request = workspace_rpc::SetWorkspaceRuntimeCodexArgsRequest {
+        let request = workspace_rpc::SetWorkspaceRuntimeOpenCodeArgsRequest {
             workspace_id,
-            codex_args,
+            opencode_args,
         };
         let response = remote_backend::call_remote(
             &*state,
             app,
-            "set_workspace_runtime_codex_args",
+            "set_workspace_runtime_opencode_args",
             workspace_remote_params(&request)?,
         )
         .await?;
         return serde_json::from_value(response).map_err(|err| err.to_string());
     }
 
-    workspaces_core::set_workspace_runtime_codex_args_core(
+    workspaces_core::set_workspace_runtime_opencode_args_core(
         workspace_id,
-        codex_args,
+        opencode_args,
         &state.workspaces,
         &state.sessions,
         &state.app_settings,
@@ -167,8 +167,8 @@ pub(crate) async fn add_workspace(
         &state.sessions,
         &state.app_settings,
         &state.storage_path,
-        |entry, default_bin, codex_args, codex_home| {
-            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+        |entry, default_bin, opencode_args, opencode_home| {
+            spawn_with_app(&app, entry, default_bin, opencode_args, opencode_home)
         },
     )
     .await
@@ -207,8 +207,8 @@ pub(crate) async fn add_workspace_from_git_url(
         &state.sessions,
         &state.app_settings,
         &state.storage_path,
-        |entry, default_bin, codex_args, codex_home| {
-            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+        |entry, default_bin, opencode_args, opencode_home| {
+            spawn_with_app(&app, entry, default_bin, opencode_args, opencode_home)
         },
     )
     .await
@@ -230,8 +230,8 @@ pub(crate) async fn add_clone(
         &state.sessions,
         &state.app_settings,
         &state.storage_path,
-        |entry, default_bin, codex_args, codex_home| {
-            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+        |entry, default_bin, opencode_args, opencode_home| {
+            spawn_with_app(&app, entry, default_bin, opencode_args, opencode_home)
         },
     )
     .await
@@ -292,8 +292,8 @@ pub(crate) async fn add_worktree(
                 run_git_command_owned(repo, args_owned)
             })
         },
-        |entry, default_bin, codex_args, codex_home| {
-            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+        |entry, default_bin, opencode_args, opencode_home| {
+            spawn_with_app(&app, entry, default_bin, opencode_args, opencode_home)
         },
     )
     .await
@@ -474,8 +474,8 @@ pub(crate) async fn rename_worktree(
                 run_git_command_owned(repo, args_owned)
             })
         },
-        |entry, default_bin, codex_args, codex_home| {
-            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+        |entry, default_bin, opencode_args, opencode_home| {
+            spawn_with_app(&app, entry, default_bin, opencode_args, opencode_home)
         },
     )
     .await
@@ -578,8 +578,8 @@ pub(crate) async fn update_workspace_settings(
         |workspaces, workspace_id, next_settings| {
             apply_workspace_settings_update(workspaces, workspace_id, next_settings)
         },
-        |entry, default_bin, codex_args, codex_home| {
-            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+        |entry, default_bin, opencode_args, opencode_home| {
+            spawn_with_app(&app, entry, default_bin, opencode_args, opencode_home)
         },
     )
     .await
@@ -608,8 +608,8 @@ pub(crate) async fn connect_workspace(
         &state.workspaces,
         &state.sessions,
         &state.app_settings,
-        |entry, default_bin, codex_args, codex_home| {
-            spawn_with_app(&app, entry, default_bin, codex_args, codex_home)
+        |entry, default_bin, opencode_args, opencode_home| {
+            spawn_with_app(&app, entry, default_bin, opencode_args, opencode_home)
         },
     )
     .await

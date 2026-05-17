@@ -29,6 +29,6 @@ describe("useTabActivationGuard", () => {
       }),
     );
 
-    expect(setActiveTab).toHaveBeenCalledWith("codex");
+    expect(setActiveTab).toHaveBeenCalledWith("opencode");
   });
 });

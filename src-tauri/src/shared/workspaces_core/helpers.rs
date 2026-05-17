@@ -70,12 +70,12 @@ pub(crate) fn is_workspace_path_dir_core(path: &str) -> bool {
 pub(crate) fn normalize_workspace_path_input(path: &str) -> PathBuf {
     let trimmed = path.trim();
     if let Some(rest) = trimmed.strip_prefix("~/") {
-        if let Some(home) = crate::codex::home::resolve_home_dir() {
+        if let Some(home) = crate::opencode::home::resolve_home_dir() {
             return home.join(rest);
         }
     }
     if trimmed == "~" {
-        if let Some(home) = crate::codex::home::resolve_home_dir() {
+        if let Some(home) = crate::opencode::home::resolve_home_dir() {
             return home;
         }
     }
@@ -162,7 +162,7 @@ mod tests {
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn make_temp_dir() -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("codex-monitor-{}", Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("opencode-monitor-{}", Uuid::new_v4()));
         std::fs::create_dir_all(&dir).expect("failed to create temp dir");
         dir
     }
@@ -227,8 +227,8 @@ mod tests {
     #[test]
     fn workspace_path_to_string_strips_windows_namespace_prefixes() {
         assert_eq!(
-            workspace_path_to_string(&PathBuf::from(r"\\?\I:\gpt-projects\CodexMonitor")),
-            r"I:\gpt-projects\CodexMonitor"
+            workspace_path_to_string(&PathBuf::from(r"\\?\I:\gpt-projects\OpenCodeMonitor")),
+            r"I:\gpt-projects\OpenCodeMonitor"
         );
     }
 }

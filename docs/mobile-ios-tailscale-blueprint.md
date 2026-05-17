@@ -1,6 +1,6 @@
-# CodexMonitor iOS Remote Blueprint (Tailscale + TCP)
+# OpenCodeMonitor iOS Remote Blueprint (Tailscale + TCP)
 
-This document is the canonical runbook for iOS remote usage with a desktop-hosted CodexMonitor backend over Tailscale.
+This document is the canonical runbook for iOS remote usage with a desktop-hosted OpenCodeMonitor backend over Tailscale.
 
 ## Scope
 
@@ -11,21 +11,21 @@ This document is the canonical runbook for iOS remote usage with a desktop-hoste
 
 ## Current Architecture
 
-1. Desktop CodexMonitor hosts the daemon and executes Codex workflows.
-2. iOS CodexMonitor connects to the desktop daemon using `remoteBackendHost` + token.
+1. Desktop OpenCodeMonitor hosts the daemon and executes OpenCode workflows.
+2. iOS OpenCodeMonitor connects to the desktop daemon using `remoteBackendHost` + token.
 3. Transport is TCP only (`remoteBackendProvider = "tcp"`).
 4. Tailscale is used as the network path between iOS and desktop.
 
 ## Prerequisites
 
 - Desktop and iPhone are signed into the same Tailscale tailnet.
-- Desktop CodexMonitor is installed and able to run local workspaces.
+- Desktop OpenCodeMonitor is installed and able to run local workspaces.
 - iOS build/runtime is available (simulator or device).
 - A non-empty remote backend token is configured.
 
 ## Desktop Setup (Source of Truth)
 
-In desktop CodexMonitor:
+In desktop OpenCodeMonitor:
 
 1. Open `Settings > Server`.
 2. Set `Remote backend token`.
@@ -41,15 +41,15 @@ Headless alternative (no desktop UI required):
 
 1. Build daemon + daemonctl:
    - `cd src-tauri`
-   - `cargo build --bin codex_monitor_daemon --bin codex_monitor_daemonctl`
-2. Start daemon from CLI:
-   - `./target/debug/codex_monitor_daemonctl start`
-3. Verify daemon status:
-   - `./target/debug/codex_monitor_daemonctl status`
+    - `cargo build --bin opencode_monitor_daemon --bin opencode_monitor_daemonctl`
+ 2. Start daemon from CLI:
+    - `./target/debug/opencode_monitor_daemonctl start`
+ 3. Verify daemon status:
+    - `./target/debug/opencode_monitor_daemonctl status`
 
 ## iOS Setup
 
-In iOS CodexMonitor:
+In iOS OpenCodeMonitor:
 
 1. Open `Settings > Server` (or the mobile setup wizard).
 2. Enter the desktop Tailscale host (including port).

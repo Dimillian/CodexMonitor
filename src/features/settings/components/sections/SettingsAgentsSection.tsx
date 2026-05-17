@@ -16,9 +16,9 @@ import {
 
 const FALLBACK_AGENT_MODELS: ModelOption[] = [
   {
-    id: "gpt-5-codex",
-    model: "gpt-5-codex",
-    displayName: "gpt-5-codex",
+    id: "opencode-go/deepseek-v4-flash",
+    model: "opencode-go/deepseek-v4-flash",
+    displayName: "opencode-go/deepseek-v4-flash",
     description: "Fallback model while workspace model list is unavailable.",
     supportedReasoningEfforts: [
       { reasoningEffort: "low", description: "" },
@@ -355,13 +355,13 @@ export function SettingsAgentsSection({
       subtitle="Configure multi-agent mode, limits, and custom agent roles."
     >
       <div className="settings-help settings-agents-builtins-help">
-        Built-in roles from Codex are still available: <code>default</code>, <code>explorer</code>,
+        Built-in roles from OpenCode are still available: <code>default</code>, <code>explorer</code>,
         and <code>worker</code>.
       </div>
 
       <SettingsToggleRow
         title="Config file"
-        subtitle={<>Open global Codex config in {fileManagerName()}.</>}
+        subtitle={<>Open global OpenCode config in {fileManagerName()}.</>}
       >
         <div className="settings-agents-actions">
           <button type="button" className="ghost" onClick={onRefresh} disabled={isLoading}>

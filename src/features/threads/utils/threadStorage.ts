@@ -1,10 +1,10 @@
 import type { AccessMode, ServiceTier } from "@/types";
 
-const STORAGE_KEY_THREAD_ACTIVITY = "codexmonitor.threadLastUserActivity";
-export const STORAGE_KEY_PINNED_THREADS = "codexmonitor.pinnedThreads";
-export const STORAGE_KEY_CUSTOM_NAMES = "codexmonitor.threadCustomNames";
-export const STORAGE_KEY_THREAD_CODEX_PARAMS = "codexmonitor.threadCodexParams";
-export const STORAGE_KEY_DETACHED_REVIEW_LINKS = "codexmonitor.detachedReviewLinks";
+const STORAGE_KEY_THREAD_ACTIVITY = "opencodemonitor.threadLastUserActivity";
+export const STORAGE_KEY_PINNED_THREADS = "opencodemonitor.pinnedThreads";
+export const STORAGE_KEY_CUSTOM_NAMES = "opencodemonitor.threadCustomNames";
+export const STORAGE_KEY_THREAD_OPENCODE_PARAMS = "opencodemonitor.threadOpenCodeParams";
+export const STORAGE_KEY_DETACHED_REVIEW_LINKS = "opencodemonitor.detachedReviewLinks";
 export const MAX_PINS_SOFT_LIMIT = 5;
 
 export type ThreadActivityMap = Record<string, Record<string, number>>;
@@ -12,9 +12,9 @@ export type PinnedThreadsMap = Record<string, number>;
 export type CustomNamesMap = Record<string, string>;
 type DetachedReviewLinksMap = Record<string, Record<string, string>>;
 
-// Per-thread Codex parameter overrides. Keyed by `${workspaceId}:${threadId}`.
+// Per-thread OpenCode parameter overrides. Keyed by `${workspaceId}:${threadId}`.
 // These are UI-level preferences (not server state) and are best-effort persisted.
-export type ThreadCodexParams = {
+export type ThreadOpenCodeParams = {
   modelId: string | null;
   effort: string | null;
   // string => explicit per-thread tier override
@@ -26,26 +26,26 @@ export type ThreadCodexParams = {
   // string => explicit per-thread override
   // null => explicit "Default" (no override)
   // undefined => legacy/unset thread value that should inherit no-thread scope
-  codexArgsOverride: string | null | undefined;
+  opencodeArgsOverride: string | null | undefined;
   updatedAt: number;
 };
 
-export type ThreadCodexParamsMap = Record<string, ThreadCodexParams>;
+export type ThreadOpenCodeParamsMap = Record<string, ThreadOpenCodeParams>;
 
-export function makeThreadCodexParamsKey(workspaceId: string, threadId: string): string {
+export function makeThreadOpenCodeParamsKey(workspaceId: string, threadId: string): string {
   return `${workspaceId}:${threadId}`;
 }
 
-export function loadThreadCodexParams(): ThreadCodexParamsMap {
+export function loadThreadOpenCodeParams(): ThreadOpenCodeParamsMap {
   if (typeof window === "undefined") {
     return {};
   }
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY_THREAD_CODEX_PARAMS);
+    const raw = window.localStorage.getItem(STORAGE_KEY_THREAD_OPENCODE_PARAMS);
     if (!raw) {
       return {};
     }
-    const parsed = JSON.parse(raw) as ThreadCodexParamsMap;
+    const parsed = JSON.parse(raw) as ThreadOpenCodeParamsMap;
     if (!parsed || typeof parsed !== "object") {
       return {};
     }
@@ -55,13 +55,13 @@ export function loadThreadCodexParams(): ThreadCodexParamsMap {
   }
 }
 
-export function saveThreadCodexParams(next: ThreadCodexParamsMap): void {
+export function saveThreadOpenCodeParams(next: ThreadOpenCodeParamsMap): void {
   if (typeof window === "undefined") {
     return;
   }
   try {
     window.localStorage.setItem(
-      STORAGE_KEY_THREAD_CODEX_PARAMS,
+      STORAGE_KEY_THREAD_OPENCODE_PARAMS,
       JSON.stringify(next),
     );
   } catch {

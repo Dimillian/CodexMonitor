@@ -107,7 +107,7 @@ export type LayoutNodesResult = {
   debugPanelNode: ReactNode;
   debugPanelFullNode: ReactNode;
   terminalDockNode: ReactNode;
-  compactEmptyCodexNode: ReactNode;
+  compactEmptyOpenCodeNode: ReactNode;
   compactEmptyGitNode: ReactNode;
   compactGitBackNode: ReactNode;
 };

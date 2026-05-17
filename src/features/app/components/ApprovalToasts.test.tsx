@@ -18,13 +18,13 @@ const approvals: ApprovalRequest[] = [
   {
     workspace_id: "workspace-1",
     request_id: 1,
-    method: "codex/requestApproval/shell",
+    method: "opencode/requestApproval/shell",
     params: { command: "echo one" },
   },
   {
     workspace_id: "workspace-1",
     request_id: 2,
-    method: "codex/requestApproval/shell",
+    method: "opencode/requestApproval/shell",
     params: { command: "echo two" },
   },
 ];

@@ -17,7 +17,7 @@ import {
 import {
   getThreadTimestamp,
 } from "@utils/threadItems";
-import { extractThreadCodexMetadata } from "@threads/utils/threadCodexMetadata";
+import { extractThreadOpenCodeMetadata } from "@threads/utils/threadOpenCodeMetadata";
 import {
   buildThreadSummaryFromThread,
   extractThreadFromResponse,
@@ -41,7 +41,7 @@ const THREAD_LIST_TARGET_COUNT = 20;
 const THREAD_LIST_PAGE_SIZE = 100;
 const THREAD_LIST_MAX_PAGES_OLDER = 6;
 const THREAD_LIST_MAX_PAGES_DEFAULT = 6;
-const THREAD_LIST_CURSOR_PAGE_START = "__codex_monitor_page_start__";
+const THREAD_LIST_CURSOR_PAGE_START = "__opencode_monitor_page_start__";
 
 type UseThreadActionsOptions = {
   dispatch: Dispatch<ThreadAction>;
@@ -65,7 +65,7 @@ type UseThreadActionsOptions = {
   ) => void;
   updateThreadParent: (parentId: string, childIds: string[]) => void;
   onSubagentThreadDetected: (workspaceId: string, threadId: string) => void;
-  onThreadCodexMetadataDetected?: (
+  onThreadOpenCodeMetadataDetected?: (
     workspaceId: string,
     threadId: string,
     metadata: { modelId: string | null; effort: string | null },
@@ -90,7 +90,7 @@ export function useThreadActions({
   applyCollabThreadLinksFromThread,
   updateThreadParent,
   onSubagentThreadDetected,
-  onThreadCodexMetadataDetected,
+  onThreadOpenCodeMetadataDetected,
 }: UseThreadActionsOptions) {
   const resumeInFlightByThreadRef = useRef<Record<string, number>>({});
   const threadStatusByIdRef = useRef(threadStatusById);
@@ -105,9 +105,9 @@ export function useThreadActions({
       thread: Record<string, unknown>,
       options?: { notifySubagent?: boolean },
     ) => {
-      const codexMetadata = extractThreadCodexMetadata(thread);
-      if (codexMetadata.modelId || codexMetadata.effort) {
-        onThreadCodexMetadataDetected?.(workspaceId, threadId, codexMetadata);
+      const opencodeMetadata = extractThreadOpenCodeMetadata(thread);
+      if (opencodeMetadata.modelId || opencodeMetadata.effort) {
+        onThreadOpenCodeMetadataDetected?.(workspaceId, threadId, opencodeMetadata);
       }
       const sourceParentId = getParentThreadIdFromThread(thread);
       if (sourceParentId) {
@@ -119,7 +119,7 @@ export function useThreadActions({
     },
     [
       onSubagentThreadDetected,
-      onThreadCodexMetadataDetected,
+      onThreadOpenCodeMetadataDetected,
       updateThreadParent,
     ],
   );

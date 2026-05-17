@@ -7,8 +7,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::backend::app_server::WorkspaceSession;
-use crate::codex::args::resolve_workspace_codex_args;
-use crate::codex::home::resolve_workspace_codex_home;
+use crate::opencode::args::resolve_workspace_opencode_args;
+use crate::opencode::home::resolve_workspace_opencode_home;
 use crate::shared::process_core::kill_child_process_tree;
 use crate::types::{AppSettings, WorkspaceEntry};
 
@@ -83,15 +83,15 @@ where
             .insert(entry.id.clone(), existing_session);
         return Ok(());
     }
-    let (default_bin, codex_args) = {
+    let (default_bin, opencode_args) = {
         let settings = app_settings.lock().await;
         (
-            settings.codex_bin.clone(),
-            resolve_workspace_codex_args(&entry, parent_entry.as_ref(), Some(&settings)),
+            settings.opencode_bin.clone(),
+            resolve_workspace_opencode_args(&entry, parent_entry.as_ref(), Some(&settings)),
         )
     };
-    let codex_home = resolve_workspace_codex_home(&entry, parent_entry.as_ref());
-    let session = spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?;
+    let opencode_home = resolve_workspace_opencode_home(&entry, parent_entry.as_ref());
+    let session = spawn_session(entry.clone(), default_bin, opencode_args, opencode_home).await?;
     session
         .register_workspace_with_path(&entry.id, Some(&entry.path))
         .await;
@@ -168,7 +168,7 @@ mod tests {
         let stdin = child.stdin.take().expect("dummy child stdin");
 
         Arc::new(WorkspaceSession {
-            codex_args: None,
+            opencode_args: None,
             child: Mutex::new(child),
             stdin: Mutex::new(stdin),
             pending: Mutex::new(HashMap::new()),
@@ -201,7 +201,7 @@ mod tests {
                 &workspaces,
                 &sessions,
                 &app_settings,
-                move |_entry, _default_bin, _codex_args, _codex_home| {
+                move |_entry, _default_bin, _opencode_args, _opencode_home| {
                     let spawn_calls_ref = spawn_calls_ref.clone();
                     async move {
                         spawn_calls_ref.fetch_add(1, Ordering::SeqCst);
@@ -233,7 +233,7 @@ mod tests {
                 &workspaces,
                 &sessions,
                 &app_settings,
-                move |_entry, _default_bin, _codex_args, _codex_home| {
+                move |_entry, _default_bin, _opencode_args, _opencode_home| {
                     let spawn_calls_ref = spawn_calls_ref.clone();
                     let entry_for_spawn = entry_for_spawn.clone();
                     async move {

@@ -377,10 +377,10 @@ pub(crate) struct RemoteBackendTarget {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct AppSettings {
-    #[serde(default, rename = "codexBin")]
-    pub(crate) codex_bin: Option<String>,
-    #[serde(default, rename = "codexArgs")]
-    pub(crate) codex_args: Option<String>,
+    #[serde(default, rename = "opencodeBin")]
+    pub(crate) opencode_bin: Option<String>,
+    #[serde(default, rename = "opencodeArgs")]
+    pub(crate) opencode_args: Option<String>,
     #[serde(default, rename = "backendMode")]
     pub(crate) backend_mode: BackendMode,
     #[serde(default, rename = "remoteBackendProvider")]
@@ -1123,8 +1123,8 @@ fn default_selected_open_app_id() -> String {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            codex_bin: None,
-            codex_args: None,
+            opencode_bin: None,
+            opencode_args: None,
             backend_mode: default_backend_mode(),
             remote_backend_provider: RemoteBackendProvider::Tcp,
             remote_backend_host: default_remote_backend_host(),
@@ -1213,7 +1213,7 @@ mod tests {
     #[test]
     fn app_settings_defaults_from_empty_json() {
         let settings: AppSettings = serde_json::from_str("{}").expect("settings deserialize");
-        assert!(settings.codex_bin.is_none());
+        assert!(settings.opencode_bin.is_none());
         let expected_backend_mode = if cfg!(target_os = "ios") {
             BackendMode::Remote
         } else {

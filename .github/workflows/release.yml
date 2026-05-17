@@ -64,37 +64,25 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$KEYCHAIN"
 
       - name: Configure notarytool credentials
-        env:
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
-          APPLE_API_PRIVATE_KEY_B64: ${{ secrets.APPLE_API_PRIVATE_KEY_B64 }}
-        run: |
-          set -euo pipefail
-          mkdir -p private_keys
-          echo "$APPLE_API_PRIVATE_KEY_B64" | base64 --decode > private_keys/AuthKey.p8
-          xcrun notarytool store-credentials "$NOTARY_PROFILE_NAME" \
-            --key-id "$APPLE_API_KEY_ID" \
-            --issuer "$APPLE_API_ISSUER_ID" \
-            --key "private_keys/AuthKey.p8"
 
       - name: Write Tauri signing key
         run: |
           set -euo pipefail
           mkdir -p "$HOME/.tauri"
-          echo "$TAURI_SIGNING_PRIVATE_KEY_B64" | base64 --decode > "$HOME/.tauri/codexmonitor.key"
+          echo "$TAURI_SIGNING_PRIVATE_KEY_B64" | base64 --decode > "$HOME/.tauri/opencode-monitor.key"
 
       - name: Build app bundle
         run: |
           set -euo pipefail
           export TAURI_SIGNING_PRIVATE_KEY
-          TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/codexmonitor.key")"
+          TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/opencode-monitor.key")"
           npm run tauri -- build --bundles app
 
       - name: Build daemon binaries
         run: |
           set -euo pipefail
           cd src-tauri
-          cargo build --release --bin codex_monitor_daemon --bin codex_monitor_daemonctl
+          cargo build --release --bin opencode_monitor_daemon --bin opencode_monitor_daemonctl
 
       - name: Bundle OpenSSL and re-sign
         run: |
@@ -106,15 +94,15 @@ jobs:
         run: |
           set -euo pipefail
           ditto -c -k --keepParent \
-            "src-tauri/target/release/bundle/macos/Codex Monitor.app" \
-            CodexMonitor.zip
+            "src-tauri/target/release/bundle/macos/OpenCode Monitor.app" \
+            OpenCodeMonitor.zip
 
-          xcrun notarytool submit CodexMonitor.zip \
+          xcrun notarytool submit OpenCodeMonitor.zip \
             --keychain-profile "$NOTARY_PROFILE_NAME" \
             --wait
 
           xcrun stapler staple \
-            "src-tauri/target/release/bundle/macos/Codex Monitor.app"
+            "src-tauri/target/release/bundle/macos/OpenCode Monitor.app"
 
       - name: Package artifacts
         run: |
@@ -129,42 +117,42 @@ jobs:
           )
 
           mkdir -p release-artifacts release-artifacts/dmg-root
-          rm -rf "release-artifacts/dmg-root/Codex Monitor.app"
-          ditto "src-tauri/target/release/bundle/macos/Codex Monitor.app" \
-            "release-artifacts/dmg-root/Codex Monitor.app"
+          rm -rf "release-artifacts/dmg-root/OpenCode Monitor.app"
+          ditto "src-tauri/target/release/bundle/macos/OpenCode Monitor.app" \
+            "release-artifacts/dmg-root/OpenCode Monitor.app"
 
           ditto -c -k --keepParent \
-            "src-tauri/target/release/bundle/macos/Codex Monitor.app" \
-            release-artifacts/CodexMonitor.zip
+            "src-tauri/target/release/bundle/macos/OpenCode Monitor.app" \
+            release-artifacts/OpenCodeMonitor.zip
 
-          hdiutil create -volname "Codex Monitor" \
+          hdiutil create -volname "OpenCode Monitor" \
             -srcfolder release-artifacts/dmg-root \
             -ov -format UDZO \
-            release-artifacts/CodexMonitor_${VERSION}_aarch64.dmg
+            release-artifacts/OpenCodeMonitor_${VERSION}_aarch64.dmg
 
           COPYFILE_DISABLE=1 tar -czf \
-            "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz" \
-            -C src-tauri/target/release/bundle/macos "Codex Monitor.app"
+            "src-tauri/target/release/bundle/macos/OpenCode Monitor.app.tar.gz" \
+            -C src-tauri/target/release/bundle/macos "OpenCode Monitor.app"
 
           npm run tauri signer sign -- \
-            -f "$HOME/.tauri/codexmonitor.key" \
+            -f "$HOME/.tauri/opencode-monitor.key" \
             -p "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" \
-            "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz"
+            "src-tauri/target/release/bundle/macos/OpenCode Monitor.app.tar.gz"
 
-          cp "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz" \
-            release-artifacts/CodexMonitor.app.tar.gz
-          cp "src-tauri/target/release/bundle/macos/Codex Monitor.app.tar.gz.sig" \
-            release-artifacts/CodexMonitor.app.tar.gz.sig
+          cp "src-tauri/target/release/bundle/macos/OpenCode Monitor.app.tar.gz" \
+            release-artifacts/OpenCodeMonitor.app.tar.gz
+          cp "src-tauri/target/release/bundle/macos/OpenCode Monitor.app.tar.gz.sig" \
+            release-artifacts/OpenCodeMonitor.app.tar.gz.sig
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
           name: macos-artifacts
           path: |
-            release-artifacts/CodexMonitor.zip
-            release-artifacts/CodexMonitor_*_aarch64.dmg
-            release-artifacts/CodexMonitor.app.tar.gz
-            release-artifacts/CodexMonitor.app.tar.gz.sig
+            release-artifacts/OpenCodeMonitor.zip
+            release-artifacts/OpenCodeMonitor_*_aarch64.dmg
+            release-artifacts/OpenCodeMonitor.app.tar.gz
+            release-artifacts/OpenCodeMonitor.app.tar.gz.sig
 
   build_linux:
     name: linux bundles (${{ matrix.arch }})
@@ -210,13 +198,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$HOME/.tauri"
-          echo "$TAURI_SIGNING_PRIVATE_KEY_B64" | base64 --decode > "$HOME/.tauri/codexmonitor.key"
+          echo "$TAURI_SIGNING_PRIVATE_KEY_B64" | base64 --decode > "$HOME/.tauri/opencode-monitor.key"
 
       - name: build AppImage and RPM
         run: |
           set -euo pipefail
           export TAURI_SIGNING_PRIVATE_KEY
-          TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/codexmonitor.key")"
+          TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/opencode-monitor.key")"
           npm run tauri -- build --bundles appimage,rpm
 
       - name: Validate Linux bundle outputs
@@ -288,7 +276,7 @@ jobs:
           home = Path.home()
           target = home / ".tauri"
           target.mkdir(parents=True, exist_ok=True)
-          (target / "codexmonitor.key").write_bytes(raw)
+          (target / "opencode-monitor.key").write_bytes(raw)
           PY
 
       - name: build windows bundles
@@ -296,7 +284,7 @@ jobs:
         run: |
           set -euo pipefail
           export TAURI_SIGNING_PRIVATE_KEY
-          TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/codexmonitor.key")"
+          TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/opencode-monitor.key")"
           npm run tauri:build:win
 
       - name: Upload Windows artifacts
@@ -386,7 +374,7 @@ jobs:
           PY
           )
 
-          SIGNATURE=$(cat release-artifacts/CodexMonitor.app.tar.gz.sig)
+          SIGNATURE=$(cat release-artifacts/OpenCodeMonitor.app.tar.gz.sig)
           LAST_TAG=$(git tag --sort=-version:refname \
             | grep -v "^v${VERSION}$" \
             | head -n 1 || true)
@@ -444,11 +432,11 @@ jobs:
           artifacts_dir = Path("release-artifacts")
 
           def release_url(filename):
-            return f"https://github.com/Dimillian/CodexMonitor/releases/download/v${VERSION}/{quote(filename)}"
+            return f"https://github.com/Dimillian/OpenCodeMonitor/releases/download/v${VERSION}/{quote(filename)}"
 
           platforms = {
             "darwin-aarch64": {
-              "url": release_url("CodexMonitor.app.tar.gz"),
+              "url": release_url("OpenCodeMonitor.app.tar.gz"),
               "signature": "${SIGNATURE}",
             }
           }
@@ -484,7 +472,7 @@ jobs:
           preferred_installers = []
           for candidate in exe_candidates:
             lowered = candidate.name.lower()
-            if "codexmonitor" in lowered and ("setup" in lowered or "installer" in lowered):
+            if "opencode-monitor" in lowered and ("setup" in lowered or "installer" in lowered):
               preferred_installers.append(candidate)
           if preferred_installers:
             windows_installer = preferred_installers[0]
@@ -588,10 +576,10 @@ jobs:
             --title "v${VERSION}" \
             --notes-file release-artifacts/release-notes.md \
             --target "$GITHUB_SHA" \
-            release-artifacts/CodexMonitor.zip \
-            release-artifacts/CodexMonitor_*_aarch64.dmg \
-            release-artifacts/CodexMonitor.app.tar.gz \
-            release-artifacts/CodexMonitor.app.tar.gz.sig \
+            release-artifacts/OpenCodeMonitor.zip \
+            release-artifacts/OpenCodeMonitor_*_aarch64.dmg \
+            release-artifacts/OpenCodeMonitor.app.tar.gz \
+            release-artifacts/OpenCodeMonitor.app.tar.gz.sig \
             "${appimages[@]}" \
             "${rpms[@]}" \
             "${windows_exes[@]}" \
@@ -664,13 +652,13 @@ jobs:
           path = Path("src-tauri/Cargo.lock")
           content = path.read_text()
           content, count = re.subn(
-            r'(?ms)(\[\[package\]\]\nname = "codex-monitor"\nversion = ")[^"]+(")',
+            r'(?ms)(\[\[package\]\]\nname = "opencode-monitor"\nversion = ")[^"]+(")',
             r'\g<1>$NEXT_VERSION\2',
             content,
             count=1,
           )
           if count != 1:
-            raise SystemExit("Failed to update codex-monitor version in src-tauri/Cargo.lock")
+            raise SystemExit("Failed to update opencode-monitor version in src-tauri/Cargo.lock")
           path.write_text(content)
           PY
 
@@ -678,19 +666,9 @@ jobs:
           import plistlib
           from pathlib import Path
 
-          path = Path("src-tauri/gen/apple/codex-monitor_iOS/Info.plist")
-          with path.open("rb") as f:
-            data = plistlib.load(f)
+          path = Path("src-tauri/gen/apple/opencode-monitor_iOS/Info.plist")
 
-          data["CFBundleShortVersionString"] = "$NEXT_VERSION"
-          data["CFBundleVersion"] = "$NEXT_VERSION"
-
-          with path.open("wb") as f:
-            plistlib.dump(data, f, sort_keys=False)
-          PY
-
-          git checkout -b "chore/bump-version-${NEXT_VERSION}"
-          git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json src-tauri/gen/apple/codex-monitor_iOS/Info.plist
+          git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json src-tauri/gen/apple/opencode-monitor_iOS/Info.plist
           git commit -m "chore: bump version to ${NEXT_VERSION}"
           git push origin "chore/bump-version-${NEXT_VERSION}"
 

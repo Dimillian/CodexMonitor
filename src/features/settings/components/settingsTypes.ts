@@ -14,7 +14,7 @@ export const SETTINGS_SECTION_IDS = [
   "agents",
 ] as const;
 
-export const SETTINGS_EXTRA_SECTION_IDS = ["codex", "features"] as const;
+export const SETTINGS_EXTRA_SECTION_IDS = ["opencode", "features"] as const;
 
 export const SETTINGS_ROUTE_SECTION_IDS = [
   ...SETTINGS_SECTION_IDS,
@@ -24,7 +24,7 @@ export const SETTINGS_ROUTE_SECTION_IDS = [
 
 type SettingsSection = (typeof SETTINGS_SECTION_IDS)[number];
 
-export type CodexSection =
+export type OpenCodeSection =
   | SettingsSection
   | (typeof SETTINGS_EXTRA_SECTION_IDS)[number];
 

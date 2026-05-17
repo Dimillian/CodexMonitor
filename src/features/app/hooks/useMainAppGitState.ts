@@ -21,11 +21,11 @@ type UseMainAppGitStateOptions = {
   activeWorkspaceId: string | null;
   activeItems: ConversationItem[];
   activeThreadId: string | null;
-  activeTab: "home" | "projects" | "codex" | "git" | "log";
-  tabletTab: "codex" | "git" | "log";
+  activeTab: "home" | "projects" | "opencode" | "git" | "log";
+  tabletTab: "opencode" | "git" | "log";
   isCompact: boolean;
   isTablet: boolean;
-  setActiveTab: (tab: "home" | "projects" | "codex" | "git" | "log") => void;
+  setActiveTab: (tab: "home" | "projects" | "opencode" | "git" | "log") => void;
   appSettings: {
     preloadGitDiffs: boolean;
     gitDiffIgnoreWhitespaceChanges: boolean;

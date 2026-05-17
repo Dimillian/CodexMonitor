@@ -50,7 +50,7 @@ vi.mock("@services/tauri", () => ({
 
 const workspace: WorkspaceInfo = {
   id: "ws-1",
-  name: "CodexMonitor",
+  name: "OpenCodeMonitor",
   path: "/tmp/codex",
   connected: true,
   settings: { sidebarCollapsed: false },
@@ -138,7 +138,7 @@ describe("useThreads UX integration", () => {
   });
 
   it("applies runtime codex args before start and selection resume", async () => {
-    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
+    const ensureWorkspaceRuntimeOpenCodeArgs = vi.fn(async () => undefined);
     vi.mocked(startThread).mockResolvedValue({
       result: { thread: { id: "thread-new" } },
     } as Awaited<ReturnType<typeof startThread>>);
@@ -157,7 +157,7 @@ describe("useThreads UX integration", () => {
       useThreads({
         activeWorkspace: workspace,
         onWorkspaceConnected: vi.fn(),
-        ensureWorkspaceRuntimeCodexArgs,
+        ensureWorkspaceRuntimeOpenCodeArgs,
       }),
     );
 
@@ -165,9 +165,9 @@ describe("useThreads UX integration", () => {
       await result.current.startThread();
     });
 
-    expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", null);
+    expect(ensureWorkspaceRuntimeOpenCodeArgs).toHaveBeenCalledWith("ws-1", null);
     expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1");
-    const startEnsureCallOrder = ensureWorkspaceRuntimeCodexArgs.mock.invocationCallOrder[0];
+    const startEnsureCallOrder = ensureWorkspaceRuntimeOpenCodeArgs.mock.invocationCallOrder[0];
     const startThreadCallOrder = vi.mocked(startThread).mock.invocationCallOrder[0];
     expect(startEnsureCallOrder).toBeLessThan(startThreadCallOrder);
 
@@ -176,17 +176,17 @@ describe("useThreads UX integration", () => {
     });
 
     await waitFor(() => {
-      expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", "thread-2");
+      expect(ensureWorkspaceRuntimeOpenCodeArgs).toHaveBeenCalledWith("ws-1", "thread-2");
       expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-2");
     });
 
-    const selectEnsureCallOrder = ensureWorkspaceRuntimeCodexArgs.mock.invocationCallOrder[1];
+    const selectEnsureCallOrder = ensureWorkspaceRuntimeOpenCodeArgs.mock.invocationCallOrder[1];
     const resumeThreadCallOrder = vi.mocked(resumeThread).mock.invocationCallOrder[0];
     expect(selectEnsureCallOrder).toBeLessThan(resumeThreadCallOrder);
   });
 
   it("applies runtime codex args before direct startThreadForWorkspace calls", async () => {
-    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
+    const ensureWorkspaceRuntimeOpenCodeArgs = vi.fn(async () => undefined);
     vi.mocked(startThread).mockResolvedValue({
       result: { thread: { id: "thread-direct-new" } },
     } as Awaited<ReturnType<typeof startThread>>);
@@ -195,7 +195,7 @@ describe("useThreads UX integration", () => {
       useThreads({
         activeWorkspace: workspace,
         onWorkspaceConnected: vi.fn(),
-        ensureWorkspaceRuntimeCodexArgs,
+        ensureWorkspaceRuntimeOpenCodeArgs,
       }),
     );
 
@@ -203,16 +203,16 @@ describe("useThreads UX integration", () => {
       await result.current.startThreadForWorkspace("ws-1", { activate: false });
     });
 
-    expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", null);
+    expect(ensureWorkspaceRuntimeOpenCodeArgs).toHaveBeenCalledWith("ws-1", null);
     expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1");
 
-    const ensureCallOrder = ensureWorkspaceRuntimeCodexArgs.mock.invocationCallOrder[0];
+    const ensureCallOrder = ensureWorkspaceRuntimeOpenCodeArgs.mock.invocationCallOrder[0];
     const startThreadCallOrder = vi.mocked(startThread).mock.invocationCallOrder[0];
     expect(ensureCallOrder).toBeLessThan(startThreadCallOrder);
   });
 
   it("still resumes selected thread when runtime codex args sync fails", async () => {
-    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => {
+    const ensureWorkspaceRuntimeOpenCodeArgs = vi.fn(async () => {
       throw new Error("runtime sync failed");
     });
     vi.mocked(resumeThread).mockResolvedValue({
@@ -230,7 +230,7 @@ describe("useThreads UX integration", () => {
       useThreads({
         activeWorkspace: workspace,
         onWorkspaceConnected: vi.fn(),
-        ensureWorkspaceRuntimeCodexArgs,
+        ensureWorkspaceRuntimeOpenCodeArgs,
       }),
     );
 
@@ -239,13 +239,13 @@ describe("useThreads UX integration", () => {
     });
 
     await waitFor(() => {
-      expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", "thread-2");
+      expect(ensureWorkspaceRuntimeOpenCodeArgs).toHaveBeenCalledWith("ws-1", "thread-2");
       expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-2");
     });
   });
 
   it("does not preflight runtime codex args on selection while a workspace thread is processing", async () => {
-    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
+    const ensureWorkspaceRuntimeOpenCodeArgs = vi.fn(async () => undefined);
     vi.mocked(resumeThread).mockImplementation(async (_workspaceId, threadId) => ({
       result: {
         thread: {
@@ -261,7 +261,7 @@ describe("useThreads UX integration", () => {
       useThreads({
         activeWorkspace: workspace,
         onWorkspaceConnected: vi.fn(),
-        ensureWorkspaceRuntimeCodexArgs,
+        ensureWorkspaceRuntimeOpenCodeArgs,
       }),
     );
 
@@ -274,7 +274,7 @@ describe("useThreads UX integration", () => {
     });
 
     vi.mocked(resumeThread).mockClear();
-    ensureWorkspaceRuntimeCodexArgs.mockClear();
+    ensureWorkspaceRuntimeOpenCodeArgs.mockClear();
 
     act(() => {
       handlers?.onTurnStarted?.("ws-1", "thread-1", "turn-1");
@@ -292,11 +292,11 @@ describe("useThreads UX integration", () => {
       expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-2");
     });
 
-    expect(ensureWorkspaceRuntimeCodexArgs).not.toHaveBeenCalled();
+    expect(ensureWorkspaceRuntimeOpenCodeArgs).not.toHaveBeenCalled();
   });
 
   it("does not preflight runtime codex args on selection when a hidden thread is processing", async () => {
-    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
+    const ensureWorkspaceRuntimeOpenCodeArgs = vi.fn(async () => undefined);
     vi.mocked(resumeThread).mockImplementation(async (_workspaceId, threadId) => ({
       result: {
         thread: {
@@ -312,7 +312,7 @@ describe("useThreads UX integration", () => {
       useThreads({
         activeWorkspace: workspace,
         onWorkspaceConnected: vi.fn(),
-        ensureWorkspaceRuntimeCodexArgs,
+        ensureWorkspaceRuntimeOpenCodeArgs,
       }),
     );
 
@@ -333,11 +333,11 @@ describe("useThreads UX integration", () => {
       expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-2");
     });
 
-    expect(ensureWorkspaceRuntimeCodexArgs).not.toHaveBeenCalled();
+    expect(ensureWorkspaceRuntimeOpenCodeArgs).not.toHaveBeenCalled();
   });
 
   it("does not preflight runtime codex args on send when another workspace thread is processing", async () => {
-    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
+    const ensureWorkspaceRuntimeOpenCodeArgs = vi.fn(async () => undefined);
     vi.mocked(resumeThread).mockImplementation(async (_workspaceId, threadId) => ({
       result: {
         thread: {
@@ -356,7 +356,7 @@ describe("useThreads UX integration", () => {
       useThreads({
         activeWorkspace: workspace,
         onWorkspaceConnected: vi.fn(),
-        ensureWorkspaceRuntimeCodexArgs,
+        ensureWorkspaceRuntimeOpenCodeArgs,
       }),
     );
 
@@ -376,7 +376,7 @@ describe("useThreads UX integration", () => {
       expect(result.current.threadStatusById["thread-busy"]?.isProcessing).toBe(true);
     });
 
-    ensureWorkspaceRuntimeCodexArgs.mockClear();
+    ensureWorkspaceRuntimeOpenCodeArgs.mockClear();
 
     await act(async () => {
       await result.current.sendUserMessageToThread(
@@ -386,7 +386,7 @@ describe("useThreads UX integration", () => {
       );
     });
 
-    expect(ensureWorkspaceRuntimeCodexArgs).not.toHaveBeenCalled();
+    expect(ensureWorkspaceRuntimeOpenCodeArgs).not.toHaveBeenCalled();
     const sendCalls = vi.mocked(sendUserMessageService).mock.calls;
     const sendCall = sendCalls[sendCalls.length - 1];
     expect(sendCall?.[0]).toBe("ws-1");
@@ -395,7 +395,7 @@ describe("useThreads UX integration", () => {
   });
 
   it("still starts thread when runtime codex args sync fails", async () => {
-    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => {
+    const ensureWorkspaceRuntimeOpenCodeArgs = vi.fn(async () => {
       throw new Error("runtime sync failed");
     });
     vi.mocked(startThread).mockResolvedValue({
@@ -406,7 +406,7 @@ describe("useThreads UX integration", () => {
       useThreads({
         activeWorkspace: workspace,
         onWorkspaceConnected: vi.fn(),
-        ensureWorkspaceRuntimeCodexArgs,
+        ensureWorkspaceRuntimeOpenCodeArgs,
       }),
     );
 
@@ -415,7 +415,7 @@ describe("useThreads UX integration", () => {
       threadId = await result.current.startThread();
     });
 
-    expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", null);
+    expect(ensureWorkspaceRuntimeOpenCodeArgs).toHaveBeenCalledWith("ws-1", null);
     expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1");
     expect(threadId).toBe("thread-new");
   });
@@ -568,13 +568,13 @@ describe("useThreads UX integration", () => {
         },
       },
     });
-    const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
+    const ensureWorkspaceRuntimeOpenCodeArgs = vi.fn(async () => undefined);
 
     const { result } = renderHook(() =>
       useThreads({
         activeWorkspace: workspace,
         onWorkspaceConnected: vi.fn(),
-        ensureWorkspaceRuntimeCodexArgs,
+        ensureWorkspaceRuntimeOpenCodeArgs,
       }),
     );
 
@@ -597,7 +597,7 @@ describe("useThreads UX integration", () => {
       await Promise.resolve();
     });
     expect(vi.mocked(resumeThread)).not.toHaveBeenCalled();
-    expect(ensureWorkspaceRuntimeCodexArgs).not.toHaveBeenCalled();
+    expect(ensureWorkspaceRuntimeOpenCodeArgs).not.toHaveBeenCalled();
 
     const activeItems = result.current.activeItems;
     const hasLocal = activeItems.some(

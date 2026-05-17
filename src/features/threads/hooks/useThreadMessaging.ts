@@ -54,11 +54,11 @@ type UseThreadMessagingOptions = {
   reviewDeliveryMode?: "inline" | "detached";
   steerEnabled: boolean;
   customPrompts: CustomPromptOption[];
-  ensureWorkspaceRuntimeCodexArgs?: (
+  ensureWorkspaceRuntimeOpenCodeArgs?: (
     workspaceId: string,
     threadId: string | null,
   ) => Promise<void>;
-  shouldPreflightRuntimeCodexArgsForSend?: (
+  shouldPreflightRuntimeOpenCodeArgsForSend?: (
     workspaceId: string,
     threadId: string,
   ) => boolean;
@@ -108,8 +108,8 @@ export function useThreadMessaging({
   reviewDeliveryMode = "inline",
   steerEnabled,
   customPrompts,
-  ensureWorkspaceRuntimeCodexArgs,
-  shouldPreflightRuntimeCodexArgsForSend,
+  ensureWorkspaceRuntimeOpenCodeArgs,
+  shouldPreflightRuntimeOpenCodeArgsForSend,
   threadStatusById,
   activeTurnIdByThread,
   rateLimitsByWorkspace,
@@ -222,14 +222,14 @@ export function useThreadMessaging({
         },
       });
       try {
-        const shouldPreflightRuntimeCodexArgs =
-          shouldPreflightRuntimeCodexArgsForSend?.(workspace.id, threadId) ?? true;
+        const shouldPreflightRuntimeOpenCodeArgs =
+          shouldPreflightRuntimeOpenCodeArgsForSend?.(workspace.id, threadId) ?? true;
         if (
           !shouldSteer &&
-          shouldPreflightRuntimeCodexArgs &&
-          ensureWorkspaceRuntimeCodexArgs
+          shouldPreflightRuntimeOpenCodeArgs &&
+          ensureWorkspaceRuntimeOpenCodeArgs
         ) {
-          await ensureWorkspaceRuntimeCodexArgs(workspace.id, threadId);
+          await ensureWorkspaceRuntimeOpenCodeArgs(workspace.id, threadId);
         }
         const response: Record<string, unknown> = shouldSteer
           ? (await (appMentions.length > 0
@@ -346,8 +346,8 @@ export function useThreadMessaging({
       dispatch,
       effort,
       serviceTier,
-      ensureWorkspaceRuntimeCodexArgs,
-      shouldPreflightRuntimeCodexArgsForSend,
+      ensureWorkspaceRuntimeOpenCodeArgs,
+      shouldPreflightRuntimeOpenCodeArgsForSend,
       activeTurnIdByThread,
       getCustomName,
       markProcessing,

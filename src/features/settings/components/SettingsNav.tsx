@@ -12,11 +12,11 @@ import ServerCog from "lucide-react/dist/esm/icons/server-cog";
 import Bot from "lucide-react/dist/esm/icons/bot";
 import Info from "lucide-react/dist/esm/icons/info";
 import { PanelNavItem, PanelNavList } from "@/features/design-system/components/panel/PanelPrimitives";
-import type { CodexSection } from "./settingsTypes";
+import type { OpenCodeSection } from "./settingsTypes";
 
 type SettingsNavProps = {
-  activeSection: CodexSection;
-  onSelectSection: (section: CodexSection) => void;
+  activeSection: OpenCodeSection;
+  onSelectSection: (section: OpenCodeSection) => void;
   showDisclosure?: boolean;
 };
 
@@ -121,11 +121,11 @@ export function SettingsNav({
         <PanelNavItem
           className="settings-nav"
           icon={<TerminalSquare aria-hidden />}
-          active={activeSection === "codex"}
+          active={activeSection === "opencode"}
           showDisclosure={showDisclosure}
-          onClick={() => onSelectSection("codex")}
+          onClick={() => onSelectSection("opencode")}
         >
-          Codex
+          OpenCode
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"

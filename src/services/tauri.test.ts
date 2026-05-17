@@ -20,7 +20,7 @@ import {
   listMcpServerStatus,
   readThread,
   readGlobalAgentsMd,
-  readGlobalCodexConfigToml,
+  readGlobalOpenCodeConfigJson,
   listWorkspaces,
   openWorkspaceIn,
   readAgentMd,
@@ -30,7 +30,7 @@ import {
   sendUserMessage,
   steerTurn,
   sendNotification,
-  setCodexFeatureFlag,
+  setOpenCodeFeatureFlag,
   setAgentsCoreSettings,
   setTrayRecentThreads,
   setTraySessionUsage,
@@ -44,7 +44,7 @@ import {
   pickImageFiles,
   pickWorkspacePaths,
   writeGlobalAgentsMd,
-  writeGlobalCodexConfigToml,
+  writeGlobalOpenCodeConfigJson,
   createAgent,
   updateAgent,
   deleteAgent,
@@ -390,13 +390,13 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
-  it("maps feature key and enabled for set_codex_feature_flag", async () => {
+  it("maps feature key and enabled for set_opencode_feature_flag", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce(undefined);
 
-    await setCodexFeatureFlag("apps", true);
+    await setOpenCodeFeatureFlag("apps", true);
 
-    expect(invokeMock).toHaveBeenCalledWith("set_codex_feature_flag", {
+    expect(invokeMock).toHaveBeenCalledWith("set_opencode_feature_flag", {
       featureKey: "apps",
       enabled: true,
     });
@@ -550,7 +550,7 @@ describe("tauri invoke wrappers", () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({ exists: true, content: "model = \"gpt-5\"", truncated: false });
 
-    await readGlobalCodexConfigToml();
+    await readGlobalOpenCodeConfigJson();
 
     expect(invokeMock).toHaveBeenCalledWith("file_read", {
       scope: "global",
@@ -563,7 +563,7 @@ describe("tauri invoke wrappers", () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({});
 
-    await writeGlobalCodexConfigToml("model = \"gpt-5\"");
+    await writeGlobalOpenCodeConfigJson("model = \"gpt-5\"");
 
     expect(invokeMock).toHaveBeenCalledWith("file_write", {
       scope: "global",
@@ -576,7 +576,7 @@ describe("tauri invoke wrappers", () => {
   it("reads agents settings", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({
-      configPath: "/Users/me/.codex/config.toml",
+      configPath: "/Users/me/.config/opencode/config.toml",
       multiAgentEnabled: true,
       maxThreads: 6,
       maxDepth: 1,
@@ -591,7 +591,7 @@ describe("tauri invoke wrappers", () => {
   it("updates core agents settings", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({
-      configPath: "/Users/me/.codex/config.toml",
+      configPath: "/Users/me/.config/opencode/config.toml",
       multiAgentEnabled: false,
       maxThreads: 4,
       maxDepth: 3,
@@ -618,7 +618,7 @@ describe("tauri invoke wrappers", () => {
       description: "Research-focused role",
       developerInstructions: "Investigate root cause first.",
       template: "blank",
-      model: "gpt-5-codex",
+      model: "opencode-go/deepseek-v4-flash",
       reasoningEffort: "medium",
     });
 
@@ -628,7 +628,7 @@ describe("tauri invoke wrappers", () => {
         description: "Research-focused role",
         developerInstructions: "Investigate root cause first.",
         template: "blank",
-        model: "gpt-5-codex",
+        model: "opencode-go/deepseek-v4-flash",
         reasoningEffort: "medium",
       },
     });
@@ -676,7 +676,7 @@ describe("tauri invoke wrappers", () => {
 
   it("reads an agent config file", async () => {
     const invokeMock = vi.mocked(invoke);
-    invokeMock.mockResolvedValueOnce("model = \"gpt-5-codex\"");
+    invokeMock.mockResolvedValueOnce("model = \"opencode-go/deepseek-v4-flash\"");
 
     await readAgentConfigToml("researcher");
 
@@ -689,11 +689,11 @@ describe("tauri invoke wrappers", () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({});
 
-    await writeAgentConfigToml("researcher", "model = \"gpt-5-codex\"");
+    await writeAgentConfigToml("researcher", "model = \"opencode-go/deepseek-v4-flash\"");
 
     expect(invokeMock).toHaveBeenCalledWith("write_agent_config_toml", {
       agentName: "researcher",
-      content: "model = \"gpt-5-codex\"",
+      content: "model = \"opencode-go/deepseek-v4-flash\"",
     });
   });
 

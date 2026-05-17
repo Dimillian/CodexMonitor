@@ -3,8 +3,8 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import type { Options as NotificationOptions } from "@tauri-apps/plugin-notification";
 import type {
   AppSettings,
-  CodexUpdateResult,
-  CodexDoctorResult,
+  OpenCodeUpdateResult,
+  OpenCodeDoctorResult,
   DictationModelStatus,
   DictationSessionState,
   LocalUsageSnapshot,
@@ -115,8 +115,8 @@ export async function listWorkspaces(): Promise<WorkspaceInfo[]> {
   }
 }
 
-export async function getCodexConfigPath(): Promise<string> {
-  return invoke<string>("get_codex_config_path");
+export async function getOpenCodeConfigPath(): Promise<string> {
+  return invoke<string>("get_opencode_config_path");
 }
 
 export type TextFileResponse = {
@@ -126,7 +126,7 @@ export type TextFileResponse = {
 };
 
 export type GlobalAgentsResponse = TextFileResponse;
-export type GlobalCodexConfigResponse = TextFileResponse;
+export type GlobalOpenCodeConfigResponse = TextFileResponse;
 export type AgentMdResponse = TextFileResponse;
 export type AgentSummary = {
   name: string;
@@ -206,11 +206,11 @@ export async function writeGlobalAgentsMd(content: string): Promise<void> {
   return fileWrite("global", "agents", content);
 }
 
-export async function readGlobalCodexConfigToml(): Promise<GlobalCodexConfigResponse> {
+export async function readGlobalOpenCodeConfigJson(): Promise<GlobalOpenCodeConfigResponse> {
   return fileRead("global", "config");
 }
 
-export async function writeGlobalCodexConfigToml(content: string): Promise<void> {
+export async function writeGlobalOpenCodeConfigJson(content: string): Promise<void> {
   return fileWrite("global", "config", content);
 }
 
@@ -377,13 +377,13 @@ export async function connectWorkspace(id: string): Promise<void> {
   return invoke("connect_workspace", { id });
 }
 
-export async function setWorkspaceRuntimeCodexArgs(
+export async function setWorkspaceRuntimeOpenCodeArgs(
   workspaceId: string,
-  codexArgs: string | null,
-): Promise<{ appliedCodexArgs: string | null; respawned: boolean }> {
-  return invoke("set_workspace_runtime_codex_args", {
+  opencodeArgs: string | null,
+): Promise<{ appliedOpenCodeArgs: string | null; respawned: boolean }> {
+  return invoke("set_workspace_runtime_opencode_args", {
     workspaceId,
-    codexArgs,
+    opencodeArgs,
   });
 }
 
@@ -742,11 +742,11 @@ export async function getExperimentalFeatureList(
   return invoke<any>("experimental_feature_list", { workspaceId, cursor, limit });
 }
 
-export async function setCodexFeatureFlag(
+export async function setOpenCodeFeatureFlag(
   featureKey: string,
   enabled: boolean,
 ): Promise<void> {
-  return invoke("set_codex_feature_flag", { featureKey, enabled });
+  return invoke("set_opencode_feature_flag", { featureKey, enabled });
 }
 
 export async function generateRunMetadata(workspaceId: string, prompt: string) {
@@ -768,15 +768,15 @@ export async function getAccountInfo(workspaceId: string) {
   return invoke<any>("account_read", { workspaceId });
 }
 
-export async function runCodexLogin(workspaceId: string) {
-  return invoke<{ loginId: string; authUrl: string; raw?: unknown }>("codex_login", {
+export async function runOpenCodeLogin(workspaceId: string) {
+  return invoke<{ loginId: string; authUrl: string; raw?: unknown }>("opencode_login", {
     workspaceId,
   });
 }
 
-export async function cancelCodexLogin(workspaceId: string) {
+export async function cancelOpenCodeLogin(workspaceId: string) {
   return invoke<{ canceled: boolean; status?: string; raw?: unknown }>(
-    "codex_login_cancel",
+    "opencode_login_cancel",
     { workspaceId },
   );
 }
@@ -904,18 +904,18 @@ export async function setMenuAccelerators(
   return invoke("menu_set_accelerators", { updates });
 }
 
-export async function runCodexDoctor(
-  codexBin: string | null,
-  codexArgs: string | null,
-): Promise<CodexDoctorResult> {
-  return invoke<CodexDoctorResult>("codex_doctor", { codexBin, codexArgs });
+export async function runOpenCodeDoctor(
+  opencodeBin: string | null,
+  opencodeArgs: string | null,
+): Promise<OpenCodeDoctorResult> {
+  return invoke<OpenCodeDoctorResult>("opencode_doctor", { opencodeBin, opencodeArgs });
 }
 
-export async function runCodexUpdate(
-  codexBin: string | null,
-  codexArgs: string | null,
-): Promise<CodexUpdateResult> {
-  return invoke<CodexUpdateResult>("codex_update", { codexBin, codexArgs });
+export async function runOpenCodeUpdate(
+  opencodeBin: string | null,
+  opencodeArgs: string | null,
+): Promise<OpenCodeUpdateResult> {
+  return invoke<OpenCodeUpdateResult>("opencode_update", { opencodeBin, opencodeArgs });
 }
 
 export async function getWorkspaceFiles(workspaceId: string) {

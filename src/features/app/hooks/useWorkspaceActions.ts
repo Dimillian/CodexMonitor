@@ -14,7 +14,7 @@ type Params = {
   ) => Promise<WorkspaceInfo | null>;
   addWorkspacesFromPaths: (paths: string[]) => Promise<WorkspaceInfo | null>;
   setActiveThreadId: (threadId: string | null, workspaceId: string) => void;
-  setActiveTab: (tab: "home" | "projects" | "codex" | "git" | "log") => void;
+  setActiveTab: (tab: "home" | "projects" | "opencode" | "git" | "log") => void;
   exitDiffView: () => void;
   selectWorkspace: (workspaceId: string) => void;
   onStartNewAgentDraft: (workspaceId: string) => void;
@@ -44,7 +44,7 @@ export function useWorkspaceActions({
     (workspace: WorkspaceInfo) => {
       setActiveThreadId(null, workspace.id);
       if (isCompact) {
-        setActiveTab("codex");
+        setActiveTab("opencode");
       }
     },
     [isCompact, setActiveTab, setActiveThreadId],
@@ -152,7 +152,7 @@ ${message}`);
         },
       });
       if (isCompact) {
-        setActiveTab("codex");
+        setActiveTab("opencode");
       }
       setTimeout(() => composerInputRef.current?.focus(), 0);
     },

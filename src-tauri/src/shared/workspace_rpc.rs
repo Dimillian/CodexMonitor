@@ -23,9 +23,9 @@ pub(crate) struct ReadWorkspaceFileRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct SetWorkspaceRuntimeCodexArgsRequest {
+pub(crate) struct SetWorkspaceRuntimeOpenCodeArgsRequest {
     pub(crate) workspace_id: String,
-    pub(crate) codex_args: Option<String>,
+    pub(crate) opencode_args: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

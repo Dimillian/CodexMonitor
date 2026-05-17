@@ -3,14 +3,14 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppServerEvent, AccountSnapshot } from "../../../types";
-import { cancelCodexLogin, runCodexLogin } from "../../../services/tauri";
+import { cancelOpenCodeLogin, runOpenCodeLogin } from "../../../services/tauri";
 import { subscribeAppServerEvents } from "../../../services/events";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useAccountSwitching } from "./useAccountSwitching";
 
 vi.mock("../../../services/tauri", () => ({
-  runCodexLogin: vi.fn(),
-  cancelCodexLogin: vi.fn(),
+  runOpenCodeLogin: vi.fn(),
+  cancelOpenCodeLogin: vi.fn(),
 }));
 
 vi.mock("../../../services/events", () => ({
@@ -71,7 +71,7 @@ function makeAccount(): AccountSnapshot {
 
 describe("useAccountSwitching", () => {
   it("opens the auth URL and refreshes after account/login/completed", async () => {
-    vi.mocked(runCodexLogin).mockResolvedValue({
+    vi.mocked(runOpenCodeLogin).mockResolvedValue({
       loginId: "login-1",
       authUrl: "https://example.com/auth",
     });
@@ -94,7 +94,7 @@ describe("useAccountSwitching", () => {
       await latest?.handleSwitchAccount();
     });
 
-    expect(runCodexLogin).toHaveBeenCalledWith("ws-1");
+    expect(runOpenCodeLogin).toHaveBeenCalledWith("ws-1");
     expect(openUrl).toHaveBeenCalledWith("https://example.com/auth");
     expect(refreshAccountInfo).not.toHaveBeenCalled();
     expect(refreshAccountRateLimits).not.toHaveBeenCalled();
@@ -122,11 +122,11 @@ describe("useAccountSwitching", () => {
   });
 
   it("cancels and ignores a failed completion event", async () => {
-    vi.mocked(runCodexLogin).mockResolvedValue({
+    vi.mocked(runOpenCodeLogin).mockResolvedValue({
       loginId: "login-2",
       authUrl: "https://example.com/auth-2",
     });
-    vi.mocked(cancelCodexLogin).mockResolvedValue({ canceled: true, status: "canceled" });
+    vi.mocked(cancelOpenCodeLogin).mockResolvedValue({ canceled: true, status: "canceled" });
 
     const refreshAccountInfo = vi.fn();
     const refreshAccountRateLimits = vi.fn();
@@ -148,7 +148,7 @@ describe("useAccountSwitching", () => {
     await act(async () => {
       await latest?.handleCancelSwitchAccount();
     });
-    expect(cancelCodexLogin).toHaveBeenCalledWith("ws-1");
+    expect(cancelOpenCodeLogin).toHaveBeenCalledWith("ws-1");
     expect(latest?.accountSwitching).toBe(false);
 
     act(() => {
@@ -172,13 +172,13 @@ describe("useAccountSwitching", () => {
 
   it("does not open the auth URL when canceled while login is pending", async () => {
     let resolveLogin: ((value: { loginId: string; authUrl: string }) => void) | null = null;
-    vi.mocked(runCodexLogin).mockImplementation(
+    vi.mocked(runOpenCodeLogin).mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveLogin = resolve;
         }),
     );
-    vi.mocked(cancelCodexLogin).mockResolvedValue({ canceled: true, status: "canceled" });
+    vi.mocked(cancelOpenCodeLogin).mockResolvedValue({ canceled: true, status: "canceled" });
 
     const refreshAccountInfo = vi.fn();
     const refreshAccountRateLimits = vi.fn();
@@ -208,7 +208,7 @@ describe("useAccountSwitching", () => {
     });
 
     expect(openUrl).not.toHaveBeenCalled();
-    expect(cancelCodexLogin).toHaveBeenCalledWith("ws-1");
+    expect(cancelOpenCodeLogin).toHaveBeenCalledWith("ws-1");
     expect(refreshAccountInfo).not.toHaveBeenCalled();
     expect(refreshAccountRateLimits).not.toHaveBeenCalled();
     expect(alertError).not.toHaveBeenCalled();
@@ -219,7 +219,7 @@ describe("useAccountSwitching", () => {
   });
 
   it("resets switching state when login fails with a cancellation-shaped error", async () => {
-    vi.mocked(runCodexLogin).mockRejectedValue(new Error("request canceled"));
+    vi.mocked(runOpenCodeLogin).mockRejectedValue(new Error("request canceled"));
 
     const refreshAccountInfo = vi.fn();
     const refreshAccountRateLimits = vi.fn();
@@ -240,7 +240,7 @@ describe("useAccountSwitching", () => {
     expect(latest?.accountSwitching).toBe(false);
     expect(alertError).not.toHaveBeenCalled();
     expect(openUrl).not.toHaveBeenCalled();
-    expect(cancelCodexLogin).not.toHaveBeenCalled();
+    expect(cancelOpenCodeLogin).not.toHaveBeenCalled();
 
     await act(async () => {
       root.unmount();
@@ -248,7 +248,7 @@ describe("useAccountSwitching", () => {
   });
 
   it("clears switching state on workspace change and still completes the original login", async () => {
-    vi.mocked(runCodexLogin).mockResolvedValue({
+    vi.mocked(runOpenCodeLogin).mockResolvedValue({
       loginId: "login-ws-1",
       authUrl: "https://example.com/ws-1",
     });

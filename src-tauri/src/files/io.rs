@@ -143,14 +143,14 @@ mod tests {
     use uuid::Uuid;
 
     fn temp_dir() -> PathBuf {
-        std::env::temp_dir().join(format!("codex-monitor-file-io-{}", Uuid::new_v4()))
+        std::env::temp_dir().join(format!("opencode-monitor-file-io-{}", Uuid::new_v4()))
     }
 
     #[test]
     fn read_returns_missing_when_root_absent() {
         let root = temp_dir();
         let response =
-            read_text_file_within(&root, "AGENTS.md", true, "CODEX_HOME", "AGENTS.md", false)
+            read_text_file_within(&root, "AGENTS.md", true, "OPENCODE_CONFIG_DIR", "AGENTS.md", false)
                 .expect("read should succeed");
         assert!(!response.exists);
         assert!(response.content.is_empty());
@@ -164,13 +164,13 @@ mod tests {
             "AGENTS.md",
             "hello",
             true,
-            "CODEX_HOME",
+            "OPENCODE_CONFIG_DIR",
             "AGENTS.md",
             false,
         )
         .expect("write should succeed");
         let response =
-            read_text_file_within(&root, "AGENTS.md", false, "CODEX_HOME", "AGENTS.md", false)
+            read_text_file_within(&root, "AGENTS.md", false, "OPENCODE_CONFIG_DIR", "AGENTS.md", false)
                 .expect("read should succeed");
         assert!(response.exists);
         assert_eq!(response.content, "hello");
@@ -250,7 +250,7 @@ mod tests {
         symlink(&outside_file, &link_path).expect("create symlink");
 
         let response =
-            read_text_file_within(&root, "AGENTS.md", false, "CODEX_HOME", "AGENTS.md", true)
+            read_text_file_within(&root, "AGENTS.md", false, "OPENCODE_CONFIG_DIR", "AGENTS.md", true)
                 .expect("read should succeed");
         assert!(response.exists);
         assert_eq!(response.content, "outside");
@@ -277,7 +277,7 @@ mod tests {
             "AGENTS.md",
             "updated",
             false,
-            "CODEX_HOME",
+            "OPENCODE_CONFIG_DIR",
             "AGENTS.md",
             true,
         )
@@ -307,7 +307,7 @@ mod tests {
             &root,
             "config.toml",
             false,
-            "CODEX_HOME",
+            "OPENCODE_CONFIG_DIR",
             "config.toml",
             false,
         )

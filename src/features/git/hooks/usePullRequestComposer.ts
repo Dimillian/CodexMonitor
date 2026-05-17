@@ -36,7 +36,7 @@ type UsePullRequestComposerOptions = {
   setCenterMode: (mode: "chat" | "diff") => void;
   setGitPanelMode: (mode: GitPanelMode) => void;
   setPrefillDraft: (draft: { id: string; text: string; createdAt: number }) => void;
-  setActiveTab: (tab: "home" | "projects" | "codex" | "git" | "log") => void;
+  setActiveTab: (tab: "home" | "projects" | "opencode" | "git" | "log") => void;
   pullRequestReviewActions: PullRequestReviewAction[];
   pullRequestReviewLaunching: boolean;
   runPullRequestReview: (options: {

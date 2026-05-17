@@ -236,8 +236,8 @@ export type OpenAppTarget = {
 };
 
 export type AppSettings = {
-  codexBin: string | null;
-  codexArgs: string | null;
+  opencodeBin: string | null;
+  opencodeArgs: string | null;
   backendMode: BackendMode;
   remoteBackendProvider: RemoteBackendProvider;
   remoteBackendHost: string;
@@ -312,16 +312,16 @@ export type AppSettings = {
   selectedOpenAppId: string;
 };
 
-export type CodexFeatureStage =
+export type OpenCodeFeatureStage =
   | "under_development"
   | "beta"
   | "stable"
   | "deprecated"
   | "removed";
 
-export type CodexFeature = {
+export type OpenCodeFeature = {
   name: string;
-  stage: CodexFeatureStage;
+  stage: OpenCodeFeatureStage;
   enabled: boolean;
   defaultEnabled: boolean;
   displayName: string | null;
@@ -359,9 +359,9 @@ export type TailscaleDaemonCommandPreview = {
   tokenConfigured: boolean;
 };
 
-export type CodexDoctorResult = {
+export type OpenCodeDoctorResult = {
   ok: boolean;
-  codexBin: string | null;
+  opencodeBin: string | null;
   version: string | null;
   appServerOk: boolean;
   details: string | null;
@@ -371,11 +371,11 @@ export type CodexDoctorResult = {
   nodeDetails: string | null;
 };
 
-export type CodexUpdateMethod = "brew_formula" | "brew_cask" | "npm" | "unknown";
+export type OpenCodeUpdateMethod = "brew_formula" | "brew_cask" | "npm" | "unknown";
 
-export type CodexUpdateResult = {
+export type OpenCodeUpdateResult = {
   ok: boolean;
-  method: CodexUpdateMethod;
+  method: OpenCodeUpdateMethod;
   package: string | null;
   beforeVersion: string | null;
   afterVersion: string | null;

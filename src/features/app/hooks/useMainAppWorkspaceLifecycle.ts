@@ -11,9 +11,9 @@ import {
 import type { WorkspaceInfo } from "@/types";
 
 type UseMainAppWorkspaceLifecycleArgs = {
-  activeTab: "home" | "projects" | "codex" | "git" | "log";
+  activeTab: "home" | "projects" | "opencode" | "git" | "log";
   isTablet: boolean;
-  setActiveTab: (tab: "home" | "projects" | "codex" | "git" | "log") => void;
+  setActiveTab: (tab: "home" | "projects" | "opencode" | "git" | "log") => void;
   workspaces: WorkspaceInfo[];
   hasLoaded: boolean;
   connectWorkspace: (workspace: WorkspaceInfo) => Promise<void>;

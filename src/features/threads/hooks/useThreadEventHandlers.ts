@@ -198,7 +198,7 @@ export function useThreadEventHandlers({
   const onAppServerEvent = useCallback(
     (event: AppServerEvent) => {
       const method = getAppServerRawMethod(event) ?? "";
-      const inferredSource = method === "codex/stderr" ? "stderr" : "event";
+      const inferredSource = method === "opencode/stderr" ? "stderr" : "event";
       onDebug?.({
         id: `${Date.now()}-server-event`,
         timestamp: Date.now(),

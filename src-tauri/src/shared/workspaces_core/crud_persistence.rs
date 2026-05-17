@@ -7,8 +7,8 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::backend::app_server::WorkspaceSession;
-use crate::codex::args::resolve_workspace_codex_args;
-use crate::codex::home::resolve_workspace_codex_home;
+use crate::opencode::args::resolve_workspace_opencode_args;
+use crate::opencode::home::resolve_workspace_opencode_home;
 use crate::shared::process_core::kill_child_process_tree;
 use crate::shared::{git_core, worktree_core};
 use crate::storage::write_workspaces;
@@ -58,16 +58,16 @@ where
     let (session, spawned_new_session) = if let Some(existing_session) = existing_session {
         (existing_session, false)
     } else {
-        let (default_bin, codex_args) = {
+        let (default_bin, opencode_args) = {
             let settings = app_settings.lock().await;
             (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry, None, Some(&settings)),
+                settings.opencode_bin.clone(),
+                resolve_workspace_opencode_args(&entry, None, Some(&settings)),
             )
         };
-        let codex_home = resolve_workspace_codex_home(&entry, None);
+        let opencode_home = resolve_workspace_opencode_home(&entry, None);
         (
-            spawn_session(entry.clone(), default_bin, codex_args, codex_home).await?,
+            spawn_session(entry.clone(), default_bin, opencode_args, opencode_home).await?,
             true,
         )
     };
@@ -209,15 +209,15 @@ where
     let (session, spawned_new_session) = if let Some(existing_session) = existing_session {
         (existing_session, false)
     } else {
-        let (default_bin, codex_args) = {
+        let (default_bin, opencode_args) = {
             let settings = app_settings.lock().await;
             (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry, None, Some(&settings)),
+                settings.opencode_bin.clone(),
+                resolve_workspace_opencode_args(&entry, None, Some(&settings)),
             )
         };
-        let codex_home = resolve_workspace_codex_home(&entry, None);
-        match spawn_session(entry.clone(), default_bin, codex_args, codex_home).await {
+        let opencode_home = resolve_workspace_opencode_home(&entry, None);
+        match spawn_session(entry.clone(), default_bin, opencode_args, opencode_home).await {
             Ok(session) => (session, true),
             Err(error) => {
                 let _ = tokio::fs::remove_dir_all(&destination_path).await;
@@ -374,15 +374,15 @@ where
     let (session, spawned_new_session) = if let Some(existing_session) = existing_session {
         (existing_session, false)
     } else {
-        let (default_bin, codex_args) = {
+        let (default_bin, opencode_args) = {
             let settings = app_settings.lock().await;
             (
-                settings.codex_bin.clone(),
-                resolve_workspace_codex_args(&entry, None, Some(&settings)),
+                settings.opencode_bin.clone(),
+                resolve_workspace_opencode_args(&entry, None, Some(&settings)),
             )
         };
-        let codex_home = resolve_workspace_codex_home(&entry, None);
-        match spawn_session(entry.clone(), default_bin, codex_args, codex_home).await {
+        let opencode_home = resolve_workspace_opencode_home(&entry, None);
+        match spawn_session(entry.clone(), default_bin, opencode_args, opencode_home).await {
             Ok(session) => (session, true),
             Err(error) => {
                 let _ = tokio::fs::remove_dir_all(&clone_path).await;

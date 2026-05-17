@@ -69,7 +69,7 @@ export function ApprovalToasts({
       .trim();
 
   const methodLabel = (method: string) => {
-    const trimmed = method.replace(/^codex\/requestApproval\/?/, "");
+    const trimmed = method.replace(/^opencode\/requestApproval\/?/, "");
     return trimmed || method;
   };
 

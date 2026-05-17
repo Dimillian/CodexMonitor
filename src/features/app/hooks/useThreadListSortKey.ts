@@ -1,8 +1,8 @@
 import { useCallback, useState } from "react";
 import type { ThreadListOrganizeMode, ThreadListSortKey } from "../../../types";
 
-const THREAD_LIST_SORT_KEY_STORAGE_KEY = "codexmonitor.threadListSortKey";
-const THREAD_LIST_ORGANIZE_MODE_STORAGE_KEY = "codexmonitor.threadListOrganizeMode";
+const THREAD_LIST_SORT_KEY_STORAGE_KEY = "opencodemonitor.threadListSortKey";
+const THREAD_LIST_ORGANIZE_MODE_STORAGE_KEY = "opencodemonitor.threadListOrganizeMode";
 
 function getStoredThreadListSortKey(): ThreadListSortKey {
   if (typeof window === "undefined") {

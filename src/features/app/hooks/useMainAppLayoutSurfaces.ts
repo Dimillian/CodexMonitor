@@ -154,9 +154,9 @@ type UseMainAppLayoutSurfacesArgs = {
   onSelectEffort: ComposerProps["onSelectEffort"];
   selectedServiceTier: ComposerProps["selectedServiceTier"];
   reasoningSupported: boolean;
-  codexArgsOptions: ComposerProps["codexArgsOptions"];
-  selectedCodexArgsOverride: ComposerProps["selectedCodexArgsOverride"];
-  onSelectCodexArgsOverride: ComposerProps["onSelectCodexArgsOverride"];
+  opencodeArgsOptions: ComposerProps["opencodeArgsOptions"];
+  selectedOpenCodeArgsOverride: ComposerProps["selectedOpenCodeArgsOverride"];
+  onSelectOpenCodeArgsOverride: ComposerProps["onSelectOpenCodeArgsOverride"];
   accessMode: ComposerProps["accessMode"];
   onSelectAccessMode: ComposerProps["onSelectAccessMode"];
   skills: ComposerProps["skills"];
@@ -212,7 +212,7 @@ type UseMainAppLayoutSurfacesArgs = {
   isCompact: boolean;
   isPhone: boolean;
   activeTab: LayoutNodesOptions["primary"]["tabBarProps"]["activeTab"];
-  setActiveTab: (tab: "home" | "projects" | "codex" | "git" | "log") => void;
+  setActiveTab: (tab: "home" | "projects" | "opencode" | "git" | "log") => void;
   tabletTab: LayoutNodesOptions["primary"]["tabletNavProps"]["activeTab"];
   showMobilePollingFetchStatus: boolean;
   appModalsAboutOpen: boolean;
@@ -316,9 +316,9 @@ function buildPrimarySurface({
   onSelectEffort,
   selectedServiceTier,
   reasoningSupported,
-  codexArgsOptions,
-  selectedCodexArgsOverride,
-  onSelectCodexArgsOverride,
+  opencodeArgsOptions,
+  selectedOpenCodeArgsOverride,
+  onSelectOpenCodeArgsOverride,
   accessMode,
   onSelectAccessMode,
   skills,
@@ -512,9 +512,9 @@ function buildPrimarySurface({
           onSelectEffort,
           selectedServiceTier,
           reasoningSupported,
-          codexArgsOptions,
-          selectedCodexArgsOverride,
-          onSelectCodexArgsOverride,
+          opencodeArgsOptions,
+          selectedOpenCodeArgsOverride,
+          onSelectOpenCodeArgsOverride,
           accessMode,
           onSelectAccessMode,
           skills,
@@ -603,7 +603,7 @@ function buildPrimarySurface({
         threadNavigation.selectWorkspace(workspaceId);
         threadNavigation.setActiveThreadId(threadId, workspaceId);
         if (isCompact) {
-          setActiveTab("codex");
+          setActiveTab("opencode");
         }
       },
     },
@@ -1027,9 +1027,9 @@ export function useMainAppLayoutSurfaces({
   onSelectEffort,
   selectedServiceTier,
   reasoningSupported,
-  codexArgsOptions,
-  selectedCodexArgsOverride,
-  onSelectCodexArgsOverride,
+  opencodeArgsOptions,
+  selectedOpenCodeArgsOverride,
+  onSelectOpenCodeArgsOverride,
   accessMode,
   onSelectAccessMode,
   skills,
@@ -1189,9 +1189,9 @@ export function useMainAppLayoutSurfaces({
     onSelectEffort,
     selectedServiceTier,
     reasoningSupported,
-    codexArgsOptions,
-    selectedCodexArgsOverride,
-    onSelectCodexArgsOverride,
+    opencodeArgsOptions,
+    selectedOpenCodeArgsOverride,
+    onSelectOpenCodeArgsOverride,
     accessMode,
     onSelectAccessMode,
     skills,

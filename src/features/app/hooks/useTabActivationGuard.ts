@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-type AppTab = "home" | "projects" | "codex" | "git" | "log";
+type AppTab = "home" | "projects" | "opencode" | "git" | "log";
 
 type UseTabActivationGuardOptions = {
   activeTab: AppTab;
@@ -18,7 +18,7 @@ export function useTabActivationGuard({
       return;
     }
     if (activeTab === "projects" || activeTab === "home") {
-      setActiveTab("codex");
+      setActiveTab("opencode");
     }
   }, [activeTab, isTablet, setActiveTab]);
 }

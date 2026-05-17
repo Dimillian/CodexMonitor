@@ -194,7 +194,7 @@ export function HomeUsageSection({
         <div className="home-usage-empty">
           <div className="home-usage-empty-title">No usage data yet</div>
           <div className="home-usage-empty-subtitle">
-            Run a Codex session to start tracking local usage.
+            Run an OpenCode session to start tracking local usage.
           </div>
           {localUsageError && (
             <div className="home-usage-error">{localUsageError}</div>

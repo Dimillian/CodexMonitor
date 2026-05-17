@@ -20,7 +20,7 @@ rg -n "SUPPORTED_APP_SERVER_METHODS" src/utils/appServerEvents.ts
 ```bash
 awk '/client_request_definitions! \{/,/\/\/\/ DEPRECATED APIs below/' ../Codex/codex-rs/app-server-protocol/src/protocol/common.rs | rg -N -o '=>\s*"[^"]+"\s*\{' | sed -E 's/.*"([^"]+)".*/\1/' | sort -u
 awk '/server_request_definitions! \{/,/\/\/\/ DEPRECATED APIs below/' ../Codex/codex-rs/app-server-protocol/src/protocol/common.rs | rg -N -o '=>\s*"[^"]+"\s*\{' | sed -E 's/.*"([^"]+)".*/\1/' | sort -u
-perl -0777 -ne 'while(/send_request_for_workspace\(\s*&[^,]+\s*,\s*"([^"]+)"/g){print "$1\n"}' src-tauri/src/shared/codex_core.rs | sort -u
+perl -0777 -ne 'while(/send_request_for_workspace\(\s*&[^,]+\s*,\s*"([^"]+)"/g){print "$1\n"}' src-tauri/src/shared/opencode_core.rs | sort -u
 ```
 
 ## Schema Drift

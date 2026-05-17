@@ -6,7 +6,7 @@ type UseWorkspaceSelectionOptions = {
   workspaces: WorkspaceInfo[];
   isCompact: boolean;
   activeWorkspaceId: string | null;
-  setActiveTab: (tab: "home" | "projects" | "codex" | "git" | "log") => void;
+  setActiveTab: (tab: "home" | "projects" | "opencode" | "git" | "log") => void;
   setActiveWorkspaceId: (workspaceId: string | null) => void;
   updateWorkspaceSettings: (
     workspaceId: string,
@@ -58,7 +58,7 @@ export function useWorkspaceSelection({
         });
       }
       if (isCompact) {
-        setActiveTab("codex");
+        setActiveTab("opencode");
       }
     },
     [

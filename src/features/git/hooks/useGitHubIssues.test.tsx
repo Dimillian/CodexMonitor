@@ -11,7 +11,7 @@ vi.mock("../../../services/tauri", () => ({
 
 const workspace: WorkspaceInfo = {
   id: "workspace-1",
-  name: "CodexMonitor",
+  name: "OpenCodeMonitor",
   path: "/tmp/codex",
   connected: true,
   settings: { sidebarCollapsed: false },

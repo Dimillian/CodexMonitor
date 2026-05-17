@@ -15,7 +15,7 @@ type SecondaryLayoutNodes = Pick<
   | "debugPanelNode"
   | "debugPanelFullNode"
   | "terminalDockNode"
-  | "compactEmptyCodexNode"
+  | "compactEmptyOpenCodeNode"
   | "compactEmptyGitNode"
   | "compactGitBackNode"
 >;
@@ -108,7 +108,7 @@ export function buildSecondaryNodes(options: SecondaryLayoutNodesOptions): Secon
 
   const { debugPanelNode, debugPanelFullNode } = buildDebugPanels(options.debugPanelProps);
 
-  const compactEmptyCodexNode = buildCompactEmptyNode({
+  const compactEmptyOpenCodeNode = buildCompactEmptyNode({
     title: "No workspace selected",
     description: "Choose a project to start chatting.",
     onGoProjects: options.compactNavProps.onGoProjects,
@@ -127,7 +127,7 @@ export function buildSecondaryNodes(options: SecondaryLayoutNodesOptions): Secon
     debugPanelNode,
     debugPanelFullNode,
     terminalDockNode,
-    compactEmptyCodexNode,
+    compactEmptyOpenCodeNode,
     compactEmptyGitNode,
     compactGitBackNode,
   };

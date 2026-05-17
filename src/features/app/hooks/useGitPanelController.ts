@@ -34,9 +34,9 @@ export function useGitPanelController({
   splitChatDiffView: boolean;
   isCompact: boolean;
   isTablet: boolean;
-  activeTab: "home" | "projects" | "codex" | "git" | "log";
-  tabletTab: "codex" | "git" | "log";
-  setActiveTab: (tab: "home" | "projects" | "codex" | "git" | "log") => void;
+  activeTab: "home" | "projects" | "opencode" | "git" | "log";
+  tabletTab: "opencode" | "git" | "log";
+  setActiveTab: (tab: "home" | "projects" | "opencode" | "git" | "log") => void;
   prDiffs: GitHubPullRequestDiff[];
   prDiffsLoading: boolean;
   prDiffsError: string | null;

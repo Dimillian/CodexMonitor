@@ -4,7 +4,7 @@ use std::io::ErrorKind;
 use std::path::{Component, Path, PathBuf};
 use toml_edit::{value, Document, Item, Table};
 
-use crate::codex::home as codex_home;
+use crate::opencode::home as opencode_home;
 use crate::shared::config_toml_core;
 
 pub(crate) const DEFAULT_AGENT_MAX_THREADS: u32 = 6;
@@ -15,7 +15,7 @@ const MIN_AGENT_MAX_DEPTH: u32 = 1;
 const MAX_AGENT_MAX_DEPTH: u32 = 4;
 const MANAGED_AGENTS_DIR: &str = "agents";
 const TEMPLATE_BLANK: &str = "blank";
-const DEFAULT_AGENT_MODEL: &str = "gpt-5-codex";
+const DEFAULT_AGENT_MODEL: &str = "opencode-go/deepseek-v4-flash";
 const DEFAULT_REASONING_EFFORT: &str = "medium";
 
 const fn default_agent_max_depth() -> u32 {
@@ -82,18 +82,18 @@ pub(crate) struct DeleteAgentInput {
 }
 
 pub(crate) fn get_agents_settings_core() -> Result<AgentsSettingsDto, String> {
-    let codex_home = resolve_codex_home()?;
-    let config_path = codex_home.join("config.toml");
+    let opencode_home = resolve_opencode_home()?;
+    let config_path = opencode_home.join("config.toml");
     let config_path_string = config_path
         .to_str()
-        .ok_or_else(|| "Unable to resolve CODEX_HOME".to_string())?
+        .ok_or_else(|| "Unable to resolve OPENCODE_CONFIG_DIR".to_string())?
         .to_string();
 
-    let (_, document) = config_toml_core::load_global_config_document(&codex_home)?;
+    let (_, document) = config_toml_core::load_global_config_document(&opencode_home)?;
     let multi_agent_enabled = read_multi_agent_enabled(&document);
     let max_threads = read_max_threads(&document);
     let max_depth = read_max_depth(&document);
-    let mut agents = collect_agents(&codex_home, &document);
+    let mut agents = collect_agents(&opencode_home, &document);
     agents.sort_by(|left, right| left.name.cmp(&right.name));
 
     Ok(AgentsSettingsDto {
@@ -111,8 +111,8 @@ pub(crate) fn set_agents_core_settings_core(
     validate_max_threads(input.max_threads)?;
     validate_max_depth(input.max_depth)?;
 
-    let codex_home = resolve_codex_home()?;
-    let (_, mut document) = config_toml_core::load_global_config_document(&codex_home)?;
+    let opencode_home = resolve_opencode_home()?;
+    let (_, mut document) = config_toml_core::load_global_config_document(&opencode_home)?;
 
     let features = config_toml_core::ensure_table(&mut document, "features")?;
     features["multi_agent"] = value(input.multi_agent_enabled);
@@ -121,7 +121,7 @@ pub(crate) fn set_agents_core_settings_core(
     agents["max_threads"] = value(input.max_threads as i64);
     agents["max_depth"] = value(input.max_depth as i64);
 
-    config_toml_core::persist_global_config_document(&codex_home, &document)?;
+    config_toml_core::persist_global_config_document(&opencode_home, &document)?;
     get_agents_settings_core()
 }
 
@@ -130,8 +130,8 @@ pub(crate) fn create_agent_core(input: CreateAgentInput) -> Result<AgentsSetting
     let description = normalize_optional_string(input.description.as_deref());
     let developer_instructions = normalize_optional_string(input.developer_instructions.as_deref());
 
-    let codex_home = resolve_codex_home()?;
-    let (_, mut document) = config_toml_core::load_global_config_document(&codex_home)?;
+    let opencode_home = resolve_opencode_home()?;
+    let (_, mut document) = config_toml_core::load_global_config_document(&opencode_home)?;
 
     {
         let agents = config_toml_core::ensure_table(&mut document, "agents")?;
@@ -141,7 +141,7 @@ pub(crate) fn create_agent_core(input: CreateAgentInput) -> Result<AgentsSetting
     }
 
     let relative_config_path = managed_relative_config_for_name(&name);
-    let target_path = resolve_safe_managed_abs_path_for_write(&codex_home, &relative_config_path)?;
+    let target_path = resolve_safe_managed_abs_path_for_write(&opencode_home, &relative_config_path)?;
     if target_path.exists() {
         return Err(format!(
             "target config file already exists: {}",
@@ -167,7 +167,7 @@ pub(crate) fn create_agent_core(input: CreateAgentInput) -> Result<AgentsSetting
         agents[&name] = Item::Table(role);
     }
 
-    if let Err(err) = config_toml_core::persist_global_config_document(&codex_home, &document) {
+    if let Err(err) = config_toml_core::persist_global_config_document(&opencode_home, &document) {
         let _ = std::fs::remove_file(&target_path);
         return Err(err);
     }
@@ -183,8 +183,8 @@ pub(crate) fn update_agent_core(input: UpdateAgentInput) -> Result<AgentsSetting
     let developer_instructions = normalize_optional_string(input.developer_instructions.as_deref());
     let rename_managed_file = input.rename_managed_file.unwrap_or(true);
 
-    let codex_home = resolve_codex_home()?;
-    let (_, mut document) = config_toml_core::load_global_config_document(&codex_home)?;
+    let opencode_home = resolve_opencode_home()?;
+    let (_, mut document) = config_toml_core::load_global_config_document(&opencode_home)?;
 
     let mut maybe_renamed_paths: Option<(PathBuf, PathBuf)> = None;
     let mut maybe_config_content_backup: Option<(PathBuf, Option<Vec<u8>>)> = None;
@@ -208,11 +208,11 @@ pub(crate) fn update_agent_core(input: UpdateAgentInput) -> Result<AgentsSetting
                     let new_relative_path = managed_relative_config_for_name(&name);
                     if old_relative_path != new_relative_path {
                         let old_abs_path = resolve_safe_managed_abs_path_for_read(
-                            &codex_home,
+                            &opencode_home,
                             &old_relative_path,
                         )?;
                         let new_abs_path = resolve_safe_managed_abs_path_for_write(
-                            &codex_home,
+                            &opencode_home,
                             &new_relative_path,
                         )?;
                         if new_abs_path.exists() {
@@ -248,7 +248,7 @@ pub(crate) fn update_agent_core(input: UpdateAgentInput) -> Result<AgentsSetting
             if let Some(config_file) = next_config_file.as_deref() {
                 if let Some(relative_path) = managed_relative_path_from_config(config_file) {
                     let target =
-                        resolve_safe_managed_abs_path_for_write(&codex_home, &relative_path)?;
+                        resolve_safe_managed_abs_path_for_write(&opencode_home, &relative_path)?;
                     let previous = match upsert_developer_instructions_in_agent_config_file(
                         &target,
                         developer_instructions.as_deref(),
@@ -289,7 +289,7 @@ pub(crate) fn update_agent_core(input: UpdateAgentInput) -> Result<AgentsSetting
         agents[&name] = Item::Table(role);
     }
 
-    if let Err(err) = config_toml_core::persist_global_config_document(&codex_home, &document) {
+    if let Err(err) = config_toml_core::persist_global_config_document(&opencode_home, &document) {
         if let Some((path, backup)) = maybe_config_content_backup {
             match backup {
                 Some(bytes) => {
@@ -317,8 +317,8 @@ pub(crate) fn delete_agent_core(input: DeleteAgentInput) -> Result<AgentsSetting
     let name = normalize_agent_lookup_name(input.name.as_str())?;
     let delete_managed_file = input.delete_managed_file.unwrap_or(false);
 
-    let codex_home = resolve_codex_home()?;
-    let (_, mut document) = config_toml_core::load_global_config_document(&codex_home)?;
+    let opencode_home = resolve_opencode_home()?;
+    let (_, mut document) = config_toml_core::load_global_config_document(&opencode_home)?;
 
     let removed_config_file = {
         let agents = config_toml_core::ensure_table(&mut document, "agents")?;
@@ -332,7 +332,7 @@ pub(crate) fn delete_agent_core(input: DeleteAgentInput) -> Result<AgentsSetting
     if delete_managed_file {
         if let Some(config_file) = removed_config_file {
             if let Some(relative_path) = managed_relative_path_from_config(config_file.as_str()) {
-                let target = resolve_safe_managed_abs_path_for_read(&codex_home, &relative_path)?;
+                let target = resolve_safe_managed_abs_path_for_read(&opencode_home, &relative_path)?;
                 if target.exists() {
                     let backup = std::fs::read(&target).map_err(|err| {
                         format!("Failed to read agent config file before delete: {err}")
@@ -346,7 +346,7 @@ pub(crate) fn delete_agent_core(input: DeleteAgentInput) -> Result<AgentsSetting
     }
 
     if let Err(persist_error) =
-        config_toml_core::persist_global_config_document(&codex_home, &document)
+        config_toml_core::persist_global_config_document(&opencode_home, &document)
     {
         if let Some((path, backup)) = deleted_config_backup {
             if let Err(restore_error) = std::fs::write(&path, backup) {
@@ -365,8 +365,8 @@ pub(crate) fn delete_agent_core(input: DeleteAgentInput) -> Result<AgentsSetting
 }
 
 pub(crate) fn read_agent_config_toml_core(agent_name: &str) -> Result<String, String> {
-    let (codex_home, relative_path) = resolve_managed_agent_config_relative_path(agent_name)?;
-    let path = resolve_safe_managed_abs_path_for_read(&codex_home, &relative_path)?;
+    let (opencode_home, relative_path) = resolve_managed_agent_config_relative_path(agent_name)?;
+    let path = resolve_safe_managed_abs_path_for_read(&opencode_home, &relative_path)?;
     if !path.exists() {
         return Ok(String::new());
     }
@@ -374,14 +374,14 @@ pub(crate) fn read_agent_config_toml_core(agent_name: &str) -> Result<String, St
 }
 
 pub(crate) fn write_agent_config_toml_core(agent_name: &str, content: &str) -> Result<(), String> {
-    let (codex_home, relative_path) = resolve_managed_agent_config_relative_path(agent_name)?;
-    let path = resolve_safe_managed_abs_path_for_write(&codex_home, &relative_path)?;
+    let (opencode_home, relative_path) = resolve_managed_agent_config_relative_path(agent_name)?;
+    let path = resolve_safe_managed_abs_path_for_write(&opencode_home, &relative_path)?;
     std::fs::write(path, content).map_err(|err| format!("Failed to write agent config file: {err}"))
 }
 
-fn resolve_codex_home() -> Result<PathBuf, String> {
-    codex_home::resolve_default_codex_home()
-        .ok_or_else(|| "Unable to resolve CODEX_HOME".to_string())
+fn resolve_opencode_home() -> Result<PathBuf, String> {
+    opencode_home::resolve_default_opencode_home()
+        .ok_or_else(|| "Unable to resolve OPENCODE_CONFIG_DIR".to_string())
 }
 
 fn read_multi_agent_enabled(document: &Document) -> bool {
@@ -424,7 +424,7 @@ fn read_max_depth(document: &Document) -> u32 {
         .unwrap_or(DEFAULT_AGENT_MAX_DEPTH)
 }
 
-fn collect_agents(codex_home: &Path, document: &Document) -> Vec<AgentSummaryDto> {
+fn collect_agents(opencode_home: &Path, document: &Document) -> Vec<AgentSummaryDto> {
     let mut result = Vec::new();
     let Some(agents_table) = document.get("agents").and_then(Item::as_table_like) else {
         return result;
@@ -437,12 +437,12 @@ fn collect_agents(codex_home: &Path, document: &Document) -> Vec<AgentSummaryDto
         let description = read_role_description(item);
         let config_file = read_role_config_file(item).unwrap_or_default();
         let developer_instructions =
-            read_role_developer_instructions(codex_home, config_file.as_str());
-        let resolved_path = resolve_config_file_path_for_display(codex_home, config_file.as_str())
+            read_role_developer_instructions(opencode_home, config_file.as_str());
+        let resolved_path = resolve_config_file_path_for_display(opencode_home, config_file.as_str())
             .map(|path| path.to_string_lossy().to_string())
-            .unwrap_or_else(|| codex_home.to_string_lossy().to_string());
+            .unwrap_or_else(|| opencode_home.to_string_lossy().to_string());
         let managed_by_app = managed_relative_path_from_config(config_file.as_str()).is_some();
-        let file_exists = resolve_config_file_path_for_display(codex_home, config_file.as_str())
+        let file_exists = resolve_config_file_path_for_display(opencode_home, config_file.as_str())
             .map(|path| path.is_file())
             .unwrap_or(false);
 
@@ -460,7 +460,7 @@ fn collect_agents(codex_home: &Path, document: &Document) -> Vec<AgentSummaryDto
     result
 }
 
-fn resolve_config_file_path_for_display(codex_home: &Path, raw_value: &str) -> Option<PathBuf> {
+fn resolve_config_file_path_for_display(opencode_home: &Path, raw_value: &str) -> Option<PathBuf> {
     let trimmed = raw_value.trim();
     if trimmed.is_empty() {
         return None;
@@ -470,7 +470,7 @@ fn resolve_config_file_path_for_display(codex_home: &Path, raw_value: &str) -> O
         return Some(raw_path.to_path_buf());
     }
     let normalized_relative = normalize_relative_path(raw_value)?;
-    Some(codex_home.join(normalized_relative))
+    Some(opencode_home.join(normalized_relative))
 }
 
 fn normalize_agent_name(raw_name: &str) -> Result<String, String> {
@@ -600,9 +600,9 @@ fn read_role_config_file(item: &Item) -> Option<String> {
         .and_then(|value| normalize_optional_string(Some(value)))
 }
 
-fn read_role_developer_instructions(codex_home: &Path, config_file: &str) -> Option<String> {
+fn read_role_developer_instructions(opencode_home: &Path, config_file: &str) -> Option<String> {
     let relative_path = managed_relative_path_from_config(config_file)?;
-    let path = resolve_safe_managed_abs_path_for_read(codex_home, &relative_path).ok()?;
+    let path = resolve_safe_managed_abs_path_for_read(opencode_home, &relative_path).ok()?;
     if !path.is_file() {
         return None;
     }
@@ -662,8 +662,8 @@ fn resolve_managed_agent_config_relative_path(
     agent_name: &str,
 ) -> Result<(PathBuf, PathBuf), String> {
     let name = normalize_agent_lookup_name(agent_name)?;
-    let codex_home = resolve_codex_home()?;
-    let (_, document) = config_toml_core::load_global_config_document(&codex_home)?;
+    let opencode_home = resolve_opencode_home()?;
+    let (_, document) = config_toml_core::load_global_config_document(&opencode_home)?;
 
     let agents_table = document
         .get("agents")
@@ -680,42 +680,42 @@ fn resolve_managed_agent_config_relative_path(
 
     let Some(relative_path) = managed_relative_path_from_config(config_file.as_str()) else {
         return Err(format!(
-            "agent '{name}' config_file is not managed by CodexMonitor"
+            "agent '{name}' config_file is not managed by OpenCodeMonitor"
         ));
     };
 
-    Ok((codex_home, relative_path))
+    Ok((opencode_home, relative_path))
 }
 
 fn resolve_safe_managed_abs_path_for_read(
-    codex_home: &Path,
+    opencode_home: &Path,
     relative_path: &Path,
 ) -> Result<PathBuf, String> {
-    let path = codex_home.join(relative_path);
-    assert_managed_path_without_symlinks(codex_home, relative_path, true)?;
+    let path = opencode_home.join(relative_path);
+    assert_managed_path_without_symlinks(opencode_home, relative_path, true)?;
     Ok(path)
 }
 
 fn resolve_safe_managed_abs_path_for_write(
-    codex_home: &Path,
+    opencode_home: &Path,
     relative_path: &Path,
 ) -> Result<PathBuf, String> {
-    let path = codex_home.join(relative_path);
-    assert_managed_path_without_symlinks(codex_home, relative_path, true)?;
+    let path = opencode_home.join(relative_path);
+    assert_managed_path_without_symlinks(opencode_home, relative_path, true)?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|err| format!("Failed to create agents directory: {err}"))?;
     }
-    assert_managed_path_without_symlinks(codex_home, relative_path, true)?;
+    assert_managed_path_without_symlinks(opencode_home, relative_path, true)?;
     Ok(path)
 }
 
 fn assert_managed_path_without_symlinks(
-    codex_home: &Path,
+    opencode_home: &Path,
     relative_path: &Path,
     include_leaf: bool,
 ) -> Result<(), String> {
-    let mut current = codex_home.to_path_buf();
+    let mut current = opencode_home.to_path_buf();
     let mut components = relative_path.components().peekable();
     while let Some(component) = components.next() {
         current.push(component.as_os_str());
@@ -851,7 +851,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("clock")
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!("codex-monitor-{prefix}-{nonce}"));
+        let dir = std::env::temp_dir().join(format!("opencode-monitor-{prefix}-{nonce}"));
         if dir.exists() {
             let _ = std::fs::remove_dir_all(&dir);
         }
@@ -927,18 +927,18 @@ mod tests {
     fn managed_write_rejects_symlinked_agents_dir() {
         use std::os::unix::fs::symlink;
 
-        let codex_home = temp_dir("codex-home");
+        let opencode_home = temp_dir("opencode-home");
         let outside = temp_dir("outside");
-        symlink(&outside, codex_home.join("agents")).expect("symlink agents");
+        symlink(&outside, opencode_home.join("agents")).expect("symlink agents");
 
         let err = resolve_safe_managed_abs_path_for_write(
-            &codex_home,
+            &opencode_home,
             std::path::Path::new("agents/researcher.toml"),
         )
         .expect_err("should reject symlink path");
         assert!(err.contains("symlinks"));
 
-        let _ = std::fs::remove_dir_all(&codex_home);
+        let _ = std::fs::remove_dir_all(&opencode_home);
         let _ = std::fs::remove_dir_all(&outside);
     }
 
@@ -986,7 +986,7 @@ mod tests {
 
     #[test]
     fn collect_agents_ignores_reserved_keys() {
-        let codex_home = temp_dir("codex-home");
+        let opencode_home = temp_dir("opencode-home");
         let document: Document = r#"
 [agents]
 max_threads = 8
@@ -999,11 +999,11 @@ config_file = "agents/researcher.toml"
         .parse()
         .expect("parse");
 
-        let agents = collect_agents(&codex_home, &document);
+        let agents = collect_agents(&opencode_home, &document);
         assert_eq!(agents.len(), 1);
         assert_eq!(agents[0].name, "researcher");
 
-        let _ = std::fs::remove_dir_all(codex_home);
+        let _ = std::fs::remove_dir_all(opencode_home);
     }
 
     #[test]
