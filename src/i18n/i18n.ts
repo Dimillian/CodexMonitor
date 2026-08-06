@@ -1,6 +1,8 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 
+import { detectInitialLanguage } from "./types";
+
 import enCommon from "./locales/en/common.json";
 import enSidebar from "./locales/en/sidebar.json";
 import enHome from "./locales/en/home.json";
@@ -95,7 +97,7 @@ i18n.use(initReactI18next).init({
     },
   },
   defaultNS: "common",
-  lng: "en",
+  lng: detectInitialLanguage(),
   fallbackLng: "en",
   interpolation: {
     escapeValue: false,

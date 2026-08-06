@@ -20,7 +20,7 @@ import { getDefaultInterruptShortcut, isMacPlatform } from "@utils/shortcuts";
 import { isMobilePlatform } from "@utils/platformPaths";
 import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
 import { i18n } from "@/i18n";
-import { isSupportedLanguage } from "@/i18n/types";
+import { detectInitialLanguage, isSupportedLanguage } from "@/i18n/types";
 
 const allowedThemes = new Set(["system", "light", "dark", "dim"]);
 const allowedPersonality = new Set(["friendly", "pragmatic"]);
@@ -210,7 +210,7 @@ function buildDefaultSettings(): AppSettings {
     openAppTargets: DEFAULT_OPEN_APP_TARGETS,
     selectedOpenAppId: DEFAULT_OPEN_APP_ID,
     globalWorktreesFolder: null,
-    language: "en",
+    language: detectInitialLanguage(),
   };
 }
 
@@ -279,7 +279,9 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     commitMessagePrompt,
     openAppTargets: normalizedTargets,
     selectedOpenAppId,
-    language: isSupportedLanguage(settings.language) ? settings.language : "en",
+    language: isSupportedLanguage(settings.language)
+      ? settings.language
+      : detectInitialLanguage(),
   };
 }
 
