@@ -1,9 +1,6 @@
 {
-  "loading": "加载中...",
-  "confirm": "确认",
-  "cancel": "取消",
-  "close": "关闭",
   "save": "保存",
+  "cancel": "取消",
   "delete": "删除",
   "usage": {
     "reset": "重置于 {{relative}}",
@@ -12,6 +9,7 @@
       "amount": "可用额度：{{amount}}"
     }
   },
+  "close": "关闭",
   "timeNow": "刚刚",
   "timeSAgo": "{{value}}秒前",
   "timeInS": "{{value}}秒后",
@@ -24,6 +22,8 @@
   "timeShortW": "{{value}}周",
   "timeShortMo": "{{value}}月",
   "timeShortY": "{{value}}年",
+  "loading": "加载中...",
+  "confirm": "确认",
   "downloadSizeZero": "0 MB",
   "downloadSizeGB": "{{value}} GB",
   "downloadSizeMB": "{{value}} MB",

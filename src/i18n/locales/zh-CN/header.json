@@ -1,18 +1,18 @@
 {
   "worktree": {
     "info": "工作树信息",
-    "title": "工作树",
-    "reveal": "在文件管理器中显示",
-    "terminal": "终端",
-    "terminalRoot": "终端（仓库根目录）",
-    "terminalHint": "在终端中打开此工作区。",
-    "copyCommand": "复制命令",
     "rename": {
-      "confirm": "确认重命名",
-      "name": "名称"
+      "name": "名称",
+      "confirm": "确认重命名"
     },
     "upstreamPrompt": "是否要将上游分支更新为 <strong>{{branch}}</strong>？",
-    "upstreamAction": "更新上游分支"
+    "upstreamAction": "更新上游分支",
+    "title": "工作树",
+    "terminalRoot": "终端（仓库根目录）",
+    "terminal": "终端",
+    "copyCommand": "复制命令",
+    "terminalHint": "在终端中打开此工作区。",
+    "reveal": "在文件管理器中显示"
   },
   "branch": {
     "searchPlaceholder": "搜索或创建分支",

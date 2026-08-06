@@ -1,0 +1,38 @@
+// i18next-parser configuration
+// See https://github.com/i18next/i18next-parser for full options
+
+module.exports = {
+  contextSeparator: '_',
+  createOldCatalogs: false,
+  defaultNamespace: 'common',
+  defaultValue: '',
+  indentation: 2,
+  keepRemoved: true,
+  keySeparator: '.',
+  lexers: {
+    hbs: ['HandlebarsLexer'],
+    handlebars: ['HandlebarsLexer'],
+    htm: ['HTMLLexer'],
+    html: ['HTMLLexer'],
+    mjs: ['JavascriptLexer'],
+    js: ['JavascriptLexer'],
+    ts: ['JavascriptLexer'],
+    jsx: ['JsxLexer'],
+    tsx: ['JsxLexer'],
+    default: ['JavascriptLexer'],
+  },
+  lineEnding: 'auto',
+  locales: ['en', 'zh-CN'],
+  namespaceSeparator: ':',
+  output: 'src/i18n/locales/$LOCALE/$NAMESPACE.json',
+  input: ['src/**/*.{ts,tsx}', '!src/**/*.test.{ts,tsx}', '!src/**/*.spec.{ts,tsx}'],
+  sort: false,
+  pluralSeparator: false,
+  verbose: false,
+  failOnWarnings: false,
+  failOnUpdate: false,
+  customValueTemplate: null,
+  resetDefaultValueLocale: null,
+  i18nextOptions: null,
+  yamlOptions: null,
+};

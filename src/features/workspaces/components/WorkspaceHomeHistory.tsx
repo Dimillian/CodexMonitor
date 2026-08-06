@@ -35,6 +35,7 @@ function WorkspaceHomeInstanceList({
   threadStatusById,
   onSelectInstance,
 }: WorkspaceHomeInstanceListProps) {
+  const { t } = useTranslation();
   const labelCounts = buildLabelCounts(instances);
 
   return (
@@ -63,7 +64,7 @@ function WorkspaceHomeInstanceList({
                 status.isRunning ? " is-running" : ""
               }`}
             >
-              {status.statusLabel}
+              {t(status.statusLabel)}
             </span>
           </button>
         );

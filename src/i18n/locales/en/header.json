@@ -1,18 +1,18 @@
 {
   "worktree": {
     "info": "Worktree info",
-    "title": "Worktree",
-    "reveal": "Reveal",
-    "terminal": "Terminal",
-    "terminalRoot": "Terminal (repo root)",
-    "terminalHint": "Open this worktree in your terminal.",
-    "copyCommand": "Copy command",
     "rename": {
-      "confirm": "Confirm rename",
-      "name": "Name"
+      "name": "Name",
+      "confirm": "Confirm rename"
     },
     "upstreamPrompt": "Do you want to update the upstream branch to <strong>{{branch}}</strong>?",
-    "upstreamAction": "Update upstream"
+    "upstreamAction": "Update upstream",
+    "title": "Worktree",
+    "terminalRoot": "Terminal (repo root)",
+    "terminal": "Terminal",
+    "copyCommand": "Copy command",
+    "terminalHint": "Open this worktree in your terminal.",
+    "reveal": "Reveal"
   },
   "branch": {
     "searchPlaceholder": "Search or create branch",

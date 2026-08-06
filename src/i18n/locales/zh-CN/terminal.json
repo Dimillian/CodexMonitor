@@ -1,8 +1,8 @@
 {
-  "dockTabs": "终端标签页",
-  "newTerminal": "新建终端",
-  "closeTerminal": "关闭 {{title}}",
   "resizePanel": "调整终端面板大小",
+  "dockTabs": "终端标签页",
+  "closeTerminal": "关闭 {{title}}",
+  "newTerminal": "新建终端",
   "statusReady": "就绪",
   "statusBusy": "忙碌中",
   "statusError": "错误"

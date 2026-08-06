@@ -26,7 +26,7 @@ export function formatCount(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "--";
   }
-  return new Intl.NumberFormat().format(value);
+  return new Intl.NumberFormat(i18n.language).format(value);
 }
 
 export function formatDuration(valueMs: number | null | undefined) {
@@ -74,7 +74,7 @@ export function formatDayLabel(value: string | null | undefined) {
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(i18n.language, {
     month: "short",
     day: "numeric",
   }).format(date);
@@ -152,7 +152,7 @@ export function formatCreditsBalance(value: string | null | undefined) {
   if (!Number.isFinite(numeric) || numeric <= 0) {
     return trimmed;
   }
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat(i18n.language, {
     maximumFractionDigits: 0,
   }).format(numeric);
 }

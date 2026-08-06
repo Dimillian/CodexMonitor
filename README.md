@@ -257,6 +257,18 @@ npm run typecheck
 cd src-tauri && cargo check
 ```
 
+## Localization
+
+The UI ships in English (default) and Simplified Chinese (`zh-CN`). Switch the language in `Settings > Display & Sound`; the choice persists to `settings.json`.
+
+Translation files live in `src/i18n/locales/<locale>/<namespace>.json`. After adding or changing UI strings, refresh the catalogs:
+
+```bash
+npm run extract:i18n
+```
+
+Notes: native menus and tray text follow the language set at app launch (restart to apply a change). The extractor reports two false-positive keys (`optionKeyLabel`, `metaKeyLabel`) — remove them manually after each run.
+
 ## Codebase Navigation
 
 For task-oriented file lookup ("if you need X, edit Y"), use:

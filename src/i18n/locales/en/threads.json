@@ -6,7 +6,6 @@
     "thisWeek": "This week",
     "older": "Older"
   },
-  "recentConversations": "Recent conversations",
   "list": {
     "empty": "No conversations yet.",
     "showLess": "Show less",
@@ -15,6 +14,10 @@
     "searchOlder": "Search older...",
     "loadOlder": "Load older..."
   },
+  "recentConversations": "Recent conversations",
+  "loading": {
+    "agents": "Loading agents"
+  },
   "row": {
     "reviewing": "Reviewing",
     "waiting": "Waiting",
@@ -22,8 +25,5 @@
     "hideSubAgents": "Hide sub-agents",
     "showSubAgents": "Show sub-agents",
     "now": "Now"
-  },
-  "loading": {
-    "agents": "Loading agents"
   }
 }

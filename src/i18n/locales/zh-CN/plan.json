@@ -1,6 +1,6 @@
 {
-  "title": "计划",
   "waiting": "等待计划...",
   "noActive": "暂无活跃计划。",
+  "title": "计划",
   "progress": "{{completed}}/{{total}}"
 }

@@ -1,9 +1,6 @@
 {
-  "loading": "Loading...",
-  "confirm": "Confirm",
-  "cancel": "Cancel",
-  "close": "Close",
   "save": "Save",
+  "cancel": "Cancel",
   "delete": "Delete",
   "usage": {
     "reset": "Resets {{relative}}",
@@ -12,6 +9,7 @@
       "amount": "Available credits: {{amount}}"
     }
   },
+  "close": "Close",
   "timeNow": "now",
   "timeSAgo": "{{value}}s ago",
   "timeInS": "in {{value}}s",
@@ -24,6 +22,8 @@
   "timeShortW": "{{value}}w",
   "timeShortMo": "{{value}}mo",
   "timeShortY": "{{value}}y",
+  "loading": "Loading...",
+  "confirm": "Confirm",
   "downloadSizeZero": "0 MB",
   "downloadSizeGB": "{{value}} GB",
   "downloadSizeMB": "{{value}} MB",

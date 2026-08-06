@@ -1,23 +1,23 @@
 {
   "approvalToasts": {
+    "none": "无",
     "title": "需要审批",
     "noExtraDetails": "没有额外详情。",
-    "none": "无",
     "decline": "拒绝",
-    "alwaysAllow": "始终允许",
     "allowTooltip": "允许以 {{preview}} 开头的命令",
+    "alwaysAllow": "始终允许",
     "approve": "批准 (Enter)"
   },
   "launchScript": {
-    "runLabel": "运行启动脚本",
-    "setLabel": "设置启动脚本",
+    "saving": "保存中...",
     "title": "启动脚本",
     "placeholder": "例如：npm run dev",
     "new": "新建",
-    "saving": "保存中...",
     "newTitle": "新建启动脚本",
     "optionalLabel": "可选标签",
     "create": "创建",
+    "runLabel": "运行启动脚本",
+    "setLabel": "设置启动脚本",
     "icons": {
       "play": "播放",
       "build": "构建",
@@ -36,15 +36,18 @@
       "logs": "日志"
     }
   },
+  "mainApp": {
+    "launchTerminalTitle": "启动"
+  },
   "openAppMenu": {
     "open": "打开",
+    "vsCode": "VS Code",
+    "visualStudioCode": "Visual Studio Code",
+    "couldNotOpen": "无法打开工作区",
     "openIn": "在 {{label}} 中打开",
     "setCommandInSettings": "在设置中设置命令",
     "setAppNameInSettings": "在设置中设置应用名称",
-    "selectEditor": "选择编辑器",
-    "couldNotOpen": "无法打开工作区",
-    "vsCode": "VS Code",
-    "visualStudioCode": "Visual Studio Code"
+    "selectEditor": "选择编辑器"
   },
   "planReady": {
     "ariaLabel": "计划已就绪",
@@ -64,31 +67,29 @@
     "submit": "提交"
   },
   "sidebarWorkspaceGroups": {
+    "conversation": "{{count}} 会话",
+    "noConversations": "暂无对话",
     "newAgent": "新建代理",
     "newWorktreeAgent": "新建工作树代理",
     "newCloneAgent": "新建克隆代理",
     "newAgentDraft": "新建代理",
+    "cloneSection": "克隆代理",
     "conversation_one": "{{count}} 个对话",
-    "conversation_other": "{{count}} 个对话",
-    "noConversations": "暂无对话",
-    "cloneSection": "克隆代理"
+    "conversation_other": "{{count}} 个对话"
   },
   "tabBar": {
-    "ariaLabel": "主要",
     "home": "首页",
     "projects": "项目",
     "codex": "Codex",
     "git": "Git",
-    "log": "日志"
+    "log": "日志",
+    "ariaLabel": "主要"
   },
   "tabletNav": {
-    "ariaLabel": "工作区",
     "codex": "Codex",
     "git": "Git",
-    "log": "日志"
-  },
-  "mainApp": {
-    "launchTerminalTitle": "启动"
+    "log": "日志",
+    "ariaLabel": "工作区"
   },
   "refreshCurrentThread": "从服务器刷新当前线程"
 }

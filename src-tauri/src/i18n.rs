@@ -157,6 +157,21 @@ mod tests {
     }
 
     #[test]
+    fn t_rs_en_menu_file() {
+        assert_eq!(t_rs("menu.file", "en"), "File");
+    }
+
+    #[test]
+    fn t_rs_en_menu_view() {
+        assert_eq!(t_rs("menu.view", "en"), "View");
+    }
+
+    #[test]
+    fn t_rs_en_menu_settings() {
+        assert_eq!(t_rs("menu.settings", "en"), "Settings...");
+    }
+
+    #[test]
     fn t_rs_en_about_fmt() {
         assert_eq!(t_rs("menu.about_fmt", "en"), "About {0}");
     }
@@ -215,6 +230,21 @@ mod tests {
             t_rs_fmt("menu.about_fmt", "zh-CN", &["Codex Monitor"]),
             "关于 Codex Monitor"
         );
+    }
+
+    #[test]
+    fn t_rs_zh_menu_file() {
+        assert_eq!(t_rs("menu.file", "zh-CN"), "文件");
+    }
+
+    #[test]
+    fn t_rs_zh_menu_view() {
+        assert_eq!(t_rs("menu.view", "zh-CN"), "视图");
+    }
+
+    #[test]
+    fn t_rs_zh_menu_settings() {
+        assert_eq!(t_rs("menu.settings", "zh-CN"), "设置...");
     }
 
     // ── Unknown key → fallback to key itself ────────────────────────

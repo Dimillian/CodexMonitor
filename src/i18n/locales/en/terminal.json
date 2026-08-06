@@ -1,8 +1,8 @@
 {
-  "dockTabs": "Terminal tabs",
-  "newTerminal": "New terminal",
-  "closeTerminal": "Close {{title}}",
   "resizePanel": "Resize terminal panel",
+  "dockTabs": "Terminal tabs",
+  "closeTerminal": "Close {{title}}",
+  "newTerminal": "New terminal",
   "statusReady": "ready",
   "statusBusy": "busy",
   "statusError": "error"

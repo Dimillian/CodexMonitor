@@ -1,7 +1,7 @@
 {
+  "resizePanel": "调整调试面板大小",
   "title": "调试",
   "copy": "复制",
   "clear": "清除",
-  "empty": "暂无调试事件。",
-  "resizePanel": "调整调试面板大小"
+  "empty": "暂无调试事件。"
 }

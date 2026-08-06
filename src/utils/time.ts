@@ -31,7 +31,7 @@ export function formatRelativeTime(timestamp: number) {
     return i18n.t("common:timeNow");
   }
   const value = Math.round(diffSeconds / range.seconds);
-  const formatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  const formatter = new Intl.RelativeTimeFormat(i18n.language, { numeric: "auto" });
   return formatter.format(value, range.unit);
 }
 

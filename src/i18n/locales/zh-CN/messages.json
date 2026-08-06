@@ -1,18 +1,18 @@
 {
-  "sendPrompt": "向代理发送提示。",
-  "startNewAgent": "发送提示以启动新代理。",
-  "loading": "加载中…",
-  "expandToolCalls": "展开工具调用",
-  "collapseToolCalls": "折叠工具调用",
-  "toolCallCount": "{{count}} 次工具调用",
-  "toolCallCount_other": "{{count}} 次工具调用",
-  "messageCount": "{{count}} 条消息",
-  "messageCount_other": "{{count}} 条消息",
+  "copyCodeBlock": "复制代码块",
   "closeImagePreview": "关闭图片预览",
   "quoteMessage": "引用消息",
   "copyMessage": "复制消息",
   "toggleReasoningDetails": "切换推理详情",
   "toggleAnsweredInputDetails": "切换已回答输入详情",
   "toggleToolDetails": "切换工具详情",
-  "copyCodeBlock": "复制代码块"
+  "toolCallCount": "{{count}} 次工具调用",
+  "messageCount": "{{count}} 条消息",
+  "expandToolCalls": "展开工具调用",
+  "collapseToolCalls": "折叠工具调用",
+  "sendPrompt": "向代理发送提示。",
+  "startNewAgent": "发送提示以启动新代理。",
+  "loading": "加载中…",
+  "toolCallCount_other": "{{count}} 次工具调用",
+  "messageCount_other": "{{count}} 条消息"
 }

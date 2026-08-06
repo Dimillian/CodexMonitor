@@ -6,7 +6,6 @@
     "thisWeek": "本周",
     "older": "更早"
   },
-  "recentConversations": "最近的对话",
   "list": {
     "empty": "暂无对话。",
     "showLess": "收起",
@@ -15,6 +14,10 @@
     "searchOlder": "搜索更早...",
     "loadOlder": "加载更早..."
   },
+  "recentConversations": "最近的对话",
+  "loading": {
+    "agents": "加载代理中"
+  },
   "row": {
     "reviewing": "审查中",
     "waiting": "等待中",
@@ -22,8 +25,5 @@
     "hideSubAgents": "隐藏子代理",
     "showSubAgents": "显示子代理",
     "now": "现在"
-  },
-  "loading": {
-    "agents": "加载代理中"
   }
 }
