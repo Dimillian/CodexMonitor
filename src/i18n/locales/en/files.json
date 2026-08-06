@@ -15,8 +15,14 @@
   "mentionLabel": "Mention {{name}}",
   "mentionTitle": "Mention in chat",
   "countMatches": "{{count}} match",
+  "countMatches_one": "{{count}} match",
+  "countMatches_other": "{{count}} matches",
   "countModified": "{{count}} modified",
+  "countModified_one": "{{count}} modified",
+  "countModified_other": "{{count}} modified",
   "countFiles": "{{count}} file",
+  "countFiles_one": "{{count}} file",
+  "countFiles_other": "{{count}} files",
   "loadingFiles": "Loading files",
   "noModified": "No modified",
   "noFiles": "No files",
@@ -35,7 +41,5 @@
   "save": "Save",
   "showInFileManager": "Show in {{fileManager}}",
   "revealInFileManager": "Reveal in {{fileManager}}",
-  "openInFileManager": "Open in {{fileManager}}",
-  "countMatches_plural": "{{count}} matches",
-  "countFiles_plural": "{{count}} files"
+  "openInFileManager": "Open in {{fileManager}}"
 }

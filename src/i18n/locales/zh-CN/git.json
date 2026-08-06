@@ -72,6 +72,8 @@
   "draft": "草稿",
   "githubIssues": "GitHub 问题",
   "openCount": "{{count}} 个开放",
+  "openCount_one": "{{count}} 个开放",
+  "openCount_other": "{{count}} 个开放",
   "githubPullRequests": "GitHub 拉取请求",
   "branch": "分支",
   "fetchingRemote": "正在获取远程...",

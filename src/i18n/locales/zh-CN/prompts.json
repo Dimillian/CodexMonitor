@@ -16,6 +16,8 @@
   "deleteButton": "删除",
   "cancelButton": "取消",
   "metaHasPrompts": "{{count}} 个提示",
+  "metaHasPrompts_one": "{{count}} 个提示",
+  "metaHasPrompts_other": "{{count}} 个提示",
   "metaNoPrompts": "暂无提示",
   "filterPlaceholder": "筛选提示",
   "nameLabel": "名称",
@@ -42,6 +44,5 @@
   "emptyGeneralTitle": "暂无通用提示",
   "emptyGeneralSubtitle": "在此创建或将 .md 文件放入",
   "codexHomePrompts": "CODEX_HOME/prompts",
-  "metaHasPrompts_plural": "{{count}} 个提示",
   "newAgent": "新代理"
 }

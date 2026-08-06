@@ -50,6 +50,8 @@
   "runMetaFailed": " · Failed",
   "runMetaPartial": " · Partial",
   "moreErrors": "+{{count}} more",
+  "moreErrors_one": "+{{count}} more",
+  "moreErrors_other": "+{{count}} more",
   "noInstancesStarted": "No instances were started.",
   "instancesPreparing": "Instances are preparing...",
   "recentThreads": "Recent threads",

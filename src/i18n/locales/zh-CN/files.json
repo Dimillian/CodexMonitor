@@ -15,8 +15,14 @@
   "mentionLabel": "提及 {{name}}",
   "mentionTitle": "在对话中提及",
   "countMatches": "{{count}} 个匹配",
+  "countMatches_one": "{{count}} 个匹配",
+  "countMatches_other": "{{count}} 个匹配",
   "countModified": "{{count}} 个已修改",
+  "countModified_one": "{{count}} 个已修改",
+  "countModified_other": "{{count}} 个已修改",
   "countFiles": "{{count}} 个文件",
+  "countFiles_one": "{{count}} 个文件",
+  "countFiles_other": "{{count}} 个文件",
   "loadingFiles": "正在加载文件",
   "noModified": "无修改",
   "noFiles": "无文件",
@@ -35,7 +41,5 @@
   "save": "保存",
   "showInFileManager": "在 {{fileManager}} 中显示",
   "revealInFileManager": "在 {{fileManager}} 中显示",
-  "openInFileManager": "在 {{fileManager}} 中打开",
-  "countMatches_plural": "{{count}} 个匹配",
-  "countFiles_plural": "{{count}} 个文件"
+  "openInFileManager": "在 {{fileManager}} 中打开"
 }

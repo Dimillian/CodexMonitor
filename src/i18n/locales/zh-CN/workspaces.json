@@ -50,6 +50,8 @@
   "runMetaFailed": " · 失败",
   "runMetaPartial": " · 部分",
   "moreErrors": "+{{count}} 更多",
+  "moreErrors_one": "+{{count}} 更多",
+  "moreErrors_other": "+{{count}} 更多",
   "noInstancesStarted": "未启动任何实例。",
   "instancesPreparing": "实例正在准备中...",
   "recentThreads": "最近线程",

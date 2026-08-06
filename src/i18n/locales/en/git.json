@@ -72,6 +72,8 @@
   "draft": "Draft",
   "githubIssues": "GitHub issues",
   "openCount": "{{count}} open",
+  "openCount_one": "{{count}} open",
+  "openCount_other": "{{count}} open",
   "githubPullRequests": "GitHub pull requests",
   "branch": "Branch",
   "fetchingRemote": "Fetching remote...",

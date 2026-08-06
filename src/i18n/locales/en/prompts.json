@@ -16,6 +16,8 @@
   "deleteButton": "Delete",
   "cancelButton": "Cancel",
   "metaHasPrompts": "{{count}} prompt",
+  "metaHasPrompts_one": "{{count}} prompt",
+  "metaHasPrompts_other": "{{count}} prompts",
   "metaNoPrompts": "No prompts",
   "filterPlaceholder": "Filter prompts",
   "nameLabel": "Name",
@@ -42,6 +44,5 @@
   "emptyGeneralTitle": "No general prompts yet",
   "emptyGeneralSubtitle": "Create one here or drop a .md file into ",
   "codexHomePrompts": "CODEX_HOME/prompts",
-  "metaHasPrompts_plural": "{{count}} prompts",
   "newAgent": "New agent"
 }
