@@ -119,7 +119,13 @@ pub fn run() {
             app.manage(state);
             #[cfg(desktop)]
             {
-                let lang = app.state::<state::AppState>().app_settings.blocking_lock().language.clone();
+                let lang = app
+                    .state::<state::AppState>()
+                    .app_settings
+                    .blocking_lock()
+                    .language
+                    .clone();
+                let lang = crate::i18n::resolve_ui_language(&lang);
                 let menu = menu::build_menu(app.handle(), &lang)?;
                 app.set_menu(menu)?;
             }
@@ -127,6 +133,7 @@ pub fn run() {
             {
                 let app_state = app.state::<state::AppState>();
                 let lang = app_state.app_settings.blocking_lock().language.clone();
+                let lang = crate::i18n::resolve_ui_language(&lang);
                 let tray_state = app.state::<tray::TrayState>();
                 tray::initialize(&app.handle(), tray_state.inner(), &lang)?;
             }

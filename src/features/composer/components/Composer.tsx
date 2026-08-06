@@ -593,9 +593,12 @@ export const Composer = memo(function Composer({
               t("followUpDefaultQueue", { shortcut: followUpShortcutLabel })
             ) : (
               t("followUpDefault", {
-                behavior: effectiveFollowUpBehavior === "steer" ? "Steer" : "Queue",
+                behavior: effectiveFollowUpBehavior === "steer" ? t("composer:steer") : t("composer:queue"),
                 shortcut: followUpShortcutLabel,
-                action: oppositeFollowUpIntent === "steer" ? "steer" : "queue",
+                action:
+                  oppositeFollowUpIntent === "steer"
+                    ? t("composer:followUpActionSteer")
+                    : t("composer:followUpActionQueue"),
               })
             )}
           </div>

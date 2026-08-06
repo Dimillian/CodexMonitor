@@ -1377,7 +1377,7 @@ mod tests {
         assert_eq!(settings.selected_open_app_id, expected_open_id);
         assert_eq!(settings.open_app_targets.len(), 6);
         assert_eq!(settings.open_app_targets[0].id, "vscode");
-        assert_eq!(settings.language, "en");
+        assert_eq!(settings.language, "");
     }
 
     #[test]

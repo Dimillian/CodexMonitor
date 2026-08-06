@@ -38,6 +38,7 @@ git2 = { version = "0.20.3", features = ["vendored-openssl", "vendored-libgit2"]
 base64 = "0.22"
 fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs" }
 ignore = "0.4.25"
+sys-locale = "0.3"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
 libc = "0.2"
 chrono = { version = "0.4", features = ["clock"] }

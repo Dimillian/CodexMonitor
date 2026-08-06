@@ -2,6 +2,20 @@
 /// No external dependencies. `en` is the default fallback for any unknown
 /// language or key. Returns the key itself when neither the requested language
 /// nor English has a match (developer-facing signal).
+/// Resolve the effective UI language for native chrome (menu/tray).
+/// A saved preference wins; otherwise the host locale decides so the native
+/// menu matches the frontend's startup detection on first launch (an empty
+/// persisted `language` means "no saved preference").
+pub(crate) fn resolve_ui_language(saved: &str) -> String {
+    if !saved.is_empty() {
+        return saved.to_string();
+    }
+    match sys_locale::get_locale() {
+        Some(locale) if locale.to_lowercase().starts_with("zh") => "zh-CN".to_string(),
+        _ => "en".to_string(),
+    }
+}
+
 pub(crate) fn t_rs(key: &str, lang: &str) -> String {
     match lang {
         "zh-CN" => match key {

@@ -2,6 +2,8 @@
   "send": "Send",
   "steer": "Steer",
   "queue": "Queue",
+  "followUpActionSteer": "steer",
+  "followUpActionQueue": "queue",
   "followUpTitle": "Follow-up behavior",
   "followUpDefaultQueue": "Default: Queue (Steer unavailable). Both Enter and {{shortcut}} will queue this message.",
   "followUpDefault": "Default: {{behavior}}. Press {{shortcut}} to {{action}} this message.",
