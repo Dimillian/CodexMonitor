@@ -69,6 +69,7 @@
   "sidebarWorkspaceGroups": {
     "conversation": "{{count}} conversation",
     "noConversations": "No conversations yet",
+    "updated": "Updated {{time}}",
     "newAgent": "New agent",
     "newWorktreeAgent": "New worktree agent",
     "newCloneAgent": "New clone agent",

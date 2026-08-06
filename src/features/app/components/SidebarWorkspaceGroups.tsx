@@ -203,7 +203,7 @@ function SidebarWorkspaceEntry({
       workspaceName={renderHighlightedName(workspace.name)}
       summary={
         displayThreadRootCount > 0
-          ? `${t("sidebarWorkspaceGroups.conversation", { count: displayThreadRootCount })}${threads[0] ? ` · Updated ${getThreadTime(threads[0])}` : ""}`
+          ? `${t("sidebarWorkspaceGroups.conversation", { count: displayThreadRootCount })}${threads[0] ? ` · ${t("sidebarWorkspaceGroups.updated", { time: getThreadTime(threads[0]) })}` : ""}`
           : t("sidebarWorkspaceGroups.noConversations")
       }
       isActive={workspace.id === activeWorkspaceId}

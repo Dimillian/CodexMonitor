@@ -1122,8 +1122,12 @@ fn default_selected_open_app_id() -> String {
     }
 }
 
+/// Empty string means "no saved preference": the frontend detects the host
+/// language at startup (`detectInitialLanguage` in src/i18n/types.ts) and
+/// falls back to that whenever `language` is not a supported value. Returning
+/// "en" here would override the frontend detection on first launch.
 fn default_language() -> String {
-    "en".to_string()
+    String::new()
 }
 
 impl Default for AppSettings {

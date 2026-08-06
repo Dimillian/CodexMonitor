@@ -69,6 +69,7 @@
   "sidebarWorkspaceGroups": {
     "conversation": "{{count}} 会话",
     "noConversations": "暂无对话",
+    "updated": "更新于 {{time}}",
     "newAgent": "新建代理",
     "newWorktreeAgent": "新建工作树代理",
     "newCloneAgent": "新建克隆代理",
