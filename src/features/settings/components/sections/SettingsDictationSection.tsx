@@ -9,9 +9,9 @@ import { formatDownloadSize } from "@utils/formatting";
 
 type DictationModelOption = {
   id: string;
-  label: string;
+  labelKey: string;
   size: string;
-  note: string;
+  noteKey: string;
 };
 
 type SettingsDictationSectionProps = {
@@ -95,12 +95,12 @@ export function SettingsDictationSection({
         >
           {dictationModels.map((model) => (
             <option key={model.id} value={model.id}>
-              {model.label} ({model.size})
+              {t(model.labelKey)} ({model.size})
             </option>
           ))}
         </select>
         <div className="settings-help">
-          {t("dictation_model_note", { note: selectedDictationModel.note, size: selectedDictationModel.size })}
+          {t("dictation_model_note", { note: t(selectedDictationModel.noteKey), size: selectedDictationModel.size })}
         </div>
       </div>
       <div className="settings-field">
@@ -169,7 +169,7 @@ export function SettingsDictationSection({
       </div>
       {dictationModelStatus && (
         <div className="settings-field">
-          <div className="settings-field-label">{t("dictation_model_status", { model: selectedDictationModel.label })}</div>
+          <div className="settings-field-label">{t("dictation_model_status", { model: t(selectedDictationModel.labelKey) })}</div>
           <div className="settings-help">
             {dictationModelStatus.state === "ready" && t("dictation_status_ready")}
             {dictationModelStatus.state === "missing" && t("dictation_status_missing")}

@@ -12,7 +12,7 @@ type SettingsComposerSectionProps = {
   appSettings: AppSettings;
   optionKeyLabel: string;
   followUpShortcutLabel: string;
-  composerPresetLabels: Record<ComposerPreset, string>;
+  composerPresetLabelKeys: Record<ComposerPreset, string>;
   onComposerPresetChange: (preset: ComposerPreset) => void;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
 };
@@ -21,7 +21,7 @@ export function SettingsComposerSection({
   appSettings,
   optionKeyLabel,
   followUpShortcutLabel,
-  composerPresetLabels,
+  composerPresetLabelKeys,
   onComposerPresetChange,
   onUpdateAppSettings,
 }: SettingsComposerSectionProps) {
@@ -121,9 +121,9 @@ export function SettingsComposerSection({
             onComposerPresetChange(event.target.value as ComposerPreset)
           }
         >
-          {Object.entries(composerPresetLabels).map(([preset, label]) => (
+          {Object.entries(composerPresetLabelKeys).map(([preset, labelKey]) => (
             <option key={preset} value={preset}>
-              {label}
+              {t(labelKey)}
             </option>
           ))}
         </select>

@@ -1,17 +1,16 @@
-import i18n from "@/i18n/i18n";
 import type { AppSettings } from "@/types";
 import type { CodexSection, ShortcutDraftKey, ShortcutSettingKey } from "./settingsTypes";
 
 export const DICTATION_MODELS = [
-  { id: "tiny", label: i18n.t("settings:dictation_model_tiny"), size: "75 MB", note: i18n.t("settings:dictation_model_tiny_note") },
-  { id: "base", label: i18n.t("settings:dictation_model_base"), size: "142 MB", note: i18n.t("settings:dictation_model_base_note") },
-  { id: "small", label: i18n.t("settings:dictation_model_small"), size: "466 MB", note: i18n.t("settings:dictation_model_small_note") },
-  { id: "medium", label: i18n.t("settings:dictation_model_medium"), size: "1.5 GB", note: i18n.t("settings:dictation_model_medium_note") },
+  { id: "tiny", labelKey: "settings:dictation_model_tiny", size: "75 MB", noteKey: "settings:dictation_model_tiny_note" },
+  { id: "base", labelKey: "settings:dictation_model_base", size: "142 MB", noteKey: "settings:dictation_model_base_note" },
+  { id: "small", labelKey: "settings:dictation_model_small", size: "466 MB", noteKey: "settings:dictation_model_small_note" },
+  { id: "medium", labelKey: "settings:dictation_model_medium", size: "1.5 GB", noteKey: "settings:dictation_model_medium_note" },
   {
     id: "large-v3",
-    label: i18n.t("settings:dictation_model_large_v3"),
+    labelKey: "settings:dictation_model_large_v3",
     size: "3.0 GB",
-    note: i18n.t("settings:dictation_model_large_v3_note"),
+    noteKey: "settings:dictation_model_large_v3_note",
   },
 ];
 
@@ -29,10 +28,10 @@ type ComposerPresetSettings = Pick<
   | "composerCodeBlockCopyUseModifier"
 >;
 
-export const COMPOSER_PRESET_LABELS: Record<ComposerPreset, string> = {
-  default: i18n.t("settings:composer_preset_default"),
-  helpful: i18n.t("settings:composer_preset_helpful"),
-  smart: i18n.t("settings:composer_preset_smart"),
+export const COMPOSER_PRESET_LABEL_KEYS: Record<ComposerPreset, string> = {
+  default: "settings:composer_preset_default",
+  helpful: "settings:composer_preset_helpful",
+  smart: "settings:composer_preset_smart",
 };
 
 export const COMPOSER_PRESET_CONFIGS: Record<
@@ -74,20 +73,20 @@ export const COMPOSER_PRESET_CONFIGS: Record<
 export const SETTINGS_MOBILE_BREAKPOINT_PX = 720;
 export const DEFAULT_REMOTE_HOST = "127.0.0.1:4732";
 
-export const SETTINGS_SECTION_LABELS: Record<CodexSection, string> = {
-  projects: i18n.t("settings:section_projects"),
-  environments: i18n.t("settings:section_environments"),
-  display: i18n.t("settings:section_display"),
-  about: i18n.t("settings:section_about"),
-  composer: i18n.t("settings:section_composer"),
-  dictation: i18n.t("settings:section_dictation"),
-  shortcuts: i18n.t("settings:section_shortcuts"),
-  "open-apps": i18n.t("settings:section_open_apps"),
-  git: i18n.t("settings:section_git"),
-  server: i18n.t("settings:section_server"),
-  agents: i18n.t("settings:section_agents"),
-  codex: i18n.t("settings:section_codex"),
-  features: i18n.t("settings:section_features"),
+export const SETTINGS_SECTION_LABEL_KEYS: Record<CodexSection, string> = {
+  projects: "settings:section_projects",
+  environments: "settings:section_environments",
+  display: "settings:section_display",
+  about: "settings:section_about",
+  composer: "settings:section_composer",
+  dictation: "settings:section_dictation",
+  shortcuts: "settings:section_shortcuts",
+  "open-apps": "settings:section_open_apps",
+  git: "settings:section_git",
+  server: "settings:section_server",
+  agents: "settings:section_agents",
+  codex: "settings:section_codex",
+  features: "settings:section_features",
 };
 
 export const SHORTCUT_DRAFT_KEY_BY_SETTING: Record<
