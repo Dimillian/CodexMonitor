@@ -251,7 +251,7 @@ export function SettingsServerSection({
                           disabled={isActive}
                           aria-label={t("server_remote_use", { name: entry.name })}
                         >
-                          {isActive ? t("server_remote_using") : t("server_remote_use")}
+                          {isActive ? t("server_remote_using") : t("server_remote_use", { name: entry.name })}
                         </button>
                         <button
                           type="button"
