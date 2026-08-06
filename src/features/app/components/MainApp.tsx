@@ -13,6 +13,7 @@ import { useSkills } from "@/features/skills/hooks/useSkills";
 import { useApps } from "@/features/apps/hooks/useApps";
 import { useCustomPrompts } from "@/features/prompts/hooks/useCustomPrompts";
 import { useBranchSwitcherShortcut } from "@/features/git/hooks/useBranchSwitcherShortcut";
+import { i18n } from "../../../i18n";
 import { useRenameWorktreePrompt } from "@/features/workspaces/hooks/useRenameWorktreePrompt";
 import { useLayoutController } from "@app/hooks/useLayoutController";
 import { useUpdaterController } from "@app/hooks/useUpdaterController";
@@ -811,7 +812,7 @@ export default function MainApp() {
   });
 
   const ensureLaunchTerminal = useCallback(
-    (workspaceId: string) => ensureTerminalWithTitle(workspaceId, "launch", "Launch"),
+    (workspaceId: string) => ensureTerminalWithTitle(workspaceId, "launch", i18n.t("app:mainApp.launchTerminalTitle")),
     [ensureTerminalWithTitle],
   );
 

@@ -1,0 +1,15 @@
+{
+  "ariaLabel": "移动端服务器设置",
+  "close": "关闭移动端设置",
+  "kicker": "需要移动端设置",
+  "title": "连接到桌面后端",
+  "subtitle": "在使用应用前完成此设置。使用桌面 CodexMonitor 服务器设置中配置的相同连接信息。",
+  "hostLabel": "Tailscale 主机",
+  "hostPlaceholder": "macbook.your-tailnet.ts.net:4732",
+  "tokenLabel": "远程后端令牌",
+  "tokenPlaceholder": "令牌",
+  "checking": "正在检查...",
+  "connecting": "正在连接...",
+  "connectTest": "连接并测试",
+  "hint": "使用桌面服务器设置中的 Tailscale 主机，并保持桌面守护进程运行。"
+}

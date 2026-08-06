@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo, useState, type MouseEvent } from "react";
 
 import type { ThreadSummary } from "../../../types";
@@ -62,6 +63,7 @@ export function ThreadList({
   onSelectThread,
   onShowThreadMenu,
 }: ThreadListProps) {
+  const { t } = useTranslation();
   const indentUnit = nested ? 10 : 14;
   const [collapsedThreadKeys, setCollapsedThreadKeys] = useState<Set<string>>(new Set());
 
@@ -150,7 +152,7 @@ export function ThreadList({
             onToggleExpanded(workspaceId);
           }}
         >
-          {isExpanded ? "Show less" : "More..."}
+          {isExpanded ? t("threads:list.showLess") : t("threads:list.more")}
         </button>
       )}
       {showLoadOlder && nextCursor && (isExpanded || totalThreadRoots <= 3) && (
@@ -163,10 +165,10 @@ export function ThreadList({
           disabled={isPaging}
         >
           {isPaging
-            ? "Loading..."
+            ? t("threads:list.loading")
             : totalThreadRoots === 0
-              ? "Search older..."
-              : "Load older..."}
+              ? t("threads:list.searchOlder")
+              : t("threads:list.loadOlder")}
         </button>
       )}
     </div>

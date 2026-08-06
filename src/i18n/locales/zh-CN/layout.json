@@ -1,0 +1,30 @@
+{
+  "panelTabs": {
+    "ariaLabel": "面板",
+    "git": "Git",
+    "files": "文件",
+    "prompts": "提示"
+  },
+  "sidebarToggle": {
+    "hideThreads": "隐藏线程侧边栏",
+    "hideGit": "隐藏 Git 侧边栏",
+    "showGit": "显示 Git 侧边栏",
+    "showThreads": "显示线程侧边栏"
+  },
+  "backToChat": "返回聊天",
+  "compactBack": {
+    "files": "文件",
+    "diff": "差异"
+  },
+  "compactEmpty": {
+    "noWorkspace": "未选择工作区",
+    "chooseProject": "选择一个项目开始聊天。",
+    "selectProject": "选择一个项目以检查差异。",
+    "goToProjects": "前往项目"
+  },
+  "resizeSidebar": "调整侧边栏大小",
+  "resizeChatDiffSplit": "调整聊天/差异拆分大小",
+  "resizeRightPanel": "调整右侧面板大小",
+  "resizePlanPanel": "调整计划面板大小",
+  "resizeProjects": "调整项目大小"
+}

@@ -1,5 +1,6 @@
 import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
 import X from "lucide-react/dist/esm/icons/x";
+import { useTranslation } from "react-i18next";
 import type {
   AppSettings,
   CodexDoctorResult,
@@ -140,6 +141,8 @@ export function SettingsView({
 
   useSettingsViewCloseShortcuts(onClose);
 
+  const { t } = useTranslation("settings");
+
   const activeSectionLabel = SETTINGS_SECTION_LABELS[activeSection];
   const settingsBodyClassName = `settings-body${
     useMobileMasterDetail ? " settings-body-mobile-master-detail" : ""
@@ -154,13 +157,13 @@ export function SettingsView({
     >
       <div className="settings-titlebar">
         <div className="settings-title" id="settings-modal-title">
-          Settings
+          {t("title")}
         </div>
         <button
           type="button"
           className="ghost icon-button settings-close"
           onClick={onClose}
-          aria-label="Close settings"
+          aria-label={t("close")}
         >
           <X aria-hidden />
         </button>
@@ -183,10 +186,10 @@ export function SettingsView({
                   type="button"
                   className="settings-mobile-back"
                   onClick={() => setShowMobileDetail(false)}
-                  aria-label="Back to settings sections"
+                  aria-label={t("back")}
                 >
                   <ChevronLeft aria-hidden />
-                  Sections
+                  {t("sections")}
                 </button>
                 <div className="settings-mobile-detail-title">{activeSectionLabel}</div>
               </div>

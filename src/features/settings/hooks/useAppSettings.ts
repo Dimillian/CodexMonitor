@@ -19,6 +19,8 @@ import { normalizeOpenAppTargets } from "@app/utils/openApp";
 import { getDefaultInterruptShortcut, isMacPlatform } from "@utils/shortcuts";
 import { isMobilePlatform } from "@utils/platformPaths";
 import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
+import { i18n } from "@/i18n";
+import { isSupportedLanguage } from "@/i18n/types";
 
 const allowedThemes = new Set(["system", "light", "dark", "dim"]);
 const allowedPersonality = new Set(["friendly", "pragmatic"]);
@@ -208,6 +210,7 @@ function buildDefaultSettings(): AppSettings {
     openAppTargets: DEFAULT_OPEN_APP_TARGETS,
     selectedOpenAppId: DEFAULT_OPEN_APP_ID,
     globalWorktreesFolder: null,
+    language: "en",
   };
 }
 
@@ -276,6 +279,7 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     commitMessagePrompt,
     openAppTargets: normalizedTargets,
     selectedOpenAppId,
+    language: isSupportedLanguage(settings.language) ? settings.language : "en",
   };
 }
 
@@ -290,12 +294,12 @@ export function useAppSettings() {
       try {
         const response = await getAppSettings();
         if (active) {
-          setSettings(
-            normalizeAppSettings({
-              ...defaultSettings,
-              ...response,
-            }),
-          );
+          const normalized = normalizeAppSettings({
+            ...defaultSettings,
+            ...response,
+          });
+          setSettings(normalized);
+          void i18n.changeLanguage(normalized.language);
         }
       } catch {
         // Defaults stay in place if loading settings fails.
@@ -313,12 +317,12 @@ export function useAppSettings() {
   const saveSettings = useCallback(async (next: AppSettings) => {
     const normalized = normalizeAppSettings(next);
     const saved = await updateAppSettings(normalized);
-    setSettings(
-      normalizeAppSettings({
-        ...defaultSettings,
-        ...saved,
-      }),
-    );
+    const result = normalizeAppSettings({
+      ...defaultSettings,
+      ...saved,
+    });
+    setSettings(result);
+    void i18n.changeLanguage(result.language);
     return saved;
   }, [defaultSettings]);
 

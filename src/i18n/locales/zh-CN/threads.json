@@ -1,0 +1,29 @@
+{
+  "bucket": {
+    "now": "现在",
+    "earlierToday": "今天早些时候",
+    "yesterday": "昨天",
+    "thisWeek": "本周",
+    "older": "更早"
+  },
+  "recentConversations": "最近的对话",
+  "list": {
+    "empty": "暂无对话。",
+    "showLess": "收起",
+    "more": "更多...",
+    "loading": "加载中...",
+    "searchOlder": "搜索更早...",
+    "loadOlder": "加载更早..."
+  },
+  "row": {
+    "reviewing": "审查中",
+    "waiting": "等待中",
+    "pinned": "已固定",
+    "hideSubAgents": "隐藏子代理",
+    "showSubAgents": "显示子代理",
+    "now": "现在"
+  },
+  "loading": {
+    "agents": "加载代理中"
+  }
+}

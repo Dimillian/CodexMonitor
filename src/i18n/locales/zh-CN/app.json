@@ -1,0 +1,94 @@
+{
+  "approvalToasts": {
+    "title": "需要审批",
+    "noExtraDetails": "没有额外详情。",
+    "none": "无",
+    "decline": "拒绝",
+    "alwaysAllow": "始终允许",
+    "allowTooltip": "允许以 {{preview}} 开头的命令",
+    "approve": "批准 (Enter)"
+  },
+  "launchScript": {
+    "runLabel": "运行启动脚本",
+    "setLabel": "设置启动脚本",
+    "title": "启动脚本",
+    "placeholder": "例如：npm run dev",
+    "new": "新建",
+    "saving": "保存中...",
+    "newTitle": "新建启动脚本",
+    "optionalLabel": "可选标签",
+    "create": "创建",
+    "icons": {
+      "play": "播放",
+      "build": "构建",
+      "debug": "调试",
+      "wrench": "扳手",
+      "terminal": "终端",
+      "code": "代码",
+      "server": "服务器",
+      "database": "数据库",
+      "package": "包",
+      "test": "测试",
+      "lint": "检查",
+      "dev": "开发",
+      "git": "Git",
+      "config": "配置",
+      "logs": "日志"
+    }
+  },
+  "openAppMenu": {
+    "open": "打开",
+    "openIn": "在 {{label}} 中打开",
+    "setCommandInSettings": "在设置中设置命令",
+    "setAppNameInSettings": "在设置中设置应用名称",
+    "selectEditor": "选择编辑器",
+    "couldNotOpen": "无法打开工作区",
+    "vsCode": "VS Code",
+    "visualStudioCode": "Visual Studio Code"
+  },
+  "planReady": {
+    "ariaLabel": "计划已就绪",
+    "title": "计划已就绪",
+    "description": "根据此计划开始构建，或描述对计划的更改。",
+    "placeholder": "描述您想要在计划中更改的内容...",
+    "sendChanges": "发送更改",
+    "implementPlan": "执行此计划"
+  },
+  "userInput": {
+    "ariaLabel": "用户输入请求",
+    "title": "输入请求",
+    "requestCount": "请求 {{current}} / {{total}}",
+    "typeAnswer": "输入您的答案（可选）",
+    "addNotes": "添加备注（可选）",
+    "noQuestions": "未提供问题。",
+    "submit": "提交"
+  },
+  "sidebarWorkspaceGroups": {
+    "newAgent": "新建代理",
+    "newWorktreeAgent": "新建工作树代理",
+    "newCloneAgent": "新建克隆代理",
+    "newAgentDraft": "新建代理",
+    "conversation_one": "{{count}} 个对话",
+    "conversation_other": "{{count}} 个对话",
+    "noConversations": "暂无对话",
+    "cloneSection": "克隆代理"
+  },
+  "tabBar": {
+    "ariaLabel": "主要",
+    "home": "首页",
+    "projects": "项目",
+    "codex": "Codex",
+    "git": "Git",
+    "log": "日志"
+  },
+  "tabletNav": {
+    "ariaLabel": "工作区",
+    "codex": "Codex",
+    "git": "Git",
+    "log": "日志"
+  },
+  "mainApp": {
+    "launchTerminalTitle": "启动"
+  },
+  "refreshCurrentThread": "从服务器刷新当前线程"
+}

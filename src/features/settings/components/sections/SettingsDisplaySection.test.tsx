@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppSettings } from "@/types";
+import { i18n } from "@/i18n";
 import { SettingsDisplaySection } from "./SettingsDisplaySection";
 
 describe("SettingsDisplaySection", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
+    void i18n.changeLanguage("en");
     cleanup();
   });
   it("toggles auto-generated thread titles", () => {
@@ -338,9 +341,114 @@ describe("SettingsDisplaySection", () => {
     fireEvent.click(resetButton);
 
     expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
-    expect(onUpdateAppSettings).toHaveBeenCalledWith(
+expect(onUpdateAppSettings).toHaveBeenCalledWith(
       expect.objectContaining({ chatHistoryScrollbackItems: 200 }),
     );
   });
 
+  it("renders language dropdown with current language selected", () => {
+    const onUpdateAppSettings = vi.fn(async () => {});
+
+    render(
+      <SettingsDisplaySection
+        appSettings={
+          ({
+            theme: "system",
+            usageShowRemaining: false,
+            showMessageFilePath: true,
+            chatHistoryScrollbackItems: 200,
+            threadTitleAutogenerationEnabled: false,
+            uiFontFamily: "",
+            codeFontFamily: "",
+            codeFontSize: 11,
+            notificationSoundsEnabled: true,
+            systemNotificationsEnabled: true,
+            language: "en",
+          } as unknown) as AppSettings
+        }
+        reduceTransparency={false}
+        scaleShortcutTitle=""
+        scaleShortcutText=""
+        scaleDraft="100%"
+        uiFontDraft=""
+        codeFontDraft=""
+        codeFontSizeDraft={11}
+        onUpdateAppSettings={onUpdateAppSettings}
+        onToggleTransparency={vi.fn()}
+        onSetScaleDraft={vi.fn() as any}
+        onCommitScale={vi.fn(async () => {})}
+        onResetScale={vi.fn(async () => {})}
+        onSetUiFontDraft={vi.fn() as any}
+        onCommitUiFont={vi.fn(async () => {})}
+        onSetCodeFontDraft={vi.fn() as any}
+        onCommitCodeFont={vi.fn(async () => {})}
+        onSetCodeFontSizeDraft={vi.fn() as any}
+        onCommitCodeFontSize={vi.fn(async () => {})}
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+      />,
+    );
+
+    const select = screen.getByLabelText("Language") as HTMLSelectElement;
+    expect(select.value).toBe("en");
+    const options = Array.from(select.options).map((o) => o.textContent);
+    expect(options).toContain("English");
+    expect(options).toContain("简体中文");
+  });
+
+  it("switches language to zh-CN and calls onUpdateAppSettings", async () => {
+    const onUpdateAppSettings = vi.fn(async () => {});
+    const changeLanguageSpy = vi.spyOn(i18n, "changeLanguage");
+
+    render(
+      <SettingsDisplaySection
+        appSettings={
+          ({
+            theme: "system",
+            usageShowRemaining: false,
+            showMessageFilePath: true,
+            chatHistoryScrollbackItems: 200,
+            threadTitleAutogenerationEnabled: false,
+            uiFontFamily: "",
+            codeFontFamily: "",
+            codeFontSize: 11,
+            notificationSoundsEnabled: true,
+            systemNotificationsEnabled: true,
+            language: "en",
+          } as unknown) as AppSettings
+        }
+        reduceTransparency={false}
+        scaleShortcutTitle=""
+        scaleShortcutText=""
+        scaleDraft="100%"
+        uiFontDraft=""
+        codeFontDraft=""
+        codeFontSizeDraft={11}
+        onUpdateAppSettings={onUpdateAppSettings}
+        onToggleTransparency={vi.fn()}
+        onSetScaleDraft={vi.fn() as any}
+        onCommitScale={vi.fn(async () => {})}
+        onResetScale={vi.fn(async () => {})}
+        onSetUiFontDraft={vi.fn() as any}
+        onCommitUiFont={vi.fn(async () => {})}
+        onSetCodeFontDraft={vi.fn() as any}
+        onCommitCodeFont={vi.fn(async () => {})}
+        onSetCodeFontSizeDraft={vi.fn() as any}
+        onCommitCodeFontSize={vi.fn(async () => {})}
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+      />,
+    );
+
+    const select = screen.getByLabelText("Language") as HTMLSelectElement;
+
+    await act(async () => {
+      fireEvent.change(select, { target: { value: "zh-CN" } });
+    });
+
+    expect(changeLanguageSpy).toHaveBeenCalledWith("zh-CN");
+    expect(onUpdateAppSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ language: "zh-CN" }),
+    );
+});
 });

@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import Brain from "lucide-react/dist/esm/icons/brain";
 import Check from "lucide-react/dist/esm/icons/check";
 import Copy from "lucide-react/dist/esm/icons/copy";
@@ -137,6 +138,7 @@ const ImageLightbox = memo(function ImageLightbox({
   activeIndex: number;
   onClose: () => void;
 }) {
+  const { t } = useTranslation("messages");
   const activeImage = images[activeIndex];
 
   useEffect(() => {
@@ -178,7 +180,7 @@ const ImageLightbox = memo(function ImageLightbox({
           type="button"
           className="message-image-lightbox-close"
           onClick={onClose}
-          aria-label="Close image preview"
+          aria-label={t("closeImagePreview")}
         >
           <X size={16} aria-hidden />
         </button>
@@ -378,6 +380,7 @@ export const MessageRow = memo(function MessageRow({
   onOpenFileLinkMenu,
   onOpenThreadLink,
 }: MessageRowProps) {
+  const { t } = useTranslation("messages");
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
   const selectionSnapshotRef = useRef<string | null>(null);
@@ -484,8 +487,8 @@ export const MessageRow = memo(function MessageRow({
               selectionSnapshotRef.current = getSelectedMessageText();
             }}
             onClick={handleQuote}
-            aria-label="Quote message"
-            title="Quote message"
+            aria-label={t("quoteMessage")}
+            title={t("quoteMessage")}
           >
             <Quote size={14} aria-hidden />
           </button>
@@ -494,8 +497,8 @@ export const MessageRow = memo(function MessageRow({
           type="button"
           className={`ghost message-copy-button${isCopied ? " is-copied" : ""}`}
           onClick={() => onCopy(item)}
-          aria-label="Copy message"
-          title="Copy message"
+          aria-label={t("copyMessage")}
+          title={t("copyMessage")}
         >
           <span className="message-copy-icon" aria-hidden>
             <Copy className="message-copy-icon-copy" size={14} />
@@ -518,6 +521,7 @@ export const ReasoningRow = memo(function ReasoningRow({
   onOpenFileLinkMenu,
   onOpenThreadLink,
 }: ReasoningRowProps) {
+  const { t } = useTranslation("messages");
   const { summaryTitle, bodyText, hasBody } = parsed;
   const reasoningTone: StatusTone = hasBody ? "completed" : "processing";
   return (
@@ -527,7 +531,7 @@ export const ReasoningRow = memo(function ReasoningRow({
         className="tool-inline-bar-toggle"
         onClick={() => onToggle(item.id)}
         aria-expanded={isExpanded}
-        aria-label="Toggle reasoning details"
+        aria-label={t("toggleReasoningDetails")}
       />
       <div className="tool-inline-content">
         <button
@@ -614,6 +618,7 @@ export const UserInputRow = memo(function UserInputRow({
   isExpanded,
   onToggle,
 }: UserInputRowProps) {
+  const { t } = useTranslation("messages");
   const first = item.questions[0];
   const previewQuestion =
     first?.question?.trim() || first?.header?.trim() || "Input requested";
@@ -631,7 +636,7 @@ export const UserInputRow = memo(function UserInputRow({
         className="tool-inline-bar-toggle"
         onClick={() => onToggle(item.id)}
         aria-expanded={isExpanded}
-        aria-label="Toggle answered input details"
+        aria-label={t("toggleAnsweredInputDetails")}
       />
       <div className="tool-inline-content">
         <button
@@ -694,6 +699,7 @@ export const ToolRow = memo(function ToolRow({
   onOpenThreadLink,
   onRequestAutoScroll,
 }: ToolRowProps) {
+  const { t } = useTranslation("messages");
   const isFileChange = item.toolType === "fileChange";
   const isCommand = item.toolType === "commandExecution";
   const isPlan = item.toolType === "plan";
@@ -786,7 +792,7 @@ export const ToolRow = memo(function ToolRow({
         className="tool-inline-bar-toggle"
         onClick={() => onToggle(item.id)}
         aria-expanded={isExpanded}
-        aria-label="Toggle tool details"
+        aria-label={t("toggleToolDetails")}
       />
       <div className="tool-inline-content">
         <button

@@ -1,0 +1,94 @@
+{
+  "approvalToasts": {
+    "title": "Approval needed",
+    "noExtraDetails": "No extra details.",
+    "none": "None",
+    "decline": "Decline",
+    "alwaysAllow": "Always allow",
+    "allowTooltip": "Allow commands that start with {{preview}}",
+    "approve": "Approve (Enter)"
+  },
+  "launchScript": {
+    "runLabel": "Run launch script",
+    "setLabel": "Set launch script",
+    "title": "Launch script",
+    "placeholder": "e.g. npm run dev",
+    "new": "New",
+    "saving": "Saving...",
+    "newTitle": "New launch script",
+    "optionalLabel": "Optional label",
+    "create": "Create",
+    "icons": {
+      "play": "Play",
+      "build": "Build",
+      "debug": "Debug",
+      "wrench": "Wrench",
+      "terminal": "Terminal",
+      "code": "Code",
+      "server": "Server",
+      "database": "Database",
+      "package": "Package",
+      "test": "Test",
+      "lint": "Lint",
+      "dev": "Dev",
+      "git": "Git",
+      "config": "Config",
+      "logs": "Logs"
+    }
+  },
+  "openAppMenu": {
+    "open": "Open",
+    "openIn": "Open in {{label}}",
+    "setCommandInSettings": "Set command in Settings",
+    "setAppNameInSettings": "Set app name in Settings",
+    "selectEditor": "Select editor",
+    "couldNotOpen": "Couldn't open workspace",
+    "vsCode": "VS Code",
+    "visualStudioCode": "Visual Studio Code"
+  },
+  "planReady": {
+    "ariaLabel": "Plan ready",
+    "title": "Plan ready",
+    "description": "Start building from this plan, or describe changes to the plan.",
+    "placeholder": "Describe what you want to change in the plan...",
+    "sendChanges": "Send changes",
+    "implementPlan": "Implement this plan"
+  },
+  "userInput": {
+    "ariaLabel": "User input requested",
+    "title": "Input requested",
+    "requestCount": "Request {{current}} of {{total}}",
+    "typeAnswer": "Type your answer (optional)",
+    "addNotes": "Add notes (optional)",
+    "noQuestions": "No questions provided.",
+    "submit": "Submit"
+  },
+  "sidebarWorkspaceGroups": {
+    "newAgent": "New agent",
+    "newWorktreeAgent": "New worktree agent",
+    "newCloneAgent": "New clone agent",
+    "newAgentDraft": "New Agent",
+    "conversation_one": "{{count}} conversation",
+    "conversation_other": "{{count}} conversations",
+    "noConversations": "No conversations yet",
+    "cloneSection": "Clone agents"
+  },
+  "tabBar": {
+    "ariaLabel": "Primary",
+    "home": "Home",
+    "projects": "Projects",
+    "codex": "Codex",
+    "git": "Git",
+    "log": "Log"
+  },
+  "tabletNav": {
+    "ariaLabel": "Workspace",
+    "codex": "Codex",
+    "git": "Git",
+    "log": "Log"
+  },
+  "mainApp": {
+    "launchTerminalTitle": "Launch"
+  },
+  "refreshCurrentThread": "Refresh current thread from server"
+}

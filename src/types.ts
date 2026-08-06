@@ -235,6 +235,8 @@ export type OpenAppTarget = {
   args: string[];
 };
 
+import type { AppLanguage } from "./i18n/types";
+
 export type AppSettings = {
   codexBin: string | null;
   codexArgs: string | null;
@@ -310,6 +312,7 @@ export type AppSettings = {
   globalWorktreesFolder: string | null;
   openAppTargets: OpenAppTarget[];
   selectedOpenAppId: string;
+  language: AppLanguage;
 };
 
 export type CodexFeatureStage =

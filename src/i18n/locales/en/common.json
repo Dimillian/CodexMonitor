@@ -1,0 +1,38 @@
+{
+  "loading": "Loading...",
+  "confirm": "Confirm",
+  "cancel": "Cancel",
+  "close": "Close",
+  "save": "Save",
+  "delete": "Delete",
+  "usage": {
+    "reset": "Resets {{relative}}",
+    "credits": {
+      "unlimited": "Available credits: Unlimited",
+      "amount": "Available credits: {{amount}}"
+    }
+  },
+  "timeNow": "now",
+  "timeSAgo": "{{value}}s ago",
+  "timeInS": "in {{value}}s",
+  "timeMAgo": "{{value}}m ago",
+  "timeInM": "in {{value}}m",
+  "timeShortNow": "now",
+  "timeShortM": "{{value}}m",
+  "timeShortH": "{{value}}h",
+  "timeShortD": "{{value}}d",
+  "timeShortW": "{{value}}w",
+  "timeShortMo": "{{value}}mo",
+  "timeShortY": "{{value}}y",
+  "downloadSizeZero": "0 MB",
+  "downloadSizeGB": "{{value}} GB",
+  "downloadSizeMB": "{{value}} MB",
+  "shortcutNotSet": "Not set",
+  "fileManagerFinder": "Finder",
+  "fileManagerExplorer": "Explorer",
+  "fileManagerDefault": "File Manager",
+  "revealInFinder": "Reveal in Finder",
+  "showInExplorer": "Show in Explorer",
+  "revealInFileManager": "Reveal in File Manager",
+  "openInFileManager": "Open in {{name}}"
+}

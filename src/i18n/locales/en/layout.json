@@ -1,0 +1,30 @@
+{
+  "panelTabs": {
+    "ariaLabel": "Panel",
+    "git": "Git",
+    "files": "Files",
+    "prompts": "Prompts"
+  },
+  "sidebarToggle": {
+    "hideThreads": "Hide threads sidebar",
+    "hideGit": "Hide git sidebar",
+    "showGit": "Show git sidebar",
+    "showThreads": "Show threads sidebar"
+  },
+  "backToChat": "Back to chat",
+  "compactBack": {
+    "files": "Files",
+    "diff": "Diff"
+  },
+  "compactEmpty": {
+    "noWorkspace": "No workspace selected",
+    "chooseProject": "Choose a project to start chatting.",
+    "selectProject": "Select a project to inspect diffs.",
+    "goToProjects": "Go to Projects"
+  },
+  "resizeSidebar": "Resize sidebar",
+  "resizeChatDiffSplit": "Resize chat/diff split",
+  "resizeRightPanel": "Resize right panel",
+  "resizePlanPanel": "Resize plan panel",
+  "resizeProjects": "Resize projects"
+}

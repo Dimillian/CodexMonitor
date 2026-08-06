@@ -47,10 +47,12 @@
     "@tauri-apps/plugin-updater": "^2.10.0",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
+    "i18next": "24.2.3",
     "lucide-react": "^0.562.0",
     "prismjs": "^1.30.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-i18next": "15.7.4",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "tauri-plugin-liquid-glass-api": "^0.1.6",
@@ -72,5 +74,8 @@
     "typescript": "~5.8.3",
     "vite": "^7.0.4",
     "vitest": "^3.2.4"
+  },
+  "allowScripts": {
+    "esbuild@0.27.2": true
   }
 }

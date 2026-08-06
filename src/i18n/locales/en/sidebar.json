@@ -1,0 +1,74 @@
+{
+  "pinned": {
+    "section": "Pinned conversations"
+  },
+  "search": {
+    "placeholder": "Search conversations",
+    "clear": "Clear search",
+    "noResults": "No conversations match your search."
+  },
+  "empty": {
+    "addWorkspace": "Add a workspace to start."
+  },
+  "drop": {
+    "here": "Drop Project Here",
+    "adding": "Adding Project..."
+  },
+  "account": {
+    "apiKey": "API key",
+    "signInToCodex": "Sign in to Codex",
+    "switch": "Switch account",
+    "signIn": "Sign in",
+    "label": "Account",
+    "title": "Account",
+    "cancelSwitch": "Cancel account switch",
+    "cancel": "Cancel"
+  },
+  "header": {
+    "addWorkspaces": "Add workspaces",
+    "openHome": "Open home",
+    "projects": "Projects",
+    "organizeSort": "Organize and sort threads",
+    "organize": "Organize",
+    "byProject": "By project",
+    "byProjectActivity": "By project activity",
+    "threadList": "Thread list",
+    "sortBy": "Sort by",
+    "updated": "Updated",
+    "created": "Created",
+    "refreshThreads": "Refresh all workspace threads",
+    "toggleSearch": "Toggle search",
+    "closeSearch": "Close search",
+    "searchThreads": "Search threads"
+  },
+  "usage": {
+    "title": "Usage",
+    "session": "Session",
+    "weekly": "Weekly"
+  },
+  "settings": {
+    "open": "Open settings",
+    "label": "Settings"
+  },
+  "debug": {
+    "openLog": "Open debug log"
+  },
+  "threadsOnly": {
+    "newThread": "New thread in project"
+  },
+  "group": {
+    "expandGroup": "Expand group",
+    "collapseGroup": "Collapse group"
+  },
+  "card": {
+    "showAgents": "Show agents",
+    "hideAgents": "Hide agents",
+    "addAgentOptions": "Add agent options",
+    "connectTitle": "Connect workspace context to the shared Codex server",
+    "connect": "connect"
+  },
+  "worktree": {
+    "deleting": "Deleting",
+    "sectionLabel": "Worktrees"
+  }
+}

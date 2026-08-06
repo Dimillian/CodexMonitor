@@ -1,16 +1,17 @@
+import i18n from "@/i18n/i18n";
 import type { AppSettings } from "@/types";
 import type { CodexSection, ShortcutDraftKey, ShortcutSettingKey } from "./settingsTypes";
 
 export const DICTATION_MODELS = [
-  { id: "tiny", label: "Tiny", size: "75 MB", note: "Fastest, least accurate." },
-  { id: "base", label: "Base", size: "142 MB", note: "Balanced default." },
-  { id: "small", label: "Small", size: "466 MB", note: "Better accuracy." },
-  { id: "medium", label: "Medium", size: "1.5 GB", note: "High accuracy." },
+  { id: "tiny", label: i18n.t("settings:dictation_model_tiny"), size: "75 MB", note: i18n.t("settings:dictation_model_tiny_note") },
+  { id: "base", label: i18n.t("settings:dictation_model_base"), size: "142 MB", note: i18n.t("settings:dictation_model_base_note") },
+  { id: "small", label: i18n.t("settings:dictation_model_small"), size: "466 MB", note: i18n.t("settings:dictation_model_small_note") },
+  { id: "medium", label: i18n.t("settings:dictation_model_medium"), size: "1.5 GB", note: i18n.t("settings:dictation_model_medium_note") },
   {
     id: "large-v3",
-    label: "Large V3",
+    label: i18n.t("settings:dictation_model_large_v3"),
     size: "3.0 GB",
-    note: "Best accuracy, heavy download.",
+    note: i18n.t("settings:dictation_model_large_v3_note"),
   },
 ];
 
@@ -29,9 +30,9 @@ type ComposerPresetSettings = Pick<
 >;
 
 export const COMPOSER_PRESET_LABELS: Record<ComposerPreset, string> = {
-  default: "Default (no helpers)",
-  helpful: "Helpful",
-  smart: "Smart",
+  default: i18n.t("settings:composer_preset_default"),
+  helpful: i18n.t("settings:composer_preset_helpful"),
+  smart: i18n.t("settings:composer_preset_smart"),
 };
 
 export const COMPOSER_PRESET_CONFIGS: Record<
@@ -74,19 +75,19 @@ export const SETTINGS_MOBILE_BREAKPOINT_PX = 720;
 export const DEFAULT_REMOTE_HOST = "127.0.0.1:4732";
 
 export const SETTINGS_SECTION_LABELS: Record<CodexSection, string> = {
-  projects: "Projects",
-  environments: "Environments",
-  display: "Display & Sound",
-  about: "About",
-  composer: "Composer",
-  dictation: "Dictation",
-  shortcuts: "Shortcuts",
-  "open-apps": "Open in",
-  git: "Git",
-  server: "Server",
-  agents: "Agents",
-  codex: "Codex",
-  features: "Features",
+  projects: i18n.t("settings:section_projects"),
+  environments: i18n.t("settings:section_environments"),
+  display: i18n.t("settings:section_display"),
+  about: i18n.t("settings:section_about"),
+  composer: i18n.t("settings:section_composer"),
+  dictation: i18n.t("settings:section_dictation"),
+  shortcuts: i18n.t("settings:section_shortcuts"),
+  "open-apps": i18n.t("settings:section_open_apps"),
+  git: i18n.t("settings:section_git"),
+  server: i18n.t("settings:section_server"),
+  agents: i18n.t("settings:section_agents"),
+  codex: i18n.t("settings:section_codex"),
+  features: i18n.t("settings:section_features"),
 };
 
 export const SHORTCUT_DRAFT_KEY_BY_SETTING: Record<

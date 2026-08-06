@@ -6,6 +6,9 @@ import type {
 } from "../../types";
 import { formatRelativeTime } from "../../utils/time";
 import { getUsageLabels } from "../app/utils/usageLabels";
+import { i18n } from "../../i18n";
+
+const { t } = i18n;
 import {
   buildWindowCaption,
   formatAccountTypeLabel,
@@ -108,120 +111,120 @@ export function buildHomeUsageViewModel({
     usageMetric === "tokens"
       ? [
           {
-            label: "Today",
+            label: t("home:statToday"),
             value: formatCompactNumber(latestUsageDay?.totalTokens ?? 0),
-            suffix: "tokens",
+            suffix: t("home:statTokens"),
             caption: latestUsageDay
               ? `${formatDayLabel(latestUsageDay.day)} · ${formatCount(
                   latestUsageDay.inputTokens,
                 )} in / ${formatCount(latestUsageDay.outputTokens)} out`
-              : "Latest available day",
+              : t("home:statLatestAvailableDay"),
           },
           {
-            label: "Last 7 days",
+            label: t("home:statLast7Days"),
             value: formatCompactNumber(usageTotals?.last7DaysTokens ?? last7Tokens),
-            suffix: "tokens",
-            caption: `Avg ${formatCompactNumber(usageTotals?.averageDailyTokens)} / day`,
+            suffix: t("home:statTokens"),
+            caption: t("home:statAvgPerDay", { value: formatCompactNumber(usageTotals?.averageDailyTokens) }),
           },
           {
-            label: "Last 30 days",
+            label: t("home:statLast30Days"),
             value: formatCompactNumber(usageTotals?.last30DaysTokens ?? last7Tokens),
-            suffix: "tokens",
-            caption: `Total ${formatCount(usageTotals?.last30DaysTokens ?? last7Tokens)}`,
+            suffix: t("home:statTokens"),
+            caption: t("home:statTotalValue", { value: formatCount(usageTotals?.last30DaysTokens ?? last7Tokens) }),
           },
           {
-            label: "Cache hit rate",
+            label: t("home:statCacheHitRate"),
             value: usageTotals
               ? `${usageTotals.cacheHitRatePercent.toFixed(1)}%`
               : "--",
-            caption: "Last 7 days",
+            caption: t("home:statLast7Days"),
           },
           {
-            label: "Cached tokens",
+            label: t("home:statCachedTokens"),
             value: formatCompactNumber(last7Cached),
-            suffix: "saved",
+            suffix: t("home:statSaved"),
             caption:
               last7Input > 0
-                ? `${((last7Cached / last7Input) * 100).toFixed(1)}% of prompt tokens`
-                : "Last 7 days",
+                ? t("home:statPercentOfPrompt", { percent: ((last7Cached / last7Input) * 100).toFixed(1) })
+                : t("home:statLast7Days"),
           },
           {
-            label: "Avg / run",
+            label: t("home:statAvgPerRun"),
             value:
               averageTokensPerRun === null
                 ? "--"
                 : formatCompactNumber(averageTokensPerRun),
-            suffix: "tokens",
+            suffix: t("home:statTokens"),
             caption:
               last7AgentRuns > 0
-                ? `${formatCount(last7AgentRuns)} runs in last 7 days`
-                : "No runs yet",
+                ? t("home:statRunsInLast7Days", { count: last7AgentRuns })
+                : t("home:statNoRunsYetCaption"),
           },
           {
-            label: "Peak day",
+            label: t("home:statPeakDay"),
             value: formatDayLabel(usageTotals?.peakDay),
-            caption: `${formatCompactNumber(usageTotals?.peakDayTokens)} tokens`,
+            caption: `${formatCompactNumber(usageTotals?.peakDayTokens)} ${t("home:statTokens")}`,
           },
         ]
       : [
           {
-            label: "Last 7 days",
+            label: t("home:statLast7Days"),
             value: formatDurationCompact(last7AgentMs),
-            suffix: "agent time",
-            caption: `Avg ${formatDurationCompact(averageDailyAgentMs)} / day`,
+            suffix: t("home:statAgentTime"),
+            caption: t("home:statAvgPerDay", { value: formatDurationCompact(averageDailyAgentMs) }),
           },
           {
-            label: "Last 30 days",
+            label: t("home:statLast30Days"),
             value: formatDurationCompact(last30AgentMs),
-            suffix: "agent time",
-            caption: `Total ${formatDuration(last30AgentMs)}`,
+            suffix: t("home:statAgentTime"),
+            caption: t("home:statTotalValue", { value: formatDuration(last30AgentMs) }),
           },
           {
-            label: "Runs",
+            label: t("home:statRuns"),
             value: formatCount(last7AgentRuns),
-            suffix: "runs",
-            caption: `Last 30 days: ${formatCount(last30AgentRuns)} runs`,
+            suffix: t("home:statRunsSuffix"),
+            caption: `${t("home:statLast30Days")}: ${formatCount(last30AgentRuns)} ${t("home:statRuns")}`,
           },
           {
-            label: "Avg / run",
+            label: t("home:statAvgPerRun"),
             value: formatDurationCompact(averageRunDurationMs),
             caption:
               last7AgentRuns > 0
-                ? `Across ${formatCount(last7AgentRuns)} runs`
-                : "No runs yet",
+                ? t("home:statAcrossRuns", { count: last7AgentRuns })
+                : t("home:statNoRunsYetCaption"),
           },
           {
-            label: "Avg / active day",
+            label: t("home:statAvgPerActiveDay"),
             value: formatDurationCompact(averageActiveDayAgentMs),
             caption:
               last7ActiveDays > 0
-                ? `${formatCount(last7ActiveDays)} active days in last 7`
-                : "No active days yet",
+                ? t("home:statActiveDaysInLast7", { count: last7ActiveDays })
+                : t("home:statNoActiveDaysYetCaption"),
           },
           {
-            label: "Peak day",
+            label: t("home:statPeakDay"),
             value: formatDayLabel(peakAgentDay?.day ?? null),
-            caption: `${formatDurationCompact(peakAgentDay?.agentTimeMs ?? 0)} agent time`,
+            caption: t("home:statAgentTimeValue", { value: formatDurationCompact(peakAgentDay?.agentTimeMs ?? 0) }),
           },
         ];
 
   const usageInsights = [
     {
-      label: "Longest streak",
+      label: t("home:statLongestStreak"),
       value: longestStreak > 0 ? formatDayCount(longestStreak) : "--",
       caption:
         longestStreak > 0
-          ? "Across current usage range"
-          : "No active streak yet",
+          ? t("home:statAcrossCurrentRange")
+          : t("home:statNoActiveStreakYet"),
       compact: true,
     },
     {
-      label: "Active days",
+      label: t("home:statActiveDays"),
       value: last7Days.length > 0 ? `${last7ActiveDays} / ${last7Days.length}` : "--",
       caption:
         usageDays.length > 0
-          ? `${last30ActiveDays} / ${usageDays.length} in current range`
-          : "No activity yet",
+          ? t("home:statInCurrentRange", { countActive: last30ActiveDays, countTotal: usageDays.length })
+          : t("home:statNoActivityYetCaption"),
       compact: true,
     },
   ] satisfies HomeStatCard[];
@@ -233,24 +236,24 @@ export function buildHomeUsageViewModel({
 
   if (usagePercentLabels.sessionPercent !== null) {
     accountCards.push({
-      label: usageShowRemaining ? "Session left" : "Session usage",
+      label: usageShowRemaining ? t("home:statSessionLeft") : t("home:statSessionUsage"),
       value: `${usagePercentLabels.sessionPercent}%`,
       caption: buildWindowCaption(
         usagePercentLabels.sessionResetLabel,
         accountRateLimits?.primary?.windowDurationMins,
-        "Current window",
+        t("home:statCurrentWindow"),
       ),
     });
   }
 
   if (usagePercentLabels.showWeekly && usagePercentLabels.weeklyPercent !== null) {
     accountCards.push({
-      label: usageShowRemaining ? "Weekly left" : "Weekly usage",
+      label: usageShowRemaining ? t("home:statWeeklyLeft") : t("home:statWeeklyUsage"),
       value: `${usagePercentLabels.weeklyPercent}%`,
       caption: buildWindowCaption(
         usagePercentLabels.weeklyResetLabel,
         accountRateLimits?.secondary?.windowDurationMins,
-        "Longer window",
+        t("home:statLongerWindow"),
       ),
     });
   }
@@ -259,22 +262,22 @@ export function buildHomeUsageViewModel({
     accountCards.push(
       accountRateLimits.credits.unlimited
         ? {
-            label: "Credits",
-            value: "Unlimited",
-            caption: "Available balance",
+            label: t("home:statCredits"),
+            value: t("home:statUnlimited"),
+            caption: t("home:statAvailableBalance"),
           }
         : {
-            label: "Credits",
+            label: t("home:statCredits"),
             value: creditsBalance ?? "--",
-            suffix: creditsBalance ? "credits" : null,
-            caption: "Available balance",
+            suffix: creditsBalance ? t("home:statCreditsSuffix") : null,
+            caption: t("home:statAvailableBalance"),
           },
     );
   }
 
   if (planLabel) {
     accountCards.push({
-      label: "Plan",
+      label: t("home:statPlan"),
       value: planLabel,
       caption: formatAccountTypeLabel(accountInfo?.type),
     });

@@ -1,5 +1,6 @@
 import type { ComponentProps } from "react";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
+import { i18n } from "../../../i18n";
 import { MainHeaderActions } from "@app/components/MainHeaderActions";
 import { WorkspaceHome } from "@/features/workspaces/components/WorkspaceHome";
 
@@ -36,8 +37,8 @@ export function useMainAppDisplayNodes({
           className="ghost main-header-action ds-tooltip-trigger"
           onClick={handleMobileThreadRefresh}
           data-tauri-drag-region="false"
-          aria-label="Refresh current thread from server"
-          title="Refresh current thread from server"
+          aria-label={i18n.t("app:refreshCurrentThread")}
+          title={i18n.t("app:refreshCurrentThread")}
           data-tooltip="Refresh current thread from server"
           data-tooltip-placement="bottom"
           disabled={mobileThreadRefreshLoading}

@@ -1,0 +1,10 @@
+﻿{
+  "appTitle": "Codex Monitor",
+  "appIconAlt": "Codex Monitor icon",
+  "version": "Version {{version}}",
+  "versionPlaceholder": "Version —",
+  "tagline": "Monitor the situation of your Codex agents",
+  "github": "GitHub",
+  "twitter": "Twitter",
+  "footer": "Made with ♥ by Codex & Dimillian"
+}

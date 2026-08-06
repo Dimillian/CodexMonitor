@@ -1,0 +1,74 @@
+{
+  "pinned": {
+    "section": "固定的对话"
+  },
+  "search": {
+    "placeholder": "搜索对话",
+    "clear": "清除搜索",
+    "noResults": "没有找到匹配的对话。"
+  },
+  "empty": {
+    "addWorkspace": "添加一个工作区以开始。"
+  },
+  "drop": {
+    "here": "将项目拖放到此处",
+    "adding": "正在添加项目..."
+  },
+  "account": {
+    "apiKey": "API 密钥",
+    "signInToCodex": "登录 Codex",
+    "switch": "切换账户",
+    "signIn": "登录",
+    "label": "账户",
+    "title": "账户",
+    "cancelSwitch": "取消切换账户",
+    "cancel": "取消"
+  },
+  "header": {
+    "addWorkspaces": "添加工作区",
+    "openHome": "打开首页",
+    "projects": "项目",
+    "organizeSort": "组织与排序对话",
+    "organize": "组织方式",
+    "byProject": "按项目",
+    "byProjectActivity": "按项目活动",
+    "threadList": "对话列表",
+    "sortBy": "排序方式",
+    "updated": "更新时间",
+    "created": "创建时间",
+    "refreshThreads": "刷新所有工作区对话",
+    "toggleSearch": "切换搜索",
+    "closeSearch": "关闭搜索",
+    "searchThreads": "搜索对话"
+  },
+  "usage": {
+    "title": "用量",
+    "session": "会话",
+    "weekly": "每周"
+  },
+  "settings": {
+    "open": "打开设置",
+    "label": "设置"
+  },
+  "debug": {
+    "openLog": "打开调试日志"
+  },
+  "threadsOnly": {
+    "newThread": "在项目中新建对话"
+  },
+  "group": {
+    "expandGroup": "展开分组",
+    "collapseGroup": "折叠分组"
+  },
+  "card": {
+    "showAgents": "显示代理",
+    "hideAgents": "隐藏代理",
+    "addAgentOptions": "添加代理选项",
+    "connectTitle": "将工作区连接到共享的 Codex 服务器",
+    "connect": "连接"
+  },
+  "worktree": {
+    "deleting": "删除中",
+    "sectionLabel": "工作树"
+  }
+}

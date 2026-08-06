@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { formatRelativeTime } from "../../../utils/time";
 import {
   getWorkspaceHomeThreadState,
@@ -80,15 +81,16 @@ export function WorkspaceHomeHistory({
   threadStatusById,
   onSelectInstance,
 }: WorkspaceHomeHistoryProps) {
+  const { t } = useTranslation();
   return (
     <>
       <div className="workspace-home-runs">
         <div className="workspace-home-section-header">
-          <div className="workspace-home-section-title">Recent runs</div>
+          <div className="workspace-home-section-title">{t("workspaces:recentRuns")}</div>
         </div>
         {runs.length === 0 ? (
           <div className="workspace-home-empty">
-            Start a run to see its instances tracked here.
+            {t("workspaces:emptyRuns")}
           </div>
         ) : (
           <div className="workspace-home-run-grid">
@@ -101,10 +103,9 @@ export function WorkspaceHomeHistory({
                     <div>
                       <div className="workspace-home-run-title">{run.title}</div>
                       <div className="workspace-home-run-meta">
-                        {run.mode === "local" ? "Local" : "Worktree"} · {run.instances.length} instance
-                        {run.instances.length === 1 ? "" : "s"}
-                        {run.status === "failed" && " · Failed"}
-                        {run.status === "partial" && " · Partial"}
+                        {run.mode === "local" ? t("workspaces:local") : t("workspaces:worktree")} · {t("workspaces:instanceCount", { count: run.instances.length })}
+                        {run.status === "failed" && t("workspaces:runMetaFailed")}
+                        {run.status === "partial" && t("workspaces:runMetaPartial")}
                       </div>
                     </div>
                     <div className="workspace-home-run-time">
@@ -121,7 +122,7 @@ export function WorkspaceHomeHistory({
                       ))}
                       {run.instanceErrors.length > 2 && (
                         <div className="workspace-home-run-error-item">
-                          +{run.instanceErrors.length - 2} more
+                          {t("workspaces:moreErrors", { count: run.instanceErrors.length - 2 })}
                         </div>
                       )}
                     </div>
@@ -136,13 +137,13 @@ export function WorkspaceHomeHistory({
                     />
                   ) : run.status === "failed" ? (
                     <div className="workspace-home-empty">
-                      No instances were started.
+                      {t("workspaces:noInstancesStarted")}
                     </div>
                   ) : (
                     <div className="workspace-home-empty workspace-home-pending">
                       <span className="working-spinner" aria-hidden />
                       <span className="workspace-home-pending-text">
-                        Instances are preparing...
+                        {t("workspaces:instancesPreparing")}
                       </span>
                     </div>
                   )}
@@ -155,21 +156,20 @@ export function WorkspaceHomeHistory({
 
       <div className="workspace-home-runs">
         <div className="workspace-home-section-header">
-          <div className="workspace-home-section-title">Recent threads</div>
+          <div className="workspace-home-section-title">{t("workspaces:recentThreads")}</div>
         </div>
         {recentThreadInstances.length === 0 ? (
           <div className="workspace-home-empty">
-            Threads from the sidebar will appear here.
+            {t("workspaces:emptyThreads")}
           </div>
         ) : (
           <div className="workspace-home-run-grid">
             <div className="workspace-home-run-card">
               <div className="workspace-home-run-header">
                 <div>
-                  <div className="workspace-home-run-title">Agents activity</div>
+                  <div className="workspace-home-run-title">{t("workspaces:agentsActivity")}</div>
                   <div className="workspace-home-run-meta">
-                    {recentThreadInstances.length} thread
-                    {recentThreadInstances.length === 1 ? "" : "s"}
+                    {t("workspaces:threadCount", { count: recentThreadInstances.length })}
                   </div>
                 </div>
                 {recentThreadsUpdatedAt ? (

@@ -1,4 +1,7 @@
+import { i18n } from "../../i18n";
 import type { AccountSnapshot, LocalUsageDay } from "../../types";
+
+const { t } = i18n;
 
 export function formatCompactNumber(value: number | null | undefined) {
   if (value === null || value === undefined) {
@@ -79,13 +82,13 @@ export function formatDayLabel(value: string | null | undefined) {
 
 export function formatWeekRange(days: LocalUsageDay[]) {
   if (days.length === 0) {
-    return "No usage data";
+    return t("home:noUsageDataRange");
   }
   const first = days[0];
   const last = days[days.length - 1];
   const firstLabel = formatDayLabel(first?.day);
   const lastLabel = formatDayLabel(last?.day);
-  return first?.day === last?.day ? firstLabel : `${firstLabel} to ${lastLabel}`;
+  return first?.day === last?.day ? firstLabel : t("home:weekRange", { start: firstLabel, end: lastLabel });
 }
 
 export function isUsageDayActive(day: LocalUsageDay) {
@@ -108,12 +111,12 @@ export function formatAccountTypeLabel(
   value: AccountSnapshot["type"] | null | undefined,
 ) {
   if (value === "chatgpt") {
-    return "ChatGPT account";
+    return t("home:chatgptAccount");
   }
   if (value === "apikey") {
-    return "API key";
+    return t("home:apiKey");
   }
-  return "Connected account";
+  return t("home:connectedAccount");
 }
 
 export function formatWindowDuration(valueMins: number | null | undefined) {
@@ -122,13 +125,13 @@ export function formatWindowDuration(valueMins: number | null | undefined) {
   }
   if (valueMins >= 60 * 24) {
     const days = Math.round(valueMins / (60 * 24));
-    return `${days} day${days === 1 ? "" : "s"} window`;
+    return t("home:windowDays", { count: days });
   }
   if (valueMins >= 60) {
     const hours = Math.round(valueMins / 60);
-    return `${hours}h window`;
+    return t("home:windowHours", { count: hours });
   }
-  return `${Math.round(valueMins)}m window`;
+  return t("home:windowMinutes", { count: Math.round(valueMins) });
 }
 
 export function buildWindowCaption(
@@ -158,5 +161,5 @@ export function formatDayCount(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "--";
   }
-  return `${value} day${value === 1 ? "" : "s"}`;
+  return t("home:dayCount", { count: value });
 }

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import FolderKanban from "lucide-react/dist/esm/icons/folder-kanban";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
@@ -12,17 +13,18 @@ type TabBarProps = {
   onSelect: (tab: TabKey) => void;
 };
 
-const tabs: { id: TabKey; label: string; icon: ReactNode }[] = [
-  { id: "home", label: "Home", icon: <House className="tabbar-icon" /> },
-  { id: "projects", label: "Projects", icon: <FolderKanban className="tabbar-icon" /> },
-  { id: "codex", label: "Codex", icon: <MessagesSquare className="tabbar-icon" /> },
-  { id: "git", label: "Git", icon: <GitBranch className="tabbar-icon" /> },
-  { id: "log", label: "Log", icon: <TerminalSquare className="tabbar-icon" /> },
-];
-
 export function TabBar({ activeTab, onSelect }: TabBarProps) {
+  const { t } = useTranslation("app");
+  const tabs: { id: TabKey; label: string; icon: ReactNode }[] = [
+    { id: "home", label: t("tabBar.home"), icon: <House className="tabbar-icon" /> },
+    { id: "projects", label: t("tabBar.projects"), icon: <FolderKanban className="tabbar-icon" /> },
+    { id: "codex", label: t("tabBar.codex"), icon: <MessagesSquare className="tabbar-icon" /> },
+    { id: "git", label: t("tabBar.git"), icon: <GitBranch className="tabbar-icon" /> },
+    { id: "log", label: t("tabBar.log"), icon: <TerminalSquare className="tabbar-icon" /> },
+  ];
+
   return (
-    <nav className="tabbar" aria-label="Primary">
+    <nav className="tabbar" aria-label={t("tabBar.ariaLabel")}>
       {tabs.map((tab) => (
         <button
           key={tab.id}

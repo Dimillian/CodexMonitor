@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
 import Settings from "lucide-react/dist/esm/icons/settings";
 import User from "lucide-react/dist/esm/icons/user";
@@ -71,6 +72,7 @@ export function SidebarBottomRail({
   onSwitchAccount,
   onCancelSwitchAccount,
 }: SidebarBottomRailProps) {
+  const { t } = useTranslation();
   const accountMenu = useMenuController();
   const {
     isOpen: accountMenuOpen,
@@ -89,18 +91,18 @@ export function SidebarBottomRail({
     <div className="sidebar-bottom-rail">
       <div className="sidebar-usage-panel">
         <div className="sidebar-usage-header">
-          <div className="sidebar-usage-kicker">Usage</div>
+          <div className="sidebar-usage-kicker">{t("sidebar:usage.title")}</div>
           {creditsLabel && <div className="sidebar-usage-credits">{creditsLabel}</div>}
         </div>
         <div className="sidebar-usage-list">
           <UsageRow
-            label="Session"
+            label={t("sidebar:usage.session")}
             percent={sessionPercent}
             resetLabel={sessionResetLabel}
           />
           {showWeekly && (
             <UsageRow
-              label="Weekly"
+              label={t("sidebar:usage.weekly")}
               percent={weeklyPercent}
               resetLabel={weeklyResetLabel}
             />
@@ -118,18 +120,18 @@ export function SidebarBottomRail({
               className="ghost sidebar-labeled-button sidebar-account-trigger"
               activeClassName="is-open"
               onClick={toggleAccountMenu}
-              aria-label="Account"
+              aria-label={t("sidebar:account.label")}
             >
               <span className="sidebar-account-trigger-content">
                 <span className="sidebar-account-avatar" aria-hidden>
                   <User size={12} aria-hidden />
                 </span>
-                <span className="sidebar-account-trigger-label">Account</span>
+                <span className="sidebar-account-trigger-label">{t("sidebar:account.label")}</span>
               </span>
             </MenuTrigger>
             {accountMenuOpen && (
               <PopoverSurface className="sidebar-account-popover" role="dialog">
-                <div className="sidebar-account-title">Account</div>
+                <div className="sidebar-account-title">{t("sidebar:account.title")}</div>
                 <div className="sidebar-account-value">{accountLabel}</div>
                 <div className="sidebar-account-actions-row">
                   <button
@@ -152,8 +154,8 @@ export function SidebarBottomRail({
                       className="secondary sidebar-account-cancel"
                       onClick={onCancelSwitchAccount}
                       disabled={accountCancelDisabled}
-                      aria-label="Cancel account switch"
-                      title="Cancel"
+                      aria-label={t("sidebar:account.cancelSwitch")}
+                      title={t("sidebar:account.cancel")}
                     >
                       <X size={12} aria-hidden />
                     </button>
@@ -168,19 +170,19 @@ export function SidebarBottomRail({
               className="ghost sidebar-labeled-button sidebar-utility-button"
               type="button"
               onClick={onOpenSettings}
-              aria-label="Open settings"
+              aria-label={t("sidebar:settings.open")}
             >
               <span className="sidebar-labeled-button-icon" aria-hidden>
                 <Settings size={14} aria-hidden />
               </span>
-              <span>Settings</span>
+              <span>{t("sidebar:settings.label")}</span>
             </button>
           {showDebugButton && (
             <button
               className="ghost sidebar-utility-button"
               type="button"
               onClick={onOpenDebug}
-              aria-label="Open debug log"
+              aria-label={t("sidebar:debug.openLog")}
             >
               <ScrollText size={14} aria-hidden />
             </button>

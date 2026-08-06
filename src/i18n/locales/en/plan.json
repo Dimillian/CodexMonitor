@@ -1,0 +1,6 @@
+{
+  "title": "Plan",
+  "waiting": "Waiting on a plan...",
+  "noActive": "No active plan.",
+  "progress": "{{completed}}/{{total}}"
+}

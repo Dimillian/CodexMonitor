@@ -1,3 +1,4 @@
+import { useTranslation } from "../../../i18n";
 import type {
   AccountSnapshot,
   LocalUsageSnapshot,
@@ -51,13 +52,12 @@ export function Home({
   accountInfo,
   onSelectThread,
 }: HomeProps) {
+  const { t } = useTranslation();
   return (
     <div className="home">
       <div className="home-hero">
-        <div className="home-title">Codex Monitor</div>
-        <div className="home-subtitle">
-          Orchestrate agents across your local projects.
-        </div>
+        <div className="home-title">{t("home:title")}</div>
+        <div className="home-subtitle">{t("home:subtitle")}</div>
       </div>
       <HomeLatestAgentsSection
         latestAgentRuns={latestAgentRuns}

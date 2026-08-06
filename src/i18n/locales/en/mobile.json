@@ -1,0 +1,15 @@
+{
+  "ariaLabel": "Mobile server setup",
+  "close": "Close mobile setup",
+  "kicker": "Mobile Setup Required",
+  "title": "Connect to your desktop backend",
+  "subtitle": "Complete this setup before using the app. Use the same connection details configured on your desktop CodexMonitor server settings.",
+  "hostLabel": "Tailscale host",
+  "hostPlaceholder": "macbook.your-tailnet.ts.net:4732",
+  "tokenLabel": "Remote backend token",
+  "tokenPlaceholder": "Token",
+  "checking": "Checking...",
+  "connecting": "Connecting...",
+  "connectTest": "Connect & test",
+  "hint": "Use the Tailscale host from desktop Server settings and keep the desktop daemon running."
+}

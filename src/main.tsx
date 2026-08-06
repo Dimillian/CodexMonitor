@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import * as Sentry from "@sentry/react";
 import App from "./App";
+import "./i18n";
 import { isMobilePlatform } from "./utils/platformPaths";
 
 const sentryDsn =
