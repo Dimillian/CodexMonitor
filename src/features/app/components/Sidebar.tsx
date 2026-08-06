@@ -39,7 +39,7 @@ import { useThreadRows } from "../hooks/useThreadRows";
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { getUsageLabels } from "../utils/usageLabels";
 import { formatRelativeTimeShort } from "../../../utils/time";
-import { i18n } from "../../../i18n";
+import type { TFunction } from "i18next";
 import type { ThreadStatusById } from "../../../utils/threadStatus";
 
 const COLLAPSED_GROUPS_STORAGE_KEY = "codexmonitor.collapsedGroups";
@@ -71,13 +71,14 @@ function getThreadBucketId(timestamp: number, nowMs: number): ThreadBucket["id"]
 function groupFlatThreadRowsByTimeBucket(
   groups: FlatThreadRootGroup[],
   nowMs: number,
+  t: TFunction,
 ): ThreadBucket[] {
   const bucketLabels: Record<ThreadBucket["id"], string> = {
-    now: i18n.t("threads:bucket.now"),
-    today: i18n.t("threads:bucket.earlierToday"),
-    yesterday: i18n.t("threads:bucket.yesterday"),
-    week: i18n.t("threads:bucket.thisWeek"),
-    older: i18n.t("threads:bucket.older"),
+    now: t("threads:bucket.now"),
+    today: t("threads:bucket.earlierToday"),
+    yesterday: t("threads:bucket.yesterday"),
+    week: t("threads:bucket.thisWeek"),
+    older: t("threads:bucket.older"),
   };
   const order: ThreadBucket["id"][] = ["now", "today", "yesterday", "week", "older"];
   const bucketMap = new Map<ThreadBucket["id"], FlatThreadRow[]>();
@@ -677,8 +678,8 @@ export const Sidebar = memo(function Sidebar({
     [flatThreadRootGroups],
   );
   const threadBuckets = useMemo(
-    () => groupFlatThreadRowsByTimeBucket(flatThreadRootGroups, Date.now()),
-    [flatThreadRootGroups],
+    () => groupFlatThreadRowsByTimeBucket(flatThreadRootGroups, Date.now(), t),
+    [flatThreadRootGroups, t],
   );
 
   const scrollFadeDeps = useMemo(
