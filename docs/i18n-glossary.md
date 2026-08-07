@@ -106,4 +106,4 @@
 2. **Thread 译为"会话线程"或保留"线程"**：CodexMonitor 的 thread 是其核心 UI 概念，建议 UI 中保留"线程"+"会话"组合，需在 Phase 1 实施时定稿（见实施计划 §8）。
 3. **MCP 保留英文缩写**：全称"模型上下文协议"只在说明性文本出现。
 4. **英文原词 + 中文说明策略**：对术语密集的界面（如 settings 的 mode/approval 区域），采用"中文为主、必要时保留英文原词括注"策略，与词典"避免模糊词"原则一致。
-5. **Rust 侧窗口标题/菜单/托盘文案不在 Phase 1 范围**：属系统级字符串，PR 描述中需声明。
+5. **Rust 侧原生界面文案已本地化**：窗口菜单、macOS 托盘、关于窗口标题通过 `src-tauri/src/i18n.rs` 的 `t_rs`/`t_rs_fmt` 提供 en/zh-CN 文案；语言偏好为空时由 `resolve_ui_language` 探测主机 locale（`zh*` → `zh-CN`，其余 → `en`），与前端 `detectInitialLanguage` 语义一致。

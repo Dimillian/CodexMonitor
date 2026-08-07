@@ -8,7 +8,7 @@ import { formatRelativeTime } from "../../utils/time";
 import { getUsageLabels } from "../app/utils/usageLabels";
 import { i18n } from "../../i18n";
 
-const { t } = i18n;
+const t = i18n.t.bind(i18n);
 import {
   buildWindowCaption,
   formatAccountTypeLabel,
@@ -287,7 +287,7 @@ export function buildHomeUsageViewModel({
     accountCards,
     accountMeta: accountInfo?.email ?? null,
     updatedLabel: localUsageSnapshot
-      ? `Updated ${formatRelativeTime(localUsageSnapshot.updatedAt)}`
+      ? t("home:updatedLabel", { time: formatRelativeTime(localUsageSnapshot.updatedAt) })
       : null,
     usageCards,
     usageDays,

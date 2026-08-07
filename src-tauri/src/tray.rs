@@ -85,6 +85,7 @@ pub(crate) fn set_tray_recent_threads<R: tauri::Runtime>(
     {
         let app_state = app.state::<crate::state::AppState>();
         let lang = app_state.app_settings.blocking_lock().language.clone();
+        let lang = crate::i18n::resolve_ui_language(&lang);
         update_tray_menu(&app, &state, &lang)?;
     }
 
@@ -113,6 +114,7 @@ pub(crate) fn set_tray_session_usage<R: tauri::Runtime>(
     {
         let app_state = app.state::<crate::state::AppState>();
         let lang = app_state.app_settings.blocking_lock().language.clone();
+        let lang = crate::i18n::resolve_ui_language(&lang);
         update_tray_menu(&app, &state, &lang)?;
     }
 

@@ -3,7 +3,7 @@ import Image from "lucide-react/dist/esm/icons/image";
 import X from "lucide-react/dist/esm/icons/x";
 import { i18n } from "../../../i18n";
 
-const { t } = i18n;
+const t = i18n.t.bind(i18n);
 
 type ComposerAttachmentsProps = {
   attachments: string[];

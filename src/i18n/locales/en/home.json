@@ -1,6 +1,7 @@
 {
   "title": "Codex Monitor",
   "subtitle": "Orchestrate agents across your local projects.",
+  "updatedLabel": "Updated {{time}}",
   "addWorkspaces": "Add Workspaces",
   "addWorkspaceFromUrl": "Add Workspace from URL",
   "latestAgents": "Latest agents",

@@ -2,7 +2,7 @@ import type { RateLimitSnapshot } from "../../../types";
 import { formatRelativeTime } from "../../../utils/time";
 import { i18n } from "../../../i18n";
 
-const { t } = i18n;
+const t = i18n.t.bind(i18n);
 
 type UsageLabels = {
   sessionPercent: number | null;

@@ -412,8 +412,8 @@ pub(crate) fn handle_menu_event<R: tauri::Runtime>(
         .state::<crate::state::AppState>()
         .app_settings
         .try_lock()
-        .map(|guard| guard.language.clone())
-        .unwrap_or_else(|_| "en".to_string());
+        .map(|guard| crate::i18n::resolve_ui_language(&guard.language))
+        .unwrap_or_else(|_| crate::i18n::resolve_ui_language(""));
     match event.id().as_ref() {
         "about" | "help_about" => {
             if let Some(window) = app.get_webview_window("about") {

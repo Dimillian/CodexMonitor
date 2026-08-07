@@ -1,7 +1,7 @@
 import { i18n } from "../../i18n";
 import type { AccountSnapshot, LocalUsageDay } from "../../types";
 
-const { t } = i18n;
+const t = i18n.t.bind(i18n);
 
 export function formatCompactNumber(value: number | null | undefined) {
   if (value === null || value === undefined) {

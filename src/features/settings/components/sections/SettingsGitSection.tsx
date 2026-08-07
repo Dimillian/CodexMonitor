@@ -66,7 +66,10 @@ export function SettingsGitSection({
       <div className="settings-field">
         <div className="settings-field-label">{t("git_commit_message_prompt")}</div>
         <div className="settings-help">
-          <Trans i18nKey="settings:git_commit_message_prompt_help" />
+          <Trans
+            i18nKey="settings:git_commit_message_prompt_help"
+            values={{ diff: "{diff}" }}
+          />
         </div>
         <textarea
           className="settings-agents-textarea"

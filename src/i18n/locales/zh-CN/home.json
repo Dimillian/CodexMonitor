@@ -1,6 +1,7 @@
 {
   "title": "Codex Monitor",
   "subtitle": "在本地项目中编排代理。",
+  "updatedLabel": "更新于 {{time}}",
   "addWorkspaces": "添加工作区",
   "addWorkspaceFromUrl": "从 URL 添加工作区",
   "latestAgents": "最近的代理",
