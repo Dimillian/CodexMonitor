@@ -271,7 +271,7 @@ export function GitDiffPanel({
       return pushError;
     }
     return t("pushSyncConflictMessage", { error: pushError });
-  }, [pushError, pushNeedsSync]);
+  }, [pushError, pushNeedsSync, t]);
 
   const handleSyncFromError = useCallback(() => {
     void _onSync?.();

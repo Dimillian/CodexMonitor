@@ -366,7 +366,7 @@
   "server_remote_tcp": "TCP · {{host}}",
   "server_remote_last_connected": "最近连接：",
   "server_remote_never": "从未",
-  "server_remote_use": "使用",
+  "server_remote_use": "使用 {{name}}",
   "server_remote_using": "使用中",
   "server_remote_move_up": "上移 {{name}}",
   "server_remote_move_down": "下移 {{name}}",
