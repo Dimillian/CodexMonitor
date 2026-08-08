@@ -1,0 +1,38 @@
+{
+  "save": "保存",
+  "cancel": "取消",
+  "delete": "删除",
+  "usage": {
+    "reset": "重置于 {{relative}}",
+    "credits": {
+      "unlimited": "可用额度：不限量",
+      "amount": "可用额度：{{amount}}"
+    }
+  },
+  "close": "关闭",
+  "timeNow": "刚刚",
+  "timeSAgo": "{{value}}秒前",
+  "timeInS": "{{value}}秒后",
+  "timeMAgo": "{{value}}分钟前",
+  "timeInM": "{{value}}分钟后",
+  "timeShortNow": "刚刚",
+  "timeShortM": "{{value}}分钟",
+  "timeShortH": "{{value}}小时",
+  "timeShortD": "{{value}}天",
+  "timeShortW": "{{value}}周",
+  "timeShortMo": "{{value}}月",
+  "timeShortY": "{{value}}年",
+  "loading": "加载中...",
+  "confirm": "确认",
+  "downloadSizeZero": "0 MB",
+  "downloadSizeGB": "{{value}} GB",
+  "downloadSizeMB": "{{value}} MB",
+  "shortcutNotSet": "未设置",
+  "fileManagerFinder": "Finder",
+  "fileManagerExplorer": "资源管理器",
+  "fileManagerDefault": "文件管理器",
+  "revealInFinder": "在 Finder 中显示",
+  "showInExplorer": "在资源管理器中显示",
+  "revealInFileManager": "在文件管理器中显示",
+  "openInFileManager": "在 {{name}} 中打开"
+}

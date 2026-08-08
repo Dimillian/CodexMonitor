@@ -2,15 +2,15 @@ import type { AppSettings } from "@/types";
 import type { CodexSection, ShortcutDraftKey, ShortcutSettingKey } from "./settingsTypes";
 
 export const DICTATION_MODELS = [
-  { id: "tiny", label: "Tiny", size: "75 MB", note: "Fastest, least accurate." },
-  { id: "base", label: "Base", size: "142 MB", note: "Balanced default." },
-  { id: "small", label: "Small", size: "466 MB", note: "Better accuracy." },
-  { id: "medium", label: "Medium", size: "1.5 GB", note: "High accuracy." },
+  { id: "tiny", labelKey: "settings:dictation_model_tiny", size: "75 MB", noteKey: "settings:dictation_model_tiny_note" },
+  { id: "base", labelKey: "settings:dictation_model_base", size: "142 MB", noteKey: "settings:dictation_model_base_note" },
+  { id: "small", labelKey: "settings:dictation_model_small", size: "466 MB", noteKey: "settings:dictation_model_small_note" },
+  { id: "medium", labelKey: "settings:dictation_model_medium", size: "1.5 GB", noteKey: "settings:dictation_model_medium_note" },
   {
     id: "large-v3",
-    label: "Large V3",
+    labelKey: "settings:dictation_model_large_v3",
     size: "3.0 GB",
-    note: "Best accuracy, heavy download.",
+    noteKey: "settings:dictation_model_large_v3_note",
   },
 ];
 
@@ -28,10 +28,10 @@ type ComposerPresetSettings = Pick<
   | "composerCodeBlockCopyUseModifier"
 >;
 
-export const COMPOSER_PRESET_LABELS: Record<ComposerPreset, string> = {
-  default: "Default (no helpers)",
-  helpful: "Helpful",
-  smart: "Smart",
+export const COMPOSER_PRESET_LABEL_KEYS: Record<ComposerPreset, string> = {
+  default: "settings:composer_preset_default",
+  helpful: "settings:composer_preset_helpful",
+  smart: "settings:composer_preset_smart",
 };
 
 export const COMPOSER_PRESET_CONFIGS: Record<
@@ -73,20 +73,20 @@ export const COMPOSER_PRESET_CONFIGS: Record<
 export const SETTINGS_MOBILE_BREAKPOINT_PX = 720;
 export const DEFAULT_REMOTE_HOST = "127.0.0.1:4732";
 
-export const SETTINGS_SECTION_LABELS: Record<CodexSection, string> = {
-  projects: "Projects",
-  environments: "Environments",
-  display: "Display & Sound",
-  about: "About",
-  composer: "Composer",
-  dictation: "Dictation",
-  shortcuts: "Shortcuts",
-  "open-apps": "Open in",
-  git: "Git",
-  server: "Server",
-  agents: "Agents",
-  codex: "Codex",
-  features: "Features",
+export const SETTINGS_SECTION_LABEL_KEYS: Record<CodexSection, string> = {
+  projects: "settings:section_projects",
+  environments: "settings:section_environments",
+  display: "settings:section_display",
+  about: "settings:section_about",
+  composer: "settings:section_composer",
+  dictation: "settings:section_dictation",
+  shortcuts: "settings:section_shortcuts",
+  "open-apps": "settings:section_open_apps",
+  git: "settings:section_git",
+  server: "settings:section_server",
+  agents: "settings:section_agents",
+  codex: "settings:section_codex",
+  features: "settings:section_features",
 };
 
 export const SHORTCUT_DRAFT_KEY_BY_SETTING: Record<

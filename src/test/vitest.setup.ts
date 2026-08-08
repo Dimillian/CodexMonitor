@@ -1,3 +1,4 @@
+import "../i18n/i18n";
 import { vi } from "vitest";
 
 if (!("IS_REACT_ACT_ENVIRONMENT" in globalThis)) {

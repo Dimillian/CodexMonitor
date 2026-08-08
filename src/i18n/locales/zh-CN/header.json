@@ -1,0 +1,43 @@
+{
+  "worktree": {
+    "info": "工作树信息",
+    "rename": {
+      "name": "名称",
+      "confirm": "确认重命名"
+    },
+    "upstreamPrompt": "是否要将上游分支更新为 <strong>{{branch}}</strong>？",
+    "upstreamAction": "更新上游分支",
+    "title": "工作树",
+    "terminalRoot": "终端（仓库根目录）",
+    "terminal": "终端",
+    "copyCommand": "复制命令",
+    "terminalHint": "在终端中打开此工作区。",
+    "reveal": "在文件管理器中显示"
+  },
+  "branch": {
+    "searchPlaceholder": "搜索或创建分支",
+    "searchAria": "搜索分支",
+    "create": "创建",
+    "createHint": "创建分支 \"{{name}}\"",
+    "noResults": "未找到分支"
+  },
+  "terminal": {
+    "toggleAria": "切换终端面板",
+    "tooltip": "终端"
+  },
+  "thread": {
+    "copy": "复制线程"
+  },
+  "diffView": {
+    "ariaLabel": "差异视图",
+    "dualPanel": "双栏差异",
+    "singleColumn": "单栏差异"
+  },
+  "captionControls": {
+    "groupAria": "窗口控制",
+    "minimize": "最小化窗口",
+    "restore": "还原窗口",
+    "maximize": "最大化窗口",
+    "close": "关闭窗口"
+  }
+}

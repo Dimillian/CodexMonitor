@@ -1,0 +1,29 @@
+{
+  "bucket": {
+    "now": "Now",
+    "earlierToday": "Earlier today",
+    "yesterday": "Yesterday",
+    "thisWeek": "This week",
+    "older": "Older"
+  },
+  "list": {
+    "empty": "No conversations yet.",
+    "showLess": "Show less",
+    "more": "More...",
+    "loading": "Loading...",
+    "searchOlder": "Search older...",
+    "loadOlder": "Load older..."
+  },
+  "recentConversations": "Recent conversations",
+  "loading": {
+    "agents": "Loading agents"
+  },
+  "row": {
+    "reviewing": "Reviewing",
+    "waiting": "Waiting",
+    "pinned": "Pinned",
+    "hideSubAgents": "Hide sub-agents",
+    "showSubAgents": "Show sub-agents",
+    "now": "Now"
+  }
+}

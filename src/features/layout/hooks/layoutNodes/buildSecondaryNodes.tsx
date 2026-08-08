@@ -1,3 +1,4 @@
+import { i18n } from "../../../../i18n";
 import { DebugPanel } from "../../../debug/components/DebugPanel";
 import { PlanPanel } from "../../../plan/components/PlanPanel";
 import { TerminalDock } from "../../../terminal/components/TerminalDock";
@@ -61,7 +62,7 @@ function buildCompactEmptyNode({
       <h3>{title}</h3>
       <p>{description}</p>
       <button className="ghost" onClick={onGoProjects}>
-        Go to Projects
+        {i18n.t("layout:compactEmpty.goToProjects")}
       </button>
     </div>
   );
@@ -81,7 +82,7 @@ function buildCompactGitBackNode(
         className={`compact-git-switch-button${compactGitDiffActive ? "" : " active"}`}
         onClick={compactNavProps.onBackFromDiff}
       >
-        Files
+        {i18n.t("layout:compactBack.files")}
       </button>
       <button
         type="button"
@@ -89,7 +90,7 @@ function buildCompactGitBackNode(
         onClick={compactNavProps.onShowSelectedDiff}
         disabled={!compactNavProps.hasActiveGitDiffs}
       >
-        Diff
+        {i18n.t("layout:compactBack.diff")}
       </button>
     </div>
   );
@@ -109,14 +110,14 @@ export function buildSecondaryNodes(options: SecondaryLayoutNodesOptions): Secon
   const { debugPanelNode, debugPanelFullNode } = buildDebugPanels(options.debugPanelProps);
 
   const compactEmptyCodexNode = buildCompactEmptyNode({
-    title: "No workspace selected",
-    description: "Choose a project to start chatting.",
+    title: i18n.t("layout:compactEmpty.noWorkspace"),
+    description: i18n.t("layout:compactEmpty.chooseProject"),
     onGoProjects: options.compactNavProps.onGoProjects,
   });
 
   const compactEmptyGitNode = buildCompactEmptyNode({
-    title: "No workspace selected",
-    description: "Select a project to inspect diffs.",
+    title: i18n.t("layout:compactEmpty.noWorkspace"),
+    description: i18n.t("layout:compactEmpty.selectProject"),
     onGoProjects: options.compactNavProps.onGoProjects,
   });
 

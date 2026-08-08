@@ -21,7 +21,7 @@ import { useSettingsServerSection } from "./useSettingsServerSection";
 import type { GroupedWorkspaces } from "./settingsSectionTypes";
 import {
   COMPOSER_PRESET_CONFIGS,
-  COMPOSER_PRESET_LABELS,
+  COMPOSER_PRESET_LABEL_KEYS,
   DICTATION_MODELS,
 } from "@settings/components/settingsViewConstants";
 
@@ -226,7 +226,7 @@ export function useSettingsViewOrchestration({
       appSettings,
       optionKeyLabel,
       followUpShortcutLabel,
-      composerPresetLabels: COMPOSER_PRESET_LABELS,
+      composerPresetLabelKeys: COMPOSER_PRESET_LABEL_KEYS,
       onComposerPresetChange: (
         preset: AppSettings["composerEditorPreset"],
       ) => {

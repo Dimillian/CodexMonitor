@@ -14,6 +14,7 @@ mod event_sink;
 mod files;
 mod git;
 mod git_utils;
+mod i18n;
 mod local_usage;
 #[cfg(desktop)]
 mod menu;
@@ -97,7 +98,7 @@ pub fn run() {
         .manage(tray::TrayState::default())
         .on_menu_event(menu::handle_menu_event)
         .enable_macos_default_menu(false)
-        .menu(menu::build_menu);
+        .menu(|handle| menu::build_menu(handle, "en"));
 
     #[cfg(not(desktop))]
     let builder = tauri::Builder::default();
@@ -116,10 +117,25 @@ pub fn run() {
         .setup(|app| {
             let state = state::AppState::load(&app.handle());
             app.manage(state);
+            #[cfg(desktop)]
+            {
+                let lang = app
+                    .state::<state::AppState>()
+                    .app_settings
+                    .blocking_lock()
+                    .language
+                    .clone();
+                let lang = crate::i18n::resolve_ui_language(&lang);
+                let menu = menu::build_menu(app.handle(), &lang)?;
+                app.set_menu(menu)?;
+            }
             #[cfg(target_os = "macos")]
             {
+                let app_state = app.state::<state::AppState>();
+                let lang = app_state.app_settings.blocking_lock().language.clone();
+                let lang = crate::i18n::resolve_ui_language(&lang);
                 let tray_state = app.state::<tray::TrayState>();
-                tray::initialize(&app.handle(), tray_state.inner())?;
+                tray::initialize(&app.handle(), tray_state.inner(), &lang)?;
             }
             #[cfg(target_os = "windows")]
             {

@@ -1,0 +1,43 @@
+{
+  "worktree": {
+    "info": "Worktree info",
+    "rename": {
+      "name": "Name",
+      "confirm": "Confirm rename"
+    },
+    "upstreamPrompt": "Do you want to update the upstream branch to <strong>{{branch}}</strong>?",
+    "upstreamAction": "Update upstream",
+    "title": "Worktree",
+    "terminalRoot": "Terminal (repo root)",
+    "terminal": "Terminal",
+    "copyCommand": "Copy command",
+    "terminalHint": "Open this worktree in your terminal.",
+    "reveal": "Reveal"
+  },
+  "branch": {
+    "searchPlaceholder": "Search or create branch",
+    "searchAria": "Search branches",
+    "create": "Create",
+    "createHint": "Create branch \"{{name}}\"",
+    "noResults": "No branches found"
+  },
+  "terminal": {
+    "toggleAria": "Toggle terminal panel",
+    "tooltip": "Terminal"
+  },
+  "thread": {
+    "copy": "Copy thread"
+  },
+  "diffView": {
+    "ariaLabel": "Diff view",
+    "dualPanel": "Dual-panel diff",
+    "singleColumn": "Single-column diff"
+  },
+  "captionControls": {
+    "groupAria": "Window controls",
+    "minimize": "Minimize window",
+    "restore": "Restore window",
+    "maximize": "Maximize window",
+    "close": "Close window"
+  }
+}

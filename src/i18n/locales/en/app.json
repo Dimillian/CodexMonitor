@@ -1,0 +1,96 @@
+{
+  "approvalToasts": {
+    "none": "None",
+    "title": "Approval needed",
+    "noExtraDetails": "No extra details.",
+    "decline": "Decline",
+    "allowTooltip": "Allow commands that start with {{preview}}",
+    "alwaysAllow": "Always allow",
+    "approve": "Approve (Enter)"
+  },
+  "launchScript": {
+    "saving": "Saving...",
+    "title": "Launch script",
+    "placeholder": "e.g. npm run dev",
+    "new": "New",
+    "newTitle": "New launch script",
+    "optionalLabel": "Optional label",
+    "create": "Create",
+    "runLabel": "Run launch script",
+    "setLabel": "Set launch script",
+    "icons": {
+      "play": "Play",
+      "build": "Build",
+      "debug": "Debug",
+      "wrench": "Wrench",
+      "terminal": "Terminal",
+      "code": "Code",
+      "server": "Server",
+      "database": "Database",
+      "package": "Package",
+      "test": "Test",
+      "lint": "Lint",
+      "dev": "Dev",
+      "git": "Git",
+      "config": "Config",
+      "logs": "Logs"
+    }
+  },
+  "mainApp": {
+    "launchTerminalTitle": "Launch"
+  },
+  "openAppMenu": {
+    "open": "Open",
+    "vsCode": "VS Code",
+    "visualStudioCode": "Visual Studio Code",
+    "couldNotOpen": "Couldn't open workspace",
+    "openIn": "Open in {{label}}",
+    "setCommandInSettings": "Set command in Settings",
+    "setAppNameInSettings": "Set app name in Settings",
+    "selectEditor": "Select editor"
+  },
+  "planReady": {
+    "ariaLabel": "Plan ready",
+    "title": "Plan ready",
+    "description": "Start building from this plan, or describe changes to the plan.",
+    "placeholder": "Describe what you want to change in the plan...",
+    "sendChanges": "Send changes",
+    "implementPlan": "Implement this plan"
+  },
+  "userInput": {
+    "ariaLabel": "User input requested",
+    "title": "Input requested",
+    "requestCount": "Request {{current}} of {{total}}",
+    "typeAnswer": "Type your answer (optional)",
+    "addNotes": "Add notes (optional)",
+    "noQuestions": "No questions provided.",
+    "submit": "Submit"
+  },
+  "sidebarWorkspaceGroups": {
+    "conversation": "{{count}} conversation",
+    "noConversations": "No conversations yet",
+    "updated": "Updated {{time}}",
+    "newAgent": "New agent",
+    "newWorktreeAgent": "New worktree agent",
+    "newCloneAgent": "New clone agent",
+    "newAgentDraft": "New Agent",
+    "cloneSection": "Clone agents",
+    "conversation_one": "{{count}} conversation",
+    "conversation_other": "{{count}} conversations"
+  },
+  "tabBar": {
+    "home": "Home",
+    "projects": "Projects",
+    "codex": "Codex",
+    "git": "Git",
+    "log": "Log",
+    "ariaLabel": "Primary"
+  },
+  "tabletNav": {
+    "codex": "Codex",
+    "git": "Git",
+    "log": "Log",
+    "ariaLabel": "Workspace"
+  },
+  "refreshCurrentThread": "Refresh current thread from server"
+}

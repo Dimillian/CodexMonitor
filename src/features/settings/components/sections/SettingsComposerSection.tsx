@@ -1,3 +1,4 @@
+import { Trans, useTranslation } from "react-i18next";
 import type { AppSettings } from "@/types";
 import {
   SettingsSection,
@@ -11,7 +12,7 @@ type SettingsComposerSectionProps = {
   appSettings: AppSettings;
   optionKeyLabel: string;
   followUpShortcutLabel: string;
-  composerPresetLabels: Record<ComposerPreset, string>;
+  composerPresetLabelKeys: Record<ComposerPreset, string>;
   onComposerPresetChange: (preset: ComposerPreset) => void;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
 };
@@ -20,19 +21,20 @@ export function SettingsComposerSection({
   appSettings,
   optionKeyLabel,
   followUpShortcutLabel,
-  composerPresetLabels,
+  composerPresetLabelKeys,
   onComposerPresetChange,
   onUpdateAppSettings,
 }: SettingsComposerSectionProps) {
+  const { t } = useTranslation("settings");
   const steerUnavailable = !appSettings.steerEnabled;
   return (
     <SettingsSection
-      title="Composer"
-      subtitle="Control helpers and formatting behavior inside the message editor."
+      title={t("composer_title")}
+      subtitle={t("composer_subtitle")}
     >
       <div className="settings-field">
-        <div className="settings-field-label">Follow-up behavior</div>
-        <div className={`settings-segmented${appSettings.followUpMessageBehavior === "steer" ? " is-second-active" : ""}`} aria-label="Follow-up behavior">
+        <div className="settings-field-label">{t("composer_follow_up_behavior")}</div>
+        <div className={`settings-segmented${appSettings.followUpMessageBehavior === "steer" ? " is-second-active" : ""}`} aria-label={t("composer_follow_up_aria")}>
           <label
             className={`settings-segmented-option${
               appSettings.followUpMessageBehavior === "queue" ? " is-active" : ""
@@ -51,13 +53,13 @@ export function SettingsComposerSection({
                 })
               }
             />
-            <span className="settings-segmented-option-label">Queue</span>
+            <span className="settings-segmented-option-label">{t("composer_queue")}</span>
           </label>
           <label
             className={`settings-segmented-option${
               appSettings.followUpMessageBehavior === "steer" ? " is-active" : ""
             }${steerUnavailable ? " is-disabled" : ""}`}
-            title={steerUnavailable ? "Steer is unavailable in the current Codex config." : ""}
+            title={steerUnavailable ? t("composer_steer_unavailable") : ""}
           >
             <input
               className="settings-segmented-input"
@@ -76,16 +78,15 @@ export function SettingsComposerSection({
                 });
               }}
             />
-            <span className="settings-segmented-option-label">Steer</span>
+            <span className="settings-segmented-option-label">{t("composer_steer")}</span>
           </label>
         </div>
         <div className="settings-help">
-          Choose the default while a run is active. Press {followUpShortcutLabel} to send the
-          opposite behavior for one message.
+          {t("composer_follow_up_help", { shortcut: followUpShortcutLabel })}
         </div>
         <SettingsToggleRow
-          title="Show follow-up hint while processing"
-          subtitle="Displays queue/steer shortcut guidance above the composer."
+          title={t("composer_show_follow_up_hint")}
+          subtitle={t("composer_follow_up_hint_subtitle")}
         >
           <SettingsToggleSwitch
             pressed={appSettings.composerFollowUpHintEnabled}
@@ -99,18 +100,18 @@ export function SettingsComposerSection({
         </SettingsToggleRow>
         {steerUnavailable && (
           <div className="settings-help">
-            Steer is unavailable in the current Codex config. Follow-ups will queue.
+            {t("composer_steer_unavailable_msg")}
           </div>
         )}
       </div>
       <div className="settings-divider" />
-      <div className="settings-subsection-title">Presets</div>
+      <div className="settings-subsection-title">{t("composer_presets")}</div>
       <div className="settings-subsection-subtitle">
-        Choose a starting point and fine-tune the toggles below.
+        {t("composer_presets_subtitle")}
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="composer-preset">
-          Preset
+          {t("composer_preset")}
         </label>
         <select
           id="composer-preset"
@@ -120,21 +121,21 @@ export function SettingsComposerSection({
             onComposerPresetChange(event.target.value as ComposerPreset)
           }
         >
-          {Object.entries(composerPresetLabels).map(([preset, label]) => (
+          {Object.entries(composerPresetLabelKeys).map(([preset, labelKey]) => (
             <option key={preset} value={preset}>
-              {label}
+              {t(labelKey)}
             </option>
           ))}
         </select>
         <div className="settings-help">
-          Presets update the toggles below. Customize any setting after selecting.
+          {t("composer_preset_help")}
         </div>
       </div>
       <div className="settings-divider" />
-      <div className="settings-subsection-title">Code fences</div>
+      <div className="settings-subsection-title">{t("composer_code_fences")}</div>
       <SettingsToggleRow
-        title="Expand fences on Space"
-        subtitle="Typing ``` then Space inserts a fenced block."
+        title={t("composer_expand_fences_space")}
+        subtitle={t("composer_expand_fences_space_subtitle")}
       >
         <SettingsToggleSwitch
           pressed={appSettings.composerFenceExpandOnSpace}
@@ -147,8 +148,8 @@ export function SettingsComposerSection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="Expand fences on Enter"
-        subtitle="Use Enter to expand ``` lines when enabled."
+        title={t("composer_expand_fences_enter")}
+        subtitle={t("composer_expand_fences_enter_subtitle")}
       >
         <SettingsToggleSwitch
           pressed={appSettings.composerFenceExpandOnEnter}
@@ -161,8 +162,8 @@ export function SettingsComposerSection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="Support language tags"
-        subtitle="Allows ```lang + Space to include a language."
+        title={t("composer_language_tags")}
+        subtitle={t("composer_language_tags_subtitle")}
       >
         <SettingsToggleSwitch
           pressed={appSettings.composerFenceLanguageTags}
@@ -175,8 +176,8 @@ export function SettingsComposerSection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="Wrap selection in fences"
-        subtitle="Wraps selected text when creating a fence."
+        title={t("composer_wrap_selection")}
+        subtitle={t("composer_wrap_selection_subtitle")}
       >
         <SettingsToggleSwitch
           pressed={appSettings.composerFenceWrapSelection}
@@ -189,11 +190,9 @@ export function SettingsComposerSection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="Copy blocks without fences"
+        title={t("composer_copy_blocks")}
         subtitle={
-          <>
-            When enabled, Copy is plain text. Hold {optionKeyLabel} to include ``` fences.
-          </>
+          <Trans i18nKey="settings:composer_copy_blocks_subtitle" values={{ key: optionKeyLabel }} />
         }
       >
         <SettingsToggleSwitch
@@ -208,10 +207,10 @@ export function SettingsComposerSection({
         />
       </SettingsToggleRow>
       <div className="settings-divider" />
-      <div className="settings-subsection-title">Pasting</div>
+      <div className="settings-subsection-title">{t("composer_pasting")}</div>
       <SettingsToggleRow
-        title="Auto-wrap multi-line paste"
-        subtitle="Wraps multi-line paste inside a fenced block."
+        title={t("composer_auto_wrap_multiline")}
+        subtitle={t("composer_auto_wrap_multiline_subtitle")}
       >
         <SettingsToggleSwitch
           pressed={appSettings.composerFenceAutoWrapPasteMultiline}
@@ -225,8 +224,8 @@ export function SettingsComposerSection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="Auto-wrap code-like single lines"
-        subtitle="Wraps long single-line code snippets on paste."
+        title={t("composer_auto_wrap_code_like")}
+        subtitle={t("composer_auto_wrap_code_like_subtitle")}
       >
         <SettingsToggleSwitch
           pressed={appSettings.composerFenceAutoWrapPasteCodeLike}
@@ -240,10 +239,10 @@ export function SettingsComposerSection({
         />
       </SettingsToggleRow>
       <div className="settings-divider" />
-      <div className="settings-subsection-title">Lists</div>
+      <div className="settings-subsection-title">{t("composer_lists")}</div>
       <SettingsToggleRow
-        title="Continue lists on Shift+Enter"
-        subtitle="Continues numbered and bulleted lists when the line has content."
+        title={t("composer_continue_lists")}
+        subtitle={t("composer_continue_lists_subtitle")}
       >
         <SettingsToggleSwitch
           pressed={appSettings.composerListContinuation}

@@ -2,6 +2,7 @@ import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import { useEffect, useState } from "react";
+import { useTranslation } from "../../../i18n";
 import type {
   AccountSnapshot,
   LocalUsageSnapshot,
@@ -58,6 +59,7 @@ export function HomeUsageSection({
   usageWorkspaceId,
   usageWorkspaceOptions,
 }: HomeUsageSectionProps) {
+  const { t } = useTranslation();
   const [chartWeekOffset, setChartWeekOffset] = useState(0);
   const {
     accountCards,
@@ -93,15 +95,15 @@ export function HomeUsageSection({
   const chartRangeLabel = formatWeekRange(chartDays);
   const chartRangeAriaLabel =
     chartDays.length > 0
-      ? `Usage week ${chartDays[0]?.day} to ${chartDays[chartDays.length - 1]?.day}`
-      : "Usage week";
+      ? t("home:usageWeek", { start: chartDays[0]?.day, end: chartDays[chartDays.length - 1]?.day })
+      : t("home:usageWeekEmpty");
   const showUsageSkeleton = isLoadingLocalUsage && !localUsageSnapshot;
   const showUsageEmpty = !isLoadingLocalUsage && !localUsageSnapshot;
 
   return (
     <div className="home-usage">
       <div className="home-section-header">
-        <div className="home-section-title">Usage snapshot</div>
+        <div className="home-section-title">{t("home:usageSnapshot")}</div>
         <div className="home-section-meta-row">
           {updatedLabel && <div className="home-section-meta">{updatedLabel}</div>}
           <button
@@ -113,8 +115,8 @@ export function HomeUsageSection({
             }
             onClick={onRefreshLocalUsage}
             disabled={isLoadingLocalUsage}
-            aria-label="Refresh usage"
-            title="Refresh usage"
+            aria-label={t("home:refreshUsage")}
+            title={t("home:refreshUsage")}
           >
             <RefreshCw
               className={
@@ -129,7 +131,7 @@ export function HomeUsageSection({
       </div>
       <div className="home-usage-controls">
         <div className="home-usage-control-group">
-          <span className="home-usage-control-label">Workspace</span>
+          <span className="home-usage-control-label">{t("home:workspace")}</span>
           <div className="home-usage-select-wrap">
             <select
               className="home-usage-select"
@@ -137,7 +139,7 @@ export function HomeUsageSection({
               onChange={(event) => onUsageWorkspaceChange(event.target.value || null)}
               disabled={usageWorkspaceOptions.length === 0}
             >
-              <option value="">All workspaces</option>
+              <option value="">{t("home:allWorkspaces")}</option>
               {usageWorkspaceOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
@@ -147,8 +149,8 @@ export function HomeUsageSection({
           </div>
         </div>
         <div className="home-usage-control-group">
-          <span className="home-usage-control-label">View</span>
-          <div className="home-usage-toggle" role="group" aria-label="Usage view">
+          <span className="home-usage-control-label">{t("home:view")}</span>
+          <div className="home-usage-toggle" role="group" aria-label={t("home:usageView")}>
             <button
               type="button"
               className={
@@ -159,7 +161,7 @@ export function HomeUsageSection({
               onClick={() => onUsageMetricChange("tokens")}
               aria-pressed={usageMetric === "tokens"}
             >
-              Tokens
+              {t("home:tokens")}
             </button>
             <button
               type="button"
@@ -171,7 +173,7 @@ export function HomeUsageSection({
               onClick={() => onUsageMetricChange("time")}
               aria-pressed={usageMetric === "time"}
             >
-              Time
+              {t("home:time")}
             </button>
           </div>
         </div>
@@ -192,9 +194,9 @@ export function HomeUsageSection({
         </div>
       ) : showUsageEmpty ? (
         <div className="home-usage-empty">
-          <div className="home-usage-empty-title">No usage data yet</div>
+          <div className="home-usage-empty-title">{t("home:noUsageData")}</div>
           <div className="home-usage-empty-subtitle">
-            Run a Codex session to start tracking local usage.
+            {t("home:noUsageDataSubtitle")}
           </div>
           {localUsageError && (
             <div className="home-usage-error">{localUsageError}</div>
@@ -222,8 +224,8 @@ export function HomeUsageSection({
                     type="button"
                     className="home-usage-chart-button"
                     onClick={() => setChartWeekOffset((current) => current + 1)}
-                    aria-label="Show previous week"
-                    title="Show previous week"
+                    aria-label={t("home:showPreviousWeek")}
+                    title={t("home:showPreviousWeek")}
                   >
                     <ChevronLeft aria-hidden />
                   </button>
@@ -232,8 +234,8 @@ export function HomeUsageSection({
                   type="button"
                   className="home-usage-chart-button"
                   onClick={() => setChartWeekOffset((current) => Math.max(0, current - 1))}
-                  aria-label="Show next week"
-                  title="Show next week"
+                  aria-label={t("home:showNextWeek")}
+                  title={t("home:showNextWeek")}
                   disabled={!canShowNewerWeek}
                 >
                   <ChevronRight aria-hidden />
@@ -247,8 +249,8 @@ export function HomeUsageSection({
                 const height = Math.max(6, Math.round((value / maxUsageValue) * 100));
                 const tooltip =
                   usageMetric === "tokens"
-                    ? `${formatDayLabel(day.day)} · ${formatCount(day.totalTokens)} tokens`
-                    : `${formatDayLabel(day.day)} · ${formatDuration(day.agentTimeMs ?? 0)} agent time`;
+                    ? t("home:tooltipTokens", { day: formatDayLabel(day.day), num: formatCount(day.totalTokens) })
+                    : t("home:tooltipTime", { day: formatDayLabel(day.day), duration: formatDuration(day.agentTimeMs ?? 0) });
                 return (
                   <div className="home-usage-bar" key={day.day} data-value={tooltip}>
                     <span
@@ -268,9 +270,9 @@ export function HomeUsageSection({
           </div>
           <div className="home-usage-models">
             <div className="home-usage-models-label">
-              Top models
+              {t("home:topModels")}
               {usageMetric === "time" && (
-                <span className="home-usage-models-hint">Tokens</span>
+                <span className="home-usage-models-hint">{t("home:hintTokens")}</span>
               )}
             </div>
             <div className="home-usage-models-list">
@@ -279,7 +281,7 @@ export function HomeUsageSection({
                   <span
                     className="home-usage-model-chip"
                     key={model.model}
-                    title={`${model.model}: ${formatCount(model.tokens)} tokens`}
+                    title={t("home:modelChipTitle", { model: model.model, num: formatCount(model.tokens) })}
                   >
                     {model.model}
                     <span className="home-usage-model-share">
@@ -288,7 +290,7 @@ export function HomeUsageSection({
                   </span>
                 ))
               ) : (
-                <span className="home-usage-model-empty">No models yet</span>
+                <span className="home-usage-model-empty">{t("home:noModelsYet")}</span>
               )}
             </div>
             {localUsageError && <div className="home-usage-error">{localUsageError}</div>}
@@ -298,7 +300,7 @@ export function HomeUsageSection({
       {accountCards.length > 0 && (
         <div className="home-account">
           <div className="home-section-header">
-            <div className="home-section-title">Account limits</div>
+            <div className="home-section-title">{t("home:accountLimits")}</div>
             {accountMeta && (
               <div className="home-section-meta-row">
                 <div className="home-section-meta">{accountMeta}</div>

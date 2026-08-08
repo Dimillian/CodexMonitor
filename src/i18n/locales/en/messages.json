@@ -1,0 +1,18 @@
+{
+  "copyCodeBlock": "Copy code block",
+  "closeImagePreview": "Close image preview",
+  "quoteMessage": "Quote message",
+  "copyMessage": "Copy message",
+  "toggleReasoningDetails": "Toggle reasoning details",
+  "toggleAnsweredInputDetails": "Toggle answered input details",
+  "toggleToolDetails": "Toggle tool details",
+  "toolCallCount": "{{count}} tool call",
+  "messageCount": "{{count}} message",
+  "expandToolCalls": "Expand tool calls",
+  "collapseToolCalls": "Collapse tool calls",
+  "sendPrompt": "Send a prompt to the agent.",
+  "startNewAgent": "Send a prompt to start a new agent.",
+  "loading": "Loading…",
+  "toolCallCount_other": "{{count}} tool calls",
+  "messageCount_other": "{{count}} messages"
+}

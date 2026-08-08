@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { GitHubPullRequest, GitHubPullRequestComment } from "../../../types";
 import { formatRelativeTime } from "../../../utils/time";
 import { Markdown } from "../../messages/components/Markdown";
@@ -27,10 +28,11 @@ export const PullRequestSummary = memo(function PullRequestSummary({
   pullRequestCommentsError,
   onCheckoutPullRequest,
 }: PullRequestSummaryProps) {
+  const { t } = useTranslation("git");
   const prUpdatedLabel = pullRequest.updatedAt
     ? formatRelativeTime(new Date(pullRequest.updatedAt).getTime())
     : null;
-  const prAuthor = pullRequest.author?.login ?? "unknown";
+  const prAuthor = pullRequest.author?.login ?? t("unknown");
   const prBody = pullRequest.body?.trim() ?? "";
   const [isTimelineExpanded, setIsTimelineExpanded] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -59,7 +61,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
   }, [pullRequest.number]);
 
   return (
-    <section className="diff-viewer-pr" aria-label="Pull request summary">
+    <section className="diff-viewer-pr" aria-label={t("pullRequestSummary")}>
       <div className="diff-viewer-pr-header">
         <div className="diff-viewer-pr-header-row">
           <div className="diff-viewer-pr-title">
@@ -74,7 +76,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
                 type="button"
                 className="ghost diff-viewer-pr-jump"
                 onClick={onJumpToFirstFile}
-                aria-label="Jump to first file"
+                aria-label={t("jumpToFirstFile")}
               >
                 <span className="diff-viewer-pr-jump-add">
                   +{diffStats.additions}
@@ -89,7 +91,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
               <button
                 type="button"
                 className="ghost diff-viewer-pr-checkout"
-                aria-label={`Checkout PR #${pullRequest.number} branch`}
+                aria-label={t("checkoutPrAria", { number: pullRequest.number })}
                 disabled={isCheckingOut}
                 onClick={() => {
                   setIsCheckingOut(true);
@@ -98,7 +100,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
                   });
                 }}
               >
-                {isCheckingOut ? "Checking out..." : "Checkout Branch"}
+                {isCheckingOut ? t("checkingOut") : t("checkoutBranch")}
               </button>
             ) : null}
           </div>
@@ -116,7 +118,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
             {pullRequest.baseRefName} ← {pullRequest.headRefName}
           </span>
           {pullRequest.isDraft && (
-            <span className="diff-viewer-pr-pill">Draft</span>
+            <span className="diff-viewer-pr-pill">{t("draft")}</span>
           )}
         </div>
       </div>
@@ -127,15 +129,14 @@ export const PullRequestSummary = memo(function PullRequestSummary({
             className="diff-viewer-pr-markdown markdown"
           />
         ) : (
-          <div className="diff-viewer-pr-empty">No description provided.</div>
+          <div className="diff-viewer-pr-empty">{t("noDescriptionProvided")}</div>
         )}
       </div>
       <div className="diff-viewer-pr-timeline">
         <div className="diff-viewer-pr-timeline-header">
-          <span className="diff-viewer-pr-timeline-title">Activity</span>
+          <span className="diff-viewer-pr-timeline-title">{t("activity")}</span>
           <span className="diff-viewer-pr-timeline-count">
-            {sortedComments.length} comment
-            {sortedComments.length === 1 ? "" : "s"}
+            {t("commentCount", { count: sortedComments.length })}
           </span>
           {hiddenCommentCount > 0 && (
             <button
@@ -143,7 +144,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
               className="ghost diff-viewer-pr-timeline-button"
               onClick={() => setIsTimelineExpanded(true)}
             >
-              Show all
+              {t("showAll")}
             </button>
           )}
           {isTimelineExpanded &&
@@ -153,14 +154,14 @@ export const PullRequestSummary = memo(function PullRequestSummary({
                 className="ghost diff-viewer-pr-timeline-button"
                 onClick={() => setIsTimelineExpanded(false)}
               >
-                Collapse
+                {t("collapse")}
               </button>
             )}
         </div>
         <div className="diff-viewer-pr-timeline-list">
           {pullRequestCommentsLoading && (
             <div className="diff-viewer-pr-timeline-state">
-              Loading comments…
+              {t("loadingComments")}
             </div>
           )}
           {pullRequestCommentsError && (
@@ -172,13 +173,12 @@ export const PullRequestSummary = memo(function PullRequestSummary({
             !pullRequestCommentsError &&
             !sortedComments.length && (
               <div className="diff-viewer-pr-timeline-state">
-                No comments yet.
+                {t("noCommentsYet")}
               </div>
             )}
           {hiddenCommentCount > 0 && !isTimelineExpanded && (
             <div className="diff-viewer-pr-timeline-divider">
-              {hiddenCommentCount} earlier comment
-              {hiddenCommentCount === 1 ? "" : "s"}
+              {t("earlierCommentCount", { count: hiddenCommentCount })}
             </div>
           )}
           {visibleComments.map((comment) => {
@@ -204,7 +204,7 @@ export const PullRequestSummary = memo(function PullRequestSummary({
                     />
                   ) : (
                     <div className="diff-viewer-pr-timeline-text">
-                      No comment body.
+                      {t("noCommentBody")}
                     </div>
                   )}
                 </div>

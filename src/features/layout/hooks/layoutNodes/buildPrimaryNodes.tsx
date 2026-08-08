@@ -1,4 +1,5 @@
 import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
+import { i18n } from "../../../../i18n";
 import { Sidebar } from "../../../app/components/Sidebar";
 import { Home } from "../../../home/components/Home";
 import { MainHeader } from "../../../app/components/MainHeader";
@@ -56,7 +57,7 @@ export function buildPrimaryNodes(options: PrimaryLayoutNodesOptions): PrimaryLa
         <button
           className="icon-button back-button"
           onClick={options.desktopTopbarProps.onExitDiff}
-          aria-label="Back to chat"
+          aria-label={i18n.t("layout:backToChat")}
         >
           <ArrowLeft aria-hidden />
         </button>

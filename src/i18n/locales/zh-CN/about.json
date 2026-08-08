@@ -1,0 +1,10 @@
+{
+  "appIconAlt": "Codex Monitor 图标",
+  "appTitle": "Codex Monitor",
+  "version": "版本 {{version}}",
+  "versionPlaceholder": "版本 —",
+  "tagline": "监控您的 Codex 代理的运行状况",
+  "github": "GitHub",
+  "twitter": "Twitter",
+  "footer": "由 Codex 与 Dimillian 用 ♥ 打造"
+}

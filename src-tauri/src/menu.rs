@@ -62,16 +62,26 @@ pub fn menu_set_accelerators<R: Runtime>(
 
 pub(crate) fn build_menu<R: tauri::Runtime>(
     handle: &tauri::AppHandle<R>,
+    lang: &str,
 ) -> tauri::Result<Menu<R>> {
     let registry = handle.state::<MenuItemRegistry<R>>();
     let app_name = handle.package_info().name.clone();
-    let about_item =
-        MenuItemBuilder::with_id("about", format!("About {app_name}")).build(handle)?;
-    let check_updates_item =
-        MenuItemBuilder::with_id("check_for_updates", "Check for Updates...").build(handle)?;
-    let settings_item = MenuItemBuilder::with_id("file_open_settings", "Settings...")
-        .accelerator("CmdOrCtrl+,")
-        .build(handle)?;
+    let about_item = MenuItemBuilder::with_id(
+        "about",
+        crate::i18n::t_rs_fmt("menu.about_fmt", lang, &[&app_name]),
+    )
+    .build(handle)?;
+    let check_updates_item = MenuItemBuilder::with_id(
+        "check_for_updates",
+        crate::i18n::t_rs("menu.check_for_updates", lang),
+    )
+    .build(handle)?;
+    let settings_item = MenuItemBuilder::with_id(
+        "file_open_settings",
+        crate::i18n::t_rs("menu.settings", lang),
+    )
+    .accelerator("CmdOrCtrl+,")
+    .build(handle)?;
     let app_menu = Submenu::with_items(
         handle,
         app_name.clone(),
@@ -90,16 +100,31 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
         ],
     )?;
 
-    let new_agent_item = MenuItemBuilder::with_id("file_new_agent", "New Agent").build(handle)?;
-    let new_worktree_agent_item =
-        MenuItemBuilder::with_id("file_new_worktree_agent", "New Worktree Agent").build(handle)?;
-    let new_clone_agent_item =
-        MenuItemBuilder::with_id("file_new_clone_agent", "New Clone Agent").build(handle)?;
-    let add_workspace_item =
-        MenuItemBuilder::with_id("file_add_workspace", "Add Workspaces...").build(handle)?;
-    let add_workspace_from_url_item =
-        MenuItemBuilder::with_id("file_add_workspace_from_url", "Add Workspace from URL...")
-            .build(handle)?;
+    let new_agent_item = MenuItemBuilder::with_id(
+        "file_new_agent",
+        crate::i18n::t_rs("menu.new_agent", lang),
+    )
+    .build(handle)?;
+    let new_worktree_agent_item = MenuItemBuilder::with_id(
+        "file_new_worktree_agent",
+        crate::i18n::t_rs("menu.new_worktree_agent", lang),
+    )
+    .build(handle)?;
+    let new_clone_agent_item = MenuItemBuilder::with_id(
+        "file_new_clone_agent",
+        crate::i18n::t_rs("menu.new_clone_agent", lang),
+    )
+    .build(handle)?;
+    let add_workspace_item = MenuItemBuilder::with_id(
+        "file_add_workspace",
+        crate::i18n::t_rs("menu.add_workspaces", lang),
+    )
+    .build(handle)?;
+    let add_workspace_from_url_item = MenuItemBuilder::with_id(
+        "file_add_workspace_from_url",
+        crate::i18n::t_rs("menu.add_workspace_from_url", lang),
+    )
+    .build(handle)?;
 
     registry.register("file_new_agent", &new_agent_item);
     registry.register("file_new_worktree_agent", &new_worktree_agent_item);
@@ -107,12 +132,19 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
 
     #[cfg(target_os = "linux")]
     let file_menu = {
-        let close_window_item =
-            MenuItemBuilder::with_id("file_close_window", "Close Window").build(handle)?;
-        let quit_item = MenuItemBuilder::with_id("file_quit", "Quit").build(handle)?;
+        let close_window_item = MenuItemBuilder::with_id(
+            "file_close_window",
+            crate::i18n::t_rs("menu.close_window", lang),
+        )
+        .build(handle)?;
+        let quit_item = MenuItemBuilder::with_id(
+            "file_quit",
+            crate::i18n::t_rs("menu.quit", lang),
+        )
+        .build(handle)?;
         Submenu::with_items(
             handle,
-            "File",
+            crate::i18n::t_rs("menu.file", lang),
             true,
             &[
                 &new_agent_item,
@@ -130,7 +162,7 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
     #[cfg(not(target_os = "linux"))]
     let file_menu = Submenu::with_items(
         handle,
-        "File",
+        crate::i18n::t_rs("menu.file", lang),
         true,
         &[
             &new_agent_item,
@@ -148,7 +180,7 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
 
     let edit_menu = Submenu::with_items(
         handle,
-        "Edit",
+        crate::i18n::t_rs("menu.edit", lang),
         true,
         &[
             &PredefinedMenuItem::undo(handle, None)?,
@@ -161,20 +193,30 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
         ],
     )?;
 
-    let cycle_model_item = MenuItemBuilder::with_id("composer_cycle_model", "Cycle Model")
-        .accelerator("CmdOrCtrl+Shift+M")
-        .build(handle)?;
-    let cycle_access_item = MenuItemBuilder::with_id("composer_cycle_access", "Cycle Access Mode")
-        .accelerator("CmdOrCtrl+Shift+A")
-        .build(handle)?;
-    let cycle_reasoning_item =
-        MenuItemBuilder::with_id("composer_cycle_reasoning", "Cycle Reasoning Mode")
-            .accelerator("CmdOrCtrl+Shift+R")
-            .build(handle)?;
-    let cycle_collaboration_item =
-        MenuItemBuilder::with_id("composer_cycle_collaboration", "Cycle Collaboration Mode")
-            .accelerator("Shift+Tab")
-            .build(handle)?;
+    let cycle_model_item = MenuItemBuilder::with_id(
+        "composer_cycle_model",
+        crate::i18n::t_rs("menu.cycle_model", lang),
+    )
+    .accelerator("CmdOrCtrl+Shift+M")
+    .build(handle)?;
+    let cycle_access_item = MenuItemBuilder::with_id(
+        "composer_cycle_access",
+        crate::i18n::t_rs("menu.cycle_access_mode", lang),
+    )
+    .accelerator("CmdOrCtrl+Shift+A")
+    .build(handle)?;
+    let cycle_reasoning_item = MenuItemBuilder::with_id(
+        "composer_cycle_reasoning",
+        crate::i18n::t_rs("menu.cycle_reasoning", lang),
+    )
+    .accelerator("CmdOrCtrl+Shift+R")
+    .build(handle)?;
+    let cycle_collaboration_item = MenuItemBuilder::with_id(
+        "composer_cycle_collaboration",
+        crate::i18n::t_rs("menu.cycle_collaboration", lang),
+    )
+    .accelerator("Shift+Tab")
+    .build(handle)?;
     registry.register("composer_cycle_model", &cycle_model_item);
     registry.register("composer_cycle_access", &cycle_access_item);
     registry.register("composer_cycle_reasoning", &cycle_reasoning_item);
@@ -182,7 +224,7 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
 
     let composer_menu = Submenu::with_items(
         handle,
-        "Composer",
+        crate::i18n::t_rs("menu.composer", lang),
         true,
         &[
             &cycle_model_item,
@@ -192,26 +234,48 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
         ],
     )?;
 
-    let toggle_projects_sidebar_item =
-        MenuItemBuilder::with_id("view_toggle_projects_sidebar", "Toggle Projects Sidebar")
-            .build(handle)?;
-    let toggle_git_sidebar_item =
-        MenuItemBuilder::with_id("view_toggle_git_sidebar", "Toggle Git Sidebar").build(handle)?;
-    let toggle_debug_panel_item =
-        MenuItemBuilder::with_id("view_toggle_debug_panel", "Toggle Debug Panel")
-            .accelerator("CmdOrCtrl+Shift+D")
-            .build(handle)?;
-    let toggle_terminal_item = MenuItemBuilder::with_id("view_toggle_terminal", "Toggle Terminal")
-        .accelerator("CmdOrCtrl+Shift+T")
-        .build(handle)?;
-    let next_agent_item =
-        MenuItemBuilder::with_id("view_next_agent", "Next Agent").build(handle)?;
-    let prev_agent_item =
-        MenuItemBuilder::with_id("view_prev_agent", "Previous Agent").build(handle)?;
-    let next_workspace_item =
-        MenuItemBuilder::with_id("view_next_workspace", "Next Workspace").build(handle)?;
-    let prev_workspace_item =
-        MenuItemBuilder::with_id("view_prev_workspace", "Previous Workspace").build(handle)?;
+    let toggle_projects_sidebar_item = MenuItemBuilder::with_id(
+        "view_toggle_projects_sidebar",
+        crate::i18n::t_rs("menu.toggle_projects_sidebar", lang),
+    )
+    .build(handle)?;
+    let toggle_git_sidebar_item = MenuItemBuilder::with_id(
+        "view_toggle_git_sidebar",
+        crate::i18n::t_rs("menu.toggle_git_sidebar", lang),
+    )
+    .build(handle)?;
+    let toggle_debug_panel_item = MenuItemBuilder::with_id(
+        "view_toggle_debug_panel",
+        crate::i18n::t_rs("menu.toggle_debug_panel", lang),
+    )
+    .accelerator("CmdOrCtrl+Shift+D")
+    .build(handle)?;
+    let toggle_terminal_item = MenuItemBuilder::with_id(
+        "view_toggle_terminal",
+        crate::i18n::t_rs("menu.toggle_terminal", lang),
+    )
+    .accelerator("CmdOrCtrl+Shift+T")
+    .build(handle)?;
+    let next_agent_item = MenuItemBuilder::with_id(
+        "view_next_agent",
+        crate::i18n::t_rs("menu.next_agent", lang),
+    )
+    .build(handle)?;
+    let prev_agent_item = MenuItemBuilder::with_id(
+        "view_prev_agent",
+        crate::i18n::t_rs("menu.prev_agent", lang),
+    )
+    .build(handle)?;
+    let next_workspace_item = MenuItemBuilder::with_id(
+        "view_next_workspace",
+        crate::i18n::t_rs("menu.next_workspace", lang),
+    )
+    .build(handle)?;
+    let prev_workspace_item = MenuItemBuilder::with_id(
+        "view_prev_workspace",
+        crate::i18n::t_rs("menu.prev_workspace", lang),
+    )
+    .build(handle)?;
     registry.register(
         "view_toggle_projects_sidebar",
         &toggle_projects_sidebar_item,
@@ -226,11 +290,14 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
 
     #[cfg(target_os = "linux")]
     let view_menu = {
-        let fullscreen_item =
-            MenuItemBuilder::with_id("view_fullscreen", "Toggle Full Screen").build(handle)?;
+        let fullscreen_item = MenuItemBuilder::with_id(
+            "view_fullscreen",
+            crate::i18n::t_rs("menu.toggle_fullscreen", lang),
+        )
+        .build(handle)?;
         Submenu::with_items(
             handle,
-            "View",
+            crate::i18n::t_rs("menu.view", lang),
             true,
             &[
                 &toggle_projects_sidebar_item,
@@ -251,7 +318,7 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
     #[cfg(not(target_os = "linux"))]
     let view_menu = Submenu::with_items(
         handle,
-        "View",
+        crate::i18n::t_rs("menu.view", lang),
         true,
         &[
             &toggle_projects_sidebar_item,
@@ -271,14 +338,24 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
 
     #[cfg(target_os = "linux")]
     let window_menu = {
-        let minimize_item =
-            MenuItemBuilder::with_id("window_minimize", "Minimize").build(handle)?;
-        let maximize_item =
-            MenuItemBuilder::with_id("window_maximize", "Maximize").build(handle)?;
-        let close_item = MenuItemBuilder::with_id("window_close", "Close Window").build(handle)?;
+        let minimize_item = MenuItemBuilder::with_id(
+            "window_minimize",
+            crate::i18n::t_rs("menu.minimize", lang),
+        )
+        .build(handle)?;
+        let maximize_item = MenuItemBuilder::with_id(
+            "window_maximize",
+            crate::i18n::t_rs("menu.maximize", lang),
+        )
+        .build(handle)?;
+        let close_item = MenuItemBuilder::with_id(
+            "window_close",
+            crate::i18n::t_rs("menu.close_window", lang),
+        )
+        .build(handle)?;
         Submenu::with_items(
             handle,
-            "Window",
+            crate::i18n::t_rs("menu.window", lang),
             true,
             &[
                 &minimize_item,
@@ -291,7 +368,7 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
     #[cfg(not(target_os = "linux"))]
     let window_menu = Submenu::with_items(
         handle,
-        "Window",
+        crate::i18n::t_rs("menu.window", lang),
         true,
         &[
             &PredefinedMenuItem::minimize(handle, None)?,
@@ -303,12 +380,15 @@ pub(crate) fn build_menu<R: tauri::Runtime>(
 
     #[cfg(target_os = "linux")]
     let help_menu = {
-        let about_item =
-            MenuItemBuilder::with_id("help_about", format!("About {app_name}")).build(handle)?;
-        Submenu::with_items(handle, "Help", true, &[&about_item])?
+        let about_item = MenuItemBuilder::with_id(
+            "help_about",
+            crate::i18n::t_rs_fmt("menu.about_fmt", lang, &[&app_name]),
+        )
+        .build(handle)?;
+        Submenu::with_items(handle, crate::i18n::t_rs("menu.help", lang), true, &[&about_item])?
     };
     #[cfg(not(target_os = "linux"))]
-    let help_menu = Submenu::with_items(handle, "Help", true, &[])?;
+    let help_menu = Submenu::with_items(handle, crate::i18n::t_rs("menu.help", lang), true, &[])?;
 
     Menu::with_items(
         handle,
@@ -328,6 +408,12 @@ pub(crate) fn handle_menu_event<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     event: tauri::menu::MenuEvent,
 ) {
+    let lang = app
+        .state::<crate::state::AppState>()
+        .app_settings
+        .try_lock()
+        .map(|guard| crate::i18n::resolve_ui_language(&guard.language))
+        .unwrap_or_else(|_| crate::i18n::resolve_ui_language(""));
     match event.id().as_ref() {
         "about" | "help_about" => {
             if let Some(window) = app.get_webview_window("about") {
@@ -335,8 +421,9 @@ pub(crate) fn handle_menu_event<R: tauri::Runtime>(
                 let _ = window.set_focus();
                 return;
             }
+            let app_name = app.package_info().name.clone();
             let _ = WebviewWindowBuilder::new(app, "about", WebviewUrl::App("index.html".into()))
-                .title("About Codex Monitor")
+                .title(&crate::i18n::t_rs_fmt("menu.about_fmt", &lang, &[&app_name]))
                 .resizable(false)
                 .inner_size(360.0, 240.0)
                 .center()

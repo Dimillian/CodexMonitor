@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { CSSProperties, MouseEvent } from "react";
 
 import type { ThreadSummary } from "../../../types";
@@ -86,6 +87,7 @@ export function ThreadRow({
   onToggleSubagents,
   showPinnedLabel = true,
 }: ThreadRowProps) {
+  const { t } = useTranslation();
   const relativeTime = getThreadTime(thread);
   const badge = getThreadArgsBadge?.(workspaceId, thread.id) ?? null;
   const modelBadge =
@@ -107,9 +109,9 @@ export function ThreadRow({
   );
   const statusLabel =
     statusClass === "reviewing"
-      ? "Reviewing"
+      ? t("threads:row.reviewing")
       : hasPendingUserInput
-        ? "Waiting"
+        ? t("threads:row.waiting")
         : null;
   const subagentLabel =
     thread.isSubagent && (thread.subagentNickname || thread.subagentRole)
@@ -197,7 +199,7 @@ export function ThreadRow({
                 {contextLabel}
               </span>
             )}
-            {showPinnedLabel && isPinned && <span className="thread-pinned-label">Pinned</span>}
+            {showPinnedLabel && isPinned && <span className="thread-pinned-label">{t("threads:row.pinned")}</span>}
           </div>
         )}
       </div>
@@ -211,10 +213,10 @@ export function ThreadRow({
               onToggleSubagents?.(workspaceId, thread.id);
             }}
             data-tauri-drag-region="false"
-            aria-label={subagentsExpanded ? "Hide sub-agents" : "Show sub-agents"}
+            aria-label={subagentsExpanded ? t("threads:row.hideSubAgents") : t("threads:row.showSubAgents")}
             aria-expanded={subagentsExpanded}
           >
-            <span className="thread-subagent-time-label">{relativeTime ?? "Now"}</span>
+            <span className="thread-subagent-time-label">{relativeTime ?? t("threads:row.now")}</span>
             <span className="thread-subagent-toggle-icon" aria-hidden>
               ›
             </span>

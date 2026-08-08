@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 
 type ClonePromptProps = {
@@ -30,6 +31,7 @@ export function ClonePrompt({
   onConfirm,
   isBusy = false,
 }: ClonePromptProps) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -44,19 +46,19 @@ export function ClonePrompt({
   return (
     <ModalShell
       className="clone-modal"
-      ariaLabel="New clone agent"
+      ariaLabel={t("workspaces:ariaNewCloneAgent")}
       onBackdropClick={() => {
         if (!isBusy) {
           onCancel();
         }
       }}
     >
-      <div className="ds-modal-title clone-modal-title">New clone agent</div>
+      <div className="ds-modal-title clone-modal-title">{t("workspaces:cloneModalTitle")}</div>
       <div className="ds-modal-subtitle clone-modal-subtitle">
-        Create a new working copy of "{workspaceName}".
+        {t("workspaces:cloneModalSubtitle", { workspaceName })}
       </div>
       <label className="ds-modal-label clone-modal-label" htmlFor="clone-copy-name">
-        Copy name
+        {t("workspaces:copyName")}
       </label>
       <input
         id="clone-copy-name"
@@ -78,14 +80,14 @@ export function ClonePrompt({
         }}
       />
       <label className="ds-modal-label clone-modal-label" htmlFor="clone-copies-folder">
-        Copies folder
+        {t("workspaces:copiesFolder")}
       </label>
       <div className="clone-modal-folder-row">
         <textarea
           id="clone-copies-folder"
           className="ds-modal-input clone-modal-input clone-modal-input--path"
           value={copiesFolder}
-          placeholder="Not set"
+          placeholder={t("workspaces:notSet")}
           readOnly
           rows={1}
           wrap="off"
@@ -115,7 +117,7 @@ export function ClonePrompt({
           onClick={onChooseCopiesFolder}
           disabled={isBusy}
         >
-          Choose…
+          {t("workspaces:choose")}
         </button>
         <button
           type="button"
@@ -123,12 +125,12 @@ export function ClonePrompt({
           onClick={onClearCopiesFolder}
           disabled={isBusy || copiesFolder.trim().length === 0}
         >
-          Clear
+{t("workspaces:clear")}
         </button>
       </div>
       {showSuggested && (
         <div className="clone-modal-suggested">
-          <div className="clone-modal-suggested-label">Suggested</div>
+          <div className="clone-modal-suggested-label">{t("workspaces:suggested")}</div>
           <div className="clone-modal-suggested-row">
             <textarea
               className="ds-modal-input clone-modal-suggested-path clone-modal-input--path"
@@ -136,7 +138,7 @@ export function ClonePrompt({
               readOnly
               rows={1}
               wrap="off"
-              aria-label="Suggested copies folder"
+              aria-label={t("workspaces:ariaSuggestedCopiesFolder")}
               title={suggestedCopiesFolder ?? ""}
               onFocus={(event) => {
                 const value = event.currentTarget.value;
@@ -161,7 +163,7 @@ export function ClonePrompt({
               }}
               disabled={isBusy || !suggestedCopiesFolder}
             >
-              Copy
+              {t("workspaces:copy")}
             </button>
             <button
               type="button"
@@ -169,7 +171,7 @@ export function ClonePrompt({
               onClick={onUseSuggestedCopiesFolder}
               disabled={isBusy}
             >
-              Use suggested
+              {t("workspaces:useSuggested")}
             </button>
           </div>
         </div>
@@ -182,7 +184,7 @@ export function ClonePrompt({
           type="button"
           disabled={isBusy}
         >
-          Cancel
+          {t("workspaces:cancel")}
         </button>
         <button
           className="primary ds-modal-button clone-modal-button"
@@ -190,7 +192,7 @@ export function ClonePrompt({
           type="button"
           disabled={isBusy || !canCreate}
         >
-          Create
+          {t("workspaces:create")}
         </button>
       </div>
     </ModalShell>
